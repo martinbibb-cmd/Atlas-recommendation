@@ -697,3 +697,197 @@
     gap: 1px;
   }
 }
+
+
+/* ── Five-page decision document ──────────────────────────────────────────── */
+
+/* Page 1 — Decision */
+
+.rv-decision-page {
+  padding-bottom: 0.25rem;
+}
+
+.rv-decision-headline {
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.rv-decision-headline--good {
+  background: #f0fff4;
+  border-left: 4px solid #38a169;
+}
+
+.rv-decision-headline--caution {
+  background: #fffbea;
+  border-left: 4px solid #d69e2e;
+}
+
+.rv-decision-headline--fail {
+  background: #fff5f5;
+  border-left: 4px solid #e53e3e;
+}
+
+.rv-decision-headline__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  color: #1a202c;
+}
+
+.rv-decision-block {
+  margin-bottom: 1rem;
+}
+
+.rv-decision-block--recommend {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+}
+
+.rv-decision-consequence {
+  font-size: 0.9rem;
+  color: #4a5568;
+  margin: 0.25rem 0 0;
+}
+
+.rv-decision-system {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.rv-bullet-list--why {
+  margin-top: 0.4rem;
+}
+
+/* Page 2 — Daily experience */
+
+.rv-scenarios {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.rv-scenario {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr auto;
+  align-items: start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.rv-scenario--ok {
+  background: #f0fff4;
+  border-color: #c6f6d5;
+}
+
+.rv-scenario--limited {
+  background: #fffbea;
+  border-color: #fef3c7;
+}
+
+.rv-scenario--slow {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.rv-scenario__icon {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.rv-scenario__icon--ok    { color: #38a169; }
+.rv-scenario__icon--limited { color: #d69e2e; }
+.rv-scenario__icon--slow  { color: #dd6b20; }
+
+.rv-scenario__body {
+  min-width: 0;
+}
+
+.rv-scenario__name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0;
+  color: #2d3748;
+}
+
+.rv-scenario__note {
+  font-size: 0.8rem;
+  color: #718096;
+  margin: 0.15rem 0 0;
+}
+
+.rv-scenario__badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.rv-scenario__badge--ok      { background: #c6f6d5; color: #276749; }
+.rv-scenario__badge--limited { background: #fef3c7; color: #92400e; }
+.rv-scenario__badge--slow    { background: #fed7aa; color: #7c2d12; }
+
+/* Page 3 — What changes */
+
+/* (uses existing .rv-section__subtitle, .rv-bullet-list) */
+
+/* Page 4 — Alternatives */
+
+.rv-alternatives__primary {
+  font-size: 0.88rem;
+  color: #4a5568;
+  margin: 0 0 0.75rem;
+}
+
+.rv-alternative-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  background: #f7fafc;
+  margin-bottom: 0.75rem;
+}
+
+.rv-alternative-card__label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 0.35rem;
+}
+
+.rv-alternative-card__requirement {
+  font-size: 0.82rem;
+  color: #718096;
+  margin: 0 0 0.5rem;
+}
+
+.rv-alternatives__none {
+  font-size: 0.85rem;
+  color: #718096;
+  margin: 0 0 0.5rem;
+}
+
+.rv-alternatives__footnote {
+  font-size: 0.8rem;
+  color: #a0aec0;
+  margin: 0.5rem 0 0;
+}
+
+/* Page 5 — Engineer snapshot */
+
+.rv-section--engineer {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+}

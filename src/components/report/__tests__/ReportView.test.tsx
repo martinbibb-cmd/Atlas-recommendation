@@ -8,8 +8,7 @@
  *   - Shows a "Report not available" blocked state when essential data is missing
  *   - Shows the completeness banner for partial output
  *   - Does NOT show the banner when output is complete
- *   - Renders the verdict section with correct status and reasons
- *   - Renders key limiters when present
+ *   - Renders the five-page decision document sections
  *   - Renders the toolbar with back and print buttons
  *   - Calls onBack when the back button is clicked
  */
@@ -92,6 +91,47 @@ const BROKEN_OUTPUT: EngineOutputV1 = {
   redFlags: [],
   recommendation: { primary: '' },
   explainers: [],
+};
+
+/** Output with options so pages 2–4 are rendered. */
+const OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
+  ...FULL_OUTPUT,
+  options: [
+    {
+      id: 'system_unvented',
+      label: 'System boiler with unvented cylinder',
+      status: 'viable',
+      headline: 'Stored hot water system',
+      why: ['Stored volume removes flow dependency'],
+      requirements: [],
+      heat: { status: 'ok', headline: 'Good', bullets: ['60°C flow comfortable'] },
+      dhw: { status: 'ok', headline: 'Adequate stored volume', bullets: ['150L cylinder needed'] },
+      engineering: { status: 'caution', headline: 'Minor installation works', bullets: ['Add cylinder and pipework'] },
+      typedRequirements: {
+        mustHave: ['Cylinder space required'],
+        likelyUpgrades: ['Primary pipework upsize'],
+        niceToHave: ['Smart controls'],
+      },
+      sensitivities: [],
+    },
+    {
+      id: 'ashp',
+      label: 'Heat pump',
+      status: 'caution',
+      headline: 'Heat pump system',
+      why: ['Low carbon alternative'],
+      requirements: [],
+      heat: { status: 'ok', headline: 'Efficient at low flow temp', bullets: [] },
+      dhw: { status: 'caution', headline: 'Stored with immersion backup', bullets: [] },
+      engineering: { status: 'caution', headline: 'Significant works', bullets: ['Larger emitters likely required'] },
+      typedRequirements: {
+        mustHave: ['External wall space for heat pump unit', 'Larger emitters or underfloor heating'],
+        likelyUpgrades: [],
+        niceToHave: [],
+      },
+      sensitivities: [],
+    },
+  ],
 };
 
 // ─── Document structure ───────────────────────────────────────────────────────
@@ -181,312 +221,154 @@ describe('ReportView — completeness banner', () => {
   });
 });
 
-// ─── System summary section ───────────────────────────────────────────────────
+// ─── Page 1 — Decision ───────────────────────────────────────────────────────
 
-describe('ReportView — system summary section', () => {
-  it('renders the primary recommendation text', () => {
+describe('ReportView — page 1: decision section', () => {
+  it('renders the recommendation text from engine output', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('Unvented cylinder system')).toBeTruthy();
+    expect(screen.getAllByText('Unvented cylinder system').length).toBeGreaterThan(0);
   });
 
-  it('renders the secondary recommendation text when present', () => {
+  it('renders "Recommended solution" label', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('With regular boiler')).toBeTruthy();
+    expect(screen.getByText('Recommended solution')).toBeTruthy();
   });
 
-  it('renders the "System summary" section heading', () => {
+  it('renders verdict title as headline when no limiters are present', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('System summary')).toBeTruthy();
-  });
-});
-
-// ─── Verdict section ──────────────────────────────────────────────────────────
-
-describe('ReportView — verdict section', () => {
-  it('renders the verdict title', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    // Title appears in both system-summary assessment dd and verdict p — check at least one
     expect(screen.getAllByText('Stored hot water recommended').length).toBeGreaterThan(0);
   });
 
-  it('renders the "Recommended" label for a good verdict', () => {
+  it('renders "System constraint identified" headline when warn limiter present', () => {
+    render(<ReportView output={FULL_OUTPUT} />);
+    expect(screen.getByText('System constraint identified')).toBeTruthy();
+  });
+
+  it('renders "What we found" label when limiters are present', () => {
+    render(<ReportView output={FULL_OUTPUT} />);
+    expect(screen.getByText('What we found')).toBeTruthy();
+  });
+
+  it('renders limiter observed value in measured facts', () => {
+    render(<ReportView output={FULL_OUTPUT} />);
+    // "1.2 kPa" should appear in measured facts (may also appear in engineer snapshot constraint)
+    expect(screen.getAllByText(/1\.2.*kPa/).length).toBeGreaterThan(0);
+  });
+
+  it('renders "What this means" label when consequence is available', () => {
+    render(<ReportView output={FULL_OUTPUT} />);
+    expect(screen.getByText('What this means')).toBeTruthy();
+  });
+
+  it('renders whyRequired reasons from verdict', () => {
+    render(<ReportView output={MINIMAL_OUTPUT} />);
+    // verdict.reasons appear in whyRequired bullets
+    expect(screen.getAllByText('Adequate storage capacity').length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── Page 5 — Engineer snapshot ───────────────────────────────────────────────
+
+describe('ReportView — page 5: engineer snapshot', () => {
+  it('renders "Engineer snapshot" heading', () => {
+    render(<ReportView output={MINIMAL_OUTPUT} />);
+    expect(screen.getByText('Engineer snapshot')).toBeTruthy();
+  });
+
+  it('renders "Recommended" label in engineer snapshot', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
     expect(screen.getByText('Recommended')).toBeTruthy();
   });
 
-  it('renders the confidence badge', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    // Confidence level appears in doc header meta
-    expect(screen.getByText(/Confidence: high/)).toBeTruthy();
-  });
-
-  it('renders "Confidence" label and capitalised level in the verdict block', () => {
+  it('renders "Confidence" label in engineer snapshot', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
     expect(screen.getByText('Confidence')).toBeTruthy();
+  });
+
+  it('renders capitalised confidence level in engineer snapshot', () => {
+    render(<ReportView output={MINIMAL_OUTPUT} />);
     expect(screen.getByText('High')).toBeTruthy();
   });
 
-  it('renders verdict reasons', () => {
+  it('renders confidence level in doc header meta', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    // Reasons appear in both the decision rationale and verdict sections.
-    expect(screen.getAllByText('Adequate storage capacity').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Low simultaneous demand risk').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/Confidence: high/)).toBeTruthy();
   });
 
-  it('renders the verdict section heading', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.getByText('Verdict / recommendation')).toBeTruthy();
-  });
-});
-
-// ─── Limiters section ─────────────────────────────────────────────────────────
-
-describe('ReportView — key limiters section', () => {
-  it('renders limiters section heading when limiters are present', () => {
+  it('renders "Key constraint" row when limiter data is present', () => {
     render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getAllByText('Things to be aware of').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Key constraint')).toBeTruthy();
+  });
+});
+
+// ─── Page 2 — Daily experience ────────────────────────────────────────────────
+
+describe('ReportView — page 2: daily experience section', () => {
+  it('renders "Daily experience" heading when option data is present', () => {
+    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
+    expect(screen.getByText('Daily experience')).toBeTruthy();
   });
 
-  it('renders limiter title', () => {
-    render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText('Mains pressure marginal')).toBeTruthy();
+  it('renders at least one scenario item', () => {
+    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThan(0);
   });
 
-  it('renders limiter detail', () => {
-    render(<ReportView output={FULL_OUTPUT} />);
-    // Limiter impact summary appears in both decision rationale constraints and key limiters section.
-    expect(screen.getAllByText(/Dynamic pressure is below optimal/).length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('renders suggested fix', () => {
-    render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText(/Install a pump/)).toBeTruthy();
-  });
-
-  it('does not render limiters section when no limiters', () => {
+  it('does not render daily experience when no options', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(document.querySelector('#rv-key-limiters')).toBeNull();
+    expect(screen.queryByText('Daily experience')).toBeNull();
   });
 });
 
-// ─── Behaviour summary ────────────────────────────────────────────────────────
+// ─── Page 3 — What changes ────────────────────────────────────────────────────
 
-describe('ReportView — behaviour summary section', () => {
-  it('renders behaviour timeline summary heading when timeline is present', () => {
-    render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText('Behaviour timeline summary')).toBeTruthy();
+describe('ReportView — page 3: what changes section', () => {
+  it('renders "What changes" heading when option data is present', () => {
+    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
+    expect(screen.getByText('What changes')).toBeTruthy();
   });
 
-  it('renders the appliance name', () => {
-    render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText('Regular boiler with cylinder')).toBeTruthy();
+  it('renders mustHave requirement from recommended option', () => {
+    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
+    expect(screen.getAllByText('Cylinder space required').length).toBeGreaterThan(0);
   });
 
-  it('does not render behaviour summary when timeline is absent', () => {
+  it('does not render what changes when no options', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.queryByText('Behaviour timeline summary')).toBeNull();
+    expect(screen.queryByText('What changes')).toBeNull();
   });
 });
 
-// ─── New section renderers ────────────────────────────────────────────────────
+// ─── Page 4 — Alternatives ────────────────────────────────────────────────────
 
-/** Output with a full option card including sensitivities and plans. */
-const OUTPUT_WITH_OPTIONS: EngineOutputV1 = {
-  ...FULL_OUTPUT,
-  options: [
-    {
-      id: 'ashp',
-      label: 'ASHP with unvented cylinder',
-      status: 'viable',
-      headline: 'Heat pump system',
-      why: ['Low carbon'],
-      requirements: [],
-      heat: { status: 'ok', headline: 'Good at low flow temp', bullets: ['45°C flow comfortable'] },
-      dhw: { status: 'ok', headline: 'Stored supply with stratification', bullets: ['210L cylinder needed', 'Immersion back-up included'] },
-      engineering: { status: 'caution', headline: 'Moderate installation works', bullets: ['External unit space needed', 'Primary pipe upsize likely'] },
-      typedRequirements: {
-        mustHave: ['External wall space for heat pump unit'],
-        likelyUpgrades: ['Primary pipework 22→28mm upgrade'],
-        niceToHave: ['Smart controls'],
-      },
-      sensitivities: [
-        { lever: 'Primary pipe size', effect: 'upgrade', note: 'Upsize to 28mm removes hydraulic barrier.' },
-        { lever: 'Loft headroom', effect: 'downgrade', note: 'Low loft restricts cylinder siting.' },
-      ],
-    },
-  ],
-  plans: {
-    pathways: [
-      {
-        id: 'path_1',
-        title: 'Install ASHP now',
-        rationale: 'Best carbon outcome under current constraints.',
-        outcomeToday: 'Low-carbon heat and hot water',
-        prerequisites: [],
-        confidence: { level: 'medium', reasons: [] },
-        rank: 1,
-      },
-    ],
-    sharedConstraints: [],
-  },
-};
-
-describe('ReportView — key trade-off section', () => {
-  it('renders key trade-off section heading when options are present', () => {
+describe('ReportView — page 4: alternatives section', () => {
+  it('renders "Alternatives" heading when option data is present', () => {
     render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Key trade-off')).toBeTruthy();
+    expect(screen.getByText('Alternatives')).toBeTruthy();
   });
 
-  it('renders likely upgrades label', () => {
+  it('renders the secondary option label', () => {
     render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Likely upgrades required')).toBeTruthy();
+    expect(screen.getByText('Heat pump')).toBeTruthy();
   });
 
-  it('renders likely upgrade items', () => {
+  it('renders trade-offs for the alternative', () => {
     render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Primary pipework 22→28mm upgrade')).toBeTruthy();
+    expect(screen.getByText(/External wall space for heat pump unit/)).toBeTruthy();
   });
 
-  it('renders engineering considerations label', () => {
+  it('renders the "Explore in simulator" footnote', () => {
     render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Engineering considerations')).toBeTruthy();
+    expect(screen.getByText(/explore.*in the interactive simulator/i)).toBeTruthy();
   });
 
-  it('does not render key trade-off section when no options', () => {
+  it('does not render alternatives when no options', () => {
     render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.queryByText('Key trade-off')).toBeNull();
+    expect(screen.queryByText('Alternatives')).toBeNull();
   });
 });
 
-describe('ReportView — future path section', () => {
-  it('renders next step / future path heading when sensitivities present', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Next step / future path')).toBeTruthy();
-  });
-
-  it('renders enablers section label', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText(/What would improve the outcome/)).toBeTruthy();
-  });
-
-  it('renders risks section label', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText(/What would reduce the outcome/)).toBeTruthy();
-  });
-
-  it('renders pathway options section when plans are present', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Pathway options')).toBeTruthy();
-    expect(screen.getByText('Install ASHP now')).toBeTruthy();
-  });
-});
-
-describe('ReportView — system architecture section', () => {
-  it('renders system architecture heading when options present', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('System architecture')).toBeTruthy();
-  });
-
-  it('renders installation requirements label', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Installation requirements')).toBeTruthy();
-  });
-
-  it('renders engineering bullets', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getAllByText('Primary pipe upsize likely').length).toBeGreaterThan(0);
-  });
-
-  it('does not render system architecture when no options', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.queryByText('System architecture')).toBeNull();
-  });
-});
-
-describe('ReportView — stored hot water section', () => {
-  it('renders stored hot water heading for a stored system option', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Stored hot water')).toBeTruthy();
-  });
-
-  it('renders stored hot water bullets', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('210L cylinder needed')).toBeTruthy();
-  });
-});
-
-describe('ReportView — risks and enablers section', () => {
-  it('renders risks and enablers heading when sensitivities present', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Risks and enablers')).toBeTruthy();
-  });
-
-  it('renders risks label', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText(/Risks — inputs that could reduce suitability/)).toBeTruthy();
-  });
-
-  it('renders enablers label', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText(/Enablers — inputs that could improve suitability/)).toBeTruthy();
-  });
-});
-
-describe('ReportView — physics trace section (appendix)', () => {
-  it('renders physics trace section heading when behaviourTimeline present', () => {
-    render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText('Physics trace (appendix)')).toBeTruthy();
-  });
-
-  it('renders the appendix group header', () => {
-    render(<ReportView output={FULL_OUTPUT} />);
-    expect(screen.getByText('Appendix')).toBeTruthy();
-  });
-
-  it('does not render physics trace when behaviourTimeline absent', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.queryByText('Physics trace (appendix)')).toBeNull();
-  });
-});
-
-describe('ReportView — engineering notes section (appendix)', () => {
-  it('renders engineering notes heading when options have requirements', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Engineering notes (appendix)')).toBeTruthy();
-  });
-
-  it('renders must-have requirements', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getAllByText('External wall space for heat pump unit').length).toBeGreaterThan(0);
-  });
-
-  it('renders nice-to-have items', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Smart controls')).toBeTruthy();
-  });
-
-  it('does not render engineering notes when no options', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.queryByText('Engineering notes (appendix)')).toBeNull();
-  });
-});
-
-describe('ReportView — section group headers', () => {
-  it('renders "Technical summary" group header when technical sections are present', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Technical summary')).toBeTruthy();
-  });
-
-  it('renders "Appendix" group header when appendix sections are present', () => {
-    render(<ReportView output={OUTPUT_WITH_OPTIONS} />);
-    expect(screen.getByText('Appendix')).toBeTruthy();
-  });
-
-  it('does not render "Technical summary" header when no technical sections present', () => {
-    render(<ReportView output={MINIMAL_OUTPUT} />);
-    expect(screen.queryByText('Technical summary')).toBeNull();
-  });
-});
+// ─── Print support ────────────────────────────────────────────────────────────
 
 describe('ReportView — print support', () => {
   it('renders the print button', () => {
