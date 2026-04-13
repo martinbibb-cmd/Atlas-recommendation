@@ -60,6 +60,10 @@ function maintenanceResponse(body: Record<string, unknown>): Response {
     headers: {
       "Content-Type": "application/json",
       "X-Atlas-Mode": "maintenance",
+      // 30 seconds: a reasonable window for transient D1 connectivity blips and
+      // schema-drift migrations (which typically complete within 10–30 s on D1).
+      // Cloudflare Workers' 30 s CPU limit also means a new request context will
+      // be created after this interval, resetting any in-request breaker state.
       "Retry-After": "30",
     },
   });

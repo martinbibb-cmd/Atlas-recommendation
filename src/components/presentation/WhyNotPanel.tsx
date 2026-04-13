@@ -144,6 +144,14 @@ export default function WhyNotPanel({
               <p className="why-not__reason">{reason}</p>
               {explainer != null && (
                 <p className="why-not__explainer-link">
+                  {/*
+                   * Hash-link convention: the target page must render the
+                   * educational explainer with id="explainer-{explainerId}" on
+                   * its root element. See ExplainerOverlay / EducationalExplainer
+                   * components which accept an `id` prop and set the DOM id
+                   * accordingly. This convention is documented in
+                   * docs/atlas-explainer-linking.md.
+                   */}
                   <a
                     href={`#explainer-${explainer.id}`}
                     className="why-not__learn-more"

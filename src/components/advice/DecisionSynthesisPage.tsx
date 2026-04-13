@@ -761,6 +761,12 @@ export default function DecisionSynthesisPage({
   // This NEVER alters engine scoring or the recommended option.
   const [chosenOptionId, setChosenOptionId] = useState<string | null>(null);
 
+  // Stable callback for the "Test Recovery" deep-link button.
+  // Undefined when no simulator event handler is wired up by the parent.
+  const handleTestRecovery = onOpenSimulatorWithEvent != null
+    ? () => onOpenSimulatorWithEvent('high_volume_draw')
+    : undefined;
+
   // Register context-specific explainer IDs with the global menu shell.
   const { setContextExplainerIds, setContextMenuSections, openExplainerById } = useGlobalMenu();
 
@@ -1667,7 +1673,7 @@ export default function DecisionSynthesisPage({
                   {/* ── Block D: How it behaves ──────────────────────────── */}
                   <div className="advice-option-block advice-option-block--behaviour">
                     <div className="advice-option-block__title">How it behaves</div>
-                    <OptionBehaviourPreview optionId={option.id} onTestRecovery={onOpenSimulatorWithEvent != null ? () => onOpenSimulatorWithEvent("high_volume_draw") : undefined} />
+                    <OptionBehaviourPreview optionId={option.id} onTestRecovery={handleTestRecovery} />
                     {onOpenSimulator != null && (
                       <button
                         className="advice-option-simulator-btn"
@@ -1828,7 +1834,7 @@ export default function DecisionSynthesisPage({
                   {/* ── Block D: How it behaves ──────────────────────────── */}
                   <div className="advice-option-block advice-option-block--behaviour">
                     <div className="advice-option-block__title">How it behaves</div>
-                    <OptionBehaviourPreview optionId={option.id} onTestRecovery={onOpenSimulatorWithEvent != null ? () => onOpenSimulatorWithEvent("high_volume_draw") : undefined} />
+                    <OptionBehaviourPreview optionId={option.id} onTestRecovery={handleTestRecovery} />
                     {onOpenSimulator != null && (
                       <button
                         className="advice-option-simulator-btn"

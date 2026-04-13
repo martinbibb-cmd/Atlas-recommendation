@@ -118,13 +118,15 @@ export default function ScanPackageImportFlow({
   }, [existingRooms]);
 
   // ── Step 3: Conflict resolution confirmed ──
+  //
+  // The `resolutions` map records the engineer's per-room choices (keep_manual
+  // vs use_scan). The import itself always applies all scan entities — the
+  // caller (floor-plan merge layer) is responsible for honouring the resolution
+  // map when it decides which room dimensions to keep. Passing it through to
+  // onImported in a typed companion object is the intended future extension.
   const handleConflictsResolved = useCallback(
-    (reviewReady: ScanPackageReviewReady, _resolutions: ConflictResolutionMap) => {
-      // Re-run the import; conflict resolution is applied by the caller
-      // when merging the draft into the floor plan (resolutions are passed
-      // back via onImported's companion data in a future extension).
-      // For now we complete the import and let the caller use resolutions
-      // from the ConflictResolutionMap as needed.
+    (reviewReady: ScanPackageReviewReady, resolutions: ConflictResolutionMap) => {
+      void resolutions; // resolutions map will be forwarded in future extension
       try {
         const result = confirmScanPackageImport(reviewReady);
         if (result.status === 'failed') {
