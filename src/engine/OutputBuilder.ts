@@ -10,6 +10,7 @@ import { buildLimitersV1 } from './LimitersBuilder';
 import { buildPathwaysV1 } from './modules/PathwayBuilderModule';
 import { assessFutureEnergyOpportunities } from './modules/FutureEnergyOpportunitiesModule';
 import { buildRealWorldBehavioursV1 } from './modules/RealWorldBehaviourModule';
+import { analyseInstallMarkup } from './modules/InstallMarkupModule';
 
 /**
  * Flag ID emitted by CombiDhwModule when mains pressure is below the absolute
@@ -894,6 +895,9 @@ export function buildEngineOutputV1(
   // Modelled real-world behaviour scenarios
   const realWorldBehaviours = input ? buildRealWorldBehavioursV1(result, input) : undefined;
 
+  // Install markup analysis — complexity, materials, and disruption from scan data
+  const installMarkupAnalysis = analyseInstallMarkup(input?.installMarkup);
+
   return {
     eligibility: eligibilityItems,
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
@@ -916,5 +920,6 @@ export function buildEngineOutputV1(
     plans,
     futureEnergyOpportunities,
     realWorldBehaviours,
+    installMarkupAnalysis,
   };
 }

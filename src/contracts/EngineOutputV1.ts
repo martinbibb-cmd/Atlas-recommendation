@@ -1,6 +1,7 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 import type { AssumptionId } from './assumptions.ids';
 import type { PenaltyId } from './scoring.penaltyIds';
+import type { InstallMarkupAnalysisV1 } from '../features/installMarkup/installMarkup.types';
 
 export interface AssumptionV1 {
   id: AssumptionId;
@@ -733,4 +734,11 @@ export interface EngineOutputV1 {
    * Present when survey data is sufficient to evaluate at least some scenarios.
    */
   realWorldBehaviours?: RealWorldBehaviourCard[];
+  /**
+   * Install markup analysis derived from atlas-scans-ios capture data.
+   * Present when InstallLayerModelV1 was supplied in the engine input.
+   * Provides install complexity, material estimates, disruption signals, and
+   * plain-language install insights for recommendations and reports.
+   */
+  installMarkupAnalysis?: InstallMarkupAnalysisV1;
 }

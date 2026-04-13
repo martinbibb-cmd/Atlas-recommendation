@@ -1,5 +1,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
+import type { InstallLayerModelV1 } from '../../features/installMarkup/installMarkup.types';
+export type { InstallLayerModelV1 };
 import type { DemandPresetId, DemandTimingOverrides } from './OccupancyPreset';
 export type { DemandPresetId, DemandTimingOverrides };
 import type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 } from '../../contracts/EngineInputV2_3';
@@ -915,6 +917,18 @@ export interface EngineInputV2_3 {
      */
     profilePreset?: 'summer' | 'shoulder' | 'winter';
   };
+
+  /**
+   * Structured install markup captured from atlas-scans-ios.
+   *
+   * When present, the engine uses InstallMarkupModule to derive install
+   * complexity, material estimates, and disruption signals that improve
+   * recommendation reasoning and report overlays.
+   *
+   * Absent for surveys captured before install markup was introduced; the
+   * engine degrades gracefully and produces zero-state analysis output.
+   */
+  installMarkup?: InstallLayerModelV1;
 }
 
 export interface HydraulicResult {
