@@ -1,5 +1,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
+import type { InstallMarkupV1 } from './installMarkup.types';
+export type { InstallMarkupV1 };
 import type { DemandPresetId, DemandTimingOverrides } from './OccupancyPreset';
 export type { DemandPresetId, DemandTimingOverrides };
 import type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 } from '../../contracts/EngineInputV2_3';
@@ -915,6 +917,21 @@ export interface EngineInputV2_3 {
      */
     profilePreset?: 'summer' | 'shoulder' | 'winter';
   };
+
+  /**
+   * Optional install markup — spatially-measured pipe routes and object
+   * placements produced by atlas-scans-ios and typed by atlas-contracts.
+   *
+   * When present, the InstallComplexityModule derives:
+   *   - total proposed pipe run length and material estimates per route kind
+   *   - complexity score (bends, mounting transitions, branching)
+   *   - disruption band (surface / boxed / chased / screed distribution)
+   *   - alignment signals (proposed routes that shadow existing → lower disruption)
+   *
+   * When absent, all install-complexity signals default to 'unknown' and the
+   * disruption objective score is unchanged from the physics-only baseline.
+   */
+  installMarkup?: InstallMarkupV1;
 }
 
 export interface HydraulicResult {

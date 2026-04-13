@@ -28,6 +28,7 @@ import type { CandidateEvidenceBundle } from './recommendation/RecommendationMod
 import { runDemographicsAssessmentModule } from './modules/DemographicsAssessmentModule';
 import { runPvAssessmentModule } from './modules/PvAssessmentModule';
 import { ENGINE_MODULE_REGISTRY } from './modules/EngineModuleRegistry';
+import './modules/registerInstallComplexityModule';
 
 /**
  * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType

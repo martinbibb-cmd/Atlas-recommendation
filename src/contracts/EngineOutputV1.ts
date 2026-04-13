@@ -1,6 +1,8 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 import type { AssumptionId } from './assumptions.ids';
 import type { PenaltyId } from './scoring.penaltyIds';
+import type { InstallComplexityResultV1 } from '../engine/schema/installMarkup.types';
+export type { InstallComplexityResultV1 };
 
 export interface AssumptionV1 {
   id: AssumptionId;
@@ -733,4 +735,18 @@ export interface EngineOutputV1 {
    * Present when survey data is sufficient to evaluate at least some scenarios.
    */
   realWorldBehaviours?: RealWorldBehaviourCard[];
+  /**
+   * Install complexity signals derived from InstallMarkupV1 (measured pipe routes
+   * and object placements captured in atlas-scans-ios).
+   *
+   * Present when EngineInputV2_3.installMarkup is populated.
+   * Absent when no markup is available — disruption scoring falls back to
+   * the physics-only baseline without geometry-derived adjustments.
+   *
+   * Consumers:
+   *   - Recommendation disruption scoring (disruptionObjectiveDelta)
+   *   - Report install overlay (before / after routing)
+   *   - Red-flag panel (complex routing signals)
+   */
+  installComplexity?: InstallComplexityResultV1;
 }
