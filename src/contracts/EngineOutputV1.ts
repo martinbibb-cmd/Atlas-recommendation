@@ -1,6 +1,7 @@
 import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 import type { AssumptionId } from './assumptions.ids';
 import type { PenaltyId } from './scoring.penaltyIds';
+import type { InstallMarkupResult } from '../features/installMarkup/InstallMarkupModule';
 
 export interface AssumptionV1 {
   id: AssumptionId;
@@ -733,4 +734,10 @@ export interface EngineOutputV1 {
    * Present when survey data is sufficient to evaluate at least some scenarios.
    */
   realWorldBehaviours?: RealWorldBehaviourCard[];
+  /**
+   * Install markup interpretation — present when the engine input included an
+   * InstallLayerModelV1.  Carries complexity scores, material estimates,
+   * disruption signals, and routing notes for use in reports and overlays.
+   */
+  installMarkup?: InstallMarkupResult;
 }

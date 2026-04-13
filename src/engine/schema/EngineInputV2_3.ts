@@ -1,5 +1,7 @@
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 export type { EngineOutputV1 };
+import type { InstallLayerModelV1 } from '../../features/installMarkup/installMarkup.types';
+export type { InstallLayerModelV1 };
 import type { DemandPresetId, DemandTimingOverrides } from './OccupancyPreset';
 export type { DemandPresetId, DemandTimingOverrides };
 import type { DayProfileV1, HeatingBandV1, DhwHeatBandV1, DhwEventV1 } from '../../contracts/EngineInputV2_3';
@@ -837,6 +839,18 @@ export interface EngineInputV2_3 {
    * not about physics.  These dials feed pathway ranking only (not the physics sim).
    */
   expertAssumptions?: ExpertAssumptionsV1;
+
+  /**
+   * Optional install markup layer — structured geometry produced by atlas-scans-ios.
+   *
+   * When present, the InstallMarkupModule derives install complexity, material
+   * estimates, and disruption signals that feed recommendation reasoning and
+   * generate visual install overlays in reports.
+   *
+   * When absent, install complexity is treated as unknown and no routing signals
+   * are produced.
+   */
+  installMarkup?: InstallLayerModelV1;
 
   /**
    * Optional maintenance intervention — simulates the effect of a system service

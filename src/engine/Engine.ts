@@ -28,6 +28,8 @@ import type { CandidateEvidenceBundle } from './recommendation/RecommendationMod
 import { runDemographicsAssessmentModule } from './modules/DemographicsAssessmentModule';
 import { runPvAssessmentModule } from './modules/PvAssessmentModule';
 import { ENGINE_MODULE_REGISTRY } from './modules/EngineModuleRegistry';
+// Side-effect import: registers InstallMarkupModule with the engine registry.
+import '../features/installMarkup/registerInstallMarkupModule';
 
 /**
  * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType
