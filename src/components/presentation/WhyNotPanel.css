@@ -58,3 +58,23 @@
   border-top: 1px solid #e5e7eb;
   padding-top: 0.35rem;
 }
+
+/* Educational explainer deep-link */
+.why-not__explainer-link {
+  margin: 0 0 0.35rem 0;
+}
+
+.why-not__learn-more {
+  font-size: 0.775rem;
+  color: #4f46e5;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.why-not__learn-more:hover {
+  text-decoration: underline;
+  color: #3730a3;
+}
+

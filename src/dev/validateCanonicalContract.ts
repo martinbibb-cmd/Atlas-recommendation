@@ -19,6 +19,7 @@
  */
 
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
+import { CONTRACT_VERSION } from '../contracts/versions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -152,14 +153,43 @@ const RANGE_CHECKS: Array<{
  * Validates the sanitised survey model against the canonical data contract.
  *
  * @param model - The output of sanitiseModelForEngine().
+ * @param inputContractVersion - Optional: the contract version embedded in the
+ *   input model (e.g. from a persisted report). When present and lower than the
+ *   current CONTRACT_VERSION, a stale-data warning is emitted so that consumers
+ *   know the model was produced under an older contract and may need re-deriving.
  * @returns An array of ContractViolation items. Empty array means no violations.
  *
  * @remarks DEV builds only. In production this function is a no-op.
  */
-export function validateCanonicalContract(model: FullSurveyModelV1): ContractViolation[] {
+export function validateCanonicalContract(
+  model: FullSurveyModelV1,
+  inputContractVersion?: string,
+): ContractViolation[] {
   if (!import.meta.env.DEV) return [];
 
   const violations: ContractViolation[] = [];
+
+  // 0. Stale contract-version check
+  //    When the caller knows the persisted model's contract version, verify it
+  //    matches the current CONTRACT_VERSION.  A mismatch does not block the run
+  //    but warns developers that derived fields (occupancyCount, boilerConditionBand,
+  //    etc.) may have been computed under older rules and could give stale results.
+  if (inputContractVersion != null && inputContractVersion !== CONTRACT_VERSION) {
+    const msg =
+      `Input model was produced under contract v${inputContractVersion}; ` +
+      `current contract is v${CONTRACT_VERSION}. ` +
+      `Re-run sanitiseModelForEngine() to refresh derived fields.`;
+    violations.push({
+      fieldPath: 'contractVersion',
+      reason: msg,
+      severity: 'warn',
+    });
+    console.warn(
+      `[Atlas Contract] Stale model version: ${inputContractVersion} → expected ${CONTRACT_VERSION}`,
+      '\nReason:', msg,
+      '\nSee: docs/atlas-canonical-contract.md §6 (Versioning)',
+    );
+  }
 
   // 1. Required field presence
   for (const { path, get } of REQUIRED_FIELDS) {
@@ -254,6 +284,11 @@ export function validateCanonicalContract(model: FullSurveyModelV1): ContractVio
  * Returns true if the sanitised model passes all contract checks.
  * Convenience wrapper for use in conditional guards.
  */
-export function isCanonicalContractValid(model: FullSurveyModelV1): boolean {
-  return validateCanonicalContract(model).length === 0;
+export function isCanonicalContractValid(
+  model: FullSurveyModelV1,
+  inputContractVersion?: string,
+): boolean {
+  return validateCanonicalContract(model, inputContractVersion).every(
+    v => v.severity !== 'error',
+  );
 }

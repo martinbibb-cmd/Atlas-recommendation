@@ -27,6 +27,7 @@ import { buildRecommendationsFromEvidence } from './recommendation/buildRecommen
 import type { CandidateEvidenceBundle } from './recommendation/RecommendationModel';
 import { runDemographicsAssessmentModule } from './modules/DemographicsAssessmentModule';
 import { runPvAssessmentModule } from './modules/PvAssessmentModule';
+import { ENGINE_MODULE_REGISTRY } from './modules/EngineModuleRegistry';
 
 /**
  * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType
@@ -177,5 +178,13 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   // mirrors recommendationResult.bestOverall — keeping every surface in sync.
   const engineOutput = buildEngineOutputV1(core, input, recommendationResult.bestOverall?.family ?? null);
   const inputValidation = runEngineInputValidation(input);
+
+  // ── Module registry: emit engine:input-validated and engine:output-ready ──
+  // Add-on modules (registered via ENGINE_MODULE_REGISTRY.register()) subscribe
+  // to these events to extend outputs without modifying this orchestrator.
+  ENGINE_MODULE_REGISTRY.emit('engine:input-validated', { input });
+  ENGINE_MODULE_REGISTRY.emit('engine:core-complete', { input });
+  ENGINE_MODULE_REGISTRY.emit('engine:output-ready', { input, output: engineOutput });
+
   return { ...core, engineOutput, inputValidation, recommendationResult };
 }

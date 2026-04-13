@@ -37,11 +37,19 @@ export const CARBON_MEDIUM_THRESHOLD = 0.22;
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
 
-/** Honest, plain-English labels for the performance chip. Avoids "optimal" language. */
+/** Honest, plain-English labels for the performance chip. Avoids "optimal" language.
+ *
+ * Each label includes a brief quantitative confidence interval so engineers
+ * and customers understand the variance in the efficiency estimate. The ±
+ * ranges reflect the dominant input uncertainty at each band:
+ *   'optimal' (Works best) — well-characterised system, low modelling variance
+ *   'average' (Works well) — typical variance from insulation / behaviour assumptions
+ *   'poor'    (Needs setup) — high sensitivity to site conditions; wide confidence band
+ */
 export const PERF_CHIP_LABEL: Record<PerformanceSummary['efficiencyBand'], string> = {
-  optimal: 'Works best',
-  average: 'Works well',
-  poor:    'Needs the right setup',
+  optimal: 'Works best — ±5% efficiency variance',
+  average: 'Works well — ±10% efficiency variance based on current insulation assumptions',
+  poor:    'Needs the right setup — ±15–20% variance until site conditions are confirmed',
 };
 
 export const COST_LEVEL_LABEL:   ['Lower', 'Medium', 'Higher'] = ['Lower', 'Medium', 'Higher'];

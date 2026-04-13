@@ -131,6 +131,17 @@ interface Props {
    * The callback receives the option ID so the simulator can preselect that option.
    */
   onOpenSimulator?: (optionId?: string) => void;
+  /**
+   * Deep-link to a specific simulator event state.
+   *
+   * When provided, recovery-trait rows show a "Test Recovery" button that
+   * launches the simulator pre-configured with a high-volume draw event,
+   * so the engineer can demonstrate cylinder recovery time interactively.
+   *
+   * The string argument identifies the preset event to activate:
+   *   'high_volume_draw' — activate a large bath/draw event in the simulator
+   */
+  onOpenSimulatorWithEvent?: (event: 'high_volume_draw') => void;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -679,11 +690,24 @@ const OPTION_BEHAVIOUR_TRAITS: Record<string, {
   },
 };
 
+/** Trait text patterns that indicate a recovery-time characteristic. */
+const RECOVERY_TRAIT_PATTERN = /recovery/i;
+
 /**
  * Static mini preview of how a system type behaves.
  * Deterministic — data comes from known physics of each system type.
+ *
+ * When `onTestRecovery` is provided, recovery-related trait rows show a
+ * "Test Recovery" button that deep-links to the simulator with a
+ * high-volume draw event already active.
  */
-function OptionBehaviourPreview({ optionId }: { optionId: string }) {
+function OptionBehaviourPreview({
+  optionId,
+  onTestRecovery,
+}: {
+  optionId: string;
+  onTestRecovery?: () => void;
+}) {
   const meta = OPTION_BEHAVIOUR_TRAITS[optionId];
   if (!meta) return null;
   return (
@@ -694,6 +718,17 @@ function OptionBehaviourPreview({ optionId }: { optionId: string }) {
           <li key={i} className="advice-option-behaviour__trait">
             <span className="advice-option-behaviour__icon" aria-hidden="true">{t.icon}</span>
             <span>{t.text}</span>
+            {RECOVERY_TRAIT_PATTERN.test(t.text) && onTestRecovery != null && (
+              <button
+                type="button"
+                onClick={onTestRecovery}
+                className="advice-option-behaviour__test-recovery"
+                aria-label="Test recovery time in simulator with a high-volume draw event"
+                title="Opens the simulator pre-configured with a large hot-water draw event"
+              >
+                Test Recovery →
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -710,6 +745,7 @@ export default function DecisionSynthesisPage({
   reportReference,
   recommendationResult,
   onOpenSimulator,
+  onOpenSimulatorWithEvent,
 }: Props) {
   const [showPrint, setShowPrint] = useState(false);
   const [showPrintQr, setShowPrintQr] = useState(false);
@@ -1631,7 +1667,7 @@ export default function DecisionSynthesisPage({
                   {/* ── Block D: How it behaves ──────────────────────────── */}
                   <div className="advice-option-block advice-option-block--behaviour">
                     <div className="advice-option-block__title">How it behaves</div>
-                    <OptionBehaviourPreview optionId={option.id} />
+                    <OptionBehaviourPreview optionId={option.id} onTestRecovery={onOpenSimulatorWithEvent != null ? () => onOpenSimulatorWithEvent("high_volume_draw") : undefined} />
                     {onOpenSimulator != null && (
                       <button
                         className="advice-option-simulator-btn"
@@ -1792,7 +1828,7 @@ export default function DecisionSynthesisPage({
                   {/* ── Block D: How it behaves ──────────────────────────── */}
                   <div className="advice-option-block advice-option-block--behaviour">
                     <div className="advice-option-block__title">How it behaves</div>
-                    <OptionBehaviourPreview optionId={option.id} />
+                    <OptionBehaviourPreview optionId={option.id} onTestRecovery={onOpenSimulatorWithEvent != null ? () => onOpenSimulatorWithEvent("high_volume_draw") : undefined} />
                     {onOpenSimulator != null && (
                       <button
                         className="advice-option-simulator-btn"
