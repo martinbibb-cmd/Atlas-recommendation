@@ -1,4 +1,4 @@
-import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "./_utils/errors.js";
+import { createD1CircuitBreaker } from "./_utils/circuitBreaker.js";
 
 /**
  * POST /api/visits
@@ -93,48 +93,44 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       : {};
   const workingPayloadJson = JSON.stringify(workingPayload);
 
-  try {
-    await env.ATLAS_REPORTS_D1.prepare(
+  const breaker = createD1CircuitBreaker();
+
+  const insertResult = await breaker.run(() =>
+    env.ATLAS_REPORTS_D1.prepare(
       `INSERT INTO visits
          (id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step, visit_reference, working_payload_json)
        VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)`
     )
       .bind(id, now, now, customerName, addressLine1, postcode, currentStep, visitReference, workingPayloadJson)
-      .run();
+      .run()
+  );
 
-    console.log(`[Atlas] Visit created: id=${id}`);
-    return Response.json({ ok: true, id }, { status: 201 });
-  } catch (err) {
-    console.error(`[Atlas] Visit insert failed: id=${id}`, String(err));
-    if (isMissingTableError(err)) {
-      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
-    }
-    return Response.json(
-      { ok: false, error: String(err) },
-      { status: 500 }
-    );
+  if (!insertResult.ok) {
+    console.error(`[Atlas] Visit insert failed (circuit breaker): id=${id}`);
+    return insertResult.response;
   }
+
+  console.log(`[Atlas] Visit created: id=${id}`);
+  return Response.json({ ok: true, id }, { status: 201 });
 };
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env } = context;
 
-  try {
-    const result = await env.ATLAS_REPORTS_D1.prepare(
+  const breaker = createD1CircuitBreaker();
+
+  const listResult = await breaker.run(() =>
+    env.ATLAS_REPORTS_D1.prepare(
       `SELECT id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step, visit_reference
        FROM visits
        ORDER BY updated_at DESC
        LIMIT 50`
-    ).all<Omit<VisitRow, "working_payload_json">>();
+    ).all<Omit<VisitRow, "working_payload_json">>()
+  );
 
-    return Response.json({ ok: true, visits: result.results ?? [] });
-  } catch (err) {
-    if (isMissingTableError(err)) {
-      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
-    }
-    return Response.json(
-      { ok: false, error: String(err) },
-      { status: 500 }
-    );
+  if (!listResult.ok) {
+    return listResult.response;
   }
+
+  return Response.json({ ok: true, visits: listResult.value.results ?? [] });
 };

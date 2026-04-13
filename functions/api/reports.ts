@@ -1,4 +1,4 @@
-import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "./_utils/errors.js";
+import { withD1CircuitBreaker } from "./_utils/circuitBreaker.js";
 
 /**
  * POST /api/reports
@@ -82,23 +82,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   const payloadJson = JSON.stringify(body.payload);
 
-  try {
-    await env.ATLAS_REPORTS_D1.prepare(
+  const result = await withD1CircuitBreaker(() =>
+    env.ATLAS_REPORTS_D1.prepare(
       `INSERT INTO reports
          (id, created_at, updated_at, status, title, customer_name, postcode, visit_id, payload_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(id, now, now, status, title, customerName, postcode, visitId, payloadJson)
-      .run();
+      .run()
+  );
 
-    return Response.json({ ok: true, id }, { status: 201 });
-  } catch (err) {
-    if (isMissingTableError(err)) {
-      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
-    }
-    return Response.json(
-      { ok: false, error: String(err) },
-      { status: 500 }
-    );
+  if (!result.ok) {
+    return result.response;
   }
+
+  return Response.json({ ok: true, id }, { status: 201 });
 };

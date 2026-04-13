@@ -7,8 +7,10 @@
  *   1. File selection — user picks manifest.json, scan_bundle.json, and
  *      optional evidence files from the export package folder
  *   2. Pre-import review — shows manifest-derived summary and readiness verdict
- *   3. Confirm → import runs
- *   4. Import summary — post-import counts and warnings
+ *   3. Conflict resolution (optional) — side-by-side choice when scan room
+ *      areas differ from manually-entered values by more than 0.25 m²
+ *   4. Confirm → import runs
+ *   5. Import summary — post-import counts and warnings
  *
  * This component is NOT a dev harness — it is the production import entry
  * point.  It must not surface raw contract types to any component outside the
@@ -26,13 +28,20 @@ import {
 } from '../package/scanPackageImporter';
 import ScanPackageReviewPanel from './ScanPackageReviewPanel';
 import ScanImportSummary from './ScanImportSummary';
+import ScanConflictResolutionPanel, {
+  detectScanConflicts,
+  type ScanRoomConflict,
+  type ConflictResolutionMap,
+} from './ScanConflictResolutionPanel';
 import type { CanonicalFloorPlanDraft } from '../importer/scanMapper';
+import type { Room } from '../../../components/floorplan/propertyPlan.types';
 
 // ─── Step types ───────────────────────────────────────────────────────────────
 
 type Step =
   | { name: 'select' }
   | { name: 'reviewing'; reviewReady: ScanPackageReviewReady }
+  | { name: 'resolving_conflicts'; reviewReady: ScanPackageReviewReady; conflicts: ScanRoomConflict[] }
   | { name: 'confirming'; reviewReady: ScanPackageReviewReady }
   | { name: 'done'; importResult: ScanPackageImportSuccess }
   | { name: 'error'; errors: string[] };
@@ -44,6 +53,13 @@ export interface ScanPackageImportFlowProps {
   onImported: (draft: CanonicalFloorPlanDraft) => void;
   /** Called when the user cancels at any step. */
   onCancel: () => void;
+  /**
+   * Rooms already present in the active Atlas floor plan.
+   * When provided, the import flow will detect area conflicts between the scan
+   * draft and these existing rooms and present a side-by-side resolution step
+   * rather than silently overriding manually-entered values.
+   */
+  existingRooms?: Room[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -51,6 +67,7 @@ export interface ScanPackageImportFlowProps {
 export default function ScanPackageImportFlow({
   onImported,
   onCancel,
+  existingRooms = [],
 }: ScanPackageImportFlowProps) {
   const [step, setStep] = useState<Step>({ name: 'select' });
   const [loading, setLoading] = useState(false);
@@ -79,23 +96,59 @@ export default function ScanPackageImportFlow({
     }
   }, []);
 
-  // ── Step 3: Confirm import ──
+  // ── Step 2b: Review confirmed — check for area conflicts before importing ──
+  const handleReviewConfirmed = useCallback((reviewReady: ScanPackageReviewReady) => {
+    // Run a dry import to get the draft, then detect conflicts.
+    const dryResult = confirmScanPackageImport(reviewReady);
+    if (dryResult.status === 'failed') {
+      setStep({ name: 'error', errors: dryResult.errors });
+      return;
+    }
+
+    if (existingRooms.length > 0) {
+      const conflicts = detectScanConflicts(dryResult.draft, existingRooms);
+      if (conflicts.length > 0) {
+        setStep({ name: 'resolving_conflicts', reviewReady, conflicts });
+        return;
+      }
+    }
+
+    // No conflicts — proceed directly to done.
+    setStep({ name: 'done', importResult: dryResult });
+  }, [existingRooms]);
+
+  // ── Step 3: Conflict resolution confirmed ──
+  //
+  // The `resolutions` map records the engineer's per-room choices (keep_manual
+  // vs use_scan). The import itself always applies all scan entities — the
+  // caller (floor-plan merge layer) is responsible for honouring the resolution
+  // map when it decides which room dimensions to keep. Passing it through to
+  // onImported in a typed companion object is the intended future extension.
+  const handleConflictsResolved = useCallback(
+    (reviewReady: ScanPackageReviewReady, resolutions: ConflictResolutionMap) => {
+      void resolutions; // resolutions map will be forwarded in future extension
+      try {
+        const result = confirmScanPackageImport(reviewReady);
+        if (result.status === 'failed') {
+          setStep({ name: 'error', errors: result.errors });
+        } else {
+          setStep({ name: 'done', importResult: result });
+        }
+      } catch (err) {
+        setStep({
+          name: 'error',
+          errors: [err instanceof Error ? err.message : String(err)],
+        });
+      }
+    },
+    [],
+  );
+
+  // ── Step 3 (legacy path): Confirm import directly ──
   const handleConfirm = useCallback((reviewReady: ScanPackageReviewReady) => {
     setStep({ name: 'confirming', reviewReady });
-    try {
-      const result = confirmScanPackageImport(reviewReady);
-      if (result.status === 'failed') {
-        setStep({ name: 'error', errors: result.errors });
-      } else {
-        setStep({ name: 'done', importResult: result });
-      }
-    } catch (err) {
-      setStep({
-        name: 'error',
-        errors: [err instanceof Error ? err.message : String(err)],
-      });
-    }
-  }, []);
+    handleReviewConfirmed(reviewReady);
+  }, [handleReviewConfirmed]);
 
   // ── Step 4: Continue to floor plan ──
   const handleContinue = useCallback((importResult: ScanPackageImportSuccess) => {
@@ -201,6 +254,33 @@ export default function ScanPackageImportFlow({
         <ScanPackageReviewPanel
           review={step.reviewReady.review}
           onConfirm={() => handleConfirm(step.reviewReady)}
+          onCancel={() => setStep({ name: 'select' })}
+        />
+      </div>
+    );
+  }
+
+  if (step.name === 'resolving_conflicts') {
+    return (
+      <div style={containerStyle}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <button
+            onClick={() => setStep({ name: 'reviewing', reviewReady: step.reviewReady })}
+            style={{ fontSize: 13, padding: '4px 12px' }}
+          >
+            ← Back
+          </button>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 22 }}>Resolve scan conflicts</h1>
+            <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>
+              {step.conflicts.length} room{step.conflicts.length !== 1 ? 's' : ''}{' '}
+              where the scan measurement differs from your manual entry.
+            </p>
+          </div>
+        </div>
+        <ScanConflictResolutionPanel
+          conflicts={step.conflicts}
+          onConfirm={(resolutions) => handleConflictsResolved(step.reviewReady, resolutions)}
           onCancel={() => setStep({ name: 'select' })}
         />
       </div>

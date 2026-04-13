@@ -18,7 +18,43 @@
 import type { RecommendationDecision } from '../../engine/recommendation/RecommendationModel';
 import type { SurveyorContext } from './presentationTypes';
 import { getLimiterHumanCopy } from './limiterHumanLanguage';
+import { EXPLAINER_REGISTRY } from '../../lib/explainers/explainerRegistry';
 import './WhyNotPanel.css';
+
+// ─── Limiter → explainer mapping ──────────────────────────────────────────────
+
+/**
+ * Maps a blocking limiter ID to the most directly relevant educational
+ * explainer ID in EXPLAINER_REGISTRY.
+ *
+ * When a limiter blocks a family, the "Why not?" card links directly to the
+ * explainer so the engineer or customer can read the underlying physics.
+ */
+const LIMITER_TO_EXPLAINER: Record<string, string> = {
+  combi_dhw_demand_risk:             'multiple_taps',
+  simultaneous_demand_constraint:    'multiple_taps',
+  combi_service_switching:           'on_demand_vs_stored',
+  primary_pipe_constraint:           'pipe_capacity',
+  heat_pump_pipe_constraint:         'pipe_capacity',
+  heat_pump_emitter_constraint:      'heat_pump_flow_temp',
+  condensing_return_temp_risk:       'condensing_return_temp',
+  sludge_cycling_risk:               'cycling_efficiency',
+  open_vented_gravity_pressure:      'pressure_vs_flow',
+  thermal_mass_slow_response:        'thermal_mass_inertia',
+};
+
+/**
+ * Resolve the explainer title for a given limiter, if one exists.
+ * Returns null when no mapping is defined.
+ */
+function explainerForLimiter(limiterId: string | undefined): { id: string; title: string } | null {
+  if (limiterId == null) return null;
+  const explainerId = LIMITER_TO_EXPLAINER[limiterId];
+  if (explainerId == null) return null;
+  const entry = EXPLAINER_REGISTRY.find(e => e.id === explainerId);
+  if (entry == null) return null;
+  return { id: entry.id, title: entry.title };
+}
 
 // ─── Family display helpers ───────────────────────────────────────────────────
 
@@ -99,11 +135,32 @@ export default function WhyNotPanel({
             ? getLimiterHumanCopy(blockingLimiterId).headline
             : candidate.caveats[0] ?? 'Worth a closer look before committing.';
 
+          const explainer = explainerForLimiter(blockingLimiterId);
+
           return (
             <div key={candidate.family} className="why-not__card">
               <p className="why-not__family">{familyLabel(candidate.family)}</p>
               <p className="why-not__caveat">{couldWorkCaveat(candidate.family)}</p>
               <p className="why-not__reason">{reason}</p>
+              {explainer != null && (
+                <p className="why-not__explainer-link">
+                  {/*
+                   * Hash-link convention: the target page must render the
+                   * educational explainer with id="explainer-{explainerId}" on
+                   * its root element. See ExplainerOverlay / EducationalExplainer
+                   * components which accept an `id` prop and set the DOM id
+                   * accordingly. This convention is documented in
+                   * docs/atlas-explainer-linking.md.
+                   */}
+                  <a
+                    href={`#explainer-${explainer.id}`}
+                    className="why-not__learn-more"
+                    aria-label={`Learn more: ${explainer.title}`}
+                  >
+                    📖 Learn why: {explainer.title}
+                  </a>
+                </p>
+              )}
               <p className="why-not__hook">
                 {futureHook(candidate.family, surveyorContext)}
               </p>

@@ -167,16 +167,22 @@ describe('performanceDashboardHelpers — outputBlockCount', () => {
 // ─── Label maps ──────────────────────────────────────────────────────────────
 
 describe('performanceDashboardHelpers — PERF_CHIP_LABEL', () => {
-  it('maps "optimal" to "Works best"', () => {
-    expect(PERF_CHIP_LABEL['optimal']).toBe('Works best');
+  it('maps "optimal" to a label starting with "Works best"', () => {
+    expect(PERF_CHIP_LABEL['optimal']).toMatch(/^Works best/);
   });
 
-  it('maps "average" to "Works well"', () => {
-    expect(PERF_CHIP_LABEL['average']).toBe('Works well');
+  it('maps "average" to a label starting with "Works well"', () => {
+    expect(PERF_CHIP_LABEL['average']).toMatch(/^Works well/);
   });
 
-  it('maps "poor" to "Needs the right setup"', () => {
-    expect(PERF_CHIP_LABEL['poor']).toBe('Needs the right setup');
+  it('maps "poor" to a label starting with "Needs the right setup"', () => {
+    expect(PERF_CHIP_LABEL['poor']).toMatch(/^Needs the right setup/);
+  });
+
+  it('includes a confidence interval (± symbol) in each label', () => {
+    for (const label of Object.values(PERF_CHIP_LABEL)) {
+      expect(label).toContain('±');
+    }
   });
 
   it('does not use the word "optimal" in any label value (avoids overconfident wording)', () => {
