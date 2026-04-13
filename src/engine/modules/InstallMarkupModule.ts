@@ -224,7 +224,7 @@ export function deriveDisruption(
   // Reduce score when new routes closely follow existing ones
   if (alignsWithExisting) score *= 0.7;
 
-  const disruptionScore = Math.min(10, Math.round(score * 10) / 10);
+  const disruptionScore = Math.min(10, Math.round(score));
 
   return {
     hasBuriedRoutes: hasBuried,
