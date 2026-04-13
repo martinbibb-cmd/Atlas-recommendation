@@ -92,7 +92,7 @@ export interface InstallObjectModelV1 {
 /**
  * The hydraulic or service purpose of a pipe run.
  *
- * 'flow'    — primary heating flow (hot water leaving boiler / heat pump).
+ * 'flow'    — primary heating flow (hot water leaving the heat source).
  * 'return'  — primary heating return.
  * 'gas'     — gas supply pipe.
  * 'dhw'     — domestic hot water distribution.
