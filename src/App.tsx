@@ -18,6 +18,7 @@ import CustomerRecommendationPrint from './components/print/CustomerRecommendati
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import LegoBuildingSetPage from './explainers/lego/LegoBuildingSetPage';
 import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
+import BuildingHeightCheck from './components/measurements/BuildingHeightCheck';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
 import VisitHubPage from './components/visit/VisitHubPage';
@@ -166,7 +167,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -852,6 +853,9 @@ export default function App() {
           }}
         />
       )}
+      {journey === 'building-height' && (
+        <BuildingHeightCheck onBack={() => setJourney('landing')} />
+      )}
       {journey === 'lego-set' && (
         <LegoBuildingSetPage onBack={() => setJourney('landing')} />
       )}
@@ -942,6 +946,15 @@ export default function App() {
               <h2>Heat Loss Calculator</h2>
               <p>Sketch the property perimeter and get a fast whole-house heat loss estimate.</p>
               <button className="cta-btn">Open Heat Loss →</button>
+            </div>
+            <div
+              className="journey-card"
+              onClick={() => setJourney('building-height')}
+            >
+              <div className="card-icon">📐</div>
+              <h2>Building Height Check</h2>
+              <p>Estimate building height from manual distance and captured base/top angles.</p>
+              <button className="cta-btn">Open Height Check →</button>
             </div>
             <div
               className="journey-card"
