@@ -76,14 +76,14 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
 
   function captureBaseAngle() {
     if (livePitchDeg == null) return;
-    const rounded = Number(livePitchDeg.toFixed(1));
+    const rounded = Math.round(livePitchDeg * 10) / 10;
     setBaseCapturedDeg(rounded);
     setBaseAngleInput(String(rounded));
   }
 
   function captureTopAngle() {
     if (livePitchDeg == null) return;
-    const rounded = Number(livePitchDeg.toFixed(1));
+    const rounded = Math.round(livePitchDeg * 10) / 10;
     setTopCapturedDeg(rounded);
     setTopAngleInput(String(rounded));
   }

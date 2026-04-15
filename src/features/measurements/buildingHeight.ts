@@ -30,6 +30,10 @@ export interface BuildingHeightMeasurementResult {
 }
 
 const SMALL_ANGLE_WARNING_DEG = 5;
+const MEASUREMENT_NOTES = [
+  'Use horizontal distance to the wall base when entering laser distance.',
+  'Line-of-sight laser readings can reduce accuracy unless corrected to horizontal distance.',
+] as const;
 
 function isFiniteNumber(value: number): boolean {
   return Number.isFinite(value);
@@ -114,17 +118,12 @@ export function evaluateBuildingHeightMeasurement(
       ? 'medium'
       : 'low';
 
-  const notes = [
-    'Use horizontal distance to the wall base when entering laser distance.',
-    'Line-of-sight laser readings can reduce accuracy unless corrected to horizontal distance.',
-  ];
-
   return {
     valid: !hasError,
     heightMeters,
     angleSeparationDeg,
     confidenceLevel,
     issues,
-    notes,
+    notes: [...MEASUREMENT_NOTES],
   };
 }
