@@ -479,17 +479,15 @@ export default function CustomerRecommendationPrint({
           </div>
 
           {/* Right — QR code */}
-          {portalUrl && (
-            <div className="crp-footer__qr" aria-label="Portal QR code">
-              <QRCodeImage url={displayUrl} />
-              <p className="crp-footer__qr-caption">Your portal</p>
-              <p className="crp-footer__qr-url">
-                <a href={displayUrl} target="_blank" rel="noopener noreferrer">
-                  {displayUrl}
-                </a>
-              </p>
-            </div>
-          )}
+          <div className="crp-footer__qr" aria-label="Portal QR code">
+            <QRCodeImage url={displayUrl} />
+            <p className="crp-footer__qr-caption">Your portal</p>
+            <p className="crp-footer__qr-url">
+              <a href={displayUrl} target="_blank" rel="noopener noreferrer">
+                {displayUrl}
+              </a>
+            </p>
+          </div>
 
         </footer>
 

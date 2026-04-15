@@ -670,8 +670,8 @@ export default function App() {
           onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
           onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
           onOpenReport={(reportId) => {
-            setActiveReportId(reportId);
-            setJourney('report');
+            const reportUrl = `${window.location.origin}/report/${reportId}`;
+            window.open(reportUrl, '_blank', 'noopener,noreferrer');
           }}
           onOpenEngineerRoute={() => setJourney('engineer')}
         />
@@ -712,8 +712,8 @@ export default function App() {
               setJourney('floor-plan');
             }}
             onOpenReport={(reportId) => {
-              setActiveReportId(reportId);
-              setJourney('report');
+              const reportUrl = `${window.location.origin}/report/${reportId}`;
+              window.open(reportUrl, '_blank', 'noopener,noreferrer');
             }}
             floorplanOutput={floorplanOutput}
           />
