@@ -171,6 +171,24 @@ export async function getVisit(id: string): Promise<VisitDetail> {
 }
 
 /**
+ * DELETE /api/visits/:id
+ *
+ * Permanently deletes a visit and all its child reports.
+ * Throws if the server returns a non-2xx status.
+ */
+export async function deleteVisit(id: string): Promise<void> {
+  const res = await fetch(`/api/visits/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (res.status === 404) {
+    throw new Error("Visit not found");
+  }
+  if (!res.ok) {
+    throw new Error(await extractApiError(res, "Failed to delete visit"));
+  }
+}
+
+/**
  * PUT /api/visits/:id
  *
  * Persists updated working payload and/or metadata for a visit.

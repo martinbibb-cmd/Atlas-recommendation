@@ -10,6 +10,7 @@ import {
   listVisits,
   getVisit,
   saveVisit,
+  deleteVisit,
   visitStatusLabel,
   visitDisplayLabel,
   matchesFilter,
@@ -144,6 +145,35 @@ describe('visitApi', () => {
     it('throws when the server returns an error', async () => {
       global.fetch = mockFetch({ error: 'Visit not found' }, 404);
       await expect(saveVisit('missing', {})).rejects.toThrow('Visit not found');
+    });
+  });
+
+  // ── deleteVisit ──────────────────────────────────────────────────────────────
+
+  describe('deleteVisit', () => {
+    it('DELETEs /api/visits/:id', async () => {
+      global.fetch = mockFetch({ ok: true, id: 'v1' });
+      await deleteVisit('v1');
+      const [url, opts] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0] as [string, RequestInit];
+      expect(url).toBe('/api/visits/v1');
+      expect(opts.method).toBe('DELETE');
+    });
+
+    it('encodes the visit id in the URL', async () => {
+      global.fetch = mockFetch({ ok: true, id: 'a/b' });
+      await deleteVisit('a/b');
+      const url = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+      expect(url).toBe('/api/visits/a%2Fb');
+    });
+
+    it('throws "Visit not found" on 404', async () => {
+      global.fetch = mockFetch({ ok: false, error: 'Visit not found' }, 404);
+      await expect(deleteVisit('missing')).rejects.toThrow('Visit not found');
+    });
+
+    it('throws when the server returns a non-404 error', async () => {
+      global.fetch = mockFetch({ error: 'Internal error' }, 500);
+      await expect(deleteVisit('v1')).rejects.toThrow('Internal error');
     });
   });
 

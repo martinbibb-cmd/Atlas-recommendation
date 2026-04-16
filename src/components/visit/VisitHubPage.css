@@ -299,3 +299,87 @@
   opacity: 0.55;
   cursor: default;
 }
+
+/* ── Danger zone (delete visit) ──────────────────────────────────────────── */
+
+.visit-hub__danger-zone {
+  margin: 1.5rem 1rem 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #fed7d7;
+}
+
+.visit-hub__delete-btn {
+  background: none;
+  border: 1px solid #fc8181;
+  color: #c53030;
+  border-radius: 8px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.visit-hub__delete-btn:hover {
+  background: #fff5f5;
+  border-color: #f56565;
+}
+
+.visit-hub__delete-confirm {
+  background: #fff5f5;
+  border: 1px solid #fc8181;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.visit-hub__delete-confirm-msg {
+  font-size: 0.9rem;
+  color: #742a2a;
+  margin: 0;
+}
+
+.visit-hub__delete-confirm-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.visit-hub__delete-confirm-btn {
+  background: #c53030;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.visit-hub__delete-confirm-btn:hover:not(:disabled) {
+  background: #9b2c2c;
+}
+
+.visit-hub__delete-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.visit-hub__delete-cancel-btn {
+  background: #edf2f7;
+  color: #2d3748;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.visit-hub__delete-cancel-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
