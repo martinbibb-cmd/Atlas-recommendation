@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, deleteVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
 import { listReportsForVisit, saveReport } from '../../lib/reports/reportApi';
 import { generatePortalToken } from '../../lib/portal/portalToken';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
@@ -279,6 +279,8 @@ export default function VisitHubPage({
   const [error, setError] = useState<string | null>(null);
   const [portalUrl, setPortalUrl] = useState<string | undefined>();
   const [portalLoading, setPortalLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   // Keep the working_payload so we can create a report (for portal) if none exists yet.
   const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
   // Voice notes — loaded from working_payload and saved back on change.
@@ -372,6 +374,25 @@ export default function VisitHubPage({
     saveVisit(visitId, { visit_reference: trimmed ?? '' }).catch(() => {/* best effort */});
   }
 
+  function handleDeleteRequest() {
+    setDeleteConfirm(true);
+  }
+
+  function handleDeleteCancel() {
+    setDeleteConfirm(false);
+  }
+
+  function handleDeleteConfirm() {
+    setDeleting(true);
+    deleteVisit(visitId)
+      .then(() => { onBack(); })
+      .catch((err: unknown) => {
+        setDeleting(false);
+        setDeleteConfirm(false);
+        setError(err instanceof Error ? err.message : String(err));
+      });
+  }
+
   /** Persist updated voice notes into the visit's working_payload. */
   function handleNotesChange(updated: VoiceNote[]) {
     setVoiceNotes(updated);
@@ -460,6 +481,43 @@ export default function VisitHubPage({
         />
 
         <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
+
+        <div className="visit-hub__danger-zone">
+          {deleteConfirm ? (
+            <div className="visit-hub__delete-confirm" role="alertdialog" aria-modal="true" aria-label="Confirm visit deletion">
+              <p className="visit-hub__delete-confirm-msg">
+                Permanently delete this visit and all its reports? This cannot be undone.
+              </p>
+              <div className="visit-hub__delete-confirm-actions">
+                <button
+                  className="visit-hub__delete-confirm-btn"
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                  aria-disabled={deleting}
+                  aria-label="Confirm deletion"
+                >
+                  {deleting ? 'Deleting…' : 'Yes, delete visit'}
+                </button>
+                <button
+                  className="visit-hub__delete-cancel-btn"
+                  onClick={handleDeleteCancel}
+                  disabled={deleting}
+                  aria-label="Cancel deletion"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="visit-hub__delete-btn"
+              onClick={handleDeleteRequest}
+              aria-label="Delete this visit"
+            >
+              🗑 Delete visit
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

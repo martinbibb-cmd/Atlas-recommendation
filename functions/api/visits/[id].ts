@@ -18,6 +18,16 @@ import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors.js"
  * Response (404) when no row with that id exists:
  *   { ok: false, error: "Visit not found" }
  *
+ * DELETE /api/visits/:id
+ *
+ * Permanently deletes a visit record and all child reports.
+ *
+ * Response (200):
+ *   { ok: true, id: string }
+ *
+ * Response (404) when no row with that id exists:
+ *   { ok: false, error: "Visit not found" }
+ *
  * PUT /api/visits/:id
  *
  * Updates a visit record's mutable fields.
@@ -95,6 +105,62 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     return buildVisitResponse(row);
   } catch (err) {
     console.error(`[Atlas] Visit load failed: id=${id}`, String(err));
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
+    return Response.json(
+      { ok: false, error: String(err) },
+      { status: 500 }
+    );
+  }
+};
+
+export const onRequestDelete: PagesFunction<Env> = async (context) => {
+  const { env, params } = context;
+  const id = params["id"] as string;
+
+  let existing: { id: string } | null;
+  try {
+    existing = await env.ATLAS_REPORTS_D1.prepare(
+      "SELECT id FROM visits WHERE id = ?"
+    )
+      .bind(id)
+      .first<{ id: string }>();
+  } catch (err) {
+    if (isMissingTableError(err)) {
+      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
+    }
+    return Response.json(
+      { ok: false, error: String(err) },
+      { status: 500 }
+    );
+  }
+
+  if (existing == null) {
+    return Response.json(
+      { ok: false, error: "Visit not found" },
+      { status: 404 }
+    );
+  }
+
+  try {
+    // Delete child reports first to avoid orphaned rows.
+    await env.ATLAS_REPORTS_D1.prepare(
+      "DELETE FROM reports WHERE visit_id = ?"
+    )
+      .bind(id)
+      .run();
+
+    await env.ATLAS_REPORTS_D1.prepare(
+      "DELETE FROM visits WHERE id = ?"
+    )
+      .bind(id)
+      .run();
+
+    console.log(`[Atlas] Visit deleted: id=${id}`);
+    return Response.json({ ok: true, id });
+  } catch (err) {
+    console.error(`[Atlas] Visit delete failed: id=${id}`, String(err));
     if (isMissingTableError(err)) {
       return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
     }
