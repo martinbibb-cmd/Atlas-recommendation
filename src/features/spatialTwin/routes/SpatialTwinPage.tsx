@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { SpatialTwinProvider, useSpatialTwin } from '../state/spatialTwin.store';
 import { SpatialTwinLeftRail } from '../components/SpatialTwinLeftRail';
 import { SpatialTwinTopBar } from '../components/SpatialTwinTopBar';
@@ -7,6 +7,7 @@ import { SpatialTwinLegend } from '../components/SpatialTwinLegend';
 import { SpatialTwinCanvas2D } from '../canvas/SpatialTwinCanvas2D';
 import { SpatialTwinInspector } from '../inspector/SpatialTwinInspector';
 import { SpatialTwinComparePanel } from '../compare/SpatialTwinComparePanel';
+import { ScenarioShortlistPanel } from '../components/ScenarioShortlistPanel';
 import { SpatialTwinDollhouseView } from '../scene/viewer/SpatialTwinDollhouseView';
 import { SpatialTwinSceneModeToggle } from '../scene/viewer/SpatialTwinSceneModeToggle';
 import {
@@ -19,9 +20,12 @@ import {
   setLeftRailSection,
   toggleOverlay,
   setViewDimension,
+  setScenarioSelectedByUser,
 } from '../state/spatialTwin.actions';
 import { selectOverlayIsActive } from '../state/spatialTwin.selectors';
 import { getAllOverlays } from '../overlays/overlayRegistry';
+import { runScenariosFromSpatialTwin } from '../synthesis/runScenariosFromSpatialTwin';
+import { buildScenarioSynthesis } from '../synthesis/buildScenarioSynthesis';
 // Ensure overlays are registered
 import '../overlays/roomHeatLossOverlay';
 import '../overlays/emitterAdequacyOverlay';
@@ -66,6 +70,33 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
   const overlayMetadata =
     firstActiveOverlay != null ? firstActiveOverlay.getMetadata(state) : null;
 
+  const includedScenarios = React.useMemo(
+    () => state.scenarios.filter((s) => s.includeInReport !== false),
+    [state.scenarios],
+  );
+
+  const scenarioNames = React.useMemo(
+    () => Object.fromEntries(state.scenarios.map((s) => [s.scenarioId, s.name])),
+    [state.scenarios],
+  );
+
+  const scenarioSynthesis = React.useMemo(() => {
+    if (
+      state.activeLeftRailSection !== 'compare' ||
+      includedScenarios.length === 0 ||
+      state.model == null
+    ) {
+      return null;
+    }
+    const envelopes = runScenariosFromSpatialTwin(state);
+    return buildScenarioSynthesis(envelopes, state.scenarios);
+  }, [state, includedScenarios.length]);
+
+  const handleSelectScenario = useCallback(
+    (id: string) => { dispatch(setScenarioSelectedByUser(id, true)); },
+    [dispatch],
+  );
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'system-ui, sans-serif' }}>
       {/* Left rail */}
@@ -103,7 +134,17 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
         {/* Canvas or panel */}
         {state.activeLeftRailSection === 'compare' ? (
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <SpatialTwinComparePanel model={state.model} />
+            {scenarioSynthesis != null ? (
+              <div style={{ padding: 16 }}>
+                <ScenarioShortlistPanel
+                  synthesis={scenarioSynthesis}
+                  scenarioNames={scenarioNames}
+                  onSelectScenario={handleSelectScenario}
+                />
+              </div>
+            ) : (
+              <SpatialTwinComparePanel model={state.model} />
+            )}
           </div>
         ) : state.activeLeftRailSection === 'overlays' ? (
           <div style={{ flex: 1, padding: 16, overflowY: 'auto' }}>

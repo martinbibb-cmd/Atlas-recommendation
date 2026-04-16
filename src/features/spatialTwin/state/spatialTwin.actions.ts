@@ -33,6 +33,7 @@ export const SET_ACTIVE_SCENARIO = 'spatialTwin/SET_ACTIVE_SCENARIO' as const;
 export const APPLY_SCENARIO_PATCH = 'spatialTwin/APPLY_SCENARIO_PATCH' as const;
 export const SET_SCENARIO_RECOMMENDED = 'spatialTwin/SET_SCENARIO_RECOMMENDED' as const;
 export const SET_SCENARIO_INCLUDE_IN_REPORT = 'spatialTwin/SET_SCENARIO_INCLUDE_IN_REPORT' as const;
+export const SET_SCENARIO_SELECTED_BY_USER = 'spatialTwin/SET_SCENARIO_SELECTED_BY_USER' as const;
 
 // ─── Action interfaces ───────────────────────────────────────────────────────
 
@@ -119,7 +120,8 @@ export type SpatialTwinAction =
   | SetActiveScenarioAction
   | ApplyScenarioPatchAction
   | SetScenarioRecommendedAction
-  | SetScenarioIncludeInReportAction;
+  | SetScenarioIncludeInReportAction
+  | SetScenarioSelectedByUserAction;
 
 // ─── Scenario action interfaces ───────────────────────────────────────────────
 
@@ -172,6 +174,11 @@ export interface SetScenarioRecommendedAction {
 export interface SetScenarioIncludeInReportAction {
   type: typeof SET_SCENARIO_INCLUDE_IN_REPORT;
   payload: { scenarioId: string; includeInReport: boolean };
+}
+
+export interface SetScenarioSelectedByUserAction {
+  type: typeof SET_SCENARIO_SELECTED_BY_USER;
+  payload: { scenarioId: string; isSelectedByUser: boolean };
 }
 
 // ─── Scenario action creators ─────────────────────────────────────────────────
@@ -235,6 +242,14 @@ export const setScenarioIncludeInReport = (
 ): SetScenarioIncludeInReportAction => ({
   type: SET_SCENARIO_INCLUDE_IN_REPORT,
   payload: { scenarioId, includeInReport },
+});
+
+export const setScenarioSelectedByUser = (
+  scenarioId: string,
+  isSelectedByUser: boolean,
+): SetScenarioSelectedByUserAction => ({
+  type: SET_SCENARIO_SELECTED_BY_USER,
+  payload: { scenarioId, isSelectedByUser },
 });
 
 // ─── Action creators ─────────────────────────────────────────────────────────
