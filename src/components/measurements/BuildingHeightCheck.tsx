@@ -314,14 +314,14 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
                 onClick={captureBaseAngle}
                 type="button"
               >
-                {baseCapturedDeg != null ? `Base: ${baseCapturedDeg.toFixed(2)}°` : 'Store base'}
+                {baseCapturedDeg != null ? `Recapture base (${baseCapturedDeg.toFixed(2)}°)` : 'Store base'}
               </button>
               <button
                 className={`height-check__capture-btn${topCapturedDeg != null ? ' height-check__capture-btn--stored' : ''}`}
                 onClick={captureTopAngle}
                 type="button"
               >
-                {topCapturedDeg != null ? `Target: ${topCapturedDeg.toFixed(2)}°` : 'Store target'}
+                {topCapturedDeg != null ? `Recapture target (${topCapturedDeg.toFixed(2)}°)` : 'Store target'}
               </button>
               <button
                 className="height-check__camera-calc-btn"
@@ -334,10 +334,10 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
           )}
         </div>
 
-        <p className="height-check__live">
-          <span>Live pitch: {livePitchDeg == null ? '—' : `${livePitchDeg.toFixed(2)}°`}</span>
-          <span className="height-check__live-sep" />
-          <span>Live roll: {liveRollDeg == null ? '—' : `${liveRollDeg.toFixed(2)}°`}</span>
+        <p className="height-check__live" aria-label="Live sensor readings">
+          <span aria-label="Live pitch angle">{`Live pitch: ${livePitchDeg == null ? '—' : `${livePitchDeg.toFixed(2)}°`}`}</span>
+          <span className="height-check__live-sep" aria-hidden="true" />
+          <span aria-label="Live roll angle">{`Live roll: ${liveRollDeg == null ? '—' : `${liveRollDeg.toFixed(2)}°`}`}</span>
           {liveRollDeg != null && (
             <span className={`height-check__level-indicator${isLevelOk ? ' height-check__level-indicator--ok' : ''}`}>
               {isLevelOk ? 'Level' : 'Hold level'}
@@ -386,7 +386,7 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
             />
           </label>
           <label htmlFor="top-angle-input">
-            Target / top angle (°)
+            Top angle (°)
             <input
               id="top-angle-input"
               type="number"
