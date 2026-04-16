@@ -3,6 +3,7 @@ import type {
   SpatialTwinMode,
   SpatialTwinLeftRailSection,
   AtlasSpatialPatchV1,
+  SpatialTwinViewDimension,
 } from './spatialTwin.types';
 
 // ─── Action type constants ───────────────────────────────────────────────────
@@ -19,6 +20,7 @@ export const SET_LEFT_RAIL_SECTION = 'spatialTwin/SET_LEFT_RAIL_SECTION' as cons
 export const TOGGLE_OVERLAY = 'spatialTwin/TOGGLE_OVERLAY' as const;
 export const APPLY_PATCH = 'spatialTwin/APPLY_PATCH' as const;
 export const RESET_PATCHES = 'spatialTwin/RESET_PATCHES' as const;
+export const SET_VIEW_DIMENSION = 'spatialTwin/SET_VIEW_DIMENSION' as const;
 
 // ─── Action interfaces ───────────────────────────────────────────────────────
 
@@ -79,6 +81,11 @@ export interface ResetPatchesAction {
   type: typeof RESET_PATCHES;
 }
 
+export interface SetViewDimensionAction {
+  type: typeof SET_VIEW_DIMENSION;
+  payload: { viewDimension: SpatialTwinViewDimension };
+}
+
 export type SpatialTwinAction =
   | InitTwinAction
   | ImportStartedAction
@@ -91,7 +98,8 @@ export type SpatialTwinAction =
   | SetLeftRailSectionAction
   | ToggleOverlayAction
   | ApplyPatchAction
-  | ResetPatchesAction;
+  | ResetPatchesAction
+  | SetViewDimensionAction;
 
 // ─── Action creators ─────────────────────────────────────────────────────────
 
@@ -152,4 +160,9 @@ export const applyPatch = (patch: AtlasSpatialPatchV1): ApplyPatchAction => ({
 
 export const resetPatches = (): ResetPatchesAction => ({
   type: RESET_PATCHES,
+});
+
+export const setViewDimension = (viewDimension: SpatialTwinViewDimension): SetViewDimensionAction => ({
+  type: SET_VIEW_DIMENSION,
+  payload: { viewDimension },
 });

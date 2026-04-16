@@ -110,6 +110,8 @@ export interface SpatialTwinModelV1 {
   evidenceMarkers: SpatialEvidenceMarkerV1[];
 }
 
+export type SpatialTwinViewDimension = '2d' | '3d';
+
 export interface SpatialTwinFeatureState {
   visitId: string;
   sourceSessionId?: string;
@@ -118,6 +120,7 @@ export interface SpatialTwinFeatureState {
   selectedEntityId: string | null;
   hoveredEntityId: string | null;
   mode: SpatialTwinMode;
+  viewDimension: SpatialTwinViewDimension;
   activeLeftRailSection: SpatialTwinLeftRailSection;
   activeOverlayIds: string[];
   importState: SpatialTwinImportState;

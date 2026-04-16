@@ -7,6 +7,8 @@ import { SpatialTwinLegend } from '../components/SpatialTwinLegend';
 import { SpatialTwinCanvas2D } from '../canvas/SpatialTwinCanvas2D';
 import { SpatialTwinInspector } from '../inspector/SpatialTwinInspector';
 import { SpatialTwinComparePanel } from '../compare/SpatialTwinComparePanel';
+import { SpatialTwinDollhouseView } from '../scene/viewer/SpatialTwinDollhouseView';
+import { SpatialTwinSceneModeToggle } from '../scene/viewer/SpatialTwinSceneModeToggle';
 import {
   initTwin,
   importStarted,
@@ -16,6 +18,7 @@ import {
   setMode,
   setLeftRailSection,
   toggleOverlay,
+  setViewDimension,
 } from '../state/spatialTwin.actions';
 import { selectOverlayIsActive } from '../state/spatialTwin.selectors';
 import { getAllOverlays } from '../overlays/overlayRegistry';
@@ -85,6 +88,10 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
             mode={state.mode}
             onSetMode={(m) => { dispatch(setMode(m)); }}
           />
+          <SpatialTwinSceneModeToggle
+            viewDimension={state.viewDimension}
+            onSetViewDimension={(v) => { dispatch(setViewDimension(v)); }}
+          />
           {overlayMetadata != null && (
             <SpatialTwinLegend
               overlayMetadata={overlayMetadata}
@@ -141,7 +148,17 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
                 Import failed: {state.lastError ?? 'Unknown error'}
               </div>
             )}
-            {state.importState === 'ready' && (
+            {state.importState === 'ready' && state.viewDimension === '3d' && state.model != null && (
+              <SpatialTwinDollhouseView
+                model={state.model}
+                mode={state.mode}
+                selectedEntityId={state.selectedEntityId}
+                width={canvasSize.width}
+                height={canvasSize.height}
+                onSelectEntity={(id) => { dispatch(selectEntity(id)); }}
+              />
+            )}
+            {state.importState === 'ready' && state.viewDimension === '2d' && (
               <SpatialTwinCanvas2D
                 model={state.model}
                 selectedEntityId={state.selectedEntityId}
