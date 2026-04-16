@@ -1,18 +1,55 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   evaluateBuildingHeightMeasurement,
+  generateMathBreakdown,
   type BuildingHeightConfidenceLevel,
 } from '../../features/measurements/buildingHeight';
 import './BuildingHeightCheck.css';
 
-type MotionPermissionState = 'unknown' | 'granted' | 'denied' | 'not-supported';
+type CaptureMode = 'manual' | 'automatic';
+type CameraStatus = 'idle' | 'starting' | 'active' | 'error';
 
 interface DeviceOrientationEventConstructor {
   requestPermission?: () => Promise<'granted' | 'denied'>;
 }
 
-function clampPitch(beta: number): number {
-  return Math.max(-89.9, Math.min(89.9, beta));
+const ORIENTATION_QUARTER = 90;
+const ORIENTATION_HALF = 180;
+const ORIENTATION_THREE_QUARTER = 270;
+const LEVEL_ROLL_TOLERANCE_DEG = 2;
+
+function getScreenOrientationAngle(): number {
+  if (typeof screen !== 'undefined' && screen.orientation && typeof screen.orientation.angle === 'number') {
+    return screen.orientation.angle;
+  }
+  const win = window as Window & { orientation?: number };
+  if (typeof win.orientation === 'number') return win.orientation;
+  return 0;
+}
+
+function getCameraPitch(event: DeviceOrientationEvent): number {
+  const { beta, gamma } = event;
+  if (beta == null || !Number.isFinite(beta)) return NaN;
+  const normalized = ((getScreenOrientationAngle() % 360) + 360) % 360;
+  if (normalized === ORIENTATION_QUARTER) return gamma != null && Number.isFinite(gamma) ? gamma : NaN;
+  if (normalized === ORIENTATION_THREE_QUARTER) return gamma != null && Number.isFinite(gamma) ? -gamma : NaN;
+  if (normalized === ORIENTATION_HALF) return -beta - ORIENTATION_QUARTER;
+  return beta - ORIENTATION_QUARTER;
+}
+
+function getCameraRoll(event: DeviceOrientationEvent): number {
+  const { beta, gamma } = event;
+  if (gamma == null || !Number.isFinite(gamma)) return NaN;
+  if (beta == null || !Number.isFinite(beta)) return NaN;
+  const normalized = ((getScreenOrientationAngle() % 360) + 360) % 360;
+  if (normalized === ORIENTATION_QUARTER) return beta - ORIENTATION_QUARTER;
+  if (normalized === ORIENTATION_THREE_QUARTER) return -beta - ORIENTATION_QUARTER;
+  if (normalized === ORIENTATION_HALF) return -gamma;
+  return gamma;
+}
+
+function clampPitch(pitch: number): number {
+  return Math.max(-89.9, Math.min(89.9, pitch));
 }
 
 function confidenceBadgeClass(confidenceLevel: BuildingHeightConfidenceLevel): string {
@@ -22,30 +59,134 @@ function confidenceBadgeClass(confidenceLevel: BuildingHeightConfidenceLevel): s
 }
 
 export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) {
+  const [captureMode, setCaptureMode] = useState<CaptureMode>('manual');
+  const [cameraStatus, setCameraStatus] = useState<CameraStatus>('idle');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [motionEnabled, setMotionEnabled] = useState(false);
   const [distanceInput, setDistanceInput] = useState('');
   const [baseAngleInput, setBaseAngleInput] = useState('');
   const [topAngleInput, setTopAngleInput] = useState('');
   const [baseCapturedDeg, setBaseCapturedDeg] = useState<number | null>(null);
   const [topCapturedDeg, setTopCapturedDeg] = useState<number | null>(null);
   const [livePitchDeg, setLivePitchDeg] = useState<number | null>(null);
-  const [permissionState, setPermissionState] = useState<MotionPermissionState>('unknown');
+  const [liveRollDeg, setLiveRollDeg] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const [showMathBreakdown, setShowMathBreakdown] = useState(false);
 
-  const sensorSupported = typeof window !== 'undefined' && 'DeviceOrientationEvent' in window;
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
 
   useEffect(() => {
-    if (!sensorSupported || permissionState !== 'granted') return;
-
-    const handleOrientation = (event: DeviceOrientationEvent) => {
-      if (typeof event.beta !== 'number' || Number.isNaN(event.beta)) return;
-      setLivePitchDeg(clampPitch(event.beta));
+    return () => {
+      stopCamera();
     };
+  }, [stopCamera]);
 
+  const handleOrientation = useCallback((event: DeviceOrientationEvent) => {
+    const pitch = getCameraPitch(event);
+    const roll = getCameraRoll(event);
+    if (Number.isFinite(pitch)) setLivePitchDeg(clampPitch(pitch));
+    if (Number.isFinite(roll)) setLiveRollDeg(roll);
+  }, []);
+
+  useEffect(() => {
+    if (!motionEnabled) return;
     window.addEventListener('deviceorientation', handleOrientation, true);
     return () => {
       window.removeEventListener('deviceorientation', handleOrientation, true);
     };
-  }, [permissionState, sensorSupported]);
+  }, [motionEnabled, handleOrientation]);
+
+  const isLevelOk = liveRollDeg != null && Math.abs(liveRollDeg) <= LEVEL_ROLL_TOLERANCE_DEG;
+
+  async function enableMotion(): Promise<boolean> {
+    if (motionEnabled) return true;
+    if (typeof window === 'undefined' || !('DeviceOrientationEvent' in window)) return false;
+    const orientationEventCtor = window.DeviceOrientationEvent as unknown as DeviceOrientationEventConstructor;
+    if (typeof orientationEventCtor.requestPermission === 'function') {
+      try {
+        const permission = await orientationEventCtor.requestPermission();
+        if (permission !== 'granted') return false;
+      } catch {
+        return false;
+      }
+    }
+    setMotionEnabled(true);
+    return true;
+  }
+
+  async function startAutomaticCapture() {
+    setCameraError(null);
+    const motionReady = await enableMotion();
+    if (!motionReady) {
+      setCameraError('Motion permission denied. Use manual entry.');
+      setCaptureMode('manual');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError('Camera capture is not supported by this browser. Use manual entry.');
+      setCaptureMode('manual');
+      return;
+    }
+    setCameraStatus('starting');
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      streamRef.current = mediaStream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      setCameraStatus('active');
+    } catch (error) {
+      let message = 'Could not start camera. Use manual entry.';
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') message = 'Camera permission denied. Use manual entry.';
+        else if (error.name === 'NotFoundError') message = 'No camera found on this device. Use manual entry.';
+        else if (error.name === 'NotSupportedError') message = 'Camera capture is not supported. Use manual entry.';
+      }
+      setCameraError(message);
+      setCaptureMode('manual');
+      setCameraStatus('idle');
+    }
+  }
+
+  function switchToManual() {
+    setCaptureMode('manual');
+    stopCamera();
+    setCameraStatus('idle');
+    setCameraError(null);
+  }
+
+  function switchToAutomatic() {
+    setCaptureMode('automatic');
+    void startAutomaticCapture();
+  }
+
+  function captureBaseAngle() {
+    if (livePitchDeg == null) return;
+    const rounded = Math.round(livePitchDeg * 100) / 100;
+    setBaseCapturedDeg(rounded);
+    setBaseAngleInput(String(rounded));
+  }
+
+  function captureTopAngle() {
+    if (livePitchDeg == null) return;
+    const rounded = Math.round(livePitchDeg * 100) / 100;
+    setTopCapturedDeg(rounded);
+    setTopAngleInput(String(rounded));
+  }
 
   const measurement = useMemo(() => {
     return evaluateBuildingHeightMeasurement({
@@ -56,37 +197,43 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
     });
   }, [distanceInput, baseAngleInput, topAngleInput, baseCapturedDeg, topCapturedDeg]);
 
-  async function enableAngleCapture() {
-    if (!sensorSupported) {
-      setPermissionState('not-supported');
-      return;
-    }
-    const orientationEventCtor = window.DeviceOrientationEvent as unknown as DeviceOrientationEventConstructor;
-    if (typeof orientationEventCtor.requestPermission !== 'function') {
-      setPermissionState('granted');
-      return;
-    }
-    try {
-      const permission = await orientationEventCtor.requestPermission();
-      setPermissionState(permission === 'granted' ? 'granted' : 'denied');
-    } catch {
-      setPermissionState('denied');
+  function doCalculate() {
+    setShowResult(true);
+    setShowMathBreakdown(false);
+    if (captureMode === 'automatic' && measurement.valid) {
+      stopCamera();
+      setCameraStatus('idle');
+      setCaptureMode('manual');
     }
   }
 
-  function captureBaseAngle() {
-    if (livePitchDeg == null) return;
-    const rounded = Math.round(livePitchDeg * 10) / 10;
-    setBaseCapturedDeg(rounded);
-    setBaseAngleInput(String(rounded));
+  function resetAll() {
+    setDistanceInput('');
+    setBaseAngleInput('');
+    setTopAngleInput('');
+    setBaseCapturedDeg(null);
+    setTopCapturedDeg(null);
+    setLivePitchDeg(null);
+    setLiveRollDeg(null);
+    setShowResult(false);
+    setShowMathBreakdown(false);
+    stopCamera();
+    setCameraStatus('idle');
+    setCameraError(null);
+    setCaptureMode('manual');
   }
 
-  function captureTopAngle() {
-    if (livePitchDeg == null) return;
-    const rounded = Math.round(livePitchDeg * 10) / 10;
-    setTopCapturedDeg(rounded);
-    setTopAngleInput(String(rounded));
-  }
+  const mathBreakdown = useMemo(() => {
+    if (!measurement.valid || measurement.heightMeters == null) return null;
+    return generateMathBreakdown(
+      Number(distanceInput),
+      baseCapturedDeg ?? Number(baseAngleInput),
+      topCapturedDeg ?? Number(topAngleInput),
+      measurement.heightMeters,
+    );
+  }, [measurement, distanceInput, baseAngleInput, topAngleInput, baseCapturedDeg, topCapturedDeg]);
+
+  const cameraOpen = captureMode === 'automatic' && cameraStatus === 'active';
 
   return (
     <div className="height-check">
@@ -112,7 +259,7 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
           id="distance-input"
           type="number"
           min="0"
-          step="0.1"
+          step="0.01"
           value={distanceInput}
           onChange={(event) => setDistanceInput(event.target.value)}
           placeholder="e.g. 12.5"
@@ -121,30 +268,104 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
 
       <div className="height-check__panel">
         <h2>Angle capture</h2>
-        <button className="height-check__btn" onClick={() => { void enableAngleCapture(); }}>
-          Enable angle capture
-        </button>
-        <div className="height-check__crosshair">＋</div>
+        <div className="height-check__mode-row">
+          <button
+            className={`height-check__mode-btn${captureMode === 'manual' ? ' height-check__mode-btn--active' : ''}`}
+            onClick={switchToManual}
+            type="button"
+          >
+            Manual entry
+          </button>
+          <button
+            className={`height-check__mode-btn${captureMode === 'automatic' ? ' height-check__mode-btn--active' : ''}`}
+            onClick={switchToAutomatic}
+            type="button"
+          >
+            Automatic camera
+          </button>
+        </div>
+
+        {cameraError && <p className="height-check__error">{cameraError}</p>}
+
+        <div
+          className={`height-check__camera-wrap${cameraOpen ? ' height-check__camera-wrap--fullscreen' : ' height-check__camera-wrap--hidden'}`}
+        >
+          <video
+            ref={videoRef}
+            className="height-check__camera-video"
+            autoPlay
+            playsInline
+            muted
+          />
+          <div
+            className="height-check__camera-overlay"
+            role="img"
+            aria-label="Camera view with centre crosshairs"
+          >
+            <div className="height-check__scope-ring" />
+            <div className="height-check__scope-line-v" />
+            <div className="height-check__scope-line-h" />
+            <div className="height-check__scope-dot" />
+          </div>
+          {cameraOpen && (
+            <div className="height-check__camera-controls">
+              <button
+                className={`height-check__capture-btn${baseCapturedDeg != null ? ' height-check__capture-btn--stored' : ''}`}
+                onClick={captureBaseAngle}
+                type="button"
+              >
+                {baseCapturedDeg != null ? `Base: ${baseCapturedDeg.toFixed(2)}°` : 'Store base'}
+              </button>
+              <button
+                className={`height-check__capture-btn${topCapturedDeg != null ? ' height-check__capture-btn--stored' : ''}`}
+                onClick={captureTopAngle}
+                type="button"
+              >
+                {topCapturedDeg != null ? `Target: ${topCapturedDeg.toFixed(2)}°` : 'Store target'}
+              </button>
+              <button
+                className="height-check__camera-calc-btn"
+                onClick={doCalculate}
+                type="button"
+              >
+                Calculate
+              </button>
+            </div>
+          )}
+        </div>
+
         <p className="height-check__live">
-          Live pitch: {livePitchDeg == null ? 'Not available' : `${livePitchDeg.toFixed(1)}°`}
+          <span>Live pitch: {livePitchDeg == null ? '—' : `${livePitchDeg.toFixed(2)}°`}</span>
+          <span className="height-check__live-sep" />
+          <span>Live roll: {liveRollDeg == null ? '—' : `${liveRollDeg.toFixed(2)}°`}</span>
+          {liveRollDeg != null && (
+            <span className={`height-check__level-indicator${isLevelOk ? ' height-check__level-indicator--ok' : ''}`}>
+              {isLevelOk ? 'Level' : 'Hold level'}
+            </span>
+          )}
         </p>
-        <p className="height-check__status">
-          {permissionState === 'granted' && 'Angle capture enabled.'}
-          {permissionState === 'denied' && 'Angle capture permission denied. Use manual angle entry.'}
-          {permissionState === 'not-supported' && 'Device angle sensor not supported. Use manual angle entry.'}
-          {permissionState === 'unknown' && 'Enable angle capture, then aim and capture each point.'}
-        </p>
+
         <div className="height-check__capture-row">
-          <button className="height-check__btn" onClick={captureBaseAngle} disabled={livePitchDeg == null}>
+          <button
+            className={`height-check__btn${baseCapturedDeg != null ? ' height-check__btn--stored' : ''}`}
+            onClick={captureBaseAngle}
+            disabled={livePitchDeg == null}
+            type="button"
+          >
             Capture base angle
           </button>
-          <span>{baseCapturedDeg == null ? '—' : `${baseCapturedDeg.toFixed(1)}°`}</span>
+          <span>{baseCapturedDeg == null ? '—' : `${baseCapturedDeg.toFixed(2)}°`}</span>
         </div>
         <div className="height-check__capture-row">
-          <button className="height-check__btn" onClick={captureTopAngle} disabled={livePitchDeg == null}>
+          <button
+            className={`height-check__btn${topCapturedDeg != null ? ' height-check__btn--stored' : ''}`}
+            onClick={captureTopAngle}
+            disabled={livePitchDeg == null}
+            type="button"
+          >
             Capture top angle
           </button>
-          <span>{topCapturedDeg == null ? '—' : `${topCapturedDeg.toFixed(1)}°`}</span>
+          <span>{topCapturedDeg == null ? '—' : `${topCapturedDeg.toFixed(2)}°`}</span>
         </div>
       </div>
 
@@ -156,27 +377,45 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
             <input
               id="base-angle-input"
               type="number"
-              step="0.1"
+              step="0.01"
               value={baseAngleInput}
-              onChange={(event) => setBaseAngleInput(event.target.value)}
+              onChange={(event) => {
+                setBaseAngleInput(event.target.value);
+                setBaseCapturedDeg(null);
+              }}
             />
           </label>
           <label htmlFor="top-angle-input">
-            Top angle (°)
+            Target / top angle (°)
             <input
               id="top-angle-input"
               type="number"
-              step="0.1"
+              step="0.01"
               value={topAngleInput}
-              onChange={(event) => setTopAngleInput(event.target.value)}
+              onChange={(event) => {
+                setTopAngleInput(event.target.value);
+                setTopCapturedDeg(null);
+              }}
             />
           </label>
         </div>
       </div>
 
       <div className="height-check__actions">
-        <button className="cta-btn height-check__calculate" onClick={() => setShowResult(true)}>
+        <button className="height-check__btn height-check__reset-btn" onClick={resetAll} type="button">
+          Reset
+        </button>
+        <button className="cta-btn height-check__calculate" onClick={doCalculate} type="button">
           Calculate height
+        </button>
+        <button
+          className="height-check__btn height-check__help-btn"
+          onClick={() => setShowMathBreakdown(prev => !prev)}
+          type="button"
+          aria-label="Toggle formula breakdown"
+          title="Show / hide formula breakdown"
+        >
+          ?
         </button>
       </div>
 
@@ -191,11 +430,21 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
               </p>
               <ul className="height-check__result-list">
                 <li>Distance: {Number(distanceInput).toFixed(2)} m</li>
-                <li>Base angle: {(baseCapturedDeg ?? Number(baseAngleInput)).toFixed(1)}°</li>
-                <li>Top angle: {(topCapturedDeg ?? Number(topAngleInput)).toFixed(1)}°</li>
-                <li>Angle separation: {(measurement.angleSeparationDeg ?? 0).toFixed(1)}°</li>
+                <li>Base angle: {(baseCapturedDeg ?? Number(baseAngleInput)).toFixed(2)}°</li>
+                <li>Top angle: {(topCapturedDeg ?? Number(topAngleInput)).toFixed(2)}°</li>
+                <li>Angle separation: {(measurement.angleSeparationDeg ?? 0).toFixed(2)}°</li>
                 <li>Capture mode: {baseCapturedDeg != null && topCapturedDeg != null ? 'Device angle capture' : 'Manual angle entry'}</li>
               </ul>
+
+              {measurement.ladderLengthMeters != null && measurement.ladderBaseDistanceMeters != null && (
+                <div className="height-check__ladder">
+                  <p className="height-check__ladder-label">Ladder safe use (1-in-4 rule)</p>
+                  <ul className="height-check__result-list">
+                    <li>Ladder length: {measurement.ladderLengthMeters.toFixed(2)} m</li>
+                    <li>Distance from wall: {measurement.ladderBaseDistanceMeters.toFixed(2)} m</li>
+                  </ul>
+                </div>
+              )}
             </>
           ) : (
             <p className="height-check__error">Please fix validation errors before calculating height.</p>
@@ -217,6 +466,17 @@ export default function BuildingHeightCheck({ onBack }: { onBack: () => void }) 
               <li key={note}>{note}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {showMathBreakdown && (
+        <div className="height-check__panel">
+          <h3>Formula breakdown</h3>
+          {mathBreakdown != null ? (
+            <pre className="height-check__math">{mathBreakdown}</pre>
+          ) : (
+            <p className="height-check__muted">Press Calculate to generate the formula breakdown.</p>
+          )}
         </div>
       )}
     </div>

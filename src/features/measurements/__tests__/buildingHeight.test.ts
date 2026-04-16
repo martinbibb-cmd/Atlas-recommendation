@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateBuildingHeightMeters,
   evaluateBuildingHeightMeasurement,
+  generateMathBreakdown,
 } from '../buildingHeight';
 
 describe('buildingHeight', () => {
@@ -58,5 +59,40 @@ describe('buildingHeight', () => {
     });
     expect(sensorResult.confidenceLevel).toBe('high');
     expect(manualResult.confidenceLevel).toBe('medium');
+  });
+
+  it('includes ladder length and base distance for valid result', () => {
+    const result = evaluateBuildingHeightMeasurement({
+      distanceMeters: 10,
+      baseAngleDeg: 0,
+      topAngleDeg: 45,
+      usedSensorCapture: true,
+    });
+    expect(result.valid).toBe(true);
+    expect(result.heightMeters).toBeCloseTo(10, 4);
+    // ladder distance = height / 4
+    expect(result.ladderBaseDistanceMeters).toBeCloseTo(2.5, 4);
+    // ladder length = sqrt(10^2 + 2.5^2)
+    expect(result.ladderLengthMeters).toBeCloseTo(Math.sqrt(106.25), 4);
+  });
+
+  it('returns null ladder values when result is invalid', () => {
+    const result = evaluateBuildingHeightMeasurement({
+      distanceMeters: -1,
+      baseAngleDeg: 0,
+      topAngleDeg: 45,
+      usedSensorCapture: false,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.ladderLengthMeters).toBeNull();
+    expect(result.ladderBaseDistanceMeters).toBeNull();
+  });
+
+  it('generateMathBreakdown produces a string containing key values', () => {
+    const breakdown = generateMathBreakdown(10, 0, 45, 10);
+    expect(breakdown).toContain('Formula:');
+    expect(breakdown).toContain('10.00 m');
+    expect(breakdown).toContain('0.00°');
+    expect(breakdown).toContain('45.00°');
   });
 });
