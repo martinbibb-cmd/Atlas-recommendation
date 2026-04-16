@@ -25,6 +25,7 @@ import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
 import NewVisitDialog from './components/visit/NewVisitDialog';
 import EngineerPreinstallPage from './components/engineer/EngineerPreinstallPage';
+import { SpatialTwinPage } from './features/spatialTwin/routes/SpatialTwinPage';
 import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
@@ -185,6 +186,13 @@ const ENGINEER_PATH_MATCH =
     ? window.location.pathname.match(/^\/visit\/([^/]+)\/engineer$/)
     : null;
 const ENGINEER_VISIT_ID = ENGINEER_PATH_MATCH ? ENGINEER_PATH_MATCH[1] : null;
+
+/** Detect /visit/:visitId/twin path — renders the Spatial Twin feature. */
+const TWIN_PATH_MATCH =
+  typeof window !== 'undefined'
+    ? window.location.pathname.match(/^\/visit\/([^/]+)\/twin$/)
+    : null;
+const TWIN_VISIT_ID = TWIN_PATH_MATCH ? TWIN_PATH_MATCH[1] : null;
 
 /** Detect /portal/:reference path — renders the customer portal. */
 const PORTAL_REFERENCE =
@@ -509,6 +517,16 @@ export default function App() {
     return (
       <EngineerPreinstallPage
         visitId={ENGINEER_VISIT_ID}
+        onBack={() => { window.history.back(); }}
+      />
+    );
+  }
+
+  // /visit/:visitId/twin — render the Spatial Twin feature.
+  if (TWIN_VISIT_ID != null) {
+    return (
+      <SpatialTwinPage
+        visitId={TWIN_VISIT_ID}
         onBack={() => { window.history.back(); }}
       />
     );
