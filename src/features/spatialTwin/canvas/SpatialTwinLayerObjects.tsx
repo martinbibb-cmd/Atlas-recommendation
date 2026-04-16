@@ -1,12 +1,43 @@
 import React from 'react';
 import { Layer, Circle, Text } from 'react-konva';
-import type { AtlasEmitterV1 } from '../../atlasSpatial/atlasSpatialModel.types';
+import type { AtlasEmitterV1, AtlasRoomV1 } from '../../atlasSpatial/atlasSpatialModel.types';
 import type { SpatialHeatSourceV1, SpatialStoreV1 } from '../state/spatialTwin.types';
+
+// GRID = 24 canvas units per metre (matches FloorPlanBuilder.tsx)
+const GRID = 24;
+/** Default centre offset for objects that have no room geometry. */
+const DEFAULT_OBJECT_X = 40;
+const DEFAULT_OBJECT_Y = 40;
+
+/**
+ * Derive a canvas position for an entity by finding the centre of its parent
+ * room bounding box.  Falls back to a stacked default position when the room or
+ * its geometry is not available.
+ */
+function roomCentre(
+  roomId: string | undefined,
+  rooms: AtlasRoomV1[],
+  fallbackIndex: number,
+): { x: number; y: number } {
+  if (roomId != null) {
+    const room = rooms.find((r) => r.roomId === roomId);
+    const bb = room?.geometry?.boundingBox;
+    if (bb != null) {
+      return { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 };
+    }
+  }
+  // Scatter objects horizontally so they don't overlap the room layer
+  return {
+    x: DEFAULT_OBJECT_X + (fallbackIndex % 8) * (GRID * 2),
+    y: DEFAULT_OBJECT_Y + Math.floor(fallbackIndex / 8) * (GRID * 2),
+  };
+}
 
 interface SpatialTwinLayerObjectsProps {
   emitters: AtlasEmitterV1[];
   heatSources: SpatialHeatSourceV1[];
   stores: SpatialStoreV1[];
+  rooms: AtlasRoomV1[];
   selectedEntityId: string | null;
   onSelect: (entityId: string) => void;
 }
@@ -15,14 +46,14 @@ export function SpatialTwinLayerObjects({
   emitters,
   heatSources,
   stores,
+  rooms,
   selectedEntityId,
   onSelect,
 }: SpatialTwinLayerObjectsProps) {
   return (
     <Layer>
       {emitters.map((emitter, idx) => {
-        const x = 20 + idx * 30;
-        const y = 200;
+        const { x, y } = roomCentre(emitter.roomId, rooms, idx);
         const isSelected = selectedEntityId === emitter.emitterId;
         return (
           <React.Fragment key={emitter.emitterId}>
@@ -39,8 +70,7 @@ export function SpatialTwinLayerObjects({
         );
       })}
       {heatSources.map((hs, idx) => {
-        const x = 20 + idx * 40;
-        const y = 240;
+        const { x, y } = roomCentre(hs.roomId, rooms, emitters.length + idx);
         const isSelected = selectedEntityId === hs.heatSourceId;
         return (
           <React.Fragment key={hs.heatSourceId}>
@@ -58,8 +88,7 @@ export function SpatialTwinLayerObjects({
         );
       })}
       {stores.map((store, idx) => {
-        const x = 20 + idx * 40;
-        const y = 280;
+        const { x, y } = roomCentre(store.roomId, rooms, emitters.length + heatSources.length + idx);
         const isSelected = selectedEntityId === store.storeId;
         return (
           <React.Fragment key={store.storeId}>

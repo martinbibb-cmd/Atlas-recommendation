@@ -125,10 +125,11 @@ export function buildInitialSpatialTwinFromCapture(
   let evidenceCounter = 0;
 
   for (const photo of session.photos ?? []) {
+    const displayNum = evidenceCounter + 1;
     evidenceMarkers.push({
       evidenceId: `ev-${evidenceCounter++}`,
       kind: 'photo',
-      label: `Photo ${evidenceCounter}`,
+      label: `Photo ${displayNum}`,
       roomId: photo.roomId,
       entityId: photo.objectId,
       sourceRef: photo.photoId,
@@ -137,10 +138,11 @@ export function buildInitialSpatialTwinFromCapture(
 
   // ── Evidence markers from note markers ─────────────────────────────────────
   for (const note of session.notes ?? []) {
+    const displayNum = evidenceCounter + 1;
     evidenceMarkers.push({
       evidenceId: `ev-${evidenceCounter++}`,
       kind: 'note',
-      label: note.text ?? `Note ${evidenceCounter}`,
+      label: note.text ?? `Note ${displayNum}`,
       roomId: note.roomId,
       sourceRef: note.markerId,
     });

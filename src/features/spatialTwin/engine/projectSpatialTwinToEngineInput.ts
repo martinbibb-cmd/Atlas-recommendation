@@ -26,9 +26,6 @@ export function projectSpatialTwinToEngineInput(
       other: 'other',
     };
     result.currentHeatSourceType = typeMap[primarySource.type] ?? 'combi';
-    if (primarySource.outputKw != null && mode === 'current') {
-      // Derive heat loss from output if not already provided
-    }
   }
 
   // ── Cylinder presence ─────────────────────────────────────────────────────
@@ -51,10 +48,13 @@ export function projectSpatialTwinToEngineInput(
   }
 
   // ── Room count → occupancy heuristic ──────────────────────────────────────
+  // Approximate ratio of bedroom-like rooms to total rooms in a UK home.
+  // UK average: roughly 2 of 3–4 habitable rooms are bedrooms/reception rooms.
+  // This is a coarse heuristic only; survey data takes precedence.
+  const BEDROOM_TO_ROOM_RATIO = 0.6;
   const roomCount = spatial.spatial.rooms.length;
   if (roomCount > 0 && result.occupancyCount == null) {
-    // Heuristic: 1 occupant per bedroom-sized room, min 1
-    result.occupancyCount = Math.max(1, Math.round(roomCount * 0.6));
+    result.occupancyCount = Math.max(1, Math.round(roomCount * BEDROOM_TO_ROOM_RATIO));
   }
 
   return result;

@@ -2,13 +2,24 @@ import type { SpatialTwinOverlay, OverlayRenderMetadata } from './overlayRegistr
 import type { SpatialTwinFeatureState } from '../state/spatialTwin.types';
 import { registerOverlay } from './overlayRegistry';
 
-// Heat loss bands based on floor area heuristic
-// Small rooms (<10 m²) → high loss; medium rooms (<20 m²) → medium loss; large rooms (≥20 m²) → low loss
+/**
+ * Room heat loss overlay.
+ *
+ * Colours rooms by a floor-area proxy band.  This is an indicative
+ * visualisation aid — it does NOT compute real heat loss.  Accurate heat
+ * loss derivation requires fabric U-values, exposed perimeter, window areas,
+ * and external design temperature, none of which are guaranteed in the spatial
+ * twin at this stage.  Use this overlay to spot rooms that may warrant closer
+ * inspection, not as a physics result.
+ *
+ * Bands: small room (< 10 m²) → higher scrutiny (red); medium (10–20 m²) →
+ * amber; large (≥ 20 m²) → green; unknown area → grey.
+ */
 function heatLossColor(floorAreaM2: number | undefined): string {
   if (floorAreaM2 == null) return '#e2e8f0';
-  if (floorAreaM2 < 10) return '#fca5a5'; // high loss — red band
-  if (floorAreaM2 < 20) return '#fde68a'; // medium loss — amber
-  return '#86efac';                         // low loss — green
+  if (floorAreaM2 < 10) return '#fca5a5'; // small — higher scrutiny band
+  if (floorAreaM2 < 20) return '#fde68a'; // medium
+  return '#86efac';                         // large
 }
 
 export const roomHeatLossOverlay: SpatialTwinOverlay = {
@@ -34,9 +45,9 @@ export const roomHeatLossOverlay: SpatialTwinOverlay = {
     return {
       entityColors,
       legendItems: [
-        { color: '#fca5a5', label: 'High heat loss (< 10 m²)' },
-        { color: '#fde68a', label: 'Medium heat loss (10–20 m²)' },
-        { color: '#86efac', label: 'Low heat loss (> 20 m²)' },
+        { color: '#fca5a5', label: 'Small room (< 10 m²) — review' },
+        { color: '#fde68a', label: 'Medium room (10–20 m²)' },
+        { color: '#86efac', label: 'Large room (> 20 m²)' },
         { color: '#e2e8f0', label: 'Area unknown' },
       ],
     };

@@ -1,7 +1,16 @@
 import type { AtlasSpatialPatchV1 } from '../state/spatialTwin.types';
 import type { SpatialTwinMode } from '../state/spatialTwin.types';
 
-let patchCounter = 0;
+/**
+ * Generates a unique patch ID using a high-resolution timestamp plus a
+ * per-millisecond sequence suffix.  This avoids the shared-counter race that
+ * arises when multiple `buildPatchQueueHelpers` instances are live at once.
+ */
+function generatePatchId(): string {
+  const ts = Date.now();
+  const rand = Math.floor(performance.now() * 1000) % 100000;
+  return `patch-${ts}-${rand}`;
+}
 
 export function buildPatchQueueHelpers(sourceMode: SpatialTwinMode) {
   function createPatch(
@@ -11,7 +20,7 @@ export function buildPatchQueueHelpers(sourceMode: SpatialTwinMode) {
     payload: Record<string, unknown>,
   ): AtlasSpatialPatchV1 {
     return {
-      patchId: `patch-${++patchCounter}`,
+      patchId: generatePatchId(),
       entityId,
       entityKind,
       operation,

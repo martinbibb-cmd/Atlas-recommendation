@@ -63,7 +63,7 @@ export function SpatialTwinLayerRooms({
   );
 }
 
-// Named export for use in canvas wrapper
+// Named export for use in standalone room rendering contexts (e.g. inspector thumbnails)
 export function KonvaRoom({
   room,
   isSelected,

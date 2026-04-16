@@ -58,6 +58,7 @@ export function SpatialTwinCanvas2D({
         emitters={model.spatial.emitters}
         heatSources={model.heatSources}
         stores={model.stores}
+        rooms={model.spatial.rooms}
         selectedEntityId={selectedEntityId}
         onSelect={onSelectEntity}
       />
