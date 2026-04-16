@@ -30,6 +30,9 @@ import type {
 } from './ScenarioSynthesisModel';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 
+/** Fallback scenario display name when the ID is not found in the name map. */
+const UNKNOWN_SCENARIO_NAME = 'top scenario';
+
 // ─── Ranking ──────────────────────────────────────────────────────────────────
 
 /**
@@ -134,7 +137,7 @@ function buildExplanations(
 ): Record<string, string> {
   const nameById = new Map(scenarioStates.map(s => [s.scenarioId, s.name]));
   const topEnvelope = ranked[0];
-  const topName = topEnvelope != null ? (nameById.get(topEnvelope.scenarioId) ?? 'top scenario') : 'top scenario';
+  const topName = topEnvelope != null ? (nameById.get(topEnvelope.scenarioId) ?? UNKNOWN_SCENARIO_NAME) : UNKNOWN_SCENARIO_NAME;
 
   const explanations: Record<string, string> = {};
 

@@ -18,6 +18,11 @@ import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { OptionCardV1 } from '../../../contracts/EngineOutputV1';
 import type { ScenarioRecommendationSummary, ScenarioSuitability } from './ScenarioSynthesisModel';
 
+/** Maximum number of strength bullets extracted from the primary option. */
+const MAX_STRENGTHS = 4;
+/** Maximum number of trade-off bullets extracted from limiters. */
+const MAX_TRADEOFFS = 3;
+
 /**
  * Resolve the primary recommended option card from the engine output.
  *
@@ -97,11 +102,11 @@ export function buildScenarioRecommendationSummary(
     ?? primaryOption?.headline
     ?? '';
 
-  const strengths: readonly string[] = (primaryOption?.why ?? []).slice(0, 4);
+  const strengths: readonly string[] = (primaryOption?.why ?? []).slice(0, MAX_STRENGTHS);
 
   const tradeoffs: readonly string[] = (output.limiters?.limiters ?? [])
     .filter(l => l.severity === 'warn' || l.severity === 'fail')
-    .slice(0, 3)
+    .slice(0, MAX_TRADEOFFS)
     .map(l => l.impact.summary);
 
   const requiredWork: readonly string[] = primaryOption?.typedRequirements?.mustHave ?? [];
