@@ -13,6 +13,7 @@ import {
   TOGGLE_OVERLAY,
   APPLY_PATCH,
   RESET_PATCHES,
+  SET_VIEW_DIMENSION,
 } from './spatialTwin.actions';
 import { applyLocalSpatialPatch } from '../patches/applyLocalSpatialPatch';
 
@@ -23,6 +24,7 @@ export const initialSpatialTwinState: SpatialTwinFeatureState = {
   selectedEntityId: null,
   hoveredEntityId: null,
   mode: 'current',
+  viewDimension: '2d',
   activeLeftRailSection: 'house',
   activeOverlayIds: [],
   importState: 'idle',
@@ -101,6 +103,9 @@ export function spatialTwinReducer(
 
     case RESET_PATCHES:
       return { ...state, patchHistory: [], dirty: false };
+
+    case SET_VIEW_DIMENSION:
+      return { ...state, viewDimension: action.payload.viewDimension };
 
     default:
       return state;

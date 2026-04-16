@@ -12,6 +12,7 @@ function makeState(model: SpatialTwinModelV1 | null): SpatialTwinFeatureState {
     selectedEntityId: null,
     hoveredEntityId: null,
     mode: 'current',
+    viewDimension: '2d',
     activeLeftRailSection: 'house',
     activeOverlayIds: [],
     importState: model != null ? 'ready' : 'idle',
