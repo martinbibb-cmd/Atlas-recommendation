@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { SpatialTwinProvider, useSpatialTwin } from '../state/spatialTwin.store';
 import { SpatialTwinLeftRail } from '../components/SpatialTwinLeftRail';
 import { SpatialTwinTopBar } from '../components/SpatialTwinTopBar';
@@ -92,6 +92,11 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
     return buildScenarioSynthesis(envelopes, state.scenarios);
   }, [state, includedScenarios.length]);
 
+  const handleSelectScenario = useCallback(
+    (id: string) => { dispatch(setScenarioSelectedByUser(id, true)); },
+    [dispatch],
+  );
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'system-ui, sans-serif' }}>
       {/* Left rail */}
@@ -134,7 +139,7 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
                 <ScenarioShortlistPanel
                   synthesis={scenarioSynthesis}
                   scenarioNames={scenarioNames}
-                  onSelectScenario={(id) => { dispatch(setScenarioSelectedByUser(id, true)); }}
+                  onSelectScenario={handleSelectScenario}
                 />
               </div>
             ) : (

@@ -143,10 +143,10 @@ describe('scenario shortlist pipeline — multiple included scenarios', () => {
 
     const envelopes = runScenariosFromSpatialTwin(state);
     expect(envelopes).toHaveLength(3);
-    const ids = envelopes.map(e => e.scenarioId);
-    expect(ids).toContain('sc-1');
-    expect(ids).toContain('sc-2');
-    expect(ids).toContain('sc-3');
+    const scenarioIds = envelopes.map(e => e.scenarioId);
+    expect(scenarioIds).toContain('sc-1');
+    expect(scenarioIds).toContain('sc-2');
+    expect(scenarioIds).toContain('sc-3');
   });
 
   it('synthesis comparison matrix has rows for all included scenarios', () => {
