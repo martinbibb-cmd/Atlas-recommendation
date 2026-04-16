@@ -1,20 +1,28 @@
-import type { SpatialTwinModelV1 } from '../state/spatialTwin.types';
+import type { SpatialTwinModelV1, AtlasSpatialPatchV1 } from '../state/spatialTwin.types';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
+import { applyScenarioPatches } from '../patches/applyScenarioPatches';
 
 export function projectSpatialTwinToEngineInput(
   spatial: SpatialTwinModelV1,
   survey: Partial<EngineInputV2_3>,
   mode: 'current' | 'proposed',
+  scenarioPatches?: AtlasSpatialPatchV1[],
 ): Partial<EngineInputV2_3> {
+  // When scenario patches are provided, project the model through them first.
+  const effectiveModel =
+    scenarioPatches != null && scenarioPatches.length > 0
+      ? applyScenarioPatches(spatial, scenarioPatches)
+      : spatial;
+
   const result: Partial<EngineInputV2_3> = { ...survey };
 
   // ── Heat source → boiler type ─────────────────────────────────────────────
   const activeSources =
     mode === 'current'
-      ? spatial.heatSources.filter(
+      ? effectiveModel.heatSources.filter(
           (h) => h.status === 'existing' || h.status === 'unchanged',
         )
-      : spatial.heatSources.filter((h) => h.status !== 'removed');
+      : effectiveModel.heatSources.filter((h) => h.status !== 'removed');
 
   const primarySource = activeSources[0];
   if (primarySource != null) {
@@ -31,8 +39,8 @@ export function projectSpatialTwinToEngineInput(
   // ── Cylinder presence ─────────────────────────────────────────────────────
   const activeStores =
     mode === 'current'
-      ? spatial.stores.filter((s) => s.status === 'existing' || s.status === 'unchanged')
-      : spatial.stores.filter((s) => s.status !== 'removed');
+      ? effectiveModel.stores.filter((s) => s.status === 'existing' || s.status === 'unchanged')
+      : effectiveModel.stores.filter((s) => s.status !== 'removed');
 
   if (activeStores.length > 0) {
     const cylinder = activeStores.find((s) => s.type === 'cylinder');
@@ -42,7 +50,7 @@ export function projectSpatialTwinToEngineInput(
   }
 
   // ── Emitter count ──────────────────────────────────────────────────────────
-  const emitters = spatial.spatial.emitters;
+  const emitters = effectiveModel.spatial.emitters;
   if (emitters.length > 0 && result.radiatorCount == null) {
     result.radiatorCount = emitters.filter((e) => e.type === 'radiator').length;
   }
@@ -52,7 +60,7 @@ export function projectSpatialTwinToEngineInput(
   // UK average: roughly 2 of 3–4 habitable rooms are bedrooms/reception rooms.
   // This is a coarse heuristic only; survey data takes precedence.
   const BEDROOM_TO_ROOM_RATIO = 0.6;
-  const roomCount = spatial.spatial.rooms.length;
+  const roomCount = effectiveModel.spatial.rooms.length;
   if (roomCount > 0 && result.occupancyCount == null) {
     result.occupancyCount = Math.max(1, Math.round(roomCount * BEDROOM_TO_ROOM_RATIO));
   }

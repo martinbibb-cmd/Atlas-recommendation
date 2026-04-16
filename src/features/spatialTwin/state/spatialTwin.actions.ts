@@ -4,6 +4,7 @@ import type {
   SpatialTwinLeftRailSection,
   AtlasSpatialPatchV1,
   SpatialTwinViewDimension,
+  ScenarioIntent,
 } from './spatialTwin.types';
 
 // ─── Action type constants ───────────────────────────────────────────────────
@@ -21,6 +22,17 @@ export const TOGGLE_OVERLAY = 'spatialTwin/TOGGLE_OVERLAY' as const;
 export const APPLY_PATCH = 'spatialTwin/APPLY_PATCH' as const;
 export const RESET_PATCHES = 'spatialTwin/RESET_PATCHES' as const;
 export const SET_VIEW_DIMENSION = 'spatialTwin/SET_VIEW_DIMENSION' as const;
+
+// ─── Scenario action type constants ──────────────────────────────────────────
+
+export const CREATE_SCENARIO = 'spatialTwin/CREATE_SCENARIO' as const;
+export const RENAME_SCENARIO = 'spatialTwin/RENAME_SCENARIO' as const;
+export const DUPLICATE_SCENARIO = 'spatialTwin/DUPLICATE_SCENARIO' as const;
+export const DELETE_SCENARIO = 'spatialTwin/DELETE_SCENARIO' as const;
+export const SET_ACTIVE_SCENARIO = 'spatialTwin/SET_ACTIVE_SCENARIO' as const;
+export const APPLY_SCENARIO_PATCH = 'spatialTwin/APPLY_SCENARIO_PATCH' as const;
+export const SET_SCENARIO_RECOMMENDED = 'spatialTwin/SET_SCENARIO_RECOMMENDED' as const;
+export const SET_SCENARIO_INCLUDE_IN_REPORT = 'spatialTwin/SET_SCENARIO_INCLUDE_IN_REPORT' as const;
 
 // ─── Action interfaces ───────────────────────────────────────────────────────
 
@@ -99,7 +111,131 @@ export type SpatialTwinAction =
   | ToggleOverlayAction
   | ApplyPatchAction
   | ResetPatchesAction
-  | SetViewDimensionAction;
+  | SetViewDimensionAction
+  | CreateScenarioAction
+  | RenameScenarioAction
+  | DuplicateScenarioAction
+  | DeleteScenarioAction
+  | SetActiveScenarioAction
+  | ApplyScenarioPatchAction
+  | SetScenarioRecommendedAction
+  | SetScenarioIncludeInReportAction;
+
+// ─── Scenario action interfaces ───────────────────────────────────────────────
+
+export interface CreateScenarioAction {
+  type: typeof CREATE_SCENARIO;
+  payload: {
+    scenarioId: string;
+    name: string;
+    intent: ScenarioIntent;
+    description?: string;
+    createdAt: string;
+  };
+}
+
+export interface RenameScenarioAction {
+  type: typeof RENAME_SCENARIO;
+  payload: { scenarioId: string; name: string; updatedAt: string };
+}
+
+export interface DuplicateScenarioAction {
+  type: typeof DUPLICATE_SCENARIO;
+  payload: {
+    sourceScenarioId: string;
+    newScenarioId: string;
+    name: string;
+    createdAt: string;
+  };
+}
+
+export interface DeleteScenarioAction {
+  type: typeof DELETE_SCENARIO;
+  payload: { scenarioId: string };
+}
+
+export interface SetActiveScenarioAction {
+  type: typeof SET_ACTIVE_SCENARIO;
+  payload: { scenarioId: string | null };
+}
+
+export interface ApplyScenarioPatchAction {
+  type: typeof APPLY_SCENARIO_PATCH;
+  payload: { scenarioId: string; patch: AtlasSpatialPatchV1 };
+}
+
+export interface SetScenarioRecommendedAction {
+  type: typeof SET_SCENARIO_RECOMMENDED;
+  payload: { scenarioId: string; isRecommended: boolean };
+}
+
+export interface SetScenarioIncludeInReportAction {
+  type: typeof SET_SCENARIO_INCLUDE_IN_REPORT;
+  payload: { scenarioId: string; includeInReport: boolean };
+}
+
+// ─── Scenario action creators ─────────────────────────────────────────────────
+
+export const createScenario = (
+  scenarioId: string,
+  name: string,
+  intent: ScenarioIntent,
+  description?: string,
+): CreateScenarioAction => ({
+  type: CREATE_SCENARIO,
+  payload: { scenarioId, name, intent, description, createdAt: new Date().toISOString() },
+});
+
+export const renameScenario = (
+  scenarioId: string,
+  name: string,
+): RenameScenarioAction => ({
+  type: RENAME_SCENARIO,
+  payload: { scenarioId, name, updatedAt: new Date().toISOString() },
+});
+
+export const duplicateScenario = (
+  sourceScenarioId: string,
+  newScenarioId: string,
+  name: string,
+): DuplicateScenarioAction => ({
+  type: DUPLICATE_SCENARIO,
+  payload: { sourceScenarioId, newScenarioId, name, createdAt: new Date().toISOString() },
+});
+
+export const deleteScenario = (scenarioId: string): DeleteScenarioAction => ({
+  type: DELETE_SCENARIO,
+  payload: { scenarioId },
+});
+
+export const setActiveScenario = (scenarioId: string | null): SetActiveScenarioAction => ({
+  type: SET_ACTIVE_SCENARIO,
+  payload: { scenarioId },
+});
+
+export const applyScenarioPatch = (
+  scenarioId: string,
+  patch: AtlasSpatialPatchV1,
+): ApplyScenarioPatchAction => ({
+  type: APPLY_SCENARIO_PATCH,
+  payload: { scenarioId, patch },
+});
+
+export const setScenarioRecommended = (
+  scenarioId: string,
+  isRecommended: boolean,
+): SetScenarioRecommendedAction => ({
+  type: SET_SCENARIO_RECOMMENDED,
+  payload: { scenarioId, isRecommended },
+});
+
+export const setScenarioIncludeInReport = (
+  scenarioId: string,
+  includeInReport: boolean,
+): SetScenarioIncludeInReportAction => ({
+  type: SET_SCENARIO_INCLUDE_IN_REPORT,
+  payload: { scenarioId, includeInReport },
+});
 
 // ─── Action creators ─────────────────────────────────────────────────────────
 

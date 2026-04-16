@@ -126,6 +126,18 @@ export interface SpatialTwinFeatureState {
   importState: SpatialTwinImportState;
   dirty: boolean;
   lastError?: string;
+
+  // ── Scenario branching ─────────────────────────────────────────────────────
+
+  /** Saved design scenarios layered on the base model. */
+  scenarios: SpatialTwinScenarioV1[];
+  /**
+   * Full ordered patch objects for each scenario, keyed by scenarioId.
+   * Apply these in order on top of `model` to project any given scenario.
+   */
+  patchesByScenario: Record<string, AtlasSpatialPatchV1[]>;
+  /** Currently active/viewed scenario ID (null → base model view). */
+  activeScenarioId: string | null;
 }
 
 export interface SpatialTwinDeltaSummary {
@@ -133,4 +145,65 @@ export interface SpatialTwinDeltaSummary {
   removedEntities: Array<{ kind: string; label: string }>;
   changedEntities: Array<{ kind: string; label: string; change: string }>;
   totalChanges: number;
+}
+
+// ─── Scenario branching ───────────────────────────────────────────────────────
+
+/**
+ * The intent that categorises a design scenario.
+ *
+ * best_fit            — recommended system, best overall match.
+ * low_disruption      — minimises installation disruption.
+ * budget              — lowest upfront cost path.
+ * future_ready        — heat-pump pathway or future-upgrade strategy.
+ * hot_water_priority  — optimised for DHW performance.
+ * custom              — engineer-defined option without a preset tag.
+ */
+export type ScenarioIntent =
+  | 'best_fit'
+  | 'low_disruption'
+  | 'budget'
+  | 'future_ready'
+  | 'hot_water_priority'
+  | 'custom';
+
+/**
+ * A named design option layered on top of the base SpatialTwinModelV1.
+ *
+ * Each scenario stores only the IDs of the patches that belong to it.
+ * The full patch objects are stored in `patchesByScenario` keyed by scenarioId
+ * so that patches can be replayed on demand without duplicating the base model.
+ */
+export interface SpatialTwinScenarioV1 {
+  scenarioId: string;
+  name: string;
+  description?: string;
+  intent: ScenarioIntent;
+
+  /** Ordered list of patch IDs belonging to this scenario. */
+  patchIds: string[];
+
+  createdAt: string;
+  updatedAt: string;
+
+  /** True when this scenario has been promoted as the recommended design. */
+  isRecommended?: boolean;
+  /** True when the customer has actively selected this option. */
+  isSelectedByUser?: boolean;
+  /** When false the scenario is hidden from the generated report. */
+  includeInReport?: boolean;
+}
+
+/**
+ * Scenario-aware extension of the spatial twin feature state.
+ *
+ * baseModel is the canonical captured/edited property truth.
+ * Each scenario's view is baseModel + its own patches replayed in order.
+ */
+export interface SpatialTwinScenarioStateV1 {
+  baseModel: SpatialTwinModelV1;
+  scenarios: SpatialTwinScenarioV1[];
+  /** Full patch objects keyed by scenarioId. */
+  patchesByScenario: Record<string, AtlasSpatialPatchV1[]>;
+  activeScenarioId: string | null;
 }
