@@ -6,11 +6,11 @@
  * (current/proposed/compare), which lives in the Spatial Twin store.
  */
 
-export type ViewDimension = '2d' | '3d';
+import type { SpatialTwinViewDimension } from '../../state/spatialTwin.types';
 
 interface SpatialTwinSceneModeToggleProps {
-  viewDimension: ViewDimension;
-  onSetViewDimension: (v: ViewDimension) => void;
+  viewDimension: SpatialTwinViewDimension;
+  onSetViewDimension: (v: SpatialTwinViewDimension) => void;
 }
 
 export function SpatialTwinSceneModeToggle({

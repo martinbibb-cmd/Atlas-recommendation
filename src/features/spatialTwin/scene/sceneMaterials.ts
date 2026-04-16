@@ -57,8 +57,3 @@ const MATERIALS: Record<SceneNodeTone, SceneMaterial> = {
 export function getMaterial(tone: SceneNodeTone): SceneMaterial {
   return MATERIALS[tone];
 }
-
-/** Slightly darker shade for vertical faces in the isometric projection. */
-export function getDarkerFill(fill: string): string {
-  return fill;
-}
