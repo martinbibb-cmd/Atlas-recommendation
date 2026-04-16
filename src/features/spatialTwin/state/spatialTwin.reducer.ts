@@ -22,6 +22,7 @@ import {
   APPLY_SCENARIO_PATCH,
   SET_SCENARIO_RECOMMENDED,
   SET_SCENARIO_INCLUDE_IN_REPORT,
+  SET_SCENARIO_SELECTED_BY_USER,
 } from './spatialTwin.actions';
 import { applyLocalSpatialPatch } from '../patches/applyLocalSpatialPatch';
 
@@ -227,6 +228,20 @@ export function spatialTwinReducer(
         ...state,
         scenarios: state.scenarios.map((s) =>
           s.scenarioId === scenarioId ? { ...s, includeInReport } : s,
+        ),
+      };
+    }
+
+    case SET_SCENARIO_SELECTED_BY_USER: {
+      const { scenarioId, isSelectedByUser } = action.payload;
+      return {
+        ...state,
+        scenarios: state.scenarios.map((s) =>
+          s.scenarioId === scenarioId
+            ? { ...s, isSelectedByUser }
+            : isSelectedByUser
+              ? { ...s, isSelectedByUser: false }
+              : s,
         ),
       };
     }
