@@ -2,6 +2,7 @@
  * reportPayload.types.ts
  *
  * PR3 — Canonical report payload types.
+ * PR6 — Added scenarioSynthesis to CanonicalReportPayloadV1.
  *
  * Introduces a versioned, canonical-first payload shape for Atlas report rows.
  * Existing legacy reports (pre-PR3) stored:
@@ -10,6 +11,11 @@
  * New reports (post-PR3) store:
  *   { schemaVersion: '2.0', atlasProperty, engineRun, presentationState,
  *     decisionSynthesis, legacy?: { surveyData, engineInput, engineOutput } }
+ *
+ * PR6 adds:
+ *   scenarioSynthesis — ranked scenario shortlist with per-scenario summaries
+ *   and side-by-side comparison matrix.  Present only when design scenarios
+ *   were included in the report run.  Derived only — not canonical stored truth.
  *
  * The schemaVersion: '2.0' marker makes forward-detection trivial in PR9+.
  * Readers should use readCanonicalReportPayload() to accept both shapes.
@@ -22,6 +28,7 @@ import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1
 import type { RecommendationPresentationState } from '../../../lib/selection/optionSelection';
 import type { AdviceFromCompareResult } from '../../../lib/advice/buildAdviceFromCompare';
 import type { DerivedFloorplanOutput } from '../../../components/floorplan/floorplanDerivations';
+import type { ScenarioSynthesisResult } from '../../spatialTwin/synthesis/ScenarioSynthesisModel';
 
 // ─── Engine run ───────────────────────────────────────────────────────────────
 
@@ -60,6 +67,12 @@ export interface CanonicalReportPayloadV1 {
   engineRun: PersistedEngineRunV1;
   presentationState?: RecommendationPresentationState | null;
   decisionSynthesis?: AdviceFromCompareResult | null;
+  /**
+   * PR6: Ranked scenario shortlist with per-scenario summaries and side-by-side
+   * comparison matrix.  Present only when design scenarios were included in the
+   * report run.  Derived only — not canonical stored truth.
+   */
+  scenarioSynthesis?: ScenarioSynthesisResult | null;
   /**
    * Backward-compatibility copies of the old parallel-truth fields.
    * Present on new saves during the migration window; absent on reads is safe.
