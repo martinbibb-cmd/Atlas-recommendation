@@ -372,7 +372,7 @@ export default function SimulatorDashboard({
   portalMode = false,
 }: Props) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
-  const [expandedCompare, setExpandedCompare] = useState<{ side: 'left' | 'right'; panelId: PanelId; title: string; icon: string; content: ReactElement } | null>(null);
+  const [expandedCompare, setExpandedCompare] = useState<{ side: 'left' | 'right'; title: string; icon: string; content: ReactElement } | null>(null);
   const [timeSpeed, setTimeSpeed] = useState(1);
   const [simulatorMode, setSimulatorMode] = useState<SimulatorMode>(defaultMode ?? 'single');
   const [scenarioKey, setScenarioKey] = useState<ScenarioKey>(DEFAULT_SCENARIO_KEY);
@@ -626,8 +626,8 @@ export default function SimulatorDashboard({
 
   if (simulatorMode === 'compare') {
     // Helper to open a half-screen expanded panel for compare mode.
-    const openCompare = (side: 'left' | 'right', panelId: PanelId, title: string, icon: string, content: ReactElement) => {
-      setExpandedCompare({ side, panelId, title, icon, content });
+    const openCompare = (side: 'left' | 'right', title: string, icon: string, content: ReactElement) => {
+      setExpandedCompare({ side, title, icon, content });
     };
 
     return (
@@ -692,14 +692,14 @@ export default function SimulatorDashboard({
             />
 
             <div className="sim-compare-panels">
-              <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('left', 'system', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />)}>
+              <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('left', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />)}>
                 <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />
               </SimulatorPanel>
             </div>
 
             {/* System Behaviour graph — shown early so dynamics are the second thing the user sees */}
             <div className="sim-compare-behaviour">
-              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => openCompare('left', 'efficiency', 'System Behaviour', '📈', <BehaviourGraph timeline={behaviourTimeline} systemChoice={systemChoice} maxKw={behaviourMaxKw} />)}>
+              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => openCompare('left', 'System Behaviour', '📈', <BehaviourGraph timeline={behaviourTimeline} systemChoice={systemChoice} maxKw={behaviourMaxKw} />)}>
                 <BehaviourGraph
                   timeline={behaviourTimeline}
                   systemChoice={systemChoice}
@@ -709,19 +709,19 @@ export default function SimulatorDashboard({
             </div>
 
             <div className="sim-compare-efficiency">
-              <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => openCompare('left', 'efficiency', 'Efficiency', '📊', <EfficiencyPanel state={efficiencyState} />)}>
+              <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => openCompare('left', 'Efficiency', '📊', <EfficiencyPanel state={efficiencyState} />)}>
                 <EfficiencyPanel state={efficiencyState} />
               </SimulatorPanel>
             </div>
 
             <div className="sim-compare-limiters">
-              <SimulatorPanel title="System Limiters" icon="⚠" onExpand={() => openCompare('left', 'limiters', 'System Limiters', '⚠', <LimitersPanel state={limiterState} />)}>
+              <SimulatorPanel title="System Limiters" icon="⚠" onExpand={() => openCompare('left', 'System Limiters', '⚠', <LimitersPanel state={limiterState} />)}>
                 <LimitersPanel state={limiterState} />
               </SimulatorPanel>
             </div>
 
             <div className="sim-compare-inputs">
-              <SimulatorPanel title="System Inputs" icon="🎛" onExpand={() => openCompare('left', 'inputs', 'System Inputs', '🎛', <SystemInputsPanel timeSpeed={timeSpeed} onTimeSpeedChange={setTimeSpeed} inputs={systemInputs} onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))} systemChoice={systemChoice} portalMode={portalMode} />)}>
+              <SimulatorPanel title="System Inputs" icon="🎛" onExpand={() => openCompare('left', 'System Inputs', '🎛', <SystemInputsPanel timeSpeed={timeSpeed} onTimeSpeedChange={setTimeSpeed} inputs={systemInputs} onInputChange={partial => setSystemInputs(prev => ({ ...prev, ...partial }))} systemChoice={systemChoice} portalMode={portalMode} />)}>
                 <SystemInputsPanel
                   timeSpeed={timeSpeed}
                   onTimeSpeedChange={setTimeSpeed}
@@ -756,14 +756,14 @@ export default function SimulatorDashboard({
             />
 
             <div className="sim-compare-panels">
-              <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('right', 'system', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />)}>
+              <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('right', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />)}>
                 <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />
               </SimulatorPanel>
             </div>
 
             {/* System Behaviour graph — shown early so dynamics are the second thing the user sees */}
             <div className="sim-compare-behaviour">
-              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => openCompare('right', 'efficiency', 'System Behaviour', '📈', <BehaviourGraph timeline={behaviourTimelineImproved} systemChoice={systemChoiceImproved} maxKw={behaviourMaxKwImproved} />)}>
+              <SimulatorPanel title="System Behaviour" icon="📈" onExpand={() => openCompare('right', 'System Behaviour', '📈', <BehaviourGraph timeline={behaviourTimelineImproved} systemChoice={systemChoiceImproved} maxKw={behaviourMaxKwImproved} />)}>
                 <BehaviourGraph
                   timeline={behaviourTimelineImproved}
                   systemChoice={systemChoiceImproved}
@@ -773,19 +773,19 @@ export default function SimulatorDashboard({
             </div>
 
             <div className="sim-compare-efficiency">
-              <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => openCompare('right', 'efficiency', 'Efficiency', '📊', <EfficiencyPanel state={efficiencyStateImproved} />)}>
+              <SimulatorPanel title="Efficiency" icon="📊" onExpand={() => openCompare('right', 'Efficiency', '📊', <EfficiencyPanel state={efficiencyStateImproved} />)}>
                 <EfficiencyPanel state={efficiencyStateImproved} />
               </SimulatorPanel>
             </div>
 
             <div className="sim-compare-limiters">
-              <SimulatorPanel title="System Limiters" icon="⚠" onExpand={() => openCompare('right', 'limiters', 'System Limiters', '⚠', <LimitersPanel state={limiterStateImproved} />)}>
+              <SimulatorPanel title="System Limiters" icon="⚠" onExpand={() => openCompare('right', 'System Limiters', '⚠', <LimitersPanel state={limiterStateImproved} />)}>
                 <LimitersPanel state={limiterStateImproved} />
               </SimulatorPanel>
             </div>
 
             <div className="sim-compare-inputs">
-              <SimulatorPanel title={`${compareLabels.proposed} Inputs`} icon="🎛" onExpand={() => openCompare('right', 'inputs', `${compareLabels.proposed} Inputs`, '🎛', <SystemInputsPanel timeSpeed={timeSpeed} onTimeSpeedChange={setTimeSpeed} inputs={improvedInputs} onInputChange={partial => setImprovedInputs(prev => ({ ...prev, ...partial }))} systemChoice={systemChoiceImproved} portalMode={portalMode} />)}>
+              <SimulatorPanel title={`${compareLabels.proposed} Inputs`} icon="🎛" onExpand={() => openCompare('right', `${compareLabels.proposed} Inputs`, '🎛', <SystemInputsPanel timeSpeed={timeSpeed} onTimeSpeedChange={setTimeSpeed} inputs={improvedInputs} onInputChange={partial => setImprovedInputs(prev => ({ ...prev, ...partial }))} systemChoice={systemChoiceImproved} portalMode={portalMode} />)}>
                 <SystemInputsPanel
                   timeSpeed={timeSpeed}
                   onTimeSpeedChange={setTimeSpeed}
