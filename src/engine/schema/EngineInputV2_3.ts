@@ -556,8 +556,24 @@ export interface EngineInputV2_3 {
   highOccupancy: boolean;
   /** Peak simultaneous DHW outlets (e.g. 1 = single shower, 2 = shower + basin). */
   peakConcurrentOutlets?: number;
-  /** Cylinder / airing-cupboard space availability. */
-  availableSpace?: 'tight' | 'ok' | 'unknown';
+  /**
+   * Cylinder / airing-cupboard space availability.
+   *
+   *   'ok'      — confirmed adequate space for a standard or slimline cylinder
+   *   'tight'   — space is constrained; compact / Mixergy option may be needed
+   *   'none'    — no space at all; cylinder installation is not feasible (hard gate)
+   *   'unknown' — surveyor has not yet assessed space (default; no gate applied)
+   */
+  availableSpace?: 'tight' | 'ok' | 'none' | 'unknown';
+  /**
+   * Space in the loft for a cold water storage (CWS) tank and a feed-and-expansion
+   * (F&E) cistern — both are required for open-vented (tank-fed supply) systems.
+   *
+   *   'ok'      — confirmed adequate loft space for both CWS and F&E tanks
+   *   'none'    — no usable loft space; open-vented tank-fed systems are not feasible
+   *   'unknown' — surveyor has not yet assessed (default; no gate applied)
+   */
+  loftTankSpace?: 'ok' | 'none' | 'unknown';
   /**
    * Whether the property has adequate outdoor space for an ASHP unit (min. 1 m
    * clearance on all sides — garden, side return, or flat roof).
@@ -1095,6 +1111,7 @@ export interface CombiDhwV1Result {
 /** Structured flag item for StoredDhwModuleV1. */
 export interface StoredDhwFlagItem {
   id:
+    | 'stored-space-none'
     | 'stored-space-tight'
     | 'stored-space-unknown'
     | 'stored-high-demand'

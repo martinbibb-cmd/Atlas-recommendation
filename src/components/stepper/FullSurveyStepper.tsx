@@ -304,6 +304,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           }}
           availableSpace={input.availableSpace}
           onAvailableSpaceChange={value => setInput(prev => ({ ...prev, availableSpace: value }))}
+          loftTankSpace={input.loftTankSpace}
+          onLoftTankSpaceChange={value => setInput(prev => ({ ...prev, loftTankSpace: value }))}
           hasOutdoorSpaceForHeatPump={input.hasOutdoorSpaceForHeatPump}
           onOutdoorSpaceChange={value => setInput(prev => ({ ...prev, hasOutdoorSpaceForHeatPump: value }))}
         />

@@ -338,6 +338,45 @@
   text-align: center;
 }
 
+/* ─── Current vs proposed comparison table ───────────────────────────────── */
+
+.spp-comparison-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.spp-comparison-table__col {
+  padding: 8px 10px;
+  background: #f7fafc;
+  border-right: 1px solid #e2e8f0;
+}
+
+.spp-comparison-table__col--proposed {
+  background: #f0fdf4;
+  border-right: none;
+}
+
+.spp-comparison-table__heading {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0 0 6px;
+}
+
+.spp-comparison-table__subheading {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #718096;
+  margin: 6px 0 3px;
+}
+
 /* ─── Print overrides ─────────────────────────────────────────────────────── */
 
 @media print {

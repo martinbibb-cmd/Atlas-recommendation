@@ -21,7 +21,7 @@ import QRCode from 'qrcode';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { RecommendationState } from '../../features/survey/recommendation/recommendationTypes';
-import { buildCanonicalPresentation } from '../presentation/buildCanonicalPresentation';
+import { buildCanonicalPresentation, type SystemComparisonBlock } from '../presentation/buildCanonicalPresentation';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import './SurveyPrintoutPage.css';
 
@@ -128,6 +128,57 @@ function additionsList(additions: RecommendationState['additions']): string[] {
   return items;
 }
 
+// ─── Comparison sub-component ─────────────────────────────────────────────────
+
+function SurveyComparisonTable({ comparison }: { comparison: SystemComparisonBlock }) {
+  const { current, proposed } = comparison;
+  return (
+    <section className="spp-section" aria-label="Current vs proposed system">
+      <h2 className="spp-section__title">Current vs proposed system</h2>
+      <div className="spp-comparison-table" data-testid="survey-system-comparison">
+        <div className="spp-comparison-table__col">
+          <p className="spp-comparison-table__heading">Current: {current.label}</p>
+          {current.benefits.length > 0 && (
+            <>
+              <p className="spp-comparison-table__subheading">Benefits</p>
+              <ul className="spp-list spp-list--positive">
+                {current.benefits.map((b, i) => <li key={i}>{b}</li>)}
+              </ul>
+            </>
+          )}
+          {current.limitations.length > 0 && (
+            <>
+              <p className="spp-comparison-table__subheading">Limitations</p>
+              <ul className="spp-list">
+                {current.limitations.map((l, i) => <li key={i}>{l}</li>)}
+              </ul>
+            </>
+          )}
+        </div>
+        <div className="spp-comparison-table__col spp-comparison-table__col--proposed">
+          <p className="spp-comparison-table__heading">Proposed: {proposed.label}</p>
+          {proposed.benefits.length > 0 && (
+            <>
+              <p className="spp-comparison-table__subheading">Benefits</p>
+              <ul className="spp-list spp-list--positive">
+                {proposed.benefits.map((b, i) => <li key={i}>{b}</li>)}
+              </ul>
+            </>
+          )}
+          {proposed.limitations.length > 0 && (
+            <>
+              <p className="spp-comparison-table__subheading">Limitations</p>
+              <ul className="spp-list">
+                {proposed.limitations.map((l, i) => <li key={i}>{l}</li>)}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SurveyPrintoutPage({
@@ -142,7 +193,7 @@ export default function SurveyPrintoutPage({
   onBack,
 }: Props) {
   const model = buildCanonicalPresentation(result, input, recommendationResult, prioritiesState);
-  const { page1, page3, page4Plus } = model;
+  const { page1, page3, page4Plus, systemComparison } = model;
 
   const topOption = page3.items[0];
   const topDetail = page4Plus.options[0] ?? null;
@@ -297,6 +348,11 @@ export default function SurveyPrintoutPage({
                   ))}
                 </ul>
               </section>
+            )}
+
+            {/* ── Current vs proposed comparison ───────────── */}
+            {systemComparison && (
+              <SurveyComparisonTable comparison={systemComparison} />
             )}
 
           </div>
