@@ -65,3 +65,68 @@ export default function ExpandedPanelModal({ title, icon, onClose, children }: P
     </div>
   );
 }
+
+// ─── Compare-mode half-screen overlay ────────────────────────────────────────
+
+interface CompareHalfPanelProps {
+  title: string;
+  icon: string;
+  side: 'left' | 'right';
+  onClose: () => void;
+  children: ReactNode;
+}
+
+/**
+ * CompareHalfPanel — half-screen overlay anchored to the left or right side.
+ *
+ * Used in compare mode when the user taps a panel's expand icon.
+ * On narrow screens (≤ 900 px) it degrades to a full-width overlay.
+ */
+export function CompareHalfPanel({ title, icon, side, onClose, children }: CompareHalfPanelProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
+  function handleOverlayClick(e: React.MouseEvent) {
+    if (e.target === e.currentTarget) onClose();
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') onClose();
+  }
+
+  return (
+    <div
+      className={`sim-half-overlay sim-half-overlay--${side === 'left' ? 'left' : 'right'}`}
+      onClick={handleOverlayClick}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${title} expanded view`}
+    >
+      <div
+        className="sim-half-panel"
+        ref={containerRef}
+        tabIndex={-1}
+        style={{ outline: 'none' }}
+      >
+        <div className="sim-half-panel__header">
+          <span aria-hidden="true" style={{ fontSize: '1.1rem' }}>{icon}</span>
+          <h2 className="sim-half-panel__title">{title}</h2>
+          <button
+            className="sim-half-panel__close"
+            onClick={onClose}
+            aria-label="Close expanded view"
+          >
+            ✕ Close
+          </button>
+        </div>
+        <div className="sim-half-panel__body">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
