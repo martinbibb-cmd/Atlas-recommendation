@@ -1967,7 +1967,7 @@ function buildPage4Plus(
 
   // Sort so the best overall recommendation option is always first.
   if (recommendation?.bestOverall) {
-    const bestIds = FAMILY_TO_OPTION_IDS[recommendation.bestOverall.family];
+    const bestIds = FAMILY_TO_OPTION_IDS[recommendation.bestOverall.family] ?? [];
     shortlisted.sort((a, b) => {
       const aFirst = bestIds.includes(a.family) ? 0 : 1;
       const bFirst = bestIds.includes(b.family) ? 0 : 1;
@@ -2175,7 +2175,7 @@ function buildProposedSystemSide(
   // to options[0] which is always combi (hardcoded engine order).
   let top: OptionCardV1 | undefined;
   if (recommendation?.bestOverall) {
-    const bestIds = FAMILY_TO_OPTION_IDS[recommendation.bestOverall.family];
+    const bestIds = FAMILY_TO_OPTION_IDS[recommendation.bestOverall.family] ?? [];
     top = options.find(o => bestIds.includes(o.id)) ?? options[0];
   } else {
     top = options[0];
