@@ -64,6 +64,13 @@ const COMBI_SOLO_DELIVERY_TEMP_C: Record<string, number> = {
   kitchen: 44,
 }
 
+/**
+ * Maximum temperature penalty (°C) applied to delivered temperature when the
+ * boiler or mains is at its limit under concurrent demand.  The penalty scales
+ * linearly from 0 (no constraint) to this value (fully constrained / throttle=0).
+ */
+const MAX_CONCURRENT_TEMP_PENALTY_C = 5
+
 // ─── Public state type ────────────────────────────────────────────────────────
 
 /**
@@ -229,7 +236,7 @@ function buildOutletStates(
 
     // Delivery temperature: solo temps when unconstrained; apply a small
     // temperature penalty proportional to the throttle shortfall when constrained.
-    const tempPenalty = isConstrained ? Math.round((1 - throttle) * 5) : 0
+    const tempPenalty = isConstrained ? Math.round((1 - throttle) * MAX_CONCURRENT_TEMP_PENALTY_C) : 0
 
     return [
       showerOpen ? {

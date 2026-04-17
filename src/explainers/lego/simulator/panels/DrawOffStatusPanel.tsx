@@ -47,6 +47,12 @@ const HOT_SUPPLY_COMBI_SETPOINT_C    = 55
 /** Default combi DHW boiler output (kW) used when no survey value is available. */
 const DEFAULT_COMBI_DHW_OUTPUT_KW    = 30
 /**
+ * Fraction of solo hot-supply flow each outlet receives under concurrent demand.
+ * Under simultaneous draw, the boiler splits its output between two outlets;
+ * each receives approximately 60% of the unconstrained solo rate.
+ */
+const CONCURRENT_HOT_SPLIT_FACTOR    = 0.6
+/**
  * Minimum mains flow (L/min) below which a combi boiler cannot sustain
  * ignition.  Mirrors the ignition threshold in DrawOffWorkbench.tsx.
  */
@@ -102,7 +108,7 @@ function deriveCombiHotFlow(
   })
   // Cap by both the thermal limit and the cold-mains capacity
   const maxHotLpm = Math.min(thermalLimitLpm, mainsFlowLpm)
-  return concurrent ? Math.round(maxHotLpm * 0.6 * 10) / 10 : maxHotLpm
+  return concurrent ? Math.round(maxHotLpm * CONCURRENT_HOT_SPLIT_FACTOR * 10) / 10 : maxHotLpm
 }
 
 // ─── Outlet adapter ───────────────────────────────────────────────────────────
@@ -131,7 +137,7 @@ function outletToViewModel(
   const hotAvailFlow   = outlet.open
     ? (isCombi
         ? deriveCombiHotFlow(mainsFlowLpm, concurrent, boilerDhwOutputKw, coldInletTempC)
-        : (concurrent ? Math.round(mainsFlowLpm * 0.6 * 10) / 10 : mainsFlowLpm))
+        : (concurrent ? Math.round(mainsFlowLpm * CONCURRENT_HOT_SPLIT_FACTOR * 10) / 10 : mainsFlowLpm))
     : 0
 
   let status: DrawOffStatus
