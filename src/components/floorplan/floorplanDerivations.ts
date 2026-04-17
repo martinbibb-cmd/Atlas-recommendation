@@ -3,11 +3,13 @@ import type {
   ConnectionPath,
   DisruptionAnnotation,
   DisruptionKind,
+  Opening,
   PlacementNode,
   Point,
   PropertyPlan,
   Room,
   ServiceType,
+  Wall,
 } from './propertyPlan.types';
 import { BOILER_VALID_ROOM_TYPES, CYLINDER_VALID_ROOM_TYPES } from './propertyPlan.types';
 import { routePipeAligned } from '../../explainers/lego/builder/router';
@@ -555,4 +557,187 @@ export function computeDisruptionAnnotations(plan: PropertyPlan): DisruptionAnno
   }
 
   return annotations;
+}
+
+// ─── Opening geometry helpers ─────────────────────────────────────────────────
+
+/**
+ * Resolved geometry for a single floor-plan opening (door or window).
+ * All coordinates are in canvas pixels.
+ */
+export interface OpeningGeometry {
+  /** Canvas position of the opening start (near end). */
+  startX: number;
+  startY: number;
+  /** Canvas position of the opening end (far end). */
+  endX: number;
+  endY: number;
+  /** Unit vector along the wall direction (start → end). */
+  ux: number;
+  uy: number;
+  /** Unit vector perpendicular to the wall (90° anti-clockwise of wall direction). */
+  perpX: number;
+  perpY: number;
+  /** Opening width in canvas pixels. */
+  widthPx: number;
+}
+
+/**
+ * Calculate the canvas-space geometry for a floor-plan opening.
+ *
+ * @param opening  - The opening to resolve.
+ * @param walls    - All walls on the same floor.
+ * @returns Resolved geometry, or null when the referenced wall is not found / has zero length.
+ */
+export function getOpeningGeometry(
+  opening: Opening,
+  walls: Wall[],
+): OpeningGeometry | null {
+  const wall = walls.find((w) => w.id === opening.wallId);
+  if (!wall) return null;
+  const dx = wall.x2 - wall.x1;
+  const dy = wall.y2 - wall.y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) return null;
+
+  const ux = dx / len;
+  const uy = dy / len;
+  // Perpendicular: 90° anti-clockwise rotation of the unit vector.
+  const perpX = -uy;
+  const perpY = ux;
+
+  const startX = wall.x1 + opening.offsetM * GRID * ux;
+  const startY = wall.y1 + opening.offsetM * GRID * uy;
+  const widthPx = opening.widthM * GRID;
+  const endX = startX + widthPx * ux;
+  const endY = startY + widthPx * uy;
+
+  return { startX, startY, endX, endY, ux, uy, perpX, perpY, widthPx };
+}
+
+/**
+ * Split a wall into line segments with gaps punched out wherever openings sit.
+ *
+ * Segments are returned in wall-direction order (closest to (x1,y1) first).
+ * Openings that extend beyond the wall ends are clamped to the wall length.
+ * Overlapping openings are merged before splitting.
+ *
+ * @param wall     - The wall to segment.
+ * @param openings - All openings for this floor (only those with matching wallId are used).
+ * @returns Array of {x1,y1,x2,y2} segment endpoints in canvas pixels.
+ */
+export function wallSegmentsWithGaps(
+  wall: Wall,
+  openings: Opening[],
+): Array<{ x1: number; y1: number; x2: number; y2: number }> {
+  const dx = wall.x2 - wall.x1;
+  const dy = wall.y2 - wall.y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+
+  if (len < 1) return [];
+
+  const ux = dx / len;
+  const uy = dy / len;
+
+  // Collect gaps for openings on this wall.
+  const wallOpenings = openings.filter((o) => o.wallId === wall.id);
+  const rawGaps = wallOpenings.map((o) => ({
+    start: Math.max(0, o.offsetM * GRID),
+    end: Math.min(len, o.offsetM * GRID + o.widthM * GRID),
+  })).filter((g) => g.end > g.start);
+
+  if (rawGaps.length === 0) {
+    return [{ x1: wall.x1, y1: wall.y1, x2: wall.x2, y2: wall.y2 }];
+  }
+
+  // Sort and merge overlapping gaps.
+  rawGaps.sort((a, b) => a.start - b.start);
+  const gaps: Array<{ start: number; end: number }> = [];
+  let cur = rawGaps[0];
+  for (let i = 1; i < rawGaps.length; i++) {
+    const next = rawGaps[i];
+    if (next.start <= cur.end) {
+      cur = { start: cur.start, end: Math.max(cur.end, next.end) };
+    } else {
+      gaps.push(cur);
+      cur = next;
+    }
+  }
+  gaps.push(cur);
+
+  const segments: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+  let cursor = 0;
+
+  for (const gap of gaps) {
+    if (cursor < gap.start) {
+      segments.push({
+        x1: wall.x1 + cursor * ux,
+        y1: wall.y1 + cursor * uy,
+        x2: wall.x1 + gap.start * ux,
+        y2: wall.y1 + gap.start * uy,
+      });
+    }
+    cursor = gap.end;
+  }
+
+  if (cursor < len) {
+    segments.push({
+      x1: wall.x1 + cursor * ux,
+      y1: wall.y1 + cursor * uy,
+      x2: wall.x2,
+      y2: wall.y2,
+    });
+  }
+
+  return segments;
+}
+
+/** Default pixel threshold used by findWallHit. */
+export const WALL_HIT_THRESHOLD_PX = 15;
+
+/**
+ * Find the wall closest to a canvas-space pointer position and compute the
+ * click offset along that wall in metres.
+ *
+ * The algorithm projects the click point onto each wall line segment and
+ * selects the nearest projection within `threshold` pixels.
+ *
+ * @param pos       - Canvas-space pointer position.
+ * @param walls     - Candidate walls on the active floor.
+ * @param threshold - Maximum distance (px) from the wall for a hit (default 15 px).
+ * @returns { wall, offsetM } or null when no wall is close enough.
+ */
+export function findWallHit(
+  pos: Point,
+  walls: Wall[],
+  threshold: number = WALL_HIT_THRESHOLD_PX,
+): { wall: Wall; offsetM: number } | null {
+  let best: { wall: Wall; offsetM: number; dist: number } | null = null;
+
+  for (const wall of walls) {
+    const dx = wall.x2 - wall.x1;
+    const dy = wall.y2 - wall.y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq < 1) continue;
+    const len = Math.sqrt(lenSq);
+
+    // Parametric t of the closest point on the segment [0, 1].
+    const t = Math.max(
+      0,
+      Math.min(1, ((pos.x - wall.x1) * dx + (pos.y - wall.y1) * dy) / lenSq),
+    );
+    const projX = wall.x1 + t * dx;
+    const projY = wall.y1 + t * dy;
+    const dist = Math.hypot(pos.x - projX, pos.y - projY);
+
+    if (dist <= threshold && (!best || dist < best.dist)) {
+      best = {
+        wall,
+        offsetM: Number(((t * len) / GRID).toFixed(2)),
+        dist,
+      };
+    }
+  }
+
+  return best ? { wall: best.wall, offsetM: best.offsetM } : null;
 }

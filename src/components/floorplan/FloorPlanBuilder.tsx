@@ -27,6 +27,8 @@ import type {
   DisruptionKind,
   EditorTool,
   FloorPlan,
+  Opening,
+  OpeningType,
   PlacementNode,
   PropertyMetadata,
   PropertyPlan,
@@ -42,8 +44,8 @@ import {
   DISRUPTION_KIND_LABELS,
   ROOM_TYPE_LABELS,
 } from './propertyPlan.types';
-import { autoRouteHeatingPipes, canPlaceInProfessionalPlan, computeDisruptionAnnotations, createManualRoom, deriveFloorplanOutputs } from './floorplanDerivations';
-import type { AutoRoute, DerivedFloorplanOutput } from './floorplanDerivations';
+import { autoRouteHeatingPipes, canPlaceInProfessionalPlan, computeDisruptionAnnotations, createManualRoom, deriveFloorplanOutputs, findWallHit, getOpeningGeometry, wallSegmentsWithGaps } from './floorplanDerivations';
+import type { AutoRoute, DerivedFloorplanOutput, OpeningGeometry } from './floorplanDerivations';
 import { badgeForObject, validatePropertyPlan } from './propertyValidation';
 import type { ValidationResult } from './propertyValidation';
 import './floorplan.css';
@@ -346,6 +348,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [viewMode, setViewMode] = useState<ViewMode>('customer');
   /** Disruption kind selected for the addDisruption tool */
   const [pendingDisruptionKind, setPendingDisruptionKind] = useState<DisruptionKind>('boxing');
+  /** Opening type selected for the addOpening tool */
+  const [pendingOpeningType, setPendingOpeningType] = useState<OpeningType>('door');
 
   // ── Undo / redo history ──────────────────────────────────────────────────
 
@@ -583,6 +587,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (selection?.kind !== 'disruption') return null;
     return (plan.disruptions ?? []).find((d) => d.id === selection.id) ?? null;
   }, [selection, plan.disruptions]);
+
+  const selectedOpening = useMemo(() => {
+    if (selection?.kind !== 'opening') return null;
+    return activeFloor?.openings.find((o) => o.id === selection.id) ?? null;
+  }, [selection, activeFloor]);
 
   // ── Emit helper ──────────────────────────────────────────────────────────
 
@@ -883,6 +892,36 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (selection?.kind === 'disruption' && selection.id === id) setSelection(null);
   }
 
+  // ── Opening mutations ────────────────────────────────────────────────────
+
+  function createOpening(wallId: string, offsetM: number, widthM: number, type: OpeningType) {
+    const opening: Opening = {
+      id: uid('opening'),
+      floorId: activeFloorId,
+      type,
+      wallId,
+      offsetM,
+      widthM,
+    };
+    updateActiveFloor((f) => ({ ...f, openings: [...f.openings, opening] }));
+    setSelection({ kind: 'opening', id: opening.id });
+  }
+
+  function updateOpening(id: string, patch: Partial<Opening>) {
+    updateActiveFloor((f) => ({
+      ...f,
+      openings: f.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)),
+    }));
+  }
+
+  function deleteOpening(id: string) {
+    updateActiveFloor((f) => ({
+      ...f,
+      openings: f.openings.filter((o) => o.id !== id),
+    }));
+    if (selection?.kind === 'opening' && selection.id === id) setSelection(null);
+  }
+
   // ── Pointer helpers ──────────────────────────────────────────────────────
 
   function boardPos(e: React.PointerEvent<HTMLDivElement>): { x: number; y: number } {
@@ -936,6 +975,17 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
     if (tool === 'addDisruption') {
       placeDisruption(pendingDisruptionKind, pos.x, pos.y);
+      return;
+    }
+
+    if (tool === 'addOpening') {
+      if (activeFloor) {
+        const hit = findWallHit(pos, activeFloor.walls);
+        if (hit) {
+          const defaultWidthM = pendingOpeningType === 'door' ? 0.9 : 1.2;
+          createOpening(hit.wall.id, hit.offsetM, defaultWidthM, pendingOpeningType);
+        }
+      }
       return;
     }
 
@@ -1448,6 +1498,23 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 ))}
               </div>
             )}
+            {/* Opening type picker — visible when addOpening is active */}
+            {tool === 'addOpening' && (
+              <div className="fpb__disruption-picker">
+                {(['door', 'window'] as OpeningType[]).map((t) => (
+                  <button
+                    key={t}
+                    className={`fpb__disruption-kind-btn ${pendingOpeningType === t ? 'active' : ''}`}
+                    onClick={() => setPendingOpeningType(t)}
+                    title={t === 'door' ? 'Door (0.9 m default)' : 'Window (1.2 m default)'}
+                  >
+                    <span>{t === 'door' ? '🚪' : '🪟'}</span>
+                    {t === 'door' ? 'Door' : 'Window'}
+                  </button>
+                ))}
+                <p className="fpb__opening-hint">Click on a wall to place</p>
+              </div>
+            )}
           </section>
 
           {/* Component tray */}
@@ -1559,32 +1626,126 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               <rect width="100%" height="100%" fill="url(#fpb-grid-major)" />
 
               {/* ── Layer 1: Walls (SVG) — gated by visibleLayers.geometry ── */}
-              {visibleLayers.geometry && activeFloor.walls.map((wall) => (
-                <g key={wall.id}>
-                  <line
-                    x1={wall.x1} y1={wall.y1} x2={wall.x2} y2={wall.y2}
-                    stroke={selection?.kind === 'wall' && selection.id === wall.id ? '#2563eb' : wall.kind === 'external' ? '#0f172a' : '#475569'}
-                    strokeWidth={wall.kind === 'external' ? 6 : 3}
-                    strokeLinecap="round"
+              {visibleLayers.geometry && activeFloor.walls.map((wall) => {
+                const isWallSelected = selection?.kind === 'wall' && selection.id === wall.id;
+                const strokeColor = isWallSelected ? '#2563eb' : wall.kind === 'external' ? '#0f172a' : '#475569';
+                const strokeW = wall.kind === 'external' ? 6 : 3;
+                // Punch gaps in the wall where openings sit (only when openings layer is on).
+                const segments = visibleLayers.openings
+                  ? wallSegmentsWithGaps(wall, activeFloor.openings)
+                  : [{ x1: wall.x1, y1: wall.y1, x2: wall.x2, y2: wall.y2 }];
+                return (
+                  <g
+                    key={wall.id}
                     style={{ cursor: 'pointer' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (tool === 'select') setSelection({ kind: 'wall', id: wall.id });
                     }}
-                  />
-                  {/* Wall kind label */}
-                  <text
-                    x={(wall.x1 + wall.x2) / 2}
-                    y={(wall.y1 + wall.y2) / 2 - 5}
-                    fontSize="9"
-                    fill="#94a3b8"
-                    textAnchor="middle"
-                    style={{ pointerEvents: 'none' }}
                   >
-                    {wall.kind === 'external' ? 'ext' : ''}
-                  </text>
-                </g>
-              ))}
+                    {segments.map((seg, i) => (
+                      <line
+                        key={i}
+                        x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+                        stroke={strokeColor}
+                        strokeWidth={strokeW}
+                        strokeLinecap="round"
+                      />
+                    ))}
+                    {/* Wall kind label */}
+                    <text
+                      x={(wall.x1 + wall.x2) / 2}
+                      y={(wall.y1 + wall.y2) / 2 - 5}
+                      fontSize="9"
+                      fill="#94a3b8"
+                      textAnchor="middle"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {wall.kind === 'external' ? 'ext' : ''}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* ── Layer 1b: Openings (doors/windows in SVG) — gated by visibleLayers.openings ── */}
+              {visibleLayers.openings && activeFloor.openings.map((opening) => {
+                const geom: OpeningGeometry | null = getOpeningGeometry(opening, activeFloor.walls);
+                if (!geom) return null;
+                const { startX, startY, endX, endY, perpX, perpY, widthPx } = geom;
+                const isSelected = selection?.kind === 'opening' && selection.id === opening.id;
+                const accentColor = isSelected ? '#2563eb' : '#475569';
+                return (
+                  <g
+                    key={opening.id}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'default' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (tool === 'select') setSelection({ kind: 'opening', id: opening.id });
+                    }}
+                  >
+                    {opening.type === 'door' ? (
+                      <>
+                        {/* Door leaf: quarter-circle arc from wall face */}
+                        <path
+                          d={`M ${startX},${startY} A ${widthPx},${widthPx} 0 0,1 ${startX + perpX * widthPx},${startY + perpY * widthPx}`}
+                          fill="none"
+                          stroke={accentColor}
+                          strokeWidth={1.5}
+                        />
+                        {/* Door leaf straight edge */}
+                        <line
+                          x1={startX} y1={startY}
+                          x2={startX + perpX * widthPx} y2={startY + perpY * widthPx}
+                          stroke={accentColor}
+                          strokeWidth={1.5}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        {/* Window: two short parallel lines (sill representation) */}
+                        <line
+                          x1={startX + perpX * 4} y1={startY + perpY * 4}
+                          x2={endX + perpX * 4} y2={endY + perpY * 4}
+                          stroke={accentColor}
+                          strokeWidth={1.5}
+                        />
+                        <line
+                          x1={startX - perpX * 4} y1={startY - perpY * 4}
+                          x2={endX - perpX * 4} y2={endY - perpY * 4}
+                          stroke={accentColor}
+                          strokeWidth={1.5}
+                        />
+                        {/* Window end caps */}
+                        <line
+                          x1={startX + perpX * 4} y1={startY + perpY * 4}
+                          x2={startX - perpX * 4} y2={startY - perpY * 4}
+                          stroke={accentColor}
+                          strokeWidth={1.5}
+                        />
+                        <line
+                          x1={endX + perpX * 4} y1={endY + perpY * 4}
+                          x2={endX - perpX * 4} y2={endY - perpY * 4}
+                          stroke={accentColor}
+                          strokeWidth={1.5}
+                        />
+                      </>
+                    )}
+                    {/* Opening width label (engineer view only) */}
+                    {viewMode === 'engineer' && (
+                      <text
+                        x={(startX + endX) / 2}
+                        y={(startY + endY) / 2 - 8}
+                        fontSize="8"
+                        fill={accentColor}
+                        textAnchor="middle"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {opening.type === 'door' ? '🚪' : '🪟'} {opening.widthM.toFixed(1)}m
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
 
               {/* ── Layer 3a: Auto-routed heating pipes — gated by visibleLayers.routes ── */}
               {visibleLayers.routes && autoRoutes.map((route) => {
@@ -1889,6 +2050,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteNode(selectedNode.id)}>Delete</button>
               </div>
             )}
+            {selectedOpening && (
+              <div className="fpb__bottom-actions">
+                <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteOpening(selectedOpening.id)}>Delete</button>
+              </div>
+            )}
 
             {/* ── Add Room bottom sheet ── */}
             {showAddRoomSheet && (
@@ -2058,6 +2224,14 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 disruption={selectedDisruption}
                 onUpdate={(patch) => updateDisruption(selectedDisruption.id, patch)}
                 onDelete={() => deleteDisruption(selectedDisruption.id)}
+              />
+            )}
+            {selectedOpening && (
+              <InspectorOpening
+                opening={selectedOpening}
+                walls={activeFloor.walls}
+                onUpdate={(patch) => updateOpening(selectedOpening.id, patch)}
+                onDelete={() => deleteOpening(selectedOpening.id)}
               />
             )}
           </aside>
@@ -2420,6 +2594,75 @@ function InspectorDisruption({
         <span>Position</span>
         <span>{toMeters(disruption.x)} m, {toMeters(disruption.y)} m</span>
       </div>
+    </div>
+  );
+}
+
+// ─── InspectorOpening ─────────────────────────────────────────────────────────
+
+function InspectorOpening({
+  opening,
+  walls,
+  onUpdate,
+  onDelete,
+}: {
+  opening: Opening;
+  walls: Wall[];
+  onUpdate: (patch: Partial<Opening>) => void;
+  onDelete: () => void;
+}) {
+  const wall = walls.find((w) => w.id === opening.wallId);
+  const wallLenM = wall
+    ? Number((Math.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1) / GRID).toFixed(2))
+    : 0;
+
+  return (
+    <div className="fpb__inspector-body">
+      <div className="fpb__inspector-heading">
+        <span>
+          {opening.type === 'door' ? '🚪' : '🪟'}{' '}
+          {opening.type === 'door' ? 'Door' : 'Window'}
+        </span>
+        <button className="fpb__delete-btn" onClick={onDelete} title="Delete opening">✕</button>
+      </div>
+      <label className="fpb__field">
+        <span>Type</span>
+        <select
+          value={opening.type}
+          onChange={(e) => onUpdate({ type: e.target.value as OpeningType })}
+        >
+          <option value="door">🚪 Door</option>
+          <option value="window">🪟 Window</option>
+        </select>
+      </label>
+      <label className="fpb__field">
+        <span>Width (m)</span>
+        <input
+          type="number"
+          min={0.5}
+          max={5}
+          step={0.1}
+          value={opening.widthM}
+          onChange={(e) => onUpdate({ widthM: Number(e.target.value) })}
+        />
+      </label>
+      <label className="fpb__field">
+        <span>Offset (m)</span>
+        <input
+          type="number"
+          min={0}
+          max={Math.max(0, wallLenM - opening.widthM)}
+          step={0.1}
+          value={opening.offsetM}
+          onChange={(e) => onUpdate({ offsetM: Number(e.target.value) })}
+        />
+      </label>
+      {wall && (
+        <div className="fpb__field fpb__field--static">
+          <span>Wall</span>
+          <span>{wall.kind === 'external' ? 'External' : 'Internal'} · {wallLenM.toFixed(1)} m</span>
+        </div>
+      )}
     </div>
   );
 }

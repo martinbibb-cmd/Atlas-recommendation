@@ -367,7 +367,7 @@ export interface ValidationIssue {
   severity: ValidationSeverity;
   layer: 'geometry' | 'placement' | 'connection';
   objectId?: string;
-  objectType?: 'room' | 'wall' | 'node' | 'connection' | 'floor' | 'property';
+  objectType?: 'room' | 'wall' | 'opening' | 'node' | 'connection' | 'floor' | 'property';
   message: string;
 }
 
@@ -388,6 +388,7 @@ export type EditorTool =
 export type SelectionTarget =
   | { kind: 'room';        id: string }
   | { kind: 'wall';        id: string }
+  | { kind: 'opening';     id: string }
   | { kind: 'node';        id: string }
   | { kind: 'connection';  id: string }
   | { kind: 'disruption';  id: string };
