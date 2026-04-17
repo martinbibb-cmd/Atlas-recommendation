@@ -169,11 +169,11 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
           setVoiceNotes(notes);
         }
 
-        // Extract floor plan output from the legacy payload block if present.
-        // LegacyReportPayloadV1 may contain floorplanOutput for older saves.
-        const legacyPayload = payload as { floorplanOutput?: DerivedFloorplanOutput };
-        if (legacyPayload?.floorplanOutput) {
-          setFloorplanOutput(legacyPayload.floorplanOutput);
+        // Extract floor plan output from the payload if present.
+        // ReportPayload (legacy shape) may contain floorplanOutput for older saves.
+        const payloadWithFloorplan = payload as { floorplanOutput?: DerivedFloorplanOutput };
+        if (payloadWithFloorplan?.floorplanOutput) {
+          setFloorplanOutput(payloadWithFloorplan.floorplanOutput);
         }
       })
       .catch((err: unknown) => {

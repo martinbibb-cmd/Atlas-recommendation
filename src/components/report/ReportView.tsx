@@ -551,10 +551,12 @@ function VoiceNotesSectionRenderer({ notes }: { notes: VoiceNote[] }) {
     }
   }
 
-  const acceptedCount = notes.reduce(
-    (sum, n) => sum + n.suggestions.filter(s => s.status === 'accepted').length,
-    0,
-  );
+  let acceptedCount = 0;
+  for (const n of notes) {
+    for (const s of n.suggestions) {
+      if (s.status === 'accepted') acceptedCount++;
+    }
+  }
 
   return (
     <section className="rv-section rv-page-break-before" aria-labelledby="rv-voice-notes">
