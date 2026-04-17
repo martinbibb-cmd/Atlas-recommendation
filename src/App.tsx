@@ -32,6 +32,7 @@ import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
 import { createVisit, getVisit } from './lib/visits/visitApi';
 import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
+import { generateReportTitle } from './lib/reports/generateReportTitle';
 import { generatePortalToken } from './lib/portal/portalToken';
 import type { EngineInputV2_3 } from './engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from './ui/fullSurvey/FullSurveyModelV1';
@@ -405,6 +406,10 @@ export default function App() {
           if (reports.length > 0) return;
           const { engineOutput } = runEngine(engineInput);
           return saveReport({
+            title: generateReportTitle({
+              postcode: engineInput.postcode ?? null,
+              recommendedSystem: engineOutput.recommendation?.primary ?? null,
+            }),
             postcode: engineInput.postcode ?? null,
             visit_id: visitId,
             status: 'complete',
@@ -460,6 +465,10 @@ export default function App() {
             } else {
               const { engineOutput } = runEngine(engineInput);
               const saved = await saveReport({
+                title: generateReportTitle({
+                  postcode: engineInput.postcode ?? null,
+                  recommendedSystem: engineOutput.recommendation?.primary ?? null,
+                }),
                 postcode: engineInput.postcode ?? null,
                 visit_id: visitId,
                 status: 'complete',
