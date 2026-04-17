@@ -48,7 +48,6 @@ import {
   STATE_CYCLE,
   defaultHours,
   nextState,
-  type WaterSlotState,
   defaultWaterSlots,
   waterSlotsToHourlyFlows,
 } from '../../engine/modules/LifestyleInteractiveHelpers';
