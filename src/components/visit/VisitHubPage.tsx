@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getVisit, saveVisit, deleteVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
 import { listReportsForVisit, saveReport } from '../../lib/reports/reportApi';
+import { generateReportTitle } from '../../lib/reports/generateReportTitle';
 import { generatePortalToken } from '../../lib/portal/portalToken';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { runEngine } from '../../engine/Engine';
@@ -339,6 +340,12 @@ export default function VisitHubPage({
           const engineInput = toEngineInput(sanitiseModelForEngine(survey));
           const { engineOutput } = runEngine(engineInput);
           const saved = await saveReport({
+            title: generateReportTitle({
+              postcode: engineInput.postcode ?? null,
+              customerName: meta?.customer_name ?? null,
+              addressLine1: meta?.address_line_1 ?? null,
+              recommendedSystem: engineOutput.recommendation?.primary ?? null,
+            }),
             postcode: engineInput.postcode ?? null,
             visit_id: visitId,
             status: 'complete',

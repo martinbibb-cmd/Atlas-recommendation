@@ -2,10 +2,16 @@
  * ReportPage
  *
  * Renders a saved Atlas report from persisted payload.
- * Fetches the report by ID from GET /api/reports/:id and passes the stored
- * engine output + survey data to DecisionSynthesisPage.
+ * Fetches the report by ID from GET /api/reports/:id and renders a
+ * comprehensive ReportView containing all visit data:
+ *   - Survey inputs (current system, evidence)
+ *   - Engine outputs (decision, daily experience, alternatives, engineer summary)
+ *   - Heat loss render
+ *   - Any captured photos
+ *   - Floor plan summary (when available)
+ *   - Voice note transcripts (when available)
  *
- * This is the target of share links and QR codes (e.g. /report/:id).
+ * This is the target of share links opened from the Visit Hub (e.g. /report/:id).
  * It renders the recommendation from the persisted snapshot, not live state.
  *
  * Lifecycle actions available:
@@ -17,14 +23,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
+import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import {
   getReport,
   updateReport,
   duplicateReport,
   type ReportMeta,
 } from '../../lib/reports/reportApi';
-import DecisionSynthesisPage from '../advice/DecisionSynthesisPage';
-import { buildCompareSeedFromSurvey } from '../../lib/simulator/buildCompareSeedFromSurvey';
+import ReportView from '../report/ReportView';
 import { readCanonicalReportPayload } from '../../features/reports/adapters/readCanonicalReportPayload';
 import { extractEngineRunFromPayload } from '../../features/reports/adapters/extractEngineRunFromPayload';
 import './ReportPage.css';
@@ -76,7 +84,7 @@ function ReportLifecyclePanel({ meta, onStatusChange, onDuplicate }: LifecyclePa
   const isBusy = actionState === 'working';
 
   return (
-    <div className="report-lifecycle-panel" aria-label="Report lifecycle actions">
+    <div className="report-lifecycle-panel" aria-label="Report lifecycle actions" data-print-hide>
       <div className="report-lifecycle-panel__actions">
         {meta.status === 'draft' && (
           <button
@@ -128,7 +136,9 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<ReportMeta | null>(null);
   const [engineOutput, setEngineOutput] = useState<EngineOutputV1 | null>(null);
-  const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
+  const [engineInput, setEngineInput] = useState<Partial<EngineInputV2_3> | null>(null);
+  const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
+  const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
 
   useEffect(() => {
     let cancelled = false;
@@ -150,7 +160,21 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
 
         setMeta(reportMeta);
         setEngineOutput(engineRun.engineOutput);
-        setSurveyData((payloadInfo.legacy?.surveyData ?? null) as FullSurveyModelV1 | null);
+        setEngineInput(engineRun.engineInput ?? payloadInfo.legacy?.engineInput ?? null);
+
+        // Extract voice notes from the survey data stored in the payload.
+        const surveyData = payloadInfo.legacy?.surveyData as FullSurveyModelV1 | undefined;
+        const notes = surveyData?.fullSurvey?.voiceNotes;
+        if (Array.isArray(notes) && notes.length > 0) {
+          setVoiceNotes(notes);
+        }
+
+        // Extract floor plan output from the payload if present.
+        // ReportPayload (legacy shape) may contain floorplanOutput for older saves.
+        const payloadWithFloorplan = payload as { floorplanOutput?: DerivedFloorplanOutput };
+        if (payloadWithFloorplan?.floorplanOutput) {
+          setFloorplanOutput(payloadWithFloorplan.floorplanOutput);
+        }
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -203,83 +227,73 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
     );
   }
 
-  // Build compare seed from saved survey + engine output if available.
-  const compareSeed =
-    surveyData != null
-      ? buildCompareSeedFromSurvey(surveyData, engineOutput)
-      : undefined;
-
   return (
     <div className="report-page">
-      {/* Shared report banner */}
-      <div className="report-page__banner" aria-label="Shared report" data-print-hide>
-        <span className="report-page__banner-label">
-          📋 Heating system report
-        </span>
-        {meta?.postcode && (
-          <span className="report-page__banner-postcode">{meta.postcode}</span>
-        )}
-        {meta?.created_at && (
-          <span className="report-page__banner-date">
-            {new Date(meta.created_at).toLocaleDateString('en-GB', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </span>
-        )}
-        {onBack && (
-          <button
-            className="report-page__home-btn"
-            onClick={onBack}
-            aria-label="Back to home"
-          >
-            ← Home
-          </button>
-        )}
-      </div>
-
-      {/* Report metadata strip */}
-      {meta && (
-        <dl className="report-page__meta-strip" aria-label="Report details">
-          <div className="report-page__meta-item">
-            <dt>Report ID</dt>
-            <dd className="report-page__meta-id">{meta.id}</dd>
-          </div>
-          <div className="report-page__meta-item">
-            <dt>Generated</dt>
-            <dd>
-              {new Date(meta.created_at).toLocaleString('en-GB', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </dd>
-          </div>
-          {meta.visit_id && (
-            <div className="report-page__meta-item">
-              <dt>Visit</dt>
-              <dd className="report-page__meta-id">{meta.visit_id}</dd>
-            </div>
-          )}
-          <div className="report-page__meta-item">
-            <dt>Status</dt>
-            <dd>
-              <span
-                className={`report-page__status-badge report-page__status-badge--${meta.status}`}
-              >
-                {meta.status}
-              </span>
-            </dd>
-          </div>
-        </dl>
-      )}
-
-      {/* Lifecycle actions (hidden on print) */}
+      {/* Report metadata strip (hidden on print) */}
       {meta && (
         <div data-print-hide>
+          <div className="report-page__banner" aria-label="Report header">
+            <span className="report-page__banner-label">
+              📋 {meta.title ?? 'Heating system report'}
+            </span>
+            {meta.postcode && (
+              <span className="report-page__banner-postcode">{meta.postcode}</span>
+            )}
+            {meta.created_at && (
+              <span className="report-page__banner-date">
+                {new Date(meta.created_at).toLocaleDateString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </span>
+            )}
+            {onBack && (
+              <button
+                className="report-page__home-btn"
+                onClick={onBack}
+                aria-label="Back to home"
+              >
+                ← Home
+              </button>
+            )}
+          </div>
+
+          <dl className="report-page__meta-strip" aria-label="Report details">
+            <div className="report-page__meta-item">
+              <dt>Report ID</dt>
+              <dd className="report-page__meta-id">{meta.id}</dd>
+            </div>
+            <div className="report-page__meta-item">
+              <dt>Generated</dt>
+              <dd>
+                {new Date(meta.created_at).toLocaleString('en-GB', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </dd>
+            </div>
+            {meta.visit_id && (
+              <div className="report-page__meta-item">
+                <dt>Visit</dt>
+                <dd className="report-page__meta-id">{meta.visit_id}</dd>
+              </div>
+            )}
+            <div className="report-page__meta-item">
+              <dt>Status</dt>
+              <dd>
+                <span
+                  className={`report-page__status-badge report-page__status-badge--${meta.status}`}
+                >
+                  {meta.status}
+                </span>
+              </dd>
+            </div>
+          </dl>
+
           <ReportLifecyclePanel
             meta={meta}
             onStatusChange={(newStatus) =>
@@ -290,11 +304,14 @@ export default function ReportPage({ reportId, onBack, onDuplicated }: Props) {
         </div>
       )}
 
-      <DecisionSynthesisPage
-        engineOutput={engineOutput}
-        surveyData={surveyData ?? undefined}
-        compareSeed={compareSeed}
+      {/* Comprehensive report — all visit data */}
+      <ReportView
+        output={engineOutput}
+        engineInput={engineInput ?? undefined}
         reportReference={reportId}
+        voiceNotes={voiceNotes.length > 0 ? voiceNotes : undefined}
+        floorplanOutput={floorplanOutput}
+        onBack={onBack}
       />
     </div>
   );

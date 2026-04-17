@@ -95,7 +95,9 @@ export async function getReport(id: string): Promise<ReportDetail> {
  * Persists a new report snapshot and returns its ID.
  */
 export async function saveReport(opts: {
+  title?: string | null;
   postcode?: string | null;
+  customer_name?: string | null;
   visit_id?: string | null;
   status?: string;
   payload: AnyReportPayload;

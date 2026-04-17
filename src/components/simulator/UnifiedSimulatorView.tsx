@@ -22,6 +22,7 @@ import { buildResimulationFromSurvey } from '../../lib/simulator/buildResimulati
 import type { SimulatorSystemOverride } from '../../lib/simulator/buildResimulationFromSurvey';
 import { buildCanonicalReportPayload } from '../../features/reports/adapters/buildCanonicalReportPayload';
 import { saveReport } from '../../lib/reports/reportApi';
+import { generateReportTitle } from '../../lib/reports/generateReportTitle';
 import './UnifiedSimulatorView.css';
 
 function buildFloorplanOperatingAssumptions(
@@ -139,6 +140,10 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
         runMeta: { source: 'atlas_mind' },
       });
       const res = await saveReport({
+        title: generateReportTitle({
+          postcode: surveyData.postcode ?? null,
+          recommendedSystem: engineOutput.recommendation?.primary ?? null,
+        }),
         postcode: surveyData.postcode ?? null,
         payload,
       });

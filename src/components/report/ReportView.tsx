@@ -28,6 +28,8 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { ScanImportManifest } from '../../features/scanImport/package/ScanImportManifest';
 import type { CapturedPhoto } from '../../features/scanImport/session/propertyScanSession';
 import type { ExternalClearanceSceneV1 } from '../../contracts/spatial3dEvidence';
+import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
+import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { generatePortalToken } from '../../lib/portal/portalToken';
 import {
@@ -44,6 +46,7 @@ import {
   type FlueClearanceSummarySection,
   type ReportSection,
 } from './reportSections.model';
+import HeatLossContextCard from './HeatLossContextCard';
 import ReportCompletenessBanner from './ReportCompletenessBanner';
 import ReportQrFooter from './ReportQrFooter';
 import './reportPrint.css';
@@ -78,6 +81,18 @@ interface Props {
    * (preview image + compliance outcome) after the scans section.
    */
   externalClearanceScenes?: ExternalClearanceSceneV1[];
+  /**
+   * Optional voice notes captured during the site visit.
+   * When provided the report includes a voice notes section with full transcripts
+   * and any accepted survey suggestions.
+   */
+  voiceNotes?: VoiceNote[];
+  /**
+   * Optional floor-plan derived outputs.
+   * When provided the report includes a floor plan summary section showing
+   * room metrics and heat-loss estimates per room.
+   */
+  floorplanOutput?: DerivedFloorplanOutput;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -517,6 +532,195 @@ function PhotosSectionRenderer({ photos }: PhotosSectionProps) {
   );
 }
 
+// ─── Voice notes section renderer ─────────────────────────────────────────────
+
+function VoiceNotesSectionRenderer({ notes }: { notes: VoiceNote[] }) {
+  if (notes.length === 0) return null;
+
+  function formatNoteDate(iso: string): string {
+    try {
+      return new Date(iso).toLocaleString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return iso;
+    }
+  }
+
+  let acceptedCount = 0;
+  for (const n of notes) {
+    for (const s of n.suggestions) {
+      if (s.status === 'accepted') acceptedCount++;
+    }
+  }
+
+  return (
+    <section className="rv-section rv-page-break-before" aria-labelledby="rv-voice-notes">
+      <h2 className="rv-section__title" id="rv-voice-notes">Voice notes</h2>
+      <p className="rv-section__subtitle">
+        {notes.length} note{notes.length !== 1 ? 's' : ''} recorded during visit
+        {acceptedCount > 0 && ` · ${acceptedCount} suggestion${acceptedCount !== 1 ? 's' : ''} applied to survey`}
+      </p>
+
+      {notes.map((note, idx) => {
+        const accepted = note.suggestions.filter(s => s.status === 'accepted');
+        return (
+          <div
+            key={note.id}
+            className="rv-voice-note"
+            style={{
+              marginBottom: '1.25rem',
+              padding: '0.85rem 1rem',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              background: '#f8fafc',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+              <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#4a5568' }}>
+                Note {idx + 1}
+              </span>
+              <span style={{ fontSize: '0.78rem', color: '#718096' }}>
+                {formatNoteDate(note.createdAt)}
+              </span>
+            </div>
+
+            <p style={{ margin: '0 0 0.6rem', fontSize: '0.88rem', lineHeight: 1.55, color: '#1a202c', whiteSpace: 'pre-wrap' }}>
+              {note.transcript}
+            </p>
+
+            {accepted.length > 0 && (
+              <div style={{ marginTop: '0.6rem' }}>
+                <p className="rv-label" style={{ fontSize: '0.76rem', marginBottom: '0.3rem' }}>
+                  Suggestions applied to survey
+                </p>
+                <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.8rem', color: '#2d3748' }}>
+                  {accepted.map(s => (
+                    <li key={s.id} style={{ marginBottom: '0.15rem' }}>
+                      <strong>{s.label}:</strong> {s.suggestedValue}
+                      {s.sourceSnippet && (
+                        <span style={{ color: '#718096', fontStyle: 'italic' }}>
+                          {' '}— &ldquo;{s.sourceSnippet}&rdquo;
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+// ─── Heat loss render section ──────────────────────────────────────────────────
+
+function HeatLossRenderSection({ heatLossKw }: { heatLossKw: number }) {
+  return (
+    <section className="rv-section rv-page-break-before" aria-labelledby="rv-heat-loss-render">
+      <h2 className="rv-section__title" id="rv-heat-loss-render">Heat demand analysis</h2>
+      <p className="rv-section__subtitle">Peak design heat loss for this property</p>
+      <HeatLossContextCard heatLossKw={heatLossKw} />
+    </section>
+  );
+}
+
+// ─── Floor plan summary section ────────────────────────────────────────────────
+
+function FloorplanSummarySection({ floorplanOutput }: { floorplanOutput: DerivedFloorplanOutput }) {
+  const { roomMetrics, roomHeatLossKw, totalPipeLengthM, feasibilityChecks, sitingFlags } = floorplanOutput;
+  const heatedRooms = roomMetrics.length;
+  const totalAreaM2 = roomMetrics.reduce((sum, r) => sum + r.areaM2, 0);
+  const totalHeatLossKw = roomHeatLossKw.reduce((sum, r) => sum + r.heatLossKw, 0);
+
+  return (
+    <section className="rv-section rv-page-break-before" aria-labelledby="rv-floorplan-summary">
+      <h2 className="rv-section__title" id="rv-floorplan-summary">Floor plan summary</h2>
+      <p className="rv-section__subtitle">Derived from property floor plan</p>
+
+      <dl className="rv-dl">
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Heated rooms</dt>
+          <dd className="rv-dd">{heatedRooms}</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Total heated area</dt>
+          <dd className="rv-dd">{totalAreaM2.toFixed(1)} m²</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Estimated total heat loss</dt>
+          <dd className="rv-dd">{totalHeatLossKw.toFixed(2)} kW</dd>
+        </div>
+        <div className="rv-dl-row">
+          <dt className="rv-dt">Total pipe length</dt>
+          <dd className="rv-dd">{totalPipeLengthM.toFixed(1)} m</dd>
+        </div>
+        {feasibilityChecks.hasOutdoorHeatPump && (
+          <div className="rv-dl-row">
+            <dt className="rv-dt">Heat pump sited</dt>
+            <dd className="rv-dd">✓ Outdoor unit placed</dd>
+          </div>
+        )}
+      </dl>
+
+      {roomHeatLossKw.length > 0 && (
+        <div style={{ marginTop: '0.75rem' }}>
+          <p className="rv-label">Room-by-room heat loss</p>
+          <table className="rv-evidence-table" aria-label="Room heat loss">
+            <thead>
+              <tr>
+                <th className="rv-evidence-table__th">Room</th>
+                <th className="rv-evidence-table__th">Area (m²)</th>
+                <th className="rv-evidence-table__th">Heat loss (kW)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roomHeatLossKw.map((r) => {
+                const metrics = roomMetrics.find(m => m.roomId === r.roomId);
+                return (
+                  <tr key={r.roomId} className="rv-evidence-table__row rv-evidence-table__row--high">
+                    <td className="rv-evidence-table__td">{r.roomName}</td>
+                    <td className="rv-evidence-table__td rv-evidence-table__td--value">
+                      {metrics?.areaM2.toFixed(1) ?? '—'}
+                    </td>
+                    <td className="rv-evidence-table__td rv-evidence-table__td--value">
+                      {r.heatLossKw.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {sitingFlags.length > 0 && (
+        <div className="rv-decision-block" style={{ marginTop: '0.75rem' }}>
+          <p className="rv-label">Siting notes</p>
+          <ul className="rv-flag-list" aria-label="Siting flags">
+            {sitingFlags.map((f, i) => (
+              <li
+                key={i}
+                className={`rv-flag rv-flag--${f.status === 'ok' ? 'info' : f.status === 'warn' ? 'warn' : 'fail'}`}
+              >
+                <span className="rv-flag__body">
+                  <strong>{f.objectType}</strong> — {f.message}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function RenderSection({ section }: { section: ReportSection }) {
   switch (section.id) {
     case 'current_system':
@@ -545,7 +749,7 @@ function RenderSection({ section }: { section: ReportSection }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ReportView({ output, onBack, reportReference, engineInput, scanManifest, capturedPhotos, externalClearanceScenes }: Props) {
+export default function ReportView({ output, onBack, reportReference, engineInput, scanManifest, capturedPhotos, externalClearanceScenes, voiceNotes, floorplanOutput }: Props) {
   const [portalUrl, setPortalUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -684,6 +888,21 @@ export default function ReportView({ output, onBack, reportReference, engineInpu
       {/* ── Photos section (optional) ─────────────────────────────────────── */}
       {capturedPhotos && capturedPhotos.length > 0 && (
         <PhotosSectionRenderer photos={capturedPhotos} />
+      )}
+
+      {/* ── Heat demand analysis (optional) ──────────────────────────────── */}
+      {engineInput?.heatLossWatts != null && engineInput.heatLossWatts > 0 && (
+        <HeatLossRenderSection heatLossKw={engineInput.heatLossWatts / 1000} />
+      )}
+
+      {/* ── Floor plan summary (optional) ────────────────────────────────── */}
+      {floorplanOutput && floorplanOutput.roomMetrics.length > 0 && (
+        <FloorplanSummarySection floorplanOutput={floorplanOutput} />
+      )}
+
+      {/* ── Voice notes / transcripts (optional) ─────────────────────────── */}
+      {voiceNotes && voiceNotes.length > 0 && (
+        <VoiceNotesSectionRenderer notes={voiceNotes} />
       )}
 
       {/* ── QR code footer — portal link ──────────────────────────────────── */}
