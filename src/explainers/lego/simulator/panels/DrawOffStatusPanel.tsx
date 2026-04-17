@@ -28,17 +28,24 @@ import type { StoredHotWaterDisplayState } from '../useStoredHotWaterPlayback'
 import type { SimulatorSystemChoice } from '../useSystemDiagramPlayback'
 import type { CylinderType } from '../systemInputsTypes'
 import type { DrawOffFlowStability } from '../../../../engine/modules/StoredDhwModule'
+import { computeCombiThermalLimit } from '../../model/dhwModel'
 import StoredHotWaterReservePanel from './StoredHotWaterReservePanel'
 import '../../../../components/lab/lab.css'
 
 // ─── Physics defaults ─────────────────────────────────────────────────────────
 
-const COLD_INLET_TEMP_C              = 10  // Standard cold mains inlet temperature (°C)
-const DEFAULT_MAINS_FLOW_RATE_LPM    = 12  // Standard pressurised mains cold flow (L/min)
-const CWS_FLOW_RATE_LPM              = 8   // Open-vented CWS gravity feed flow (L/min)
-const HOT_SUPPLY_COMBI_TEMP_C        = 48  // Typical combi plate-HEX outlet temperature (°C)
-/** Maximum hot-supply flow from a typical combi plate HEX (L/min). */
-const COMBI_MAX_HOT_FLOW_LPM         = 10
+const COLD_INLET_TEMP_C              = 10   // Standard cold mains inlet temperature (°C)
+const DEFAULT_MAINS_FLOW_RATE_LPM    = 12   // Standard pressurised mains cold flow (L/min)
+const CWS_FLOW_RATE_LPM              = 8    // Open-vented CWS gravity feed flow (L/min)
+const HOT_SUPPLY_COMBI_TEMP_C        = 48   // Typical combi plate-HEX outlet temperature (°C)
+/**
+ * HEX setpoint temperature (°C) used to compute the combi thermal flow limit.
+ * Represents the target DHW outlet temperature at the heat exchanger before
+ * mixing with the cold-bypass at the TMV.
+ */
+const HOT_SUPPLY_COMBI_SETPOINT_C    = 55
+/** Default combi DHW boiler output (kW) used when no survey value is available. */
+const DEFAULT_COMBI_DHW_OUTPUT_KW    = 30
 /**
  * Minimum mains flow (L/min) below which a combi boiler cannot sustain
  * ignition.  Mirrors the ignition threshold in DrawOffWorkbench.tsx.
@@ -65,17 +72,37 @@ const OUTLET_ICONS: Record<string, string> = {
 // ─── Derived flow physics ─────────────────────────────────────────────────────
 
 /**
- * Derive outlet hot-supply flow (L/min) for a combi system from actual mains
- * flow.  The combi plate HEX caps the delivered hot flow at COMBI_MAX_HOT_FLOW_LPM
- * regardless of mains pressure.  Under concurrent demand, two outlets share the
- * boiler output, each receiving roughly 60% of the solo rate.
+ * Derive outlet hot-supply flow (L/min) for a combi system.
+ *
+ * The combi plate HEX can supply at most `thermalLimitLpm` of hot water, derived
+ * from the boiler's rated DHW output and the temperature rise across the HEX:
+ *   thermalLimit = boilerKw / (0.06977 × (setpointC − coldTempC))
+ *
+ * This thermal limit is additionally capped by the cold-mains supply capacity,
+ * since all water — both the HEX portion and the cold bypass — must be drawn from
+ * the same mains connection.
+ *
+ * Under concurrent demand, two outlets share the boiler output; each therefore
+ * receives approximately 60% of the solo rate.
  *
  * Returns 0 when mains flow is below the combi ignition threshold.
  */
-function deriveCombiHotFlow(mainsFlowLpm: number, concurrent: boolean): number {
+function deriveCombiHotFlow(
+  mainsFlowLpm: number,
+  concurrent: boolean,
+  boilerDhwOutputKw: number,
+  coldInletTempC: number,
+): number {
   if (mainsFlowLpm < COMBI_IGNITION_THRESHOLD_LPM) return 0
-  const solo = Math.min(mainsFlowLpm, COMBI_MAX_HOT_FLOW_LPM)
-  return concurrent ? Math.round(solo * 0.6 * 10) / 10 : solo
+  // Thermal limit: max hot flow the HEX can sustain at rated boiler output
+  const thermalLimitLpm = computeCombiThermalLimit({
+    dhwOutputKw: boilerDhwOutputKw,
+    coldTempC:   coldInletTempC,
+    setpointC:   HOT_SUPPLY_COMBI_SETPOINT_C,
+  })
+  // Cap by both the thermal limit and the cold-mains capacity
+  const maxHotLpm = Math.min(thermalLimitLpm, mainsFlowLpm)
+  return concurrent ? Math.round(maxHotLpm * 0.6 * 10) / 10 : maxHotLpm
 }
 
 // ─── Outlet adapter ───────────────────────────────────────────────────────────
@@ -87,6 +114,8 @@ function outletToViewModel(
   mainsFlowLpm: number,
   isCombi: boolean,
   openMainsFedCount: number,
+  boilerDhwOutputKw: number,
+  coldInletTempC: number,
 ): DrawOffViewModel {
   const icon           = OUTLET_ICONS[outlet.outletId] ?? '🚰'
   // Cold supply available to this outlet from the shared mains.
@@ -101,7 +130,7 @@ function outletToViewModel(
         : mainsFlowLpm)
   const hotAvailFlow   = outlet.open
     ? (isCombi
-        ? deriveCombiHotFlow(mainsFlowLpm, concurrent)
+        ? deriveCombiHotFlow(mainsFlowLpm, concurrent, boilerDhwOutputKw, coldInletTempC)
         : (concurrent ? Math.round(mainsFlowLpm * 0.6 * 10) / 10 : mainsFlowLpm))
     : 0
 
@@ -296,6 +325,18 @@ interface DrawOffStatusPanelProps {
   /** Mains dynamic flow rate (L/min) from system inputs — drives outlet delivery rate. */
   mainsFlowLpm?: number
   /**
+   * Combi boiler DHW plate-HEX rated output (kW).
+   * Used to compute the thermal flow limit: max hot-water flow = kW / (0.06977 × ΔT_hex).
+   * Falls back to DEFAULT_COMBI_DHW_OUTPUT_KW (30 kW) when not provided.
+   */
+  boilerDhwOutputKw?: number
+  /**
+   * Cold-water inlet temperature (°C).
+   * Used with boilerDhwOutputKw to compute the combi thermal flow limit.
+   * Falls back to COLD_INLET_TEMP_C (10 °C) when not provided.
+   */
+  coldInletTempC?: number
+  /**
    * Flow stability classification from the draw-off model.
    * When 'marginal' or 'limited' on an open-vented system, surfaces the
    * pipework-dependent performance advisory in the panel.
@@ -318,12 +359,15 @@ interface DrawOffStatusPanelProps {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, mainsPressureBar: _mainsPressureBar, mainsFlowLpm, flowStability, ...controls }: DrawOffStatusPanelProps) {
+export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, mainsPressureBar: _mainsPressureBar, mainsFlowLpm, boilerDhwOutputKw, coldInletTempC: coldInletTempCProp, flowStability, ...controls }: DrawOffStatusPanelProps) {
   const openCount    = state.outletStates.filter(o => o.open).length
   const concurrent   = openCount >= 2
   const isCombi      = systemChoice === 'combi'
   // Resolve the effective mains flow — use the real survey/input value when available.
   const effectiveMainsFlowLpm = mainsFlowLpm ?? DEFAULT_MAINS_FLOW_RATE_LPM
+  // Resolve boiler DHW output and cold inlet temp for combi thermal limit calculation.
+  const effectiveBoilerKw     = boilerDhwOutputKw ?? DEFAULT_COMBI_DHW_OUTPUT_KW
+  const effectiveColdTempC    = coldInletTempCProp ?? COLD_INLET_TEMP_C
   const hotSupplyTempC = state.storedHotWaterState
     ? Math.round(state.storedHotWaterState.topTempC)
     : HOT_SUPPLY_COMBI_TEMP_C
@@ -332,7 +376,7 @@ export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, 
   // cold-supply share rather than the full incoming mains flow.
   const openMainsFedCount = Math.max(1, state.outletStates.filter(o => o.open && o.coldSource !== 'cws').length)
 
-  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMainsFlowLpm, isCombi, openMainsFedCount))
+  const outletCards   = state.outletStates.map(o => outletToViewModel(o, hotSupplyTempC, concurrent, effectiveMainsFlowLpm, isCombi, openMainsFedCount, effectiveBoilerKw, effectiveColdTempC))
   const cylinderData  = buildCylinderViewModel(state, systemChoice, cylinderType)
 
   return (
