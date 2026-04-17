@@ -1647,7 +1647,7 @@ function buildOptionExplanation(
   } else if (option.id === 'stored_vented') {
     throughHouseNotes.push('Requires a cold-water storage tank (loft) and hot-water cylinder.');
     if (input.cwsHeadMetres != null && input.cwsHeadMetres < 0.5) {
-      throughHouseNotes.push(`CWS head of ${input.cwsHeadMetres.toFixed(1)} m is low — gravity pressure will be marginal.`);
+      throughHouseNotes.push(`CWS head of ${input.cwsHeadMetres.toFixed(1)} m is low — tank-fed supply pressure will be marginal.`);
     }
   } else if (option.id === 'stored_unvented' || option.id === 'system_unvented') {
     throughHouseNotes.push('Requires cylinder space (airing cupboard or plant room).');
@@ -2113,7 +2113,7 @@ function buildCurrentSystemSide(
     benefits.push('Stored hot water — handles multiple simultaneous outlets well.');
     benefits.push('Tolerant of low mains pressure — fed from loft cold water storage tank.');
     limitations.push('Requires loft tanks (cold water storage + feed and expansion cistern).');
-    limitations.push('Gravity-fed pressure may be low — showers may need a pump.');
+    limitations.push('Tank-fed supply pressure may be low — showers may need a pump.');
     limitations.push('More components to maintain: header tanks, valves, cylinder.');
   } else if (type === 'ashp') {
     benefits.push('Very low carbon emissions compared to gas systems.');
