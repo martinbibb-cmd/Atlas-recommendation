@@ -448,6 +448,27 @@ export interface FinalPageSimulator {
   }>;
 }
 
+/**
+ * A single side of the current vs proposed comparison for the print summary.
+ */
+export interface SystemComparisonSide {
+  /** Human-readable system label. */
+  label: string;
+  /** Up to 4 benefits of this system in this home's context. */
+  benefits: string[];
+  /** Up to 4 limitations or drawbacks of this system in this home's context. */
+  limitations: string[];
+}
+
+/**
+ * Current-vs-proposed comparison block for the print summary.
+ * Only populated when both a current system type and a recommended system exist.
+ */
+export interface SystemComparisonBlock {
+  current: SystemComparisonSide;
+  proposed: SystemComparisonSide;
+}
+
 /** Full canonical presentation model. */
 export interface CanonicalPresentationModel {
   page1: Page1WhatWeKnow;
@@ -456,6 +477,11 @@ export interface CanonicalPresentationModel {
   page3: Page3PhysicsRanking;
   page4Plus: Page4PlusShortlistedDetail;
   finalPage: FinalPageSimulator;
+  /**
+   * Comparison of the current system against the top proposed system.
+   * Rendered in the print summary. null when there is insufficient data.
+   */
+  systemComparison: SystemComparisonBlock | null;
 }
 
 // ─── Display helpers ───────────────────────────────────────────────────────────
@@ -2056,6 +2082,141 @@ function buildFinalPage(
   };
 }
 
+// ─── System comparison (current vs proposed) ──────────────────────────────────
+
+/**
+ * Derive benefits and limitations for the current system from the engine signals.
+ * These are generated from what the engine knows about the existing appliance
+ * type and condition, expressed in outcome language.
+ */
+function buildCurrentSystemSide(
+  input: EngineInputV2_3,
+  currentSystem: ReturnType<typeof buildCurrentSystemSignal>,
+): SystemComparisonSide {
+  const type = input.currentHeatSourceType;
+  const label = currentSystem.systemTypeLabel ?? 'Current system';
+  const benefits: string[] = [];
+  const limitations: string[] = [];
+
+  if (type === 'combi') {
+    benefits.push('No hot water cylinder needed — saves space.');
+    benefits.push('On-demand hot water — heats only when a tap is open.');
+    limitations.push('On-demand delivery: flow rate limited by boiler output.');
+    limitations.push('Not suitable for high simultaneous demand (multiple outlets at once).');
+    limitations.push('Plate heat exchanger is vulnerable to limescale in hard-water areas.');
+  } else if (type === 'system') {
+    benefits.push('Stored hot water — multiple outlets can run simultaneously.');
+    benefits.push('Boiler size matched to heating circuit, not peak DHW demand.');
+    limitations.push('Requires cylinder space — typically in an airing cupboard or utility room.');
+    limitations.push('Hot water can run out if demand exceeds stored volume and recovery speed.');
+  } else if (type === 'regular') {
+    benefits.push('Stored hot water — handles multiple simultaneous outlets well.');
+    benefits.push('Tolerant of low mains pressure — fed from loft cold water storage tank.');
+    limitations.push('Requires loft tanks (cold water storage + feed and expansion cistern).');
+    limitations.push('Gravity-fed pressure may be low — showers may need a pump.');
+    limitations.push('More components to maintain: header tanks, valves, cylinder.');
+  } else if (type === 'ashp') {
+    benefits.push('Very low carbon emissions compared to gas systems.');
+    benefits.push('High seasonal efficiency (COP typically 2.5–4.0) — lower running costs vs direct electric.');
+    limitations.push('Requires outdoor siting space with 1 m clearance on all sides.');
+    limitations.push('Needs low-temperature emitters — may require radiator upgrades.');
+    limitations.push('Higher upfront installation cost than a boiler replacement.');
+  }
+
+  // Age-based limitations
+  const age = input.currentBoilerAgeYears ?? input.currentSystem?.boiler?.ageYears;
+  if (age != null && age >= 15) {
+    limitations.push(`System is ${age} years old — beyond typical service life; reliability risk is elevated.`);
+  } else if (age != null && age >= 10) {
+    limitations.push(`System is ${age} years old — approaching end of typical service life.`);
+  }
+
+  // Condition-based limitations
+  if (currentSystem.conditionSignalPills.some(p => p.status === 'warn')) {
+    limitations.push('Survey signals indicate system condition issues — see condition summary.');
+  }
+
+  return { label, benefits: benefits.slice(0, 4), limitations: limitations.slice(0, 4) };
+}
+
+/**
+ * Derive benefits and limitations for the top proposed system from the engine outputs.
+ */
+function buildProposedSystemSide(
+  result: FullEngineResult,
+  input: EngineInputV2_3,
+): SystemComparisonSide | null {
+  const options = result.engineOutput?.options ?? [];
+  const top = options[0];
+  if (!top) return null;
+
+  const label = top.label;
+  const demo = result.demographicOutputs;
+  const pv = result.pvAssessment;
+  const benefits: string[] = [];
+  const limitations: string[] = [];
+
+  // Benefits from heat plane
+  if (top.heat.status === 'ok') {
+    benefits.push(top.heat.headline);
+    if (top.heat.bullets[0]) benefits.push(top.heat.bullets[0]);
+  }
+
+  // Benefits from DHW plane
+  if (top.dhw.status === 'ok') {
+    benefits.push(top.dhw.headline);
+  } else if (top.dhw.bullets[0]) {
+    // DHW has a note — it might still be a benefit context
+    benefits.push(top.dhw.bullets[0]);
+  }
+
+  // Solar benefit
+  if (pv.hasExistingPv && pv.solarStorageOpportunity === 'high' &&
+      (top.id !== 'combi')) {
+    benefits.push('Captures solar surplus in cylinder — reduces running cost with existing PV.');
+  }
+
+  // Limitations from engineering plane or low-status planes
+  if (top.dhw.status !== 'ok') {
+    limitations.push(top.dhw.headline);
+  }
+  if (top.engineering.status !== 'ok') {
+    limitations.push(top.engineering.headline);
+  }
+  for (const item of top.typedRequirements.mustHave.slice(0, 2)) {
+    limitations.push(item);
+  }
+
+  // Demand-specific notes
+  if (top.id === 'combi' && demo.peakSimultaneousOutlets >= 2) {
+    limitations.push(`Multiple simultaneous outlets in this household — combi throughput may be a constraint.`);
+  }
+
+  // Space
+  if ((input.availableSpace === 'tight') && top.id !== 'combi') {
+    limitations.push('Cylinder space is tight — compact or Mixergy option required.');
+  }
+
+  return { label, benefits: benefits.slice(0, 4), limitations: limitations.slice(0, 4) };
+}
+
+/**
+ * Build the current-vs-proposed comparison block for the print summary.
+ * Returns null when there is insufficient data (no current system type or
+ * no ranked option).
+ */
+function buildSystemComparison(
+  result: FullEngineResult,
+  input: EngineInputV2_3,
+  currentSystem: ReturnType<typeof buildCurrentSystemSignal>,
+): SystemComparisonBlock | null {
+  if (!input.currentHeatSourceType) return null;
+  const proposed = buildProposedSystemSide(result, input);
+  if (!proposed) return null;
+  const current = buildCurrentSystemSide(input, currentSystem);
+  return { current, proposed };
+}
+
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 /**
@@ -2089,5 +2250,6 @@ export function buildCanonicalPresentation(
     page3:   buildPage3(result, input, recommendation),
     page4Plus: buildPage4Plus(result, recommendation, input),
     finalPage: buildFinalPage(result, input, currentSystem.dhwArchitecture),
+    systemComparison: buildSystemComparison(result, input, currentSystem),
   };
 }

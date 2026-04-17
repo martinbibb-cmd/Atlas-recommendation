@@ -401,6 +401,74 @@
 .crp-work-section--recommended .crp-work-section__label { color: var(--crp-green); }
 
 /* ════════════════════════════════════════════════════════════════════════════
+   SYSTEM COMPARISON — current vs proposed (full-width, below body columns)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-comparison-row {
+  margin-top: 16px;
+}
+
+.crp-comparison-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--crp-border);
+  border-radius: var(--crp-radius);
+  overflow: hidden;
+}
+
+/* Each header spans one column */
+.crp-comparison-table__header {
+  padding: 8px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.crp-comparison-table__header--current {
+  background: var(--crp-bg-section);
+  color: var(--crp-muted);
+  border-right: 1px solid var(--crp-border);
+  border-bottom: 1px solid var(--crp-border);
+}
+
+.crp-comparison-table__header--proposed {
+  background: var(--crp-green-bg);
+  color: var(--crp-green);
+  border-bottom: 1px solid var(--crp-border);
+}
+
+.crp-comparison-table__system-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* Content cells */
+.crp-comparison-table__cell {
+  padding: 10px 12px;
+  vertical-align: top;
+}
+
+.crp-comparison-table__cell--current {
+  background: #fff;
+  border-right: 1px solid var(--crp-border);
+}
+
+.crp-comparison-table__cell--proposed {
+  background: #fff;
+}
+
+.crp-comparison-table__row-heading {
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--crp-muted);
+  margin: 0 0 6px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
    FOOTER (bottom ~25%)
    ════════════════════════════════════════════════════════════════════════════ */
 

@@ -417,6 +417,10 @@ export function buildOptionMatrixV1(
   let storedVentedStatus: OptionCardV1['status'];
   if (hasFutureLoftConversion) {
     storedVentedStatus = 'caution';
+  } else if (input.availableSpace === 'none') {
+    storedVentedStatus = 'rejected';
+  } else if (input.loftTankSpace === 'none') {
+    storedVentedStatus = 'rejected';
   } else if (ventedRelevantRisk === 'warn' || input.availableSpace === 'tight') {
     storedVentedStatus = 'caution';
   } else {
@@ -435,12 +439,19 @@ export function buildOptionMatrixV1(
   if (hasFutureLoftConversion) {
     storedVentedWhy.push('Loft conversion planned — CWS and F&E header tanks may lose their space.');
   }
+  if (input.loftTankSpace === 'none') {
+    storedVentedWhy.push('No loft tank space — CWS and F&E cisterns cannot be accommodated.');
+  }
 
   const recType = core.storedDhwV1?.recommended.type;
   const storedVentedRequirements: string[] = [
     'Loft tanks required (CWS + F&E) unless converting to sealed/unvented.',
   ];
-  if (input.availableSpace === 'tight') {
+  if (input.availableSpace === 'none') {
+    storedVentedRequirements.push('No cylinder space confirmed — this option is not feasible without creating additional space.');
+  } else if (input.loftTankSpace === 'none') {
+    storedVentedRequirements.push('No loft tank space — switch to sealed/unvented system (no CWS or F&E tanks required).');
+  } else if (input.availableSpace === 'tight') {
     storedVentedRequirements.push('Space is tight — consider Mixergy cylinder (smaller effective footprint).');
   } else if (input.availableSpace === 'unknown') {
     storedVentedRequirements.push('Confirm airing-cupboard / utility space for cylinder installation.');
@@ -481,15 +492,26 @@ export function buildOptionMatrixV1(
   };
 
   const storedVentedEngineering: OptionPlane = {
-    status: hasFutureLoftConversion ? 'caution' : input.availableSpace === 'tight' ? 'caution' : 'ok',
+    status: hasFutureLoftConversion ? 'caution'
+      : (input.availableSpace === 'none' || input.loftTankSpace === 'none') ? 'caution'
+      : input.availableSpace === 'tight' ? 'caution'
+      : 'ok',
     headline: hasFutureLoftConversion
       ? 'Engineering: loft conversion conflicts with CWS/F&E header tanks.'
-      : 'Engineering: loft tanks + cylinder space are key constraints.',
+      : (input.availableSpace === 'none')
+        ? 'Engineering: no cylinder space — stored hot water is not feasible.'
+        : (input.loftTankSpace === 'none')
+          ? 'Engineering: no loft tank space — switch to sealed/unvented system.'
+          : 'Engineering: loft tanks + cylinder space are key constraints.',
     bullets: [
       hasFutureLoftConversion
         ? 'Planned loft conversion removes header tank space — switch to sealed unvented system.'
-        : 'Loft headspace required for CWS and F&E header tanks.',
-      input.availableSpace === 'tight'
+        : (input.loftTankSpace === 'none')
+          ? 'No loft tank space — CWS and F&E cisterns cannot be accommodated; use sealed system instead.'
+          : 'Loft headspace required for CWS and F&E header tanks.',
+      input.availableSpace === 'none'
+        ? 'No cylinder space — installation is not feasible without creating a suitable cupboard or utility space.'
+        : input.availableSpace === 'tight'
         ? 'Space is tight — Mixergy or slimline cylinder may fit where standard cannot.'
         : input.availableSpace === 'ok'
         ? 'Adequate airing-cupboard or utility space for cylinder.'
@@ -502,7 +524,11 @@ export function buildOptionMatrixV1(
   const storedVentedTypedReqs: OptionRequirements = {
     mustHave: hasFutureLoftConversion
       ? ['Loft conflict: switch to sealed system boiler + unvented cylinder instead.']
-      : ['Loft remains accessible for CWS and F&E header tanks.', 'Confirm cylinder location and space before ordering.'],
+      : input.availableSpace === 'none'
+        ? ['No cylinder space — option not feasible without creating suitable installation space.']
+        : input.loftTankSpace === 'none'
+          ? ['No loft tank space — switch to sealed system boiler + unvented cylinder (no CWS/F&E tanks required).']
+          : ['Loft remains accessible for CWS and F&E header tanks.', 'Confirm cylinder location and space before ordering.'],
     likelyUpgrades: recType === 'mixergy'
       ? ['Mixergy cylinder upgrade — stratified heating for reduced gas use and smaller footprint.']
       : input.availableSpace === 'unknown'
@@ -536,7 +562,9 @@ export function buildOptionMatrixV1(
   const mainsStaticPressure = core.pressureAnalysis.staticBar;
 
   let storedUnventedStatus: OptionCardV1['status'];
-  if (cwsSupplyV1.inconsistent) {
+  if (input.availableSpace === 'none') {
+    storedUnventedStatus = 'rejected';
+  } else if (cwsSupplyV1.inconsistent) {
     storedUnventedStatus = 'caution';
   } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedStatus = 'caution';
@@ -709,7 +737,7 @@ export function buildOptionMatrixV1(
   const ashpRejectedByTopology = core.redFlags.rejectAshp ?? false;
 
   let ashpStatus: OptionCardV1['status'];
-  if (ashpRejectedByTopology || ashpRisk === 'fail' || input.hasOutdoorSpaceForHeatPump === false) {
+  if (ashpRejectedByTopology || ashpRisk === 'fail' || input.hasOutdoorSpaceForHeatPump === false || input.availableSpace === 'none') {
     ashpStatus = 'rejected';
   } else if (ashpRisk === 'warn' || (core.redFlags.flagAshp ?? false)) {
     ashpStatus = 'caution';
@@ -721,6 +749,9 @@ export function buildOptionMatrixV1(
   const ashpWhy: string[] = [
     `ΔT 5°C requires ~${(ashp.flowLpm / boiler.flowLpm).toFixed(1)}× boiler flow rate (${ashp.flowLpm.toFixed(1)} L/min vs ${boiler.flowLpm.toFixed(1)} L/min).`,
   ];
+  if (input.availableSpace === 'none') {
+    ashpWhy.push('No cylinder space confirmed — ASHP requires a hot water cylinder and cannot be installed without one.');
+  }
   if (input.hasOutdoorSpaceForHeatPump === false) {
     ashpWhy.push('No adequate outdoor space for an ASHP unit — installation not feasible at this property.');
   }
@@ -855,13 +886,23 @@ export function buildOptionMatrixV1(
   const pressure = core.pressureAnalysis.dynamicBar;
   const staticPressure = core.pressureAnalysis.staticBar;
   const spaceOk = input.availableSpace === 'ok';
+  const noSpaceForCylinder = input.availableSpace === 'none';
+  const noLoftTankSpace = input.loftTankSpace === 'none';
 
-  const regularStatus: OptionCardV1['status'] = hasFutureLoftConversion ? 'rejected' : spaceOk ? 'viable' : 'caution';
+  const regularStatus: OptionCardV1['status'] = hasFutureLoftConversion
+    ? 'rejected'
+    : (noSpaceForCylinder || noLoftTankSpace) ? 'rejected'
+    : spaceOk ? 'viable'
+    : 'caution';
   const regularWhy: string[] = [
     'Traditional open-vented system — relies on a header tank in the loft.',
   ];
   if (hasFutureLoftConversion) {
     regularWhy.push('Loft conversion eliminates space for header tank — not feasible.');
+  } else if (noLoftTankSpace) {
+    regularWhy.push('No loft tank space confirmed — CWS and F&E cisterns cannot be accommodated.');
+  } else if (noSpaceForCylinder) {
+    regularWhy.push('No cylinder space confirmed — hot water cylinder cannot be installed.');
   } else {
     regularWhy.push('Low mains pressure environment — tank-fed supply can still work.');
   }

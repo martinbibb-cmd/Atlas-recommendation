@@ -262,8 +262,20 @@ export function runStoredDhwModuleV1(
   const spaceUnknownSeverity: StoredDhwFlagItem['severity'] =
     isUnvented && mainsFlowAdequate ? 'info' : 'warn';
 
-  // ── Rule 1a: Space tight + high demand → Mixergy recommended ────────────
-  if (space === 'tight' && isHighDemand) {
+  // ── Rule 1 (pre-check): No space at all → hard block on cylinder ─────────
+  if (space === 'none') {
+    flags.push({
+      id: 'stored-space-none',
+      severity: 'warn',
+      title: 'No cylinder space — stored DHW not feasible',
+      detail:
+        'No suitable space for a hot water cylinder has been confirmed at this property. ' +
+        'Any system requiring a cylinder (system boiler, regular boiler, heat pump) is not ' +
+        'feasible unless additional space can be created. Only on-demand (combi) delivery ' +
+        'should be considered.',
+    });
+  } else if (space === 'tight' && isHighDemand) {
+    // ── Rule 1a: Space tight + high demand → Mixergy recommended ────────────
     flags.push({
       id: 'stored-space-tight',
       severity: 'warn',

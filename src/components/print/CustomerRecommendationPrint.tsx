@@ -30,6 +30,7 @@ import QRCode from 'qrcode';
 import {
   buildCanonicalPresentation,
   type CanonicalPresentationModel,
+  type SystemComparisonBlock,
 } from '../presentation/buildCanonicalPresentation';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
@@ -201,6 +202,86 @@ function FactsBlock({ block }: { block: FactBlock }) {
   );
 }
 
+function SystemComparisonTable({ comparison }: { comparison: SystemComparisonBlock }) {
+  const { current, proposed } = comparison;
+  return (
+    <section className="crp-section crp-section--comparison" aria-label="Current vs proposed system">
+      <h2 className="crp-section__title">Current vs proposed system</h2>
+      <div className="crp-comparison-table" aria-label="Comparison table">
+
+        {/* Column headers */}
+        <div className="crp-comparison-table__header crp-comparison-table__header--current">
+          <span className="crp-comparison-table__system-label">Current: {current.label}</span>
+        </div>
+        <div className="crp-comparison-table__header crp-comparison-table__header--proposed">
+          <span className="crp-comparison-table__system-label">Proposed: {proposed.label}</span>
+        </div>
+
+        {/* Benefits row */}
+        <div className="crp-comparison-table__cell crp-comparison-table__cell--current">
+          <p className="crp-comparison-table__row-heading">Benefits</p>
+          <ul className="crp-list" aria-label={`Benefits of ${current.label}`}>
+            {current.benefits.map((b, i) => (
+              <li key={i} className="crp-list__item">
+                <span className="crp-list__icon" aria-hidden="true">✔</span>
+                {b}
+              </li>
+            ))}
+            {current.benefits.length === 0 && (
+              <li className="crp-list__item" style={{ color: '#718096', fontStyle: 'italic' }}>No specific benefits recorded</li>
+            )}
+          </ul>
+        </div>
+        <div className="crp-comparison-table__cell crp-comparison-table__cell--proposed">
+          <p className="crp-comparison-table__row-heading">Benefits</p>
+          <ul className="crp-list" aria-label={`Benefits of ${proposed.label}`}>
+            {proposed.benefits.map((b, i) => (
+              <li key={i} className="crp-list__item crp-list__item--green">
+                <span className="crp-list__icon" aria-hidden="true">✔</span>
+                {b}
+              </li>
+            ))}
+            {proposed.benefits.length === 0 && (
+              <li className="crp-list__item" style={{ color: '#718096', fontStyle: 'italic' }}>No specific benefits recorded</li>
+            )}
+          </ul>
+        </div>
+
+        {/* Limitations row */}
+        <div className="crp-comparison-table__cell crp-comparison-table__cell--current">
+          <p className="crp-comparison-table__row-heading">Limitations</p>
+          <ul className="crp-list" aria-label={`Limitations of ${current.label}`}>
+            {current.limitations.map((l, i) => (
+              <li key={i} className="crp-list__item crp-list__item--amber">
+                <span className="crp-list__icon" aria-hidden="true">⚠</span>
+                {l}
+              </li>
+            ))}
+            {current.limitations.length === 0 && (
+              <li className="crp-list__item" style={{ color: '#718096', fontStyle: 'italic' }}>No limitations recorded</li>
+            )}
+          </ul>
+        </div>
+        <div className="crp-comparison-table__cell crp-comparison-table__cell--proposed">
+          <p className="crp-comparison-table__row-heading">Limitations</p>
+          <ul className="crp-list" aria-label={`Limitations of ${proposed.label}`}>
+            {proposed.limitations.map((l, i) => (
+              <li key={i} className="crp-list__item crp-list__item--amber">
+                <span className="crp-list__icon" aria-hidden="true">⚠</span>
+                {l}
+              </li>
+            ))}
+            {proposed.limitations.length === 0 && (
+              <li className="crp-list__item" style={{ color: '#718096', fontStyle: 'italic' }}>No limitations recorded</li>
+            )}
+          </ul>
+        </div>
+
+      </div>
+    </section>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CustomerRecommendationPrint({
@@ -224,6 +305,7 @@ export default function CustomerRecommendationPrint({
   const comparison     = resolveComparisonCandidate(model);
   const requiredWork   = buildRequiredWork(model);
   const recommendedWork = buildRecommendedWork(model);
+  const { systemComparison } = model;
 
   const topDetail = page4Plus.options[0] ?? null;
 
@@ -457,6 +539,15 @@ export default function CustomerRecommendationPrint({
 
           </div>
         </div>
+
+        {/* ════════════════════════════════════════════════════════════════
+            COMPARISON — current vs proposed (full width, conditional)
+            ════════════════════════════════════════════════════════════════ */}
+        {systemComparison && (
+          <div className="crp-comparison-row" data-testid="system-comparison-block">
+            <SystemComparisonTable comparison={systemComparison} />
+          </div>
+        )}
 
         {/* ════════════════════════════════════════════════════════════════
             FOOTER

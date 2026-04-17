@@ -46,11 +46,23 @@ interface ServicesStepProps {
    *
    *   'ok'      — confirmed adequate space for a standard or slimline cylinder
    *   'tight'   — space is constrained; compact / Mixergy option may be needed
+   *   'none'    — no space at all; cylinder not feasible (hard gate)
    *   'unknown' — surveyor has not yet assessed space (default)
    */
-  availableSpace?: 'ok' | 'tight' | 'unknown';
+  availableSpace?: 'ok' | 'tight' | 'none' | 'unknown';
   /** Called when the cylinder-space answer changes. */
-  onAvailableSpaceChange?: (value: 'ok' | 'tight' | 'unknown') => void;
+  onAvailableSpaceChange?: (value: 'ok' | 'tight' | 'none' | 'unknown') => void;
+  /**
+   * Space in the loft for a cold water storage (CWS) tank and a feed-and-expansion
+   * (F&E) cistern — both required for open-vented / tank-fed systems.
+   *
+   *   'ok'      — confirmed adequate loft space for both CWS and F&E tanks
+   *   'none'    — no usable loft space (hard gate for open-vented options)
+   *   'unknown' — surveyor has not yet assessed (default)
+   */
+  loftTankSpace?: 'ok' | 'none' | 'unknown';
+  /** Called when the loft tank space answer changes. */
+  onLoftTankSpaceChange?: (value: 'ok' | 'none' | 'unknown') => void;
   /**
    * Whether the property has adequate outdoor space for an ASHP unit.
    * Hard gate for ASHP recommendations.
@@ -163,6 +175,8 @@ export function ServicesStep({
   onMeasurementsChange,
   availableSpace,
   onAvailableSpaceChange,
+  loftTankSpace,
+  onLoftTankSpaceChange,
   hasOutdoorSpaceForHeatPump,
   onOutdoorSpaceChange,
 }: ServicesStepProps) {
@@ -465,6 +479,7 @@ export function ServicesStep({
           {[
             { value: 'ok',      label: '✅ Yes — space available',    sub: 'Standard or slimline cylinder fits' },
             { value: 'tight',   label: '⚠️ Tight — very limited',     sub: 'May need compact / Mixergy option' },
+            { value: 'none',    label: '🚫 No space — not feasible',   sub: 'Cylinder cannot be installed here' },
             { value: 'unknown', label: '❓ Not assessed yet',           sub: 'Check before specifying system' },
           ].map(({ value, label, sub }) => {
             const isSelected = (availableSpace ?? 'unknown') === value;
@@ -473,7 +488,49 @@ export function ServicesStep({
                 key={value}
                 type="button"
                 data-testid={`cylinder-space-${value}`}
-                onClick={() => onAvailableSpaceChange?.(value as 'ok' | 'tight' | 'unknown')}
+                onClick={() => onAvailableSpaceChange?.(value as 'ok' | 'tight' | 'none' | 'unknown')}
+                style={{
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '6px',
+                  border: isSelected ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                  background: isSelected ? '#ebf8ff' : '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.8rem',
+                  fontWeight: isSelected ? 600 : 400,
+                  color: isSelected ? '#2b6cb0' : '#4a5568',
+                  textAlign: 'left',
+                }}
+              >
+                {label}
+                <span style={{ display: 'block', fontSize: '0.68rem', color: '#718096', fontWeight: 400, marginTop: '0.15rem' }}>
+                  {sub}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Loft tank space — CWS + F&E */}
+        <p style={{ ...sectionHeadingStyle, fontSize: '0.75rem', marginTop: '0.5rem', marginBottom: '0.25rem' }}>
+          Loft space for cold water storage (CWS) and feed &amp; expansion (F&amp;E) tanks
+        </p>
+        <p style={{ fontSize: '0.75rem', color: '#718096', margin: '0 0 0.4rem' }}>
+          Open-vented (tank-fed) systems require a cold water storage tank and a feed &amp;
+          expansion cistern in the loft. No loft space blocks these options.
+        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          {[
+            { value: 'ok',      label: '✅ Yes — loft space available', sub: 'CWS + F&E tanks can be accommodated' },
+            { value: 'none',    label: '🚫 No loft tank space',          sub: 'Open-vented / tank-fed options not feasible' },
+            { value: 'unknown', label: '❓ Not assessed yet',             sub: 'Check before specifying open-vented system' },
+          ].map(({ value, label, sub }) => {
+            const isSelected = (loftTankSpace ?? 'unknown') === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                data-testid={`loft-tank-space-${value}`}
+                onClick={() => onLoftTankSpaceChange?.(value as 'ok' | 'none' | 'unknown')}
                 style={{
                   padding: '0.4rem 0.75rem',
                   borderRadius: '6px',
