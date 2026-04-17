@@ -1256,6 +1256,14 @@
   border-color: #d97706;
 }
 
+/* Helper text shown in the opening type picker */
+.fpb__opening-hint {
+  font-size: 11px;
+  color: #92400e;
+  margin: 4px 4px 0;
+  padding: 0;
+}
+
 /* ── Undo / redo button group ───────────────────────────────────────────── */
 
 .fpb__undo-redo {

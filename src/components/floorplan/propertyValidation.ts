@@ -92,6 +92,21 @@ function checkGeometry(plan: PropertyPlan): ValidationIssue[] {
         });
       }
     }
+
+    // Openings that reference non-existent walls
+    const wallIds = new Set(floor.walls.map((w) => w.id));
+    for (const opening of floor.openings) {
+      if (!wallIds.has(opening.wallId)) {
+        issues.push({
+          id: issueId(),
+          severity: 'warning',
+          layer: 'geometry',
+          objectId: opening.id,
+          objectType: 'opening',
+          message: `Opening references a wall that no longer exists on ${floor.name}.`,
+        });
+      }
+    }
   }
 
   // No floors at all
