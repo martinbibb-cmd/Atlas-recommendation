@@ -750,7 +750,7 @@
 
 .draw-off-card__row {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 0.4rem;
   padding: 5px 12px;
   border-bottom: 1px solid #f7fafc;
@@ -767,6 +767,7 @@
   letter-spacing: 0.04em;
   min-width: 4.5rem;
   white-space: nowrap;
+  padding-top: 0.1rem;
 }
 
 .draw-off-card__row--cold .draw-off-card__row-label  { color: #2b6cb0; }
@@ -778,6 +779,8 @@
   font-size: 0.85rem;
   font-weight: 700;
   color: #1a202c;
+  flex: 1;
+  min-width: 0;
 }
 
 .draw-off-card__row-flow {
@@ -792,6 +795,55 @@
   font-weight: 400;
   color: #a0aec0;
   font-style: italic;
+}
+
+/* ── Weir gauge ──────────────────────────────────────────────────────────── */
+
+/*
+ * Weir-gauge: compact horizontal bar with a vertical green target-performance
+ * line.  The fill represents the current value; the target-line is the "weir"
+ * notch — the level at which the outlet is performing as expected.
+ *
+ * The .weir-gauge wrapper has position:relative so the target-line (a sibling
+ * of the track) can be absolutely positioned against the same origin as the
+ * track, letting it extend slightly above and below the bar for visibility
+ * without being clipped by the track's overflow:hidden.
+ */
+.weir-gauge {
+  position: relative;
+  margin-top: 4px;
+  padding: 3px 0;
+}
+
+.weir-gauge__track {
+  position: relative;
+  height: 6px;
+  background: #edf2f7;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.weir-gauge__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Vertical green reference line — the "weir" notch indicating target level.
+   Positioned relative to .weir-gauge so it extends above/below the track. */
+.weir-gauge__target-line {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 2px;
+  background: #38a169;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  z-index: 1;
+  pointer-events: none;
 }
 
 /* ── Behavioural note ────────────────────────────────────────────────────── */
