@@ -931,15 +931,6 @@ export default function App() {
             </div>
             <div
               className="journey-card"
-              onClick={() => { setLabEngineInput(undefined); setJourney('lab'); }}
-            >
-              <div className="card-icon">🔭</div>
-              <h2>System Summary</h2>
-              <p>Side-by-side system comparison with physical constraints and trade-offs.</p>
-              <button className="cta-btn">Open System Summary →</button>
-            </div>
-            <div
-              className="journey-card"
               onClick={() => setJourney('floor-plan')}
             >
               <div className="card-icon">🗺️</div>
