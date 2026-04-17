@@ -717,8 +717,17 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
 
   return (
     <div className="atlas-deck-fruit__layout">
-      {/* ── Sub-panel dots ─────────────────────────────────── */}
-      <div className="atlas-deck-perf__sub-indicator" aria-label="Section navigation">
+      {/* ── Sub-panel navigation row — dots + prev/next buttons ──── */}
+      <div className="atlas-deck-perf__sub-indicator atlas-deck-perf__sub-indicator--with-nav" aria-label="Section navigation">
+        <button
+          type="button"
+          className="atlas-deck-perf__sub-nav-btn"
+          onClick={() => setSubIdx(0)}
+          disabled={subIdx === 0}
+          aria-label="Previous section"
+        >
+          ‹
+        </button>
         <button
           type="button"
           className={`atlas-deck-perf__sub-dot${subIdx === 0 ? ' atlas-deck-perf__sub-dot--active' : ''}`}
@@ -733,9 +742,21 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
           aria-label="Show heat explainer"
           aria-pressed={subIdx === 1}
         />
+        <button
+          type="button"
+          className="atlas-deck-perf__sub-nav-btn"
+          onClick={() => setSubIdx(1)}
+          disabled={subIdx === 1}
+          aria-label="Next section"
+        >
+          ›
+        </button>
+        <span className="atlas-deck-perf__sub-page-label" aria-live="polite">
+          {subIdx + 1} / 2
+        </span>
       </div>
 
-      {/* ── Vertical swipe viewport ─────────────────────────── */}
+      {/* ── Sub-panel viewport ──────────────────────────────────── */}
       <div
         className="atlas-deck-perf__sub-panels"
         onTouchStart={handleSubTouchStart}
@@ -762,7 +783,6 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
                 </div>
               ))}
             </div>
-            <p className="atlas-deck-perf__swipe-hint">Swipe up to see heat physics ↑</p>
           </div>
 
           {/* Sub-panel 2 — Heat explainer + improvements */}
@@ -781,7 +801,6 @@ function LowHangingFruitPage({ ctx }: { ctx: Page1_5AgeingContext }) {
             <div className="atlas-deck-fruit__heat-explainer">
               <ConvectionExplainer />
             </div>
-            <p className="atlas-deck-perf__swipe-hint">Swipe down to see quick wins ↓</p>
           </div>
 
         </div>
@@ -821,8 +840,17 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
 
   return (
     <div className="atlas-deck-perf__layout">
-      {/* ── Sub-panel dots ─────────────────────────────────── */}
-      <div className="atlas-deck-perf__sub-indicator" aria-label="Section navigation">
+      {/* ── Sub-panel navigation row — dots + prev/next buttons ──── */}
+      <div className="atlas-deck-perf__sub-indicator atlas-deck-perf__sub-indicator--with-nav" aria-label="Section navigation">
+        <button
+          type="button"
+          className="atlas-deck-perf__sub-nav-btn"
+          onClick={() => setSubIdx(0)}
+          disabled={subIdx === 0}
+          aria-label="Previous section"
+        >
+          ‹
+        </button>
         <button
           type="button"
           className={`atlas-deck-perf__sub-dot${subIdx === 0 ? ' atlas-deck-perf__sub-dot--active' : ''}`}
@@ -837,9 +865,21 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
           aria-label="Show performance upgrades"
           aria-pressed={subIdx === 1}
         />
+        <button
+          type="button"
+          className="atlas-deck-perf__sub-nav-btn"
+          onClick={() => setSubIdx(1)}
+          disabled={subIdx === 1}
+          aria-label="Next section"
+        >
+          ›
+        </button>
+        <span className="atlas-deck-perf__sub-page-label" aria-live="polite">
+          {subIdx + 1} / 2
+        </span>
       </div>
 
-      {/* ── Vertical swipe viewport ─────────────────────────── */}
+      {/* ── Sub-panel viewport ──────────────────────────────────── */}
       <div
         className="atlas-deck-perf__sub-panels"
         onTouchStart={handleSubTouchStart}
@@ -857,7 +897,6 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
             <div className="atlas-deck-perf__section atlas-deck-perf__section--active">
               <CylinderComparePanel />
             </div>
-            <p className="atlas-deck-perf__swipe-hint">Swipe up to see performance upgrades ↑</p>
           </div>
 
           {/* Sub-panel 2 — Upgrade items */}
@@ -896,7 +935,6 @@ function PerformanceUpgradesPage({ layer }: { layer: UpgradeLayer }) {
                 );
               })}
             </div>
-            <p className="atlas-deck-perf__swipe-hint">Swipe down to see cylinder physics ↓</p>
           </div>
 
         </div>

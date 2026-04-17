@@ -293,7 +293,9 @@ export function buildOptionMatrixV1(
 
   let combiStatus: OptionCardV1['status'];
   if (combiRejectedByTopology || combiBelowMinPressure) {
-    combiStatus = 'rejected';
+    // Never block/reject a system — downgrade to caution so combi remains selectable
+    // even when topology or pressure constraints apply.
+    combiStatus = 'caution';
   } else if (combiRisk === 'fail' || combiRisk === 'warn') {
     // combiRisk === 'fail' from demand-side flags (bathroomCount >= 2, occupancyCount >= 4)
     // is advisory — combi is heavily penalised in the recommendation ranking but must remain
@@ -418,9 +420,9 @@ export function buildOptionMatrixV1(
   if (hasFutureLoftConversion) {
     storedVentedStatus = 'caution';
   } else if (input.availableSpace === 'none') {
-    storedVentedStatus = 'rejected';
+    storedVentedStatus = 'caution';
   } else if (input.loftTankSpace === 'none') {
-    storedVentedStatus = 'rejected';
+    storedVentedStatus = 'caution';
   } else if (ventedRelevantRisk === 'warn' || input.availableSpace === 'tight') {
     storedVentedStatus = 'caution';
   } else {
@@ -543,9 +545,7 @@ export function buildOptionMatrixV1(
     status: storedVentedStatus,
     headline: storedVentedStatus === 'viable'
       ? 'Vented cylinder is a strong fit — no mains pressure dependency.'
-      : storedVentedStatus === 'caution'
-      ? 'Vented cylinder viable but check loft space and cylinder sizing.'
-      : 'Vented cylinder not suitable (loft conversion conflicts with header tanks).',
+      : 'Vented cylinder viable with constraints — check loft space and cylinder sizing.',
     why: storedVentedWhy,
     requirements: storedVentedRequirements,
     evidenceIds: storedEvidenceIds,
@@ -563,7 +563,7 @@ export function buildOptionMatrixV1(
 
   let storedUnventedStatus: OptionCardV1['status'];
   if (input.availableSpace === 'none') {
-    storedUnventedStatus = 'rejected';
+    storedUnventedStatus = 'caution';
   } else if (cwsSupplyV1.inconsistent) {
     storedUnventedStatus = 'caution';
   } else if (!cwsSupplyV1.hasMeasurements) {
@@ -738,7 +738,9 @@ export function buildOptionMatrixV1(
 
   let ashpStatus: OptionCardV1['status'];
   if (ashpRejectedByTopology || ashpRisk === 'fail' || input.hasOutdoorSpaceForHeatPump === false || input.availableSpace === 'none') {
-    ashpStatus = 'rejected';
+    // Never block/reject a system — use caution so ASHP remains selectable
+    // even when topology or space constraints apply.
+    ashpStatus = 'caution';
   } else if (ashpRisk === 'warn' || (core.redFlags.flagAshp ?? false)) {
     ashpStatus = 'caution';
   } else {
