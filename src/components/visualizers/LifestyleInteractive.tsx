@@ -49,11 +49,7 @@ import {
   defaultHours,
   nextState,
   type WaterSlotState,
-  WATER_SLOT_LABELS,
-  WATER_SLOT_COLOURS,
-  WATER_SLOT_CYCLE,
   defaultWaterSlots,
-  nextWaterState,
   waterSlotsToHourlyFlows,
 } from '../../engine/modules/LifestyleInteractiveHelpers';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
@@ -117,10 +113,24 @@ const SLUDGE_INPUT_AFTER_FLUSH = {
 const COMFORT_SETPOINT_C = 21;
 
 /**
- * Default cold-water draw rate (L/min) for "cold" slots in the Water Usage Painter.
- * Represents a typical UK washing machine or dishwasher cold fill.
+ * Cold-water draw rate (L/min) for cold-fill appliances / toilet flush.
+ * Represents a typical UK washing machine, dishwasher, or cistern refill.
  */
-const COLD_DRAW_LPM_DEFAULT = 5;
+const COLD_FILL_LPM = 5;
+
+/** Typical UK instantaneous sink draw rate (L/min mixed). */
+const SINK_FLOW_LPM = 6;
+
+/** Typical UK bath fill rate (L/min mixed). */
+const BATH_FLOW_LPM = 12;
+
+// ─── Outlet types for the weir gauge panel ────────────────────────────────────
+
+/** Keys for the four draw-off outlets shown in the weir gauge panel. */
+type OutletKey = 'shower' | 'sink' | 'bath' | 'cold_fill';
+
+/** Default dynamic mains pressure (bar) used when no override is provided. */
+const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
 
 // ─── Demand chart physics constants ──────────────────────────────────────────
 
@@ -143,11 +153,27 @@ interface Props {
 
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
-  const [waterSlots, setWaterSlots] = useState<WaterSlotState[]>(defaultWaterSlots);
+  // waterSlots stays as a stable constant — the painter UI is replaced by the
+  // weir gauge panel.  The value feeds anyWaterPainted / waterFlows for chart
+  // pipes and is never mutated, so useMemo keeps the reference stable.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const waterSlots = useMemo(() => defaultWaterSlots(), []);
   const [isFullJob, setIsFullJob] = useState(true);
   const [selectedSystem, setSelectedSystem] = useState<DayPainterSystem>('combi');
   const [conditionScenario, setConditionScenario] = useState<ConditionScenario>('as_found');
   const [hasSoftener, setHasSoftener] = useState(false);
+
+  // ── Weir gauge outlet toggles ──────────────────────────────────────────────
+  const [activeOutlets, setActiveOutlets] = useState<Record<OutletKey, boolean>>({
+    shower:    false,
+    sink:      false,
+    bath:      false,
+    cold_fill: false,
+  });
+
+  const toggleOutlet = (key: OutletKey) => {
+    setActiveOutlets(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   // ── DHW concurrency presets — drive all flow & kW calculations ─────────────
   const [season, setSeason]       = useState<SeasonPreset>('typical');
@@ -239,14 +265,6 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     });
   };
 
-  const toggleWaterSlot = (slotIdx: number) => {
-    setWaterSlots(prev => {
-      const next = [...prev];
-      next[slotIdx] = nextWaterState(next[slotIdx]);
-      return next;
-    });
-  };
-
   // ── Demand chart data (Graph 1: Technical Truth) ────────────────────────────
   // Source: lifestyle.hourlyData from LifestyleSimulationModule (deterministic,
   // physics-driven).  Shows the raw kW load regardless of which system is chosen.
@@ -260,7 +278,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // Using waterSlotsToHourlyFlows keeps DHW and DCW as independent channels so
   // Graph D can apply the heat limit only to the hot draw.
   const waterFlows = useMemo(
-    () => waterSlotsToHourlyFlows(waterSlots, showerFlowLpm, COLD_DRAW_LPM_DEFAULT),
+    () => waterSlotsToHourlyFlows(waterSlots, showerFlowLpm, COLD_FILL_LPM),
     [waterSlots, showerFlowLpm],
   );
 
@@ -382,6 +400,45 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     'Volume Available (L)': row.cylinderVolumeL,
   }));
 
+  // ── Weir gauge panel derived values ─────────────────────────────────────────
+  // Instantaneous snapshot of simultaneous draw-off demand vs available capacity.
+
+  /** Max cold-mains flow rate (L/min) derived from mains pressure. */
+  const maxMainsLpm = Math.min((engineInput.dynamicMainsPressure ?? DEFAULT_MAINS_PRESSURE_BAR) * 10, 30);
+
+  /** Total cold-mains draw from all active outlets (L/min). */
+  const totalActiveDrawLpm = (
+    (activeOutlets.shower    ? showerFlowLpm : 0) +
+    (activeOutlets.sink      ? SINK_FLOW_LPM  : 0) +
+    (activeOutlets.bath      ? BATH_FLOW_LPM  : 0) +
+    (activeOutlets.cold_fill ? COLD_FILL_LPM  : 0)
+  );
+
+  /** Remaining cold-mains headroom (%), after subtracting active draws. */
+  const coldMainsRemainingPct = Math.max(0, (1 - totalActiveDrawLpm / maxMainsLpm) * 100);
+
+  /** Hot-water kW demanded by each active hot outlet (physics: Cp × flow × ΔT). */
+  const showerDhwKw   = computeRequiredKw(showerFlowLpm * hotFraction, dhwDeltaT);
+  const sinkDhwKw     = computeRequiredKw(SINK_FLOW_LPM  * hotFraction, dhwDeltaT);
+  const bathDhwKw     = computeRequiredKw(BATH_FLOW_LPM  * hotFraction, dhwDeltaT);
+
+  /** Total instantaneous DHW demand kW from active hot outlets. */
+  const totalDhwDrawKw = (
+    (activeOutlets.shower ? showerDhwKw : 0) +
+    (activeOutlets.sink   ? sinkDhwKw   : 0) +
+    (activeOutlets.bath   ? bathDhwKw   : 0)
+  );
+
+  /** Combi system load % (clamped to 0–100). */
+  const systemLoadPct = Math.min(100, totalDhwDrawKw / NOMINAL_COMBI_DHW_KW * 100);
+
+  // Cylinder SoC at the first peak-demand hour from the day painter (or hour 7 as fallback).
+  const peakDemandH   = hours.findIndex(s => s === 'dhw_demand');
+  const cylinderRefH  = peakDemandH >= 0
+    ? Math.min(peakDemandH, lifestyle.hourlyData.length - 1)
+    : Math.min(7, lifestyle.hourlyData.length - 1);
+  const cylinderSoCPct = lifestyle.hourlyData[cylinderRefH].cylinderVolumeL / CYLINDER_VOLUME_L * 100;
+
   return (
     <div>
       <p style={{ fontSize: '0.8rem', color: '#4a5568', marginBottom: 10 }}>
@@ -468,93 +525,137 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         ))}
       </div>
 
-      {/* ── 💧 Water Usage Painter (5-min increments) ────────────────────────── */}
+      {/* ── 🌊 Water Draw-Off Gauges — weir gauge style, 6-pane layout ──────── */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
-          💧 Water Usage Painter
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 6 }}>
+          🌊 Water Draw-Off Gauges
           <span style={{ fontSize: '0.68rem', fontWeight: 400, color: '#718096', marginLeft: 6 }}>
-            Click to cycle: None → Hot → Cold (5-min slots)
+            Click outlet gauges to toggle draw-off — cold main and system load update live
           </span>
         </div>
-        {/* Column minute headers */}
+
+        {/*
+          6-pane grid:
+            col 1  (2fr) — Cold Main Supply   [left  1/4]
+            cols 2–5 (1fr each) — Shower / Sink / Bath / Cold Fill  [middle 2/4]
+            col 6  (2fr) — Cylinder or Combi status  [right 1/4]
+        */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '28px repeat(12, 1fr)',
-          gap: 1,
-          marginBottom: 2,
+          gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 2fr',
+          gap: 8,
+          alignItems: 'end',
         }}>
-          <div />
-          {Array.from({ length: 12 }, (_, i) => (
-            <div
-              key={i}
-              style={{ fontSize: '0.48rem', color: '#718096', textAlign: 'center', lineHeight: '1' }}
-            >
-              :{String(i * 5).padStart(2, '0')}
+
+          {/* ── Pane 1: Cold Main Supply (left 1/4) ─────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <WeirGauge
+              level={coldMainsRemainingPct}
+              label="Cold Main"
+              emoji="🔵"
+              fillColor="#bee3f8"
+              borderColor="#3182ce"
+            />
+            <div style={{ fontSize: '0.55rem', color: '#718096', textAlign: 'center', lineHeight: '1.3' }}>
+              {(engineInput.dynamicMainsPressure ?? DEFAULT_MAINS_PRESSURE_BAR)} bar
+              {' · '}{maxMainsLpm.toFixed(0)} L/min max
+              {totalActiveDrawLpm > 0 && (
+                <span style={{ color: '#c53030', display: 'block' }}>
+                  −{totalActiveDrawLpm.toFixed(0)} L/min drawn
+                </span>
+              )}
             </div>
-          ))}
-        </div>
-        {/* 24 hour rows × 12 five-minute slot columns */}
-        {Array.from({ length: 24 }, (_, h) => (
-          <div
-            key={h}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '28px repeat(12, 1fr)',
-              gap: 1,
-              marginBottom: 1,
-            }}
-          >
-            <div style={{
-              fontSize: '0.52rem', color: '#718096',
-              lineHeight: '20px', textAlign: 'right', paddingRight: 3,
-            }}>
-              {String(h).padStart(2, '0')}:
-            </div>
-            {Array.from({ length: 12 }, (_, m) => {
-              const slotIdx = h * 12 + m;
-              const state = waterSlots[slotIdx];
-              const timeLabel = `${String(h).padStart(2, '0')}:${String(m * 5).padStart(2, '0')}`;
-              return (
-                <button
-                  key={m}
-                  onClick={() => toggleWaterSlot(slotIdx)}
-                  title={`${timeLabel} – ${WATER_SLOT_LABELS[state]}`}
-                  aria-label={`${timeLabel} – ${WATER_SLOT_LABELS[state]}`}
-                  aria-pressed={state !== 'none'}
-                  style={{
-                    height: 20,
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 2,
-                    background: WATER_SLOT_COLOURS[state],
-                    cursor: 'pointer',
-                    padding: 0,
-                  }}
-                />
-              );
-            })}
           </div>
-        ))}
-        {/* Water painter legend */}
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: 6 }}>
-          {WATER_SLOT_CYCLE.map(s => (
-            <span
-              key={s}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#4a5568' }}
-            >
-              <span style={{
-                width: 12, height: 12, borderRadius: 3,
-                background: WATER_SLOT_COLOURS[s], border: '1px solid #a0aec0',
-                display: 'inline-block',
-              }} />
-              {WATER_SLOT_LABELS[s]}
-            </span>
-          ))}
-          {anyWaterPainted && (
-            <span style={{ fontSize: '0.72rem', color: '#3182ce', alignSelf: 'center' }}>
-              💡 Driving DHW demand in Graph 1
-            </span>
-          )}
+
+          {/* ── Pane 2: Shower (hot draw) ───────────────────────────────────── */}
+          <WeirGauge
+            level={activeOutlets.shower ? showerDhwKw / NOMINAL_COMBI_DHW_KW * 100 : 0}
+            label="Shower"
+            emoji="🚿"
+            fillColor="#fc8181"
+            borderColor="#e53e3e"
+            active={activeOutlets.shower}
+            onClick={() => toggleOutlet('shower')}
+            sublabel={`${showerFlowLpm} L/min`}
+          />
+
+          {/* ── Pane 3: Sink (hot draw) ─────────────────────────────────────── */}
+          <WeirGauge
+            level={activeOutlets.sink ? sinkDhwKw / NOMINAL_COMBI_DHW_KW * 100 : 0}
+            label="Sink"
+            emoji="🚰"
+            fillColor="#ed8936"
+            borderColor="#c05621"
+            active={activeOutlets.sink}
+            onClick={() => toggleOutlet('sink')}
+            sublabel={`${SINK_FLOW_LPM} L/min`}
+          />
+
+          {/* ── Pane 4: Bath (hot draw) ─────────────────────────────────────── */}
+          <WeirGauge
+            level={activeOutlets.bath ? bathDhwKw / NOMINAL_COMBI_DHW_KW * 100 : 0}
+            label="Bath"
+            emoji="🛁"
+            fillColor="#f6ad55"
+            borderColor="#dd6b20"
+            active={activeOutlets.bath}
+            onClick={() => toggleOutlet('bath')}
+            sublabel={`${BATH_FLOW_LPM} L/min`}
+          />
+
+          {/* ── Pane 5: Cold Fill / Toilet Flush (cold draw) ────────────────── */}
+          <WeirGauge
+            level={activeOutlets.cold_fill ? COLD_FILL_LPM / maxMainsLpm * 100 : 0}
+            label="Cold Fill"
+            emoji="🚽"
+            fillColor="#90cdf4"
+            borderColor="#2b6cb0"
+            active={activeOutlets.cold_fill}
+            onClick={() => toggleOutlet('cold_fill')}
+            sublabel={`${COLD_FILL_LPM} L/min`}
+          />
+
+          {/* ── Pane 6: System status (right 1/4) ───────────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            {selectedSystem === 'combi' ? (
+              <WeirGauge
+                level={systemLoadPct}
+                label="Combi Load"
+                emoji="🔥"
+                fillColor={systemLoadPct > 90 ? '#e53e3e' : systemLoadPct > 70 ? '#ed8936' : '#48bb78'}
+                borderColor={systemLoadPct > 90 ? '#c53030' : systemLoadPct > 70 ? '#c05621' : '#276749'}
+              />
+            ) : (
+              <WeirGauge
+                level={cylinderSoCPct}
+                label="Cylinder"
+                emoji="🛢️"
+                fillColor="#bee3f8"
+                borderColor="#3182ce"
+              />
+            )}
+            <div style={{ fontSize: '0.55rem', color: '#718096', textAlign: 'center', lineHeight: '1.3' }}>
+              {selectedSystem === 'combi'
+                ? `${totalDhwDrawKw.toFixed(1)} kW of ${NOMINAL_COMBI_DHW_KW} kW`
+                : `${lifestyle.hourlyData[cylinderRefH].cylinderVolumeL.toFixed(0)} L of ${CYLINDER_VOLUME_L} L`
+              }
+            </div>
+          </div>
         </div>
+
+        {/* Simultaneous-demand warning for combi */}
+        {selectedSystem === 'combi' && systemLoadPct > 100 && (
+          <div style={{
+            marginTop: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: '#fff5f5', border: '1px solid #fed7d7',
+            borderRadius: 6, padding: '3px 10px',
+            fontSize: '0.72rem', color: '#c53030',
+          }}>
+            ⚠️ Combined draw ({totalDhwDrawKw.toFixed(1)} kW) exceeds combi capacity
+            ({NOMINAL_COMBI_DHW_KW} kW) — simultaneous demand
+          </div>
+        )}
       </div>
 
       {/* ── Toggles ────────────────────────────────────────────────────────── */}
@@ -1081,7 +1182,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
                   domain={[0, Math.ceil(Math.max(
                     showerFlowLpm,
                     heatLimitLpm,
-                    anyWaterCold ? COLD_DRAW_LPM_DEFAULT : 0,
+                    anyWaterCold ? COLD_FILL_LPM : 0,
                   ) * 1.2)]}
                   tick={{ fontSize: 9 }}
                   label={{ value: 'L/min', angle: -90, position: 'insideLeft', fontSize: 10 }}
@@ -1236,6 +1337,159 @@ function DebugFactor({ label, value, warn }: { label: string; value: string; war
     }}>
       <span style={{ color: '#718096' }}>{label}: </span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+// ─── WeirGauge ────────────────────────────────────────────────────────────────
+
+/**
+ * A vertical weir-gauge style water-level indicator.
+ *
+ * Shows a rectangular standpipe with a water fill that rises proportionally to
+ * `level` (0–100 %).  Horizontal tick marks at 25 %, 50 %, and 75 % mimic the
+ * notch/staff-gauge markings on a physical weir plate.
+ *
+ * When `onClick` is provided the gauge acts as a toggle button (role="button")
+ * with visual opacity feedback for the inactive state.
+ */
+function WeirGauge({
+  level,
+  label,
+  emoji,
+  fillColor,
+  borderColor,
+  active,
+  onClick,
+  sublabel,
+}: {
+  level: number;
+  label: string;
+  emoji: string;
+  fillColor: string;
+  borderColor: string;
+  active?: boolean;
+  onClick?: () => void;
+  sublabel?: string;
+}) {
+  const clamped = Math.min(100, Math.max(0, level));
+  const isClickable = onClick !== undefined;
+  return (
+    <div
+      onClick={onClick}
+      role={isClickable ? 'button' : undefined}
+      aria-pressed={isClickable ? active : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 3,
+        cursor: isClickable ? 'pointer' : 'default',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ fontSize: '1rem', lineHeight: '1.2' }}>{emoji}</div>
+
+      {/* ── Gauge body ─────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: 90,
+          border: `2px solid ${active === false ? '#cbd5e0' : borderColor}`,
+          borderRadius: 4,
+          background: '#f7fafc',
+          overflow: 'hidden',
+          opacity: active === false ? 0.45 : 1,
+          transition: 'opacity 0.2s',
+        }}
+      >
+        {/* Water fill — animates height */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: `${clamped}%`,
+            background: fillColor,
+            transition: 'height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}
+        />
+
+        {/* Weir staff-gauge tick marks at 25 %, 50 %, 75 % */}
+        {[25, 50, 75].map(mark => (
+          <div
+            key={mark}
+            style={{
+              position: 'absolute',
+              bottom: `${mark}%`,
+              left: 0,
+              right: 0,
+              height: 1,
+              background: 'rgba(0,0,0,0.15)',
+              pointerEvents: 'none',
+            }}
+          />
+        ))}
+
+        {/* Weir notch at top — two side walls with a central gap */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 5,
+            display: 'flex',
+            pointerEvents: 'none',
+          }}
+        >
+          <div style={{ flex: 2, borderBottom: `3px solid ${active === false ? '#cbd5e0' : borderColor}`, opacity: 0.6 }} />
+          <div style={{ flex: 1 }} />
+          <div style={{ flex: 2, borderBottom: `3px solid ${active === false ? '#cbd5e0' : borderColor}`, opacity: 0.6 }} />
+        </div>
+
+        {/* Level percentage label */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: 0,
+            right: 0,
+            transform: 'translateY(-50%)',
+            textAlign: 'center',
+            fontSize: '0.7rem',
+            fontWeight: 700,
+            color: clamped > 45 ? '#fff' : '#2d3748',
+            pointerEvents: 'none',
+          }}
+        >
+          {Math.round(clamped)}%
+        </div>
+      </div>
+
+      {/* Outlet label */}
+      <div
+        style={{
+          fontSize: '0.62rem',
+          fontWeight: active === false ? 400 : 600,
+          color: active === false ? '#a0aec0' : '#2d3748',
+          textAlign: 'center',
+          lineHeight: '1.2',
+        }}
+      >
+        {label}
+      </div>
+
+      {/* Optional sub-label (flow rate, etc.) */}
+      {sublabel !== undefined && (
+        <div style={{ fontSize: '0.55rem', color: '#a0aec0', textAlign: 'center', lineHeight: '1.1' }}>
+          {sublabel}
+        </div>
+      )}
     </div>
   );
 }
