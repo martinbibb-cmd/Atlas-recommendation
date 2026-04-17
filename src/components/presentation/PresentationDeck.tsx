@@ -1211,54 +1211,100 @@ function SimulatorPage({
   onOpenSimulator?: () => void;
   onPrint?: () => void;
 }) {
+  const hasAnyAction = onOpenSimulator != null || onPrint != null;
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Proof</p>
       <h2 className="atlas-presentation-deck__page-title">
         See how this will actually work in your home
       </h2>
-      <div className="atlas-deck-simulator__tiles">
-        {/* Simulator tile */}
-        <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--sim">
-          <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">⚡</p>
-          <p className="atlas-deck-simulator__tile-heading">System Simulator</p>
-          <p className="atlas-deck-simulator__tile-desc">
-            Live taps, heating and full system diagram. See exactly how your system performs.
-          </p>
-          {sim.simulatorCapabilities.length > 0 && (
-            <ul className="atlas-deck-simulator__caps">
-              {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
-            </ul>
-          )}
-          {onOpenSimulator && (
-            <button
-              type="button"
-              className="atlas-deck-simulator__tile-btn"
-              onClick={onOpenSimulator}
-            >
-              Open simulator →
-            </button>
-          )}
-        </div>
 
-        {/* Print tile */}
-        <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--print">
-          <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">📄</p>
-          <p className="atlas-deck-simulator__tile-heading">Take this away</p>
-          <p className="atlas-deck-simulator__tile-desc">
-            We'll print a summary for you to review at home — everything in one place.
-          </p>
+      {/* Physics evidence summary — always shown, answers "why this option?" */}
+      {sim.physicsEvidenceSummary.length > 0 && (
+        <div className="atlas-deck-simulator__evidence" data-testid="proof-evidence-summary">
+          <p className="atlas-deck-simulator__evidence-heading">Key physics signals</p>
+          <ul className="atlas-deck-simulator__evidence-list">
+            {sim.physicsEvidenceSummary.map((item, i) => (
+              <li
+                key={i}
+                className={`atlas-deck-simulator__evidence-item atlas-deck-simulator__evidence-item--${item.severity}`}
+              >
+                <span className="atlas-deck-simulator__evidence-signal">{item.signal}</span>
+                <span className="atlas-deck-simulator__evidence-outcome">{item.outcome}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* House constraint + energy timing notes */}
+      {sim.houseConstraintNotes.length > 0 && (
+        <ul className="atlas-deck-simulator__notes atlas-deck-simulator__notes--constraints">
+          {sim.houseConstraintNotes.map((note, i) => <li key={i}>{note}</li>)}
+        </ul>
+      )}
+      {sim.energyTimingNotes.length > 0 && (
+        <ul className="atlas-deck-simulator__notes atlas-deck-simulator__notes--energy">
+          {sim.energyTimingNotes.map((note, i) => <li key={i}>{note}</li>)}
+        </ul>
+      )}
+
+      {/* Simulator and print tiles — shown when available */}
+      {hasAnyAction && (
+        <div className="atlas-deck-simulator__tiles">
+          {/* Simulator tile */}
+          <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--sim">
+            <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">⚡</p>
+            <p className="atlas-deck-simulator__tile-heading">System Simulator</p>
+            <p className="atlas-deck-simulator__tile-desc">
+              Live taps, heating and full system diagram. See exactly how your system performs.
+            </p>
+            {sim.simulatorCapabilities.length > 0 && (
+              <ul className="atlas-deck-simulator__caps">
+                {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
+              </ul>
+            )}
+            {onOpenSimulator && (
+              <button
+                type="button"
+                className="atlas-deck-simulator__tile-btn"
+                onClick={onOpenSimulator}
+              >
+                Open simulator →
+              </button>
+            )}
+          </div>
+
+          {/* Print tile */}
           {onPrint && (
-            <button
-              type="button"
-              className="atlas-deck-simulator__tile-btn atlas-deck-simulator__tile-btn--print"
-              onClick={onPrint}
-            >
-              Print summary →
-            </button>
+            <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--print">
+              <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">📄</p>
+              <p className="atlas-deck-simulator__tile-heading">Take this away</p>
+              <p className="atlas-deck-simulator__tile-desc">
+                We'll print a summary for you to review at home — everything in one place.
+              </p>
+              <button
+                type="button"
+                className="atlas-deck-simulator__tile-btn atlas-deck-simulator__tile-btn--print"
+                onClick={onPrint}
+              >
+                Print summary →
+              </button>
+            </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* No-action fallback — shown in portal mode when no simulator/print is available */}
+      {!hasAnyAction && (
+        <div className="atlas-deck-simulator__portal-fallback" data-testid="proof-portal-fallback">
+          <p className="atlas-deck-simulator__portal-fallback-text">
+            The full simulator is available in the in-room survey tool. Your advisor can walk through
+            these results interactively — including live tap controls and heating behaviour.
+          </p>
+        </div>
+      )}
+
       {sim.homeScenarioDescription && (
         <p className="atlas-deck-simulator__scenario">{sim.homeScenarioDescription}</p>
       )}

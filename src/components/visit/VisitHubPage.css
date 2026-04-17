@@ -383,3 +383,45 @@
 .visit-hub__delete-cancel-btn:hover:not(:disabled) {
   background: #e2e8f0;
 }
+
+/* ── Internal diagnostics section ───────────────────────────────────────── */
+
+.visit-hub__internal-diagnostics {
+  margin-top: 2rem;
+  border: 1px solid #fbd38d;
+  border-radius: 10px;
+  background: #fffbeb;
+  overflow: hidden;
+}
+
+.visit-hub__internal-diagnostics-summary {
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #744210;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.visit-hub__internal-diagnostics-summary::-webkit-details-marker {
+  display: none;
+}
+
+.visit-hub__internal-diagnostics[open] .visit-hub__internal-diagnostics-summary {
+  border-bottom: 1px solid #fbd38d;
+}
+
+.visit-hub__internal-diagnostics .visit-reports {
+  margin-top: 0;
+  padding: 0 1rem 1rem;
+}
+
+.visit-hub__internal-diagnostics .visit-reports--internal {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-top: 0;
+}
+

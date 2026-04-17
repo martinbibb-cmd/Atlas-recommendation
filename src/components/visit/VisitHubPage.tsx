@@ -480,7 +480,13 @@ export default function VisitHubPage({
           voiceNotes={voiceNotes}
         />
 
-        <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
+        {/* Internal diagnostics — collapsed by default; not customer-facing */}
+        <details className="visit-hub__internal-diagnostics" data-testid="internal-diagnostics-section">
+          <summary className="visit-hub__internal-diagnostics-summary">
+            🔬 Internal diagnostics
+          </summary>
+          <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} internalOnly />
+        </details>
 
         <div className="visit-hub__danger-zone">
           {deleteConfirm ? (

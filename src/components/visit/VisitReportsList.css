@@ -1,11 +1,23 @@
 /*
  * VisitReportsList — styles for the reports section within a visit.
+ *
+ * The --internal modifier marks the section as an internal QA surface.
+ * It should never be rendered in the customer-facing visit path.
  */
 
 /* ── Section container ───────────────────────────────────────────────────── */
 
 .visit-reports {
   margin-top: 2rem;
+}
+
+/* Internal diagnostic variant — muted amber tone */
+.visit-reports--internal {
+  background: #fffbeb;
+  border: 1px solid #fbd38d;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-top: 1.5rem;
 }
 
 .visit-reports__heading {
@@ -16,6 +28,10 @@
   font-weight: 700;
   color: #2d3748;
   margin-bottom: 0.75rem;
+}
+
+.visit-reports--internal .visit-reports__heading {
+  color: #744210;
 }
 
 .visit-reports__count {
@@ -30,6 +46,28 @@
   border-radius: 999px;
   font-size: 0.7rem;
   font-weight: 700;
+}
+
+/* "QA only" internal badge */
+.visit-reports__internal-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: #fbd38d;
+  color: #744210;
+  border: 1px solid #f6ad55;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+/* Internal-only note shown below the heading */
+.visit-reports__internal-note {
+  font-size: 0.78rem;
+  color: #975a16;
+  margin: 0 0 0.75rem;
+  font-style: italic;
 }
 
 /* ── List ────────────────────────────────────────────────────────────────── */

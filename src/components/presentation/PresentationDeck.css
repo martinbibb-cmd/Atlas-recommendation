@@ -1779,6 +1779,108 @@
   line-height: 1.4;
 }
 
+/* ─── Physics evidence summary — Proof page ──────────────────────────────── */
+
+.atlas-deck-simulator__evidence {
+  margin: 0.75rem 0;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.atlas-deck-simulator__evidence-heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem;
+}
+
+.atlas-deck-simulator__evidence-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.atlas-deck-simulator__evidence-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
+}
+
+.atlas-deck-simulator__evidence-item--pass {
+  background: #f0fff4;
+  border-left: 3px solid #48bb78;
+}
+
+.atlas-deck-simulator__evidence-item--warn {
+  background: #fffbeb;
+  border-left: 3px solid #ed8936;
+}
+
+.atlas-deck-simulator__evidence-item--fail {
+  background: #fff5f5;
+  border-left: 3px solid #fc8181;
+}
+
+.atlas-deck-simulator__evidence-signal {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.atlas-deck-simulator__evidence-outcome {
+  color: #718096;
+  font-size: 0.75rem;
+}
+
+/* Constraint and energy notes listed below evidence */
+.atlas-deck-simulator__notes {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.atlas-deck-simulator__notes li {
+  font-size: 0.78rem;
+  color: #4a5568;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.atlas-deck-simulator__notes li::before {
+  content: '·';
+  position: absolute;
+  left: 0.25rem;
+  color: #a0aec0;
+}
+
+/* Portal fallback — when no simulator/print CTAs are available */
+.atlas-deck-simulator__portal-fallback {
+  margin: 0.75rem 0;
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.atlas-deck-simulator__portal-fallback-text {
+  font-size: 0.82rem;
+  color: #2c5282;
+  margin: 0;
+  line-height: 1.5;
+}
+
 /* ─── Print mode — disable internal scroll, expand full content ───────────── */
 @media print {
   .atlas-presentation-deck__viewport {
