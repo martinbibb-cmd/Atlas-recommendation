@@ -436,7 +436,7 @@ export default function SimulatorDashboard({
     // combi: no cylinder, no reset needed (cylinderType is unused for combi)
   }
   const houseState = useHousePlayback(diagramState);
-  const drawOffState = useDrawOffPlayback(diagramState, systemInputs.cylinderType, systemInputs.cylinderSizeLitres);
+  const drawOffState = useDrawOffPlayback(diagramState, systemInputs.cylinderType, systemInputs.cylinderSizeLitres, systemInputs.mainsFlowLpm, systemInputs.combiPowerKw, systemInputs.coldInletTempC);
   const emitterState = useEmitterPrimaryModel({
     emitterCapacityFactor: systemInputs.emitterCapacityFactor,
     primaryPipeSize: systemInputs.primaryPipeSize,
@@ -492,7 +492,7 @@ export default function SimulatorDashboard({
   // useHousePlayback and useDrawOffPlayback are called for React hook ordering.
   // Their results are not rendered in compare mode (only efficiency/limiters are shown).
   useHousePlayback(diagramStateImproved);
-  useDrawOffPlayback(diagramStateImproved);
+  useDrawOffPlayback(diagramStateImproved, improvedInputs.cylinderType, improvedInputs.cylinderSizeLitres, improvedInputs.mainsFlowLpm, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC);
   const emitterStateImproved = useEmitterPrimaryModel({
     emitterCapacityFactor: improvedInputs.emitterCapacityFactor,
     primaryPipeSize: improvedInputs.primaryPipeSize,
@@ -564,6 +564,8 @@ export default function SimulatorDashboard({
       cylinderType={systemInputs.cylinderType}
       mainsPressureBar={systemInputs.mainsPressureBar}
       mainsFlowLpm={systemInputs.mainsFlowLpm}
+      boilerDhwOutputKw={systemInputs.combiPowerKw}
+      coldInletTempC={systemInputs.coldInletTempC}
       flowStability={systemChoice === initialSystemChoice ? initialCurrentFlowStability : undefined}
       mode={isManualMode ? 'manual' : 'auto'}
       heatingEnabled={demandControls.heatingEnabled}

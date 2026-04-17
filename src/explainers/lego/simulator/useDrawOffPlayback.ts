@@ -30,12 +30,46 @@ import type { StoredHotWaterDisplayState } from './useStoredHotWaterPlayback'
  */
 const DEMO_MAINS_FLOW_LPM = 12
 
+/** Default combi DHW boiler output (kW) used in the demo when no survey value is available. */
+const DEFAULT_COMBI_DHW_OUTPUT_KW = 30
+
+/** Default cold inlet temperature (°C) used in the demo. */
+const DEFAULT_COLD_INLET_TEMP_C = 10
+
 /** Nominal solo-outlet delivered flows for a stored (cylinder) system (L/min). */
 const STORED_SOLO_FLOW_LPM = {
   shower:  9.5,
   bath:    8.0,
   kitchen: 5.5,
 } as const
+
+/**
+ * Natural (unconstrained) demand for each combi outlet at full pressure (L/min).
+ * Represents what each appliance draws when boiler output and mains supply are ample.
+ */
+const COMBI_NATURAL_DEMAND_LPM: Record<string, number> = {
+  shower:  9.0,
+  bath:    8.2,
+  kitchen: 6.0,
+}
+
+/**
+ * Solo delivery temperature for each combi outlet (°C).
+ * Used with cold inlet temperature to compute the hot-water fraction (and thus
+ * the kW draw on the HEX) for each outlet independently of the HEX setpoint.
+ */
+const COMBI_SOLO_DELIVERY_TEMP_C: Record<string, number> = {
+  shower:  45,
+  bath:    44,
+  kitchen: 44,
+}
+
+/**
+ * Maximum temperature penalty (°C) applied to delivered temperature when the
+ * boiler or mains is at its limit under concurrent demand.  The penalty scales
+ * linearly from 0 (no constraint) to this value (fully constrained / throttle=0).
+ */
+const MAX_CONCURRENT_TEMP_PENALTY_C = 5
 
 // ─── Public state type ────────────────────────────────────────────────────────
 
@@ -68,10 +102,79 @@ export type DrawOffDisplayState = {
   storedHotWaterState: StoredHotWaterDisplayState | null
 }
 
-// ─── Outlet state builder ─────────────────────────────────────────────────────
+// ─── Combi physics ────────────────────────────────────────────────────────────
+
+/**
+ * Result of the combi outlet flow calculation.
+ *
+ * `flows`       — delivered mixed flow (L/min) per outlet id.
+ * `throttle`    — ratio applied to natural demand (1 = no constraint, < 1 = constrained).
+ * `throttledBy` — which constraint is binding: boiler output, cold mains, or neither.
+ */
+interface CombiFlowResult {
+  flows:       Record<string, number>
+  throttle:    number
+  throttledBy: 'boiler' | 'mains' | 'none'
+}
+
+/**
+ * Compute physics-derived outlet flow rates for a combi system.
+ *
+ * For each open outlet the kW required to supply its hot-water fraction is:
+ *   kW_i = 0.06977 × demand_i × (T_delivery_i − T_cold)
+ *
+ * The total kW demand is compared against the boiler's DHW output and the
+ * total volume demand against the cold-mains supply.  The binding constraint
+ * (whichever is more restrictive) sets a throttle factor applied uniformly
+ * to all open outlets.  Uniformly reducing each outlet's flow preserves the
+ * hot/cold mixing ratio, so delivery temperatures are unaffected.
+ */
+function computeCombiOutletFlows(
+  openOutletIds: string[],
+  boilerDhwOutputKw: number,
+  coldInletTempC:    number,
+  mainsFlowLpm:      number,
+): CombiFlowResult {
+  if (openOutletIds.length === 0) {
+    return { flows: {}, throttle: 1, throttledBy: 'none' }
+  }
+
+  // Total kW needed = Σ (0.06977 × demand × ΔT_delivery)
+  const totalKwNeeded = openOutletIds.reduce((sum, id) => {
+    const demand      = COMBI_NATURAL_DEMAND_LPM[id]  ?? 0
+    const deliveryTempC = COMBI_SOLO_DELIVERY_TEMP_C[id] ?? 40
+    return sum + 0.06977 * demand * (deliveryTempC - coldInletTempC)
+  }, 0)
+
+  // Total volume demand = Σ demand_i (all water comes from the cold main)
+  const totalDemandLpm = openOutletIds.reduce(
+    (sum, id) => sum + (COMBI_NATURAL_DEMAND_LPM[id] ?? 0), 0,
+  )
+
+  const throttleBoiler = totalKwNeeded   > 0 ? Math.min(boilerDhwOutputKw / totalKwNeeded, 1) : 1
+  const throttleMains  = totalDemandLpm  > 0 ? Math.min(mainsFlowLpm      / totalDemandLpm,  1) : 1
+  const throttle = Math.min(throttleBoiler, throttleMains)
+
+  const throttledBy: CombiFlowResult['throttledBy'] =
+    throttle >= 1              ? 'none'
+    : throttleBoiler <= throttleMains ? 'boiler'
+    : 'mains'
+
+  const flows: Record<string, number> = {}
+  for (const id of openOutletIds) {
+    flows[id] = Math.round((COMBI_NATURAL_DEMAND_LPM[id] ?? 0) * throttle * 10) / 10
+  }
+
+  return { flows, throttle, throttledBy }
+}
+
+
 
 function buildOutletStates(
   diagramState: SystemDiagramDisplayState,
+  mainsFlowBudgetLpm: number,
+  boilerDhwOutputKw:  number,
+  coldInletTempC:     number,
 ): OutletDisplayState[] {
   const { hotDrawActive: legacyHotDrawActive, serviceSwitchingActive, supplyOrigins, systemType, outletDemands } = diagramState
 
@@ -110,30 +213,60 @@ function buildOutletStates(
   }
 
   if (isCombi) {
-    const concurrent = (showerOpen ? 1 : 0) + (bathOpen ? 1 : 0) + (kitchenOpen ? 1 : 0) >= 2
+    // Build the list of open outlet ids to pass to the physics model.
+    const openOutletIds = [
+      ...(showerOpen  ? ['shower']  : []),
+      ...(bathOpen    ? ['bath']    : []),
+      ...(kitchenOpen ? ['kitchen'] : []),
+    ]
+
+    // Physics-derived outlet flows:
+    //   - boiler output (kW) limits how much hot the HEX can supply
+    //   - cold mains capacity (L/min) limits total outlet volume (all water from mains)
+    const { flows, throttle, throttledBy } = computeCombiOutletFlows(
+      openOutletIds, boilerDhwOutputKw, coldInletTempC, mainsFlowBudgetLpm,
+    )
+
+    const isConstrained = throttle < 1
+    const constraintReason = isConstrained
+      ? throttledBy === 'mains'
+        ? `Cold main at ${mainsFlowBudgetLpm} L/min — concurrent demand reduces per-outlet flow`
+        : 'On-demand hot water at capacity — boiler output reached under concurrent demand'
+      : undefined
+
+    // Delivery temperature: solo temps when unconstrained; apply a small
+    // temperature penalty proportional to the throttle shortfall when constrained.
+    const tempPenalty = isConstrained ? Math.round((1 - throttle) * MAX_CONCURRENT_TEMP_PENALTY_C) : 0
+
     return [
       showerOpen ? {
         outletId: 'shower', label: 'Shower', open: true,
-        service: 'mixed_hot_running', flowLpm: concurrent ? 7.8 : 9.0, deliveredTempC: concurrent ? 43 : 45,
-        isConstrained: concurrent,
-        constraintReason: concurrent ? 'On-demand hot water at capacity — concurrent demand' : undefined,
+        service: 'mixed_hot_running',
+        flowLpm: flows['shower'] ?? 0,
+        deliveredTempC: COMBI_SOLO_DELIVERY_TEMP_C['shower'] - tempPenalty,
+        isConstrained,
+        constraintReason,
         coldSource, hotSource,
       } : closedShower,
       bathOpen
         ? {
             outletId: 'bath', label: 'Bath', open: true,
-            service: 'mixed_hot_running', flowLpm: concurrent ? 7.2 : 8.2, deliveredTempC: concurrent ? 41 : 44,
-            isConstrained: concurrent,
-            constraintReason: concurrent ? 'On-demand hot water at capacity — concurrent demand' : undefined,
+            service: 'mixed_hot_running',
+            flowLpm: flows['bath'] ?? 0,
+            deliveredTempC: COMBI_SOLO_DELIVERY_TEMP_C['bath'] - tempPenalty,
+            isConstrained,
+            constraintReason,
             coldSource, hotSource,
           }
         : closedBath,
       kitchenOpen
         ? {
             outletId: 'kitchen', label: 'Kitchen tap', open: true,
-            service: 'mixed_hot_running', flowLpm: concurrent ? 4.6 : 6.0, deliveredTempC: concurrent ? 40 : 44,
-            isConstrained: concurrent,
-            constraintReason: concurrent ? 'On-demand hot water at capacity — concurrent demand' : undefined,
+            service: 'mixed_hot_running',
+            flowLpm: flows['kitchen'] ?? 0,
+            deliveredTempC: COMBI_SOLO_DELIVERY_TEMP_C['kitchen'] - tempPenalty,
+            isConstrained,
+            constraintReason,
             coldSource: 'mains', hotSource,
           }
         : closedKitchen,
@@ -146,7 +279,7 @@ function buildOutletStates(
   // and do NOT compete for the pressurised mains supply.
   //
   // Mains-fed outlets: apply proportional throttle when combined demand exceeds
-  // the DEMO_MAINS_FLOW_LPM budget.
+  // the mains flow budget.
   const isMainsFedStore = coldSource !== 'cws'
   const mainsOpenDemand =
     (showerOpen  && isMainsFedStore ? STORED_SOLO_FLOW_LPM.shower  : 0) +
@@ -155,12 +288,12 @@ function buildOutletStates(
 
   // Throttle is the fraction of demand each mains outlet actually receives.
   // When the total demand fits within the budget, throttle = 1 (no reduction).
-  const mainsThrottle = (isMainsFedStore && mainsOpenDemand > DEMO_MAINS_FLOW_LPM)
-    ? DEMO_MAINS_FLOW_LPM / mainsOpenDemand
+  const mainsThrottle = (isMainsFedStore && mainsOpenDemand > mainsFlowBudgetLpm)
+    ? mainsFlowBudgetLpm / mainsOpenDemand
     : 1
   const mainsConstrained = mainsThrottle < 1
   const mainsConstraintReason = mainsConstrained
-    ? `Shared cold main at ${DEMO_MAINS_FLOW_LPM} L/min — concurrent demand reduces per-outlet flow`
+    ? `Shared cold main at ${mainsFlowBudgetLpm} L/min — concurrent demand reduces per-outlet flow`
     : undefined
 
   return [
@@ -209,11 +342,21 @@ function buildOutletStates(
  * @param cylinderType         Cylinder technology type.  Defaults to 'unvented'.
  *                             Used to drive Mixergy-specific behaviour in storedHotWaterState.
  * @param cylinderSizeLitres   Nominal cylinder capacity in litres.  Defaults to 150.
+ * @param mainsFlowLpm         Cold-mains supply capacity (L/min).  Used as the shared
+ *                             flow budget for mains-fed outlets.  Defaults to DEMO_MAINS_FLOW_LPM.
+ * @param boilerDhwOutputKw    Combi boiler DHW plate-HEX rated output (kW).  Used to
+ *                             compute the maximum sustainable hot-water flow rate from
+ *                             the HEX.  Defaults to DEFAULT_COMBI_DHW_OUTPUT_KW.
+ * @param coldInletTempC       Cold-water inlet temperature (°C).  Used in the combi
+ *                             thermal limit calculation.  Defaults to DEFAULT_COLD_INLET_TEMP_C.
  */
 export function useDrawOffPlayback(
   diagramState: SystemDiagramDisplayState,
   cylinderType: CylinderType = 'unvented',
   cylinderSizeLitres: number = 150,
+  mainsFlowLpm: number = DEMO_MAINS_FLOW_LPM,
+  boilerDhwOutputKw: number = DEFAULT_COMBI_DHW_OUTPUT_KW,
+  coldInletTempC: number = DEFAULT_COLD_INLET_TEMP_C,
 ): DrawOffDisplayState {
   const { systemMode, systemType, serviceSwitchingActive, outletDemands } = diagramState
 
@@ -228,7 +371,7 @@ export function useDrawOffPlayback(
   const storedHotWaterState = useStoredHotWaterPlayback(diagramState, cylinderType, cylinderSizeLitres)
 
   return {
-    outletStates: buildOutletStates(diagramState),
+    outletStates: buildOutletStates(diagramState, mainsFlowLpm, boilerDhwOutputKw, coldInletTempC),
     systemMode,
     isCylinder,
     serviceSwitchingActive,
