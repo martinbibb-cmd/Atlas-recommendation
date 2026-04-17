@@ -922,8 +922,52 @@
 .atlas-deck-perf__sub-indicator {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 0.4rem;
   padding: 0.25rem 0 0.375rem;
+  flex-shrink: 0;
+}
+
+/* Variant that includes prev/next buttons alongside dots */
+.atlas-deck-perf__sub-indicator--with-nav {
+  gap: 0.5rem;
+}
+
+/* ‹ › prev/next navigation buttons for sub-panels */
+.atlas-deck-perf__sub-nav-btn {
+  background: none;
+  border: 1px solid #cbd5e0;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4a5568;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.atlas-deck-perf__sub-nav-btn:hover:not(:disabled) {
+  background: #edf2f7;
+  border-color: #a0aec0;
+}
+
+.atlas-deck-perf__sub-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* "1 / 2" counter next to nav buttons */
+.atlas-deck-perf__sub-page-label {
+  font-size: 0.65rem;
+  color: #a0aec0;
+  font-variant-numeric: tabular-nums;
+  margin-left: 0.1rem;
   flex-shrink: 0;
 }
 

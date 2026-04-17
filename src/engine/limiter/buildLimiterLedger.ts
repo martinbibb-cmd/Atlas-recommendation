@@ -67,9 +67,6 @@ const HP_REHEAT_LATENCY_THRESHOLD_MINUTES = 45;
 /** Mains flow below this (L/min) triggers mains_flow_constraint. */
 const MIN_ADEQUATE_FLOW_LPM = 13;
 
-/** Mains flow below this (L/min) elevates severity from 'warning' to 'limit'. */
-const CRITICAL_FLOW_LPM = 10;
-
 /** Dynamic mains pressure below this (bar) triggers pressure_constraint. */
 const MIN_ADEQUATE_PRESSURE_BAR = 1.0;
 
@@ -330,7 +327,7 @@ export function buildLimiterLedger(
   //    Evidence: cwsSupplyV1.dynamic.flowLpm below delivery threshold.
   const cwsFlow = runnerResult.hydraulic.cwsSupplyV1.dynamic?.flowLpm;
   if (cwsFlow !== undefined && cwsFlow < MIN_ADEQUATE_FLOW_LPM) {
-    const flowSeverity: LimiterSeverity = cwsFlow < CRITICAL_FLOW_LPM ? 'limit' : 'warning';
+    const flowSeverity: LimiterSeverity = 'warning';
     entries.push({
       id: 'mains_flow_constraint',
       family,

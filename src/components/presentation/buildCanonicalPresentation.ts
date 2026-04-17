@@ -762,6 +762,19 @@ const FAMILY_LABELS: Record<string, string> = {
   open_vented: 'Regular boiler (vented)',
 };
 
+/**
+ * Maps each ApplianceFamily to the OptionCardV1 IDs that represent it in
+ * result.engineOutput.options.  Used to resolve the best recommended option
+ * from recommendation.bestOverall.family.
+ */
+const FAMILY_TO_OPTION_IDS: Record<ApplianceFamily, readonly string[]> = {
+  combi:       ['combi'],
+  system:      ['stored_unvented', 'system_unvented'],
+  heat_pump:   ['ashp', 'gshp'],
+  regular:     ['stored_vented', 'regular_vented'],
+  open_vented: ['stored_vented', 'regular_vented'],
+};
+
 // ─── Visual signal helpers ─────────────────────────────────────────────────────
 
 /**
@@ -1929,7 +1942,7 @@ function buildPage4Plus(
   const pv   = result.pvAssessment;
   const dhwStorageType = inputDhwStorageTypeToSignal(input.dhwStorageType);
 
-  // Shortlist: best overall + viable options from OptionCardV1
+  // Shortlist: viable options from OptionCardV1, sorted with the best overall recommendation first.
   const options = result.engineOutput.options ?? [];
   const viableOptions = options.filter(opt => opt.status !== 'rejected');
 
@@ -1951,6 +1964,16 @@ function buildPage4Plus(
       storageBenefitSignal:      demo.storageBenefitSignal,
     };
   });
+
+  // Sort so the best overall recommendation option is always first.
+  if (recommendation?.bestOverall) {
+    const bestIds = FAMILY_TO_OPTION_IDS[recommendation.bestOverall.family];
+    shortlisted.sort((a, b) => {
+      const aFirst = bestIds.includes(a.family) ? 0 : 1;
+      const bFirst = bestIds.includes(b.family) ? 0 : 1;
+      return aFirst - bFirst;
+    });
+  }
 
   return { options: shortlisted };
 }
@@ -2145,9 +2168,18 @@ function buildCurrentSystemSide(
 function buildProposedSystemSide(
   result: FullEngineResult,
   input: EngineInputV2_3,
+  recommendation?: RecommendationResult,
 ): SystemComparisonSide | null {
   const options = result.engineOutput?.options ?? [];
-  const top = options[0];
+  // Find the option that matches the recommended family rather than defaulting
+  // to options[0] which is always combi (hardcoded engine order).
+  let top: OptionCardV1 | undefined;
+  if (recommendation?.bestOverall) {
+    const bestIds = FAMILY_TO_OPTION_IDS[recommendation.bestOverall.family];
+    top = options.find(o => bestIds.includes(o.id)) ?? options[0];
+  } else {
+    top = options[0];
+  }
   if (!top) return null;
 
   const label = top.label;
@@ -2209,9 +2241,10 @@ function buildSystemComparison(
   result: FullEngineResult,
   input: EngineInputV2_3,
   currentSystem: ReturnType<typeof buildCurrentSystemSignal>,
+  recommendation?: RecommendationResult,
 ): SystemComparisonBlock | null {
   if (!input.currentHeatSourceType) return null;
-  const proposed = buildProposedSystemSide(result, input);
+  const proposed = buildProposedSystemSide(result, input, recommendation);
   if (!proposed) return null;
   const current = buildCurrentSystemSide(input, currentSystem);
   return { current, proposed };
@@ -2250,6 +2283,6 @@ export function buildCanonicalPresentation(
     page3:   buildPage3(result, input, recommendation),
     page4Plus: buildPage4Plus(result, recommendation, input),
     finalPage: buildFinalPage(result, input, currentSystem.dhwArchitecture),
-    systemComparison: buildSystemComparison(result, input, currentSystem),
+    systemComparison: buildSystemComparison(result, input, currentSystem, recommendation),
   };
 }

@@ -41,7 +41,8 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   ) ?? false;
 
   if (redFlags.rejectCombi || combiBelowMinPressure) {
-    onDemandStatus = 'rejected';
+    // Never block a system — use caution so combi remains selectable.
+    onDemandStatus = 'caution';
     if (redFlags.rejectCombi) {
       onDemandReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
     } else {
@@ -84,7 +85,8 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   let storedVentedReason: string | undefined;
 
   if (storedVentedRejected) {
-    storedVentedStatus = 'rejected';
+    // Never block a system — use caution.
+    storedVentedStatus = 'caution';
     storedVentedReason = result.redFlags.reasons
       .filter(r => r.includes('Stored') || r.includes('Cylinder') || r.includes('Loft'))
       .join(' ') || undefined;
@@ -134,9 +136,11 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   // hasOutdoorSpaceForHeatPump === false means no confirmed outdoor space for the unit — hard gate.
   let ashpStatus: EligibilityItem['status'];
   if (redFlags.rejectAshp || input?.hasOutdoorSpaceForHeatPump === false) {
-    ashpStatus = 'rejected';
+    // Never block a system — use caution.
+    ashpStatus = 'caution';
   } else if (hydraulicV1.verdict.ashpRisk === 'fail') {
-    ashpStatus = 'rejected';
+    // Never block a system — use caution.
+    ashpStatus = 'caution';
   } else if (hydraulicV1.verdict.ashpRisk === 'warn' || redFlags.flagAshp) {
     ashpStatus = 'caution';
   } else {

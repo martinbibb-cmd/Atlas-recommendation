@@ -45,7 +45,7 @@ export function buildLimitersV1(
   const mainsFlowLpm = input.mainsDynamicFlowLpm ?? cwsSupplyV1.dynamic?.flowLpm;
   const combiFlowLimitLpm = 13; // typical UK combi DHW limit at ΔT 25°C, 30 kW
   if (mainsFlowLpm != null && mainsFlowLpm < combiFlowLimitLpm) {
-    const severity: LimiterSeverity = mainsFlowLpm < 10 ? 'fail' : 'warn';
+    const severity: LimiterSeverity = 'warn';
     limiters.push({
       id: 'mains-flow-constraint',
       title: 'Mains flow constraint',

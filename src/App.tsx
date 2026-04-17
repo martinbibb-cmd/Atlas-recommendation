@@ -44,9 +44,6 @@ import { getMissingLabFields } from './lib/lab/getMissingLabFields';
 import { mergeLabQuickInputs } from './lib/lab/mergeLabQuickInputs';
 import { parsePortalPath } from './lib/portal/portalUrl';
 import type { DerivedFloorplanOutput } from './components/floorplan/floorplanDerivations';
-import { deriveFitPosition } from './logic/fit-map/deriveFitPosition';
-import type { FitPosition } from './logic/fit-map/computeFitPosition';
-import FitMapResultPage from './components/fit-map/FitMapResultPage';
 import CanonicalPresentationPage from './components/presentation/CanonicalPresentationPage';
 import type { HeatLossState } from './features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState } from './features/survey/priorities/prioritiesTypes';
@@ -169,7 +166,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'fit-map' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -316,8 +313,6 @@ export default function App() {
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>(
     ENGINEER_VISIT_ID ?? undefined,
   );
-  /** Fit position computed after survey completion — shown on the fit-map page. */
-  const [fitPosition, setFitPosition] = useState<FitPosition | undefined>();
   /** Controls whether the new-visit dialog is open. */
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
   /** Tracks whether "Start new visit" is in flight. */
@@ -511,8 +506,7 @@ export default function App() {
       // fit-map page before opening the simulator.
       const engineInput = mergeLabQuickInputs(partial, {});
       setLabEngineInput(engineInput);
-      setFitPosition(deriveFitPosition(engineInput));
-      setJourney('fit-map');
+      setJourney('simulator');
     }
   }
 
@@ -725,8 +719,8 @@ export default function App() {
             }}
             onComplete={(engineInput) => {
               setLabEngineInput(engineInput);
-              setFitPosition(deriveFitPosition(engineInput));
-              setJourney('fit-map');
+              setSimulatorFromJourney('visit');
+              setJourney('simulator');
             }}
             onOpenSimulator={(engineInput) => {
               // Direct shortcut from InsightLayerPage — skip fit-map.
@@ -757,11 +751,11 @@ export default function App() {
               if (draft.fullSurvey?.recommendation) setLabRecommendationState(draft.fullSurvey.recommendation);
             }}
             onComplete={(engineInput) => {
-              // Route through fit-map page before simulator.
+              // Route directly to simulator — fit-map step removed.
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
-              setFitPosition(deriveFitPosition(engineInput));
-              setJourney('fit-map');
+              setSimulatorFromJourney('full');
+              setJourney('simulator');
             }}
             onOpenSimulator={(engineInput) => {
               // Direct shortcut from InsightLayerPage — skip fit-map.
@@ -782,21 +776,13 @@ export default function App() {
       {journey === 'methodology' && <MethodologyPage onBack={() => setJourney('landing')} />}
       {journey === 'neutrality' && <NeutralityPage onBack={() => setJourney('landing')} />}
       {journey === 'privacy' && <PrivacyPage onBack={() => setJourney('landing')} />}
-      {journey === 'fit-map' && fitPosition != null && (
-        <FitMapResultPage
-          fitPosition={fitPosition}
-          onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('fit-map'); setJourney('presentation'); } : undefined}
-          onContinue={() => setJourney('simulator')}
-        />
-      )}
       {journey === 'lab-quick-inputs' && (
         <LabQuickInputsPanel
           initialInput={labPartialInput}
           missingFields={getMissingLabFields(labPartialInput)}
           onComplete={(completed) => {
             setLabEngineInput(completed);
-            setFitPosition(deriveFitPosition(completed));
-            setJourney('fit-map');
+            setJourney('simulator');
           }}
           onCancel={() => setJourney('landing')}
         />
