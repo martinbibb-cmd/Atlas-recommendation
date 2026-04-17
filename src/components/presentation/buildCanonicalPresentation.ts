@@ -431,6 +431,21 @@ export interface FinalPageSimulator {
    * Rendered on the handoff page so users know exactly what they are opening.
    */
   simulatorCapabilities: readonly string[];
+  /**
+   * Physics evidence summary — the key scored signals that most influenced the
+   * recommendation.  Rendered on the Proof page as the "evidence trace" so users
+   * can see why the chosen option won, even when the full simulator is not available.
+   *
+   * Each item contains:
+   *   signal  — human-readable label for the measured/inferred input
+   *   outcome — what this signal meant for the recommendation
+   *   severity — 'pass' | 'warn' | 'fail' — how this signal affected each option
+   */
+  physicsEvidenceSummary: Array<{
+    signal: string;
+    outcome: string;
+    severity: 'pass' | 'warn' | 'fail';
+  }>;
 }
 
 /** Full canonical presentation model. */
@@ -1993,12 +2008,51 @@ function buildFinalPage(
     'Heating response and system cycling',
   ];
 
+  // ── Physics evidence summary — key scored signals for the Proof page ──────
+  //
+  // Derived from the engine's option cards.  Each red-flag or high-confidence
+  // factor is surfaced as an evidence token so the Proof page is never blank.
+  const physicsEvidenceSummary: FinalPageSimulator['physicsEvidenceSummary'] = [];
+
+  const options = result.engineOutput?.options ?? [];
+  for (const opt of options) {
+    if (!opt.score) continue;
+    const topPenalty = opt.score.breakdown.reduce(
+      (max, item) => (item.penalty > max.penalty ? item : max),
+      { id: '', label: '', penalty: 0 },
+    );
+    if (topPenalty.penalty > 0) {
+      const severity: 'pass' | 'warn' | 'fail' =
+        topPenalty.penalty >= 25 ? 'fail' : topPenalty.penalty >= 10 ? 'warn' : 'pass';
+      physicsEvidenceSummary.push({
+        signal: `${opt.label}: ${topPenalty.label}`,
+        outcome: `−${topPenalty.penalty} pts — score ${opt.score.total}/100`,
+        severity,
+      });
+    }
+  }
+
+  // Add key house signals as pass evidence when no penalties override them.
+  if (physicsEvidenceSummary.length === 0) {
+    physicsEvidenceSummary.push({
+      signal: `Heat loss: ${(input.heatLossWatts / 1000).toFixed(1)} kW`,
+      outcome: 'Used for system sizing — no overriding constraint.',
+      severity: 'pass',
+    });
+    physicsEvidenceSummary.push({
+      signal: `Occupancy: ${input.occupancyCount ?? 2} people, ${input.bathroomCount} ${input.bathroomCount === 1 ? 'bathroom' : 'bathrooms'}`,
+      outcome: 'Used to determine simultaneous demand and DHW arrangement.',
+      severity: 'pass',
+    });
+  }
+
   return {
     homeScenarioDescription,
     houseConstraintNotes,
     energyTimingNotes,
     dhwArchitectureNote: dhwArchitectureToSimulatorNote(dhwArchitecture),
     simulatorCapabilities,
+    physicsEvidenceSummary,
   };
 }
 

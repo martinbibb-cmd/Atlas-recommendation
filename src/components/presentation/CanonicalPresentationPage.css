@@ -556,6 +556,50 @@
   background: #2b6cb0;
 }
 
+.cpp-simulator__evidence {
+  margin: 0.75rem 0;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.cpp-simulator__evidence-heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem;
+}
+
+.cpp-simulator__evidence-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cpp-simulator__evidence-item {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.82rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 5px;
+}
+
+.cpp-simulator__evidence-item--pass { background: #f0fff4; }
+.cpp-simulator__evidence-item--warn { background: #fffbeb; }
+.cpp-simulator__evidence-item--fail { background: #fff5f5; }
+
+.cpp-simulator__evidence-outcome {
+  color: #718096;
+  font-size: 0.75rem;
+}
+
 /* ─── Accessibility ───────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

@@ -11,6 +11,10 @@
  * - Route to the Simulator / ExplainersHub on survey completion
  * - Show a compact save-state indicator in the visit header
  * - Render a case summary header (visit ID, status, customer, postcode, report count)
+ *
+ * Note: VisitReportsList (internal diagnostic output) is intentionally NOT rendered
+ * here.  Reports are internal QA artefacts only and must not appear in the
+ * customer-facing survey path.  See VisitHubPage for the internal-diagnostics section.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -19,7 +23,6 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, type VisitMeta } from '../../lib/visits/visitApi';
-import VisitReportsList from './VisitReportsList';
 import './VisitPage.css';
 
 /**
@@ -31,7 +34,7 @@ import './VisitPage.css';
  */
 export type SaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
 
-interface Props {
+export interface Props {
   visitId: string;
   onBack: () => void;
   onComplete: (engineInput: EngineInputV2_3) => void;
@@ -50,7 +53,6 @@ interface Props {
    */
   onDraft?: (draft: FullSurveyModelV1) => void;
   onOpenFloorPlan: (surveyResults: Partial<FullSurveyModelV1>) => void;
-  onOpenReport: (reportId: string) => void;
   floorplanOutput?: DerivedFloorplanOutput;
 }
 
@@ -185,7 +187,6 @@ export default function VisitPage({
   onOpenSimulator,
   onDraft,
   onOpenFloorPlan,
-  onOpenReport,
 }: Props) {
   // Derive initial error/ready state from visitId at mount — avoids calling
   // setState synchronously inside an effect (which triggers the
@@ -391,7 +392,6 @@ export default function VisitPage({
         onDraft={handleDraft}
         onOpenFloorPlan={onOpenFloorPlan}
       />
-      <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} />
     </div>
   );
 }

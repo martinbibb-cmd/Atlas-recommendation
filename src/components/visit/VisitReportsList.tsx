@@ -3,7 +3,16 @@
  *
  * Renders a compact list of reports linked to a given visit.
  * Reports are shown newest first (API ordering).
- * The most recent report is badged "Latest"; older reports are shown as history.
+ *
+ * ⚠️ INTERNAL DIAGNOSTIC SURFACE ONLY
+ * These reports are engine snapshot artefacts for QA and engineer review.
+ * They must not be surfaced as a customer-facing primary output.
+ *
+ * Usage:
+ *   - In VisitHubPage: rendered inside a collapsed "Internal diagnostics" section.
+ *   - Not rendered in VisitPage (the customer-facing survey path).
+ *
+ * When internalOnly is true, the section heading clearly marks it as internal-only.
  * Silently hides itself when the API is unavailable or the visit has no reports.
  */
 
@@ -14,6 +23,12 @@ import './VisitReportsList.css';
 interface Props {
   visitId: string;
   onOpenReport: (reportId: string) => void;
+  /**
+   * When true, renders the section with an "Internal diagnostic" heading and
+   * a warning that this output is not customer-facing.  Defaults to false for
+   * backwards compatibility but should be true in all new call sites.
+   */
+  internalOnly?: boolean;
 }
 
 function formatDate(iso: string): string {
@@ -33,7 +48,7 @@ function reportLabel(r: ReportMeta): string {
   return 'Untitled report';
 }
 
-export default function VisitReportsList({ visitId, onOpenReport }: Props) {
+export default function VisitReportsList({ visitId, onOpenReport, internalOnly = false }: Props) {
   const [reports, setReports] = useState<ReportMeta[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -60,13 +75,27 @@ export default function VisitReportsList({ visitId, onOpenReport }: Props) {
   const headingId = `visit-reports-heading-${visitId.slice(-8)}`;
 
   return (
-    <section className="visit-reports" aria-labelledby={headingId}>
+    <section
+      className={`visit-reports${internalOnly ? ' visit-reports--internal' : ''}`}
+      aria-labelledby={headingId}
+      data-testid="visit-reports-list"
+    >
       <h2 className="visit-reports__heading" id={headingId}>
-        Reports
+        {internalOnly ? 'Internal diagnostics' : 'Reports'}
         <span className="visit-reports__count">
           {reports.length}
         </span>
+        {internalOnly && (
+          <span className="visit-reports__internal-badge" aria-label="Internal QA only — not customer-facing">
+            QA only
+          </span>
+        )}
       </h2>
+      {internalOnly && (
+        <p className="visit-reports__internal-note">
+          Engine snapshot artefacts for QA and engineer review. Not customer-facing outputs.
+        </p>
+      )}
       <ul className="visit-reports__list" role="list">
         {reports.map((r, idx) => {
           const isLatest = idx === 0;

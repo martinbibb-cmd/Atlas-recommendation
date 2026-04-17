@@ -448,6 +448,22 @@ function SimulatorSection({
           {sim.energyTimingNotes.map((note, i) => <li key={i}>{note}</li>)}
         </ul>
       )}
+      {sim.physicsEvidenceSummary.length > 0 && (
+        <div className="cpp-simulator__evidence">
+          <p className="cpp-simulator__evidence-heading">Key physics signals</p>
+          <ul className="cpp-simulator__evidence-list">
+            {sim.physicsEvidenceSummary.map((item, i) => (
+              <li
+                key={i}
+                className={`cpp-simulator__evidence-item cpp-simulator__evidence-item--${item.severity}`}
+              >
+                <span>{item.signal}</span>
+                <span className="cpp-simulator__evidence-outcome">{item.outcome}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {onOpenSimulator && (
         <button
           type="button"

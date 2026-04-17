@@ -730,10 +730,6 @@ export default function App() {
               setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
               setJourney('floor-plan');
             }}
-            onOpenReport={(reportId) => {
-              const reportUrl = `${window.location.origin}/report/${reportId}`;
-              window.open(reportUrl, '_blank', 'noopener,noreferrer');
-            }}
             floorplanOutput={floorplanOutput}
           />
         </GlobalMenuShell>
