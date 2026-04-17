@@ -12,7 +12,7 @@
  *   - In VisitHubPage: rendered inside a collapsed "Internal diagnostics" section.
  *   - Not rendered in VisitPage (the customer-facing survey path).
  *
- * When internalOnly is true, the section heading clearly marks it as internal-only.
+ * When internalOnly is true (the default), the section heading clearly marks it as internal-only.
  * Silently hides itself when the API is unavailable or the visit has no reports.
  */
 
@@ -25,8 +25,10 @@ interface Props {
   onOpenReport: (reportId: string) => void;
   /**
    * When true, renders the section with an "Internal diagnostic" heading and
-   * a warning that this output is not customer-facing.  Defaults to false for
-   * backwards compatibility but should be true in all new call sites.
+   * a warning that this output is not customer-facing.  Defaults to true —
+   * all call sites should keep this set to true.  Only set false if the
+   * containing surface already has its own explicit internal-only warning
+   * context and does not need this component to repeat the banner.
    */
   internalOnly?: boolean;
 }
@@ -48,7 +50,7 @@ function reportLabel(r: ReportMeta): string {
   return 'Untitled report';
 }
 
-export default function VisitReportsList({ visitId, onOpenReport, internalOnly = false }: Props) {
+export default function VisitReportsList({ visitId, onOpenReport, internalOnly = true }: Props) {
   const [reports, setReports] = useState<ReportMeta[]>([]);
   const [loading, setLoading] = useState(true);
 
