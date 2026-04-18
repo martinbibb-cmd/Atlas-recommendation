@@ -131,6 +131,15 @@ type OutletKey = 'shower' | 'sink' | 'bath' | 'cold_fill';
 /** Default dynamic mains pressure (bar) used when no override is provided. */
 const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
 
+/**
+ * Nominal maximum gravity-fed flow rate (L/min) for a stored vented system.
+ * Based on a UK head of ~1 m above the draw-off point.  The branch hydraulic model
+ * (StoredDhwModule BRANCH_BASE_FLOW_LPM = 9.0 L/min at 1 m head, 15 mm pipe) gives
+ * 9.0 L/min for a single 15 mm branch.  10 L/min is used here as a round upper bound
+ * accounting for larger bore distribution (e.g. 22 mm main run feeding the branch).
+ */
+const VENTED_MAX_GRAVITY_FLOW_LPM = 10;
+
 // ─── Demand chart physics constants ──────────────────────────────────────────
 
 /** Y-axis upper bound for the demand chart: 120 % of peak heat-loss to leave headroom. */
@@ -438,6 +447,51 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     : Math.min(7, lifestyle.hourlyData.length - 1);
   const cylinderSoCPct = lifestyle.hourlyData[cylinderRefH].cylinderVolumeL / CYLINDER_VOLUME_L * 100;
 
+  // ── Stored system draw-off derived values ──────────────────────────────────
+  // For stored (vented, unvented) and ASHP systems, simultaneous demand is
+  // handled without the throughput constraint of a combi heat exchanger.
+  // The constraint instead is cylinder volume (SoC depletion rate).
+
+  /** Total hot-water draw from the cylinder when outlets are active (L/min). */
+  const totalHotDrawLpm = (
+    (activeOutlets.shower ? showerFlowLpm : 0) +
+    (activeOutlets.sink   ? SINK_FLOW_LPM  : 0) +
+    (activeOutlets.bath   ? BATH_FLOW_LPM  : 0)
+  );
+
+  /**
+   * Available cylinder volume at the current reference hour (L).
+   * Used to compute how long the cylinder can sustain the active simultaneous draw.
+   */
+  const currentCylinderVolumeL = lifestyle.hourlyData[cylinderRefH].cylinderVolumeL;
+
+  /**
+   * Estimated minutes before the cylinder is exhausted at the current draw rate.
+   * Only meaningful when totalHotDrawLpm > 0 and cylinder is not already empty.
+   * Null when no draw is active.
+   */
+  const cylinderMinutesRemaining: number | null = totalHotDrawLpm > 0
+    ? parseFloat((currentCylinderVolumeL / totalHotDrawLpm).toFixed(0))
+    : null;
+
+  /**
+   * Maximum hot-water supply rate for the current system type:
+   *   combi        → NOMINAL_COMBI_DHW_KW heat-exchanger limit
+   *   stored_vented → gravity-limited (VENTED_MAX_GRAVITY_FLOW_LPM)
+   *   stored_unvented / ashp → mains-pressure cylinder (maxMainsLpm)
+   */
+  const storedSystemMaxFlowLpm = selectedSystem === 'stored_vented'
+    ? VENTED_MAX_GRAVITY_FLOW_LPM
+    : maxMainsLpm;
+
+  /**
+   * For stored/ASHP outlet gauges: show flow fraction of the system's max delivery
+   * rate (gravity or mains) rather than the combi heat-kW fraction.
+   */
+  function outletFlowPct(outletLpm: number): number {
+    return Math.min(100, (outletLpm / storedSystemMaxFlowLpm) * 100);
+  }
+
   return (
     <div>
       <p style={{ fontSize: '0.8rem', color: '#4a5568', marginBottom: 10 }}>
@@ -566,37 +620,50 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             </div>
           </div>
 
-          {/* ── Pane 2: Shower (hot draw) ───────────────────────────────────── */}
+          {/* ── Pane 2: Shower ──────────────────────────────────────────────── */}
+          {/* combi: gauge = heat-kW fraction; stored/ASHP: gauge = flow fraction of max supply */}
           <WeirGauge
-            level={activeOutlets.shower ? showerDhwKw / NOMINAL_COMBI_DHW_KW * 100 : 0}
+            level={activeOutlets.shower
+              ? (selectedSystem === 'combi'
+                  ? showerDhwKw / NOMINAL_COMBI_DHW_KW * 100
+                  : outletFlowPct(showerFlowLpm))
+              : 0}
             label="Shower"
             emoji="🚿"
-            fillColor="#fc8181"
-            borderColor="#e53e3e"
+            fillColor={selectedSystem === 'combi' ? '#fc8181' : '#fbb6ce'}
+            borderColor={selectedSystem === 'combi' ? '#e53e3e' : '#d53f8c'}
             active={activeOutlets.shower}
             onClick={() => toggleOutlet('shower')}
             sublabel={`${showerFlowLpm} L/min`}
           />
 
-          {/* ── Pane 3: Sink (hot draw) ─────────────────────────────────────── */}
+          {/* ── Pane 3: Sink ────────────────────────────────────────────────── */}
           <WeirGauge
-            level={activeOutlets.sink ? sinkDhwKw / NOMINAL_COMBI_DHW_KW * 100 : 0}
+            level={activeOutlets.sink
+              ? (selectedSystem === 'combi'
+                  ? sinkDhwKw / NOMINAL_COMBI_DHW_KW * 100
+                  : outletFlowPct(SINK_FLOW_LPM))
+              : 0}
             label="Sink"
             emoji="🚰"
-            fillColor="#ed8936"
-            borderColor="#c05621"
+            fillColor={selectedSystem === 'combi' ? '#ed8936' : '#fbd38d'}
+            borderColor={selectedSystem === 'combi' ? '#c05621' : '#d69e2e'}
             active={activeOutlets.sink}
             onClick={() => toggleOutlet('sink')}
             sublabel={`${SINK_FLOW_LPM} L/min`}
           />
 
-          {/* ── Pane 4: Bath (hot draw) ─────────────────────────────────────── */}
+          {/* ── Pane 4: Bath ────────────────────────────────────────────────── */}
           <WeirGauge
-            level={activeOutlets.bath ? bathDhwKw / NOMINAL_COMBI_DHW_KW * 100 : 0}
+            level={activeOutlets.bath
+              ? (selectedSystem === 'combi'
+                  ? bathDhwKw / NOMINAL_COMBI_DHW_KW * 100
+                  : outletFlowPct(BATH_FLOW_LPM))
+              : 0}
             label="Bath"
             emoji="🛁"
-            fillColor="#f6ad55"
-            borderColor="#dd6b20"
+            fillColor={selectedSystem === 'combi' ? '#f6ad55' : '#fbd38d'}
+            borderColor={selectedSystem === 'combi' ? '#dd6b20' : '#b7791f'}
             active={activeOutlets.bath}
             onClick={() => toggleOutlet('bath')}
             sublabel={`${BATH_FLOW_LPM} L/min`}
@@ -642,7 +709,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           </div>
         </div>
 
-        {/* Simultaneous-demand warning for combi */}
+        {/* ── System-specific draw-off behaviour banner ──────────────────────── */}
         {selectedSystem === 'combi' && systemLoadPct > 100 && (
           <div style={{
             marginTop: 8,
@@ -653,6 +720,36 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           }}>
             ⚠️ Combined draw ({totalDhwDrawKw.toFixed(1)} kW) exceeds combi capacity
             ({NOMINAL_COMBI_DHW_KW} kW) — simultaneous demand
+          </div>
+        )}
+
+        {selectedSystem !== 'combi' && totalHotDrawLpm > 0 && (
+          <div style={{
+            marginTop: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: '#f0fff4', border: '1px solid #9ae6b4',
+            borderRadius: 6, padding: '3px 10px',
+            fontSize: '0.72rem', color: '#276749',
+          }}>
+            ✅ {selectedSystem === 'stored_vented'
+              ? `Tank-fed supply — gravity head (≤${VENTED_MAX_GRAVITY_FLOW_LPM} L/min) serves outlets independently`
+              : selectedSystem === 'ashp'
+              ? `ASHP buffer cylinder — simultaneous demand handled; heat pump modulates to reheat`
+              : `Mains-fed supply — stored cylinder serves all outlets simultaneously`}
+            {cylinderMinutesRemaining !== null && ` · ~${cylinderMinutesRemaining} min cylinder reserve at ${totalHotDrawLpm.toFixed(0)} L/min draw`}
+          </div>
+        )}
+
+        {selectedSystem !== 'combi' && totalHotDrawLpm === 0 && (
+          <div style={{
+            marginTop: 6,
+            fontSize: '0.68rem', color: '#718096', fontStyle: 'italic',
+          }}>
+            {selectedSystem === 'stored_vented'
+              ? `🪣 Tank-fed (open vented) hot water — gravity head drives all outlets. Outlet gauges show % of ${VENTED_MAX_GRAVITY_FLOW_LPM} L/min gravity capacity.`
+              : selectedSystem === 'ashp'
+              ? `🌿 ASHP with buffer cylinder — simultaneous demand handled without throughput penalty. Outlet gauges show % of ${maxMainsLpm.toFixed(0)} L/min mains supply.`
+              : `💧 Stored unvented — mains pressure cylinder. Outlet gauges show % of ${maxMainsLpm.toFixed(0)} L/min mains supply.`}
           </div>
         )}
       </div>

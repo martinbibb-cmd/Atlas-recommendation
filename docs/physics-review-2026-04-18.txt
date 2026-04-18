@@ -1,0 +1,245 @@
+ATLAS PHYSICS & TECHNICAL REVIEW — 2026-04-18
+=============================================
+
+This file documents issues and observations found during a deep code review of
+the Atlas recommendation engine and simulator components.  Each item is
+classified as:
+
+  [BUG]      Logic error producing incorrect physics output
+  [COMMENT]  Documentation / comment inaccuracy (no runtime effect)
+  [NO-THEATRE] Violation of the "No Theatre" rule (Math.sin / arbitrary smoothing)
+  [LEGACY]   Legacy proxy retained for backward compat — needs deprecation plan
+  [NOTE]     Observation worth a human decision but not an immediate bug
+
+Items marked [FIXED] have been corrected in the accompanying PR.
+
+
+─────────────────────────────────────────────────────────────────────────────
+1. DHW_KW_PER_PERSON  [COMMENT] [FIXED]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/LifestyleSimulationModule.ts
+
+The JSDoc comment previously read:
+  "Typical instantaneous DHW draw per person during peak windows (kW).
+   Based on a standard UK shower: 8 L/min at 40 °C ΔT ≈ 2.5 kW per person."
+
+This is misleading.  The INSTANTANEOUS power for 8 L/min at a temperature rise
+of 40 °C (e.g. 10 °C cold → 50 °C combi outlet) is:
+  Q = (Cp/60) × flowLpm × ΔT = 0.0697 × 8 × 40 = 22.3 kW  (NOT 2.5 kW)
+
+The 2.5 kW figure is the HOURLY-AVERAGE equivalent derived from a typical
+10-minute shower draw:
+  Energy = 0.0697 × 8 × ~27 °C (cold 15 °C → mixed 40 °C at combi) × (10/60 h)
+         ≈ 2.5 kWh per shower
+  Hourly average = 2.5 kWh / 1 h = 2.5 kW (when shower occupies ~10 min of the hour)
+
+The comment has been corrected to state "hourly-average equivalent" and to
+reference the shower energy derivation rather than claiming it is instantaneous.
+
+Human check: verify the 2.5 kW/person value against SAP Table 10a or CIBSE
+Guide G Chapter 2 daily DHW consumption data for the specific household profile.
+
+
+─────────────────────────────────────────────────────────────────────────────
+2. heatPumpTempC legacy proxy uses Math.sin  [NO-THEATRE] [FIXED]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/LifestyleSimulationModule.ts
+
+The OccupancyHour.heatPumpTempC field was computed as:
+  const heatPumpTempC = 19.5 + Math.sin((h / 24) * Math.PI) * 0.5;
+
+This is a sinusoidal cosmetic variation with no physical basis — it violates
+the "No Theatre" rule.  The module already computes ashpRoomTrace[] via the
+first-order thermal model (buildDynamicRoomTrace).
+
+Fix: heatPumpTempC now reads directly from ashpRoomTrace[h], making it
+identical to ashpRoomTempC (both are physics-based).  The duplicate field
+is retained for schema backward compat but is no longer divergent.
+
+
+─────────────────────────────────────────────────────────────────────────────
+3. boilerTempC legacy proxy is an affine formula  [LEGACY] [FIXED]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/LifestyleSimulationModule.ts
+
+Previously:  const boilerTempC = 18 + hour.demand * 4;
+
+This is an affine proxy unconnected to building physics.  The correct value is
+already computed in boilerRoomTrace[] via buildDynamicRoomTrace.
+
+Fix: boilerTempC now reads from boilerRoomTrace[h].  The field is retained for
+schema backward compat.
+
+
+─────────────────────────────────────────────────────────────────────────────
+4. storedWaterTempC legacy proxy  [LEGACY] [FIXED]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/LifestyleSimulationModule.ts
+
+Previously:  const storedWaterTempC = 19 + (hour.demand > 0.6 ? 1.5 : 0);
+
+A simple step function with no cylinder physics.  The module already computes
+cylinderTempByHour[] via buildCylinderTrace.
+
+Fix: storedWaterTempC now reads from cylinderTempByHour[h].
+
+
+─────────────────────────────────────────────────────────────────────────────
+5. boilerSteppedCurve uses Math.sin for "home" hours  [NO-THEATRE]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/LifestyleInteractiveHelpers.ts
+
+The exported boilerSteppedCurve() function adds:
+  21 + Math.sin((h / 24) * Math.PI * 2) * 0.5
+for "home" hours.  This is cosmetic sinusoidal smoothing — No Theatre.
+
+STATUS: NOT FIXED in this PR.  This function is tested and exported but is
+NOT used by the main LifestyleInteractive.tsx charts, which use the
+physics-based boilerRoomTempC from LifestyleSimulationModule.  The function
+is a legacy export used only in the test suite.
+
+HUMAN DECISION REQUIRED: deprecate boilerSteppedCurve() and migrate any
+consumers to use the buildDynamicRoomTrace physics model directly.
+
+
+─────────────────────────────────────────────────────────────────────────────
+6. hpHorizonCurve uses invented normalization  [NO-THEATRE]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/LifestyleInteractiveHelpers.ts
+
+  const efficiencyFactor = spfMidpoint / 4.2;
+
+The divisor 4.2 is not derived from any physics reference.  It is a made-up
+normalisation that looks like it represents the "perfect ASHP SPF" but has no
+documented source.  The function also uses a cold-dip heuristic:
+  const coldDip = h >= 0 && h < 7 ? (1 - efficiencyFactor) * 2 : 0;
+which is not physics-grounded.
+
+STATUS: NOT FIXED in this PR.  This function is NOT used by the main
+LifestyleInteractive.tsx charts (which use ashpRoomTempC from the physics
+model).  It is a legacy helper.
+
+HUMAN DECISION REQUIRED: replace with a physics-based formula or deprecate.
+
+
+─────────────────────────────────────────────────────────────────────────────
+7. buildCylinderTrace uses empirical SoC rates without reference  [NOTE]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/LifestyleSimulationModule.ts
+
+The cylinder simulation uses fixed percentage rates:
+  demand ≥ 0.6  → −18% SoC/hour   (peak DHW draw)
+  demand ≥ 0.25 → −4% SoC/hour    (background home draw)
+  demand < 0.1  → +8% SoC/hour    (off-peak recharge)
+
+These rates are empirical constants and are not derived from cylinder energy
+balance (Q = m × Cp × ΔT).  For a 110 L cylinder, 18% SoC change corresponds
+to ≈20 L consumed per hour, which for a 40-60 °C temperature band is:
+  E = 20 L × 4.186 kJ/(kg·K) × 20 K / 3600 ≈ 0.46 kWh/hour
+
+This seems low for a "peak DHW draw" representing shower-peak occupancy.
+A 10-minute shower at 8 L/min = 80 L total draw from the cylinder during
+a peak hour, which would be 73% of the 110 L cylinder — much higher than 18%.
+
+HUMAN DECISION REQUIRED: either derive the SoC rates from first-principles
+energy balance using heatLossWatts, occupancyCount and actual shower profiles,
+or add a clear reference for the empirical constants.
+
+
+─────────────────────────────────────────────────────────────────────────────
+8. passivhaus_standard τ = 190.5 hours — unusual precision  [NOTE]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/ThermalInertiaModule.ts
+
+The thermal time constant for 'passivhaus_standard' is 190.5 hours.
+The other values are round numbers:
+  solid_brick_1930s:   55 h
+  1970s_cavity_wall:   35 h
+  lightweight_new:     15 h
+  passivhaus_standard: 190.5 h  ← unusual fractional precision
+
+The physical basis for 190.5 (vs e.g. 190 or 200) is not documented.
+This is not a bug but should be cited so reviewers can verify it.
+
+HUMAN CHECK: verify against CIBSE Guide A Table 5.13 or PHI Passivhaus
+reference data and update the comment with a proper source citation.
+
+
+─────────────────────────────────────────────────────────────────────────────
+9. cavity_unfilled (FabricModelModule) vs cavity_uninsulated (spatial model) [NOTE]
+─────────────────────────────────────────────────────────────────────────────
+Files: src/engine/modules/FabricModelModule.ts
+       src/features/atlasSpatial/calculateHeatLossModel.ts
+       src/features/atlasSpatial/atlasSpatialModel.types.ts
+
+The FabricModelModule uses FabricWallType = 'cavity_unfilled' (score 0.70)
+while the spatial model uses SpatialWallType = 'cavity_uninsulated' (score 1.6).
+These represent the same real-world construction type with different naming.
+
+Both modules correctly assign high heat-loss scores matching or exceeding
+solid_masonry, per the custom instruction:
+  "cavity_uninsulated must always be treated as a high heat-loss band
+   (same score as solid_masonry)."
+
+No physics bug.  The naming inconsistency should be noted and documented.
+
+
+─────────────────────────────────────────────────────────────────────────────
+10. CombiDhwModule occupancy rules — custom instruction compliance  [NOTE]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/CombiDhwModule.ts
+
+Custom instruction mandates:
+  occupancyCount === 3             → warn  (borderline demand)
+  occupancyCount <= 2              → pass  (no simultaneous risk from occupancy alone)
+  bathroomCount >= 2 or peakConcurrentOutlets >= 2 → fail  (hard gate)
+
+Current implementation:
+  Rule 2: simultaneousFail = (outlets >= 2) || (bathroomCount >= 2)  → fail ✓
+  Rule 4: occupancyCount === 3 && !simultaneousFail                  → warn ✓
+  Rule 4 (else branch): occupancyCount <= 2 && !simultaneousFail     → pass (logged) ✓
+
+COMPLIANCE: ✓  All three mandated rules are correctly implemented.
+
+
+─────────────────────────────────────────────────────────────────────────────
+11. DEFAULT_NOMINAL_EFFICIENCY_PCT — literal 92 check  [NOTE]
+─────────────────────────────────────────────────────────────────────────────
+Instruction: Never write the literal 92 for nominal efficiency — import
+DEFAULT_NOMINAL_EFFICIENCY_PCT from src/engine/utils/efficiency.ts.
+
+Results of grep across src/engine:
+  - efficiency.ts: defines the constant ✓
+  - TimelineBuilder.ts line 495: comment only ("nominal SEDBUK (surveyed or 92% fallback)")
+  - EngineInputV2_3.ts line 637: comment only (describes the fallback)
+  - BoilerEfficiencyModelV1.ts line 15: comment only (describes 92% nominal)
+  - BoilerTailoffModule.ts line 26: `if (ageYears <= 20) return 0.92;`
+    — this uses 0.92 (decimal fraction) NOT a percentage-point literal.
+      The rule applies to percentage-point literals (92), not decimal (0.92).
+  - CombiDhwPhaseModel.ts line 220: comment only ("~92 %")
+
+COMPLIANCE: ✓  No prohibited literal 92 found in production physics logic.
+BoilerTailoffModule.ts line 26 uses decimal 0.92 which represents a
+retention factor, not a nominal efficiency percentage — not a violation.
+
+
+─────────────────────────────────────────────────────────────────────────────
+12. MCSReportGenerator.ts uses Math.random()  [NOTE]
+─────────────────────────────────────────────────────────────────────────────
+File: src/engine/modules/MCSReportGenerator.ts
+
+  const rand = Math.floor(Math.random() * 90000) + 10000;
+
+This generates a random 5-digit report ID.  This is NOT a physics calculation —
+it is a report identifier.  However, the "No Theatre" rule broadly forbids
+Math.random() in UI components.  This module is an engine module not a UI
+component.  The random ID makes report numbers non-deterministic between runs.
+
+HUMAN DECISION REQUIRED: if MCS reports need to be deterministic (e.g. for
+testing or re-generation), replace Math.random() with a deterministic hash
+derived from the input data (e.g. hash of postcode + timestamp).
+
+
+─────────────────────────────────────────────────────────────────────────────
+END OF REVIEW
+─────────────────────────────────────────────────────────────────────────────
