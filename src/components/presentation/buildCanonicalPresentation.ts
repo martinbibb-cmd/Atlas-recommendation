@@ -1918,7 +1918,7 @@ function buildPage3(
     let reasonLine: string;
     if (isDisqualified) {
       // Hard-stop: use first caveat from engine, falling back to a safe default.
-      reasonLine = decision?.caveats[0] ?? `Hard constraint prevents installation in this home`;
+      reasonLine = decision?.caveats[0] ?? 'Hard constraint prevents installation in this home';
     } else if (!isWinner && (decision?.caveats.length ?? 0) > 0) {
       // Non-winner with engine caveats: the caveat IS the limiting reason.
       reasonLine = decision!.caveats[0]!;
