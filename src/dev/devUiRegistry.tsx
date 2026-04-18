@@ -14,6 +14,7 @@ import type { ReactNode } from 'react';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
 import LegoBuildingSetPage from '../explainers/lego/LegoBuildingSetPage';
 import LifestyleInteractive from '../components/visualizers/LifestyleInteractive';
+import LifestyleInteractiveCompare from '../components/visualizers/LifestyleInteractiveCompare';
 import GlassBoxPanel from '../components/visualizers/GlassBoxPanel';
 import EfficiencyCurve from '../components/visualizers/EfficiencyCurve';
 import FootprintXRay from '../components/visualizers/FootprintXRay';
@@ -250,6 +251,27 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     access: 'dev_only',
     parentCodeName: 'ExplainersHubPage',
     render: () => <LifestyleInteractive />,
+  },
+  {
+    id: 'lifestyle-interactive-compare',
+    commonName: 'Lifestyle Compare (2-System)',
+    codeName: 'LifestyleInteractiveCompare',
+    fileName: 'LifestyleInteractiveCompare.tsx',
+    filePath: 'src/components/visualizers/LifestyleInteractiveCompare.tsx',
+    category: 'visualiser',
+    status: 'experimental',
+    notes:
+      '2-system side-by-side comparison using the same 24-hour occupancy painter. ' +
+      'Both systems receive an identical demand timeline; only system response differs. ' +
+      'All chart data from LifestyleSimulationModule.hourlyData — No Theatre rule enforced.',
+    routeKind: 'unknown',
+    access: 'dev_only',
+    sourceFiles: [
+      'src/components/visualizers/LifestyleInteractiveCompare.tsx',
+      'src/components/compare/CompareSystemPicker.tsx',
+      'src/engine/modules/LifestyleSimulationModule.ts',
+    ],
+    render: () => <LifestyleInteractiveCompare />,
   },
   {
     id: 'glass-box-panel',

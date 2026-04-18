@@ -20,9 +20,20 @@ const PROFESSIONAL_EVENING_SHOULDER_DEMAND = 0.70;
 // ── DHW demand constants ──────────────────────────────────────────────────────
 
 /**
- * Typical instantaneous DHW draw per person during peak windows (kW).
- * Based on a standard UK shower: 8 L/min at 40 °C ΔT ≈ 2.5 kW per person.
- * Consistent with BehaviourTimelineBuilder DHW profile.
+ * Hourly-average equivalent DHW draw per person during a 1-hour peak window (kW).
+ *
+ * Derivation (10-min shower basis):
+ *   Instantaneous power = (Cp/60) × 8 L/min × ~27 °C rise (15 °C cold → 40 °C mixed)
+ *                       ≈ 0.0697 × 8 × 27 ≈ 15 kW (instantaneous while shower runs)
+ *   Energy per shower   = 15 kW × (10/60 h) ≈ 2.5 kWh
+ *   Hourly average      = 2.5 kWh / 1 h     = 2.5 kW
+ *
+ * This is therefore the time-weighted average over the 1-hour peak slot, NOT the
+ * instantaneous boiler/heat-pump output during the draw.  Consistent with
+ * BehaviourTimelineBuilder DHW profile and SAP daily hot-water demand figures.
+ *
+ * Note: at 2 occupants this gives dhwKw = 5 kW for the morning peak hour — an
+ * appropriate order-of-magnitude for a standard 2-person household shower peak.
  */
 export const DHW_KW_PER_PERSON = 2.5;
 
@@ -284,15 +295,16 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
       0
     ).toFixed(3));
 
-    // Legacy proxy fields retained for backward compatibility with existing UI renderers.
-    // Boiler: rapid response but sharp temperature swings (affine proxy)
-    const boilerTempC = 18 + hour.demand * 4;
+    // Legacy proxy fields retained for backward compatibility with existing consumers.
+    // All three now derive from the physics-based traces computed above (No Theatre rule).
+    // boilerTempC ← boiler dynamic room trace (was: affine proxy 18 + demand × 4)
+    const boilerTempC = boilerRoomTrace[h];
 
-    // ASHP: flat "horizon" line, slow response, exploits building mass
-    const heatPumpTempC = 19.5 + Math.sin((h / 24) * Math.PI) * 0.5;
+    // heatPumpTempC ← ASHP dynamic room trace (was: Math.sin cosmetic variation)
+    const heatPumpTempC = ashpRoomTrace[h];
 
-    // Stored water: stable but peaks delayed
-    const storedWaterTempC = 19 + (hour.demand > 0.6 ? 1.5 : 0);
+    // storedWaterTempC ← cylinder temperature from buildCylinderTrace (was: step proxy)
+    const storedWaterTempC = cylinderTempByHour[h];
 
     // Cycling fuel penalty: applied when load fraction < 0.25 (low-load short-cycling).
     // A sludge-restricted circuit causes the boiler to fire/stop more frequently at
