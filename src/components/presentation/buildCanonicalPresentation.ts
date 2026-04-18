@@ -767,7 +767,7 @@ const FAMILY_LABELS: Record<string, string> = {
  * result.engineOutput.options.  Used to resolve the best recommended option
  * from recommendation.bestOverall.family.
  */
-const FAMILY_TO_OPTION_IDS: Record<ApplianceFamily, readonly string[]> = {
+export const FAMILY_TO_OPTION_IDS: Record<ApplianceFamily, readonly string[]> = {
   combi:       ['combi'],
   system:      ['stored_unvented', 'system_unvented'],
   heat_pump:   ['ashp', 'gshp'],

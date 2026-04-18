@@ -20,9 +20,10 @@
  *       Technical Comparison and Engineering Detail are secondary technical exports.
  *       Legacy "Customer Summary" and "Full Output Report" buttons removed.
  */
-import { useState, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import type { FullEngineResult } from '../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
+import type { ApplianceFamily } from '../engine/topology/SystemTopology';
 import { FAMILY_TO_ELIGIBILITY_ID } from '../engine/OutputBuilder';
 import LiveSectionPage from './LiveSectionPage';
 import VerdictStrip from '../components/live/VerdictStrip';
@@ -30,11 +31,9 @@ import HubPage from '../components/hub/HubPage';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
 import LabPrintTechnical from '../components/lab/LabPrintTechnical';
 import LabPrintComparison from '../components/lab/LabPrintComparison';
-import PrintableRecommendationPage from '../components/advice/PrintableRecommendationPage';
+import CustomerRecommendationPrint from '../components/print/CustomerRecommendationPrint';
 import { buildPrintData } from './buildPrintData';
 import { buildOutputHubSections } from './printSections.model';
-import { buildCompareSeedFromSurvey } from '../lib/simulator/buildCompareSeedFromSurvey';
-import { buildAdviceFromCompare } from '../lib/advice/buildAdviceFromCompare';
 import RecommendationCard from '../components/live/RecommendationCard';
 import HouseHeatMapPanel from '../components/live/HouseHeatMapPanel';
 import HotWaterDemandPanel from '../components/live/HotWaterDemandPanel';
@@ -199,6 +198,22 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
   const [printView, setPrintView] = useState<PrintView | null>(null);
   const [deckMode, setDeckMode] = useState(true);
 
+  // Track which Option 1 / Option 2 families the engineer agreed with the
+  // customer during the in-room presentation so the printout reflects the
+  // same choices.  Initialised to the engine's top-2 recommendation.
+  const [deckOpt1Family, setDeckOpt1Family] = useState<ApplianceFamily | null>(
+    () => (result.recommendationResult?.bestOverall?.family ?? null) as ApplianceFamily | null,
+  );
+  const [deckOpt2Family, setDeckOpt2Family] = useState<ApplianceFamily | null>(null);
+
+  const handleOptionsChange = useCallback(
+    (opt1: ApplianceFamily | null, opt2: ApplianceFamily | null) => {
+      setDeckOpt1Family(opt1);
+      setDeckOpt2Family(opt2);
+    },
+    [],
+  );
+
   const { engineOutput } = result;
   const canonicalFamily = result.recommendationResult?.bestOverall?.family;
   const canonicalEligibilityId =
@@ -210,22 +225,6 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
       ? engineOutput.eligibility.find(e => e.id === canonicalEligibilityId)?.label
       : undefined) ?? engineOutput.recommendation.primary;
 
-  // ── Compare seed + advice — used to power the canonical Print Recommendation output ─
-  const compareSeed = useMemo(
-    () => buildCompareSeedFromSurvey(input, engineOutput),
-    [input, engineOutput],
-  );
-
-  const compareAdvice = useMemo(
-    () =>
-      buildAdviceFromCompare({
-        engineOutput,
-        compareSeed,
-        surveyData: input,
-      }),
-    [engineOutput, compareSeed, input],
-  );
-
   // ── Print overlay ─────────────────────────────────────────────────────────
   // When a print view is active render the corresponding print surface
   // full-screen.  The print component's onBack callback dismisses the overlay.
@@ -234,9 +233,13 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
     const closePrint = () => setPrintView(null);
     if (printView === 'recommendation') {
       return (
-        <PrintableRecommendationPage
-          advice={compareAdvice}
-          compareSeed={compareSeed}
+        <CustomerRecommendationPrint
+          result={result}
+          input={input}
+          recommendationResult={result.recommendationResult}
+          prioritiesState={input.fullSurvey?.priorities}
+          selectedOption1Family={deckOpt1Family ?? undefined}
+          selectedOption2Family={deckOpt2Family ?? undefined}
           onBack={closePrint}
         />
       );
@@ -407,6 +410,8 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           input={input}
           recommendationResult={result.recommendationResult}
           onOpenSimulator={() => setActiveSection('simulator')}
+          onPrint={() => setPrintView('recommendation')}
+          onOptionsChange={handleOptionsChange}
           deckMode={deckMode}
           heatLossState={input.fullSurvey?.heatLoss}
           prioritiesState={input.fullSurvey?.priorities}

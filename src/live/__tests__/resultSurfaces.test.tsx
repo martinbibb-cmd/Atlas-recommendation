@@ -178,12 +178,12 @@ describe('resultSurfaces — LiveHubPage primary export', () => {
     expect(screen.getByRole('button', { name: /print recommendation/i })).toBeTruthy();
   });
 
-  it('clicking "Print Recommendation" opens PrintableRecommendationPage', () => {
+  it('clicking "Print Recommendation" opens CustomerRecommendationPrint', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
     fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
-    expect(screen.getByLabelText(/printable heating system recommendation/i)).toBeTruthy();
+    expect(screen.getByTestId('customer-recommendation-print')).toBeTruthy();
   });
 });
 
