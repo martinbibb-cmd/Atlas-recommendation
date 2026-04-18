@@ -63,8 +63,8 @@ export function buildLimitersV1(
           : { kind: 'assumed', id: 'mains-flow-assumed', note: 'Flow estimated from occupancy heuristics.' },
       ],
       suggestedFixes: [
-        { id: 'switch-to-stored', label: 'Switch to stored DHW system', deltaHint: 'Stores heat independently of mains pressure.' },
-        { id: 'pressure-booster', label: 'Install pressure booster pump', deltaHint: 'Raises effective flow to ~18+ L/min.' },
+        { id: 'switch-to-stored', label: 'Switch to stored hot water system', deltaHint: 'Stores hot water independently of mains pressure — no minimum pressure needed.' },
+        { id: 'install-mixergy', label: '💧 Install Mixergy cylinder', deltaHint: 'Works at any mains pressure — no minimum required.' },
       ],
     });
   }

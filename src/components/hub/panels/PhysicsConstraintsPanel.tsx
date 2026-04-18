@@ -238,7 +238,7 @@ export default function PhysicsConstraintsPanel({ result, input }: Props) {
                 {isStrongFlow
                   ? `Strong measured flow under load — mains-fed stored hot water is well supported. The key question is installation constraints and demand profile, not raw pressure alone.`
                   : (dynamicBar as number) < 1.5
-                  ? `Dynamic pressure is in the 1.0–1.5 bar range. Verify the full operating point before specifying a boost pump.`
+                  ? `Dynamic pressure is in the 1.0–1.5 bar range. Verify the full operating point. 💧 A Mixergy or tank-fed cylinder removes the pressure requirement entirely.`
                   : `Measured supply appears adequate for mains-fed stored hot water options.`}
               </p>
             </>

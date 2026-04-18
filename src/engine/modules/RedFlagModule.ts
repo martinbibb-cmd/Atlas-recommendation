@@ -55,9 +55,10 @@ export function runRedFlagModule(input: EngineInputV2_3): RedFlagResult {
   if (input.dynamicMainsPressure < 0.3) {
     rejectCombi = true;
     reasons.push(
-      `🚫 Combi cannot operate: Dynamic mains pressure ${input.dynamicMainsPressure.toFixed(2)}bar ` +
-      `is below the 0.3 bar minimum operating condition. Hot-water delivery cannot be guaranteed ` +
-      `at this pressure — check mains supply or consider a pressure booster.`
+      `🚫 Combi cannot operate: Working pressure is ${input.dynamicMainsPressure.toFixed(2)} bar — ` +
+      `below the 0.3 bar minimum needed for the burner to fire. Hot water delivery cannot be guaranteed. ` +
+      `💧 A Mixergy cylinder or tank-fed (vented) system has no minimum pressure requirement ` +
+      `and will work better than a combi at low pressure.`
     );
   }
 

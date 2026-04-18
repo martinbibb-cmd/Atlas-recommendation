@@ -385,8 +385,8 @@ const INTERVENTION_METADATA: Readonly<Record<string, {
     affectedObjectives: ['eco', 'performance'],
   },
   install_pressure_booster: {
-    label: 'Install mains pressure booster pump',
-    description: 'A booster pump raises mains dynamic pressure to support adequate DHW delivery.',
+    label: '💧 Install Mixergy or vented cylinder (pressure-independent)',
+    description: 'A Mixergy cylinder or tank-fed (vented) cylinder works at any mains pressure — no pressure minimum required, unlike a combi or standard unvented cylinder.',
     affectedObjectives: ['performance', 'reliability'],
   },
 } as const;

@@ -469,9 +469,28 @@ function buildHotWaterDemandSection(
   const stored = result.storedDhwV1;
   const occupancy  = input.occupancyCount  ?? null;
   const bathrooms  = input.bathroomCount   ?? null;
-  // Rough simultaneous demand: 8 L/min per active outlet
-  const peakOutlets = input.peakConcurrentOutlets ?? (bathrooms != null ? Math.min(bathrooms, 2) : null);
-  const peakDemandLpm = peakOutlets != null ? peakOutlets * 8 : null;
+
+  // Hot water demand is driven primarily by how many people live in the home.
+  // The number of bathrooms affects how many people can use hot water at the
+  // same time (concurrency), not the total amount used.
+  //
+  // Diversity factor: in real life, not everyone uses hot water simultaneously
+  // even if bathrooms are available — they overlap, not all run at once.
+  //   1 concurrent outlet → factor 1.0 (single draw, full flow)
+  //   2 concurrent outlets → factor 0.75 (some overlap but not full double)
+  //   3+ concurrent outlets → factor 0.60 (further spreading of demand)
+  const DIVERSITY_FACTOR: Record<number, number> = { 1: 1.0, 2: 0.75, 3: 0.60 };
+  const maxConcurrent = input.peakConcurrentOutlets
+    ?? (occupancy != null && bathrooms != null ? Math.min(bathrooms, occupancy) : bathrooms ?? null);
+  const diversityFactor = maxConcurrent != null
+    ? (DIVERSITY_FACTOR[Math.min(maxConcurrent, 3)] ?? 0.60)
+    : 1.0;
+  const peakOutlets = maxConcurrent;
+  // Occupancy-based demand estimate (8 L/min per person is a standard UK guide rate)
+  const peakDemandLpm = occupancy != null
+    ? Math.round(occupancy * 8 * diversityFactor)
+    : peakOutlets != null ? peakOutlets * 8 : null;
+
   // Combi delivery: kW → L/min at 40°C rise (4.2 kJ/kg·K × 1 kg/L → kW/kW = L/s × 60)
   const combiDeliveryLpm = combi?.maxQtoDhwKwDerated != null
     ? parseFloat(((combi.maxQtoDhwKwDerated / (4.2 * 40 / 60)) ).toFixed(1))
@@ -487,6 +506,7 @@ function buildHotWaterDemandSection(
       bathroomCount:        bathrooms,
       peakOutlets:          peakOutlets,
       peakDemandLpm,
+      diversityFactor,
       combiDeliveryLpm,
       combiRisk:            combi?.verdict.combiRisk ?? 'pass',
       storedVolumeBand:     stored?.recommended?.volumeBand ?? 'medium',

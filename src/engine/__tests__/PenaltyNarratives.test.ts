@@ -52,7 +52,7 @@ describe('PENALTY_NARRATIVES — mapping shape', () => {
   it('pressure.borderline_unvented maps to both why and requirement', () => {
     const narrative = PENALTY_NARRATIVES[PENALTY_IDS.PRESSURE_BORDERLINE_UNVENTED];
     expect(narrative).toBeDefined();
-    expect(narrative!.why).toContain('borderline');
+    expect(narrative!.why).toContain('1.0–1.5 bar');
     expect(narrative!.requirement).toContain('1.5 bar');
   });
 });

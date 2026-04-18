@@ -83,8 +83,8 @@ export const PENALTY_NARRATIVES: Partial<Record<PenaltyId, PenaltyNarrative>> = 
 
   // Mains pressure
   'pressure.borderline_unvented': {
-    why: 'Dynamic pressure is in the 1.0–1.5 bar borderline range — verify the full operating point (measured flow under load) before recommending a boost pump.',
-    requirement: 'Confirm measured flow ≥ 10 L/min @ ≥ 1.0 bar (unvented gate). A boost pump is worthwhile if dynamic pressure stays below 1.5 bar at peak demand.',
+    why: 'Dynamic pressure is in the 1.0–1.5 bar range — verify the full operating point (measured flow under load) before deciding on a cylinder type.',
+    requirement: 'Confirm measured flow ≥ 10 L/min @ ≥ 1.0 bar (unvented gate). If pressure is consistently below 1.5 bar, a Mixergy or tank-fed (vented) cylinder removes the pressure dependency entirely.',
     group: 'water_supply',
     explainerId: 'pressure-borderline-unvented',
   },

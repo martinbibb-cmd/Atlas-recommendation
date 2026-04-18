@@ -148,7 +148,7 @@ function buildSensitivities(
         items.push({
           lever: 'Mains pressure',
           effect: 'upgrade',
-          note: `If mains pressure were boosted to ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), combi DHW flow would meet minimum performance threshold.`,
+          note: `Mains pressure is ${pressure.toFixed(1)} bar — below the 1.5 bar recommended for a combi. A stored cylinder (vented or Mixergy) removes this pressure dependency entirely.`,
         });
       }
     } else {
@@ -189,19 +189,19 @@ function buildSensitivities(
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `If mains pressure were boosted to ≥ 1.0 bar (currently ${pressure.toFixed(1)} bar), an unvented cylinder would become viable.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — too low for a standard unvented cylinder. 💧 A Mixergy cylinder removes this pressure requirement and works at any mains pressure.`,
       });
     } else if (pressure < 1.5) {
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `If mains pressure reached ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), unvented cylinder would move from caution to viable — a boost pump may be sufficient.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — borderline for an unvented cylinder. Confirm measured flow under load. 💧 A Mixergy cylinder works at any pressure and avoids this concern.`,
       });
     } else {
       items.push({
         lever: 'Mains pressure',
         effect: 'downgrade',
-        note: `If mains pressure dropped below 1.5 bar, unvented cylinder would require a boost pump. Below 1.0 bar it would be rejected.`,
+        note: `If mains pressure dropped significantly, a vented (tank-fed) or Mixergy cylinder would be the safer choice as neither depends on mains pressure.`,
       });
     }
   }
@@ -228,19 +228,19 @@ function buildSensitivities(
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `If mains pressure were boosted to ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), an unvented cylinder would become viable.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — too low for a standard unvented cylinder. 💧 A Mixergy cylinder removes this pressure requirement and works at any mains pressure.`,
       });
     } else if (pressure < 1.5) {
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `If mains pressure reached ≥ 1.5 bar (currently ${pressure.toFixed(1)} bar), unvented cylinder would move from caution to viable — a boost pump may be sufficient.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — borderline for an unvented cylinder. Confirm measured flow under load. 💧 A Mixergy cylinder works at any pressure and avoids this concern.`,
       });
     } else {
       items.push({
         lever: 'Mains pressure',
         effect: 'downgrade',
-        note: `If mains pressure dropped below 1.5 bar, unvented cylinder would require a boost pump. Below 1.0 bar it would be rejected.`,
+        note: `If mains pressure dropped significantly, a vented (tank-fed) or Mixergy cylinder would be the safer choice as neither depends on mains pressure.`,
       });
     }
   }
@@ -322,7 +322,7 @@ export function buildOptionMatrixV1(
     'Move to stored cylinder if demand grows (second bathroom, higher occupancy).',
   ];
   if (core.pressureAnalysis.staticBar !== undefined && core.pressureAnalysis.staticBar < 1.5) {
-    combiRequirements.push('Standing mains pressure low — pressure boost may be required.');
+    combiRequirements.push('⚠️ Standing mains pressure is low — a stored cylinder (vented or Mixergy) would be more reliable here.');
   }
 
   const combiEvidenceIds = (core.combiDhwV1?.flags ?? []).map(f => f.id);
@@ -380,7 +380,7 @@ export function buildOptionMatrixV1(
         ]
       : ['Confirm peak simultaneous outlets = 1.'],
     likelyUpgrades: (core.pressureAnalysis.staticBar !== undefined && core.pressureAnalysis.staticBar < 1.5)
-      ? ['Mains pressure boost pump (standing pressure low).']
+      ? ['⚠️ Low standing pressure — consider a stored cylinder (vented or Mixergy) instead of a combi.']
       : [],
     niceToHave: ['Smart thermostat for occupancy-led control.'],
   };
@@ -604,10 +604,10 @@ export function buildOptionMatrixV1(
     storedUnventedRequirements.push('Measure mains flow (L/min) and pressure (bar) before specifying cylinder.');
   }
   if (mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1)) {
-    storedUnventedRequirements.push('Standing pressure low — pressure boost pump may be required before installation.');
+    storedUnventedRequirements.push('💧 Standing pressure is low — a Mixergy cylinder is a good choice here as it works at any water pressure.');
   }
   if (recType === 'mixergy') {
-    storedUnventedRequirements.push('Mixergy recommended: stratified heating reduces gas use and effective tank size needed.');
+    storedUnventedRequirements.push('💧 Mixergy recommended: heats only the water you need, works at any mains pressure, and reduces energy use.');
   }
 
   const storedUnventedHeat: OptionPlane = {
@@ -625,22 +625,22 @@ export function buildOptionMatrixV1(
     'Stored volume handles simultaneous draw from multiple outlets.',
     mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
       ? `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar dynamic — strong measured flow under load; stored delivery is well supported.`
-      : `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
-    `Recommended cylinder type: ${recType === 'mixergy' ? 'Mixergy (stratified)' : 'standard indirect'}.`,
+      : `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended for a standard unvented cylinder)' : ' (adequate)'}.`,
+    `Recommended cylinder type: ${recType === 'mixergy' ? '💧 Mixergy (stratified — works at any pressure)' : 'standard indirect'}.`,
   ];
   if (limitedFlowOperatingPoint(cwsSupplyV1)) {
     const flowLpm = cwsSupplyV1.dynamic?.flowLpm ?? 0;
     storedUnventedDhwBullets.push(
       `Measured flow (${flowLpm} L/min) is workable for stored hot water but limited for strong simultaneous outlet demand. ` +
-      `Open-vent may suit better where simultaneous demand is heavy and mains supply is weak.`,
+      `A tank-fed (vented) system may suit better where simultaneous demand is heavy and mains supply is weak.`,
     );
   }
   if (cwsSupplyV1.inconsistent) {
-    storedUnventedDhwBullets.push('Pressure readings inconsistent — confirm measurements before proceeding.');
+    storedUnventedDhwBullets.push('⚠️ Pressure readings look inconsistent — recheck measurements before proceeding.');
   } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedDhwBullets.push('Mains supply not fully characterised — measure L/min @ bar before specifying.');
   } else if (!cwsSupplyV1.meetsUnventedRequirement) {
-    storedUnventedDhwBullets.push('Supply does not meet unvented requirement — consider pressure boost or alternative.');
+    storedUnventedDhwBullets.push('💧 Supply does not meet unvented requirement — consider a Mixergy or vented cylinder instead, as neither requires high mains pressure.');
   }
   // Only include non-unvented-specific flags — unvented mains-flow flags are already
   // captured by the CWS supply bullets above and must not be repeated.
@@ -651,11 +651,11 @@ export function buildOptionMatrixV1(
   const storedUnventedDhwStatus: OptionPlane['status'] = cwsIssue ? 'caution' : 'ok';
   const storedUnventedDhwHeadline =
     cwsSupplyV1.inconsistent
-      ? 'DHW: pressure readings inconsistent — recheck measurements.'
+      ? '⚠️ DHW: pressure readings inconsistent — recheck measurements.'
       : !cwsSupplyV1.hasMeasurements
       ? 'DHW: mains supply not characterised — need L/min @ bar measurement.'
       : !cwsSupplyV1.meetsUnventedRequirement
-      ? 'DHW: supply does not meet unvented requirement — boost pump likely required.'
+      ? '💧 DHW: mains supply below unvented requirement — Mixergy or vented cylinder recommended instead.'
       : limitedFlowOperatingPoint(cwsSupplyV1)
       ? 'DHW: mains-pressure stored hot water — usable but limited for simultaneous multi-outlet demand.'
       : moderateFlowOperatingPoint(cwsSupplyV1)
@@ -677,8 +677,8 @@ export function buildOptionMatrixV1(
       mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
         ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite low standing pressure.`
         : mainsStaticPressure !== undefined && mainsStaticPressure < 1.5
-        ? 'Standing pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
-        : 'Mains pressure adequate — no boost pump needed.',
+        ? '💧 Standing pressure below 1.5 bar — a Mixergy cylinder works at any pressure and avoids this issue entirely.'
+        : '✅ Mains pressure is adequate for a standard unvented cylinder.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
     ],
     evidenceIds: [],
@@ -688,15 +688,15 @@ export function buildOptionMatrixV1(
     mustHave: [
       'G3-qualified installer.',
       'Tundish and discharge pipe routed to external drain.',
-      ...(mainsPressure < 1.0 ? ['Mains pressure must be resolved — too low for unvented cylinder.'] : []),
+      ...(mainsPressure < 1.0 ? ['⚠️ Mains pressure is very low — a Mixergy or vented cylinder is recommended instead.'] : []),
       ...(!cwsSupplyV1.hasMeasurements ? ['Measure mains flow (L/min) and pressure (bar) before specifying.'] : []),
     ],
     likelyUpgrades: [
-      ...(mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['Pressure boost pump before cylinder inlet.'] : []),
+      ...(mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['💧 Consider a Mixergy cylinder — works at any pressure, no minimum required.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
-      'Mixergy cylinder for stratified DHW and reduced heat-up time.',
+      '💧 Mixergy cylinder for stratified DHW — works at any pressure and reduces energy use.',
       'Smart immersion control for off-peak electricity pricing.',
     ],
   };
@@ -716,7 +716,7 @@ export function buildOptionMatrixV1(
         ? 'Unvented cylinder is a strong fit — mains-fed stored hot water suits high household demand.'
         : 'Unvented cylinder suits your mains pressure and demand.'
       : storedUnventedStatus === 'caution' && cwsSupplyV1.hasMeasurements && !cwsSupplyV1.meetsUnventedRequirement
-      ? 'Unvented cylinder possible — mains supply is designed to meet required flow through a pressure boost where needed.'
+      ? '💧 Mains supply below unvented requirement — Mixergy or vented cylinder is the better choice here.'
       : storedUnventedStatus === 'caution'
       ? isHighDemandHousehold
         ? 'Unvented cylinder suits your demand profile — confirm mains supply before proceeding.'
@@ -1021,7 +1021,7 @@ export function buildOptionMatrixV1(
     'Unvented cylinder requires G3-qualified installer and annual servicing.',
   ];
   if (staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) {
-    unventedRequirements.push('Standing pressure low — pressure boost pump may be required before installation.');
+    unventedRequirements.push('💧 Standing pressure is low — a Mixergy cylinder works at any water pressure and is the better choice here.');
   }
 
   const unventedHeat: OptionPlane = {
@@ -1040,7 +1040,7 @@ export function buildOptionMatrixV1(
   const unventedDhw: OptionPlane = {
     status: pressure < 1.0 ? 'caution' : (pressure < 1.5 && !unventedDhwIsStrong) ? 'caution' : 'ok',
     headline: pressure < 1.0
-      ? 'DHW: mains pressure too low for unvented cylinder.'
+      ? '💧 DHW: mains pressure too low for a standard unvented cylinder — Mixergy or vented cylinder recommended.'
       : unventedDhwIsStrong
       ? 'DHW: mains-pressure stored hot water — strong measured flow supports delivery.'
       : pressure < 1.5
@@ -1053,11 +1053,11 @@ export function buildOptionMatrixV1(
         ? `Measured operating point: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min @ ${pressure.toFixed(1)} bar — strong flow under load.`
         : unventedDhwIsLimited
         ? `Measured flow: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min — workable for stored hot water, but not strong for simultaneous high-demand draws.`
-        : `Mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' (borderline — min 1.5 bar recommended)' : ' (adequate)'}.`,
-      'Unvented cylinder: mains-pressure DHW — eliminates need for shower pump.',
+        : `Mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' (borderline — min 1.5 bar recommended for standard unvented)' : ' (adequate)'}.`,
+      'Unvented cylinder: mains-pressure hot water throughout — no shower pump needed.',
       'G3 regulation: tundish and discharge pipe required by Building Regulations.',
-      ...(input.futureAddBathroom ? ['Additional bathroom: confirm cylinder volume meets increased simultaneous demand.'] : []),
-      ...(unventedDhwIsLimited ? ['For heavy simultaneous demand, an open-vent (tank-fed) system may deliver more consistent flow.'] : []),
+      ...(input.futureAddBathroom ? ['Adding a bathroom: confirm cylinder volume meets increased demand.'] : []),
+      ...(unventedDhwIsLimited ? ['For heavy simultaneous demand, a tank-fed (vented) system may deliver more consistent flow.'] : []),
     ],
     evidenceIds: [],
   };
@@ -1071,8 +1071,8 @@ export function buildOptionMatrixV1(
       staticPressure !== undefined && staticPressure < 1.5 && strongOperatingPoint(sysUnventedCws)
         ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite low standing pressure.`
         : staticPressure !== undefined && staticPressure < 1.5
-        ? 'Standing pressure below 1.5 bar — pressure boost pump likely required before cylinder.'
-        : 'Mains pressure adequate — no boost pump needed.',
+        ? '💧 Standing pressure below 1.5 bar — a Mixergy cylinder works at any pressure and avoids this issue entirely.'
+        : '✅ Mains pressure is adequate for a standard unvented cylinder.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
     ],
     evidenceIds: [],
@@ -1082,14 +1082,14 @@ export function buildOptionMatrixV1(
     mustHave: [
       'G3-qualified installer.',
       'Tundish and discharge pipe routed to external drain.',
-      ...(pressure < 1.0 ? ['Mains pressure must be resolved — too low for unvented cylinder.'] : []),
+      ...(pressure < 1.0 ? ['⚠️ Mains pressure is very low — a Mixergy or vented cylinder is recommended instead.'] : []),
     ],
     likelyUpgrades: [
-      ...(staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['Pressure boost pump before cylinder inlet.'] : []),
+      ...(staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['💧 Consider a Mixergy cylinder — works at any pressure, no minimum required.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
-      'Mixergy cylinder for stratified DHW and reduced heat-up time.',
+      '💧 Mixergy cylinder for stratified DHW — works at any pressure and reduces energy use.',
       'Smart immersion control for off-peak electricity pricing.',
     ],
   };

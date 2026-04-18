@@ -32,7 +32,7 @@ describe('runCombiDhwModuleV1', () => {
     const flag = result.flags.find(f => f.id === 'combi-pressure-constraint');
     expect(flag).toBeDefined();
     expect(flag!.severity).toBe('warn');
-    expect(flag!.title).toBe('Combi hot-water output limited by low mains pressure');
+    expect(flag!.title).toBe('⚠️ Combi hot-water flow will be reduced at low mains pressure');
   });
 
   it('returns fail when dynamicMainsPressure is below 0.3 bar (absolute minimum operating condition)', () => {
@@ -41,7 +41,7 @@ describe('runCombiDhwModuleV1', () => {
     const flag = result.flags.find(f => f.id === 'combi-pressure-constraint');
     expect(flag).toBeDefined();
     expect(flag!.severity).toBe('fail');
-    expect(flag!.title).toBe('Mains pressure below combi minimum operating condition');
+    expect(flag!.title).toBe('🚫 Mains pressure too low for a combi boiler');
   });
 
   it('dynamicMainsPressureBar alias takes precedence over dynamicMainsPressure', () => {

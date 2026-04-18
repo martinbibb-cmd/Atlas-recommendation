@@ -194,24 +194,26 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     flags.push({
       id: 'combi-pressure-constraint',
       severity: 'fail',
-      title: 'Mains pressure below combi minimum operating condition',
+      title: '🚫 Mains pressure too low for a combi boiler',
       detail:
-        `Dynamic mains pressure ${dynamicBar.toFixed(2)} bar is below the ` +
-        `${PRESSURE_MINIMUM_OPERATION_BAR.toFixed(1)} bar minimum operating condition. ` +
-        `At this pressure, hot-water delivery cannot be guaranteed — the burner may not fire. ` +
-        `Check mains supply; a pressure booster or alternative system may be needed.`,
+        `Working pressure is ${dynamicBar.toFixed(2)} bar — below the ` +
+        `${PRESSURE_MINIMUM_OPERATION_BAR.toFixed(1)} bar minimum needed for a combi to fire. ` +
+        `At this pressure the burner may not light at all and hot water delivery cannot be guaranteed. ` +
+        `💧 A Mixergy cylinder or tank-fed (vented) system works at any pressure — ` +
+        `a Mixergy actually performs better than a combi at low pressure because a combi may cut out completely.`,
     });
   } else if (dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_MAX_FLOW_BAR) {
     flags.push({
       id: 'combi-pressure-constraint',
       severity: 'warn',
-      title: 'Combi hot-water output limited by low mains pressure',
+      title: '⚠️ Combi hot-water flow will be reduced at low mains pressure',
       detail:
-        `Dynamic mains pressure ${dynamicBar.toFixed(1)} bar is below the ` +
-        `${PRESSURE_MINIMUM_MAX_FLOW_BAR.toFixed(1)} bar minimum for maximum rated DHW flow. ` +
-        `Hot-water delivery will depend on inlet flow and temperature rise — expect reduced flow ` +
-        `rates or lower delivered temperature compared to maximum rated output. ` +
-        `Confirm against the selected appliance's performance data at this pressure.`,
+        `Working pressure is ${dynamicBar.toFixed(1)} bar — below the ` +
+        `${PRESSURE_MINIMUM_MAX_FLOW_BAR.toFixed(1)} bar needed for the combi to reach its full rated flow. ` +
+        `You'll likely get reduced flow or a slightly lower water temperature. ` +
+        `Check the boiler manufacturer's figures at this pressure. ` +
+        `💧 A stored cylinder (Mixergy or vented) removes this pressure restriction — ` +
+        `Mixergy in particular has no minimum pressure requirement.`,
     });
   }
 

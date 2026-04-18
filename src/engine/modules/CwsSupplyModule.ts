@@ -30,6 +30,17 @@ const UNVENTED_FLOW_AT_PRESSURE_LPM = 10;
 const UNVENTED_FLOW_AT_PRESSURE_BAR = 1.0;
 
 /**
+ * When measured working pressure is below this threshold (bar), the mains supply
+ * is so weak that the raw flow reading will be optimistic.
+ * Rule: subtract LOW_PRESSURE_FLOW_DEDUCTION_LPM from the measured flow and
+ * use LOW_PRESSURE_ASSUMED_BAR as the assumed working pressure for all calculations.
+ * This protects against over-specifying cylinder performance on a weak supply.
+ */
+const LOW_PRESSURE_THRESHOLD_BAR = 0.3;
+const LOW_PRESSURE_FLOW_DEDUCTION_LPM = 2;
+const LOW_PRESSURE_ASSUMED_BAR = 0.5;
+
+/**
  * Threshold above which a flow reading is treated as unrealistic / unit-error suspect.
  * 60 L/min is already above a normal UK mains supply (typical 10–25 L/min).
  * Readings above this should not be used to inform eligibility decisions.
@@ -102,18 +113,45 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
   const deliveryMode =
     rawMode === 'tank_pumped' || rawMode === 'pumped' ? 'pumped_from_tank' : rawMode;
 
-  const dynamicFlowLpm = input.mainsDynamicFlowLpm;
+  let dynamicFlowLpm = input.mainsDynamicFlowLpm;
   const staticPressureBar = input.staticMainsPressureBar;
 
   // When mainsPressureRecorded is explicitly false, treat pressure as not recorded (undefined).
   // This represents flow-cup / bucket tests where only L/min was captured.
   // A recorded 0 bar is a real value (pressureRecorded = true by default).
   const pressureRecorded = input.mainsPressureRecorded !== false;
-  const dynamicPressureBar: number | undefined = pressureRecorded
+  let dynamicPressureBar: number | undefined = pressureRecorded
     ? (input.dynamicMainsPressureBar ?? input.dynamicMainsPressure)
     : undefined;
 
+  // ── Low-pressure adjustment ───────────────────────────────────────────────
+  // When working pressure is below 0.3 bar the mains supply is very weak and
+  // the raw flow measurement will over-state what is available under normal
+  // load.  Apply a conservative correction:
+  //   • Subtract 2 L/min from the measured flow (safety deduction).
+  //   • Assume 0.5 bar working pressure for capacity calculations.
+  // This prevents over-specifying hot-water delivery on a marginal supply.
+  let lowPressureAdjusted = false;
+  if (dynamicPressureBar !== undefined && dynamicPressureBar < LOW_PRESSURE_THRESHOLD_BAR) {
+    lowPressureAdjusted = true;
+    if (dynamicFlowLpm !== undefined) {
+      dynamicFlowLpm = Math.max(0, dynamicFlowLpm - LOW_PRESSURE_FLOW_DEDUCTION_LPM);
+    }
+    dynamicPressureBar = LOW_PRESSURE_ASSUMED_BAR;
+  }
+
   const notes: string[] = [];
+
+  // Document the low-pressure adjustment so the installer can see what happened.
+  if (lowPressureAdjusted) {
+    notes.push(
+      `⚠️ Very low working pressure detected (below ${LOW_PRESSURE_THRESHOLD_BAR} bar). ` +
+      `Flow reading reduced by ${LOW_PRESSURE_FLOW_DEDUCTION_LPM} L/min (safety deduction) ` +
+      `and working pressure assumed at ${LOW_PRESSURE_ASSUMED_BAR} bar for calculations. ` +
+      `Recheck the supply — a mains-pressure stored cylinder may still work, ` +
+      `but a Mixergy or tank-fed (vented) cylinder removes any pressure dependency.`
+    );
+  }
 
   // Delivery mode — add mode-specific note
   if (deliveryMode === 'gravity') {
