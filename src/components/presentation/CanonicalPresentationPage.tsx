@@ -28,6 +28,7 @@
 
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
+import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import {
   buildCanonicalPresentation,
   type CanonicalPresentationModel,
@@ -498,6 +499,12 @@ interface Props {
    */
   onPrint?: () => void;
   /**
+   * Optional callback fired when the user changes their Option 1 / Option 2
+   * selections on the ranking page.  The parent can store these families and
+   * pass them to the print component so the printout reflects in-room choices.
+   */
+  onOptionsChange?: (opt1Family: ApplianceFamily | null, opt2Family: ApplianceFamily | null) => void;
+  /**
    * When true, renders the swipeable visual story deck instead of the
    * vertical scrollable layout.  Defaults to false (vertical mode).
    */
@@ -527,6 +534,7 @@ export default function CanonicalPresentationPage({
   recommendationResult,
   onOpenSimulator,
   onPrint,
+  onOptionsChange,
   deckMode = true,
   heatLossState,
   prioritiesState,
@@ -540,6 +548,7 @@ export default function CanonicalPresentationPage({
         recommendationResult={recommendationResult}
         onOpenSimulator={onOpenSimulator}
         onPrint={onPrint}
+        onOptionsChange={onOptionsChange}
         heatLossState={heatLossState}
         prioritiesState={prioritiesState}
       />

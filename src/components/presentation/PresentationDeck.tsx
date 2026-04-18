@@ -1407,6 +1407,12 @@ export interface PresentationDeckProps {
   /** Optional callback to open the print/PDF view. */
   onPrint?: () => void;
   /**
+   * Called whenever the user's Option 1 / Option 2 selections change.
+   * The parent can store these so the print surface reflects the same
+   * options that were agreed during the in-room presentation.
+   */
+  onOptionsChange?: (opt1Family: ApplianceFamily | null, opt2Family: ApplianceFamily | null) => void;
+  /**
    * Optional heat-loss survey state.
    * When provided, the quadrant dashboard uses the shell perimeter snapshot
    * (shellSnapshotUrl) in the Your House tile and shows the roof orientation.
@@ -1431,6 +1437,7 @@ export default function PresentationDeck({
   recommendationResult,
   onOpenSimulator,
   onPrint,
+  onOptionsChange,
   heatLossState,
   prioritiesState,
 }: PresentationDeckProps) {
@@ -1491,6 +1498,12 @@ export default function PresentationDeck({
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rankingFamilyKey]);
+
+  // Notify parent whenever the active Option 1 / Option 2 family changes so
+  // the print surface can reflect the same choices agreed in-room.
+  useEffect(() => {
+    onOptionsChange?.(selectedOption1Family, selectedOption2Family);
+  }, [selectedOption1Family, selectedOption2Family, onOptionsChange]);
 
   /**
    * Resolve the ShortlistedOptionDetail for a selected ranking family.

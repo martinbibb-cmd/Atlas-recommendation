@@ -29,12 +29,16 @@ import { useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import {
   buildCanonicalPresentation,
+  FAMILY_TO_OPTION_IDS,
   type CanonicalPresentationModel,
   type SystemComparisonBlock,
+  type PhysicsRankingItem,
+  type ShortlistedOptionDetail,
 } from '../presentation/buildCanonicalPresentation';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
+import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import './CustomerRecommendationPrint.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -52,6 +56,18 @@ interface Props {
   visitDate?: string;
   /** Called when the user clicks Back (screen only). */
   onBack?: () => void;
+  /**
+   * The ApplianceFamily the engineer agreed with the customer as Option 1.
+   * When provided, the print shows the matching ranking item and shortlist
+   * option rather than always defaulting to the engine's top-ranked entry.
+   */
+  selectedOption1Family?: string;
+  /**
+   * The ApplianceFamily the engineer agreed with the customer as Option 2.
+   * When provided, the print shows the matching ranking item and shortlist
+   * option rather than always defaulting to the engine's second-ranked entry.
+   */
+  selectedOption2Family?: string;
 }
 
 // ─── QR code image ────────────────────────────────────────────────────────────
@@ -89,70 +105,97 @@ function QRCodeImage({ url }: { url: string }) {
 // ─── Derive presentation data ─────────────────────────────────────────────────
 
 /**
- * Build the human-readable system name from the top-ranked physics option.
- * Falls back to a neutral label when the ranking is empty.
+ * Resolve the ranking item for a given family, falling back to the item at
+ * fallbackIndex when no match is found.
  */
-function resolveSystemName(model: CanonicalPresentationModel): string {
-  const top = model.page3.items[0];
-  return top?.label ?? 'Recommended system';
+function resolveRankingItemByFamily(
+  model: CanonicalPresentationModel,
+  family: string | undefined,
+  fallbackIndex: number,
+): PhysicsRankingItem | null {
+  if (family) {
+    const found = model.page3.items.find(i => i.family === family);
+    if (found) return found;
+  }
+  return model.page3.items[fallbackIndex] ?? null;
 }
 
 /**
- * Build up to 3 "why recommended" bullets from the top option's reason lines.
+ * Resolve the shortlisted option detail for a given family, falling back to
+ * the option at fallbackIndex when no match is found.
+ */
+function resolveOptionDetailByFamily(
+  model: CanonicalPresentationModel,
+  family: string | undefined,
+  fallbackIndex: number,
+): ShortlistedOptionDetail | null {
+  if (family) {
+    const ids = (FAMILY_TO_OPTION_IDS[family as ApplianceFamily] as readonly string[] | undefined) ?? [];
+    const found = model.page4Plus.options.find(o => ids.includes(o.family));
+    if (found) return found;
+  }
+  return model.page4Plus.options[fallbackIndex] ?? null;
+}
+
+/**
+ * Build the human-readable system name from the supplied ranking item.
+ * Falls back to a neutral label when the item is absent.
+ */
+function resolveSystemName(topRankingItem: PhysicsRankingItem | null): string {
+  return topRankingItem?.label ?? 'Recommended system';
+}
+
+/**
+ * Build up to 3 "why recommended" bullets from the supplied ranking item.
  * Draws on demandFitNote, waterFitNote, infrastructureFitNote, energyFitNote
  * (in that order) and trims to at most 3 items.
  */
-function buildWhyBullets(model: CanonicalPresentationModel): string[] {
-  const top = model.page3.items[0];
-  if (!top) return [];
+function buildWhyBullets(topRankingItem: PhysicsRankingItem | null): string[] {
+  if (!topRankingItem) return [];
   const candidates = [
-    top.demandFitNote,
-    top.waterFitNote,
-    top.infrastructureFitNote,
-    top.energyFitNote,
+    topRankingItem.demandFitNote,
+    topRankingItem.waterFitNote,
+    topRankingItem.infrastructureFitNote,
+    topRankingItem.energyFitNote,
   ].filter((n): n is string => typeof n === 'string' && n.trim().length > 0);
   return candidates.slice(0, 3);
 }
 
 /**
- * Build up to 4 outcome-language improvement bullets from the top shortlisted
- * option's bestPerformanceUpgrades list.
+ * Build up to 4 outcome-language improvement bullets from the supplied
+ * shortlisted option's bestPerformanceUpgrades list.
  */
-function buildImprovementBullets(model: CanonicalPresentationModel): string[] {
-  const top = model.page4Plus.options[0];
-  if (!top) return [];
-  return top.bestPerformanceUpgrades.slice(0, 4);
+function buildImprovementBullets(topDetail: ShortlistedOptionDetail | null): string[] {
+  if (!topDetail) return [];
+  return topDetail.bestPerformanceUpgrades.slice(0, 4);
 }
 
 /**
- * Resolve the optional comparison candidate — the second-ranked physics option.
+ * Resolve the optional comparison candidate — the option 2 ranking item.
  * Returns null when there is no meaningful alternative to show.
  */
 function resolveComparisonCandidate(
-  model: CanonicalPresentationModel,
+  opt2RankingItem: PhysicsRankingItem | null,
 ): { label: string; reasonLine: string } | null {
-  const second = model.page3.items[1];
-  if (!second || second.overallScore === 0) return null;
-  return { label: second.label, reasonLine: second.reasonLine };
+  if (!opt2RankingItem || opt2RankingItem.overallScore === 0) return null;
+  return { label: opt2RankingItem.label, reasonLine: opt2RankingItem.reasonLine };
 }
 
 /**
- * Build required-work items from the top shortlisted option.
+ * Build required-work items from the supplied shortlisted option.
  */
-function buildRequiredWork(model: CanonicalPresentationModel): string[] {
-  const top = model.page4Plus.options[0];
-  if (!top) return [];
-  return top.requiredWork;
+function buildRequiredWork(topDetail: ShortlistedOptionDetail | null): string[] {
+  if (!topDetail) return [];
+  return topDetail.requiredWork;
 }
 
 /**
- * Build recommended (optional) work items from the top shortlisted option's
- * bestPerformanceUpgrades list — capped at 4.
+ * Build recommended (optional) work items from the supplied shortlisted
+ * option's bestPerformanceUpgrades list — capped at 4.
  */
-function buildRecommendedWork(model: CanonicalPresentationModel): string[] {
-  const top = model.page4Plus.options[0];
-  if (!top) return [];
-  return top.bestPerformanceUpgrades.slice(0, 4);
+function buildRecommendedWork(topDetail: ShortlistedOptionDetail | null): string[] {
+  if (!topDetail) return [];
+  return topDetail.bestPerformanceUpgrades.slice(0, 4);
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -293,25 +336,28 @@ export default function CustomerRecommendationPrint({
   customerName,
   visitDate,
   onBack,
+  selectedOption1Family,
+  selectedOption2Family,
 }: Props) {
   const model = buildCanonicalPresentation(result, input, recommendationResult, prioritiesState);
-  const { page1, page3, page4Plus } = model;
+  const { page1 } = model;
 
-  // ── Derived presentation data ───────────────────────────────────────────
+  // ── Resolve Option 1 and Option 2 using the families agreed in-room ─────
+  // Falls back to the engine's default order when no deck selection was made.
+  const topRankingItem = resolveRankingItemByFamily(model, selectedOption1Family, 0);
+  const topDetail      = resolveOptionDetailByFamily(model, selectedOption1Family, 0);
+  const opt2RankingItem = resolveRankingItemByFamily(model, selectedOption2Family, 1);
+  const opt2Detail      = resolveOptionDetailByFamily(model, selectedOption2Family, 1);
 
-  const systemName     = resolveSystemName(model);
-  const whyBullets     = buildWhyBullets(model);
-  const improvements   = buildImprovementBullets(model);
-  const comparison     = resolveComparisonCandidate(model);
-  const requiredWork   = buildRequiredWork(model);
-  const recommendedWork = buildRecommendedWork(model);
+  // ── Derived presentation data ────────────────────────────────────────────
+
+  const systemName      = resolveSystemName(topRankingItem);
+  const whyBullets      = buildWhyBullets(topRankingItem);
+  const improvements    = buildImprovementBullets(topDetail);
+  const comparison      = resolveComparisonCandidate(opt2RankingItem);
+  const requiredWork    = buildRequiredWork(topDetail);
+  const recommendedWork = buildRecommendedWork(topDetail);
   const { systemComparison } = model;
-
-  const topDetail = page4Plus.options[0] ?? null;
-
-  // ── Option 2 data ────────────────────────────────────────────────────────
-  const opt2Detail      = page4Plus.options[1] ?? null;
-  const opt2RankingItem = page3.items[1] ?? null;
 
   const opt2WhyBullets: string[] = opt2RankingItem
     ? ([
@@ -437,9 +483,9 @@ export default function CustomerRecommendationPrint({
               {customerName ? ` — ${customerName}` : ''}
             </p>
             <h1 className="crp-header__system-name">{systemName}</h1>
-            {model.page3.items[0]?.reasonLine && (
+            {topRankingItem?.reasonLine && (
               <p className="crp-header__reason">
-                {model.page3.items[0].reasonLine}
+                {topRankingItem.reasonLine}
               </p>
             )}
             <p className="crp-header__reassurance">

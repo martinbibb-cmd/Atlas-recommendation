@@ -116,13 +116,13 @@ describe('LiveHubPage — primary export button', () => {
     expect(screen.queryByRole('button', { name: /full output report/i })).toBeNull();
   });
 
-  it('clicking "Print Recommendation" opens the PrintableRecommendationPage overlay', () => {
+  it('clicking "Print Recommendation" opens the CustomerRecommendationPrint overlay', () => {
     render(
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
     fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
-    // PrintableRecommendationPage renders an aria-label "Printable heating system recommendation"
-    expect(screen.getByLabelText(/printable heating system recommendation/i)).toBeTruthy();
+    // CustomerRecommendationPrint renders data-testid="customer-recommendation-print"
+    expect(screen.getByTestId('customer-recommendation-print')).toBeTruthy();
   });
 
   it('"← Back" in the Print Recommendation overlay returns to the hub', () => {
@@ -130,9 +130,10 @@ describe('LiveHubPage — primary export button', () => {
       <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
     );
     fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
-    expect(screen.getByLabelText(/printable heating system recommendation/i)).toBeTruthy();
+    expect(screen.getByTestId('customer-recommendation-print')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /back to advice page/i }));
+    // CustomerRecommendationPrint renders a plain "← Back" button (no aria-label)
+    fireEvent.click(screen.getByRole('button', { name: /← back/i }));
     expect(screen.getByText('📡 Atlas Live Output Hub')).toBeTruthy();
   });
 });
