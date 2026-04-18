@@ -278,7 +278,7 @@ export function BuildingFabricStep({
               onChange={e => patch({ wallType: e.target.value })}
             >
               <option value="solidBrick">Solid brick (U 2.1)</option>
-              <option value="cavityUninsulated">Cavity uninsulated (U 2.1 — high heat-loss band)</option>
+              <option value="cavityUninsulated">Cavity uninsulated (U 2.1)</option>
               <option value="cavityPartialFill">Cavity partial fill (U 0.5)</option>
               <option value="cavityFullFill">Cavity full fill (U 0.28)</option>
               <option value="timberFrame">Timber frame (U 0.25)</option>
@@ -354,7 +354,7 @@ export function BuildingFabricStep({
               <option value="heavy">Heavy masonry</option>
             </select>
             <p style={hintStyle}>
-              Thermal mass is independent of wall heat-loss — it governs how quickly the building
+              Thermal mass is independent of wall heat-loss - it governs how quickly the building
               heats up and cools down (thermal inertia τ).
             </p>
           </div>
