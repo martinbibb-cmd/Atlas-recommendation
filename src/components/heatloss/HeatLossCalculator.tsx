@@ -17,37 +17,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import './heatloss.css';
-import type { RoofType, RoofOrientation, ShadingLevel, PvStatus, BatteryStatus, ShellModel } from '../../features/survey/heatLoss/heatLossTypes';
-import { RoofRotationControl } from '../../features/survey/heatLoss/RoofRotationControl';
-import { solarSuitabilitySummary } from '../../features/survey/heatLoss/heatLossDerivations';
+import type { ShellModel } from '../../features/survey/heatLoss/heatLossTypes';
 
 export type { ShellModel };
-
-// ── Roof model (embedded in heat-loss calculator side panel) ─────────────────
-
-export interface RoofModel {
-  roofType: RoofType;
-  roofOrientation: RoofOrientation;
-  shadingLevel: ShadingLevel;
-  pvStatus: PvStatus;
-  batteryStatus: BatteryStatus;
-  /**
-   * True-north bearing of the building's primary front face, in degrees
-   * clockwise from north (0 = north, 90 = east, 180 = south, 270 = west).
-   * Captured here so it flows through the same `onRoofModelChange` callback
-   * alongside the other solar/orientation fields.
-   * Absent when the user has not set a direction.
-   */
-  buildingBearingDeg?: number;
-}
-
-export const INITIAL_ROOF_MODEL: RoofModel = {
-  roofType: 'unknown',
-  roofOrientation: 'unknown',
-  shadingLevel: 'unknown',
-  pvStatus: 'none',
-  batteryStatus: 'none',
-};
 
 // ── U-values (W/m²K) ─────────────────────────────────────────────────────────
 
@@ -132,13 +104,17 @@ interface Point { x: number; y: number; }
 interface Edge  { isPartyWall: boolean; }
 
 interface Layer {
-  id:      string;
-  name:    string;
-  kind:    LayerKind;
-  visible: boolean;
-  points:  Point[];
-  closed:  boolean;
-  edges:   Edge[];
+  id:           string;
+  name:         string;
+  kind:         LayerKind;
+  visible:      boolean;
+  points:       Point[];
+  closed:       boolean;
+  edges:        Edge[];
+  /** Per-layer storey count — independent of every other layer (CHANGE 2). */
+  storeys:      number;
+  /** Per-layer ceiling height in metres (CHANGE 2). */
+  ceilingHeight: number;
 }
 
 interface HeatLossResult {
@@ -195,10 +171,6 @@ function isFlatDwelling(dwellingType: Settings['dwellingType']): boolean {
          dwellingType === 'flatPenthouse';
 }
 
-/** User-visible message shown when solar options are unavailable for a flat. */
-const SOLAR_UNAVAILABLE_FOR_FLAT =
-  'Not available — flats do not have independent roof access for solar installation.';
-
 // ── Geometry helpers ──────────────────────────────────────────────────────────
 
 function polygonArea(pts: Point[]): number {
@@ -241,30 +213,82 @@ function pointToSegmentDist(
 
 // ── Heat loss calculation ─────────────────────────────────────────────────────
 
-function calculateHeatLoss(layer: Layer, settings: Settings): HeatLossResult | null {
-  // Reference layers are for visual context only — not included in calculation.
+/**
+ * CHANGE 3: Identify which edges of `layer` are shared (collinear + coincident)
+ * with any edge of a neighbouring layer.  Shared walls between adjoining sections
+ * are interior — they do not lose heat to the outside and must be excluded.
+ */
+function getSharedEdgeIndices(layer: Layer, neighbours: Layer[]): Set<number> {
+  const shared = new Set<number>();
+  const EPSILON = 0.01; // metres — sub-snap tolerance
+  function near(a: Point, b: Point) { return Math.hypot(a.x - b.x, a.y - b.y) < EPSILON; }
+  const n = layer.points.length;
+  for (let i = 0; i < n; i++) {
+    const a1 = layer.points[i];
+    const a2 = layer.points[(i + 1) % n];
+    outer: for (const other of neighbours) {
+      if (!other.closed) continue;
+      const m = other.points.length;
+      for (let j = 0; j < m; j++) {
+        const b1 = other.points[j];
+        const b2 = other.points[(j + 1) % m];
+        if ((near(a1, b1) && near(a2, b2)) || (near(a1, b2) && near(a2, b1))) {
+          shared.add(i);
+          break outer;
+        }
+      }
+    }
+  }
+  return shared;
+}
+
+/** Intermediate per-layer result (raw watts, not rounded). */
+interface LayerHeatLossResult {
+  floorArea:   number;
+  perimeter:   number;
+  netWallArea: number;
+  glazingArea: number;
+  roofArea:    number;
+  volume:      number;
+  wallHL:      number;
+  glazingHL:   number;
+  roofHL:      number;
+  floorHL:     number;
+  ventHL:      number;
+}
+
+/**
+ * Calculate heat loss for a single layer, using its own storeys/ceilingHeight
+ * (CHANGE 2) and excluding any shared edges with neighbours (CHANGE 3).
+ * Returns raw values in watts.
+ */
+function calculateLayerHeatLoss(
+  layer: Layer,
+  sharedEdgeIndices: Set<number>,
+  settings: Settings,
+): LayerHeatLossResult | null {
   if (!layer.closed || layer.points.length < 3 || layer.kind === 'reference') return null;
 
-  const pts           = layer.points;
-  const floorArea     = polygonArea(pts);
-  const perimeter     = polygonPerimeter(pts);
-  const totalHeight   = settings.storeys * settings.ceilingHeight;
-  const volume        = floorArea * totalHeight;
+  const pts = layer.points;
+  const floorArea   = polygonArea(pts);
+  const perimeter   = polygonPerimeter(pts);
+  // CHANGE 2: per-layer height
+  const totalHeight = layer.storeys * layer.ceilingHeight;
+  const volume      = floorArea * totalHeight;
 
   let exposedPerimeter = 0;
   let partyPerimeter   = 0;
   layer.edges.forEach((edge, i) => {
-    const a = pts[i];
-    const b = pts[(i + 1) % pts.length];
+    // CHANGE 3: skip shared interior edges
+    if (sharedEdgeIndices.has(i)) return;
+    const a   = pts[i];
+    const b   = pts[(i + 1) % pts.length];
     const len = Math.hypot(b.x - a.x, b.y - a.y);
     if (edge.isPartyWall) partyPerimeter += len;
-    else exposedPerimeter += len;
+    else                  exposedPerimeter += len;
   });
 
   const grossWallArea = exposedPerimeter * totalHeight;
-  // Settings are constrained to known valid keys by the UI dropdowns, so ?? fallbacks
-  // use the mid-range defaults (cavity uninsulated wall, 270 mm loft, A-rated glazing,
-  // suspended uninsulated floor) that represent a typical 1980s UK semi-detached.
   const glazingFrac   = GLAZING_FRACTION[settings.glazingAmount] ?? GLAZING_FRACTION.medium;
   const glazingArea   = grossWallArea * glazingFrac;
   const netWallArea   = grossWallArea - glazingArea;
@@ -281,30 +305,68 @@ function calculateHeatLoss(layer: Layer, settings: Settings): HeatLossResult | n
   const roofHL    = roofArea    * uLoft    * DELTA_T;
   const floorHL   = floorArea   * uFloor   * DELTA_T;
   const ventHL    = volume * ACH * 0.33 * DELTA_T;
-  const totalHL   = wallHL + glazingHL + roofHL + floorHL + ventHL;
+
+  return { floorArea, perimeter, netWallArea, glazingArea, roofArea, volume,
+           wallHL, glazingHL, roofHL, floorHL, ventHL };
+}
+
+/**
+ * CHANGE 1: Sum heat loss across all eligible layers.
+ * Eligible = visible, closed, ≥3 points, not a reference layer.
+ * Shared edges between adjoining sections are excluded (CHANGE 3).
+ */
+function calculateHeatLoss(layers: Layer[], settings: Settings): HeatLossResult | null {
+  const eligible = layers.filter(l =>
+    l.visible && l.closed && l.kind !== 'reference' && l.points.length >= 3
+  );
+  if (eligible.length === 0) return null;
+
+  let totFloorArea   = 0, totPerimeter   = 0, totNetWallArea = 0;
+  let totGlazingArea = 0, totRoofArea    = 0, totVolume      = 0;
+  let totWallHL      = 0, totGlazingHL   = 0, totRoofHL      = 0;
+  let totFloorHL     = 0, totVentHL      = 0;
+
+  for (const layer of eligible) {
+    const neighbours  = eligible.filter(l => l.id !== layer.id);
+    const sharedEdges = getSharedEdgeIndices(layer, neighbours);
+    const res         = calculateLayerHeatLoss(layer, sharedEdges, settings);
+    if (!res) continue;
+    totFloorArea   += res.floorArea;
+    totPerimeter   += res.perimeter;
+    totNetWallArea += res.netWallArea;
+    totGlazingArea += res.glazingArea;
+    totRoofArea    += res.roofArea;
+    totVolume      += res.volume;
+    totWallHL      += res.wallHL;
+    totGlazingHL   += res.glazingHL;
+    totRoofHL      += res.roofHL;
+    totFloorHL     += res.floorHL;
+    totVentHL      += res.ventHL;
+  }
+
+  const totalHL             = totWallHL + totGlazingHL + totRoofHL + totFloorHL + totVentHL;
   const heatLossCoefficient = totalHL / DELTA_T; // W/K
   const thermalCapacityKwhPerK =
-    settings.thermalMass === 'light' ? 2.5 :
+    settings.thermalMass === 'light'  ? 2.5 :
     settings.thermalMass === 'medium' ? 4.5 :
     7.0;
-  const thermalCapacityWhPerK = thermalCapacityKwhPerK * 1000;
   const thermalInertiaTauHours = heatLossCoefficient > 0
-    ? thermalCapacityWhPerK / heatLossCoefficient
+    ? (thermalCapacityKwhPerK * 1000) / heatLossCoefficient
     : 0;
 
   return {
-    floorArea:   round(floorArea,   1),
-    perimeter:   round(perimeter,   1),
-    netWallArea: round(netWallArea, 1),
-    glazingArea: round(glazingArea, 1),
-    roofArea:    round(roofArea,    1),
-    volume:      round(volume,      0),
-    wallHL:      round(wallHL    / 1000, 2),
-    glazingHL:   round(glazingHL / 1000, 2),
-    roofHL:      round(roofHL    / 1000, 2),
-    floorHL:     round(floorHL   / 1000, 2),
-    ventHL:      round(ventHL    / 1000, 2),
-    totalHL:     round(totalHL   / 1000, 1),
+    floorArea:   round(totFloorArea,   1),
+    perimeter:   round(totPerimeter,   1),
+    netWallArea: round(totNetWallArea, 1),
+    glazingArea: round(totGlazingArea, 1),
+    roofArea:    round(totRoofArea,    1),
+    volume:      round(totVolume,      0),
+    wallHL:      round(totWallHL    / 1000, 2),
+    glazingHL:   round(totGlazingHL / 1000, 2),
+    roofHL:      round(totRoofHL    / 1000, 2),
+    floorHL:     round(totFloorHL   / 1000, 2),
+    ventHL:      round(totVentHL    / 1000, 2),
+    totalHL:     round(totalHL      / 1000, 1),
     thermalInertiaTauHours: round(thermalInertiaTauHours, 1),
   };
 }
@@ -601,10 +663,6 @@ interface Props {
    * Use this in embedded mode to propagate the value to parent state.
    */
   onHeatLossChange?: (totalKw: number | null) => void;
-  /** Roof model state, managed by the parent. */
-  roofModel?: RoofModel;
-  /** Called when the user changes any roof field inside the calculator. */
-  onRoofModelChange?: (next: RoofModel) => void;
   /**
    * Optional saved shell snapshot to rehydrate on mount.
    * When present, the calculator restores layers, active layer, and settings
@@ -625,11 +683,11 @@ interface Props {
   onSnapshotChange?: (dataUrl: string | null) => void;
 }
 
-function makeLayer(name: string, kind: LayerKind): Layer {
-  return { id: generateLayerId(), name, kind, visible: true, points: [], closed: false, edges: [] };
+function makeLayer(name: string, kind: LayerKind, storeys = 2, ceilingHeight = 2.4): Layer {
+  return { id: generateLayerId(), name, kind, visible: true, points: [], closed: false, edges: [], storeys, ceilingHeight };
 }
 
-export default function HeatLossCalculator({ onBack, onComplete, embedded, onHeatLossChange, roofModel, onRoofModelChange, initialShell, onShellChange, onSnapshotChange }: Props) {
+export default function HeatLossCalculator({ onBack, onComplete, embedded, onHeatLossChange, initialShell, onShellChange, onSnapshotChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // View/interaction state (pan, zoom, hover, drag) — no polygon data.
@@ -654,7 +712,13 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
       // Advance the counter so any newly created layers won't collide with
       // the restored IDs.
       advanceCounterPastIds(initialShell.layers.map(l => l.id));
-      return { layers: initialShell.layers as Layer[], activeId: initialShell.activeLayerId };
+      // Back-fill storeys/ceilingHeight for layers saved before per-layer height was added.
+      const layers = initialShell.layers.map(l => ({
+        storeys:       2,
+        ceilingHeight: 2.4,
+        ...l,
+      })) as Layer[];
+      return { layers, activeId: initialShell.activeLayerId };
     }
     const layer = makeLayer('Original footprint', 'original');
     return { layers: [layer], activeId: layer.id };
@@ -740,11 +804,10 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
   }, []);
 
   const refreshResults = useCallback(() => {
-    const layer = getActiveLayer();
-    const res = layer ? calculateHeatLoss(layer, settingsRef.current) : null;
+    const res = calculateHeatLoss(layersRef.current, settingsRef.current);
     setResult(res);
 
-    const active = layer;
+    const active = getActiveLayer();
     const closed_ = active?.closed ?? false;
     const pts     = active?.points ?? [];
     setClosed(closed_);
@@ -930,7 +993,9 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
     } else {
       name = 'Original footprint';
     }
-    const newLayer = makeLayer(name, kind);
+    // CHANGE 2: new layers inherit current global storey/height as a starting value.
+    const s = settingsRef.current;
+    const newLayer = makeLayer(name, kind, s.storeys, s.ceilingHeight);
     layersRef.current = [...layersRef.current, newLayer];
     selectLayer(newLayer.id);
   }, [selectLayer]);
@@ -961,6 +1026,16 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
     if (layer) layer.name = name.trim() || layer.name;
     syncLayers();
   }, [syncLayers]);
+
+  /** CHANGE 2: Update per-layer storeys or ceilingHeight. */
+  const updateLayerHeight = useCallback((id: string, storeys?: number, ceilingHeight?: number) => {
+    const layer = layersRef.current.find(l => l.id === id);
+    if (!layer) return;
+    if (storeys      !== undefined) layer.storeys      = Math.max(1, storeys);
+    if (ceilingHeight !== undefined) layer.ceilingHeight = Math.max(2, ceilingHeight);
+    syncLayers();
+    refreshResults();
+  }, [syncLayers, refreshResults]);
 
   // ── Pointer events ─────────────────────────────────────────────────────────
 
@@ -1187,10 +1262,6 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
 
   // Compute once per render so IIFE and conditional expressions reuse the result.
   const activeLayerObj = layers.find(l => l.id === activeLayerId) ?? null;
-  // Closed polygon points for the compass perimeter render (null when not drawn yet).
-  const compassPerimeterPts = (activeLayerObj?.closed && (activeLayerObj.points.length ?? 0) >= 3)
-    ? activeLayerObj.points
-    : undefined;
 
   return (
     <div className={embedded ? 'hlc hlc--embedded' : 'hlc'}>
@@ -1357,7 +1428,7 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
               })}
             </div>
 
-            {/* Rename active layer */}
+            {/* Rename + per-layer height for active layer */}
             {activeLayerObj && (
               <div className="hlc__layer-rename">
                 <input
@@ -1368,6 +1439,30 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                   placeholder="Layer name"
                   aria-label="Active layer name"
                 />
+                {activeLayerObj.kind !== 'reference' && (
+                  <div className="hlc__layer-height-row">
+                    <div className="hlc__field hlc__field--inline">
+                      <label>Storeys</label>
+                      <input
+                        type="number"
+                        min={1} max={5} step={1}
+                        value={activeLayerObj.storeys}
+                        onChange={e => updateLayerHeight(activeLayerId, Math.max(1, parseInt(e.target.value) || 1), undefined)}
+                        aria-label="Storeys for this layer"
+                      />
+                    </div>
+                    <div className="hlc__field hlc__field--inline">
+                      <label>Ceiling (m)</label>
+                      <input
+                        type="number"
+                        min={2} max={4} step={0.1}
+                        value={activeLayerObj.ceilingHeight}
+                        onChange={e => updateLayerHeight(activeLayerId, undefined, parseFloat(e.target.value) || 2.4)}
+                        aria-label="Ceiling height for this layer in metres"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1386,7 +1481,6 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                       value={settings.dwellingType}
                       onChange={e => {
                         const next = e.target.value as Settings['dwellingType'];
-                        const nextIsFlat = isFlatDwelling(next);
                         setSettings(s => {
                           const updates: Partial<Settings> = { dwellingType: next };
                           if (next === 'flatGround') {
@@ -1411,10 +1505,6 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                           }
                           return { ...s, ...updates };
                         });
-                        // Flats do not have independent roof access — reset solar fields to 'none'.
-                        if (nextIsFlat && roofModel && onRoofModelChange) {
-                          onRoofModelChange({ ...roofModel, pvStatus: 'none', batteryStatus: 'none' });
-                        }
                       }}
                     >
                       <optgroup label="Houses">
@@ -1438,26 +1528,6 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                       {settings.dwellingType === 'flatPenthouse' && 'Top-floor flat: floor is neighbour\'s flat below; ceiling is exposed roof.'}
                     </p>
                   )}
-
-                  <div className="hlc__field">
-                    <label>Storeys</label>
-                    <input
-                      type="number"
-                      min={1} max={5} step={1}
-                      value={settings.storeys}
-                      onChange={e => setSettings(s => ({ ...s, storeys: Math.max(1, parseInt(e.target.value) || 1) }))}
-                    />
-                  </div>
-
-                  <div className="hlc__field">
-                    <label>Ceiling height (m)</label>
-                    <input
-                      type="number"
-                      min={2} max={4} step={0.1}
-                      value={settings.ceilingHeight}
-                      onChange={e => setSettings(s => ({ ...s, ceilingHeight: parseFloat(e.target.value) || 2.4 }))}
-                    />
-                  </div>
                 </>
               );
             })()}
@@ -1636,148 +1706,6 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
               </>
             )}
           </div>
-
-          {/* ── Roof modelling ──────────────────────────────────────────── */}
-          {roofModel && onRoofModelChange && (
-            <div className="hlc__section">
-              <h3>Roof &amp; Solar</h3>
-
-              {/* North direction */}
-              <div className="hlc__field">
-                <label>
-                  North direction (° clockwise from north)
-                </label>
-                <input
-                  type="number"
-                  min={0} max={359} step={1}
-                  placeholder="e.g. 180 = south-facing front"
-                  value={roofModel.buildingBearingDeg ?? ''}
-                  onChange={e => {
-                    const raw = e.target.value;
-                    if (raw === '') {
-                      onRoofModelChange({ ...roofModel, buildingBearingDeg: undefined });
-                    } else {
-                      // Wrap to 0-359 using modulo — compass angles are circular, so
-                      // 360 → 0 and -1 → 359 are both valid and expected.
-                      const deg = ((parseInt(raw, 10) % 360) + 360) % 360;
-                      onRoofModelChange({ ...roofModel, buildingBearingDeg: deg });
-                    }
-                  }}
-                />
-                {roofModel.buildingBearingDeg !== undefined && (
-                  <span className="hlc__field-hint">
-                    {roofModel.buildingBearingDeg === 0   ? 'Front faces north'
-                     : roofModel.buildingBearingDeg === 90  ? 'Front faces east'
-                     : roofModel.buildingBearingDeg === 180 ? 'Front faces south'
-                     : roofModel.buildingBearingDeg === 270 ? 'Front faces west'
-                     : `${roofModel.buildingBearingDeg}° clockwise from north`}
-                  </span>
-                )}
-              </div>
-
-              {/* Roof type */}
-              <div className="hlc__field">
-                <label>Roof type</label>
-                <div className="hlc__chip-row">
-                  {(['pitched', 'flat', 'hipped', 'dormer', 'unknown'] as RoofType[]).map(rt => (
-                    <button
-                      key={rt}
-                      type="button"
-                      className={`hlc__chip${roofModel.roofType === rt ? ' hlc__chip--active' : ''}`}
-                      aria-pressed={roofModel.roofType === rt}
-                      onClick={() => onRoofModelChange({ ...roofModel, roofType: rt })}
-                    >
-                      {rt === 'unknown' ? 'Not sure' : rt.charAt(0).toUpperCase() + rt.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Roof orientation — rotation model */}
-              <div className="hlc__field">
-                <label>Orientation (main usable roof face)</label>
-                <RoofRotationControl
-                  value={roofModel.roofOrientation}
-                  onChange={(v) => onRoofModelChange({ ...roofModel, roofOrientation: v })}
-                  perimeterPoints={compassPerimeterPts}
-                />
-              </div>
-
-              {/* Shading */}
-              <div className="hlc__field">
-                <label>Shading on main roof face</label>
-                <div className="hlc__chip-row">
-                  {(['little_or_none', 'some', 'heavy', 'unknown'] as ShadingLevel[]).map(s => (
-                    <button
-                      key={s}
-                      type="button"
-                      className={`hlc__chip${roofModel.shadingLevel === s ? ' hlc__chip--active' : ''}`}
-                      aria-pressed={roofModel.shadingLevel === s}
-                      onClick={() => onRoofModelChange({ ...roofModel, shadingLevel: s })}
-                    >
-                      {s === 'little_or_none' ? 'Little / none' : s === 'unknown' ? 'Not sure' : s.charAt(0).toUpperCase() + s.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* PV */}
-              <div className="hlc__field">
-                <label>Solar PV panels</label>
-                {isFlatDwelling(settings.dwellingType) ? (
-                  <p className="hlc__field-note">{SOLAR_UNAVAILABLE_FOR_FLAT}</p>
-                ) : (
-                  <div className="hlc__chip-row">
-                    {(['none', 'existing', 'planned'] as PvStatus[]).map(p => (
-                      <button
-                        key={p}
-                        type="button"
-                        className={`hlc__chip${roofModel.pvStatus === p ? ' hlc__chip--active' : ''}`}
-                        aria-pressed={roofModel.pvStatus === p}
-                        onClick={() => onRoofModelChange({ ...roofModel, pvStatus: p })}
-                      >
-                        {p.charAt(0).toUpperCase() + p.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Battery */}
-              <div className="hlc__field">
-                <label>Battery storage</label>
-                {isFlatDwelling(settings.dwellingType) ? (
-                  <p className="hlc__field-note">{SOLAR_UNAVAILABLE_FOR_FLAT}</p>
-                ) : (
-                  <div className="hlc__chip-row">
-                    {(['none', 'existing', 'planned'] as BatteryStatus[]).map(b => (
-                      <button
-                        key={b}
-                        type="button"
-                        className={`hlc__chip${roofModel.batteryStatus === b ? ' hlc__chip--active' : ''}`}
-                        aria-pressed={roofModel.batteryStatus === b}
-                        onClick={() => onRoofModelChange({ ...roofModel, batteryStatus: b })}
-                      >
-                        {b.charAt(0).toUpperCase() + b.slice(1)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Solar summary — hidden for flats */}
-              {!isFlatDwelling(settings.dwellingType) && (() => {
-                const summary = solarSuitabilitySummary({
-                  estimatedPeakHeatLossW: null,
-                  heatLossConfidence: 'unknown',
-                  ...roofModel,
-                });
-                return summary ? (
-                  <p className="hlc__solar-summary">{summary}</p>
-                ) : null;
-              })()}
-            </div>
-          )}
         </div>
       </div>
     </div>

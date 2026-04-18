@@ -14,6 +14,7 @@ import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
 import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep';
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
+import { SolarAssessmentStep } from '../../features/survey/solar/SolarAssessmentStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
 import {
   INITIAL_RECOMMENDATION_STATE,
@@ -171,6 +172,13 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const stepIndex = STEPS.indexOf(currentStep);
   const progress = ((stepIndex + 1) / SURVEY_STEP_COUNT) * 100;
 
+  // Determine whether the solar assessment step should be skipped.
+  // Flats (any floor) do not have independent roof access for solar installation.
+  const flatTypes = ['flatGround', 'flatMid', 'flatPenthouse'] as const;
+  const skipSolarStep = flatTypes.includes(
+    heatLossState.shellModel?.settings?.dwellingType as typeof flatTypes[number]
+  );
+
   // Scroll to top whenever the active step changes so the user always sees the
   // top of the new step — prevents "mid-page carryover" between steps.
   useEffect(() => {
@@ -193,6 +201,12 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   });
 
   const next = () => {
+    if (currentStep === 'heat_loss' && skipSolarStep) {
+      // Skip solar assessment step for flats
+      if (onDraft) onDraft(buildDraft());
+      setCurrentStep('priorities');
+      return;
+    }
     if (currentStep === 'insight') {
       // Insight is the last step — run the engine and advance to results.
       const draft = buildDraft();
@@ -223,6 +237,10 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const prev = () => {
     if (stepIndex === 0) {
       onBack();
+    } else if (currentStep === 'priorities' && skipSolarStep) {
+      // Skip solar assessment step backwards for flats
+      if (onDraft) onDraft(buildDraft());
+      setCurrentStep('heat_loss');
     } else {
       // Autosave draft on back-navigation too so that drawn heat-loss geometry
       // and other step state survive reload / save-restore even when the user
@@ -339,6 +357,15 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onNext={next}
           onPrev={prev}
           engineHeatLossW={input.heatLossWatts ?? null}
+        />
+      )}
+
+      {currentStep === 'solar_assessment' && (
+        <SolarAssessmentStep
+          state={heatLossState}
+          onChange={setHeatLossState}
+          onNext={next}
+          onPrev={prev}
         />
       )}
 
