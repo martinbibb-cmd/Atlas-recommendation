@@ -133,9 +133,10 @@ const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
 
 /**
  * Nominal maximum gravity-fed flow rate (L/min) for a stored vented system.
- * Based on a UK head of ~1 m above the draw-off point (Torricelli / orifice model).
- * With a 15 mm distribution pipe: ~10 L/min per outlet is the practical ceiling.
- * Reference: StoredDhwModule BRANCH_BASE_FLOW_LPM = 9.0 L/min at 1 m head, 15 mm pipe.
+ * Based on a UK head of ~1 m above the draw-off point.  The branch hydraulic model
+ * (StoredDhwModule BRANCH_BASE_FLOW_LPM = 9.0 L/min at 1 m head, 15 mm pipe) gives
+ * 9.0 L/min for a single 15 mm branch.  10 L/min is used here as a round upper bound
+ * accounting for larger bore distribution (e.g. 22 mm main run feeding the branch).
  */
 const VENTED_MAX_GRAVITY_FLOW_LPM = 10;
 
