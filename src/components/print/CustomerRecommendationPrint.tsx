@@ -326,7 +326,6 @@ export default function CustomerRecommendationPrint({
 
   const opt2Improvements  = opt2Detail ? opt2Detail.bestPerformanceUpgrades.slice(0, 4) : [];
   const opt2RequiredWork  = opt2Detail ? opt2Detail.requiredWork : [];
-  const opt2RecommendedWork = opt2Detail ? opt2Detail.bestPerformanceUpgrades.slice(0, 4) : [];
 
   const today = visitDate ?? new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
@@ -653,7 +652,7 @@ export default function CustomerRecommendationPrint({
               {/* Right — work required */}
               <div className="crp-col--evidence">
 
-                {(opt2RequiredWork.length > 0 || opt2RecommendedWork.length > 0) && (
+                {(opt2RequiredWork.length > 0 || opt2Improvements.length > 0) && (
                   <section className="crp-section" aria-label="Work required">
                     <h2 className="crp-section__title">Work required</h2>
 
@@ -671,11 +670,11 @@ export default function CustomerRecommendationPrint({
                       </div>
                     )}
 
-                    {opt2RecommendedWork.length > 0 && (
+                    {opt2Improvements.length > 0 && (
                       <div className="crp-work-section crp-work-section--recommended">
                         <p className="crp-work-section__label">Recommended</p>
                         <ul className="crp-list" aria-label="Recommended work">
-                          {opt2RecommendedWork.map((item, i) => (
+                          {opt2Improvements.map((item, i) => (
                             <li key={i} className="crp-list__item crp-list__item--green">
                               <span className="crp-list__icon" aria-hidden="true">✔</span>
                               {item}
