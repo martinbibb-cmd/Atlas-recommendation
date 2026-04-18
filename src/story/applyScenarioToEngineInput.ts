@@ -109,6 +109,31 @@ export function sludgeDerateByCleanlinessStatus(
   }
 }
 
+// ── Age-based efficiency derate ───────────────────────────────────────────────
+
+/**
+ * Map boiler age (years) to an efficiency derate (percentage points).
+ *
+ * Reflects real-world degradation from combustion drift, heat-exchanger
+ * fouling, and component wear over the appliance lifetime:
+ *
+ *   0–4 years : 0 pp  — within the commissioning / warranty period
+ *   5–9 years : 2 pp  — mild ageing (condensate trap, valve wear)
+ *  10–14 years: 4 pp  — moderate heat-exchanger fouling, controls drift
+ *  15–19 years: 6 pp  — accelerated decline, flue/HEX design limitations
+ *  ≥ 20 years : 8 pp  — approaching design-life end for many components
+ *
+ * These bands are applied on top of the sludge and controls penalties so
+ * the total derate reflects independent, additive degradation paths.
+ */
+export function ageDerateByYears(boilerAgeYears: number): number {
+  if (boilerAgeYears >= 20) return 8;
+  if (boilerAgeYears >= 15) return 6;
+  if (boilerAgeYears >= 10) return 4;
+  if (boilerAgeYears >= 5)  return 2;
+  return 0;
+}
+
 // ── Confidence derivation ─────────────────────────────────────────────────────
 
 /**

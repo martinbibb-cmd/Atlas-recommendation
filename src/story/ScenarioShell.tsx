@@ -48,6 +48,7 @@ import {
   applyHeatPumpViabilityInputs,
   sludgeDerateByCleanlinessStatus,
   controlsCyclingPenaltyPct,
+  ageDerateByYears,
   deriveOldBoilerConfidence,
 } from './applyScenarioToEngineInput';
 import PerformanceBandLadder from '../components/PerformanceBandLadder';
@@ -663,13 +664,14 @@ function OldBoilerRealityShell({
 
     const sludgePenalty   = sludgeDerateByCleanlinessStatus(inputs.systemCleanliness);
     const controlsPenalty = controlsCyclingPenaltyPct(inputs.controlsType);
+    const agePenalty      = ageDerateByYears(inputs.boilerAgeYears);
     const filterBonus     = inputs.filterPresent === 'yes' ? 2 : 0;
 
-    const totalDecay = sludgePenalty + controlsPenalty - filterBonus;
+    const totalDecay = sludgePenalty + controlsPenalty + agePenalty - filterBonus;
     const currentPct = computeCurrentEfficiencyPct(nominalPct, totalDecay);
 
-    // After clean & protect: remove sludge derate, keep controls penalty
-    const restoredDecay = controlsPenalty - filterBonus;
+    // After clean & protect: remove sludge derate, keep age and controls penalty
+    const restoredDecay = controlsPenalty + agePenalty - filterBonus;
     const restoredPct = computeCurrentEfficiencyPct(nominalPct, restoredDecay);
 
     const newBaselinePct = resolveNominalEfficiencyPct(undefined); // DEFAULT_NOMINAL_EFFICIENCY_PCT
@@ -677,7 +679,8 @@ function OldBoilerRealityShell({
     const confidence = deriveOldBoilerConfidence(inputs);
 
     const contributors: { label: string; valuePct: number }[] = [];
-    if (sludgePenalty > 0)   contributors.push({ label: 'Contamination', valuePct: sludgePenalty });
+    if (agePenalty > 0)      contributors.push({ label: 'Boiler age',       valuePct: agePenalty });
+    if (sludgePenalty > 0)   contributors.push({ label: 'Contamination',    valuePct: sludgePenalty });
     if (controlsPenalty > 0) contributors.push({ label: 'Controls cycling', valuePct: controlsPenalty });
 
     return { nominalPct, currentPct, restoredPct, newBaselinePct, confidence, contributors };
