@@ -481,7 +481,9 @@ function buildHotWaterDemandSection(
   //   3+ concurrent outlets → factor 0.60 (further spreading of demand)
   const DIVERSITY_FACTOR: Record<number, number> = { 1: 1.0, 2: 0.75, 3: 0.60 };
   const maxConcurrent = input.peakConcurrentOutlets
-    ?? (occupancy != null && bathrooms != null ? Math.min(bathrooms, occupancy) : bathrooms ?? null);
+    ?? (occupancy != null && bathrooms != null
+        ? Math.min(bathrooms, occupancy)
+        : bathrooms ?? (occupancy != null ? 1 : null));
   const diversityFactor = maxConcurrent != null
     ? (DIVERSITY_FACTOR[Math.min(maxConcurrent, 3)] ?? 0.60)
     : 1.0;

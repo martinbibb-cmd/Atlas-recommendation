@@ -124,20 +124,19 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     ? (input.dynamicMainsPressureBar ?? input.dynamicMainsPressure)
     : undefined;
 
-  // ── Low-pressure adjustment ───────────────────────────────────────────────
-  // When working pressure is below 0.3 bar the mains supply is very weak and
-  // the raw flow measurement will over-state what is available under normal
-  // load.  Apply a conservative correction:
-  //   • Subtract 2 L/min from the measured flow (safety deduction).
-  //   • Assume 0.5 bar working pressure for capacity calculations.
-  // This prevents over-specifying hot-water delivery on a marginal supply.
+  // Low-pressure adjustment: only apply when flow is present and pressure is below threshold.
+  // If flow is undefined, skip the flow deduction (nothing to deduct from).
   let lowPressureAdjusted = false;
   if (dynamicPressureBar !== undefined && dynamicPressureBar < LOW_PRESSURE_THRESHOLD_BAR) {
     lowPressureAdjusted = true;
     if (dynamicFlowLpm !== undefined) {
       dynamicFlowLpm = Math.max(0, dynamicFlowLpm - LOW_PRESSURE_FLOW_DEDUCTION_LPM);
     }
-    dynamicPressureBar = LOW_PRESSURE_ASSUMED_BAR;
+    // Only assume the working pressure for capacity calculations when we have flow;
+    // if there's no flow measurement, keep the raw (very low) pressure for display.
+    if (dynamicFlowLpm !== undefined) {
+      dynamicPressureBar = LOW_PRESSURE_ASSUMED_BAR;
+    }
   }
 
   const notes: string[] = [];
@@ -148,8 +147,8 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
       `⚠️ Very low working pressure detected (below ${LOW_PRESSURE_THRESHOLD_BAR} bar). ` +
       `Flow reading reduced by ${LOW_PRESSURE_FLOW_DEDUCTION_LPM} L/min (safety deduction) ` +
       `and working pressure assumed at ${LOW_PRESSURE_ASSUMED_BAR} bar for calculations. ` +
-      `Recheck the supply — a mains-pressure stored cylinder may still work, ` +
-      `but a Mixergy or tank-fed (vented) cylinder removes any pressure dependency.`
+      `Recheck the supply — a Mixergy or tank-fed (vented) stored hot water cylinder ` +
+      `removes any pressure dependency.`
     );
   }
 
