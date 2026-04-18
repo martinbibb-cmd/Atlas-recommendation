@@ -2066,9 +2066,13 @@ function toRanks(scores: number[]): number[] {
   const sorted = [...indexed].sort((a, b) => b.score - a.score);
   const ranks = new Array<number>(scores.length);
   for (let pos = 0; pos < sorted.length; pos++) {
+    // The loop bound guarantees sorted[pos] is defined — use a local variable
+    // to satisfy strict-mode tooling without runtime overhead.
+    const item = sorted[pos];
+    if (item === undefined) continue;
     // Find the position of the first item with this score (for tie handling)
-    const firstAtScore = sorted.findIndex(s => s.score === sorted[pos]!.score);
-    ranks[sorted[pos]!.i] = firstAtScore + 1;
+    const firstAtScore = sorted.findIndex(s => s.score === item.score);
+    ranks[item.i] = firstAtScore + 1;
   }
   return ranks;
 }
