@@ -286,9 +286,14 @@ const LIMITER_OBJECTIVE_PENALTIES: Readonly<Record<string, LimiterObjectivePenal
     objectives: ['disruption', 'space'],
     basePenalty: 20,
   },
+  // space_for_cylinder_unavailable: penalises space+disruption at warning severity
+  // (tight space) and also performance+reliability at limit severity (no space at all).
+  // A stored system with no cylinder space cannot deliver its primary DHW function, so
+  // performance and reliability must also be heavily penalised — not just space/disruption.
+  // The SEVERITY_SCALE multiplier (1.5× for 'limit') provides further separation.
   space_for_cylinder_unavailable: {
-    objectives: ['space', 'disruption'],
-    basePenalty: 40,
+    objectives: ['performance', 'reliability', 'space', 'disruption'],
+    basePenalty: 25,
   },
 } as const;
 

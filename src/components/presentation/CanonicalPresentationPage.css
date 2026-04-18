@@ -401,6 +401,64 @@
 .cpp-fit-note--infra        { background: #faf5ff; color: #44337a; }
 .cpp-fit-note--energy       { background: #fffff0; color: #744210; }
 
+/* ─── Dimension ranking grid (Page 3) ─────────────────────────────────────── */
+
+.cpp-dim-ranks {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin: 0.6rem 0 0.5rem;
+}
+
+@media (min-width: 560px) {
+  .cpp-dim-ranks {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.cpp-dim-rank {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  border: 1px solid transparent;
+}
+
+.cpp-dim-rank--mains      { background: #ebf8ff; border-color: #bee3f8; color: #2a4365; }
+.cpp-dim-rank--demand     { background: #e6fffa; border-color: #b2f5ea; color: #234e52; }
+.cpp-dim-rank--efficiency { background: #fffff0; border-color: #fefcbf; color: #744210; }
+.cpp-dim-rank--properties { background: #f0fff4; border-color: #c6f6d5; color: #276749; }
+
+.cpp-dim-rank__icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.cpp-dim-rank__label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-top: 0.1rem;
+}
+
+.cpp-dim-rank__badge {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.cpp-dim-rank__note {
+  font-size: 0.67rem;
+  opacity: 0.85;
+  line-height: 1.3;
+  margin-top: 0.1rem;
+}
+
 /* ─── Pages 4+ — Shortlisted detail ──────────────────────────────────────── */
 
 .cpp-shortlist-options {

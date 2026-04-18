@@ -419,3 +419,101 @@ describe('Recommendation — score separation', () => {
     }
   });
 });
+
+// ─── Scenario 5: Combi-only viable (no cylinder space) ───────────────────────
+//
+// A property where there is literally no space for a cylinder and no outdoor
+// space for a heat pump.  The only physically viable option is a combi.
+//
+// This scenario guards the fix for the bug where stored options were outscoring
+// combi because:
+//   - StoredDhwModule emits 'stored-space-none' flag when availableSpace === 'none'
+//   - buildLimiterLedger was only checking 'stored-space-tight', so 'stored-space-none'
+//     produced no limiter → stored options got no score penalty for having no space
+//   - Stored options' higher performance/reliability baseline (80/80 vs combi 75/70)
+//     meant they ranked above combi even though they can't be installed
+//
+// Fix: buildLimiterLedger now also checks 'stored-space-none' and emits
+// 'space_for_cylinder_unavailable' at 'limit' severity (stronger than 'warning').
+// The penalty in buildRecommendationsFromEvidence now also covers performance and
+// reliability (not just space+disruption), reflecting that a stored system with
+// no cylinder cannot deliver hot water at all.
+
+const COMBI_ONLY_VIABLE_HOME: EngineInputV2_3 = {
+  postcode: 'SW1A 1AA',
+  dynamicMainsPressure: 2.5,
+  buildingMass: 'medium',
+  primaryPipeDiameter: 22,
+  heatLossWatts: 6000,
+  radiatorCount: 8,
+  hasLoftConversion: false,
+  returnWaterTemp: 50,
+  bathroomCount: 1,             // single bathroom — combi is adequate for demand
+  occupancySignature: 'professional',
+  occupancyCount: 2,            // small household
+  highOccupancy: false,
+  preferCombi: false,
+  mainsDynamicFlowLpm: 16,
+  availableSpace: 'none',       // ← KEY: no cylinder space at all
+  hasOutdoorSpaceForHeatPump: false, // no HP outdoor unit space
+};
+
+describe('Scenario 5: Combi-only viable (no cylinder space)', () => {
+  it('combi wins overall when stored options cannot fit a cylinder', () => {
+    const combi  = combiBundle(COMBI_ONLY_VIABLE_HOME);
+    const system = systemBundle(COMBI_ONLY_VIABLE_HOME);
+    const hp     = hpBundle(COMBI_ONLY_VIABLE_HOME);
+
+    const result = buildRecommendationsFromEvidence([combi, system, hp]);
+
+    expect(result.bestOverall?.family).toBe('combi');
+  });
+
+  it('combi ranks 1st overall — stored and HP options score lower due to space constraint', () => {
+    const combi  = combiBundle(COMBI_ONLY_VIABLE_HOME);
+    const system = systemBundle(COMBI_ONLY_VIABLE_HOME);
+    const hp     = hpBundle(COMBI_ONLY_VIABLE_HOME);
+
+    const result = buildRecommendationsFromEvidence([combi, system, hp]);
+
+    const combiDecision  = result.bestOverall?.family === 'combi' ? result.bestOverall : null;
+    const systemDecision = result.allDecisions.find(d => d.family === 'system');
+    const hpDecision     = result.allDecisions.find(d => d.family === 'heat_pump');
+
+    expect(combiDecision).not.toBeNull();
+    if (combiDecision && systemDecision) {
+      expect(combiDecision.overallScore).toBeGreaterThan(systemDecision.overallScore);
+    }
+    if (combiDecision && hpDecision) {
+      expect(combiDecision.overallScore).toBeGreaterThan(hpDecision.overallScore);
+    }
+  });
+
+  it('stored options have space_for_cylinder_unavailable in their limiter evidence', () => {
+    const system = systemBundle(COMBI_ONLY_VIABLE_HOME);
+
+    const result = buildRecommendationsFromEvidence([system]);
+
+    const systemDecision = result.bestOverall;
+    expect(systemDecision).not.toBeNull();
+    if (systemDecision) {
+      expect(
+        systemDecision.evidenceTrace.limitersConsidered.includes('space_for_cylinder_unavailable'),
+      ).toBe(true);
+    }
+  });
+
+  it('score separation between combi and stored is material (> 10 points)', () => {
+    const combi  = combiBundle(COMBI_ONLY_VIABLE_HOME);
+    const system = systemBundle(COMBI_ONLY_VIABLE_HOME);
+
+    const result = buildRecommendationsFromEvidence([combi, system]);
+
+    const combiScore  = result.bestOverall?.family === 'combi'
+      ? result.bestOverall.overallScore
+      : result.allDecisions.find(d => d.family === 'combi')?.overallScore ?? 0;
+    const systemScore = result.allDecisions.find(d => d.family === 'system')?.overallScore ?? 100;
+
+    expect(combiScore - systemScore).toBeGreaterThan(10);
+  });
+});
