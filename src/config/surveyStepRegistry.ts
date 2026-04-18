@@ -16,6 +16,7 @@ export type SurveyStepId =
   | 'usage'
   | 'services'
   | 'heat_loss'
+  | 'solar_assessment'
   | 'priorities'
   | 'insight';
 
@@ -72,8 +73,16 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
     analyticsEvent: 'survey_step_heat_loss',
   },
   {
-    id: 'priorities',
+    id: 'solar_assessment',
     displayIndex: 5,
+    heading: '☀️ Solar & Roof',
+    shortLabel: 'Solar',
+    testId: 'solar-assessment-step',
+    analyticsEvent: 'survey_step_solar_assessment',
+  },
+  {
+    id: 'priorities',
+    displayIndex: 6,
     heading: '🎯 Priorities',
     shortLabel: 'Priorities',
     testId: 'priorities-step',
@@ -81,7 +90,7 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
   },
   {
     id: 'insight',
-    displayIndex: 6,
+    displayIndex: 7,
     heading: '🧠 What we need to keep in mind',
     shortLabel: 'Insight',
     testId: 'insight-layer-page',

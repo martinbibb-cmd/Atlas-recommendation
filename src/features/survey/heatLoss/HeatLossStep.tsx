@@ -32,8 +32,7 @@ import { type CSSProperties, useMemo } from 'react';
 import type { HeatLossState, ShellModel } from './heatLossTypes';
 import { INITIAL_HEAT_LOSS_STATE } from './heatLossTypes';
 import { getStepMeta } from '../../../config/surveyStepRegistry';
-import HeatLossCalculator, { INITIAL_ROOF_MODEL } from '../../../components/heatloss/HeatLossCalculator';
-import type { RoofModel } from '../../../components/heatloss/HeatLossCalculator';
+import HeatLossCalculator from '../../../components/heatloss/HeatLossCalculator';
 
 export { INITIAL_HEAT_LOSS_STATE };
 
@@ -175,16 +174,6 @@ export function HeatLossStep({
   const canProceed = completionState === 'not_started' || completionState === 'result_ready';
   const gateReason = getGateReason(completionState);
 
-  // Derive a RoofModel slice from HeatLossState for the calculator's roof panel
-  const roofModel: RoofModel = {
-    roofType:          state.roofType,
-    roofOrientation:   state.roofOrientation,
-    shadingLevel:      state.shadingLevel,
-    pvStatus:          state.pvStatus,
-    batteryStatus:     state.batteryStatus,
-    buildingBearingDeg: state.buildingBearingDeg,
-  };
-
   function handleHeatLossChange(totalKw: number | null) {
     // When a heat-loss result arrives, also capture the computed perimeter and
     // area from the active shell layer so they are stored in state (and
@@ -206,18 +195,6 @@ export function HeatLossStep({
       heatLossConfidence: totalKw != null ? 'estimated' : state.heatLossConfidence,
       perimeterM:       derivedPerimeterM,
       groundFloorAreaM2: derivedAreaM2,
-    });
-  }
-
-  function handleRoofModelChange(next: RoofModel) {
-    onChange({
-      ...state,
-      roofType:           next.roofType,
-      roofOrientation:    next.roofOrientation,
-      shadingLevel:       next.shadingLevel,
-      pvStatus:           next.pvStatus,
-      batteryStatus:      next.batteryStatus,
-      buildingBearingDeg: next.buildingBearingDeg,
     });
   }
 
@@ -254,8 +231,6 @@ export function HeatLossStep({
         <HeatLossCalculator
           embedded
           onHeatLossChange={handleHeatLossChange}
-          roofModel={roofModel}
-          onRoofModelChange={handleRoofModelChange}
           initialShell={state.shellModel}
           onShellChange={handleShellChange}
           onSnapshotChange={handleSnapshotChange}
@@ -350,8 +325,4 @@ function computePerimeter(points: { x: number; y: number }[]): number {
   }
   return perimeter;
 }
-
-// Keep INITIAL_ROOF_MODEL accessible from this module for convenience
-export { INITIAL_ROOF_MODEL };
-
 

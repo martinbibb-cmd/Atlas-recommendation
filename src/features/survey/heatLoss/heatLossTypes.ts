@@ -79,15 +79,24 @@ export type ShellLayerKind = 'original' | 'extension' | 'upper_floor' | 'referen
 /**
  * A single named layer in the house sketch.
  * Each layer holds one closed (or in-progress) polygon and its edge metadata.
+ *
+ * `storeys` and `ceilingHeight` are per-layer so that extensions, upper floors,
+ * and outbuildings can each carry independent heights (ported from Quick-heat-loss CHANGE 2).
+ * Fields are optional for backward compatibility with saved shells that pre-date this change;
+ * callers must default to 2 storeys / 2.4 m when absent.
  */
 export interface ShellLayer {
-  id:      string;
-  name:    string;
-  kind:    ShellLayerKind;
-  visible: boolean;
-  points:  ShellPoint[];
-  closed:  boolean;
-  edges:   ShellEdge[];
+  id:             string;
+  name:           string;
+  kind:           ShellLayerKind;
+  visible:        boolean;
+  points:         ShellPoint[];
+  closed:         boolean;
+  edges:          ShellEdge[];
+  /** Number of storeys for this layer section (defaults to 2). */
+  storeys?:       number;
+  /** Internal ceiling height in metres for this layer section (defaults to 2.4). */
+  ceilingHeight?: number;
 }
 
 /**
