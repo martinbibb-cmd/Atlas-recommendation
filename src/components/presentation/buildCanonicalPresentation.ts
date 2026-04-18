@@ -17,7 +17,7 @@
 
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { OptionCardV1 } from '../../contracts/EngineOutputV1';
-import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
+import type { RecommendationDecision, RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import type { DhwArchitecture } from '../../lib/dhw/buildDhwContextFromSurvey';
 import type { DhwType, PipeLayout, ControlFamily } from '../../features/survey/systemBuilder/systemBuilderTypes';
@@ -1826,41 +1826,31 @@ function buildPage3(
   const demo = result.demographicOutputs;
   const pv   = result.pvAssessment;
 
-  // Collect all candidates with scores — sort by overallScore descending
-  const allDecisions = [
-    recommendation.bestOverall,
-    ...Object.values(recommendation.bestByObjective),
-  ].filter((d): d is NonNullable<typeof d> => d != null);
-
-  // Deduplicate by family; keep highest score per family
-  const familyMap = new Map<ApplianceFamily, { family: ApplianceFamily; score: number }>();
-  for (const d of allDecisions) {
-    const existing = familyMap.get(d.family);
-    if (!existing || d.overallScore > existing.score) {
-      familyMap.set(d.family, { family: d.family, score: d.overallScore });
-    }
-  }
-
-  // Supplement with all non-winning evaluated families from whyNotExplanations.
-  // The engine evaluates 4 families (combi, system, heat_pump, open_vented); any
-  // family that didn't win bestOverall or any objective will only appear here.
-  // This guarantees all 4 evaluated families are shown in the ranking.
-  const winnerScore = recommendation.bestOverall?.overallScore ?? 0;
-  for (const why of recommendation.whyNotExplanations) {
-    if (!familyMap.has(why.family)) {
-      // Reconstruct the actual engine score: winnerScore − scoreGap = candidate.overallScore
-      const derivedScore = Math.max(0, winnerScore - why.scoreGap);
-      familyMap.set(why.family, { family: why.family, score: derivedScore });
-    }
-  }
-
-  // Also add disqualified candidates at the bottom (hard-stop limiters → score 0)
-  const disqualifiedFamilies = new Set(recommendation.disqualifiedCandidates.map(d => d.family));
-  const disqualifiedDecisions = new Map(
-    recommendation.disqualifiedCandidates.map(d => [d.family, d]),
+  // Build a lookup map from each family to its full RecommendationDecision.
+  // recommendation.allDecisions contains every evaluated family (eligible and
+  // disqualified) with engine-derived scores, caveats, and evidence traces.
+  // Ranking order and reason lines must be sourced from this data, not from
+  // hardcoded family-type templates.
+  const decisionByFamily = new Map<ApplianceFamily, RecommendationDecision>(
+    recommendation.allDecisions.map(d => [d.family, d]),
   );
+
+  // Build a whyNot lookup for non-winner families.
+  const whyNotByFamily = new Map(
+    recommendation.whyNotExplanations.map(w => [w.family, w]),
+  );
+
+  // Collect all candidates with scores from the engine's allDecisions.
+  // allDecisions is already ordered by overallScore descending.
+  const familyMap = new Map<ApplianceFamily, { family: ApplianceFamily; score: number }>();
+  for (const d of recommendation.allDecisions) {
+    familyMap.set(d.family, { family: d.family, score: d.overallScore });
+  }
+
+  // Override disqualified families to score 0 — hard-stop limiters mean
+  // these candidates are not installable in this home.
+  const disqualifiedFamilies = new Set(recommendation.disqualifiedCandidates.map(d => d.family));
   for (const d of recommendation.disqualifiedCandidates) {
-    // Override score to 0 — disqualified means not installable in this home.
     familyMap.set(d.family, { family: d.family, score: 0 });
   }
 
@@ -1868,7 +1858,9 @@ function buildPage3(
 
   const items: PhysicsRankingItem[] = sorted.map((entry, index) => {
     const isDisqualified = disqualifiedFamilies.has(entry.family);
+    const isWinner = index === 0 && !isDisqualified;
     const label = FAMILY_LABELS[entry.family] ?? entry.family;
+    const decision = decisionByFamily.get(entry.family);
 
     // Demand fit note
     let demandFitNote: string | undefined;
@@ -1911,14 +1903,43 @@ function buildPage3(
       energyFitNote = `Existing PV: combi cannot store solar surplus`;
     }
 
+    // Reason line — sourced from engine evidence, not hardcoded templates.
+    //
+    // Priority order:
+    //   1. Engine caveats (human-readable limiter titles from the ledger) — used
+    //      for all non-winner families and for the winner when advisory caveats
+    //      are present.  This guarantees the text reflects the actual physics
+    //      evidence for this specific home.
+    //   2. WhyNot explanation summary — used for non-winner families with no
+    //      caveats, where the reason is simply a lower fit score.
+    //   3. Survey/engine signal template (buildRankingReasonLine) — used as
+    //      fallback only for the rank-1 winner when there are no caveats (i.e.
+    //      a clean fit that positively matches this home's survey signals).
+    let reasonLine: string;
+    if (isDisqualified) {
+      // Hard-stop: use first caveat from engine, falling back to a safe default.
+      reasonLine = decision?.caveats[0] ?? 'Hard constraint prevents installation in this home';
+    } else if (!isWinner && (decision?.caveats.length ?? 0) > 0) {
+      // Non-winner with engine caveats: the caveat IS the limiting reason.
+      reasonLine = decision!.caveats[0]!;
+    } else if (!isWinner) {
+      // Non-winner, no caveats: use the engine's whyNot summary (references score
+      // gap and signals) rather than a hardcoded family-type template.
+      const whyNot = whyNotByFamily.get(entry.family);
+      reasonLine = whyNot?.summary ?? buildRankingReasonLine(entry.family, result, input);
+    } else {
+      // Winner (rank 1): generate a positive, home-specific reason from survey
+      // and engine signals.  buildRankingReasonLine uses real demographic, PV,
+      // and infrastructure outputs — it is data-driven, not fixed copy.
+      reasonLine = buildRankingReasonLine(entry.family, result, input);
+    }
+
     return {
       rank: index + 1,
       family: entry.family,
       label,
       overallScore: entry.score,
-      reasonLine: isDisqualified
-        ? (disqualifiedDecisions.get(entry.family)?.caveats[0] ?? `Hard constraint prevents installation in this home`)
-        : buildRankingReasonLine(entry.family, result, input),
+      reasonLine,
       demandFitNote,
       waterFitNote,
       infrastructureFitNote,

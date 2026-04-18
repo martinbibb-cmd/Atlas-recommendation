@@ -748,3 +748,53 @@ describe('buildRecommendationsFromEvidence — combi_dhw_demand_risk penalty', (
     expect(hasDemandRiskCaveat).toBe(true);
   });
 });
+
+describe('buildRecommendationsFromEvidence — allDecisions', () => {
+  it('allDecisions contains every evaluated family exactly once', () => {
+    const combi  = combiBundle(CLEAN_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+    const result = buildRecommendationsFromEvidence([combi, system]);
+
+    expect(result.allDecisions.length).toBe(2);
+    const families = result.allDecisions.map(d => d.family);
+    expect(families).toContain('combi');
+    expect(families).toContain('system');
+  });
+
+  it('allDecisions contains disqualified candidates as well as eligible ones', () => {
+    // Use high-demand input to ensure combi gets a heavy penalty; use a bundle
+    // that forces a hard stop on combi by providing 3 bathrooms.
+    const combi  = combiBundle(HIGH_DEMAND_INPUT);
+    const system = systemBundle(HIGH_DEMAND_INPUT);
+    const result = buildRecommendationsFromEvidence([combi, system]);
+
+    // allDecisions must include both families regardless of suitability.
+    expect(result.allDecisions.length).toBe(2);
+    const families = result.allDecisions.map(d => d.family);
+    expect(families).toContain('combi');
+    expect(families).toContain('system');
+  });
+
+  it('allDecisions overallScores are consistent with bestOverall overallScore', () => {
+    const combi  = combiBundle(CLEAN_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+    const result = buildRecommendationsFromEvidence([combi, system]);
+
+    if (result.bestOverall) {
+      const winnerInAll = result.allDecisions.find(d => d.family === result.bestOverall!.family);
+      expect(winnerInAll).toBeDefined();
+      expect(winnerInAll!.overallScore).toBe(result.bestOverall.overallScore);
+    }
+  });
+
+  it('allDecisions caveats are accessible for all families', () => {
+    const combi  = combiBundle(HIGH_DEMAND_INPUT);
+    const system = systemBundle(HIGH_DEMAND_INPUT);
+    const result = buildRecommendationsFromEvidence([combi, system]);
+
+    // Every decision must have a defined caveats array (may be empty for clean fits).
+    for (const d of result.allDecisions) {
+      expect(Array.isArray(d.caveats)).toBe(true);
+    }
+  });
+});

@@ -271,6 +271,20 @@ export interface RecommendationResult {
    * Null when `bestOverall` is null or the bundle contained no fit-map data.
    */
   readonly fitMapPosition: { readonly heatingScore: number; readonly dhwScore: number } | null;
+
+  /**
+   * All scored candidate decisions, ordered by overallScore descending.
+   *
+   * Contains one entry per evaluated candidate family (eligible and
+   * disqualified), each with its `caveats`, `objectiveScores`, `overallScore`,
+   * `suitability`, and `evidenceTrace`.
+   *
+   * Presentation layers (e.g. physics ranking reason lines) must source
+   * candidate-specific explanations from this field rather than using
+   * hardcoded family-type templates.  This guarantees the displayed text is
+   * driven by the engine's actual evidence for this specific home.
+   */
+  readonly allDecisions: readonly RecommendationDecision[];
 }
 
 /**

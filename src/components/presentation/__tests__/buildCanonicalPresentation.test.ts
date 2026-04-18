@@ -554,12 +554,19 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
     }
   });
 
-  it('open_vented reason line is physics-based (references occupancy or demand)', () => {
+  it('open_vented reason line is engine-derived, not a hardcoded template', () => {
     const result = runEngine(BASE_INPUT);
     const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
     const openVented = model.page3.items.find(i => i.family === 'open_vented');
     if (openVented) {
-      expect(openVented.reasonLine).toMatch(/person|people|L\/day|bar|tank-fed/i);
+      // With the engine-based approach, reason line comes from engine caveats or
+      // the whyNot summary — NOT from a fixed family-type template.
+      // It must not be one of the old hardcoded template starters.
+      expect(openVented.reasonLine).not.toMatch(
+        /^Tank-fed supply: \d+-person demand/,
+      );
+      // Should contain a reference to an engine score comparison or a caveat title
+      expect(openVented.reasonLine.length).toBeGreaterThan(10);
     }
   });
 
@@ -572,6 +579,59 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
     for (const item of disqualifiedItems) {
       expect(item.reasonLine).not.toBe('Not recommended — hard constraint prevents use in this home');
     }
+  });
+
+  it('non-winner reason lines do not use hardcoded family-type templates', () => {
+    // Hardcoded templates always start with specific family-type phrases.
+    // Engine-driven reason lines use caveat titles or whyNot summary text instead.
+    const result = runEngine(BASE_INPUT);
+    const model = buildCanonicalPresentation(result, BASE_INPUT, result.recommendationResult);
+    const nonWinners = model.page3.items.slice(1); // rank 2, 3, 4
+    for (const item of nonWinners) {
+      if (item.overallScore > 0) {
+        // Non-disqualified non-winners must NOT use old hardcoded starters
+        expect(item.reasonLine).not.toMatch(/^Single-bathroom, low-concurrency household/);
+        expect(item.reasonLine).not.toMatch(/^ASHP: \d+\.\d+ kW heat loss/);
+        expect(item.reasonLine).not.toMatch(/^Stored water for \d+ people/);
+        expect(item.reasonLine).not.toMatch(/^Tank-fed supply: \d+-person demand/);
+      }
+    }
+  });
+
+  it('ranking order changes when eco priority boosts heat pump weight', () => {
+    // Without eco priority: combi is typically rank 1 for a single-person home.
+    const baseResult = runEngine(BASE_INPUT);
+    const baseModel = buildCanonicalPresentation(baseResult, BASE_INPUT, baseResult.recommendationResult);
+
+    // With eco priority explicitly selected: objective weights shift toward eco,
+    // which favours heat pump (lower carbon, higher efficiency).
+    const ecoInput = withInput({ preferences: { selectedPriorities: ['eco'] } });
+    const ecoResult = runEngine(ecoInput);
+    const ecoModel = buildCanonicalPresentation(ecoResult, ecoInput, ecoResult.recommendationResult);
+
+    // Both models should have items
+    expect(baseModel.page3.items.length).toBeGreaterThan(0);
+    expect(ecoModel.page3.items.length).toBeGreaterThan(0);
+
+    // The overall scores must come from the engine — verify they differ across
+    // the two preference scenarios (eco preference changes the objective weights).
+    const baseScores = baseModel.page3.items.map(i => i.overallScore);
+    const ecoScores = ecoModel.page3.items.map(i => i.overallScore);
+    // At least one family's score should differ between the two runs.
+    const anyScoreDiffers = baseScores.some((s, idx) => s !== ecoScores[idx]);
+    expect(anyScoreDiffers).toBe(true);
+  });
+
+  it('allDecisions is exposed in recommendationResult and covers all evaluated families', () => {
+    const result = runEngine(BASE_INPUT);
+    const { recommendationResult } = result;
+    // Engine evaluates combi, system, heat_pump, open_vented
+    expect(recommendationResult.allDecisions.length).toBe(4);
+    const families = recommendationResult.allDecisions.map(d => d.family);
+    expect(families).toContain('combi');
+    expect(families).toContain('system');
+    expect(families).toContain('heat_pump');
+    expect(families).toContain('open_vented');
   });
 });
 

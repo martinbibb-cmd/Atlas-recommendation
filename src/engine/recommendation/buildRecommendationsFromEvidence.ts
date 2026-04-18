@@ -939,6 +939,7 @@ export function buildRecommendationsFromEvidence(
     primaryConstraint,
     supportingEvents,
     fitMapPosition,
+    allDecisions,
   };
 }
 
