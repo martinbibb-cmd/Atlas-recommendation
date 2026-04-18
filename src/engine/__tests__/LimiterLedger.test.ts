@@ -219,31 +219,37 @@ describe('LimiterLedger — combi: combi_service_switching', () => {
 });
 
 // ─── 2. Simultaneous demand constraint ───────────────────────────────────────
+//
+// simultaneous_demand_constraint is a NON-COMBI-only limiter.
+//
+// For combi boilers, 'ch_interrupted' events (which drive this counter) reflect
+// the normal diverter-valve switching between CH and DHW circuits — an inherent
+// architectural property of combis.  That behaviour is already captured by
+// combi_service_switching (warning) and combi_dhw_demand_risk (from the
+// demographic gate), so emitting simultaneous_demand_constraint on top would
+// double-count the same constraint and unfairly depress combi scores in
+// single-bathroom, low-occupancy homes.
+//
+// For stored/HP families the counter only fires when a genuine concurrency
+// constraint exists (e.g. Y-plan zoning, flow-sharing under load), which
+// warrants a 'limit' severity entry.
 
-describe('LimiterLedger — shared: simultaneous_demand_constraint', () => {
-  it('emits simultaneous_demand_constraint when event is present', () => {
+describe('LimiterLedger — non-combi only: simultaneous_demand_constraint', () => {
+  it('does NOT emit simultaneous_demand_constraint for combi even when interruption events are present', () => {
     const { runnerResult, eventSummary } = combiWithInterruption();
+    // Guard: only meaningful when interruption events are actually present
     if (eventSummary.counters.simultaneousDemandConstraints > 0) {
       const ledger = buildLimiterLedger(runnerResult, eventSummary);
-      expect(ledger.entries.some(e => e.id === 'simultaneous_demand_constraint')).toBe(true);
+      expect(ledger.entries.some(e => e.id === 'simultaneous_demand_constraint')).toBe(false);
     }
   });
 
-  it('simultaneous_demand_constraint has severity "limit"', () => {
+  it('combi_service_switching is emitted instead of simultaneous_demand_constraint for combi', () => {
     const { runnerResult, eventSummary } = combiWithInterruption();
     if (eventSummary.counters.simultaneousDemandConstraints > 0) {
       const ledger = buildLimiterLedger(runnerResult, eventSummary);
-      const entry = ledger.entries.find(e => e.id === 'simultaneous_demand_constraint');
-      if (entry) expect(entry.severity).toBe('limit');
-    }
-  });
-
-  it('simultaneous_demand_constraint triggerKeys includes simultaneous_demand_constraint', () => {
-    const { runnerResult, eventSummary } = combiWithInterruption();
-    if (eventSummary.counters.simultaneousDemandConstraints > 0) {
-      const ledger = buildLimiterLedger(runnerResult, eventSummary);
-      const entry = ledger.entries.find(e => e.id === 'simultaneous_demand_constraint');
-      if (entry) expect(entry.triggerKeys).toContain('simultaneous_demand_constraint');
+      // combi_service_switching (warning) captures the ch-interrupted behaviour for combis
+      expect(ledger.entries.some(e => e.id === 'combi_service_switching')).toBe(true);
     }
   });
 });

@@ -226,9 +226,23 @@ export function buildLimiterLedger(
     // occupancyCount <= 2 with bathroomCount < 2: pass — no entry emitted.
   }
 
-  // 2. simultaneous_demand_constraint — shared
+  // 2. simultaneous_demand_constraint — stored/HP families only
   //    Evidence: simultaneous_demand_constraint events from the timeline.
-  if (counters.simultaneousDemandConstraints > 0) {
+  //
+  //    For combi boilers, 'ch_interrupted' events (which drive this counter)
+  //    reflect the normal diverter-valve switching between CH and DHW circuits.
+  //    This is the inherent architecture of a combi — it is already captured by
+  //    combi_service_switching (warning) and combi_dhw_demand_risk (limit/warning
+  //    from the demographic gate).  Emitting simultaneous_demand_constraint on
+  //    top of those two limiters would double-penalise the same physical behaviour
+  //    and unfairly depress combi scores in single-bathroom, low-occupancy homes
+  //    where combi is the most appropriate choice.
+  //
+  //    For non-combi families, the counter fires only when the hydronic system
+  //    genuinely cannot serve CH and DHW simultaneously (e.g. a Y-plan system
+  //    without adequate zoning), which is a real operational constraint — hence
+  //    'limit' severity here.
+  if (family !== 'combi' && counters.simultaneousDemandConstraints > 0) {
     entries.push({
       id: 'simultaneous_demand_constraint',
       family,
@@ -567,11 +581,45 @@ export function buildLimiterLedger(
   }
 
   // 15. space_for_cylinder_unavailable — store-only
-  //     Evidence: storedDhwV1.flags contains 'stored-space-tight'.
+  //     Evidence: storedDhwV1.flags contains 'stored-space-none' (no space at all) or
+  //     'stored-space-tight' (space tight but possible with compact cylinder).
+  //
+  //     Severity tiers:
+  //       'stored-space-none'  → 'limit' — cylinder cannot be installed; the stored option
+  //                              is physically blocked.  This is a stronger signal than tight
+  //                              space because there is literally nowhere to put a cylinder.
+  //       'stored-space-tight' → 'warning' — space is tight but a compact/slimline cylinder
+  //                              may be viable.
+  //
+  //     Both cases penalise 'space' and 'disruption'.  The 'limit' case additionally
+  //     penalises 'performance' and 'reliability' because a stored system that cannot have
+  //     a cylinder cannot deliver its primary DHW function.
   if (family !== 'combi') {
     const storedDhwV1 = runnerResult.dhw.storedDhwV1;
+    const hasSpaceNoneFlag  = storedDhwV1?.flags.some(f => f.id === 'stored-space-none');
     const hasSpaceTightFlag = storedDhwV1?.flags.some(f => f.id === 'stored-space-tight');
-    if (hasSpaceTightFlag) {
+
+    if (hasSpaceNoneFlag) {
+      // No cylinder space at all — 'limit' severity (not a hard stop under advice-only
+      // policy, but a strong advisory constraint that forces the score well below combi).
+      entries.push({
+        id: 'space_for_cylinder_unavailable',
+        family,
+        domain: 'installability',
+        severity: 'limit',
+        title: 'No space for cylinder — stored hot water not feasible',
+        description:
+          `No suitable space for a hot water cylinder has been confirmed at this property. ` +
+          `Any system requiring a cylinder (system boiler, regular boiler, heat pump) cannot ` +
+          `be installed without creating new space. Only on-demand hot water (combi) should ` +
+          `be considered unless additional space can be created.`,
+        source: 'stored_dhw_v1',
+        triggerKeys: ['storedDhwV1.flags.stored-space-none'],
+        removableByUpgrade: false,
+        candidateInterventions: ['install_compact_cylinder', 'install_mixergy_unit'],
+        confidence: 'derived',
+      });
+    } else if (hasSpaceTightFlag) {
       entries.push({
         id: 'space_for_cylinder_unavailable',
         family,

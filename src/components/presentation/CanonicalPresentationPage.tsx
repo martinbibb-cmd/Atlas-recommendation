@@ -329,6 +329,35 @@ function RankingItem({ item }: { item: PhysicsRankingItem }) {
           <p className="cpp-ranking-item__score">Score: {item.overallScore}</p>
         )}
         <p className="cpp-ranking-item__reason">{item.reasonLine}</p>
+
+        {/* Four dimension-specific rank badges */}
+        <div className="cpp-dim-ranks" aria-label="Dimension rankings">
+          <span className="cpp-dim-rank cpp-dim-rank--mains" title={item.mainsWaterLabel}>
+            <span className="cpp-dim-rank__icon">💧</span>
+            <span className="cpp-dim-rank__label">Mains water</span>
+            <span className="cpp-dim-rank__badge">#{item.mainsWaterRank}</span>
+            <span className="cpp-dim-rank__note">{item.mainsWaterLabel}</span>
+          </span>
+          <span className="cpp-dim-rank cpp-dim-rank--demand" title={item.demandWaterLabel}>
+            <span className="cpp-dim-rank__icon">🚿</span>
+            <span className="cpp-dim-rank__label">Demand fit</span>
+            <span className="cpp-dim-rank__badge">#{item.demandWaterRank}</span>
+            <span className="cpp-dim-rank__note">{item.demandWaterLabel}</span>
+          </span>
+          <span className="cpp-dim-rank cpp-dim-rank--efficiency" title={item.efficiencyLabel}>
+            <span className="cpp-dim-rank__icon">⚡</span>
+            <span className="cpp-dim-rank__label">Efficiency</span>
+            <span className="cpp-dim-rank__badge">#{item.efficiencyRank}</span>
+            <span className="cpp-dim-rank__note">{item.efficiencyLabel}</span>
+          </span>
+          <span className="cpp-dim-rank cpp-dim-rank--properties" title={item.selectedPropertiesLabel}>
+            <span className="cpp-dim-rank__icon">🏠</span>
+            <span className="cpp-dim-rank__label">Property fit</span>
+            <span className="cpp-dim-rank__badge">#{item.selectedPropertiesRank}</span>
+            <span className="cpp-dim-rank__note">{item.selectedPropertiesLabel}</span>
+          </span>
+        </div>
+
         <div className="cpp-ranking-fit-notes" aria-label="Fit dimensions">
           {item.demandFitNote && (
             <span className="cpp-fit-note cpp-fit-note--demand">Demand: {item.demandFitNote}</span>

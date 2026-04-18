@@ -358,6 +358,40 @@ export interface PhysicsRankingItem {
   waterFitNote: string | undefined;
   infrastructureFitNote: string | undefined;
   energyFitNote: string | undefined;
+
+  // ── Four dimension-specific ranks (1 = best, N = worst across all options) ──
+
+  /**
+   * Rank 1–N for water performance based on mains supply.
+   * Combi is most sensitive to mains pressure/flow; stored-vented is immune at the tap.
+   */
+  mainsWaterRank: number;
+  /** One-line label for the mains-supply water rank (e.g. "Adequate for combi"). */
+  mainsWaterLabel: string;
+
+  /**
+   * Rank 1–N for water performance based on occupancy/demand fit.
+   * Stored hot water handles simultaneous demand; combi struggles at high occupancy.
+   */
+  demandWaterRank: number;
+  /** One-line label for the demand water rank (e.g. "Stored volume handles concurrency"). */
+  demandWaterLabel: string;
+
+  /**
+   * Rank 1–N for efficiency (eco objective score).
+   * Heat pumps lead on eco; regular boilers typically trail.
+   */
+  efficiencyRank: number;
+  /** One-line label for the efficiency rank (e.g. "High eco score"). */
+  efficiencyLabel: string;
+
+  /**
+   * Rank 1–N for match with the selected property characteristics
+   * (space availability, installation disruption, ease of control).
+   */
+  selectedPropertiesRank: number;
+  /** One-line label for the selected-properties rank. */
+  selectedPropertiesLabel: string;
 }
 
 /** Page 3 — Physics-first ranking. */
@@ -1814,6 +1848,231 @@ function buildRankingReasonLine(
   return `Candidate assessed against house (${(input.heatLossWatts / 1000).toFixed(1)} kW), home (${input.occupancyCount ?? 2} people), and energy signals.`;
 }
 
+// ─── Dimension scoring helpers ────────────────────────────────────────────────
+
+/**
+ * Limiter IDs that indicate mains-supply constraints for combi/unvented options.
+ * Used to adjust the mains water sub-score in the presentation ranking.
+ */
+const MAINS_CONSTRAINT_LIMITER_IDS = new Set([
+  'mains_flow_constraint',
+  'pressure_constraint',
+]);
+
+/**
+ * Limiter IDs that indicate demand-side constraints (occupancy/simultaneous draw).
+ * Used to adjust the demand water sub-score in the presentation ranking.
+ */
+const DEMAND_CONSTRAINT_LIMITER_IDS = new Set([
+  'combi_dhw_demand_risk',
+  'simultaneous_demand_constraint',
+  'stored_volume_shortfall',
+  'hp_reheat_latency',
+]);
+
+/**
+ * Compute a raw "mains water" sub-score for one option family.
+ *
+ * Reflects how well the mains supply at this property (pressure + flow) supports
+ * this option's hot-water delivery:
+ *   - open_vented / regular: gravity-fed DHW — entirely mains-independent at the
+ *     tap; always awarded the highest base.
+ *   - combi: directly mains-dependent; large penalty when mains limiters fired.
+ *   - system / heat_pump: mains fills the cylinder but DHW at tap is stored;
+ *     moderate sensitivity.
+ *
+ * Returns a 0–100 score (higher = better mains fit).
+ */
+function mainsWaterSubScore(
+  family: ApplianceFamily,
+  decision: RecommendationDecision | undefined,
+): number {
+  // Gravity-fed (open_vented / regular): immune to mains pressure at the tap.
+  if (family === 'open_vented' || family === 'regular') return 95;
+
+  if (!decision) return 50;
+
+  const consideredLimiters = new Set(decision.evidenceTrace.limitersConsidered);
+  const hasMainsConstraint = [...MAINS_CONSTRAINT_LIMITER_IDS].some(id => consideredLimiters.has(id));
+
+  if (family === 'combi') {
+    // Combi draws hot water directly from the mains; heavy penalty when constrained.
+    return hasMainsConstraint
+      ? Math.max(0, decision.objectiveScores.performance - 20)
+      : Math.min(100, decision.objectiveScores.performance + 10);
+  }
+
+  // system / heat_pump: mains pressure matters for cylinder fill but not at the tap.
+  return hasMainsConstraint
+    ? Math.max(0, decision.objectiveScores.performance - 5)
+    : decision.objectiveScores.performance;
+}
+
+/**
+ * Human-readable label for the mains-water rank of a given option.
+ *
+ * Labels are terse (≤ 8 words) to fit in a compact rank badge.
+ */
+function mainsWaterLabel(
+  family: ApplianceFamily,
+  decision: RecommendationDecision | undefined,
+  input: EngineInputV2_3,
+): string {
+  if (family === 'open_vented' || family === 'regular') {
+    return 'Gravity-fed — mains-independent';
+  }
+  const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  const consideredLimiters = new Set(decision?.evidenceTrace.limitersConsidered ?? []);
+  const hasMainsConstraint = [...MAINS_CONSTRAINT_LIMITER_IDS].some(id => consideredLimiters.has(id));
+
+  if (family === 'combi') {
+    if (hasMainsConstraint) return dynamicBar != null ? `${dynamicBar} bar — constrains combi` : 'Mains constraint applies';
+    return dynamicBar != null ? `${dynamicBar} bar — adequate for combi` : 'Mains supply suitable';
+  }
+  // system / heat_pump
+  if (hasMainsConstraint) return 'Mains constraint on cylinder fill';
+  return 'Stored — low mains sensitivity';
+}
+
+/**
+ * Compute a raw "demand water" sub-score for one option family.
+ *
+ * Reflects how well the option handles this household's occupancy and demand
+ * pattern (simultaneous draws, daily volume, recovery profile):
+ *   - Stored options excel at simultaneous demand; penalised for volume shortfall.
+ *   - Combi is single-draw only; penalised for high occupancy/multiple bathrooms.
+ *   - Heat pump stored: like system stored but recovery is slower.
+ *
+ * Returns a 0–100 score (higher = better demand fit).
+ */
+function demandWaterSubScore(
+  family: ApplianceFamily,
+  decision: RecommendationDecision | undefined,
+): number {
+  if (!decision) return 50;
+
+  const consideredLimiters = new Set(decision.evidenceTrace.limitersConsidered);
+  const hasDemandConstraint = [...DEMAND_CONSTRAINT_LIMITER_IDS].some(id => consideredLimiters.has(id));
+
+  if (family === 'combi') {
+    return hasDemandConstraint
+      ? Math.max(0, decision.objectiveScores.performance - 20)
+      : Math.min(100, decision.objectiveScores.performance + 10);
+  }
+
+  // system / regular / open_vented: stored hot water decouples delivery from demand spikes.
+  if (family !== 'heat_pump') {
+    return hasDemandConstraint
+      ? Math.max(0, decision.objectiveScores.performance - 10)
+      : Math.min(100, decision.objectiveScores.performance + 8);
+  }
+
+  // heat_pump: stored but slow recovery.
+  return hasDemandConstraint
+    ? Math.max(0, decision.objectiveScores.performance - 15)
+    : decision.objectiveScores.performance;
+}
+
+/**
+ * Human-readable label for the demand-water rank of a given option.
+ */
+function demandWaterLabel(
+  family: ApplianceFamily,
+  decision: RecommendationDecision | undefined,
+  demo: { peakSimultaneousOutlets: number; dailyHotWaterLitres: number },
+): string {
+  const consideredLimiters = new Set(decision?.evidenceTrace.limitersConsidered ?? []);
+  const hasDemandConstraint = [...DEMAND_CONSTRAINT_LIMITER_IDS].some(id => consideredLimiters.has(id));
+
+  if (family === 'combi') {
+    if (hasDemandConstraint) {
+      return demo.peakSimultaneousOutlets >= 2
+        ? `Simultaneous draw risk (${demo.peakSimultaneousOutlets} outlets)`
+        : 'Demand constraint — consider stored';
+    }
+    return 'Single-draw demand — combi suited';
+  }
+
+  if (family === 'heat_pump') {
+    return hasDemandConstraint
+      ? 'Slow recovery under high demand'
+      : `Stored ~${Math.round(demo.dailyHotWaterLitres)} L/day — recovery key`;
+  }
+
+  // system / regular / open_vented
+  return hasDemandConstraint
+    ? `Volume shortfall — upsize cylinder`
+    : `Stored volume handles ${demo.peakSimultaneousOutlets}+ outlets`;
+}
+
+/**
+ * Human-readable label for the efficiency rank of a given option.
+ */
+function efficiencyLabel(
+  family: ApplianceFamily,
+  ecoScore: number,
+): string {
+  if (family === 'heat_pump') return `COP-based — highest eco potential`;
+  if (ecoScore >= 75) return `Efficient for this home`;
+  if (ecoScore >= 60) return `Moderate efficiency`;
+  return `Below average efficiency`;
+}
+
+/**
+ * Compute a raw "selected properties" sub-score for one option family.
+ *
+ * Reflects how well the option fits the specific property characteristics
+ * captured in the survey: space availability, installation disruption, and
+ * ease of control.  These are the dimensions most affected by site-specific
+ * properties (e.g. loft access, airing cupboard, existing controls).
+ *
+ * Uses the engine's objective scores directly — no re-running of engine logic.
+ *
+ * Returns a 0–100 score (higher = better property fit).
+ */
+function selectedPropertiesSubScore(
+  decision: RecommendationDecision | undefined,
+): number {
+  if (!decision) return 50;
+  const { space, disruption, ease_of_control } = decision.objectiveScores;
+  return Math.round((space + disruption + ease_of_control) / 3);
+}
+
+/**
+ * Human-readable label for the selected-properties rank of a given option.
+ */
+function selectedPropertiesLabel(
+  family: ApplianceFamily,
+  score: number,
+): string {
+  if (family === 'combi') {
+    return score >= 75 ? 'Minimal footprint — no cylinder' : 'Space-efficient installation';
+  }
+  if (family === 'heat_pump') {
+    return score >= 60 ? 'Outdoor unit + cylinder required' : 'Space and disruption constraints';
+  }
+  // system / regular / open_vented
+  return score >= 70 ? 'Cylinder fits property layout' : 'Space or disruption constraints';
+}
+
+/**
+ * Convert a list of raw dimension scores to 1-N ranks (1 = highest score).
+ * Ties share the lower (better) rank — i.e. two equal top scores both rank #1.
+ * Returns an array of ranks parallel to the input scores array.
+ */
+function toRanks(scores: number[]): number[] {
+  const indexed = scores.map((score, i) => ({ score, i }));
+  // Sort descending by score
+  const sorted = [...indexed].sort((a, b) => b.score - a.score);
+  const ranks = new Array<number>(scores.length);
+  for (let pos = 0; pos < sorted.length; pos++) {
+    // Find the position of the first item with this score (for tie handling)
+    const firstAtScore = sorted.findIndex(s => s.score === sorted[pos]!.score);
+    ranks[sorted[pos]!.i] = firstAtScore + 1;
+  }
+  return ranks;
+}
+
 function buildPage3(
   result: FullEngineResult,
   input: EngineInputV2_3,
@@ -1855,6 +2114,19 @@ function buildPage3(
   }
 
   const sorted = [...familyMap.values()].sort((a, b) => b.score - a.score);
+
+  // ── Dimension sub-scores for ranking badges ────────────────────────────────
+  // Compute per-dimension sub-scores across all candidates so we can assign
+  // ranks (1 = best, N = worst) for display alongside each option card.
+  const mainsScores       = sorted.map(e => mainsWaterSubScore(e.family, decisionByFamily.get(e.family)));
+  const demandScores      = sorted.map(e => demandWaterSubScore(e.family, decisionByFamily.get(e.family)));
+  const efficiencyScores  = sorted.map(e => decisionByFamily.get(e.family)?.objectiveScores.eco ?? 50);
+  const propScores        = sorted.map(e => selectedPropertiesSubScore(decisionByFamily.get(e.family)));
+
+  const mainsRanks      = toRanks(mainsScores);
+  const demandRanks     = toRanks(demandScores);
+  const efficiencyRanks = toRanks(efficiencyScores);
+  const propRanks       = toRanks(propScores);
 
   const items: PhysicsRankingItem[] = sorted.map((entry, index) => {
     const isDisqualified = disqualifiedFamilies.has(entry.family);
@@ -1934,6 +2206,9 @@ function buildPage3(
       reasonLine = buildRankingReasonLine(entry.family, result, input);
     }
 
+    const ecoScore = decision?.objectiveScores.eco ?? 50;
+    const propScore = propScores[index] ?? 50;
+
     return {
       rank: index + 1,
       family: entry.family,
@@ -1944,6 +2219,15 @@ function buildPage3(
       waterFitNote,
       infrastructureFitNote,
       energyFitNote,
+      // Dimension-specific ranks
+      mainsWaterRank:           mainsRanks[index]     ?? index + 1,
+      mainsWaterLabel:          mainsWaterLabel(entry.family, decision, input),
+      demandWaterRank:          demandRanks[index]    ?? index + 1,
+      demandWaterLabel:         demandWaterLabel(entry.family, decision, demo),
+      efficiencyRank:           efficiencyRanks[index] ?? index + 1,
+      efficiencyLabel:          efficiencyLabel(entry.family, ecoScore),
+      selectedPropertiesRank:   propRanks[index]      ?? index + 1,
+      selectedPropertiesLabel:  selectedPropertiesLabel(entry.family, propScore),
     };
   });
 
