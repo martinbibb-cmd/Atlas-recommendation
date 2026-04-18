@@ -103,6 +103,19 @@ const SYSTEM_CHOICE_OPTIONS: { value: SimulatorSystemChoice; label: string; desc
   { value: 'heat_pump',   label: 'Heat pump',   description: 'ASHP primary loop with cylinder. Low flow temps, no condensing.' },
 ];
 
+/**
+ * Human-readable display names for each SimulatorSystemChoice.
+ * Used in the compare context banner so it stays in sync with the live
+ * system selection rather than showing a stale initial-seed value.
+ */
+const SYSTEM_CHOICE_DISPLAY_LABEL: Record<SimulatorSystemChoice, string> = {
+  combi:       'Combi boiler',
+  unvented:    'Unvented cylinder',
+  open_vented: 'Open-vented cylinder',
+  heat_pump:   'Heat pump',
+  mixergy:     'Mixergy cylinder',
+};
+
 // ─── Phase bar ────────────────────────────────────────────────────────────────
 
 interface PhaseBarProps {
@@ -655,9 +668,13 @@ export default function SimulatorDashboard({
         {surveyBacked && (
           <div className="sim-compare-context" role="note" data-testid="compare-context-banner">
             <span className="sim-compare-context__label">Comparing</span>
-            <span className="sim-compare-context__current">{compareLabels.current}</span>
+            <span className="sim-compare-context__current">
+              {SYSTEM_CHOICE_DISPLAY_LABEL[systemChoice] ?? compareLabels.current}
+            </span>
             <span className="sim-compare-context__arrow" aria-hidden="true">→</span>
-            <span className="sim-compare-context__proposed">{compareLabels.proposed}</span>
+            <span className="sim-compare-context__proposed">
+              {SYSTEM_CHOICE_DISPLAY_LABEL[systemChoiceImproved] ?? compareLabels.proposed}
+            </span>
           </div>
         )}
 
