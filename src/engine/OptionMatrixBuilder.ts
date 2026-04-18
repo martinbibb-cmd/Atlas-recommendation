@@ -189,13 +189,13 @@ function buildSensitivities(
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `Mains pressure is ${pressure.toFixed(1)} bar — too low for a standard unvented cylinder. 💧 A Mixergy cylinder removes this pressure requirement and works at any mains pressure.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — too low for a standard unvented cylinder. 💧 A Mixergy cylinder removes this pressure requirement and remains usable on weaker supplies where a standard unvented cylinder would not.`,
       });
     } else if (pressure < 1.5) {
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `Mains pressure is ${pressure.toFixed(1)} bar — borderline for an unvented cylinder. Confirm measured flow under load. 💧 A Mixergy cylinder works at any pressure and avoids this concern.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — borderline for an unvented cylinder. Confirm measured flow under load. 💧 A Mixergy cylinder is more tolerant of weak mains supplies and avoids this concern.`,
       });
     } else {
       items.push({
@@ -228,13 +228,13 @@ function buildSensitivities(
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `Mains pressure is ${pressure.toFixed(1)} bar — too low for a standard unvented cylinder. 💧 A Mixergy cylinder removes this pressure requirement and works at any mains pressure.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — too low for a standard unvented cylinder. 💧 A Mixergy cylinder removes this pressure requirement and remains usable on weaker supplies where a standard unvented cylinder would not.`,
       });
     } else if (pressure < 1.5) {
       items.push({
         lever: 'Mains pressure',
         effect: 'upgrade',
-        note: `Mains pressure is ${pressure.toFixed(1)} bar — borderline for an unvented cylinder. Confirm measured flow under load. 💧 A Mixergy cylinder works at any pressure and avoids this concern.`,
+        note: `Mains pressure is ${pressure.toFixed(1)} bar — borderline for an unvented cylinder. Confirm measured flow under load. 💧 A Mixergy cylinder is more tolerant of weak mains supplies and avoids this concern.`,
       });
     } else {
       items.push({
@@ -604,10 +604,10 @@ export function buildOptionMatrixV1(
     storedUnventedRequirements.push('Measure mains flow (L/min) and pressure (bar) before specifying cylinder.');
   }
   if (mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1)) {
-    storedUnventedRequirements.push('💧 Standing pressure is low — a Mixergy cylinder is a good choice here as it works at any water pressure.');
+    storedUnventedRequirements.push('💧 Standing pressure is low — a Mixergy cylinder is a good choice here, as it remains usable on weaker supplies where a standard unvented cylinder struggles.');
   }
   if (recType === 'mixergy') {
-    storedUnventedRequirements.push('💧 Mixergy recommended: heats only the water you need, works at any mains pressure, and reduces energy use.');
+    storedUnventedRequirements.push('💧 Mixergy recommended: heats only the water you need, more tolerant of weak mains supply than a standard unvented, and reduces energy use.');
   }
 
   const storedUnventedHeat: OptionPlane = {
@@ -626,7 +626,7 @@ export function buildOptionMatrixV1(
     mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
       ? `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar dynamic — strong measured flow under load; stored delivery is well supported.`
       : `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended for a standard unvented cylinder)' : ' (adequate)'}.`,
-    `Recommended cylinder type: ${recType === 'mixergy' ? '💧 Mixergy (stratified — works at any pressure)' : 'standard indirect'}.`,
+    `Recommended cylinder type: ${recType === 'mixergy' ? '💧 Mixergy (stratified — more tolerant of weak mains supply)' : 'standard indirect'}.`,
   ];
   if (limitedFlowOperatingPoint(cwsSupplyV1)) {
     const flowLpm = cwsSupplyV1.dynamic?.flowLpm ?? 0;
@@ -677,7 +677,7 @@ export function buildOptionMatrixV1(
       mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
         ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite low standing pressure.`
         : mainsStaticPressure !== undefined && mainsStaticPressure < 1.5
-        ? '💧 Standing pressure below 1.5 bar — a Mixergy cylinder works at any pressure and avoids this issue entirely.'
+        ? '💧 Standing pressure below 1.5 bar — a Mixergy cylinder is more tolerant of weak supplies and can remain viable where a standard unvented would be borderline.'
         : '✅ Mains pressure is adequate for a standard unvented cylinder.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
     ],
@@ -692,11 +692,11 @@ export function buildOptionMatrixV1(
       ...(!cwsSupplyV1.hasMeasurements ? ['Measure mains flow (L/min) and pressure (bar) before specifying.'] : []),
     ],
     likelyUpgrades: [
-      ...(mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['💧 Consider a Mixergy cylinder — works at any pressure, no minimum required.'] : []),
+      ...(mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['💧 Consider a Mixergy cylinder — more tolerant of weak mains supply than a standard unvented; no minimum pressure gate in Atlas.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
-      '💧 Mixergy cylinder for stratified DHW — works at any pressure and reduces energy use.',
+      '💧 Mixergy cylinder for stratified DHW — more tolerant of weak mains supply, and reduces energy use.',
       'Smart immersion control for off-peak electricity pricing.',
     ],
   };
@@ -737,11 +737,11 @@ export function buildOptionMatrixV1(
   const ashpRejectedByTopology = core.redFlags.rejectAshp ?? false;
 
   let ashpStatus: OptionCardV1['status'];
-  if (ashpRejectedByTopology || ashpRisk === 'fail' || input.hasOutdoorSpaceForHeatPump === false || input.availableSpace === 'none') {
-    // Never block/reject a system — use caution so ASHP remains selectable
-    // even when topology or space constraints apply.
-    ashpStatus = 'caution';
-  } else if (ashpRisk === 'warn' || (core.redFlags.flagAshp ?? false)) {
+  if (ashpRejectedByTopology || input.hasOutdoorSpaceForHeatPump === false || input.availableSpace === 'none') {
+    // Physical impossibility — one-pipe topology, no outdoor space, or no cylinder space.
+    ashpStatus = 'rejected';
+  } else if (ashpRisk === 'fail' || ashpRisk === 'warn' || (core.redFlags.flagAshp ?? false)) {
+    // Hydraulic or performance constraint — advisory under no-hard-stops policy.
     ashpStatus = 'caution';
   } else {
     ashpStatus = 'viable';
@@ -1021,7 +1021,7 @@ export function buildOptionMatrixV1(
     'Unvented cylinder requires G3-qualified installer and annual servicing.',
   ];
   if (staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) {
-    unventedRequirements.push('💧 Standing pressure is low — a Mixergy cylinder works at any water pressure and is the better choice here.');
+    unventedRequirements.push('💧 Standing pressure is low — a Mixergy cylinder is a better choice here, as it remains usable on weaker supplies where combi hot water can become unreliable or cut out.');
   }
 
   const unventedHeat: OptionPlane = {
@@ -1071,7 +1071,7 @@ export function buildOptionMatrixV1(
       staticPressure !== undefined && staticPressure < 1.5 && strongOperatingPoint(sysUnventedCws)
         ? `Measured flow under load is strong — mains-fed stored hot water appears supportive despite low standing pressure.`
         : staticPressure !== undefined && staticPressure < 1.5
-        ? '💧 Standing pressure below 1.5 bar — a Mixergy cylinder works at any pressure and avoids this issue entirely.'
+        ? '💧 Standing pressure below 1.5 bar — a Mixergy cylinder is more tolerant of weak supplies and can remain viable where a standard unvented would be borderline.'
         : '✅ Mains pressure is adequate for a standard unvented cylinder.',
       'Annual service required by regulation: PRV, expansion vessel, tundish check.',
     ],
@@ -1085,11 +1085,11 @@ export function buildOptionMatrixV1(
       ...(pressure < 1.0 ? ['⚠️ Mains pressure is very low — a Mixergy or vented cylinder is recommended instead.'] : []),
     ],
     likelyUpgrades: [
-      ...(staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['💧 Consider a Mixergy cylinder — works at any pressure, no minimum required.'] : []),
+      ...(staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['💧 Consider a Mixergy cylinder — more tolerant of weak mains supply than a standard unvented; no minimum pressure gate in Atlas.'] : []),
       'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
-      '💧 Mixergy cylinder for stratified DHW — works at any pressure and reduces energy use.',
+      '💧 Mixergy cylinder for stratified DHW — more tolerant of weak mains supply, and reduces energy use.',
       'Smart immersion control for off-peak electricity pricing.',
     ],
   };

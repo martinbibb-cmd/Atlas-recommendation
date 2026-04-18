@@ -67,6 +67,12 @@ const HP_REHEAT_LATENCY_THRESHOLD_MINUTES = 45;
 /** Mains flow below this (L/min) triggers mains_flow_constraint. */
 const MIN_ADEQUATE_FLOW_LPM = 13;
 
+/**
+ * Mains flow at or below this (L/min) elevates mains_flow_constraint from
+ * 'warning' (workable but limited) to 'limit' (serious impairment).
+ */
+const CRITICAL_FLOW_LPM = 10;
+
 /** Dynamic mains pressure below this (bar) triggers pressure_constraint. */
 const MIN_ADEQUATE_PRESSURE_BAR = 1.0;
 
@@ -327,7 +333,9 @@ export function buildLimiterLedger(
   //    Evidence: cwsSupplyV1.dynamic.flowLpm below delivery threshold.
   const cwsFlow = runnerResult.hydraulic.cwsSupplyV1.dynamic?.flowLpm;
   if (cwsFlow !== undefined && cwsFlow < MIN_ADEQUATE_FLOW_LPM) {
-    const flowSeverity: LimiterSeverity = 'warning';
+    // 'limit': at or below 10 L/min — hard physics constraint; combi DHW seriously impaired.
+    // 'warning': 10–12 L/min — workable but degraded; stored system better for this demand.
+    const flowSeverity: LimiterSeverity = cwsFlow < CRITICAL_FLOW_LPM ? 'limit' : 'warning';
     entries.push({
       id: 'mains_flow_constraint',
       family,
