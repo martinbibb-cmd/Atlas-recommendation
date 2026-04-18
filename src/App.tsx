@@ -48,6 +48,7 @@ import CanonicalPresentationPage from './components/presentation/CanonicalPresen
 import type { HeatLossState } from './features/survey/heatLoss/heatLossTypes';
 import type { PrioritiesState } from './features/survey/priorities/prioritiesTypes';
 import type { RecommendationState } from './features/survey/recommendation/recommendationTypes';
+import type { ApplianceFamily } from './engine/topology/SystemTopology';
 import { buildPortalUrl } from './lib/portal/portalUrl';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
@@ -216,6 +217,7 @@ function CanonicalPresentationRoute({
   onPrint,
   heatLossState,
   prioritiesState,
+  onOptionsChange,
 }: {
   engineInput: EngineInputV2_3;
   onBack: () => void;
@@ -223,6 +225,7 @@ function CanonicalPresentationRoute({
   onPrint?: () => void;
   heatLossState?: HeatLossState;
   prioritiesState?: PrioritiesState;
+  onOptionsChange?: (opt1Family: ApplianceFamily | null, opt2Family: ApplianceFamily | null) => void;
 }) {
   const result = runEngine(engineInput);
   return (
@@ -247,6 +250,7 @@ function CanonicalPresentationRoute({
           onPrint={onPrint}
           heatLossState={heatLossState}
           prioritiesState={prioritiesState}
+          onOptionsChange={onOptionsChange}
         />
       </div>
     </div>
@@ -291,6 +295,16 @@ export default function App() {
    * derives its content entirely from the canonical presentation model.
    */
   const [, setLabRecommendationState] = useState<RecommendationState | undefined>();
+  /**
+   * Option 1 family agreed with the customer during the in-room presentation.
+   * Captured via onOptionsChange from PresentationDeck so the printout reflects
+   * the same choices as those discussed in the room.
+   */
+  const [labOption1Family, setLabOption1Family] = useState<ApplianceFamily | null>(null);
+  /**
+   * Option 2 family agreed with the customer during the in-room presentation.
+   */
+  const [labOption2Family, setLabOption2Family] = useState<ApplianceFamily | null>(null);
   /**
    * The journey that last opened the simulator, used to navigate Back correctly.
    * When the simulator is opened from the recommendation/survey pages, Back
@@ -418,6 +432,8 @@ export default function App() {
           });
         }).catch(() => {/* best effort */});
         setPresentationFromJourney('visit-hub');
+        setLabOption1Family(null);
+        setLabOption2Family(null);
         setJourney('presentation');
         return;
       }
@@ -793,7 +809,7 @@ export default function App() {
             onBack={() => setJourney(simulatorFromJourney)}
             onEditSetup={() => setJourney(simulatorFromJourney)}
             onOpenSystemLab={() => setJourney('lab')}
-            onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('simulator'); setJourney('presentation'); } : undefined}
+            onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('simulator'); setLabOption1Family(null); setLabOption2Family(null); setJourney('presentation'); } : undefined}
             surveyData={labEngineInput}
             floorplanOutput={floorplanOutput}
           />
@@ -808,6 +824,10 @@ export default function App() {
           onPrint={() => setJourney('printout')}
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}
+          onOptionsChange={(opt1, opt2) => {
+            setLabOption1Family(opt1);
+            setLabOption2Family(opt2);
+          }}
         />
       )}
       {journey === 'printout' && labEngineInput != null && (() => {
@@ -818,6 +838,8 @@ export default function App() {
             input={labEngineInput}
             recommendationResult={result.recommendationResult}
             prioritiesState={labPrioritiesState}
+            selectedOption1Family={labOption1Family ?? undefined}
+            selectedOption2Family={labOption2Family ?? undefined}
             portalUrl={labPortalUrl}
             visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             onBack={() => setJourney('presentation')}
