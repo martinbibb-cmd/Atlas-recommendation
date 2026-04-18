@@ -295,7 +295,7 @@ export default function CustomerRecommendationPrint({
   onBack,
 }: Props) {
   const model = buildCanonicalPresentation(result, input, recommendationResult, prioritiesState);
-  const { page1, page4Plus } = model;
+  const { page1, page3, page4Plus } = model;
 
   // ── Derived presentation data ───────────────────────────────────────────
 
@@ -308,6 +308,25 @@ export default function CustomerRecommendationPrint({
   const { systemComparison } = model;
 
   const topDetail = page4Plus.options[0] ?? null;
+
+  // ── Option 2 data ────────────────────────────────────────────────────────
+  const opt2Detail      = page4Plus.options[1] ?? null;
+  const opt2RankingItem = page3.items[1] ?? null;
+
+  const opt2WhyBullets: string[] = opt2RankingItem
+    ? ([
+        opt2RankingItem.demandFitNote,
+        opt2RankingItem.waterFitNote,
+        opt2RankingItem.infrastructureFitNote,
+        opt2RankingItem.energyFitNote,
+      ] as (string | undefined)[])
+        .filter((n): n is string => typeof n === 'string' && n.trim().length > 0)
+        .slice(0, 3)
+    : [];
+
+  const opt2Improvements  = opt2Detail ? opt2Detail.bestPerformanceUpgrades.slice(0, 4) : [];
+  const opt2RequiredWork  = opt2Detail ? opt2Detail.requiredWork : [];
+  const opt2RecommendedWork = opt2Detail ? opt2Detail.bestPerformanceUpgrades.slice(0, 4) : [];
 
   const today = visitDate ?? new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
@@ -581,6 +600,100 @@ export default function CustomerRecommendationPrint({
           </div>
 
         </footer>
+
+        {/* ════════════════════════════════════════════════════════════════
+            OPTION 2 — second shortlisted option (new print page, conditional)
+            ════════════════════════════════════════════════════════════════ */}
+        {opt2Detail != null && (
+          <div className="crp-option2-section" data-testid="option2-section">
+
+            <header className="crp-option2-header" aria-label="Option 2 header">
+              <p className="crp-option2-header__label">Option 2</p>
+              <h2 className="crp-option2-header__name">{opt2Detail.label}</h2>
+              {opt2RankingItem?.reasonLine && (
+                <p className="crp-option2-header__reason">{opt2RankingItem.reasonLine}</p>
+              )}
+            </header>
+
+            <div className="crp-body">
+
+              {/* Left — why + improvements */}
+              <div className="crp-col--story">
+
+                {opt2WhyBullets.length > 0 && (
+                  <section className="crp-section" aria-label="Why this system suits your home">
+                    <h2 className="crp-section__title">Why this system suits your home</h2>
+                    <ul className="crp-list" aria-label="Recommendation reasons">
+                      {opt2WhyBullets.map((bullet, i) => (
+                        <li key={i} className="crp-list__item crp-list__item--green">
+                          <span className="crp-list__icon" aria-hidden="true">✔</span>
+                          {bullet}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {opt2Improvements.length > 0 && (
+                  <section className="crp-section" aria-label="What this improves day to day">
+                    <h2 className="crp-section__title">What this improves day to day</h2>
+                    <ul className="crp-list" aria-label="Day-to-day improvements">
+                      {opt2Improvements.map((item, i) => (
+                        <li key={i} className="crp-list__item">
+                          <span className="crp-list__icon" aria-hidden="true">✔</span>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+              </div>
+
+              {/* Right — work required */}
+              <div className="crp-col--evidence">
+
+                {(opt2RequiredWork.length > 0 || opt2RecommendedWork.length > 0) && (
+                  <section className="crp-section" aria-label="Work required">
+                    <h2 className="crp-section__title">Work required</h2>
+
+                    {opt2RequiredWork.length > 0 && (
+                      <div className="crp-work-section crp-work-section--required">
+                        <p className="crp-work-section__label">Required</p>
+                        <ul className="crp-list" aria-label="Required work">
+                          {opt2RequiredWork.map((item, i) => (
+                            <li key={i} className="crp-list__item">
+                              <span className="crp-list__icon" aria-hidden="true">•</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {opt2RecommendedWork.length > 0 && (
+                      <div className="crp-work-section crp-work-section--recommended">
+                        <p className="crp-work-section__label">Recommended</p>
+                        <ul className="crp-list" aria-label="Recommended work">
+                          {opt2RecommendedWork.map((item, i) => (
+                            <li key={i} className="crp-list__item crp-list__item--green">
+                              <span className="crp-list__icon" aria-hidden="true">✔</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                  </section>
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+        )}
 
       </div>
     </div>

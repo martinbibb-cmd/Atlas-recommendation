@@ -562,6 +562,51 @@
   text-decoration: underline;
 }
 
+/* ════════════════════════════════════════════════════════════════════════════
+   OPTION 2 SECTION (second print page, conditional)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-option2-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid var(--crp-border);
+}
+
+.crp-option2-header {
+  background: var(--crp-bg-section);
+  border-radius: var(--crp-radius);
+  padding: 16px 22px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crp-option2-header__label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crp-muted);
+  margin: 0;
+}
+
+.crp-option2-header__name {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--crp-blue);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.crp-option2-header__reason {
+  font-size: 0.85rem;
+  color: #4a5568;
+  margin: 2px 0 0;
+  line-height: 1.5;
+  max-width: 540px;
+}
+
 /* ─── Print overrides ─────────────────────────────────────────────────────── */
 
 @media print {
@@ -597,5 +642,12 @@
   .crp-header,
   .crp-footer {
     break-inside: avoid;
+  }
+
+  .crp-option2-section {
+    break-before: page;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
   }
 }
