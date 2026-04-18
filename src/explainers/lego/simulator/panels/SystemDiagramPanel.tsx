@@ -223,7 +223,7 @@ function pipeHighlightClass(pipeId: string, highlighted: string[]): string {
 function CombiSchematic({ state, paths, badges, highlightedComponents, boilerOutputKw }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
-  const outlets = state?.outletDemands ?? { shower: paths.comboDhw, bath: false, kitchen: false }
+  const outlets = state?.outletDemands ?? { shower: paths.comboDhw, bath: false, kitchen: false, coldTap: false }
   const displayKw = boilerOutputKw ?? 30;
 
   const condensingBadgeText: string | null =
@@ -425,7 +425,7 @@ function CombiSchematic({ state, paths, badges, highlightedComponents, boilerOut
 function StoredSchematic({ state, paths, badges, highlightedComponents, boilerOutputKw }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
-  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
+  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false, coldTap: false }
   const displayKw = boilerOutputKw ?? 24;
 
   const condensingBadgeText: string | null =
@@ -649,7 +649,7 @@ function StoredSchematic({ state, paths, badges, highlightedComponents, boilerOu
 function VentedSchematic({ state, paths, badges, highlightedComponents, boilerOutputKw }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
-  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
+  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false, coldTap: false }
   const displayKw = boilerOutputKw ?? 24;
 
   const condensingBadgeText: string | null =
@@ -877,7 +877,7 @@ function formatCop(cop: number): string {
 function HeatPumpSchematic({ state, paths, badges, highlightedComponents }: SchematicProps): ReactElement {
   const W = 320;
   const H = 210;
-  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false }
+  const outlets = state?.outletDemands ?? { shower: paths.storedHotDraw, bath: false, kitchen: false, coldTap: false }
 
   const copText = state?.cop !== undefined ? formatCop(state.cop) : null
 

@@ -485,14 +485,15 @@ export default function SimulatorDashboard({
     state: diagramStateImproved,
     systemChoice: systemChoiceImproved,
     setSystemChoice: setSystemChoiceImproved,
+    demandControls: demandControlsImproved,
+    setDemandControls: setDemandControlsImproved,
     isManualMode: isManualModeImproved,
     resetToAutoMode: resetToAutoModeImproved,
     setManualMode: setManualModeImproved,
   } = useSystemDiagramPlayback(initialProposedSystemChoice ?? initialSystemChoice, timeSpeed, improvedInputs.occupancyProfile, improvedInputs.demandPreset);
-  // useHousePlayback and useDrawOffPlayback are called for React hook ordering.
-  // Their results are not rendered in compare mode (only efficiency/limiters are shown).
+  // useHousePlayback is called for React hook ordering.
   useHousePlayback(diagramStateImproved);
-  useDrawOffPlayback(diagramStateImproved, improvedInputs.cylinderType, improvedInputs.cylinderSizeLitres, improvedInputs.mainsFlowLpm, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC);
+  const drawOffStateImproved = useDrawOffPlayback(diagramStateImproved, improvedInputs.cylinderType, improvedInputs.cylinderSizeLitres, improvedInputs.mainsFlowLpm, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC);
   const emitterStateImproved = useEmitterPrimaryModel({
     emitterCapacityFactor: improvedInputs.emitterCapacityFactor,
     primaryPipeSize: improvedInputs.primaryPipeSize,
@@ -572,14 +573,16 @@ export default function SimulatorDashboard({
       shower={demandControls.shower}
       bath={demandControls.bath}
       kitchen={demandControls.kitchen}
+      coldTap={demandControls.coldTap}
       onSetMode={mode => mode === 'auto' ? resetToAutoMode() : setManualMode()}
       onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
       onToggleShower={() => setDemandControls({ shower: !demandControls.shower })}
       onToggleBath={() => setDemandControls({ bath: !demandControls.bath })}
       onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })}
-      onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false })}
-      onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false })}
-      onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, heatingEnabled: false })}
+      onToggleColdTap={() => setDemandControls({ coldTap: !demandControls.coldTap })}
+      onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })}
+      onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })}
+      onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}
     />
   );
 
@@ -697,6 +700,32 @@ export default function SimulatorDashboard({
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('left', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />)}>
                 <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />
               </SimulatorPanel>
+              <SimulatorPanel title="Draw-Off Behaviour" icon="💧" onExpand={() => openCompare('left', 'Draw-Off Behaviour', '💧', <DrawOffStatusPanel state={drawOffState} systemChoice={systemChoice} cylinderType={systemInputs.cylinderType} mainsPressureBar={systemInputs.mainsPressureBar} mainsFlowLpm={systemInputs.mainsFlowLpm} boilerDhwOutputKw={systemInputs.combiPowerKw} coldInletTempC={systemInputs.coldInletTempC} mode={isManualMode ? 'manual' : 'auto'} heatingEnabled={demandControls.heatingEnabled} shower={demandControls.shower} bath={demandControls.bath} kitchen={demandControls.kitchen} coldTap={demandControls.coldTap} onSetMode={mode => mode === 'auto' ? resetToAutoMode() : setManualMode()} onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })} onToggleShower={() => setDemandControls({ shower: !demandControls.shower })} onToggleBath={() => setDemandControls({ bath: !demandControls.bath })} onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })} onToggleColdTap={() => setDemandControls({ coldTap: !demandControls.coldTap })} onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })} onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })} onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })} />)}>
+                <DrawOffStatusPanel
+                  state={drawOffState}
+                  systemChoice={systemChoice}
+                  cylinderType={systemInputs.cylinderType}
+                  mainsPressureBar={systemInputs.mainsPressureBar}
+                  mainsFlowLpm={systemInputs.mainsFlowLpm}
+                  boilerDhwOutputKw={systemInputs.combiPowerKw}
+                  coldInletTempC={systemInputs.coldInletTempC}
+                  mode={isManualMode ? 'manual' : 'auto'}
+                  heatingEnabled={demandControls.heatingEnabled}
+                  shower={demandControls.shower}
+                  bath={demandControls.bath}
+                  kitchen={demandControls.kitchen}
+                  coldTap={demandControls.coldTap}
+                  onSetMode={mode => mode === 'auto' ? resetToAutoMode() : setManualMode()}
+                  onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
+                  onToggleShower={() => setDemandControls({ shower: !demandControls.shower })}
+                  onToggleBath={() => setDemandControls({ bath: !demandControls.bath })}
+                  onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })}
+                  onToggleColdTap={() => setDemandControls({ coldTap: !demandControls.coldTap })}
+                  onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })}
+                  onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })}
+                  onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}
+                />
+              </SimulatorPanel>
             </div>
 
             {/* System Behaviour graph — shown early so dynamics are the second thing the user sees */}
@@ -760,6 +789,32 @@ export default function SimulatorDashboard({
             <div className="sim-compare-panels">
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('right', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />)}>
                 <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />
+              </SimulatorPanel>
+              <SimulatorPanel title="Draw-Off Behaviour" icon="💧" onExpand={() => openCompare('right', 'Draw-Off Behaviour', '💧', <DrawOffStatusPanel state={drawOffStateImproved} systemChoice={systemChoiceImproved} cylinderType={improvedInputs.cylinderType} mainsPressureBar={improvedInputs.mainsPressureBar} mainsFlowLpm={improvedInputs.mainsFlowLpm} boilerDhwOutputKw={improvedInputs.combiPowerKw} coldInletTempC={improvedInputs.coldInletTempC} mode={isManualModeImproved ? 'manual' : 'auto'} heatingEnabled={demandControlsImproved.heatingEnabled} shower={demandControlsImproved.shower} bath={demandControlsImproved.bath} kitchen={demandControlsImproved.kitchen} coldTap={demandControlsImproved.coldTap} onSetMode={mode => mode === 'auto' ? resetToAutoModeImproved() : setManualModeImproved()} onToggleHeating={() => setDemandControlsImproved({ heatingEnabled: !demandControlsImproved.heatingEnabled })} onToggleShower={() => setDemandControlsImproved({ shower: !demandControlsImproved.shower })} onToggleBath={() => setDemandControlsImproved({ bath: !demandControlsImproved.bath })} onToggleKitchen={() => setDemandControlsImproved({ kitchen: !demandControlsImproved.kitchen })} onToggleColdTap={() => setDemandControlsImproved({ coldTap: !demandControlsImproved.coldTap })} onPresetOne={() => setDemandControlsImproved({ shower: true, bath: false, kitchen: false, coldTap: false })} onPresetTwo={() => setDemandControlsImproved({ shower: true, bath: true, kitchen: false, coldTap: false })} onPresetBathFill={() => setDemandControlsImproved({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })} />)}>
+                <DrawOffStatusPanel
+                  state={drawOffStateImproved}
+                  systemChoice={systemChoiceImproved}
+                  cylinderType={improvedInputs.cylinderType}
+                  mainsPressureBar={improvedInputs.mainsPressureBar}
+                  mainsFlowLpm={improvedInputs.mainsFlowLpm}
+                  boilerDhwOutputKw={improvedInputs.combiPowerKw}
+                  coldInletTempC={improvedInputs.coldInletTempC}
+                  mode={isManualModeImproved ? 'manual' : 'auto'}
+                  heatingEnabled={demandControlsImproved.heatingEnabled}
+                  shower={demandControlsImproved.shower}
+                  bath={demandControlsImproved.bath}
+                  kitchen={demandControlsImproved.kitchen}
+                  coldTap={demandControlsImproved.coldTap}
+                  onSetMode={mode => mode === 'auto' ? resetToAutoModeImproved() : setManualModeImproved()}
+                  onToggleHeating={() => setDemandControlsImproved({ heatingEnabled: !demandControlsImproved.heatingEnabled })}
+                  onToggleShower={() => setDemandControlsImproved({ shower: !demandControlsImproved.shower })}
+                  onToggleBath={() => setDemandControlsImproved({ bath: !demandControlsImproved.bath })}
+                  onToggleKitchen={() => setDemandControlsImproved({ kitchen: !demandControlsImproved.kitchen })}
+                  onToggleColdTap={() => setDemandControlsImproved({ coldTap: !demandControlsImproved.coldTap })}
+                  onPresetOne={() => setDemandControlsImproved({ shower: true, bath: false, kitchen: false, coldTap: false })}
+                  onPresetTwo={() => setDemandControlsImproved({ shower: true, bath: true, kitchen: false, coldTap: false })}
+                  onPresetBathFill={() => setDemandControlsImproved({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}
+                />
               </SimulatorPanel>
             </div>
 

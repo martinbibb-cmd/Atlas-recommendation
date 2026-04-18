@@ -41,6 +41,7 @@ const STORED_SOLO_FLOW_LPM = {
   shower:  9.5,
   bath:    8.0,
   kitchen: 5.5,
+  cold_tap: 4.0,
 } as const
 
 /**
@@ -51,6 +52,7 @@ const COMBI_NATURAL_DEMAND_LPM: Record<string, number> = {
   shower:  9.0,
   bath:    8.2,
   kitchen: 6.0,
+  cold_tap: 4.0,
 }
 
 /**
@@ -62,6 +64,7 @@ const COMBI_SOLO_DELIVERY_TEMP_C: Record<string, number> = {
   shower:  45,
   bath:    44,
   kitchen: 44,
+  cold_tap: DEFAULT_COLD_INLET_TEMP_C,
 }
 
 /**
@@ -202,14 +205,19 @@ function buildOutletStates(
     outletId: 'kitchen', label: 'Kitchen tap',
     open: false, service: 'off', flowLpm: 0, isConstrained: false, coldSource: 'mains',
   }
+  const closedColdTap: OutletDisplayState = {
+    outletId: 'cold_tap', label: 'Cold tap',
+    open: false, service: 'off', flowLpm: 0, isConstrained: false, coldSource: 'mains',
+  }
 
   const showerOpen = outletDemands ? outletDemands.shower : legacyHotDrawActive
   const bathOpen = outletDemands ? outletDemands.bath : (!systemType || systemType === 'combi' ? serviceSwitchingActive : legacyHotDrawActive)
   const kitchenOpen = outletDemands ? outletDemands.kitchen : false
+  const coldTapOpen = outletDemands ? outletDemands.coldTap : false
   const hotDrawActive = showerOpen || bathOpen || kitchenOpen
 
-  if (!hotDrawActive) {
-    return [closedShower, closedBath, closedKitchen]
+  if (!hotDrawActive && !coldTapOpen) {
+    return [closedShower, closedBath, closedKitchen, closedColdTap]
   }
 
   if (isCombi) {
@@ -218,6 +226,7 @@ function buildOutletStates(
       ...(showerOpen  ? ['shower']  : []),
       ...(bathOpen    ? ['bath']    : []),
       ...(kitchenOpen ? ['kitchen'] : []),
+      ...(coldTapOpen ? ['cold_tap'] : []),
     ]
 
     // Physics-derived outlet flows:
@@ -270,6 +279,17 @@ function buildOutletStates(
             coldSource: 'mains', hotSource,
           }
         : closedKitchen,
+      coldTapOpen
+        ? {
+            outletId: 'cold_tap', label: 'Cold tap', open: true,
+            service: 'cold_only',
+            flowLpm: flows['cold_tap'] ?? 0,
+            deliveredTempC: coldInletTempC,
+            isConstrained,
+            constraintReason,
+            coldSource: 'mains',
+          }
+        : closedColdTap,
     ]
   }
 
@@ -284,7 +304,8 @@ function buildOutletStates(
   const mainsOpenDemand =
     (showerOpen  && isMainsFedStore ? STORED_SOLO_FLOW_LPM.shower  : 0) +
     (bathOpen    && isMainsFedStore ? STORED_SOLO_FLOW_LPM.bath    : 0) +
-    (kitchenOpen                    ? STORED_SOLO_FLOW_LPM.kitchen : 0)
+    (kitchenOpen                    ? STORED_SOLO_FLOW_LPM.kitchen : 0) +
+    (coldTapOpen                    ? STORED_SOLO_FLOW_LPM.cold_tap : 0)
 
   // Throttle is the fraction of demand each mains outlet actually receives.
   // When the total demand fits within the budget, throttle = 1 (no reduction).
@@ -326,6 +347,17 @@ function buildOutletStates(
           coldSource: 'mains', hotSource,
         }
       : closedKitchen,
+    coldTapOpen
+      ? {
+          outletId: 'cold_tap', label: 'Cold tap', open: true,
+          service: 'cold_only',
+          flowLpm: Math.round(STORED_SOLO_FLOW_LPM.cold_tap * mainsThrottle * 10) / 10,
+          deliveredTempC: coldInletTempC,
+          isConstrained: mainsConstrained,
+          constraintReason: mainsConstraintReason,
+          coldSource: 'mains',
+        }
+      : closedColdTap,
   ]
 }
 

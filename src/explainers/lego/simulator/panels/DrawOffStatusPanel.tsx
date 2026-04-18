@@ -73,6 +73,7 @@ const OUTLET_ICONS: Record<string, string> = {
   shower:  '🚿',
   bath:    '🛁',
   kitchen: '🚰',
+  cold_tap: '🚰',
 }
 
 // ─── Derived flow physics ─────────────────────────────────────────────────────
@@ -152,6 +153,8 @@ function outletToViewModel(
     status = 'below_ignition_threshold'
   } else if (outlet.isConstrained) {
     status = (outlet.deliveredTempC ?? COLD_INLET_TEMP_C) < MIN_USABLE_HOT_TEMP_C ? 'temp_limited' : 'flow_limited'
+  } else if (outlet.service === 'cold_only') {
+    status = 'cold'
   } else if (outlet.service === 'mixed_cold_running') {
     status = 'temp_limited'
   } else {
@@ -163,6 +166,8 @@ function outletToViewModel(
     note = 'Outlet closed — no flow demand.'
   } else if (status === 'below_ignition_threshold') {
     note = 'Flow too low to fire combi — simultaneous demand has dropped per-outlet flow below ignition threshold. Only cold water delivered.'
+  } else if (outlet.service === 'cold_only') {
+    note = 'Cold tap outlet — direct cold-water draw with no hot-water demand.'
   } else if (outlet.isConstrained && outlet.constraintReason) {
     note = outlet.constraintReason
   } else if (outlet.isConstrained) {
@@ -182,8 +187,8 @@ function outletToViewModel(
     status,
     coldSupplyTempC:           COLD_INLET_TEMP_C,
     coldSupplyFlowLpm:         coldSupplyFlow,
-    hotSupplyTempC:            outlet.open ? hotSupplyTempC : 0,
-    hotSupplyAvailableFlowLpm: hotAvailFlow,
+    hotSupplyTempC:            outlet.service === 'cold_only' ? 0 : outlet.open ? hotSupplyTempC : 0,
+    hotSupplyAvailableFlowLpm: outlet.service === 'cold_only' ? 0 : hotAvailFlow,
     deliveredTempC:            outlet.open ? Math.round(outlet.deliveredTempC ?? COLD_INLET_TEMP_C) : COLD_INLET_TEMP_C,
     deliveredFlowLpm:          Math.round(outlet.flowLpm * 10) / 10,
     note,
@@ -353,11 +358,13 @@ interface DrawOffStatusPanelProps {
   shower: boolean
   bath: boolean
   kitchen: boolean
+  coldTap: boolean
   onSetMode: (mode: 'auto' | 'manual') => void
   onToggleHeating: () => void
   onToggleShower: () => void
   onToggleBath: () => void
   onToggleKitchen: () => void
+  onToggleColdTap: () => void
   onPresetOne: () => void
   onPresetTwo: () => void
   onPresetBathFill: () => void
@@ -417,6 +424,10 @@ export default function DrawOffStatusPanel({ state, systemChoice, cylinderType, 
           className={`sim-demand-btn sim-demand-btn--outlet${controls.kitchen ? ' sim-demand-btn--active' : ''}`}
           onClick={controls.onToggleKitchen}
         >Kitchen tap</button>
+        <button
+          className={`sim-demand-btn sim-demand-btn--outlet${controls.coldTap ? ' sim-demand-btn--active' : ''}`}
+          onClick={controls.onToggleColdTap}
+        >Cold tap</button>
         <button className="sim-demand-btn sim-demand-btn--preset" onClick={controls.onPresetOne}>One outlet</button>
         <button className="sim-demand-btn sim-demand-btn--preset" onClick={controls.onPresetTwo}>Two outlets</button>
         <button className="sim-demand-btn sim-demand-btn--preset" onClick={controls.onPresetBathFill}>Bath fill</button>
