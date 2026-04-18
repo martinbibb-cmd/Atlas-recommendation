@@ -61,6 +61,11 @@ const ACH = 0.75;
 const SNAP = 0.5;
 const CLOSE_PX = 14;
 
+/** Default per-layer storey count (matches the Quick-heat-loss reference tool). */
+const DEFAULT_STOREYS       = 2;
+/** Default per-layer ceiling height in metres. */
+const DEFAULT_CEILING_HEIGHT = 2.4;
+
 // ── Layer constants ───────────────────────────────────────────────────────────
 
 type LayerKind = 'original' | 'extension' | 'upper_floor' | 'reference';
@@ -683,7 +688,7 @@ interface Props {
   onSnapshotChange?: (dataUrl: string | null) => void;
 }
 
-function makeLayer(name: string, kind: LayerKind, storeys = 2, ceilingHeight = 2.4): Layer {
+function makeLayer(name: string, kind: LayerKind, storeys = DEFAULT_STOREYS, ceilingHeight = DEFAULT_CEILING_HEIGHT): Layer {
   return { id: generateLayerId(), name, kind, visible: true, points: [], closed: false, edges: [], storeys, ceilingHeight };
 }
 
@@ -714,8 +719,8 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
       advanceCounterPastIds(initialShell.layers.map(l => l.id));
       // Back-fill storeys/ceilingHeight for layers saved before per-layer height was added.
       const layers = initialShell.layers.map(l => ({
-        storeys:       2,
-        ceilingHeight: 2.4,
+        storeys:       DEFAULT_STOREYS,
+        ceilingHeight: DEFAULT_CEILING_HEIGHT,
         ...l,
       })) as Layer[];
       return { layers, activeId: initialShell.activeLayerId };
@@ -1447,7 +1452,7 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                         type="number"
                         min={1} max={5} step={1}
                         value={activeLayerObj.storeys}
-                        onChange={e => updateLayerHeight(activeLayerId, Math.max(1, parseInt(e.target.value) || 1), undefined)}
+                        onChange={e => updateLayerHeight(activeLayerId, parseInt(e.target.value, 10) || DEFAULT_STOREYS, undefined)}
                         aria-label="Storeys for this layer"
                       />
                     </div>
@@ -1457,7 +1462,7 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                         type="number"
                         min={2} max={4} step={0.1}
                         value={activeLayerObj.ceilingHeight}
-                        onChange={e => updateLayerHeight(activeLayerId, undefined, parseFloat(e.target.value) || 2.4)}
+                        onChange={e => updateLayerHeight(activeLayerId, undefined, parseFloat(e.target.value) || DEFAULT_CEILING_HEIGHT)}
                         aria-label="Ceiling height for this layer in metres"
                       />
                     </div>

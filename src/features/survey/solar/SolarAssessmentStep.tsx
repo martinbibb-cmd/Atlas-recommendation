@@ -163,7 +163,7 @@ export function SolarAssessmentStep({ state, onChange, onNext, onPrev }: SolarAs
         <div style={sectionStyle}>
           <div style={fieldStyle}>
             <label style={labelStyle}>
-              North direction (° clockwise from north)
+              Building front bearing (° clockwise from north)
             </label>
             <input
               type="number"
