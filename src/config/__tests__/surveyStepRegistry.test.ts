@@ -23,9 +23,9 @@ import {
 // ─── Contract: canonical journey order ────────────────────────────────────────
 
 describe('surveyStepRegistry — canonical journey order', () => {
-  it('defines exactly 7 steps', () => {
-    expect(SURVEY_STEP_COUNT).toBe(7);
-    expect(SURVEY_STEP_REGISTRY).toHaveLength(7);
+  it('defines exactly 8 steps', () => {
+    expect(SURVEY_STEP_COUNT).toBe(8);
+    expect(SURVEY_STEP_REGISTRY).toHaveLength(8);
   });
 
   it('step IDs match the canonical sequence', () => {
@@ -33,6 +33,7 @@ describe('surveyStepRegistry — canonical journey order', () => {
       'system_builder',
       'usage',
       'services',
+      'building_fabric',
       'heat_loss',
       'solar_assessment',
       'priorities',
@@ -40,9 +41,9 @@ describe('surveyStepRegistry — canonical journey order', () => {
     ]);
   });
 
-  it('displayIndex values are sequential 1…7', () => {
+  it('displayIndex values are sequential 1…8', () => {
     const indices = SURVEY_STEP_REGISTRY.map(s => s.displayIndex);
-    expect(indices).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(indices).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it('every step has a non-empty heading', () => {
@@ -71,26 +72,29 @@ describe('surveyStepRegistry — helper functions', () => {
     expect(getStepMeta('system_builder').displayIndex).toBe(1);
     expect(getStepMeta('usage').displayIndex).toBe(2);
     expect(getStepMeta('services').displayIndex).toBe(3);
-    expect(getStepMeta('heat_loss').displayIndex).toBe(4);
-    expect(getStepMeta('solar_assessment').displayIndex).toBe(5);
-    expect(getStepMeta('priorities').displayIndex).toBe(6);
-    expect(getStepMeta('insight').displayIndex).toBe(7);
+    expect(getStepMeta('building_fabric').displayIndex).toBe(4);
+    expect(getStepMeta('heat_loss').displayIndex).toBe(5);
+    expect(getStepMeta('solar_assessment').displayIndex).toBe(6);
+    expect(getStepMeta('priorities').displayIndex).toBe(7);
+    expect(getStepMeta('insight').displayIndex).toBe(8);
   });
 
-  it('progressLabel returns "Step N of 7" for each step', () => {
-    expect(progressLabel('system_builder')).toBe('Step 1 of 7');
-    expect(progressLabel('usage')).toBe('Step 2 of 7');
-    expect(progressLabel('services')).toBe('Step 3 of 7');
-    expect(progressLabel('heat_loss')).toBe('Step 4 of 7');
-    expect(progressLabel('solar_assessment')).toBe('Step 5 of 7');
-    expect(progressLabel('priorities')).toBe('Step 6 of 7');
-    expect(progressLabel('insight')).toBe('Step 7 of 7');
+  it('progressLabel returns "Step N of 8" for each step', () => {
+    expect(progressLabel('system_builder')).toBe('Step 1 of 8');
+    expect(progressLabel('usage')).toBe('Step 2 of 8');
+    expect(progressLabel('services')).toBe('Step 3 of 8');
+    expect(progressLabel('building_fabric')).toBe('Step 4 of 8');
+    expect(progressLabel('heat_loss')).toBe('Step 5 of 8');
+    expect(progressLabel('solar_assessment')).toBe('Step 6 of 8');
+    expect(progressLabel('priorities')).toBe('Step 7 of 8');
+    expect(progressLabel('insight')).toBe('Step 8 of 8');
   });
 
   it('nextStepId chains through the canonical sequence', () => {
     expect(nextStepId('system_builder')).toBe('usage');
     expect(nextStepId('usage')).toBe('services');
-    expect(nextStepId('services')).toBe('heat_loss');
+    expect(nextStepId('services')).toBe('building_fabric');
+    expect(nextStepId('building_fabric')).toBe('heat_loss');
     expect(nextStepId('heat_loss')).toBe('solar_assessment');
     expect(nextStepId('solar_assessment')).toBe('priorities');
     expect(nextStepId('priorities')).toBe('insight');
@@ -101,7 +105,8 @@ describe('surveyStepRegistry — helper functions', () => {
     expect(prevStepId('system_builder')).toBeNull();
     expect(prevStepId('usage')).toBe('system_builder');
     expect(prevStepId('services')).toBe('usage');
-    expect(prevStepId('heat_loss')).toBe('services');
+    expect(prevStepId('building_fabric')).toBe('services');
+    expect(prevStepId('heat_loss')).toBe('building_fabric');
     expect(prevStepId('solar_assessment')).toBe('heat_loss');
     expect(prevStepId('priorities')).toBe('solar_assessment');
     expect(prevStepId('insight')).toBe('priorities');
@@ -119,6 +124,7 @@ describe('surveyStepRegistry — heading regression', () => {
       '🔧 System Architecture',
       '🏠 Home & Household',
       '🔧 Services',
+      '🏠 Building & Fabric',
       '🏗️ House & Heat Loss',
       '☀️ Solar & Roof',
       '🎯 Priorities',
@@ -132,6 +138,7 @@ describe('surveyStepRegistry — heading regression', () => {
       'system-builder-step',
       'usage-step',
       'services-step',
+      'building-fabric-step',
       'heat-loss-step',
       'solar-assessment-step',
       'priorities-step',

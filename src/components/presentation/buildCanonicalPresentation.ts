@@ -902,7 +902,9 @@ function buildHouseSignal(result: FullEngineResult, input: EngineInputV2_3): Hou
   const heatLossBand = fabricResult?.heatLossBand ?? 'unknown';
 
   const pipeDiam = input.primaryPipeDiameter;
-  const pipeworkLabel = `${pipeDiam} mm primary pipework`;
+  const pipeworkLabel = pipeDiam != null
+    ? `${pipeDiam} mm primary pipework`
+    : 'Pipework size not recorded';
 
   let waterSupplyLabel: string;
   if (input.coldWaterSource === 'mains_true') waterSupplyLabel = 'Mains-fed supply';
