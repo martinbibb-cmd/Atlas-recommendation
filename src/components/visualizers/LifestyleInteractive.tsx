@@ -112,10 +112,10 @@ const SLUDGE_INPUT_AFTER_FLUSH = {
 const COMFORT_SETPOINT_C = 21;
 
 /**
- * Cold-water draw rate (L/min) for cold-fill appliances / toilet flush.
- * Represents a typical UK washing machine, dishwasher, or cistern refill.
+ * Cold-water draw rate (L/min) for a cold tap (e.g. kitchen drinking tap).
+ * Represents a direct cold-mains draw with no DHW involvement.
  */
-const COLD_FILL_LPM = 5;
+const COLD_TAP_LPM = 5;
 
 /** Typical UK instantaneous sink draw rate (L/min mixed). */
 const SINK_FLOW_LPM = 6;
@@ -126,7 +126,7 @@ const BATH_FLOW_LPM = 12;
 // ─── Outlet types for the weir gauge panel ────────────────────────────────────
 
 /** Keys for the four draw-off outlets shown in the weir gauge panel. */
-type OutletKey = 'shower' | 'sink' | 'bath' | 'cold_fill';
+type OutletKey = 'shower' | 'sink' | 'bath' | 'cold_tap';
 
 /** Default dynamic mains pressure (bar) used when no override is provided. */
 const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
@@ -173,15 +173,21 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   // ── Weir gauge outlet toggles ──────────────────────────────────────────────
   const [activeOutlets, setActiveOutlets] = useState<Record<OutletKey, boolean>>({
-    shower:    false,
-    sink:      false,
-    bath:      false,
-    cold_fill: false,
+    shower:   false,
+    sink:     false,
+    bath:     false,
+    cold_tap: false,
   });
 
   const toggleOutlet = (key: OutletKey) => {
     setActiveOutlets(prev => ({ ...prev, [key]: !prev[key] }));
   };
+
+  // ── Compare mode ───────────────────────────────────────────────────────────
+  /** When true, show two side-by-side draw-off gauge columns for comparison. */
+  const [compareMode, setCompareMode] = useState(false);
+  /** The second system shown in compare mode (System B). */
+  const [systemB, setSystemB] = useState<DayPainterSystem>('stored_unvented');
 
   // ── DHW concurrency presets — drive all flow & kW calculations ─────────────
   const [season, setSeason]       = useState<SeasonPreset>('typical');
@@ -286,7 +292,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   // Using waterSlotsToHourlyFlows keeps DHW and DCW as independent channels so
   // Graph D can apply the heat limit only to the hot draw.
   const waterFlows = useMemo(
-    () => waterSlotsToHourlyFlows(waterSlots, showerFlowLpm, COLD_FILL_LPM),
+    () => waterSlotsToHourlyFlows(waterSlots, showerFlowLpm, COLD_TAP_LPM),
     [waterSlots, showerFlowLpm],
   );
 
@@ -416,10 +422,10 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   /** Total cold-mains draw from all active outlets (L/min). */
   const totalActiveDrawLpm = (
-    (activeOutlets.shower    ? showerFlowLpm : 0) +
-    (activeOutlets.sink      ? SINK_FLOW_LPM  : 0) +
-    (activeOutlets.bath      ? BATH_FLOW_LPM  : 0) +
-    (activeOutlets.cold_fill ? COLD_FILL_LPM  : 0)
+    (activeOutlets.shower   ? showerFlowLpm : 0) +
+    (activeOutlets.sink     ? SINK_FLOW_LPM  : 0) +
+    (activeOutlets.bath     ? BATH_FLOW_LPM  : 0) +
+    (activeOutlets.cold_tap ? COLD_TAP_LPM   : 0)
   );
 
   /** Remaining cold-mains headroom (%), after subtracting active draws. */
@@ -475,21 +481,194 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     : null;
 
   /**
-   * Maximum hot-water supply rate for the current system type:
-   *   combi        → NOMINAL_COMBI_DHW_KW heat-exchanger limit
+   * Maximum hot-water supply rate for a given system type.
+   *   combi        → on-demand (no stored limit)
    *   stored_vented → gravity-limited (VENTED_MAX_GRAVITY_FLOW_LPM)
    *   stored_unvented / ashp → mains-pressure cylinder (maxMainsLpm)
    */
-  const storedSystemMaxFlowLpm = selectedSystem === 'stored_vented'
-    ? VENTED_MAX_GRAVITY_FLOW_LPM
-    : maxMainsLpm;
+  function storedMaxFlowLpmFor(system: DayPainterSystem): number {
+    return system === 'stored_vented' ? VENTED_MAX_GRAVITY_FLOW_LPM : maxMainsLpm;
+  }
 
+  // ── Per-system draw-off gauge section renderer ─────────────────────────────
   /**
-   * For stored/ASHP outlet gauges: show flow fraction of the system's max delivery
-   * rate (gravity or mains) rather than the combi heat-kW fraction.
+   * Renders the 6-pane weir gauge grid + system-specific banners for the given
+   * system type.  Closes over all shared outlet state so it can be called for
+   * both System A (selectedSystem) and System B (systemB) in compare mode.
    */
-  function outletFlowPct(outletLpm: number): number {
-    return Math.min(100, (outletLpm / storedSystemMaxFlowLpm) * 100);
+  function renderDrawOffGaugeSection(system: DayPainterSystem) {
+    const isCombi = system === 'combi';
+    const sysMaxFlowLpm = storedMaxFlowLpmFor(system);
+    function sysOutletFlowPct(outletLpm: number): number {
+      return Math.min(100, (outletLpm / sysMaxFlowLpm) * 100);
+    }
+
+    return (
+      <>
+        {/* Responsive wrapper — scroll horizontally on narrow viewports */}
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 2fr',
+            gap: 8,
+            alignItems: 'end',
+            minWidth: 340, // min needed to keep all 6 panes legible on narrow screens
+          }}>
+
+            {/* ── Pane 1: Cold Main Supply ─── */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              <WeirGauge
+                level={coldMainsRemainingPct}
+                label="Cold Main"
+                emoji="🔵"
+                fillColor="#bee3f8"
+                borderColor="#3182ce"
+              />
+              <div style={{ fontSize: '0.55rem', color: '#718096', textAlign: 'center', lineHeight: '1.3' }}>
+                {(engineInput.dynamicMainsPressure ?? DEFAULT_MAINS_PRESSURE_BAR)} bar
+                {' · '}{maxMainsLpm.toFixed(0)} L/min max
+                {totalActiveDrawLpm > 0 && (
+                  <span style={{ color: '#c53030', display: 'block' }}>
+                    −{totalActiveDrawLpm.toFixed(0)} L/min drawn
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* ── Pane 2: Shower ── */}
+            <WeirGauge
+              level={activeOutlets.shower
+                ? (isCombi
+                    ? showerDhwKw / NOMINAL_COMBI_DHW_KW * 100
+                    : sysOutletFlowPct(showerFlowLpm))
+                : 0}
+              label="Shower"
+              emoji="🚿"
+              fillColor={isCombi ? '#fc8181' : '#fbb6ce'}
+              borderColor={isCombi ? '#e53e3e' : '#d53f8c'}
+              active={activeOutlets.shower}
+              onClick={() => toggleOutlet('shower')}
+              sublabel={`${showerFlowLpm} L/min`}
+            />
+
+            {/* ── Pane 3: Sink ── */}
+            <WeirGauge
+              level={activeOutlets.sink
+                ? (isCombi
+                    ? sinkDhwKw / NOMINAL_COMBI_DHW_KW * 100
+                    : sysOutletFlowPct(SINK_FLOW_LPM))
+                : 0}
+              label="Sink"
+              emoji="🚰"
+              fillColor={isCombi ? '#ed8936' : '#fbd38d'}
+              borderColor={isCombi ? '#c05621' : '#d69e2e'}
+              active={activeOutlets.sink}
+              onClick={() => toggleOutlet('sink')}
+              sublabel={`${SINK_FLOW_LPM} L/min`}
+            />
+
+            {/* ── Pane 4: Bath ── */}
+            <WeirGauge
+              level={activeOutlets.bath
+                ? (isCombi
+                    ? bathDhwKw / NOMINAL_COMBI_DHW_KW * 100
+                    : sysOutletFlowPct(BATH_FLOW_LPM))
+                : 0}
+              label="Bath"
+              emoji="🛁"
+              fillColor={isCombi ? '#f6ad55' : '#fbd38d'}
+              borderColor={isCombi ? '#dd6b20' : '#b7791f'}
+              active={activeOutlets.bath}
+              onClick={() => toggleOutlet('bath')}
+              sublabel={`${BATH_FLOW_LPM} L/min`}
+            />
+
+            {/* ── Pane 5: Cold Tap (cold-mains only draw) ── */}
+            <WeirGauge
+              level={activeOutlets.cold_tap ? COLD_TAP_LPM / maxMainsLpm * 100 : 0}
+              label="Cold Tap"
+              emoji="🚱"
+              fillColor="#90cdf4"
+              borderColor="#2b6cb0"
+              active={activeOutlets.cold_tap}
+              onClick={() => toggleOutlet('cold_tap')}
+              sublabel={`${COLD_TAP_LPM} L/min`}
+            />
+
+            {/* ── Pane 6: System status ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+              {isCombi ? (
+                <WeirGauge
+                  level={systemLoadPct}
+                  label="Combi Load"
+                  emoji="🔥"
+                  fillColor={systemLoadPct > 90 ? '#e53e3e' : systemLoadPct > 70 ? '#ed8936' : '#48bb78'}
+                  borderColor={systemLoadPct > 90 ? '#c53030' : systemLoadPct > 70 ? '#c05621' : '#276749'}
+                />
+              ) : (
+                <WeirGauge
+                  level={cylinderSoCPct}
+                  label="Cylinder"
+                  emoji="🛢️"
+                  fillColor="#bee3f8"
+                  borderColor="#3182ce"
+                />
+              )}
+              <div style={{ fontSize: '0.55rem', color: '#718096', textAlign: 'center', lineHeight: '1.3' }}>
+                {isCombi
+                  ? `${totalDhwDrawKw.toFixed(1)} kW of ${NOMINAL_COMBI_DHW_KW} kW`
+                  : `${lifestyle.hourlyData[cylinderRefH].cylinderVolumeL.toFixed(0)} L of ${CYLINDER_VOLUME_L} L`
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── System-specific draw-off behaviour banner ── */}
+        {isCombi && systemLoadPct > 100 && (
+          <div style={{
+            marginTop: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: '#fff5f5', border: '1px solid #fed7d7',
+            borderRadius: 6, padding: '3px 10px',
+            fontSize: '0.72rem', color: '#c53030',
+          }}>
+            ⚠️ Combined draw ({totalDhwDrawKw.toFixed(1)} kW) exceeds combi capacity
+            ({NOMINAL_COMBI_DHW_KW} kW) — simultaneous demand
+          </div>
+        )}
+
+        {!isCombi && totalHotDrawLpm > 0 && (
+          <div style={{
+            marginTop: 8,
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: '#f0fff4', border: '1px solid #9ae6b4',
+            borderRadius: 6, padding: '3px 10px',
+            fontSize: '0.72rem', color: '#276749',
+          }}>
+            ✅ {system === 'stored_vented'
+              ? `Tank-fed supply — gravity head (≤${VENTED_MAX_GRAVITY_FLOW_LPM} L/min) serves outlets independently`
+              : system === 'ashp'
+              ? `ASHP buffer cylinder — simultaneous demand handled; heat pump modulates to reheat`
+              : `Mains-fed supply — stored cylinder serves all outlets simultaneously`}
+            {cylinderMinutesRemaining !== null && ` · ~${cylinderMinutesRemaining} min cylinder reserve at ${totalHotDrawLpm.toFixed(0)} L/min draw`}
+          </div>
+        )}
+
+        {!isCombi && totalHotDrawLpm === 0 && (
+          <div style={{
+            marginTop: 6,
+            fontSize: '0.68rem', color: '#718096', fontStyle: 'italic',
+          }}>
+            {system === 'stored_vented'
+              ? `🪣 Tank-fed (open vented) hot water — gravity head drives all outlets. Outlet gauges show % of ${VENTED_MAX_GRAVITY_FLOW_LPM} L/min gravity capacity.`
+              : system === 'ashp'
+              ? `🌿 ASHP with buffer cylinder — simultaneous demand handled without throughput penalty. Outlet gauges show % of ${maxMainsLpm.toFixed(0)} L/min mains supply.`
+              : `💧 Stored unvented — mains pressure cylinder. Outlet gauges show % of ${maxMainsLpm.toFixed(0)} L/min mains supply.`}
+          </div>
+        )}
+      </>
+    );
   }
 
   return (
@@ -502,32 +681,98 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         Toggles update the curve in real-time.
       </p>
 
-      {/* ── System pill switcher ──────────────────────────────────────────────── */}
-      <div
-        style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: 10 }}
-        role="group"
-        aria-label="Select heating system"
-      >
-        {(Object.keys(SYSTEM_LABELS) as DayPainterSystem[]).map(sys => (
-          <button
-            key={sys}
-            onClick={() => setSelectedSystem(sys)}
-            aria-pressed={selectedSystem === sys}
-            style={{
-              padding: '5px 14px',
-              borderRadius: 20,
-              border: `1.5px solid ${selectedSystem === sys ? '#3182ce' : '#e2e8f0'}`,
-              background: selectedSystem === sys ? '#ebf8ff' : '#f7fafc',
-              color: selectedSystem === sys ? '#2b6cb0' : '#718096',
-              fontSize: '0.78rem',
-              fontWeight: selectedSystem === sys ? 700 : 400,
-              cursor: 'pointer',
-            }}
-          >
-            {SYSTEM_LABELS[sys]}
-          </button>
-        ))}
+      {/* ── Compare mode toggle + System picker ──────────────────────────── */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
+        {/* Single / Compare toggle */}
+        <div role="group" aria-label="View mode" style={{ display: 'flex', gap: 0, borderRadius: 20, overflow: 'hidden', border: '1.5px solid #e2e8f0' }}>
+          {(['single', 'compare'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setCompareMode(mode === 'compare')}
+              aria-pressed={compareMode === (mode === 'compare')}
+              style={{
+                padding: '4px 14px',
+                border: 'none',
+                background: compareMode === (mode === 'compare') ? '#3182ce' : '#f7fafc',
+                color: compareMode === (mode === 'compare') ? '#fff' : '#718096',
+                fontSize: '0.75rem',
+                fontWeight: compareMode === (mode === 'compare') ? 700 : 400,
+                cursor: 'pointer',
+              }}
+            >
+              {mode === 'single' ? 'Single' : 'Compare'}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* System A picker — always visible */}
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: compareMode ? 4 : 10 }}>
+        {compareMode && (
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#e53e3e', alignSelf: 'center', minWidth: 64 /* aligns with System B: label */ }}>
+            System A:
+          </span>
+        )}
+        <div
+          style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
+          role="group"
+          aria-label="Select System A"
+        >
+          {(Object.keys(SYSTEM_LABELS) as DayPainterSystem[]).map(sys => (
+            <button
+              key={sys}
+              onClick={() => setSelectedSystem(sys)}
+              aria-pressed={selectedSystem === sys}
+              style={{
+                padding: '5px 14px',
+                borderRadius: 20,
+                border: `1.5px solid ${selectedSystem === sys ? (compareMode ? '#e53e3e' : '#3182ce') : '#e2e8f0'}`,
+                background: selectedSystem === sys ? (compareMode ? '#fff5f5' : '#ebf8ff') : '#f7fafc',
+                color: selectedSystem === sys ? (compareMode ? '#c53030' : '#2b6cb0') : '#718096',
+                fontSize: '0.78rem',
+                fontWeight: selectedSystem === sys ? 700 : 400,
+                cursor: 'pointer',
+              }}
+            >
+              {SYSTEM_LABELS[sys]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* System B picker — compare mode only */}
+      {compareMode && (
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: 10 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2b6cb0', alignSelf: 'center', minWidth: 64 /* aligns with System A: label above */ }}>
+            System B:
+          </span>
+          <div
+            style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
+            role="group"
+            aria-label="Select System B"
+          >
+            {(Object.keys(SYSTEM_LABELS) as DayPainterSystem[]).map(sys => (
+              <button
+                key={sys}
+                onClick={() => setSystemB(sys)}
+                aria-pressed={systemB === sys}
+                style={{
+                  padding: '5px 14px',
+                  borderRadius: 20,
+                  border: `1.5px solid ${systemB === sys ? '#2b6cb0' : '#e2e8f0'}`,
+                  background: systemB === sys ? '#ebf8ff' : '#f7fafc',
+                  color: systemB === sys ? '#2b6cb0' : '#718096',
+                  fontSize: '0.78rem',
+                  fontWeight: systemB === sys ? 700 : 400,
+                  cursor: 'pointer',
+                }}
+              >
+                {SYSTEM_LABELS[sys]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 24-hour Day Painter ─────────────────────────────────────────────── */}
       <div
@@ -578,7 +823,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         ))}
       </div>
 
-      {/* ── 🌊 Water Draw-Off Gauges — weir gauge style, 6-pane layout ──────── */}
+      {/* ── 🌊 Water Draw-Off Gauges — weir gauge style ─────────────────────── */}
       <div style={{ marginBottom: 14 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 6 }}>
           🌊 Water Draw-Off Gauges
@@ -587,170 +832,27 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           </span>
         </div>
 
-        {/*
-          6-pane grid:
-            col 1  (2fr) — Cold Main Supply   [left  1/4]
-            cols 2–5 (1fr each) — Shower / Sink / Bath / Cold Fill  [middle 2/4]
-            col 6  (2fr) — Cylinder or Combi status  [right 1/4]
-        */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 2fr',
-          gap: 8,
-          alignItems: 'end',
-        }}>
-
-          {/* ── Pane 1: Cold Main Supply (left 1/4) ─────────────────────────── */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            <WeirGauge
-              level={coldMainsRemainingPct}
-              label="Cold Main"
-              emoji="🔵"
-              fillColor="#bee3f8"
-              borderColor="#3182ce"
-            />
-            <div style={{ fontSize: '0.55rem', color: '#718096', textAlign: 'center', lineHeight: '1.3' }}>
-              {(engineInput.dynamicMainsPressure ?? DEFAULT_MAINS_PRESSURE_BAR)} bar
-              {' · '}{maxMainsLpm.toFixed(0)} L/min max
-              {totalActiveDrawLpm > 0 && (
-                <span style={{ color: '#c53030', display: 'block' }}>
-                  −{totalActiveDrawLpm.toFixed(0)} L/min drawn
-                </span>
-              )}
+        {compareMode ? (
+          /* ── Compare mode: two side-by-side gauge columns ── */
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {/* System A column */}
+            <div style={{ border: '1.5px solid #fed7d7', borderRadius: 8, padding: '8px 10px' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#c53030', marginBottom: 6 }}>
+                {SYSTEM_LABELS[selectedSystem]}
+              </div>
+              {renderDrawOffGaugeSection(selectedSystem)}
+            </div>
+            {/* System B column */}
+            <div style={{ border: '1.5px solid #bee3f8', borderRadius: 8, padding: '8px 10px' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2b6cb0', marginBottom: 6 }}>
+                {SYSTEM_LABELS[systemB]}
+              </div>
+              {renderDrawOffGaugeSection(systemB)}
             </div>
           </div>
-
-          {/* ── Pane 2: Shower ──────────────────────────────────────────────── */}
-          {/* combi: gauge = heat-kW fraction; stored/ASHP: gauge = flow fraction of max supply */}
-          <WeirGauge
-            level={activeOutlets.shower
-              ? (selectedSystem === 'combi'
-                  ? showerDhwKw / NOMINAL_COMBI_DHW_KW * 100
-                  : outletFlowPct(showerFlowLpm))
-              : 0}
-            label="Shower"
-            emoji="🚿"
-            fillColor={selectedSystem === 'combi' ? '#fc8181' : '#fbb6ce'}
-            borderColor={selectedSystem === 'combi' ? '#e53e3e' : '#d53f8c'}
-            active={activeOutlets.shower}
-            onClick={() => toggleOutlet('shower')}
-            sublabel={`${showerFlowLpm} L/min`}
-          />
-
-          {/* ── Pane 3: Sink ────────────────────────────────────────────────── */}
-          <WeirGauge
-            level={activeOutlets.sink
-              ? (selectedSystem === 'combi'
-                  ? sinkDhwKw / NOMINAL_COMBI_DHW_KW * 100
-                  : outletFlowPct(SINK_FLOW_LPM))
-              : 0}
-            label="Sink"
-            emoji="🚰"
-            fillColor={selectedSystem === 'combi' ? '#ed8936' : '#fbd38d'}
-            borderColor={selectedSystem === 'combi' ? '#c05621' : '#d69e2e'}
-            active={activeOutlets.sink}
-            onClick={() => toggleOutlet('sink')}
-            sublabel={`${SINK_FLOW_LPM} L/min`}
-          />
-
-          {/* ── Pane 4: Bath ────────────────────────────────────────────────── */}
-          <WeirGauge
-            level={activeOutlets.bath
-              ? (selectedSystem === 'combi'
-                  ? bathDhwKw / NOMINAL_COMBI_DHW_KW * 100
-                  : outletFlowPct(BATH_FLOW_LPM))
-              : 0}
-            label="Bath"
-            emoji="🛁"
-            fillColor={selectedSystem === 'combi' ? '#f6ad55' : '#fbd38d'}
-            borderColor={selectedSystem === 'combi' ? '#dd6b20' : '#b7791f'}
-            active={activeOutlets.bath}
-            onClick={() => toggleOutlet('bath')}
-            sublabel={`${BATH_FLOW_LPM} L/min`}
-          />
-
-          {/* ── Pane 5: Cold Fill / Toilet Flush (cold draw) ────────────────── */}
-          <WeirGauge
-            level={activeOutlets.cold_fill ? COLD_FILL_LPM / maxMainsLpm * 100 : 0}
-            label="Cold Fill"
-            emoji="🚽"
-            fillColor="#90cdf4"
-            borderColor="#2b6cb0"
-            active={activeOutlets.cold_fill}
-            onClick={() => toggleOutlet('cold_fill')}
-            sublabel={`${COLD_FILL_LPM} L/min`}
-          />
-
-          {/* ── Pane 6: System status (right 1/4) ───────────────────────────── */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-            {selectedSystem === 'combi' ? (
-              <WeirGauge
-                level={systemLoadPct}
-                label="Combi Load"
-                emoji="🔥"
-                fillColor={systemLoadPct > 90 ? '#e53e3e' : systemLoadPct > 70 ? '#ed8936' : '#48bb78'}
-                borderColor={systemLoadPct > 90 ? '#c53030' : systemLoadPct > 70 ? '#c05621' : '#276749'}
-              />
-            ) : (
-              <WeirGauge
-                level={cylinderSoCPct}
-                label="Cylinder"
-                emoji="🛢️"
-                fillColor="#bee3f8"
-                borderColor="#3182ce"
-              />
-            )}
-            <div style={{ fontSize: '0.55rem', color: '#718096', textAlign: 'center', lineHeight: '1.3' }}>
-              {selectedSystem === 'combi'
-                ? `${totalDhwDrawKw.toFixed(1)} kW of ${NOMINAL_COMBI_DHW_KW} kW`
-                : `${lifestyle.hourlyData[cylinderRefH].cylinderVolumeL.toFixed(0)} L of ${CYLINDER_VOLUME_L} L`
-              }
-            </div>
-          </div>
-        </div>
-
-        {/* ── System-specific draw-off behaviour banner ──────────────────────── */}
-        {selectedSystem === 'combi' && systemLoadPct > 100 && (
-          <div style={{
-            marginTop: 8,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: '#fff5f5', border: '1px solid #fed7d7',
-            borderRadius: 6, padding: '3px 10px',
-            fontSize: '0.72rem', color: '#c53030',
-          }}>
-            ⚠️ Combined draw ({totalDhwDrawKw.toFixed(1)} kW) exceeds combi capacity
-            ({NOMINAL_COMBI_DHW_KW} kW) — simultaneous demand
-          </div>
-        )}
-
-        {selectedSystem !== 'combi' && totalHotDrawLpm > 0 && (
-          <div style={{
-            marginTop: 8,
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: '#f0fff4', border: '1px solid #9ae6b4',
-            borderRadius: 6, padding: '3px 10px',
-            fontSize: '0.72rem', color: '#276749',
-          }}>
-            ✅ {selectedSystem === 'stored_vented'
-              ? `Tank-fed supply — gravity head (≤${VENTED_MAX_GRAVITY_FLOW_LPM} L/min) serves outlets independently`
-              : selectedSystem === 'ashp'
-              ? `ASHP buffer cylinder — simultaneous demand handled; heat pump modulates to reheat`
-              : `Mains-fed supply — stored cylinder serves all outlets simultaneously`}
-            {cylinderMinutesRemaining !== null && ` · ~${cylinderMinutesRemaining} min cylinder reserve at ${totalHotDrawLpm.toFixed(0)} L/min draw`}
-          </div>
-        )}
-
-        {selectedSystem !== 'combi' && totalHotDrawLpm === 0 && (
-          <div style={{
-            marginTop: 6,
-            fontSize: '0.68rem', color: '#718096', fontStyle: 'italic',
-          }}>
-            {selectedSystem === 'stored_vented'
-              ? `🪣 Tank-fed (open vented) hot water — gravity head drives all outlets. Outlet gauges show % of ${VENTED_MAX_GRAVITY_FLOW_LPM} L/min gravity capacity.`
-              : selectedSystem === 'ashp'
-              ? `🌿 ASHP with buffer cylinder — simultaneous demand handled without throughput penalty. Outlet gauges show % of ${maxMainsLpm.toFixed(0)} L/min mains supply.`
-              : `💧 Stored unvented — mains pressure cylinder. Outlet gauges show % of ${maxMainsLpm.toFixed(0)} L/min mains supply.`}
-          </div>
+        ) : (
+          /* ── Single mode: one gauge section for selectedSystem ── */
+          renderDrawOffGaugeSection(selectedSystem)
         )}
       </div>
 
@@ -1278,7 +1380,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
                   domain={[0, Math.ceil(Math.max(
                     showerFlowLpm,
                     heatLimitLpm,
-                    anyWaterCold ? COLD_FILL_LPM : 0,
+                    anyWaterCold ? COLD_TAP_LPM : 0,
                   ) * 1.2)]}
                   tick={{ fontSize: 9 }}
                   label={{ value: 'L/min', angle: -90, position: 'insideLeft', fontSize: 10 }}
