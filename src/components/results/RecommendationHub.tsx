@@ -929,9 +929,24 @@ function buildHotWaterDemandSection(result: FullEngineResult, input: EngineInput
   const stored = result.storedDhwV1;
   const bathrooms = input.bathroomCount ?? null;
   const occupancy = input.occupancyCount ?? null;
-  const peakOutlets = (input as { peakConcurrentOutlets?: number }).peakConcurrentOutlets
-    ?? (bathrooms != null ? Math.min(bathrooms, 2) : null);
-  const peakDemandLpm = peakOutlets != null ? peakOutlets * 8 : null;
+
+  // Hot water demand is driven by occupancy first — how many people live in the home.
+  // Bathrooms affect concurrency (how many can draw simultaneously), not total demand.
+  // Diversity factor accounts for the fact that people rarely all use water at exactly
+  // the same second, even when multiple bathrooms are available.
+  const DIVERSITY_FACTOR: Record<number, number> = { 1: 1.0, 2: 0.75, 3: 0.60 };
+  const maxConcurrent = (input as { peakConcurrentOutlets?: number }).peakConcurrentOutlets
+    ?? (occupancy != null && bathrooms != null
+        ? Math.min(bathrooms, occupancy)
+        : bathrooms ?? (occupancy != null ? 1 : null));
+  const diversityFactor = maxConcurrent != null
+    ? (DIVERSITY_FACTOR[Math.min(maxConcurrent, 3)] ?? 0.60)
+    : 1.0;
+  const peakOutlets = maxConcurrent;
+  const peakDemandLpm = occupancy != null
+    ? Math.round(occupancy * 8 * diversityFactor)
+    : peakOutlets != null ? peakOutlets * 8 : null;
+
   const combiMaxKw = (combi as { maxQtoDhwKwDerated?: number } | undefined)?.maxQtoDhwKwDerated;
   const combiDeliveryLpm = combiMaxKw != null
     ? parseFloat((combiMaxKw / (4.2 * 40 / 60)).toFixed(1))
@@ -947,6 +962,7 @@ function buildHotWaterDemandSection(result: FullEngineResult, input: EngineInput
       bathroomCount:    bathrooms,
       peakOutlets:      peakOutlets,
       peakDemandLpm,
+      diversityFactor,
       combiDeliveryLpm,
       combiRisk:        combi?.verdict.combiRisk ?? 'pass',
       storedVolumeBand: (stored as { recommended?: { volumeBand?: string } } | undefined)?.recommended?.volumeBand ?? 'medium',

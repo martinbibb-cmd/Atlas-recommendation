@@ -296,8 +296,9 @@ describe('buildOptionMatrixV1', () => {
     expect(combiHasBoostPump).toBe(false);
   });
 
-  it('boost pump IS recommended when static (standing) pressure is low', () => {
-    // Low static pressure is the correct signal for a boost pump recommendation.
+  it('boost pump is NEVER recommended (even when static/standing pressure is low)', () => {
+    // Boost pumps must never be recommended — per product requirements.
+    // When static pressure is low, the recommendation should be Mixergy or vented cylinder.
     const input = {
       ...baseInput,
       dynamicMainsPressure: 1.2,
@@ -311,13 +312,19 @@ describe('buildOptionMatrixV1', () => {
     const storedHasBoostPump =
       stored.requirements.some(r => r.toLowerCase().includes('boost pump')) ||
       (stored.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('boost pump'));
-    expect(storedHasBoostPump).toBe(true);
+    expect(storedHasBoostPump).toBe(false);
 
     const sysUnvented = options.find(o => o.id === 'system_unvented')!;
     const sysHasBoostPump =
       sysUnvented.requirements.some(r => r.toLowerCase().includes('boost pump')) ||
       (sysUnvented.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('boost pump'));
-    expect(sysHasBoostPump).toBe(true);
+    expect(sysHasBoostPump).toBe(false);
+
+    // Instead, low pressure should suggest Mixergy
+    const storedSuggestsMixergy =
+      stored.requirements.some(r => r.toLowerCase().includes('mixergy')) ||
+      (stored.typedRequirements.likelyUpgrades ?? []).some(r => r.toLowerCase().includes('mixergy'));
+    expect(storedSuggestsMixergy).toBe(true);
   });
 
   it('each card has heat, dhw, engineering planes', () => {
@@ -582,7 +589,7 @@ describe('sensitivities on option cards', () => {
     const unvented = options.find(o => o.id === 'system_unvented')!;
     const pressureSensitivity = unvented.sensitivities?.find(s => s.lever === 'Mains pressure');
     expect(pressureSensitivity!.effect).toBe('upgrade');
-    expect(pressureSensitivity!.note).toContain('1.5 bar');
+    expect(pressureSensitivity!.note).toContain('Mixergy');
   });
 
   it('regular_vented sensitivities mention loft conversion', () => {
