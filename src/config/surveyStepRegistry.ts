@@ -6,7 +6,7 @@
  * literals in individual step components are no longer canonical.
  *
  * Canonical journey order:
- *   system_builder → usage → services → heat_loss → priorities → insight
+ *   system_builder → usage → services → building_fabric → heat_loss → solar_assessment → priorities → insight
  */
 
 // ─── Step ID enum ─────────────────────────────────────────────────────────────
@@ -15,6 +15,7 @@ export type SurveyStepId =
   | 'system_builder'
   | 'usage'
   | 'services'
+  | 'building_fabric'
   | 'heat_loss'
   | 'solar_assessment'
   | 'priorities'
@@ -65,8 +66,16 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
     analyticsEvent: 'survey_step_services',
   },
   {
-    id: 'heat_loss',
+    id: 'building_fabric',
     displayIndex: 4,
+    heading: '🏠 Building & Fabric',
+    shortLabel: 'Fabric',
+    testId: 'building-fabric-step',
+    analyticsEvent: 'survey_step_building_fabric',
+  },
+  {
+    id: 'heat_loss',
+    displayIndex: 5,
     heading: '🏗️ House & Heat Loss',
     shortLabel: 'Heat Loss',
     testId: 'heat-loss-step',
@@ -74,7 +83,7 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
   },
   {
     id: 'solar_assessment',
-    displayIndex: 5,
+    displayIndex: 6,
     heading: '☀️ Solar & Roof',
     shortLabel: 'Solar',
     testId: 'solar-assessment-step',
@@ -82,7 +91,7 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
   },
   {
     id: 'priorities',
-    displayIndex: 6,
+    displayIndex: 7,
     heading: '🎯 Priorities',
     shortLabel: 'Priorities',
     testId: 'priorities-step',
@@ -90,7 +99,7 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
   },
   {
     id: 'insight',
-    displayIndex: 7,
+    displayIndex: 8,
     heading: '🧠 What we need to keep in mind',
     shortLabel: 'Insight',
     testId: 'insight-layer-page',

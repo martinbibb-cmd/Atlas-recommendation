@@ -174,6 +174,12 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * House / Heat Loss step — captures the peak design heat loss estimate,
      * confidence, roof form, roof orientation, shading, and PV / battery
      * presence.  Used by the insight page (heat load and potential sections).
+     *
+     * Also carries `shellModel.settings` populated by the Building & Fabric
+     * pre-step (building_fabric) — dwelling type, wall construction, loft
+     * insulation, glazing type/amount, floor type, and thermal mass.  These
+     * settings are bridged into building.fabric.* and dwellingType on the
+     * engine input by sanitiseModelForEngine.
      */
     heatLoss?: HeatLossState;
     /**

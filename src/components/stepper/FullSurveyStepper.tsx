@@ -14,6 +14,7 @@ import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
 import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep';
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
+import { BuildingFabricStep } from '../../features/survey/heatLoss/BuildingFabricStep';
 import { SolarAssessmentStep } from '../../features/survey/solar/SolarAssessmentStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
 import {
@@ -347,6 +348,15 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onNext={next}
           onPrev={prev}
           showDebugOutput={true}
+        />
+      )}
+
+      {currentStep === 'building_fabric' && (
+        <BuildingFabricStep
+          state={heatLossState}
+          onChange={setHeatLossState}
+          onNext={next}
+          onPrev={prev}
         />
       )}
 
