@@ -512,7 +512,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 2fr',
             gap: 8,
             alignItems: 'end',
-            minWidth: 340,
+            minWidth: 340, // min needed to keep all 6 panes legible on narrow screens
           }}>
 
             {/* ── Pane 1: Cold Main Supply ─── */}
@@ -709,7 +709,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
       {/* System A picker — always visible */}
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: compareMode ? 4 : 10 }}>
         {compareMode && (
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#e53e3e', alignSelf: 'center', minWidth: 64 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#e53e3e', alignSelf: 'center', minWidth: 64 /* aligns with System B: label */ }}>
             System A:
           </span>
         )}
@@ -743,7 +743,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
       {/* System B picker — compare mode only */}
       {compareMode && (
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: 10 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2b6cb0', alignSelf: 'center', minWidth: 64 }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2b6cb0', alignSelf: 'center', minWidth: 64 /* aligns with System A: label above */ }}>
             System B:
           </span>
           <div
