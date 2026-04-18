@@ -142,17 +142,22 @@ export default function LifestyleInteractiveCompare({ baseInput = {} }: Props) {
   // ── Engine runs (shared physics inputs) ───────────────────────────────────
   const heatLossKw = engineInput.heatLossWatts / 1000;
   const sludge = useMemo(() => runSludgeVsScaleModule(SLUDGE_INPUT_AS_FOUND), []);
-  const specEdge = useMemo(() => runSpecEdgeModule(engineInput), [
+  const specEdge = useMemo(() => runSpecEdgeModule({
+    installationPolicy: 'high_temp_retrofit',
+    heatLossWatts: engineInput.heatLossWatts,
+    unitModulationFloorKw: 3,
+    waterHardnessCategory: 'hard',
+    hasSoftener: false,
+    hasMagneticFilter: false,
+  }), [
     engineInput.heatLossWatts,
     engineInput.returnWaterTemp,
     engineInput.hasLoftConversion,
   ]);
 
-  const lifestyle = useMemo(() => runLifestyleSimulationModule(engineInput, {
-    flowDeratePct: sludge.flowDeratePct,
-    cyclingLossPct: sludge.cyclingLossPct,
+  const lifestyle = useMemo(() => runLifestyleSimulationModule(engineInput, sludge.cyclingLossPct),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [
+    [
     engineInput.heatLossWatts,
     engineInput.occupancySignature,
     engineInput.buildingMass,
