@@ -386,7 +386,7 @@ const INTERVENTION_METADATA: Readonly<Record<string, {
   },
   install_pressure_booster: {
     label: '💧 Install Mixergy or vented cylinder (pressure-independent)',
-    description: 'A Mixergy cylinder or tank-fed (vented) cylinder works at any mains pressure — no pressure minimum required, unlike a combi or standard unvented cylinder.',
+    description: 'A Mixergy cylinder or tank-fed (vented) cylinder is treated as a stored-water option that remains usable on weaker supplies where combi hot water can become unreliable or cut out — no minimum mains pressure gate in Atlas.',
     affectedObjectives: ['performance', 'reliability'],
   },
 } as const;

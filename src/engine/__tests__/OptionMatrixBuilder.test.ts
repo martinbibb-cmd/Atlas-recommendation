@@ -158,13 +158,14 @@ describe('buildOptionMatrixV1', () => {
     expect(unventedCard.headline.toLowerCase()).toContain('confirm');
   });
 
-  it('ashp card status matches hydraulicV1 verdict', () => {
-    // 22mm + 14kW → ashp rejected
+  it('ashp card is caution when hydraulicV1 ashpRisk is fail (22mm + 14kW) — hydraulic advisory', () => {
+    // Hydraulic risk is advisory — ashp card is caution, not rejected.
+    // Only physical impossibilities (one-pipe topology, no outdoor space) → 'rejected'.
     const input = { ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const ashp = options.find(o => o.id === 'ashp')!;
-    expect(ashp.status).toBe('rejected');
+    expect(ashp.status).toBe('caution');
   });
 
   it('ashp card is viable for 28mm + 14kW', () => {

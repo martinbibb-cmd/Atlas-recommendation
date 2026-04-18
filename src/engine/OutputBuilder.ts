@@ -36,21 +36,29 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   let onDemandStatus: EligibilityItem['status'];
   let onDemandReason: string | undefined;
 
-  const combiBelowMinPressure = combiDhwV1?.flags.some(
-    f => f.id === COMBI_MIN_PRESSURE_FLAG_ID && f.severity === 'fail',
-  ) ?? false;
+  const combiBelowMinPressure =
+    (combiDhwV1?.flags.some(
+      f => f.id === COMBI_MIN_PRESSURE_FLAG_ID && f.severity === 'fail',
+    ) ?? false) ||
+    // Also check input directly: when currentHeatSourceType is not 'combi', combiDhwV1 is
+    // undefined, but the physical impossibility (< 0.3 bar — burner cannot fire) still applies.
+    (input?.dynamicMainsPressure !== undefined && input.dynamicMainsPressure < 0.3);
 
-  if (redFlags.rejectCombi || combiBelowMinPressure) {
-    // Never block a system — use caution so combi remains selectable.
+  if (combiBelowMinPressure) {
+    // Physical impossibility — burner cannot fire below 0.3 bar.
+    onDemandStatus = 'rejected';
+    const failFlag = combiDhwV1?.flags.find(
+      f => f.id === COMBI_MIN_PRESSURE_FLAG_ID && f.severity === 'fail',
+    );
+    onDemandReason = failFlag
+      ? `${failFlag.title}: ${failFlag.detail}`
+      : input?.dynamicMainsPressure !== undefined && input.dynamicMainsPressure < 0.3
+      ? `Working pressure ${input.dynamicMainsPressure.toFixed(2)} bar is below the 0.3 bar minimum — burner cannot fire at this pressure.`
+      : undefined;
+  } else if (redFlags.rejectCombi) {
+    // Demand-side rejection (simultaneous demand, large household) — advisory only.
     onDemandStatus = 'caution';
-    if (redFlags.rejectCombi) {
-      onDemandReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
-    } else {
-      const failFlag = combiDhwV1?.flags.find(
-        f => f.id === COMBI_MIN_PRESSURE_FLAG_ID && f.severity === 'fail',
-      );
-      onDemandReason = failFlag ? `${failFlag.title}: ${failFlag.detail}` : undefined;
-    }
+    onDemandReason = redFlags.reasons.filter(r => r.includes('Combi')).join(' ') || undefined;
   } else if (combiDhwV1?.verdict.combiRisk === 'fail') {
     // Demand-side 'fail' (simultaneous demand gate, large household) — advisory only.
     onDemandStatus = 'caution';
@@ -85,8 +93,8 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   let storedVentedReason: string | undefined;
 
   if (storedVentedRejected) {
-    // Never block a system — use caution.
-    storedVentedStatus = 'caution';
+    // Physical space constraint — loft conversion has removed header tank space.
+    storedVentedStatus = 'rejected';
     storedVentedReason = result.redFlags.reasons
       .filter(r => r.includes('Stored') || r.includes('Cylinder') || r.includes('Loft'))
       .join(' ') || undefined;
@@ -136,10 +144,10 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   // hasOutdoorSpaceForHeatPump === false means no confirmed outdoor space for the unit — hard gate.
   let ashpStatus: EligibilityItem['status'];
   if (redFlags.rejectAshp || input?.hasOutdoorSpaceForHeatPump === false) {
-    // Never block a system — use caution.
-    ashpStatus = 'caution';
+    // Physical impossibility — one-pipe topology or no outdoor space for unit.
+    ashpStatus = 'rejected';
   } else if (hydraulicV1.verdict.ashpRisk === 'fail') {
-    // Never block a system — use caution.
+    // Hydraulic constraint — advisory under no-hard-stops policy.
     ashpStatus = 'caution';
   } else if (hydraulicV1.verdict.ashpRisk === 'warn' || redFlags.flagAshp) {
     ashpStatus = 'caution';

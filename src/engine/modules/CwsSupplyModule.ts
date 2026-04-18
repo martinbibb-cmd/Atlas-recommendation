@@ -35,6 +35,11 @@ const UNVENTED_FLOW_AT_PRESSURE_BAR = 1.0;
  * Rule: subtract LOW_PRESSURE_FLOW_DEDUCTION_LPM from the measured flow and
  * use LOW_PRESSURE_ASSUMED_BAR as the assumed working pressure for all calculations.
  * This protects against over-specifying cylinder performance on a weak supply.
+ *
+ * LOW_PRESSURE_ASSUMED_BAR is a conservative modelling floor for very weak measured
+ * supplies — it is NOT a statement of actual site pressure. The intent is to prevent
+ * the engine from treating a near-zero pressure reading as indicative of true
+ * operating conditions when the installer may have caught an unlucky snapshot.
  */
 const LOW_PRESSURE_THRESHOLD_BAR = 0.3;
 const LOW_PRESSURE_FLOW_DEDUCTION_LPM = 2;
