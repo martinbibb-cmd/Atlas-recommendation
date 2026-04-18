@@ -177,8 +177,8 @@
   border-radius: 20px;
   box-shadow: 0 28px 72px rgba(0, 0, 0, 0.25);
   width: 100%;
-  max-width: 880px;
-  max-height: 90vh;
+  max-width: min(1120px, 96vw);
+  max-height: calc(100vh - 24px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -222,7 +222,23 @@
 .sim-modal__body {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 14px;
+}
+
+@media (max-width: 900px) {
+  .sim-modal-overlay {
+    padding: 10px;
+  }
+
+  .sim-modal {
+    max-width: 100%;
+    border-radius: 14px;
+    max-height: calc(100vh - 12px);
+  }
+
+  .sim-modal__body {
+    padding: 10px;
+  }
 }
 
 /* ─── Compare-mode half-screen panel overlay ─────────────────────────────────

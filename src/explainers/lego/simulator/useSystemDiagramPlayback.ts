@@ -53,6 +53,8 @@ export type DemandControls = {
   bath: boolean
   /** Kitchen tap open (hot-water draw in progress). */
   kitchen: boolean
+  /** Cold tap open (cold-water draw only; does not request hot service). */
+  coldTap: boolean
 }
 
 // ─── Public state type ────────────────────────────────────────────────────────
@@ -124,11 +126,12 @@ export type SystemDiagramDisplayState = {
    * Absent for boiler systems.
    */
   cop?: number
-  /** Explicit outlet draw demands for shower/bath/kitchen. */
+  /** Explicit outlet draw demands for shower/bath/kitchen/cold tap. */
   outletDemands?: {
     shower: boolean
     bath: boolean
     kitchen: boolean
+    coldTap: boolean
   }
 }
 
@@ -699,7 +702,7 @@ function buildOccupancyAutoState(
         serviceSwitchingActive: false,
         supplyOrigins: supplyOriginsForSystemType('unvented_cylinder', { isHeatPump: true }),
         hotDrawActive, cylinderFillPct: cylinderFill, cop, phaseLabel,
-        outletDemands: { shower: hotDrawActive, bath: false, kitchen: false },
+        outletDemands: { shower: hotDrawActive, bath: false, kitchen: false, coldTap: false },
       }
     }
     case 'mixergy': {
@@ -748,6 +751,7 @@ function buildCombiState(phase: CombiPhase): SystemDiagramDisplayState {
       shower: phase.hotDrawActive,
       bath: false,
       kitchen: false,
+      coldTap: false,
     },
   }
 }
@@ -782,6 +786,7 @@ function buildStoredState(
       shower: phase.hotDrawActive,
       bath: phase.hotDrawActive,
       kitchen: false,
+      coldTap: false,
     },
   }
 }
@@ -813,6 +818,7 @@ function buildHeatPumpState(phase: HeatPumpPhase): SystemDiagramDisplayState {
       shower: phase.hotDrawActive,
       bath: false,
       kitchen: false,
+      coldTap: false,
     },
   }
 }
@@ -867,6 +873,7 @@ function buildManualState(
           shower: demand.shower,
           bath: demand.bath,
           kitchen: demand.kitchen,
+          coldTap: demand.coldTap,
         },
       }
     }
@@ -891,6 +898,7 @@ function buildManualState(
           shower: demand.shower,
           bath: demand.bath,
           kitchen: demand.kitchen,
+          coldTap: demand.coldTap,
         },
       }
     }
@@ -914,6 +922,7 @@ function buildManualState(
           shower: demand.shower,
           bath: demand.bath,
           kitchen: demand.kitchen,
+          coldTap: demand.coldTap,
         },
       }
     }
@@ -937,6 +946,7 @@ function buildManualState(
           shower: demand.shower,
           bath: demand.bath,
           kitchen: demand.kitchen,
+          coldTap: demand.coldTap,
         },
       }
     }
@@ -961,6 +971,7 @@ function buildManualState(
           shower: demand.shower,
           bath: demand.bath,
           kitchen: demand.kitchen,
+          coldTap: demand.coldTap,
         },
       }
     }
@@ -1044,6 +1055,7 @@ const DEFAULT_DEMAND: DemandControls = {
   shower: false,
   bath: false,
   kitchen: false,
+  coldTap: false,
 }
 
 export function useSystemDiagramPlayback(
