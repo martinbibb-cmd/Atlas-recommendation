@@ -9,6 +9,7 @@ const SECTIONS: Array<{ id: SpatialTwinLeftRailSection; label: string; icon: str
   { id: 'overlays', label: 'Overlays', icon: '🎨' },
   { id: 'compare', label: 'Compare', icon: '⚖️' },
   { id: 'physicsTrace', label: 'Physics Trace', icon: '📐' },
+  { id: 'alignment', label: 'Structure View', icon: '📍' },
 ];
 
 interface SpatialTwinLeftRailProps {

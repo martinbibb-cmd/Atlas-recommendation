@@ -45,6 +45,8 @@ interface Props {
   onOpenReport: (reportId: string) => void;
   /** Open the pre-install engineer route for this visit. */
   onOpenEngineerRoute?: () => void;
+  /** Open the Atlas Insight Pack for this visit (requires quotes to be collected). */
+  onOpenInsightPack?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -159,16 +161,20 @@ function HubActions({
   onOpenPresentation,
   onPrintSummary,
   onOpenEngineerRoute,
+  onOpenInsightPack,
   portalUrl,
   portalLoading,
+  hasQuotes,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
   onOpenPresentation: () => void;
   onPrintSummary?: () => void;
   onOpenEngineerRoute?: () => void;
+  onOpenInsightPack?: () => void;
   portalUrl?: string;
   portalLoading?: boolean;
+  hasQuotes?: boolean;
 }) {
   const surveyDone = isSurveyComplete(meta);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -260,6 +266,17 @@ function HubActions({
           🔧 Pre-install engineer view
         </button>
       )}
+
+      {surveyDone && onOpenInsightPack && hasQuotes && (
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
+          onClick={onOpenInsightPack}
+          aria-label="Open Atlas Insight Pack"
+          data-testid="open-insight-pack-btn"
+        >
+          📋 View Insight Pack
+        </button>
+      )}
     </div>
   );
 }
@@ -274,6 +291,7 @@ export default function VisitHubPage({
   onPrintSummary,
   onOpenReport,
   onOpenEngineerRoute,
+  onOpenInsightPack,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,6 +304,8 @@ export default function VisitHubPage({
   const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
   // Voice notes — loaded from working_payload and saved back on change.
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
+  // Whether this visit's working payload contains contractor quotes.
+  const [hasQuotes, setHasQuotes] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -299,6 +319,9 @@ export default function VisitHubPage({
         const payload = working_payload as Partial<FullSurveyModelV1> | null;
         const persisted = payload?.fullSurvey?.voiceNotes;
         if (Array.isArray(persisted)) setVoiceNotes(persisted);
+        // Check if contractor quotes were collected in the survey.
+        const quotes = payload?.fullSurvey?.quotes;
+        setHasQuotes(Array.isArray(quotes) && quotes.length > 0);
         setLoading(false);
       })
       .catch((err: unknown) => {
@@ -472,8 +495,10 @@ export default function VisitHubPage({
           onOpenPresentation={onOpenPresentation}
           onPrintSummary={onPrintSummary}
           onOpenEngineerRoute={onOpenEngineerRoute}
+          onOpenInsightPack={onOpenInsightPack}
           portalUrl={portalUrl}
           portalLoading={portalLoading}
+          hasQuotes={hasQuotes}
         />
 
         <VoiceNotesPanel

@@ -19,7 +19,8 @@ export type SurveyStepId =
   | 'heat_loss'
   | 'solar_assessment'
   | 'priorities'
-  | 'insight';
+  | 'insight'
+  | 'quotes';
 
 // ─── Per-step metadata ────────────────────────────────────────────────────────
 
@@ -104,6 +105,14 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
     shortLabel: 'Insight',
     testId: 'insight-layer-page',
     analyticsEvent: 'survey_step_insight',
+  },
+  {
+    id: 'quotes',
+    displayIndex: 9,
+    heading: '📄 Contractor Quotes',
+    shortLabel: 'Quotes',
+    testId: 'quote-collection-step',
+    analyticsEvent: 'survey_step_quotes',
   },
 ] as const;
 

@@ -155,8 +155,9 @@ describe('FullSurveyStepper — V2 active step structure', () => {
 // ─── onComplete routing ───────────────────────────────────────────────────────
 
 /**
- * Advance through all 8 V2 survey steps and trigger the final action button.
- * Steps 1–7 use "Next →"; step 8 (insight) uses "Run Full Analysis →".
+ * Advance through all 9 V2 survey steps and trigger the final action button.
+ * Steps 1–7 use "Next →"; step 8 (insight) uses "Run Full Analysis →";
+ * step 9 (quotes) uses "Skip →" so the test completes without entering quote data.
  */
 async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
   // Steps 1–7: click "Next →"
@@ -169,12 +170,15 @@ async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
     await user.click(nextBtn);
   }
   // Step 8 (insight): click "Run Full Analysis →"
-  const finalBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
-  await user.click(finalBtn);
+  const insightBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
+  await user.click(insightBtn);
+  // Step 9 (quotes): click "Skip →" to complete the survey without entering quotes
+  const skipBtn = screen.getByRole('button', { name: /Skip →/ });
+  await user.click(skipBtn);
 }
 
 describe('FullSurveyStepper — onComplete routing', () => {
-  it('calls onComplete with a clean EngineInputV2_3 after completing all 8 steps', async () => {
+  it('calls onComplete with a clean EngineInputV2_3 after completing all 9 steps', async () => {
     const onComplete = vi.fn();
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} onComplete={onComplete} />);

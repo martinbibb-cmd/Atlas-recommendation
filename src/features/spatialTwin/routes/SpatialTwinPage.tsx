@@ -10,6 +10,7 @@ import { SpatialTwinComparePanel } from '../compare/SpatialTwinComparePanel';
 import { ScenarioShortlistPanel } from '../components/ScenarioShortlistPanel';
 import { SpatialTwinDollhouseView } from '../scene/viewer/SpatialTwinDollhouseView';
 import { SpatialTwinSceneModeToggle } from '../scene/viewer/SpatialTwinSceneModeToggle';
+import { AlignmentViewPanel } from '../../spatialAlignment/AlignmentViewPanel';
 import {
   initTwin,
   importStarted,
@@ -171,6 +172,16 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
                 </div>
               );
             })}
+          </div>
+        ) : state.activeLeftRailSection === 'alignment' ? (
+          <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+            {state.model != null ? (
+              <AlignmentViewPanel model={state.model} />
+            ) : (
+              <div style={{ color: '#94a3b8', fontSize: 14 }}>
+                No spatial model loaded. Import a capture to see the Structure View.
+              </div>
+            )}
           </div>
         ) : (
           <div ref={canvasContainerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>

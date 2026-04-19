@@ -9,7 +9,8 @@ export type SpatialTwinLeftRailSection =
   | 'evidence'
   | 'overlays'
   | 'compare'
-  | 'physicsTrace';
+  | 'physicsTrace'
+  | 'alignment';
 
 export type SpatialTwinImportState = 'idle' | 'loading' | 'ready' | 'failed';
 
