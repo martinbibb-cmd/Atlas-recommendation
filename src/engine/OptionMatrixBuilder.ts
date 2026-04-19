@@ -372,6 +372,17 @@ export function buildOptionMatrixV1(
     evidenceIds: [],
   };
 
+  // Determine whether the fail is specifically from concurrent/simultaneous demand
+  // (bathroomCount >= 2 or peakConcurrentOutlets >= 2), not from large-household
+  // volume demand or pressure alone. When peakConcurrentOutlets is explicitly 1,
+  // do not emit a simultaneous-demand narrative even if bathroomCount >= 2 also
+  // triggered the fail — the two conditions are independent physics dimensions.
+  const peakOutletsExplicit = input.peakConcurrentOutlets ?? null;
+  const hasSimultaneousDemandFlag =
+    core.combiDhwV1?.flags.some(f => f.id === 'combi-simultaneous-demand') ?? false;
+  const simultaneousDemandNarrativeActive =
+    hasSimultaneousDemandFlag && (peakOutletsExplicit === null || peakOutletsExplicit >= 2);
+
   const combiTypedReqs: OptionRequirements = {
     mustHave: combiRejectedByTopology
       ? [
@@ -379,9 +390,13 @@ export function buildOptionMatrixV1(
         ]
       : combiRisk === 'fail'
       ? [
-          'Simultaneous hot-water demand is high for this household — a stored hot water option is usually a better fit.',
+          simultaneousDemandNarrativeActive
+            ? 'Simultaneous hot-water demand is high for this household — a stored hot water option is usually a better fit.'
+            : 'High daily hot-water demand for this household — a stored hot water option handles recovery and volume demands better.',
         ]
-      : ['Confirm peak simultaneous outlets = 1.'],
+      : [
+          'Confirm mains flow rate and pressure performance before finalising combi specification.',
+        ],
     likelyUpgrades: (core.pressureAnalysis.staticBar !== undefined && core.pressureAnalysis.staticBar < 1.5)
       ? ['⚠️ Low standing pressure — consider a stored cylinder (vented or Mixergy) instead of a combi.']
       : [],
