@@ -18,13 +18,12 @@
  *   - No random positioning — all coordinates derived from engine output.
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { AtlasSpatialModelV1 } from '../atlasSpatial/atlasSpatialModel.types';
 import type { AlignmentInsight } from './spatialAlignment.types';
 import { buildAlignmentInsights } from './spatialAlignment.engine';
 import {
   selectConfirmedAnchors,
-  selectInferredAnchors,
   selectReferenceAnchor,
 } from './spatialAlignment.selectors';
 
@@ -175,7 +174,6 @@ interface SideViewProps {
 function SideView({ model, bounds, insights }: SideViewProps) {
   const anchors   = model.anchors ?? [];
   const confirmed = selectConfirmedAnchors(model);
-  const inferred  = selectInferredAnchors(model);
   const confirmedIds = new Set(confirmed.map((a) => a.id));
 
   const insightMap = useMemo(
