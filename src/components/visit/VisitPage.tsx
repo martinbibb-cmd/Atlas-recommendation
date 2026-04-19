@@ -22,6 +22,7 @@ import FullSurveyStepper from '../stepper/FullSurveyStepper';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
+import type { QuoteInput } from '../../features/insightPack/insightPack.types';
 import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, type VisitMeta } from '../../lib/visits/visitApi';
 import './VisitPage.css';
 
@@ -45,6 +46,11 @@ export interface Props {
    * built from the current survey state.
    */
   onOpenSimulator?: (engineInput: EngineInputV2_3) => void;
+  /**
+   * When provided, called after the Quotes step completes with the collected
+   * quotes so the parent can open the Atlas Insight Pack presentation.
+   */
+  onOpenInsightPack?: (engineInput: EngineInputV2_3, quotes: QuoteInput[]) => void;
   /**
    * Optional callback invoked on every step transition with the full survey
    * draft (including fullSurvey.priorities and fullSurvey.heatLoss).
@@ -185,6 +191,7 @@ export default function VisitPage({
   onBack,
   onComplete,
   onOpenSimulator,
+  onOpenInsightPack,
   onDraft,
   onOpenFloorPlan,
 }: Props) {
@@ -389,6 +396,7 @@ export default function VisitPage({
         prefill={prefill}
         onComplete={handleComplete}
         onOpenSimulator={onOpenSimulator ?? handleComplete}
+        onOpenInsightPack={onOpenInsightPack}
         onDraft={handleDraft}
         onOpenFloorPlan={onOpenFloorPlan}
       />
