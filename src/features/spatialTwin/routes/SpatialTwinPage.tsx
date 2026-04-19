@@ -176,7 +176,7 @@ function SpatialTwinPageInner({ visitId, onBack }: SpatialTwinPageInnerProps) {
         ) : state.activeLeftRailSection === 'alignment' ? (
           <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
             {state.model != null ? (
-              <AlignmentViewPanel model={state.model} />
+              <AlignmentViewPanel model={state.model.spatial} />
             ) : (
               <div style={{ color: '#94a3b8', fontSize: 14 }}>
                 No spatial model loaded. Import a capture to see the Structure View.
