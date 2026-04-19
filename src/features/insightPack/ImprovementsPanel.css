@@ -1,0 +1,36 @@
+/* ImprovementsPanel.css */
+
+.improvements { display: flex; flex-direction: column; gap: 1.25rem; }
+.improvements__heading { margin: 0 0 0.25rem; font-size: 1.1rem; font-weight: 700; color: #10243d; }
+.improvements__sub { margin: 0 0 0.75rem; color: #4b5d79; font-size: 0.88rem; }
+
+.improvements__quote-block { display: flex; flex-direction: column; gap: 0.5rem; }
+.improvements__quote-label { font-size: 0.85rem; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.04em; }
+.improvements__none { font-size: 0.85rem; color: #16a34a; }
+
+.improvement-card {
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: #f7faff;
+  border: 1.5px solid #dbe8ff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.improvement-card__header { display: flex; align-items: center; gap: 0.5rem; }
+.improvement-card__title { font-size: 0.9rem; font-weight: 700; color: #10243d; }
+.improvement-card__impact {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  margin-left: auto;
+}
+.improvement-card__impact--performance  { background: #dbeafe; color: #1d4ed8; }
+.improvement-card__impact--efficiency   { background: #dcfce7; color: #16a34a; }
+.improvement-card__impact--longevity    { background: #fef9c3; color: #854d0e; }
+
+.improvement-card__explanation { font-size: 0.82rem; color: #374151; line-height: 1.45; }

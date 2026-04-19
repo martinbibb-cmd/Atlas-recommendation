@@ -1,0 +1,108 @@
+/**
+ * RatingsPanel.tsx — Section 4: Atlas Rating (band-based, physics-derived).
+ *
+ * Rules:
+ *   - No numeric scores — RatingBand only.
+ *   - Each dimension shows band + reason + expandable physics detail.
+ *   - Colour bands convey quality; no "97/100" style values.
+ */
+
+import { useState } from 'react';
+import type { QuoteInsight, RatingBand, RatingExplanation } from './insightPack.types';
+import './RatingsPanel.css';
+
+interface Props {
+  quotes: QuoteInsight[];
+}
+
+const BAND_ICONS: Record<RatingBand, string> = {
+  'Excellent':          '✅',
+  'Very Good':          '👍',
+  'Good':               '🆗',
+  'Needs Right Setup':  '⚠️',
+  'Less Suited':        '🚫',
+};
+
+const DIMENSION_LABELS: Array<{
+  key: keyof QuoteInsight['rating'];
+  label: string;
+}> = [
+  { key: 'hotWaterPerformance', label: 'Hot Water' },
+  { key: 'heatingPerformance',  label: 'Heating' },
+  { key: 'efficiency',          label: 'Efficiency' },
+  { key: 'reliability',         label: 'Reliability' },
+  { key: 'suitability',         label: 'Overall Fit' },
+];
+
+function bandCssClass(band: RatingBand): string {
+  switch (band) {
+    case 'Excellent':         return 'excellent';
+    case 'Very Good':         return 'very-good';
+    case 'Good':              return 'good';
+    case 'Needs Right Setup': return 'needs-right-setup';
+    case 'Less Suited':       return 'less-suited';
+  }
+}
+
+function RatingChip({
+  dimension,
+  explanation,
+}: {
+  dimension: string;
+  explanation: RatingExplanation;
+}) {
+  const [showPhysics, setShowPhysics] = useState(false);
+
+  return (
+    <div
+      className={`rating-chip rating-chip--${bandCssClass(explanation.rating)}`}
+      data-testid={`rating-chip-${dimension}`}
+    >
+      <div className="rating-chip__dimension">{dimension}</div>
+      <div className="rating-chip__band">
+        <span>{BAND_ICONS[explanation.rating]}</span>
+        <span>{explanation.rating}</span>
+      </div>
+      <div className="rating-chip__reason">{explanation.reason}</div>
+      <button
+        className="rating-chip__physics-toggle"
+        onClick={() => setShowPhysics(v => !v)}
+        aria-expanded={showPhysics}
+      >
+        {showPhysics ? '▲ Hide detail' : '▼ Why?'}
+      </button>
+      {showPhysics && (
+        <div className="rating-chip__physics">{explanation.physics}</div>
+      )}
+    </div>
+  );
+}
+
+export default function RatingsPanel({ quotes }: Props) {
+  return (
+    <div className="ratings" data-testid="ratings-panel">
+      <h2 className="ratings__heading">Atlas Rating</h2>
+      <p className="ratings__sub">
+        Physics-derived performance bands — not scores, not opinions.
+      </p>
+      <p className="ratings__note">
+        Ratings emerge from your home's measured constraints. Tap "Why?" on any card to see the physics reason.
+      </p>
+
+      {quotes.map(({ quote, rating }) => (
+        <div key={quote.id} className="ratings__quote-block">
+          <div className="ratings__quote-label">{quote.label}</div>
+          <div className="ratings__grid">
+            {DIMENSION_LABELS.map(({ key, label }) => (
+              <RatingChip
+                key={key}
+                dimension={label}
+                explanation={rating[key]}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
