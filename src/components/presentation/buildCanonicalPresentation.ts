@@ -17,7 +17,7 @@
 
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { OptionCardV1 } from '../../contracts/EngineOutputV1';
-import type { RecommendationDecision, RecommendationResult } from '../../engine/recommendation/RecommendationModel';
+import type { RecommendationDecision, RecommendationObjective, RecommendationResult, CandidateSuitability } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import type { DhwArchitecture } from '../../lib/dhw/buildDhwContextFromSurvey';
 import type { DhwType, PipeLayout, ControlFamily } from '../../features/survey/systemBuilder/systemBuilderTypes';
@@ -392,6 +392,33 @@ export interface PhysicsRankingItem {
   selectedPropertiesRank: number;
   /** One-line label for the selected-properties rank. */
   selectedPropertiesLabel: string;
+
+  // ── Full engineering scoring — sourced directly from RecommendationDecision ──
+
+  /**
+   * Per-objective scores in the range [0, 100]. Sourced from the engine's
+   * RecommendationDecision so the ranking detail modal shows real engine data.
+   * All objectives are always present (defaulting to 0 for disqualified families).
+   */
+  objectiveScores: Record<RecommendationObjective, number>;
+
+  /**
+   * Suitability verdict for this candidate — 'suitable', 'suitable_with_caveats',
+   * or 'not_recommended'.  Used to grey out hard-failed options.
+   */
+  suitability: CandidateSuitability;
+
+  /**
+   * Whether this candidate was disqualified by a hard-stop limiter.
+   * True when the family appears in recommendation.disqualifiedCandidates.
+   */
+  hardFailed: boolean;
+
+  /**
+   * Human-readable caveats explaining why this candidate is not fully suitable.
+   * Empty for clean 'suitable' candidates.
+   */
+  caveats: readonly string[];
 }
 
 /** Page 3 — Physics-first ranking. */
@@ -2213,6 +2240,12 @@ function buildPage3(
     const ecoScore = decision?.objectiveScores.eco ?? 50;
     const propScore = propScores[index] ?? 50;
 
+    // Default objective scores for disqualified/missing candidates
+    const DEFAULT_OBJ: Record<RecommendationObjective, number> = {
+      performance: 0, reliability: 0, longevity: 0,
+      ease_of_control: 0, eco: 0, disruption: 0, space: 0,
+    };
+
     return {
       rank: index + 1,
       family: entry.family,
@@ -2232,6 +2265,11 @@ function buildPage3(
       efficiencyLabel:          efficiencyLabel(entry.family, ecoScore),
       selectedPropertiesRank:   propRanks[index]      ?? index + 1,
       selectedPropertiesLabel:  selectedPropertiesLabel(entry.family, propScore),
+      // Full engineering scoring for the detail modal
+      objectiveScores: decision?.objectiveScores ? { ...decision.objectiveScores } : { ...DEFAULT_OBJ },
+      suitability: decision?.suitability ?? (isDisqualified ? 'not_recommended' : 'suitable'),
+      hardFailed: isDisqualified,
+      caveats: decision?.caveats ?? [],
     };
   });
 

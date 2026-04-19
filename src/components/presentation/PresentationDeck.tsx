@@ -37,6 +37,7 @@ import {
 } from 'recharts';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
+import { ALL_OBJECTIVES } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import {
   buildCanonicalPresentation,
@@ -47,6 +48,8 @@ import {
   type FinalPageSimulator,
   type UpgradeLayer,
 } from './buildCanonicalPresentation';
+import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
+import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
 import { optionToConceptModel, type OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
@@ -1008,16 +1011,25 @@ function SystemOptionsGridPage({
               ].filter(Boolean)
             : [];
           const status = opt?.status ?? 'viable';
+          const isRejected = status === 'rejected';
           const cellLabel = `${def.heading} ${def.sub}`;
 
           return (
             <button
               key={def.key}
               type="button"
-              className={`atlas-deck-sys-grid__cell atlas-deck-sys-grid__cell--${status} atlas-deck-sys-grid__cell--tappable`}
+              className={[
+                'atlas-deck-sys-grid__cell',
+                `atlas-deck-sys-grid__cell--${status}`,
+                isRejected ? 'atlas-deck-sys-grid__cell--hard-failed' : 'atlas-deck-sys-grid__cell--tappable',
+              ].join(' ')}
               onClick={() => onOptionSelect(def.key)}
-              aria-label={`Compare ${cellLabel}`}
+              aria-label={isRejected ? `${cellLabel} — not available` : `Compare ${cellLabel}`}
+              aria-disabled={isRejected ? 'true' : undefined}
             >
+              {isRejected && (
+                <span className="atlas-deck-sys-grid__fail-badge" aria-hidden="true">✕ Not available</span>
+              )}
               <p className="atlas-deck-sys-grid__heading">{def.heading}</p>
               <p className="atlas-deck-sys-grid__sub">{def.sub}</p>
               <div className="atlas-deck-sys-grid__diagram">
@@ -1031,12 +1043,202 @@ function SystemOptionsGridPage({
                   {bullets.map((b, i) => <li key={i}>{b}</li>)}
                 </ul>
               )}
-              <span className="atlas-deck-sys-grid__tap-hint" aria-hidden="true">Tap to compare →</span>
+              {!isRejected && (
+                <span className="atlas-deck-sys-grid__tap-hint" aria-hidden="true">Tap to compare →</span>
+              )}
             </button>
           );
         })}
       </div>
     </>
+  );
+}
+
+// ─── Ranking detail modal ─────────────────────────────────────────────────────
+
+/**
+ * Maps PriorityKey to the nearest RecommendationObjective for scoring.
+ * cost_tendency and future_compatibility share the eco dimension as the
+ * closest available proxy in the engine's objective set.
+ */
+const PRIORITY_KEY_TO_OBJECTIVE: Record<string, string> = {
+  performance:          'performance',
+  reliability:          'reliability',
+  longevity:            'longevity',
+  disruption:           'disruption',
+  eco:                  'eco',
+  cost_tendency:        'eco',
+  future_compatibility: 'eco',
+};
+
+const OBJECTIVE_LABELS: Record<string, { label: string; description: string }> = {
+  performance:    { label: 'Performance',     description: 'Heating & hot water output' },
+  reliability:    { label: 'Reliability',     description: 'Stability & reduced breakdown risk' },
+  longevity:      { label: 'Longevity',       description: 'Expected service life' },
+  ease_of_control:{ label: 'Ease of control', description: 'Operation & programming simplicity' },
+  eco:            { label: 'Eco / efficiency',description: 'Carbon footprint & energy efficiency' },
+  disruption:     { label: 'Installation',    description: 'Enabling works & disruption' },
+  space:          { label: 'Space',           description: 'Physical footprint requirements' },
+};
+
+function ScoreBar({ score, colour }: { score: number; colour: string }) {
+  return (
+    <div className="rdk-score-bar" role="meter" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100}>
+      <div className="rdk-score-bar__fill" style={{ width: `${score}%`, background: colour }} />
+      <span className="rdk-score-bar__value">{score}</span>
+    </div>
+  );
+}
+
+function RankingDetailModal({
+  item,
+  prioritiesState,
+  onClose,
+}: {
+  item: PhysicsRankingItem;
+  prioritiesState: PrioritiesState | undefined;
+  onClose: () => void;
+}) {
+  const selectedPriorities = prioritiesState?.selected ?? [];
+
+  // Close on backdrop click
+  function handleBackdropClick(e: React.MouseEvent) {
+    if (e.target === e.currentTarget) onClose();
+  }
+
+  const statusColour = item.hardFailed ? '#e53e3e' : item.suitability === 'suitable' ? '#38a169' : '#d69e2e';
+  const statusLabel  = item.hardFailed ? '✕ Not recommended for this home'
+    : item.suitability === 'suitable' ? '✓ Suitable for this home'
+    : '⚠ Suitable with caveats';
+
+  return (
+    <div
+      className="rdk-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Ranking detail: ${item.label}`}
+      onClick={handleBackdropClick}
+    >
+      <div className="rdk-modal">
+        {/* Header */}
+        <div className="rdk-modal__header">
+          <div>
+            <p className="rdk-modal__rank">#{item.rank} in physics ranking</p>
+            <h3 className="rdk-modal__title">{item.label}</h3>
+            <p className="rdk-modal__status" style={{ color: statusColour }}>{statusLabel}</p>
+          </div>
+          <button
+            type="button"
+            className="rdk-modal__close"
+            onClick={onClose}
+            aria-label="Close detail"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="rdk-modal__body">
+
+          {/* ── Caveats ─────────────────────────────────────────────────── */}
+          {item.caveats.length > 0 && (
+            <div className="rdk-section rdk-section--caveats">
+              <p className="rdk-section__heading">⚠ Constraints for this home</p>
+              <ul className="rdk-caveat-list">
+                {item.caveats.map((c, i) => <li key={i}>{c}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* ── Section 1 — Pure engineering ────────────────────────────── */}
+          <div className="rdk-section">
+            <p className="rdk-section__heading">Pure engineering breakdown</p>
+            <p className="rdk-section__sub">Physics-based scoring for this home — higher is better (0–100)</p>
+            <div className="rdk-obj-grid">
+              {ALL_OBJECTIVES.map(obj => {
+                const score = item.objectiveScores[obj] ?? 0;
+                const meta  = OBJECTIVE_LABELS[obj];
+                const barColour = score >= 75 ? '#38a169' : score >= 50 ? '#d69e2e' : '#e53e3e';
+                return (
+                  <div key={obj} className="rdk-obj-row">
+                    <div className="rdk-obj-row__label-wrap">
+                      <span className="rdk-obj-row__label">{meta?.label ?? obj}</span>
+                      <span className="rdk-obj-row__desc">{meta?.description ?? ''}</span>
+                    </div>
+                    <ScoreBar score={score} colour={barColour} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Section 2 — Water demand fit ────────────────────────────── */}
+          <div className="rdk-section">
+            <p className="rdk-section__heading">How it fits your water demand</p>
+            <div className="rdk-demand-grid">
+              {item.demandFitNote && (
+                <div className="rdk-demand-item">
+                  <span className="rdk-demand-item__icon" aria-hidden="true">💧</span>
+                  <span className="rdk-demand-item__text">{item.demandFitNote}</span>
+                </div>
+              )}
+              {item.waterFitNote && (
+                <div className="rdk-demand-item">
+                  <span className="rdk-demand-item__icon" aria-hidden="true">🚿</span>
+                  <span className="rdk-demand-item__text">{item.waterFitNote}</span>
+                </div>
+              )}
+              {item.demandWaterLabel && (
+                <div className="rdk-demand-item">
+                  <span className="rdk-demand-item__icon" aria-hidden="true">⚡</span>
+                  <span className="rdk-demand-item__text">{item.demandWaterLabel}</span>
+                </div>
+              )}
+              {item.mainsWaterLabel && (
+                <div className="rdk-demand-item">
+                  <span className="rdk-demand-item__icon" aria-hidden="true">🔧</span>
+                  <span className="rdk-demand-item__text">{item.mainsWaterLabel}</span>
+                </div>
+              )}
+              {item.energyFitNote && (
+                <div className="rdk-demand-item">
+                  <span className="rdk-demand-item__icon" aria-hidden="true">☀️</span>
+                  <span className="rdk-demand-item__text">{item.energyFitNote}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Section 3 — Priority alignment ──────────────────────────── */}
+          {selectedPriorities.length > 0 && (
+            <div className="rdk-section">
+              <p className="rdk-section__heading">Against your selected priorities</p>
+              <p className="rdk-section__sub">How this option scores on the priorities you chose</p>
+              <div className="rdk-priority-grid">
+                {selectedPriorities.map(priorityKey => {
+                  const meta = PRIORITY_META.find(m => m.key === priorityKey);
+                  const objKey = PRIORITY_KEY_TO_OBJECTIVE[priorityKey] ?? 'performance';
+                  const score  = item.objectiveScores[objKey as keyof typeof item.objectiveScores] ?? 0;
+                  const barColour = score >= 75 ? '#38a169' : score >= 50 ? '#d69e2e' : '#e53e3e';
+                  return (
+                    <div key={priorityKey} className="rdk-priority-row">
+                      <div className="rdk-priority-row__label-wrap">
+                        <span className="rdk-priority-row__emoji" aria-hidden="true">{meta?.emoji ?? '•'}</span>
+                        <div>
+                          <span className="rdk-priority-row__label">{meta?.label ?? priorityKey}</span>
+                          <span className="rdk-priority-row__sub">{meta?.sub ?? ''}</span>
+                        </div>
+                      </div>
+                      <ScoreBar score={score} colour={barColour} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1064,10 +1266,12 @@ function RankingPage({
   selectedOption2Family,
   disabledFamilies,
   hasOption2,
+  prioritiesState,
   onSetAsOption1,
   onSetAsOption2,
   onSelectOption1,
   onSelectOption2,
+  onItemTap,
 }: {
   items: PhysicsRankingItem[];
   selectedOption1Family: string | null;
@@ -1076,10 +1280,13 @@ function RankingPage({
   disabledFamilies: ReadonlySet<string>;
   /** Whether a second viable option page exists — controls "Explore option 2" CTA. */
   hasOption2: boolean;
+  prioritiesState?: PrioritiesState;
   onSetAsOption1: (family: ApplianceFamily) => void;
   onSetAsOption2: (family: ApplianceFamily) => void;
   onSelectOption1: () => void;
   onSelectOption2: () => void;
+  /** Called when the user taps a row to open the detail modal. */
+  onItemTap: (item: PhysicsRankingItem) => void;
 }) {
   const maxScore = Math.max(...items.map(i => i.overallScore), 1);
   const RANK_COLOURS = ['#b7791f', '#718096', '#744210', '#a0aec0'];
@@ -1095,6 +1302,7 @@ function RankingPage({
       <h2 className="atlas-presentation-deck__page-title">
         From pure physics, these systems rank for your home
       </h2>
+      <p className="atlas-deck-ranking__tap-hint" aria-hidden="true">Tap any row to see full breakdown</p>
       <div className="atlas-deck-ranking__list">
         {items.map((item, i) => {
           const concept = optionToConceptModel(RANKING_FAMILY_MAP[item.family].imageId as OptionId);
@@ -1121,16 +1329,25 @@ function RankingPage({
                 {item.rank}
               </span>
               <div className="atlas-deck-ranking__body">
-                <div className="atlas-deck-ranking__diagram">
-                  <SystemArchitectureVisualiser mode="recommendation" recommendedSystem={concept} />
-                </div>
-                <span className="atlas-deck-ranking__label">{item.label}</span>
-                {item.overallScore > 0 && (
-                  <span className="atlas-deck-ranking__stars" aria-label={`${Math.round((item.overallScore / maxScore) * 4)} out of 4 stars`}>
-                    {starRating(item.overallScore)}
-                  </span>
-                )}
-                <span className="atlas-deck-ranking__reason">{item.reasonLine}</span>
+                {/* Tappable header row opens detail modal */}
+                <button
+                  type="button"
+                  className="atlas-deck-ranking__detail-trigger"
+                  onClick={() => onItemTap(item)}
+                  aria-label={`View full breakdown for ${item.label}`}
+                >
+                  <div className="atlas-deck-ranking__diagram">
+                    <SystemArchitectureVisualiser mode="recommendation" recommendedSystem={concept} />
+                  </div>
+                  <span className="atlas-deck-ranking__label">{item.label}</span>
+                  {item.overallScore > 0 && (
+                    <span className="atlas-deck-ranking__stars" aria-label={`${Math.round((item.overallScore / maxScore) * 4)} out of 4 stars`}>
+                      {starRating(item.overallScore)}
+                    </span>
+                  )}
+                  <span className="atlas-deck-ranking__reason">{item.reasonLine}</span>
+                  <span className="atlas-deck-ranking__detail-hint" aria-hidden="true">See breakdown →</span>
+                </button>
                 <div className="atlas-deck-ranking__item-btns">
                   {isDisabled ? (
                     <span className="atlas-deck-ranking__item-btn atlas-deck-ranking__item-btn--unavailable">
@@ -1422,7 +1639,7 @@ export interface PresentationDeckProps {
    * Optional chip-style priorities from the Priorities step.
    * When provided, the Your Objectives tile shows the selected chips.
    */
-  prioritiesState?: import('../../features/survey/priorities/prioritiesTypes').PrioritiesState;
+  prioritiesState?: PrioritiesState;
 }
 
 /**
@@ -1446,6 +1663,8 @@ export default function PresentationDeck({
   // Tracks which system option the user tapped on the Options page.
   // Rendered at this level so the modal can escape the transformed slide track.
   const [comparisonOptionKey, setComparisonOptionKey] = useState<string | null>(null);
+  // Tracks which ranking item the user tapped — opens the full-screen detail modal.
+  const [rankingDetailItem, setRankingDetailItem] = useState<PhysicsRankingItem | null>(null);
 
   // Touch tracking refs
   const touchStartX = useRef<number | null>(null);
@@ -1714,6 +1933,7 @@ export default function PresentationDeck({
             selectedOption2Family={selectedOption2Family}
             disabledFamilies={disabledFamilies}
             hasOption2={selectedShortlistOptions.length >= 2}
+            prioritiesState={prioritiesState}
             onSetAsOption1={(family) => {
               setSelectedOption1Family(family);
               // Enforce mutual exclusivity: clear Option 2 if it used the same family.
@@ -1730,6 +1950,7 @@ export default function PresentationDeck({
                 goTo(opt2Idx);
               }
             }}
+            onItemTap={setRankingDetailItem}
           />
         </>
       ),
@@ -1943,6 +2164,15 @@ export default function PresentationDeck({
           targetOptionKey={comparisonOptionKey}
           input={input}
           onClose={() => setComparisonOptionKey(null)}
+        />
+      )}
+
+      {/* Ranking detail modal — opened when the user taps a ranking row. */}
+      {rankingDetailItem && (
+        <RankingDetailModal
+          item={rankingDetailItem}
+          prioritiesState={prioritiesState}
+          onClose={() => setRankingDetailItem(null)}
         />
       )}
 

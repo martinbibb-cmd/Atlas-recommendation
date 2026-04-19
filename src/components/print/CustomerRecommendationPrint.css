@@ -650,4 +650,129 @@
     padding-top: 0;
     border-top: none;
   }
+
+  .crp-engineering-section {
+    break-before: page;
+  }
+}
+
+/* ─── Engineering breakdown section ──────────────────────────────────────── */
+
+.crp-engineering-section {
+  margin-top: 1.5rem;
+  border-top: 2px solid var(--crp-border);
+  padding-top: 1rem;
+}
+
+.crp-ranking-breakdown {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--crp-border);
+}
+
+.crp-ranking-breakdown:last-child {
+  border-bottom: none;
+}
+
+.crp-ranking-breakdown__section {
+  margin-top: 0.75rem;
+}
+
+.crp-ranking-breakdown__sub-heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--crp-muted);
+  margin: 0 0 0.4rem;
+}
+
+.crp-ranking-breakdown__caveats {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.crp-ranking-breakdown__caveats-heading {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #742a2a;
+  margin: 0 0 0.25rem;
+}
+
+.crp-ranking-breakdown__caveat-list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.72rem;
+  color: #742a2a;
+}
+
+.crp-ranking-breakdown__notes {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.72rem;
+  color: var(--crp-text);
+  line-height: 1.4;
+}
+
+.crp-ranking-obj-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.crp-ranking-obj-row {
+  display: grid;
+  grid-template-columns: 7rem 1fr 2rem;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.crp-ranking-obj-row__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--crp-text);
+  white-space: nowrap;
+}
+
+.crp-ranking-obj-row__bar-wrap {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.crp-ranking-obj-row__bar {
+  height: 100%;
+  background: #38a169;
+  border-radius: 3px;
+}
+
+.crp-ranking-obj-row__score {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--crp-muted);
+  text-align: right;
+}
+
+.crp-ranking-priority-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.crp-ranking-priority-row {
+  display: grid;
+  grid-template-columns: 10rem 1fr 2rem;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.crp-ranking-priority-row__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--crp-text);
+  white-space: nowrap;
 }

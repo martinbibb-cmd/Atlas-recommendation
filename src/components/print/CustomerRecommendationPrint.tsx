@@ -35,9 +35,11 @@ import {
   type PhysicsRankingItem,
   type ShortlistedOptionDetail,
 } from '../presentation/buildCanonicalPresentation';
+import { ALL_OBJECTIVES } from '../../engine/recommendation/RecommendationModel';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
+import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import './CustomerRecommendationPrint.css';
 
@@ -242,6 +244,128 @@ function FactsBlock({ block }: { block: FactBlock }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ─── Ranking breakdown ────────────────────────────────────────────────────────
+
+const PRINT_OBJECTIVE_LABELS: Record<string, string> = {
+  performance:    'Performance',
+  reliability:    'Reliability',
+  longevity:      'Longevity',
+  ease_of_control:'Ease of control',
+  eco:            'Eco / efficiency',
+  disruption:     'Installation',
+  space:          'Space',
+};
+
+const PRIORITY_KEY_TO_OBJECTIVE_PRINT: Record<string, string> = {
+  performance:          'performance',
+  reliability:          'reliability',
+  longevity:            'longevity',
+  disruption:           'disruption',
+  eco:                  'eco',
+  cost_tendency:        'eco',
+  future_compatibility: 'eco',
+};
+
+/**
+ * RankingBreakdownBlock — printed engineering breakdown for a single ranked option.
+ * Shows objective scores, demand fit notes, and priority alignment.
+ */
+function RankingBreakdownBlock({
+  rankingItem,
+  prioritiesState,
+  optionNumber,
+}: {
+  rankingItem: PhysicsRankingItem;
+  prioritiesState: PrioritiesState | undefined;
+  optionNumber: number;
+}) {
+  const selectedPriorities = prioritiesState?.selected ?? [];
+
+  return (
+    <section className="crp-ranking-breakdown" aria-label={`Engineering breakdown: ${rankingItem.label}`}>
+      <h2 className="crp-section__title">
+        Option {optionNumber} engineering breakdown — {rankingItem.label}
+      </h2>
+
+      {/* Status and caveat */}
+      {rankingItem.caveats.length > 0 && (
+        <div className="crp-ranking-breakdown__caveats">
+          <p className="crp-ranking-breakdown__caveats-heading">⚠ Constraints</p>
+          <ul className="crp-ranking-breakdown__caveat-list">
+            {rankingItem.caveats.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {/* Pure engineering scores */}
+      <div className="crp-ranking-breakdown__section">
+        <p className="crp-ranking-breakdown__sub-heading">Pure engineering (0–100)</p>
+        <div className="crp-ranking-obj-grid">
+          {ALL_OBJECTIVES.map(obj => {
+            const score = rankingItem.objectiveScores[obj] ?? 0;
+            return (
+              <div key={obj} className="crp-ranking-obj-row">
+                <span className="crp-ranking-obj-row__label">{PRINT_OBJECTIVE_LABELS[obj] ?? obj}</span>
+                <div className="crp-ranking-obj-row__bar-wrap">
+                  <div
+                    className="crp-ranking-obj-row__bar"
+                    style={{ width: `${score}%` }}
+                    role="meter"
+                    aria-valuenow={score}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  />
+                </div>
+                <span className="crp-ranking-obj-row__score">{score}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Water demand fit */}
+      {(rankingItem.demandFitNote || rankingItem.waterFitNote || rankingItem.demandWaterLabel) && (
+        <div className="crp-ranking-breakdown__section">
+          <p className="crp-ranking-breakdown__sub-heading">Water demand fit</p>
+          <ul className="crp-ranking-breakdown__notes">
+            {rankingItem.demandFitNote && <li>{rankingItem.demandFitNote}</li>}
+            {rankingItem.waterFitNote && <li>{rankingItem.waterFitNote}</li>}
+            {rankingItem.demandWaterLabel && <li>{rankingItem.demandWaterLabel}</li>}
+            {rankingItem.mainsWaterLabel && <li>{rankingItem.mainsWaterLabel}</li>}
+            {rankingItem.energyFitNote && <li>{rankingItem.energyFitNote}</li>}
+          </ul>
+        </div>
+      )}
+
+      {/* Priority alignment */}
+      {selectedPriorities.length > 0 && (
+        <div className="crp-ranking-breakdown__section">
+          <p className="crp-ranking-breakdown__sub-heading">Your priorities — how this option scores</p>
+          <div className="crp-ranking-priority-grid">
+            {selectedPriorities.map(key => {
+              const meta = PRIORITY_META.find(m => m.key === key);
+              const objKey = PRIORITY_KEY_TO_OBJECTIVE_PRINT[key] ?? 'performance';
+              const score  = rankingItem.objectiveScores[objKey as keyof typeof rankingItem.objectiveScores] ?? 0;
+              return (
+                <div key={key} className="crp-ranking-priority-row">
+                  <span className="crp-ranking-priority-row__label">
+                    {meta?.emoji} {meta?.label ?? key}
+                  </span>
+                  <div className="crp-ranking-obj-row__bar-wrap">
+                    <div className="crp-ranking-obj-row__bar" style={{ width: `${score}%` }} />
+                  </div>
+                  <span className="crp-ranking-obj-row__score">{score}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+    </section>
   );
 }
 
@@ -610,6 +734,26 @@ export default function CustomerRecommendationPrint({
         {systemComparison && (
           <div className="crp-comparison-row" data-testid="system-comparison-block">
             <SystemComparisonTable comparison={systemComparison} />
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            ENGINEERING BREAKDOWN — ranked options detail
+            ════════════════════════════════════════════════════════════════ */}
+        {topRankingItem && (
+          <div className="crp-engineering-section" data-testid="engineering-breakdown">
+            <RankingBreakdownBlock
+              rankingItem={topRankingItem}
+              prioritiesState={prioritiesState}
+              optionNumber={1}
+            />
+            {opt2RankingItem && opt2RankingItem.overallScore > 0 && (
+              <RankingBreakdownBlock
+                rankingItem={opt2RankingItem}
+                prioritiesState={prioritiesState}
+                optionNumber={2}
+              />
+            )}
           </div>
         )}
 
