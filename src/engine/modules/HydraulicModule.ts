@@ -181,6 +181,28 @@ export function runHydraulicModuleV1(input: EngineInputV2_3, flowDeratePct = 0):
     }
   }
 
+  // ── Spatial alignment: inferred pipe-length flags ─────────────────────────
+  // Long primary pipe runs increase pump head and distribution heat loss.
+  // Thresholds: warn ≥ 15 m, risk ≥ 25 m (typical domestic primary circuits).
+  const PIPE_LENGTH_WARN_M = 15;
+  const PIPE_LENGTH_RISK_M = 25;
+
+  if (typeof input.inferredPrimaryPipeLengthM === 'number') {
+    const pipeLengthM = input.inferredPrimaryPipeLengthM;
+    if (pipeLengthM >= PIPE_LENGTH_RISK_M) {
+      notes.push(
+        `⚠️ Long primary circuit: inferred pipe run ${pipeLengthM.toFixed(1)} m exceeds ` +
+        `${PIPE_LENGTH_RISK_M} m. Check pump head adequacy and allow for additional ` +
+        `distribution heat loss (~10–15 W/m at design ΔT). Confirm on-site. (Source: Spatial Alignment View — inferred)`
+      );
+    } else if (pipeLengthM >= PIPE_LENGTH_WARN_M) {
+      notes.push(
+        `ℹ️ Moderate primary circuit length: inferred pipe run ${pipeLengthM.toFixed(1)} m. ` +
+        `Verify pump head is sized for this run. (Source: Spatial Alignment View — inferred)`
+      );
+    }
+  }
+
   return {
     boiler:  { deltaT: BOILER_DELTA_T, flowLpm: boilerFlowLpm },
     ashp:    { deltaT: ASHP_DELTA_T,   flowLpm: ashpFlowLpm, velocityMs: ashpVelocityMs },

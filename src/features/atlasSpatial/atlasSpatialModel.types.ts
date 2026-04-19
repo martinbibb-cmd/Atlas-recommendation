@@ -273,6 +273,102 @@ export interface AtlasBoundaryV1 {
   wallIds: string[];
 }
 
+// ─── Spatial alignment — world positioning ────────────────────────────────────
+
+/**
+ * Absolute world-space position on the site local grid.
+ *
+ * Axes: x = east (metres), y = north (metres), z = height above ground (metres).
+ * confidence distinguishes surveyed data from geometry-inferred estimates.
+ * source records where the position came from so it can be displayed correctly
+ * in the UI (solid = confirmed, dashed = inferred).
+ */
+export interface AtlasWorldPosition {
+  /** East offset in metres on the local site grid. */
+  x: number;
+  /** North offset in metres on the local site grid. */
+  y: number;
+  /** Height above ground floor datum in metres. */
+  z: number;
+  /**
+   * Confidence band.
+   * confirmed — measured or directly placed by the engineer.
+   * inferred  — derived from geometry, adjacency, or heuristic logic.
+   */
+  confidence: 'confirmed' | 'inferred';
+  /**
+   * Data source.
+   * lidar   — captured by the LiDAR scan pipeline.
+   * manual  — placed by the engineer in the Atlas editor.
+   * derived — computed from other anchors or routing logic.
+   */
+  source: 'lidar' | 'manual' | 'derived';
+}
+
+/**
+ * A named, positioned object of interest within the building.
+ *
+ * Anchors are the unit of reference for the Spatial Alignment View: engineers
+ * can stand anywhere in (or outside) the building and see the relative
+ * position of each anchor.
+ *
+ * Built-in labels: "boiler" | "cylinder" | "consumer_unit" | "pump" | "header"
+ * Custom labels are also permitted.
+ */
+export interface AtlasAnchor {
+  /** Stable identifier for this anchor. */
+  id: string;
+  /** Human-readable label shown in the Alignment View, e.g. "boiler". */
+  label: string;
+  /** Absolute world position of this anchor. */
+  worldPosition: AtlasWorldPosition;
+  /** Optional parent room identifier for context. */
+  roomId?: string;
+}
+
+/**
+ * A computed vertical relationship between two anchors.
+ *
+ * Populated by SpatialAlignmentEngine.buildAlignmentInsights() and used by the
+ * Alignment View to draw vertical stack lines between objects.
+ */
+export interface AtlasVerticalRelation {
+  /** Source anchor ID. */
+  fromAnchorId: string;
+  /** Target anchor ID. */
+  toAnchorId: string;
+  /** Absolute vertical separation in metres (always positive). */
+  verticalDistanceM: number;
+  /** Whether the target is above, below, or at the same level as the source. */
+  relation: 'above' | 'below' | 'same_level';
+}
+
+/**
+ * An inferred pipe, cable, or flue route derived from anchor positions.
+ *
+ * IMPORTANT: inferred routes must NEVER be presented as surveyed fact.
+ * Each route must carry a human-readable `reason` string explaining how the
+ * path was derived so that engineers can review and correct it.
+ *
+ * confidence is always 'inferred' — confirmed routes are stored as explicit
+ * measurements in the capture layer, not here.
+ */
+export interface AtlasInferredRoute {
+  /** Stable identifier for this route. */
+  id: string;
+  /** Service type. */
+  type: 'pipe' | 'cable' | 'flue';
+  /** Ordered waypoints describing the route path. */
+  path: AtlasWorldPosition[];
+  /** Always 'inferred' — see type doc above. */
+  confidence: 'inferred';
+  /**
+   * Human-readable derivation reason, e.g.
+   * "Aligned kitchen tap + boiler position + standard routing"
+   */
+  reason: string;
+}
+
 // ─── Top-level model ──────────────────────────────────────────────────────────
 
 /**
@@ -304,4 +400,30 @@ export interface AtlasSpatialModelV1 {
   openings: AtlasOpeningV1[];
   /** Classified wall-segment boundaries. */
   boundaries: AtlasBoundaryV1[];
+
+  // ── Spatial alignment fields (optional — populated progressively) ──────────
+
+  /**
+   * Named positioned objects in the building (boiler, cylinder, etc.).
+   * Used by the Spatial Alignment View to show relative positions.
+   */
+  anchors?: AtlasAnchor[];
+  /**
+   * Computed vertical relationships between anchors.
+   * Populated by SpatialAlignmentEngine after anchors are placed.
+   */
+  verticalRelations?: AtlasVerticalRelation[];
+  /**
+   * Geometry-inferred service routes (pipes, cables, flues).
+   * Always marked confidence:'inferred' — never rendered as confirmed.
+   */
+  inferredRoutes?: AtlasInferredRoute[];
+  /**
+   * Optional geographic origin of the local site grid.
+   * Used when correlating with external mapping data.
+   */
+  buildingOrigin?: {
+    lat?: number;
+    lng?: number;
+  };
 }
