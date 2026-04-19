@@ -70,6 +70,15 @@ interface Props {
    * option rather than always defaulting to the engine's second-ranked entry.
    */
   selectedOption2Family?: string;
+  /**
+   * When true, renders the per-option engineering breakdown section (raw
+   * objective scores, caveats, and priority alignment).  This section is
+   * intended for engineer QA review only and must not appear in the
+   * customer-facing print by default.
+   *
+   * Defaults to false — omit in all customer-facing contexts.
+   */
+  showEngineeringDetails?: boolean;
 }
 
 // ─── QR code image ────────────────────────────────────────────────────────────
@@ -473,6 +482,7 @@ export default function CustomerRecommendationPrint({
   onBack,
   selectedOption1Family,
   selectedOption2Family,
+  showEngineeringDetails = false,
 }: Props) {
   const model = buildCanonicalPresentation(result, input, recommendationResult, prioritiesState);
   const { page1 } = model;
@@ -493,6 +503,10 @@ export default function CustomerRecommendationPrint({
   const requiredWork    = buildRequiredWork(topDetail);
   const recommendedWork = buildRecommendedWork(topDetail);
   const { systemComparison } = model;
+
+  // Use the OptionCardV1 label for Option 2 wherever it appears so the name
+  // is consistent throughout the document (header, comparison snippet, etc.).
+  const option2Label = opt2Detail?.label ?? comparison?.label;
 
   const opt2WhyBullets: string[] = opt2RankingItem
     ? ([
@@ -672,12 +686,11 @@ export default function CustomerRecommendationPrint({
             )}
 
             {/* C. Other options considered — conditional only */}
-            {comparison && (
+            {comparison && option2Label && (
               <section className="crp-section" aria-label="Other options considered">
                 <h2 className="crp-section__title">Other options considered</h2>
-                <div className="crp-comparison" aria-label={comparison.label}>
-                  <p className="crp-comparison__heading">Option considered</p>
-                  <p className="crp-comparison__name">{comparison.label}</p>
+                <div className="crp-comparison" aria-label={option2Label}>
+                  <p className="crp-comparison__name">{option2Label}</p>
                   <p className="crp-comparison__note">{comparison.reasonLine}</p>
                 </div>
               </section>
@@ -750,8 +763,10 @@ export default function CustomerRecommendationPrint({
 
         {/* ════════════════════════════════════════════════════════════════
             ENGINEERING BREAKDOWN — ranked options detail
+            Engineer QA only — hidden in default customer-facing print.
+            Enable by passing showEngineeringDetails={true}.
             ════════════════════════════════════════════════════════════════ */}
-        {topRankingItem && (
+        {showEngineeringDetails && topRankingItem && (
           <div className="crp-engineering-section" data-testid="engineering-breakdown">
             <RankingBreakdownBlock
               rankingItem={topRankingItem}
