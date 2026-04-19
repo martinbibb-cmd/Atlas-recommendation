@@ -1,0 +1,22 @@
+/* DailyUsePanel.css */
+
+.daily-use { display: flex; flex-direction: column; gap: 1.25rem; }
+.daily-use__heading { margin: 0 0 0.25rem; font-size: 1.1rem; font-weight: 700; color: #10243d; }
+.daily-use__sub { margin: 0 0 0.75rem; color: #4b5d79; font-size: 0.88rem; }
+
+.daily-use__quote-block { display: flex; flex-direction: column; gap: 0.5rem; }
+.daily-use__quote-label { font-size: 0.85rem; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.daily-use__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.daily-use__item {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #f7faff;
+  border: 1px solid #dbe8ff;
+  font-size: 0.87rem;
+  color: #10243d;
+  align-items: flex-start;
+}
+.daily-use__item-icon { flex-shrink: 0; }

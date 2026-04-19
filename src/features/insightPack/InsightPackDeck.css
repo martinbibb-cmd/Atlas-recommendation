@@ -1,0 +1,84 @@
+/* InsightPackDeck.css — Atlas Insight Pack deck-style navigation */
+
+.insight-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: #f0f4fa;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.1);
+  font-family: inherit;
+}
+
+/* ── Nav bar ───────────────────────────────────────────────────────────────── */
+
+.insight-deck__nav {
+  display: flex;
+  overflow-x: auto;
+  background: #fff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  scrollbar-width: none;
+}
+.insight-deck__nav::-webkit-scrollbar { display: none; }
+
+.insight-deck__nav-btn {
+  flex: 0 0 auto;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #5b6f91;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.insight-deck__nav-btn:hover { color: #10243d; }
+.insight-deck__nav-btn--active {
+  color: #1d4ed8;
+  border-bottom-color: #1d4ed8;
+  font-weight: 700;
+}
+
+/* ── Panel body ────────────────────────────────────────────────────────────── */
+
+.insight-deck__panel {
+  padding: 1.5rem;
+  min-height: 320px;
+}
+
+/* ── Footer navigation ─────────────────────────────────────────────────────── */
+
+.insight-deck__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.85rem 1.5rem;
+  background: #fff;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.insight-deck__footer-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 10px;
+  border: 1.5px solid #dbe8ff;
+  background: #f7faff;
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.insight-deck__footer-btn:hover { background: #dbe8ff; }
+.insight-deck__footer-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: #f7faff;
+}
+
+.insight-deck__page-indicator {
+  font-size: 0.8rem;
+  color: #5b6f91;
+}

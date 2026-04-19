@@ -1,0 +1,62 @@
+/* RatingsPanel.css */
+
+.ratings { display: flex; flex-direction: column; gap: 1.25rem; }
+.ratings__heading { margin: 0 0 0.25rem; font-size: 1.1rem; font-weight: 700; color: #10243d; }
+.ratings__sub { margin: 0 0 0.75rem; color: #4b5d79; font-size: 0.88rem; }
+.ratings__note { font-size: 0.78rem; color: #5b6f91; margin: 0 0 1rem; font-style: italic; }
+
+.ratings__quote-block { display: flex; flex-direction: column; gap: 0.5rem; }
+.ratings__quote-label { font-size: 0.85rem; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.ratings__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.65rem;
+}
+
+.rating-chip {
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border: 1.5px solid;
+  cursor: default;
+}
+
+/* Band colours */
+.rating-chip--excellent        { background: #f0fdf4; border-color: #86efac; }
+.rating-chip--very-good        { background: #f0f9ff; border-color: #7dd3fc; }
+.rating-chip--good             { background: #f7faff; border-color: #93c5fd; }
+.rating-chip--needs-right-setup { background: #fffbeb; border-color: #fcd34d; }
+.rating-chip--less-suited      { background: #fef2f2; border-color: #fca5a5; }
+
+.rating-chip__dimension {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6f91;
+}
+.rating-chip__band {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #10243d;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.rating-chip__reason { font-size: 0.78rem; color: #374151; line-height: 1.4; }
+
+/* Expandable physics detail */
+.rating-chip__physics-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.73rem;
+  color: #1d4ed8;
+  cursor: pointer;
+  text-align: left;
+  margin-top: 0.1rem;
+}
+.rating-chip__physics { font-size: 0.75rem; color: #5b6f91; line-height: 1.4; margin-top: 0.25rem; }

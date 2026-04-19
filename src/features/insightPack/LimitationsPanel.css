@@ -1,0 +1,37 @@
+/* LimitationsPanel.css */
+
+.limitations { display: flex; flex-direction: column; gap: 1.25rem; }
+.limitations__heading { margin: 0 0 0.25rem; font-size: 1.1rem; font-weight: 700; color: #10243d; }
+.limitations__sub { margin: 0 0 0.75rem; color: #4b5d79; font-size: 0.88rem; }
+
+.limitations__quote-block { display: flex; flex-direction: column; gap: 0.5rem; }
+.limitations__quote-label { font-size: 0.85rem; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.04em; }
+.limitations__none { font-size: 0.85rem; color: #16a34a; }
+
+.limitation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border-left: 4px solid;
+}
+.limitation-item--low    { background: #f0fdf4; border-color: #86efac; }
+.limitation-item--medium { background: #fffbeb; border-color: #fcd34d; }
+.limitation-item--high   { background: #fef2f2; border-color: #fca5a5; }
+
+.limitation-item__header { display: flex; align-items: center; gap: 0.4rem; }
+.limitation-item__icon { font-size: 1rem; }
+.limitation-item__message { font-size: 0.87rem; font-weight: 600; color: #10243d; }
+.limitation-item__category {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.06);
+  color: #5b6f91;
+  margin-left: auto;
+}
+.limitation-item__physics { font-size: 0.8rem; color: #5b6f91; line-height: 1.45; }
