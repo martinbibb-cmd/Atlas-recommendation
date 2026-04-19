@@ -25,7 +25,7 @@ import { buildAlignmentInsights } from './spatialAlignment.engine';
 import {
   selectConfirmedAnchors,
   selectInferredAnchors,
-  selectAnchorByLabel,
+  selectReferenceAnchor,
 } from './spatialAlignment.selectors';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -111,6 +111,14 @@ function worldToSvgY_side(worldZ: number, bounds: WorldBounds): number {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+/**
+ * Build the SVG tooltip text for an inferred pipe route.
+ * Extracted to ensure consistent messaging across Side View and Top View.
+ */
+function inferredRouteTooltip(reason: string): string {
+  return `⚠ Inferred pipe route — not a confirmed measurement\n${reason}`;
+}
 
 interface AnchorDotProps {
   cx: number;
@@ -226,7 +234,7 @@ function SideView({ model, bounds, insights }: SideViewProps) {
             strokeDasharray="5 3"
             opacity={0.7}
           >
-            <title>{'⚠ Inferred pipe route\n' + route.reason}</title>
+            <title>{inferredRouteTooltip(route.reason)}</title>
           </polyline>
         );
       })}
@@ -299,14 +307,14 @@ function TopView({ model, bounds, insights }: TopViewProps) {
             strokeDasharray="5 3"
             opacity={0.7}
           >
-            <title>{'⚠ Inferred pipe route\n' + route.reason}</title>
+            <title>{inferredRouteTooltip(route.reason)}</title>
           </polyline>
         );
       })}
 
       {/* Horizontal relationship lines between anchors */}
       {insights.map((insight) => {
-        const ref = selectAnchorByLabel(model, 'boiler') ?? anchors[0];
+        const ref = selectReferenceAnchor(model) ?? anchors[0];
         if (!ref) return null;
         const target = anchors.find((a) => a.id === insight.anchorId);
         if (!target) return null;
@@ -478,8 +486,7 @@ export function AlignmentViewPanel({ model, className }: AlignmentViewPanelProps
             }}
           >
             Alignment relative to{' '}
-            {(model.anchors?.find((a) => a.label.toLowerCase() === 'boiler') ??
-              model.anchors?.[0])?.label ?? 'reference'}
+            {(selectReferenceAnchor(model))?.label ?? 'reference'}
           </div>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {insights.map((insight) => (

@@ -28,6 +28,7 @@ import type {
   AlignmentInsight,
   InferredPipeLengthM,
 } from './spatialAlignment.types';
+import { selectReferenceAnchor } from './spatialAlignment.selectors';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,9 +177,8 @@ export function buildAlignmentInsights(model: AtlasSpatialModelV1): AlignmentIns
   const anchors = model.anchors ?? [];
   if (anchors.length === 0) return [];
 
-  // Pick the reference anchor (boiler first, otherwise first in list).
-  const referenceAnchor: AtlasAnchor =
-    anchors.find((a) => a.label.toLowerCase() === 'boiler') ?? anchors[0];
+  const referenceAnchor = selectReferenceAnchor(model);
+  if (!referenceAnchor) return [];
 
   const insights: AlignmentInsight[] = [];
 
@@ -210,7 +210,8 @@ export function buildAlignmentInsights(model: AtlasSpatialModelV1): AlignmentIns
 
     if (wp.confidence === 'inferred' || wp.source === 'derived') {
       insight.derivationReason =
-        `Position derived from ${wp.source} data — confirm with on-site measurement.`;
+        `Position is ${wp.confidence === 'inferred' ? 'inferred' : 'derived'} from ` +
+        `${wp.source} data — confirm with on-site measurement.`;
     }
 
     insights.push(insight);

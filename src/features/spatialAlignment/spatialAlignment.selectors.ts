@@ -85,3 +85,15 @@ export function selectAnchorByLabel(
 export function selectAnchorCount(model: AtlasSpatialModelV1): number {
   return (model.anchors ?? []).length;
 }
+
+/**
+ * Return the reference anchor for alignment calculations.
+ * Prefers the anchor labelled "boiler" (case-insensitive); falls back to the
+ * first anchor in the array when no boiler anchor is found.
+ * Returns undefined when no anchors exist.
+ */
+export function selectReferenceAnchor(model: AtlasSpatialModelV1): AtlasAnchor | undefined {
+  const anchors = model.anchors ?? [];
+  if (anchors.length === 0) return undefined;
+  return anchors.find((a) => a.label.toLowerCase() === 'boiler') ?? anchors[0];
+}

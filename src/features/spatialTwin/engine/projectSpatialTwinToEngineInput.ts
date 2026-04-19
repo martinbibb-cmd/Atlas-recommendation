@@ -71,6 +71,12 @@ export function projectSpatialTwinToEngineInput(
   // Alignment View), sum them and pass the total to the engine so the
   // hydraulic module can flag long-run risks.
   // Only populated when routes exist and survey data hasn't already set it.
+  //
+  // NOTE: Routes are summed additively on the assumption that each inferred
+  // route represents a distinct section of the primary circuit (flow/return
+  // pairs are a single route in the model).  If your model contains parallel
+  // branches this sum will over-count; review routes in the Alignment View
+  // before relying on this value for formal sizing calculations.
   if (result.inferredPrimaryPipeLengthM == null) {
     const pipeLengths = deriveInferredPipeLengths(effectiveModel.spatial);
     if (pipeLengths.length > 0) {
