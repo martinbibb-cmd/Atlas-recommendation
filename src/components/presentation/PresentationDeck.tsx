@@ -1272,7 +1272,6 @@ function RankingPage({
   selectedOption2Family,
   disabledFamilies,
   hasOption2,
-  prioritiesState,
   onSetAsOption1,
   onSetAsOption2,
   onSelectOption1,
@@ -1286,7 +1285,6 @@ function RankingPage({
   disabledFamilies: ReadonlySet<string>;
   /** Whether a second viable option page exists — controls "Explore option 2" CTA. */
   hasOption2: boolean;
-  prioritiesState?: PrioritiesState;
   onSetAsOption1: (family: ApplianceFamily) => void;
   onSetAsOption2: (family: ApplianceFamily) => void;
   onSelectOption1: () => void;
@@ -1939,7 +1937,6 @@ export default function PresentationDeck({
             selectedOption2Family={selectedOption2Family}
             disabledFamilies={disabledFamilies}
             hasOption2={selectedShortlistOptions.length >= 2}
-            prioritiesState={prioritiesState}
             onSetAsOption1={(family) => {
               setSelectedOption1Family(family);
               // Enforce mutual exclusivity: clear Option 2 if it used the same family.
