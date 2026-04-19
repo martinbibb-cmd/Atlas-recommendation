@@ -1,0 +1,101 @@
+/* WhyAtlasSuggestedThis.css */
+
+.why-atlas {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.why-atlas__heading {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #10243d;
+}
+
+.why-atlas__sub {
+  margin: 0 0 0.5rem;
+  color: #4b5d79;
+  font-size: 0.88rem;
+}
+
+/* ── Reasoning chain ── */
+
+.why-atlas__chain {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.why-chain__step {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+/* ── Connector column (dot + line) ── */
+
+.why-chain__connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  padding-top: 0.2rem;
+}
+
+.why-chain__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  flex: 0 0 auto;
+}
+
+.why-chain__step--conclusion .why-chain__dot {
+  background: #16a34a;
+  width: 16px;
+  height: 16px;
+}
+
+.why-chain__line {
+  width: 2px;
+  flex: 1;
+  min-height: 24px;
+  background: #dbe8ff;
+  margin: 4px 0;
+}
+
+/* ── Step content ── */
+
+.why-chain__content {
+  flex: 1;
+  padding-bottom: 1.25rem;
+}
+
+.why-chain__step:last-child .why-chain__content {
+  padding-bottom: 0;
+}
+
+.why-chain__label {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #10243d;
+  line-height: 1.45;
+}
+
+.why-chain__step--conclusion .why-chain__label {
+  font-size: 1rem;
+  color: #15803d;
+  font-weight: 700;
+}
+
+.why-chain__detail {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  color: #4b5d79;
+  line-height: 1.5;
+}
