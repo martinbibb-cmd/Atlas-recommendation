@@ -1749,7 +1749,11 @@ function buildOptionExplanation(
     if (occupancy >= 4) {
       throughHomeNotes.push(`${occupancy} people with ${bathrooms} ${bathrooms === 1 ? 'bathroom' : 'bathrooms'} — high demand concentration at peak times.`);
     }
-    if (demo.storageBenefitSignal === 'high') {
+    // Only emit the "stored water benefit" note when there is actual simultaneous-demand
+    // risk (peakSimultaneousOutlets >= 2). High storageBenefitSignal from sequential
+    // draw patterns alone (e.g. large household, single bathroom) does not make a combi
+    // unsuitable — it is a volume/recovery consideration, not a simultaneous-demand one.
+    if (demo.storageBenefitSignal === 'high' && demo.peakSimultaneousOutlets >= 2) {
       throughHomeNotes.push('Your household profile indicates high benefit from stored water — a combi is likely to struggle here.');
     }
   } else {
