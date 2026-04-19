@@ -268,6 +268,34 @@ const PRINT_OBJECTIVE_LABELS: Record<string, string> = {
   space:          'Space',
 };
 
+function printScoreAnchorText(objective: string, score: number): string {
+  if (objective === 'disruption') {
+    if (score < 35) return 'Major work required';
+    if (score < 65) return 'Some enabling work needed';
+    return 'Minimal disruption expected';
+  }
+  if (objective === 'space') {
+    if (score < 45) return 'Significant space needed';
+    if (score < 70) return 'Moderate space needed';
+    return 'Compact layout fit';
+  }
+  if (score >= 75) return 'Strong fit for this home';
+  if (score >= 50) return 'Works with trade-offs';
+  return 'Noticeable trade-offs to manage';
+}
+
+function toCustomerConstraint(caveat: string): string {
+  const cleaned = caveat.replace(/^Advisory:\s*/i, '').trim();
+  const normalised = cleaned.toLowerCase();
+  if (normalised.includes('emitter temperature constraint')) {
+    return 'Radiators may need to run hotter than ideal';
+  }
+  if (normalised.includes('high flow temperature penalty')) {
+    return 'Efficiency reduces if high temperatures are required';
+  }
+  return cleaned;
+}
+
 /**
  * Maps PriorityKey to the nearest RecommendationObjective for scoring.
  * 'cost_tendency' and 'future_compatibility' have no exact counterpart in the
@@ -315,20 +343,24 @@ function RankingBreakdownBlock({
         <div className="crp-ranking-breakdown__caveats">
           <p className="crp-ranking-breakdown__caveats-heading">⚠ Constraints</p>
           <ul className="crp-ranking-breakdown__caveat-list">
-            {rankingItem.caveats.map((c, i) => <li key={i}>{c}</li>)}
+            {rankingItem.caveats.map((c, i) => <li key={i}>{toCustomerConstraint(c)}</li>)}
           </ul>
         </div>
       )}
 
       {/* Pure engineering scores */}
       <div className="crp-ranking-breakdown__section">
-        <p className="crp-ranking-breakdown__sub-heading">Pure engineering (0–100)</p>
+        <p className="crp-ranking-breakdown__sub-heading">How this system performs in your home (0–100)</p>
         <div className="crp-ranking-obj-grid">
           {ALL_OBJECTIVES.map(obj => {
             const score = rankingItem.objectiveScores[obj] ?? 0;
             return (
               <div key={obj} className="crp-ranking-obj-row">
-                <span className="crp-ranking-obj-row__label">{PRINT_OBJECTIVE_LABELS[obj] ?? obj}</span>
+                <span className="crp-ranking-obj-row__label">
+                  {PRINT_OBJECTIVE_LABELS[obj] ?? obj}
+                  {' — '}
+                  {printScoreAnchorText(obj, score)}
+                </span>
                 <div className="crp-ranking-obj-row__bar-wrap">
                   <div
                     className="crp-ranking-obj-row__bar"
@@ -503,6 +535,7 @@ export default function CustomerRecommendationPrint({
   const requiredWork    = buildRequiredWork(topDetail);
   const recommendedWork = buildRecommendedWork(topDetail);
   const { systemComparison } = model;
+  const topConstraints  = (topRankingItem?.caveats ?? []).map(toCustomerConstraint).slice(0, 2);
 
   // Use the OptionCardV1 label for Option 2 wherever it appears so the name
   // is consistent throughout the document (header, comparison snippet, etc.).
@@ -693,6 +726,25 @@ export default function CustomerRecommendationPrint({
                   <p className="crp-comparison__name">{option2Label}</p>
                   <p className="crp-comparison__note">{comparison.reasonLine}</p>
                 </div>
+              </section>
+            )}
+
+            {(topConstraints.length > 0 || topRankingItem) && (
+              <section className="crp-section" aria-label="How this performs in your home">
+                <h2 className="crp-section__title">How this system performs in your home</h2>
+                <p className="crp-comparison__note">
+                  This system works best in homes that can run low temperatures — this home may need adjustments to get the most from it.
+                </p>
+                {topConstraints.length > 0 && (
+                  <ul className="crp-list" aria-label="Constraints for this home">
+                    {topConstraints.map((constraint, i) => (
+                      <li key={i} className="crp-list__item crp-list__item--amber">
+                        <span className="crp-list__icon" aria-hidden="true">⚠</span>
+                        {constraint}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
             )}
 

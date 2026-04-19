@@ -1087,6 +1087,34 @@ const OBJECTIVE_LABELS: Record<string, { label: string; description: string }> =
   space:          { label: 'Space',           description: 'Physical footprint requirements' },
 };
 
+function scoreAnchorText(objective: string, score: number): string {
+  if (objective === 'disruption') {
+    if (score < 35) return 'Major work required';
+    if (score < 65) return 'Some enabling work needed';
+    return 'Minimal disruption expected';
+  }
+  if (objective === 'space') {
+    if (score < 45) return 'Significant space needed';
+    if (score < 70) return 'Moderate space needed';
+    return 'Compact layout fit';
+  }
+  if (score >= 75) return 'Strong fit for this home';
+  if (score >= 50) return 'Works with trade-offs';
+  return 'Noticeable trade-offs to manage';
+}
+
+function toCustomerConstraint(caveat: string): string {
+  const cleaned = caveat.replace(/^Advisory:\s*/i, '').trim();
+  const normalised = cleaned.toLowerCase();
+  if (normalised.includes('emitter temperature constraint')) {
+    return 'Radiators may need to run hotter than ideal';
+  }
+  if (normalised.includes('high flow temperature penalty')) {
+    return 'Efficiency reduces if high temperatures are required';
+  }
+  return cleaned;
+}
+
 function ScoreBar({ score, colour }: { score: number; colour: string }) {
   return (
     <div className="rdk-score-bar" role="meter" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100}>
@@ -1150,15 +1178,16 @@ function RankingDetailModal({
             <div className="rdk-section rdk-section--caveats">
               <p className="rdk-section__heading">⚠ Constraints for this home</p>
               <ul className="rdk-caveat-list">
-                {item.caveats.map((c, i) => <li key={i}>{c}</li>)}
+                {item.caveats.map((c, i) => <li key={i}>{toCustomerConstraint(c)}</li>)}
               </ul>
             </div>
           )}
 
           {/* ── Section 1 — Pure engineering ────────────────────────────── */}
           <div className="rdk-section">
-            <p className="rdk-section__heading">Pure engineering breakdown</p>
-            <p className="rdk-section__sub">Physics-based scoring for this home — higher is better (0–100)</p>
+            <p className="rdk-section__heading">How this system performs in your home</p>
+            <p className="rdk-section__sub">Visual performance summary (0–100), grounded in real home constraints</p>
+            <p className="rdk-section__sub">This system works best at lower temperatures — this home may need adjustments to get the best efficiency.</p>
             <div className="rdk-obj-grid">
               {ALL_OBJECTIVES.map(obj => {
                 const score = item.objectiveScores[obj] ?? 0;
@@ -1168,7 +1197,11 @@ function RankingDetailModal({
                   <div key={obj} className="rdk-obj-row">
                     <div className="rdk-obj-row__label-wrap">
                       <span className="rdk-obj-row__label">{meta?.label ?? obj}</span>
-                      <span className="rdk-obj-row__desc">{meta?.description ?? ''}</span>
+                      <span className="rdk-obj-row__desc">
+                        {meta?.description ?? ''}
+                        {meta?.description ? ' — ' : ''}
+                        {scoreAnchorText(obj, score)}
+                      </span>
                     </div>
                     <ScoreBar score={score} colour={barColour} />
                   </div>
