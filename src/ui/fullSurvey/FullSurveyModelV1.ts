@@ -6,6 +6,7 @@ import type { PrioritiesState } from '../../features/survey/priorities/prioritie
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { RecommendationState } from '../../features/survey/recommendation/recommendationTypes';
 import type { VoiceNote, VoiceNoteSuggestion, AppliedNoteSuggestion } from '../../features/voiceNotes/voiceNoteTypes';
+import type { QuoteInput } from '../../features/insightPack/insightPack.types';
 
 /**
  * HeatingConditionDiagnosticsV1
@@ -182,6 +183,11 @@ export type FullSurveyModelV1 = EngineInputV2_3 & {
      * engine input by sanitiseModelForEngine.
      */
     heatLoss?: HeatLossState;
+    /**
+     * Contractor quotes collected in the Quotes survey step.
+     * Fed into buildInsightPackFromEngine() to generate the Atlas Insight Pack.
+     */
+    quotes?: QuoteInput[];
     /**
      * Recommendation step — the surveyor's agreed installation recommendation:
      * heat source, water source, powerflush, filter, and additions.

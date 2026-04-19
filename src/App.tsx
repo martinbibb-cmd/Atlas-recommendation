@@ -56,6 +56,9 @@ import DevMenuPage from './components/dev/DevMenuPage';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
+import InsightPackDeck from './features/insightPack/InsightPackDeck';
+import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
+import type { QuoteInput } from './features/insightPack/insightPack.types';
 import './App.css';
 
 /** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
@@ -144,6 +147,33 @@ const HANDOFF_ENABLED =
   new URLSearchParams(window.location.search).get('handoff') === '1';
 
 /**
+ * Detect ?insight-pack=1 — renders the Atlas Insight Pack deck with demo data.
+ * Developer/review surface for previewing the 11-screen customer recommendation deck.
+ */
+const INSIGHT_PACK_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('insight-pack') === '1';
+
+/** Demo quotes used by ?insight-pack=1 mode. */
+const DEMO_QUOTES: QuoteInput[] = [
+  {
+    id: 'quote_a',
+    label: 'Quote A — ABC Heating',
+    systemType: 'system',
+    heatSourceKw: 30,
+    cylinder: { type: 'mixergy', volumeL: 210 },
+    includedUpgrades: ['powerflush', 'filter', 'controls'],
+  },
+  {
+    id: 'quote_b',
+    label: 'Quote B — XYZ Plumbing',
+    systemType: 'combi',
+    heatSourceKw: 35,
+    includedUpgrades: ['filter'],
+  },
+];
+
+/**
  * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
  * Produces a realistic UK combi scenario for demonstration:
  *   - 3-bed semi, 3 occupants, 1 bathroom, standard mains pressure
@@ -167,7 +197,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -295,6 +325,15 @@ export default function App() {
    * derives its content entirely from the canonical presentation model.
    */
   const [, setLabRecommendationState] = useState<RecommendationState | undefined>();
+  /**
+   * Contractor quotes collected in the Quotes survey step.
+   * Fed into buildInsightPackFromEngine() to generate the Atlas Insight Pack.
+   */
+  const [labQuotes, setLabQuotes] = useState<QuoteInput[]>([]);
+  /**
+   * Journey that last opened the Insight Pack, used for the Back button.
+   */
+  const [insightPackFromJourney, setInsightPackFromJourney] = useState<Journey>('simulator');
   /**
    * Option 1 family agreed with the customer during the in-room presentation.
    * Captured via onOptionsChange from PresentationDeck so the printout reflects
@@ -526,6 +565,39 @@ export default function App() {
     }
   }
 
+  /**
+   * Open the Atlas Insight Pack for a completed visit.
+   *
+   * Loads the visit's working payload, converts it to engine input, and
+   * routes to the Insight Pack journey with the collected quotes.
+   * Falls back to the survey if the working payload is missing or has no quotes.
+   */
+  async function handleOpenInsightPackForVisit(visitId: string) {
+    try {
+      const visitDetail = await getVisit(visitId);
+      const workingPayload = visitDetail.working_payload;
+      if (workingPayload && Object.keys(workingPayload).length > 0) {
+        const survey = workingPayload as unknown as FullSurveyModelV1;
+        const quotes = survey.fullSurvey?.quotes;
+        if (Array.isArray(quotes) && quotes.length > 0) {
+          const engineInput = toEngineInput(sanitiseModelForEngine(survey));
+          setActiveVisitId(visitId);
+          setLabEngineInput(engineInput);
+          setLabQuotes(quotes);
+          if (survey.fullSurvey?.heatLoss) setLabHeatLossState(survey.fullSurvey.heatLoss);
+          if (survey.fullSurvey?.priorities) setLabPrioritiesState(survey.fullSurvey.priorities);
+          setInsightPackFromJourney('visit-hub');
+          setJourney('insight-pack');
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('[Atlas] Could not load visit for Insight Pack', visitId, err);
+    }
+    // Fallback: resume survey so the user can complete the quotes step.
+    setJourney('visit');
+  }
+
   // /portal/:reference — render the customer-facing recommendation portal.
   if (PORTAL_REFERENCE != null) {
     return <CustomerPortalPage reference={PORTAL_REFERENCE} token={PORTAL_TOKEN} />;
@@ -638,6 +710,27 @@ export default function App() {
     return <HandoffArrivalPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
+  // ?insight-pack=1 — render Atlas Insight Pack deck with demo data for review.
+  if (INSIGHT_PACK_ENABLED) {
+    const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
+    const pack = buildInsightPackFromEngine(engineOutput, DEMO_QUOTES);
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = window.location.pathname; }}>
+            ← Back
+          </button>
+          {import.meta.env.DEV && (
+            <p className="atlas-dev-notice">
+              🔬 Dev insight pack — CONSOLE_DEMO_INPUT + DEMO_QUOTES
+            </p>
+          )}
+        </div>
+        <InsightPackDeck pack={pack} propertyTitle="Demo — SW1A 1AA" />
+      </div>
+    );
+  }
+
   // ?scan-package=1 — render Atlas Scan package import flow.
   if (SCAN_PACKAGE_ENABLED) {
     return (
@@ -712,6 +805,7 @@ export default function App() {
             window.open(reportUrl, '_blank', 'noopener,noreferrer');
           }}
           onOpenEngineerRoute={() => setJourney('engineer')}
+          onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
         />
       )}
       {/* Engineer pre-install route — /visit/:visitId/engineer */}
@@ -765,6 +859,7 @@ export default function App() {
               if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
               if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
               if (draft.fullSurvey?.recommendation) setLabRecommendationState(draft.fullSurvey.recommendation);
+              if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
             }}
             onComplete={(engineInput) => {
               // Route directly to simulator — fit-map step removed.
@@ -779,6 +874,13 @@ export default function App() {
               setLabEngineInput(engineInput);
               setSimulatorFromJourney('full');
               setJourney('simulator');
+            }}
+            onOpenInsightPack={(engineInput, quotes) => {
+              setFullSurveyPrefill(undefined);
+              setLabEngineInput(engineInput);
+              setLabQuotes(quotes);
+              setInsightPackFromJourney('full');
+              setJourney('insight-pack');
             }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -844,6 +946,23 @@ export default function App() {
             visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             onBack={() => setJourney('presentation')}
           />
+        );
+      })()}
+      {journey === 'insight-pack' && labEngineInput != null && labQuotes.length > 0 && (() => {
+        const { engineOutput } = runEngine(labEngineInput);
+        const pack = buildInsightPackFromEngine(engineOutput, labQuotes);
+        return (
+          <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+            <div style={{ padding: '0.5rem 1rem' }}>
+              <button className="back-btn" onClick={() => setJourney(insightPackFromJourney)}>
+                ← Back
+              </button>
+            </div>
+            <InsightPackDeck
+              pack={pack}
+              propertyTitle={labEngineInput.postcode ?? undefined}
+            />
+          </div>
         );
       })()}
       {journey === 'gallery' && (

@@ -3,7 +3,7 @@
  *
  * Regression tests for the canonical survey step contract.
  *
- *   1. The registry defines exactly the canonical 6-step journey.
+ *   1. The registry defines exactly the canonical 9-step journey.
  *   2. displayIndex values are sequential 1…N.
  *   3. progressLabel output matches the canonical sequence.
  *   4. Every step has a non-empty heading and testId.
@@ -23,9 +23,9 @@ import {
 // ─── Contract: canonical journey order ────────────────────────────────────────
 
 describe('surveyStepRegistry — canonical journey order', () => {
-  it('defines exactly 8 steps', () => {
-    expect(SURVEY_STEP_COUNT).toBe(8);
-    expect(SURVEY_STEP_REGISTRY).toHaveLength(8);
+  it('defines exactly 9 steps', () => {
+    expect(SURVEY_STEP_COUNT).toBe(9);
+    expect(SURVEY_STEP_REGISTRY).toHaveLength(9);
   });
 
   it('step IDs match the canonical sequence', () => {
@@ -38,12 +38,13 @@ describe('surveyStepRegistry — canonical journey order', () => {
       'solar_assessment',
       'priorities',
       'insight',
+      'quotes',
     ]);
   });
 
-  it('displayIndex values are sequential 1…8', () => {
+  it('displayIndex values are sequential 1…9', () => {
     const indices = SURVEY_STEP_REGISTRY.map(s => s.displayIndex);
-    expect(indices).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(indices).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
   it('every step has a non-empty heading', () => {
@@ -77,17 +78,19 @@ describe('surveyStepRegistry — helper functions', () => {
     expect(getStepMeta('solar_assessment').displayIndex).toBe(6);
     expect(getStepMeta('priorities').displayIndex).toBe(7);
     expect(getStepMeta('insight').displayIndex).toBe(8);
+    expect(getStepMeta('quotes').displayIndex).toBe(9);
   });
 
-  it('progressLabel returns "Step N of 8" for each step', () => {
-    expect(progressLabel('system_builder')).toBe('Step 1 of 8');
-    expect(progressLabel('usage')).toBe('Step 2 of 8');
-    expect(progressLabel('services')).toBe('Step 3 of 8');
-    expect(progressLabel('building_fabric')).toBe('Step 4 of 8');
-    expect(progressLabel('heat_loss')).toBe('Step 5 of 8');
-    expect(progressLabel('solar_assessment')).toBe('Step 6 of 8');
-    expect(progressLabel('priorities')).toBe('Step 7 of 8');
-    expect(progressLabel('insight')).toBe('Step 8 of 8');
+  it('progressLabel returns "Step N of 9" for each step', () => {
+    expect(progressLabel('system_builder')).toBe('Step 1 of 9');
+    expect(progressLabel('usage')).toBe('Step 2 of 9');
+    expect(progressLabel('services')).toBe('Step 3 of 9');
+    expect(progressLabel('building_fabric')).toBe('Step 4 of 9');
+    expect(progressLabel('heat_loss')).toBe('Step 5 of 9');
+    expect(progressLabel('solar_assessment')).toBe('Step 6 of 9');
+    expect(progressLabel('priorities')).toBe('Step 7 of 9');
+    expect(progressLabel('insight')).toBe('Step 8 of 9');
+    expect(progressLabel('quotes')).toBe('Step 9 of 9');
   });
 
   it('nextStepId chains through the canonical sequence', () => {
@@ -98,7 +101,8 @@ describe('surveyStepRegistry — helper functions', () => {
     expect(nextStepId('heat_loss')).toBe('solar_assessment');
     expect(nextStepId('solar_assessment')).toBe('priorities');
     expect(nextStepId('priorities')).toBe('insight');
-    expect(nextStepId('insight')).toBeNull();
+    expect(nextStepId('insight')).toBe('quotes');
+    expect(nextStepId('quotes')).toBeNull();
   });
 
   it('prevStepId chains backwards through the canonical sequence', () => {
@@ -110,6 +114,7 @@ describe('surveyStepRegistry — helper functions', () => {
     expect(prevStepId('solar_assessment')).toBe('heat_loss');
     expect(prevStepId('priorities')).toBe('solar_assessment');
     expect(prevStepId('insight')).toBe('priorities');
+    expect(prevStepId('quotes')).toBe('insight');
   });
 });
 
@@ -129,6 +134,7 @@ describe('surveyStepRegistry — heading regression', () => {
       '☀️ Solar & Roof',
       '🎯 Priorities',
       '🧠 What we need to keep in mind',
+      '📄 Contractor Quotes',
     ]);
   });
 
@@ -143,6 +149,7 @@ describe('surveyStepRegistry — heading regression', () => {
       'solar-assessment-step',
       'priorities-step',
       'insight-layer-page',
+      'quote-collection-step',
     ]);
   });
 });

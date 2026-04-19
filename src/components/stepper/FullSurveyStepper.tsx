@@ -17,6 +17,8 @@ import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/hea
 import { BuildingFabricStep } from '../../features/survey/heatLoss/BuildingFabricStep';
 import { SolarAssessmentStep } from '../../features/survey/solar/SolarAssessmentStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
+import { QuoteCollectionStep } from '../../features/survey/quotes/QuoteCollectionStep';
+import type { QuoteInput } from '../../features/insightPack/insightPack.types';
 import {
   INITIAL_RECOMMENDATION_STATE,
   type RecommendationState,
@@ -53,6 +55,11 @@ interface Props {
    * step.  Receives the cleaned EngineInputV2_3 ready for the simulator.
    */
   onOpenSimulator?: (engineInput: EngineInputV2_3) => void;
+  /**
+   * When provided, called after the Quotes step completes with the collected
+   * QuoteInput[] so the parent can open the Atlas Insight Pack.
+   */
+  onOpenInsightPack?: (engineInput: EngineInputV2_3, quotes: QuoteInput[]) => void;
 }
 
 // Step type and ordered sequence derived from the canonical registry.
@@ -99,7 +106,7 @@ const defaultInput: FullSurveyModelV1 = {
 /** Z-index reserved for any future full-screen overlays above the stepper. */
 // const OVERLAY_Z_INDEX = 1000;
 
-export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft, onOpenSimulator }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft, onOpenSimulator, onOpenInsightPack }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('system_builder');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -124,6 +131,9 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   );
   const [recommendationState] = useState<RecommendationState>(
     () => prefill?.fullSurvey?.recommendation ?? INITIAL_RECOMMENDATION_STATE
+  );
+  const [quotesState, setQuotesState] = useState<QuoteInput[]>(
+    () => prefill?.fullSurvey?.quotes ?? []
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
   const [mode, setMode] = useState<'stepper' | 'hub'>('stepper');
@@ -198,6 +208,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       priorities: prioritiesState,
       heatLoss: heatLossState,
       recommendation: recommendationState,
+      quotes: quotesState.length > 0 ? quotesState : undefined,
     },
   });
 
@@ -209,7 +220,13 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       return;
     }
     if (currentStep === 'insight') {
-      // Insight is the last step — run the engine and advance to results.
+      // Advance to the quotes step — engine runs after quotes are collected.
+      if (onDraft) onDraft(buildDraft());
+      setCurrentStep('quotes');
+      return;
+    }
+    if (currentStep === 'quotes') {
+      // Quotes is the final step — run the engine and advance to results.
       const draft = buildDraft();
       // Sanitise before engine run AND before storing as hubDraft so that
       // buildCanonicalPresentation receives all bridged fields (roofOrientation,
@@ -218,6 +235,11 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       const sanitisedDraft = sanitiseModelForEngine(draft);
       const engineInput = toEngineInput(sanitisedDraft);
       if (onDraft) onDraft(draft);
+      // If the parent wants to open the Insight Pack directly, do that first.
+      if (onOpenInsightPack && quotesState.length > 0) {
+        onOpenInsightPack(engineInput, quotesState);
+        return;
+      }
       if (onComplete) {
         // Route directly to the simulator dashboard without stopping at LiveHubPage.
         onComplete(engineInput);
@@ -411,6 +433,14 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         />
       )}
 
+      {currentStep === 'quotes' && (
+        <QuoteCollectionStep
+          quotes={quotesState}
+          onChange={setQuotesState}
+          onNext={next}
+          onPrev={prev}
+        />
+      )}
 
 
     </div>
