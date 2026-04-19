@@ -373,10 +373,13 @@ export function buildOptionMatrixV1(
   };
 
   const combiTypedReqs: OptionRequirements = {
-    mustHave: combiRisk === 'fail' || combiRejectedByTopology
+    mustHave: combiRejectedByTopology
       ? [
-          'System design adjustment required:',
-          'Pipework and layout will be configured to ensure consistent water pressure across multiple outlets.',
+          'Pipework review required — the current one-pipe layout is not compatible with a standard combi installation.',
+        ]
+      : combiRisk === 'fail'
+      ? [
+          'Simultaneous hot-water demand is high for this household — a stored hot water option is usually a better fit.',
         ]
       : ['Confirm peak simultaneous outlets = 1.'],
     likelyUpgrades: (core.pressureAnalysis.staticBar !== undefined && core.pressureAnalysis.staticBar < 1.5)
