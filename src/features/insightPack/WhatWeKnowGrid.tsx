@@ -33,7 +33,7 @@ export default function WhatWeKnowGrid({ tiles }: Props) {
 
       <div className="wk-grid">
         {tiles.map((tile, i) => (
-          <Tile key={i} tile={tile} />
+          <Tile key={`${tile.icon}-${tile.title}-${i}`} tile={tile} />
         ))}
       </div>
     </div>

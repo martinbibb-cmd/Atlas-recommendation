@@ -26,7 +26,7 @@ export default function WhyAtlasSuggestedThis({ reasonChain }: Props) {
           const isLast = i === reasonChain.length - 1;
           return (
             <li
-              key={i}
+              key={`${i}-${step.label.slice(0, 20)}`}
               className={`why-chain__step${isLast ? ' why-chain__step--conclusion' : ''}`}
             >
               <div className="why-chain__connector" aria-hidden="true">

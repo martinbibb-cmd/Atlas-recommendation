@@ -23,7 +23,7 @@ function ItemList({ title, icon, items }: { title: string; icon: string; items: 
       </p>
       <ul className="next-steps__list">
         {items.map((item, i) => (
-          <li key={i} className="next-steps__list-item">
+          <li key={`${item.slice(0, 30)}-${i}`} className="next-steps__list-item">
             <span aria-hidden="true">→</span>
             <span>{item}</span>
           </li>

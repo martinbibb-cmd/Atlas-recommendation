@@ -733,6 +733,13 @@ function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOut
 
 // ─── Home Profile ─────────────────────────────────────────────────────────────
 
+// Context-bullet matching patterns — used to map plain-text bullets to tiles.
+const DHW_BULLET_PATTERN = /bath|shower|hot water|dhw/i;
+const PRESSURE_BULLET_PATTERN = /pressure|flow|mains/i;
+const HEAT_LOSS_BULLET_PATTERN = /heat loss|insulation|fabric|wall|kw/i;
+const BOILER_BULLET_PATTERN = /boiler|current system|existing/i;
+const LAYOUT_BULLET_PATTERN = /bed|floor|storey|layout|room/i;
+
 /**
  * Derives WhatWeKnowGrid tiles from engine evidence and context summary.
  * Each tile must map to a real survey field or engine output — nothing invented.
@@ -752,7 +759,7 @@ function buildHomeProfile(output: EngineOutputV1): HomeProfileTile[] {
     });
   } else {
     const ctxBullets = output.contextSummary?.bullets ?? [];
-    const dhwBullet = ctxBullets.find(b => /bath|shower|hot water|dhw/i.test(b));
+    const dhwBullet = ctxBullets.find(b => DHW_BULLET_PATTERN.test(b));
     tiles.push({
       icon: '🚿',
       title: 'Hot water demand',
@@ -772,7 +779,7 @@ function buildHomeProfile(output: EngineOutputV1): HomeProfileTile[] {
     });
   } else {
     const pressBullet = (output.contextSummary?.bullets ?? []).find(
-      b => /pressure|flow|mains/i.test(b),
+      b => PRESSURE_BULLET_PATTERN.test(b),
     );
     tiles.push({
       icon: '💧',
@@ -793,7 +800,7 @@ function buildHomeProfile(output: EngineOutputV1): HomeProfileTile[] {
     });
   } else {
     const heatBullet = (output.contextSummary?.bullets ?? []).find(
-      b => /heat loss|insulation|fabric|wall|kw/i.test(b),
+      b => HEAT_LOSS_BULLET_PATTERN.test(b),
     );
     tiles.push({
       icon: '🏠',
@@ -814,7 +821,7 @@ function buildHomeProfile(output: EngineOutputV1): HomeProfileTile[] {
     });
   } else {
     const boilerBullet = (output.contextSummary?.bullets ?? []).find(
-      b => /boiler|current system|existing/i.test(b),
+      b => BOILER_BULLET_PATTERN.test(b),
     );
     if (boilerBullet) {
       tiles.push({
@@ -837,7 +844,7 @@ function buildHomeProfile(output: EngineOutputV1): HomeProfileTile[] {
     });
   } else {
     const layoutBullet = (output.contextSummary?.bullets ?? []).find(
-      b => /bed|floor|storey|layout|room/i.test(b),
+      b => LAYOUT_BULLET_PATTERN.test(b),
     );
     if (layoutBullet) {
       tiles.push({
