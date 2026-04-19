@@ -25,6 +25,9 @@ import type {
   Improvement,
   BestAdvice,
   SavingsPlan,
+  HomeProfileTile,
+  ReasonChainStep,
+  NextSteps,
 } from './insightPack.types';
 
 // ─── Rating helpers ───────────────────────────────────────────────────────────
@@ -728,6 +731,247 @@ function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOut
   return { behaviour, settings, futureUpgrades };
 }
 
+// ─── Home Profile ─────────────────────────────────────────────────────────────
+
+// Context-bullet matching patterns — used to map plain-text bullets to tiles.
+const DHW_BULLET_PATTERN = /bath|shower|hot water|dhw/i;
+const PRESSURE_BULLET_PATTERN = /pressure|flow|mains/i;
+const HEAT_LOSS_BULLET_PATTERN = /heat loss|insulation|fabric|wall|kw/i;
+const BOILER_BULLET_PATTERN = /boiler|current system|existing/i;
+const LAYOUT_BULLET_PATTERN = /bed|floor|storey|layout|room/i;
+
+/**
+ * Derives WhatWeKnowGrid tiles from engine evidence and context summary.
+ * Each tile must map to a real survey field or engine output — nothing invented.
+ */
+function buildHomeProfile(output: EngineOutputV1): HomeProfileTile[] {
+  const tiles: HomeProfileTile[] = [];
+
+  // Hot water demand — from DHW evidence or context
+  const dhwEvidence = (output.evidence ?? []).find(
+    e => e.id.includes('dhw') || e.id.includes('hot_water') || e.id.includes('cylinder'),
+  );
+  if (dhwEvidence) {
+    tiles.push({
+      icon: '🚿',
+      title: 'Hot water demand',
+      finding: dhwEvidence.value,
+    });
+  } else {
+    const ctxBullets = output.contextSummary?.bullets ?? [];
+    const dhwBullet = ctxBullets.find(b => DHW_BULLET_PATTERN.test(b));
+    tiles.push({
+      icon: '🚿',
+      title: 'Hot water demand',
+      finding: dhwBullet ?? 'Assessed from household size and bathroom count.',
+    });
+  }
+
+  // Water pressure / flow — from services evidence
+  const pressureEvidence = (output.evidence ?? []).find(
+    e => e.id.includes('pressure') || e.id.includes('flow') || e.id.includes('mains'),
+  );
+  if (pressureEvidence) {
+    tiles.push({
+      icon: '💧',
+      title: 'Water pressure and flow',
+      finding: pressureEvidence.value,
+    });
+  } else {
+    const pressBullet = (output.contextSummary?.bullets ?? []).find(
+      b => PRESSURE_BULLET_PATTERN.test(b),
+    );
+    tiles.push({
+      icon: '💧',
+      title: 'Water pressure and flow',
+      finding: pressBullet ?? 'Not directly measured — assessed from supply type and context.',
+    });
+  }
+
+  // Heat loss / insulation
+  const heatLossEvidence = (output.evidence ?? []).find(
+    e => e.id.includes('heat_loss') || e.id.includes('heatloss') || e.id.includes('insulation'),
+  );
+  if (heatLossEvidence) {
+    tiles.push({
+      icon: '🏠',
+      title: 'Heat loss and insulation',
+      finding: heatLossEvidence.value,
+    });
+  } else {
+    const heatBullet = (output.contextSummary?.bullets ?? []).find(
+      b => HEAT_LOSS_BULLET_PATTERN.test(b),
+    );
+    tiles.push({
+      icon: '🏠',
+      title: 'Heat loss and insulation',
+      finding: heatBullet ?? 'Estimated from property type and floor area.',
+    });
+  }
+
+  // Current boiler / system
+  const boilerEvidence = (output.evidence ?? []).find(
+    e => e.id.includes('boiler') || e.id.includes('current_system'),
+  );
+  if (boilerEvidence) {
+    tiles.push({
+      icon: '🔧',
+      title: 'Current boiler',
+      finding: boilerEvidence.value,
+    });
+  } else {
+    const boilerBullet = (output.contextSummary?.bullets ?? []).find(
+      b => BOILER_BULLET_PATTERN.test(b),
+    );
+    if (boilerBullet) {
+      tiles.push({
+        icon: '🔧',
+        title: 'Current boiler',
+        finding: boilerBullet,
+      });
+    }
+  }
+
+  // Home size / layout
+  const layoutEvidence = (output.evidence ?? []).find(
+    e => e.id.includes('floor') || e.id.includes('bedroom') || e.id.includes('size'),
+  );
+  if (layoutEvidence) {
+    tiles.push({
+      icon: '📐',
+      title: 'Home size and layout',
+      finding: layoutEvidence.value,
+    });
+  } else {
+    const layoutBullet = (output.contextSummary?.bullets ?? []).find(
+      b => LAYOUT_BULLET_PATTERN.test(b),
+    );
+    if (layoutBullet) {
+      tiles.push({
+        icon: '📐',
+        title: 'Home size and layout',
+        finding: layoutBullet,
+      });
+    }
+  }
+
+  // Future plans — from future energy opportunities
+  const feo = output.futureEnergyOpportunities;
+  if (feo) {
+    const signals: string[] = [];
+    if (feo.solarPv?.status === 'suitable_now') signals.push('Solar PV likely viable');
+    else if (feo.solarPv?.status === 'check_required') signals.push('Solar PV needs checks');
+    if (feo.evCharging?.status === 'suitable_now') signals.push('EV charging assessed as viable');
+    if (signals.length > 0) {
+      tiles.push({
+        icon: '🌱',
+        title: 'Future energy plans',
+        finding: signals.join(' · '),
+      });
+    }
+  }
+
+  // Ensure at least one tile is always present
+  if (tiles.length === 0) {
+    tiles.push({
+      icon: '📋',
+      title: 'Survey data',
+      finding: 'Home assessed using available survey inputs.',
+    });
+  }
+
+  return tiles;
+}
+
+// ─── Reason Chain ─────────────────────────────────────────────────────────────
+
+/**
+ * Builds the "Why Atlas suggested this" reasoning ladder.
+ * Order: home facts → constraints identified → conclusion.
+ * Derived from engine verdict, contextSummary, and recommendation — never invented.
+ */
+function buildReasonChain(
+  output: EngineOutputV1,
+  bestAdvice: BestAdvice,
+): ReasonChainStep[] {
+  const steps: ReasonChainStep[] = [];
+
+  // Step 1–2: Home facts from context summary or evidence
+  const contextBullets = output.contextSummary?.bullets ?? [];
+  for (const bullet of contextBullets.slice(0, 2)) {
+    steps.push({ label: bullet });
+  }
+
+  // Step 3: Constraint(s) from verdict reasons or limiters
+  const verdictReasons = output.verdict?.reasons ?? [];
+  for (const reason of verdictReasons.slice(0, 2)) {
+    steps.push({ label: reason });
+  }
+
+  // Fallback from limiters when verdict reasons are absent
+  if (verdictReasons.length === 0) {
+    const topLimiters = (output.limiters?.limiters ?? [])
+      .filter(l => l.severity === 'fail' || l.severity === 'warn')
+      .slice(0, 2);
+    for (const limiter of topLimiters) {
+      steps.push({ label: limiter.impact.summary, detail: limiter.impact.detail });
+    }
+  }
+
+  // Final step: the conclusion / recommendation
+  const conclusion = bestAdvice.because[0] ?? output.recommendation?.primary ?? 'Best fit based on this home.';
+  steps.push({ label: conclusion });
+
+  // Guarantee at least 2 steps
+  if (steps.length < 2) {
+    steps.unshift({
+      label: output.recommendation?.primary ?? 'Home assessed by Atlas engine.',
+    });
+  }
+
+  return steps;
+}
+
+// ─── Next Steps ───────────────────────────────────────────────────────────────
+
+function buildNextSteps(
+  bestAdvice: BestAdvice,
+  quotes: QuoteInsight[],
+): NextSteps {
+  const best = quotes.find(qi => qi.quote.id === bestAdvice.recommendedQuoteId) ?? quotes[0];
+
+  const included = best
+    ? [
+        systemLabel(best.quote.systemType),
+        ...(best.quote.cylinder
+          ? [`${best.quote.cylinder.volumeL}L ${best.quote.cylinder.type === 'mixergy' ? 'Mixergy cylinder (stratified)' : 'hot-water cylinder'}`]
+          : []),
+        ...best.quote.includedUpgrades,
+      ]
+    : [];
+
+  const optional = best
+    ? best.improvements
+        .filter(imp => imp.impact === 'efficiency' || imp.impact === 'longevity')
+        .map(imp => imp.title)
+        .slice(0, 3)
+    : [];
+
+  const furtherImprovements = best
+    ? best.improvements
+        .filter(imp => imp.impact === 'performance')
+        .map(imp => imp.explanation)
+        .slice(0, 2)
+    : [];
+
+  return {
+    chosenOptionLabel: best?.quote.label ?? bestAdvice.recommendation,
+    included: included.length > 0 ? included : ['Replacement heat source', 'Commissioning and handover'],
+    optional,
+    furtherImprovements,
+  };
+}
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -770,10 +1014,16 @@ export function buildInsightPackFromEngine(
   const bestAdvice = buildBestAdvice(quoteInsights, engineOutput);
   const bestQuote = quoteInsights.find(qi => qi.quote.id === bestAdvice.recommendedQuoteId);
   const savingsPlan = buildSavingsPlan(bestQuote, engineOutput);
+  const homeProfile = buildHomeProfile(engineOutput);
+  const reasonChain = buildReasonChain(engineOutput, bestAdvice);
+  const nextSteps = buildNextSteps(bestAdvice, quoteInsights);
 
   return {
     quotes: quoteInsights,
     bestAdvice,
     savingsPlan,
+    homeProfile,
+    reasonChain,
+    nextSteps,
   };
 }

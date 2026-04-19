@@ -1,0 +1,72 @@
+/* WhatWeKnowGrid.css */
+
+.what-we-know {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.what-we-know__heading {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #10243d;
+}
+
+.what-we-know__sub {
+  margin: 0 0 0.5rem;
+  color: #4b5d79;
+  font-size: 0.88rem;
+}
+
+/* ── Tile grid ── */
+
+.wk-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .wk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Individual tile ── */
+
+.wk-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: #f7faff;
+  border: 1px solid #dbe8ff;
+  transition: box-shadow 0.15s;
+}
+
+.wk-tile:hover {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+}
+
+.wk-tile__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  margin-bottom: 0.15rem;
+}
+
+.wk-tile__title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #5b6f91;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wk-tile__finding {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #10243d;
+  line-height: 1.4;
+}

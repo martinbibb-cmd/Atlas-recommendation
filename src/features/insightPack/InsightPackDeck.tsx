@@ -1,40 +1,62 @@
 /**
  * InsightPackDeck.tsx — Atlas Insight Pack main container (deck-style navigation).
  *
- * Renders all 7 panels as scrollable slides.
+ * Renders all 11 panels as scrollable slides in the following order:
+ *   1. Cover
+ *   2. What we know
+ *   3. Quotes overview
+ *   4. Best advice
+ *   5. Daily use
+ *   6. Ratings
+ *   7. Limitations
+ *   8. Improvements
+ *   9. Savings
+ *  10. Why Atlas suggested this
+ *  11. Next steps
+ *
  * Pure presentation — no physics logic.
  * All data must be pre-built by buildInsightPackFromEngine().
  */
 
 import { useState } from 'react';
 import type { InsightPack } from './insightPack.types';
+import CoverHeroCard from './CoverHeroCard';
+import WhatWeKnowGrid from './WhatWeKnowGrid';
 import QuoteComparisonCard from './QuoteComparisonCard';
-import DailyUsePanel from './DailyUsePanel';
-import LimitationsPanel from './LimitationsPanel';
-import RatingsPanel from './RatingsPanel';
 import BestAdvicePanel from './BestAdvicePanel';
+import DailyUsePanel from './DailyUsePanel';
+import RatingsPanel from './RatingsPanel';
+import LimitationsPanel from './LimitationsPanel';
 import ImprovementsPanel from './ImprovementsPanel';
 import SavingsPanel from './SavingsPanel';
+import WhyAtlasSuggestedThis from './WhyAtlasSuggestedThis';
+import NextStepsCard from './NextStepsCard';
 import './InsightPackDeck.css';
 
 interface Props {
   pack: InsightPack;
+  /** Optional property or customer title shown on the cover screen. */
+  propertyTitle?: string;
 }
 
 const SLIDES = [
-  { id: 'overview',      label: '📋 Quotes' },
-  { id: 'daily-use',     label: '🏠 Day to Day' },
-  { id: 'limitations',   label: '⚠️ Limitations' },
-  { id: 'ratings',       label: '⭐ Ratings' },
-  { id: 'best-advice',   label: '🎯 Best Advice' },
-  { id: 'improvements',  label: '🔧 Improvements' },
-  { id: 'savings',       label: '💡 Savings' },
+  { id: 'cover',       label: '🏠 Your Home' },
+  { id: 'what-we-know', label: '📋 What We Looked At' },
+  { id: 'overview',    label: '📄 Options' },
+  { id: 'best-advice', label: '🎯 Best Advice' },
+  { id: 'daily-use',   label: '☀️ Day to Day' },
+  { id: 'ratings',     label: '⭐ Ratings' },
+  { id: 'limitations', label: '⚠️ Limitations' },
+  { id: 'improvements', label: '🔧 Improvements' },
+  { id: 'savings',     label: '💡 Savings' },
+  { id: 'why-atlas',   label: '🧠 Why This' },
+  { id: 'next-steps',  label: '✅ Next Steps' },
 ] as const;
 
 type SlideId = typeof SLIDES[number]['id'];
 
-export default function InsightPackDeck({ pack }: Props) {
-  const [activeSlide, setActiveSlide] = useState<SlideId>('overview');
+export default function InsightPackDeck({ pack, propertyTitle }: Props) {
+  const [activeSlide, setActiveSlide] = useState<SlideId>('cover');
 
   const currentIndex = SLIDES.findIndex(s => s.id === activeSlide);
 
@@ -52,20 +74,39 @@ export default function InsightPackDeck({ pack }: Props) {
 
   function renderPanel() {
     switch (activeSlide) {
+      case 'cover':
+        return (
+          <CoverHeroCard
+            quotes={pack.quotes}
+            bestAdvice={pack.bestAdvice}
+            propertyTitle={propertyTitle}
+          />
+        );
+      case 'what-we-know':
+        return <WhatWeKnowGrid tiles={pack.homeProfile} />;
       case 'overview':
         return <QuoteComparisonCard quotes={pack.quotes} bestAdvice={pack.bestAdvice} />;
-      case 'daily-use':
-        return <DailyUsePanel quotes={pack.quotes} />;
-      case 'limitations':
-        return <LimitationsPanel quotes={pack.quotes} />;
-      case 'ratings':
-        return <RatingsPanel quotes={pack.quotes} />;
       case 'best-advice':
         return <BestAdvicePanel bestAdvice={pack.bestAdvice} />;
+      case 'daily-use':
+        return <DailyUsePanel quotes={pack.quotes} />;
+      case 'ratings':
+        return <RatingsPanel quotes={pack.quotes} />;
+      case 'limitations':
+        return <LimitationsPanel quotes={pack.quotes} />;
       case 'improvements':
         return <ImprovementsPanel quotes={pack.quotes} />;
       case 'savings':
         return <SavingsPanel savingsPlan={pack.savingsPlan} />;
+      case 'why-atlas':
+        return <WhyAtlasSuggestedThis reasonChain={pack.reasonChain} />;
+      case 'next-steps':
+        return (
+          <NextStepsCard
+            nextSteps={pack.nextSteps}
+            onReview={() => goTo('overview')}
+          />
+        );
     }
   }
 

@@ -171,6 +171,53 @@ export interface QuoteInsight {
   improvements: Improvement[];
 }
 
+// ─── Home Profile ─────────────────────────────────────────────────────────────
+
+/**
+ * A single "what we looked at" tile shown in the WhatWeKnowGrid.
+ * Derived from engine evidence, context summary, and survey inputs.
+ * Must never be invented — must map to a real survey or engine field.
+ */
+export interface HomeProfileTile {
+  /** Simple icon label (emoji or icon name) for the tile. */
+  icon: string;
+  /** Short tile title, e.g. "Hot water demand". */
+  title: string;
+  /** One-line finding derived from the survey or engine output. */
+  finding: string;
+}
+
+// ─── Reason Chain ─────────────────────────────────────────────────────────────
+
+/**
+ * A single step in the "Why Atlas suggested this" reasoning ladder.
+ * Steps must be ordered: home facts → constraints → conclusion.
+ * Derived from engine verdict, contextSummary, and trace outputs.
+ */
+export interface ReasonChainStep {
+  /** Short plain-English label for this step. */
+  label: string;
+  /** Optional elaboration shown on expand. */
+  detail?: string;
+}
+
+// ─── Next Steps ───────────────────────────────────────────────────────────────
+
+/**
+ * Structured content for the NextStepsCard.
+ * Derived from best advice, quote inclusions, and improvement items.
+ */
+export interface NextSteps {
+  /** Label of the recommended or chosen option. */
+  chosenOptionLabel: string;
+  /** Items already included in the recommended quote. */
+  included: string[];
+  /** Optional add-ons that could improve results. */
+  optional: string[];
+  /** Items that would further improve results (from improvements list). */
+  furtherImprovements: string[];
+}
+
 // ─── Insight Pack ─────────────────────────────────────────────────────────────
 
 /**
@@ -184,4 +231,10 @@ export interface InsightPack {
   bestAdvice: BestAdvice;
   /** How to get the most from whichever system is installed. */
   savingsPlan: SavingsPlan;
+  /** Tiles summarising what was surveyed — shown in the WhatWeKnowGrid screen. */
+  homeProfile: HomeProfileTile[];
+  /** Ordered reasoning steps explaining why Atlas made its recommendation. */
+  reasonChain: ReasonChainStep[];
+  /** Structured next-steps summary for the final screen. */
+  nextSteps: NextSteps;
 }

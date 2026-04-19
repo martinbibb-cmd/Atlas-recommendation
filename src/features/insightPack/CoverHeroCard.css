@@ -1,0 +1,109 @@
+/* CoverHeroCard.css */
+
+.cover-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+  min-height: 340px;
+  background: linear-gradient(160deg, #10243d 0%, #1d4ed8 100%);
+  border-radius: 16px;
+  color: #fff;
+}
+
+/* ── Header ── */
+
+.cover-hero__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.cover-hero__property {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.cover-hero__date {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.65;
+}
+
+/* ── Hero copy ── */
+
+.cover-hero__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.cover-hero__headline {
+  margin: 0;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.cover-hero__subline {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+/* ── Summary chips ── */
+
+.cover-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.cover-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 1rem;
+  border-radius: 12px;
+  flex: 1 1 140px;
+}
+
+.cover-chip--neutral {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.cover-chip--recommended {
+  background: rgba(134, 239, 172, 0.18);
+  border: 1px solid rgba(134, 239, 172, 0.45);
+}
+
+.cover-chip__label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.cover-chip__value {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+/* ── Print ── */
+@media print {
+  .cover-hero {
+    background: #10243d;
+    color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

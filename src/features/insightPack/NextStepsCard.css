@@ -1,0 +1,123 @@
+/* NextStepsCard.css */
+
+.next-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.next-steps__heading {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #10243d;
+}
+
+/* ── Chosen option ── */
+
+.next-steps__chosen {
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background: #f0fdf4;
+  border: 2px solid #86efac;
+}
+
+.next-steps__chosen-eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #16a34a;
+}
+
+.next-steps__chosen-label {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #10243d;
+}
+
+/* ── Sections ── */
+
+.next-steps__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.next-steps__section-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6f91;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.next-steps__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.next-steps__list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.87rem;
+  color: #10243d;
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  background: #f7faff;
+  border: 1px solid #dbe8ff;
+}
+
+/* ── CTAs ── */
+
+.next-steps__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.next-steps__cta {
+  flex: 1 1 180px;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.next-steps__cta:active {
+  transform: scale(0.98);
+}
+
+.next-steps__cta--primary {
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+}
+
+.next-steps__cta--primary:hover {
+  background: #1e40af;
+}
+
+.next-steps__cta--secondary {
+  background: #f7faff;
+  color: #1d4ed8;
+  border: 1.5px solid #dbe8ff;
+}
+
+.next-steps__cta--secondary:hover {
+  background: #dbe8ff;
+}
