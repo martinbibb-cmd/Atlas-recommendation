@@ -826,6 +826,7 @@ export default function App() {
               // priority chips — mirrors the same pattern used by the 'full' journey.
               if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
               if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
+              if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
             }}
             onComplete={(engineInput) => {
               setLabEngineInput(engineInput);
@@ -837,6 +838,12 @@ export default function App() {
               setLabEngineInput(engineInput);
               setSimulatorFromJourney('visit');
               setJourney('simulator');
+            }}
+            onOpenInsightPack={(engineInput, quotes) => {
+              setLabEngineInput(engineInput);
+              setLabQuotes(quotes);
+              setInsightPackFromJourney('visit');
+              setJourney('insight-pack');
             }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -961,6 +968,7 @@ export default function App() {
             <InsightPackDeck
               pack={pack}
               propertyTitle={labEngineInput.postcode ?? undefined}
+              onClose={() => setJourney(insightPackFromJourney)}
             />
           </div>
         );

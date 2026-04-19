@@ -78,6 +78,16 @@
   background: #f7faff;
 }
 
+.insight-deck__footer-btn--done {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #1d4ed8;
+}
+.insight-deck__footer-btn--done:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+}
+
 .insight-deck__page-indicator {
   font-size: 0.8rem;
   color: #5b6f91;

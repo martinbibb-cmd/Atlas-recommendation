@@ -37,6 +37,8 @@ interface Props {
   pack: InsightPack;
   /** Optional property or customer title shown on the cover screen. */
   propertyTitle?: string;
+  /** Called when the user finishes the presentation and wants to close/exit. */
+  onClose?: () => void;
 }
 
 const SLIDES = [
@@ -55,7 +57,7 @@ const SLIDES = [
 
 type SlideId = typeof SLIDES[number]['id'];
 
-export default function InsightPackDeck({ pack, propertyTitle }: Props) {
+export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props) {
   const [activeSlide, setActiveSlide] = useState<SlideId>('cover');
 
   const currentIndex = SLIDES.findIndex(s => s.id === activeSlide);
@@ -145,14 +147,24 @@ export default function InsightPackDeck({ pack, propertyTitle }: Props) {
         <span className="insight-deck__page-indicator">
           {currentIndex + 1} / {SLIDES.length}
         </span>
-        <button
-          className="insight-deck__footer-btn"
-          onClick={goNext}
-          disabled={currentIndex === SLIDES.length - 1}
-          aria-label="Next section"
-        >
-          Next →
-        </button>
+        {currentIndex === SLIDES.length - 1 && onClose ? (
+          <button
+            className="insight-deck__footer-btn insight-deck__footer-btn--done"
+            onClick={onClose}
+            aria-label="Close presentation"
+          >
+            ✓ Done
+          </button>
+        ) : (
+          <button
+            className="insight-deck__footer-btn"
+            onClick={goNext}
+            disabled={currentIndex === SLIDES.length - 1}
+            aria-label="Next section"
+          >
+            Next →
+          </button>
+        )}
       </div>
     </div>
   );
