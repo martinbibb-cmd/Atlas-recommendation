@@ -504,6 +504,10 @@ export default function CustomerRecommendationPrint({
   const recommendedWork = buildRecommendedWork(topDetail);
   const { systemComparison } = model;
 
+  // Use the OptionCardV1 label for Option 2 wherever it appears so the name
+  // is consistent throughout the document (header, comparison snippet, etc.).
+  const option2Label = opt2Detail?.label ?? comparison?.label;
+
   const opt2WhyBullets: string[] = opt2RankingItem
     ? ([
         opt2RankingItem.demandFitNote,
@@ -682,11 +686,11 @@ export default function CustomerRecommendationPrint({
             )}
 
             {/* C. Other options considered — conditional only */}
-            {comparison && (
+            {comparison && option2Label && (
               <section className="crp-section" aria-label="Other options considered">
                 <h2 className="crp-section__title">Other options considered</h2>
-                <div className="crp-comparison" aria-label={opt2Detail?.label ?? comparison.label}>
-                  <p className="crp-comparison__name">{opt2Detail?.label ?? comparison.label}</p>
+                <div className="crp-comparison" aria-label={option2Label}>
+                  <p className="crp-comparison__name">{option2Label}</p>
                   <p className="crp-comparison__note">{comparison.reasonLine}</p>
                 </div>
               </section>
