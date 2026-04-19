@@ -399,6 +399,18 @@ export interface EngineInputV2_3 {
   // Building
   buildingMass: BuildingMass;
   primaryPipeDiameter: number; // mm, e.g. 22 or 28
+  /**
+   * Total inferred primary pipe-run length (metres) derived from the
+   * Spatial Alignment View route layer.  Optional — populated only when
+   * AtlasSpatialModelV1.inferredRoutes contains one or more pipe routes.
+   *
+   * Used by the hydraulic module to flag long vertical-rise risk and by the
+   * heat-loss module to estimate distribution heat-loss penalty.
+   *
+   * confidence is always 'inferred' at this stage — engineers should confirm
+   * on-site before using the value for formal sizing calculations.
+   */
+  inferredPrimaryPipeLengthM?: number;
   heatLossWatts: number; // W
   radiatorCount: number;
   hasLoftConversion: boolean;

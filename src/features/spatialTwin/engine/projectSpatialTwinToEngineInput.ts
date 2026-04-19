@@ -1,6 +1,7 @@
 import type { SpatialTwinModelV1, AtlasSpatialPatchV1 } from '../state/spatialTwin.types';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import { applyScenarioPatches } from '../patches/applyScenarioPatches';
+import { deriveInferredPipeLengths } from '../../spatialAlignment/spatialAlignment.engine';
 
 export function projectSpatialTwinToEngineInput(
   spatial: SpatialTwinModelV1,
@@ -63,6 +64,21 @@ export function projectSpatialTwinToEngineInput(
   const roomCount = effectiveModel.spatial.rooms.length;
   if (roomCount > 0 && result.occupancyCount == null) {
     result.occupancyCount = Math.max(1, Math.round(roomCount * BEDROOM_TO_ROOM_RATIO));
+  }
+
+  // ── Inferred primary pipe length from Spatial Alignment routes ─────────────
+  // If the spatial model contains inferred pipe routes (from the Spatial
+  // Alignment View), sum them and pass the total to the engine so the
+  // hydraulic module can flag long-run risks.
+  // Only populated when routes exist and survey data hasn't already set it.
+  if (result.inferredPrimaryPipeLengthM == null) {
+    const pipeLengths = deriveInferredPipeLengths(effectiveModel.spatial);
+    if (pipeLengths.length > 0) {
+      result.inferredPrimaryPipeLengthM = pipeLengths.reduce(
+        (sum, r) => sum + r.totalLengthM,
+        0,
+      );
+    }
   }
 
   return result;
