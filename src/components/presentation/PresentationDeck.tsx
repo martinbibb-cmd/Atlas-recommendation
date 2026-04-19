@@ -1058,8 +1058,14 @@ function SystemOptionsGridPage({
 
 /**
  * Maps PriorityKey to the nearest RecommendationObjective for scoring.
- * cost_tendency and future_compatibility share the eco dimension as the
- * closest available proxy in the engine's objective set.
+ * 'cost_tendency' and 'future_compatibility' have no exact counterpart in the
+ * engine's objective set, so both map to 'eco' as the closest available proxy:
+ *   - cost_tendency → eco (energy efficiency and carbon footprint strongly
+ *     correlate with running costs for gas/heat-pump systems)
+ *   - future_compatibility → eco (clean-energy readiness tracks eco score;
+ *     heat pumps score highest on both)
+ * If the engine exposes dedicated cost_tendency or future_readiness objectives
+ * in the future, update this mapping accordingly.
  */
 const PRIORITY_KEY_TO_OBJECTIVE: Record<string, string> = {
   performance:          'performance',
@@ -1067,8 +1073,8 @@ const PRIORITY_KEY_TO_OBJECTIVE: Record<string, string> = {
   longevity:            'longevity',
   disruption:           'disruption',
   eco:                  'eco',
-  cost_tendency:        'eco',
-  future_compatibility: 'eco',
+  cost_tendency:        'eco',        // proxy — see comment above
+  future_compatibility: 'eco',        // proxy — see comment above
 };
 
 const OBJECTIVE_LABELS: Record<string, { label: string; description: string }> = {
