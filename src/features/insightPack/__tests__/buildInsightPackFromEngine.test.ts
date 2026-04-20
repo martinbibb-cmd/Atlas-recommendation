@@ -187,6 +187,35 @@ describe('hot water performance rules', () => {
   });
 });
 
+// ─── Heating performance rules ────────────────────────────────────────────────
+
+describe('heating performance rules', () => {
+  it('ASHP with no fail flags → Excellent heating performance', () => {
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [ASHP_QUOTE]);
+    expect(pack.quotes[0].rating.heatingPerformance.rating).toBe('Excellent');
+  });
+
+  it('ASHP with ashp-specific fail red flag → Needs Right Setup heating', () => {
+    const output = makeMinimalEngineOutput({
+      redFlags: [
+        {
+          id: 'ashp-radiator-undersized',
+          severity: 'fail',
+          title: 'Radiators undersized for heat pump flow temperature',
+          detail: 'Heat pump cannot operate below 65°C with existing radiators.',
+        },
+      ],
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    expect(pack.quotes[0].rating.heatingPerformance.rating).toBe('Needs Right Setup');
+  });
+
+  it('system boiler with no fail flags → Excellent heating performance', () => {
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [SYSTEM_QUOTE]);
+    expect(pack.quotes[0].rating.heatingPerformance.rating).toBe('Excellent');
+  });
+});
+
 // ─── Efficiency rules ─────────────────────────────────────────────────────────
 
 describe('efficiency rating rules', () => {
@@ -216,9 +245,31 @@ describe('efficiency rating rules', () => {
     expect(pack.quotes[0].rating.efficiency.rating).toBe('Excellent');
   });
 
-  it('ASHP → Very Good efficiency', () => {
+  it('ASHP with no flow-temp limiter → Excellent efficiency (COP 2.5–3.5× better than gas)', () => {
     const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [ASHP_QUOTE]);
-    expect(pack.quotes[0].rating.efficiency.rating).toBe('Very Good');
+    expect(pack.quotes[0].rating.efficiency.rating).toBe('Excellent');
+  });
+
+  it('ASHP with fail-severity flow-temp-too-high limiter → Good efficiency', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'flow-temp-too-high-for-ashp',
+            title: 'Flow temperature too high for ASHP',
+            severity: 'fail',
+            observed: { label: 'Flow temp', value: 70, unit: 'COP' as const },
+            limit: { label: 'Max for ASHP', value: 55, unit: 'COP' as const },
+            impact: { summary: 'Flow temp too high for heat pump.' },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    expect(pack.quotes[0].rating.efficiency.rating).toBe('Good');
   });
 });
 
@@ -325,6 +376,80 @@ describe('reliability rating rules', () => {
     const pack = buildInsightPackFromEngine(output, [COMBI_QUOTE]);
     expect(pack.quotes[0].limitations.length).toBeGreaterThan(0);
   });
+
+  it('primary-pipe-constraint limiter does not appear as limitation for combi quotes', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'primary-pipe-constraint',
+            title: '22mm primary pipework cannot carry ASHP flow',
+            severity: 'warn',
+            observed: { label: 'Required ASHP flow', value: 22.5, unit: 'L/min' },
+            limit:    { label: 'Safe flow for 22mm', value: 18.0, unit: 'L/min' },
+            impact: {
+              summary: '22mm primary pipework cannot safely carry the 22.5 L/min flow required by a heat pump.',
+            },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const combiPack = buildInsightPackFromEngine(output, [COMBI_QUOTE]);
+    const systemPack = buildInsightPackFromEngine(output, [SYSTEM_QUOTE]);
+    // primary-pipe-constraint is ASHP-only — must not appear for combi or system boiler
+    expect(combiPack.quotes[0].limitations).toHaveLength(0);
+    expect(systemPack.quotes[0].limitations).toHaveLength(0);
+  });
+
+  it('primary-pipe-constraint limiter appears for ASHP quotes', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'primary-pipe-constraint',
+            title: '22mm primary pipework cannot carry ASHP flow',
+            severity: 'warn',
+            observed: { label: 'Required ASHP flow', value: 22.5, unit: 'L/min' },
+            limit:    { label: 'Safe flow for 22mm', value: 18.0, unit: 'L/min' },
+            impact: {
+              summary: '22mm primary pipework cannot safely carry the 22.5 L/min flow required by a heat pump.',
+            },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    expect(pack.quotes[0].limitations.length).toBeGreaterThan(0);
+    expect(pack.quotes[0].limitations[0].message).toContain('22mm');
+  });
+
+  it('mains-flow-constraint limiter does not appear for system boiler quotes', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'mains-flow-constraint',
+            title: 'Mains flow constraint',
+            severity: 'warn',
+            observed: { label: 'Measured mains flow', value: 10, unit: 'L/min' },
+            limit:    { label: 'Min for combi DHW', value: 12, unit: 'L/min' },
+            impact: { summary: 'Mains flow below combi threshold.' },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const systemPack = buildInsightPackFromEngine(output, [SYSTEM_QUOTE]);
+    expect(systemPack.quotes[0].limitations).toHaveLength(0);
+  });
 });
 
 // ─── Suitability synthesis ────────────────────────────────────────────────────
@@ -350,6 +475,29 @@ describe('suitability synthesis', () => {
   it('system boiler with no flags and aligned recommendation → Excellent suitability', () => {
     const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [SYSTEM_QUOTE]);
     expect(pack.quotes[0].rating.suitability.rating).toBe('Excellent');
+  });
+
+  it('ASHP with viable option card is chosen over system boiler when engine says heat pump is viable', () => {
+    const output = makeMinimalEngineOutput({
+      recommendation: { primary: 'Air Source Heat Pump' },
+      options: [
+        {
+          id: 'ashp',
+          label: 'Air Source Heat Pump',
+          status: 'viable',
+          headline: 'Suitable for this home',
+          why: [],
+          requirements: [],
+          heat: { status: 'ok', headline: 'Heating OK', bullets: [] },
+          dhw: { status: 'ok', headline: 'DHW OK', bullets: [] },
+          engineering: { status: 'ok', headline: 'Engineering OK', bullets: [] },
+          typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
+          boundaryConditions: [],
+        },
+      ],
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE, SYSTEM_QUOTE]);
+    expect(pack.bestAdvice.recommendedQuoteId).toBe('quote_d'); // ASHP quote
   });
 });
 

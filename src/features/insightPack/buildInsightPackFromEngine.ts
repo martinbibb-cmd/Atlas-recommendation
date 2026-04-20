@@ -55,6 +55,18 @@ export interface InsightPackSurveyContext {
   mainsDynamicFlowLpm?: number;
   /** Peak heat loss (Watts) — from EngineInputV2_3.heatLossWatts. */
   heatLossWatts?: number;
+  /**
+   * System condition signals — from survey SystemBuilderState.
+   * Used to ground powerflush / filter recommendations in actual site evidence.
+   */
+  systemCondition?: {
+    /** Whether sludge was observed in bleed water. */
+    sludgeBleedObserved?: boolean;
+    /** Whether cold radiators were reported. */
+    coldRadiatorsPresent?: boolean;
+    /** Whether a magnetic filter is already fitted. */
+    magneticFilterFitted?: boolean;
+  };
 }
 
 // ─── Current system label ─────────────────────────────────────────────────────
@@ -190,18 +202,35 @@ function rateHeatingPerformance(
   const heatCaution = optionCard?.heat.status === 'caution';
 
   if (quote.systemType === 'ashp') {
-    const ashpFails = (output.redFlags ?? []).filter(f => f.id.includes('ashp') && f.severity === 'fail');
-    if (ashpFails.length > 0) {
+    // ASHP-specific fail flags (emitter sizing, flow temperature, infrastructure)
+    const ashpFails = (output.redFlags ?? []).filter(
+      f => f.severity === 'fail' &&
+        (f.id.includes('ashp') || f.id.includes('heat_pump') ||
+         f.id === 'flow-temp-too-high-for-ashp' || f.id === 'radiator-output-insufficient'),
+    );
+    // Check for high-flow-temperature limiter specific to ASHP
+    const flowTempLimiter = (output.limiters?.limiters ?? []).find(
+      l => l.id === 'flow-temp-too-high-for-ashp',
+    );
+    if (ashpFails.length > 0 || (flowTempLimiter && flowTempLimiter.severity === 'fail')) {
       return makeRating(
         'Needs Right Setup',
-        'Heat pump heating performance depends on emitter sizing and flow temperature.',
-        'ASHP COP degrades at high flow temperatures; existing radiators may require upsizing for full efficiency.',
+        'Heat pump heating performance depends on emitter sizing and flow temperature — review required before install.',
+        'ASHP COP degrades sharply at high flow temperatures; existing radiators may require upsizing to allow operation below 50°C.',
       );
     }
+    if (flowTempLimiter) {
+      return makeRating(
+        'Good',
+        'Heat pump can heat this home — emitter sizing review recommended to maximise efficiency.',
+        'Flow temperature above ideal HP range identified. Radiator upsizing or operating hours adjustment can mitigate.',
+      );
+    }
+    // No heating constraints: ASHP is well-matched to this home
     return makeRating(
-      'Very Good',
-      'Heat pump delivers steady low-temperature heating — efficient on long heating runs.',
-      'ASHP COP 2.5–3.5 at space-heating flow temperatures (35–50°C); favours longer, slower heating cycles.',
+      'Excellent',
+      'Heat pump is well-matched to this home — delivers steady, low-temperature heating with minimal operating constraints.',
+      'No flow-temperature or emitter constraints flagged. ASHP COP 2.5–3.5 at design-day flow temperatures; long, steady heating cycles maximise seasonal efficiency.',
     );
   }
 
@@ -244,10 +273,22 @@ function rateEfficiency(
   );
 
   if (quote.systemType === 'ashp') {
+    // Heat pumps deliver 2.5–3.5× more heat per unit of electricity than a gas boiler —
+    // this is genuinely Excellent efficiency regardless of flow temperature profile.
+    const flowTempLimiter = (output.limiters?.limiters ?? []).find(
+      l => l.id === 'flow-temp-too-high-for-ashp',
+    );
+    if (flowTempLimiter && flowTempLimiter.severity === 'fail') {
+      return makeRating(
+        'Good',
+        'Heat pump is more efficient than a gas boiler, though high flow temperatures reduce the efficiency advantage.',
+        `Flow temperatures currently constrain COP below optimal range. Radiator upsizing can restore full efficiency gains. Nominal SEDBUK baseline for comparison: ${DEFAULT_NOMINAL_EFFICIENCY_PCT}%.`,
+      );
+    }
     return makeRating(
-      'Very Good',
-      'Heat pump achieves 2.5–3.5× more heat per unit of electricity than a gas boiler.',
-      'Seasonal Performance Factor driven by flow temperature and outdoor temperature regime; lower flow temperature = higher COP.',
+      'Excellent',
+      'Heat pump delivers 2.5–3.5× more useful heat per unit of energy than a gas boiler — the highest-efficiency option available.',
+      `Seasonal Performance Factor (SPF) driven by flow temperature and outdoor temperature regime. Lower flow temperature = higher COP. Gas boiler SEDBUK baseline: ${DEFAULT_NOMINAL_EFFICIENCY_PCT}%; ASHP SPF target 2.5–3.5.`,
     );
   }
 
@@ -380,7 +421,7 @@ function rateSuitability(
 
   // Check whether the engine's primary recommendation aligns with this system type
   const primaryRec = output.recommendation?.primary ?? '';
-  const recAlignsWithQuote = checkRecommendationAlignment(quote, primaryRec);
+  const recAlignsWithQuote = checkRecommendationAlignment(quote, primaryRec, output);
 
   if (recAlignsWithQuote && worstBand === 'Excellent') {
     return makeRating(
@@ -435,19 +476,32 @@ function findOptionCard(quote: QuoteInput, output: EngineOutputV1): OptionCardV1
   return options.find(o => ids.includes(o.id));
 }
 
-function checkRecommendationAlignment(quote: QuoteInput, primaryRec: string): boolean {
+function checkRecommendationAlignment(quote: QuoteInput, primaryRec: string, output?: EngineOutputV1): boolean {
+  // Primary check: engine's recommendation text explicitly mentions this system type
   const lower = primaryRec.toLowerCase();
   switch (quote.systemType) {
     case 'combi':
-      return lower.includes('combi') || lower.includes('on-demand');
+      if (lower.includes('combi') || lower.includes('on-demand') || lower.includes('on demand')) return true;
+      break;
     case 'system':
     case 'regular':
-      return lower.includes('system') || lower.includes('stored') || lower.includes('cylinder');
+      if (lower.includes('system') || lower.includes('stored') || lower.includes('cylinder')) return true;
+      break;
     case 'ashp':
-      return lower.includes('heat pump') || lower.includes('ashp');
-    default:
-      return false;
+      if (lower.includes('heat pump') || lower.includes('ashp')) return true;
+      break;
   }
+
+  // Fallback: if the option card for this type is 'viable', the engine has
+  // assessed it as a suitable option regardless of how the summary text was phrased.
+  // This ensures "Multiple suitable options" or similarly generic text doesn't
+  // cause a well-matched ASHP to rank below a system boiler.
+  if (output) {
+    const optionCard = findOptionCard(quote, output);
+    if (optionCard?.status === 'viable') return true;
+  }
+
+  return false;
 }
 
 // ─── System type ranking (for daily-use comparison statements) ────────────────
@@ -474,7 +528,6 @@ function buildDailyUseStatements(
   // recommended option — otherwise all quotes would show identical statements.
   const behaviours = output.realWorldBehaviours ?? [];
   const hasStored = quote.systemType !== 'combi';
-  const isAshp = quote.systemType === 'ashp';
 
   for (const card of behaviours) {
     // Determine if this behaviour card is relevant for the current system type.
@@ -504,7 +557,7 @@ function buildDailyUseStatements(
 
   // Use derived fallback when engine behaviours don't cover this system type
   if (statements.length === 0) {
-    statements.push(...deriveFallbackDailyUse(quote, output, ctx, isAshp));
+    statements.push(...deriveFallbackDailyUse(quote, output, ctx));
   }
 
   return statements;
@@ -514,11 +567,10 @@ function deriveFallbackDailyUse(
   quote: QuoteInput,
   output: EngineOutputV1,
   ctx?: InsightPackSurveyContext,
-  isAshp?: boolean,
 ): DailyUseStatement[] {
   const statements: DailyUseStatement[] = [];
   const optionCard = findOptionCard(quote, output);
-  const hasStored = quote.systemType !== 'combi';
+  const systemType = quote.systemType;
 
   // Build occupancy context strings from survey data where available
   const occupants = ctx?.occupancyCount;
@@ -527,43 +579,113 @@ function deriveFallbackDailyUse(
   const bathroomDesc = bathrooms != null ? `${bathrooms} bathroom${bathrooms === 1 ? '' : 's'}` : null;
   const homeDesc = [occupancyDesc, bathroomDesc].filter(Boolean).join(', ');
 
-  if (hasStored) {
+  // Check for upgrades included in this specific quote — they affect daily experience
+  const upgrades = new Set(quote.includedUpgrades.map(u => u.toLowerCase()));
+  const hasPowerflush = upgrades.has('powerflush') || upgrades.has('flush');
+  const hasMixergy = quote.cylinder?.type === 'mixergy';
+  const cylinderVol = quote.cylinder?.volumeL;
+
+  if (systemType === 'ashp') {
+    // ── Air Source Heat Pump ────────────────────────────────────────────────
     const simultaneousLine = homeDesc
-      ? `With ${homeDesc} in this home, multiple taps and showers can run simultaneously without pressure drop.`
-      : 'Multiple taps and showers can run simultaneously without pressure drop.';
+      ? `With ${homeDesc} in this home, multiple taps and showers can run simultaneously — stored cylinder buffers demand from the heat pump.`
+      : 'Multiple taps and showers can run simultaneously — stored cylinder decouples delivery from heat pump output.';
     statements.push({ statement: simultaneousLine, scenario: 'simultaneous_draw' });
 
-    if (isAshp) {
+    // Cylinder draw strategy
+    if (hasMixergy) {
       statements.push({
-        statement: 'Heat pump heats water efficiently overnight at lower electricity tariff rates — cylinder is pre-charged ready for the day.',
-        scenario: 'efficiency',
+        statement: 'Mixergy cylinder draws from the top — full-temperature water available immediately even at partial charge, so overnight heat cycles can be shorter.',
+        scenario: 'recovery',
+      });
+    } else if (cylinderVol != null) {
+      statements.push({
+        statement: `${cylinderVol}L cylinder stores hot water pre-heated by the heat pump — no waiting for recovery mid-day.`,
+        scenario: 'recovery',
       });
     }
 
-    if (quote.cylinder?.type === 'mixergy') {
+    // Heating efficiency characteristic
+    statements.push({
+      statement: 'Heat pump runs steady, low-temperature heating cycles — leaving it on at a consistent setpoint is more efficient than large on/off swings.',
+      scenario: 'efficiency',
+    });
+
+    // Off-peak tariff advantage
+    statements.push({
+      statement: 'Pre-heating the cylinder overnight on a cheaper electricity tariff (e.g. Octopus Go) significantly reduces running costs.',
+      scenario: 'efficiency',
+    });
+
+  } else if (systemType === 'system') {
+    // ── System boiler with unvented cylinder ───────────────────────────────
+    const simultaneousLine = homeDesc
+      ? `With ${homeDesc} in this home, multiple taps and showers can run at mains pressure simultaneously — the cylinder buffers demand so the boiler isn't interrupted.`
+      : 'Multiple taps and showers can run at mains pressure simultaneously — stored cylinder handles concurrent demand.';
+    statements.push({ statement: simultaneousLine, scenario: 'simultaneous_draw' });
+
+    if (hasMixergy) {
       statements.push({
-        statement: 'Mixergy draws from the top — hot water available immediately without waiting for full reheat.',
+        statement: 'Mixergy draws hot water from the top — a full-temperature shower is available even when the cylinder is partially charged, reducing unnecessary reheat cycles.',
         scenario: 'recovery',
       });
-    } else if (quote.cylinder?.volumeL != null) {
-      const volLine = homeDesc
-        ? `${quote.cylinder.volumeL}L cylinder provides stored hot water matched to ${homeDesc} — no delay on first draw.`
-        : `${quote.cylinder.volumeL}L cylinder provides stored hot water — no delay on first draw.`;
-      statements.push({ statement: volLine, scenario: 'recovery' });
+    } else if (cylinderVol != null) {
+      statements.push({
+        statement: `${cylinderVol}L unvented cylinder — recovery to full temperature takes around 40–60 minutes at typical boiler output after a large back-to-back draw.`,
+        scenario: 'recovery',
+      });
+    } else {
+      statements.push({
+        statement: 'Hot water is finite — recovery applies after a large simultaneous draw, but for normal use the cylinder stores more than enough.',
+        scenario: 'recovery',
+      });
     }
+
+    if (hasPowerflush) {
+      statements.push({
+        statement: 'Powerflush included — radiators will heat evenly across the home once the circuit is cleaned, improving comfort on cold days.',
+        scenario: 'general',
+      });
+    }
+
+  } else if (systemType === 'regular') {
+    // ── Regular boiler with vented (tank-fed) cylinder ──────────────────────
+    const simultaneousLine = homeDesc
+      ? `With ${homeDesc} in this home, multiple taps can run simultaneously from the stored cylinder — pressure is gentler than mains supply but adequate for normal household use.`
+      : 'Multiple taps can run simultaneously from the stored cylinder — pressure is tank-fed, not mains pressure.';
+    statements.push({ statement: simultaneousLine, scenario: 'simultaneous_draw' });
+
+    statements.push({
+      statement: 'Hot water pressure depends on the height of the cold water tank above the taps — typically lower than mains pressure but consistent.',
+      scenario: 'pressure',
+    });
+
+    if (cylinderVol != null) {
+      statements.push({
+        statement: `${cylinderVol}L vented cylinder provides tank-fed hot water — recovery time applies after a large draw.`,
+        scenario: 'recovery',
+      });
+    }
+
   } else {
-    // Combi
+    // ── Combination boiler (on-demand) ─────────────────────────────────────
     const dhwBullets = optionCard?.dhw.bullets ?? [];
     if (dhwBullets.length > 0) {
       statements.push({ statement: dhwBullets[0], scenario: 'simultaneous_draw' });
     } else {
       const flowLine = ctx?.mainsDynamicFlowLpm
         ? `On-demand hot water at your surveyed mains flow of ${ctx.mainsDynamicFlowLpm} L/min — one outlet at a time for full-pressure delivery.`
-        : '1 outlet at a time for full-pressure hot water delivery.';
+        : 'One outlet at a time for full-pressure hot water — the boiler heats water instantly on demand.';
       statements.push({ statement: flowLine, scenario: 'simultaneous_draw' });
     }
+
     statements.push({
-      statement: 'Brief pause on first draw while heat exchanger ramps up (typically under 10 seconds).',
+      statement: 'No cylinder means no stored volume to run down — hot water is available indefinitely as long as the boiler is running.',
+      scenario: 'general',
+    });
+
+    statements.push({
+      statement: 'Brief pause on first draw while the heat exchanger ramps up — typically under 10 seconds.',
       scenario: 'recovery',
     });
   }
@@ -667,9 +789,25 @@ function limiterToLimitation(
   quote: QuoteInput,
 ): SystemLimitation | null {
   const isCombi = quote.systemType === 'combi';
+  const isAshp = quote.systemType === 'ashp';
+  const isOpenVented = quote.systemType === 'regular';
 
   // combi-concurrency-constraint is only relevant to combi
   if (limiter.id === 'combi-concurrency-constraint' && !isCombi) return null;
+
+  // primary-pipe-constraint is heat-pump-only — 22mm primaries only matter for ASHP
+  // flow rates, not for boiler circuits which operate at different flow requirements.
+  if (limiter.id === 'primary-pipe-constraint' && !isAshp) return null;
+
+  // flow-temp-too-high-for-ashp is heat-pump-only — not a constraint for boiler systems.
+  if (limiter.id === 'flow-temp-too-high-for-ashp' && !isAshp) return null;
+
+  // mains-flow-constraint is primarily a combi DHW concern.
+  // Stored systems buffer mains flow via the cylinder — only surface for combi.
+  if (limiter.id === 'mains-flow-constraint' && !isCombi) return null;
+
+  // open_vented_head_limit is only relevant to open-vented (regular) systems.
+  if (limiter.id === 'open-vented-head-limit' && !isOpenVented) return null;
 
   const severityMap: Record<LimiterV1['severity'], SystemLimitation['severity']> = {
     info: 'low',
@@ -694,24 +832,81 @@ function limiterToLimitation(
 
 // ─── Improvements ─────────────────────────────────────────────────────────────
 
-function buildImprovements(quote: QuoteInput, output: EngineOutputV1): Improvement[] {
+/**
+ * Builds a context-aware explanation for why a power flush is recommended,
+ * grounded in the surveyed system age, condition signals, and engine sludge flags.
+ */
+function buildPowerflushExplanation(
+  output: EngineOutputV1,
+  ctx?: InsightPackSurveyContext,
+): string {
+  const parts: string[] = [];
+
+  // Explain the core benefit
+  parts.push('Clears magnetite sludge from the primary circuit, restoring up to 47% of lost radiator heat output (HHIC data).');
+
+  // Ground in canonical survey evidence — prioritise observed signals
+  const systemAge = ctx?.currentBoiler?.ageYears;
+  const sludgeObserved = ctx?.systemCondition?.sludgeBleedObserved;
+  const coldRads = ctx?.systemCondition?.coldRadiatorsPresent;
+
+  if (sludgeObserved) {
+    parts.push('Sludge observed in bleed water during survey — magnetite accumulation confirmed in this circuit.');
+  } else if (coldRads) {
+    parts.push('Cold radiators reported during survey — a common sign of restricted flow caused by magnetite build-up.');
+  } else if (systemAge != null && systemAge >= 10) {
+    parts.push(`System is approximately ${systemAge} years old — circuits of this age typically carry significant magnetite accumulation even without visible signs.`);
+  } else if (systemAge != null && systemAge >= 5) {
+    parts.push(`System is approximately ${systemAge} years old — a flush before fitting new components protects the investment and removes accumulated deposits.`);
+  }
+
+  // Engine-level sludge / cycling flags
+  // Use exact known IDs to avoid false positives from substring matching.
+  const SLUDGE_FLAG_IDS = new Set([
+    'sludge-risk', 'sludge-detected', 'circuit-flush-required', 'powerflush-required',
+    'cycling-penalty', 'magnetite-risk',
+  ]);
+  const sludgeFlagPresent = (output.redFlags ?? []).some(f => SLUDGE_FLAG_IDS.has(f.id));
+  const cyclingLimiter = (output.limiters?.limiters ?? []).find(l => l.id === 'cycling-loss-penalty');
+
+  if (cyclingLimiter && cyclingLimiter.severity === 'fail') {
+    const lossPct = cyclingLimiter.observed?.value != null
+      ? `${cyclingLimiter.observed.value}%`
+      : 'high';
+    parts.push(`Engine identified a high cycling-loss penalty (${lossPct}) — this directly indicates a sludge-restricted circuit.`);
+  } else if (cyclingLimiter) {
+    parts.push('Engine identified a cycling-loss penalty — consistent with partial sludge restriction in the primary circuit.');
+  } else if (sludgeFlagPresent && !sludgeObserved && !coldRads) {
+    parts.push('Engine flagged elevated sludge risk for this system based on age and service history.');
+  }
+
+  return parts.join(' ');
+}
+
+function buildImprovements(
+  quote: QuoteInput,
+  output: EngineOutputV1,
+  ctx?: InsightPackSurveyContext,
+): Improvement[] {
   const improvements: Improvement[] = [];
   const upgrades = new Set(quote.includedUpgrades.map(u => u.toLowerCase()));
 
   if (!upgrades.has('powerflush') && !upgrades.has('flush')) {
-    const sludgeFlagPresent = (output.redFlags ?? []).some(f => f.id.includes('sludge') || f.id.includes('flush'));
     improvements.push({
       title: 'Power Flush',
       impact: 'performance',
-      explanation: `Clears magnetite sludge from the primary circuit, restoring up to 47% of lost radiator heat output (HHIC data).${sludgeFlagPresent ? ' Engine flagged sludge risk for this system.' : ''}`,
+      explanation: buildPowerflushExplanation(output, ctx),
     });
   }
 
   if (!upgrades.has('filter') && !upgrades.has('magnetic filter')) {
+    const filterExplanation = ctx?.systemCondition?.magneticFilterFitted
+      ? 'Existing filter noted — replacement on installation ensures the new system starts with clean protection. Captures magnetite particles before they re-coat heat exchanger surfaces, preventing the 7% annual efficiency penalty from unfiltered sludge.'
+      : 'Captures magnetite particles before they re-coat heat exchanger surfaces. Prevents the 7% annual efficiency penalty from unfiltered sludge. No magnetic filter was recorded in the survey — fitting one at installation is the standard recommendation.';
     improvements.push({
       title: 'Magnetic Filter',
       impact: 'longevity',
-      explanation: 'Captures magnetite particles before they re-coat heat exchanger surfaces. Prevents the 7% annual efficiency penalty from unfiltered sludge.',
+      explanation: filterExplanation,
     });
   }
 
@@ -719,7 +914,7 @@ function buildImprovements(quote: QuoteInput, output: EngineOutputV1): Improveme
     improvements.push({
       title: 'Weather Compensation Controls',
       impact: 'efficiency',
-      explanation: 'Automatically lowers flow temperature on mild days — keeps the boiler in its condensing window for more of the heating season.',
+      explanation: 'Automatically lowers flow temperature on mild days — keeps the boiler in its condensing window for more of the heating season. Typical seasonal efficiency improvement: 5–10% reduction in gas consumption.',
     });
   }
 
@@ -749,15 +944,25 @@ function buildBestAdvice(
 
   // Find the quote whose system type best aligns with the engine recommendation
   const scoredQuotes = quotes.map(qi => {
-    const aligns = checkRecommendationAlignment(qi.quote, primaryRec);
+    // textAligns: the engine's recommendation text explicitly calls out this type
+    const textAligns = checkRecommendationAlignment(qi.quote, primaryRec);
+    // viableAligns: option card is 'viable' — engine assessed this as a suitable option
+    const optionCard = findOptionCard(qi.quote, output);
+    const viableAligns = optionCard?.status === 'viable';
+    const aligns = textAligns || viableAligns;
     const suitabilityOrder: RatingBand[] = ['Excellent', 'Very Good', 'Good', 'Needs Right Setup', 'Less Suited'];
     const suitabilityScore = suitabilityOrder.indexOf(qi.rating.suitability.rating);
-    return { qi, aligns, suitabilityScore };
+    return { qi, textAligns, aligns, suitabilityScore };
   });
 
   const best = scoredQuotes.sort((a, b) => {
+    // Prefer explicit text alignment over option-card viability
+    if (a.textAligns && !b.textAligns) return -1;
+    if (!a.textAligns && b.textAligns) return 1;
+    // Both text-aligned or neither: prefer option-card viable
     if (a.aligns && !b.aligns) return -1;
     if (!a.aligns && b.aligns) return 1;
+    // Same alignment tier: better suitability wins
     return a.suitabilityScore - b.suitabilityScore;
   })[0];
 
@@ -1161,13 +1366,13 @@ export function buildInsightPackFromEngine(
       dailyUse: buildDailyUseStatements(quote, engineOutput, surveyContext),
       limitations: buildLimitations(quote, engineOutput),
       rating,
-      improvements: buildImprovements(quote, engineOutput),
+      improvements: buildImprovements(quote, engineOutput, surveyContext),
     };
   });
 
   // ── Post-process: add ranking comparison statements to dailyUse ─────────────
-  // When multiple system types are present, each quote gets a statement that
-  // shows how it ranks vs the alternatives on hot-water performance.
+  // When multiple system types are present, each quote gets a comparative statement
+  // that explains how it differs from alternatives — grounded in physics, not scores.
   if (quoteInsights.length > 1) {
     const distinctTypes = new Set(quoteInsights.map(qi => qi.quote.systemType));
     if (distinctTypes.size > 1) {
@@ -1187,7 +1392,7 @@ export function buildInsightPackFromEngine(
             .map(o => `${o.quote.label} (${systemLabel(o.quote.systemType)})`)
             .join(', ');
           qi.dailyUse.push({
-            statement: `Ranked below ${betterLabels} for simultaneous hot-water delivery — a stored cylinder handles multiple outlets simultaneously.`,
+            statement: `Ranked below ${betterLabels} for simultaneous hot-water delivery — a stored cylinder handles multiple outlets simultaneously without any throughput limit.`,
             scenario: 'general',
           });
         }
@@ -1196,8 +1401,32 @@ export function buildInsightPackFromEngine(
             .map(o => `${o.quote.label} (${systemLabel(o.quote.systemType)})`)
             .join(', ');
           qi.dailyUse.push({
-            statement: `Handles simultaneous hot-water demand better than ${worseLabels} — stored volume decouples delivery from the heat source.`,
+            statement: `Handles simultaneous hot-water demand better than ${worseLabels} — stored volume decouples delivery from the heat source output rate.`,
             scenario: 'general',
+          });
+        }
+
+        // ASHP vs gas boiler: add energy cost comparison when both are present
+        if (qi.quote.systemType === 'ashp') {
+          const boilerOptions = quoteInsights.filter(
+            o => o.quote.id !== qi.quote.id &&
+              (o.quote.systemType === 'combi' || o.quote.systemType === 'system' || o.quote.systemType === 'regular'),
+          );
+          if (boilerOptions.length > 0) {
+            qi.dailyUse.push({
+              statement: 'Compared to the gas boiler options: heat pump uses roughly 1 unit of electricity to deliver 2.5–3.5 units of heat — significantly lower carbon and operating cost at typical UK tariffs.',
+              scenario: 'efficiency',
+            });
+          }
+        }
+
+        // Gas boiler vs ASHP: note the difference in heating approach
+        const isBoiler = qi.quote.systemType === 'combi' || qi.quote.systemType === 'system' || qi.quote.systemType === 'regular';
+        const ashpOption = quoteInsights.find(o => o.quote.systemType === 'ashp');
+        if (isBoiler && ashpOption) {
+          qi.dailyUse.push({
+            statement: `Compared to ${ashpOption.quote.label} (heat pump): gas boiler responds faster to demand and reaches full output within seconds — suited to short, sharp heating bursts. The heat pump is more efficient overall but best used on longer, steadier cycles.`,
+            scenario: 'efficiency',
           });
         }
       }

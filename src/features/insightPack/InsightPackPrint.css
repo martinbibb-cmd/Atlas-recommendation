@@ -6,8 +6,10 @@
  *
  * Strategy:
  *   - Hide the navigation bar and footer controls.
- *   - When .insight-deck--printing is set, render all panels stacked vertically
- *     so every section appears as a page in the PDF.
+ *   - Under @media print, ALL panels are shown stacked regardless of whether the
+ *     "Print as PDF" button was used or the browser's native Ctrl+P was triggered.
+ *     The `insight-deck--printing` class (set by the button) also works when JS
+ *     is available, but print should work without it too.
  *   - Each panel gets a page-break-before to start on a new page.
  */
 
@@ -19,12 +21,14 @@
     display: none !important;
   }
 
-  /* Show all panels stacked */
-  .insight-deck--printing .insight-deck__all-panels {
+  /* Show all panels stacked — works both when triggered by the Print button
+     (insight-deck--printing class present) and by native browser print (Ctrl+P). */
+  .insight-deck__all-panels {
     display: block !important;
   }
 
-  .insight-deck--printing .insight-deck__panel {
+  /* Hide the single active panel — the all-panels stack replaces it */
+  .insight-deck__panel {
     display: none !important;
   }
 

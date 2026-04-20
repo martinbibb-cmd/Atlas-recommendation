@@ -459,6 +459,19 @@ export function deriveSystemRecommendations(
   const emitters = system.emitters;
   const recommendations: SystemRecommendation[] = [];
 
+  /**
+   * Occupancy-based cylinder volume guide — matches QuoteCollectionStep defaults.
+   * Rule of thumb: ~50 L per occupant, minimum 120 L.
+   * ≤2 → 120 L,  3 → 150 L,  4 → 180 L,  5+ → 210 L
+   */
+  function defaultCylinderVolume(count: number): number {
+    if (count <= 2) return 120;
+    if (count <= 3) return 150;
+    if (count <= 4) return 180;
+    return 210;
+  }
+  const cylinderVolumeL = defaultCylinderVolume(occupancy);
+
   // ── High-demand household: stored DHW is the physics-fit ────────────────────
   // peakConcurrentOutlets >= 2 is a hard simultaneous-demand gate (same as
   // bathroomCount >= 2) — mirrors the CombiDhwModule rule so the insight layer
@@ -530,7 +543,7 @@ export function deriveSystemRecommendations(
     }
 
     const systemTradeOffs: string[] = [
-      'Requires cylinder space — typically 180–210 L for this household size.',
+      `Requires cylinder space — a ${cylinderVolumeL}L cylinder is typical for ${occupancy} occupant${occupancy === 1 ? '' : 's'}.`,
       'Hot water is finite — recovery time applies after large back-to-back draws.',
     ];
 
