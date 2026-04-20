@@ -1,0 +1,54 @@
+/**
+ * InsightPackPrint.css
+ *
+ * Print / PDF styles for the Atlas Insight Pack.
+ * Applied only under @media print — invisible in normal browser view.
+ *
+ * Strategy:
+ *   - Hide the navigation bar and footer controls.
+ *   - When .insight-deck--printing is set, render all panels stacked vertically
+ *     so every section appears as a page in the PDF.
+ *   - Each panel gets a page-break-before to start on a new page.
+ */
+
+@media print {
+  /* Hide chrome we don't want in the PDF */
+  .insight-deck__nav,
+  .insight-deck__footer,
+  .insight-deck__print-btn {
+    display: none !important;
+  }
+
+  /* Show all panels stacked */
+  .insight-deck--printing .insight-deck__all-panels {
+    display: block !important;
+  }
+
+  .insight-deck--printing .insight-deck__panel {
+    display: none !important;
+  }
+
+  /* Each section starts on a new page */
+  .insight-deck__print-section {
+    page-break-before: always;
+    break-before: page;
+    padding: 1.5rem;
+  }
+
+  .insight-deck__print-section:first-child {
+    page-break-before: auto;
+    break-before: auto;
+  }
+
+  /* Typography tweaks */
+  body {
+    font-size: 11pt;
+    color: #111;
+  }
+
+  /* Ensure backgrounds (e.g. coloured rating chips) print */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

@@ -43,6 +43,21 @@ const SYSTEM_TYPE_LABELS: Record<QuoteInput['systemType'], string> = {
   ashp: 'Air source heat pump',
 };
 
+/**
+ * Occupancy-based cylinder volume default.
+ * Rule of thumb: ~50 L per occupant, minimum 120 L.
+ * 1–2 → 120 L   (smallest common stock size)
+ * 3   → 150 L
+ * 4   → 180 L
+ * 5+  → 210 L
+ */
+function defaultCylinderVolumeForOccupancy(occupancyCount?: number): number {
+  if (!occupancyCount || occupancyCount <= 2) return 120;
+  if (occupancyCount <= 3) return 150;
+  if (occupancyCount <= 4) return 180;
+  return 210;
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const cardStyle: CSSProperties = {
@@ -101,6 +116,8 @@ interface QuoteCollectionStepProps {
   onChange: (next: QuoteInput[]) => void;
   onNext: () => void;
   onPrev: () => void;
+  /** Total occupant count — used to derive the default cylinder volume. */
+  occupancyCount?: number;
 }
 
 // ─── Quote form helpers ───────────────────────────────────────────────────────
@@ -128,10 +145,15 @@ interface QuoteEditorProps {
   canRemove: boolean;
   onChange: (updated: QuoteInput) => void;
   onRemove: () => void;
+  /** Default cylinder volume derived from occupancy. */
+  defaultCylinderVolumeL: number;
 }
 
-function QuoteEditor({ quote, index, canRemove, onChange, onRemove }: QuoteEditorProps) {
+function QuoteEditor({ quote, index, canRemove, onChange, onRemove, defaultCylinderVolumeL }: QuoteEditorProps) {
   const showCylinder = needsCylinder(quote.systemType);
+  // Mixergy is an unvented (mains-pressure) cylinder — only valid for system boilers,
+  // not for regular (gravity/vented) boilers.
+  const allowMixergy = quote.systemType === 'system' || quote.systemType === 'ashp';
 
   function toggleUpgrade(upgradeId: string) {
     const current = quote.includedUpgrades;
@@ -145,9 +167,15 @@ function QuoteEditor({ quote, index, canRemove, onChange, onRemove }: QuoteEdito
     const updated: QuoteInput = {
       ...quote,
       systemType: type,
-      // Clear cylinder if switching to a system that doesn't need one
-      cylinder: needsCylinder(type) ? (quote.cylinder ?? { type: 'standard', volumeL: 210 }) : undefined,
+      // Clear cylinder if switching to a system that doesn't need one;
+      // use occupancy-based default volume otherwise.
+      cylinder: needsCylinder(type) ? (quote.cylinder ?? { type: 'standard', volumeL: defaultCylinderVolumeL }) : undefined,
     };
+    // If the new type doesn't support Mixergy, downgrade cylinder type to standard
+    const newAllowMixergy = type === 'system' || type === 'ashp';
+    if (!newAllowMixergy && updated.cylinder?.type === 'mixergy') {
+      updated.cylinder = { ...updated.cylinder, type: 'standard' };
+    }
     onChange(updated);
   }
 
@@ -228,12 +256,14 @@ function QuoteEditor({ quote, index, canRemove, onChange, onRemove }: QuoteEdito
               value={quote.cylinder?.type ?? 'standard'}
               onChange={e => onChange({
                 ...quote,
-                cylinder: { type: e.target.value as 'standard' | 'mixergy', volumeL: quote.cylinder?.volumeL ?? 210 },
+                cylinder: { type: e.target.value as 'standard' | 'mixergy', volumeL: quote.cylinder?.volumeL ?? defaultCylinderVolumeL },
               })}
               aria-label={`Cylinder type for Quote ${String.fromCharCode(65 + index)}`}
             >
               <option value="standard">Standard cylinder</option>
-              <option value="mixergy">Mixergy smart cylinder</option>
+              {allowMixergy && (
+                <option value="mixergy">Mixergy smart cylinder</option>
+              )}
             </select>
             <input
               style={{ ...inputStyle, width: 90 }}
@@ -241,10 +271,10 @@ function QuoteEditor({ quote, index, canRemove, onChange, onRemove }: QuoteEdito
               min={120}
               max={400}
               step={5}
-              value={quote.cylinder?.volumeL ?? 210}
+              value={quote.cylinder?.volumeL ?? defaultCylinderVolumeL}
               onChange={e => onChange({
                 ...quote,
-                cylinder: { type: quote.cylinder?.type ?? 'standard', volumeL: parseInt(e.target.value, 10) || 210 },
+                cylinder: { type: quote.cylinder?.type ?? 'standard', volumeL: parseInt(e.target.value, 10) || defaultCylinderVolumeL },
               })}
               aria-label={`Cylinder volume (litres) for Quote ${String.fromCharCode(65 + index)}`}
             />
@@ -282,9 +312,11 @@ export function QuoteCollectionStep({
   onChange,
   onNext,
   onPrev,
+  occupancyCount,
 }: QuoteCollectionStepProps) {
   const meta = getStepMeta('quotes');
   const [triedNext, setTriedNext] = useState(false);
+  const defaultCylinderVolumeL = defaultCylinderVolumeForOccupancy(occupancyCount);
 
   const canProceed = quotes.length >= 1;
 
@@ -341,6 +373,7 @@ export function QuoteCollectionStep({
           canRemove={quotes.length > 1}
           onChange={updated => updateQuote(i, updated)}
           onRemove={() => removeQuote(i)}
+          defaultCylinderVolumeL={defaultCylinderVolumeL}
         />
       ))}
 
