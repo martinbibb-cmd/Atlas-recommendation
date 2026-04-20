@@ -64,8 +64,10 @@ export interface LimiterDemographicContext {
 /** HP post-draw recovery > this (minutes) is classified as slow reheat. */
 const HP_REHEAT_LATENCY_THRESHOLD_MINUTES = 45;
 
-/** Mains flow below this (L/min) triggers mains_flow_constraint. */
-const MIN_ADEQUATE_FLOW_LPM = 13;
+/** Mains flow below this (L/min) triggers mains_flow_constraint.
+ *  Physics basis: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine" — warn below 12 L/min.
+ */
+const MIN_ADEQUATE_FLOW_LPM = 12;
 
 /**
  * Mains flow at or below this (L/min) elevates mains_flow_constraint from
@@ -348,7 +350,7 @@ export function buildLimiterLedger(
   const cwsFlow = runnerResult.hydraulic.cwsSupplyV1.dynamic?.flowLpm;
   if (cwsFlow !== undefined && cwsFlow < MIN_ADEQUATE_FLOW_LPM) {
     // 'limit': at or below 10 L/min — hard physics constraint; combi DHW seriously impaired.
-    // 'warning': 10–12 L/min — workable but degraded; stored system better for this demand.
+    // 'warning': 10–11 L/min — workable but below the "12 L/min @ 0 bar" comfort threshold.
     const flowSeverity: LimiterSeverity = cwsFlow < CRITICAL_FLOW_LPM ? 'limit' : 'warning';
     entries.push({
       id: 'mains_flow_constraint',

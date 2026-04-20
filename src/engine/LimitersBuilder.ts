@@ -43,10 +43,10 @@ export function buildLimitersV1(
   // ── 1. Mains flow constraint ───────────────────────────────────────────────
   // Triggered when combi is limited by mains flow rate.
   const mainsFlowLpm = input.mainsDynamicFlowLpm ?? cwsSupplyV1.dynamic?.flowLpm;
-  const combiFlowLimitLpm = 13; // typical UK combi DHW limit at ΔT 25°C, 30 kW
+  const combiFlowLimitLpm = 12; // "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine" — warn below 12 L/min
   if (mainsFlowLpm != null && mainsFlowLpm < combiFlowLimitLpm) {
     // 'fail': below 10 L/min — combi DHW delivery is seriously impaired.
-    // 'warn': 10–12 L/min — workable but below comfortable delivery threshold.
+    // 'warn': 10–11 L/min — workable but below the "12 L/min @ 0 bar" comfort threshold.
     const severity: LimiterSeverity = mainsFlowLpm < 10 ? 'fail' : 'warn';
     limiters.push({
       id: 'mains-flow-constraint',

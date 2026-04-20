@@ -26,7 +26,7 @@ describe('runCombiDhwModuleV1', () => {
 
   // ── Rule 1: Pressure constraint ─────────────────────────────────────────────
 
-  it('returns warn (not fail) when dynamicMainsPressure is between 0.3 and 1.0 bar', () => {
+  it('returns warn (not fail) when dynamicMainsPressure is between 0.3 and 1.0 bar (no flow measurement)', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 0.8, peakConcurrentOutlets: 1 });
     expect(result.verdict.combiRisk).toBe('warn');
     const flag = result.flags.find(f => f.id === 'combi-pressure-constraint');
@@ -35,13 +35,49 @@ describe('runCombiDhwModuleV1', () => {
     expect(flag!.title).toBe('⚠️ Combi hot-water flow will be reduced at low mains pressure');
   });
 
-  it('returns fail when dynamicMainsPressure is below 0.3 bar (absolute minimum operating condition)', () => {
+  it('returns fail when dynamicMainsPressure is below 0.3 bar (absolute minimum operating condition, no flow measurement)', () => {
     const result = runCombiDhwModuleV1({ ...baseInput, dynamicMainsPressure: 0.2, peakConcurrentOutlets: 1 });
     expect(result.verdict.combiRisk).toBe('fail');
     const flag = result.flags.find(f => f.id === 'combi-pressure-constraint');
     expect(flag).toBeDefined();
     expect(flag!.severity).toBe('fail');
     expect(flag!.title).toBe('🚫 Mains pressure too low for a combi boiler');
+  });
+
+  // ── High-flow override: 12 L/min @ any pressure ──────────────────────────
+
+  it('NO pressure fail when flow >= 12 L/min at 0 bar (high-flow override — "12@0 is fine")', () => {
+    // Physics basis: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine for a combi."
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 0,
+      mainsDynamicFlowLpm: 12,
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-pressure-constraint')).toBe(false);
+    expect(result.verdict.combiRisk).toBe('pass');
+  });
+
+  it('NO pressure warn when flow >= 12 L/min at 0.5 bar (high-flow override)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 0.5,
+      mainsDynamicFlowLpm: 12,
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-pressure-constraint')).toBe(false);
+    expect(result.verdict.combiRisk).toBe('pass');
+  });
+
+  it('still warns for pressure when flow < 12 L/min (no high-flow override)', () => {
+    const result = runCombiDhwModuleV1({
+      ...baseInput,
+      dynamicMainsPressure: 0.5,
+      mainsDynamicFlowLpm: 11,
+      mainsDynamicFlowLpmKnown: true,
+      peakConcurrentOutlets: 1,
+    });
+    expect(result.flags.some(f => f.id === 'combi-pressure-constraint')).toBe(true);
   });
 
   it('dynamicMainsPressureBar alias takes precedence over dynamicMainsPressure', () => {
