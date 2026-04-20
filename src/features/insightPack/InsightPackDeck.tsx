@@ -155,9 +155,16 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
         {renderPanel()}
       </div>
 
-      {/* All panels stacked — visible only when printing */}
+      {/* All panels stacked — visible only when printing.
+          Sections are paired 1-2 per page via --page-start modifier:
+            Page 1: cover + what-we-know
+            Page 2: overview + best-advice
+            Page 3: daily-use + ratings
+            Page 4: limitations + improvements
+            Page 5: savings + why-atlas
+            Page 6: next-steps                                               */}
       <div className="insight-deck__all-panels" style={{ display: 'none' }}>
-        <div className="insight-deck__print-section" data-slide="cover">
+        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="cover">
           <CoverHeroCard
             quotes={pack.quotes}
             bestAdvice={pack.bestAdvice}
@@ -168,31 +175,31 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
         <div className="insight-deck__print-section" data-slide="what-we-know">
           <WhatWeKnowGrid tiles={pack.homeProfile} />
         </div>
-        <div className="insight-deck__print-section" data-slide="overview">
+        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="overview">
           <QuoteComparisonCard quotes={pack.quotes} bestAdvice={pack.bestAdvice} />
         </div>
         <div className="insight-deck__print-section" data-slide="best-advice">
           <BestAdvicePanel bestAdvice={pack.bestAdvice} />
         </div>
-        <div className="insight-deck__print-section" data-slide="daily-use">
+        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="daily-use">
           <DailyUsePanel quotes={pack.quotes} />
         </div>
         <div className="insight-deck__print-section" data-slide="ratings">
           <RatingsPanel quotes={pack.quotes} />
         </div>
-        <div className="insight-deck__print-section" data-slide="limitations">
+        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="limitations">
           <LimitationsPanel quotes={pack.quotes} />
         </div>
         <div className="insight-deck__print-section" data-slide="improvements">
           <ImprovementsPanel quotes={pack.quotes} />
         </div>
-        <div className="insight-deck__print-section" data-slide="savings">
+        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="savings">
           <SavingsPanel savingsPlan={pack.savingsPlan} />
         </div>
         <div className="insight-deck__print-section" data-slide="why-atlas">
           <WhyAtlasSuggestedThis reasonChain={pack.reasonChain} />
         </div>
-        <div className="insight-deck__print-section" data-slide="next-steps">
+        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="next-steps">
           <NextStepsCard
             nextSteps={pack.nextSteps}
             onReview={() => goTo('overview')}

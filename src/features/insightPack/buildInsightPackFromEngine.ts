@@ -929,6 +929,40 @@ function buildImprovements(
     }
   }
 
+  // ── Cylinder update advice ───────────────────────────────────────────────────
+
+  // When the quote includes a standard cylinder, advise upgrading to Mixergy
+  // for better hot-water efficiency and reduced reheat cycling.
+  if (
+    (quote.systemType === 'system' || quote.systemType === 'regular' || quote.systemType === 'ashp') &&
+    quote.cylinder?.type === 'standard'
+  ) {
+    improvements.push({
+      title: 'Upgrade Cylinder to Mixergy',
+      impact: 'efficiency',
+      explanation:
+        'A Mixergy cylinder draws from the top of the store, delivering full-temperature hot water even when partially charged. ' +
+        'This reduces unnecessary reheat cycles and cuts standby heat loss compared to a conventional bottom-draw cylinder. ' +
+        'Particularly beneficial when paired with a heat pump or solar PV tariff, where heating during off-peak windows can cover most daily demand.',
+    });
+  }
+
+  // When the existing cylinder is being reused (not replaced by this quote),
+  // advise the customer to check cylinder condition before deciding.
+  if (
+    (quote.systemType === 'system' || quote.systemType === 'regular') &&
+    quote.cylinderReplaced === false
+  ) {
+    improvements.push({
+      title: 'Check Existing Cylinder Before Reuse',
+      impact: 'longevity',
+      explanation:
+        'This quote reuses the existing cylinder rather than replacing it. ' +
+        'Ask the installer to inspect the cylinder for corrosion, sediment build-up, and immersion heater condition before proceeding. ' +
+        'A cylinder in poor condition can reduce system performance and negate the benefits of fitting a new boiler.',
+    });
+  }
+
   return improvements;
 }
 
