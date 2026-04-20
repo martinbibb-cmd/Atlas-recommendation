@@ -710,7 +710,7 @@ function buildBestAdvice(
 
   // Reference the current system when known — grounds advice in survey reality
   if (currentSystem) {
-    because.push(`Chosen as the best replacement for your ${currentSystem.label}.`);
+    because.push(`Recommended as the best replacement for your ${currentSystem.label}.`);
   }
 
   if (verdict?.primaryReason) {
@@ -1034,11 +1034,11 @@ function buildNextSteps(
     : [];
 
   // Optional: only add-ons not already included in the quote
-  const includedLower = new Set(best?.quote.includedUpgrades.map(u => u.toLowerCase()) ?? []);
+  const includedUpgradesLower = new Set(best?.quote.includedUpgrades.map(u => u.toLowerCase()) ?? []);
   const optional = best
     ? best.improvements
         .filter(imp => (imp.impact === 'efficiency' || imp.impact === 'longevity') &&
-          !includedLower.has(imp.title.toLowerCase()))
+          !includedUpgradesLower.has(imp.title.toLowerCase()))
         .map(imp => imp.title)
         .slice(0, 3)
     : [];
@@ -1047,7 +1047,7 @@ function buildNextSteps(
   const furtherImprovements = best
     ? best.improvements
         .filter(imp => imp.impact === 'performance' &&
-          !includedLower.has(imp.title.toLowerCase()))
+          !includedUpgradesLower.has(imp.title.toLowerCase()))
         .map(imp => imp.title)
         .slice(0, 2)
     : [];
