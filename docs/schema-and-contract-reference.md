@@ -138,6 +138,7 @@ All fields below are on `FullSurveyModelV1`, which is used directly as the engin
 | `cylinderCoilTransferFactor` | `number?` | **Yes** | Alongside `cylinderInsulationFactor` |
 | `cylinderConditionBand` | string? | **Yes** | Alongside `cylinderInsulationFactor` |
 | `hasSoftener` | `boolean?` | **Yes** | Bridged from `fullSurvey.dhwCondition.softenerPresent` |
+| `cylinderInstallLocation` | `CylinderInstallLocation?` | **Yes** | Bridged from `fullSurvey.dhwCondition.cylinderInstallLocation`; drives ambient-temperature assumption in CylinderSizingModule |
 
 ### 2.6 Current system fields
 
@@ -167,6 +168,20 @@ All fields below are on `FullSurveyModelV1`, which is used directly as the engin
 | `dayProfile.heatingBands` | `HeatingBandV1[]` | Thermostat setpoints |
 | `dayProfile.dhwHeatBands` | `DhwHeatBandV1[]` | Cylinder charge schedule |
 | `dayProfile.dhwEvents` | `DhwEventV1[]` | Draw events (taps) |
+
+### 2.9 New survey question — cylinder installation location
+
+`fullSurvey.dhwCondition.cylinderInstallLocation` (type `CylinderInstallLocation`) captures where the cylinder is installed.  Ask: _"Where is the cylinder located — airing cupboard, utility room, garage, or basement?"_
+
+| Value | Assumed ambient °C | Notes |
+|-------|--------------------|-------|
+| `airing_cupboard` | 20 | Warm interior space — lowest standing losses |
+| `utility_room` | 16 | Heated but moderate |
+| `garage` | 10 | Unheated — highest standing losses; winter can be lower |
+| `basement` | 12 | Cool, stable sub-grade |
+| `unknown` | 15 | Conservative default applied when location is not captured |
+
+Bridged to `EngineInputV2_3.cylinderInstallLocation` by `sanitiseModelForEngine`.  Consumed exclusively by `CylinderSizingModule`.
 
 ---
 
@@ -278,6 +293,83 @@ This is a **presentation normalisation only** — the engine receives the raw `w
 - **Plate HEX condition**: `systemAgeYears` used as proxy when no explicit `plateHexAgeYears` is recorded.
 
 `systemAgeYears` is always wired from `currentBoilerAgeYears` in `sanitiseModelForEngine` when not explicitly set, so that real survey age data always reaches the inference layer.
+
+---
+
+## 4a. CylinderSizingModule (`cylinderSizingV1`)
+
+**Source file:** `src/engine/modules/CylinderSizingModule.ts`  
+**Output type:** `CylinderSizingResult` (defined in `src/engine/schema/EngineInputV2_3.ts`)  
+**Attached to:** `FullEngineResultCore.cylinderSizingV1` — always present.
+
+### Purpose
+
+Physics-based cylinder performance gauging and sizing recommendation.  Uses the recovery-time formula from the technical framework, empirically-calibrated standing-loss data from Megaflo Eco and Mixergy product datasets, and demand-based sizing rules derived from CIBSE Guide G.
+
+### Core equations
+
+| Calculation | Formula | Source |
+|-------------|---------|--------|
+| Full reheat time | `t_min = V × ΔT / (P_kW × 14.33)` | Technical Framework §3 |
+| Standing loss | `P_W = coeff × V × (ΔT_ambient / 40) / insulationFactor` | Calibrated vs. product data |
+| Usable mixed volume | `V_mixed = V × usableFraction × (T_store − T_cold) / (T_tap − T_cold)` | Mixing physics |
+| Minimum cylinder | `V_min = demand × (T_tap − T_cold) / (T_store − T_cold) / usableFraction × reserveFactor` | CIBSE Guide G |
+
+### Standing-loss calibration constants
+
+| Cylinder type | Coefficient (W/L at ΔT = 40 °C) | Source |
+|---------------|----------------------------------|--------|
+| Standard / HP-optimised | 0.28 W/L | Megaflo Eco dataset (avg) |
+| Mixergy-style | 0.22 W/L | Mixergy X dataset (avg) |
+
+### Usable-volume fractions
+
+| Type | Fraction | Rationale |
+|------|----------|-----------|
+| Standard (conventional inlet) | 0.75 | BRE / CIBSE consensus; turbulent inlet mixing |
+| Mixergy (top-down stratification + diffuser) | 0.95 | Mixergy field data; sharp thermocline |
+
+### Demand model
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Per-person daily demand | 55 L/day at 40 °C | CIBSE Guide G / MCS CH-I-06 |
+| Per extra bathroom | 30 L/day at 40 °C | Independent draw-point allowance |
+| Simultaneous-draw reserve | ×1.00 / ×1.15 / ×1.30 | low / medium / high severity |
+| Standard cylinder sizes | 120, 150, 180, 210, 250, 300, 400 L | 400 L for large HP systems |
+
+### `CylinderInstallLocation` → ambient temperature map
+
+| Location | Ambient °C |
+|----------|-----------|
+| `airing_cupboard` | 20 |
+| `utility_room` | 16 |
+| `garage` | 10 |
+| `basement` | 12 |
+| `unknown` | 15 |
+
+### Output shape (`CylinderSizingResult`)
+
+```typescript
+interface CylinderSizingResult {
+  currentPerformance?: CylinderCurrentPerformance; // present when cylinderVolumeLitres provided
+  recommendation: CylinderSizingRecommendation;    // always present
+  flags: CylinderSizingFlagItem[];
+  assumptions: string[];
+}
+```
+
+### Flag IDs
+
+| ID | Severity | Trigger |
+|----|----------|---------|
+| `sizing-undersized-for-demand` | `warn` / `info` | Current cylinder below computed minimum |
+| `sizing-recovery-slow` | `warn` | Recovery time > 60 min |
+| `sizing-standing-loss-high` | `warn` | Standing loss > 2 kWh/24h |
+| `sizing-mixergy-advantage` | `info` | Mixergy cylinder reduces required volume vs standard |
+| `sizing-hp-volume-uplift` | `info` | HP store temp requires larger cylinder vs boiler equivalent |
+| `sizing-no-heat-source-data` | `info` | Recovery time based on assumed heat source power |
+| `sizing-current-adequate` | `info` | Current cylinder meets demand requirement |
 
 ---
 
