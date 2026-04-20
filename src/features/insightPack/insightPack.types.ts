@@ -218,6 +218,20 @@ export interface NextSteps {
   furtherImprovements: string[];
 }
 
+// ─── Current System ───────────────────────────────────────────────────────────
+
+/**
+ * Summary of the currently-installed (pre-replacement) system.
+ * Derived from canonical survey data (EngineInputV2_3.currentSystem).
+ * Absent when the current system was not recorded during the survey.
+ */
+export interface CurrentSystemSummary {
+  /** Human-readable label, e.g. "Existing combination boiler (12 years old)". */
+  label: string;
+  /** Normalised system type — matches QuoteInput.systemType where applicable. */
+  systemType?: 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
+}
+
 // ─── Insight Pack ─────────────────────────────────────────────────────────────
 
 /**
@@ -237,4 +251,10 @@ export interface InsightPack {
   reasonChain: ReasonChainStep[];
   /** Structured next-steps summary for the final screen. */
   nextSteps: NextSteps;
+  /**
+   * The currently-installed system as recorded in the canonical survey.
+   * Used on the cover page and in performance comparisons.
+   * Absent when the current system was not captured during the survey.
+   */
+  currentSystem?: CurrentSystemSummary;
 }
