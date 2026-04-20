@@ -5,13 +5,18 @@
  * Flow-only is valid evidence for hasMeasurements, but unvented eligibility
  * now requires BOTH dynamic flow and dynamic pressure to be recorded.
  * "Pressure not recorded" must be represented as undefined (via mainsPressureRecorded: false),
- * NOT as 0.0 bar. A recorded 0 bar is treated as a real entered value and fails the ≥1.0 bar gate.
+ * NOT as 0.0 bar. A recorded 0 bar is treated as a real entered value.
  *
  * Hard rule: dynamic must not exceed static + 0.2 bar (INCONSISTENCY_TOLERANCE).
  *
  * Unvented eligibility gate (operating-point evidence only):
- *   - flowLpm ≥ 10 AND dynamicBar ≥ 1.0
- *   - Both flow AND pressure must be recorded; flow-only evidence is not sufficient.
+ *   - flowLpm ≥ 10 AND dynamicBar ≥ 1.0   (10 L/min @ 1 bar)
+ *   - OR rawFlowLpm ≥ 12 AND pressure is recorded (including 0 bar)  (12 L/min @ 0 bar)
+ *   - Both flow AND pressure must be recorded in either case; flow-only evidence is not sufficient.
+ *
+ * Physics basis for second condition: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine."
+ * When raw measured flow is ≥ 12 L/min and pressure is recorded (even as 0 bar), adequate
+ * supply is confirmed regardless of the pressure reading.
  *
  * Water confidence levels:
  *   - 'good':    plausible flow (≤ MAX_PLAUSIBLE_FLOW_LPM) and consistent readings
@@ -28,6 +33,14 @@ const INCONSISTENCY_TOLERANCE = 0.2;
 /** Unvented requirement: 10 L/min @ ≥ 1.0 bar (operating-point evidence only; both values required). */
 const UNVENTED_FLOW_AT_PRESSURE_LPM = 10;
 const UNVENTED_FLOW_AT_PRESSURE_BAR = 1.0;
+
+/**
+ * Second unvented eligibility gate: raw measured flow ≥ 12 L/min when pressure
+ * is recorded (including 0 bar). Derived from the "12 L/min @ 0 bar" condition.
+ * Physics basis: high flow directly proves supply capability regardless of
+ * pressure instrument reading.
+ */
+const UNVENTED_FLOW_AT_ZERO_PRESSURE_LPM = 12;
 
 /**
  * When measured working pressure is below this threshold (bar), the mains supply
@@ -129,6 +142,11 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     ? (input.dynamicMainsPressureBar ?? input.dynamicMainsPressure)
     : undefined;
 
+  // Save raw values before low-pressure adjustment for the unvented eligibility
+  // second-gate condition (12 L/min @ any recorded pressure, including 0 bar).
+  const rawFlowBeforeAdjustment = dynamicFlowLpm;
+  const rawPressureBeforeAdjustment = dynamicPressureBar;
+
   // Low-pressure adjustment: only apply when flow is present and pressure is below threshold.
   // If flow is undefined, skip the flow deduction (nothing to deduct from).
   let lowPressureAdjusted = false;
@@ -227,17 +245,23 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     }
 
     // Unvented eligibility gate (operating-point evidence only):
-    //   - flow ≥ 10 L/min AND pressure ≥ 1.0 bar; both values must be recorded.
-    // A recorded 0 bar does NOT satisfy the gate (fails ≥1.0 bar).
-    // Flow without pressure (pressure not recorded / undefined) does NOT satisfy
-    // the gate — incomplete data cannot confirm unvented eligibility.
+    //   - flow ≥ 10 L/min AND pressure ≥ 1.0 bar; both values must be recorded.  (10 L/min @ 1 bar)
+    //   - OR raw measured flow ≥ 12 L/min AND pressure is recorded (including 0 bar). (12 L/min @ 0 bar)
+    // Flow without pressure (pressure not recorded / undefined) does NOT satisfy either gate.
     // Suspect flow (above MAX_PLAUSIBLE_FLOW_LPM) never satisfies the gate.
+    // Physics basis: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine for a combi / unvented."
+    const meetsHighFlowGate =
+      rawFlowBeforeAdjustment !== undefined &&
+      rawFlowBeforeAdjustment >= UNVENTED_FLOW_AT_ZERO_PRESSURE_LPM &&
+      rawPressureBeforeAdjustment !== undefined; // pressure must be recorded (even 0 bar)
     const meetsUnventedRequirement =
       !inconsistent &&
       !hasSuspectFlow &&
       dynamicPressureBar !== undefined &&
-      flow >= UNVENTED_FLOW_AT_PRESSURE_LPM &&
-      dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR;
+      (
+        (flow >= UNVENTED_FLOW_AT_PRESSURE_LPM && dynamicPressureBar >= UNVENTED_FLOW_AT_PRESSURE_BAR) ||
+        meetsHighFlowGate
+      );
 
     if (!hasSuspectFlow && dynamicPressureBar === undefined) {
       notes.push('Pressure not recorded — cannot confirm unvented eligibility without both flow and pressure.');

@@ -64,6 +64,18 @@ const REQUIRED_LPM_PER_OUTLET = 9;
  */
 const MIN_COMBI_FLOW = 2.5;
 
+/**
+ * Mains flow threshold (L/min) above which adequate delivery is confirmed
+ * regardless of the measured dynamic pressure.
+ *
+ * Physics basis: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine for a combi."
+ * When measured flow is ≥ 12 L/min the burner is demonstrably firing and
+ * delivering adequate hot water, so low/zero pressure readings do not
+ * constitute a warning — they may simply reflect the instrument's range or
+ * measurement methodology.
+ */
+const COMBI_FLOW_HIGH_LPM = 12;
+
 /** Occupancy threshold above which combi should be rejected in favour of stored DHW. */
 const LARGE_HOUSEHOLD_FAIL_THRESHOLD = 4;
 
@@ -165,9 +177,11 @@ export function estimateMorningOverlapProbability(
  * Deterministic combi / on-demand DHW eligibility gate based on three
  * physics-grounded rules:
  *   1. Pressure constraint – mains dynamic pressure:
- *        < 0.3 bar  → hard fail (below minimum operating condition)
- *        0.3–1.0 bar → warn (below minimum for maximum rated flow)
- *        ≥ 1.0 bar  → pass (at or above minimum for maximum rated flow)
+ *        < 0.3 bar AND flow < COMBI_FLOW_HIGH_LPM  → hard fail
+ *        0.3–1.0 bar AND flow < COMBI_FLOW_HIGH_LPM → warn
+ *        ≥ 1.0 bar  → pass
+ *        flow ≥ COMBI_FLOW_HIGH_LPM (12 L/min) → pass regardless of pressure
+ *          ("10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine for a combi")
  *   2. Simultaneous demand – peak concurrent outlets ≥ 2 OR bathrooms ≥ 2 (hard fail)
  *   3. Short-draw collapse – continuous-occupancy signature (warn)
  *
@@ -184,13 +198,22 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   const resolvedDynamicBar = input.mains?.dynamicPressureBar ?? input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
   const resolvedFlowLpm = input.mains?.flowRateLpm ?? input.mainsDynamicFlowLpm;
 
+  // ── High-flow override ───────────────────────────────────────────────────
+  // When measured flow is ≥ COMBI_FLOW_HIGH_LPM (12 L/min), the combi is
+  // demonstrably delivering adequate hot water regardless of what the pressure
+  // gauge reads.  Pressure flags are suppressed in this case.
+  // Physics basis: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine for a combi."
+  const highFlowOverride = resolvedFlowLpm != null && resolvedFlowLpm >= COMBI_FLOW_HIGH_LPM;
+
   // ── Rule 1: Pressure constraint ─────────────────────────────────────────────
   // Modelled as flow/temperature-lift constrained, not a binary cut-off.
   // Below 0.3 bar (absolute minimum operating condition): hard fail.
   // 0.3–1.0 bar (below minimum for maximum rated flow): warn.
   // ≥ 1.0 bar: no pressure flag.
+  // Exception: when highFlowOverride is true (flow ≥ 12 L/min), pressure flags
+  // are suppressed — adequate flow proves the burner is firing and delivering.
   const dynamicBar = resolvedDynamicBar;
-  if (dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_OPERATION_BAR) {
+  if (!highFlowOverride && dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_OPERATION_BAR) {
     flags.push({
       id: 'combi-pressure-constraint',
       severity: 'fail',
@@ -202,7 +225,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
         `💧 A Mixergy cylinder or tank-fed (vented) system works at any pressure — ` +
         `a Mixergy actually performs better than a combi at low pressure because a combi may cut out completely.`,
     });
-  } else if (dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_MAX_FLOW_BAR) {
+  } else if (!highFlowOverride && dynamicBar != null && dynamicBar < PRESSURE_MINIMUM_MAX_FLOW_BAR) {
     flags.push({
       id: 'combi-pressure-constraint',
       severity: 'warn',

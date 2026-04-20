@@ -47,16 +47,24 @@ describe('buildLimitersV1', () => {
     expect(flowConstraint).toBeDefined();
     expect(flowConstraint!.severity).toBe('fail');
     expect(flowConstraint!.observed.value).toBe(8);
-    expect(flowConstraint!.limit.value).toBe(13);
+    expect(flowConstraint!.limit.value).toBe(12);
   });
 
-  it('emits warn-severity mains-flow-constraint when flow is 10–12 L/min', () => {
+  it('emits warn-severity mains-flow-constraint when flow is 10–11 L/min', () => {
     const input = { ...BASE_INPUT, mainsDynamicFlowLpm: 11, bathroomCount: 1 };
     const result = runEngine(input);
     const { limiters } = buildLimitersV1(result, input);
     const flowConstraint = limiters.find(l => l.id === 'mains-flow-constraint');
     expect(flowConstraint).toBeDefined();
     expect(flowConstraint!.severity).toBe('warn');
+  });
+
+  it('does not emit mains-flow-constraint when flow is exactly 12 L/min ("12@0 is fine")', () => {
+    const input = { ...BASE_INPUT, mainsDynamicFlowLpm: 12, bathroomCount: 1 };
+    const result = runEngine(input);
+    const { limiters } = buildLimitersV1(result, input);
+    const flowConstraint = limiters.find(l => l.id === 'mains-flow-constraint');
+    expect(flowConstraint).toBeUndefined();
   });
 
   it('emits combi-concurrency-constraint when bathroomCount >= 2', () => {

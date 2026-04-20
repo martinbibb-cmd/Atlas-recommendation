@@ -76,10 +76,19 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.notes.some(n => n.includes('cannot confirm unvented eligibility'))).toBe(true);
   });
 
-  it('flow at 0 bar (explicitly entered) → does NOT meet unvented requirement', () => {
-    // 0 bar is a real entered value — it fails the ≥1.0 bar gate and is not "pressure not recorded"
+  it('12 L/min @ 0 bar (explicitly entered) → meets unvented requirement (second OR gate)', () => {
+    // 12 L/min at 0 bar satisfies the high-flow gate: rawFlow ≥ 12 AND pressure recorded.
+    // Physics basis: "12 L/min @ 0 bar is fine for a combi / unvented."
     const result = runCwsSupplyModuleV1(
       baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 12 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(true);
+  });
+
+  it('11 L/min @ 0 bar → does NOT meet unvented requirement (below both gates)', () => {
+    // 11 < 12 (fails high-flow gate) AND 0 < 1.0 bar (fails 10@1 gate)
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 0, dynamicMainsPressureBar: 0, mainsDynamicFlowLpm: 11 })
     );
     expect(result.meetsUnventedRequirement).toBe(false);
   });
@@ -93,7 +102,7 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.inconsistent).toBe(false);
   });
 
-  // ── Unvented eligibility gate: 10 L/min @ ≥ 1.0 bar (both required) ─────────
+  // ── Unvented eligibility gate: 10 L/min @ ≥ 1.0 bar OR 12 L/min @ any recorded pressure ──
 
   it('10 L/min @ 1.0 bar → meets unvented requirement', () => {
     const result = runCwsSupplyModuleV1(
@@ -109,11 +118,19 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.meetsUnventedRequirement).toBe(false);
   });
 
-  it('10 L/min @ 0.9 bar → does NOT meet unvented requirement (pressure below 1.0 bar)', () => {
+  it('10 L/min @ 0.9 bar → does NOT meet unvented requirement (below both gates)', () => {
+    // 10 < 12 (fails high-flow gate) AND 0.9 < 1.0 bar (fails 10@1 gate)
     const result = runCwsSupplyModuleV1(
       baseInput({ dynamicMainsPressure: 0.9, mainsDynamicFlowLpm: 10 })
     );
     expect(result.meetsUnventedRequirement).toBe(false);
+  });
+
+  it('12 L/min @ 0.5 bar → meets unvented requirement (second OR gate: flow ≥ 12, pressure recorded)', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({ dynamicMainsPressure: 0.5, mainsDynamicFlowLpm: 12 })
+    );
+    expect(result.meetsUnventedRequirement).toBe(true);
   });
 
   // ── Static + dynamic + flow → dropBar computed ──────────────────────────────

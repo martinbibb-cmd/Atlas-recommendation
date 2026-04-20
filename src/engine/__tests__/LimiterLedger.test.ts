@@ -410,7 +410,7 @@ describe('LimiterLedger — heat pump: hp_reheat_latency', () => {
 // ─── 6. Hydraulic module constraints → hydraulic limiters ────────────────────
 
 describe('LimiterLedger — hydraulic: mains_flow_constraint', () => {
-  it('emits mains_flow_constraint when measured flow is below 13 L/min', () => {
+  it('emits mains_flow_constraint when measured flow is below 12 L/min', () => {
     const input = { ...CLEAN_INPUT, mainsDynamicFlowLpm: 8 };
     const runnerResult = runCombiSystemModel(input, combiTopology);
     const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
@@ -437,7 +437,7 @@ describe('LimiterLedger — hydraulic: mains_flow_constraint', () => {
     expect(entry!.severity).toBe('limit');
   });
 
-  it('mains_flow_constraint has severity "warning" when flow is 10–12 L/min', () => {
+  it('mains_flow_constraint has severity "warning" when flow is 10–11 L/min', () => {
     const input = { ...CLEAN_INPUT, mainsDynamicFlowLpm: 11 };
     const runnerResult = runCombiSystemModel(input, combiTopology);
     const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
@@ -446,7 +446,7 @@ describe('LimiterLedger — hydraulic: mains_flow_constraint', () => {
     expect(entry!.severity).toBe('warning');
   });
 
-  it('does NOT emit mains_flow_constraint when flow is adequate (>= 13 L/min)', () => {
+  it('does NOT emit mains_flow_constraint when flow is adequate (>= 12 L/min)', () => {
     const runnerResult = runCombiSystemModel(CLEAN_INPUT, combiTopology);
     const eventSummary = buildDerivedEventsFromTimeline(runnerResult.stateTimeline, 'combi');
     const ledger = buildLimiterLedger(runnerResult, eventSummary);
