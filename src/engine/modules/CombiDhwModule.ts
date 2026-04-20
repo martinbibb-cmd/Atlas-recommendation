@@ -1,4 +1,5 @@
 import type { EngineInputV2_3, CombiDhwV1Result, CombiDhwFlagItem, CombiDhwRampPhase } from '../schema/EngineInputV2_3';
+import { MAX_PLAUSIBLE_FLOW_LPM } from './CwsSupplyModule';
 
 /**
  * Terminology rule
@@ -199,11 +200,15 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
   const resolvedFlowLpm = input.mains?.flowRateLpm ?? input.mainsDynamicFlowLpm;
 
   // ── High-flow override ───────────────────────────────────────────────────
-  // When measured flow is ≥ COMBI_FLOW_HIGH_LPM (12 L/min), the combi is
-  // demonstrably delivering adequate hot water regardless of what the pressure
-  // gauge reads.  Pressure flags are suppressed in this case.
+  // When measured flow is ≥ COMBI_FLOW_HIGH_LPM (12 L/min) and within a
+  // plausible range (≤ MAX_PLAUSIBLE_FLOW_LPM), the combi is demonstrably
+  // delivering adequate hot water regardless of what the pressure gauge reads.
+  // Pressure flags are suppressed in this case.
   // Physics basis: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine for a combi."
-  const highFlowOverride = resolvedFlowLpm != null && resolvedFlowLpm >= COMBI_FLOW_HIGH_LPM;
+  const highFlowOverride =
+    resolvedFlowLpm != null &&
+    resolvedFlowLpm >= COMBI_FLOW_HIGH_LPM &&
+    resolvedFlowLpm <= MAX_PLAUSIBLE_FLOW_LPM;
 
   // ── Rule 1: Pressure constraint ─────────────────────────────────────────────
   // Modelled as flow/temperature-lift constrained, not a binary cut-off.

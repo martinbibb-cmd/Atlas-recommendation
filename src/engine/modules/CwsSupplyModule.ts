@@ -144,8 +144,8 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
 
   // Save raw values before low-pressure adjustment for the unvented eligibility
   // second-gate condition (12 L/min @ any recorded pressure, including 0 bar).
-  const rawFlowBeforeAdjustment = dynamicFlowLpm;
-  const rawPressureBeforeAdjustment = dynamicPressureBar;
+  const rawFlowLpm = dynamicFlowLpm;
+  const rawPressureBar = dynamicPressureBar;
 
   // Low-pressure adjustment: only apply when flow is present and pressure is below threshold.
   // If flow is undefined, skip the flow deduction (nothing to deduct from).
@@ -251,9 +251,9 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
     // Suspect flow (above MAX_PLAUSIBLE_FLOW_LPM) never satisfies the gate.
     // Physics basis: "10 L/min @ 1 bar OR 12 L/min @ 0 bar is fine for a combi / unvented."
     const meetsHighFlowGate =
-      rawFlowBeforeAdjustment !== undefined &&
-      rawFlowBeforeAdjustment >= UNVENTED_FLOW_AT_ZERO_PRESSURE_LPM &&
-      rawPressureBeforeAdjustment !== undefined; // pressure must be recorded (even 0 bar)
+      rawFlowLpm !== undefined &&
+      rawFlowLpm >= UNVENTED_FLOW_AT_ZERO_PRESSURE_LPM &&
+      rawPressureBar !== undefined; // pressure must be recorded (even 0 bar)
     const meetsUnventedRequirement =
       !inconsistent &&
       !hasSuspectFlow &&
