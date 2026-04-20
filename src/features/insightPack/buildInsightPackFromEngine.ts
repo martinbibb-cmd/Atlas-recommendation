@@ -263,7 +263,7 @@ function rateHeatingPerformance(
         `Hydraulic hard constraint: ${pipeLimiter.impact.summary}. Upgrading the primary circuit to 28mm bore is a prerequisite for heat pump viability. Label: Requires system changes to be viable.`,
       );
     }
-    if (pipeLimiter) {
+    if (pipeLimiter && pipeLimiter.severity === 'warn') {
       // warn-severity pipe constraint: system may work but with flow-velocity caution
       return makeRating(
         'Good',
@@ -329,7 +329,7 @@ function rateEfficiency(
         `Flow temperatures currently constrain COP below optimal range. Radiator upsizing can restore full efficiency gains. Nominal SEDBUK baseline for comparison: ${DEFAULT_NOMINAL_EFFICIENCY_PCT}%.`,
       );
     }
-    if (flowTempLimiter) {
+    if (flowTempLimiter && flowTempLimiter.severity === 'warn') {
       // warn-severity: system is workable but operating below optimal COP
       // At 50 °C flow, SPF ≈ 2.5 — still better than gas but not the 3.5 headline figure.
       return makeRating(
@@ -1114,7 +1114,7 @@ function buildImprovements(
     const radLimiter = (output.redFlags ?? []).find(
       f => f.id === 'radiator-output-insufficient' && f.severity === 'fail',
     );
-    if (radLimiter && !flowTempLimiter) {
+    if (radLimiter) {
       improvements.push({
         title: 'Review and upsize radiators',
         impact: 'performance',
