@@ -5,12 +5,17 @@
  * Pure presentation — no physics logic.
  */
 
-import type { BestAdvice, QuoteInsight } from './insightPack.types';
+import type { BestAdvice, CurrentSystemSummary, QuoteInsight } from './insightPack.types';
 import './CoverHeroCard.css';
 
 interface Props {
   quotes: QuoteInsight[];
   bestAdvice: BestAdvice;
+  /**
+   * The currently-installed (pre-replacement) system from the canonical survey.
+   * When absent, the cover chip shows "Not recorded".
+   */
+  currentSystem?: CurrentSystemSummary;
   /** Optional property or customer title, e.g. "42 Elm Street" */
   propertyTitle?: string;
   /** Optional ISO date string */
@@ -24,11 +29,16 @@ const SYSTEM_TYPE_SHORT: Record<string, string> = {
   ashp:    'Air source heat pump',
 };
 
-export default function CoverHeroCard({ quotes, bestAdvice, propertyTitle, date }: Props) {
+export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, propertyTitle, date }: Props) {
   const bestQuote = quotes.find(q => q.quote.id === bestAdvice.recommendedQuoteId);
   const displayDate = date
     ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     : new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  // Derive the current system chip text from the canonical survey record
+  const currentSystemLabel = currentSystem?.label
+    ?? (currentSystem?.systemType ? (SYSTEM_TYPE_SHORT[currentSystem.systemType] ?? currentSystem.systemType) : null)
+    ?? 'Not recorded';
 
   return (
     <div className="cover-hero" data-testid="cover-hero-card">
@@ -52,14 +62,10 @@ export default function CoverHeroCard({ quotes, bestAdvice, propertyTitle, date 
 
       {/* Summary chips */}
       <div className="cover-hero__chips">
-        {quotes[0] && (
-          <div className="cover-chip cover-chip--neutral">
-            <span className="cover-chip__label">Current system</span>
-            <span className="cover-chip__value">
-              {SYSTEM_TYPE_SHORT[quotes[0].quote.systemType] ?? quotes[0].quote.systemType}
-            </span>
-          </div>
-        )}
+        <div className="cover-chip cover-chip--neutral">
+          <span className="cover-chip__label">Current system</span>
+          <span className="cover-chip__value">{currentSystemLabel}</span>
+        </div>
 
         <div className="cover-chip cover-chip--neutral">
           <span className="cover-chip__label">Options reviewed</span>

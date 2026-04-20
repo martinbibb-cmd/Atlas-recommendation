@@ -58,6 +58,7 @@ import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlo
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import InsightPackDeck from './features/insightPack/InsightPackDeck';
 import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
+import type { InsightPackSurveyContext } from './features/insightPack/buildInsightPackFromEngine';
 import type { QuoteInput } from './features/insightPack/insightPack.types';
 import './App.css';
 
@@ -713,7 +714,19 @@ export default function App() {
   // ?insight-pack=1 — render Atlas Insight Pack deck with demo data for review.
   if (INSIGHT_PACK_ENABLED) {
     const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
-    const pack = buildInsightPackFromEngine(engineOutput, DEMO_QUOTES);
+    const rawType = CONSOLE_DEMO_INPUT.currentHeatSourceType;
+    const demoBoilerType: InsightPackSurveyContext['currentBoiler'] = rawType === 'combi' ||
+      rawType === 'system' || rawType === 'regular'
+      ? { type: rawType }
+      : undefined;
+    const demoSurveyContext: InsightPackSurveyContext = {
+      currentBoiler: demoBoilerType,
+      occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
+      bathroomCount: CONSOLE_DEMO_INPUT.bathroomCount,
+      mainsDynamicFlowLpm: CONSOLE_DEMO_INPUT.mainsDynamicFlowLpm,
+      heatLossWatts: CONSOLE_DEMO_INPUT.heatLossWatts,
+    };
+    const pack = buildInsightPackFromEngine(engineOutput, DEMO_QUOTES, demoSurveyContext);
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <div style={{ padding: '0.5rem 1rem' }}>
@@ -957,7 +970,15 @@ export default function App() {
       })()}
       {journey === 'insight-pack' && labEngineInput != null && labQuotes.length > 0 && (() => {
         const { engineOutput } = runEngine(labEngineInput);
-        const pack = buildInsightPackFromEngine(engineOutput, labQuotes);
+        const surveyContext: InsightPackSurveyContext = {
+          currentBoiler: labEngineInput.currentSystem?.boiler,
+          occupancyCount: labEngineInput.occupancyCount,
+          bathroomCount: labEngineInput.bathroomCount,
+          peakConcurrentOutlets: labEngineInput.peakConcurrentOutlets,
+          mainsDynamicFlowLpm: labEngineInput.mainsDynamicFlowLpm,
+          heatLossWatts: labEngineInput.heatLossWatts,
+        };
+        const pack = buildInsightPackFromEngine(engineOutput, labQuotes, surveyContext);
         return (
           <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
             <div style={{ padding: '0.5rem 1rem' }}>

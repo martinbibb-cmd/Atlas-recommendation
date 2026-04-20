@@ -81,6 +81,7 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
           <CoverHeroCard
             quotes={pack.quotes}
             bestAdvice={pack.bestAdvice}
+            currentSystem={pack.currentSystem}
             propertyTitle={propertyTitle}
           />
         );

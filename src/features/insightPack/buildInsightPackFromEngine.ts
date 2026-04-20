@@ -28,7 +28,61 @@ import type {
   HomeProfileTile,
   ReasonChainStep,
   NextSteps,
+  CurrentSystemSummary,
 } from './insightPack.types';
+
+// ─── Survey context ───────────────────────────────────────────────────────────
+
+/**
+ * Subset of the canonical survey / engine input needed by the Insight Pack builder.
+ * Passed as an optional third argument so the pack can compare against the real
+ * current system and ground advice in actual survey values.
+ */
+export interface InsightPackSurveyContext {
+  /** Current (pre-replacement) system — from EngineInputV2_3.currentSystem.boiler. */
+  currentBoiler?: {
+    type?: 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
+    ageYears?: number;
+    condensing?: 'yes' | 'no' | 'unknown';
+  };
+  /** Occupant count — from EngineInputV2_3.occupancyCount. */
+  occupancyCount?: number;
+  /** Bathroom count — from EngineInputV2_3.bathroomCount. */
+  bathroomCount?: number;
+  /** Peak concurrent hot-water outlets — from EngineInputV2_3.peakConcurrentOutlets. */
+  peakConcurrentOutlets?: number;
+  /** Dynamic mains flow rate (L/min) — from EngineInputV2_3.mainsDynamicFlowLpm. */
+  mainsDynamicFlowLpm?: number;
+  /** Peak heat loss (Watts) — from EngineInputV2_3.heatLossWatts. */
+  heatLossWatts?: number;
+}
+
+// ─── Current system label ─────────────────────────────────────────────────────
+
+/**
+ * Builds a human-readable label for the existing installed system from the
+ * canonical survey context.  Returns undefined when no current system was recorded.
+ */
+function buildCurrentSystemSummary(ctx?: InsightPackSurveyContext): CurrentSystemSummary | undefined {
+  const boiler = ctx?.currentBoiler;
+  if (!boiler?.type || boiler.type === 'unknown') return undefined;
+
+  const typeLabels: Record<string, string> = {
+    combi:       'combination boiler',
+    system:      'system boiler',
+    regular:     'regular (heat-only) boiler',
+    back_boiler: 'back boiler',
+  };
+  const typeLabel = typeLabels[boiler.type] ?? boiler.type;
+  const age = boiler.ageYears ? ` (${boiler.ageYears} years old)` : '';
+  const condensing = boiler.condensing === 'no' ? ' — non-condensing' :
+                     boiler.condensing === 'yes' ? ' — condensing' : '';
+
+  return {
+    label: `Existing ${typeLabel}${age}${condensing}`,
+    systemType: boiler.type,
+  };
+}
 
 // ─── Rating helpers ───────────────────────────────────────────────────────────
 
@@ -383,6 +437,7 @@ function checkRecommendationAlignment(quote: QuoteInput, primaryRec: string): bo
 function buildDailyUseStatements(
   quote: QuoteInput,
   output: EngineOutputV1,
+  ctx?: InsightPackSurveyContext,
 ): DailyUseStatement[] {
   const statements: DailyUseStatement[] = [];
   const behaviours = output.realWorldBehaviours ?? [];
@@ -409,7 +464,7 @@ function buildDailyUseStatements(
 
   // Supplement with derived statements when engine behaviours are sparse
   if (statements.length === 0) {
-    statements.push(...deriveFallbackDailyUse(quote, output));
+    statements.push(...deriveFallbackDailyUse(quote, output, ctx));
   }
 
   return statements;
@@ -418,40 +473,46 @@ function buildDailyUseStatements(
 function deriveFallbackDailyUse(
   quote: QuoteInput,
   output: EngineOutputV1,
+  ctx?: InsightPackSurveyContext,
 ): DailyUseStatement[] {
   const statements: DailyUseStatement[] = [];
   const optionCard = findOptionCard(quote, output);
   const hasStored = quote.systemType !== 'combi';
 
+  // Build occupancy context strings from survey data where available
+  const occupants = ctx?.occupancyCount;
+  const bathrooms = ctx?.bathroomCount ?? ctx?.peakConcurrentOutlets;
+  const occupancyDesc = occupants ? `${occupants} occupant${occupants === 1 ? '' : 's'}` : null;
+  const bathroomDesc = bathrooms != null ? `${bathrooms} bathroom${bathrooms === 1 ? '' : 's'}` : null;
+  const homeDesc = [occupancyDesc, bathroomDesc].filter(Boolean).join(', ');
+
   if (hasStored) {
-    statements.push({
-      statement: 'Multiple taps and showers can run simultaneously without pressure drop.',
-      scenario: 'simultaneous_draw',
-    });
+    const simultaneousLine = homeDesc
+      ? `With ${homeDesc} in this home, multiple taps and showers can run simultaneously without pressure drop.`
+      : 'Multiple taps and showers can run simultaneously without pressure drop.';
+    statements.push({ statement: simultaneousLine, scenario: 'simultaneous_draw' });
+
     if (quote.cylinder?.type === 'mixergy') {
       statements.push({
         statement: 'Mixergy draws from the top — hot water available immediately without waiting for full reheat.',
         scenario: 'recovery',
       });
     } else if (quote.cylinder?.volumeL != null) {
-      statements.push({
-        statement: `${quote.cylinder.volumeL}L cylinder provides stored hot water — no delay on first draw.`,
-        scenario: 'recovery',
-      });
+      const volLine = homeDesc
+        ? `${quote.cylinder.volumeL}L cylinder provides stored hot water matched to ${homeDesc} — no delay on first draw.`
+        : `${quote.cylinder.volumeL}L cylinder provides stored hot water — no delay on first draw.`;
+      statements.push({ statement: volLine, scenario: 'recovery' });
     }
   } else {
     // Combi
     const dhwBullets = optionCard?.dhw.bullets ?? [];
     if (dhwBullets.length > 0) {
-      statements.push({
-        statement: dhwBullets[0],
-        scenario: 'simultaneous_draw',
-      });
+      statements.push({ statement: dhwBullets[0], scenario: 'simultaneous_draw' });
     } else {
-      statements.push({
-        statement: '1 outlet at a time for full-pressure hot water delivery.',
-        scenario: 'simultaneous_draw',
-      });
+      const flowLine = ctx?.mainsDynamicFlowLpm
+        ? `On-demand hot water at your surveyed mains flow of ${ctx.mainsDynamicFlowLpm} L/min — one outlet at a time for full-pressure delivery.`
+        : '1 outlet at a time for full-pressure hot water delivery.';
+      statements.push({ statement: flowLine, scenario: 'simultaneous_draw' });
     }
     statements.push({
       statement: 'Brief pause on first draw while heat exchanger ramps up (typically under 10 seconds).',
@@ -622,6 +683,7 @@ function buildImprovements(quote: QuoteInput, output: EngineOutputV1): Improveme
 function buildBestAdvice(
   quotes: QuoteInsight[],
   output: EngineOutputV1,
+  currentSystem?: CurrentSystemSummary,
 ): BestAdvice {
   const primaryRec = output.recommendation?.primary ?? '';
   const verdict = output.verdict;
@@ -645,31 +707,52 @@ function buildBestAdvice(
     : verdict?.title ?? primaryRec;
 
   const because: string[] = [];
-  if (verdict?.reasons?.length) {
+
+  // Reference the current system when known — grounds advice in survey reality
+  if (currentSystem) {
+    because.push(`Recommended as the best replacement for your ${currentSystem.label}.`);
+  }
+
+  if (verdict?.primaryReason) {
+    // Prefer the engine's own primary reason — most specific to this home
+    because.push(verdict.primaryReason);
+  } else if (verdict?.reasons?.length) {
     because.push(...verdict.reasons.slice(0, 3));
   } else {
     if (best) {
-      because.push(`${systemLabel(best.qi.quote.systemType)} best matches the home's demand profile.`);
+      because.push(`${systemLabel(best.qi.quote.systemType)} best matches the demand profile of this home.`);
     }
-    const topLimitations = (best?.qi.limitations ?? []).filter(l => l.severity !== 'high').slice(0, 2);
-    for (const lim of topLimitations) {
-      because.push(lim.message);
+    // Use context-summary bullets from the engine for grounding (not limitations)
+    const contextBullets = (output.contextSummary?.bullets ?? []).slice(0, 2);
+    for (const bullet of contextBullets) {
+      if (!because.includes(bullet)) because.push(bullet);
     }
   }
 
-  // Avoids: things the recommended option avoids vs alternatives
+  // Avoids: frame as comparison against alternatives, not a restatement of limitations
   const avoids: string[] = [];
   const alternatives = quotes.filter(q => q.quote.id !== best?.qi.quote.id);
   for (const alt of alternatives.slice(0, 2)) {
     const highLims = alt.limitations.filter(l => l.severity === 'high');
     if (highLims.length > 0) {
-      avoids.push(highLims[0].message);
+      // Make the comparison explicit: name the alternative option
+      avoids.push(`Unlike ${alt.quote.label} (${systemLabel(alt.quote.systemType)}): ${highLims[0].message}`);
     }
   }
 
+  // Fallback avoids when no alternative high-severity flags exist
   if (avoids.length === 0 && best?.qi.quote.systemType !== 'combi') {
-    avoids.push('Flow starvation under simultaneous hot-water demand');
-    avoids.push('Short-draw efficiency collapse on brief hot-water draws');
+    // Only add these when the engine evidence supports them (combi-related red flags present)
+    const combiFlags = (output.redFlags ?? []).filter(
+      f => f.id.startsWith('combi-') && (f.severity === 'fail' || f.severity === 'warn'),
+    );
+    if (combiFlags.length > 0) {
+      avoids.push('Flow starvation risk under simultaneous hot-water demand (identified for on-demand combi)');
+    }
+    const shortDrawFlag = (output.redFlags ?? []).find(f => f.id === 'combi-short-draw-collapse');
+    if (shortDrawFlag) {
+      avoids.push('Short-draw efficiency collapse on brief hot-water draws (identified for on-demand combi)');
+    }
   }
 
   return {
@@ -950,17 +1033,22 @@ function buildNextSteps(
       ]
     : [];
 
+  // Optional: only add-ons not already included in the quote
+  const includedUpgradesLower = new Set(best?.quote.includedUpgrades.map(u => u.toLowerCase()) ?? []);
   const optional = best
     ? best.improvements
-        .filter(imp => imp.impact === 'efficiency' || imp.impact === 'longevity')
+        .filter(imp => (imp.impact === 'efficiency' || imp.impact === 'longevity') &&
+          !includedUpgradesLower.has(imp.title.toLowerCase()))
         .map(imp => imp.title)
         .slice(0, 3)
     : [];
 
+  // Further improvements — title only; full detail is already in the Improvements panel
   const furtherImprovements = best
     ? best.improvements
-        .filter(imp => imp.impact === 'performance')
-        .map(imp => imp.explanation)
+        .filter(imp => imp.impact === 'performance' &&
+          !includedUpgradesLower.has(imp.title.toLowerCase()))
+        .map(imp => imp.title)
         .slice(0, 2)
     : [];
 
@@ -975,16 +1063,23 @@ function buildNextSteps(
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
- * Build an InsightPack from engine output and a list of contractor quotes.
+ * Build an InsightPack from engine output, a list of contractor quotes, and
+ * an optional survey context snapshot from the canonical engine input.
  *
- * @param engineOutput  The full EngineOutputV1 from the Atlas engine.
- * @param quotes        Contractor quotes to compare.
- * @returns             A fully populated InsightPack — all fields guaranteed.
+ * @param engineOutput   The full EngineOutputV1 from the Atlas engine.
+ * @param quotes         Contractor quotes to compare.
+ * @param surveyContext  Optional — subset of EngineInputV2_3 used to ground
+ *                       advice in actual survey data (current system, occupancy,
+ *                       bathrooms, mains flow, heat loss).
+ * @returns              A fully populated InsightPack — all fields guaranteed.
  */
 export function buildInsightPackFromEngine(
   engineOutput: EngineOutputV1,
   quotes: QuoteInput[],
+  surveyContext?: InsightPackSurveyContext,
 ): InsightPack {
+  const currentSystem = buildCurrentSystemSummary(surveyContext);
+
   const quoteInsights: QuoteInsight[] = quotes.map(quote => {
     const hwRating = rateHotWaterPerformance(quote, engineOutput);
     const heatRating = rateHeatingPerformance(quote, engineOutput);
@@ -1004,14 +1099,14 @@ export function buildInsightPackFromEngine(
 
     return {
       quote,
-      dailyUse: buildDailyUseStatements(quote, engineOutput),
+      dailyUse: buildDailyUseStatements(quote, engineOutput, surveyContext),
       limitations: buildLimitations(quote, engineOutput),
       rating,
       improvements: buildImprovements(quote, engineOutput),
     };
   });
 
-  const bestAdvice = buildBestAdvice(quoteInsights, engineOutput);
+  const bestAdvice = buildBestAdvice(quoteInsights, engineOutput, currentSystem);
   const bestQuote = quoteInsights.find(qi => qi.quote.id === bestAdvice.recommendedQuoteId);
   const savingsPlan = buildSavingsPlan(bestQuote, engineOutput);
   const homeProfile = buildHomeProfile(engineOutput);
@@ -1025,5 +1120,6 @@ export function buildInsightPackFromEngine(
     homeProfile,
     reasonChain,
     nextSteps,
+    currentSystem,
   };
 }
