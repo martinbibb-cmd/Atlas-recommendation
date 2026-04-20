@@ -948,22 +948,18 @@ function buildImprovements(
   }
 
   // When the existing cylinder is being reused (not replaced by this quote),
-  // advise the customer to check cylinder age and condition before deciding.
+  // advise the customer to check cylinder condition before deciding.
   if (
     (quote.systemType === 'system' || quote.systemType === 'regular') &&
     quote.cylinderReplaced === false
   ) {
-    const boilerAge = ctx?.currentBoiler?.ageYears;
-    const ageNote = boilerAge != null && boilerAge >= 10
-      ? ` The existing system is approximately ${boilerAge} years old — cylinders of this age may show signs of corrosion, sediment build-up, or failing immersion elements that reduce effective storage volume.`
-      : ' Ask the installer to inspect the cylinder for corrosion, sediment, and immersion heater condition before proceeding.';
     improvements.push({
       title: 'Check Existing Cylinder Before Reuse',
       impact: 'longevity',
       explanation:
-        'This quote reuses the existing cylinder rather than replacing it.' +
-        ageNote +
-        ' A cylinder in poor condition can reduce system performance and negate the benefit of fitting a new boiler.',
+        'This quote reuses the existing cylinder rather than replacing it. ' +
+        'Ask the installer to inspect the cylinder for corrosion, sediment build-up, and immersion heater condition before proceeding. ' +
+        'A cylinder in poor condition can reduce system performance and negate the benefits of fitting a new boiler.',
     });
   }
 
