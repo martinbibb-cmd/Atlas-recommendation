@@ -394,7 +394,13 @@ function CombiSwitchShell({
     const coldC     = COLD_SUPPLY_TEMP_PRESETS[inputs.season];
     const hotC      = COMBI_HOT_OUT_PRESETS[inputs.dhwMode];
     const deltaT    = hotC - coldC;
-    const showerLpm = OUTLET_FLOW_PRESETS_LPM[inputs.showerPreset];
+
+    // Shower flow derived from bathroom count heuristic — no UI selector.
+    // ≥2 bathrooms implies higher-demand multi-bathroom setup → mixer_high (12 L/min).
+    // Single bathroom → mixer (10 L/min).
+    const showerPreset: keyof typeof OUTLET_FLOW_PRESETS_LPM =
+      inputs.bathroomCount >= 2 ? 'mixer_high' : 'mixer';
+    const showerLpm = OUTLET_FLOW_PRESETS_LPM[showerPreset];
 
     // System type: use selected combiKw (not hardcoded 30)
     const heatLimitLpm = computeHeatLimitLpm(inputs.combiKw, deltaT);
@@ -421,12 +427,12 @@ function CombiSwitchShell({
     const sizingOk = inputs.combiKw >= peakDhwKw;
 
     return {
-      coldC, hotC, deltaT, showerLpm, heatLimitLpm, requiredKw, shortfallLpm,
+      coldC, hotC, deltaT, showerLpm, showerPreset, heatLimitLpm, requiredKw, shortfallLpm,
       mainsLimitLpm, durationMin, dailyDhwLitres, peakDrawMinutes, heatLossKw,
       peakDhwKw, sizingOk,
     };
   }, [
-    inputs.season, inputs.dhwMode, inputs.showerPreset, inputs.combiKw,
+    inputs.season, inputs.dhwMode, inputs.bathroomCount, inputs.combiKw,
     inputs.mainsFlowLpmKnown, inputs.mainsFlowLpm,
     inputs.showerDurationPreset, inputs.showersPerDay, inputs.bathsPerDay,
     inputs.propertyType,
@@ -506,12 +512,12 @@ function CombiSwitchShell({
               <strong style={{ color: '#2b6cb0' }}>~{dhwPhysics.heatLimitLpm.toFixed(1)} L/min</strong>.
               {dhwPhysics.shortfallLpm !== null ? (
                 <span style={{ color: '#c53030', fontWeight: 600 }}>
-                  {' '}Your {inputs.showerPreset === 'mixer' ? 'Mixer' : inputs.showerPreset === 'mixer_high' ? 'Mixer high' : 'Rainfall'} shower ({dhwPhysics.showerLpm} L/min) needs{' '}
+                  {' '}Your shower ({dhwPhysics.showerLpm} L/min) needs{' '}
                   {dhwPhysics.requiredKw.toFixed(1)} kW — shortfall of {dhwPhysics.shortfallLpm} L/min.
                 </span>
               ) : (
                 <span style={{ color: '#276749' }}>
-                  {' '}Your {inputs.showerPreset === 'mixer' ? 'Mixer' : inputs.showerPreset === 'mixer_high' ? 'Mixer high' : 'Rainfall'} shower ({dhwPhysics.showerLpm} L/min) needs{' '}
+                  {' '}Your shower ({dhwPhysics.showerLpm} L/min) needs{' '}
                   {dhwPhysics.requiredKw.toFixed(1)} kW — within capacity.
                 </span>
               )}
@@ -522,7 +528,7 @@ function CombiSwitchShell({
               {(Object.entries(OUTLET_FLOW_PRESETS_LPM) as [keyof typeof OUTLET_FLOW_PRESETS_LPM, number][]).map(([key, lpm]) => {
                 const kw = computeRequiredKw(lpm, dhwPhysics.deltaT);
                 const over = lpm > dhwPhysics.heatLimitLpm;
-                const isSelected = inputs.showerPreset === key;
+                const isSelected = dhwPhysics.showerPreset === key;
                 const label = key === 'mixer' ? 'Mixer' : key === 'mixer_high' ? 'Mixer high' : 'Rainfall';
                 return (
                   <div
@@ -555,8 +561,8 @@ function CombiSwitchShell({
               </p>
             ) : (
               <p className="story-dhw-ok-note">
-                ✅ Within capacity for a single {inputs.showerPreset === 'mixer' ? 'mixer' : inputs.showerPreset === 'mixer_high' ? 'high-flow mixer' : 'rainfall'} shower.
-                Select &quot;{inputs.season === 'winter' ? 'Summer' : 'Winter'}&quot; season or &quot;Rainfall&quot; to see where the combi struggles.
+                ✅ Within capacity for a single shower at {dhwPhysics.showerLpm} L/min.
+                Change season to &quot;Winter&quot; to see where the combi is most challenged.
               </p>
             )}
           </div>
@@ -588,7 +594,7 @@ function CombiSwitchShell({
             <p className={`story-usage-sizing-note story-usage-sizing-note--${dhwPhysics.sizingOk ? 'ok' : 'warn'}`}>
               {dhwPhysics.sizingOk
                 ? `✅ ${inputs.combiKw} kW combi covers the ${dhwPhysics.peakDhwKw.toFixed(1)} kW peak DHW draw for this usage pattern.`
-                : `⚠️ ${inputs.combiKw} kW combi is under-sized — ${dhwPhysics.peakDhwKw.toFixed(1)} kW needed for a ${inputs.showerPreset === 'mixer' ? 'mixer' : inputs.showerPreset === 'mixer_high' ? 'high-flow mixer' : 'rainfall'} shower at ${dhwPhysics.coldC}°C cold supply.`
+                : `⚠️ ${inputs.combiKw} kW combi is under-sized — ${dhwPhysics.peakDhwKw.toFixed(1)} kW needed for a ${dhwPhysics.showerLpm} L/min shower at ${dhwPhysics.coldC}°C cold supply.`
               }
             </p>
           </div>

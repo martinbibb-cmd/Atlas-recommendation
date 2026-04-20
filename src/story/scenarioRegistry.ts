@@ -10,11 +10,11 @@
 
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import type {
-  SeasonPreset, DhwModePreset, ShowerPreset,
+  SeasonPreset, DhwModePreset,
   CombiOutputKw, PropertyType, ShowerDurationPreset,
 } from '../engine/presets/DhwFlowPresets';
 export type {
-  SeasonPreset, DhwModePreset, ShowerPreset,
+  SeasonPreset, DhwModePreset,
   CombiOutputKw, PropertyType, ShowerDurationPreset,
 };
 import { combiSwitchScenario } from './scenarios/combiSwitch';
@@ -80,8 +80,6 @@ export interface CombiSwitchInputs {
   season: SeasonPreset;
   /** Combi DHW outlet temperature mode preset → combiHotOutTempC. */
   dhwMode: DhwModePreset;
-  /** Shower type preset → outlet flow L/min for physics callouts. */
-  showerPreset: ShowerPreset;
   // ── System type ───────────────────────────────────────────────────────────
   /** Combi boiler DHW output kW — drives the heat-limit line on the graph. */
   combiKw: CombiOutputKw;

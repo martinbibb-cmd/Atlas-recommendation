@@ -206,16 +206,6 @@ export function CombiSwitchInputPanel({ inputs, onChange }: CombiSwitchPanelProp
           onChange={v => set('dhwMode', v)}
         />
 
-        <ChipGroup
-          label="Shower type"
-          options={[
-            { value: 'mixer',      label: 'Mixer (10 L/min)' },
-            { value: 'mixer_high', label: 'Mixer high (12 L/min)' },
-            { value: 'rainfall',   label: 'Rainfall (16 L/min)' },
-          ]}
-          value={inputs.showerPreset}
-          onChange={v => set('showerPreset', v)}
-        />
       </section>
 
       <section className="cockpit-group">
