@@ -419,8 +419,10 @@ describe('daily use statements', () => {
       COMBI_QUOTE, SYSTEM_QUOTE,
     ]);
     const systemQuote = pack.quotes.find(qi => qi.quote.systemType === 'system')!;
+    // Statement should mention the combi quote label and explain stored handling
     const rankingStatement = systemQuote.dailyUse.find(d =>
-      d.statement.toLowerCase().includes('better') || d.statement.toLowerCase().includes('ranked'),
+      (d.statement.includes(COMBI_QUOTE.label) || d.statement.toLowerCase().includes('stored')) &&
+      (d.statement.toLowerCase().includes('better') || d.statement.toLowerCase().includes('simultaneous')),
     );
     expect(rankingStatement).toBeDefined();
   });
@@ -430,8 +432,9 @@ describe('daily use statements', () => {
       COMBI_QUOTE, SYSTEM_QUOTE,
     ]);
     const combiQuote = pack.quotes.find(qi => qi.quote.systemType === 'combi')!;
+    // Statement should mention the system quote label and the stored cylinder
     const rankingStatement = combiQuote.dailyUse.find(d =>
-      d.statement.toLowerCase().includes('ranked') || d.statement.toLowerCase().includes('stored cylinder'),
+      d.statement.includes(SYSTEM_QUOTE.label) && d.statement.toLowerCase().includes('stored cylinder'),
     );
     expect(rankingStatement).toBeDefined();
   });

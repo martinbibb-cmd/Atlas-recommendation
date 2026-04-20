@@ -637,8 +637,8 @@ function redFlagToLimitation(
   // They are universal (true for all options) but only materially limit delivery
   // for on-demand (combi) systems — stored cylinders buffer these constraints.
   // Do not emit them as per-quote limitations for stored or ASHP options.
-  const flagIsHydraulicUniversal = flag.id.startsWith('hydraulic-') || flag.id.includes('fluid');
-  if (flagIsHydraulicUniversal && !isCombi) return null;
+  const flagIsPropertyLevelHydraulic = flag.id.startsWith('hydraulic-') || flag.id.includes('fluid');
+  if (flagIsPropertyLevelHydraulic && !isCombi) return null;
 
   const severityMap: Record<RedFlagItem['severity'], SystemLimitation['severity']> = {
     info: 'low',

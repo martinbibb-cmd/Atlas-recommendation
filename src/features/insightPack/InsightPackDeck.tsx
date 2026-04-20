@@ -61,6 +61,9 @@ const SLIDES = [
 
 type SlideId = typeof SLIDES[number]['id'];
 
+/** Delay (ms) before triggering window.print() to allow React to re-render all panels. */
+const PRINT_RENDER_DELAY_MS = 100;
+
 export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props) {
   const [activeSlide, setActiveSlide] = useState<SlideId>('cover');
   const [isPrinting, setIsPrinting] = useState(false);
@@ -85,7 +88,7 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
-    }, 100);
+    }, PRINT_RENDER_DELAY_MS);
   }
 
   function renderPanel() {
