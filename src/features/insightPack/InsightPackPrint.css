@@ -93,13 +93,7 @@
      becomes invisible against the white page.  Force a dark, print-safe colour
      on the cover card and all its descendants so every word is readable. */
   .cover-hero,
-  .cover-hero *,
-  .cover-hero .cover-chip__label,
-  .cover-hero .cover-chip__value,
-  .cover-hero .cover-hero__property,
-  .cover-hero .cover-hero__date,
-  .cover-hero .cover-hero__headline,
-  .cover-hero .cover-hero__subline {
+  .cover-hero * {
     color: #111 !important;
     opacity: 1 !important;
   }
