@@ -795,4 +795,12 @@ export {
   ASSUMED_BOILER_HEAT_SOURCE_KW,
   ASSUMED_ASHP_HEAT_SOURCE_KW,
   IMMERSION_HEATER_KW,
+  // Temperature defaults — exported so dependent modules use the same values
+  DEFAULT_BOILER_STORE_TEMP_C,
+  DEFAULT_HP_STORE_TEMP_C,
+  DEFAULT_COLD_WATER_TEMP_C,
+  DEFAULT_TAP_TARGET_TEMP_C,
+  // Demand constants — exported for use in InsightPack cylinder sizing rationale
+  DEMAND_L_PER_PERSON_PER_DAY,
+  DEMAND_L_PER_EXTRA_BATHROOM,
 };
