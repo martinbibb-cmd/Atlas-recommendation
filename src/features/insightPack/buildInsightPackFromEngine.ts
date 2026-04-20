@@ -60,8 +60,6 @@ export interface InsightPackSurveyContext {
    * Used to ground powerflush / filter recommendations in actual site evidence.
    */
   systemCondition?: {
-    /** Derived condition grade: 'clean' | 'moderate' | 'poor' */
-    grade?: 'clean' | 'moderate' | 'poor';
     /** Whether sludge was observed in bleed water. */
     sludgeBleedObserved?: boolean;
     /** Whether cold radiators were reported. */
@@ -530,7 +528,6 @@ function buildDailyUseStatements(
   // recommended option — otherwise all quotes would show identical statements.
   const behaviours = output.realWorldBehaviours ?? [];
   const hasStored = quote.systemType !== 'combi';
-  const isAshp = quote.systemType === 'ashp';
 
   for (const card of behaviours) {
     // Determine if this behaviour card is relevant for the current system type.
@@ -570,7 +567,6 @@ function deriveFallbackDailyUse(
   quote: QuoteInput,
   output: EngineOutputV1,
   ctx?: InsightPackSurveyContext,
-  _isAshp?: boolean,
 ): DailyUseStatement[] {
   const statements: DailyUseStatement[] = [];
   const optionCard = findOptionCard(quote, output);
@@ -865,13 +861,21 @@ function buildPowerflushExplanation(
   }
 
   // Engine-level sludge / cycling flags
-  const sludgeFlagPresent = (output.redFlags ?? []).some(f => f.id.includes('sludge') || f.id.includes('flush'));
+  // Use exact known IDs to avoid false positives from substring matching.
+  const SLUDGE_FLAG_IDS = new Set([
+    'sludge-risk', 'sludge-detected', 'circuit-flush-required', 'powerflush-required',
+    'cycling-penalty', 'magnetite-risk',
+  ]);
+  const sludgeFlagPresent = (output.redFlags ?? []).some(f => SLUDGE_FLAG_IDS.has(f.id));
   const cyclingLimiter = (output.limiters?.limiters ?? []).find(l => l.id === 'cycling-loss-penalty');
 
   if (cyclingLimiter && cyclingLimiter.severity === 'fail') {
-    parts.push(`Engine identified a high cycling-loss penalty (${cyclingLimiter.observed.value}%) — this directly indicates a sludge-restricted circuit.`);
+    const lossPct = cyclingLimiter.observed?.value != null
+      ? `${cyclingLimiter.observed.value}%`
+      : 'high';
+    parts.push(`Engine identified a high cycling-loss penalty (${lossPct}) — this directly indicates a sludge-restricted circuit.`);
   } else if (cyclingLimiter) {
-    parts.push(`Engine identified a cycling-loss penalty — consistent with partial sludge restriction in the primary circuit.`);
+    parts.push('Engine identified a cycling-loss penalty — consistent with partial sludge restriction in the primary circuit.');
   } else if (sludgeFlagPresent && !sludgeObserved && !coldRads) {
     parts.push('Engine flagged elevated sludge risk for this system based on age and service history.');
   }
