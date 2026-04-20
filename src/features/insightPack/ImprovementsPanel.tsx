@@ -35,7 +35,7 @@ export default function ImprovementsPanel({ quotes }: Props) {
           <div className="improvements__quote-label">{quote.label}</div>
 
           {improvements.length === 0 ? (
-            <p className="improvements__none">✅ No additional improvements identified.</p>
+            <p className="improvements__none">✅ No additional improvements identified based on current survey data.</p>
           ) : (
             improvements.map((imp, i) => (
               <div key={i} className="improvement-card" data-testid={`improvement-${imp.impact}`}>

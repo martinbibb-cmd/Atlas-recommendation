@@ -13,6 +13,34 @@
 
 import type { EngineOutputV1, OptionCardV1, LimiterV1, RedFlagItem } from '../../contracts/EngineOutputV1';
 import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
+import {
+  computeRecoveryTimeMins,
+  computeUsableVolumeMixedL,
+  USABLE_FRACTION_STANDARD,
+  USABLE_FRACTION_MIXERGY,
+} from '../../engine/modules/CylinderSizingModule';
+
+// ─── Cylinder sizing constants (mirrored from CylinderSizingModule) ───────────
+// These match CylinderSizingModule constants exactly so sizing rationale in
+// the InsightPack is always consistent with the engine's own sizing output.
+
+/** Litres per person per day at tap target temperature (40 °C). */
+const INSIGHT_DEMAND_L_PER_PERSON = 55;
+
+/** Additional litres per extra bathroom beyond the first. */
+const INSIGHT_DEMAND_L_PER_EXTRA_BATH = 30;
+
+/** Default store temperature (°C) for a boiler-fed cylinder. */
+const INSIGHT_STORE_TEMP_BOILER_C = 60;
+
+/** Default store temperature (°C) for a heat-pump-fed cylinder. */
+const INSIGHT_STORE_TEMP_HP_C = 50;
+
+/** UK annual mean cold-water inlet temperature (°C). */
+const INSIGHT_COLD_WATER_TEMP_C = 10;
+
+/** Typical tap target (mixed) temperature (°C). */
+const INSIGHT_TAP_TARGET_TEMP_C = 40;
 import type {
   QuoteInput,
   InsightPack,
@@ -163,6 +191,19 @@ function rateHotWaterPerformance(
   }
 
   // Combi path
+  // Guard: ASHP without a cylinder has reached this path — combi copy does not apply.
+  // ASHP systems are always stored-cylinder systems; on-demand supply is not part of
+  // the ASHP system family.  Return an appropriate ASHP-specific message instead of
+  // combi-template copy.
+  if (quote.systemType === 'ashp') {
+    return makeRating(
+      'Needs Right Setup',
+      'Heat pump system requires a hot-water cylinder — on-demand supply is not applicable for heat pump installations.',
+      'ASHP heats stored water slowly via a cylinder; on-demand (combi-style) hot water is not part of the heat pump system family. Specify a cylinder volume to complete the design.',
+    );
+  }
+
+  // Combi path
   if (hwRedFlags.length > 0) {
     return makeRating(
       'Less Suited',
@@ -226,11 +267,33 @@ function rateHeatingPerformance(
         'Flow temperature above ideal HP range identified. Radiator upsizing or operating hours adjustment can mitigate.',
       );
     }
+    // Hard hydraulic blocker: 22mm primary pipework restricts ASHP flow
+    // fail severity = hard constraint that prevents installation without upgrade
+    // warn severity = caution — system may still work but at elevated velocity / noise
+    const pipeLimiter = (output.limiters?.limiters ?? []).find(
+      l => l.id === 'primary-pipe-constraint',
+    );
+    if (pipeLimiter && pipeLimiter.severity === 'fail') {
+      return makeRating(
+        'Needs Right Setup',
+        'Pipework upgrade required before heat pump installation — current pipe size restricts the flow rate needed by the heat pump.',
+        `Hydraulic hard constraint: ${pipeLimiter.impact.summary}. Upgrading the primary circuit to 28mm bore is a prerequisite for heat pump viability. Label: Requires system changes to be viable.`,
+      );
+    }
+    if (pipeLimiter) {
+      // warn-severity pipe constraint: system may work but with flow-velocity caution
+      return makeRating(
+        'Good',
+        'Heat pump heating is feasible — primary pipework is borderline for required flow rates.',
+        `Pipe-size caution: ${pipeLimiter.impact.summary}. Monitor for elevated flow velocity and noise; upgrading to 28mm removes this risk.`,
+      );
+    }
+
     // No heating constraints: ASHP is well-matched to this home
     return makeRating(
       'Excellent',
       'Heat pump is well-matched to this home — delivers steady, low-temperature heating with minimal operating constraints.',
-      'No flow-temperature or emitter constraints flagged. ASHP COP 2.5–3.5 at design-day flow temperatures; long, steady heating cycles maximise seasonal efficiency.',
+      'No flow-temperature, emitter, or pipework constraints flagged. ASHP COP 2.5–3.5 at design-day flow temperatures; long, steady heating cycles maximise seasonal efficiency.',
     );
   }
 
@@ -273,8 +336,6 @@ function rateEfficiency(
   );
 
   if (quote.systemType === 'ashp') {
-    // Heat pumps deliver 2.5–3.5× more heat per unit of electricity than a gas boiler —
-    // this is genuinely Excellent efficiency regardless of flow temperature profile.
     const flowTempLimiter = (output.limiters?.limiters ?? []).find(
       l => l.id === 'flow-temp-too-high-for-ashp',
     );
@@ -283,6 +344,15 @@ function rateEfficiency(
         'Good',
         'Heat pump is more efficient than a gas boiler, though high flow temperatures reduce the efficiency advantage.',
         `Flow temperatures currently constrain COP below optimal range. Radiator upsizing can restore full efficiency gains. Nominal SEDBUK baseline for comparison: ${DEFAULT_NOMINAL_EFFICIENCY_PCT}%.`,
+      );
+    }
+    if (flowTempLimiter) {
+      // warn-severity: system is workable but operating below optimal COP
+      // At 50 °C flow, SPF ≈ 2.5 — still better than gas but not the 3.5 headline figure.
+      return makeRating(
+        'Very Good',
+        'High efficiency possible — current system configuration would operate at reduced performance until emitters are upgraded.',
+        `Flow temperature constraint identified (${flowTempLimiter.observed.value} ${flowTempLimiter.observed.unit}). At elevated flow temperatures SPF is approximately 2.5 — better than a gas boiler (${DEFAULT_NOMINAL_EFFICIENCY_PCT}% seasonal) but below the 3.0–3.5 achievable with upgraded emitters and lower design flow temperature.`,
       );
     }
     return makeRating(
@@ -514,6 +584,75 @@ const HW_PERFORMANCE_RANK: Record<QuoteInput['systemType'], number> = {
   ashp:    3,
 };
 
+// ─── Cylinder sizing rationale ────────────────────────────────────────────────
+
+/**
+ * Builds a physics-grounded cylinder sizing rationale statement for stored
+ * hot-water systems (system, regular, ashp).
+ *
+ * Uses the same constants and helper functions as CylinderSizingModule so
+ * that the customer-facing sizing explanation is always consistent with the
+ * engine's own sizing recommendation.
+ *
+ * Explains:
+ *   - Why this cylinder volume was chosen (occupancy + bathroom demand)
+ *   - Usable litres at tap temperature (accounts for mixing losses)
+ *   - Expected recovery time at the boiler/heat-pump output
+ *   - Whether back-to-back simultaneous draws are supported
+ */
+function buildCylinderSizingStatement(
+  quote: QuoteInput,
+  ctx?: InsightPackSurveyContext,
+): DailyUseStatement | null {
+  const cylinderVol = quote.cylinder?.volumeL;
+  if (cylinderVol == null) return null;
+
+  const occupants    = ctx?.occupancyCount ?? 2;
+  const bathrooms    = ctx?.bathroomCount  ?? 1;
+  const heatSourceKw = quote.heatSourceKw;
+
+  // Store and cold-water temperatures — match CylinderSizingModule defaults
+  const isHp       = quote.systemType === 'ashp';
+  const storeTempC = isHp ? INSIGHT_STORE_TEMP_HP_C : INSIGHT_STORE_TEMP_BOILER_C;
+  const coldTempC  = INSIGHT_COLD_WATER_TEMP_C;
+  const tapTempC   = INSIGHT_TAP_TARGET_TEMP_C;
+
+  // Daily demand (same formula as CylinderSizingModule.computeDailyDemandL)
+  const extraBaths   = Math.max(0, bathrooms - 1);
+  const dailyDemandL = occupants * INSIGHT_DEMAND_L_PER_PERSON + extraBaths * INSIGHT_DEMAND_L_PER_EXTRA_BATH;
+
+  // Usable mixed volume at tap temperature (using CylinderSizingModule physics)
+  const isMixergy = quote.cylinder?.type === 'mixergy';
+  const usableFraction = isMixergy ? USABLE_FRACTION_MIXERGY : USABLE_FRACTION_STANDARD;
+  const usableL = Math.round(
+    computeUsableVolumeMixedL(cylinderVol, usableFraction, storeTempC, tapTempC, coldTempC),
+  );
+
+  // Recovery time — only when heat source power is known
+  let recoveryNote = '';
+  if (heatSourceKw != null && heatSourceKw > 0) {
+    const deltaTc        = storeTempC - coldTempC;
+    const recoveryMins   = computeRecoveryTimeMins(cylinderVol, deltaTc, heatSourceKw);
+    const recoveryRound  = Math.round(recoveryMins);
+    recoveryNote = `; recovery to full at ${heatSourceKw} kW: approx ${recoveryRound} min`;
+  }
+
+  // Back-to-back shower check
+  const backToBackOk = usableL >= dailyDemandL;
+  const backToBackNote = backToBackOk
+    ? 'back-to-back simultaneous draws supported'
+    : 'consecutive peak draws may deplete stored volume';
+
+  const statement =
+    `${cylinderVol}L cylinder sized for ${occupants} occupant${occupants === 1 ? '' : 's'} and ` +
+    `${bathrooms} bathroom${bathrooms === 1 ? '' : 's'}: ` +
+    `estimated daily demand ${dailyDemandL}L → ${usableL}L usable at tap temperature` +
+    `${recoveryNote}. ` +
+    `${isMixergy ? 'Mixergy top-down draw: ' : 'Stored cylinder: '}${backToBackNote}.`;
+
+  return { statement, scenario: 'recovery' };
+}
+
 // ─── Daily use statements ─────────────────────────────────────────────────────
 
 function buildDailyUseStatements(
@@ -605,6 +744,10 @@ function deriveFallbackDailyUse(
       });
     }
 
+    // Physics-based cylinder sizing rationale
+    const sizingStatement = buildCylinderSizingStatement(quote, ctx);
+    if (sizingStatement) statements.push(sizingStatement);
+
     // Heating efficiency characteristic
     statements.push({
       statement: 'Heat pump runs steady, low-temperature heating cycles — leaving it on at a consistent setpoint is more efficient than large on/off swings.',
@@ -641,6 +784,10 @@ function deriveFallbackDailyUse(
       });
     }
 
+    // Physics-based cylinder sizing rationale (occupancy + recovery + back-to-back capacity)
+    const sizingStatement = buildCylinderSizingStatement(quote, ctx);
+    if (sizingStatement) statements.push(sizingStatement);
+
     if (hasPowerflush) {
       statements.push({
         statement: 'Powerflush included — radiators will heat evenly across the home once the circuit is cleaned, improving comfort on cold days.',
@@ -667,6 +814,9 @@ function deriveFallbackDailyUse(
       });
     }
 
+    // Physics-based cylinder sizing rationale
+    const sizingStatement = buildCylinderSizingStatement(quote, ctx);
+    if (sizingStatement) statements.push(sizingStatement);
   } else {
     // ── Combination boiler (on-demand) ─────────────────────────────────────
     const dhwBullets = optionCard?.dhw.bullets ?? [];
@@ -945,6 +1095,55 @@ function buildImprovements(
     }
   }
 
+  // ── ASHP-specific constraint-derived improvements ──────────────────────────
+  // Improvements must be derived from identified struggles/limitations.
+  // Rule: improvements = limitations.map(limitation => limitation.resolution)
+  if (quote.systemType === 'ashp') {
+    const pipeLimiter = (output.limiters?.limiters ?? []).find(
+      l => l.id === 'primary-pipe-constraint',
+    );
+    if (pipeLimiter) {
+      improvements.push({
+        title: 'Upgrade primary pipework to 28mm',
+        impact: 'performance',
+        explanation:
+          `Primary pipe constraint identified: ${pipeLimiter.impact.summary}. ` +
+          `Upgrading to 28mm bore primary circuit enables the required ASHP flow rate and is the ` +
+          `prerequisite for heat pump installation. Without this upgrade the heat pump cannot deliver ` +
+          `rated output and risks elevated flow velocity and noise.`,
+      });
+    }
+
+    const flowTempLimiter = (output.limiters?.limiters ?? []).find(
+      l => l.id === 'flow-temp-too-high-for-ashp',
+    );
+    if (flowTempLimiter && flowTempLimiter.severity === 'fail') {
+      improvements.push({
+        title: 'Increase emitter surface area and lower design flow temperature',
+        impact: 'efficiency',
+        explanation:
+          `Current design flow temperature (${flowTempLimiter.observed.value} ${flowTempLimiter.observed.unit}) ` +
+          `exceeds the heat pump's efficient operating range. Adding or upsizing radiators reduces the ` +
+          `required flow temperature to ≤ 45 °C, restoring heat pump SPF to the 3.0–4.0 target range. ` +
+          `Each 5 °C reduction in flow temperature improves COP by approximately 0.35.`,
+      });
+    }
+
+    const radLimiter = (output.redFlags ?? []).find(
+      f => f.id === 'radiator-output-insufficient' && f.severity === 'fail',
+    );
+    if (radLimiter && !flowTempLimiter) {
+      improvements.push({
+        title: 'Review and upsize radiators',
+        impact: 'performance',
+        explanation:
+          `Radiator output assessed as insufficient for heat pump operation: ${radLimiter.detail}. ` +
+          `Upsizing to double-panel convectors or adding additional emitters is required to allow ` +
+          `heat pump operation at its efficient flow-temperature range.`,
+      });
+    }
+  }
+
   // ── Cylinder update advice ───────────────────────────────────────────────────
 
   // When the quote includes a standard cylinder, advise upgrading to Mixergy
@@ -1069,6 +1268,35 @@ function buildBestAdvice(
     }
   }
 
+  // Add a single synthesis line: "Chosen because it handles X without Y"
+  // This is the "Why THIS over the others?" answer the user needs.
+  if (best) {
+    const sysType = best.qi.quote.systemType;
+    const hasCylinder = best.qi.quote.cylinder != null;
+    const isMixergy = best.qi.quote.cylinder?.type === 'mixergy';
+    const alternatives = quotes.filter(q => q.quote.id !== best.qi.quote.id);
+    const hasWorseAlternative = alternatives.some(q =>
+      q.limitations.some(l => l.severity === 'high'),
+    );
+
+    let synthesisLine = '';
+    if (sysType === 'system' || sysType === 'regular') {
+      synthesisLine = hasCylinder
+        ? `Chosen because it handles simultaneous demand without pipework restrictions${isMixergy ? ', with Mixergy stratification delivering usable hot water even when the cylinder is partially charged' : ' and provides fast recovery from stored volume'}.`
+        : `Chosen because stored hot water decouples delivery from instantaneous boiler output, eliminating flow-starvation risk.`;
+    } else if (sysType === 'ashp') {
+      synthesisLine = 'Chosen for the highest-efficiency pathway — requires system upgrades before installation can proceed.';
+    } else if (sysType === 'combi') {
+      synthesisLine = hasWorseAlternative
+        ? 'Chosen because on-demand hot water best matches this home\'s supply profile and eliminates cylinder standby losses.'
+        : 'Chosen as the best-matched option for this home based on demand profile and supply constraints.';
+    }
+
+    if (synthesisLine && !because.includes(synthesisLine)) {
+      because.push(synthesisLine);
+    }
+  }
+
   return {
     recommendation,
     because: because.length > 0 ? because : ["Best physics fit based on this home's survey data."],
@@ -1091,20 +1319,34 @@ function systemLabel(systemType: QuoteInput['systemType']): string {
 function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOutputV1): SavingsPlan {
   const systemType = bestQuote?.quote.systemType;
 
-  const behaviour: string[] = [
-    'Avoid very short hot-water draws under 15 seconds — allow the heat exchanger to reach steady temperature.',
-    'Use a steady heating schedule rather than sharp on/off cycles to make the most of thermal mass.',
-  ];
+  // ── System-specific behaviour advice ─────────────────────────────────────
+  const behaviour: string[] = [];
 
-  const settings: string[] = [
-    'Set flow temperature to the minimum that keeps rooms comfortable (55–60°C for older radiators; lower with weather compensation).',
-  ];
-
-  if (systemType !== 'ashp') {
-    settings.push('Enable weather compensation if available — lowers flow temperature on mild days and extends condensing operation.');
+  if (systemType === 'ashp') {
+    behaviour.push('Run the heat pump on a continuous, steady setpoint rather than large on/off swings — heat pumps are most efficient on long, low-output cycles.');
+    behaviour.push('Pre-heat the home before cold snaps rather than responding with short high-output bursts — ramp up gradually 1–2 hours before expected cold weather.');
+    behaviour.push('Schedule cylinder heating overnight during off-peak tariff windows (e.g. Octopus Go) to minimise running costs.');
+  } else if (systemType === 'system' || systemType === 'regular') {
+    behaviour.push('Allow the cylinder to fully recover between large draws — avoid scheduling back-to-back high-demand periods without a recovery window.');
+    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to make the most of the cylinder\'s thermal mass.');
+    if (bestQuote?.quote.cylinder?.type === 'mixergy') {
+      behaviour.push('Mixergy draws from the top — even a partially charged cylinder can serve a full shower. Shorten reheat schedules to save energy without sacrificing comfort.');
+    }
   } else {
+    // Combi boiler
+    behaviour.push('Avoid very short hot-water draws under 15 seconds — allow the heat exchanger to reach steady-state condensing temperature for maximum efficiency.');
+    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to make the most of thermal mass.');
+  }
+
+  // ── System-specific settings advice ──────────────────────────────────────
+  const settings: string[] = [];
+
+  if (systemType === 'ashp') {
+    settings.push('Set the heat pump to its lowest flow temperature that keeps rooms comfortable — each 5 °C reduction in flow temperature improves COP by approximately 0.35.');
     settings.push('Run heat pump continuously at lower output on cold days rather than burst-cycling at high output.');
-    behaviour.push('Pre-heat the home before cold snaps rather than responding with short high-output bursts.');
+  } else {
+    settings.push('Set flow temperature to the minimum that keeps rooms comfortable (55–60 °C for older radiators; lower with weather compensation).');
+    settings.push('Enable weather compensation if available — lowers flow temperature on mild days and extends condensing operation.');
   }
 
   const futureUpgrades: string[] = [];

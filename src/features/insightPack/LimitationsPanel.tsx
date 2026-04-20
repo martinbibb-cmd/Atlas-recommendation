@@ -37,7 +37,7 @@ export default function LimitationsPanel({ quotes }: Props) {
           <div className="limitations__quote-label">{quote.label}</div>
 
           {limitations.length === 0 ? (
-            <p className="limitations__none">✅ No significant limitations identified for this home.</p>
+            <p className="limitations__none">✅ No material constraints identified based on current survey data.</p>
           ) : (
             limitations
               .sort((a, b) => {

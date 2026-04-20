@@ -614,6 +614,203 @@ describe('daily use statements', () => {
   });
 });
 
+// ─── Constraint-aware rating gates ────────────────────────────────────────────
+
+describe('constraint-aware rating gates', () => {
+  it('ASHP with fail-severity primary-pipe-constraint → Needs Right Setup heating', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'primary-pipe-constraint',
+            title: '22mm primary pipework cannot carry ASHP flow',
+            severity: 'fail',
+            observed: { label: 'Required ASHP flow', value: 22.5, unit: 'L/min' },
+            limit:    { label: 'Safe flow for 22mm', value: 18.0, unit: 'L/min' },
+            impact: {
+              summary: '22mm primary pipework cannot safely carry the required heat pump flow.',
+            },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    expect(pack.quotes[0].rating.heatingPerformance.rating).toBe('Needs Right Setup');
+  });
+
+  it('ASHP with fail-severity primary-pipe-constraint → suitability capped at Needs Right Setup', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'primary-pipe-constraint',
+            title: '22mm primary pipework cannot carry ASHP flow',
+            severity: 'fail',
+            observed: { label: 'Required ASHP flow', value: 22.5, unit: 'L/min' },
+            limit:    { label: 'Safe flow for 22mm', value: 18.0, unit: 'L/min' },
+            impact: { summary: 'Primary pipe hard constraint.' },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    const suitability = pack.quotes[0].rating.suitability.rating;
+    expect(['Needs Right Setup', 'Less Suited']).toContain(suitability);
+  });
+
+  it('ASHP with fail-severity primary-pipe-constraint → pipework upgrade improvement added', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'primary-pipe-constraint',
+            title: '22mm primary pipework cannot carry ASHP flow',
+            severity: 'fail',
+            observed: { label: 'Required ASHP flow', value: 22.5, unit: 'L/min' },
+            limit:    { label: 'Safe flow for 22mm', value: 18.0, unit: 'L/min' },
+            impact: { summary: 'Primary pipe hard constraint.' },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    const pipeworkImp = pack.quotes[0].improvements.find(i =>
+      i.title.toLowerCase().includes('28mm') || i.title.toLowerCase().includes('pipework'),
+    );
+    expect(pipeworkImp).toBeDefined();
+    expect(pipeworkImp?.impact).toBe('performance');
+  });
+
+  it('ASHP without cylinder falls back to ASHP-specific hot water message, not combi copy', () => {
+    const ashpNoCylinder: QuoteInput = {
+      id: 'quote_hp_nc',
+      label: 'Quote HP — no cylinder',
+      systemType: 'ashp',
+      heatSourceKw: 10,
+      includedUpgrades: [],
+    };
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [ashpNoCylinder]);
+    const hwReason = pack.quotes[0].rating.hotWaterPerformance.reason;
+    // Must not contain combi-family copy
+    expect(hwReason).not.toContain('1 bathroom and up to 2 people');
+    // Must reference heat pump system requirement
+    expect(hwReason.toLowerCase()).toContain('heat pump');
+  });
+
+  it('ASHP with warn-severity flow-temp limiter → Very Good efficiency (not Excellent)', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'flow-temp-too-high-for-ashp',
+            title: 'Flow temperature too high for ASHP',
+            severity: 'warn',
+            observed: { label: 'Flow temp', value: 50, unit: 'COP' as const },
+            limit: { label: 'Max for efficient ASHP', value: 45, unit: 'COP' as const },
+            impact: { summary: 'Flow temp exceeds efficient heat pump range.' },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    expect(pack.quotes[0].rating.efficiency.rating).toBe('Very Good');
+  });
+
+  it('ASHP with fail-severity flow-temp limiter → emitter improvement added', () => {
+    const output = makeMinimalEngineOutput({
+      limiters: {
+        limiters: [
+          {
+            id: 'flow-temp-too-high-for-ashp',
+            title: 'Flow temperature too high for ASHP',
+            severity: 'fail',
+            observed: { label: 'Flow temp', value: 70, unit: 'COP' as const },
+            limit: { label: 'Max for ASHP', value: 55, unit: 'COP' as const },
+            impact: { summary: 'Flow temperature too high for heat pump operation.' },
+            confidence: 'high',
+            sources: [],
+            suggestedFixes: [],
+          },
+        ],
+      },
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    const emitterImp = pack.quotes[0].improvements.find(i =>
+      i.title.toLowerCase().includes('emitter') || i.title.toLowerCase().includes('radiator'),
+    );
+    expect(emitterImp).toBeDefined();
+    expect(emitterImp?.impact).toBe('efficiency');
+  });
+});
+
+// ─── Cylinder sizing rationale ────────────────────────────────────────────────
+
+describe('cylinder sizing rationale', () => {
+  it('stored system quote with cylinder includes a sizing rationale statement', () => {
+    const pack = buildInsightPackFromEngine(
+      makeMinimalEngineOutput(),
+      [SYSTEM_QUOTE],
+      { occupancyCount: 3, bathroomCount: 2 },
+    );
+    const recoveryStatements = pack.quotes[0].dailyUse.filter(d => d.scenario === 'recovery');
+    const sizingStatement = recoveryStatements.find(d =>
+      d.statement.includes('occupant') || d.statement.includes('daily demand') || d.statement.includes('usable'),
+    );
+    expect(sizingStatement).toBeDefined();
+  });
+
+  it('sizing rationale references occupancy and bathroom counts from survey context', () => {
+    const pack = buildInsightPackFromEngine(
+      makeMinimalEngineOutput(),
+      [SYSTEM_QUOTE],
+      { occupancyCount: 4, bathroomCount: 2 },
+    );
+    const sizingStatement = pack.quotes[0].dailyUse.find(d =>
+      d.statement.includes('4 occupants'),
+    );
+    expect(sizingStatement).toBeDefined();
+  });
+
+  it('ASHP quote with cylinder includes cylinder sizing rationale', () => {
+    const pack = buildInsightPackFromEngine(
+      makeMinimalEngineOutput(),
+      [ASHP_QUOTE],
+      { occupancyCount: 3, bathroomCount: 2 },
+    );
+    const recoveryStatements = pack.quotes[0].dailyUse.filter(d => d.scenario === 'recovery');
+    const sizingStatement = recoveryStatements.find(d =>
+      d.statement.includes('occupant') || d.statement.includes('daily demand') || d.statement.includes('usable'),
+    );
+    expect(sizingStatement).toBeDefined();
+  });
+});
+
+// ─── Best advice synthesis line ───────────────────────────────────────────────
+
+describe('best advice synthesis', () => {
+  it('best advice because array contains a synthesis/chosen line', () => {
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [
+      COMBI_QUOTE, SYSTEM_QUOTE,
+    ]);
+    const hasChosenLine = pack.bestAdvice.because.some(b =>
+      b.toLowerCase().includes('chosen') || b.toLowerCase().includes('handles'),
+    );
+    expect(hasChosenLine).toBe(true);
+  });
+});
+
 // ─── Improvements ─────────────────────────────────────────────────────────────
 
 describe('improvements', () => {
