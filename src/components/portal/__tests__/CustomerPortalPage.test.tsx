@@ -55,6 +55,13 @@ function mockFetch404() {
   global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: () => Promise.resolve({ ok: false, error: 'Report not found' }) } as unknown as Response);
 }
 
+/** Helper: wait for data to load and navigate past the welcome screen to the presentation view. */
+async function openPresentationView() {
+  await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+  fireEvent.click(screen.getByTestId('portal-welcome-presentation'));
+  await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+}
+
 beforeEach(() => { vi.restoreAllMocks(); vi.stubGlobal('scrollTo', vi.fn()); });
 
 describe('CustomerPortalPage', () => {
@@ -69,10 +76,23 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-error')).toBeTruthy());
   });
 
+  it('shows a welcome page with two view choices after loading', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    expect(screen.getByTestId('portal-welcome-insight')).toBeTruthy();
+    expect(screen.getByTestId('portal-welcome-presentation')).toBeTruthy();
+    // Portal header with postcode shown on welcome page too
+    expect(screen.getByTestId('portal-hero')).toBeTruthy();
+    expect(screen.getAllByText('SW1A 1AA').length).toBeGreaterThan(0);
+  });
+
   it('renders the canonical presentation deck — same pages as the in-room presentation', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('customer-portal')).toBeTruthy());
+    await openPresentationView();
+
+    expect(screen.getByTestId('customer-portal')).toBeTruthy();
 
     // Portal header with postcode
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
@@ -96,7 +116,7 @@ describe('CustomerPortalPage', () => {
   it('navigates to the simulator page and opens the live simulator', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+    await openPresentationView();
 
     // Navigate to the last slide (Proof / simulator page) via progress dots
     const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
@@ -122,7 +142,7 @@ describe('CustomerPortalPage', () => {
   it('clicking the print button shows PrintableRecommendationPage in portal mode', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+    await openPresentationView();
 
     // Navigate to simulator page and open it
     const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
@@ -142,7 +162,7 @@ describe('CustomerPortalPage', () => {
   it('portal mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+    await openPresentationView();
 
     // Navigate to simulator page and open it
     const nav = screen.getByRole('navigation', { name: 'Deck navigation' });

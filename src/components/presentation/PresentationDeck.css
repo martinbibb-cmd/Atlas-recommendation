@@ -78,9 +78,14 @@
   /* Grow to fill all space the deck flex layout allocates.
      When the deck is inside a fixed-height container (e.g. full-screen route)
      the viewport fills all remaining height after the progress bar and nav strip.
-     When the parent has no fixed height (e.g. dev preview), min-height provides
-     a sensible fallback floor so the viewport is never collapsed. */
+     When the parent has no fixed height (e.g. portal page), the explicit height
+     gives child elements a definite containing-block height so that percentage-
+     height sub-panel carousels (low-hanging-fruit, going-further) resolve their
+     translateY correctly instead of collapsing or showing both panels at once.
+     The explicit height is also the min-height — flex-grow can increase it when
+     there is genuinely more space available. */
   flex: 1;
+  height: clamp(520px, 72vh, 820px);
   min-height: clamp(520px, 72vh, 820px);
 }
 

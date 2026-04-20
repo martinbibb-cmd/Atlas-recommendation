@@ -88,6 +88,28 @@
     box-shadow: none !important;
   }
 
+  /* Cover page: the hero card normally uses white text on a dark gradient.
+     When the background is stripped for print (see above), the white text
+     becomes invisible against the white page.  Force a dark, print-safe colour
+     on the cover card and all its descendants so every word is readable. */
+  .cover-hero,
+  .cover-hero *,
+  .cover-hero .cover-chip__label,
+  .cover-hero .cover-chip__value,
+  .cover-hero .cover-hero__property,
+  .cover-hero .cover-hero__date,
+  .cover-hero .cover-hero__headline,
+  .cover-hero .cover-hero__subline {
+    color: #111 !important;
+    opacity: 1 !important;
+  }
+
+  .cover-hero .cover-chip--neutral,
+  .cover-hero .cover-chip--recommended {
+    background: #f3f4f6 !important;
+    border: 1px solid #d1d5db !important;
+  }
+
   /* Rating chips: keep colour text, remove filled background */
   [class*="rating-chip"],
   [class*="band-chip"] {

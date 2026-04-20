@@ -23,9 +23,14 @@ import { readCanonicalReportPayload } from '../../features/reports/adapters/read
 import { runEngine } from '../../engine/Engine';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage';
+import InsightPackDeck from '../../features/insightPack/InsightPackDeck';
+import { buildInsightPackFromEngine } from '../../features/insightPack/buildInsightPackFromEngine';
+import type { InsightPackSurveyContext } from '../../features/insightPack/buildInsightPackFromEngine';
 import './CustomerPortalPage.css';
 
 interface Props { reference: string; token?: string; }
+
+type PortalViewMode = null | 'insight' | 'presentation';
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -40,6 +45,8 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const [postcode, setPostcode] = useState<string | null>(null);
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   const [showSimulator, setShowSimulator] = useState(false);
+  // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck
+  const [viewMode, setViewMode] = useState<PortalViewMode>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +118,101 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     );
   }
 
+  // ── Welcome page — choose a view ──────────────────────────────────────────
+  if (viewMode === null) {
+    return (
+      <div className="portal-page" data-testid="customer-portal">
+        <header className="portal-page__hero" data-testid="portal-hero">
+          <div className="portal-hero__brand-row">
+            <span className="portal-page__brand" aria-hidden="true"></span>
+            {postcode && <span className="portal-page__postcode">{postcode}</span>}
+          </div>
+        </header>
+
+        <div className="portal-welcome" data-testid="portal-welcome">
+          <h1 className="portal-welcome__heading">Your Home Heating Recommendation</h1>
+          <p className="portal-welcome__intro">
+            Choose how you would like to explore your results:
+          </p>
+          <div className="portal-welcome__cards">
+            <button
+              type="button"
+              className="portal-welcome__card"
+              onClick={() => setViewMode('insight')}
+              data-testid="portal-welcome-insight"
+            >
+              <span className="portal-welcome__card-icon" aria-hidden="true">📋</span>
+              <span className="portal-welcome__card-title">Insight Overview</span>
+              <span className="portal-welcome__card-desc">
+                A clear, structured summary of your home, the options considered, and
+                the evidence behind the recommendation — ideal for reviewing at your
+                own pace.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="portal-welcome__card portal-welcome__card--primary"
+              onClick={() => setViewMode('presentation')}
+              data-testid="portal-welcome-presentation"
+            >
+              <span className="portal-welcome__card-icon" aria-hidden="true">🎯</span>
+              <span className="portal-welcome__card-title">In-Room Presentation</span>
+              <span className="portal-welcome__card-desc">
+                The same slide-by-slide view shown during your survey visit — swipe
+                through each page and explore the interactive simulator.
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <footer className="portal-page__footer">
+          <p className="portal-page__footer-text">
+            The evidence is always visible. Setup, proof, outcomes, and advice in one place.
+          </p>
+        </footer>
+      </div>
+    );
+  }
+
+  // ── Insight Pack view ─────────────────────────────────────────────────────
+  if (viewMode === 'insight') {
+    const surveyContext: InsightPackSurveyContext = {
+      currentBoiler: engineInput.currentSystem?.boiler,
+      occupancyCount: engineInput.occupancyCount,
+      bathroomCount: engineInput.bathroomCount,
+      peakConcurrentOutlets: engineInput.peakConcurrentOutlets,
+      mainsDynamicFlowLpm: engineInput.mainsDynamicFlowLpm,
+      heatLossWatts: engineInput.heatLossWatts,
+    };
+    const pack = buildInsightPackFromEngine(engineResult.engineOutput, [], surveyContext);
+
+    return (
+      <div className="portal-page portal-page--full-width" data-testid="customer-portal">
+        <div className="portal-back-row">
+          <button
+            type="button"
+            className="back-btn"
+            onClick={() => setViewMode(null)}
+          >
+            ← Back to choices
+          </button>
+        </div>
+        <InsightPackDeck
+          pack={pack}
+          propertyTitle={postcode ?? undefined}
+          onClose={() => setViewMode(null)}
+        />
+        <footer className="portal-page__footer">
+          <p className="portal-page__footer-text">
+            The evidence is always visible. Setup, proof, outcomes, and advice in one place.
+          </p>
+        </footer>
+      </div>
+    );
+  }
+
+  // ── Presentation view (deck) ──────────────────────────────────────────────
   return (
     <div className="portal-page" data-testid="customer-portal">
 
@@ -119,6 +221,15 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         <div className="portal-hero__brand-row">
           <span className="portal-page__brand" aria-hidden="true"></span>
           {postcode && <span className="portal-page__postcode">{postcode}</span>}
+        </div>
+        <div className="portal-back-row">
+          <button
+            type="button"
+            className="back-btn"
+            onClick={() => setViewMode(null)}
+          >
+            ← Back to choices
+          </button>
         </div>
       </header>
 
