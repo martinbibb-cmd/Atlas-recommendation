@@ -62,6 +62,29 @@ export type HeatingSystemType = 'open_vented' | 'sealed' | 'unknown';
 /** Whether the primary pipework is accessible for inspection or replacement. */
 export type PipeworkAccess = 'accessible' | 'buried' | 'unknown';
 
+// ─── Cylinder (current installation) ─────────────────────────────────────────
+// Only relevant when heatSource is 'regular' or 'system' (i.e. a separate
+// cylinder is physically present).
+
+/** Age band of the existing hot-water cylinder. */
+export type CylinderAgeBand =
+  | 'under_5'
+  | '5_to_10'
+  | '10_to_15'
+  | 'over_15'
+  | 'unknown';
+
+/** Construction / insulation category of the existing cylinder. */
+export type CylinderInsulationType =
+  | 'modern_factory'   // factory-insulated, well-lagged
+  | 'foam_lagged'      // retro-fitted foam jacket
+  | 'copper_bare'      // bare or poorly-lagged copper
+  | 'mixergy'          // Mixergy smart cylinder
+  | 'unknown';
+
+/** Observed condition of the existing cylinder. */
+export type CylinderCondition = 'good' | 'average' | 'poor' | 'unknown';
+
 // ─── Asset health ─────────────────────────────────────────────────────────────
 
 export type SedbukBand = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'unknown';
@@ -135,6 +158,17 @@ export type SystemBuilderState = {
   circulationIssues: CirculationIssues | null;
   magneticFilter: MagneticFilter | null;
   cleaningHistory: CleaningHistory | null;
+  // ── Current cylinder (only when heatSource is 'regular' or 'system') ───────
+  /** Approximate age band of the existing hot-water cylinder. */
+  cylinderAgeBand: CylinderAgeBand | null;
+  /** Nominal volume of the existing cylinder in litres (leave null if unknown). */
+  cylinderVolumeL: number | null;
+  /** Construction / insulation type of the existing cylinder. */
+  cylinderInsulationType: CylinderInsulationType | null;
+  /** Observed condition of the existing cylinder. */
+  cylinderCondition: CylinderCondition | null;
+  /** Whether an immersion heater is fitted as backup. */
+  cylinderHasImmersion: boolean | null;
 };
 
 export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
@@ -156,4 +190,9 @@ export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
   circulationIssues: null,
   magneticFilter: null,
   cleaningHistory: null,
+  cylinderAgeBand: null,
+  cylinderVolumeL: null,
+  cylinderInsulationType: null,
+  cylinderCondition: null,
+  cylinderHasImmersion: null,
 };

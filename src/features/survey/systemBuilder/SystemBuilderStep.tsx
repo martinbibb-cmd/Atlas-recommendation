@@ -29,6 +29,9 @@ import type {
   CirculationIssues,
   MagneticFilter,
   CleaningHistory,
+  CylinderAgeBand,
+  CylinderInsulationType,
+  CylinderCondition,
 } from './systemBuilderTypes';
 import {
   getAllowedDhwTypes,
@@ -181,6 +184,31 @@ const CLEANING_HISTORY_OPTIONS: { value: CleaningHistory; label: string; descrip
   { value: 'cleaned_over_5_years_ago', label: 'Cleaned 5+ years ago',      description: 'System was cleaned but not recently' },
   { value: 'never_cleaned',            label: 'Never cleaned',             description: 'No record of any flush or chemical treatment' },
   { value: 'unknown',                  label: 'Unknown',                   description: '' },
+];
+
+// ─── Cylinder options ─────────────────────────────────────────────────────────
+
+const CYLINDER_AGE_BAND_OPTIONS: { value: CylinderAgeBand; label: string; description: string }[] = [
+  { value: 'under_5',   label: 'Under 5 years',  description: 'Relatively new cylinder' },
+  { value: '5_to_10',   label: '5–10 years',     description: '' },
+  { value: '10_to_15',  label: '10–15 years',    description: 'Starting to age — inspection recommended' },
+  { value: 'over_15',   label: 'Over 15 years',  description: 'Likely to need replacement in near term' },
+  { value: 'unknown',   label: 'Unknown',        description: '' },
+];
+
+const CYLINDER_INSULATION_OPTIONS: { value: CylinderInsulationType; label: string; description: string }[] = [
+  { value: 'modern_factory', label: 'Factory insulated', description: 'Modern cylinder with integral factory foam insulation' },
+  { value: 'foam_lagged',    label: 'Foam-lagged',       description: 'Retro-fitted foam jacket over copper cylinder' },
+  { value: 'copper_bare',    label: 'Bare copper',       description: 'Little or no insulation — high standing losses' },
+  { value: 'mixergy',        label: 'Mixergy',           description: 'Mixergy smart cylinder with top-down draw strategy' },
+  { value: 'unknown',        label: 'Unknown',           description: '' },
+];
+
+const CYLINDER_CONDITION_OPTIONS: { value: CylinderCondition; label: string; description: string }[] = [
+  { value: 'good',    label: 'Good',    description: 'No visible corrosion, leaks, or performance issues' },
+  { value: 'average', label: 'Average', description: 'Some signs of age but serviceable' },
+  { value: 'poor',    label: 'Poor',    description: 'Corrosion, leaks, or significant performance degradation observed' },
+  { value: 'unknown', label: 'Unknown', description: '' },
 ];
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -755,6 +783,137 @@ export function SystemBuilderStep({
         </div>
 
       </div>
+
+      {/* ── 9. Current cylinder (only for regular / system boilers) ─────────── */}
+      {(state.heatSource === 'regular' || state.heatSource === 'system') && (
+        <>
+          <p style={sectionHeadingStyle}>9 — Current cylinder</p>
+          <p style={{ fontSize: '0.75rem', color: '#718096', marginBottom: '0.75rem', marginTop: '-0.25rem' }}>
+            Record the existing hot-water cylinder to inform replacement sizing and any upgrade advice.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+
+            {/* 9a. Age band */}
+            <div>
+              <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0 0 0.35rem' }}>
+                Cylinder age
+              </p>
+              <div style={inlineRowStyle}>
+                {CYLINDER_AGE_BAND_OPTIONS.map(({ value, label, description }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-testid={`cylinder-age-band-${value}`}
+                    onClick={() => onChange({ ...state, cylinderAgeBand: value })}
+                    style={chipStyle(state.cylinderAgeBand === value)}
+                    title={description || undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 9b. Volume */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <label
+                htmlFor="cylinder-volume-l"
+                style={{ fontSize: '0.8rem', color: '#4a5568', minWidth: '120px' }}
+              >
+                Cylinder volume (L)
+              </label>
+              <input
+                id="cylinder-volume-l"
+                type="number"
+                min={60}
+                max={500}
+                step={5}
+                placeholder="e.g. 180"
+                value={state.cylinderVolumeL ?? ''}
+                onChange={e => {
+                  const v = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                  onChange({ ...state, cylinderVolumeL: v !== null && !isNaN(v) ? v : null });
+                }}
+                data-testid="cylinder-volume-l"
+                style={{
+                  width: '90px',
+                  padding: '0.3rem 0.5rem',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '6px',
+                  fontSize: '0.82rem',
+                }}
+              />
+              <span style={{ fontSize: '0.78rem', color: '#718096' }}>litres</span>
+            </div>
+
+            {/* 9c. Insulation type */}
+            <div>
+              <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+                Cylinder insulation / type
+              </p>
+              <div style={inlineRowStyle}>
+                {CYLINDER_INSULATION_OPTIONS.map(({ value, label, description }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-testid={`cylinder-insulation-${value}`}
+                    onClick={() => onChange({ ...state, cylinderInsulationType: value })}
+                    style={chipStyle(state.cylinderInsulationType === value)}
+                    title={description || undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 9d. Condition */}
+            <div>
+              <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+                Cylinder condition
+              </p>
+              <div style={inlineRowStyle}>
+                {CYLINDER_CONDITION_OPTIONS.map(({ value, label, description }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    data-testid={`cylinder-condition-${value}`}
+                    onClick={() => onChange({ ...state, cylinderCondition: value })}
+                    style={chipStyle(state.cylinderCondition === value)}
+                    title={description || undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 9e. Immersion heater */}
+            <div>
+              <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+                Immersion heater fitted?
+              </p>
+              <div style={inlineRowStyle}>
+                {([
+                  { value: true,  label: 'Yes — fitted',   testId: 'cylinder-immersion-yes' },
+                  { value: false, label: 'No — not fitted', testId: 'cylinder-immersion-no' },
+                ] as const).map(({ value, label, testId }) => (
+                  <button
+                    key={String(value)}
+                    type="button"
+                    data-testid={testId}
+                    onClick={() => onChange({ ...state, cylinderHasImmersion: value })}
+                    style={chipStyle(state.cylinderHasImmersion === value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </>
+      )}
 
       {/* ── Debug output ─────────────────────────────────────────────────────── */}
       {showDebugOutput && normalised && (

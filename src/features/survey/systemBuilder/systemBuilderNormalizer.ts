@@ -30,6 +30,9 @@ import type {
   PrimaryPipeSize,
   SedbukBand,
   DhwType,
+  CylinderAgeBand,
+  CylinderInsulationType,
+  CylinderCondition,
 } from './systemBuilderTypes';
 // ─── DHW pressure semantics ────────────────────────────────────────────────────
 
@@ -101,6 +104,17 @@ export type NormalisedCurrentSystem = {
       sedbukBand: string | null;
       serviceHistory: string | null;
     };
+    /**
+     * Current cylinder details — only present when a separate cylinder is
+     * physically part of the system (regular or system boiler).
+     */
+    cylinder?: {
+      ageBand: CylinderAgeBand | null;
+      volumeL: number | null;
+      insulationType: CylinderInsulationType | null;
+      condition: CylinderCondition | null;
+      hasImmersion: boolean | null;
+    };
     systemConditionSignals?: {
       bleedWaterColour: 'clear' | 'slightly_discoloured' | 'dark' | 'sludge' | 'unknown' | null;
       radiatorPerformance: 'all_even' | 'some_cold_spots' | 'many_cold' | null;
@@ -142,6 +156,10 @@ function normaliseSedbuk(band: SedbukBand | null): string | null {
  */
 export function normaliseSystemBuilder(state: SystemBuilderState): NormalisedCurrentSystem {
   const { pressureSource, pressureClass } = deriveDhwPressureSemantics(state.dhwType);
+
+  // A cylinder is present when the heat source is regular or system boiler.
+  const hasCylinder = state.heatSource === 'regular' || state.heatSource === 'system';
+
   return {
     currentSystem: {
       heatSourceType: state.heatSource,
@@ -162,6 +180,15 @@ export function normaliseSystemBuilder(state: SystemBuilderState): NormalisedCur
         sedbukBand: normaliseSedbuk(state.sedbukBand),
         serviceHistory: state.serviceHistory,
       },
+      ...(hasCylinder ? {
+        cylinder: {
+          ageBand: state.cylinderAgeBand,
+          volumeL: state.cylinderVolumeL,
+          insulationType: state.cylinderInsulationType,
+          condition: state.cylinderCondition,
+          hasImmersion: state.cylinderHasImmersion,
+        },
+      } : {}),
       systemConditionSignals: {
         bleedWaterColour: state.bleedWaterColour,
         radiatorPerformance: state.radiatorPerformance,

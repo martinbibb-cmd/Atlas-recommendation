@@ -12,6 +12,9 @@
  *   • Nominal heat source output (kW) — optional
  *   • Cylinder spec (type + volume) — optional, only for system/regular
  *   • Included upgrades (powerflush, filter, controls, etc.)
+ *   • Cylinder replacement vs reuse — for system/regular quotes
+ *   • Scope: like-for-like vs upgrade
+ *   • Warranty period in years — optional
  *
  * Design rules:
  *   - No pricing fields — quote comparison is physics-based, not cost-based
@@ -130,6 +133,9 @@ function makeBlankQuote(index: number): QuoteInput {
     heatSourceKw: undefined,
     cylinder: undefined,
     includedUpgrades: [],
+    warrantyYears: undefined,
+    isLikeForLike: undefined,
+    cylinderReplaced: undefined,
   };
 }
 
@@ -301,6 +307,69 @@ function QuoteEditor({ quote, index, canRemove, onChange, onRemove, defaultCylin
           </button>
         ))}
       </div>
+
+      {/* Cylinder replacement — only for system / regular quotes */}
+      {showCylinder && (
+        <>
+          <label style={{ ...labelStyle, marginTop: '0.85rem' }}>
+            Cylinder replacement
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {([
+              { value: true,  label: 'New cylinder included' },
+              { value: false, label: 'Reuse existing cylinder' },
+            ] as const).map(({ value, label }) => (
+              <button
+                key={String(value)}
+                type="button"
+                style={upgradeChipStyle(quote.cylinderReplaced === value)}
+                onClick={() => onChange({ ...quote, cylinderReplaced: value })}
+                aria-pressed={quote.cylinderReplaced === value}
+              >
+                {quote.cylinderReplaced === value ? '✓ ' : ''}{label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Like-for-like vs upgrade */}
+      <label style={{ ...labelStyle, marginTop: '0.85rem' }}>
+        Scope
+      </label>
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {([
+          { value: true,  label: 'Like-for-like replacement' },
+          { value: false, label: 'Upgrade / technology change' },
+        ] as const).map(({ value, label }) => (
+          <button
+            key={String(value)}
+            type="button"
+            style={upgradeChipStyle(quote.isLikeForLike === value)}
+            onClick={() => onChange({ ...quote, isLikeForLike: value })}
+            aria-pressed={quote.isLikeForLike === value}
+          >
+            {quote.isLikeForLike === value ? '✓ ' : ''}{label}
+          </button>
+        ))}
+      </div>
+
+      {/* Warranty */}
+      <label style={{ ...labelStyle, marginTop: '0.85rem' }} htmlFor={`quote-warranty-${index}`}>
+        Warranty period (years) — optional
+      </label>
+      <input
+        id={`quote-warranty-${index}`}
+        style={{ ...inputStyle, width: 90 }}
+        type="number"
+        min={1}
+        max={25}
+        step={1}
+        value={quote.warrantyYears ?? ''}
+        onChange={e => onChange({ ...quote, warrantyYears: e.target.value ? parseInt(e.target.value, 10) : undefined })}
+        placeholder="e.g. 10"
+        aria-label={`Warranty period (years) for Quote ${String.fromCharCode(65 + index)}`}
+      />
     </div>
   );
 }

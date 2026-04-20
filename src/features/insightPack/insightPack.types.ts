@@ -40,6 +40,19 @@ export interface QuoteInput {
   };
   /** Upgrade items included in this quote (e.g. "powerflush", "filter", "controls"). */
   includedUpgrades: string[];
+  /** Warranty period in years (optional — e.g. 2 for parts, 10 for extended). */
+  warrantyYears?: number;
+  /**
+   * Whether this quote is a like-for-like replacement of the existing system.
+   * False = upgrade (different technology or significant scope change).
+   */
+  isLikeForLike?: boolean;
+  /**
+   * For system/regular quotes only: whether the quote includes replacing the
+   * existing cylinder or reusing it.
+   * undefined = not specified / not applicable.
+   */
+  cylinderReplaced?: boolean;
 }
 
 // ─── Rating Bands ─────────────────────────────────────────────────────────────

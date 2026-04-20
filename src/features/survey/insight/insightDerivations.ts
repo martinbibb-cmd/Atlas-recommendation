@@ -630,3 +630,164 @@ export function deriveSystemRecommendations(
     return order[a.tier] - order[b.tier];
   });
 }
+
+// ─── Cylinder insight ─────────────────────────────────────────────────────────
+
+/**
+ * Adequacy assessment for the existing cylinder against occupancy demand.
+ * 'adequate'    → volume meets occupancy-based rule of thumb
+ * 'marginal'    → slightly undersized — may work but borderline
+ * 'undersized'  → clearly undersized for occupancy
+ * 'unknown'     → volume not captured
+ */
+export type CylinderAdequacy = 'adequate' | 'marginal' | 'undersized' | 'unknown';
+
+/**
+ * Replacement urgency derived from age band and condition.
+ * 'now'       → replacement likely needed in current job
+ * 'soon'      → should be planned within 2–3 years
+ * 'monitor'   → serviceable but age warrants monitoring
+ * 'not_needed' → relatively new and good condition
+ * 'unknown'   → insufficient data
+ */
+export type CylinderReplacementUrgency = 'now' | 'soon' | 'monitor' | 'not_needed' | 'unknown';
+
+export interface CylinderInsight {
+  /** Whether the current system has a cylinder. */
+  hasCylinder: boolean;
+  /** Volume adequacy relative to occupancy demand. */
+  volumeAdequacy: CylinderAdequacy;
+  /** Age-and-condition-derived replacement urgency. */
+  replacementUrgency: CylinderReplacementUrgency;
+  /** Whether the cylinder has an immersion backup. */
+  hasImmersion: boolean | null;
+  /** Plain-English summary for the insight page. */
+  summary: string;
+  /** Advice items derived from cylinder characteristics. */
+  advice: string[];
+}
+
+/**
+ * Derive cylinder insight from SystemBuilderState and occupancy.
+ *
+ * All logic is deterministic — no Math.random(), no arbitrary scoring.
+ */
+export function deriveCylinderInsight(
+  system: SystemBuilderState,
+  occupancyCount: number,
+): CylinderInsight {
+  const hasCylinder =
+    system.heatSource === 'regular' || system.heatSource === 'system';
+
+  if (!hasCylinder) {
+    return {
+      hasCylinder: false,
+      volumeAdequacy: 'unknown',
+      replacementUrgency: 'unknown',
+      hasImmersion: null,
+      summary: '',
+      advice: [],
+    };
+  }
+
+  // ── Volume adequacy ────────────────────────────────────────────────────────
+  const volumeL = system.cylinderVolumeL;
+  // Occupancy-based minimum volume rule of thumb: 45 L per person, min 120 L
+  const minAdequateL = Math.max(120, occupancyCount * 45);
+  const minMarginalL = Math.max(100, occupancyCount * 38);
+
+  let volumeAdequacy: CylinderAdequacy;
+  if (volumeL == null) {
+    volumeAdequacy = 'unknown';
+  } else if (volumeL >= minAdequateL) {
+    volumeAdequacy = 'adequate';
+  } else if (volumeL >= minMarginalL) {
+    volumeAdequacy = 'marginal';
+  } else {
+    volumeAdequacy = 'undersized';
+  }
+
+  // ── Replacement urgency ────────────────────────────────────────────────────
+  const ageBand = system.cylinderAgeBand;
+  const condition = system.cylinderCondition;
+
+  let replacementUrgency: CylinderReplacementUrgency;
+
+  if (ageBand == null && condition == null) {
+    replacementUrgency = 'unknown';
+  } else if (condition === 'poor' || ageBand === 'over_15') {
+    replacementUrgency = 'now';
+  } else if (
+    ageBand === '10_to_15' ||
+    (ageBand === '5_to_10' && condition === 'average') ||
+    condition === 'average'
+  ) {
+    replacementUrgency = 'soon';
+  } else if (ageBand === '5_to_10' && (condition === 'good' || condition == null)) {
+    replacementUrgency = 'monitor';
+  } else if (ageBand === 'under_5' && condition !== 'poor') {
+    replacementUrgency = 'not_needed';
+  } else {
+    replacementUrgency = 'monitor';
+  }
+
+  // ── Summary string ─────────────────────────────────────────────────────────
+  const ageLabel: Record<string, string> = {
+    under_5:  'under 5 years old',
+    '5_to_10': '5–10 years old',
+    '10_to_15': '10–15 years old',
+    over_15:  'over 15 years old',
+    unknown:  'age unknown',
+  };
+  const agePart = ageBand ? ageLabel[ageBand] ?? '' : 'age not recorded';
+  const volPart = volumeL ? `${volumeL} L` : 'volume not recorded';
+  // Determine supply mode from dhwType (authoritative pressure semantics)
+  // open_vented → tank-fed supply (gravity); unvented / thermal_store → mains-fed supply
+  const isOpenVented = system.dhwType === 'open_vented';
+  const supplyLabel = isOpenVented ? 'Tank-fed' : 'Mains-fed';
+  const summary = `${supplyLabel} hot-water cylinder — ${volPart}, ${agePart}.`;
+
+  // ── Advice ─────────────────────────────────────────────────────────────────
+  const advice: string[] = [];
+
+  if (volumeAdequacy === 'undersized') {
+    advice.push(
+      `Cylinder volume (${volumeL} L) is likely undersized for ${occupancyCount} occupants — a minimum of ${minAdequateL} L is recommended to avoid shortfalls at peak demand.`,
+    );
+  } else if (volumeAdequacy === 'marginal') {
+    advice.push(
+      `Cylinder volume (${volumeL} L) is borderline for ${occupancyCount} occupants — quotes for a larger cylinder should be considered.`,
+    );
+  }
+
+  if (replacementUrgency === 'now') {
+    advice.push(
+      'Cylinder condition or age suggests replacement should be included in any upgrade work — carrying over a failing or very old cylinder to a new system reduces reliability and negates efficiency gains.',
+    );
+  } else if (replacementUrgency === 'soon') {
+    advice.push(
+      'Cylinder is approaching the end of its typical service life — factor replacement planning into discussions even if not replacing now.',
+    );
+  }
+
+  if (system.cylinderInsulationType === 'copper_bare') {
+    advice.push(
+      'Uninsulated copper cylinder has high standing heat losses — adding a factory-foam replacement or fitting an insulation jacket will reduce energy waste.',
+    );
+  }
+
+  if (system.cylinderHasImmersion === false) {
+    advice.push(
+      'No immersion heater fitted — if the boiler fails, there is no backup heat source for the hot water. Including an immersion heater in any replacement cylinder is worth considering.',
+    );
+  }
+
+  return {
+    hasCylinder,
+    volumeAdequacy,
+    replacementUrgency,
+    hasImmersion: system.cylinderHasImmersion,
+    summary,
+    advice,
+  };
+}
