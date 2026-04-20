@@ -16,31 +16,14 @@ import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import {
   computeRecoveryTimeMins,
   computeUsableVolumeMixedL,
+  computeDailyDemandL,
   USABLE_FRACTION_STANDARD,
   USABLE_FRACTION_MIXERGY,
+  DEFAULT_BOILER_STORE_TEMP_C,
+  DEFAULT_HP_STORE_TEMP_C,
+  DEFAULT_COLD_WATER_TEMP_C,
+  DEFAULT_TAP_TARGET_TEMP_C,
 } from '../../engine/modules/CylinderSizingModule';
-
-// ─── Cylinder sizing constants (mirrored from CylinderSizingModule) ───────────
-// These match CylinderSizingModule constants exactly so sizing rationale in
-// the InsightPack is always consistent with the engine's own sizing output.
-
-/** Litres per person per day at tap target temperature (40 °C). */
-const INSIGHT_DEMAND_L_PER_PERSON = 55;
-
-/** Additional litres per extra bathroom beyond the first. */
-const INSIGHT_DEMAND_L_PER_EXTRA_BATH = 30;
-
-/** Default store temperature (°C) for a boiler-fed cylinder. */
-const INSIGHT_STORE_TEMP_BOILER_C = 60;
-
-/** Default store temperature (°C) for a heat-pump-fed cylinder. */
-const INSIGHT_STORE_TEMP_HP_C = 50;
-
-/** UK annual mean cold-water inlet temperature (°C). */
-const INSIGHT_COLD_WATER_TEMP_C = 10;
-
-/** Typical tap target (mixed) temperature (°C). */
-const INSIGHT_TAP_TARGET_TEMP_C = 40;
 import type {
   QuoteInput,
   InsightPack,
@@ -611,15 +594,14 @@ function buildCylinderSizingStatement(
   const bathrooms    = ctx?.bathroomCount  ?? 1;
   const heatSourceKw = quote.heatSourceKw;
 
-  // Store and cold-water temperatures — match CylinderSizingModule defaults
+  // Store and cold-water temperatures — use CylinderSizingModule defaults
   const isHp       = quote.systemType === 'ashp';
-  const storeTempC = isHp ? INSIGHT_STORE_TEMP_HP_C : INSIGHT_STORE_TEMP_BOILER_C;
-  const coldTempC  = INSIGHT_COLD_WATER_TEMP_C;
-  const tapTempC   = INSIGHT_TAP_TARGET_TEMP_C;
+  const storeTempC = isHp ? DEFAULT_HP_STORE_TEMP_C : DEFAULT_BOILER_STORE_TEMP_C;
+  const coldTempC  = DEFAULT_COLD_WATER_TEMP_C;
+  const tapTempC   = DEFAULT_TAP_TARGET_TEMP_C;
 
-  // Daily demand (same formula as CylinderSizingModule.computeDailyDemandL)
-  const extraBaths   = Math.max(0, bathrooms - 1);
-  const dailyDemandL = occupants * INSIGHT_DEMAND_L_PER_PERSON + extraBaths * INSIGHT_DEMAND_L_PER_EXTRA_BATH;
+  // Daily demand — uses CylinderSizingModule.computeDailyDemandL for consistency
+  const dailyDemandL = computeDailyDemandL(occupants, bathrooms);
 
   // Usable mixed volume at tap temperature (using CylinderSizingModule physics)
   const isMixergy = quote.cylinder?.type === 'mixergy';
