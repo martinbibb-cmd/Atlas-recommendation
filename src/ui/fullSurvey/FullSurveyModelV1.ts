@@ -103,6 +103,18 @@ export interface DhwConditionDiagnosticsV1 {
    * - 'unsure'  — not yet decided
    */
   dhwUpgradeIntent?: 'keep' | 'replace' | 'unsure';
+  /**
+   * Location where the hot water cylinder is (or will be) installed.
+   *
+   * Used by CylinderSizingModule to select the appropriate ambient temperature
+   * for standing-loss calculations.  Airing-cupboard installations run warmer
+   * (~20 °C) and have lower standing losses than unheated garage or basement
+   * installs (~10 °C).
+   *
+   * Ask: "Where is the cylinder located — airing cupboard, utility room, garage,
+   * or basement?"
+   */
+  cylinderInstallLocation?: 'airing_cupboard' | 'utility_room' | 'garage' | 'basement' | 'unknown';
 }
 
 /**

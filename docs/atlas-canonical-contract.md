@@ -157,6 +157,7 @@ Legend:
 | `currentCylinderPresent` | **derived** | bridged from `fullSurvey.dhwCondition.currentCylinderPresent` | engine |
 | `cylinderVolumeLitres` | **derived** | bridged from `fullSurvey.dhwCondition.currentCylinderVolumeLitres` | engine |
 | `cwsHeadMetres` | **derived** | bridged from `fullSurvey.dhwCondition.currentCwsHeadMetres` | engine |
+| `cylinderInstallLocation` | **derived** | bridged from `fullSurvey.dhwCondition.cylinderInstallLocation` | engine (CylinderSizingModule) |
 
 ### 3.7 Expert assumptions / preferences
 
@@ -198,6 +199,7 @@ The following fields are **always** derived by `sanitiseModelForEngine`. They mu
 | `currentCylinderPresent` | `fullSurvey.dhwCondition.currentCylinderPresent` | bridge in sanitiser |
 | `cylinderVolumeLitres` | `fullSurvey.dhwCondition.currentCylinderVolumeLitres` | bridge in sanitiser |
 | `cwsHeadMetres` | `fullSurvey.dhwCondition.currentCwsHeadMetres` | bridge in sanitiser |
+| `cylinderInstallLocation` | `fullSurvey.dhwCondition.cylinderInstallLocation` | bridge in sanitiser |
 
 ---
 

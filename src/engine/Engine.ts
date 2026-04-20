@@ -27,6 +27,7 @@ import { buildRecommendationsFromEvidence } from './recommendation/buildRecommen
 import type { CandidateEvidenceBundle } from './recommendation/RecommendationModel';
 import { runDemographicsAssessmentModule } from './modules/DemographicsAssessmentModule';
 import { runPvAssessmentModule } from './modules/PvAssessmentModule';
+import { runCylinderSizingModule } from './modules/CylinderSizingModule';
 import { ENGINE_MODULE_REGISTRY } from './modules/EngineModuleRegistry';
 
 /**
@@ -127,6 +128,7 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     condensingRuntime: result.efficiency.condensingRuntime,
     demographicOutputs: runDemographicsAssessmentModule(input),
     pvAssessment: runPvAssessmentModule(input),
+    cylinderSizingV1: runCylinderSizingModule(input),
   };
 
   // ── Step 5: Build evidence bundles for all candidate families ─────────────

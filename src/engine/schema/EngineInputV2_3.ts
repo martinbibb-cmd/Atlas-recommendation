@@ -395,6 +395,23 @@ export interface EngineInputV2_3 {
    * a 'high' severity requires more reserve volume for the same occupancy count.
    */
   simultaneousDrawSeverity?: 'low' | 'medium' | 'high';
+  /**
+   * Location where the hot water cylinder is (or will be) installed.
+   *
+   * Used by CylinderSizingModule to select the appropriate ambient temperature
+   * for standing-loss calculations.  An airing-cupboard cylinder operates in a
+   * warm (~20 °C) environment; a garage installation may see ambient temperatures
+   * as low as 5–10 °C in winter, increasing standing losses significantly.
+   *
+   *   'airing_cupboard' → ambient 20 °C (warm interior space)
+   *   'utility_room'    → ambient 16 °C (heated but not always warm)
+   *   'garage'          → ambient 10 °C (unheated; worst-case UK annual mean)
+   *   'basement'        → ambient 12 °C (cool, stable)
+   *   'unknown'         → ambient 15 °C (conservative default)
+   *
+   * Bridged from `fullSurvey.dhwCondition.cylinderInstallLocation` by sanitiseModelForEngine.
+   */
+  cylinderInstallLocation?: CylinderInstallLocation;
 
   // Building
   buildingMass: BuildingMass;
@@ -1118,6 +1135,138 @@ export interface CombiDhwV1Result {
    * Present only when mains flow data is available.
    */
   ignitionState?: 'firing' | 'below_ignition_threshold' | 'pressure_limited';
+}
+
+// ─── Cylinder Sizing Module ───────────────────────────────────────────────────
+
+/**
+ * Installation location of the hot water cylinder.
+ *
+ * Determines the ambient temperature for standing-loss calculations.
+ * Each location maps to an empirical ambient temperature used by CylinderSizingModule.
+ *
+ *   'airing_cupboard' — warm interior space, typically 18–22 °C
+ *   'utility_room'    — heated internal room, typically 14–18 °C
+ *   'garage'          — unheated, can fall to 5–10 °C in winter; full-year average ~10 °C
+ *   'basement'        — cool, relatively stable; typically 10–14 °C
+ *   'unknown'         — location not captured; module defaults to 15 °C (conservative)
+ */
+export type CylinderInstallLocation =
+  | 'airing_cupboard'
+  | 'utility_room'
+  | 'garage'
+  | 'basement'
+  | 'unknown';
+
+/** Structured flag item for CylinderSizingModule. */
+export interface CylinderSizingFlagItem {
+  id:
+    /** Current cylinder is undersized for the household demand profile. */
+    | 'sizing-undersized-for-demand'
+    /** Recovery time exceeds 60 minutes — long recovery gap risk. */
+    | 'sizing-recovery-slow'
+    /** Standing loss exceeds 2 kWh/24h — poor insulation or cold ambient. */
+    | 'sizing-standing-loss-high'
+    /** Mixergy-style stratification can deliver more usable hot water from a smaller cylinder. */
+    | 'sizing-mixergy-advantage'
+    /** Heat pump storage regime requires larger cylinder to compensate for lower store temperature. */
+    | 'sizing-hp-volume-uplift'
+    /** Heat source power unknown — recovery time estimate is based on assumed typical value. */
+    | 'sizing-no-heat-source-data'
+    /** Current cylinder performance is adequate for the demand profile. */
+    | 'sizing-current-adequate';
+  severity: 'info' | 'warn';
+  title: string;
+  detail: string;
+}
+
+/**
+ * Performance gauging of the existing (current) installed cylinder.
+ * Only present when `cylinderVolumeLitres` is provided on the engine input.
+ */
+export interface CylinderCurrentPerformance {
+  /** Nominal cylinder volume (litres) from the survey. */
+  nominalVolumeL: number;
+  /**
+   * Usable mixed hot-water volume (litres at tap target temperature).
+   *
+   * Accounts for the mixing ratio required to reach the tap target temperature
+   * and the practical usable fraction of the cylinder volume:
+   *   usableL = nominalVolumeL × usableFraction × (storeTempC − coldWaterTempC) / (tapTargetTempC − coldWaterTempC)
+   *
+   * A Mixergy-style cylinder has a higher usable fraction (~0.95 vs ~0.75).
+   */
+  usableVolumeMixedL: number;
+  /** Estimated full reheat time from cold (°C) to set-point (minutes). */
+  recoveryTimeMins: number;
+  /** Heat source power used to derive recovery time (kW). */
+  heatSourcePowerKw: number;
+  /** Whether the heat source power figure was from a measured input or assumed. */
+  heatSourcePowerSource: 'measured' | 'assumed';
+  /** Nominal standing heat loss under current installation conditions (watts). */
+  standingLossWatts: number;
+  /** Nominal standing heat loss across a 24-hour period (kWh/24h). */
+  standingLossKwhPer24h: number;
+  /** Ambient temperature assumed for the standing-loss calculation (°C). */
+  ambientTempC: number;
+  /** Overall size adequacy verdict for the current cylinder. */
+  sizeAdequacy: 'adequate' | 'marginal' | 'undersized';
+  /** Minimum adequate volume (litres) computed for this household's demand profile. */
+  minimumAdequateVolumeL: number;
+}
+
+/** Recommended cylinder specification produced by CylinderSizingModule. */
+export interface CylinderSizingRecommendation {
+  /**
+   * Recommended nominal cylinder volume (litres).
+   * Rounded up to the nearest standard UK size from the range:
+   * 120, 150, 180, 210, 250, 300 litres.
+   */
+  targetVolumeL: number;
+  /**
+   * Absolute minimum acceptable cylinder volume (litres) for this demand profile.
+   * Using a cylinder smaller than this will result in regular hot-water shortfalls.
+   */
+  minimumVolumeL: number;
+  /**
+   * Recommended cylinder construction type.
+   *
+   * 'standard'           — conventional indirect unvented or vented cylinder
+   * 'mixergy'            — Mixergy-style top-down stratification; smaller physical volume needed
+   * 'heat_pump_optimised'— large-coil heat pump cylinder; needed for ASHP storage
+   */
+  cylinderType: 'standard' | 'mixergy' | 'heat_pump_optimised';
+  /**
+   * Expected full recovery time at the recommended volume and assumed heat source (minutes).
+   * Based on: t = V × ΔT / (P_kW × 14.33)
+   */
+  expectedRecoveryTimeMins: number;
+  /**
+   * Expected standing loss for the recommended cylinder under the installation conditions (kWh/24h).
+   * Based on empirically-calibrated per-litre loss figures from the Megaflo Eco and Mixergy datasets.
+   */
+  expectedStandingLossKwhPer24h: number;
+  /**
+   * Usable mixed hot-water volume (litres at tap target temperature) for the recommended cylinder.
+   */
+  usableVolumeMixedL: number;
+  /** Key reasoning points explaining the recommendation. */
+  reasoning: string[];
+}
+
+/** Result returned by CylinderSizingModule. */
+export interface CylinderSizingResult {
+  /**
+   * Performance gauging of the current installed cylinder.
+   * Present when `cylinderVolumeLitres` is provided.
+   */
+  currentPerformance?: CylinderCurrentPerformance;
+  /** Sized recommendation for this household's demand profile and heat source. */
+  recommendation: CylinderSizingRecommendation;
+  /** Flags raised by the sizing and performance analysis. */
+  flags: CylinderSizingFlagItem[];
+  /** Assumption strings recording all physics defaults used. */
+  assumptions: string[];
 }
 
 /** Structured flag item for StoredDhwModuleV1. */
@@ -2010,6 +2159,20 @@ export interface FullEngineResultCore {
    * it must not be re-derived in UI components.
    */
   pvAssessment: import('../modules/PvAssessmentModule').PvAssessmentResult;
+  /**
+   * Physics-based cylinder sizing result.
+   *
+   * Gauges the performance of the current installed cylinder (when present) and
+   * recommends a scientifically-sized replacement or new cylinder, using the
+   * fundamental DHW recovery equation:
+   *   t (min) = V × ΔT / (P_kW × 14.33)
+   * and empirically-calibrated standing-loss figures from the Megaflo Eco and
+   * Mixergy product datasets.
+   *
+   * Always present — never undefined — because sizing physics apply regardless
+   * of whether a cylinder is currently installed.
+   */
+  cylinderSizingV1: import('../modules/CylinderSizingModule').CylinderSizingResult;
 }
 
 /** Full engine result including the canonical V1 output contract. */

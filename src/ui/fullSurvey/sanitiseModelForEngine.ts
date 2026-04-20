@@ -583,6 +583,11 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     ) {
       sanitised.cwsHeadMetres = dcc.currentCwsHeadMetres;
     }
+
+    // cylinderInstallLocation → engine field of the same name
+    if (sanitised.cylinderInstallLocation === undefined && dcc.cylinderInstallLocation !== undefined) {
+      sanitised.cylinderInstallLocation = dcc.cylinderInstallLocation;
+    }
   }
 
   // ── Boiler condition bridge ───────────────────────────────────────────────
