@@ -322,10 +322,28 @@ function rateReliability(
   }
 
   if (hasFlush && hasFilter) {
+    // Combi boilers have more wear-prone components (diverter valve, plate heat exchanger,
+    // flow sensor) than stored-system boilers. Reliability ceiling for combi is Very Good.
+    if (quote.systemType === 'combi') {
+      return makeRating(
+        'Very Good',
+        'Powerflush + magnetic filter included — good protection, though on-demand boilers have more wear-prone internal components than stored systems.',
+        'Combination boilers contain diverter valve, plate heat exchanger, and flow sensor — additional failure points vs system boiler. Flush + filter mitigates sludge risk but cannot address internal component wear.',
+      );
+    }
     return makeRating(
       'Excellent',
       'Powerflush + magnetic filter included — optimised for long-term reliability.',
       'Power flush clears existing magnetite sludge (restores up to 47% radiator output); filter prevents re-accumulation.',
+    );
+  }
+
+  // Combi: Very Good is the max when no flush/filter or warn flags present
+  if (quote.systemType === 'combi') {
+    return makeRating(
+      'Very Good',
+      'No significant reliability concerns — on-demand boiler suited to this home.',
+      'No fail-severity flags; combination boiler within normal operating parameters. Reliability capped at Very Good: diverter valve and plate heat exchanger add failure modes absent in stored systems.',
     );
   }
 
@@ -432,6 +450,16 @@ function checkRecommendationAlignment(quote: QuoteInput, primaryRec: string): bo
   }
 }
 
+// ─── System type ranking (for daily-use comparison statements) ────────────────
+
+/** Hot-water performance rank: higher = better simultaneous delivery. */
+const HW_PERFORMANCE_RANK: Record<QuoteInput['systemType'], number> = {
+  combi:   1,
+  regular: 2,
+  system:  3,
+  ashp:    3,
+};
+
 // ─── Daily use statements ─────────────────────────────────────────────────────
 
 function buildDailyUseStatements(
@@ -440,10 +468,24 @@ function buildDailyUseStatements(
   ctx?: InsightPackSurveyContext,
 ): DailyUseStatement[] {
   const statements: DailyUseStatement[] = [];
-  const behaviours = output.realWorldBehaviours ?? [];
 
-  // Map real-world behaviour cards to daily use statements
+  // engine realWorldBehaviours are generated for the recommended system class, not
+  // per-quote. Only use them when the quote's system type aligns with the
+  // recommended option — otherwise all quotes would show identical statements.
+  const behaviours = output.realWorldBehaviours ?? [];
+  const hasStored = quote.systemType !== 'combi';
+  const isAshp = quote.systemType === 'ashp';
+
   for (const card of behaviours) {
+    // Determine if this behaviour card is relevant for the current system type.
+    // Cards about simultaneous demand / stored recovery apply to stored systems;
+    // cards about on-demand single-outlet apply to combi.
+    const cardIsStoredContext = card.scenario_id === 'two_showers' || card.scenario_id === 'morning_peak' || card.scenario_id === 'recovery';
+    const cardIsCombiContext  = card.scenario_id === 'shower_and_tap' || card.scenario_id === 'pressure';
+
+    if (hasStored && cardIsCombiContext) continue;    // skip combi-specific cards for stored systems
+    if (!hasStored && cardIsStoredContext) continue;  // skip stored-specific cards for combi
+
     const isBadOutcome = card.recommended_option_outcome === 'poor' || card.recommended_option_outcome === 'limited';
     const isGoodOutcome = card.recommended_option_outcome === 'strong' || card.recommended_option_outcome === 'acceptable';
     const scenarioMap: Record<string, DailyUseStatement['scenario']> = {
@@ -455,16 +497,14 @@ function buildDailyUseStatements(
     };
     const scenario: DailyUseStatement['scenario'] = scenarioMap[card.scenario_id] ?? 'general';
 
-    if (isGoodOutcome) {
-      statements.push({ statement: card.summary, scenario });
-    } else if (isBadOutcome) {
+    if (isGoodOutcome || isBadOutcome) {
       statements.push({ statement: card.summary, scenario });
     }
   }
 
-  // Supplement with derived statements when engine behaviours are sparse
+  // Use derived fallback when engine behaviours don't cover this system type
   if (statements.length === 0) {
-    statements.push(...deriveFallbackDailyUse(quote, output, ctx));
+    statements.push(...deriveFallbackDailyUse(quote, output, ctx, isAshp));
   }
 
   return statements;
@@ -474,6 +514,7 @@ function deriveFallbackDailyUse(
   quote: QuoteInput,
   output: EngineOutputV1,
   ctx?: InsightPackSurveyContext,
+  isAshp?: boolean,
 ): DailyUseStatement[] {
   const statements: DailyUseStatement[] = [];
   const optionCard = findOptionCard(quote, output);
@@ -491,6 +532,13 @@ function deriveFallbackDailyUse(
       ? `With ${homeDesc} in this home, multiple taps and showers can run simultaneously without pressure drop.`
       : 'Multiple taps and showers can run simultaneously without pressure drop.';
     statements.push({ statement: simultaneousLine, scenario: 'simultaneous_draw' });
+
+    if (isAshp) {
+      statements.push({
+        statement: 'Heat pump heats water efficiently overnight at lower electricity tariff rates — cylinder is pre-charged ready for the day.',
+        scenario: 'efficiency',
+      });
+    }
 
     if (quote.cylinder?.type === 'mixergy') {
       statements.push({
@@ -575,11 +623,22 @@ function redFlagToLimitation(
 ): SystemLimitation | null {
   // Filter flags that aren't relevant to this system type
   const isCombi = quote.systemType === 'combi';
+  const isAshp = quote.systemType === 'ashp';
   const flagIsCombiSpecific = flag.id.startsWith('combi-');
   const flagIsStoredSpecific = flag.id.startsWith('stored-') || flag.id.startsWith('vented-') || flag.id.startsWith('unvented-');
+  const flagIsAshpSpecific = flag.id.startsWith('ashp-') || flag.id.startsWith('heat_pump-') || flag.id.includes('heat_pump');
 
   if (!isCombi && flagIsCombiSpecific) return null;
   if (isCombi && flagIsStoredSpecific) return null;
+  // ASHP-specific flags must only appear against ASHP quotes
+  if (!isAshp && flagIsAshpSpecific) return null;
+
+  // Hydraulic / fluid-dynamics flags represent property-level supply constraints.
+  // They are universal (true for all options) but only materially limit delivery
+  // for on-demand (combi) systems — stored cylinders buffer these constraints.
+  // Do not emit them as per-quote limitations for stored or ASHP options.
+  const flagIsHydraulicUniversal = flag.id.startsWith('hydraulic-') || flag.id.includes('fluid');
+  if (flagIsHydraulicUniversal && !isCombi) return null;
 
   const severityMap: Record<RedFlagItem['severity'], SystemLimitation['severity']> = {
     info: 'low',
@@ -1105,6 +1164,45 @@ export function buildInsightPackFromEngine(
       improvements: buildImprovements(quote, engineOutput),
     };
   });
+
+  // ── Post-process: add ranking comparison statements to dailyUse ─────────────
+  // When multiple system types are present, each quote gets a statement that
+  // shows how it ranks vs the alternatives on hot-water performance.
+  if (quoteInsights.length > 1) {
+    const distinctTypes = new Set(quoteInsights.map(qi => qi.quote.systemType));
+    if (distinctTypes.size > 1) {
+      for (const qi of quoteInsights) {
+        const rank = HW_PERFORMANCE_RANK[qi.quote.systemType];
+        const betterOptions = quoteInsights.filter(
+          other => other.quote.id !== qi.quote.id &&
+            HW_PERFORMANCE_RANK[other.quote.systemType] > rank,
+        );
+        const worseOptions = quoteInsights.filter(
+          other => other.quote.id !== qi.quote.id &&
+            HW_PERFORMANCE_RANK[other.quote.systemType] < rank,
+        );
+
+        if (betterOptions.length > 0) {
+          const betterLabels = betterOptions
+            .map(o => `${o.quote.label} (${systemLabel(o.quote.systemType)})`)
+            .join(', ');
+          qi.dailyUse.push({
+            statement: `Ranked below ${betterLabels} for simultaneous hot-water delivery — a stored cylinder handles multiple outlets simultaneously.`,
+            scenario: 'general',
+          });
+        }
+        if (worseOptions.length > 0) {
+          const worseLabels = worseOptions
+            .map(o => `${o.quote.label} (${systemLabel(o.quote.systemType)})`)
+            .join(', ');
+          qi.dailyUse.push({
+            statement: `Handles simultaneous hot-water demand better than ${worseLabels} — stored volume decouples delivery from the heat source.`,
+            scenario: 'general',
+          });
+        }
+      }
+    }
+  }
 
   const bestAdvice = buildBestAdvice(quoteInsights, engineOutput, currentSystem);
   const bestQuote = quoteInsights.find(qi => qi.quote.id === bestAdvice.recommendedQuoteId);

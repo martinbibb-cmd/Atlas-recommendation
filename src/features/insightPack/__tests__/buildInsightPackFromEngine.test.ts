@@ -225,9 +225,27 @@ describe('efficiency rating rules', () => {
 // ─── Reliability rules ────────────────────────────────────────────────────────
 
 describe('reliability rating rules', () => {
-  it('flush + filter included → Excellent reliability', () => {
+  it('system boiler with flush + filter → Excellent reliability', () => {
     const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [SYSTEM_QUOTE]);
     expect(pack.quotes[0].rating.reliability.rating).toBe('Excellent');
+  });
+
+  it('combi with flush + filter → Very Good (not Excellent — combi capped)', () => {
+    const combiWithFlushFilter: QuoteInput = {
+      ...COMBI_QUOTE,
+      includedUpgrades: ['powerflush', 'filter'],
+    };
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [combiWithFlushFilter]);
+    expect(pack.quotes[0].rating.reliability.rating).toBe('Very Good');
+  });
+
+  it('combi reliability is never Excellent regardless of upgrades', () => {
+    const combiAllUpgrades: QuoteInput = {
+      ...COMBI_QUOTE,
+      includedUpgrades: ['powerflush', 'filter', 'controls', 'trvs'],
+    };
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [combiAllUpgrades]);
+    expect(pack.quotes[0].rating.reliability.rating).not.toBe('Excellent');
   });
 
   it('fail-severity red flag → Needs Right Setup reliability', () => {
@@ -243,6 +261,69 @@ describe('reliability rating rules', () => {
     });
     const pack = buildInsightPackFromEngine(output, [COMBI_QUOTE]);
     expect(pack.quotes[0].rating.reliability.rating).toBe('Needs Right Setup');
+  });
+
+  it('ASHP-specific red flags do not appear as limitations for combi quotes', () => {
+    const output = makeMinimalEngineOutput({
+      redFlags: [
+        {
+          id: 'ashp-radiator-undersized',
+          severity: 'fail',
+          title: 'Radiators undersized for heat pump flow temperature',
+          detail: 'Requires upsizing.',
+        },
+      ],
+    });
+    const pack = buildInsightPackFromEngine(output, [COMBI_QUOTE]);
+    const ashpLimitations = pack.quotes[0].limitations.filter(l =>
+      l.message.toLowerCase().includes('radiator') || l.message.toLowerCase().includes('heat pump'),
+    );
+    expect(ashpLimitations).toHaveLength(0);
+  });
+
+  it('ASHP-specific red flags appear for ASHP quotes', () => {
+    const output = makeMinimalEngineOutput({
+      redFlags: [
+        {
+          id: 'ashp-radiator-undersized',
+          severity: 'fail',
+          title: 'Radiators undersized for heat pump flow temperature',
+          detail: 'Requires upsizing.',
+        },
+      ],
+    });
+    const pack = buildInsightPackFromEngine(output, [ASHP_QUOTE]);
+    expect(pack.quotes[0].limitations.length).toBeGreaterThan(0);
+  });
+
+  it('hydraulic flags do not appear as limitations for stored system quotes', () => {
+    const output = makeMinimalEngineOutput({
+      redFlags: [
+        {
+          id: 'hydraulic-high-flow-velocity',
+          severity: 'warn',
+          title: 'High flow velocity detected in primary pipework',
+          detail: 'Velocity exceeds 1.5 m/s.',
+        },
+      ],
+    });
+    const pack = buildInsightPackFromEngine(output, [SYSTEM_QUOTE]);
+    expect(pack.quotes[0].limitations).toHaveLength(0);
+  });
+
+  it('hydraulic flags appear for combi quotes', () => {
+    const output = makeMinimalEngineOutput({
+      redFlags: [
+        {
+          id: 'hydraulic-high-flow-velocity',
+          severity: 'warn',
+          title: 'High flow velocity detected in primary pipework',
+          detail: 'Velocity exceeds 1.5 m/s.',
+        },
+      ],
+    });
+    const pack = buildInsightPackFromEngine(output, [COMBI_QUOTE]);
+    expect(pack.quotes[0].limitations.length).toBeGreaterThan(0);
   });
 });
 
@@ -331,6 +412,36 @@ describe('daily use statements', () => {
     for (const item of pack.quotes[0].dailyUse) {
       expect(item.statement.length).toBeGreaterThan(0);
     }
+  });
+
+  it('when combi and system are compared, system gets a ranking advantage statement', () => {
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [
+      COMBI_QUOTE, SYSTEM_QUOTE,
+    ]);
+    const systemQuote = pack.quotes.find(qi => qi.quote.systemType === 'system')!;
+    const rankingStatement = systemQuote.dailyUse.find(d =>
+      d.statement.toLowerCase().includes('better') || d.statement.toLowerCase().includes('ranked'),
+    );
+    expect(rankingStatement).toBeDefined();
+  });
+
+  it('when combi and system are compared, combi gets a lower-rank statement', () => {
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [
+      COMBI_QUOTE, SYSTEM_QUOTE,
+    ]);
+    const combiQuote = pack.quotes.find(qi => qi.quote.systemType === 'combi')!;
+    const rankingStatement = combiQuote.dailyUse.find(d =>
+      d.statement.toLowerCase().includes('ranked') || d.statement.toLowerCase().includes('stored cylinder'),
+    );
+    expect(rankingStatement).toBeDefined();
+  });
+
+  it('single-quote packs do not add ranking comparison statements', () => {
+    const pack = buildInsightPackFromEngine(makeMinimalEngineOutput(), [COMBI_QUOTE]);
+    const rankingStatements = pack.quotes[0].dailyUse.filter(d =>
+      d.statement.toLowerCase().includes('ranked'),
+    );
+    expect(rankingStatements).toHaveLength(0);
   });
 });
 

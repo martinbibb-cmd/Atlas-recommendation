@@ -14,6 +14,9 @@
  *  10. Why Atlas suggested this
  *  11. Next steps
  *
+ * A "Print as PDF" button on the last slide triggers window.print().
+ * @media print styles in InsightPackPrint.css render all panels stacked.
+ *
  * Pure presentation — no physics logic.
  * All data must be pre-built by buildInsightPackFromEngine().
  */
@@ -32,6 +35,7 @@ import SavingsPanel from './SavingsPanel';
 import WhyAtlasSuggestedThis from './WhyAtlasSuggestedThis';
 import NextStepsCard from './NextStepsCard';
 import './InsightPackDeck.css';
+import './InsightPackPrint.css';
 
 interface Props {
   pack: InsightPack;
@@ -59,6 +63,7 @@ type SlideId = typeof SLIDES[number]['id'];
 
 export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props) {
   const [activeSlide, setActiveSlide] = useState<SlideId>('cover');
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const currentIndex = SLIDES.findIndex(s => s.id === activeSlide);
 
@@ -72,6 +77,15 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
 
   function goNext() {
     if (currentIndex < SLIDES.length - 1) setActiveSlide(SLIDES[currentIndex + 1].id);
+  }
+
+  function handlePrint() {
+    setIsPrinting(true);
+    // Allow React to re-render with all-panels visible before triggering print
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+    }, 100);
   }
 
   function renderPanel() {
@@ -114,7 +128,10 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
   }
 
   return (
-    <div className="insight-deck" data-testid="insight-pack-deck">
+    <div
+      className={`insight-deck${isPrinting ? ' insight-deck--printing' : ''}`}
+      data-testid="insight-pack-deck"
+    >
       {/* Slide navigation */}
       <nav className="insight-deck__nav" role="tablist" aria-label="Insight Pack sections">
         {SLIDES.map(slide => (
@@ -130,9 +147,54 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
         ))}
       </nav>
 
-      {/* Active panel */}
+      {/* Active panel (screen view) */}
       <div className="insight-deck__panel" role="tabpanel">
         {renderPanel()}
+      </div>
+
+      {/* All panels stacked — visible only when printing */}
+      <div className="insight-deck__all-panels" style={{ display: 'none' }}>
+        <div className="insight-deck__print-section">
+          <CoverHeroCard
+            quotes={pack.quotes}
+            bestAdvice={pack.bestAdvice}
+            currentSystem={pack.currentSystem}
+            propertyTitle={propertyTitle}
+          />
+        </div>
+        <div className="insight-deck__print-section">
+          <WhatWeKnowGrid tiles={pack.homeProfile} />
+        </div>
+        <div className="insight-deck__print-section">
+          <QuoteComparisonCard quotes={pack.quotes} bestAdvice={pack.bestAdvice} />
+        </div>
+        <div className="insight-deck__print-section">
+          <BestAdvicePanel bestAdvice={pack.bestAdvice} />
+        </div>
+        <div className="insight-deck__print-section">
+          <DailyUsePanel quotes={pack.quotes} />
+        </div>
+        <div className="insight-deck__print-section">
+          <RatingsPanel quotes={pack.quotes} />
+        </div>
+        <div className="insight-deck__print-section">
+          <LimitationsPanel quotes={pack.quotes} />
+        </div>
+        <div className="insight-deck__print-section">
+          <ImprovementsPanel quotes={pack.quotes} />
+        </div>
+        <div className="insight-deck__print-section">
+          <SavingsPanel savingsPlan={pack.savingsPlan} />
+        </div>
+        <div className="insight-deck__print-section">
+          <WhyAtlasSuggestedThis reasonChain={pack.reasonChain} />
+        </div>
+        <div className="insight-deck__print-section">
+          <NextStepsCard
+            nextSteps={pack.nextSteps}
+            onReview={() => goTo('overview')}
+          />
+        </div>
       </div>
 
       {/* Footer prev / next */}
@@ -148,14 +210,25 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
         <span className="insight-deck__page-indicator">
           {currentIndex + 1} / {SLIDES.length}
         </span>
-        {currentIndex === SLIDES.length - 1 && onClose ? (
-          <button
-            className="insight-deck__footer-btn insight-deck__footer-btn--done"
-            onClick={onClose}
-            aria-label="Close presentation"
-          >
-            ✓ Done
-          </button>
+        {currentIndex === SLIDES.length - 1 ? (
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              className="insight-deck__footer-btn insight-deck__print-btn"
+              onClick={handlePrint}
+              aria-label="Print as PDF"
+            >
+              🖨️ Print as PDF
+            </button>
+            {onClose && (
+              <button
+                className="insight-deck__footer-btn insight-deck__footer-btn--done"
+                onClick={onClose}
+                aria-label="Close presentation"
+              >
+                ✓ Done
+              </button>
+            )}
+          </div>
         ) : (
           <button
             className="insight-deck__footer-btn"

@@ -11,6 +11,7 @@ import { ServicesStep } from '../../features/survey/services/ServicesStep';
 import { INITIAL_WATER_QUALITY_STATE } from '../../features/survey/services/waterQualityTypes';
 import { UsageStep } from '../../features/survey/usage/UsageStep';
 import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
+import { deriveHomeSummary } from '../../features/survey/usage/usageRules';
 import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep';
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
@@ -439,6 +440,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onChange={setQuotesState}
           onNext={next}
           onPrev={prev}
+          occupancyCount={deriveHomeSummary(usageState).occupancyCount}
         />
       )}
 
