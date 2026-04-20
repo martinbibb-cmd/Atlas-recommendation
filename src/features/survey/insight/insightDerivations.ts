@@ -725,7 +725,7 @@ export function deriveCylinderInsight(
     replacementUrgency = 'soon';
   } else if (ageBand === '5_to_10' && (condition === 'good' || condition == null)) {
     replacementUrgency = 'monitor';
-  } else if (ageBand === 'under_5' && condition !== 'poor') {
+  } else if (ageBand === 'under_5') {
     replacementUrgency = 'not_needed';
   } else {
     replacementUrgency = 'monitor';
