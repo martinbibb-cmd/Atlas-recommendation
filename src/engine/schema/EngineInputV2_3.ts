@@ -2173,7 +2173,7 @@ export interface FullEngineResultCore {
    * Always present — never undefined — because sizing physics apply regardless
    * of whether a cylinder is currently installed.
    */
-  cylinderSizingV1: import('../modules/CylinderSizingModule').CylinderSizingResult;
+  cylinderSizingV1: CylinderSizingResult;
 }
 
 /** Full engine result including the canonical V1 output contract. */

@@ -94,9 +94,9 @@ describe('useDrawOffPlayback — idle state', () => {
     expect(result.outletStates.every(o => !o.open)).toBe(true)
   })
 
-  it('returns three outlet slots even when all are idle', () => {
+  it('returns four outlet slots even when all are idle', () => {
     const result = useDrawOffPlayback(combiIdle())
-    expect(result.outletStates).toHaveLength(3)
+    expect(result.outletStates).toHaveLength(4)
   })
 })
 
