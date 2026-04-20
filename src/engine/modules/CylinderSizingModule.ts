@@ -13,8 +13,8 @@ import type {
  * Specific heat capacity of water times density: 1 kg/L × 4186 J/(kg·°C).
  * Combined into a single constant for the recovery-time formula:
  *   t_min = V × ΔT / (P_kW × RECOVERY_DIVISOR)
- * where RECOVERY_DIVISOR = 3 600 s/h × P_kW / 60 s/min × (1/4.186 kJ/kWh × 1000)
- *       ≈ 14.33 L·°C / (kW·min)
+ * where RECOVERY_DIVISOR = (3600 s/h) / (4.186 kJ/(kg·°C) × 1.0 kg/L × 60 s/min × 1 kJ/kWh-equivalent)
+ *   = 3600 / (4.186 × 60) = 3600 / 251.16 ≈ 14.33   [L·°C / (kW·min)]
  */
 const RECOVERY_DIVISOR = 14.33;
 
@@ -138,6 +138,8 @@ const USABLE_FRACTION_MIXERGY = 0.95;
  * Standard UK hot-water cylinder nominal volumes (litres).
  * The sizing module rounds the calculated minimum up to the next size in this list
  * so that the recommendation corresponds to a real purchasable product.
+ * Includes 400 L to cover large households and heat-pump-optimised cylinders
+ * (e.g. Gledhill HP400, suitable for 5+ occupants in ASHP systems).
  */
 const STANDARD_CYLINDER_SIZES_L = [120, 150, 180, 210, 250, 300, 400] as const;
 
@@ -327,11 +329,23 @@ function resolveCylinderTypeFactors(
 // ─── Minimum volume formula ───────────────────────────────────────────────────
 
 /**
+ * Compute the daily hot-water demand (litres at tap target temperature).
+ *   Demand = occupancyCount × 55 L + extraBathroomCount × 30 L
+ */
+function computeDailyDemandL(occupancyCount: number, bathroomCount: number): number {
+  const extraBathroomCount = Math.max(0, bathroomCount - 1);
+  return (
+    occupancyCount * DEMAND_L_PER_PERSON_PER_DAY +
+    extraBathroomCount * DEMAND_L_PER_EXTRA_BATHROOM
+  );
+}
+
+/**
  * Compute the minimum cylinder nominal volume (litres) required to satisfy the
  * household's daily hot-water demand.
  *
  * Algorithm:
- *   1. Daily demand (at tap target temp) = occupants × 50L + extra bathrooms × 20L
+ *   1. Daily demand (at tap target temp) = occupants × 55L + extra bathrooms × 30L
  *   2. Required hot volume = dailyDemand × (tapDelta / storeDelta)
  *      — the volume that must be stored at store temperature to produce that demand
  *   3. Minimum cylinder = requiredHot / usableFraction
@@ -364,10 +378,7 @@ function computeMinimumCylinderVolumeL(params: {
 
   if (tapDelta <= 0 || storeDelta <= 0 || usableFraction <= 0) return 120;
 
-  const extraBathrooms = Math.max(0, bathroomCount - 1);
-  const dailyDemandL   =
-    occupancyCount * DEMAND_L_PER_PERSON_PER_DAY +
-    extraBathrooms  * DEMAND_L_PER_EXTRA_BATHROOM;
+  const dailyDemandL = computeDailyDemandL(occupancyCount, bathroomCount);
 
   // Hot volume required at store temperature
   const requiredHotL = dailyDemandL * (tapDelta / storeDelta);
@@ -528,8 +539,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
 
   // ── Recommendation reasoning ───────────────────────────────────────────────
   const reasoning: string[] = [];
-  const dailyDemandL = occupancyCount * DEMAND_L_PER_PERSON_PER_DAY +
-    Math.max(0, bathroomCount - 1) * DEMAND_L_PER_EXTRA_BATHROOM;
+  const dailyDemandL = computeDailyDemandL(occupancyCount, bathroomCount);
 
   reasoning.push(
     `Estimated daily hot-water demand: ${dailyDemandL} L at ${tapTargetTempC} °C ` +
@@ -770,6 +780,7 @@ export {
   computeUsableVolumeMixedL,
   computeStandingLossW,
   computeMinimumCylinderVolumeL,
+  computeDailyDemandL,
   roundUpToStandardSize,
   RECOVERY_DIVISOR,
   WATER_DENSITY_KG_PER_L,

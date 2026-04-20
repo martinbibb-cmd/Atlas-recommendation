@@ -336,6 +336,7 @@ Physics-based cylinder performance gauging and sizing recommendation.  Uses the 
 | Per-person daily demand | 55 L/day at 40 °C | CIBSE Guide G / MCS CH-I-06 |
 | Per extra bathroom | 30 L/day at 40 °C | Independent draw-point allowance |
 | Simultaneous-draw reserve | ×1.00 / ×1.15 / ×1.30 | low / medium / high severity |
+| Standard cylinder sizes | 120, 150, 180, 210, 250, 300, 400 L | 400 L for large HP systems |
 
 ### `CylinderInstallLocation` → ambient temperature map
 

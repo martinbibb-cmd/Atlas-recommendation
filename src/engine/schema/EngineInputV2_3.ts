@@ -1220,7 +1220,8 @@ export interface CylinderSizingRecommendation {
   /**
    * Recommended nominal cylinder volume (litres).
    * Rounded up to the nearest standard UK size from the range:
-   * 120, 150, 180, 210, 250, 300 litres.
+   * 120, 150, 180, 210, 250, 300, 400 litres.
+   * 400 L is reserved for large households and heat-pump-optimised systems.
    */
   targetVolumeL: number;
   /**
