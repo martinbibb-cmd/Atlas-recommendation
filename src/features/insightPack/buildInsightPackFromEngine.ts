@@ -746,9 +746,21 @@ function redFlagToLimitation(
   // Filter flags that aren't relevant to this system type
   const isCombi = quote.systemType === 'combi';
   const isAshp = quote.systemType === 'ashp';
-  const flagIsCombiSpecific = flag.id.startsWith('combi-');
-  const flagIsStoredSpecific = flag.id.startsWith('stored-') || flag.id.startsWith('vented-') || flag.id.startsWith('unvented-');
-  const flagIsAshpSpecific = flag.id.startsWith('ashp-') || flag.id.startsWith('heat_pump-') || flag.id.includes('heat_pump');
+  const flagText = `${flag.id} ${flag.title} ${flag.detail}`.toLowerCase();
+  const flagIsCombiSpecific =
+    flag.id.startsWith('combi-') ||
+    flagText.includes('combi');
+  const flagIsStoredSpecific =
+    flag.id.startsWith('stored-') ||
+    flag.id.startsWith('vented-') ||
+    flag.id.startsWith('unvented-') ||
+    flagText.includes('stored');
+  const flagIsAshpSpecific =
+    flag.id.startsWith('ashp-') ||
+    flag.id.startsWith('heat_pump-') ||
+    flag.id.includes('heat_pump') ||
+    flagText.includes('ashp') ||
+    flagText.includes('heat pump');
 
   if (!isCombi && flagIsCombiSpecific) return null;
   if (isCombi && flagIsStoredSpecific) return null;
@@ -759,7 +771,11 @@ function redFlagToLimitation(
   // They are universal (true for all options) but only materially limit delivery
   // for on-demand (combi) systems — stored cylinders buffer these constraints.
   // Do not emit them as per-quote limitations for stored or ASHP options.
-  const flagIsPropertyLevelHydraulic = flag.id.startsWith('hydraulic-') || flag.id.includes('fluid');
+  const flagIsPropertyLevelHydraulic =
+    flag.id.startsWith('hydraulic-') ||
+    flag.id.includes('fluid') ||
+    flagText.includes('hydraulic') ||
+    flagText.includes('velocity penalty');
   if (flagIsPropertyLevelHydraulic && !isCombi) return null;
 
   const severityMap: Record<RedFlagItem['severity'], SystemLimitation['severity']> = {

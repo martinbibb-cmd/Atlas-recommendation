@@ -332,6 +332,24 @@ describe('reliability rating rules', () => {
     expect(ashpLimitations).toHaveLength(0);
   });
 
+  it('ASHP text-only red flags do not appear for non-ASHP quotes', () => {
+    const output = makeMinimalEngineOutput({
+      redFlags: [
+        {
+          id: 'flag-0',
+          severity: 'warn',
+          title: 'ASHP Flagged',
+          detail: '22mm primary pipework with 16.5kW heat loss can restrict heat pump flow.',
+        },
+      ],
+    });
+    const systemPack = buildInsightPackFromEngine(output, [SYSTEM_QUOTE]);
+    const combiPack = buildInsightPackFromEngine(output, [COMBI_QUOTE]);
+
+    expect(systemPack.quotes[0].limitations).toHaveLength(0);
+    expect(combiPack.quotes[0].limitations).toHaveLength(0);
+  });
+
   it('ASHP-specific red flags appear for ASHP quotes', () => {
     const output = makeMinimalEngineOutput({
       redFlags: [
