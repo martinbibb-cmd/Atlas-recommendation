@@ -143,7 +143,6 @@ describe('applyCombiSwitchInputs', () => {
     storedType: 'unvented',
     season: 'typical',
     dhwMode: 'normal',
-    showerPreset: 'mixer',
     combiKw: 30,
     propertyType: 'medium_house',
     showersPerDay: 2,

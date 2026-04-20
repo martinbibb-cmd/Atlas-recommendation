@@ -41,7 +41,6 @@ export const flagshipDemoScenario: StoryScenario<CombiSwitchInputs> = {
     'storedType',
     'season',
     'dhwMode',
-    'showerPreset',
     'combiKw',
     'propertyType',
     'showersPerDay',
@@ -64,7 +63,6 @@ export const flagshipDemoScenario: StoryScenario<CombiSwitchInputs> = {
     // Winter season surfaces worst-case DHW recovery times.
     season: 'winter',
     dhwMode: 'normal',
-    showerPreset: 'mixer',
     // 28 kW combi: typical mid-range, enough to highlight the simultaneous limit.
     combiKw: 28,
     propertyType: 'medium_house',
