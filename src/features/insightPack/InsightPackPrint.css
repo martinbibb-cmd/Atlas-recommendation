@@ -5,23 +5,25 @@
  * Applied only under @media print — invisible in normal browser view.
  *
  * Strategy:
- *   - Hide the navigation bar and footer controls.
- *   - Only the key pages are printed to minimise ink usage:
- *       1. Cover
- *       2. Best Advice
- *       3. Limitations
- *       4. Improvements
- *       5. Next Steps
- *   - All coloured backgrounds are replaced with white / light-grey borders
- *     to avoid heavy ink / toner coverage on printed output.
- *   - Rating chips, limitation cards, and section backgrounds print as
- *     outlined text-only variants rather than filled colour blocks.
+ *   - All 11 slides are printed, matching the on-screen stepper exactly.
+ *   - Slides are paired 1-2 per A4 page to minimise paper usage:
+ *       Page 1: Cover + What We Know
+ *       Page 2: Options + Best Advice
+ *       Page 3: Daily Use + Ratings
+ *       Page 4: Limitations + Improvements
+ *       Page 5: Savings + Why Atlas
+ *       Page 6: Next Steps
+ *   - Brand colours are kept for identity and readability — heavy filled
+ *     area backgrounds are removed to reduce ink/toner coverage.
+ *   - Rating chips, limitation badges, and section headings retain their
+ *     colour but large background panels print as white with a thin border.
  */
 
 /* ── Print-only data attributes on the print-section divs ────────────────────
    The InsightPackDeck wraps each section in:
      <div class="insight-deck__print-section" data-slide="<slide-id>">
-   We use these data attributes to show only the key slides in print.          */
+   Sections marked --page-start break to a new page; the following section
+   flows onto the same page (1-2 slides per page).                           */
 
 @media print {
   /* Hide chrome we don't want in the PDF */
@@ -42,34 +44,32 @@
     display: none !important;
   }
 
-  /* Hide non-essential slides — only print the 5 key pages */
-  .insight-deck__print-section[data-slide="what-we-know"],
-  .insight-deck__print-section[data-slide="overview"],
-  .insight-deck__print-section[data-slide="daily-use"],
-  .insight-deck__print-section[data-slide="ratings"],
-  .insight-deck__print-section[data-slide="savings"],
-  .insight-deck__print-section[data-slide="why-atlas"] {
-    display: none !important;
+  /* All sections visible — no slides are hidden in print */
+  .insight-deck__print-section {
+    display: block !important;
+    padding: 1rem 1.25rem;
+    break-inside: avoid-page;
   }
 
-  /* Each visible section starts on a new page */
-  .insight-deck__print-section {
+  /* Sections marked --page-start open a new page (every pair of slides) */
+  .insight-deck__print-section--page-start {
     page-break-before: always;
     break-before: page;
-    padding: 1.5rem;
   }
 
-  .insight-deck__print-section:first-child {
+  /* First page-start section never triggers a forced break */
+  .insight-deck__print-section--page-start:first-child {
     page-break-before: auto;
     break-before: auto;
   }
 
-  /* ── Ink-saving colour overrides ────────────────────────────────────────────
-     Replace all coloured backgrounds with white.
-     Use border outlines instead of filled chips.
-     Keep dark text for readability.                                          */
+  /* ── Ink-saving overrides — keep colours, remove heavy filled panels ────────
+     Brand accent colours (green, blue, amber) are preserved on text and
+     small elements such as chips, badges, and heading borders.
+     Large area backgrounds are replaced with white + a 1 px grey border
+     so that section structure is still visible without heavy toner use.     */
 
-  /* Reset any blue/coloured deck backgrounds */
+  /* Remove coloured deck shell backgrounds */
   .insight-deck,
   .insight-deck__all-panels {
     background: #fff !important;
@@ -77,59 +77,54 @@
     border-radius: 0 !important;
   }
 
-  /* Remove coloured section backgrounds — white with a thin grey border */
-  [class*="best-advice"],
-  [class*="limitations"],
-  [class*="improvements"],
-  [class*="next-steps"],
-  [class*="cover-hero"],
-  [class*="ratings"],
-  [class*="daily-use"],
-  [class*="savings"] {
+  /* Large filled area panels → white with a thin border, keep text colours */
+  .cover-hero,
+  .best-advice__rec-card,
+  [class*="what-we-know"],
+  [class*="savings__"],
+  [class*="why-atlas"] {
     background: #fff !important;
+    border: 1px solid #d1d5db !important;
+    box-shadow: none !important;
   }
 
-  /* Rating chips: border-only variant — no filled background */
+  /* Rating chips: keep colour text, remove filled background */
   [class*="rating-chip"],
-  [class*="band-chip"],
+  [class*="band-chip"] {
+    background: transparent !important;
+    border: 1px solid currentColor !important;
+  }
+
+  /* Cover chips: keep coloured text, minimal background */
   [class*="cover-chip"] {
-    background: #fff !important;
-    border: 1px solid #555 !important;
-    color: #111 !important;
+    background: #f9fafb !important;
+    border: 1px solid #d1d5db !important;
   }
 
-  /* Best-advice recommendation card: light outline instead of blue fill */
-  .best-advice__rec-card {
-    background: #fff !important;
-    border: 1.5px solid #333 !important;
-  }
-  .best-advice__rec-eyebrow,
-  .best-advice__rec-text {
-    color: #111 !important;
-  }
-
-  /* Limitation items: no coloured background */
+  /* Limitation items: keep left-colour indicator, white background */
   [class*="limitation-item"],
   [class*="limitation__card"] {
     background: #fff !important;
-    border-left: 3px solid #555 !important;
   }
 
-  /* Improvement items */
-  [class*="improvement-item"] {
+  /* Improvement cards: white background, keep header accent colours */
+  [class*="improvement-card"] {
     background: #fff !important;
-    border: 1px solid #bbb !important;
+    border: 1px solid #e5e7eb !important;
   }
 
   /* General typography */
   body {
-    font-size: 11pt;
+    font-size: 10.5pt;
     color: #111;
   }
 
-  h1, h2, h3 {
-    color: #000 !important;
+  /* Keep heading colours for section identity */
+  h2 {
+    font-size: 13pt;
   }
 
-  /* Do NOT force colour-exact backgrounds — rely on ink-saving overrides above */
+  h3 {
+    font-size: 11pt;
+  }
 }
