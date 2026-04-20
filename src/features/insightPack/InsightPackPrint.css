@@ -6,12 +6,22 @@
  *
  * Strategy:
  *   - Hide the navigation bar and footer controls.
- *   - Under @media print, ALL panels are shown stacked regardless of whether the
- *     "Print as PDF" button was used or the browser's native Ctrl+P was triggered.
- *     The `insight-deck--printing` class (set by the button) also works when JS
- *     is available, but print should work without it too.
- *   - Each panel gets a page-break-before to start on a new page.
+ *   - Only the key pages are printed to minimise ink usage:
+ *       1. Cover
+ *       2. Best Advice
+ *       3. Limitations
+ *       4. Improvements
+ *       5. Next Steps
+ *   - All coloured backgrounds are replaced with white / light-grey borders
+ *     to avoid heavy ink / toner coverage on printed output.
+ *   - Rating chips, limitation cards, and section backgrounds print as
+ *     outlined text-only variants rather than filled colour blocks.
  */
+
+/* ── Print-only data attributes on the print-section divs ────────────────────
+   The InsightPackDeck wraps each section in:
+     <div class="insight-deck__print-section" data-slide="<slide-id>">
+   We use these data attributes to show only the key slides in print.          */
 
 @media print {
   /* Hide chrome we don't want in the PDF */
@@ -32,7 +42,17 @@
     display: none !important;
   }
 
-  /* Each section starts on a new page */
+  /* Hide non-essential slides — only print the 5 key pages */
+  .insight-deck__print-section[data-slide="what-we-know"],
+  .insight-deck__print-section[data-slide="overview"],
+  .insight-deck__print-section[data-slide="daily-use"],
+  .insight-deck__print-section[data-slide="ratings"],
+  .insight-deck__print-section[data-slide="savings"],
+  .insight-deck__print-section[data-slide="why-atlas"] {
+    display: none !important;
+  }
+
+  /* Each visible section starts on a new page */
   .insight-deck__print-section {
     page-break-before: always;
     break-before: page;
@@ -44,15 +64,72 @@
     break-before: auto;
   }
 
-  /* Typography tweaks */
+  /* ── Ink-saving colour overrides ────────────────────────────────────────────
+     Replace all coloured backgrounds with white.
+     Use border outlines instead of filled chips.
+     Keep dark text for readability.                                          */
+
+  /* Reset any blue/coloured deck backgrounds */
+  .insight-deck,
+  .insight-deck__all-panels {
+    background: #fff !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Remove coloured section backgrounds — white with a thin grey border */
+  [class*="best-advice"],
+  [class*="limitations"],
+  [class*="improvements"],
+  [class*="next-steps"],
+  [class*="cover-hero"],
+  [class*="ratings"],
+  [class*="daily-use"],
+  [class*="savings"] {
+    background: #fff !important;
+  }
+
+  /* Rating chips: border-only variant — no filled background */
+  [class*="rating-chip"],
+  [class*="band-chip"],
+  [class*="cover-chip"] {
+    background: #fff !important;
+    border: 1px solid #555 !important;
+    color: #111 !important;
+  }
+
+  /* Best-advice recommendation card: light outline instead of blue fill */
+  .best-advice__rec-card {
+    background: #fff !important;
+    border: 1.5px solid #333 !important;
+  }
+  .best-advice__rec-eyebrow,
+  .best-advice__rec-text {
+    color: #111 !important;
+  }
+
+  /* Limitation items: no coloured background */
+  [class*="limitation-item"],
+  [class*="limitation__card"] {
+    background: #fff !important;
+    border-left: 3px solid #555 !important;
+  }
+
+  /* Improvement items */
+  [class*="improvement-item"] {
+    background: #fff !important;
+    border: 1px solid #bbb !important;
+  }
+
+  /* General typography */
   body {
     font-size: 11pt;
     color: #111;
   }
 
-  /* Ensure backgrounds (e.g. coloured rating chips) print */
-  * {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  h1, h2, h3 {
+    color: #000 !important;
   }
+
+  /* Do NOT force colour-exact backgrounds — rely on ink-saving overrides above */
 }

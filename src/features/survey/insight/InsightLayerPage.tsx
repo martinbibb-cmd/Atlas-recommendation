@@ -29,6 +29,7 @@ import {
   derivePotentialInsight,
   deriveLimitationsInsight,
   deriveQuickWins,
+  deriveCylinderInsight,
 } from './insightDerivations';
 import SystemArchitectureVisualiser from '../../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import { systemBuilderToConceptModel } from '../../../explainers/lego/autoBuilder/systemBuilderToConceptModel';
@@ -174,6 +175,7 @@ export function InsightLayerPage({
   const potential    = derivePotentialInsight(systemBuilder, input);
   const limitations  = deriveLimitationsInsight(systemBuilder, input);
   const quickWins    = deriveQuickWins(systemBuilder, input);
+  const cylinderInsight = deriveCylinderInsight(systemBuilder, demands.occupancyCount);
   const normPriorities = normalisePriorities(priorities);
 
   // Build current system concept model for the Lego visualiser
@@ -393,6 +395,88 @@ export function InsightLayerPage({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── 3b. Current cylinder advice ──────────────────────────────────────── */}
+      {cylinderInsight.hasCylinder && (
+        <div
+          style={{
+            ...sectionStyle,
+            ...(cylinderInsight.replacementUrgency === 'now'
+              ? { background: '#fffbeb', borderColor: '#fed7aa' }
+              : {}),
+          }}
+          data-testid="cylinder-insight-panel"
+        >
+          <p
+            style={{
+              ...sectionTitleStyle,
+              color: cylinderInsight.replacementUrgency === 'now' ? '#92400e' : '#374151',
+            }}
+          >
+            🛢️ Current hot-water cylinder
+          </p>
+
+          {/* Summary row */}
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', marginBottom: '0.5rem' }}>
+            {cylinderInsight.summary}
+          </p>
+
+          {/* Status chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: cylinderInsight.advice.length > 0 ? '0.65rem' : 0 }}>
+            {/* Volume adequacy chip */}
+            {cylinderInsight.volumeAdequacy !== 'unknown' && (
+              <span
+                style={pillStyle(
+                  cylinderInsight.volumeAdequacy === 'adequate' ? 'green' :
+                  cylinderInsight.volumeAdequacy === 'marginal' ? 'amber' : 'red',
+                )}
+              >
+                Volume:{' '}
+                {cylinderInsight.volumeAdequacy === 'adequate' ? 'Adequate' :
+                 cylinderInsight.volumeAdequacy === 'marginal' ? 'Borderline' : 'Undersized'}
+              </span>
+            )}
+            {/* Replacement urgency chip */}
+            {cylinderInsight.replacementUrgency !== 'unknown' && (
+              <span
+                style={pillStyle(
+                  cylinderInsight.replacementUrgency === 'not_needed' ? 'green' :
+                  cylinderInsight.replacementUrgency === 'monitor'    ? 'blue' :
+                  cylinderInsight.replacementUrgency === 'soon'       ? 'amber' : 'red',
+                )}
+              >
+                {cylinderInsight.replacementUrgency === 'not_needed' ? 'No replacement needed' :
+                 cylinderInsight.replacementUrgency === 'monitor'    ? 'Monitor condition' :
+                 cylinderInsight.replacementUrgency === 'soon'       ? 'Plan replacement' :
+                 'Replace now'}
+              </span>
+            )}
+            {/* Immersion chip */}
+            {cylinderInsight.hasImmersion !== null && (
+              <span style={pillStyle(cylinderInsight.hasImmersion ? 'green' : 'grey')}>
+                {cylinderInsight.hasImmersion ? 'Immersion fitted' : 'No immersion backup'}
+              </span>
+            )}
+          </div>
+
+          {/* Physics-grounded advice */}
+          {cylinderInsight.advice.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              {cylinderInsight.advice.map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    fontSize: '0.78rem',
+                    color: cylinderInsight.replacementUrgency === 'now' ? '#92400e' : '#374151',
+                  }}
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
