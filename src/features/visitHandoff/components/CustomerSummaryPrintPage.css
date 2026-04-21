@@ -1,0 +1,341 @@
+/**
+ * CustomerSummaryPrintPage.css
+ *
+ * PR12 — Print-first stylesheet for the customer share summary page.
+ *
+ * Screen: screen toolbar (hidden on print) + white A4-shaped page card.
+ * Print:  toolbar hidden, shadow removed, clean A4 portrait output.
+ *
+ * Class prefix: csp- (Customer Summary Print)
+ *
+ * Sections
+ * ────────
+ *  .csp-wrap       — outer page wrapper (gray screen background)
+ *  .csp-toolbar    — screen-only action bar (print/share buttons)
+ *  .csp-page       — white A4 content card
+ *  .csp-header     — address + completion date block
+ *  .csp-banner     — "Survey complete" confirmation banner
+ *  .csp-section    — generic section (heading + content)
+ *  .csp-footer     — subtle attribution footer
+ */
+
+/* ─── Outer wrapper ────────────────────────────────────────────────────────── */
+
+.csp-wrap {
+  background: #e8edf2;
+  min-height: 100vh;
+  padding: 1.25rem 1rem 3rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+
+/* ─── Screen toolbar (hidden on print) ────────────────────────────────────── */
+
+.csp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 794px;
+  margin: 0 auto 1rem;
+  padding: 0.4rem 0;
+  flex-wrap: wrap;
+}
+
+.csp-toolbar__back {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #475569;
+}
+
+.csp-toolbar__back:hover {
+  background: #f8fafc;
+}
+
+.csp-toolbar__label {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.csp-toolbar__actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+  align-items: center;
+}
+
+.csp-toolbar__print {
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+}
+
+.csp-toolbar__print:hover {
+  background: #1d4ed8;
+}
+
+.csp-toolbar__share {
+  background: #fff;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #2563eb;
+}
+
+.csp-toolbar__share:hover {
+  background: #eff6ff;
+}
+
+.csp-toolbar__share--copied {
+  color: #15803d;
+  border-color: #15803d;
+}
+
+.csp-toolbar__share--copied:hover {
+  background: #f0fdf4;
+}
+
+/* ─── A4 page card ──────────────────────────────────────────────────────────── */
+
+.csp-page {
+  background: #fff;
+  max-width: 794px;      /* ~210 mm at 96 dpi */
+  min-height: 1123px;    /* ~297 mm at 96 dpi */
+  margin: 0 auto;
+  padding: 32px 36px 40px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ─── Page header ─────────────────────────────────────────────────────────── */
+
+.csp-header {
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.csp-header__address {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px;
+  line-height: 1.3;
+}
+
+.csp-header__meta {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ─── Survey complete banner ──────────────────────────────────────────────── */
+
+.csp-banner {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.csp-banner__icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.csp-banner__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #166534;
+  margin: 0 0 2px;
+}
+
+.csp-banner__subtitle {
+  font-size: 0.82rem;
+  color: #15803d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ─── Current system description ─────────────────────────────────────────── */
+
+.csp-system-description {
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.65;
+  margin: 0 0 28px;
+}
+
+/* ─── Generic content section ────────────────────────────────────────────── */
+
+.csp-section {
+  margin-bottom: 24px;
+  break-inside: avoid;
+}
+
+.csp-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.csp-section__heading {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #475569;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.csp-section__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.csp-section__list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.6;
+  break-inside: avoid;
+}
+
+.csp-section__list-item::before {
+  content: '–';
+  color: #94a3b8;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.csp-section__body {
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ─── Empty state ─────────────────────────────────────────────────────────── */
+
+.csp-empty {
+  font-size: 0.84rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+}
+
+/* ─── Footer ──────────────────────────────────────────────────────────────── */
+
+.csp-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.csp-footer__text {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Error / missing pack state ─────────────────────────────────────────── */
+
+.csp-error {
+  padding: 3rem 1rem;
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.csp-error__icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.csp-error__heading {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.5rem;
+}
+
+.csp-error__body {
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin: 0 0 1.5rem;
+}
+
+/* ─── Print overrides ─────────────────────────────────────────────────────── */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 14mm;
+  }
+
+  /* Remove screen chrome */
+  .csp-wrap {
+    background: none;
+    padding: 0;
+    min-height: unset;
+  }
+
+  /* Hide toolbar entirely */
+  .csp-toolbar {
+    display: none !important;
+  }
+
+  /* Remove card shadow and sizing constraints */
+  .csp-page {
+    box-shadow: none;
+    max-width: none;
+    min-height: unset;
+    padding: 0;
+    margin: 0;
+  }
+
+  /* Avoid awkward page breaks */
+  .csp-section {
+    break-inside: avoid;
+  }
+
+  .csp-banner {
+    break-inside: avoid;
+  }
+
+  .csp-footer {
+    break-inside: avoid;
+  }
+}
