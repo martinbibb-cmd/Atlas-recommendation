@@ -56,6 +56,8 @@ import DevMenuPage from './components/dev/DevMenuPage';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
+import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
+import { SAMPLE_VISIT_HANDOFF_PACK } from './features/visitHandoff/fixtures/sampleVisitHandoffPack';
 import InsightPackDeck from './features/insightPack/InsightPackDeck';
 import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
 import type { InsightPackSurveyContext } from './features/insightPack/buildInsightPackFromEngine';
@@ -146,6 +148,15 @@ const SCAN_PACKAGE_ENABLED =
 const HANDOFF_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('handoff') === '1';
+
+/**
+ * Detect ?visit-handoff=1 — renders the completed-visit handoff review page.
+ * Shows customer and engineer read-only review surfaces from a VisitHandoffPack.
+ * Loads the built-in dev fixture by default; supports upload/paste JSON in-page.
+ */
+const VISIT_HANDOFF_REVIEW_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('visit-handoff') === '1';
 
 /**
  * Detect ?insight-pack=1 — renders the Atlas Insight Pack deck with demo data.
@@ -709,6 +720,16 @@ export default function App() {
   // ?handoff=1 — render canonical AtlasPropertyV1 handoff arrival page.
   if (HANDOFF_ENABLED) {
     return <HandoffArrivalPage onBack={() => { window.location.href = window.location.pathname; }} />;
+  }
+
+  // ?visit-handoff=1 — render completed-visit handoff review (customer + engineer surfaces).
+  if (VISIT_HANDOFF_REVIEW_ENABLED) {
+    return (
+      <VisitHandoffReviewPage
+        initialPack={SAMPLE_VISIT_HANDOFF_PACK}
+        onBack={() => { window.location.href = window.location.pathname; }}
+      />
+    );
   }
 
   // ?insight-pack=1 — render Atlas Insight Pack deck with demo data for review.
