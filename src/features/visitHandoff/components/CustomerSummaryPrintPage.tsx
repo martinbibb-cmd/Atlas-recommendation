@@ -223,7 +223,7 @@ function CustomerSummaryContent({ pack }: CustomerSummaryContentProps) {
 
       {/* ── 3. What's planned ── */}
       <section className="csp-section" data-testid="csp-section-planned">
-        <h2 className="csp-section__heading">What&apos;s planned</h2>
+        <h2 className="csp-section__heading">What's planned</h2>
         {customerSummary.plannedWork.length === 0 ? (
           <p className="csp-empty">No planned work recorded.</p>
         ) : (
@@ -316,7 +316,7 @@ export default function CustomerSummaryPrintPage({
   }, []);
 
   const showContent = pack !== null;
-  const showError = !pack && (parseError || initialPack === null || initialPack === undefined);
+  const showError = !pack && (parseError || initialPack == null);
 
   return (
     <div className="csp-wrap">
