@@ -57,6 +57,7 @@ import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
+import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
 import { SAMPLE_VISIT_HANDOFF_PACK } from './features/visitHandoff/fixtures/sampleVisitHandoffPack';
 import InsightPackDeck from './features/insightPack/InsightPackDeck';
 import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
@@ -157,6 +158,15 @@ const HANDOFF_ENABLED =
 const VISIT_HANDOFF_REVIEW_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('visit-handoff') === '1';
+
+/**
+ * Detect ?customer-share=1 — renders the customer-safe printable summary from a
+ * VisitHandoffPack.  This is the shareable, print-first customer output.
+ * Loads the built-in dev fixture by default; supports upload/paste JSON in-page.
+ */
+const CUSTOMER_SHARE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('customer-share') === '1';
 
 /**
  * Detect ?insight-pack=1 — renders the Atlas Insight Pack deck with demo data.
@@ -726,6 +736,16 @@ export default function App() {
   if (VISIT_HANDOFF_REVIEW_ENABLED) {
     return (
       <VisitHandoffReviewPage
+        initialPack={SAMPLE_VISIT_HANDOFF_PACK}
+        onBack={() => { window.location.href = window.location.pathname; }}
+      />
+    );
+  }
+
+  // ?customer-share=1 — render customer-safe printable summary from imported handoff pack.
+  if (CUSTOMER_SHARE_ENABLED) {
+    return (
+      <CustomerSummaryPrintPage
         initialPack={SAMPLE_VISIT_HANDOFF_PACK}
         onBack={() => { window.location.href = window.location.pathname; }}
       />
