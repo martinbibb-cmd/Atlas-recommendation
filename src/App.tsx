@@ -916,7 +916,7 @@ export default function App() {
             onOpenInsightPack={(engineInput, quotes) => {
               setLabEngineInput(engineInput);
               setLabQuotes(quotes);
-              setInsightPackFromJourney('visit');
+              setInsightPackFromJourney('visit-hub');
               setJourney('insight-pack');
             }}
             onOpenFloorPlan={(surveyResults) => {
@@ -960,7 +960,7 @@ export default function App() {
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
               setLabQuotes(quotes);
-              setInsightPackFromJourney('full');
+              setInsightPackFromJourney('simulator');
               setJourney('insight-pack');
             }}
             onOpenFloorPlan={(surveyResults) => {
