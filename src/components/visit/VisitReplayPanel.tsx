@@ -312,7 +312,7 @@ function NoteDecisionTrail({ summary }: { summary: ReturnType<typeof buildNoteIn
   if (!summary.hasActiveInfluence && summary.overridden.length === 0) {
     return (
       <p style={{ fontSize: '0.82rem', color: '#718096', margin: 0, fontStyle: 'italic' }}>
-        No accepted note suggestions have influenced this recommendation.
+        No accepted note suggestions have influenced this assessment.
       </p>
     );
   }
@@ -320,8 +320,8 @@ function NoteDecisionTrail({ summary }: { summary: ReturnType<typeof buildNoteIn
   return (
     <div>
       <p style={{ fontSize: '0.75rem', color: '#4a5568', margin: '0 0 0.75rem', fontStyle: 'italic' }}>
-        The following shows exactly how accepted engineer notes shaped the recommendation.
-        This output matches the Recommendation Hub — use it to understand or hand over the reasoning.
+        The following shows exactly how accepted engineer notes shaped the survey assessment.
+        Use it to understand or hand over the reasoning behind applied values.
       </p>
       <NoteInfluencePanel summary={summary} />
     </div>

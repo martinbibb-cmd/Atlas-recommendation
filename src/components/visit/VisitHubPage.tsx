@@ -758,16 +758,51 @@ export default function VisitHubPage({
           hasQuotes={hasQuotes}
         />
 
-        <VoiceNotesPanel
-          visitId={visitId}
-          notes={voiceNotes}
-          onChange={handleNotesChange}
-        />
+        {/* ── Lifecycle-aware body panels ────────────────────────────────────── */}
 
-        <VisitReplayPanel
-          survey={workingPayloadRef.current as FullSurveyModelV1 | null}
-          voiceNotes={voiceNotes}
-        />
+        {isVisitCompleted(meta) ? (
+          /* Completed: survey-assist is closed; handoff is primary */
+          <>
+            <p className="visit-hub__body-hint">
+              Survey capture is closed. Use the handoff tools above to share and review this visit.
+            </p>
+            <VisitReplayPanel
+              survey={workingPayloadRef.current as FullSurveyModelV1 | null}
+              voiceNotes={voiceNotes}
+            />
+          </>
+        ) : isSurveyComplete(meta) ? (
+          /* Ready to complete: notes are captured; collapse the entry form */
+          <>
+            <details className="visit-hub__section-collapse" data-testid="engineer-notes-collapse">
+              <summary className="visit-hub__section-collapse-summary">
+                🎤 Engineer notes{voiceNotes.length > 0 ? ` · ${voiceNotes.length} captured` : ''}
+              </summary>
+              <VoiceNotesPanel
+                visitId={visitId}
+                notes={voiceNotes}
+                onChange={handleNotesChange}
+              />
+            </details>
+            <VisitReplayPanel
+              survey={workingPayloadRef.current as FullSurveyModelV1 | null}
+              voiceNotes={voiceNotes}
+            />
+          </>
+        ) : (
+          /* In progress: survey-assist panels are primary */
+          <>
+            <VoiceNotesPanel
+              visitId={visitId}
+              notes={voiceNotes}
+              onChange={handleNotesChange}
+            />
+            <VisitReplayPanel
+              survey={workingPayloadRef.current as FullSurveyModelV1 | null}
+              voiceNotes={voiceNotes}
+            />
+          </>
+        )}
 
         {/* Internal diagnostics — collapsed by default; not customer-facing */}
         <details className="visit-hub__internal-diagnostics" data-testid="internal-diagnostics-section">
