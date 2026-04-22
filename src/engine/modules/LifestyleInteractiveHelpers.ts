@@ -205,7 +205,7 @@ export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: bool
   const scalar = dhwDrawScalar !== undefined
     ? dhwDrawScalar
     : isHotWaterDrawEvent(deliveryMode) ? 1.0 : 0.0;
-  return hours.map((state, h) => {
+  return hours.map((state) => {
     if (state === 'dhw_demand') {
       // No sinusoidal smoothing (No Theatre rule): use a flat 21 °C no-conflict reference.
       const noConflictTemp = 21;
