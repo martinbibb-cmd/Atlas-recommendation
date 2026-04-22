@@ -229,7 +229,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -404,6 +404,12 @@ export default function App() {
   const [startingVisit, setStartingVisit] = useState(false);
   /** Inline error shown when visit creation fails. Cleared on retry. */
   const [visitCreateError, setVisitCreateError] = useState<string | null>(null);
+  /**
+   * Handoff pack for the 'visit-handoff' journey.
+   * Set to null so the VisitHandoffReviewPage shows its built-in loader
+   * until the user pastes/uploads a pack (or one is supplied programmatically).
+   */
+  const [activeHandoffPack, setActiveHandoffPack] = useState<import('./features/visitHandoff/types/visitHandoffPack').VisitHandoffPack | null>(null);
   /**
    * Signed portal URL for the printout journey — generated from the latest
    * report for the active visit.  Uses report ID + HMAC token so the customer
@@ -880,6 +886,14 @@ export default function App() {
           }}
           onOpenEngineerRoute={() => setJourney('engineer')}
           onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
+          onOpenHandoffReview={() => { setActiveHandoffPack(null); setJourney('visit-handoff'); }}
+        />
+      )}
+      {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
+      {journey === 'visit-handoff' && (
+        <VisitHandoffReviewPage
+          initialPack={activeHandoffPack ?? undefined}
+          onBack={() => setJourney('visit-hub')}
         />
       )}
       {/* Engineer pre-install route — /visit/:visitId/engineer */}
@@ -1103,21 +1117,21 @@ export default function App() {
         <div className="landing">
           <div className="hero">
             <h1>
-              Heating System Summary
+              Atlas Field Visits
             </h1>
             <p className="tagline">
-              Compare heating systems and see why one fits better.
+              Create a visit, complete the survey, and generate a recommendation — all in one place.
             </p>
           </div>
 
-          {/* Primary CTAs — new survey + search visits */}
+          {/* Primary CTAs — new visit + search visits */}
           <div className="visit-cta-row">
             <button
               className="cta-btn cta-btn--visit"
               onClick={handleStartNewVisit}
               aria-haspopup="dialog"
             >
-              ＋ New Survey
+              ＋ New Visit
             </button>
             <button
               className="cta-btn cta-btn--search-visits"
@@ -1126,11 +1140,11 @@ export default function App() {
               aria-controls="visits-panel"
               aria-label="Search Visits"
             >
-              🔍 Search Visits
+              🔍 Open Visit
             </button>
           </div>
 
-          {/* Visits panel — revealed when "Search Visits" is toggled */}
+          {/* Visits panel — revealed when "Open Visit" is toggled */}
           {showVisitsPanel && (
             <div id="visits-panel">
               <RecentVisitsList onOpenVisit={handleOpenVisit} />
@@ -1138,28 +1152,17 @@ export default function App() {
           )}
 
           <div className="journey-cards">
-            <div
-              id="fast-choice-card"
-              data-tour="mode-choice"
-              className="journey-card fast"
-              onClick={() => setJourney('fast')}
-            >
-              <div className="card-icon">⚡</div>
-              <h2>Fast Choice</h2>
-              <p>Quick recommendation from key inputs.</p>
-              <button className="cta-btn">Start Fast Choice →</button>
-            </div>
-            <div
-              id="survey-panel"
-              data-tour="survey-panel"
-              className="journey-card journey-card--featured full"
-              onClick={() => setJourney('full')}
-            >
-              <div className="card-icon">🔬</div>
-              <h2>Full Survey</h2>
-              <p>Full technical survey with Simulator Dashboard result.</p>
-              <button className="cta-btn">Start Full Survey →</button>
-            </div>
+            {labEngineInput != null && (
+              <div
+                className="journey-card journey-card--featured"
+                onClick={() => setJourney('presentation')}
+              >
+                <div className="card-icon">🎯</div>
+                <h2>In-Room Presentation</h2>
+                <p>Guided story screen — show the customer what happens, why, and what fixes it.</p>
+                <button className="cta-btn">Open Presentation →</button>
+              </div>
+            )}
             <div
               className="journey-card"
               onClick={() => setJourney('floor-plan')}
@@ -1188,6 +1191,28 @@ export default function App() {
               <button className="cta-btn">Open Height Check →</button>
             </div>
             <div
+              id="fast-choice-card"
+              data-tour="mode-choice"
+              className="journey-card fast"
+              onClick={() => setJourney('fast')}
+            >
+              <div className="card-icon">⚡</div>
+              <h2>Fast Choice</h2>
+              <p>Quick recommendation from key inputs — no visit required.</p>
+              <button className="cta-btn">Start Fast Choice →</button>
+            </div>
+            <div
+              id="survey-panel"
+              data-tour="survey-panel"
+              className="journey-card full"
+              onClick={() => setJourney('full')}
+            >
+              <div className="card-icon">🔬</div>
+              <h2>Standalone Survey</h2>
+              <p>Run a full technical survey without creating a visit record — useful for demos and training.</p>
+              <button className="cta-btn">Start Survey →</button>
+            </div>
+            <div
               className="journey-card"
               onClick={() => setJourney('lego-set')}
             >
@@ -1196,17 +1221,6 @@ export default function App() {
               <p>Assemble heating systems from first-principles blocks — boilers, cylinders, emitters and controls.</p>
               <button className="cta-btn">Open Lego Set →</button>
             </div>
-            {labEngineInput != null && (
-              <div
-                className="journey-card journey-card--featured"
-                onClick={() => setJourney('presentation')}
-              >
-                <div className="card-icon">🎯</div>
-                <h2>In-Room Presentation</h2>
-                <p>Guided story screen — show the customer what happens, why, and what fixes it.</p>
-                <button className="cta-btn">Open Presentation →</button>
-              </div>
-            )}
             {/* Physics Visual Library — dev review surface */}
             <div
               className="journey-card"
