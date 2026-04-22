@@ -205,3 +205,73 @@
   text-transform: uppercase;
   color: #718096;
 }
+
+/* ── Locked / completed-visit panel ─────────────────────────────────────── */
+
+.visit-page__locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  flex: 1;
+}
+
+.visit-page__locked-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.visit-page__locked-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+}
+
+.visit-page__locked-date {
+  font-size: 0.875rem;
+  color: #4a5568;
+  margin: 0;
+}
+
+.visit-page__locked-hint {
+  font-size: 0.875rem;
+  color: #718096;
+  max-width: 320px;
+  margin: 0;
+}
+
+.visit-page__locked-handoff-btn {
+  background: #2f855a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 0.5rem;
+}
+
+.visit-page__locked-handoff-btn:hover {
+  background: #276749;
+}
+
+.visit-page__locked-back-btn {
+  background: transparent;
+  border: 1px solid #cbd5e0;
+  color: #4a5568;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.visit-page__locked-back-btn:hover {
+  background: #f7fafc;
+}

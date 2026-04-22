@@ -23,7 +23,7 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import type { QuoteInput } from '../../features/insightPack/insightPack.types';
-import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, type VisitMeta } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, isVisitCompleted, type VisitMeta } from '../../lib/visits/visitApi';
 import './VisitPage.css';
 
 /**
@@ -60,6 +60,11 @@ export interface Props {
   onDraft?: (draft: FullSurveyModelV1) => void;
   onOpenFloorPlan: (surveyResults: Partial<FullSurveyModelV1>) => void;
   floorplanOutput?: DerivedFloorplanOutput;
+  /**
+   * When provided, the completed-visit locked panel shows a "Review handoff"
+   * button that navigates to the VisitHandoffReviewPage.
+   */
+  onOpenHandoffReview?: () => void;
 }
 
 /** Debounce delay for autosave (ms). */
@@ -194,6 +199,7 @@ export default function VisitPage({
   onOpenInsightPack,
   onDraft,
   onOpenFloorPlan,
+  onOpenHandoffReview,
 }: Props) {
   // Derive initial error/ready state from visitId at mount — avoids calling
   // setState synchronously inside an effect (which triggers the
@@ -402,6 +408,48 @@ export default function VisitPage({
         <button className="cta-btn" onClick={onBack}>
           ← Back to dashboard
         </button>
+      </div>
+    );
+  }
+
+  // Locked state — visit has been formally completed; render read-only panel.
+  if (visitMeta && isVisitCompleted(visitMeta)) {
+    const completedDate = new Date(visitMeta.completed_at!).toLocaleString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    return (
+      <div className="visit-page">
+        <VisitCaseSummary
+          visitId={visitId}
+          meta={visitMeta}
+          saveState={saveState}
+          onBack={onBack}
+          onRetrySave={handleRetrySave}
+        />
+        <div className="visit-page__locked" role="status" aria-label="Visit completed">
+          <div className="visit-page__locked-icon" aria-hidden="true">✅</div>
+          <h2 className="visit-page__locked-heading">Visit completed</h2>
+          <p className="visit-page__locked-date">Completed {completedDate}</p>
+          <p className="visit-page__locked-hint">
+            Survey capture is closed. This visit has been formally completed.
+          </p>
+          {onOpenHandoffReview && (
+            <button
+              className="visit-page__locked-handoff-btn"
+              onClick={onOpenHandoffReview}
+              data-testid="visit-locked-handoff-btn"
+            >
+              🤝 Review handoff
+            </button>
+          )}
+          <button
+            className="visit-page__locked-back-btn"
+            onClick={onBack}
+          >
+            ← Back to visit
+          </button>
+        </div>
       </div>
     );
   }
