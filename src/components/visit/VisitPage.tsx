@@ -363,6 +363,10 @@ export default function VisitPage({
    * completes with quotes present.  Mirrors handleComplete: promotes the
    * visit status to recommendation_ready so the Visit Hub shows the correct
    * state (and so the user is not stuck in a survey→insight loop on return).
+   *
+   * persist(true) is called immediately (no debounce) so the visit status is
+   * written before navigation hands off to the Insight Pack, avoiding a race
+   * condition if the user returns to the Visit Hub quickly.
    */
   const handleOpenInsightPack = useCallback(
     (engineInput: EngineInputV2_3, quotes: QuoteInput[]) => {
@@ -371,9 +375,7 @@ export default function VisitPage({
       if (savedResetTimer.current !== null) clearTimeout(savedResetTimer.current);
 
       setSaveState('saving');
-      saveTimer.current = setTimeout(() => {
-        persist(true);
-      }, AUTOSAVE_DELAY_MS);
+      persist(true);
 
       if (onOpenInsightPack) onOpenInsightPack(engineInput, quotes);
     },
