@@ -907,7 +907,7 @@ export default function App() {
         <GlobalMenuShell>
           <VisitPage
             visitId={activeVisitId}
-            onBack={() => setJourney('landing')}
+            onBack={() => setJourney('visit-hub')}
             onDraft={(draft) => {
               // Capture heatLoss and priorities from the visit survey draft so
               // the presentation deck can show the house snapshot and selected
@@ -917,9 +917,11 @@ export default function App() {
               if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
             }}
             onComplete={(engineInput) => {
+              // Survey is complete — store engine input for presentation/simulator use,
+              // then route to the Visit Hub so the engineer can formally complete the visit
+              // by clicking "Complete visit" and accessing handoff tools.
               setLabEngineInput(engineInput);
-              setSimulatorFromJourney('visit');
-              setJourney('simulator');
+              setJourney('visit-hub');
             }}
             onOpenSimulator={(engineInput) => {
               // Direct shortcut from InsightLayerPage — skip fit-map.
@@ -938,6 +940,7 @@ export default function App() {
               setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
               setJourney('floor-plan');
             }}
+            onOpenHandoffReview={() => { setActiveHandoffPack(null); setJourney('visit-handoff'); }}
             floorplanOutput={floorplanOutput}
           />
         </GlobalMenuShell>
