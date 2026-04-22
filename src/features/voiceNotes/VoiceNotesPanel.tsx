@@ -470,11 +470,11 @@ export function VoiceNotesPanel({ visitId, notes, onChange }: Props) {
     >
       {/* ── Panel heading ── */}
       <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1a202c', marginTop: 0, marginBottom: '0.25rem' }}>
-        🎤 Suggested from notes
+        🎤 Engineer notes
       </h3>
       <p style={{ fontSize: '0.78rem', color: '#718096', marginTop: 0, marginBottom: '1rem' }}>
-        Enter engineer notes or a voice transcript. Atlas will suggest survey inputs — these are
-        <strong> suggestions only</strong> and require engineer confirmation before they are used.
+        Enter engineer notes or a voice transcript. Atlas will extract survey inputs as
+        <strong> suggestions only</strong> — each one requires engineer confirmation before it is applied.
       </p>
 
       {/* ── Note entry form ── */}
@@ -579,7 +579,7 @@ export function VoiceNotesPanel({ visitId, notes, onChange }: Props) {
         color: '#92400e',
       }}>
         ⚠ Voice-note suggestions are provisional. Accepted suggestions are labelled
-        "inferred from voice note" and weighted accordingly by the recommendation engine.
+        "inferred from voice note" and weighted accordingly by the assessment engine.
         Hard measured values (pressure, flow rate, room dimensions) must always be
         confirmed by measurement.
       </div>

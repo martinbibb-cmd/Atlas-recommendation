@@ -551,6 +551,46 @@
   background: #e2e8f0;
 }
 
+/* ── Body hint (completed state) ─────────────────────────────────────────── */
+
+.visit-hub__body-hint {
+  font-size: 0.82rem;
+  color: #718096;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ── Engineer notes collapsible (ready-to-complete state) ────────────────── */
+
+.visit-hub__section-collapse {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fafafa;
+  overflow: hidden;
+}
+
+.visit-hub__section-collapse-summary {
+  padding: 0.7rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #4a5568;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.visit-hub__section-collapse-summary::-webkit-details-marker {
+  display: none;
+}
+
+.visit-hub__section-collapse[open] .visit-hub__section-collapse-summary {
+  border-bottom: 1px solid #e2e8f0;
+}
+
 /* ── Internal diagnostics section ───────────────────────────────────────── */
 
 .visit-hub__internal-diagnostics {
