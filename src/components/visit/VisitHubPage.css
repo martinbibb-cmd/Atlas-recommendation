@@ -126,6 +126,26 @@
   border-color: #2a4a7f;
 }
 
+/* ── Status badge — lifecycle-aware variants ─────────────────────────────── */
+
+.visit-hub__status-badge--visit_in_progress {
+  background: #2c5282;
+  color: #bee3f8;
+  border-color: #2b6cb0;
+}
+
+.visit-hub__status-badge--ready_to_complete {
+  background: #744210;
+  color: #feebc8;
+  border-color: #975a16;
+}
+
+.visit-hub__status-badge--visit_completed {
+  background: #276749;
+  color: #c6f6d5;
+  border-color: #2f855a;
+}
+
 .visit-hub__updated {
   font-size: 0.78rem;
   color: #718096;
@@ -262,6 +282,153 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* ── Lifecycle status card ───────────────────────────────────────────────── */
+
+.visit-hub__lifecycle-card {
+  border-radius: 10px;
+  padding: 0.85rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.visit-hub__lifecycle-card--visit_in_progress {
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+}
+
+.visit-hub__lifecycle-card--ready_to_complete {
+  background: #fffbeb;
+  border: 1px solid #fbd38d;
+}
+
+.visit-hub__lifecycle-card--visit_completed {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+}
+
+.visit-hub__lifecycle-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.visit-hub__lifecycle-card--visit_in_progress .visit-hub__lifecycle-label {
+  color: #2b6cb0;
+}
+
+.visit-hub__lifecycle-card--ready_to_complete .visit-hub__lifecycle-label {
+  color: #744210;
+}
+
+.visit-hub__lifecycle-card--visit_completed .visit-hub__lifecycle-label {
+  color: #276749;
+}
+
+.visit-hub__lifecycle-sub {
+  font-size: 0.85rem;
+  color: #4a5568;
+}
+
+/* ── Section label ───────────────────────────────────────────────────────── */
+
+.visit-hub__section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #718096;
+  margin: 0 0 0.1rem;
+}
+
+/* ── Secondary actions group ─────────────────────────────────────────────── */
+
+.visit-hub__actions-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 0.25rem;
+}
+
+.visit-hub__actions-secondary--locked .visit-hub__action-btn {
+  opacity: 0.5;
+}
+
+/* ── Complete visit button ───────────────────────────────────────────────── */
+
+.visit-hub__action-btn--complete {
+  background: #276749;
+  color: #fff;
+  width: 100%;
+  padding: 0.9rem 1.25rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.visit-hub__action-btn--complete:hover:not(:disabled) {
+  background: #22543d;
+}
+
+.visit-hub__action-btn--complete:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── Complete error message ──────────────────────────────────────────────── */
+
+.visit-hub__complete-error {
+  font-size: 0.875rem;
+  color: #c53030;
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  margin: 0;
+}
+
+/* ── More tools collapsible ──────────────────────────────────────────────── */
+
+.visit-hub__more-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.visit-hub__more-tools-toggle {
+  background: none;
+  border: none;
+  color: #718096;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  letter-spacing: 0.02em;
+  transition: color 0.15s;
+}
+
+.visit-hub__more-tools-toggle:hover {
+  color: #4a5568;
+}
+
+.visit-hub__more-tools-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .visit-hub__action-btn {
