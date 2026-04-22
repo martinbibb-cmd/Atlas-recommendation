@@ -48,6 +48,8 @@ interface Props {
   onOpenEngineerRoute?: () => void;
   /** Open the Atlas Insight Pack for this visit (requires quotes to be collected). */
   onOpenInsightPack?: () => void;
+  /** Open the completed-visit handoff review page. */
+  onOpenHandoffReview?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -163,6 +165,7 @@ function HubActions({
   onPrintSummary,
   onOpenEngineerRoute,
   onOpenInsightPack,
+  onOpenHandoffReview,
   portalUrl,
   portalLoading,
   hasQuotes,
@@ -173,6 +176,7 @@ function HubActions({
   onPrintSummary?: () => void;
   onOpenEngineerRoute?: () => void;
   onOpenInsightPack?: () => void;
+  onOpenHandoffReview?: () => void;
   portalUrl?: string;
   portalLoading?: boolean;
   hasQuotes?: boolean;
@@ -279,6 +283,17 @@ function HubActions({
           📋 View Insight Pack
         </button>
       )}
+
+      {visitDone && onOpenHandoffReview && (
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
+          onClick={onOpenHandoffReview}
+          aria-label="Review completed-visit handoff"
+          data-testid="open-handoff-review-btn"
+        >
+          🤝 Review handoff
+        </button>
+      )}
     </div>
   );
 }
@@ -294,6 +309,7 @@ export default function VisitHubPage({
   onOpenReport,
   onOpenEngineerRoute,
   onOpenInsightPack,
+  onOpenHandoffReview,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -503,6 +519,7 @@ export default function VisitHubPage({
           onPrintSummary={onPrintSummary}
           onOpenEngineerRoute={onOpenEngineerRoute}
           onOpenInsightPack={onOpenInsightPack}
+          onOpenHandoffReview={onOpenHandoffReview}
           portalUrl={portalUrl}
           portalLoading={portalLoading}
           hasQuotes={hasQuotes}
