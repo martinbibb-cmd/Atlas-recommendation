@@ -1396,3 +1396,107 @@
 .fpb__save-retry:hover {
   background: #fee2e2;
 }
+
+/* ── Square room badge ─────────────────────────────────────────────────── */
+
+.fpb__square-room-badge {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  text-align: center;
+}
+
+/* ── Compact sheet option (used in wall detail inline actions) ──────────── */
+
+.fpb__sheet-option--compact {
+  padding: 8px 10px;
+  font-size: 13px;
+  flex: 1;
+  justify-content: center;
+}
+
+/* ── Wall detail bottom sheet ──────────────────────────────────────────── */
+
+.fpb__bottom-sheet--wall-detail {
+  max-height: 80%;
+}
+
+.fpb__wall-nav-btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  color: #334155;
+  transition: background 0.12s;
+}
+
+.fpb__wall-nav-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.fpb__wall-detail-body {
+  padding: 10px 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fpb__wall-detail-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.fpb__wall-detail-empty {
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 4px 0;
+}
+
+.fpb__wall-detail-opening-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.fpb__wall-detail-opening-meta {
+  flex: 1;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.fpb__wall-detail-add-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Scan import sheet ─────────────────────────────────────────────────── */
+
+.fpb__bottom-sheet--scan {
+  max-height: 90%;
+}
+
+.fpb__scan-import-wrap {
+  padding: 12px 16px 20px;
+  overflow-y: auto;
+}
