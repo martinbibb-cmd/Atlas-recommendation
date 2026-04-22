@@ -1156,7 +1156,7 @@ export default function App() {
 
           <div className="journey-cards">
             {/* Quick start — physics-first shortcut, no visit required */}
-            <p className="journey-section-label">Quick start</p>
+            <h3 className="journey-section-label">Quick start</h3>
             {labEngineInput != null && (
               <div
                 className="journey-card journey-card--featured"
@@ -1181,7 +1181,7 @@ export default function App() {
             </div>
 
             {/* Alternative workflows — fallback when a visit is not possible */}
-            <p className="journey-section-label">Alternative workflows</p>
+            <h3 className="journey-section-label">Alternative workflows</h3>
             <div
               id="survey-panel"
               data-tour="survey-panel"
@@ -1195,7 +1195,7 @@ export default function App() {
             </div>
 
             {/* Tools — standalone utilities */}
-            <p className="journey-section-label">Tools</p>
+            <h3 className="journey-section-label">Tools</h3>
             <div
               className="journey-card"
               onClick={() => setJourney('floor-plan')}

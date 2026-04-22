@@ -115,7 +115,7 @@ body {
   margin-top: 2rem;
 }
 
-.journey-section-label {
+h3.journey-section-label {
   grid-column: 1 / -1;
   font-size: 0.75rem;
   font-weight: 700;
