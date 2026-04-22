@@ -1,18 +1,22 @@
 /**
  * InsightPackDeck.tsx — Atlas Insight Pack main container (deck-style navigation).
  *
- * Renders all 11 panels as scrollable slides in the following order:
- *   1. Cover
- *   2. What we know
- *   3. Quotes overview
- *   4. Best advice
- *   5. Daily use
- *   6. Ratings
- *   7. Limitations
- *   8. Improvements
- *   9. Savings
- *  10. Why Atlas suggested this
- *  11. Next steps
+ * Renders canonical sections as navigable slides.  The section list and
+ * rendering behaviour are governed by the `presentationMode` prop:
+ *
+ *   in-room       — Full 11-section interactive presentation (default).
+ *                   Used during the surveyor visit.
+ *
+ *   customer-pack — Trimmed 6-section view: cover, what-we-know, best-advice,
+ *                   daily-use, ratings (suitability only), next-steps.
+ *                   Print-optimised for leaving with the customer.
+ *
+ *   technical-pack — Full 11-section presentation with full engineering
+ *                    detail in ratings and limitations.
+ *                    Positioned as supporting evidence, not the default output.
+ *
+ * Section order and visibility are defined in canonicalSections.ts — the
+ * single source of truth for the canonical presentation structure.
  *
  * A "Print as PDF" button on the last slide triggers window.print().
  * @media print styles in InsightPackPrint.css render all panels stacked.
@@ -23,6 +27,11 @@
 
 import { useState } from 'react';
 import type { InsightPack } from './insightPack.types';
+import {
+  sectionsForMode,
+  type PresentationMode,
+  type CanonicalSectionId,
+} from './canonicalSections';
 import CoverHeroCard from './CoverHeroCard';
 import WhatWeKnowGrid from './WhatWeKnowGrid';
 import QuoteComparisonCard from './QuoteComparisonCard';
@@ -43,43 +52,43 @@ interface Props {
   propertyTitle?: string;
   /** Called when the user finishes the presentation and wants to close/exit. */
   onClose?: () => void;
+  /**
+   * Controls which sections are shown and how panels render their detail.
+   *
+   *   'in-room'       — Full 11-section interactive deck (default).
+   *   'customer-pack' — Trimmed 6-section print-optimised view.
+   *   'technical-pack'— Full 11-section deck with full engineering detail.
+   */
+  presentationMode?: PresentationMode;
 }
-
-const SLIDES = [
-  { id: 'cover',       label: '🏠 Your Home' },
-  { id: 'what-we-know', label: '📋 What We Looked At' },
-  { id: 'overview',    label: '📄 Options' },
-  { id: 'best-advice', label: '🎯 Best Advice' },
-  { id: 'daily-use',   label: '☀️ Day to Day' },
-  { id: 'ratings',     label: '⭐ Ratings' },
-  { id: 'limitations', label: '⚠️ Limitations' },
-  { id: 'improvements', label: '🔧 Improvements' },
-  { id: 'savings',     label: '💡 Savings' },
-  { id: 'why-atlas',   label: '🧠 Why This' },
-  { id: 'next-steps',  label: '✅ Next Steps' },
-] as const;
-
-type SlideId = typeof SLIDES[number]['id'];
 
 /** Delay (ms) before triggering window.print() to allow React to re-render all panels. */
 const PRINT_RENDER_DELAY_MS = 100;
 
-export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props) {
-  const [activeSlide, setActiveSlide] = useState<SlideId>('cover');
+export default function InsightPackDeck({
+  pack,
+  propertyTitle,
+  onClose,
+  presentationMode = 'in-room',
+}: Props) {
+  // Derive the ordered slide list from the canonical sections for this mode.
+  const slides = sectionsForMode(presentationMode);
+
+  const [activeSlide, setActiveSlide] = useState<CanonicalSectionId>(slides[0]?.id ?? 'cover');
   const [isPrinting, setIsPrinting] = useState(false);
 
-  const currentIndex = SLIDES.findIndex(s => s.id === activeSlide);
+  const currentIndex = slides.findIndex(s => s.id === activeSlide);
 
-  function goTo(id: SlideId) {
+  function goTo(id: CanonicalSectionId) {
     setActiveSlide(id);
   }
 
   function goPrev() {
-    if (currentIndex > 0) setActiveSlide(SLIDES[currentIndex - 1].id);
+    if (currentIndex > 0) setActiveSlide(slides[currentIndex - 1].id);
   }
 
   function goNext() {
-    if (currentIndex < SLIDES.length - 1) setActiveSlide(SLIDES[currentIndex + 1].id);
+    if (currentIndex < slides.length - 1) setActiveSlide(slides[currentIndex + 1].id);
   }
 
   function handlePrint() {
@@ -91,8 +100,12 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
     }, PRINT_RENDER_DELAY_MS);
   }
 
-  function renderPanel() {
-    switch (activeSlide) {
+  // Panels render differently based on mode — customer-pack uses simplified/
+  // severeOnly variants to reduce visual weight.
+  const isCustomerPack = presentationMode === 'customer-pack';
+
+  function renderPanel(id: CanonicalSectionId) {
+    switch (id) {
       case 'cover':
         return (
           <CoverHeroCard
@@ -111,9 +124,9 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
       case 'daily-use':
         return <DailyUsePanel quotes={pack.quotes} />;
       case 'ratings':
-        return <RatingsPanel quotes={pack.quotes} />;
+        return <RatingsPanel quotes={pack.quotes} simplified={isCustomerPack} />;
       case 'limitations':
-        return <LimitationsPanel quotes={pack.quotes} />;
+        return <LimitationsPanel quotes={pack.quotes} severeOnly={isCustomerPack} />;
       case 'improvements':
         return <ImprovementsPanel quotes={pack.quotes} />;
       case 'savings':
@@ -130,14 +143,29 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
     }
   }
 
+  // Page-break groupings for the print layout.
+  // Sections at even indices (0, 2, 4…) start a new page.
+  function isPageStart(index: number): boolean {
+    return index % 2 === 0;
+  }
+
+  // Navigation label used in the ARIA label for the nav landmark.
+  const navLabel =
+    presentationMode === 'customer-pack'
+      ? 'Customer Pack sections'
+      : presentationMode === 'technical-pack'
+        ? 'Technical Pack sections'
+        : 'Insight Pack sections';
+
   return (
     <div
-      className={`insight-deck${isPrinting ? ' insight-deck--printing' : ''}`}
+      className={`insight-deck${isPrinting ? ' insight-deck--printing' : ''} insight-deck--${presentationMode}`}
       data-testid="insight-pack-deck"
+      data-mode={presentationMode}
     >
       {/* Slide navigation */}
-      <nav className="insight-deck__nav" role="tablist" aria-label="Insight Pack sections">
-        {SLIDES.map(slide => (
+      <nav className="insight-deck__nav" role="tablist" aria-label={navLabel}>
+        {slides.map(slide => (
           <button
             key={slide.id}
             role="tab"
@@ -145,66 +173,28 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
             className={`insight-deck__nav-btn${slide.id === activeSlide ? ' insight-deck__nav-btn--active' : ''}`}
             onClick={() => goTo(slide.id)}
           >
-            {slide.label}
+            {slide.icon} {slide.label}
           </button>
         ))}
       </nav>
 
       {/* Active panel (screen view) */}
       <div className="insight-deck__panel" role="tabpanel">
-        {renderPanel()}
+        {renderPanel(activeSlide)}
       </div>
 
       {/* All panels stacked — visible only when printing.
-          Sections are paired 1-2 per page via --page-start modifier:
-            Page 1: cover + what-we-know
-            Page 2: overview + best-advice
-            Page 3: daily-use + ratings
-            Page 4: limitations + improvements
-            Page 5: savings + why-atlas
-            Page 6: next-steps                                               */}
+          Sections are paired 1–2 per page via --page-start modifier.       */}
       <div className="insight-deck__all-panels" style={{ display: 'none' }}>
-        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="cover">
-          <CoverHeroCard
-            quotes={pack.quotes}
-            bestAdvice={pack.bestAdvice}
-            currentSystem={pack.currentSystem}
-            propertyTitle={propertyTitle}
-          />
-        </div>
-        <div className="insight-deck__print-section" data-slide="what-we-know">
-          <WhatWeKnowGrid tiles={pack.homeProfile} />
-        </div>
-        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="overview">
-          <QuoteComparisonCard quotes={pack.quotes} bestAdvice={pack.bestAdvice} />
-        </div>
-        <div className="insight-deck__print-section" data-slide="best-advice">
-          <BestAdvicePanel bestAdvice={pack.bestAdvice} />
-        </div>
-        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="daily-use">
-          <DailyUsePanel quotes={pack.quotes} />
-        </div>
-        <div className="insight-deck__print-section" data-slide="ratings">
-          <RatingsPanel quotes={pack.quotes} />
-        </div>
-        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="limitations">
-          <LimitationsPanel quotes={pack.quotes} />
-        </div>
-        <div className="insight-deck__print-section" data-slide="improvements">
-          <ImprovementsPanel quotes={pack.quotes} />
-        </div>
-        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="savings">
-          <SavingsPanel savingsPlan={pack.savingsPlan} />
-        </div>
-        <div className="insight-deck__print-section" data-slide="why-atlas">
-          <WhyAtlasSuggestedThis reasonChain={pack.reasonChain} />
-        </div>
-        <div className="insight-deck__print-section insight-deck__print-section--page-start" data-slide="next-steps">
-          <NextStepsCard
-            nextSteps={pack.nextSteps}
-            onReview={() => goTo('overview')}
-          />
-        </div>
+        {slides.map((slide, index) => (
+          <div
+            key={slide.id}
+            className={`insight-deck__print-section${isPageStart(index) ? ' insight-deck__print-section--page-start' : ''}`}
+            data-slide={slide.id}
+          >
+            {renderPanel(slide.id)}
+          </div>
+        ))}
       </div>
 
       {/* Footer prev / next */}
@@ -218,9 +208,9 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
           ← Previous
         </button>
         <span className="insight-deck__page-indicator">
-          {currentIndex + 1} / {SLIDES.length}
+          {currentIndex + 1} / {slides.length}
         </span>
-        {currentIndex === SLIDES.length - 1 ? (
+        {currentIndex === slides.length - 1 ? (
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button
               className="insight-deck__footer-btn insight-deck__print-btn"
@@ -243,7 +233,7 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
           <button
             className="insight-deck__footer-btn"
             onClick={goNext}
-            disabled={currentIndex === SLIDES.length - 1}
+            disabled={currentIndex === slides.length - 1}
             aria-label="Next section"
           >
             Next →
@@ -253,3 +243,4 @@ export default function InsightPackDeck({ pack, propertyTitle, onClose }: Props)
     </div>
   );
 }
+

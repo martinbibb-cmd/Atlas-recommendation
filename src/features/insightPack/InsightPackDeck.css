@@ -92,3 +92,21 @@
   font-size: 0.8rem;
   color: #5b6f91;
 }
+
+/* ── Mode modifier: customer-pack ──────────────────────────────────────────── */
+
+/* Customer-pack mode: tighter chrome so print pages feel clean */
+.insight-deck--customer-pack .insight-deck__nav {
+  background: #f8faff;
+}
+.insight-deck--customer-pack .insight-deck__nav-btn {
+  font-size: 0.75rem;
+  padding: 0.6rem 0.85rem;
+}
+
+/* ── Mode modifier: technical-pack ─────────────────────────────────────────── */
+
+/* Technical-pack mode: subtle indicator in nav to distinguish from in-room */
+.insight-deck--technical-pack .insight-deck__nav {
+  border-bottom: 2px solid #e0eaff;
+}
