@@ -591,7 +591,160 @@
   border-bottom: 1px solid #e2e8f0;
 }
 
-/* ── Internal diagnostics section ───────────────────────────────────────── */
+/* ── Review handoff large card ───────────────────────────────────────────── */
+
+.visit-hub__action-btn--handoff-card {
+  background: #2b6cb0;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.visit-hub__action-btn--handoff-card:hover {
+  background: #2c5282;
+}
+
+.visit-hub__handoff-card-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.visit-hub__handoff-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.visit-hub__handoff-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.visit-hub__handoff-card-sub {
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.4;
+}
+
+.visit-hub__handoff-card-arrow {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* ── Completed-state output preview cards ────────────────────────────────── */
+
+.visit-hub__preview-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem 1.1rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.visit-hub__preview-card-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #718096;
+  margin: 0;
+}
+
+.visit-hub__preview-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.visit-hub__preview-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.visit-hub__preview-row-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.visit-hub__preview-row-heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4a5568;
+  margin: 0 0 0.1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.visit-hub__preview-row-text {
+  font-size: 0.9rem;
+  color: #2d3748;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.visit-hub__preview-card-stats {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.visit-hub__preview-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 56px;
+  gap: 0.1rem;
+}
+
+.visit-hub__preview-stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a202c;
+  line-height: 1;
+}
+
+.visit-hub__preview-stat-label {
+  font-size: 0.7rem;
+  color: #718096;
+  text-align: center;
+}
+
+.visit-hub__preview-emitter {
+  font-size: 0.82rem;
+  color: #4a5568;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-top: 1px solid #f0f4f8;
+  padding-top: 0.5rem;
+}
+
+.visit-hub__preview-emitter-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #718096;
+}
+
+
 
 .visit-hub__internal-diagnostics {
   margin-top: 2rem;

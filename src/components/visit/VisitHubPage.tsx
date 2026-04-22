@@ -38,6 +38,8 @@ import { buildCanonicalReportPayload } from '../../features/reports/adapters/bui
 import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
+import { HEAT_SOURCE_OPTIONS } from '../../features/survey/recommendation/recommendationTypes';
+import { WATER_SOURCE_OPTIONS } from '../../features/survey/recommendation/recommendationTypes';
 import VisitReportsList from './VisitReportsList';
 import { VisitReplayPanel } from './VisitReplayPanel';
 import './VisitHubPage.css';
@@ -105,6 +107,164 @@ function hubLifecycleKey(meta: VisitMeta): string {
   if (isVisitCompleted(meta)) return 'visit_completed';
   if (isSurveyComplete(meta)) return 'ready_to_complete';
   return 'visit_in_progress';
+}
+
+// ─── Completed-state preview derivation ──────────────────────────────────────
+
+/**
+ * Returns a short human-readable label for the current heat source
+ * captured in the system builder step.
+ */
+function heatSourceLabel(heatSource: string | null | undefined): string | null {
+  if (!heatSource) return null;
+  const map: Record<string, string> = {
+    combi:         'Combi boiler',
+    system:        'System boiler',
+    regular:       'Regular boiler',
+    storage_combi: 'Storage combi boiler',
+  };
+  return map[heatSource] ?? null;
+}
+
+interface CustomerPreview {
+  currentSystem: string | null;
+  plannedSystem: string | null;
+}
+
+/**
+ * Derives a two-line customer-facing preview from the working payload.
+ * Returns null strings when insufficient data is available.
+ */
+function deriveCustomerPreview(payload: Partial<FullSurveyModelV1>): CustomerPreview {
+  const systemBuilder = payload.fullSurvey?.systemBuilder;
+  const recommendation = payload.fullSurvey?.recommendation;
+
+  // Current system — derive from the surveyed system builder state.
+  let currentSystem: string | null = null;
+  if (systemBuilder?.heatSource) {
+    const label = heatSourceLabel(systemBuilder.heatSource);
+    if (label) {
+      const agePart = systemBuilder.boilerAgeYears != null
+        ? `, approx. ${systemBuilder.boilerAgeYears} year${systemBuilder.boilerAgeYears !== 1 ? 's' : ''} old`
+        : '';
+      currentSystem = `${label}${agePart}`;
+    }
+  }
+
+  // Planned system — derive from the recommendation step.
+  let plannedSystem: string | null = null;
+  if (recommendation?.heatSource) {
+    const heatOpt = HEAT_SOURCE_OPTIONS.find(o => o.value === recommendation.heatSource);
+    const waterOpt = recommendation.waterSource
+      ? WATER_SOURCE_OPTIONS.find(o => o.value === recommendation.waterSource)
+      : null;
+    const parts: string[] = [];
+    if (heatOpt) parts.push(heatOpt.label);
+    if (waterOpt && recommendation.waterSource !== 'keep_existing') parts.push(waterOpt.label);
+    if (parts.length > 0) plannedSystem = parts.join(' + ');
+  }
+
+  return { currentSystem, plannedSystem };
+}
+
+interface EngineerPreviewCounts {
+  bedrooms: number | null;
+  keyObjects: number;
+  emitterType: string | null;
+  captureNotes: number;
+}
+
+/**
+ * Derives count-based engineer preview stats from the working payload.
+ */
+function deriveEngineerPreviewCounts(
+  payload: Partial<FullSurveyModelV1>,
+  voiceNotes: VoiceNote[],
+): EngineerPreviewCounts {
+  const systemBuilder = payload.fullSurvey?.systemBuilder;
+
+  // Bedrooms — available as a top-level field on EngineInputV2_3.
+  const bedrooms = payload.bedrooms ?? null;
+
+  // Key objects — count the distinct items present in the system builder.
+  let keyObjects = 0;
+  if (systemBuilder?.heatSource) keyObjects++;
+  if (systemBuilder?.dhwType && systemBuilder.dhwType !== 'combi_cylinder') keyObjects++;
+  if (systemBuilder?.cylinderAgeBand) keyObjects++;
+  if (systemBuilder?.emitters) keyObjects++;
+
+  // Emitter type — use the existing emitters field.
+  const emitterMap: Record<string, string> = {
+    radiators_standard: 'Standard radiators',
+    radiators_designer: 'Designer radiators',
+    underfloor:         'Underfloor heating',
+    mixed:              'Mixed (radiators + UFH)',
+  };
+  const emitterType = systemBuilder?.emitters
+    ? (emitterMap[systemBuilder.emitters] ?? systemBuilder.emitters)
+    : null;
+
+  return { bedrooms, keyObjects, emitterType, captureNotes: voiceNotes.length };
+}
+
+// ─── Completed preview card components ───────────────────────────────────────
+
+function CustomerSummaryPreviewCard({ preview }: { preview: CustomerPreview }) {
+  return (
+    <div className="visit-hub__preview-card" data-testid="customer-summary-preview-card">
+      <p className="visit-hub__preview-card-label">Customer summary preview</p>
+      <div className="visit-hub__preview-card-body">
+        <div className="visit-hub__preview-row">
+          <span className="visit-hub__preview-row-icon">🏠</span>
+          <div>
+            <p className="visit-hub__preview-row-heading">What we found</p>
+            <p className="visit-hub__preview-row-text">
+              {preview.currentSystem ?? 'Current system details not recorded'}
+            </p>
+          </div>
+        </div>
+        <div className="visit-hub__preview-row">
+          <span className="visit-hub__preview-row-icon">🔧</span>
+          <div>
+            <p className="visit-hub__preview-row-heading">What&rsquo;s planned</p>
+            <p className="visit-hub__preview-row-text">
+              {preview.plannedSystem ?? 'Recommendation not yet recorded'}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EngineerHandoffPreviewCard({ counts }: { counts: EngineerPreviewCounts }) {
+  return (
+    <div className="visit-hub__preview-card" data-testid="engineer-handoff-preview-card">
+      <p className="visit-hub__preview-card-label">Engineer handoff preview</p>
+      <div className="visit-hub__preview-card-stats">
+        <div className="visit-hub__preview-stat">
+          <span className="visit-hub__preview-stat-value">
+            {counts.bedrooms != null ? counts.bedrooms : '—'}
+          </span>
+          <span className="visit-hub__preview-stat-label">Bedrooms</span>
+        </div>
+        <div className="visit-hub__preview-stat">
+          <span className="visit-hub__preview-stat-value">{counts.keyObjects}</span>
+          <span className="visit-hub__preview-stat-label">Key objects</span>
+        </div>
+        <div className="visit-hub__preview-stat">
+          <span className="visit-hub__preview-stat-value">{counts.captureNotes}</span>
+          <span className="visit-hub__preview-stat-label">Capture notes</span>
+        </div>
+      </div>
+      {counts.emitterType && (
+        <p className="visit-hub__preview-emitter">
+          <span className="visit-hub__preview-emitter-label">Emitters</span>
+          {counts.emitterType}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -277,15 +437,22 @@ function HubActions({
       <div className="visit-hub__actions">
         {lifecycleCard}
 
-        {/* Primary */}
+        {/* Primary — Review handoff as a large descriptive card */}
         {onOpenHandoffReview && (
           <button
-            className="visit-hub__action-btn visit-hub__action-btn--primary"
+            className="visit-hub__action-btn visit-hub__action-btn--handoff-card"
             onClick={onOpenHandoffReview}
             aria-label="Review completed-visit handoff"
             data-testid="open-handoff-review-btn"
           >
-            🤝 Review handoff
+            <span className="visit-hub__handoff-card-icon">🤝</span>
+            <span className="visit-hub__handoff-card-body">
+              <span className="visit-hub__handoff-card-title">Review handoff</span>
+              <span className="visit-hub__handoff-card-sub">
+                View customer summary and engineer handoff outputs
+              </span>
+            </span>
+            <span className="visit-hub__handoff-card-arrow">›</span>
           </button>
         )}
 
@@ -761,11 +928,23 @@ export default function VisitHubPage({
         {/* ── Lifecycle-aware body panels ────────────────────────────────────── */}
 
         {isVisitCompleted(meta) ? (
-          /* Completed: survey-assist is closed; handoff is primary */
+          /* Completed: show output preview cards; survey-assist is closed */
           <>
-            <p className="visit-hub__body-hint" data-testid="visit-hub-body-completed-hint">
-              Survey capture is closed. Use the handoff tools above to share and review this visit.
-            </p>
+            {/* Customer summary preview — read-only, derived from session data */}
+            <CustomerSummaryPreviewCard
+              preview={deriveCustomerPreview(
+                workingPayloadRef.current as Partial<FullSurveyModelV1>,
+              )}
+            />
+
+            {/* Engineer handoff preview — read-only, count-based */}
+            <EngineerHandoffPreviewCard
+              counts={deriveEngineerPreviewCounts(
+                workingPayloadRef.current as Partial<FullSurveyModelV1>,
+                voiceNotes,
+              )}
+            />
+
             {/* Survey record — demoted behind a collapse; not customer-facing */}
             <details className="visit-hub__section-collapse" data-testid="survey-record-collapse">
               <summary className="visit-hub__section-collapse-summary">
