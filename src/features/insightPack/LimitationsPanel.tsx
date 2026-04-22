@@ -39,7 +39,7 @@ export default function LimitationsPanel({ quotes, severeOnly = false }: Props) 
   return (
     <div className="limitations" data-testid="limitations-panel">
       <h2 className="limitations__heading">
-        {severeOnly ? 'Key constraints' : 'Where each option struggles'}
+        {severeOnly ? 'Critical Constraints' : 'Where each option struggles'}
       </h2>
       <p className="limitations__sub">
         {severeOnly

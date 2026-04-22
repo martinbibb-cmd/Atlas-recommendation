@@ -143,8 +143,13 @@ export default function InsightPackDeck({
     }
   }
 
-  // Page-break groupings for the print layout.
-  // Sections at even indices (0, 2, 4…) start a new page.
+  /**
+   * Determines whether a section starts a new print page.
+   * Sections are grouped in pairs (indices 0–1, 2–3, 4–5, …) so that
+   * each A4/letter page contains at most two panels side-by-side.
+   * Even-index sections (0, 2, 4…) trigger a page break via the
+   * `insight-deck__print-section--page-start` CSS modifier.
+   */
   function isPageStart(index: number): boolean {
     return index % 2 === 0;
   }
