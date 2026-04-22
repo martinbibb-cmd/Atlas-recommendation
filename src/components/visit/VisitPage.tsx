@@ -358,6 +358,30 @@ export default function VisitPage({
     [persist, onComplete]
   );
 
+  /**
+   * onOpenInsightPack — called by FullSurveyStepper when the Quotes step
+   * completes with quotes present.  Mirrors handleComplete: promotes the
+   * visit status to recommendation_ready so the Visit Hub shows the correct
+   * state (and so the user is not stuck in a survey→insight loop on return).
+   *
+   * persist(true) is called immediately (no debounce) so the visit status is
+   * written before navigation hands off to the Insight Pack, avoiding a race
+   * condition if the user returns to the Visit Hub quickly.
+   */
+  const handleOpenInsightPack = useCallback(
+    (engineInput: EngineInputV2_3, quotes: QuoteInput[]) => {
+      isCompleteRef.current = true;
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+      if (savedResetTimer.current !== null) clearTimeout(savedResetTimer.current);
+
+      setSaveState('saving');
+      persist(true);
+
+      if (onOpenInsightPack) onOpenInsightPack(engineInput, quotes);
+    },
+    [persist, onOpenInsightPack]
+  );
+
   if (!ready) {
     return (
       <div className="visit-page__loading" role="status" aria-live="polite">
@@ -396,7 +420,7 @@ export default function VisitPage({
         prefill={prefill}
         onComplete={handleComplete}
         onOpenSimulator={onOpenSimulator ?? handleComplete}
-        onOpenInsightPack={onOpenInsightPack}
+        onOpenInsightPack={onOpenInsightPack ? handleOpenInsightPack : undefined}
         onDraft={handleDraft}
         onOpenFloorPlan={onOpenFloorPlan}
       />
