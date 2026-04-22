@@ -207,14 +207,15 @@ export function boilerSteppedCurve(hours: HourState[], hasHighFlowDelivery: bool
     : isHotWaterDrawEvent(deliveryMode) ? 1.0 : 0.0;
   return hours.map((state, h) => {
     if (state === 'dhw_demand') {
-      const noConflictTemp = 21 + Math.sin((h / 24) * Math.PI * 2) * 0.5;
+      // No sinusoidal smoothing (No Theatre rule): use a flat 21 °C no-conflict reference.
+      const noConflictTemp = 21;
       const conflictTemp = hasHighFlowDelivery ? 17.5 : 19.5;
       // Interpolate: scalar=1.0 → full conflict; scalar=0.0 → no conflict
       return parseFloat((conflictTemp + (noConflictTemp - conflictTemp) * (1 - scalar)).toFixed(2));
     }
     if (state === 'home') {
-      // fast reheat + slight sinusoidal variation across the day
-      return parseFloat((21 + Math.sin((h / 24) * Math.PI * 2) * 0.5).toFixed(2));
+      // Fast reheat to 21 °C combi setpoint — flat, no sinusoidal variation (No Theatre rule).
+      return 21;
     }
     return 16; // setback when away
   });

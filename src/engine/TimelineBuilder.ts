@@ -328,8 +328,9 @@ function buildAshpSeries(
     const demandKw = demandKwArr[i];
     // ASHP "low and slow" — stable delivery matching demand
     const delivered = demandKw; // heat pump output tracks demand smoothly
-    // Comfort: ASHP maintains a flat horizon exploiting thermal mass
-    const comfort = 19.5 + Math.sin((i / 96) * Math.PI) * 0.5;
+    // Comfort: ASHP modulates continuously so room temperature stays at the 20 °C
+    // setpoint — a flat horizon.  No sinusoidal variation (No Theatre rule).
+    const comfort = 20.0;
     // DHW from ASHP cylinder is stable
     const dhwOutlet = 55;
 
