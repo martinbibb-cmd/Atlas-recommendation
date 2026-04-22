@@ -1155,6 +1155,18 @@ export default function App() {
           )}
 
           <div className="journey-cards">
+            {/* Secondary CTA — Remote / Manual Survey */}
+            <div
+              id="survey-panel"
+              data-tour="survey-panel"
+              className="journey-card journey-card--remote"
+              onClick={() => setJourney('full')}
+            >
+              <div className="card-icon">📋</div>
+              <h2>Remote / Manual Survey</h2>
+              <p>Use when surveying off-site by phone, video, or existing customer information.</p>
+              <button className="cta-btn">Start Remote Survey →</button>
+            </div>
             {labEngineInput != null && (
               <div
                 className="journey-card journey-card--featured"
@@ -1166,6 +1178,17 @@ export default function App() {
                 <button className="cta-btn">Open Presentation →</button>
               </div>
             )}
+            <div
+              id="fast-choice-card"
+              data-tour="mode-choice"
+              className="journey-card fast"
+              onClick={() => setJourney('fast')}
+            >
+              <div className="card-icon">⚡</div>
+              <h2>Fast Choice</h2>
+              <p>Quick recommendation from key inputs — no visit required.</p>
+              <button className="cta-btn">Start Fast Choice →</button>
+            </div>
             <div
               className="journey-card"
               onClick={() => setJourney('floor-plan')}
@@ -1192,28 +1215,6 @@ export default function App() {
               <h2>Building Height Check</h2>
               <p>Estimate building height from manual distance and captured base/top angles.</p>
               <button className="cta-btn">Open Height Check →</button>
-            </div>
-            <div
-              id="fast-choice-card"
-              data-tour="mode-choice"
-              className="journey-card fast"
-              onClick={() => setJourney('fast')}
-            >
-              <div className="card-icon">⚡</div>
-              <h2>Fast Choice</h2>
-              <p>Quick recommendation from key inputs — no visit required.</p>
-              <button className="cta-btn">Start Fast Choice →</button>
-            </div>
-            <div
-              id="survey-panel"
-              data-tour="survey-panel"
-              className="journey-card full"
-              onClick={() => setJourney('full')}
-            >
-              <div className="card-icon">🔬</div>
-              <h2>Standalone Survey</h2>
-              <p>Run a full technical survey without creating a visit record — useful for demos and training.</p>
-              <button className="cta-btn">Start Survey →</button>
             </div>
             <div
               className="journey-card"
