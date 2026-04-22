@@ -38,8 +38,7 @@ import { buildCanonicalReportPayload } from '../../features/reports/adapters/bui
 import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
-import { HEAT_SOURCE_OPTIONS } from '../../features/survey/recommendation/recommendationTypes';
-import { WATER_SOURCE_OPTIONS } from '../../features/survey/recommendation/recommendationTypes';
+import { HEAT_SOURCE_OPTIONS, WATER_SOURCE_OPTIONS } from '../../features/survey/recommendation/recommendationTypes';
 import VisitReportsList from './VisitReportsList';
 import { VisitReplayPanel } from './VisitReplayPanel';
 import './VisitHubPage.css';
@@ -144,8 +143,9 @@ function deriveCustomerPreview(payload: Partial<FullSurveyModelV1>): CustomerPre
   if (systemBuilder?.heatSource) {
     const label = heatSourceLabel(systemBuilder.heatSource);
     if (label) {
-      const agePart = systemBuilder.boilerAgeYears != null
-        ? `, approx. ${systemBuilder.boilerAgeYears} year${systemBuilder.boilerAgeYears !== 1 ? 's' : ''} old`
+      const age = systemBuilder.boilerAgeYears;
+      const agePart = age != null
+        ? `, approx. ${age} year${age !== 1 ? 's' : ''} old`
         : '';
       currentSystem = `${label}${agePart}`;
     }
@@ -187,6 +187,8 @@ function deriveEngineerPreviewCounts(
   const bedrooms = payload.bedrooms ?? null;
 
   // Key objects — count the distinct items present in the system builder.
+  // 'combi_cylinder' is excluded because a combi boiler provides hot water
+  // internally — it is not a separate physical object in the property.
   let keyObjects = 0;
   if (systemBuilder?.heatSource) keyObjects++;
   if (systemBuilder?.dhwType && systemBuilder.dhwType !== 'combi_cylinder') keyObjects++;
