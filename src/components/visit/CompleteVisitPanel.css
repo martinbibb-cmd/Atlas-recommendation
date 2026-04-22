@@ -1,0 +1,131 @@
+/*
+ * CompleteVisitPanel — styles for the explicit visit completion panel.
+ */
+
+.complete-visit-panel {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* ── Done / completed state ──────────────────────────────────────────────── */
+
+.complete-visit-panel--done {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f0fff4;
+  border-color: #68d391;
+}
+
+.complete-visit-panel__icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.complete-visit-panel__done-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.complete-visit-panel__done-text strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #276749;
+}
+
+.complete-visit-panel__done-date {
+  font-size: 0.8rem;
+  color: #38a169;
+}
+
+/* ── Heading ─────────────────────────────────────────────────────────────── */
+
+.complete-visit-panel__heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #22543d;
+  margin: 0;
+}
+
+/* ── Readiness checklist ─────────────────────────────────────────────────── */
+
+.complete-visit-panel__checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.complete-visit-panel__check-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.complete-visit-panel__check-item--pass {
+  color: #276749;
+}
+
+.complete-visit-panel__check-item--fail {
+  color: #c53030;
+}
+
+.complete-visit-panel__check-icon {
+  font-size: 0.9rem;
+  width: 1.1em;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ── Hint / error ────────────────────────────────────────────────────────── */
+
+.complete-visit-panel__hint {
+  font-size: 0.83rem;
+  color: #718096;
+  margin: 0;
+  font-style: italic;
+}
+
+.complete-visit-panel__error {
+  font-size: 0.85rem;
+  color: #c53030;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ── Button ──────────────────────────────────────────────────────────────── */
+
+.complete-visit-panel__btn {
+  width: 100%;
+  padding: 0.8rem 1.25rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  text-align: left;
+  background: #276749;
+  color: #fff;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.complete-visit-panel__btn:hover:not(:disabled) {
+  background: #22543d;
+}
+
+.complete-visit-panel__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  background: #9ae6b4;
+  color: #276749;
+}

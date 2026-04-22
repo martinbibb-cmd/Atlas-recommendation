@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { getVisit, saveVisit, deleteVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, type VisitMeta } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, deleteVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, isVisitCompleted, type VisitMeta } from '../../lib/visits/visitApi';
 import { listReportsForVisit, saveReport } from '../../lib/reports/reportApi';
 import { generateReportTitle } from '../../lib/reports/generateReportTitle';
 import { generatePortalToken } from '../../lib/portal/portalToken';
@@ -30,6 +30,7 @@ import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
 import VisitReportsList from './VisitReportsList';
 import { VisitReplayPanel } from './VisitReplayPanel';
+import CompleteVisitPanel from './CompleteVisitPanel';
 import './VisitHubPage.css';
 
 interface Props {
@@ -177,6 +178,7 @@ function HubActions({
   hasQuotes?: boolean;
 }) {
   const surveyDone = isSurveyComplete(meta);
+  const visitDone = isVisitCompleted(meta);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   function handleSendPortal() {
@@ -205,7 +207,7 @@ function HubActions({
         {surveyDone ? '▶ Start in-room presentation' : '▶ Resume survey'}
       </button>
 
-      {surveyDone && (
+      {surveyDone && !visitDone && (
         <button
           className="visit-hub__action-btn visit-hub__action-btn--secondary"
           onClick={onResumeSurvey}
@@ -404,6 +406,11 @@ export default function VisitHubPage({
     saveVisit(visitId, { visit_reference: trimmed ?? '' }).catch(() => {/* best effort */});
   }
 
+  function handleVisitCompleted(completedAt: string) {
+    if (!meta) return;
+    setMeta({ ...meta, completed_at: completedAt, completion_method: 'manual_pwa' });
+  }
+
   function handleDeleteRequest() {
     setDeleteConfirm(true);
   }
@@ -500,6 +507,8 @@ export default function VisitHubPage({
           portalLoading={portalLoading}
           hasQuotes={hasQuotes}
         />
+
+        <CompleteVisitPanel meta={meta} onCompleted={handleVisitCompleted} />
 
         <VoiceNotesPanel
           visitId={visitId}

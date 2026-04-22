@@ -48,6 +48,8 @@ interface VisitRow {
   postcode: string | null;
   current_step: string | null;
   visit_reference: string | null;
+  completed_at: string | null;
+  completion_method: string | null;
   working_payload_json: string;
 }
 
@@ -121,7 +123,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   const listResult = await breaker.run(() =>
     env.ATLAS_REPORTS_D1.prepare(
-      `SELECT id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step, visit_reference
+      `SELECT id, created_at, updated_at, status, customer_name, address_line_1, postcode, current_step, visit_reference, completed_at, completion_method
        FROM visits
        ORDER BY updated_at DESC
        LIMIT 50`
