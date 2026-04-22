@@ -300,6 +300,128 @@
   cursor: default;
 }
 
+.visit-hub__action-btn--ghost {
+  background: transparent;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+}
+
+.visit-hub__action-btn--ghost:hover {
+  background: #edf2f7;
+}
+
+/* ── Lifecycle section cards ─────────────────────────────────────────────── */
+
+.visit-hub__section {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.visit-hub__section-title {
+  margin: 0;
+  padding: 0.65rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #718096;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.visit-hub__section-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.visit-hub__section-actions .visit-hub__action-btn {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.visit-hub__section-actions .visit-hub__action-btn:last-child {
+  border-bottom: none;
+}
+
+.visit-hub__section-actions .visit-hub__action-btn--secondary {
+  background: #fff;
+}
+
+.visit-hub__section-actions .visit-hub__action-btn--secondary:hover:not(:disabled) {
+  background: #f7fafc;
+}
+
+.visit-hub__section-actions .visit-hub__action-btn--ghost {
+  background: transparent;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.visit-hub__section-actions .visit-hub__action-btn--ghost:last-child {
+  border-bottom: none;
+}
+
+.visit-hub__section--secondary {
+  border-color: #e2e8f0;
+}
+
+.visit-hub__section--secondary .visit-hub__section-title {
+  color: #a0aec0;
+}
+
+.visit-hub__section--locked {
+  opacity: 0.65;
+}
+
+/* ── More tools (collapsed) ──────────────────────────────────────────────── */
+
+.visit-hub__more-tools {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.visit-hub__more-tools-summary {
+  padding: 0.65rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #718096;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  background: #f7fafc;
+  border-bottom: 1px solid transparent;
+}
+
+.visit-hub__more-tools-summary::-webkit-details-marker {
+  display: none;
+}
+
+.visit-hub__more-tools[open] .visit-hub__more-tools-summary {
+  border-bottom-color: #e2e8f0;
+}
+
+.visit-hub__more-tools-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.visit-hub__more-tools-actions .visit-hub__action-btn {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.visit-hub__more-tools-actions .visit-hub__action-btn:last-child {
+  border-bottom: none;
+}
+
 /* ── Danger zone (delete visit) ──────────────────────────────────────────── */
 
 .visit-hub__danger-zone {

@@ -197,88 +197,174 @@ function HubActions({
     window.open(portalUrl, '_blank', 'noopener,noreferrer');
   }
 
+  // ── Completed visit: handoff-first layout ─────────────────────────────────
+
+  if (visitDone) {
+    return (
+      <div className="visit-hub__actions visit-hub__actions--completed">
+        {/* Primary CTA — currently uses onOpenPresentation as the handoff entry
+            point; a dedicated review-handoff route can be wired in a future PR. */}
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--primary"
+          onClick={onOpenPresentation}
+          aria-label="Review handoff"
+        >
+          ↩ Review handoff
+        </button>
+
+        {/* Handoff section */}
+        <div className="visit-hub__section">
+          <h3 className="visit-hub__section-title">Handoff</h3>
+          <div className="visit-hub__section-actions">
+            {onPrintSummary && (
+              <button
+                className="visit-hub__action-btn visit-hub__action-btn--secondary"
+                onClick={onPrintSummary}
+                aria-label="Customer summary"
+              >
+                📄 Customer summary
+              </button>
+            )}
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={handleSendPortal}
+              aria-label="Send customer portal"
+              data-testid="send-portal-btn"
+              disabled={!portalUrl || portalLoading}
+              aria-disabled={!portalUrl || portalLoading}
+            >
+              {portalLoading
+                ? '⏳ Preparing portal…'
+                : copyState === 'copied'
+                  ? '✅ Link copied!'
+                  : copyState === 'failed'
+                    ? '⚠ Copy failed — check URL'
+                    : '📤 Send customer portal'}
+            </button>
+            {onOpenEngineerRoute && (
+              <button
+                className="visit-hub__action-btn visit-hub__action-btn--secondary"
+                onClick={onOpenEngineerRoute}
+                aria-label="Engineer handoff"
+                data-testid="open-engineer-route-btn"
+              >
+                🔧 Engineer handoff
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Legacy / secondary tools — collapsed by default */}
+        <details className="visit-hub__more-tools">
+          <summary className="visit-hub__more-tools-summary">More tools</summary>
+          <div className="visit-hub__more-tools-actions">
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--ghost"
+              onClick={onOpenPresentation}
+              aria-label="Present to customer"
+            >
+              🖥 Present to customer
+            </button>
+            {onOpenInsightPack && hasQuotes && (
+              <button
+                className="visit-hub__action-btn visit-hub__action-btn--ghost"
+                onClick={onOpenInsightPack}
+                aria-label="Technical detail"
+                data-testid="open-insight-pack-btn"
+              >
+                📋 Technical detail
+              </button>
+            )}
+          </div>
+        </details>
+      </div>
+    );
+  }
+
+  // ── Incomplete visit: survey / completion-first layout ────────────────────
+
   return (
-    <div className="visit-hub__actions">
-      <button
-        className="visit-hub__action-btn visit-hub__action-btn--primary"
-        onClick={surveyDone ? onOpenPresentation : onResumeSurvey}
-        aria-label={surveyDone ? 'Start in-room presentation' : 'Resume survey'}
-      >
-        {surveyDone ? '▶ Start in-room presentation' : '▶ Resume survey'}
-      </button>
+    <div className="visit-hub__actions visit-hub__actions--in-progress">
+      {/* Survey section */}
+      <div className="visit-hub__section">
+        <h3 className="visit-hub__section-title">Survey</h3>
+        <div className="visit-hub__section-actions">
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--primary"
+            onClick={onResumeSurvey}
+            aria-label={surveyDone ? 'Edit survey inputs' : 'Continue survey'}
+          >
+            {surveyDone ? '✏ Edit survey' : '▶ Continue survey'}
+          </button>
+        </div>
+      </div>
 
-      {surveyDone && !visitDone && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onResumeSurvey}
-          aria-label="Edit survey inputs"
-        >
-          ✏ Edit survey
-        </button>
-      )}
-
-      {surveyDone && onPrintSummary && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onPrintSummary}
-          aria-label="Print summary"
-        >
-          🖨 Print summary
-        </button>
-      )}
-
-      {surveyDone && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={handleSendPortal}
-          aria-label="Send customer portal link"
-          data-testid="send-portal-btn"
-          disabled={!portalUrl || portalLoading}
-          aria-disabled={!portalUrl || portalLoading}
-        >
-          {portalLoading
-            ? '⏳ Preparing portal…'
-            : copyState === 'copied'
-              ? '✅ Link copied!'
-              : copyState === 'failed'
-                ? '⚠ Copy failed — check URL'
-                : '📤 Send customer portal'}
-        </button>
-      )}
-
-      {!surveyDone && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onResumeSurvey}
-          aria-label="Continue survey"
-          disabled
-          aria-disabled="true"
-        >
-          📊 Presentation — complete survey first
-        </button>
-      )}
-
-      {onOpenEngineerRoute && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onOpenEngineerRoute}
-          aria-label="Open pre-install engineer view"
-          data-testid="open-engineer-route-btn"
-        >
-          🔧 Pre-install engineer view
-        </button>
-      )}
-
-      {surveyDone && onOpenInsightPack && hasQuotes && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onOpenInsightPack}
-          aria-label="Open Atlas Insight Pack"
-          data-testid="open-insight-pack-btn"
-        >
-          📋 View Insight Pack
-        </button>
-      )}
+      {/* Outputs section — secondary and visually muted until survey is done */}
+      <div className={`visit-hub__section visit-hub__section--secondary${!surveyDone ? ' visit-hub__section--locked' : ''}`}>
+        <h3 className="visit-hub__section-title">Outputs</h3>
+        <div className="visit-hub__section-actions">
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={onOpenPresentation}
+            disabled={!surveyDone}
+            aria-disabled={!surveyDone}
+            aria-label="Present to customer"
+          >
+            🖥 Present to customer
+          </button>
+          {onPrintSummary && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onPrintSummary}
+              disabled={!surveyDone}
+              aria-disabled={!surveyDone}
+              aria-label="Customer summary"
+            >
+              📄 Customer summary
+            </button>
+          )}
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={handleSendPortal}
+            disabled={!surveyDone || !portalUrl || portalLoading}
+            aria-disabled={!surveyDone || !portalUrl || portalLoading}
+            aria-label="Send customer portal"
+            data-testid="send-portal-btn"
+          >
+            {!surveyDone
+              ? '📤 Customer portal — complete survey first'
+              : portalLoading
+                ? '⏳ Preparing portal…'
+                : copyState === 'copied'
+                  ? '✅ Link copied!'
+                  : copyState === 'failed'
+                    ? '⚠ Copy failed — check URL'
+                    : '📤 Send customer portal'}
+          </button>
+          {onOpenEngineerRoute && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenEngineerRoute}
+              disabled={!surveyDone}
+              aria-disabled={!surveyDone}
+              aria-label="Engineer handoff"
+              data-testid="open-engineer-route-btn"
+            >
+              🔧 Engineer handoff
+            </button>
+          )}
+          {surveyDone && onOpenInsightPack && hasQuotes && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--ghost"
+              onClick={onOpenInsightPack}
+              aria-label="Technical detail"
+              data-testid="open-insight-pack-btn"
+            >
+              📋 Technical detail
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -508,7 +594,9 @@ export default function VisitHubPage({
           hasQuotes={hasQuotes}
         />
 
-        <CompleteVisitPanel meta={meta} onCompleted={handleVisitCompleted} />
+        {!isVisitCompleted(meta) && (
+          <CompleteVisitPanel meta={meta} onCompleted={handleVisitCompleted} />
+        )}
 
         <VoiceNotesPanel
           visitId={visitId}
