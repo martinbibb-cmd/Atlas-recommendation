@@ -17,6 +17,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import VisitPage from '../VisitPage';
 import type { Props as VisitPageProps } from '../VisitPage';
+import type { VisitMeta } from '../../../lib/visits/visitApi';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ vi.mock('../../../lib/visits/visitApi', () => ({
   saveVisit: vi.fn().mockResolvedValue(undefined),
   visitStatusLabel: (s: string) => s,
   visitDisplayLabel: () => '42 Test Street',
-  isVisitCompleted: (v: { completed_at: string | null }) => v.completed_at != null,
+  isVisitCompleted: (v: VisitMeta) => v.completed_at != null,
 }));
 
 vi.mock('../../stepper/FullSurveyStepper', () => ({
@@ -124,13 +125,28 @@ describe('VisitPage — completed/locked state (PR 15)', () => {
   });
 });
 
-// ─── Contract guard: Props must include onOpenHandoffReview ───────────────────
+// ─── Contract guard: onOpenHandoffReview is optional ─────────────────────────
 
 describe('VisitPage Props contract — PR 15', () => {
   it('Props interface includes optional onOpenHandoffReview', () => {
-    // Compile-time check: the key must be present (optional) in VisitPageProps.
-    type HasProp = 'onOpenHandoffReview' extends keyof VisitPageProps ? true : false;
-    const hasProp: HasProp = true as HasProp;
-    expect(hasProp).toBe(true);
+    // Compile-time check: VisitPageProps must accept onOpenHandoffReview as optional.
+    // If this prop were removed or made required the surrounding tests would fail.
+    // This runtime assertion documents the intended optionality.
+    const propsWithProp: VisitPageProps = {
+      visitId: 'test',
+      onBack: vi.fn(),
+      onComplete: vi.fn(),
+      onOpenFloorPlan: vi.fn(),
+      onOpenHandoffReview: vi.fn(),
+    };
+    const propsWithoutProp: VisitPageProps = {
+      visitId: 'test',
+      onBack: vi.fn(),
+      onComplete: vi.fn(),
+      onOpenFloorPlan: vi.fn(),
+    };
+    // Both must be valid VisitPageProps (no required-prop compile error).
+    expect(Object.prototype.hasOwnProperty.call(propsWithProp, 'onOpenHandoffReview')).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(propsWithoutProp, 'onOpenHandoffReview')).toBe(false);
   });
 });
