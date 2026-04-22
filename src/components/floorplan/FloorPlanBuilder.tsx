@@ -64,6 +64,24 @@ const DEFAULT_ROOM_H = 144; // 6 grid units ≈ 3.6 m
  *  Prevents sub-pixel jitter or shaky touch input from creating undo entries. */
 const DRAG_THRESHOLD_PX = 4;
 
+/** Default widths used when auto-placing new openings at the wall mid-point. */
+const DEFAULT_DOOR_WIDTH_M  = 0.9;
+const DEFAULT_WINDOW_WIDTH_M = 1.2;
+
+/** True when the page is running inside an iOS app that exposes a native LiDAR bridge. */
+function hasNativeLidarSupport(): boolean {
+  return typeof window !== 'undefined' &&
+    !!(window as Window & { webkit?: { messageHandlers?: { lidarScan?: unknown } } })
+      .webkit?.messageHandlers?.lidarScan;
+}
+
+/** Trigger the native iOS LiDAR scan for the given floor. */
+function triggerNativeLidarScan(floorId: string): void {
+  (window as Window & {
+    webkit: { messageHandlers: { lidarScan: { postMessage: (msg: Record<string, unknown>) => void } } };
+  }).webkit.messageHandlers.lidarScan.postMessage({ action: 'startScan', floorId });
+}
+
 /** localStorage key for persisting the floor plan draft between sessions. */
 const FLOOR_PLAN_STORAGE_KEY = 'atlas.floorplan.draft.v1';
 
@@ -2160,11 +2178,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                         <span>🔲</span> Fill gap (select + resize)
                       </button>
                       {/* LiDAR scan — native iOS bridge (only shown when the webkit handler is present) */}
-                      {typeof window !== 'undefined' && (window as Window & { webkit?: { messageHandlers?: { lidarScan?: unknown } } }).webkit?.messageHandlers?.lidarScan && (
+                      {hasNativeLidarSupport() && (
                         <button
                           className="fpb__sheet-option"
                           onClick={() => {
-                            (window as Window & { webkit: { messageHandlers: { lidarScan: { postMessage: (msg: Record<string, unknown>) => void } } } }).webkit.messageHandlers.lidarScan.postMessage({ action: 'startScan', floorId: activeFloorId });
+                            triggerNativeLidarScan(activeFloorId);
                             setShowAddRoomSheet(false);
                             setAddRoomSheetMode('menu');
                           }}
@@ -2203,7 +2221,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                           const v = Number(e.target.value);
                           setManualRoomLengthM(v);
                           if (squareRoomLocked) setManualRoomWidthM(v);
-                        }} readOnly={squareRoomLocked} />
+                        }} disabled={squareRoomLocked} aria-disabled={squareRoomLocked} />
                       </label>
                       <label className="fpb__field">
                         <span>Level</span>
@@ -2347,13 +2365,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                         <button
                           className="fpb__sheet-option fpb__sheet-option--compact"
                           onClick={() => {
-                            createOpening(detailWall.id, Math.max(0, (wallLenM - 0.9) / 2), 0.9, 'door');
+                            createOpening(detailWall.id, Math.max(0, (wallLenM - DEFAULT_DOOR_WIDTH_M) / 2), DEFAULT_DOOR_WIDTH_M, 'door');
                           }}
                         >🚪 Add door</button>
                         <button
                           className="fpb__sheet-option fpb__sheet-option--compact"
                           onClick={() => {
-                            createOpening(detailWall.id, Math.max(0, (wallLenM - 1.2) / 2), 1.2, 'window');
+                            createOpening(detailWall.id, Math.max(0, (wallLenM - DEFAULT_WINDOW_WIDTH_M) / 2), DEFAULT_WINDOW_WIDTH_M, 'window');
                           }}
                         >🪟 Add window</button>
                       </div>
@@ -2381,31 +2399,28 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                           }}
                         >💧 Cylinder</button>
                       </div>
-                      {activeFloor.rooms.filter((r) => {
+                      {(() => {
                         const wxMin = Math.min(detailWall.x1, detailWall.x2);
                         const wxMax = Math.max(detailWall.x1, detailWall.x2);
                         const wyMin = Math.min(detailWall.y1, detailWall.y2);
                         const wyMax = Math.max(detailWall.y1, detailWall.y2);
-                        return r.x <= wxMax + GRID && r.x + r.width >= wxMin - GRID &&
-                               r.y <= wyMax + GRID && r.y + r.height >= wyMin - GRID;
-                      }).length > 0 && (
-                        <>
-                          <div className="fpb__wall-detail-section-title" style={{ marginTop: 12 }}>Adjacent rooms</div>
-                          {activeFloor.rooms.filter((r) => {
-                            const wxMin = Math.min(detailWall.x1, detailWall.x2);
-                            const wxMax = Math.max(detailWall.x1, detailWall.x2);
-                            const wyMin = Math.min(detailWall.y1, detailWall.y2);
-                            const wyMax = Math.max(detailWall.y1, detailWall.y2);
-                            return r.x <= wxMax + GRID && r.x + r.width >= wxMin - GRID &&
-                                   r.y <= wyMax + GRID && r.y + r.height >= wyMin - GRID;
-                          }).map((r) => (
-                            <div key={r.id} className="fpb__wall-detail-opening-row">
-                              <span>{ROOM_TYPE_LABELS[r.roomType]} — {r.name}</span>
-                              <span className="fpb__wall-detail-opening-meta">{toMeters(r.width)} × {toMeters(r.height)} m</span>
-                            </div>
-                          ))}
-                        </>
-                      )}
+                        const adjacentRooms = activeFloor.rooms.filter((r) =>
+                          r.x <= wxMax + GRID && r.x + r.width >= wxMin - GRID &&
+                          r.y <= wyMax + GRID && r.y + r.height >= wyMin - GRID,
+                        );
+                        if (adjacentRooms.length === 0) return null;
+                        return (
+                          <>
+                            <div className="fpb__wall-detail-section-title" style={{ marginTop: 12 }}>Adjacent rooms</div>
+                            {adjacentRooms.map((r) => (
+                              <div key={r.id} className="fpb__wall-detail-opening-row">
+                                <span>{ROOM_TYPE_LABELS[r.roomType]} — {r.name}</span>
+                                <span className="fpb__wall-detail-opening-meta">{toMeters(r.width)} × {toMeters(r.height)} m</span>
+                              </div>
+                            ))}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 </>
