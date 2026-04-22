@@ -1155,18 +1155,8 @@ export default function App() {
           )}
 
           <div className="journey-cards">
-            {/* Secondary CTA — Remote / Manual Survey */}
-            <div
-              id="survey-panel"
-              data-tour="survey-panel"
-              className="journey-card journey-card--remote"
-              onClick={() => setJourney('remote-survey')}
-            >
-              <div className="card-icon">📋</div>
-              <h2>Remote / Manual Survey</h2>
-              <p>Use when surveying off-site by phone, video, or existing customer information.</p>
-              <button className="cta-btn">Start Remote Survey →</button>
-            </div>
+            {/* Quick start — physics-first shortcut, no visit required */}
+            <h3 className="journey-section-label">Quick start</h3>
             {labEngineInput != null && (
               <div
                 className="journey-card journey-card--featured"
@@ -1189,6 +1179,23 @@ export default function App() {
               <p>Quick recommendation from key inputs — no visit required.</p>
               <button className="cta-btn">Start Fast Choice →</button>
             </div>
+
+            {/* Alternative workflows — fallback when a visit is not possible */}
+            <h3 className="journey-section-label">Alternative workflows</h3>
+            <div
+              id="survey-panel"
+              data-tour="survey-panel"
+              className="journey-card journey-card--remote"
+              onClick={() => setJourney('remote-survey')}
+            >
+              <div className="card-icon">📋</div>
+              <h2>Remote / Manual Survey</h2>
+              <p>Use when surveying off-site by phone, video, or existing customer information.</p>
+              <button className="cta-btn">Start Remote Survey →</button>
+            </div>
+
+            {/* Tools — standalone utilities */}
+            <h3 className="journey-section-label">Tools</h3>
             <div
               className="journey-card"
               onClick={() => setJourney('floor-plan')}
