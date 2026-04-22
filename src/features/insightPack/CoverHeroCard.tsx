@@ -92,6 +92,16 @@ export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, prope
           <span className="cover-chip__value">{quotes.length}</span>
         </div>
       </div>
+
+      {/* Narrative bridge — connects cover to the sections that follow */}
+      <p className="cover-hero__bridge">
+        Based on how your home uses heat and hot water, this is the system that will perform best day-to-day.
+      </p>
+
+      {/* Confidence anchor — reinforces that advice is data-driven */}
+      <p className="cover-hero__confidence">
+        This recommendation is based on measured heat loss, usage patterns, and system constraints in your home.
+      </p>
     </div>
   );
 }

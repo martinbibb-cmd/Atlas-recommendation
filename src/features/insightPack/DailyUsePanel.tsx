@@ -38,7 +38,7 @@ export default function DailyUsePanel({ quotes, recommendedQuoteId }: Props) {
     <div className="daily-use" data-testid="daily-use-panel">
       <h2 className="daily-use__heading">What that means day-to-day</h2>
       <p className="daily-use__sub">
-        How each quoted system would feel in normal daily use, based on your home's survey data.
+        Here's what that means for you in everyday use.
       </p>
 
       {orderedQuotes.map(({ quote, dailyUse }) => {
