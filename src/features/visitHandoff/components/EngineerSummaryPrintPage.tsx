@@ -512,7 +512,21 @@ export default function EngineerSummaryPrintPage({
       <div className="esp-page" data-testid="esp-page">
 
         {/* Error / missing pack */}
-        {!showContent && <MissingPackState />}
+        {!showContent && (
+          parseError
+            ? (
+              <div className="esp-error" data-testid="esp-parse-error">
+                <div className="esp-error__icon" aria-hidden="true">⚠️</div>
+                <h2 className="esp-error__heading">Could not read handoff data</h2>
+                <p className="esp-error__body">
+                  The handoff pack data could not be parsed. It may be corrupted
+                  or in an unsupported format. Please contact the office for a
+                  fresh copy of this handoff.
+                </p>
+              </div>
+            )
+            : <MissingPackState />
+        )}
 
         {/* Loaded pack — engineer summary only */}
         {showContent && <EngineerSummaryContent pack={pack} />}

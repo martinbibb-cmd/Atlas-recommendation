@@ -15,6 +15,10 @@ export interface VisitMeta {
   postcode: string | null;
   current_step: string | null;
   visit_reference: string | null;
+  /** ISO-8601 timestamp set when the engineer formally completes the visit. Null if not yet completed. */
+  completed_at: string | null;
+  /** How the visit was completed, e.g. 'manual_pwa'. Null if not yet completed. */
+  completion_method: string | null;
 }
 
 /**
@@ -91,6 +95,11 @@ export function isSurveyComplete(v: VisitMeta): boolean {
     s === 'installed' ||
     v.current_step === 'complete'
   );
+}
+
+/** Returns true when the engineer has formally completed the visit. */
+export function isVisitCompleted(v: VisitMeta): boolean {
+  return v.completed_at != null && v.completed_at.length > 0;
 }
 
 export interface VisitDetail extends VisitMeta {
@@ -203,6 +212,10 @@ export async function saveVisit(
     status?: string;
     visit_reference?: string;
     working_payload?: Record<string, unknown>;
+    /** ISO-8601 timestamp written when the engineer formally completes the visit. */
+    completed_at?: string;
+    /** Records how the visit was completed, e.g. 'manual_pwa'. */
+    completion_method?: string;
   }
 ): Promise<void> {
   const res = await fetch(`/api/visits/${encodeURIComponent(id)}`, {
