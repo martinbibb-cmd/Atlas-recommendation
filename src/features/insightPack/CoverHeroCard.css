@@ -3,7 +3,7 @@
 .cover-hero {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
   padding: 2rem;
   min-height: 340px;
   background: linear-gradient(160deg, #10243d 0%, #1d4ed8 100%);
@@ -36,11 +36,18 @@
 /* ── Hero copy ── */
 
 .cover-hero__body {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
+}
+
+.cover-hero__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.65;
 }
 
 .cover-hero__headline {
@@ -58,12 +65,50 @@
   font-weight: 400;
 }
 
+/* ── Recommendation block (hero-level) ── */
+
+.cover-hero__rec-block {
+  padding: 1.1rem 1.4rem;
+  border-radius: 14px;
+  background: rgba(134, 239, 172, 0.15);
+  border: 1.5px solid rgba(134, 239, 172, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cover-hero__rec-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #86efac;
+}
+
+.cover-hero__rec-system {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.cover-hero__rec-reason {
+  margin: 0;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+  line-height: 1.45;
+}
+
 /* ── Summary chips ── */
 
 .cover-hero__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  margin-top: auto;
 }
 
 .cover-chip {
@@ -103,6 +148,13 @@
   .cover-hero {
     background: #10243d;
     color: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cover-hero__rec-block {
+    background: rgba(134, 239, 172, 0.2);
+    border-color: #86efac;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

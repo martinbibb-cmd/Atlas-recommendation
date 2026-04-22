@@ -40,6 +40,14 @@ export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, prope
     ?? (currentSystem?.systemType ? (SYSTEM_TYPE_SHORT[currentSystem.systemType] ?? currentSystem.systemType) : null)
     ?? 'Not recorded';
 
+  // Derive the recommended system label for the hero block
+  const recommendedSystemLabel = bestQuote
+    ? (SYSTEM_TYPE_SHORT[bestQuote.quote.systemType] ?? bestQuote.quote.label)
+    : null;
+
+  // First "because" reason used as a supporting tagline under the recommendation
+  const primaryReason = bestAdvice.because[0] ?? null;
+
   return (
     <div className="cover-hero" data-testid="cover-hero-card">
       {/* Header */}
@@ -52,6 +60,7 @@ export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, prope
 
       {/* Hero copy */}
       <div className="cover-hero__body">
+        <p className="cover-hero__eyebrow">Atlas Assessment</p>
         <h1 className="cover-hero__headline">
           Your heating and hot water options
         </h1>
@@ -59,6 +68,17 @@ export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, prope
           Clear advice based on how your home works
         </p>
       </div>
+
+      {/* Prominent recommendation block */}
+      {recommendedSystemLabel && (
+        <div className="cover-hero__rec-block">
+          <p className="cover-hero__rec-label">Atlas recommendation</p>
+          <p className="cover-hero__rec-system">{recommendedSystemLabel}</p>
+          {primaryReason && (
+            <p className="cover-hero__rec-reason">{primaryReason}</p>
+          )}
+        </div>
+      )}
 
       {/* Summary chips */}
       <div className="cover-hero__chips">
@@ -71,15 +91,6 @@ export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, prope
           <span className="cover-chip__label">Options reviewed</span>
           <span className="cover-chip__value">{quotes.length}</span>
         </div>
-
-        {bestQuote && (
-          <div className="cover-chip cover-chip--recommended">
-            <span className="cover-chip__label">Atlas best fit</span>
-            <span className="cover-chip__value">
-              {SYSTEM_TYPE_SHORT[bestQuote.quote.systemType] ?? bestQuote.quote.label}
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );

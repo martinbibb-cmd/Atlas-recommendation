@@ -122,7 +122,12 @@ export default function InsightPackDeck({
       case 'best-advice':
         return <BestAdvicePanel bestAdvice={pack.bestAdvice} />;
       case 'daily-use':
-        return <DailyUsePanel quotes={pack.quotes} />;
+        return (
+          <DailyUsePanel
+            quotes={pack.quotes}
+            recommendedQuoteId={isCustomerPack ? pack.bestAdvice.recommendedQuoteId : undefined}
+          />
+        );
       case 'ratings':
         return <RatingsPanel quotes={pack.quotes} simplified={isCustomerPack} />;
       case 'limitations':
