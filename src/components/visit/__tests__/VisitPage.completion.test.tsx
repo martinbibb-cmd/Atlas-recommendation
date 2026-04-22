@@ -109,18 +109,18 @@ describe('VisitPage — completed/locked state (PR 15)', () => {
     expect(screen.queryByTestId('visit-locked-handoff-btn')).toBeNull();
   });
 
-  it('shows "← Back to visit" button in the locked panel', async () => {
+  it('shows "← Back to hub" button in the locked panel', async () => {
     render(<VisitPage {...BASE_PROPS} />);
     await screen.findByText('Visit completed');
-    expect(screen.getByText('← Back to visit')).toBeTruthy();
+    expect(screen.getByText('← Back to hub')).toBeTruthy();
   });
 
-  it('calls onBack when "← Back to visit" is clicked', async () => {
+  it('calls onBack when "← Back to hub" is clicked', async () => {
     const onBack = vi.fn();
     const user = userEvent.setup();
     render(<VisitPage {...BASE_PROPS} onBack={onBack} />);
     await screen.findByText('Visit completed');
-    await user.click(screen.getByText('← Back to visit'));
+    await user.click(screen.getByText('← Back to hub'));
     expect(onBack).toHaveBeenCalledOnce();
   });
 });

@@ -763,17 +763,26 @@ export default function VisitHubPage({
         {isVisitCompleted(meta) ? (
           /* Completed: survey-assist is closed; handoff is primary */
           <>
-            <p className="visit-hub__body-hint">
+            <p className="visit-hub__body-hint" data-testid="visit-hub-body-completed-hint">
               Survey capture is closed. Use the handoff tools above to share and review this visit.
             </p>
-            <VisitReplayPanel
-              survey={workingPayloadRef.current as FullSurveyModelV1 | null}
-              voiceNotes={voiceNotes}
-            />
+            {/* Survey record — demoted behind a collapse; not customer-facing */}
+            <details className="visit-hub__section-collapse" data-testid="survey-record-collapse">
+              <summary className="visit-hub__section-collapse-summary">
+                🔍 Survey record{voiceNotes.length > 0 ? ` · ${voiceNotes.length} note${voiceNotes.length !== 1 ? 's' : ''}` : ''}
+              </summary>
+              <VisitReplayPanel
+                survey={workingPayloadRef.current as FullSurveyModelV1 | null}
+                voiceNotes={voiceNotes}
+              />
+            </details>
           </>
         ) : isSurveyComplete(meta) ? (
-          /* Ready to complete: notes are captured; collapse the entry form */
+          /* Ready to complete: notes are captured; collapse survey-assist */
           <>
+            <p className="visit-hub__section-label" data-testid="visit-hub-body-ready-label">
+              Survey assist
+            </p>
             <details className="visit-hub__section-collapse" data-testid="engineer-notes-collapse">
               <summary className="visit-hub__section-collapse-summary">
                 🎤 Engineer notes{voiceNotes.length > 0 ? ` · ${voiceNotes.length} captured` : ''}
@@ -792,6 +801,9 @@ export default function VisitHubPage({
         ) : (
           /* In progress: survey-assist panels are primary */
           <>
+            <p className="visit-hub__section-label" data-testid="visit-hub-body-in-progress-label">
+              Survey assist
+            </p>
             <VoiceNotesPanel
               visitId={visitId}
               notes={voiceNotes}

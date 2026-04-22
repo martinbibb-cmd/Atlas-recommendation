@@ -447,7 +447,7 @@ export default function VisitPage({
             className="visit-page__locked-back-btn"
             onClick={onBack}
           >
-            ← Back to visit
+            ← Back to hub
           </button>
         </div>
       </div>
