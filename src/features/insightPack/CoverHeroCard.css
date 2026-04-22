@@ -143,6 +143,24 @@
   font-weight: 600;
 }
 
+/* ── Narrative bridge & confidence anchor ── */
+
+.cover-hero__bridge {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.5;
+}
+
+.cover-hero__confidence {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.45;
+  font-style: italic;
+}
+
 /* ── Print ── */
 @media print {
   .cover-hero {

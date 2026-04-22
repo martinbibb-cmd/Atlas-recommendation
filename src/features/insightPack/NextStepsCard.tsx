@@ -39,7 +39,7 @@ export default function NextStepsCard({ nextSteps, onProceed, onReview }: Props)
       <div className="next-steps__header">
         <h2 className="next-steps__heading">Next steps</h2>
         <p className="next-steps__sub">
-          Here is what happens after today's visit.
+          If you're happy with this approach, here's what happens next.
         </p>
       </div>
 
