@@ -25,7 +25,7 @@ vi.mock('../../../lib/visits/visitApi', () => ({
   getVisit: vi.fn(),
   visitStatusLabel: (status: string) => {
     const map: Record<string, string> = {
-      recommendation_ready: 'Recommendation ready',
+      recommendation_ready: 'Survey complete',
       new: 'New',
     };
     return map[status] ?? status;

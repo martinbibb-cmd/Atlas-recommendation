@@ -183,14 +183,14 @@ describe('visitApi', () => {
     it('maps canonical status keys to human-readable labels', () => {
       expect(visitStatusLabel('new')).toBe('New');
       expect(visitStatusLabel('survey_started')).toBe('Survey started');
-      expect(visitStatusLabel('recommendation_ready')).toBe('Recommendation ready');
+      expect(visitStatusLabel('recommendation_ready')).toBe('Survey complete');
       expect(visitStatusLabel('quoted')).toBe('Quoted');
       expect(visitStatusLabel('installed')).toBe('Installed');
     });
 
     it('maps legacy status values to their canonical equivalents', () => {
       expect(visitStatusLabel('draft')).toBe('New');
-      expect(visitStatusLabel('complete')).toBe('Recommendation ready');
+      expect(visitStatusLabel('complete')).toBe('Survey complete');
     });
 
     it('returns the raw value for unknown status strings', () => {

@@ -1,7 +1,7 @@
 /**
  * VoiceNotesPanel.tsx
  *
- * "Suggested from notes" panel in the Visit Hub.
+ * Engineer notes panel in the Visit Hub.
  *
  * Allows the engineer to:
  *   1. Enter / paste a voice-note transcript
@@ -510,7 +510,7 @@ export function VoiceNotesPanel({ visitId, notes, onChange }: Props) {
             paddingTop: '0.5rem',
             borderTop: '1px solid #e2e8f0',
           }}>
-            Suggestions — review and confirm
+            Review note suggestions
           </div>
 
           {SUGGESTION_CATEGORY_META.map(catMeta => {

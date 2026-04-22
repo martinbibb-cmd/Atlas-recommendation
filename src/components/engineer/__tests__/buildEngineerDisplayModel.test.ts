@@ -152,7 +152,7 @@ describe('buildEngineerDisplayModel — canonical payload', () => {
 
   it('derives statusLabel from VisitMeta.status', () => {
     const model = buildEngineerDisplayModel(makeCanonicalPayload(), makeVisitMeta(), 'visit-abc');
-    expect(model!.statusLabel).toBe('Recommendation ready');
+    expect(model!.statusLabel).toBe('Survey complete');
   });
 
   it('derives currentSystem label from atlasProperty.currentSystem.family', () => {

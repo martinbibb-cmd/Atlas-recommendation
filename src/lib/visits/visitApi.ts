@@ -41,8 +41,8 @@ export const VISIT_STATUS_LABELS: Record<string, string> = {
   'new':                  'New',
   'draft':                'New',
   'survey_started':       'Survey started',
-  'recommendation_ready': 'Recommendation ready',
-  'complete':             'Recommendation ready',
+  'recommendation_ready': 'Survey complete',
+  'complete':             'Survey complete',
   'quoted':               'Quoted',
   'installed':            'Installed',
 };
