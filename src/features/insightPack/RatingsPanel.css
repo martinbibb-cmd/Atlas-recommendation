@@ -14,6 +14,11 @@
   gap: 0.65rem;
 }
 
+/* Simplified (customer-pack) mode — single suitability chip, full width */
+.ratings__grid--simplified {
+  grid-template-columns: 1fr;
+}
+
 .rating-chip {
   padding: 0.7rem 0.85rem;
   border-radius: 12px;

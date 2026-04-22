@@ -5,6 +5,8 @@
  *   - No numeric scores — RatingBand only.
  *   - Each dimension shows band + reason + expandable physics detail.
  *   - Colour bands convey quality; no "97/100" style values.
+ *   - In simplified mode (customer-pack): shows only the suitability
+ *     (overall fit) band per quote — no per-dimension detail.
  */
 
 import { useState } from 'react';
@@ -13,6 +15,12 @@ import './RatingsPanel.css';
 
 interface Props {
   quotes: QuoteInsight[];
+  /**
+   * When true, renders only the overall suitability band per quote.
+   * Used in customer-pack mode where full per-dimension detail would
+   * overwhelm the customer.  Defaults to false.
+   */
+  simplified?: boolean;
 }
 
 const BAND_ICONS: Record<RatingBand, string> = {
@@ -78,7 +86,29 @@ function RatingChip({
   );
 }
 
-export default function RatingsPanel({ quotes }: Props) {
+export default function RatingsPanel({ quotes, simplified = false }: Props) {
+  if (simplified) {
+    return (
+      <div className="ratings" data-testid="ratings-panel">
+        <h2 className="ratings__heading">Overall Fit</h2>
+        <p className="ratings__sub">
+          How well each option suits this home, based on measured constraints.
+        </p>
+        {quotes.map(({ quote, rating }) => (
+          <div key={quote.id} className="ratings__quote-block">
+            <div className="ratings__quote-label">{quote.label}</div>
+            <div className="ratings__grid ratings__grid--simplified">
+              <RatingChip
+                dimension="Overall Fit"
+                explanation={rating.suitability}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="ratings" data-testid="ratings-panel">
       <h2 className="ratings__heading">Atlas Rating</h2>
