@@ -77,7 +77,7 @@ function hasNativeLidarSupport(): boolean {
 
 /** Trigger the native iOS LiDAR scan for the given floor. */
 function triggerNativeLidarScan(floorId: string): void {
-  (window as Window & {
+  (window as unknown as {
     webkit: { messageHandlers: { lidarScan: { postMessage: (msg: Record<string, unknown>) => void } } };
   }).webkit.messageHandlers.lidarScan.postMessage({ action: 'startScan', floorId });
 }
