@@ -137,7 +137,17 @@ body {
 }
 
 .journey-card.fast { border-color: #ed8936; }
-.journey-card.full { border-color: #3182ce; }
+.journey-card--remote {
+  border-color: #2b7a78;
+  background: #f0fafa;
+}
+.journey-card--remote .cta-btn {
+  background: #2b7a78;
+  color: white;
+}
+.journey-card--remote .cta-btn:hover {
+  background: #205f5d;
+}
 .journey-card--hub { border-color: #2b6cb0; }
 
 .journey-card--explorer {

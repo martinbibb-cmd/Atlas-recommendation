@@ -229,7 +229,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -419,7 +419,7 @@ export default function App() {
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
-    setJourney('full');
+    setJourney('remote-survey');
   }
 
   /**
@@ -911,7 +911,7 @@ export default function App() {
             onDraft={(draft) => {
               // Capture heatLoss and priorities from the visit survey draft so
               // the presentation deck can show the house snapshot and selected
-              // priority chips — mirrors the same pattern used by the 'full' journey.
+              // priority chips — mirrors the same pattern used by the 'remote-survey' journey.
               if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
               if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
               if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
@@ -945,7 +945,7 @@ export default function App() {
           />
         </GlobalMenuShell>
       )}
-      {journey === 'full' && (
+      {journey === 'remote-survey' && (
         <GlobalMenuShell>
           <FullSurveyStepper
             onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
@@ -963,14 +963,14 @@ export default function App() {
               // Route directly to simulator — fit-map step removed.
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
-              setSimulatorFromJourney('full');
+              setSimulatorFromJourney('remote-survey');
               setJourney('simulator');
             }}
             onOpenSimulator={(engineInput) => {
               // Direct shortcut from InsightLayerPage — skip fit-map.
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
-              setSimulatorFromJourney('full');
+              setSimulatorFromJourney('remote-survey');
               setJourney('simulator');
             }}
             onOpenInsightPack={(engineInput, quotes) => {
@@ -1155,6 +1155,18 @@ export default function App() {
           )}
 
           <div className="journey-cards">
+            {/* Secondary CTA — Remote / Manual Survey */}
+            <div
+              id="survey-panel"
+              data-tour="survey-panel"
+              className="journey-card journey-card--remote"
+              onClick={() => setJourney('remote-survey')}
+            >
+              <div className="card-icon">📋</div>
+              <h2>Remote / Manual Survey</h2>
+              <p>Use when surveying off-site by phone, video, or existing customer information.</p>
+              <button className="cta-btn">Start Remote Survey →</button>
+            </div>
             {labEngineInput != null && (
               <div
                 className="journey-card journey-card--featured"
@@ -1166,6 +1178,17 @@ export default function App() {
                 <button className="cta-btn">Open Presentation →</button>
               </div>
             )}
+            <div
+              id="fast-choice-card"
+              data-tour="mode-choice"
+              className="journey-card fast"
+              onClick={() => setJourney('fast')}
+            >
+              <div className="card-icon">⚡</div>
+              <h2>Fast Choice</h2>
+              <p>Quick recommendation from key inputs — no visit required.</p>
+              <button className="cta-btn">Start Fast Choice →</button>
+            </div>
             <div
               className="journey-card"
               onClick={() => setJourney('floor-plan')}
@@ -1192,28 +1215,6 @@ export default function App() {
               <h2>Building Height Check</h2>
               <p>Estimate building height from manual distance and captured base/top angles.</p>
               <button className="cta-btn">Open Height Check →</button>
-            </div>
-            <div
-              id="fast-choice-card"
-              data-tour="mode-choice"
-              className="journey-card fast"
-              onClick={() => setJourney('fast')}
-            >
-              <div className="card-icon">⚡</div>
-              <h2>Fast Choice</h2>
-              <p>Quick recommendation from key inputs — no visit required.</p>
-              <button className="cta-btn">Start Fast Choice →</button>
-            </div>
-            <div
-              id="survey-panel"
-              data-tour="survey-panel"
-              className="journey-card full"
-              onClick={() => setJourney('full')}
-            >
-              <div className="card-icon">🔬</div>
-              <h2>Standalone Survey</h2>
-              <p>Run a full technical survey without creating a visit record — useful for demos and training.</p>
-              <button className="cta-btn">Start Survey →</button>
             </div>
             <div
               className="journey-card"
