@@ -2,24 +2,30 @@
  * InsightPackPrint.css
  *
  * Print / PDF styles for the Atlas Insight Pack.
- * Applied only under @media print — invisible in normal browser view.
+ * Applied only under @media print -- invisible in normal browser view.
  *
  * Strategy:
- *   - All 11 slides are printed, matching the on-screen stepper exactly.
+ *   - All slides are printed, matching the on-screen stepper exactly.
  *   - Slides are paired 1-2 per A4 page to minimise paper usage:
- *       Page 1: Cover + What We Know
- *       Page 2: Options + Best Advice
- *       Page 3: Daily Use + Ratings
- *       Page 4: Limitations + Improvements
- *       Page 5: Savings + Why Atlas
- *       Page 6: Next Steps
- *   - Brand colours are kept for identity and readability — heavy filled
+ *       in-room / technical (11 sections):
+ *         Page 1: Cover + What We Know
+ *         Page 2: Options + Best Advice
+ *         Page 3: Daily Use + Ratings
+ *         Page 4: Limitations + Improvements
+ *         Page 5: Savings + Why Atlas
+ *         Page 6: Next Steps
+ *       customer-pack (6 sections):
+ *         Page 1: Cover + What We Know
+ *         Page 2: Best Advice + Daily Use
+ *         Page 3: Ratings + Next Steps
+ *   - Brand colours are kept for identity and readability -- heavy filled
  *     area backgrounds are removed to reduce ink/toner coverage.
  *   - Rating chips, limitation badges, and section headings retain their
  *     colour but large background panels print as white with a thin border.
+ *   - CTAs (buttons) are hidden on print -- lists are what matters.
  */
 
-/* ── Print-only data attributes on the print-section divs ────────────────────
+/* Print-only data attributes on the print-section divs
    The InsightPackDeck wraps each section in:
      <div class="insight-deck__print-section" data-slide="<slide-id>">
    Sections marked --page-start break to a new page; the following section
@@ -33,18 +39,24 @@
     display: none !important;
   }
 
-  /* Show all panels stacked — works both when triggered by the Print button
+  /* Hide interactive CTAs -- they are meaningless on paper */
+  .next-steps__ctas,
+  .next-steps__ctas--screen-only {
+    display: none !important;
+  }
+
+  /* Show all panels stacked -- works both when triggered by the Print button
      (insight-deck--printing class present) and by native browser print (Ctrl+P). */
   .insight-deck__all-panels {
     display: block !important;
   }
 
-  /* Hide the single active panel — the all-panels stack replaces it */
+  /* Hide the single active panel -- the all-panels stack replaces it */
   .insight-deck__panel {
     display: none !important;
   }
 
-  /* All sections visible — no slides are hidden in print */
+  /* All sections visible -- no slides are hidden in print */
   .insight-deck__print-section {
     display: block !important;
     padding: 1rem 1.25rem;
@@ -63,9 +75,9 @@
     break-before: auto;
   }
 
-  /* ── Ink-saving overrides — keep colours, remove heavy filled panels ────────
+  /* Ink-saving overrides -- keep colours, remove heavy filled panels
      Brand accent colours (green, blue, amber) are preserved on text and
-     small elements such as chips, badges, and heading borders.
+     small elements such as chips, badges, and section headings.
      Large area backgrounds are replaced with white + a 1 px grey border
      so that section structure is still visible without heavy toner use.     */
 
@@ -77,9 +89,7 @@
     border-radius: 0 !important;
   }
 
-  /* Large filled area panels → white with a thin border, keep text colours */
-  .cover-hero,
-  .best-advice__rec-card,
+  /* Large filled area panels -> white with a thin border, keep text colours */
   [class*="what-we-know"],
   [class*="savings__"],
   [class*="why-atlas"] {
@@ -88,20 +98,28 @@
     box-shadow: none !important;
   }
 
-  /* Cover page: the hero card normally uses white text on a dark gradient.
-     When the background is stripped for print (see above), the white text
-     becomes invisible against the white page.  Force a dark, print-safe colour
-     on the cover card and all its descendants so every word is readable. */
-  .cover-hero,
-  .cover-hero * {
-    color: #111 !important;
-    opacity: 1 !important;
+  /* Cover page: preserve the dark background for brand identity.
+     White text remains readable on the dark print background.
+     Use -webkit-print-color-adjust to ensure the gradient is printed. */
+  .cover-hero {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Cover recommendation block: preserve the green accent in print */
+  .cover-hero__rec-block {
+    background: rgba(134, 239, 172, 0.15) !important;
+    border: 1.5px solid #86efac !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .cover-hero .cover-chip--neutral,
   .cover-hero .cover-chip--recommended {
-    background: #f3f4f6 !important;
-    border: 1px solid #d1d5db !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* Rating chips: keep colour text, remove filled background */
@@ -109,12 +127,6 @@
   [class*="band-chip"] {
     background: transparent !important;
     border: 1px solid currentColor !important;
-  }
-
-  /* Cover chips: keep coloured text, minimal background */
-  [class*="cover-chip"] {
-    background: #f9fafb !important;
-    border: 1px solid #d1d5db !important;
   }
 
   /* Limitation items: keep left-colour indicator, white background */
@@ -127,6 +139,30 @@
   [class*="improvement-card"] {
     background: #fff !important;
     border: 1px solid #e5e7eb !important;
+  }
+
+  /* Daily-use recommended block: keep green accent on paper */
+  .daily-use__quote-block--recommended {
+    background: #f0fdf4 !important;
+    border-color: #86efac !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Next-steps chosen block: keep green accent on paper */
+  .next-steps__chosen {
+    background: #f0fdf4 !important;
+    border-color: #86efac !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Best-advice recommendation card: keep green accent on paper */
+  .best-advice__rec-card {
+    background: #f0fdf4 !important;
+    border-color: #86efac !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   /* General typography */

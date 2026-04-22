@@ -36,11 +36,16 @@ function ItemList({ title, icon, items }: { title: string; icon: string; items: 
 export default function NextStepsCard({ nextSteps, onProceed, onReview }: Props) {
   return (
     <div className="next-steps" data-testid="next-steps-card">
-      <h2 className="next-steps__heading">Next steps</h2>
+      <div className="next-steps__header">
+        <h2 className="next-steps__heading">Next steps</h2>
+        <p className="next-steps__sub">
+          Here is what happens after today's visit.
+        </p>
+      </div>
 
       {/* Chosen option highlight */}
       <div className="next-steps__chosen">
-        <p className="next-steps__chosen-eyebrow">Recommended option</p>
+        <p className="next-steps__chosen-eyebrow">✓ Recommended option</p>
         <p className="next-steps__chosen-label">{nextSteps.chosenOptionLabel}</p>
       </div>
 
@@ -49,19 +54,21 @@ export default function NextStepsCard({ nextSteps, onProceed, onReview }: Props)
       <ItemList title="Optional add-ons" icon="＋" items={nextSteps.optional} />
       <ItemList title="Would improve results further" icon="🚀" items={nextSteps.furtherImprovements} />
 
-      {/* CTAs */}
-      <div className="next-steps__ctas">
-        {onProceed && (
-          <button className="next-steps__cta next-steps__cta--primary" onClick={onProceed}>
-            Proceed with this option
-          </button>
-        )}
-        {onReview && (
-          <button className="next-steps__cta next-steps__cta--secondary" onClick={onReview}>
-            Review the options again
-          </button>
-        )}
-      </div>
+      {/* CTAs — hidden on print; interaction only */}
+      {(onProceed || onReview) && (
+        <div className="next-steps__ctas next-steps__ctas--screen-only">
+          {onProceed && (
+            <button className="next-steps__cta next-steps__cta--primary" onClick={onProceed}>
+              Proceed with this option
+            </button>
+          )}
+          {onReview && (
+            <button className="next-steps__cta next-steps__cta--secondary" onClick={onReview}>
+              Review the options again
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

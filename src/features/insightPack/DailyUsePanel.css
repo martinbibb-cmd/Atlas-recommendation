@@ -1,11 +1,42 @@
 /* DailyUsePanel.css */
 
 .daily-use { display: flex; flex-direction: column; gap: 1.25rem; }
-.daily-use__heading { margin: 0 0 0.25rem; font-size: 1.1rem; font-weight: 700; color: #10243d; }
+.daily-use__heading { margin: 0 0 0.25rem; font-size: 1.25rem; font-weight: 800; color: #10243d; }
 .daily-use__sub { margin: 0 0 0.75rem; color: #4b5d79; font-size: 0.88rem; }
 
-.daily-use__quote-block { display: flex; flex-direction: column; gap: 0.5rem; }
+.daily-use__quote-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: #f7faff;
+  border: 1px solid #dbe8ff;
+}
+.daily-use__quote-block--recommended {
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+}
+
+.daily-use__quote-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
 .daily-use__quote-label { font-size: 0.85rem; font-weight: 700; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.daily-use__rec-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #16a34a;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 0.15rem 0.5rem;
+}
 
 .daily-use__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
 .daily-use__item {
@@ -13,8 +44,8 @@
   gap: 0.6rem;
   padding: 0.55rem 0.75rem;
   border-radius: 10px;
-  background: #f7faff;
-  border: 1px solid #dbe8ff;
+  background: #fff;
+  border: 1px solid #e9eef8;
   font-size: 0.87rem;
   color: #10243d;
   align-items: flex-start;
