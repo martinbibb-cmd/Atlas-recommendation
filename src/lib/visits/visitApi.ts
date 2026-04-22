@@ -99,7 +99,7 @@ export function isSurveyComplete(v: VisitMeta): boolean {
 
 /** Returns true when the engineer has formally completed the visit. */
 export function isVisitCompleted(v: VisitMeta): boolean {
-  return v.completed_at != null && v.completed_at.length > 0;
+  return v.completed_at != null;
 }
 
 export interface VisitDetail extends VisitMeta {

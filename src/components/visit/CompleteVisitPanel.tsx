@@ -79,6 +79,8 @@ export default function CompleteVisitPanel({ meta, onCompleted }: Props) {
       await saveVisit(meta.id, {
         completed_at: completedAt,
         completion_method: 'manual_pwa',
+        // recommendation_ready: survey data is ready for report generation.
+        // This is the canonical status for a completed survey in Atlas.
         status: 'recommendation_ready',
       });
       onCompleted(completedAt);
