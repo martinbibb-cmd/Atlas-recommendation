@@ -137,7 +137,6 @@ body {
 }
 
 .journey-card.fast { border-color: #ed8936; }
-.journey-card.full { border-color: #3182ce; }
 .journey-card--remote {
   border-color: #2b7a78;
   background: #f0fafa;

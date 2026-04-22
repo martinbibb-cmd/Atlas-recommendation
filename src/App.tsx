@@ -229,7 +229,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'full' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -419,7 +419,7 @@ export default function App() {
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
-    setJourney('full');
+    setJourney('remote-survey');
   }
 
   /**
@@ -911,7 +911,7 @@ export default function App() {
             onDraft={(draft) => {
               // Capture heatLoss and priorities from the visit survey draft so
               // the presentation deck can show the house snapshot and selected
-              // priority chips — mirrors the same pattern used by the 'full' journey.
+              // priority chips — mirrors the same pattern used by the 'remote-survey' journey.
               if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
               if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
               if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
@@ -945,7 +945,7 @@ export default function App() {
           />
         </GlobalMenuShell>
       )}
-      {journey === 'full' && (
+      {journey === 'remote-survey' && (
         <GlobalMenuShell>
           <FullSurveyStepper
             onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
@@ -963,14 +963,14 @@ export default function App() {
               // Route directly to simulator — fit-map step removed.
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
-              setSimulatorFromJourney('full');
+              setSimulatorFromJourney('remote-survey');
               setJourney('simulator');
             }}
             onOpenSimulator={(engineInput) => {
               // Direct shortcut from InsightLayerPage — skip fit-map.
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
-              setSimulatorFromJourney('full');
+              setSimulatorFromJourney('remote-survey');
               setJourney('simulator');
             }}
             onOpenInsightPack={(engineInput, quotes) => {
@@ -1160,7 +1160,7 @@ export default function App() {
               id="survey-panel"
               data-tour="survey-panel"
               className="journey-card journey-card--remote"
-              onClick={() => setJourney('full')}
+              onClick={() => setJourney('remote-survey')}
             >
               <div className="card-icon">📋</div>
               <h2>Remote / Manual Survey</h2>
