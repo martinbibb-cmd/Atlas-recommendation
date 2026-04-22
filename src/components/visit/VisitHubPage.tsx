@@ -3,19 +3,29 @@
  *
  * The "Visit Hub" — the entry point when opening an existing visit.
  *
- * Sections:
- *   1. Summary header  — address, customer, status badge, last updated
- *   2. Primary action  — Resume (routes to last active step)
- *   3. Secondary actions — Edit survey, View recommendation (conditional)
- *   4. Reports list    — reports linked to this visit, newest first
+ * Renders differently based on the visit lifecycle state:
  *
- * The primary action button routes to:
- *   • the survey stepper when the survey is not yet complete
- *   • the saved report/recommendation when the survey is complete
+ *   VISIT IN PROGRESS (survey not yet complete)
+ *     - Lifecycle card: "VISIT IN PROGRESS"
+ *     - Primary CTA: Continue survey
+ *     - Secondary (locked): Customer summary, Send customer portal,
+ *       Engineer handoff, Present to customer
+ *
+ *   READY TO COMPLETE (survey done, visit not formally closed)
+ *     - Lifecycle card: "READY TO COMPLETE"
+ *     - Primary CTAs: Continue survey · Complete visit
+ *     - Secondary: Customer summary, Send customer portal,
+ *       Engineer handoff, Present to customer
+ *
+ *   VISIT COMPLETED (completed_at is set)
+ *     - Lifecycle card: "VISIT COMPLETED" + timestamp
+ *     - Primary CTA: Review handoff
+ *     - Secondary: Customer summary, Send customer portal, Engineer handoff
+ *     - More tools (collapsible): Present to customer, Technical detail
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { getVisit, saveVisit, deleteVisit, visitStatusLabel, visitDisplayLabel, isSurveyComplete, isVisitCompleted, type VisitMeta } from '../../lib/visits/visitApi';
+import { getVisit, saveVisit, deleteVisit, visitDisplayLabel, isSurveyComplete, isVisitCompleted, type VisitMeta } from '../../lib/visits/visitApi';
 import { listReportsForVisit, saveReport } from '../../lib/reports/reportApi';
 import { generateReportTitle } from '../../lib/reports/generateReportTitle';
 import { generatePortalToken } from '../../lib/portal/portalToken';
@@ -30,7 +40,6 @@ import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
 import VisitReportsList from './VisitReportsList';
 import { VisitReplayPanel } from './VisitReplayPanel';
-import CompleteVisitPanel from './CompleteVisitPanel';
 import './VisitHubPage.css';
 
 interface Props {
@@ -69,15 +78,40 @@ function formatRelativeDate(iso: string): string {
   }
 }
 
+function formatDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
 function addressDisplay(meta: VisitMeta): string {
   return visitDisplayLabel(meta);
+}
+
+/** Returns the lifecycle-state label shown in the hub status badge. */
+function hubLifecycleLabel(meta: VisitMeta): string {
+  if (isVisitCompleted(meta)) return 'Visit completed';
+  if (isSurveyComplete(meta)) return 'Ready to complete';
+  return 'Visit in progress';
+}
+
+/** Returns a CSS modifier key for the hub lifecycle badge. */
+function hubLifecycleKey(meta: VisitMeta): string {
+  if (isVisitCompleted(meta)) return 'visit_completed';
+  if (isSurveyComplete(meta)) return 'ready_to_complete';
+  return 'visit_in_progress';
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function HubHeader({ meta, onBack, onReferenceChange }: { meta: VisitMeta; onBack: () => void; onReferenceChange: (ref: string) => void }) {
-  const label = visitStatusLabel(meta.status);
-  const statusKey = meta.status.toLowerCase().replace(/[^a-z_]/g, '_');
+  const label = hubLifecycleLabel(meta);
+  const statusKey = hubLifecycleKey(meta);
   const [editing, setEditing] = useState(false);
   const [draftRef, setDraftRef] = useState(meta.visit_reference ?? '');
   const shortId = meta.id.slice(-8).toUpperCase();
@@ -166,6 +200,9 @@ function HubActions({
   onOpenEngineerRoute,
   onOpenInsightPack,
   onOpenHandoffReview,
+  onCompleteVisit,
+  isCompleting,
+  completingError,
   portalUrl,
   portalLoading,
   hasQuotes,
@@ -177,6 +214,9 @@ function HubActions({
   onOpenEngineerRoute?: () => void;
   onOpenInsightPack?: () => void;
   onOpenHandoffReview?: () => void;
+  onCompleteVisit: () => void;
+  isCompleting: boolean;
+  completingError: string | null;
   portalUrl?: string;
   portalLoading?: boolean;
   hasQuotes?: boolean;
@@ -184,116 +224,282 @@ function HubActions({
   const surveyDone = isSurveyComplete(meta);
   const visitDone = isVisitCompleted(meta);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
 
   function handleSendPortal() {
     if (!portalUrl) return;
-    // Copy the portal link to clipboard and open it in a new tab concurrently —
-    // both actions fire immediately so the advisor can share the link while
-    // also previewing what the customer will see.
     navigator.clipboard.writeText(portalUrl).then(() => {
       setCopyState('copied');
       setTimeout(() => setCopyState('idle'), 2000);
     }).catch(() => {
-      // Clipboard API unavailable — surface the URL so the user can copy manually.
       setCopyState('failed');
       setTimeout(() => setCopyState('idle'), 3000);
     });
     window.open(portalUrl, '_blank', 'noopener,noreferrer');
   }
 
-  return (
-    <div className="visit-hub__actions">
-      <button
-        className="visit-hub__action-btn visit-hub__action-btn--primary"
-        onClick={surveyDone ? onOpenPresentation : onResumeSurvey}
-        aria-label={surveyDone ? 'Start in-room presentation' : 'Resume survey'}
-      >
-        {surveyDone ? '▶ Start in-room presentation' : '▶ Resume survey'}
-      </button>
+  // ── Lifecycle status card ──────────────────────────────────────────────────
 
-      {surveyDone && !visitDone && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onResumeSurvey}
-          aria-label="Edit survey inputs"
-        >
-          ✏ Edit survey
-        </button>
+  const lifecycleKey = hubLifecycleKey(meta);
+  const lifecycleLabel = hubLifecycleLabel(meta);
+
+  const lifecycleCard = (
+    <div className={`visit-hub__lifecycle-card visit-hub__lifecycle-card--${lifecycleKey}`}>
+      <span className="visit-hub__lifecycle-label">{lifecycleLabel.toUpperCase()}</span>
+      {visitDone && meta.completed_at && (
+        <span className="visit-hub__lifecycle-sub">
+          Completed {formatDateTime(meta.completed_at)}
+        </span>
       )}
-
-      {surveyDone && onPrintSummary && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onPrintSummary}
-          aria-label="Print summary"
-        >
-          🖨 Print summary
-        </button>
+      {!visitDone && !surveyDone && (
+        <span className="visit-hub__lifecycle-sub">Survey incomplete</span>
       )}
-
-      {surveyDone && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={handleSendPortal}
-          aria-label="Send customer portal link"
-          data-testid="send-portal-btn"
-          disabled={!portalUrl || portalLoading}
-          aria-disabled={!portalUrl || portalLoading}
-        >
-          {portalLoading
-            ? '⏳ Preparing portal…'
-            : copyState === 'copied'
-              ? '✅ Link copied!'
-              : copyState === 'failed'
-                ? '⚠ Copy failed — check URL'
-                : '📤 Send customer portal'}
-        </button>
+      {!visitDone && surveyDone && (
+        <span className="visit-hub__lifecycle-sub">Survey complete · ready for sign-off</span>
       )}
+    </div>
+  );
 
-      {!surveyDone && (
+  // ── Portal button label ────────────────────────────────────────────────────
+
+  const portalBtnLabel = portalLoading
+    ? '⏳ Preparing portal…'
+    : copyState === 'copied'
+      ? '✅ Link copied!'
+      : copyState === 'failed'
+        ? '⚠ Copy failed — check URL'
+        : '📤 Send customer portal';
+
+  // ── COMPLETED state ────────────────────────────────────────────────────────
+
+  if (visitDone) {
+    return (
+      <div className="visit-hub__actions">
+        {lifecycleCard}
+
+        {/* Primary */}
+        {onOpenHandoffReview && (
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--primary"
+            onClick={onOpenHandoffReview}
+            aria-label="Review completed-visit handoff"
+            data-testid="open-handoff-review-btn"
+          >
+            🤝 Review handoff
+          </button>
+        )}
+
+        {/* Secondary group */}
+        <div className="visit-hub__actions-secondary">
+          <p className="visit-hub__section-label">Summary &amp; handoff</p>
+
+          {onPrintSummary && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onPrintSummary}
+              aria-label="Customer summary"
+            >
+              🖨 Customer summary
+            </button>
+          )}
+
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={handleSendPortal}
+            aria-label="Send customer portal link"
+            data-testid="send-portal-btn"
+            disabled={!portalUrl || portalLoading}
+            aria-disabled={!portalUrl || portalLoading}
+          >
+            {portalBtnLabel}
+          </button>
+
+          {onOpenEngineerRoute && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenEngineerRoute}
+              aria-label="Open engineer handoff"
+              data-testid="open-engineer-route-btn"
+            >
+              🔧 Engineer handoff
+            </button>
+          )}
+        </div>
+
+        {/* More tools — collapsed by default */}
+        <div className="visit-hub__more-tools">
+          <button
+            className="visit-hub__more-tools-toggle"
+            onClick={() => setMoreToolsOpen((o) => !o)}
+            aria-expanded={moreToolsOpen}
+          >
+            {moreToolsOpen ? '▲ Hide tools' : '▼ More tools'}
+          </button>
+          {moreToolsOpen && (
+            <div className="visit-hub__more-tools-body">
+              <button
+                className="visit-hub__action-btn visit-hub__action-btn--secondary"
+                onClick={onOpenPresentation}
+                aria-label="Present to customer"
+              >
+                ▶ Present to customer
+              </button>
+
+              {onOpenInsightPack && hasQuotes && (
+                <button
+                  className="visit-hub__action-btn visit-hub__action-btn--secondary"
+                  onClick={onOpenInsightPack}
+                  aria-label="Open technical detail"
+                  data-testid="open-insight-pack-btn"
+                >
+                  📋 Technical detail
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── READY TO COMPLETE state (survey done, visit not yet completed) ──────────
+
+  if (surveyDone) {
+    return (
+      <div className="visit-hub__actions">
+        {lifecycleCard}
+
+        {/* Primary group */}
         <button
           className="visit-hub__action-btn visit-hub__action-btn--secondary"
           onClick={onResumeSurvey}
           aria-label="Continue survey"
+        >
+          ✏ Continue survey
+        </button>
+
+        {completingError && (
+          <p className="visit-hub__complete-error" role="alert">{completingError}</p>
+        )}
+
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--complete"
+          onClick={onCompleteVisit}
+          disabled={isCompleting}
+          aria-disabled={isCompleting}
+          data-testid="complete-visit-btn"
+        >
+          {isCompleting ? '⏳ Completing…' : '✔ Complete visit'}
+        </button>
+
+        {/* Secondary group — available but visually muted */}
+        <div className="visit-hub__actions-secondary">
+          <p className="visit-hub__section-label">Handoff tools</p>
+
+          {onPrintSummary && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onPrintSummary}
+              aria-label="Customer summary"
+            >
+              🖨 Customer summary
+            </button>
+          )}
+
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={handleSendPortal}
+            aria-label="Send customer portal link"
+            data-testid="send-portal-btn"
+            disabled={!portalUrl || portalLoading}
+            aria-disabled={!portalUrl || portalLoading}
+          >
+            {portalBtnLabel}
+          </button>
+
+          {onOpenEngineerRoute && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenEngineerRoute}
+              aria-label="Open engineer handoff"
+              data-testid="open-engineer-route-btn"
+            >
+              🔧 Engineer handoff
+            </button>
+          )}
+
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={onOpenPresentation}
+            aria-label="Present to customer"
+          >
+            ▶ Present to customer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── IN PROGRESS state (survey not yet done) ────────────────────────────────
+
+  return (
+    <div className="visit-hub__actions">
+      {lifecycleCard}
+
+      {/* Primary */}
+      <button
+        className="visit-hub__action-btn visit-hub__action-btn--primary"
+        onClick={onResumeSurvey}
+        aria-label="Continue survey"
+      >
+        ▶ Continue survey
+      </button>
+
+      {/* Secondary group — all disabled until survey is complete */}
+      <div className="visit-hub__actions-secondary visit-hub__actions-secondary--locked">
+        <p className="visit-hub__section-label">Available after survey</p>
+
+        {onPrintSummary && (
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            disabled
+            aria-disabled="true"
+            aria-label="Customer summary — complete survey first"
+          >
+            🖨 Customer summary
+          </button>
+        )}
+
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
           disabled
           aria-disabled="true"
+          aria-label="Send customer portal — complete survey first"
         >
-          📊 Presentation — complete survey first
+          📤 Send customer portal
         </button>
-      )}
 
-      {onOpenEngineerRoute && (
+        {onOpenEngineerRoute && (
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            disabled
+            aria-disabled="true"
+            aria-label="Engineer handoff — complete survey first"
+            data-testid="open-engineer-route-btn"
+          >
+            🔧 Engineer handoff
+          </button>
+        )}
+
         <button
           className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onOpenEngineerRoute}
-          aria-label="Open pre-install engineer view"
-          data-testid="open-engineer-route-btn"
+          disabled
+          aria-disabled="true"
+          aria-label="Present to customer — complete survey first"
         >
-          🔧 Pre-install engineer view
+          ▶ Present to customer
         </button>
-      )}
-
-      {surveyDone && onOpenInsightPack && hasQuotes && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onOpenInsightPack}
-          aria-label="Open Atlas Insight Pack"
-          data-testid="open-insight-pack-btn"
-        >
-          📋 View Insight Pack
-        </button>
-      )}
-
-      {visitDone && onOpenHandoffReview && (
-        <button
-          className="visit-hub__action-btn visit-hub__action-btn--secondary"
-          onClick={onOpenHandoffReview}
-          aria-label="Review completed-visit handoff"
-          data-testid="open-handoff-review-btn"
-        >
-          🤝 Review handoff
-        </button>
-      )}
+      </div>
     </div>
   );
 }
@@ -318,6 +524,9 @@ export default function VisitHubPage({
   const [portalLoading, setPortalLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [completingError, setCompletingError] = useState<string | null>(null);
+  const completingRef = useRef(false);
   // Keep the working_payload so we can create a report (for portal) if none exists yet.
   const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
   // Voice notes — loaded from working_payload and saved back on change.
@@ -427,6 +636,27 @@ export default function VisitHubPage({
     setMeta({ ...meta, completed_at: completedAt, completion_method: 'manual_pwa' });
   }
 
+  async function handleCompleteVisit() {
+    if (!meta || !isSurveyComplete(meta) || completingRef.current) return;
+    completingRef.current = true;
+    setCompleting(true);
+    setCompletingError(null);
+    const completedAt = new Date().toISOString();
+    try {
+      await saveVisit(visitId, {
+        completed_at: completedAt,
+        completion_method: 'manual_pwa',
+        status: 'recommendation_ready',
+      });
+      handleVisitCompleted(completedAt);
+    } catch (err) {
+      setCompletingError(err instanceof Error ? err.message : 'Could not complete visit. Please try again.');
+    } finally {
+      completingRef.current = false;
+      setCompleting(false);
+    }
+  }
+
   function handleDeleteRequest() {
     setDeleteConfirm(true);
   }
@@ -520,12 +750,13 @@ export default function VisitHubPage({
           onOpenEngineerRoute={onOpenEngineerRoute}
           onOpenInsightPack={onOpenInsightPack}
           onOpenHandoffReview={onOpenHandoffReview}
+          onCompleteVisit={handleCompleteVisit}
+          isCompleting={completing}
+          completingError={completingError}
           portalUrl={portalUrl}
           portalLoading={portalLoading}
           hasQuotes={hasQuotes}
         />
-
-        <CompleteVisitPanel meta={meta} onCompleted={handleVisitCompleted} />
 
         <VoiceNotesPanel
           visitId={visitId}
