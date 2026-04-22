@@ -187,11 +187,9 @@ function deriveEngineerPreviewCounts(
   const bedrooms = payload.bedrooms ?? null;
 
   // Key objects — count the distinct items present in the system builder.
-  // 'combi_cylinder' is excluded because a combi boiler provides hot water
-  // internally — it is not a separate physical object in the property.
   let keyObjects = 0;
   if (systemBuilder?.heatSource) keyObjects++;
-  if (systemBuilder?.dhwType && systemBuilder.dhwType !== 'combi_cylinder') keyObjects++;
+  if (systemBuilder?.dhwType) keyObjects++;
   if (systemBuilder?.cylinderAgeBand) keyObjects++;
   if (systemBuilder?.emitters) keyObjects++;
 
