@@ -120,7 +120,7 @@ describe('boilerSteppedCurve', () => {
 
   it('returns ≥ 21 °C for home hours (fast reheat)', () => {
     boilerSteppedCurve(allHome, false).forEach(v => {
-      expect(v).toBeGreaterThanOrEqual(20.5); // ~21 °C with sinusoidal offset
+      expect(v).toBeGreaterThanOrEqual(21); // constant 21 °C combi setpoint
     });
   });
 

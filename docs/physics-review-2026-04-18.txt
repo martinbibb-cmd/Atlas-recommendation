@@ -85,21 +85,30 @@ Fix: storedWaterTempC now reads from cylinderTempByHour[h].
 
 
 ─────────────────────────────────────────────────────────────────────────────
-5. boilerSteppedCurve uses Math.sin for "home" hours  [NO-THEATRE]
+5. boilerSteppedCurve uses Math.sin for "home" hours  [NO-THEATRE] [FIXED]
 ─────────────────────────────────────────────────────────────────────────────
 File: src/engine/modules/LifestyleInteractiveHelpers.ts
 
-The exported boilerSteppedCurve() function adds:
+The exported boilerSteppedCurve() function added:
   21 + Math.sin((h / 24) * Math.PI * 2) * 0.5
-for "home" hours.  This is cosmetic sinusoidal smoothing — No Theatre.
+for both "home" hours and as the no-conflict reference for "dhw_demand" hours.
+This is cosmetic sinusoidal smoothing — No Theatre.
 
-STATUS: NOT FIXED in this PR.  This function is tested and exported but is
-NOT used by the main LifestyleInteractive.tsx charts, which use the
-physics-based boilerRoomTempC from LifestyleSimulationModule.  The function
-is a legacy export used only in the test suite.
+Fix: "home" state now returns a constant 21 °C (combi setpoint).  The
+no-conflict temperature for "dhw_demand" is also a constant 21 °C.  The
+interpolation logic (dhwDrawScalar) is unchanged, so the conflict/partial/
+no-conflict temperature spread is fully preserved.
 
-HUMAN DECISION REQUIRED: deprecate boilerSteppedCurve() and migrate any
-consumers to use the buildDynamicRoomTrace physics model directly.
+Additionally, src/engine/TimelineBuilder.ts buildAshpSeries() used:
+  19.5 + Math.sin((i / 96) * Math.PI) * 0.5
+for the ASHP comfort temperature in the 96-point timeline.  This is also
+a sinusoidal cosmetic variation (half-sine arch peaking at noon) with no
+physical basis — it violates the "No Theatre" rule and incorrectly implies
+the ASHP room temperature peaks at midday.
+
+Fix: comfortTempC for the ASHP series is now a constant 20.0 °C, reflecting
+the physics-accurate "flat horizon" — ASHP continuous modulation maintains
+room temperature at the 20 °C setpoint throughout the day.
 
 
 ─────────────────────────────────────────────────────────────────────────────
