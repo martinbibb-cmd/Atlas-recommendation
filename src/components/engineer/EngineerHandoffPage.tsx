@@ -14,21 +14,29 @@
  *   4. Measured facts    — surveyed and engine-derived values
  *   5. Warnings          — compatibility warnings + key reasons
  *   6. Install notes     — pre-install operational notes + future path
+ *   7. Layout overview   — room count, named spaces, measurements
+ *   8. Objects           — key components and dimensions
+ *   9. Routes            — existing / proposed / assumed routes
  *
  * Data source: AtlasDecisionV1 + ScenarioResult[] passed in as props.
+ * Optional PropertyPlan provides spatial layout data for sections 7–9.
  * The builder runs synchronously — no async data fetching in this component.
  */
 
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { EngineInputV2_3Contract } from '../../contracts/EngineInputV2_3';
+import type { PropertyPlan } from '../floorplan/propertyPlan.types';
 import { buildEngineerHandoff } from '../../engine/modules/buildEngineerHandoff';
-import { JobSummarySection }    from './sections/JobSummarySection';
-import { IncludedScopeSection } from './sections/IncludedScopeSection';
-import { ExistingSystemSection } from './sections/ExistingSystemSection';
-import { MeasuredFactsSection } from './sections/MeasuredFactsSection';
-import { WarningsSection }       from './sections/WarningsSection';
-import { InstallNotesSection }   from './sections/InstallNotesSection';
+import { JobSummarySection }      from './sections/JobSummarySection';
+import { IncludedScopeSection }   from './sections/IncludedScopeSection';
+import { ExistingSystemSection }  from './sections/ExistingSystemSection';
+import { MeasuredFactsSection }   from './sections/MeasuredFactsSection';
+import { WarningsSection }        from './sections/WarningsSection';
+import { InstallNotesSection }    from './sections/InstallNotesSection';
+import { LayoutOverviewSection }  from './sections/LayoutOverviewSection';
+import { ObjectsSection }         from './sections/ObjectsSection';
+import { RoutesSection }          from './sections/RoutesSection';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -39,14 +47,16 @@ interface Props {
   scenarios: ScenarioResult[];
   /** Optional engine input — surfaces measured facts not already in decision. */
   engineInput?: EngineInputV2_3Contract;
+  /** Optional floor-plan model — surfaces spatial layout sections when present. */
+  propertyPlan?: PropertyPlan;
   /** Called when the user navigates back. */
   onBack?: () => void;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function EngineerHandoffPage({ decision, scenarios, engineInput, onBack }: Props) {
-  const handoff = buildEngineerHandoff(decision, scenarios, engineInput);
+export default function EngineerHandoffPage({ decision, scenarios, engineInput, propertyPlan, onBack }: Props) {
+  const handoff = buildEngineerHandoff(decision, scenarios, engineInput, propertyPlan);
 
   return (
     <div
@@ -121,6 +131,11 @@ export default function EngineerHandoffPage({ decision, scenarios, engineInput, 
         installNotes={handoff.installNotes}
         futurePath={handoff.futurePath}
       />
+
+      {/* 7. Spatial layout — overview, objects, routes */}
+      <LayoutOverviewSection layout={handoff.layout} layoutSummary={handoff.layoutSummary} />
+      <ObjectsSection layout={handoff.layout} />
+      <RoutesSection  layout={handoff.layout} />
     </div>
   );
 }

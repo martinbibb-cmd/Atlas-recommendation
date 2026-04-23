@@ -4,12 +4,17 @@
  * PR7 — A projection of canonical AtlasDecisionV1 + ScenarioResult truth,
  * formatted for an engineer who needs operational confidence before a job.
  *
+ * PR8 — Extended with optional spatial layout fields so the handoff can
+ * answer "where is it and how does it route?" as well as "what is it?".
+ *
  * Design rules:
  *  - No recommendation logic lives here — this is a read-only projection.
  *  - All content derives from AtlasDecisionV1, ScenarioResult[], and engine input.
  *  - Tone is factual, direct, and scan-friendly.
  *  - Never re-derives scores or ranks scenarios.
  */
+
+import type { EngineerLayout } from './EngineerLayout';
 
 /** A single measured or surveyed fact, traceable to its source. */
 export interface EngineerHandoffFact {
@@ -95,4 +100,20 @@ export type EngineerHandoff = {
    * "Heat pump ready — low-temperature emitters already specified".
    */
   futurePath?: string[];
+
+  /**
+   * Spatial layout data for the job — rooms, objects, and routes.
+   * Optional: absent when no floor-plan or spatial truth has been captured.
+   * Missing layout data must not break the handoff page.
+   */
+  layout?: EngineerLayout;
+
+  /**
+   * Human-readable summary lines drawn from the layout.
+   * Examples:
+   *   "Boiler position recorded"
+   *   "Cylinder cupboard dimensions captured"
+   *   "Discharge route requires confirmation"
+   */
+  layoutSummary?: string[];
 };
