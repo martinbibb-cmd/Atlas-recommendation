@@ -1,5 +1,5 @@
 /**
- * VisualRegistry.tsx — Declarative visual registry for the CustomerDeck renderer.
+ * VisualRegistry.ts — Declarative visual registry for the CustomerDeck renderer.
  *
  * Maps a VisualBlock's `visualKey` to a React element (artwork, icon, or accent
  * colour) that the CustomerDeck renders in the large visual area of each page.

@@ -48,9 +48,9 @@ export function PortalCtaBlockView({ block }: Props) {
         )}
 
         <div className="customer-deck__cta-row">
-          <span className="customer-deck__cta-button" role="button" tabIndex={0}>
+          <button className="customer-deck__cta-button" type="button">
             View your report
-          </span>
+          </button>
         </div>
       </div>
     </article>
