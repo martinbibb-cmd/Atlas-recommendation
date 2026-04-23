@@ -148,16 +148,23 @@ function buildProblemBlock(
   const weaker = pickWeakerScenario(scenarios, decision.recommendedScenarioId);
   if (!weaker) return null;
 
-  const title = weaker.system.type === 'combi'
-    ? 'Why a combi boiler struggles here'
-    : `Why a ${weaker.system.type} system struggles here`;
+  // Skip the problem block when the weaker scenario has no constraints to surface
+  if (weaker.keyConstraints.length === 0) return null;
+
+  const systemTypeLabel: Record<ScenarioResult['system']['type'], string> = {
+    combi:   'combi boiler',
+    system:  'system boiler',
+    regular: 'regular boiler',
+    ashp:    'heat pump',
+  };
+  const title = `Why a ${systemTypeLabel[weaker.system.type]} struggles here`;
 
   return {
     id: 'problem',
     type: 'problem',
     scenarioId: weaker.scenarioId,
     title,
-    outcome: top(weaker.keyConstraints, 1)[0] ?? 'This option has constraints for this property.',
+    outcome: weaker.keyConstraints[0],
     supportingPoints: top(weaker.keyConstraints.slice(1), 2),
     visualKey: problemVisualKey(weaker),
   };

@@ -249,6 +249,16 @@ describe('buildVisualBlocks — optional blocks omitted when empty', () => {
     const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario()]);
     expect(blocks.some((b) => b.type === 'problem')).toBe(false);
   });
+
+  it('omits problem block when weaker scenario has no keyConstraints', () => {
+    const noConstraintsWeaker: ScenarioResult = {
+      ...makeWeakerCombiScenario(),
+      keyConstraints: [],
+    };
+    const decision = makeDecision();
+    const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario(), noConstraintsWeaker]);
+    expect(blocks.some((b) => b.type === 'problem')).toBe(false);
+  });
 });
 
 describe('buildVisualBlocks — problem block physics flags', () => {
@@ -271,5 +281,27 @@ describe('buildVisualBlocks — problem block physics flags', () => {
     const blocks    = buildVisualBlocks(decision, scenarios);
     const problem   = blocks.find((b) => b.type === 'problem');
     expect(problem?.visualKey).toBe('ashp_pipe_limit_problem');
+  });
+
+  it('problem block title uses "heat pump" for ashp system type', () => {
+    const weaker: ScenarioResult = {
+      ...makeWeakerCombiScenario(),
+      scenarioId:  'ashp',
+      system:      { type: 'ashp', summary: 'Air source heat pump' },
+      physicsFlags: { hydraulicLimit: true },
+    };
+    const decision  = makeDecision();
+    const scenarios = [makeRecommendedScenario(), weaker];
+    const blocks    = buildVisualBlocks(decision, scenarios);
+    const problem   = blocks.find((b) => b.type === 'problem');
+    expect(problem?.title).toBe('Why a heat pump struggles here');
+  });
+
+  it('problem block title uses "combi boiler" for combi system type', () => {
+    const decision  = makeDecision();
+    const scenarios = [makeRecommendedScenario(), makeWeakerCombiScenario()];
+    const blocks    = buildVisualBlocks(decision, scenarios);
+    const problem   = blocks.find((b) => b.type === 'problem');
+    expect(problem?.title).toBe('Why a combi boiler struggles here');
   });
 });
