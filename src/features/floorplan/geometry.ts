@@ -6,8 +6,7 @@
  */
 
 import type { Point, Wall, Room } from '../../components/floorplan/propertyPlan.types';
-
-const GRID = 24; // canvas pixels per metre — must match FloorPlanBuilder constant
+import { GRID, MIN_WALL_LENGTH_PX } from './constants';
 
 // ─── Wall geometry ────────────────────────────────────────────────────────────
 
@@ -24,7 +23,7 @@ export function wallLengthM(wall: Wall): number {
 /** Unit vector along the wall direction (x1,y1 → x2,y2). */
 export function wallUnitVector(wall: Wall): { ux: number; uy: number } {
   const len = wallLengthPx(wall);
-  if (len < 1) return { ux: 1, uy: 0 };
+  if (len < MIN_WALL_LENGTH_PX) return { ux: 1, uy: 0 };
   return { ux: (wall.x2 - wall.x1) / len, uy: (wall.y2 - wall.y1) / len };
 }
 
@@ -74,7 +73,7 @@ export function snapToNearestWall(
     const dx = wall.x2 - wall.x1;
     const dy = wall.y2 - wall.y1;
     const lenSq = dx * dx + dy * dy;
-    if (lenSq < 1) continue;
+    if (lenSq < MIN_WALL_LENGTH_PX * MIN_WALL_LENGTH_PX) continue;
 
     const t = Math.max(
       0,
@@ -156,3 +155,5 @@ export function hitTestRoom(point: Point, rooms: Room[]): Room | null {
 export function pxToMetersLabel(px: number): string {
   return (px / GRID).toFixed(1);
 }
+
+export { GRID };

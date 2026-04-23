@@ -8,8 +8,7 @@
  */
 
 import type { PropertyPlan, Wall, EntityProvenance } from '../../components/floorplan/propertyPlan.types';
-
-const GRID = 24; // canvas pixels per metre
+import { GRID, MIN_WALL_LENGTH_PX } from './constants';
 
 const MANUAL_PROVENANCE: EntityProvenance = {
   source: 'manual',
@@ -54,7 +53,7 @@ function resizeWall(wall: Wall, newLengthM: number): Wall {
   const dx = wall.x2 - wall.x1;
   const dy = wall.y2 - wall.y1;
   const currentLen = Math.hypot(dx, dy);
-  if (currentLen < 1) return wall;
+  if (currentLen < MIN_WALL_LENGTH_PX) return wall;
 
   const ux = dx / currentLen;
   const uy = dy / currentLen;

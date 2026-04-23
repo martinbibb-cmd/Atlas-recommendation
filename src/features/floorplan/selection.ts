@@ -8,6 +8,7 @@
 import type { Point, Room, Wall, Opening, PlacementNode, FloorObject } from '../../components/floorplan/propertyPlan.types';
 import { hitTestRoom } from './geometry';
 import { findWallHit } from '../../components/floorplan/floorplanDerivations';
+import { GRID } from './constants';
 
 export type { Point };
 
@@ -54,7 +55,6 @@ export function selectOpening(
   openings: Opening[],
   walls: Wall[],
 ): Opening | null {
-  const GRID = 24;
   let best: { opening: Opening; dist: number } | null = null;
 
   for (const op of openings) {

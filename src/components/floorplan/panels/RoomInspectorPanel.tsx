@@ -11,9 +11,9 @@
 
 import type { FloorPlan, Room, RoomType, Wall, FloorObject } from '../propertyPlan.types';
 import { ROOM_TYPE_LABELS } from '../propertyPlan.types';
-import { roomAreaM2 } from '../../../features/floorplan/geometry';
+import { roomAreaM2, GRID } from '../../../features/floorplan/geometry';
 
-const GRID = 24;
+// Remove local GRID constant — imported from geometry module via re-export.
 
 interface Props {
   room: Room;

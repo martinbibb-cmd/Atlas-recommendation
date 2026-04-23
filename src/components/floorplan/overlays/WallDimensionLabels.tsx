@@ -11,8 +11,7 @@
  */
 
 import type { Wall } from '../propertyPlan.types';
-
-const GRID = 24;
+import { GRID, MIN_LABELED_WALL_LENGTH_PX } from '../../../features/floorplan/constants';
 const LABEL_OFFSET_INTERNAL = 10; // px perpendicular offset
 const LABEL_OFFSET_EXTERNAL = 14;
 
@@ -30,7 +29,7 @@ export default function WallDimensionLabels({ walls, selectedWallId, onEditLengt
         const dx = wall.x2 - wall.x1;
         const dy = wall.y2 - wall.y1;
         const len = Math.hypot(dx, dy);
-        if (len < GRID) return null; // too short to label
+        if (len < MIN_LABELED_WALL_LENGTH_PX) return null; // too short to label
 
         const ux = dx / len;
         const uy = dy / len;
