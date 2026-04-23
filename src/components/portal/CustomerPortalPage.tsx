@@ -68,9 +68,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       const rawType = engineInput.currentHeatSourceType;
       const boilerType: 'combi' | 'system' | 'regular' =
         rawType === 'system' || rawType === 'regular' ? rawType : 'combi';
-      const ageYears = engineInput.currentSystem?.boiler?.installYear
-        ? new Date().getFullYear() - engineInput.currentSystem.boiler.installYear
-        : 0;
+      const ageYears = engineInput.currentSystem?.boiler?.ageYears ?? 0;
       const decision = buildDecisionFromScenarios({
         scenarios,
         boilerType,
