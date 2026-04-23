@@ -7,13 +7,13 @@
  * Rules:
  *  - Returns undefined when no usable spatial data is present.
  *  - Never throws — partial data yields a partial layout.
- *  - Confidence levels are derived from EntityProvenance when available,
- *    otherwise default to 'assumed'.
+ *  - Confidence defaults to 'confirmed' for placed objects/routes (intentional
+ *    placement); provenance-based derivation is deferred to a later PR.
  *  - Connection types not representable in EngineerLayoutRouteType are
  *    silently dropped (gas, prv, control are plant-room detail, not handoff).
  */
 
-import type { PropertyPlan, Room, PlacementNode, ConnectionPath } from '../../components/floorplan/propertyPlan.types';
+import type { PropertyPlan, Room, PlacementNode } from '../../components/floorplan/propertyPlan.types';
 import type {
   EngineerLayout,
   EngineerLayoutRoom,
@@ -24,23 +24,6 @@ import type {
   EngineerLayoutRouteType,
   LayoutConfidence,
 } from '../../contracts/EngineerLayout';
-
-// ─── Confidence derivation ────────────────────────────────────────────────────
-
-function provenanceToConfidence(
-  provenance: Room['provenance'] | undefined,
-): LayoutConfidence {
-  if (!provenance) return 'assumed';
-  if (provenance.reviewStatus === 'reviewed' || provenance.reviewStatus === 'corrected') {
-    return 'confirmed';
-  }
-  if (provenance.source === 'scanned') {
-    return provenance.confidenceBand === 'high' ? 'confirmed' : 'inferred';
-  }
-  if (provenance.source === 'inferred') return 'inferred';
-  if (provenance.source === 'manual') return 'confirmed';
-  return 'assumed';
-}
 
 // ─── Rooms ────────────────────────────────────────────────────────────────────
 
