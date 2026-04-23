@@ -21,6 +21,7 @@ import { PortalTabs } from './PortalTabs';
 import { ProofCard } from './cards/ProofCard';
 import { ComparisonCard } from './cards/ComparisonCard';
 import { DailyUseCard } from './cards/DailyUseCard';
+import { DailyUseSimulatorPanel } from '../simulator/DailyUseSimulatorPanel';
 import type { VisualBlock, HeroBlock, FactsBlock, SolutionBlock, WarningBlock, IncludedScopeBlock, FutureUpgradeBlock } from '../../contracts/VisualBlock';
 import { HeroBlockView } from '../presentation/blocks/HeroBlockView';
 import { FactsBlockView } from '../presentation/blocks/FactsBlockView';
@@ -91,7 +92,10 @@ function CompareTab({ cards }: { cards: PortalViewModel['comparisonCards'] }) {
   );
 }
 
-function DailyUseTab({ cards }: { cards: PortalViewModel['dailyUseCards'] }) {
+function DailyUseTab({ cards, simulation }: { cards: PortalViewModel['dailyUseCards']; simulation: PortalViewModel['dailyUseSimulation'] }) {
+  if (simulation) {
+    return <DailyUseSimulatorPanel simulation={simulation} />;
+  }
   if (cards.length === 0) {
     return <p className="portal-page__empty">No daily-use outcomes available.</p>;
   }
@@ -147,7 +151,7 @@ export function PortalPage({ viewModel, propertyTitle }: PortalPageProps) {
       case 'recommended': return <RecommendedTab blocks={viewModel.recommendedBlocks} />;
       case 'why':         return <WhyTab         cards={viewModel.whyCards} />;
       case 'compare':     return <CompareTab     cards={viewModel.comparisonCards} />;
-      case 'daily_use':   return <DailyUseTab    cards={viewModel.dailyUseCards} />;
+      case 'daily_use':   return <DailyUseTab    cards={viewModel.dailyUseCards} simulation={viewModel.dailyUseSimulation} />;
       case 'future':      return <FutureTab      blocks={viewModel.futureBlocks} />;
     }
   }
