@@ -22,8 +22,8 @@ export function ProofCard({ card }: Props) {
       <p className="proof-card__value">{card.value}</p>
       {card.supportingPoints && card.supportingPoints.length > 0 && (
         <ul className="proof-card__points" aria-label="Supporting details">
-          {card.supportingPoints.slice(0, 3).map((point) => (
-            <li key={point} className="proof-card__point">
+          {card.supportingPoints.slice(0, 3).map((point, idx) => (
+            <li key={idx} className="proof-card__point">
               <span className="proof-card__point-marker" aria-hidden="true">→</span>
               {point}
             </li>

@@ -22,8 +22,8 @@ export function DailyUseCard({ card }: Props) {
       <h3 className="daily-use-card__title">{card.title}</h3>
       {card.outcomes.length > 0 ? (
         <ul className="daily-use-card__outcomes" aria-label="Day-to-day outcomes">
-          {card.outcomes.map((outcome) => (
-            <li key={outcome} className="daily-use-card__outcome">
+          {card.outcomes.map((outcome, idx) => (
+            <li key={idx} className="daily-use-card__outcome">
               <span className="daily-use-card__marker" aria-hidden="true">✓</span>
               {outcome}
             </li>
