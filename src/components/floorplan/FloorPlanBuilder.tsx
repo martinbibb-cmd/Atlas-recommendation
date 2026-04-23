@@ -28,6 +28,8 @@ import type {
   DisruptionAnnotation,
   DisruptionKind,
   EditorTool,
+  FloorObject,
+  FloorObjectType,
   FloorPlan,
   Opening,
   OpeningType,
@@ -44,12 +46,25 @@ import type {
 import {
   DISRUPTION_KIND_EMOJI,
   DISRUPTION_KIND_LABELS,
+  FLOOR_OBJECT_TYPE_EMOJI,
+  FLOOR_OBJECT_TYPE_LABELS,
   ROOM_TYPE_LABELS,
 } from './propertyPlan.types';
 import { autoRouteHeatingPipes, canPlaceInProfessionalPlan, computeDisruptionAnnotations, createManualRoom, deriveFloorplanOutputs, findWallHit, getOpeningGeometry, wallSegmentsWithGaps } from './floorplanDerivations';
 import type { AutoRoute, DerivedFloorplanOutput, OpeningGeometry } from './floorplanDerivations';
 import { badgeForObject, validatePropertyPlan } from './propertyValidation';
 import type { ValidationResult } from './propertyValidation';
+// PR9 feature modules — pure spatial logic kept out of component
+import { updateWallMeasurement } from '../../features/floorplan/updateWallMeasurement';
+import { addOpeningToWall } from '../../features/floorplan/addOpeningToWall';
+import { addObjectToPlan, updateFloorObject, removeFloorObject } from '../../features/floorplan/addObjectToPlan';
+// PR9 panel / editor components
+import RoomInspectorPanel from './panels/RoomInspectorPanel';
+import WallInspectorPanel from './panels/WallInspectorPanel';
+import ObjectInspectorPanel from './panels/ObjectInspectorPanel';
+import ObjectLibraryPanel from './panels/ObjectLibraryPanel';
+import WallEditorSheet from './editors/WallEditorSheet';
+import WallDimensionLabels from './overlays/WallDimensionLabels';
 import './floorplan.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -63,10 +78,6 @@ const DEFAULT_ROOM_H = 144; // 6 grid units ≈ 3.6 m
 /** Minimum pointer movement (px) required before a drag is registered.
  *  Prevents sub-pixel jitter or shaky touch input from creating undo entries. */
 const DRAG_THRESHOLD_PX = 4;
-
-/** Default widths used when auto-placing new openings at the wall mid-point. */
-const DEFAULT_DOOR_WIDTH_M  = 0.9;
-const DEFAULT_WINDOW_WIDTH_M = 1.2;
 
 /** True when the page is running inside an iOS app that exposes a native LiDAR bridge. */
 function hasNativeLidarSupport(): boolean {
@@ -102,7 +113,7 @@ function clamp(v: number, lo: number, hi: number) {
 
 /** Snap a room so it aligns to adjacent room edges (edge-snapping). */
 function snapRoomToSiblings(candidate: Room, siblings: Room[]): Room {
-  let next = { ...candidate };
+  const next = { ...candidate };
   siblings.forEach((other) => {
     const yOverlap = next.y < other.y + other.height && next.y + next.height > other.y;
     const xOverlap = next.x < other.x + other.width && next.x + next.width > other.x;
@@ -370,6 +381,10 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [pendingDisruptionKind, setPendingDisruptionKind] = useState<DisruptionKind>('boxing');
   /** Opening type selected for the addOpening tool */
   const [pendingOpeningType, setPendingOpeningType] = useState<OpeningType>('door');
+  /** FloorObject type queued for placement (PR9 object library). */
+  const [pendingFloorObjectType, setPendingFloorObjectType] = useState<FloorObjectType | null>(null);
+  /** Show the object library panel. */
+  const [showObjectLibrary, setShowObjectLibrary] = useState(false);
 
   // ── Undo / redo history ──────────────────────────────────────────────────
 
@@ -618,6 +633,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const selectedOpening = useMemo(() => {
     if (selection?.kind !== 'opening') return null;
     return activeFloor?.openings.find((o) => o.id === selection.id) ?? null;
+  }, [selection, activeFloor]);
+
+  const selectedFloorObject = useMemo(() => {
+    if (selection?.kind !== 'floor_object') return null;
+    return (activeFloor?.floorObjects ?? []).find((o) => o.id === selection.id) ?? null;
   }, [selection, activeFloor]);
 
   // ── Emit helper ──────────────────────────────────────────────────────────
@@ -977,16 +997,15 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   // ── Opening mutations ────────────────────────────────────────────────────
 
   function createOpening(wallId: string, offsetM: number, widthM: number, type: OpeningType) {
-    const opening: Opening = {
-      id: uid('opening'),
-      floorId: activeFloorId,
-      type,
-      wallId,
-      offsetM,
-      widthM,
-    };
-    updateActiveFloor((f) => ({ ...f, openings: [...f.openings, opening] }));
-    setSelection({ kind: 'opening', id: opening.id });
+    let createdId = '';
+    updatePlan((prev) => {
+      const { plan: next, openingId } = addOpeningToWall(prev, {
+        floorId: activeFloorId, wallId, type, offsetM, widthM,
+      });
+      createdId = openingId;
+      return next;
+    });
+    setTimeout(() => setSelection({ kind: 'opening', id: createdId }), 0);
   }
 
   function updateOpening(id: string, patch: Partial<Opening>) {
@@ -1002,6 +1021,42 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       openings: f.openings.filter((o) => o.id !== id),
     }));
     if (selection?.kind === 'opening' && selection.id === id) setSelection(null);
+  }
+
+  // ── FloorObject mutations (PR9) ──────────────────────────────────────────
+
+  function placeFloorObject(type: FloorObjectType, x: number, y: number) {
+    const roomId = activeFloor?.rooms.find(
+      (r) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height,
+    )?.id;
+    let createdId = '';
+    updatePlan((prev) => {
+      const { plan: next, objectId } = addObjectToPlan(prev, {
+        floorId: activeFloorId, type, x, y, roomId,
+      });
+      createdId = objectId;
+      return next;
+    });
+    // Select after state update settles (createdId captured in closure above)
+    setTimeout(() => setSelection({ kind: 'floor_object', id: createdId }), 0);
+  }
+
+  function patchFloorObject(id: string, patch: Partial<Omit<FloorObject, 'id' | 'floorId' | 'provenance'>>) {
+    const next = updateFloorObject(plan, { floorId: activeFloorId, objectId: id, patch });
+    updatePlan(() => next);
+  }
+
+  function deleteFloorObject(id: string) {
+    const next = removeFloorObject(plan, activeFloorId, id);
+    updatePlan(() => next);
+    if (selection?.kind === 'floor_object' && selection.id === id) setSelection(null);
+  }
+
+  // ── Wall length update via feature module ────────────────────────────────
+
+  function applyWallLength(wallId: string, newLengthM: number) {
+    const next = updateWallMeasurement(plan, activeFloorId, wallId, newLengthM);
+    updatePlan(() => next);
   }
 
   // ── Pointer helpers ──────────────────────────────────────────────────────
@@ -1051,6 +1106,14 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (tool === 'placeNode' && pendingKind) {
       placeNode(pendingKind, pos.x, pos.y);
       setPendingKind(null);
+      setGhostPos(null);
+      return;
+    }
+
+    // PR9: place a FloorObject from the object library
+    if (tool === 'placeNode' && pendingFloorObjectType) {
+      placeFloorObject(pendingFloorObjectType, pos.x, pos.y);
+      setPendingFloorObjectType(null);
       setGhostPos(null);
       return;
     }
@@ -1248,16 +1311,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     } else if (type === 'room-height') {
       updateRoom(id, { height: canvasUnits });
     } else if (type === 'wall-length') {
-      const wall = activeFloor?.walls.find((w) => w.id === id);
-      if (wall) {
-        const oldLen = Math.sqrt((wall.x2 - wall.x1) ** 2 + (wall.y2 - wall.y1) ** 2);
-        if (oldLen > 0) {
-          const scale = (currentValue * GRID) / oldLen;
-          const dx = (wall.x2 - wall.x1) * scale;
-          const dy = (wall.y2 - wall.y1) * scale;
-          updateWall(id, { x2: snapToGrid(wall.x1 + dx), y2: snapToGrid(wall.y1 + dy) });
-        }
-      }
+      applyWallLength(id, currentValue);
     }
     setEditingDimension(null);
   }
@@ -1665,8 +1719,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               <button
                 className="fpb__action-btn fpb__insert-btn"
                 onClick={() => setShowObjectBrowser(true)}
+                title="Insert HVAC components"
               >
-                + Insert…
+                + HVAC…
+              </button>
+              <button
+                className="fpb__action-btn fpb__insert-btn"
+                onClick={() => setShowObjectLibrary(true)}
+                title="Insert survey fixtures (sink, bath, shower, flue…)"
+              >
+                + Fixtures…
               </button>
             </div>
           </div>
@@ -1972,6 +2034,27 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   </text>
                 </g>
               )}
+
+              {/* Ghost FloorObject being placed (PR9) */}
+              {ghostPos && pendingFloorObjectType && (
+                <g transform={`translate(${ghostPos.x - 24}, ${ghostPos.y - 14})`} opacity="0.55">
+                  <rect width={48} height={28} rx={6} fill="#f0fdf4" stroke="#16a34a" strokeWidth={2} />
+                  <text x={24} y={18} textAnchor="middle" fontSize={10} fill="#166534">
+                    {FLOOR_OBJECT_TYPE_EMOJI[pendingFloorObjectType]}
+                  </text>
+                </g>
+              )}
+
+              {/* PR9: Wall dimension labels overlay — engineer view only */}
+              {viewMode === 'engineer' && visibleLayers.geometry && !cleanView && (
+                <WallDimensionLabels
+                  walls={activeFloor.walls}
+                  selectedWallId={selectedWall?.id}
+                  onEditLength={(wallId, currentLengthM) =>
+                    setEditingDimension({ type: 'wall-length', currentValue: currentLengthM, id: wallId })
+                  }
+                />
+              )}
             </svg>
 
             {/* ── Layer 1: Rooms (DOM divs for easy interaction) — gated by visibleLayers.geometry ── */}
@@ -2108,6 +2191,29 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 </div>
               );
             })}
+
+            {/* ── PR9: Layer 5: Floor Objects (DOM divs) ── */}
+            {visibleLayers.components && (activeFloor.floorObjects ?? []).map((obj) => {
+              const isSelected = selection?.kind === 'floor_object' && selection.id === obj.id;
+              return (
+                <div
+                  key={obj.id}
+                  className={`fpb__node${isSelected ? ' selected' : ''}`}
+                  style={{ left: obj.x - 20, top: obj.y - 14 }}
+                  onPointerDown={(e) => {
+                    if (tool !== 'select') return;
+                    e.stopPropagation();
+                    setSelection({ kind: 'floor_object', id: obj.id });
+                  }}
+                  title={obj.label ?? FLOOR_OBJECT_TYPE_LABELS[obj.type]}
+                >
+                  <span className="fpb__node-emoji">{FLOOR_OBJECT_TYPE_EMOJI[obj.type]}</span>
+                  <span className="fpb__node-label">
+                    {obj.label ?? FLOOR_OBJECT_TYPE_LABELS[obj.type]}
+                  </span>
+                </div>
+              );
+            })}
             </div>{/* end fpb__canvas-transform */}
 
             {/* ── Zoom controls ── */}
@@ -2148,6 +2254,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {selectedOpening && (
               <div className="fpb__bottom-actions">
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteOpening(selectedOpening.id)}>Delete</button>
+              </div>
+            )}
+            {selectedFloorObject && (
+              <div className="fpb__bottom-actions">
+                <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteFloorObject(selectedFloorObject.id)}>Delete</button>
               </div>
             )}
 
@@ -2320,110 +2431,30 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               </>
             )}
 
-            {/* ── Wall detail bottom sheet (opened via double-tap on wall) ── */}
+            {/* ── Wall editor bottom sheet (opened via double-tap on wall) — PR9 ── */}
             {showWallDetailSheet && wallDetailWallId && activeFloor && (() => {
               const wallIdx = activeFloor.walls.findIndex((w) => w.id === wallDetailWallId);
               const detailWall = activeFloor.walls[wallIdx];
               if (!detailWall) return null;
               const wallOpenings = activeFloor.openings.filter((o) => o.wallId === wallDetailWallId);
-              const wallLenM = Number((Math.hypot(detailWall.x2 - detailWall.x1, detailWall.y2 - detailWall.y1) / GRID).toFixed(2));
-              const goToWall = (idx: number) => {
-                const next = activeFloor.walls[idx];
-                if (next) { setWallDetailWallId(next.id); setSelection({ kind: 'wall', id: next.id }); }
-              };
               return (
-                <>
-                  <div className="fpb__bottom-sheet-backdrop" onClick={() => setShowWallDetailSheet(false)} />
-                  <div className="fpb__bottom-sheet fpb__bottom-sheet--wall-detail">
-                    <div className="fpb__bottom-sheet-header">
-                      <button
-                        className="fpb__wall-nav-btn"
-                        onClick={() => goToWall((wallIdx - 1 + activeFloor.walls.length) % activeFloor.walls.length)}
-                        title="Previous wall"
-                      >←</button>
-                      <span>Wall {wallIdx + 1} / {activeFloor.walls.length} — {detailWall.kind === 'external' ? 'External' : 'Internal'} · {wallLenM} m</span>
-                      <button
-                        className="fpb__wall-nav-btn"
-                        onClick={() => goToWall((wallIdx + 1) % activeFloor.walls.length)}
-                        title="Next wall"
-                      >→</button>
-                      <button className="fpb__delete-btn" onClick={() => setShowWallDetailSheet(false)}>✕</button>
-                    </div>
-                    <div className="fpb__wall-detail-body">
-                      <div className="fpb__wall-detail-section-title">Openings ({wallOpenings.length})</div>
-                      {wallOpenings.length === 0 && (
-                        <div className="fpb__wall-detail-empty">No doors or windows on this wall yet.</div>
-                      )}
-                      {wallOpenings.map((op) => (
-                        <div key={op.id} className="fpb__wall-detail-opening-row">
-                          <span>{op.type === 'door' ? '🚪' : '🪟'} {op.type === 'door' ? 'Door' : 'Window'}</span>
-                          <span className="fpb__wall-detail-opening-meta">w {op.widthM.toFixed(1)} m · offset {op.offsetM.toFixed(1)} m</span>
-                          <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteOpening(op.id)}>✕</button>
-                        </div>
-                      ))}
-                      <div className="fpb__wall-detail-add-row">
-                        <button
-                          className="fpb__sheet-option fpb__sheet-option--compact"
-                          onClick={() => {
-                            createOpening(detailWall.id, Math.max(0, (wallLenM - DEFAULT_DOOR_WIDTH_M) / 2), DEFAULT_DOOR_WIDTH_M, 'door');
-                          }}
-                        >🚪 Add door</button>
-                        <button
-                          className="fpb__sheet-option fpb__sheet-option--compact"
-                          onClick={() => {
-                            createOpening(detailWall.id, Math.max(0, (wallLenM - DEFAULT_WINDOW_WIDTH_M) / 2), DEFAULT_WINDOW_WIDTH_M, 'window');
-                          }}
-                        >🪟 Add window</button>
-                      </div>
-                      <div className="fpb__wall-detail-section-title" style={{ marginTop: 12 }}>Add component near this wall</div>
-                      <div className="fpb__wall-detail-add-row">
-                        <button
-                          className="fpb__sheet-option fpb__sheet-option--compact"
-                          onClick={() => {
-                            placeNode('radiator_loop', snapToGrid((detailWall.x1 + detailWall.x2) / 2 + GRID), snapToGrid((detailWall.y1 + detailWall.y2) / 2 + GRID));
-                            setShowWallDetailSheet(false);
-                          }}
-                        >🌡️ Radiator</button>
-                        <button
-                          className="fpb__sheet-option fpb__sheet-option--compact"
-                          onClick={() => {
-                            placeNode('heat_source_combi', snapToGrid((detailWall.x1 + detailWall.x2) / 2 + GRID), snapToGrid((detailWall.y1 + detailWall.y2) / 2 + GRID));
-                            setShowWallDetailSheet(false);
-                          }}
-                        >🔥 Boiler</button>
-                        <button
-                          className="fpb__sheet-option fpb__sheet-option--compact"
-                          onClick={() => {
-                            placeNode('dhw_unvented_cylinder', snapToGrid((detailWall.x1 + detailWall.x2) / 2 + GRID), snapToGrid((detailWall.y1 + detailWall.y2) / 2 + GRID));
-                            setShowWallDetailSheet(false);
-                          }}
-                        >💧 Cylinder</button>
-                      </div>
-                      {(() => {
-                        const wxMin = Math.min(detailWall.x1, detailWall.x2);
-                        const wxMax = Math.max(detailWall.x1, detailWall.x2);
-                        const wyMin = Math.min(detailWall.y1, detailWall.y2);
-                        const wyMax = Math.max(detailWall.y1, detailWall.y2);
-                        const adjacentRooms = activeFloor.rooms.filter((r) =>
-                          r.x <= wxMax + GRID && r.x + r.width >= wxMin - GRID &&
-                          r.y <= wyMax + GRID && r.y + r.height >= wyMin - GRID,
-                        );
-                        if (adjacentRooms.length === 0) return null;
-                        return (
-                          <>
-                            <div className="fpb__wall-detail-section-title" style={{ marginTop: 12 }}>Adjacent rooms</div>
-                            {adjacentRooms.map((r) => (
-                              <div key={r.id} className="fpb__wall-detail-opening-row">
-                                <span>{ROOM_TYPE_LABELS[r.roomType]} — {r.name}</span>
-                                <span className="fpb__wall-detail-opening-meta">{toMeters(r.width)} × {toMeters(r.height)} m</span>
-                              </div>
-                            ))}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </>
+                <WallEditorSheet
+                  wall={detailWall}
+                  wallIndex={wallIdx}
+                  totalWalls={activeFloor.walls.length}
+                  openings={wallOpenings}
+                  onAddOpening={(type, offsetM, widthM) =>
+                    createOpening(detailWall.id, offsetM, widthM, type)
+                  }
+                  onUpdateOpening={(id, patch) => updateOpening(id, patch)}
+                  onDeleteOpening={(id) => deleteOpening(id)}
+                  onAddComponent={(kind, x, y) => placeNode(kind, x, y)}
+                  onNavigate={(delta) => {
+                    const next = activeFloor.walls[(wallIdx + delta + activeFloor.walls.length) % activeFloor.walls.length];
+                    if (next) { setWallDetailWallId(next.id); setSelection({ kind: 'wall', id: next.id }); }
+                  }}
+                  onClose={() => setShowWallDetailSheet(false)}
+                />
               );
             })()}
 
@@ -2446,6 +2477,23 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 </div>
               </>
             )}
+            {/* ── PR9: Object library bottom sheet ── */}
+            {showObjectLibrary && (
+              <>
+                <div className="fpb__bottom-sheet-backdrop" onClick={() => setShowObjectLibrary(false)} />
+                <div className="fpb__bottom-sheet">
+                  <ObjectLibraryPanel
+                    onSelect={(type) => {
+                      setPendingFloorObjectType(type);
+                      setPendingKind(null);
+                      setTool('placeNode');
+                      setShowObjectLibrary(false);
+                    }}
+                    onClose={() => setShowObjectLibrary(false)}
+                  />
+                </div>
+              </>
+            )}
           </div>{/* end fpb__board */}
         </div>{/* end fpb__canvas-wrap */}
 
@@ -2453,17 +2501,20 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         {selection && (
           <aside className="fpb__inspector">
             {selectedRoom && (
-              <InspectorRoom
+              <RoomInspectorPanel
                 room={selectedRoom}
                 floors={plan.floors}
+                walls={activeFloor.walls}
+                floorObjects={activeFloor.floorObjects ?? []}
                 onUpdate={(patch) => updateRoom(selectedRoom.id, patch)}
                 onDelete={() => deleteRoom(selectedRoom.id)}
               />
             )}
             {selectedWall && (
-              <InspectorWall
+              <WallInspectorPanel
                 wall={selectedWall}
                 onUpdate={(patch) => updateWall(selectedWall.id, patch)}
+                onUpdateLength={(newLengthM) => applyWallLength(selectedWall.id, newLengthM)}
                 onDelete={() => deleteWall(selectedWall.id)}
               />
             )}
@@ -2488,6 +2539,15 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 walls={activeFloor.walls}
                 onUpdate={(patch) => updateOpening(selectedOpening.id, patch)}
                 onDelete={() => deleteOpening(selectedOpening.id)}
+              />
+            )}
+            {selectedFloorObject && (
+              <ObjectInspectorPanel
+                object={selectedFloorObject}
+                rooms={activeFloor.rooms}
+                walls={activeFloor.walls}
+                onUpdate={(patch) => patchFloorObject(selectedFloorObject.id, patch)}
+                onDelete={() => deleteFloorObject(selectedFloorObject.id)}
               />
             )}
           </aside>
@@ -2606,118 +2666,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 }
 
 // ─── Inspector sub-components ─────────────────────────────────────────────────
-
-function InspectorRoom({
-  room,
-  floors,
-  onUpdate,
-  onDelete,
-}: {
-  room: Room;
-  floors: FloorPlan[];
-  onUpdate: (patch: Partial<Room>) => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="fpb__inspector-body">
-      <div className="fpb__inspector-heading">
-        <span>Room</span>
-        <button className="fpb__delete-btn" onClick={onDelete} title="Delete room">✕</button>
-      </div>
-      <label className="fpb__field">
-        <span>Name</span>
-        <input
-          type="text"
-          value={room.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-        />
-      </label>
-      <label className="fpb__field">
-        <span>Type</span>
-        <select
-          value={room.roomType}
-          onChange={(e) => onUpdate({ roomType: e.target.value as RoomType })}
-        >
-          {(Object.keys(ROOM_TYPE_LABELS) as RoomType[]).map((rt) => (
-            <option key={rt} value={rt}>{ROOM_TYPE_LABELS[rt]}</option>
-          ))}
-        </select>
-      </label>
-      <label className="fpb__field">
-        <span>Floor</span>
-        <select
-          value={room.floorId}
-          onChange={(e) => onUpdate({ floorId: e.target.value })}
-        >
-          {floors.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-        </select>
-      </label>
-      <div className="fpb__field fpb__field--static">
-        <span>Dimensions</span>
-        <span>{toMeters(room.width)} m × {toMeters(room.height)} m</span>
-      </div>
-      <div className="fpb__field fpb__field--static">
-        <span>Area</span>
-        <span>{((room.width / GRID) * (room.height / GRID)).toFixed(1)} m²</span>
-      </div>
-      <label className="fpb__field">
-        <span>Notes</span>
-        <textarea
-          rows={3}
-          value={room.notes ?? ''}
-          onChange={(e) => onUpdate({ notes: e.target.value })}
-        />
-      </label>
-    </div>
-  );
-}
-
-function InspectorWall({
-  wall,
-  onUpdate,
-  onDelete,
-}: {
-  wall: Wall;
-  onUpdate: (patch: Partial<Wall>) => void;
-  onDelete: () => void;
-}) {
-  const length = Math.sqrt(
-    (wall.x2 - wall.x1) ** 2 + (wall.y2 - wall.y1) ** 2,
-  );
-  return (
-    <div className="fpb__inspector-body">
-      <div className="fpb__inspector-heading">
-        <span>Wall</span>
-        <button className="fpb__delete-btn" onClick={onDelete} title="Delete wall">✕</button>
-      </div>
-      <label className="fpb__field">
-        <span>Kind</span>
-        <select
-          value={wall.kind}
-          onChange={(e) => onUpdate({ kind: e.target.value as WallKind })}
-        >
-          <option value="internal">Internal</option>
-          <option value="external">External</option>
-        </select>
-      </label>
-      <div className="fpb__field fpb__field--static">
-        <span>Length</span>
-        <span>{toMeters(length)} m</span>
-      </div>
-      <label className="fpb__field">
-        <span>Thickness (mm)</span>
-        <input
-          type="number"
-          min={50}
-          max={600}
-          step={10}
-          value={wall.thicknessMm ?? 100}
-          onChange={(e) => onUpdate({ thicknessMm: Number(e.target.value) })}
-        />
-      </label>
-    </div>
-  );
-}
+// Note: InspectorRoom and InspectorWall have been replaced by the new panel
+// components (RoomInspectorPanel, WallInspectorPanel) imported at the top.
 
 const NODE_METADATA_FIELDS: Partial<Record<PartKind, { key: string; label: string; type: 'text' | 'select'; options?: string[] }[]>> = {
   heat_source_combi:          [{ key: 'model', label: 'Model', type: 'text' }, { key: 'flueDirection', label: 'Flue Direction', type: 'select', options: ['Rear', 'Left', 'Right', 'Top', 'Roof'] }],
