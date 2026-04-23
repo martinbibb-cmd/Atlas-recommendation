@@ -1,0 +1,43 @@
+/**
+ * PortalTabs.css — Tab strip styles for the portal navigation.
+ */
+
+.portal-tabs {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  border-bottom: 2px solid #e2e8f0;
+  background: #ffffff;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.portal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.portal-tabs__tab {
+  flex-shrink: 0;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #718096;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: -2px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.portal-tabs__tab:hover:not(.portal-tabs__tab--active) {
+  color: #2d3748;
+  border-bottom-color: #cbd5e0;
+}
+
+.portal-tabs__tab--active {
+  color: #3182ce;
+  font-weight: 700;
+  border-bottom-color: #3182ce;
+}
