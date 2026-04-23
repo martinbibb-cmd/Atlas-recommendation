@@ -1,0 +1,395 @@
+/**
+ * CustomerDeck.css
+ *
+ * Styles for the customer-facing paged deck renderer.
+ * One block per page, large visual area, minimal text, print-safe fallback.
+ */
+
+/* ─── Deck shell ──────────────────────────────────────────────────────────── */
+
+.customer-deck {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #1a202c;
+  background: #ffffff;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0;
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+.customer-deck--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+/* ─── Progress dots ───────────────────────────────────────────────────────── */
+
+.customer-deck__progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.25rem 1rem 0.5rem;
+  flex-wrap: wrap;
+}
+
+.customer-deck__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.customer-deck__dot--active {
+  background: #3182ce;
+  transform: scale(1.4);
+}
+
+.customer-deck__dot:hover:not(.customer-deck__dot--active) {
+  background: #a0aec0;
+}
+
+.customer-deck__progress-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #a0aec0;
+  letter-spacing: 0.06em;
+  margin-left: 0.25rem;
+}
+
+/* ─── Page ────────────────────────────────────────────────────────────────── */
+
+.customer-deck__page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.5rem 0;
+  animation: deckFadeIn 0.25s ease;
+}
+
+.customer-deck__page--no-motion {
+  animation: none;
+}
+
+@keyframes deckFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* ─── Block shell ─────────────────────────────────────────────────────────── */
+
+.customer-deck__block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  flex: 1;
+}
+
+/* ─── Visual ring ─────────────────────────────────────────────────────────── */
+
+.customer-deck__visual-ring {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.customer-deck__visual-ring--small {
+  width: 140px;
+  height: 140px;
+}
+
+.customer-deck__visual-icon {
+  font-size: 5rem;
+  line-height: 1;
+}
+
+.customer-deck__visual-icon--small {
+  font-size: 3.5rem;
+}
+
+/* ─── Block body ──────────────────────────────────────────────────────────── */
+
+.customer-deck__block-body {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ─── Title ───────────────────────────────────────────────────────────────── */
+
+.customer-deck__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a202c;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+}
+
+/* ─── Outcome sentence ────────────────────────────────────────────────────── */
+
+.customer-deck__outcome {
+  font-size: 1rem;
+  color: #4a5568;
+  line-height: 1.6;
+  margin: 0;
+  text-align: center;
+}
+
+/* ─── Supporting points ───────────────────────────────────────────────────── */
+
+.customer-deck__supporting-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.customer-deck__supporting-point {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #4a5568;
+  line-height: 1.4;
+}
+
+.customer-deck__supporting-point--green {
+  color: #276749;
+}
+
+.customer-deck__supporting-point--amber {
+  color: #744210;
+}
+
+.customer-deck__point-marker {
+  flex-shrink: 0;
+  width: 1.2em;
+  color: #3182ce;
+  font-weight: 700;
+}
+
+/* ─── Facts grid ──────────────────────────────────────────────────────────── */
+
+.customer-deck__facts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  margin: 0;
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 8px;
+}
+
+.customer-deck__fact-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.customer-deck__fact-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.customer-deck__fact-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin: 0;
+}
+
+/* ─── Daily-use examples ──────────────────────────────────────────────────── */
+
+.customer-deck__examples {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.customer-deck__example-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #4a5568;
+  line-height: 1.4;
+}
+
+/* ─── Included scope list ─────────────────────────────────────────────────── */
+
+.customer-deck__scope-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.customer-deck__scope-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #276749;
+  line-height: 1.4;
+}
+
+.customer-deck__scope-tick {
+  flex-shrink: 0;
+  color: #38a169;
+  font-weight: 700;
+}
+
+/* ─── Future-upgrade paths ────────────────────────────────────────────────── */
+
+.customer-deck__paths-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.customer-deck__path-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #553c9a;
+  line-height: 1.4;
+}
+
+/* ─── Warning severity badge ──────────────────────────────────────────────── */
+
+.customer-deck__severity-badge {
+  display: inline-block;
+  padding: 0.2rem 0.7rem;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  align-self: center;
+}
+
+/* ─── Portal CTA ──────────────────────────────────────────────────────────── */
+
+.customer-deck__cta-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.customer-deck__cta-button {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  background: #3182ce;
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.customer-deck__cta-button:hover {
+  background: #2b6cb0;
+}
+
+/* ─── Prev / Next navigation ──────────────────────────────────────────────── */
+
+.customer-deck__nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.customer-deck__nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #2d3748;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.customer-deck__nav-btn:hover:not(:disabled) {
+  background: #ebf8ff;
+  border-color: #3182ce;
+  color: #3182ce;
+}
+
+.customer-deck__nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ─── Print-safe fallback ─────────────────────────────────────────────────── */
+
+/* Screen: hide the stacked print layout */
+.customer-deck__print-all {
+  display: none;
+}
+
+@media print {
+  /* In print mode: hide the interactive deck, show stacked blocks */
+  .customer-deck__page,
+  .customer-deck__progress,
+  .customer-deck__nav {
+    display: none;
+  }
+
+  .customer-deck__print-all {
+    display: block;
+  }
+
+  .customer-deck__print-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 2rem;
+  }
+
+  .customer-deck__block {
+    animation: none;
+  }
+}
