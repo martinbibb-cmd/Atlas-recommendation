@@ -36,7 +36,7 @@ const CYLINDER_DRAW: Record<'shower' | 'second_shower' | 'bath' | 'sink', number
 };
 
 /** Starting cylinder charge for stored-water systems. */
-const CYLINDER_INITIAL_PCT = 100;
+const CYLINDER_INITIAL_PERCENT = 100;
 
 const SYSTEM_TYPE_LABEL: Record<ScenarioResult['system']['type'], string> = {
   combi:   'Combi boiler',
@@ -65,6 +65,22 @@ function deriveFlowTempC(scenario: ScenarioResult): number | undefined {
 /** Draw down cylinder charge, clamping at zero. */
 function drawCylinder(current: number, draw: number): number {
   return Math.max(0, current - draw);
+}
+
+/**
+ * Derive the cold mains status for a second-shower event based on system type
+ * and pressure/flow flags.
+ */
+function deriveColdMainsStatusForSecondShower(
+  type: ScenarioResult['system']['type'],
+  combiFlowRisk: boolean | undefined,
+  pressureConstraint: boolean | undefined,
+  stored: boolean,
+): DailyUseTopPanel['coldMainsStatus'] {
+  if (type === 'combi' && combiFlowRisk) return 'limited';
+  if (pressureConstraint) return 'reduced';
+  if (stored) return 'strong';
+  return 'reduced';
 }
 
 // ─── Step builders ────────────────────────────────────────────────────────────
@@ -216,11 +232,12 @@ function buildSecondShowerStep(
     });
   }
 
-  const coldMainsStatus =
-    type === 'combi' && combiFlowRisk ? 'limited'
-    : pressureConstraint              ? 'reduced'
-    : stored                          ? 'strong'
-    : 'reduced';
+  const coldMainsStatus = deriveColdMainsStatusForSecondShower(
+    type,
+    combiFlowRisk,
+    pressureConstraint,
+    stored,
+  );
 
   const topPanel: DailyUseTopPanel = {
     heatSourceState:       'hot_water',
@@ -419,7 +436,7 @@ export function buildDailyUseSimulation(
   const steps: DailyUseSimulationStep[] = [];
 
   let cylinderCharge = hasStoredCylinder(recommended.system.type)
-    ? CYLINDER_INITIAL_PCT
+    ? CYLINDER_INITIAL_PERCENT
     : 0;
 
   const r1 = buildShowerStep(recommended, cylinderCharge);
