@@ -52,13 +52,13 @@ function derivePerformance(option: OptionCardV1): ScenarioPerformance {
 
 function derivePhysicsFlags(option: OptionCardV1): ScenarioPhysicsFlags {
   const sensitivities = option.sensitivities ?? [];
-  const sensitivityIds = sensitivities.map((s) => s.id ?? '');
+  const sensitivityKeys = sensitivities.map((s) => s.lever ?? '');
 
   return {
-    hydraulicLimit:      sensitivityIds.some((id) => id.includes('hydraulic') || id.includes('pipe') || id.includes('flow')),
+    hydraulicLimit:      sensitivityKeys.some((key) => key.includes('hydraulic') || key.includes('pipe') || key.includes('flow')),
     combiFlowRisk:       option.id === 'combi' && option.dhw.status !== 'ok',
-    highTempRequired:    sensitivityIds.some((id) => id.includes('temp') || id.includes('heat')),
-    pressureConstraint:  sensitivityIds.some((id) => id.includes('pressure') || id.includes('mains')),
+    highTempRequired:    sensitivityKeys.some((key) => key.includes('temp') || key.includes('heat')),
+    pressureConstraint:  sensitivityKeys.some((key) => key.includes('pressure') || key.includes('mains')),
   };
 }
 
