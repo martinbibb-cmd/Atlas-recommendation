@@ -1498,12 +1498,15 @@ function SimulatorPage({
   sim,
   onOpenSimulator,
   onPrint,
+  onOpenPortal,
 }: {
   sim: FinalPageSimulator;
   onOpenSimulator?: () => void;
   onPrint?: () => void;
+  /** Called when the user taps "View full report". Opens the five-tab portal surface. */
+  onOpenPortal?: () => void;
 }) {
-  const hasAnyAction = onOpenSimulator != null || onPrint != null;
+  const hasAnyAction = onOpenSimulator != null || onPrint != null || onOpenPortal != null;
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Proof</p>
@@ -1584,6 +1587,25 @@ function SimulatorPage({
               </button>
             </div>
           )}
+
+          {/* Portal tile — opens the five-tab proof surface */}
+          {onOpenPortal && (
+            <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--portal">
+              <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">📊</p>
+              <p className="atlas-deck-simulator__tile-heading">Explore your full report</p>
+              <p className="atlas-deck-simulator__tile-desc">
+                Compare options, review the evidence, and explore day-to-day outcomes in your personal portal.
+              </p>
+              <button
+                type="button"
+                className="atlas-deck-simulator__tile-btn atlas-deck-simulator__tile-btn--portal"
+                data-testid="open-portal-btn"
+                onClick={onOpenPortal}
+              >
+                View full report →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1661,6 +1683,11 @@ export interface PresentationDeckProps {
   /** Optional callback to open the print/PDF view. */
   onPrint?: () => void;
   /**
+   * Optional callback to open the five-tab portal proof surface.
+   * When provided, the final slide shows a "View full report →" tile.
+   */
+  onOpenPortal?: () => void;
+  /**
    * Called whenever the user's Option 1 / Option 2 selections change.
    * The parent can store these so the print surface reflects the same
    * options that were agreed during the in-room presentation.
@@ -1691,6 +1718,7 @@ export default function PresentationDeck({
   recommendationResult,
   onOpenSimulator,
   onPrint,
+  onOpenPortal,
   onOptionsChange,
   heatLossState,
   prioritiesState,
@@ -2036,6 +2064,7 @@ export default function PresentationDeck({
             sim={finalPage}
             onOpenSimulator={onOpenSimulator}
             onPrint={onPrint}
+            onOpenPortal={onOpenPortal}
           />
         </>
       ),

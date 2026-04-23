@@ -14,6 +14,8 @@
  *  - visualKey values are semantic identifiers only; no render logic lives here.
  */
 
+import type { PortalLaunchContext } from './PortalLaunchContext';
+
 // ─── Base ─────────────────────────────────────────────────────────────────────
 
 type BaseVisualBlock = {
@@ -86,6 +88,11 @@ export type FutureUpgradeBlock = BaseVisualBlock & {
 
 export type PortalCtaBlock = BaseVisualBlock & {
   type: 'portal_cta';
+  /**
+   * Optional launch context passed to the portal when the CTA is activated.
+   * When present, the portal opens at the specified tab for the given scenario.
+   */
+  launchContext?: PortalLaunchContext;
 };
 
 // ─── Union ────────────────────────────────────────────────────────────────────

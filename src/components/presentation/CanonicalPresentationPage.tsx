@@ -528,6 +528,12 @@ interface Props {
    */
   onPrint?: () => void;
   /**
+   * Optional callback to open the five-tab portal proof surface.
+   * When provided, the final slide shows a "View full report →" tile.
+   * The caller handles navigation and builds the portal view model.
+   */
+  onOpenPortal?: () => void;
+  /**
    * Optional callback fired when the user changes their Option 1 / Option 2
    * selections on the ranking page.  The parent can store these families and
    * pass them to the print component so the printout reflects in-room choices.
@@ -563,6 +569,7 @@ export default function CanonicalPresentationPage({
   recommendationResult,
   onOpenSimulator,
   onPrint,
+  onOpenPortal,
   onOptionsChange,
   deckMode = true,
   heatLossState,
@@ -577,6 +584,7 @@ export default function CanonicalPresentationPage({
         recommendationResult={recommendationResult}
         onOpenSimulator={onOpenSimulator}
         onPrint={onPrint}
+        onOpenPortal={onOpenPortal}
         onOptionsChange={onOptionsChange}
         heatLossState={heatLossState}
         prioritiesState={prioritiesState}

@@ -24,6 +24,7 @@
 
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
+import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import type {
   VisualBlock,
   HeroBlock,
@@ -259,13 +260,14 @@ function buildFutureUpgradeBlock(decision: AtlasDecisionV1): FutureUpgradeBlock 
   };
 }
 
-function buildPortalCtaBlock(): PortalCtaBlock {
+function buildPortalCtaBlock(launchContext: PortalLaunchContext): PortalCtaBlock {
   return {
     id: 'portal-cta',
     type: 'portal_cta',
     title: 'See your full Atlas report',
     outcome: 'Explore the interactive model, costs, and comparison in your portal.',
     visualKey: VK.portalCta,
+    launchContext,
   };
 }
 
@@ -318,7 +320,7 @@ export function buildVisualBlocks(
   if (futureBlock) blocks.push(futureBlock);
 
   // 9. Portal CTA
-  blocks.push(buildPortalCtaBlock());
+  blocks.push(buildPortalCtaBlock({ recommendedScenarioId: decision.recommendedScenarioId }));
 
   return blocks;
 }

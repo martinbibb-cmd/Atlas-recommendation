@@ -11,9 +11,10 @@
  *   - No "Back" button — customers cannot navigate to other reports or surveys.
  *   - No survey editing — portal is read-only.
  *   - Simulator is available inline via the final deck slide CTA.
+ *   - Deck CTA button launches the five-tab PortalPage (PR6).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { getReport } from '../../lib/reports/reportApi';
 import { validatePortalToken } from '../../lib/portal/portalToken';
@@ -26,11 +27,17 @@ import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage
 import InsightPackDeck from '../../features/insightPack/InsightPackDeck';
 import { buildInsightPackFromEngine } from '../../features/insightPack/buildInsightPackFromEngine';
 import type { InsightPackSurveyContext } from '../../features/insightPack/buildInsightPackFromEngine';
+import { PortalPage } from './PortalPage';
+import { buildPortalViewModel } from '../../engine/modules/buildPortalViewModel';
+import { buildVisualBlocks } from '../../engine/modules/buildVisualBlocks';
+import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
+import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
+import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import './CustomerPortalPage.css';
 
 interface Props { reference: string; token?: string; }
 
-type PortalViewMode = null | 'insight' | 'presentation';
+type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -45,8 +52,38 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const [postcode, setPostcode] = useState<string | null>(null);
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   const [showSimulator, setShowSimulator] = useState(false);
-  // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck
+  // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
   const [viewMode, setViewMode] = useState<PortalViewMode>(null);
+  // Launch context received from the deck CTA — drives the initial tab of the portal.
+  const [portalLaunchContext, setPortalLaunchContext] = useState<PortalLaunchContext | null>(null);
+
+  // ── Portal view model (memoised — built once when engine data is ready) ────
+  // useMemo is declared here (before conditional returns) to satisfy the Rules
+  // of Hooks. It is a no-op until engineResult and engineInput are both set.
+  const portalViewModel = useMemo(() => {
+    if (!engineResult || !engineInput) return null;
+    const scenarios = buildScenariosFromEngineOutput(engineResult.engineOutput);
+    if (scenarios.length === 0) return null;
+    try {
+      const rawType = engineInput.currentHeatSourceType;
+      const boilerType: 'combi' | 'system' | 'regular' =
+        rawType === 'system' || rawType === 'regular' ? rawType : 'combi';
+      const ageYears = engineInput.currentSystem?.boiler?.installYear
+        ? new Date().getFullYear() - engineInput.currentSystem.boiler.installYear
+        : 0;
+      const decision = buildDecisionFromScenarios({
+        scenarios,
+        boilerType,
+        ageYears,
+        occupancyCount: engineInput.occupancyCount,
+        bathroomCount:  engineInput.bathroomCount,
+      });
+      const blocks = buildVisualBlocks(decision, scenarios);
+      return buildPortalViewModel(decision, scenarios, blocks);
+    } catch {
+      return null;
+    }
+  }, [engineResult, engineInput]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +153,14 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         <p className="portal-page__error-detail">{error ?? 'The recommendation data is missing or incomplete.'}</p>
       </div>
     );
+  }
+
+  // ── Callback: deck CTA opens the five-tab portal surface ─────────────────
+  function handleOpenPortal() {
+    const recommendedScenarioId = portalViewModel?.comparisonCards[0]?.scenarioId;
+    if (!recommendedScenarioId) return; // guard: no valid scenario — do not open a degenerate portal
+    setPortalLaunchContext({ recommendedScenarioId });
+    setViewMode('portal');
   }
 
   // ── Welcome page — choose a view ──────────────────────────────────────────
@@ -212,6 +257,40 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     );
   }
 
+  // ── Five-tab portal view — opened via deck CTA ────────────────────────────
+  if (viewMode === 'portal') {
+    return (
+      <div className="portal-page portal-page--full-width" data-testid="customer-portal">
+        <div className="portal-back-row">
+          <button
+            type="button"
+            className="back-btn"
+            onClick={() => { setViewMode('presentation'); setShowSimulator(false); }}
+          >
+            ← Back to presentation
+          </button>
+        </div>
+        {portalViewModel ? (
+          <PortalPage
+            viewModel={portalViewModel}
+            propertyTitle={postcode ?? undefined}
+            initialTab={portalLaunchContext?.initialTab}
+          />
+        ) : (
+          <div className="portal-page__error" role="alert" data-testid="portal-view-error">
+            <p className="portal-page__error-headline">Report not available</p>
+            <p className="portal-page__error-detail">The full report could not be assembled from the available data.</p>
+          </div>
+        )}
+        <footer className="portal-page__footer">
+          <p className="portal-page__footer-text">
+            The evidence is always visible. Setup, proof, outcomes, and advice in one place.
+          </p>
+        </footer>
+      </div>
+    );
+  }
+
   // ── Presentation view (deck) ──────────────────────────────────────────────
   return (
     <div className="portal-page" data-testid="customer-portal">
@@ -267,6 +346,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           input={engineInput}
           recommendationResult={engineResult.recommendationResult}
           onOpenSimulator={surveyData ? () => setShowSimulator(true) : undefined}
+          onOpenPortal={portalViewModel?.comparisonCards[0]?.scenarioId ? handleOpenPortal : undefined}
           deckMode
         />
       )}
