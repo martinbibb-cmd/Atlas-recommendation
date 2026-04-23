@@ -1,0 +1,95 @@
+/**
+ * ComparisonCard.css — Styles for the comparison card used in the
+ * "Compare other options" tab.
+ *
+ * The recommended card uses a distinct border and badge to stay visually primary.
+ */
+
+.comparison-card {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.comparison-card--recommended {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px #3182ce1a;
+}
+
+.comparison-card__badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.2rem 0.65rem;
+  background: #3182ce;
+  color: #ffffff;
+  border-radius: 99px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.comparison-card__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.comparison-card__summary {
+  font-size: 0.9rem;
+  color: #4a5568;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.comparison-card__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.comparison-card__section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+
+.comparison-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.comparison-card__list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.comparison-card__list-item--strength {
+  color: #276749;
+}
+
+.comparison-card__list-item--constraint {
+  color: #744210;
+}
+
+.comparison-card__marker {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  margin-top: 0.1em;
+}
