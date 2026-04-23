@@ -16,6 +16,8 @@ import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { EngineInputV2_3Contract } from '../../contracts/EngineInputV2_3';
 import type { EngineerHandoff, EngineerHandoffFact, EngineerHandoffEvidence } from '../../contracts/EngineerHandoff';
+import type { PropertyPlan } from '../../components/floorplan/propertyPlan.types';
+import { buildEngineerLayout, buildLayoutSummaryLines } from './buildEngineerLayout';
 
 // ─── System type labels ───────────────────────────────────────────────────────
 
@@ -188,6 +190,7 @@ function buildEvidence(): EngineerHandoffEvidence[] {
  * @param scenarios    All evaluated ScenarioResult entries for this job.
  * @param engineInput  Optional engine input — used to surface measured facts
  *                     (pipe sizes, pressures, outputs) not already in decision.supportingFacts.
+ * @param propertyPlan Optional floor-plan model — used to build the spatial layout section.
  *
  * @throws {Error} when the recommended scenario cannot be located in scenarios[].
  */
@@ -195,6 +198,7 @@ export function buildEngineerHandoff(
   decision: AtlasDecisionV1,
   scenarios: ScenarioResult[],
   engineInput?: EngineInputV2_3Contract,
+  propertyPlan?: PropertyPlan,
 ): EngineerHandoff {
   const recommended = scenarios.find(s => s.scenarioId === decision.recommendedScenarioId);
   if (!recommended) {
@@ -202,6 +206,9 @@ export function buildEngineerHandoff(
       `buildEngineerHandoff: recommended scenario "${decision.recommendedScenarioId}" not found in scenarios[]`,
     );
   }
+
+  const layout        = buildEngineerLayout(propertyPlan);
+  const layoutSummary = layout ? buildLayoutSummaryLines(layout) : undefined;
 
   return {
     jobSummary:            buildJobSummary(decision, recommended),
@@ -214,5 +221,7 @@ export function buildEngineerHandoff(
     installNotes:          buildInstallNotes(decision, recommended, engineInput),
     evidence:              buildEvidence(),
     futurePath:            decision.futureUpgradePaths,
+    ...(layout        ? { layout }        : {}),
+    ...(layoutSummary ? { layoutSummary } : {}),
   };
 }
