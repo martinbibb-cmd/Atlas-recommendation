@@ -13,6 +13,8 @@
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { VisualBlock } from '../../contracts/VisualBlock';
+import type { DailyUseSimulation } from '../../contracts/DailyUseSimulation';
+import { buildDailyUseSimulation } from './buildDailyUseSimulation';
 
 // ─── Tab identifiers ──────────────────────────────────────────────────────────
 
@@ -77,6 +79,9 @@ export interface PortalViewModel {
 
   /** Day-to-day outcome cards for the "Daily-use demo" tab. */
   dailyUseCards: DailyUseCard[];
+
+  /** Interactive daily-use simulator for the recommended scenario (PR5). */
+  dailyUseSimulation: DailyUseSimulation | null;
 
   /** VisualBlocks for the "Future upgrades" tab (future_upgrade blocks only). */
   futureBlocks: VisualBlock[];
@@ -247,9 +252,10 @@ export function buildPortalViewModel(
   return {
     tabs,
     recommendedBlocks,
-    whyCards:        buildWhyCards(decision),
-    comparisonCards: buildComparisonCards(decision, scenarios),
-    dailyUseCards:   buildDailyUseCards(decision, scenarios),
+    whyCards:            buildWhyCards(decision),
+    comparisonCards:     buildComparisonCards(decision, scenarios),
+    dailyUseCards:       buildDailyUseCards(decision, scenarios),
+    dailyUseSimulation:  buildDailyUseSimulation(decision, scenarios),
     futureBlocks,
   };
 }

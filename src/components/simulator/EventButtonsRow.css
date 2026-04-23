@@ -1,0 +1,51 @@
+/**
+ * EventButtonsRow.css — Styles for the daily-use event button strip.
+ */
+
+.event-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.event-buttons-row__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.9rem;
+  background: #edf2f7;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  flex: 1 1 auto;
+  min-width: 72px;
+}
+
+.event-buttons-row__btn:hover {
+  background: #e2e8f0;
+}
+
+.event-buttons-row__btn--active {
+  background: #ebf8ff;
+  border-color: #4299e1;
+}
+
+.event-buttons-row__icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.event-buttons-row__label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #2d3748;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.event-buttons-row__btn--active .event-buttons-row__label {
+  color: #2b6cb0;
+}
