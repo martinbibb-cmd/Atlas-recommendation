@@ -29,7 +29,7 @@ import type {
   ScaleRiskBand,
   UsageIntensityBand,
   WaterQualityBand,
-} from '../contracts/LifecycleAssessment';
+} from '../../contracts/LifecycleAssessment';
 
 // ─── Baseline lifespan by boiler type ────────────────────────────────────────
 // Industry-standard typical service-life ranges (years) for domestic gas boilers.
