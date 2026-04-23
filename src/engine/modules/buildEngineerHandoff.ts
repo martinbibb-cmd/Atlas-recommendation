@@ -64,10 +64,10 @@ function buildExistingSystem(
   const hotWaterType = engineInput?.dhw?.architecture ?? undefined;
 
   return {
-    ...(boilerType      !== undefined ? { boilerType:      String(boilerType) }  : {}),
-    ...(boilerAgeYears  !== undefined ? { boilerAgeYears }                       : {}),
-    ...(nominalOutputKw !== undefined ? { nominalOutputKw }                      : {}),
-    ...(hotWaterType    !== undefined ? { hotWaterType:    String(hotWaterType) } : {}),
+    ...(boilerType !== undefined ? { boilerType: String(boilerType) } : {}),
+    ...(boilerAgeYears !== undefined ? { boilerAgeYears } : {}),
+    ...(nominalOutputKw !== undefined ? { nominalOutputKw } : {}),
+    ...(hotWaterType !== undefined ? { hotWaterType: String(hotWaterType) } : {}),
   };
 }
 

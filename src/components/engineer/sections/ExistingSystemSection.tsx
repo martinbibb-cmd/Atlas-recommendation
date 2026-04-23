@@ -51,6 +51,8 @@ export function ExistingSystemSection({ existingSystem }: Props) {
   const hasData = boilerType !== undefined || boilerAgeYears !== undefined ||
     nominalOutputKw !== undefined || hotWaterType !== undefined;
 
+  if (!hasData) return null;
+
   return (
     <div
       data-testid="engineer-handoff-existing-system"
@@ -65,33 +67,26 @@ export function ExistingSystemSection({ existingSystem }: Props) {
       <h2 style={{ margin: '0 0 0.85rem', fontSize: '0.9rem', fontWeight: 700, color: '#2d3748' }}>
         🏠 Existing system
       </h2>
-
-      {!hasData ? (
-        <p style={{ margin: 0, fontSize: '0.82rem', color: '#718096', fontStyle: 'italic' }}>
-          No existing system data captured — confirm on arrival.
-        </p>
-      ) : (
-        <div>
-          {boilerType !== undefined && (
-            <FactRow
-              label="Boiler type"
-              value={BOILER_TYPE_LABELS[boilerType] ?? boilerType}
-            />
-          )}
-          {boilerAgeYears !== undefined && (
-            <FactRow label="Approx. age" value={`${boilerAgeYears} years`} />
-          )}
-          {nominalOutputKw !== undefined && (
-            <FactRow label="Rated output" value={`${nominalOutputKw} kW`} />
-          )}
-          {hotWaterType !== undefined && (
-            <FactRow
-              label="Hot water type"
-              value={DHW_ARCH_LABELS[hotWaterType] ?? hotWaterType}
-            />
-          )}
-        </div>
-      )}
+      <div>
+        {boilerType !== undefined && (
+          <FactRow
+            label="Boiler type"
+            value={BOILER_TYPE_LABELS[boilerType] ?? boilerType}
+          />
+        )}
+        {boilerAgeYears !== undefined && (
+          <FactRow label="Approx. age" value={`${boilerAgeYears} years`} />
+        )}
+        {nominalOutputKw !== undefined && (
+          <FactRow label="Rated output" value={`${nominalOutputKw} kW`} />
+        )}
+        {hotWaterType !== undefined && (
+          <FactRow
+            label="Hot water type"
+            value={DHW_ARCH_LABELS[hotWaterType] ?? hotWaterType}
+          />
+        )}
+      </div>
     </div>
   );
 }
