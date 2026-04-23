@@ -133,6 +133,11 @@ export interface PortalPageProps {
   viewModel: PortalViewModel;
   /** Optional property reference shown in the header. */
   propertyTitle?: string;
+  /**
+   * Optional tab to activate on first render.
+   * Defaults to 'recommended' when absent.
+   */
+  initialTab?: PortalTabId;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -143,8 +148,8 @@ export interface PortalPageProps {
  * Five-tab portal proof surface. Renders each tab's content using the
  * supplied PortalViewModel — no recommendation logic lives here.
  */
-export function PortalPage({ viewModel, propertyTitle }: PortalPageProps) {
-  const [activeTab, setActiveTab] = useState<PortalTabId>('recommended');
+export function PortalPage({ viewModel, propertyTitle, initialTab }: PortalPageProps) {
+  const [activeTab, setActiveTab] = useState<PortalTabId>(initialTab ?? 'recommended');
 
   function renderActivePanel() {
     switch (activeTab) {

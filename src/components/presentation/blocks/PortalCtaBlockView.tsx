@@ -5,19 +5,34 @@
  *   icon ring → title → outcome → supporting points → CTA button
  *
  * Rules:
- *   - No routing logic here — the button renders a plain anchor.
+ *   - No routing logic here — the button calls onOpenPortal when provided.
  *   - All copy from block — no new text generated here.
+ *   - When onOpenPortal is absent the button renders as disabled; no fake routing.
  */
 
 import type { PortalCtaBlock } from '../../../contracts/VisualBlock';
+import type { PortalLaunchContext } from '../../../contracts/PortalLaunchContext';
 import { getVisualEntry } from '../visuals/VisualRegistry';
 
 interface Props {
   block: PortalCtaBlock;
+  /** Called when the user taps the CTA. Receives the block's launchContext (if set). */
+  onOpenPortal?: (launchContext: PortalLaunchContext) => void;
 }
 
-export function PortalCtaBlockView({ block }: Props) {
+export function PortalCtaBlockView({ block, onOpenPortal }: Props) {
   const visual = getVisualEntry(block.visualKey);
+
+  function handleCta() {
+    if (!onOpenPortal) return;
+    if (!block.launchContext) {
+      // launchContext must be set on the block for portal navigation to work.
+      // This is a configuration error — the block was built without a scenario id.
+      console.warn('PortalCtaBlock: launchContext is missing; portal CTA will not fire.');
+      return;
+    }
+    onOpenPortal(block.launchContext);
+  }
 
   return (
     <article className="customer-deck__block customer-deck__block--portal-cta" aria-label={block.title}>
@@ -48,7 +63,12 @@ export function PortalCtaBlockView({ block }: Props) {
         )}
 
         <div className="customer-deck__cta-row">
-          <button className="customer-deck__cta-button" type="button">
+          <button
+            className="customer-deck__cta-button"
+            type="button"
+            onClick={handleCta}
+            disabled={!onOpenPortal}
+          >
             View your report
           </button>
         </div>

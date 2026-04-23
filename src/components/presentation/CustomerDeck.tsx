@@ -21,6 +21,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { VisualBlock } from '../../contracts/VisualBlock';
+import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import { HeroBlockView } from './blocks/HeroBlockView';
 import { FactsBlockView } from './blocks/FactsBlockView';
 import { ProblemBlockView } from './blocks/ProblemBlockView';
@@ -45,7 +46,10 @@ const SWIPE_THRESHOLD_PX = 40;
  * Uses a type-safe registry dispatch — no inline type-switch logic
  * scattered across the renderer.
  */
-function renderBlock(block: VisualBlock): React.ReactElement | null {
+function renderBlock(
+  block: VisualBlock,
+  onOpenPortal?: (launchContext: PortalLaunchContext) => void,
+): React.ReactElement | null {
   switch (block.type) {
     case 'hero':           return <HeroBlockView           block={block as HeroBlock} />;
     case 'facts':          return <FactsBlockView          block={block as FactsBlock} />;
@@ -55,7 +59,7 @@ function renderBlock(block: VisualBlock): React.ReactElement | null {
     case 'included_scope': return <IncludedScopeBlockView  block={block as IncludedScopeBlock} />;
     case 'warning':        return <WarningBlockView        block={block as WarningBlock} />;
     case 'future_upgrade': return <FutureUpgradeBlockView  block={block as FutureUpgradeBlock} />;
-    case 'portal_cta':     return <PortalCtaBlockView      block={block as PortalCtaBlock} />;
+    case 'portal_cta':     return <PortalCtaBlockView      block={block as PortalCtaBlock} onOpenPortal={onOpenPortal} />;
     default:               return null;
   }
 }
@@ -67,6 +71,13 @@ export interface CustomerDeckProps {
   blocks: VisualBlock[];
   /** Optional callback when the user reaches the final page. */
   onComplete?: () => void;
+  /**
+   * Called when the user activates the portal CTA block.
+   * Receives the PortalLaunchContext from the block so the portal opens at
+   * the correct scenario and tab.
+   * When absent the CTA button renders as disabled — no fake routing.
+   */
+  onOpenPortal?: (launchContext: PortalLaunchContext) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -80,7 +91,7 @@ export interface CustomerDeckProps {
  *
  * Deliberately logic-free: no recommendation math, no block reshuffling.
  */
-export function CustomerDeck({ blocks, onComplete }: CustomerDeckProps) {
+export function CustomerDeck({ blocks, onComplete, onOpenPortal }: CustomerDeckProps) {
   const [pageIndex, setPageIndex] = useState(0);
 
   // Evaluated once at mount; the user's motion preference does not change
@@ -167,7 +178,7 @@ export function CustomerDeck({ blocks, onComplete }: CustomerDeckProps) {
         aria-live="polite"
         aria-atomic="true"
       >
-        {renderBlock(currentBlock)}
+        {renderBlock(currentBlock, onOpenPortal)}
       </div>
 
       {/* Prev / Next controls */}
@@ -194,7 +205,7 @@ export function CustomerDeck({ blocks, onComplete }: CustomerDeckProps) {
       <div className="customer-deck__print-all" aria-hidden="true">
         {blocks.map((block) => (
           <div key={block.id} className="customer-deck__print-block">
-            {renderBlock(block)}
+            {renderBlock(block, onOpenPortal)}
           </div>
         ))}
       </div>
