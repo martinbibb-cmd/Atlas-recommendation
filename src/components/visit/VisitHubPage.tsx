@@ -930,6 +930,14 @@ export default function VisitHubPage({
         {isVisitCompleted(meta) ? (
           /* Completed: show output preview cards; survey-assist is closed */
           <>
+            {/* Closed-survey hint — informs the engineer that capture is finalised */}
+            <p
+              className="visit-hub__body-hint"
+              data-testid="visit-hub-body-completed-hint"
+            >
+              Survey capture is closed. This visit has been formally completed.
+            </p>
+
             {/* Customer summary preview — read-only, derived from session data */}
             <CustomerSummaryPreviewCard
               preview={deriveCustomerPreview(

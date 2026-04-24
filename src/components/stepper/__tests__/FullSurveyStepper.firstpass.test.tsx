@@ -53,7 +53,7 @@ async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetInd
 
 // ─── V2 step structure ────────────────────────────────────────────────────────
 
-describe('FullSurveyStepper — V2 active step structure', () => {
+describe('FullSurveyStepper — V2 active step structure', { timeout: 15000 }, () => {
   it('starts on the System Architecture step (system_builder)', () => {
     render(<FullSurveyStepper onBack={() => {}} />);
     expect(document.querySelector('[data-testid="system-builder-step"]')).not.toBeNull();

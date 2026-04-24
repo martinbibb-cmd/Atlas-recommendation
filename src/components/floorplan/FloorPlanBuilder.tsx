@@ -1831,9 +1831,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           <div className="fpb__layer-toggles" role="group" aria-label="Layer visibility">
             {(
               [
-                ['geometry',         '🏠', 'Rooms'],
+                ['geometry',         '🏠', 'Geometry'],
                 ['openings',         '🚪', 'Openings'],
-                ['components',       '🔧', 'Objects'],
+                ['components',       '🔧', 'Components'],
                 ['routes',           '〰',  'Routes'],
                 ['dimensions',       '📏', 'Dimensions'],
                 ['disruptions',      '⚠️', 'Disruptions'],
