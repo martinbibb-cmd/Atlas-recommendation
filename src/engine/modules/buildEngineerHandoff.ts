@@ -18,7 +18,7 @@ import type { EngineInputV2_3Contract } from '../../contracts/EngineInputV2_3';
 import type { EngineerHandoff, EngineerHandoffFact, EngineerHandoffEvidence } from '../../contracts/EngineerHandoff';
 import type { PropertyPlan } from '../../components/floorplan/propertyPlan.types';
 import { buildEngineerLayout, buildLayoutSummaryLines } from './buildEngineerLayout';
-import { buildQuoteScope, scopeIncluded, inferCategory } from './buildQuoteScope';
+import { buildQuoteScope, scopeIncluded, synthesizeLegacyScope } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
 
 // ─── Included scope ───────────────────────────────────────────────────────────
@@ -33,13 +33,8 @@ function buildIncludedScope(decision: AtlasDecisionV1): QuoteScopeItem[] {
   const fromScope = scopeIncluded(decision.quoteScope);
   if (fromScope.length > 0) return fromScope;
 
-  // Fallback: synthesise from string-list includedItems
-  return decision.includedItems.map((label, i) => ({
-    id: `included-legacy-${i}`,
-    label,
-    category: inferCategory(label),
-    status: 'included' as const,
-  }));
+  // Fallback: synthesise from string-list includedItems for legacy decisions
+  return synthesizeLegacyScope(decision.includedItems);
 }
 
 // ─── System type labels ───────────────────────────────────────────────────────

@@ -39,7 +39,7 @@ import type {
   PortalCtaBlock,
   SpatialProofBlock,
 } from '../../contracts/VisualBlock';
-import { scopeIncluded, scopeFuturePaths, inferCategory } from './buildQuoteScope';
+import { scopeIncluded, scopeFuturePaths, synthesizeLegacyScope } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
 
 // ─── Visual key constants ─────────────────────────────────────────────────────
@@ -211,12 +211,7 @@ function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock 
   // Fall back to synthesising items from the flat includedItems string list
   const items: QuoteScopeItem[] = fromScope.length > 0
     ? fromScope
-    : decision.includedItems.map((label, i) => ({
-        id: `included-legacy-${i}`,
-        label,
-        category: inferCategory(label),
-        status: 'included' as const,
-      }));
+    : synthesizeLegacyScope(decision.includedItems);
 
   if (items.length === 0) return null;
 

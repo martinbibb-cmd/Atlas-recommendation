@@ -114,11 +114,6 @@ export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
 
     if (engineerNote) item.engineerNote = engineerNote;
 
-    // Compliance items must not carry a customerBenefit
-    if (category !== 'compliance' && category !== 'future') {
-      item.customerBenefit = undefined; // populated by callers who have richer context
-    }
-
     items.push(item);
   }
 
@@ -156,6 +151,21 @@ export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
 }
 
 // ─── Scope selectors ──────────────────────────────────────────────────────────
+
+/**
+ * synthesizeLegacyScope — synthesises QuoteScopeItem[] from a flat string list.
+ *
+ * Used as a fallback when a decision was built before PR13 introduced quoteScope,
+ * so the engine modules that need QuoteScopeItem[] can still operate correctly.
+ */
+export function synthesizeLegacyScope(includedItems: string[]): QuoteScopeItem[] {
+  return includedItems.map((label, i) => ({
+    id: `included-legacy-${i}`,
+    label,
+    category: inferCategory(label),
+    status: 'included' as const,
+  }));
+}
 
 /**
  * scopeIncluded — items confirmed in the current scope of work.
