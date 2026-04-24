@@ -177,6 +177,12 @@ function buildInstallNotes(
     notes.push('Unvented cylinder specified — G3 installer required');
   }
 
+  // Shower compatibility — engineer-facing install note
+  const showerNote = decision.showerCompatibilityNote;
+  if (showerNote) {
+    notes.push(showerNote.engineerNote);
+  }
+
   // Lifecycle-derived note
   const condition = decision.lifecycle.currentSystem.condition;
   if (condition === 'at_risk' || condition === 'worn') {

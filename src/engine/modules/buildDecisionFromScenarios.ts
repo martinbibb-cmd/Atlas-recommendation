@@ -26,6 +26,7 @@ import { buildLifecycleAssessment } from './buildLifecycleAssessment';
 import type { PerformanceBand } from '../../contracts/ScenarioResult';
 import type { MaintenanceLevel, WaterQualityBand } from '../../contracts/LifecycleAssessment';
 import { buildQuoteScope } from './buildQuoteScope';
+import type { ShowerCompatibilityNote } from '../../contracts/ShowerCompatibilityNote';
 
 // ─── Performance band scoring ─────────────────────────────────────────────────
 
@@ -177,6 +178,14 @@ export interface BuildDecisionInput {
   bathroomCount?: number;
   /** Maintenance level. */
   maintenanceLevel?: MaintenanceLevel;
+  /**
+   * Shower compatibility note derived from the surveyed shower type.
+   * When provided, the customerSummary is added to compatibilityWarnings
+   * (deduplication applied) and the structured note is stored on the decision.
+   *
+   * PR26 — Pass the output of buildShowerCompatibilityNotes here.
+   */
+  showerCompatibilityNote?: ShowerCompatibilityNote | null;
 }
 
 // ─── Main builder ─────────────────────────────────────────────────────────────
@@ -212,12 +221,19 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
   const keyReasons = buildKeyReasons(recommended, lifecycle);
   const supportingFacts = buildSupportingFacts(lifecycle, input);
 
+  const physicsWarnings: string[] = recommended.physicsFlags
+    ? buildCompatibilityWarnings(recommended)
+    : [];
+
+  // Merge shower compatibility customer summary into compatibility warnings.
+  // Dedup by exact string match to avoid repetition if called more than once.
+  const showerNote = input.showerCompatibilityNote ?? null;
+  const allCompatibilityWarnings = mergeShowerWarning(physicsWarnings, showerNote);
+
   const quoteScope = buildQuoteScope({
     includedItems:        [],
     requiredWorks:        recommended.requiredWorks,
-    compatibilityWarnings: recommended.physicsFlags
-      ? buildCompatibilityWarnings(recommended)
-      : [],
+    compatibilityWarnings: allCompatibilityWarnings,
     futureUpgradePaths:   recommended.upgradePaths,
   });
 
@@ -229,15 +245,29 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
     avoidedRisks:           recommended.keyConstraints,
     dayToDayOutcomes:       recommended.dayToDayOutcomes,
     requiredWorks:          recommended.requiredWorks,
-    compatibilityWarnings:  recommended.physicsFlags
-      ? buildCompatibilityWarnings(recommended)
-      : [],
+    compatibilityWarnings:  allCompatibilityWarnings,
     includedItems:          [],
     quoteScope,
     futureUpgradePaths:     recommended.upgradePaths,
     supportingFacts,
     lifecycle,
+    showerCompatibilityNote: showerNote ?? undefined,
   };
+}
+
+// ─── Shower warning merge ─────────────────────────────────────────────────────
+
+/**
+ * Merges the shower compatibility customer summary into the warnings list.
+ * Deduplicates by exact string equality to prevent double-emission.
+ */
+function mergeShowerWarning(
+  physicsWarnings: string[],
+  showerNote: ShowerCompatibilityNote | null,
+): string[] {
+  if (!showerNote) return physicsWarnings;
+  if (physicsWarnings.includes(showerNote.customerSummary)) return physicsWarnings;
+  return [...physicsWarnings, showerNote.customerSummary];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
