@@ -15,6 +15,7 @@ import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { VisualBlock, SpatialProofBlock } from '../../contracts/VisualBlock';
 import type { DailyUseSimulation } from '../../contracts/DailyUseSimulation';
 import { buildDailyUseSimulation } from './buildDailyUseSimulation';
+import { scopeIncluded } from './buildQuoteScope';
 
 // ─── Tab identifiers ──────────────────────────────────────────────────────────
 
@@ -252,7 +253,23 @@ export function buildPortalViewModel(
     RECOMMENDED_TAB_TYPES.has(b.type),
   );
 
-  const futureBlocks = blocks.filter((b) => FUTURE_TAB_TYPES.has(b.type));
+  // Future blocks exclude anything already in the included scope to avoid
+  // presenting already-committed work as a future upsell opportunity.
+  const includedLabels = new Set(
+    scopeIncluded(decision.quoteScope).map((s) => s.label.toLowerCase().trim()),
+  );
+  const futureBlocks = blocks
+    .filter((b) => FUTURE_TAB_TYPES.has(b.type))
+    .map((b) => {
+      if (b.type !== 'future_upgrade') return b;
+      return {
+        ...b,
+        paths: b.paths.filter(
+          (p) => !includedLabels.has(p.toLowerCase().trim()),
+        ),
+      };
+    })
+    .filter((b) => b.type !== 'future_upgrade' || b.paths.length > 0);
 
   const spatialProofBlock = blocks.find((b): b is SpatialProofBlock => b.type === 'spatial_proof') ?? null;
 

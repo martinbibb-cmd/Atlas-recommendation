@@ -142,7 +142,7 @@ function IncludedScopeExtra({ block }: { block: IncludedScopeBlock }) {
   return (
     <div style={{ marginTop: 10 }}>
       <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 4 }}>items</div>
-      <ChipList items={block.items} color='#14532d' />
+      <ChipList items={block.items.map((i) => i.label)} color='#14532d' />
     </div>
   );
 }
