@@ -68,7 +68,22 @@ import InsightPackDeck from './features/insightPack/InsightPackDeck';
 import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
 import type { InsightPackSurveyContext } from './features/insightPack/buildInsightPackFromEngine';
 import type { QuoteInput } from './features/insightPack/insightPack.types';
+import type { LifecycleBoilerType } from './contracts/LifecycleAssessment';
 import './App.css';
+
+/**
+ * Maps a broad heat-source family (including 'ashp' / 'other' which are not
+ * valid LifecycleBoilerType values) to the nearest lifecycle-compatible type.
+ * Falls back to 'regular' for anything that isn't a gas boiler variant.
+ */
+function toLifecycleBoilerType(
+  value: 'combi' | 'system' | 'regular' | 'ashp' | 'other' | undefined,
+): LifecycleBoilerType {
+  if (value === 'combi' || value === 'system' || value === 'regular') {
+    return value;
+  }
+  return 'regular';
+}
 
 /** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
 const DEV_MENU_ENABLED =
@@ -380,16 +395,6 @@ export default function App() {
    */
   const [insightPackFromJourney, setInsightPackFromJourney] = useState<Journey>('simulator');
   /**
-   * Option 1 family agreed with the customer during the in-room presentation.
-   * Captured via onOptionsChange from PresentationDeck so the printout reflects
-   * the same choices as those discussed in the room.
-   */
-  const [labOption1Family, setLabOption1Family] = useState<ApplianceFamily | null>(null);
-  /**
-   * Option 2 family agreed with the customer during the in-room presentation.
-   */
-  const [labOption2Family, setLabOption2Family] = useState<ApplianceFamily | null>(null);
-  /**
    * The journey that last opened the simulator, used to navigate Back correctly.
    * When the simulator is opened from the recommendation/survey pages, Back
    * should return there instead of going to the landing page.
@@ -522,8 +527,6 @@ export default function App() {
           });
         }).catch(() => {/* best effort */});
         setPresentationFromJourney('visit-hub');
-        setLabOption1Family(null);
-        setLabOption2Family(null);
         setJourney('presentation');
         return;
       }
@@ -872,7 +875,7 @@ export default function App() {
     if (demoScenarios.length > 0) {
       const demoDecision = buildDecisionFromScenarios({
         scenarios:   demoScenarios,
-        boilerType:  CONSOLE_DEMO_INPUT.currentHeatSourceType ?? 'combi',
+        boilerType:  toLifecycleBoilerType(CONSOLE_DEMO_INPUT.currentHeatSourceType),
         ageYears:    10,
         occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
         bathroomCount:  CONSOLE_DEMO_INPUT.bathroomCount,
@@ -1050,7 +1053,7 @@ export default function App() {
             onBack={() => setJourney(simulatorFromJourney)}
             onEditSetup={() => setJourney(simulatorFromJourney)}
             onOpenSystemLab={() => setJourney('lab')}
-            onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('simulator'); setLabOption1Family(null); setLabOption2Family(null); setJourney('presentation'); } : undefined}
+            onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('simulator'); setJourney('presentation'); } : undefined}
             surveyData={labEngineInput}
             floorplanOutput={floorplanOutput}
           />
@@ -1065,10 +1068,6 @@ export default function App() {
           onPrint={() => setJourney('printout')}
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}
-          onOptionsChange={(opt1, opt2) => {
-            setLabOption1Family(opt1);
-            setLabOption2Family(opt2);
-          }}
         />
       )}
       {journey === 'printout' && labEngineInput != null && (() => {
@@ -1077,7 +1076,7 @@ export default function App() {
         if (scenarios.length === 0) return null;
         const decision = buildDecisionFromScenarios({
           scenarios,
-          boilerType:     labEngineInput.currentHeatSourceType ?? 'combi',
+          boilerType:     toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
           ageYears:       10,
           occupancyCount: labEngineInput.occupancyCount,
           bathroomCount:  labEngineInput.bathroomCount,
