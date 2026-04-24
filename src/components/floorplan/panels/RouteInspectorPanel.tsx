@@ -34,6 +34,14 @@ const STATUS_BADGE_STYLE: Record<FloorRouteStatus, React.CSSProperties> = {
   assumed:  { background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' },
 };
 
+/** Build a human-readable link summary from optional from/to object IDs. */
+function formatLinkSummary(fromId?: string, toId?: string): string {
+  const parts: string[] = [];
+  if (fromId) parts.push('From: linked');
+  if (toId) parts.push('To: linked');
+  return parts.join(' · ');
+}
+
 export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props) {
   const typeColor = FLOOR_ROUTE_TYPE_COLORS[route.type];
   const confidence = route.provenance
@@ -128,9 +136,7 @@ export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props
         <div className="fpb__field fpb__field--static">
           <span>Links</span>
           <span style={{ fontSize: 12, color: '#475569' }}>
-            {route.fromObjectId ? 'From: linked' : ''}
-            {route.fromObjectId && route.toObjectId ? ' · ' : ''}
-            {route.toObjectId ? 'To: linked' : ''}
+            {formatLinkSummary(route.fromObjectId, route.toObjectId)}
           </span>
         </div>
       )}

@@ -10,7 +10,7 @@
  * inputs show a friendly inline error instead of silently failing.
  */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Wall, WallKind } from '../propertyPlan.types';
 import {
   provenanceToLayoutConfidence,
@@ -37,6 +37,8 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
   const [editingLength, setEditingLength] = useState(false);
   const [draftLength, setDraftLength] = useState(lengthM.toFixed(2));
   const [lengthError, setLengthError] = useState<string | null>(null);
+  // pendingCancelRef guards commitLength when the cancel button triggers onBlur first.
+  const pendingCancelRef = useRef(false);
 
   const confidence = wall.provenance ? provenanceToLayoutConfidence(wall.provenance) : null;
 
@@ -48,6 +50,11 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
   }
 
   function commitLength() {
+    if (pendingCancelRef.current) {
+      // Cancel button's onPointerDown fired before this blur — abort commit.
+      pendingCancelRef.current = false;
+      return;
+    }
     const error = validateDraft(draftLength);
     if (error) {
       setLengthError(error);
@@ -59,6 +66,7 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
   }
 
   function cancelLength() {
+    pendingCancelRef.current = false;
     setDraftLength(lengthM.toFixed(2));
     setLengthError(null);
     setEditingLength(false);
@@ -118,7 +126,12 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
               aria-invalid={lengthError != null}
             />
             <button className="fpb__action-btn fpb__wall-length-confirm" onClick={commitLength} title="Apply">✓</button>
-            <button className="fpb__action-btn fpb__wall-length-cancel" onMouseDown={(e) => { e.preventDefault(); cancelLength(); }} title="Cancel">✕</button>
+            <button
+              className="fpb__action-btn fpb__wall-length-cancel"
+              onPointerDown={() => { pendingCancelRef.current = true; }}
+              onClick={cancelLength}
+              title="Cancel"
+            >✕</button>
             {lengthError && (
               <span className="fpb__wall-length-error" role="alert">{lengthError}</span>
             )}

@@ -91,6 +91,10 @@ const DEFAULT_ROOM_H = 144; // 6 grid units ≈ 3.6 m
  *  Prevents sub-pixel jitter or shaky touch input from creating undo entries. */
 const DRAG_THRESHOLD_PX = 4;
 
+/** Ghost preview pill dimensions for FloorObject placement (PR16). */
+const GHOST_OBJECT_W = 72;
+const GHOST_OBJECT_H = 40;
+
 /** True when the page is running inside an iOS app that exposes a native LiDAR bridge. */
 function hasNativeLidarSupport(): boolean {
   return typeof window !== 'undefined' &&
@@ -2291,12 +2295,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
               {/* Ghost FloorObject being placed (PR9 / PR16: show emoji + name) */}
               {ghostPos && pendingFloorObjectType && (
-                <g transform={`translate(${ghostPos.x - 36}, ${ghostPos.y - 20})`} opacity="0.65">
-                  <rect width={72} height={40} rx={8} fill="#f0fdf4" stroke="#16a34a" strokeWidth={2} strokeDasharray="4 2" />
-                  <text x={36} y={16} textAnchor="middle" fontSize={14}>
+                <g transform={`translate(${ghostPos.x - GHOST_OBJECT_W / 2}, ${ghostPos.y - GHOST_OBJECT_H / 2})`} opacity="0.65">
+                  <rect width={GHOST_OBJECT_W} height={GHOST_OBJECT_H} rx={8} fill="#f0fdf4" stroke="#16a34a" strokeWidth={2} strokeDasharray="4 2" />
+                  <text x={GHOST_OBJECT_W / 2} y={16} textAnchor="middle" fontSize={14}>
                     {FLOOR_OBJECT_TYPE_EMOJI[pendingFloorObjectType]}
                   </text>
-                  <text x={36} y={32} textAnchor="middle" fontSize={9} fill="#166534" fontWeight="600">
+                  <text x={GHOST_OBJECT_W / 2} y={32} textAnchor="middle" fontSize={9} fill="#166534" fontWeight="600">
                     {FLOOR_OBJECT_TYPE_LABELS[pendingFloorObjectType]}
                   </text>
                 </g>
