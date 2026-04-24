@@ -1936,3 +1936,309 @@
   padding: 5px 10px;
   margin: 4px 0 8px;
 }
+
+/* ── PR21: Inspector drag handle (hidden on desktop, shown on mobile) ──────── */
+
+.fpb__inspector-handle {
+  display: none;
+}
+
+.fpb__inspector-handle-bar {
+  width: 36px;
+  height: 4px;
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.fpb__inspector-collapsed-summary {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* ── PR21: Floating action button (FAB) ─────────────────────────────────────── */
+
+.fpb__fab {
+  /* Hidden on desktop; shown on mobile via media query below */
+  display: none;
+}
+
+/* ── PR21: Mobile tools toggle button in hint bar ────────────────────────── */
+
+.fpb__mobile-tools-btn {
+  display: none;
+}
+
+/* ── PR21: Mobile layout (≤640 px) ─────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* ── Sidebar: hidden by default; toggled via .fpb__sidebar--mobile-visible ── */
+  .fpb__sidebar {
+    display: none;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .fpb__sidebar--mobile-visible {
+    display: flex;
+  }
+
+  /* Workspace grid collapses to single column (no inspector column on mobile) */
+  .fpb__workspace,
+  .fpb__workspace:has(.fpb__inspector) {
+    grid-template-columns: 1fr;
+  }
+
+  /* Canvas height adjusted so there is room for the sheet at half-height */
+  .fpb__board {
+    height: calc(100svh - 260px);
+    min-height: 260px;
+  }
+
+  /* ── Inspector becomes a fixed bottom sheet ── */
+  .fpb__inspector {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 50svh;
+    border-left: none;
+    border-top: 1px solid #e2e8f0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.14);
+    z-index: 200;
+    overflow-y: auto;
+    transition: max-height 0.25s ease-out;
+  }
+
+  .fpb__inspector--collapsed {
+    max-height: 60px;
+    overflow: hidden;
+  }
+
+  .fpb__inspector--half {
+    max-height: 50svh;
+  }
+
+  .fpb__inspector--full {
+    max-height: 90svh;
+  }
+
+  /* Drag handle shown on mobile */
+  .fpb__inspector-handle {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 10px 0 6px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    min-height: 30px;
+  }
+
+  /* Collapsed state: show a one-line summary instead of full body */
+  .fpb__inspector--collapsed .fpb__inspector-handle {
+    padding-bottom: 2px;
+  }
+
+  .fpb__inspector--collapsed .fpb__inspector-collapsed-summary {
+    display: flex;
+  }
+
+  .fpb__inspector--collapsed .fpb__inspector-body {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* ── Touch targets: all interactive controls ≥ 44 px ── */
+  .fpb__route-overlay-btn {
+    min-height: 44px;
+    padding: 10px 18px;
+  }
+
+  .fpb__zoom-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .fpb__quick-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .fpb__action-pill {
+    min-height: 44px;
+    padding: 10px 18px;
+  }
+
+  .fpb__browser-item {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .fpb__sheet-option {
+    min-height: 52px;
+  }
+
+  .fpb__browser-category-row {
+    min-height: 52px;
+  }
+
+  .fpb__wall-nav-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .fpb__action-btn {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .fpb__floor-add {
+    min-height: 44px;
+  }
+
+  .fpb__view-btn {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  /* ── Bottom actions bar: spread out for touch ── */
+  .fpb__bottom-actions {
+    gap: 10px;
+    padding: 8px 14px;
+    bottom: 70px; /* clear space for the inspector collapsed strip */
+  }
+
+  /* ── Hint bar: wrap properly on narrow screens ── */
+  .fpb__hint-bar {
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 44px;
+    padding: 6px 10px;
+  }
+
+  .fpb__hint-text {
+    white-space: normal;
+    overflow: visible;
+    font-size: 11px;
+  }
+
+  /* Route overlay: move down so it does not overlap the hint bar */
+  .fpb__route-overlay {
+    top: auto;
+    bottom: 70px;
+    white-space: normal;
+    text-align: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ── Floating action button ── */
+  .fpb__fab {
+    display: flex;
+    position: fixed;
+    bottom: 76px;
+    right: 16px;
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 28px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+    z-index: 195;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 18px;
+    white-space: nowrap;
+    transition: background 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .fpb__fab:hover,
+  .fpb__fab:active {
+    background: #1d4ed8;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.5);
+  }
+
+  .fpb__fab--cancel {
+    background: #fff;
+    color: #dc2626;
+    border: 2px solid #fca5a5;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);
+    bottom: 140px;
+  }
+
+  .fpb__fab--cancel:hover,
+  .fpb__fab--cancel:active {
+    background: #fef2f2;
+    border-color: #dc2626;
+  }
+
+  /* ── Mobile tools toggle button in hint bar ── */
+  .fpb__mobile-tools-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #334155;
+    cursor: pointer;
+    min-height: 36px;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .fpb__mobile-tools-btn.active {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+  }
+
+  /* ── Canvas padding at bottom so content isn't hidden by sheet ── */
+  .fpb__canvas-wrap {
+    padding-bottom: 60px;
+  }
+}
+
+/* ── PR21: PlanReviewPanel — sticky group headings (all screen sizes) ──────── */
+
+.fpb__review-group-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  margin: 0 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fpb__review-banner {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: inherit;
+  padding-bottom: 12px;
+}

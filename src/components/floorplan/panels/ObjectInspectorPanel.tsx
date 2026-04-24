@@ -203,6 +203,7 @@ export default function ObjectInspectorPanel({
         <span>{dimLabel('Width (m)', widthIsDefault)}</span>
         <input
           type="number"
+          inputMode="decimal"
           min={0}
           step={0.05}
           placeholder={widthIsDefault ? String(displayWidthM) : undefined}
@@ -218,6 +219,7 @@ export default function ObjectInspectorPanel({
         <span>{dimLabel('Depth from wall (m)', heightIsDefault)}</span>
         <input
           type="number"
+          inputMode="decimal"
           min={0}
           step={0.05}
           placeholder={heightIsDefault ? String(displayHeightM) : undefined}
@@ -234,6 +236,7 @@ export default function ObjectInspectorPanel({
           <span>{dimLabel('Height (m)', depthIsDefault)}</span>
           <input
             type="number"
+            inputMode="decimal"
             min={0}
             step={0.05}
             placeholder={depthIsDefault ? String(displayDepthM) : undefined}
