@@ -1,6 +1,8 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { OptionCardV1, OptionPlane, OptionRequirements, SensitivityItem } from '../contracts/EngineOutputV1';
+import type { CombiDhwV1Result } from './schema/EngineInputV2_3';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
+import { runCombiDhwModuleV1 } from './modules/CombiDhwModule';
 
 /**
  * Flag ID emitted by CombiDhwModule when mains pressure is below the absolute
@@ -105,9 +107,10 @@ function buildSensitivities(
   optionId: OptionCardV1['id'],
   core: FullEngineResultCore,
   input: EngineInputV2_3,
+  resolvedCombiDhw: CombiDhwV1Result,
 ): SensitivityItem[] {
   const items: SensitivityItem[] = [];
-  const { hydraulicV1, combiDhwV1, storedDhwV1, pressureAnalysis } = core;
+  const { hydraulicV1, storedDhwV1, pressureAnalysis } = core;
   const pressure = pressureAnalysis.dynamicBar;
   const pipeDiameter = input.primaryPipeDiameter;
 
@@ -138,7 +141,7 @@ function buildSensitivities(
   }
 
   if (optionId === 'combi') {
-    if (combiDhwV1?.verdict.combiRisk === 'fail' || combiDhwV1?.verdict.combiRisk === 'warn') {
+    if (resolvedCombiDhw.verdict.combiRisk === 'fail' || resolvedCombiDhw.verdict.combiRisk === 'warn') {
       items.push({
         lever: 'Peak outlets at once',
         effect: 'upgrade',
@@ -279,7 +282,15 @@ export function buildOptionMatrixV1(
   const hasFutureLoftConversion = input.futureLoftConversion ?? input.hasLoftConversion ?? false;
 
   // ── On Demand (Combi) card ───────────────────────────────────────────────
-  const combiRisk = core.combiDhwV1?.verdict.combiRisk ?? 'pass';
+  // core.combiDhwV1 is only populated when the primary (current) system is a
+  // combi. When the current system is a system or regular boiler, it is
+  // undefined.  In that case we run the module directly so the option card
+  // always reflects the correct DHW physics for this household — occupancy,
+  // bathroom count, and mains supply — regardless of what the existing system
+  // happens to be.
+  const combiDhwResult: CombiDhwV1Result =
+    core.combiDhwV1 ?? runCombiDhwModuleV1(input);
+  const combiRisk = combiDhwResult.verdict.combiRisk;
   const combiRejectedByTopology = core.redFlags.rejectCombi ?? false;
 
   // COMBI_MIN_PRESSURE_FLAG_ID at 'fail' severity means pressure is below the
@@ -287,9 +298,9 @@ export function buildOptionMatrixV1(
   // cannot fire.  This is a genuine physical impossibility → 'rejected'.
   // All other 'fail' flags (simultaneous demand, large household) are advisory
   // under the no-hard-stops policy → 'caution' so combi remains selectable.
-  const combiBelowMinPressure = core.combiDhwV1?.flags.some(
+  const combiBelowMinPressure = combiDhwResult.flags.some(
     f => f.id === COMBI_MIN_PRESSURE_FLAG_ID && f.severity === 'fail',
-  ) ?? false;
+  );
 
   let combiStatus: OptionCardV1['status'];
   if (combiRejectedByTopology || combiBelowMinPressure) {
@@ -309,7 +320,7 @@ export function buildOptionMatrixV1(
   if (combiRejectedByTopology) {
     combiWhy.push('Topology prevents combi installation (one-pipe or similar).');
   }
-  for (const f of (core.combiDhwV1?.flags ?? [])) {
+  for (const f of combiDhwResult.flags) {
     combiWhy.push(`${f.title}: ${f.detail}`);
   }
   if (combiWhy.length === 0) {
@@ -325,7 +336,7 @@ export function buildOptionMatrixV1(
     combiRequirements.push('⚠️ Standing mains pressure is low — a stored cylinder (vented or Mixergy) would be more reliable here.');
   }
 
-  const combiEvidenceIds = (core.combiDhwV1?.flags ?? []).map(f => f.id);
+  const combiEvidenceIds = combiDhwResult.flags.map(f => f.id);
 
   // Combi heat plane: boiler wet-side — same physics as system/regular
   const combiHeat: OptionPlane = {
@@ -344,7 +355,7 @@ export function buildOptionMatrixV1(
     'On demand: no stored volume — heat delivery starts on demand.',
     'Stop/start draws cause purge loss and cold-water sandwich effect.',
   ];
-  for (const f of (core.combiDhwV1?.flags ?? [])) {
+  for (const f of combiDhwResult.flags) {
     combiDhwBullets.push(`${f.title}: ${f.detail}`);
   }
   const combiDhw: OptionPlane = {
@@ -379,7 +390,7 @@ export function buildOptionMatrixV1(
   // triggered the fail — the two conditions are independent physics dimensions.
   const peakOutletsExplicit = input.peakConcurrentOutlets ?? null;
   const hasSimultaneousDemandFlag =
-    core.combiDhwV1?.flags.some(f => f.id === 'combi-simultaneous-demand') ?? false;
+    combiDhwResult.flags.some(f => f.id === 'combi-simultaneous-demand');
   const simultaneousDemandNarrativeActive =
     hasSimultaneousDemandFlag && (peakOutletsExplicit === null || peakOutletsExplicit >= 2);
 
@@ -423,7 +434,7 @@ export function buildOptionMatrixV1(
     dhw: combiDhw,
     engineering: combiEngineering,
     typedRequirements: combiTypedReqs,
-    sensitivities: buildSensitivities('combi', core, input),
+    sensitivities: buildSensitivities('combi', core, input, combiDhwResult),
   });
 
   // ── Stored hot water — Vented cylinder card ─────────────────────────────
@@ -571,7 +582,7 @@ export function buildOptionMatrixV1(
     dhw: storedVentedDhw,
     engineering: storedVentedEngineering,
     typedRequirements: storedVentedTypedReqs,
-    sensitivities: buildSensitivities('stored_vented', core, input),
+    sensitivities: buildSensitivities('stored_vented', core, input, combiDhwResult),
   });
 
   // ── Stored hot water — Unvented cylinder card ────────────────────────────
@@ -747,7 +758,7 @@ export function buildOptionMatrixV1(
     dhw: storedUnventedDhw,
     engineering: storedUnventedEngineering,
     typedRequirements: storedUnventedTypedReqs,
-    sensitivities: buildSensitivities('stored_unvented', core, input),
+    sensitivities: buildSensitivities('stored_unvented', core, input, combiDhwResult),
   });
 
   // ── ASHP card ────────────────────────────────────────────────────────────
@@ -899,7 +910,7 @@ export function buildOptionMatrixV1(
     dhw: ashpDhw,
     engineering: ashpEngineering,
     typedRequirements: ashpTypedReqs,
-    sensitivities: buildSensitivities('ashp', core, input),
+    sensitivities: buildSensitivities('ashp', core, input, combiDhwResult),
   });
 
   // ── Regular Vented / System Unvented (feasibility-only cards) ────────────
@@ -1003,7 +1014,7 @@ export function buildOptionMatrixV1(
     dhw: regularDhw,
     engineering: regularEngineering,
     typedRequirements: regularTypedReqs,
-    sensitivities: buildSensitivities('regular_vented', core, input),
+    sensitivities: buildSensitivities('regular_vented', core, input, combiDhwResult),
   });
 
   // System / unvented: needs adequate mains pressure.
@@ -1130,7 +1141,7 @@ export function buildOptionMatrixV1(
     dhw: unventedDhw,
     engineering: unventedEngineering,
     typedRequirements: unventedTypedReqs,
-    sensitivities: buildSensitivities('system_unvented', core, input),
+    sensitivities: buildSensitivities('system_unvented', core, input, combiDhwResult),
   });
 
   // ── Attach confidence badges and delivery-mode requirements ─────────────
