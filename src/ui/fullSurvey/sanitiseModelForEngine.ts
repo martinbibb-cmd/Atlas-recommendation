@@ -741,13 +741,13 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
   // Map the customer's stated disruption tolerance from the Priorities step
   // into UserPreferencesV1.disruptionTolerance for the recommendation engine.
   // Existing preference values are never overwritten.
-  if (sp != null && sp.disruptionTolerance !== 'unknown') {
-    const tolMap: Record<string, 'low' | 'medium' | 'high'> = {
-      minimal:       'low',
-      some_ok:       'medium',
-      open_to_major: 'high',
+  if (sp != null && sp.disruptionTolerance !== 'unknown' && sp.disruptionTolerance != null) {
+    const tolMap: Record<Exclude<typeof sp.disruptionTolerance, 'unknown'>, 'low' | 'medium' | 'high'> = {
+      'minimal':       'low',
+      'some_ok':       'medium',
+      'open_to_major': 'high',
     };
-    const mappedTol = tolMap[sp.disruptionTolerance];
+    const mappedTol = tolMap[sp.disruptionTolerance as Exclude<typeof sp.disruptionTolerance, 'unknown'>];
     if (mappedTol !== undefined) {
       if (sanitised.preferences == null) {
         sanitised.preferences = { disruptionTolerance: mappedTol };

@@ -21,8 +21,6 @@ import { getStepMeta } from '../../../config/surveyStepRegistry';
 import type {
   PrioritiesState,
   PriorityKey,
-  BudgetSensitivity,
-  CustomerDisruptionTolerance,
 } from './prioritiesTypes';
 import {
   PRIORITY_META,
@@ -278,7 +276,7 @@ export function PrioritiesStep({
                   key={value}
                   type="button"
                   data-testid={`budget-${value}`}
-                  onClick={() => onChange({ ...state, budgetSensitivity: value as BudgetSensitivity })}
+                  onClick={() => onChange({ ...state, budgetSensitivity: value })}
                   style={chipStyle(isSelected)}
                   aria-pressed={isSelected}
                 >
@@ -308,7 +306,7 @@ export function PrioritiesStep({
                   key={value}
                   type="button"
                   data-testid={`disruption-${value}`}
-                  onClick={() => onChange({ ...state, disruptionTolerance: value as CustomerDisruptionTolerance })}
+                  onClick={() => onChange({ ...state, disruptionTolerance: value })}
                   style={chipStyle(isSelected)}
                   aria-pressed={isSelected}
                 >

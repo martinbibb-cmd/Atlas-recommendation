@@ -170,7 +170,7 @@ export const SHOWER_COMPATIBILITY_COPY: Record<
     body:  'An electric shower has its own in-line heating element and does not use the boiler hot-water supply.  Replacing or upgrading the boiler will not affect it.',
   },
   pumped_gravity_unvented: {
-    title: 'Pumped/gravity shower — check before fitting mains-pressure system',
+    title: 'Pumped or power shower — check before fitting mains-pressure system',
     body:  'A pumped or power shower relies on a cold-water storage tank in the loft.  Switching to a mains-pressure (unvented) cylinder removes that tank, making the pump redundant.  The pump must be removed or bypassed, and the shower head/valve may need replacing.',
   },
   mixer_balanced_supply: {
