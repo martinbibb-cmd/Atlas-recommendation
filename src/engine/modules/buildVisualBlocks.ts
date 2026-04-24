@@ -276,6 +276,11 @@ function buildPortalCtaBlock(launchContext: PortalLaunchContext): PortalCtaBlock
 
 // ─── Confidence label helpers ─────────────────────────────────────────────────
 
+/**
+ * Maps route status to customer-facing language.
+ * 'assumed' maps to 'needs verification' intentionally — never present
+ * an assumed route as a confirmed fact to the customer.
+ */
 const ROUTE_STATUS_LABEL: Record<string, string> = {
   existing:  'existing',
   proposed:  'proposed',
@@ -290,6 +295,11 @@ const ROUTE_TYPE_LABEL: Record<string, string> = {
   condensate:  'condensate route',
   discharge:   'discharge route',
 };
+
+/** Capitalise the first character of a string. */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
 
 /**
  * buildSpatialProofBlock
@@ -320,7 +330,7 @@ export function buildSpatialProofBlock(layout: EngineerLayout): SpatialProofBloc
     objects
       .filter((o) => o.type === 'boiler' || o.type === 'cylinder' || o.type === 'flue')
       .map((o) => {
-        const label = o.label ?? o.type.charAt(0).toUpperCase() + o.type.slice(1);
+        const label = o.label ?? capitalize(o.type);
         const location = o.positionHint ?? (o.roomId ? rooms.find((r) => r.id === o.roomId)?.name : undefined);
         return location ? `${label} — ${location}` : label;
       }),
@@ -333,9 +343,9 @@ export function buildSpatialProofBlock(layout: EngineerLayout): SpatialProofBloc
       const typeLabel = ROUTE_TYPE_LABEL[r.type] ?? r.type;
       const statusLabel = ROUTE_STATUS_LABEL[r.status] ?? r.status;
       if (r.fromLabel && r.toLabel) {
-        return `${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} from ${r.fromLabel} to ${r.toLabel} (${statusLabel})`;
+        return `${capitalize(typeLabel)} from ${r.fromLabel} to ${r.toLabel} (${statusLabel})`;
       }
-      return `${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} (${statusLabel})`;
+      return `${capitalize(typeLabel)} (${statusLabel})`;
     }),
     4,
   );

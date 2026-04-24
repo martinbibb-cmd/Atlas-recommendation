@@ -16,23 +16,10 @@
 
 import type { SpatialProofBlock } from '../../../contracts/VisualBlock';
 import { getVisualEntry } from '../visuals/VisualRegistry';
+import { objectIcon } from './spatialProofUtils';
 
 interface Props {
   block: SpatialProofBlock;
-}
-
-const OBJECT_ICON: Record<string, string> = {
-  boiler:   '🔥',
-  cylinder: '🛢️',
-  flue:     '🏭',
-};
-
-function objectIcon(label: string): string {
-  const lower = label.toLowerCase();
-  for (const [key, icon] of Object.entries(OBJECT_ICON)) {
-    if (lower.includes(key)) return icon;
-  }
-  return '📦';
 }
 
 export function SpatialProofBlockView({ block }: Props) {

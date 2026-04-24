@@ -12,24 +12,11 @@
  */
 
 import type { SpatialProofBlock } from '../../../contracts/VisualBlock';
+import { objectIcon } from '../../presentation/blocks/spatialProofUtils';
 import './SpatialProofSection.css';
 
 interface Props {
   block: SpatialProofBlock;
-}
-
-const OBJECT_ICON: Record<string, string> = {
-  boiler:   '🔥',
-  cylinder: '🛢️',
-  flue:     '🏭',
-};
-
-function objectIcon(label: string): string {
-  const lower = label.toLowerCase();
-  for (const [key, icon] of Object.entries(OBJECT_ICON)) {
-    if (lower.includes(key)) return icon;
-  }
-  return '📦';
 }
 
 /** Determine badge colour from confidence copy. */
