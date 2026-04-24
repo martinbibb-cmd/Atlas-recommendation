@@ -47,19 +47,6 @@ export type TokenValidationResult = 'valid' | 'invalid' | 'expired';
 
 // ─── Crypto helpers ───────────────────────────────────────────────────────────
 
-/**
- * Normalise a Uint8Array to a plain ArrayBuffer backed by ArrayBuffer (not
- * SharedArrayBuffer). Required because TextEncoder.encode() yields a
- * Uint8Array<ArrayBufferLike> which TypeScript's Web Crypto typings reject as
- * a BufferSource argument to crypto.subtle.sign/verify.
- */
-function toPlainArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  ) as ArrayBuffer;
-}
-
 async function importHmacKey(): Promise<CryptoKey> {
   const keyData = new TextEncoder().encode(KEY_MATERIAL);
   return crypto.subtle.importKey(
@@ -79,11 +66,11 @@ function base64urlEncode(bytes: Uint8Array): string {
     .replace(/=+$/, '');
 }
 
-function base64urlDecode(str: string): Uint8Array {
+function base64urlDecode(str: string): Uint8Array<ArrayBuffer> {
   const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
   const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
   const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
+  const bytes = new Uint8Array(binary.length) as Uint8Array<ArrayBuffer>;
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
@@ -116,7 +103,7 @@ export async function generatePortalToken(
   const signatureBuffer = await crypto.subtle.sign(
     'HMAC',
     key,
-    toPlainArrayBuffer(encoder.encode(payloadPart)),
+    encoder.encode(payloadPart),
   );
   const signaturePart = base64urlEncode(new Uint8Array(signatureBuffer));
 
@@ -146,7 +133,7 @@ export async function validatePortalToken(
   const signaturePart = token.slice(dotIndex + 1);
 
   // Verify HMAC signature
-  let signatureBytes: Uint8Array;
+  let signatureBytes: Uint8Array<ArrayBuffer>;
   try {
     signatureBytes = base64urlDecode(signaturePart);
   } catch {
@@ -159,8 +146,8 @@ export async function validatePortalToken(
     isValid = await crypto.subtle.verify(
       'HMAC',
       key,
-      toPlainArrayBuffer(signatureBytes),
-      toPlainArrayBuffer(new TextEncoder().encode(payloadPart)),
+      signatureBytes,
+      new TextEncoder().encode(payloadPart) as Uint8Array<ArrayBuffer>,
     );
   } catch {
     return 'invalid';

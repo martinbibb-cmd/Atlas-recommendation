@@ -68,6 +68,7 @@ export function PortalCtaBlockView({ block, onOpenPortal }: Props) {
             type="button"
             onClick={handleCta}
             aria-label="Open your customer portal"
+            title={!onOpenPortal ? 'Portal not available yet' : undefined}
             disabled={!onOpenPortal}
           >
             Open your portal →
