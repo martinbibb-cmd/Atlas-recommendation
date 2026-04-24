@@ -32,6 +32,7 @@ import type {
   CylinderAgeBand,
   CylinderInsulationType,
   CylinderCondition,
+  CurrentShowerType,
 } from './systemBuilderTypes';
 import {
   getAllowedDhwTypes,
@@ -39,6 +40,8 @@ import {
   deriveDefaultControlFamily,
   getNarrowedControlFamilies,
   isSystemBuilderComplete,
+  deriveShowerCompatibilityWarning,
+  SHOWER_COMPATIBILITY_COPY,
 } from './systemBuilderRules';
 import {
   HeatSourceGraphic,
@@ -211,6 +214,19 @@ const CYLINDER_CONDITION_OPTIONS: { value: CylinderCondition; label: string; des
   { value: 'unknown', label: 'Unknown', description: '' },
 ];
 
+// ─── Shower type options ──────────────────────────────────────────────────────
+
+const SHOWER_TYPE_OPTIONS: { value: CurrentShowerType; label: string; description: string }[] = [
+  { value: 'electric',      label: 'Electric',        description: 'Independent element — unaffected by boiler' },
+  { value: 'mixer',         label: 'Mixer',           description: 'Standard bar mixer — needs balanced pressure' },
+  { value: 'pumped_mixer',  label: 'Pumped mixer',    description: 'Gravity-fed with dedicated shower pump' },
+  { value: 'power_shower',  label: 'Power shower',    description: 'Pump-in-unit power shower (tank-fed)' },
+  { value: 'thermostatic',  label: 'Thermostatic',    description: 'Thermostatic mixer valve (TMV)' },
+  { value: 'multiple',      label: 'Multiple types',  description: 'More than one shower type installed' },
+  { value: 'none',          label: 'No shower',       description: 'Baths only — no shower installed' },
+  { value: 'unknown',       label: 'Unknown',         description: '' },
+];
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const sectionHeadingStyle: CSSProperties = {
@@ -316,6 +332,10 @@ export function SystemBuilderStep({
 
   // ── Debug normalised output ──────────────────────────────────────────────────
   const normalised = showDebugOutput ? normaliseSystemBuilder(state) : null;
+
+  // ── Shower compatibility warning ────────────────────────────────────────────
+  const showerWarningKey = deriveShowerCompatibilityWarning(state);
+  const showerWarningCopy = showerWarningKey ? SHOWER_COMPATIBILITY_COPY[showerWarningKey] : null;
 
   return (
     <div className="step-card" data-testid="system-builder-step">
@@ -914,6 +934,117 @@ export function SystemBuilderStep({
           </div>
         </>
       )}
+
+      {/* ── Shower type ──────────────────────────────────────────────────────── */}
+      <div>
+        <p style={sectionHeadingStyle}>Current shower setup</p>
+        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.5rem' }}>
+          What type of shower is currently installed? Used to flag compatibility when
+          the hot-water system changes.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.4rem' }}>
+          {SHOWER_TYPE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              data-testid={`shower-type-${opt.value}`}
+              onClick={() => onChange({ ...state, currentShowerType: opt.value })}
+              style={{
+                padding: '0.5rem 0.6rem',
+                borderRadius: '6px',
+                border: state.currentShowerType === opt.value ? '2px solid #3182ce' : '1px solid #e2e8f0',
+                background: state.currentShowerType === opt.value ? '#ebf8ff' : '#fff',
+                cursor: 'pointer',
+                textAlign: 'left' as const,
+                transition: 'border-color 0.15s, background 0.15s',
+              }}
+            >
+              <div style={{ fontWeight: state.currentShowerType === opt.value ? 700 : 500, fontSize: '0.85rem', color: state.currentShowerType === opt.value ? '#2b6cb0' : '#2d3748' }}>
+                {opt.label}
+              </div>
+              {opt.description && (
+                <div style={{ fontSize: '0.72rem', color: '#718096', marginTop: '0.1rem' }}>
+                  {opt.description}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Electric shower toggle — quick override when 'multiple' is selected */}
+        <div style={{ marginTop: '0.75rem' }}>
+          <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>
+            Electric shower present?{' '}
+            <span style={{ fontSize: '0.72rem', fontWeight: 400, color: '#718096' }}>
+              Tick even if other shower types are also installed
+            </span>
+          </p>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: 'Yes',      testId: 'electric-shower-yes' },
+              { value: false, label: 'No',        testId: 'electric-shower-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, electricShowerPresent: value })}
+                style={chipStyle(state.electricShowerPresent === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pumped shower toggle */}
+        <div style={{ marginTop: '0.6rem' }}>
+          <p style={{ fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: '0.35rem' }}>
+            Pumped / power shower present?{' '}
+            <span style={{ fontSize: '0.72rem', fontWeight: 400, color: '#718096' }}>
+              Shower pump or pump-in-unit — tank-fed
+            </span>
+          </p>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: 'Yes',      testId: 'pumped-shower-yes' },
+              { value: false, label: 'No',        testId: 'pumped-shower-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, pumpedShowerPresent: value })}
+                style={chipStyle(state.pumpedShowerPresent === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Shower compatibility warning */}
+        {showerWarningCopy && (
+          <div
+            data-testid="shower-compatibility-warning"
+            style={{
+              marginTop: '0.75rem',
+              padding: '0.625rem 0.875rem',
+              background: showerWarningKey === 'pumped_gravity_unvented' ? '#fffbeb' : '#eff6ff',
+              border: `1px solid ${showerWarningKey === 'pumped_gravity_unvented' ? '#fcd34d' : '#bfdbfe'}`,
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: '0.2rem', color: showerWarningKey === 'pumped_gravity_unvented' ? '#92400e' : '#1e40af' }}>
+              ℹ️ {showerWarningCopy.title}
+            </div>
+            <div style={{ color: showerWarningKey === 'pumped_gravity_unvented' ? '#78350f' : '#1e3a8a', lineHeight: 1.5 }}>
+              {showerWarningCopy.body}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── Debug output ─────────────────────────────────────────────────────── */}
       {showDebugOutput && normalised && (
