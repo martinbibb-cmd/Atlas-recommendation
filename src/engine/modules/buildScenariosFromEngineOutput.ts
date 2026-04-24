@@ -64,10 +64,15 @@ function derivePhysicsFlags(option: OptionCardV1): ScenarioPhysicsFlags {
 
 function adaptOption(option: OptionCardV1): ScenarioResult {
   const systemType = OPTION_ID_TO_SYSTEM_TYPE[option.id] ?? 'combi';
-  const benefits = option.status === 'viable' || option.status === 'caution'
-    ? option.why.slice(0, 4)
-    : [];
-  const constraints = option.status === 'rejected' ? option.why.slice(0, 3) : [];
+
+  // 'viable' options: why[] contains positive reasons → keyBenefits.
+  // 'caution' options: why[] contains constraint/caution reasons → keyConstraints.
+  // 'rejected' options: why[] contains rejection reasons → keyConstraints.
+  // This ensures the ProblemBlock can surface real constraints for non-viable
+  // options and that buildDecisionFromScenarios doesn't treat constraint text
+  // as evidence of a benefit.
+  const benefits     = option.status === 'viable'    ? option.why.slice(0, 4) : [];
+  const constraints  = option.status !== 'viable'    ? option.why.slice(0, 4) : [];
 
   return {
     scenarioId:       option.id,
