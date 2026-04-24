@@ -3,6 +3,9 @@
  *
  * Shows type, status, notes, optional object references, and provenance.
  * All editable fields delegate to `onUpdate`.
+ *
+ * PR16: heading now shows type + status badge; raw object IDs are shown
+ * as read-only references rather than editable text inputs.
  */
 
 import type { FloorRoute, FloorRouteType, FloorRouteStatus } from '../propertyPlan.types';
@@ -25,13 +28,30 @@ interface Props {
 const ROUTE_TYPES: FloorRouteType[] = ['flow', 'return', 'hot', 'cold', 'condensate', 'discharge'];
 const ROUTE_STATUSES: FloorRouteStatus[] = ['existing', 'proposed', 'assumed'];
 
+const STATUS_BADGE_STYLE: Record<FloorRouteStatus, React.CSSProperties> = {
+  existing: { background: '#dcfce7', color: '#166534', border: '1px solid #86efac' },
+  proposed: { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd' },
+  assumed:  { background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' },
+};
+
+/** Build a human-readable link summary from optional from/to object IDs. */
+function formatLinkSummary(fromId?: string, toId?: string): string {
+  const parts: string[] = [];
+  if (fromId) parts.push('From: linked');
+  if (toId) parts.push('To: linked');
+  return parts.join(' · ');
+}
+
 export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props) {
   const typeColor = FLOOR_ROUTE_TYPE_COLORS[route.type];
+  const confidence = route.provenance
+    ? routeProvenanceToLayoutConfidence(route.status, route.provenance)
+    : null;
 
   return (
     <div className="fpb__inspector-body">
       <div className="fpb__inspector-heading">
-        <span>
+        <span className="fpb__inspector-heading-main">
           <span
             aria-hidden="true"
             style={{
@@ -40,11 +60,21 @@ export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props
               height: 10,
               borderRadius: 2,
               background: typeColor,
-              marginRight: 6,
-              verticalAlign: 'middle',
+              flexShrink: 0,
             }}
           />
-          {FLOOR_ROUTE_TYPE_LABELS[route.type]} Route
+          <span className="fpb__inspector-type">{FLOOR_ROUTE_TYPE_LABELS[route.type]} Route</span>
+          <span
+            className="fpb__confidence-badge fpb__confidence-badge--inline"
+            style={STATUS_BADGE_STYLE[route.status]}
+          >
+            {FLOOR_ROUTE_STATUS_LABELS[route.status]}
+          </span>
+          {confidence && (
+            <span className="fpb__confidence-badge fpb__confidence-badge--inline">
+              {LAYOUT_CONFIDENCE_LABELS[confidence]}
+            </span>
+          )}
         </span>
         <button className="fpb__delete-btn" onClick={onDelete} title="Delete route">✕</button>
       </div>
@@ -101,43 +131,21 @@ export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props
         />
       </label>
 
-      {/* From object */}
-      <label className="fpb__field">
-        <span>From object ID</span>
-        <input
-          type="text"
-          placeholder="optional"
-          value={route.fromObjectId ?? ''}
-          onChange={(e) => onUpdate({ fromObjectId: e.target.value || undefined })}
-        />
-      </label>
-
-      {/* To object */}
-      <label className="fpb__field">
-        <span>To object ID</span>
-        <input
-          type="text"
-          placeholder="optional"
-          value={route.toObjectId ?? ''}
-          onChange={(e) => onUpdate({ toObjectId: e.target.value || undefined })}
-        />
-      </label>
-
-      {/* Point count */}
-      <div className="fpb__field fpb__field--static">
-        <span>Points</span>
-        <span className="fpb__provenance-badge">{route.points.length} waypoints</span>
-      </div>
-
-      {/* Provenance */}
-      {route.provenance && (
+      {/* From / To object references — read-only since IDs are internal */}
+      {(route.fromObjectId || route.toObjectId) && (
         <div className="fpb__field fpb__field--static">
-          <span>Confidence</span>
-          <span className="fpb__provenance-badge">
-            {LAYOUT_CONFIDENCE_LABELS[routeProvenanceToLayoutConfidence(route.status, route.provenance)]}
+          <span>Links</span>
+          <span style={{ fontSize: 12, color: '#475569' }}>
+            {formatLinkSummary(route.fromObjectId, route.toObjectId)}
           </span>
         </div>
       )}
+
+      {/* Point count */}
+      <div className="fpb__field fpb__field--static">
+        <span>Waypoints</span>
+        <span className="fpb__provenance-badge">{route.points.length}</span>
+      </div>
     </div>
   );
 }

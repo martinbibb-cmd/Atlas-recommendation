@@ -21,11 +21,22 @@ interface Props {
 }
 
 export default function ObjectInspectorPanel({ object, rooms, walls, onUpdate, onDelete }: Props) {
+  const confidence = object.provenance ? provenanceToLayoutConfidence(object.provenance) : null;
+
   return (
     <div className="fpb__inspector-body">
       <div className="fpb__inspector-heading">
-        <span>
-          {FLOOR_OBJECT_TYPE_EMOJI[object.type]} {FLOOR_OBJECT_TYPE_LABELS[object.type]}
+        <span className="fpb__inspector-heading-main">
+          <span>{FLOOR_OBJECT_TYPE_EMOJI[object.type]}</span>
+          <span className="fpb__inspector-type">{FLOOR_OBJECT_TYPE_LABELS[object.type]}</span>
+          {object.label && (
+            <span className="fpb__inspector-label">{object.label}</span>
+          )}
+          {confidence && (
+            <span className="fpb__confidence-badge fpb__confidence-badge--inline">
+              {LAYOUT_CONFIDENCE_LABELS[confidence]}
+            </span>
+          )}
         </span>
         <button className="fpb__delete-btn" onClick={onDelete} title="Delete object">✕</button>
       </div>
@@ -108,15 +119,7 @@ export default function ObjectInspectorPanel({ object, rooms, walls, onUpdate, o
         </select>
       </label>
 
-      {/* Provenance */}
-      {object.provenance && (
-        <div className="fpb__field fpb__field--static">
-          <span>Confidence</span>
-          <span className="fpb__provenance-badge">
-            {LAYOUT_CONFIDENCE_LABELS[provenanceToLayoutConfidence(object.provenance)]}
-          </span>
-        </div>
-      )}
+      {/* Provenance — now shown in heading */}
     </div>
   );
 }
