@@ -65,6 +65,8 @@ import type { ValidationResult } from './propertyValidation';
 import { updateWallMeasurement } from '../../features/floorplan/updateWallMeasurement';
 import { addOpeningToWall } from '../../features/floorplan/addOpeningToWall';
 import { addObjectToPlan, updateFloorObject, removeFloorObject } from '../../features/floorplan/addObjectToPlan';
+// PR19 object templates — default labels and dimensions
+import { getDefaultLabel } from '../../features/floorplan/objectTemplates';
 // PR16 selection helpers — priority hit-testing
 import { selectWall, selectOpening } from '../../features/floorplan/selection';
 // PR18 snap / alignment helpers
@@ -1145,11 +1147,10 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       (r) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height,
     )?.id;
 
-    // PR17: auto-fill label from type: "Radiator", "Radiator 2", "Radiator 3" …
-    const existingOfType = (activeFloor?.floorObjects ?? []).filter((o) => o.type === type).length;
-    const autoLabel = existingOfType === 0
-      ? FLOOR_OBJECT_TYPE_LABELS[type]
-      : `${FLOOR_OBJECT_TYPE_LABELS[type]} ${existingOfType + 1}`;
+    // PR19: auto-label via template registry — radiators always numbered ("Radiator 1"),
+    // other types plain for the first instance and counted for subsequent ones.
+    const existingObjects = activeFloor?.floorObjects ?? [];
+    const autoLabel = getDefaultLabel(type, existingObjects);
 
     let createdId = '';
     updatePlan((prev) => {
@@ -3115,6 +3116,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 onDelete={() => deleteFloorObject(selectedFloorObject.id)}
                 onDuplicate={() => duplicateFloorObject(selectedFloorObject)}
                 onFocus={focusSelection}
+                engineerView={viewMode === 'engineer'}
               />
             )}
             {selectedFloorRoute && (

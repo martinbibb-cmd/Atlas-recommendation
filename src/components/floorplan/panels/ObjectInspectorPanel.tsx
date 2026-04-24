@@ -6,6 +6,10 @@
  *
  * PR17: quick actions row (Delete, Duplicate, Focus, Rotate stub),
  *       inline label rename in header, 200 ms confirmation flash.
+ * PR19: template defaults shown when object has no explicit dimension value;
+ *       default vs edited dimensions are visually distinguished;
+ *       "Default size — verify on site" hint displayed in engineer view;
+ *       depthM field shown for objects that have a meaningful depth.
  */
 
 import { useRef, useState, useCallback } from 'react';
@@ -15,6 +19,13 @@ import {
   provenanceToLayoutConfidence,
   LAYOUT_CONFIDENCE_LABELS,
 } from '../../../features/floorplan/provenanceToLayoutConfidence';
+import {
+  OBJECT_TEMPLATES,
+  defaultWidthM,
+  defaultHeightM,
+  defaultDepthM,
+  usingDefaultDimensions,
+} from '../../../features/floorplan/objectTemplates';
 
 interface Props {
   object: FloorObject;
@@ -26,6 +37,8 @@ interface Props {
   onDuplicate?: () => void;
   /** Centre the canvas view on this object (PR17 quick action). */
   onFocus?: () => void;
+  /** When true, engineer-specific fields and warnings are shown. */
+  engineerView?: boolean;
 }
 
 export default function ObjectInspectorPanel({
@@ -36,8 +49,11 @@ export default function ObjectInspectorPanel({
   onDelete,
   onDuplicate,
   onFocus,
+  engineerView = false,
 }: Props) {
   const confidence = object.provenance ? provenanceToLayoutConfidence(object.provenance) : null;
+  const tpl = OBJECT_TEMPLATES[object.type];
+  const isDefaultDims = usingDefaultDimensions(object);
 
   // ── Inline label rename ────────────────────────────────────────────────
   const [editingLabel, setEditingLabel] = useState(false);
@@ -70,6 +86,19 @@ export default function ObjectInspectorPanel({
   function handleLabelKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') { e.preventDefault(); commitLabel(); }
     if (e.key === 'Escape') cancelLabel();
+  }
+
+  // ── Dimension display helpers ──────────────────────────────────────────────
+  const displayWidthM  = object.widthM  ?? defaultWidthM(object.type);
+  const displayHeightM = object.heightM ?? defaultHeightM(object.type);
+  const templateDepth  = defaultDepthM(object.type);
+  const displayDepthM  = object.depthM  ?? templateDepth;
+  const widthIsDefault  = object.widthM  === undefined;
+  const heightIsDefault = object.heightM === undefined;
+  const depthIsDefault  = object.depthM  === undefined;
+
+  function dimLabel(label: string, isDefault: boolean) {
+    return isDefault ? `${label} (default)` : label;
   }
 
   return (
@@ -171,27 +200,65 @@ export default function ObjectInspectorPanel({
 
       {/* Width */}
       <label className="fpb__field">
-        <span>Width (m)</span>
+        <span>{dimLabel('Width (m)', widthIsDefault)}</span>
         <input
           type="number"
           min={0}
           step={0.05}
+          placeholder={widthIsDefault ? String(displayWidthM) : undefined}
           value={object.widthM ?? ''}
           onChange={(e) => onUpdate({ widthM: e.target.value ? Number(e.target.value) : undefined })}
+          style={widthIsDefault ? { color: '#94a3b8' } : undefined}
+          title={widthIsDefault ? `Default: ${displayWidthM} m — click to set a measured value` : undefined}
         />
       </label>
 
       {/* Height (depth from wall) */}
       <label className="fpb__field">
-        <span>Depth (m)</span>
+        <span>{dimLabel('Depth from wall (m)', heightIsDefault)}</span>
         <input
           type="number"
           min={0}
           step={0.05}
+          placeholder={heightIsDefault ? String(displayHeightM) : undefined}
           value={object.heightM ?? ''}
           onChange={(e) => onUpdate({ heightM: e.target.value ? Number(e.target.value) : undefined })}
+          style={heightIsDefault ? { color: '#94a3b8' } : undefined}
+          title={heightIsDefault ? `Default: ${displayHeightM} m — click to set a measured value` : undefined}
         />
       </label>
+
+      {/* Depth (3-D — cylinder, boiler) — only shown when the template defines one */}
+      {templateDepth !== undefined && (
+        <label className="fpb__field">
+          <span>{dimLabel('Height (m)', depthIsDefault)}</span>
+          <input
+            type="number"
+            min={0}
+            step={0.05}
+            placeholder={depthIsDefault ? String(displayDepthM) : undefined}
+            value={object.depthM ?? ''}
+            onChange={(e) => onUpdate({ depthM: e.target.value ? Number(e.target.value) : undefined })}
+            style={depthIsDefault ? { color: '#94a3b8' } : undefined}
+            title={depthIsDefault ? `Default: ${displayDepthM} m — click to set a measured value` : undefined}
+          />
+        </label>
+      )}
+
+      {/* PR19: wall-mount hint */}
+      {tpl.wallMounted && (
+        <div className="fpb__field--static">
+          <span>Mounting</span>
+          <span>Wall-mounted</span>
+        </div>
+      )}
+
+      {/* PR19: engineer view — default-size disclaimer */}
+      {engineerView && isDefaultDims && (
+        <div className="fpb__obj-default-dims-notice">
+          ⚠ Default size — verify on site
+        </div>
+      )}
 
       {/* Room assignment */}
       <label className="fpb__field">
