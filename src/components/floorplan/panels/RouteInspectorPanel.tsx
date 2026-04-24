@@ -6,8 +6,11 @@
  *
  * PR16: heading now shows type + status badge; raw object IDs are shown
  * as read-only references rather than editable text inputs.
+ *
+ * PR17: notes field auto-focused on mount, quick actions row (Delete, Focus).
  */
 
+import { useEffect, useRef } from 'react';
 import type { FloorRoute, FloorRouteType, FloorRouteStatus } from '../propertyPlan.types';
 import {
   FLOOR_ROUTE_TYPE_LABELS,
@@ -23,6 +26,8 @@ interface Props {
   route: FloorRoute;
   onUpdate: (patch: Partial<Omit<FloorRoute, 'id' | 'floorId' | 'provenance'>>) => void;
   onDelete: () => void;
+  /** Centre the canvas view on this route (PR17 quick action). */
+  onFocus?: () => void;
 }
 
 const ROUTE_TYPES: FloorRouteType[] = ['flow', 'return', 'hot', 'cold', 'condensate', 'discharge'];
@@ -42,11 +47,22 @@ function formatLinkSummary(fromId?: string, toId?: string): string {
   return parts.join(' · ');
 }
 
-export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props) {
+export default function RouteInspectorPanel({ route, onUpdate, onDelete, onFocus }: Props) {
   const typeColor = FLOOR_ROUTE_TYPE_COLORS[route.type];
   const confidence = route.provenance
     ? routeProvenanceToLayoutConfidence(route.status, route.provenance)
     : null;
+
+  // PR17: auto-focus notes field when inspector opens for a freshly-drawn route.
+  const notesRef = useRef<HTMLInputElement>(null);
+  /** Delay before stealing focus — allows the inspector panel to finish mounting. */
+  const INSPECTOR_MOUNT_DELAY_MS = 80;
+  useEffect(() => {
+    const t = setTimeout(() => notesRef.current?.focus(), INSPECTOR_MOUNT_DELAY_MS);
+    return () => clearTimeout(t);
+    // Only run on mount (route.id changes when a different route is selected).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.id]);
 
   return (
     <div className="fpb__inspector-body">
@@ -77,6 +93,18 @@ export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props
           )}
         </span>
         <button className="fpb__delete-btn" onClick={onDelete} title="Delete route">✕</button>
+      </div>
+
+      {/* Quick actions row — PR17 */}
+      <div className="fpb__quick-actions">
+        <button className="fpb__quick-btn fpb__quick-btn--danger" onClick={onDelete} title="Delete">
+          🗑
+        </button>
+        {onFocus && (
+          <button className="fpb__quick-btn" onClick={onFocus} title="Centre view on route">
+            🎯
+          </button>
+        )}
       </div>
 
       {/* Assumed warning banner */}
@@ -120,10 +148,11 @@ export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props
         </select>
       </label>
 
-      {/* Notes */}
+      {/* Notes — PR17: auto-focused on mount */}
       <label className="fpb__field">
         <span>Notes</span>
         <input
+          ref={notesRef}
           type="text"
           placeholder="e.g. via floor void"
           value={route.notes ?? ''}

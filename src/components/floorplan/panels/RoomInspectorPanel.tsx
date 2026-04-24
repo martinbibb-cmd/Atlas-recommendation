@@ -7,6 +7,8 @@
  * "Wall count" and "object count" are read-only derived values — they give
  * the surveyor a quick sense of how much is captured for this room without
  * leaving the inspector.
+ *
+ * PR17: quick actions row (Delete, Duplicate, Focus).
  */
 
 import type { FloorPlan, Room, RoomType, Wall, FloorObject } from '../propertyPlan.types';
@@ -28,6 +30,10 @@ interface Props {
   floorObjects: FloorObject[];
   onUpdate: (patch: Partial<Room>) => void;
   onDelete: () => void;
+  /** Duplicate this room (PR17 quick action). */
+  onDuplicate?: () => void;
+  /** Centre the canvas view on this room (PR17 quick action). */
+  onFocus?: () => void;
 }
 
 /** Count walls whose bounding box overlaps the room by at least one grid cell. */
@@ -52,7 +58,16 @@ function countRoomObjects(room: Room, objects: FloorObject[]): number {
   return objects.filter((o) => o.roomId === room.id).length;
 }
 
-export default function RoomInspectorPanel({ room, floors, walls, floorObjects, onUpdate, onDelete }: Props) {
+export default function RoomInspectorPanel({
+  room,
+  floors,
+  walls,
+  floorObjects,
+  onUpdate,
+  onDelete,
+  onDuplicate,
+  onFocus,
+}: Props) {
   const wallCount = countAdjacentWalls(room, walls);
   const objectCount = countRoomObjects(room, floorObjects);
   const area = roomAreaM2(room);
@@ -74,6 +89,23 @@ export default function RoomInspectorPanel({ room, floors, walls, floorObjects, 
           )}
         </span>
         <button className="fpb__delete-btn" onClick={onDelete} title="Delete room">✕</button>
+      </div>
+
+      {/* Quick actions row — PR17 */}
+      <div className="fpb__quick-actions">
+        <button className="fpb__quick-btn fpb__quick-btn--danger" onClick={onDelete} title="Delete">
+          🗑
+        </button>
+        {onDuplicate && (
+          <button className="fpb__quick-btn" onClick={onDuplicate} title="Duplicate room">
+            ⧉
+          </button>
+        )}
+        {onFocus && (
+          <button className="fpb__quick-btn" onClick={onFocus} title="Centre view on room">
+            🎯
+          </button>
+        )}
       </div>
 
       {/* Name */}

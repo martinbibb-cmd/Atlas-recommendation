@@ -369,8 +369,34 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [activeFloorId, setActiveFloorId] = useState<string>(
     () => plan.floors[0]?.id ?? '',
   );
-  const [tool, setTool] = useState<EditorTool>('select');
+  const [tool, setTool] = useState<EditorTool>(() => {
+    try {
+      const saved = sessionStorage.getItem('atlas.floorplan.lastTool') as EditorTool | null;
+      // Explicit guard list — keeps sessionStorage restore safe even if EditorTool grows.
+      // Update this list alongside the EditorTool union in propertyPlan.types.ts.
+      const safeTool: EditorTool[] = ['select', 'addRoom', 'drawWall', 'addOpening', 'placeNode', 'connectRoute', 'addDisruption', 'addFloorRoute', 'pan'];
+      return saved && safeTool.includes(saved) ? saved : 'select';
+    } catch {
+      return 'select';
+    }
+  });
   const [selection, setSelection] = useState<SelectionTarget | null>(null);
+  /** PR17: When true, stay in the current placement tool after placing an object/completing a route. */
+  const [stayInTool, setStayInTool] = useState<boolean>(() => {
+    try { return sessionStorage.getItem('atlas.floorplan.stayInTool') === 'true'; } catch { return false; }
+  });
+
+  // Persist stayInTool to sessionStorage whenever it changes.
+  useEffect(() => {
+    try { sessionStorage.setItem('atlas.floorplan.stayInTool', String(stayInTool)); } catch { /* ignore */ }
+  }, [stayInTool]);
+
+  // Wrapper that also persists the last-used tool to sessionStorage.
+  const changeTool = useCallback((next: EditorTool) => {
+    try { sessionStorage.setItem('atlas.floorplan.lastTool', next); } catch { /* ignore */ }
+    setTool(next);
+  }, []);
+
   const [pendingWallStart, setPendingWallStart] = useState<{ x: number; y: number } | null>(null);
   const [pendingPort, setPendingPort] = useState<PortRef | null>(null);
   /** Kind being dragged from the component tray (placeNode mode) */
@@ -720,7 +746,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       const isCtrl = e.ctrlKey || e.metaKey;
       if (e.key === 'Escape') {
         // Cancel any active non-select tool and clear all pending placement state.
-        if (tool !== 'select') setTool('select');
+        if (tool !== 'select') changeTool('select');
         setPendingWallStart(null);
         setPendingPort(null);
         setPendingKind(null);
@@ -1100,14 +1126,26 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     const roomId = activeFloor?.rooms.find(
       (r) => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height,
     )?.id;
+
+    // PR17: auto-fill label from type: "Radiator", "Radiator 2", "Radiator 3" …
+    const existingOfType = (activeFloor?.floorObjects ?? []).filter((o) => o.type === type).length;
+    const autoLabel = existingOfType === 0
+      ? FLOOR_OBJECT_TYPE_LABELS[type]
+      : `${FLOOR_OBJECT_TYPE_LABELS[type]} ${existingOfType + 1}`;
+
     let createdId = '';
     updatePlan((prev) => {
       const { plan: next, objectId } = addObjectToPlan(prev, {
-        floorId: activeFloorId, type, x, y, roomId,
+        floorId: activeFloorId, type, x, y, roomId, label: autoLabel,
       });
       createdId = objectId;
       return next;
     });
+    // PR17: only clear pending type if "place once" (stayInTool = false)
+    if (!stayInTool) {
+      setPendingFloorObjectType(null);
+      setGhostPos(null);
+    }
     // Select after state update settles (createdId captured in closure above)
     setTimeout(() => setSelection({ kind: 'floor_object', id: createdId }), 0);
   }
@@ -1121,6 +1159,59 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     const next = removeFloorObject(plan, activeFloorId, id);
     updatePlan(() => next);
     if (selection?.kind === 'floor_object' && selection.id === id) setSelection(null);
+  }
+
+  /** PR17: Duplicate a FloorObject at a small offset so both are visible. */
+  const DUPLICATE_OFFSET_CELLS = 2;
+  function duplicateFloorObject(obj: FloorObject) {
+    let createdId = '';
+    updatePlan((prev) => {
+      const { plan: next, objectId } = addObjectToPlan(prev, {
+        floorId: activeFloorId,
+        type: obj.type,
+        x: obj.x + GRID * DUPLICATE_OFFSET_CELLS,
+        y: obj.y + GRID * DUPLICATE_OFFSET_CELLS,
+        label: obj.label ? `${obj.label} copy` : undefined,
+        widthM: obj.widthM,
+        heightM: obj.heightM,
+        depthM: obj.depthM,
+        roomId: obj.roomId,
+        wallId: obj.wallId,
+      });
+      createdId = objectId;
+      return next;
+    });
+    setTimeout(() => setSelection({ kind: 'floor_object', id: createdId }), 0);
+  }
+
+  /**
+   * PR17: Centre the canvas view on the given canvas-space coordinates.
+   * Adjusts panOffset so the point appears in the centre of the board element.
+   */
+  function centerViewOn(cx: number, cy: number) {
+    const boardEl = boardRef.current;
+    if (!boardEl) return;
+    const { width, height } = boardEl.getBoundingClientRect();
+    setPanOffset({
+      x: width / 2 - cx * zoom,
+      y: height / 2 - cy * zoom,
+    });
+  }
+
+  /** PR17: Centre the view on the currently selected item. */
+  function focusSelection() {
+    if (selectedRoom) {
+      centerViewOn(selectedRoom.x + selectedRoom.width / 2, selectedRoom.y + selectedRoom.height / 2);
+    } else if (selectedWall) {
+      centerViewOn((selectedWall.x1 + selectedWall.x2) / 2, (selectedWall.y1 + selectedWall.y2) / 2);
+    } else if (selectedFloorObject) {
+      centerViewOn(selectedFloorObject.x, selectedFloorObject.y);
+    } else if (selectedFloorRoute && selectedFloorRoute.points.length > 0) {
+      const mid = selectedFloorRoute.points[Math.floor(selectedFloorRoute.points.length / 2)];
+      if (mid) centerViewOn(mid.x, mid.y);
+    } else if (selectedNode) {
+      centerViewOn(selectedNode.anchor.x, selectedNode.anchor.y);
+    }
   }
 
   // ── Wall length update via feature module ────────────────────────────────
@@ -1184,8 +1275,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     // PR9: place a FloorObject from the object library
     if (tool === 'placeNode' && pendingFloorObjectType) {
       placeFloorObject(pendingFloorObjectType, pos.x, pos.y);
-      setPendingFloorObjectType(null);
-      setGhostPos(null);
+      // stayInTool: placeFloorObject already conditionally clears pendingFloorObjectType
       return;
     }
 
@@ -1307,7 +1397,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       commitRoom(x, y, w, h);
       setRoomDraftOrigin(null);
       setRoomDraftSize(null);
-      setTool('select');
+      changeTool('select');
       return;
     }
 
@@ -1684,7 +1774,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 key={t.id}
                 className={`fpb__tool-btn ${tool === t.id ? 'active' : ''}`}
                 onClick={() => {
-                  setTool(t.id);
+                  changeTool(t.id);
                   if (t.id !== 'placeNode') { setPendingKind(null); setPendingFloorObjectType(null); setGhostPos(null); }
                   if (t.id !== 'drawWall') setPendingWallStart(null);
                   if (t.id !== 'connectRoute') setPendingPort(null);
@@ -1795,7 +1885,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       key={item.kind}
                       className={`fpb__component-btn ${pendingKind === item.kind ? 'active' : ''}`}
                       onClick={() => {
-                        setTool('placeNode');
+                        changeTool('placeNode');
                         setPendingKind(item.kind);
                       }}
                       title={`Place ${item.label} — click canvas to position`}
@@ -1862,6 +1952,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   <span className="fpb__pipe-legend-flow">━</span> Flow
                   <span className="fpb__pipe-legend-return">━</span> Return
                 </span>
+              )}
+              {/* PR17: Stay-in-tool toggle — visible when in a placement/drawing mode */}
+              {(tool === 'placeNode' || tool === 'addFloorRoute' || tool === 'addRoom' || tool === 'drawWall') && (
+                <button
+                  className={`fpb__stay-toggle${stayInTool ? ' active' : ''}`}
+                  onClick={() => setStayInTool((v) => !v)}
+                  title={stayInTool ? 'Place once after next placement' : 'Stay in tool after placement'}
+                >
+                  {stayInTool ? '✓ Stay in tool' : '↺ Stay in tool'}
+                </button>
               )}
               <button
                 className="fpb__action-btn fpb__insert-btn"
@@ -2577,6 +2677,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             )}
             {selectedFloorObject && (
               <div className="fpb__bottom-actions">
+                <button className="fpb__action-pill" onClick={() => duplicateFloorObject(selectedFloorObject)}>⧉ Duplicate</button>
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteFloorObject(selectedFloorObject.id)}>Delete</button>
               </div>
             )}
@@ -2603,13 +2704,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       <button className="fpb__sheet-option" onClick={() => { setSquareRoomLocked(true); setManualRoomLengthM(manualRoomWidthM); setAddRoomSheetMode('form'); }}>
                         <span>⬜</span> Add square room
                       </button>
-                      <button className="fpb__sheet-option" onClick={() => { setTool('addRoom'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                      <button className="fpb__sheet-option" onClick={() => { changeTool('addRoom'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
                         <span>✏️</span> Draw room
                       </button>
-                      <button className="fpb__sheet-option" onClick={() => { setTool('drawWall'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                      <button className="fpb__sheet-option" onClick={() => { changeTool('drawWall'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
                         <span>✂️</span> Split room
                       </button>
-                      <button className="fpb__sheet-option" onClick={() => { setTool('select'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                      <button className="fpb__sheet-option" onClick={() => { changeTool('select'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
                         <span>🔲</span> Fill gap (select + resize)
                       </button>
                       {/* LiDAR scan — native iOS bridge (only shown when the webkit handler is present) */}
@@ -2712,7 +2813,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                                 key={item.kind}
                                 className="fpb__browser-item"
                                 onClick={() => {
-                                  setTool('placeNode');
+                                  changeTool('placeNode');
                                   setPendingKind(item.kind);
                                   setShowObjectBrowser(false);
                                 }}
@@ -2745,6 +2846,10 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     step={0.1}
                     value={editingDimension.currentValue}
                     onChange={(e) => setEditingDimension({ ...editingDimension, currentValue: Number(e.target.value) })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); handleDimensionApply(); }
+                      if (e.key === 'Escape') setEditingDimension(null);
+                    }}
                     autoFocus
                   />
                   <div className="fpb__dimension-editor-actions">
@@ -2780,7 +2885,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   onClose={() => {
                     setShowWallDetailSheet(false);
                     // Return to select mode so the wall stays selected and mode is predictable.
-                    setTool('select');
+                    changeTool('select');
                     if (wallDetailWallId) setSelection({ kind: 'wall', id: wallDetailWallId });
                   }}
                 />
@@ -2815,7 +2920,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     onSelect={(type) => {
                       setPendingFloorObjectType(type);
                       setPendingKind(null);
-                      setTool('placeNode');
+                      changeTool('placeNode');
                       setShowObjectLibrary(false);
                     }}
                     onClose={() => setShowObjectLibrary(false)}
@@ -2837,6 +2942,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 floorObjects={activeFloor.floorObjects ?? []}
                 onUpdate={(patch) => updateRoom(selectedRoom.id, patch)}
                 onDelete={() => deleteRoom(selectedRoom.id)}
+                onDuplicate={() => duplicateRoom(selectedRoom)}
+                onFocus={focusSelection}
               />
             )}
             {selectedWall && (
@@ -2845,6 +2952,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 onUpdate={(patch) => updateWall(selectedWall.id, patch)}
                 onUpdateLength={(newLengthM) => applyWallLength(selectedWall.id, newLengthM)}
                 onDelete={() => deleteWall(selectedWall.id)}
+                onFocus={focusSelection}
               />
             )}
             {selectedNode && (
@@ -2877,6 +2985,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 walls={activeFloor.walls}
                 onUpdate={(patch) => patchFloorObject(selectedFloorObject.id, patch)}
                 onDelete={() => deleteFloorObject(selectedFloorObject.id)}
+                onDuplicate={() => duplicateFloorObject(selectedFloorObject)}
+                onFocus={focusSelection}
               />
             )}
             {selectedFloorRoute && (
@@ -2884,6 +2994,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 route={selectedFloorRoute}
                 onUpdate={(patch) => patchFloorRoute(selectedFloorRoute.id, patch)}
                 onDelete={() => deleteFloorRoute(selectedFloorRoute.id)}
+                onFocus={focusSelection}
               />
             )}
           </aside>
