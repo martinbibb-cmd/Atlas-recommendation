@@ -31,6 +31,9 @@ import type {
   FloorObject,
   FloorObjectType,
   FloorPlan,
+  FloorRoute,
+  FloorRouteType,
+  FloorRouteStatus,
   Opening,
   OpeningType,
   PlacementNode,
@@ -48,6 +51,9 @@ import {
   DISRUPTION_KIND_LABELS,
   FLOOR_OBJECT_TYPE_EMOJI,
   FLOOR_OBJECT_TYPE_LABELS,
+  FLOOR_ROUTE_TYPE_COLORS,
+  FLOOR_ROUTE_TYPE_LABELS,
+  FLOOR_ROUTE_STATUS_LABELS,
   ROOM_TYPE_LABELS,
 } from './propertyPlan.types';
 import { autoRouteHeatingPipes, canPlaceInProfessionalPlan, computeDisruptionAnnotations, createManualRoom, deriveFloorplanOutputs, findWallHit, getOpeningGeometry, wallSegmentsWithGaps } from './floorplanDerivations';
@@ -58,11 +64,15 @@ import type { ValidationResult } from './propertyValidation';
 import { updateWallMeasurement } from '../../features/floorplan/updateWallMeasurement';
 import { addOpeningToWall } from '../../features/floorplan/addOpeningToWall';
 import { addObjectToPlan, updateFloorObject, removeFloorObject } from '../../features/floorplan/addObjectToPlan';
+// PR10 feature modules — route authoring
+import { addRouteToPlan, updateRoute, removeRoute } from '../../features/floorplan/addRouteToPlan';
 // PR9 panel / editor components
 import RoomInspectorPanel from './panels/RoomInspectorPanel';
 import WallInspectorPanel from './panels/WallInspectorPanel';
 import ObjectInspectorPanel from './panels/ObjectInspectorPanel';
 import ObjectLibraryPanel from './panels/ObjectLibraryPanel';
+// PR10 panel / editor components
+import RouteInspectorPanel from './panels/RouteInspectorPanel';
 import WallEditorSheet from './editors/WallEditorSheet';
 import WallDimensionLabels from './overlays/WallDimensionLabels';
 import './floorplan.css';
@@ -341,6 +351,7 @@ const TOOL_DEFS: { id: EditorTool; label: string; icon: string; hint: string }[]
   { id: 'placeNode',     label: 'Place Node',   icon: '🔧', hint: 'Select component from tray, click canvas' },
   { id: 'connectRoute',  label: 'Connect',      icon: '〰', hint: 'Click source node, then target node' },
   { id: 'addDisruption', label: 'Disruption',   icon: '⚠️', hint: 'Click canvas to place a disruption / consequence marker' },
+  { id: 'addFloorRoute', label: 'Add Route',    icon: '🔴', hint: 'Click points on the plan to draw a pipe/service route; press Finish or Escape' },
 ];
 
 // ─── FloorPlanBuilder ─────────────────────────────────────────────────────────
@@ -385,6 +396,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [pendingFloorObjectType, setPendingFloorObjectType] = useState<FloorObjectType | null>(null);
   /** Show the object library panel. */
   const [showObjectLibrary, setShowObjectLibrary] = useState(false);
+  /** PR10: Route type selected for the addFloorRoute tool. */
+  const [pendingRouteType, setPendingRouteType] = useState<FloorRouteType>('flow');
+  /** PR10: Route status selected for the addFloorRoute tool. */
+  const [pendingRouteStatus, setPendingRouteStatus] = useState<FloorRouteStatus>('proposed');
+  /** PR10: Points accumulated during an in-progress route drawing session. */
+  const [inProgressRoutePoints, setInProgressRoutePoints] = useState<import('./propertyPlan.types').Point[]>([]);
 
   // ── Undo / redo history ──────────────────────────────────────────────────
 
@@ -640,6 +657,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     return (activeFloor?.floorObjects ?? []).find((o) => o.id === selection.id) ?? null;
   }, [selection, activeFloor]);
 
+  const selectedFloorRoute = useMemo(() => {
+    if (selection?.kind !== 'floor_route') return null;
+    return (activeFloor?.floorRoutes ?? []).find((r) => r.id === selection.id) ?? null;
+  }, [selection, activeFloor]);
+
   // ── Emit helper ──────────────────────────────────────────────────────────
 
   const emit = useCallback(
@@ -690,6 +712,10 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const isCtrl = e.ctrlKey || e.metaKey;
+      if (e.key === 'Escape' && tool === 'addFloorRoute' && inProgressRoutePoints.length > 0) {
+        setInProgressRoutePoints([]);
+        return;
+      }
       if (!isCtrl) return;
       if (e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -701,7 +727,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo]);
+  }, [undo, redo, tool, inProgressRoutePoints.length]);
 
   // ── Floor mutations ──────────────────────────────────────────────────────
 
@@ -1023,7 +1049,37 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     if (selection?.kind === 'opening' && selection.id === id) setSelection(null);
   }
 
-  // ── FloorObject mutations (PR9) ──────────────────────────────────────────
+  // ── FloorRoute mutations (PR10) ──────────────────────────────────────────
+
+  function commitFloorRoute(points: import('./propertyPlan.types').Point[]) {
+    if (points.length < 2) return;
+    let createdId = '';
+    updatePlan((prev) => {
+      const { plan: next, routeId } = addRouteToPlan(prev, {
+        floorId: activeFloorId,
+        type: pendingRouteType,
+        status: pendingRouteStatus,
+        points,
+      });
+      createdId = routeId;
+      return next;
+    });
+    setInProgressRoutePoints([]);
+    setTimeout(() => setSelection({ kind: 'floor_route', id: createdId }), 0);
+  }
+
+  function patchFloorRoute(id: string, patch: Partial<Omit<FloorRoute, 'id' | 'floorId' | 'provenance'>>) {
+    const next = updateRoute(plan, { floorId: activeFloorId, routeId: id, patch });
+    updatePlan(() => next);
+  }
+
+  function deleteFloorRoute(id: string) {
+    const next = removeRoute(plan, activeFloorId, id);
+    updatePlan(() => next);
+    if (selection?.kind === 'floor_route' && selection.id === id) setSelection(null);
+  }
+
+  // ── FloorObject mutations (PR9) ───────────────────────────────────────────
 
   function placeFloorObject(type: FloorObjectType, x: number, y: number) {
     const roomId = activeFloor?.rooms.find(
@@ -1120,6 +1176,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
     if (tool === 'addDisruption') {
       placeDisruption(pendingDisruptionKind, pos.x, pos.y);
+      return;
+    }
+
+    // PR10: accumulate route waypoints
+    if (tool === 'addFloorRoute') {
+      setInProgressRoutePoints((prev) => [...prev, pos]);
       return;
     }
 
@@ -1611,6 +1673,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   if (t.id !== 'placeNode') setPendingKind(null);
                   if (t.id !== 'drawWall') setPendingWallStart(null);
                   if (t.id !== 'connectRoute') setPendingPort(null);
+                  if (t.id !== 'addFloorRoute') setInProgressRoutePoints([]);
                 }}
                 title={t.hint}
               >
@@ -1649,6 +1712,58 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   </button>
                 ))}
                 <p className="fpb__opening-hint">Click on a wall to place</p>
+              </div>
+            )}
+            {/* PR10: Route type + status pickers — visible when addFloorRoute is active */}
+            {tool === 'addFloorRoute' && (
+              <div className="fpb__disruption-picker">
+                <p className="fpb__opening-hint" style={{ marginTop: 0 }}>Type</p>
+                {(['flow', 'return', 'hot', 'cold', 'condensate', 'discharge'] as FloorRouteType[]).map((rt) => (
+                  <button
+                    key={rt}
+                    className={`fpb__disruption-kind-btn ${pendingRouteType === rt ? 'active' : ''}`}
+                    onClick={() => setPendingRouteType(rt)}
+                    title={FLOOR_ROUTE_TYPE_LABELS[rt]}
+                    style={{ borderLeft: `3px solid ${FLOOR_ROUTE_TYPE_COLORS[rt]}` }}
+                  >
+                    {FLOOR_ROUTE_TYPE_LABELS[rt]}
+                  </button>
+                ))}
+                <p className="fpb__opening-hint">Status</p>
+                {(['existing', 'proposed', 'assumed'] as FloorRouteStatus[]).map((rs) => (
+                  <button
+                    key={rs}
+                    className={`fpb__disruption-kind-btn ${pendingRouteStatus === rs ? 'active' : ''}`}
+                    onClick={() => setPendingRouteStatus(rs)}
+                    title={FLOOR_ROUTE_STATUS_LABELS[rs]}
+                  >
+                    {FLOOR_ROUTE_STATUS_LABELS[rs]}
+                  </button>
+                ))}
+                <p className="fpb__opening-hint">
+                  {inProgressRoutePoints.length === 0
+                    ? 'Click points on the plan to draw'
+                    : `${inProgressRoutePoints.length} point${inProgressRoutePoints.length !== 1 ? 's' : ''} — click Finish or Escape`}
+                </p>
+                {inProgressRoutePoints.length >= 2 && (
+                  <button
+                    className="fpb__tool-btn"
+                    onClick={() => commitFloorRoute(inProgressRoutePoints)}
+                    title="Finish and save route"
+                  >
+                    ✓ Finish route
+                  </button>
+                )}
+                {inProgressRoutePoints.length > 0 && (
+                  <button
+                    className="fpb__tool-btn"
+                    style={{ marginTop: 4 }}
+                    onClick={() => setInProgressRoutePoints([])}
+                    title="Cancel current route"
+                  >
+                    ✕ Cancel
+                  </button>
+                )}
               </div>
             )}
           </section>
@@ -2011,6 +2126,94 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 <circle cx={pendingWallStart.x} cy={pendingWallStart.y} r={5} fill="#2563eb" />
               )}
 
+              {/* PR10: Layer 5a: Floor routes — gated by visibleLayers.routes ── */}
+              {visibleLayers.routes && (activeFloor.floorRoutes ?? []).map((fRoute) => {
+                const isSelected = selection?.kind === 'floor_route' && selection.id === fRoute.id;
+                const color = FLOOR_ROUTE_TYPE_COLORS[fRoute.type];
+                const strokeDash = fRoute.status === 'assumed'
+                  ? '8 4'
+                  : fRoute.status === 'proposed'
+                  ? '4 2'
+                  : undefined;
+                const midIdx = Math.floor(fRoute.points.length / 2);
+                const mid = fRoute.points[midIdx] ?? fRoute.points[0];
+                return (
+                  <g
+                    key={fRoute.id}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'default' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (tool === 'select') setSelection({ kind: 'floor_route', id: fRoute.id });
+                    }}
+                  >
+                    {/* Wider transparent hit area for easier selection */}
+                    <polyline
+                      points={fRoute.points.map((p) => `${p.x},${p.y}`).join(' ')}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={14}
+                    />
+                    {/* Visible route line */}
+                    <polyline
+                      points={fRoute.points.map((p) => `${p.x},${p.y}`).join(' ')}
+                      fill="none"
+                      stroke={isSelected ? '#0f172a' : color}
+                      strokeWidth={isSelected ? 3.5 : 2.5}
+                      strokeDasharray={strokeDash}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    {/* Start dot */}
+                    <circle
+                      cx={fRoute.points[0].x}
+                      cy={fRoute.points[0].y}
+                      r={3.5}
+                      fill={color}
+                    />
+                    {/* End dot */}
+                    <circle
+                      cx={fRoute.points[fRoute.points.length - 1].x}
+                      cy={fRoute.points[fRoute.points.length - 1].y}
+                      r={3.5}
+                      fill={color}
+                    />
+                    {/* Type + status label */}
+                    {mid && (
+                      <text
+                        x={mid.x}
+                        y={mid.y - 7}
+                        fontSize="8"
+                        fill={color}
+                        textAnchor="middle"
+                        className="fpb__pipe-label"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {FLOOR_ROUTE_TYPE_LABELS[fRoute.type]}
+                        {fRoute.status !== 'existing' ? ` (${FLOOR_ROUTE_STATUS_LABELS[fRoute.status]})` : ''}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* PR10: Layer 5b: In-progress route ghost while drawing ── */}
+              {tool === 'addFloorRoute' && inProgressRoutePoints.length > 0 && (
+                <g style={{ pointerEvents: 'none' }}>
+                  <polyline
+                    points={inProgressRoutePoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                    fill="none"
+                    stroke={FLOOR_ROUTE_TYPE_COLORS[pendingRouteType]}
+                    strokeWidth={2}
+                    strokeDasharray="5 3"
+                    strokeLinecap="round"
+                    opacity={0.65}
+                  />
+                  {inProgressRoutePoints.map((p, i) => (
+                    <circle key={i} cx={p.x} cy={p.y} r={3} fill={FLOOR_ROUTE_TYPE_COLORS[pendingRouteType]} opacity={0.75} />
+                  ))}
+                </g>
+              )}
+
               {/* Room being drawn — ghost outline */}
               {ghostRoomRect && (
                 <rect
@@ -2259,6 +2462,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {selectedFloorObject && (
               <div className="fpb__bottom-actions">
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteFloorObject(selectedFloorObject.id)}>Delete</button>
+              </div>
+            )}
+            {selectedFloorRoute && (
+              <div className="fpb__bottom-actions">
+                <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteFloorRoute(selectedFloorRoute.id)}>Delete Route</button>
               </div>
             )}
 
@@ -2548,6 +2756,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 walls={activeFloor.walls}
                 onUpdate={(patch) => patchFloorObject(selectedFloorObject.id, patch)}
                 onDelete={() => deleteFloorObject(selectedFloorObject.id)}
+              />
+            )}
+            {selectedFloorRoute && (
+              <RouteInspectorPanel
+                route={selectedFloorRoute}
+                onUpdate={(patch) => patchFloorRoute(selectedFloorRoute.id, patch)}
+                onDelete={() => deleteFloorRoute(selectedFloorRoute.id)}
               />
             )}
           </aside>

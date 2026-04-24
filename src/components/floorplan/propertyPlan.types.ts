@@ -173,6 +173,81 @@ export interface Zone {
   polygon: Polygon;
 }
 
+// ─── Floor routes (PR10) ──────────────────────────────────────────────────────
+
+/**
+ * The type of pipe or service route drawn on the floor plan.
+ *
+ * flow        — primary heating flow
+ * return      — primary heating return
+ * hot         — domestic hot water supply
+ * cold        — cold mains supply
+ * condensate  — condensate drain
+ * discharge   — discharge / expansion / PRV pipe
+ */
+export type FloorRouteType =
+  | 'flow'
+  | 'return'
+  | 'hot'
+  | 'cold'
+  | 'condensate'
+  | 'discharge';
+
+/**
+ * Whether the route is already installed, proposed by the engineer, or only
+ * assumed based on heuristics / typical practice.
+ */
+export type FloorRouteStatus = 'existing' | 'proposed' | 'assumed';
+
+export const FLOOR_ROUTE_TYPE_LABELS: Record<FloorRouteType, string> = {
+  flow:       'Flow',
+  return:     'Return',
+  hot:        'Hot supply',
+  cold:       'Cold supply',
+  condensate: 'Condensate',
+  discharge:  'Discharge',
+};
+
+/** Canvas stroke colours matching RoutesSection.tsx / EngineerLayout spec. */
+export const FLOOR_ROUTE_TYPE_COLORS: Record<FloorRouteType, string> = {
+  flow:       '#e53e3e',  // red
+  return:     '#3182ce',  // blue
+  hot:        '#ed8936',  // orange
+  cold:       '#63b3ed',  // light blue / cyan
+  condensate: '#718096',  // grey
+  discharge:  '#d69e2e',  // amber
+};
+
+export const FLOOR_ROUTE_STATUS_LABELS: Record<FloorRouteStatus, string> = {
+  existing: 'Existing',
+  proposed: 'Proposed',
+  assumed:  'Assumed',
+};
+
+/**
+ * A pipe or service route drawn manually on the floor plan by the surveyor.
+ *
+ * Routes are first-class plan truth — they persist into PropertyPlan and are
+ * fed directly into the engineer handoff (EngineerLayout.routes).
+ *
+ * No automatic pathfinding: all routes are manually authored.
+ */
+export interface FloorRoute {
+  id: string;
+  floorId: string;
+  type: FloorRouteType;
+  status: FloorRouteStatus;
+  /** Ordered polyline points in canvas coordinates. */
+  points: Point[];
+  /** Optional reference to a FloorObject or PlacementNode at the route origin. */
+  fromObjectId?: string;
+  /** Optional reference to a FloorObject or PlacementNode at the route end. */
+  toObjectId?: string;
+  notes?: string;
+  /** Provenance — always manual/corrected for user-drawn routes. */
+  provenance?: EntityProvenance;
+}
+
 export interface FloorPlan {
   id: string;
   name: string;
@@ -184,6 +259,11 @@ export interface FloorPlan {
   zones: Zone[];
   /** Non-HVAC fixtures placed by survey (sinks, baths, showers, flues, etc.). */
   floorObjects?: FloorObject[];
+  /**
+   * Pipe and service routes drawn by the surveyor.
+   * Layer 5 of the canonical model (PR10).
+   */
+  floorRoutes?: FloorRoute[];
   /**
    * True-north bearing for this floor plan in degrees clockwise from north
    * (0 = north, 90 = east, 180 = south, 270 = west).
@@ -455,6 +535,7 @@ export type EditorTool =
   | 'placeNode'
   | 'connectRoute'
   | 'addDisruption'
+  | 'addFloorRoute'
   | 'pan';
 
 // ─── Selection model ──────────────────────────────────────────────────────────
@@ -466,4 +547,5 @@ export type SelectionTarget =
   | { kind: 'node';         id: string }
   | { kind: 'connection';   id: string }
   | { kind: 'disruption';   id: string }
-  | { kind: 'floor_object'; id: string };
+  | { kind: 'floor_object'; id: string }
+  | { kind: 'floor_route';  id: string };

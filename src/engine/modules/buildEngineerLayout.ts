@@ -153,10 +153,26 @@ const CONNECTION_TYPE_MAP: Partial<Record<string, EngineerLayoutRouteType>> = {
   prv:        'discharge',
 };
 
+// Map FloorRouteType → EngineerLayoutRouteType (they are already aligned).
+const FLOOR_ROUTE_TYPE_MAP: Partial<Record<string, EngineerLayoutRouteType>> = {
+  flow:       'flow',
+  return:     'return',
+  hot:        'hot',
+  cold:       'cold',
+  condensate: 'condensate',
+  discharge:  'discharge',
+};
+
 function resolveRouteLabel(nodeId: string, plan: PropertyPlan): string | undefined {
   const node = plan.placementNodes.find(n => n.id === nodeId);
   if (!node) return undefined;
   return nodeLabel(node) ?? nodeToObjectType(node);
+}
+
+function confidenceFromRouteStatus(status: 'existing' | 'proposed' | 'assumed'): LayoutConfidence {
+  if (status === 'assumed') return 'assumed';
+  if (status === 'proposed') return 'needs_verification';
+  return 'confirmed';
 }
 
 function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
@@ -177,6 +193,35 @@ function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
       status:     'existing',
       confidence: 'confirmed',
     });
+  }
+
+  // PR10: merge floor routes authored by the surveyor.
+  for (const floor of plan.floors) {
+    for (const fr of floor.floorRoutes ?? []) {
+      const routeType = FLOOR_ROUTE_TYPE_MAP[fr.type as string];
+      if (!routeType) continue;
+
+      // Resolve human-readable labels from object IDs when possible.
+      const fromLabel = fr.fromObjectId
+        ? (plan.placementNodes.find(n => n.id === fr.fromObjectId)
+            ? nodeLabel(plan.placementNodes.find(n => n.id === fr.fromObjectId)!) ?? nodeToObjectType(plan.placementNodes.find(n => n.id === fr.fromObjectId)!)
+            : fr.fromObjectId)
+        : undefined;
+      const toLabel = fr.toObjectId
+        ? (plan.placementNodes.find(n => n.id === fr.toObjectId)
+            ? nodeLabel(plan.placementNodes.find(n => n.id === fr.toObjectId)!) ?? nodeToObjectType(plan.placementNodes.find(n => n.id === fr.toObjectId)!)
+            : fr.toObjectId)
+        : undefined;
+
+      routes.push({
+        id:         fr.id,
+        type:       routeType,
+        fromLabel,
+        toLabel,
+        status:     fr.status,
+        confidence: confidenceFromRouteStatus(fr.status),
+      });
+    }
   }
 
   return routes;
