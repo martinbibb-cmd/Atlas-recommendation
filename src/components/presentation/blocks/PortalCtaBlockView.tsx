@@ -7,7 +7,7 @@
  * Rules:
  *   - No routing logic here — the button calls onOpenPortal when provided.
  *   - All copy from block — no new text generated here.
- *   - When onOpenPortal is absent the button renders as disabled; no fake routing.
+ *   - When onOpenPortal is absent the button is omitted — no orphan disabled controls.
  */
 
 import type { PortalCtaBlock } from '../../../contracts/VisualBlock';
@@ -62,17 +62,18 @@ export function PortalCtaBlockView({ block, onOpenPortal }: Props) {
           </ul>
         )}
 
-        <div className="customer-deck__cta-row">
-          <button
-            className="customer-deck__cta-button"
-            type="button"
-            onClick={handleCta}
-            disabled={!onOpenPortal}
-            aria-label="Open your customer portal"
-          >
-            Open your portal →
-          </button>
-        </div>
+        {onOpenPortal && (
+          <div className="customer-deck__cta-row">
+            <button
+              className="customer-deck__cta-button"
+              type="button"
+              onClick={handleCta}
+              aria-label="Open your customer portal"
+            >
+              Open your portal →
+            </button>
+          </div>
+        )}
       </div>
     </article>
   );

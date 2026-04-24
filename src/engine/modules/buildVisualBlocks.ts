@@ -306,7 +306,7 @@ function buildPortalCtaBlock(launchContext: PortalLaunchContext): PortalCtaBlock
   return {
     id: 'portal-cta',
     type: 'portal_cta',
-    title: 'See your full Atlas report',
+    title: 'Open your portal',
     outcome: 'Explore the interactive model, costs, and comparison in your portal.',
     visualKey: VK.portalCta,
     launchContext,

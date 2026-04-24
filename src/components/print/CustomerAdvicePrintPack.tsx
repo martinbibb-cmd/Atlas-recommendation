@@ -296,7 +296,7 @@ export function CustomerAdvicePrintPack({
                   {/* Portal CTA heading from the block */}
                   <div className="customer-deck__block customer-deck__block--portal-cta">
                     <div className="customer-deck__block-body">
-                      <h2 className="customer-deck__title">{ctaBlock?.title ?? 'See your full Atlas report'}</h2>
+                      <h2 className="customer-deck__title">{ctaBlock?.title ?? 'Open your portal'}</h2>
                       <p  className="customer-deck__outcome">{ctaBlock?.outcome ?? 'Explore the interactive model, costs, and comparison in your portal.'}</p>
                       {ctaBlock?.supportingPoints && ctaBlock.supportingPoints.length > 0 && (
                         <ul className="customer-deck__supporting-points" aria-label="What you can do">
