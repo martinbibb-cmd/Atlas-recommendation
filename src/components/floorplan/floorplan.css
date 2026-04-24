@@ -1600,3 +1600,144 @@
   padding: 12px 16px 20px;
   overflow-y: auto;
 }
+
+/* ── PR16: Inspector heading structure ─────────────────────────────────── */
+
+.fpb__inspector-heading-main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.fpb__inspector-type {
+  font-weight: 700;
+  font-size: 14px;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.fpb__inspector-label {
+  font-weight: 500;
+  font-size: 13px;
+  color: #475569;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.fpb__inspector-label::before {
+  content: '·';
+  margin-right: 5px;
+  color: #94a3b8;
+}
+
+/* ── PR16: Inline confidence / status badge in inspector heading ────────── */
+
+.fpb__confidence-badge--inline {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── PR16: Tap-to-edit wall length button ──────────────────────────────── */
+
+.fpb__field-value-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  width: 100%;
+  text-align: left;
+  min-height: 36px;
+}
+
+.fpb__field-value-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+}
+
+/* ── PR16: Inline length edit row ─────────────────────────────────────── */
+
+.fpb__wall-length-edit {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.fpb__wall-length-edit input {
+  flex: 1;
+  min-width: 60px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid #2563eb;
+  border-radius: 7px;
+  padding: 5px 8px;
+  background: #fff;
+}
+
+.fpb__wall-length-confirm {
+  background: #dcfce7 !important;
+  border-color: #86efac !important;
+  color: #166534 !important;
+  font-weight: 700 !important;
+  min-width: 32px;
+}
+
+.fpb__wall-length-confirm:hover {
+  background: #bbf7d0 !important;
+}
+
+.fpb__wall-length-cancel {
+  background: #fee2e2 !important;
+  border-color: #fca5a5 !important;
+  color: #dc2626 !important;
+  font-weight: 700 !important;
+  min-width: 32px;
+}
+
+.fpb__wall-length-cancel:hover {
+  background: #fecaca !important;
+}
+
+.fpb__wall-length-error {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  color: #dc2626;
+  margin-top: 2px;
+}
+
+/* ── PR16: Hover/pressed feedback in select mode ─────────────────────── */
+
+.fpb__board--select-mode .fpb__room:hover:not(.selected) {
+  border-color: #93c5fd;
+  background-color: rgba(219, 234, 254, 0.35) !important;
+  cursor: pointer;
+}
+
+.fpb__board--select-mode .fpb__node:hover:not(.selected) {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+  cursor: pointer;
+}

@@ -103,6 +103,27 @@ export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
   other:         'Other',
 };
 
+/** Emoji icon for each room type — used in inspector headings and quick-picks. */
+export const ROOM_TYPE_EMOJI: Record<RoomType, string> = {
+  living:        '🛋️',
+  dining:        '🍽️',
+  kitchen:       '🍳',
+  bedroom:       '🛏️',
+  bathroom:      '🚿',
+  en_suite:      '🛁',
+  hallway:       '🚪',
+  landing:       '📐',
+  utility:       '🔧',
+  garage:        '🚗',
+  study:         '📚',
+  conservatory:  '🌿',
+  loft:          '🏠',
+  cupboard:      '🗄️',
+  plant_room:    '⚙️',
+  outside:       '🌳',
+  other:         '❓',
+};
+
 /** Room types that accept boiler/heat-source placement */
 export const BOILER_VALID_ROOM_TYPES: RoomType[] = [
   'kitchen', 'utility', 'garage', 'cupboard', 'plant_room',

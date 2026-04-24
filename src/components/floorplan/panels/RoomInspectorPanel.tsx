@@ -10,8 +10,12 @@
  */
 
 import type { FloorPlan, Room, RoomType, Wall, FloorObject } from '../propertyPlan.types';
-import { ROOM_TYPE_LABELS } from '../propertyPlan.types';
+import { ROOM_TYPE_LABELS, ROOM_TYPE_EMOJI } from '../propertyPlan.types';
 import { roomAreaM2, GRID } from '../../../features/floorplan/geometry';
+import {
+  provenanceToLayoutConfidence,
+  LAYOUT_CONFIDENCE_LABELS,
+} from '../../../features/floorplan/provenanceToLayoutConfidence';
 
 // Remove local GRID constant — imported from geometry module via re-export.
 
@@ -52,11 +56,23 @@ export default function RoomInspectorPanel({ room, floors, walls, floorObjects, 
   const wallCount = countAdjacentWalls(room, walls);
   const objectCount = countRoomObjects(room, floorObjects);
   const area = roomAreaM2(room);
+  const confidence = room.provenance ? provenanceToLayoutConfidence(room.provenance) : null;
 
   return (
     <div className="fpb__inspector-body">
       <div className="fpb__inspector-heading">
-        <span>Room</span>
+        <span className="fpb__inspector-heading-main">
+          <span>{ROOM_TYPE_EMOJI[room.roomType]}</span>
+          <span className="fpb__inspector-type">{ROOM_TYPE_LABELS[room.roomType]}</span>
+          {room.name && (
+            <span className="fpb__inspector-label">{room.name}</span>
+          )}
+          {confidence && (
+            <span className="fpb__confidence-badge fpb__confidence-badge--inline">
+              {LAYOUT_CONFIDENCE_LABELS[confidence]}
+            </span>
+          )}
+        </span>
         <button className="fpb__delete-btn" onClick={onDelete} title="Delete room">✕</button>
       </div>
 

@@ -64,6 +64,8 @@ import type { ValidationResult } from './propertyValidation';
 import { updateWallMeasurement } from '../../features/floorplan/updateWallMeasurement';
 import { addOpeningToWall } from '../../features/floorplan/addOpeningToWall';
 import { addObjectToPlan, updateFloorObject, removeFloorObject } from '../../features/floorplan/addObjectToPlan';
+// PR16 selection helpers — priority hit-testing
+import { selectWall, selectOpening } from '../../features/floorplan/selection';
 // PR10 feature modules — route authoring
 import { addRouteToPlan, updateRoute, removeRoute } from '../../features/floorplan/addRouteToPlan';
 // PR9 panel / editor components
@@ -1875,7 +1877,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           </div>
 
           <div
-            className={`fpb__board fpb__board--tool-${tool}`}
+            className={`fpb__board fpb__board--tool-${tool}${tool === 'select' ? ' fpb__board--select-mode' : ''}`}
             ref={boardRef}
             onPointerDown={handleBoardPointerDown}
             onPointerMove={handleBoardPointerMove}
@@ -2189,12 +2191,25 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       stroke="transparent"
                       strokeWidth={14}
                     />
+                    {/* Glow halo behind selected route */}
+                    {isSelected && (
+                      <polyline
+                        points={fRoute.points.map((p) => `${p.x},${p.y}`).join(' ')}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={9}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        opacity={0.3}
+                        style={{ pointerEvents: 'none' }}
+                      />
+                    )}
                     {/* Visible route line */}
                     <polyline
                       points={fRoute.points.map((p) => `${p.x},${p.y}`).join(' ')}
                       fill="none"
-                      stroke={isSelected ? '#0f172a' : color}
-                      strokeWidth={isSelected ? 3.5 : 2.5}
+                      stroke={color}
+                      strokeWidth={isSelected ? 4 : 2.5}
                       strokeDasharray={strokeDash}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -2274,12 +2289,15 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 </g>
               )}
 
-              {/* Ghost FloorObject being placed (PR9) */}
+              {/* Ghost FloorObject being placed (PR9 / PR16: show emoji + name) */}
               {ghostPos && pendingFloorObjectType && (
-                <g transform={`translate(${ghostPos.x - 24}, ${ghostPos.y - 14})`} opacity="0.55">
-                  <rect width={48} height={28} rx={6} fill="#f0fdf4" stroke="#16a34a" strokeWidth={2} />
-                  <text x={24} y={18} textAnchor="middle" fontSize={10} fill="#166534">
+                <g transform={`translate(${ghostPos.x - 36}, ${ghostPos.y - 20})`} opacity="0.65">
+                  <rect width={72} height={40} rx={8} fill="#f0fdf4" stroke="#16a34a" strokeWidth={2} strokeDasharray="4 2" />
+                  <text x={36} y={16} textAnchor="middle" fontSize={14}>
                     {FLOOR_OBJECT_TYPE_EMOJI[pendingFloorObjectType]}
+                  </text>
+                  <text x={36} y={32} textAnchor="middle" fontSize={9} fill="#166534" fontWeight="600">
+                    {FLOOR_OBJECT_TYPE_LABELS[pendingFloorObjectType]}
                   </text>
                 </g>
               )}
@@ -2307,9 +2325,29 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   style={{ left: room.x, top: room.y, width: room.width, height: room.height }}
                   onPointerDown={(e) => {
                     if (tool !== 'select') return;
+                    const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+
+                    // PR16: enforce selection priority — wall > opening > room.
+                    // Floor objects and routes handle their own stopPropagation above.
+                    if (visibleLayers.geometry) {
+                      const wallHit = selectWall(pos, activeFloor.walls);
+                      if (wallHit) {
+                        e.stopPropagation();
+                        setSelection({ kind: 'wall', id: wallHit.wall.id });
+                        return;
+                      }
+                    }
+                    if (visibleLayers.openings) {
+                      const openingHit = selectOpening(pos, activeFloor.openings, activeFloor.walls);
+                      if (openingHit) {
+                        e.stopPropagation();
+                        setSelection({ kind: 'opening', id: openingHit.id });
+                        return;
+                      }
+                    }
+
                     e.stopPropagation();
                     setSelection({ kind: 'room', id: room.id });
-                    const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
                     // Capture pre-drag snapshot for single history commit on pointer-up.
                     dragStartPlanRef.current = plan;
                     dragHasMovedRef.current = false;

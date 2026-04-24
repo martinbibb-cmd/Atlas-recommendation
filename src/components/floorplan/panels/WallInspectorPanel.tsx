@@ -5,6 +5,9 @@
  * type the measured value without opening a modal.  Kind and thickness are
  * also editable.  Applying the length edit calls `onUpdateLength` which
  * delegates to `updateWallMeasurement` in the feature module.
+ *
+ * PR16: heading shows icon + kind label + confidence badge; invalid length
+ * inputs show a friendly inline error instead of silently failing.
  */
 
 import { useState } from 'react';
@@ -15,6 +18,7 @@ import {
 } from '../../../features/floorplan/provenanceToLayoutConfidence';
 
 const GRID = 24;
+const MIN_WALL_LENGTH_M = 0.1;
 
 interface Props {
   wall: Wall;
@@ -23,31 +27,61 @@ interface Props {
   onDelete: () => void;
 }
 
+const WALL_KIND_LABELS: Record<WallKind, string> = {
+  internal: 'Internal',
+  external: 'External',
+};
+
 export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onDelete }: Props) {
   const lengthM = Math.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1) / GRID;
   const [editingLength, setEditingLength] = useState(false);
   const [draftLength, setDraftLength] = useState(lengthM.toFixed(2));
+  const [lengthError, setLengthError] = useState<string | null>(null);
+
+  const confidence = wall.provenance ? provenanceToLayoutConfidence(wall.provenance) : null;
+
+  function validateDraft(value: string): string | null {
+    const v = parseFloat(value);
+    if (isNaN(v) || value.trim() === '') return 'Enter a number';
+    if (v < MIN_WALL_LENGTH_M) return `Minimum wall length is ${MIN_WALL_LENGTH_M} m`;
+    return null;
+  }
 
   function commitLength() {
-    const v = parseFloat(draftLength);
-    if (!isNaN(v) && v > 0) {
-      onUpdateLength(v);
+    const error = validateDraft(draftLength);
+    if (error) {
+      setLengthError(error);
+      return;
     }
+    setLengthError(null);
+    onUpdateLength(parseFloat(draftLength));
+    setEditingLength(false);
+  }
+
+  function cancelLength() {
+    setDraftLength(lengthM.toFixed(2));
+    setLengthError(null);
     setEditingLength(false);
   }
 
   function handleLengthKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Enter') commitLength();
-    if (e.key === 'Escape') {
-      setDraftLength(lengthM.toFixed(2));
-      setEditingLength(false);
-    }
+    if (e.key === 'Escape') cancelLength();
   }
 
   return (
     <div className="fpb__inspector-body">
       <div className="fpb__inspector-heading">
-        <span>Wall</span>
+        <span className="fpb__inspector-heading-main">
+          <span>🧱</span>
+          <span className="fpb__inspector-type">Wall</span>
+          <span className="fpb__inspector-label">{WALL_KIND_LABELS[wall.kind]}</span>
+          {confidence && (
+            <span className="fpb__confidence-badge fpb__confidence-badge--inline">
+              {LAYOUT_CONFIDENCE_LABELS[confidence]}
+            </span>
+          )}
+        </span>
         <button className="fpb__delete-btn" onClick={onDelete} title="Delete wall">✕</button>
       </div>
 
@@ -70,16 +104,24 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
           <span className="fpb__wall-length-edit">
             <input
               type="number"
-              min={0.5}
+              min={MIN_WALL_LENGTH_M}
               step={0.1}
               value={draftLength}
               autoFocus
-              onChange={(e) => setDraftLength(e.target.value)}
+              onChange={(e) => {
+                setDraftLength(e.target.value);
+                setLengthError(null);
+              }}
               onKeyDown={handleLengthKeyDown}
               onBlur={commitLength}
               style={{ width: 70 }}
+              aria-invalid={lengthError != null}
             />
-            <button className="fpb__action-btn" style={{ marginLeft: 4 }} onClick={commitLength}>✓</button>
+            <button className="fpb__action-btn fpb__wall-length-confirm" onClick={commitLength} title="Apply">✓</button>
+            <button className="fpb__action-btn fpb__wall-length-cancel" onMouseDown={(e) => { e.preventDefault(); cancelLength(); }} title="Cancel">✕</button>
+            {lengthError && (
+              <span className="fpb__wall-length-error" role="alert">{lengthError}</span>
+            )}
           </span>
         ) : (
           <button
@@ -104,16 +146,6 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
           onChange={(e) => onUpdate({ thicknessMm: Number(e.target.value) })}
         />
       </label>
-
-      {/* Provenance badge — informational only */}
-      {wall.provenance && (
-        <div className="fpb__field fpb__field--static">
-          <span>Confidence</span>
-          <span className="fpb__provenance-badge">
-            {LAYOUT_CONFIDENCE_LABELS[provenanceToLayoutConfidence(wall.provenance)]}
-          </span>
-        </div>
-      )}
     </div>
   );
 }
