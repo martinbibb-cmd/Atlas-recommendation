@@ -1,0 +1,301 @@
+/**
+ * CustomerAdvicePrintPack.css
+ *
+ * Print-first layout for the CustomerAdvicePrintPack component.
+ * Derives all visual content from VisualBlock[] — not from the old report model.
+ *
+ * Screen: toolbar + white A4-shaped pages with drop shadow.
+ * Print:  hides toolbar, page-break-after each block section.
+ *
+ * Naming prefix: capp- (Customer Advice Print Pack)
+ */
+
+/* ─── Tokens ──────────────────────────────────────────────────────────────── */
+
+:root {
+  --capp-green:       #276749;
+  --capp-green-light: #f0fdf4;
+  --capp-blue:        #2b6cb0;
+  --capp-amber:       #b7791f;
+  --capp-amber-light: #fffbeb;
+  --capp-red:         #c53030;
+  --capp-red-light:   #fff5f5;
+  --capp-text:        #1a202c;
+  --capp-muted:       #718096;
+  --capp-border:      #e2e8f0;
+  --capp-bg-light:    #f7fafc;
+  --capp-font:        system-ui, -apple-system, 'Inter', 'Segoe UI', sans-serif;
+  --capp-radius:      8px;
+  --capp-page-width:  210mm;
+  --capp-page-min-h:  267mm;
+}
+
+/* ─── Screen wrapper ──────────────────────────────────────────────────────── */
+
+.capp-wrap {
+  background: #e2e8f0;
+  min-height: 100vh;
+  padding: 1rem;
+  font-family: var(--capp-font);
+  color: var(--capp-text);
+  box-sizing: border-box;
+}
+
+/* ─── Toolbar (screen only) ───────────────────────────────────────────────── */
+
+.capp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: var(--capp-page-width);
+  margin: 0 auto 1rem;
+  flex-wrap: wrap;
+}
+
+.capp-toolbar__back {
+  background: none;
+  border: 1px solid var(--capp-border);
+  border-radius: var(--capp-radius);
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--capp-muted);
+}
+
+.capp-toolbar__print {
+  background: var(--capp-green);
+  color: #fff;
+  border: none;
+  border-radius: var(--capp-radius);
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.capp-toolbar__title {
+  font-size: 0.8rem;
+  color: var(--capp-muted);
+  margin-left: auto;
+}
+
+/* ─── Document container ──────────────────────────────────────────────────── */
+
+.capp-document {
+  max-width: var(--capp-page-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ─── Individual block page ───────────────────────────────────────────────── */
+
+.capp-page {
+  background: #fff;
+  border-radius: var(--capp-radius);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
+  min-height: var(--capp-page-min-h);
+  padding: 2.5rem 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* Hero page: larger visual area */
+.capp-page--hero {
+  background: linear-gradient(160deg, #f0fdf4 0%, #fff 55%);
+}
+
+/* Warning page: tinted background by severity */
+.capp-page--warning-info {
+  background: linear-gradient(160deg, #eff6ff 0%, #fff 55%);
+}
+
+.capp-page--warning-advisory {
+  background: linear-gradient(160deg, #fffbeb 0%, #fff 55%);
+}
+
+.capp-page--warning-important {
+  background: linear-gradient(160deg, #fff5f5 0%, #fff 55%);
+}
+
+/* Portal CTA page */
+.capp-page--portal-cta {
+  background: linear-gradient(160deg, #f0f9ff 0%, #fff 55%);
+}
+
+/* ─── Block content reuse from customer-deck ──────────────────────────────── */
+
+/*
+ * CustomerAdvicePrintPack reuses the customer-deck block view components
+ * directly.  These overrides ensure print-safe sizing inside .capp-page.
+ */
+
+.capp-page .customer-deck__block {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  min-height: unset;
+  padding: 0;
+  flex: 1;
+}
+
+.capp-page .customer-deck__visual-ring {
+  width: 100px;
+  height: 100px;
+  margin-bottom: 1.25rem;
+  flex-shrink: 0;
+}
+
+.capp-page .customer-deck__visual-icon {
+  font-size: 2.8rem;
+}
+
+.capp-page .customer-deck__visual-ring--small {
+  width: 72px;
+  height: 72px;
+}
+
+.capp-page .customer-deck__visual-icon--small {
+  font-size: 2rem;
+}
+
+.capp-page .customer-deck__title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: var(--capp-text);
+  line-height: 1.2;
+}
+
+.capp-page .customer-deck__outcome {
+  font-size: 1rem;
+  color: var(--capp-muted);
+  margin: 0 0 1.25rem;
+  line-height: 1.6;
+}
+
+/* ─── Section label ───────────────────────────────────────────────────────── */
+
+.capp-page__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--capp-muted);
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--capp-border);
+  padding-bottom: 0.4rem;
+}
+
+/* ─── Portal CTA section ──────────────────────────────────────────────────── */
+
+.capp-portal-cta {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--capp-border);
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+.capp-portal-cta__text {
+  flex: 1;
+}
+
+.capp-portal-cta__heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--capp-text);
+  margin: 0 0 0.3rem;
+}
+
+.capp-portal-cta__sub {
+  font-size: 0.85rem;
+  color: var(--capp-muted);
+  margin: 0 0 0.75rem;
+}
+
+.capp-portal-cta__url {
+  font-size: 0.78rem;
+  color: var(--capp-blue);
+  word-break: break-all;
+  margin: 0;
+}
+
+.capp-portal-cta__qr-area {
+  width: 80px;
+  height: 80px;
+  border: 1px solid var(--capp-border);
+  border-radius: var(--capp-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--capp-bg-light);
+}
+
+.capp-portal-cta__qr-area img {
+  width: 72px;
+  height: 72px;
+  display: block;
+}
+
+.capp-portal-cta__qr-placeholder {
+  font-size: 0.65rem;
+  color: var(--capp-muted);
+  text-align: center;
+  line-height: 1.3;
+  padding: 0.25rem;
+}
+
+/* ─── Footer strip ────────────────────────────────────────────────────────── */
+
+.capp-page__footer {
+  margin-top: auto;
+  padding-top: 1rem;
+  font-size: 0.7rem;
+  color: var(--capp-muted);
+  text-align: right;
+  border-top: 1px solid var(--capp-border);
+}
+
+/* ─── Print overrides ─────────────────────────────────────────────────────── */
+
+@media print {
+  .capp-wrap {
+    background: none;
+    padding: 0;
+  }
+
+  .capp-toolbar {
+    display: none !important;
+  }
+
+  .capp-document {
+    gap: 0;
+    max-width: 100%;
+  }
+
+  .capp-page {
+    box-shadow: none;
+    border-radius: 0;
+    padding: 18mm 18mm 14mm;
+    min-height: 100vh;
+    page-break-after: always;
+    break-after: page;
+    margin: 0;
+    gap: 0;
+  }
+
+  .capp-page:last-of-type {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .capp-portal-cta__qr-area {
+    border: 1px solid #ccc;
+  }
+}

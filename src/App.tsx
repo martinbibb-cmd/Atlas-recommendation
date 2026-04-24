@@ -14,6 +14,10 @@ import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import CustomerRecommendationPrint from './components/print/CustomerRecommendationPrint';
+import { CustomerAdvicePrintPack } from './components/print/CustomerAdvicePrintPack';
+import { buildScenariosFromEngineOutput } from './engine/modules/buildScenariosFromEngineOutput';
+import { buildDecisionFromScenarios } from './engine/modules/buildDecisionFromScenarios';
+import { buildVisualBlocks } from './engine/modules/buildVisualBlocks';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import LegoBuildingSetPage from './explainers/lego/LegoBuildingSetPage';
@@ -185,6 +189,15 @@ const ENGINEER_SHARE_ENABLED =
 const INSIGHT_PACK_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('insight-pack') === '1';
+
+/**
+ * Detect ?internal=1 — renders the internal/diagnostic CustomerRecommendationPrint
+ * instead of the new CustomerAdvicePrintPack.  This is a dev-only route; it must
+ * not be reachable as the default customer print output.
+ */
+const INTERNAL_PRINT_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('internal') === '1';
 
 /** Demo quotes used by ?insight-pack=1 mode. */
 const DEMO_QUOTES: QuoteInput[] = [
@@ -838,16 +851,44 @@ export default function App() {
   if (PRINT_VIEW === 'technical')  return <LabPrintTechnical />;
   if (PRINT_VIEW === 'comparison') return <LabPrintComparison />;
   if (PRINT_VIEW === 'survey') {
-    const demoResult = runEngine(CONSOLE_DEMO_INPUT);
-    return (
-      <CustomerRecommendationPrint
-        result={demoResult}
-        input={CONSOLE_DEMO_INPUT}
-        recommendationResult={demoResult.recommendationResult}
-        portalUrl={buildPortalUrl('demo', window.location.origin)}
-        visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-      />
-    );
+    const demoResult  = runEngine(CONSOLE_DEMO_INPUT);
+    const demoScenarios = buildScenariosFromEngineOutput(demoResult.engineOutput);
+
+    // ?print=survey&internal=1 — old diagnostic report for dev/internal use only.
+    // Not reachable as the default customer output.
+    if (INTERNAL_PRINT_ENABLED) {
+      return (
+        <CustomerRecommendationPrint
+          result={demoResult}
+          input={CONSOLE_DEMO_INPUT}
+          recommendationResult={demoResult.recommendationResult}
+          portalUrl={buildPortalUrl('demo', window.location.origin)}
+          visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+        />
+      );
+    }
+
+    // Default: customer-facing advice pack from VisualBlock[] truth.
+    if (demoScenarios.length > 0) {
+      const demoDecision = buildDecisionFromScenarios({
+        scenarios:   demoScenarios,
+        boilerType:  CONSOLE_DEMO_INPUT.currentHeatSourceType ?? 'combi',
+        ageYears:    10,
+        occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
+        bathroomCount:  CONSOLE_DEMO_INPUT.bathroomCount,
+      });
+      const demoBlocks = buildVisualBlocks(demoDecision, demoScenarios);
+      return (
+        <CustomerAdvicePrintPack
+          decision={demoDecision}
+          scenarios={demoScenarios}
+          visualBlocks={demoBlocks}
+          portalUrl={buildPortalUrl('demo', window.location.origin)}
+          visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+          onBack={() => { window.location.href = window.location.pathname; }}
+        />
+      );
+    }
   }
 
   return (
@@ -1031,15 +1072,22 @@ export default function App() {
         />
       )}
       {journey === 'printout' && labEngineInput != null && (() => {
-        const result = runEngine(labEngineInput);
+        const result   = runEngine(labEngineInput);
+        const scenarios = buildScenariosFromEngineOutput(result.engineOutput);
+        if (scenarios.length === 0) return null;
+        const decision = buildDecisionFromScenarios({
+          scenarios,
+          boilerType:     labEngineInput.currentHeatSourceType ?? 'combi',
+          ageYears:       10,
+          occupancyCount: labEngineInput.occupancyCount,
+          bathroomCount:  labEngineInput.bathroomCount,
+        });
+        const visualBlocks = buildVisualBlocks(decision, scenarios);
         return (
-          <CustomerRecommendationPrint
-            result={result}
-            input={labEngineInput}
-            recommendationResult={result.recommendationResult}
-            prioritiesState={labPrioritiesState}
-            selectedOption1Family={labOption1Family ?? undefined}
-            selectedOption2Family={labOption2Family ?? undefined}
+          <CustomerAdvicePrintPack
+            decision={decision}
+            scenarios={scenarios}
+            visualBlocks={visualBlocks}
             portalUrl={labPortalUrl}
             visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             onBack={() => setJourney('presentation')}
