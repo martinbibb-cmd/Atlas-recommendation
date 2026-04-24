@@ -8,6 +8,8 @@
  *
  * PR16: heading shows icon + kind label + confidence badge; invalid length
  * inputs show a friendly inline error instead of silently failing.
+ *
+ * PR17: quick actions row (Delete, Focus).
  */
 
 import { useRef, useState } from 'react';
@@ -25,6 +27,8 @@ interface Props {
   onUpdate: (patch: Partial<Wall>) => void;
   onUpdateLength: (newLengthM: number) => void;
   onDelete: () => void;
+  /** Centre the canvas view on this wall (PR17 quick action). */
+  onFocus?: () => void;
 }
 
 const WALL_KIND_LABELS: Record<WallKind, string> = {
@@ -32,7 +36,7 @@ const WALL_KIND_LABELS: Record<WallKind, string> = {
   external: 'External',
 };
 
-export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onDelete }: Props) {
+export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onDelete, onFocus }: Props) {
   const lengthM = Math.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1) / GRID;
   const [editingLength, setEditingLength] = useState(false);
   const [draftLength, setDraftLength] = useState(lengthM.toFixed(2));
@@ -91,6 +95,18 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
           )}
         </span>
         <button className="fpb__delete-btn" onClick={onDelete} title="Delete wall">✕</button>
+      </div>
+
+      {/* Quick actions row — PR17 */}
+      <div className="fpb__quick-actions">
+        <button className="fpb__quick-btn fpb__quick-btn--danger" onClick={onDelete} title="Delete">
+          🗑
+        </button>
+        {onFocus && (
+          <button className="fpb__quick-btn" onClick={onFocus} title="Centre view on wall">
+            🎯
+          </button>
+        )}
       </div>
 
       {/* Kind */}

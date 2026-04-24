@@ -1741,3 +1741,165 @@
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
   cursor: pointer;
 }
+
+/* ── PR17: Confirmation flash animation ──────────────────────────────── */
+
+@keyframes fpb-edit-flash {
+  0%   { box-shadow: 0 0 0 0   rgba(34, 197, 94, 0); }
+  25%  { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.55); }
+  100% { box-shadow: 0 0 0 0   rgba(34, 197, 94, 0); }
+}
+
+.fpb__quick-actions--flash {
+  animation: fpb-edit-flash 0.2s ease-out;
+}
+
+/* ── PR17: Quick actions row in inspector ────────────────────────────── */
+
+.fpb__quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 0 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.fpb__quick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  color: #334155;
+  padding: 4px 8px;
+}
+
+.fpb__quick-btn:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.fpb__quick-btn--danger {
+  color: #dc2626;
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.fpb__quick-btn--danger:hover {
+  background: #fee2e2;
+  border-color: #dc2626;
+}
+
+.fpb__quick-btn--stub {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── PR17: Inline label rename in ObjectInspectorPanel header ────────── */
+
+.fpb__inspector-label-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 5px;
+  padding: 2px 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fpb__inspector-label-btn::before {
+  content: '·';
+  margin-right: 3px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.fpb__inspector-label-btn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.fpb__inspector-label-empty {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.fpb__inspector-label-edit-icon {
+  font-size: 11px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.fpb__label-edit-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fpb__label-edit-input {
+  flex: 1;
+  min-width: 60px;
+  max-width: 120px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 2px solid #2563eb;
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: #fff;
+  color: #0f172a;
+}
+
+.fpb__label-edit-input:focus {
+  outline: none;
+}
+
+/* ── PR17: Stay-in-tool toggle ───────────────────────────────────────── */
+
+.fpb__stay-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 20px;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fpb__stay-toggle:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.fpb__stay-toggle.active {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
