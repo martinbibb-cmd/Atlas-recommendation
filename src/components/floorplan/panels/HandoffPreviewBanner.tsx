@@ -205,7 +205,11 @@ export default function HandoffPreviewBanner({
       onOpenObjectLibrary(action.objectType);
     } else {
       onExitPreview();
-      // Defer selection slightly so the canvas unmounts preview mode first
+      // React batches the setPreviewMode(false) call above with any other updates
+      // in this handler.  Deferring onSelectItem to the next tick ensures the
+      // selection is applied after the parent has processed the exit-preview
+      // state change, avoiding a race between the banner unmounting and the
+      // canvas receiving the selection.
       setTimeout(() => onSelectItem(action.target), 0);
     }
   }

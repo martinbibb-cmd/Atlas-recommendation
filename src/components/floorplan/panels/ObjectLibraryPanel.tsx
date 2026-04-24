@@ -28,9 +28,9 @@ interface Props {
 export default function ObjectLibraryPanel({ onSelect, onClose, highlightType }: Props) {
   const highlightRef = useRef<HTMLButtonElement | null>(null);
 
-  // Scroll the highlighted button into view when the panel first opens.
+  // Scroll the highlighted button into view when a highlight type is set.
   useEffect(() => {
-    if (highlightRef.current) {
+    if (highlightType && highlightRef.current) {
       highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [highlightType]);
