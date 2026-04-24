@@ -253,6 +253,23 @@ export function CustomerAdvicePrintPack({
 
       {/* ── Document ── */}
       <div className="capp-document" data-testid="capp-document">
+        {visualBlocks.length === 0 && (
+          <section
+            className="capp-page capp-page--empty"
+            data-testid="capp-empty-state"
+            aria-label="Advice pack not yet available"
+          >
+            <p className="capp-page__label">Advice pack</p>
+            <div className="customer-deck__block">
+              <div className="customer-deck__block-body">
+                <h2 className="customer-deck__title">Pack not yet available</h2>
+                <p className="customer-deck__outcome">
+                  The advice pack will be ready once the survey has been completed and a recommendation generated.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
         {visualBlocks.map((block, index) => {
           const isPortalCta = block.type === 'portal_cta';
           const ctaBlock = isPortalCta ? (block as PortalCtaBlock) : null;

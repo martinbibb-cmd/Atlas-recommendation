@@ -321,3 +321,52 @@ describe('Internal/diagnostic protection — no QA artefacts on default customer
     expect(screen.queryByText(/hydraulicLimit/i)).toBeNull();
   });
 });
+
+// ─── 7. Route naming — customer-facing copy uses portal / advice pack ──────────
+
+describe('Route naming — customer-facing copy uses portal terminology', () => {
+
+  it('PresentationDeck portal tile heading is "Open your portal" not "full report"', () => {
+    // PortalCtaBlockView uses "Open your portal →" — verify no "full report" text
+    render(<PortalCtaBlockView block={PORTAL_CTA_BLOCK} onOpenPortal={() => {}} />);
+    expect(screen.queryByText(/full report/i)).toBeNull();
+    expect(screen.getByText('Open your portal →')).toBeTruthy();
+  });
+
+  it('CustomerAdvicePrintPack does not surface "full report" copy', () => {
+    render(<CustomerAdvicePrintPack {...makePackProps()} />);
+    expect(screen.queryByText(/full report/i)).toBeNull();
+  });
+});
+
+// ─── 8. CustomerAdvicePrintPack empty-state ────────────────────────────────────
+
+describe('CustomerAdvicePrintPack empty-state — absent visualBlocks', () => {
+
+  it('renders empty-state section when visualBlocks is empty', () => {
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeDecision()}
+        scenarios={[makeScenario()]}
+        visualBlocks={[]}
+      />,
+    );
+    expect(screen.getByTestId('capp-empty-state')).toBeTruthy();
+  });
+
+  it('empty-state shows "Pack not yet available" heading', () => {
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeDecision()}
+        scenarios={[makeScenario()]}
+        visualBlocks={[]}
+      />,
+    );
+    expect(screen.getByText('Pack not yet available')).toBeTruthy();
+  });
+
+  it('does not render empty-state when visualBlocks are present', () => {
+    render(<CustomerAdvicePrintPack {...makePackProps()} />);
+    expect(screen.queryByTestId('capp-empty-state')).toBeNull();
+  });
+});

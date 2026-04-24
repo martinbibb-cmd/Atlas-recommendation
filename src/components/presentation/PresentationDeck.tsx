@@ -1503,7 +1503,7 @@ function SimulatorPage({
   sim: FinalPageSimulator;
   onOpenSimulator?: () => void;
   onPrint?: () => void;
-  /** Called when the user taps "View full report". Opens the five-tab portal surface. */
+  /** Called when the user taps "Open your portal". Opens the five-tab portal surface. */
   onOpenPortal?: () => void;
 }) {
   const hasAnyAction = onOpenSimulator != null || onPrint != null || onOpenPortal != null;
@@ -1547,19 +1547,19 @@ function SimulatorPage({
       {/* Simulator and print tiles — shown when available */}
       {hasAnyAction && (
         <div className="atlas-deck-simulator__tiles">
-          {/* Simulator tile */}
-          <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--sim">
-            <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">⚡</p>
-            <p className="atlas-deck-simulator__tile-heading">System Simulator</p>
-            <p className="atlas-deck-simulator__tile-desc">
-              Live taps, heating and full system diagram. See exactly how your system performs.
-            </p>
-            {sim.simulatorCapabilities.length > 0 && (
-              <ul className="atlas-deck-simulator__caps">
-                {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
-              </ul>
-            )}
-            {onOpenSimulator && (
+          {/* Simulator tile — only rendered when the simulator action is available */}
+          {onOpenSimulator && (
+            <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--sim">
+              <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">⚡</p>
+              <p className="atlas-deck-simulator__tile-heading">System Simulator</p>
+              <p className="atlas-deck-simulator__tile-desc">
+                Live taps, heating and full system diagram. See exactly how your system performs.
+              </p>
+              {sim.simulatorCapabilities.length > 0 && (
+                <ul className="atlas-deck-simulator__caps">
+                  {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
+                </ul>
+              )}
               <button
                 type="button"
                 className="atlas-deck-simulator__tile-btn"
@@ -1567,8 +1567,8 @@ function SimulatorPage({
               >
                 Open simulator →
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Print tile */}
           {onPrint && (
@@ -1588,11 +1588,11 @@ function SimulatorPage({
             </div>
           )}
 
-          {/* Portal tile — opens the five-tab proof surface */}
+          {/* Portal tile — opens the five-tab portal surface */}
           {onOpenPortal && (
             <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--portal">
               <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">📊</p>
-              <p className="atlas-deck-simulator__tile-heading">Explore your full report</p>
+              <p className="atlas-deck-simulator__tile-heading">Open your portal</p>
               <p className="atlas-deck-simulator__tile-desc">
                 Compare options, review the evidence, and explore day-to-day outcomes in your personal portal.
               </p>
@@ -1602,7 +1602,7 @@ function SimulatorPage({
                 data-testid="open-portal-btn"
                 onClick={onOpenPortal}
               >
-                View full report →
+                Open your portal →
               </button>
             </div>
           )}
@@ -1684,7 +1684,7 @@ export interface PresentationDeckProps {
   onPrint?: () => void;
   /**
    * Optional callback to open the five-tab portal proof surface.
-   * When provided, the final slide shows a "View full report →" tile.
+   * When provided, the final slide shows an "Open your portal →" tile.
    */
   onOpenPortal?: () => void;
   /**
