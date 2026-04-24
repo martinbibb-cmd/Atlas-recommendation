@@ -82,13 +82,17 @@ export function SpatialProofBlockView({ block }: Props) {
             aria-label="Installation status"
           >
             {block.confidenceSummary.slice(0, 3).map((point) => (
-              <li key={point} className="customer-deck__supporting-point">
+              <li
+                key={point}
+                className="customer-deck__supporting-point"
+                aria-label={isUncertain(point) ? `Indicative: ${point}` : point}
+              >
                 {isUncertain(point) ? (
                   <span className="customer-deck__point-marker customer-deck__point-marker--soft" aria-hidden="true">≈</span>
                 ) : (
                   <span className="customer-deck__point-marker" aria-hidden="true">✓</span>
                 )}
-                {point}
+                <span aria-hidden="true">{point}</span>
               </li>
             ))}
           </ul>

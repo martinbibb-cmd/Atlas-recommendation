@@ -79,7 +79,7 @@ function WhyTab({ cards, spatialProof }: { cards: PortalViewModel['whyCards']; s
       {cards.length > 0 && (
         <>
           <p className="portal-page__why-intro">
-            These are the specific measurements and signals Atlas used to make this recommendation for your home.
+            These are the specific measurements and signals Atlas used to make this recommendation for your home
           </p>
           <div className="portal-page__card-grid">
             {cards.map((card) => (

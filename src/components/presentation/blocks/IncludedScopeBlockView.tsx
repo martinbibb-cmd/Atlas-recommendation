@@ -58,7 +58,7 @@ export function IncludedScopeBlockView({ block }: Props) {
                       {item.label}
                       {item.customerBenefit && (
                         <span className="customer-deck__scope-included-benefit">
-                          {item.customerBenefit}
+                          — {item.customerBenefit}
                         </span>
                       )}
                     </span>

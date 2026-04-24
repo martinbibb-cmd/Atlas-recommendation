@@ -48,7 +48,7 @@ const VISUAL_REGISTRY: Record<string, VisualEntry> = {
 
   // Warning / lifecycle keys — softer icons to signal advisory tone, not alarm
   boiler_lifecycle_warning:   { icon: '📅', accentColor: '#d97706', ariaLabel: 'Boiler approaching end of expected service life' },
-  boiler_at_risk_warning:     { icon: '⚠️', accentColor: '#dc2626', ariaLabel: 'Boiler reliability declining — worth planning ahead' },
+  boiler_at_risk_warning:     { icon: '⚠️', accentColor: '#dc2626', ariaLabel: 'Boiler reliability declining, worth planning ahead' },
   compatibility_warning:      { icon: '🔧', accentColor: '#9333ea', ariaLabel: 'Compatibility note' },
 
   // Facts keys
