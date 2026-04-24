@@ -2378,3 +2378,104 @@
 
 /* ── PR22: Assumed-route dashes — slightly bolder stroke in SVG is handled
    inline; ensure the legend colour stays consistent. ────────────────────── */
+
+/* ── PR23: Handoff preview banner — readiness-aware layout ─────────────── */
+
+/* Override the flat blue bar from PR22 with a stacked layout for readiness. */
+.fpb__preview-banner--readiness {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  background: #fff;
+  color: #1e293b;
+}
+
+.fpb__preview-banner-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #1e3a8a;
+  color: #fff;
+  flex-wrap: wrap;
+}
+
+.fpb__preview-readiness-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fpb__preview-readiness-icon {
+  font-size: 14px;
+}
+
+.fpb__preview-readiness-label {
+  font-size: 13px;
+}
+
+.fpb__preview-readiness-counts {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+/* ── PR23: Checklist within the banner ─────────────────────────────────── */
+
+.fpb__preview-checklist {
+  padding: 12px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  border-top: 1px solid #e2e8f0;
+}
+
+.fpb__preview-checklist-group {}
+
+.fpb__preview-checklist-heading {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── PR23: Quick-fix button ─────────────────────────────────────────────── */
+
+.fpb__preview-quickfix-btn {
+  flex-shrink: 0;
+  border: 1.5px solid #6366f1;
+  border-radius: 6px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.fpb__preview-quickfix-btn:hover {
+  background: #e0e7ff;
+  border-color: #4f46e5;
+}
+
+/* ── PR23: Object library highlight ────────────────────────────────────── */
+
+.fpb__sheet-option--highlight {
+  border: 2px solid #6366f1 !important;
+  background: #eef2ff !important;
+  color: #3730a3 !important;
+  font-weight: 700;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
