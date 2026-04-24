@@ -202,16 +202,14 @@ function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
       if (!routeType) continue;
 
       // Resolve human-readable labels from object IDs when possible.
-      const fromLabel = fr.fromObjectId
-        ? (plan.placementNodes.find(n => n.id === fr.fromObjectId)
-            ? nodeLabel(plan.placementNodes.find(n => n.id === fr.fromObjectId)!) ?? nodeToObjectType(plan.placementNodes.find(n => n.id === fr.fromObjectId)!)
-            : fr.fromObjectId)
-        : undefined;
-      const toLabel = fr.toObjectId
-        ? (plan.placementNodes.find(n => n.id === fr.toObjectId)
-            ? nodeLabel(plan.placementNodes.find(n => n.id === fr.toObjectId)!) ?? nodeToObjectType(plan.placementNodes.find(n => n.id === fr.toObjectId)!)
-            : fr.toObjectId)
-        : undefined;
+      const fromNode = fr.fromObjectId ? plan.placementNodes.find(n => n.id === fr.fromObjectId) : undefined;
+      const toNode = fr.toObjectId ? plan.placementNodes.find(n => n.id === fr.toObjectId) : undefined;
+      const fromLabel = fromNode
+        ? (nodeLabel(fromNode) ?? nodeToObjectType(fromNode))
+        : fr.fromObjectId;
+      const toLabel = toNode
+        ? (nodeLabel(toNode) ?? nodeToObjectType(toNode))
+        : fr.toObjectId;
 
       routes.push({
         id:         fr.id,
