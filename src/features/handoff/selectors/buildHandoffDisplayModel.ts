@@ -24,7 +24,14 @@ import type {
   HandoffKnowledgeSummary,
   HandoffReadinessSummary,
   KnowledgeStatus,
+  SpatialReviewSummary,
 } from '../types/handoffDisplay.types';
+import {
+  validatePlanReadiness,
+  planHandoffSummaryLabel,
+  spatialConfidenceIsWeak,
+} from '../../floorplan/planReadinessValidator';
+import type { PropertyPlan } from '../../../components/floorplan/propertyPlan.types';
 
 // ─── Field-value helpers ──────────────────────────────────────────────────────
 
@@ -185,6 +192,31 @@ function buildReadinessSummary(
   };
 }
 
+// ─── Spatial review summary ───────────────────────────────────────────────────
+
+/**
+ * Derive a SpatialReviewSummary from an optional PropertyPlan.
+ * When no plan is present returns a minimal 'incomplete' stub.
+ */
+function buildSpatialReviewSummary(plan?: PropertyPlan): SpatialReviewSummary {
+  if (!plan) {
+    return {
+      status: 'incomplete',
+      statusLabel: planHandoffSummaryLabel('incomplete'),
+      items: [],
+      confidenceIsWeak: true,
+    };
+  }
+
+  const result = validatePlanReadiness(plan);
+  return {
+    status: result.overallStatus,
+    statusLabel: planHandoffSummaryLabel(result.overallStatus),
+    items: result.items,
+    confidenceIsWeak: spatialConfidenceIsWeak(result),
+  };
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -210,8 +242,13 @@ export function buildHandoffDisplayModel(
   const noteCount      = p.evidence.textNotes.length;
   const extractedFactCount = countExtractedFacts(p);
 
-  const knowledge  = buildKnowledgeSummary(p);
-  const readiness  = buildReadinessSummary(importResult);
+  const knowledge     = buildKnowledgeSummary(p);
+  const readiness     = buildReadinessSummary(importResult);
+  // PR20: plan readiness — importResult may carry a propertyPlan attached
+  // by the import pipeline (optional, not yet in all payloads).
+  const spatialReview = buildSpatialReviewSummary(
+    (importResult as { propertyPlan?: PropertyPlan }).propertyPlan,
+  );
 
   return {
     title,
@@ -227,5 +264,6 @@ export function buildHandoffDisplayModel(
     extractedFactCount,
     knowledge,
     readiness,
+    spatialReview,
   };
 }

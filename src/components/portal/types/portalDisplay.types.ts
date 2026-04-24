@@ -92,4 +92,14 @@ export interface PortalDisplayModel {
    * Absent when no outdoor flue scenes have been captured.
    */
   externalClearanceScenes?: import('../../../contracts/spatial3dEvidence').ExternalClearanceSceneV1[];
+
+  /**
+   * PR20 — True when the attached floor plan has weak spatial confidence
+   * (status is 'needs_checking' or 'incomplete').
+   *
+   * When true, customer-facing copy for spatial proof should use softened
+   * language:  "planned location", "to be confirmed", "route to check".
+   * When false (or absent) the plan is 'ready' and direct language is safe.
+   */
+  spatialConfidenceWeak?: boolean;
 }
