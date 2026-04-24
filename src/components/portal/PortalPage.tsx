@@ -77,11 +77,16 @@ function WhyTab({ cards, spatialProof }: { cards: PortalViewModel['whyCards']; s
         <SpatialProofSection block={spatialProof} />
       )}
       {cards.length > 0 && (
-        <div className="portal-page__card-grid">
-          {cards.map((card) => (
-            <ProofCard key={card.id} card={card} />
-          ))}
-        </div>
+        <>
+          <p className="portal-page__why-intro">
+            These are the specific measurements and signals Atlas used to make this recommendation for your home
+          </p>
+          <div className="portal-page__card-grid">
+            {cards.map((card) => (
+              <ProofCard key={card.id} card={card} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -102,7 +107,17 @@ function CompareTab({ cards }: { cards: PortalViewModel['comparisonCards'] }) {
 
 function DailyUseTab({ cards, simulation }: { cards: PortalViewModel['dailyUseCards']; simulation: PortalViewModel['dailyUseSimulation'] }) {
   if (simulation) {
-    return <DailyUseSimulatorPanel simulation={simulation} />;
+    return (
+      <>
+        <div className="portal-page__daily-use-header">
+          <p className="portal-page__daily-use-header-title">See how it works day-to-day</p>
+          <p className="portal-page__daily-use-header-desc">
+            Adjust occupancy, outdoor temperature, and usage patterns to see how the recommended system responds in real time.
+          </p>
+        </div>
+        <DailyUseSimulatorPanel simulation={simulation} />
+      </>
+    );
   }
   if (cards.length === 0) {
     return <p className="portal-page__empty">No daily-use outcomes available.</p>;

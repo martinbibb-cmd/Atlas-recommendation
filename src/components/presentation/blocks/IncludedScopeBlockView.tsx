@@ -42,25 +42,27 @@ export function IncludedScopeBlockView({ block }: Props) {
         {block.items.length > 0 && (
           <ul className="customer-deck__scope-list" aria-label="What is included">
             {block.items.map((item) => (
-              <li key={item.id} className="customer-deck__scope-item">
+              <li key={item.id}>
                 {item.category === 'compliance' ? (
-                  <>
-                    <span className="customer-deck__scope-tick" aria-hidden="true">📋</span>
-                    {item.label}
-                    <span className="customer-deck__scope-requirement" aria-label="Regulatory requirement">
-                      {' '}(Requirement)
+                  <div className="customer-deck__scope-compliance-pill">
+                    <span className="customer-deck__scope-compliance-icon" aria-hidden="true">📋</span>
+                    <span>{item.label}</span>
+                    <span className="customer-deck__scope-compliance-badge" aria-label="Regulatory requirement">
+                      Requirement
                     </span>
-                  </>
+                  </div>
                 ) : (
-                  <>
-                    <span className="customer-deck__scope-tick" aria-hidden="true">✓</span>
-                    {item.label}
-                    {item.customerBenefit && (
-                      <span className="customer-deck__scope-benefit">
-                        {' — '}{item.customerBenefit}
-                      </span>
-                    )}
-                  </>
+                  <div className="customer-deck__scope-included-pill">
+                    <span className="customer-deck__scope-included-tick" aria-hidden="true">✓</span>
+                    <span>
+                      {item.label}
+                      {item.customerBenefit && (
+                        <span className="customer-deck__scope-included-benefit">
+                          — {item.customerBenefit}
+                        </span>
+                      )}
+                    </span>
+                  </div>
                 )}
               </li>
             ))}

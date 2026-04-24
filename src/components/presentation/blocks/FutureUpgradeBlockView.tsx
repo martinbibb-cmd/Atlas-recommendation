@@ -36,11 +36,12 @@ export function FutureUpgradeBlockView({ block }: Props) {
         <h2 className="customer-deck__title">{block.title}</h2>
         <p className="customer-deck__outcome">{block.outcome}</p>
 
+        {/* Future paths as purple chips — visually distinct from included-scope green */}
         {block.paths.length > 0 && (
-          <ul className="customer-deck__paths-list" aria-label="Future upgrade options">
+          <ul className="customer-deck__path-chips" aria-label="Future upgrade options">
             {block.paths.map((path) => (
-              <li key={path} className="customer-deck__path-item">
-                <span className="customer-deck__point-marker" aria-hidden="true">→</span>
+              <li key={path} className="customer-deck__path-chip">
+                <span aria-hidden="true">→</span>
                 {path}
               </li>
             ))}

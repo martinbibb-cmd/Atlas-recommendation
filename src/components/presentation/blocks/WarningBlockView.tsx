@@ -23,10 +23,15 @@ const SEVERITY_ACCENT: Record<WarningBlock['severity'], string> = {
   important: '#ef4444',
 };
 
+/**
+ * Customer-facing severity labels: advisory tone, not alarming.
+ * "Good to know" for low-stakes info, "Something to consider" for advisory,
+ * "Plan ahead" for important items — decision-useful, not panic-inducing.
+ */
 const SEVERITY_LABEL: Record<WarningBlock['severity'], string> = {
-  info:      'Information',
-  advisory:  'Advisory',
-  important: 'Important',
+  info:      'Good to know',
+  advisory:  'Something to consider',
+  important: 'Plan ahead',
 };
 
 interface Props {
@@ -44,7 +49,7 @@ export function WarningBlockView({ block }: Props) {
     >
       <div
         className="customer-deck__visual-ring customer-deck__visual-ring--small"
-        style={{ background: `radial-gradient(circle, ${accentColor}33 0%, transparent 70%)` }}
+        style={{ background: `radial-gradient(circle, ${accentColor}22 0%, transparent 70%)` }}
         aria-label={visual.ariaLabel}
         role="img"
       >
@@ -54,26 +59,28 @@ export function WarningBlockView({ block }: Props) {
       </div>
 
       <div className="customer-deck__block-body">
-        <span
-          className="customer-deck__severity-badge"
-          style={{ background: accentColor }}
-          aria-label={`Severity: ${SEVERITY_LABEL[block.severity]}`}
-        >
-          {SEVERITY_LABEL[block.severity]}
-        </span>
-        <h2 className="customer-deck__title">{block.title}</h2>
-        <p className="customer-deck__outcome">{block.outcome}</p>
+        <div className="customer-deck__advisory-body">
+          <span
+            className="customer-deck__severity-badge"
+            style={{ background: accentColor }}
+            aria-label={`Severity: ${SEVERITY_LABEL[block.severity]}`}
+          >
+            {SEVERITY_LABEL[block.severity]}
+          </span>
+          <h2 className="customer-deck__title" style={{ marginTop: '0.65rem' }}>{block.title}</h2>
+          <p className="customer-deck__outcome">{block.outcome}</p>
 
-        {block.supportingPoints && block.supportingPoints.length > 0 && (
-          <ul className="customer-deck__supporting-points" aria-label="Details">
-            {block.supportingPoints.slice(0, 3).map((point) => (
-              <li key={point} className="customer-deck__supporting-point">
-                <span className="customer-deck__point-marker" aria-hidden="true">→</span>
-                {point}
-              </li>
-            ))}
-          </ul>
-        )}
+          {block.supportingPoints && block.supportingPoints.length > 0 && (
+            <ul className="customer-deck__supporting-points" aria-label="Details">
+              {block.supportingPoints.slice(0, 3).map((point) => (
+                <li key={point} className="customer-deck__supporting-point">
+                  <span className="customer-deck__point-marker" aria-hidden="true">→</span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </article>
   );

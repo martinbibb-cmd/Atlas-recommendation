@@ -33,7 +33,7 @@
 
 .portal-page__panel {
   flex: 1;
-  padding: 1.5rem 1.25rem;
+  padding: 1.75rem 1.5rem;
   animation: portalPanelFadeIn 0.2s ease;
 }
 
@@ -57,12 +57,16 @@
 .portal-page__block-stack {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .portal-page__block-wrapper {
   /* Resets from CustomerDeck's min-height: 100vh */
   min-height: unset;
+  background: #f7fafc;
+  border-radius: 14px;
+  padding: 1.25rem 1rem;
+  border: 1px solid #e2e8f0;
 }
 
 /* Override deck full-page styles when rendered inside the portal panel */
@@ -72,12 +76,25 @@
 }
 
 .portal-page__block-wrapper .customer-deck__visual-ring {
-  width: 120px;
-  height: 120px;
+  width: 100px;
+  height: 100px;
+}
+
+.portal-page__block-wrapper .customer-deck__visual-ring--small {
+  width: 80px;
+  height: 80px;
 }
 
 .portal-page__block-wrapper .customer-deck__visual-icon {
-  font-size: 3rem;
+  font-size: 2.5rem;
+}
+
+.portal-page__block-wrapper .customer-deck__visual-icon--small {
+  font-size: 2rem;
+}
+
+.portal-page__block-wrapper .customer-deck__title {
+  font-size: 1.15rem;
 }
 
 /* ─── Card grid (why + daily-use tabs) ────────────────────────────────────── */
@@ -85,7 +102,7 @@
 .portal-page__card-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 @media (min-width: 560px) {
@@ -107,5 +124,45 @@
 .portal-page__why-stack {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+}
+
+/* Proof cards in the why tab: elevated card feel */
+.portal-page__why-stack .portal-page__card-grid > * {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Why tab intro text ──────────────────────────────────────────────────── */
+
+.portal-page__why-intro {
+  margin: 0 0 0.25rem;
+  font-size: 0.88rem;
+  color: #4a5568;
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.portal-page__daily-use-header {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.25rem;
+  background: linear-gradient(135deg, #ebf4ff 0%, #f0fff4 100%);
+  border-radius: 12px;
+  border: 1px solid #bee3f8;
+}
+
+.portal-page__daily-use-header-title {
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.portal-page__daily-use-header-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #4a5568;
+  line-height: 1.45;
 }

@@ -12,6 +12,9 @@
  *   - Max 3 supporting confidence points visible to the customer.
  *   - Icons are decorative only; meaning is carried by the text.
  *   - No engineer-only information (no confidence levels, pipe specs, etc.).
+ *   - Confidence points that contain uncertainty cues ("assumed", "needs",
+ *     "planned", "tbc") use a soft "≈" marker to visually signal
+ *     they are indicative rather than confirmed — no alarmist language.
  */
 
 import type { SpatialProofBlock } from '../../../contracts/VisualBlock';
@@ -20,6 +23,19 @@ import { objectIcon } from './spatialProofUtils';
 
 interface Props {
   block: SpatialProofBlock;
+}
+
+/** Returns true when a confidence-summary point contains uncertainty language. */
+function isUncertain(text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('assumed') ||
+    lower.includes('needs') ||
+    lower.includes('planned') ||
+    lower.includes('tbc') ||
+    lower.includes('to be confirmed') ||
+    lower.includes('check')
+  );
 }
 
 export function SpatialProofBlockView({ block }: Props) {
@@ -57,16 +73,26 @@ export function SpatialProofBlockView({ block }: Props) {
           </ul>
         )}
 
-        {/* Confidence summary — max 3 items, reassurance-first */}
+        {/* Confidence summary — max 3 items, reassurance-first.
+            Uncertain items use a soft ≈ marker so they read as indicative
+            rather than confirmed, without alarming language. */}
         {block.confidenceSummary.length > 0 && (
           <ul
             className="customer-deck__supporting-points"
             aria-label="Installation status"
           >
             {block.confidenceSummary.slice(0, 3).map((point) => (
-              <li key={point} className="customer-deck__supporting-point">
-                <span className="customer-deck__point-marker" aria-hidden="true">→</span>
-                {point}
+              <li
+                key={point}
+                className="customer-deck__supporting-point"
+                aria-label={isUncertain(point) ? `Indicative: ${point}` : point}
+              >
+                {isUncertain(point) ? (
+                  <span className="customer-deck__point-marker customer-deck__point-marker--soft" aria-hidden="true">≈</span>
+                ) : (
+                  <span className="customer-deck__point-marker" aria-hidden="true">✓</span>
+                )}
+                <span aria-hidden="true">{point}</span>
               </li>
             ))}
           </ul>
