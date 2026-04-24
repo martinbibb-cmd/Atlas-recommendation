@@ -1778,19 +1778,22 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             setPreviewMode(false);
           }}
           onSelectItem={(target) => {
-            // PR31: switch to the floor that contains the target before selecting it,
-            // so routes and objects on floors other than the active one are reachable.
-            if (target.kind === 'floor_route') {
-              const targetFloor = plan.floors.find((f) =>
-                (f.floorRoutes ?? []).some((r) => r.id === target.id),
-              );
-              if (targetFloor) setActiveFloorId(targetFloor.id);
-            } else if (target.kind === 'floor_object') {
-              const targetFloor = plan.floors.find((f) =>
-                (f.floorObjects ?? []).some((o) => o.id === target.id),
-              );
-              if (targetFloor) setActiveFloorId(targetFloor.id);
-            }
+            // PR31: switch to the floor that contains the target before selecting it.
+            const findFloorForTarget = () => {
+              if (target.kind === 'floor_route') {
+                return plan.floors.find((f) =>
+                  (f.floorRoutes ?? []).some((r) => r.id === target.id),
+                );
+              }
+              if (target.kind === 'floor_object') {
+                return plan.floors.find((f) =>
+                  (f.floorObjects ?? []).some((o) => o.id === target.id),
+                );
+              }
+              return undefined;
+            };
+            const targetFloor = findFloorForTarget();
+            if (targetFloor) setActiveFloorId(targetFloor.id);
             setSelection(target);
           }}
         />
