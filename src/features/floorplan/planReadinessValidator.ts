@@ -183,7 +183,7 @@ function checkFlueRecorded(plan: PropertyPlan): PlanChecklistItem {
 
   return {
     key: 'flue_recorded',
-    label: 'Flue route missing',
+    label: 'Flue route recorded',
     status: 'missing',
     detail: 'A boiler is present but no flue marker has been placed.',
   };
@@ -214,7 +214,7 @@ function checkCylinderRecorded(
 
   return {
     key: 'cylinder_recorded',
-    label: 'Cylinder location missing',
+    label: 'Cylinder recorded',
     status: 'missing',
     detail: 'The selected scenario uses stored hot water but no cylinder has been placed.',
   };
@@ -268,7 +268,7 @@ function checkDischargeRoute(plan: PropertyPlan): PlanChecklistItem {
   if (hasBoiler) {
     return {
       key: 'discharge_route',
-      label: 'Discharge route missing',
+      label: 'Discharge route recorded',
       status: 'missing',
       detail: 'A boiler is present but no condensate/discharge route has been recorded.',
     };
@@ -299,7 +299,7 @@ function checkDefaultDimensions(plan: PropertyPlan): PlanChecklistItem {
     key: 'default_dimensions',
     label: 'Default dimensions — verify on site',
     status: 'needs_checking',
-    detail: `Cylinder size uses default — verify: ${labels}.`,
+    detail: `Some objects use default dimensions — verify: ${labels}.`,
   };
 }
 
