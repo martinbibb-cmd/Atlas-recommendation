@@ -23,6 +23,11 @@ import type {
   KnowledgeStatus,
 } from '../types/portalDisplay.types';
 import type { SpatialEvidence3D, ExternalClearanceSceneV1 } from '../../../contracts/spatial3dEvidence';
+import type { PropertyPlan } from '../../../components/floorplan/propertyPlan.types';
+import {
+  validatePlanReadiness,
+  spatialConfidenceIsWeak,
+} from '../../../features/floorplan/planReadinessValidator';
 
 // ─── Field-value helpers ──────────────────────────────────────────────────────
 
@@ -169,10 +174,13 @@ function extractExternalClearanceScenes(p: AtlasPropertyV1 | null): ExternalClea
  *
  * @param payload        Raw payload from the database (unknown shape).
  * @param reportPostcode Postcode from the report row — used as title fallback.
+ * @param propertyPlan   Optional floor plan — when provided, spatialConfidenceWeak
+ *                       is derived from plan-readiness validation (PR20).
  */
 export function buildPortalDisplayModel(
   payload: unknown,
   reportPostcode?: string | null,
+  propertyPlan?: PropertyPlan,
 ): PortalDisplayModel | null {
   // ── Engine run (required) ──────────────────────────────────────────────────
   const engineRun = extractEngineRunFromPayload(payload);
@@ -217,6 +225,11 @@ export function buildPortalDisplayModel(
   const spatialEvidence3d       = extractSpatialEvidence3D(atlasProperty);
   const externalClearanceScenes = extractExternalClearanceScenes(atlasProperty);
 
+  // ── Spatial confidence (PR20) ─────────────────────────────────────────────
+  const spatialConfidenceWeak = propertyPlan
+    ? spatialConfidenceIsWeak(validatePlanReadiness(propertyPlan))
+    : undefined;
+
   return {
     propertyTitle,
     recommendationReady: true,
@@ -228,5 +241,6 @@ export function buildPortalDisplayModel(
     knowledgeSummary,
     ...(spatialEvidence3d       ? { spatialEvidence3d }       : {}),
     ...(externalClearanceScenes ? { externalClearanceScenes } : {}),
+    ...(spatialConfidenceWeak !== undefined ? { spatialConfidenceWeak } : {}),
   };
 }

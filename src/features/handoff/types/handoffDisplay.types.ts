@@ -12,6 +12,8 @@
  * on these types — never on AtlasPropertyV1 directly.
  */
 
+import type { PlanOverallStatus, PlanChecklistItem } from '../../../features/floorplan/planReadinessValidator';
+
 // ─── Knowledge confidence bucket ─────────────────────────────────────────────
 
 /**
@@ -50,6 +52,26 @@ export interface HandoffReadinessSummary {
   missingRecommended: string[];
   /** Human-readable warnings about low-confidence or borderline data. */
   confidenceWarnings: string[];
+}
+
+// ─── Spatial review summary ───────────────────────────────────────────────────
+
+/**
+ * Plan-readiness summary for the engineer handoff.
+ *
+ * Derived from validatePlanReadiness() when a PropertyPlan is available.
+ * When no plan is attached to the handoff the `status` is 'incomplete' and
+ * `items` is empty.
+ */
+export interface SpatialReviewSummary {
+  /** Overall plan readiness status. */
+  status: PlanOverallStatus;
+  /** Short label for the status (e.g. "Ready for install review"). */
+  statusLabel: string;
+  /** Full checklist items from the validator. */
+  items: PlanChecklistItem[];
+  /** True when customer-facing spatial copy should be softened. */
+  confidenceIsWeak: boolean;
 }
 
 // ─── HandoffDisplayModel ─────────────────────────────────────────────────────
@@ -97,4 +119,12 @@ export interface HandoffDisplayModel {
 
   // ── Readiness / warnings ───────────────────────────────────────────────────
   readiness: HandoffReadinessSummary;
+
+  // ── Spatial review ─────────────────────────────────────────────────────────
+  /**
+   * Plan-readiness checklist derived from the attached PropertyPlan (if any).
+   * Always present — when no plan is available, status is 'incomplete' and
+   * items is empty.
+   */
+  spatialReview: SpatialReviewSummary;
 }
