@@ -276,8 +276,8 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           />
         ) : (
           <div className="portal-page__error" role="alert" data-testid="portal-view-error">
-            <p className="portal-page__error-headline">Report not available</p>
-            <p className="portal-page__error-detail">The full report could not be assembled from the available data.</p>
+            <p className="portal-page__error-headline">Portal not available</p>
+            <p className="portal-page__error-detail">Your portal could not be assembled from the available data.</p>
           </div>
         )}
         <footer className="portal-page__footer">

@@ -529,7 +529,7 @@ interface Props {
   onPrint?: () => void;
   /**
    * Optional callback to open the five-tab portal proof surface.
-   * When provided, the final slide shows a "View full report →" tile.
+   * When provided, the final slide shows an "Open your portal →" tile.
    * The caller handles navigation and builds the portal view model.
    */
   onOpenPortal?: () => void;
