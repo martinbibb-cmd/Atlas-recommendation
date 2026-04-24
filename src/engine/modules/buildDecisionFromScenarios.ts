@@ -26,6 +26,10 @@ import { buildLifecycleAssessment } from './buildLifecycleAssessment';
 import type { PerformanceBand } from '../../contracts/ScenarioResult';
 import type { MaintenanceLevel, WaterQualityBand } from '../../contracts/LifecycleAssessment';
 import { buildQuoteScope } from './buildQuoteScope';
+import {
+  buildShowerCompatibilityNotes,
+  type ShowerCompatibilityInput,
+} from './buildShowerCompatibilityNotes';
 
 // ─── Performance band scoring ─────────────────────────────────────────────────
 
@@ -177,6 +181,12 @@ export interface BuildDecisionInput {
   bathroomCount?: number;
   /** Maintenance level. */
   maintenanceLevel?: MaintenanceLevel;
+  /**
+   * Shower compatibility signals captured during the survey.
+   * When present, a structured compatibility note is injected into
+   * compatibilityWarnings so that the customer and engineer both see it.
+   */
+  showerCompatibility?: ShowerCompatibilityInput;
 }
 
 // ─── Main builder ─────────────────────────────────────────────────────────────
@@ -212,12 +222,25 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
   const keyReasons = buildKeyReasons(recommended, lifecycle);
   const supportingFacts = buildSupportingFacts(lifecycle, input);
 
+  // Derive shower compatibility warning (if shower data was captured)
+  const showerNote = input.showerCompatibility
+    ? buildShowerCompatibilityNotes(input.showerCompatibility)
+    : null;
+
+  const physicsWarnings: string[] = recommended.physicsFlags
+    ? buildCompatibilityWarnings(recommended)
+    : [];
+
+  // Inject shower compatibility note without duplicating if the same text is
+  // already present from another source.
+  const compatibilityWarnings = showerNote
+    ? addIfAbsent(physicsWarnings, showerNote.customerSummary)
+    : physicsWarnings;
+
   const quoteScope = buildQuoteScope({
     includedItems:        [],
     requiredWorks:        recommended.requiredWorks,
-    compatibilityWarnings: recommended.physicsFlags
-      ? buildCompatibilityWarnings(recommended)
-      : [],
+    compatibilityWarnings,
     futureUpgradePaths:   recommended.upgradePaths,
   });
 
@@ -229,9 +252,7 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
     avoidedRisks:           recommended.keyConstraints,
     dayToDayOutcomes:       recommended.dayToDayOutcomes,
     requiredWorks:          recommended.requiredWorks,
-    compatibilityWarnings:  recommended.physicsFlags
-      ? buildCompatibilityWarnings(recommended)
-      : [],
+    compatibilityWarnings,
     includedItems:          [],
     quoteScope,
     futureUpgradePaths:     recommended.upgradePaths,
@@ -241,6 +262,16 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Append `value` to `arr` only when no existing entry already contains the
+ * same text (case-insensitive, trimmed).  Prevents duplicate warning strings.
+ */
+function addIfAbsent(arr: string[], value: string): string[] {
+  const normalised = value.trim().toLowerCase();
+  if (arr.some(existing => existing.trim().toLowerCase() === normalised)) return arr;
+  return [...arr, value];
+}
 
 function buildCompatibilityWarnings(scenario: ScenarioResult): string[] {
   const warnings: string[] = [];

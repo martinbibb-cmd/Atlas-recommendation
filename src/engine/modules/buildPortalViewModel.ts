@@ -16,6 +16,7 @@ import type { VisualBlock, SpatialProofBlock } from '../../contracts/VisualBlock
 import type { DailyUseSimulation } from '../../contracts/DailyUseSimulation';
 import { buildDailyUseSimulation } from './buildDailyUseSimulation';
 import { scopeIncluded } from './buildQuoteScope';
+import type { ShowerCompatibilityNote } from './buildShowerCompatibilityNotes';
 
 // ─── Tab identifiers ──────────────────────────────────────────────────────────
 
@@ -121,7 +122,10 @@ const FUTURE_TAB_TYPES = new Set<VisualBlock['type']>(['future_upgrade']);
 
 // ─── Card builders ────────────────────────────────────────────────────────────
 
-function buildWhyCards(decision: AtlasDecisionV1): ProofCard[] {
+function buildWhyCards(
+  decision: AtlasDecisionV1,
+  showerNote?: ShowerCompatibilityNote | null,
+): ProofCard[] {
   const cards: ProofCard[] = [];
 
   // Key reasons — one card per reason, grouped under "Key reason"
@@ -162,13 +166,28 @@ function buildWhyCards(decision: AtlasDecisionV1): ProofCard[] {
     });
   }
 
-  // Compatibility constraints — shown as advisory evidence
-  if (decision.compatibilityWarnings.length > 0) {
+  // Shower compatibility — surface as a work-involved proof card
+  if (showerNote) {
+    cards.push({
+      id: `shower-${showerNote.warningKey}`,
+      title: 'Shower compatibility',
+      value: showerNote.customerSummary,
+    });
+  }
+
+  // Compatibility constraints — shown as advisory evidence (exclude shower text
+  // which is already captured above to avoid duplication)
+  const showerSummary = showerNote?.customerSummary.trim().toLowerCase() ?? null;
+  const otherWarnings = decision.compatibilityWarnings.filter(
+    (w) => w.trim().toLowerCase() !== showerSummary,
+  );
+
+  if (otherWarnings.length > 0) {
     cards.push({
       id: 'compatibility',
       title: 'Installation consideration',
-      value: decision.compatibilityWarnings[0],
-      supportingPoints: top(decision.compatibilityWarnings.slice(1), 2),
+      value: otherWarnings[0],
+      supportingPoints: top(otherWarnings.slice(1), 2),
     });
   }
 
@@ -235,11 +254,15 @@ function buildDailyUseCards(
  *
  * No recommendation logic is re-derived here. All reasoning flows from the
  * supplied inputs.
+ *
+ * @param showerNote — Optional structured shower compatibility note (PR26).
+ *                     When present, a shower proof card is added to whyCards.
  */
 export function buildPortalViewModel(
   decision: AtlasDecisionV1,
   scenarios: ScenarioResult[],
   blocks: VisualBlock[],
+  showerNote?: ShowerCompatibilityNote | null,
 ): PortalViewModel {
   const tabs: PortalViewModel['tabs'] = [
     { id: 'recommended', label: 'Recommended for you' },
@@ -276,7 +299,7 @@ export function buildPortalViewModel(
   return {
     tabs,
     recommendedBlocks,
-    whyCards:            buildWhyCards(decision),
+    whyCards:            buildWhyCards(decision, showerNote),
     comparisonCards:     buildComparisonCards(decision, scenarios),
     dailyUseCards:       buildDailyUseCards(decision, scenarios),
     dailyUseSimulation:  buildDailyUseSimulation(decision, scenarios),

@@ -41,6 +41,7 @@ import type {
 } from '../../contracts/VisualBlock';
 import { scopeIncluded, scopeFuturePaths, synthesizeLegacyScope } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
+import type { ShowerCompatibilityNote } from './buildShowerCompatibilityNotes';
 
 // ─── Visual key constants ─────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ const VK = {
   dailyUse: 'daily_use_showers',
   includedScope: 'included_scope_system_boiler_mixergy',
   lifecycleWarning: 'boiler_lifecycle_warning',
+  showerWarning: 'shower_compatibility_warning',
   futureUpgrade: 'future_upgrade_solar',
   portalCta: 'portal_demo_cta',
   spatialProof: 'spatial_proof_where_work_happens',
@@ -228,8 +230,16 @@ function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock 
 /**
  * Build warning blocks from compatibility warnings and lifecycle condition.
  * Returns an empty array if there is nothing to surface.
+ *
+ * When a structured showerNote is supplied it is emitted as a dedicated block
+ * with the correct severity, before the generic compatibility-warnings block.
+ * The shower customer summary is skipped from the generic block to avoid
+ * duplicating the same text twice.
  */
-function buildWarningBlocks(decision: AtlasDecisionV1): WarningBlock[] {
+function buildWarningBlocks(
+  decision: AtlasDecisionV1,
+  showerNote?: ShowerCompatibilityNote | null,
+): WarningBlock[] {
   const blocks: WarningBlock[] = [];
 
   // Lifecycle warning — emitted when condition is worn or at_risk
@@ -246,15 +256,33 @@ function buildWarningBlocks(decision: AtlasDecisionV1): WarningBlock[] {
     });
   }
 
-  // Compatibility warnings from the recommendation
-  if (decision.compatibilityWarnings.length > 0) {
+  // Shower compatibility warning — dedicated block with physics-correct severity
+  if (showerNote) {
+    blocks.push({
+      id: `shower-warning-${showerNote.warningKey}`,
+      type: 'warning',
+      severity: showerNote.severity,
+      title: 'Shower compatibility',
+      outcome: showerNote.customerSummary,
+      visualKey: VK.showerWarning,
+    });
+  }
+
+  // Generic compatibility warnings from the recommendation — exclude any text
+  // already covered by the shower block to avoid repetition.
+  const showerSummary = showerNote?.customerSummary.trim().toLowerCase() ?? null;
+  const otherWarnings = decision.compatibilityWarnings.filter(
+    (w) => w.trim().toLowerCase() !== showerSummary,
+  );
+
+  if (otherWarnings.length > 0) {
     blocks.push({
       id: 'compatibility-warning',
       type: 'warning',
       severity: 'advisory',
       title: 'Installation considerations',
-      outcome: top(decision.compatibilityWarnings, 1)[0],
-      supportingPoints: top(decision.compatibilityWarnings.slice(1), 2),
+      outcome: top(otherWarnings, 1)[0],
+      supportingPoints: top(otherWarnings.slice(1), 2),
       visualKey: VK.lifecycleWarning,
     });
   }
@@ -424,14 +452,18 @@ export function buildSpatialProofBlock(layout: EngineerLayout): SpatialProofBloc
  *
  * The page order is fixed for PR2. Do not make it dynamic until PR3+.
  *
- * @param layout — Optional EngineerLayout. When present, a SpatialProofBlock is
- *                 inserted before the Portal CTA to show the customer where the
- *                 work will happen.
+ * @param layout      — Optional EngineerLayout. When present, a SpatialProofBlock is
+ *                      inserted before the Portal CTA to show the customer where the
+ *                      work will happen.
+ * @param showerNote  — Optional structured shower compatibility note (PR26). When
+ *                      present, a dedicated WarningBlock is emitted with the correct
+ *                      severity after lifecycle warnings.
  */
 export function buildVisualBlocks(
   decision: AtlasDecisionV1,
   scenarios: ScenarioResult[],
   layout?: EngineerLayout,
+  showerNote?: ShowerCompatibilityNote | null,
 ): VisualBlock[] {
   const blocks: VisualBlock[] = [];
 
@@ -457,8 +489,8 @@ export function buildVisualBlocks(
   const includedScopeBlock = buildIncludedScopeBlock(decision);
   if (includedScopeBlock) blocks.push(includedScopeBlock);
 
-  // 7. Warnings (lifecycle + compatibility) — lifecycle first
-  for (const w of buildWarningBlocks(decision)) {
+  // 7. Warnings (lifecycle + shower + compatibility) — lifecycle first
+  for (const w of buildWarningBlocks(decision, showerNote)) {
     blocks.push(w);
   }
 

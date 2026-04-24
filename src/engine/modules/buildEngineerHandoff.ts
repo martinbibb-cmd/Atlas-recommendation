@@ -20,6 +20,7 @@ import type { PropertyPlan } from '../../components/floorplan/propertyPlan.types
 import { buildEngineerLayout, buildLayoutSummaryLines } from './buildEngineerLayout';
 import { scopeIncluded, synthesizeLegacyScope } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
+import type { ShowerCompatibilityNote } from './buildShowerCompatibilityNotes';
 
 // ─── Included scope ───────────────────────────────────────────────────────────
 
@@ -145,13 +146,15 @@ function buildMeasuredFacts(
 // ─── Install notes ────────────────────────────────────────────────────────────
 
 /**
- * Derives install-time notes from physics flags, DHW architecture, and lifecycle
- * condition. These are operational reminders, not recommendation rationale.
+ * Derives install-time notes from physics flags, DHW architecture, lifecycle
+ * condition, and shower compatibility.  These are operational reminders, not
+ * recommendation rationale.
  */
 function buildInstallNotes(
   decision: AtlasDecisionV1,
   recommended: ScenarioResult,
   engineInput?: EngineInputV2_3Contract,
+  showerNote?: ShowerCompatibilityNote | null,
 ): string[] {
   const notes: string[] = [];
   const flags = recommended.physicsFlags;
@@ -183,6 +186,11 @@ function buildInstallNotes(
     notes.push('Existing system at or beyond typical service life — inspect primary circuit on arrival');
   }
 
+  // Shower compatibility — actionable install note derived from surveyed shower type
+  if (showerNote) {
+    notes.push(showerNote.engineerNote);
+  }
+
   return notes;
 }
 
@@ -204,11 +212,13 @@ function buildEvidence(): EngineerHandoffEvidence[] {
  * Projects an AtlasDecisionV1 and its source ScenarioResult[] into an
  * EngineerHandoff view model.
  *
- * @param decision     The canonical AtlasDecisionV1 for this job.
- * @param scenarios    All evaluated ScenarioResult entries for this job.
- * @param engineInput  Optional engine input — used to surface measured facts
- *                     (pipe sizes, pressures, outputs) not already in decision.supportingFacts.
- * @param propertyPlan Optional floor-plan model — used to build the spatial layout section.
+ * @param decision      The canonical AtlasDecisionV1 for this job.
+ * @param scenarios     All evaluated ScenarioResult entries for this job.
+ * @param engineInput   Optional engine input — used to surface measured facts
+ *                      (pipe sizes, pressures, outputs) not already in decision.supportingFacts.
+ * @param propertyPlan  Optional floor-plan model — used to build the spatial layout section.
+ * @param showerNote    Optional structured shower compatibility note (PR26). When
+ *                      present, the engineer-facing install note is appended to installNotes.
  *
  * @throws {Error} when the recommended scenario cannot be located in scenarios[].
  */
@@ -217,6 +227,7 @@ export function buildEngineerHandoff(
   scenarios: ScenarioResult[],
   engineInput?: EngineInputV2_3Contract,
   propertyPlan?: PropertyPlan,
+  showerNote?: ShowerCompatibilityNote | null,
 ): EngineerHandoff {
   const recommended = scenarios.find(s => s.scenarioId === decision.recommendedScenarioId);
   if (!recommended) {
@@ -236,7 +247,7 @@ export function buildEngineerHandoff(
     keyReasons:            decision.keyReasons,
     existingSystem:        buildExistingSystem(decision, engineInput),
     measuredFacts:         buildMeasuredFacts(decision, engineInput),
-    installNotes:          buildInstallNotes(decision, recommended, engineInput),
+    installNotes:          buildInstallNotes(decision, recommended, engineInput, showerNote),
     evidence:              buildEvidence(),
     futurePath:            decision.futureUpgradePaths,
     ...(layout        ? { layout }        : {}),
