@@ -5,7 +5,7 @@
  * These have no React dependencies and are safe to unit-test in isolation.
  */
 
-import type { Point, Room, Wall, Opening, PlacementNode, FloorObject } from '../../components/floorplan/propertyPlan.types';
+import type { Point, Room, Wall, Opening, PlacementNode, FloorObject, FloorRoute } from '../../components/floorplan/propertyPlan.types';
 import { hitTestRoom } from './geometry';
 import { findWallHit } from '../../components/floorplan/floorplanDerivations';
 import { GRID } from './constants';
@@ -121,4 +121,49 @@ export function selectFloorObject(
   }
 
   return best ? best.obj : null;
+}
+
+// ─── FloorRoute selection ─────────────────────────────────────────────────────
+
+/** Maximum perpendicular distance (px) from a polyline segment for a hit. */
+const ROUTE_HIT_DIST_PX = 10;
+
+/**
+ * Return the minimum perpendicular distance from `point` to a line segment
+ * defined by `a` → `b`.
+ */
+function pointToSegmentDist(point: Point, a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(point.x - a.x, point.y - a.y);
+  // Project point onto segment, clamp to [0, 1]
+  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lenSq));
+  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
+}
+
+/**
+ * Find the floor route whose polyline passes nearest to the pointer.
+ * Returns the matching route or null when nothing is within the hit radius.
+ *
+ * Checks each segment of each route's polyline.  The route with the closest
+ * segment distance (within ROUTE_HIT_DIST_PX) is returned.
+ */
+export function selectFloorRoute(
+  point: Point,
+  routes: FloorRoute[],
+): FloorRoute | null {
+  let best: { route: FloorRoute; dist: number } | null = null;
+
+  for (const route of routes) {
+    const pts = route.points;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const dist = pointToSegmentDist(point, pts[i], pts[i + 1]);
+      if (dist <= ROUTE_HIT_DIST_PX && (!best || dist < best.dist)) {
+        best = { route, dist };
+      }
+    }
+  }
+
+  return best ? best.route : null;
 }

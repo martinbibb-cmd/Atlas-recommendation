@@ -68,7 +68,7 @@ import { addObjectToPlan, updateFloorObject, removeFloorObject } from '../../fea
 // PR19 object templates — default labels and dimensions
 import { getDefaultLabel } from '../../features/floorplan/objectTemplates';
 // PR16 selection helpers — priority hit-testing
-import { selectWall, selectOpening } from '../../features/floorplan/selection';
+import { selectWall, selectOpening, selectFloorRoute } from '../../features/floorplan/selection';
 // PR18 snap / alignment helpers
 import {
   computeObjectSnap,
@@ -921,6 +921,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         setRoomDraftSize(null);
         setSnapPreview(null);   // PR18
         setAlignGuides([]);     // PR18
+        setSelection(null);     // PR31: Escape also clears active selection
         return;
       }
       if (!isCtrl) return;
@@ -1777,6 +1778,19 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             setPreviewMode(false);
           }}
           onSelectItem={(target) => {
+            // PR31: switch to the floor that contains the target before selecting it,
+            // so routes and objects on floors other than the active one are reachable.
+            if (target.kind === 'floor_route') {
+              const targetFloor = plan.floors.find((f) =>
+                (f.floorRoutes ?? []).some((r) => r.id === target.id),
+              );
+              if (targetFloor) setActiveFloorId(targetFloor.id);
+            } else if (target.kind === 'floor_object') {
+              const targetFloor = plan.floors.find((f) =>
+                (f.floorObjects ?? []).some((o) => o.id === target.id),
+              );
+              if (targetFloor) setActiveFloorId(targetFloor.id);
+            }
             setSelection(target);
           }}
         />
@@ -2690,7 +2704,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               )}
 
               {/* Ghost node being placed */}
-              {ghostPos && pendingKind && (
+              {tool === 'placeNode' && ghostPos && pendingKind && (
                 <g transform={`translate(${ghostPos.x - 40}, ${ghostPos.y - 18})`} opacity="0.55">
                   <rect width={80} height={36} rx={8} fill="#f0f9ff" stroke="#2563eb" strokeWidth={2} />
                   <text x={40} y={22} textAnchor="middle" fontSize={10} fill="#1e40af">
@@ -2700,7 +2714,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               )}
 
               {/* Ghost FloorObject being placed (PR9 / PR16: show emoji + name; PR18: snap visual cue) */}
-              {ghostPos && pendingFloorObjectType && (() => {
+              {tool === 'placeNode' && ghostPos && pendingFloorObjectType && (() => {
                 const isSnapped = snapPreview !== null && snapPreview.kind !== 'free';
                 return (
                   <g transform={`translate(${ghostPos.x - GHOST_OBJECT_W / 2}, ${ghostPos.y - GHOST_OBJECT_H / 2})`} opacity={isSnapped ? 0.85 : 0.65}>
@@ -2747,6 +2761,17 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   onPointerDown={(e) => {
                     if (tool !== 'select') return;
                     const pos = boardPos(e as unknown as React.PointerEvent<HTMLDivElement>);
+
+                    // PR31: floor routes are SVG polylines that cannot stop propagation
+                    // themselves — check them first (they render above rooms visually).
+                    if (visibleLayers.routes) {
+                      const routeHit = selectFloorRoute(pos, activeFloor.floorRoutes ?? []);
+                      if (routeHit) {
+                        e.stopPropagation();
+                        setSelection({ kind: 'floor_route', id: routeHit.id });
+                        return;
+                      }
+                    }
 
                     // PR16: enforce selection priority — wall > opening > room.
                     // Floor objects and routes handle their own stopPropagation above.
@@ -2933,7 +2958,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
             {/* ── Floating route-drawing overlay — visible while drawing a route ── */}
             {tool === 'addFloorRoute' && inProgressRoutePoints.length > 0 && (
-              <div className="fpb__route-overlay" role="toolbar" aria-label="Route drawing controls">
+              <div
+                className="fpb__route-overlay"
+                role="toolbar"
+                aria-label="Route drawing controls"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
                 <span className="fpb__route-overlay-status">
                   <span
                     aria-hidden="true"
@@ -2971,14 +3001,14 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
             {/* ── Bottom action bar for selected items ── */}
             {selectedRoom && (
-              <div className="fpb__bottom-actions">
+              <div className="fpb__bottom-actions" onPointerDown={(e) => e.stopPropagation()}>
                 <button className="fpb__action-pill" onClick={() => duplicateRoom(selectedRoom)}>Duplicate</button>
                 <button className="fpb__action-pill" onClick={() => setEditingDimension({ type: 'room-width', currentValue: Number(toMeters(selectedRoom.width)), id: selectedRoom.id })}>Edit Dimensions</button>
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteRoom(selectedRoom.id)}>Delete</button>
               </div>
             )}
             {selectedWall && (
-              <div className="fpb__bottom-actions">
+              <div className="fpb__bottom-actions" onPointerDown={(e) => e.stopPropagation()}>
                 <button className="fpb__action-pill" onClick={() => {
                   const wallLen = Math.sqrt((selectedWall.x2 - selectedWall.x1) ** 2 + (selectedWall.y2 - selectedWall.y1) ** 2);
                   setEditingDimension({ type: 'wall-length', currentValue: Number(toMeters(wallLen)), id: selectedWall.id });
@@ -2990,25 +3020,25 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               </div>
             )}
             {selectedNode && (
-              <div className="fpb__bottom-actions">
+              <div className="fpb__bottom-actions" onPointerDown={(e) => e.stopPropagation()}>
                 <button className="fpb__action-pill" onClick={() => duplicateNode(selectedNode)}>Duplicate</button>
                 <button className="fpb__action-pill" onClick={() => rotateNode(selectedNode)}>Rotate</button>
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteNode(selectedNode.id)}>Delete</button>
               </div>
             )}
             {selectedOpening && (
-              <div className="fpb__bottom-actions">
+              <div className="fpb__bottom-actions" onPointerDown={(e) => e.stopPropagation()}>
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteOpening(selectedOpening.id)}>Delete</button>
               </div>
             )}
             {selectedFloorObject && (
-              <div className="fpb__bottom-actions">
+              <div className="fpb__bottom-actions" onPointerDown={(e) => e.stopPropagation()}>
                 <button className="fpb__action-pill" onClick={() => duplicateFloorObject(selectedFloorObject)}>⧉ Duplicate</button>
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteFloorObject(selectedFloorObject.id)}>Delete</button>
               </div>
             )}
             {selectedFloorRoute && (
-              <div className="fpb__bottom-actions">
+              <div className="fpb__bottom-actions" onPointerDown={(e) => e.stopPropagation()}>
                 <button className="fpb__action-pill fpb__action-pill--danger" onClick={() => deleteFloorRoute(selectedFloorRoute.id)}>Delete Route</button>
               </div>
             )}
@@ -3019,6 +3049,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               <button
                 className="fpb__fab"
                 onClick={() => commitFloorRoute(inProgressRoutePoints)}
+                onPointerDown={(e) => e.stopPropagation()}
                 title="Finish and save route"
                 aria-label="Finish route"
               >
@@ -3030,6 +3061,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               <button
                 className="fpb__fab fpb__fab--cancel"
                 onClick={() => setInProgressRoutePoints([])}
+                onPointerDown={(e) => e.stopPropagation()}
                 title="Cancel current route"
                 aria-label="Cancel route"
               >
@@ -3043,8 +3075,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 <div
                   className="fpb__bottom-sheet-backdrop"
                   onClick={() => setShowGuidedChecklist(false)}
+                  onPointerDown={(e) => e.stopPropagation()}
                 />
-                <div className="fpb__bottom-sheet fpb__bottom-sheet--guided">
+                <div
+                  className="fpb__bottom-sheet fpb__bottom-sheet--guided"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
                   <GuidedSurveyChecklist
                     steps={guidedSteps}
                     onAction={(action) => {
@@ -3062,8 +3099,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {/* ── Add Room bottom sheet ── */}
             {showAddRoomSheet && (
               <>
-                <div className="fpb__bottom-sheet-backdrop" onClick={() => { setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }} />
-                <div className="fpb__bottom-sheet">
+                <div
+                  className="fpb__bottom-sheet-backdrop"
+                  onClick={() => { setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                />
+                <div
+                  className="fpb__bottom-sheet"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
                   <div className="fpb__bottom-sheet-header">
                     <span>Add Room</span>
                     <button className="fpb__delete-btn" onClick={() => { setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>✕</button>
@@ -3076,13 +3121,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       <button className="fpb__sheet-option" onClick={() => { setSquareRoomLocked(true); setManualRoomLengthM(manualRoomWidthM); setAddRoomSheetMode('form'); }}>
                         <span>⬜</span> Add square room
                       </button>
-                      <button className="fpb__sheet-option" onClick={() => { changeTool('addRoom'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                      <button className="fpb__sheet-option" onClick={() => { activateTool('addRoom'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
                         <span>✏️</span> Draw room
                       </button>
-                      <button className="fpb__sheet-option" onClick={() => { changeTool('drawWall'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                      <button className="fpb__sheet-option" onClick={() => { activateTool('drawWall'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
                         <span>✂️</span> Split room
                       </button>
-                      <button className="fpb__sheet-option" onClick={() => { changeTool('select'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
+                      <button className="fpb__sheet-option" onClick={() => { activateTool('select'); setShowAddRoomSheet(false); setAddRoomSheetMode('menu'); }}>
                         <span>🔲</span> Fill gap (select + resize)
                       </button>
                       {/* LiDAR scan — native iOS bridge (only shown when the webkit handler is present) */}
@@ -3147,8 +3192,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {/* ── Object browser bottom sheet (magicplan-style) ── */}
             {showObjectBrowser && (
               <>
-                <div className="fpb__bottom-sheet-backdrop" onClick={() => setShowObjectBrowser(false)} />
-                <div className="fpb__bottom-sheet fpb__bottom-sheet--browser">
+                <div
+                  className="fpb__bottom-sheet-backdrop"
+                  onClick={() => setShowObjectBrowser(false)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                />
+                <div
+                  className="fpb__bottom-sheet fpb__bottom-sheet--browser"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
                   <div className="fpb__bottom-sheet-header">
                     <span className="fpb__browser-title">All Objects</span>
                     <button className="fpb__delete-btn" onClick={() => setShowObjectBrowser(false)}>✕</button>
@@ -3185,7 +3238,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                                 key={item.kind}
                                 className="fpb__browser-item"
                                 onClick={() => {
-                                  changeTool('placeNode');
+                                  // PR31: use activateTool so pendingFloorObjectType / ghostPos
+                                  // from a prior object-library session are cleared first.
+                                  activateTool('placeNode');
                                   setPendingKind(item.kind);
                                   setShowObjectBrowser(false);
                                 }}
@@ -3206,7 +3261,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {/* ── Numeric dimension editor modal ── */}
             {editingDimension && (
               <>
-                <div className="fpb__bottom-sheet-backdrop" onClick={() => setEditingDimension(null)} />
+                <div
+                  className="fpb__bottom-sheet-backdrop"
+                  onClick={() => setEditingDimension(null)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                />
                 <div className="fpb__dimension-editor">
                   <div className="fpb__dimension-editor-title">
                     {editingDimension.type === 'room-width' ? 'Width (m)' : editingDimension.type === 'room-height' ? 'Height (m)' : 'Length (m)'}
@@ -3280,8 +3339,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   }}
                   onClose={() => {
                     setShowWallDetailSheet(false);
-                    // Return to select mode so the wall stays selected and mode is predictable.
-                    changeTool('select');
+                    // PR31: use activateTool so any stale pending state is cleared,
+                    // then restore selection to the wall that was being detailed.
+                    activateTool('select');
                     if (wallDetailWallId) setSelection({ kind: 'wall', id: wallDetailWallId });
                   }}
                 />
@@ -3291,8 +3351,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {/* ── Scan package import flow ── */}
             {showScanImportFlow && (
               <>
-                <div className="fpb__bottom-sheet-backdrop" onClick={() => setShowScanImportFlow(false)} />
-                <div className="fpb__bottom-sheet fpb__bottom-sheet--scan">
+                <div
+                  className="fpb__bottom-sheet-backdrop"
+                  onClick={() => setShowScanImportFlow(false)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                />
+                <div
+                  className="fpb__bottom-sheet fpb__bottom-sheet--scan"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
                   <div className="fpb__bottom-sheet-header">
                     <span>📂 LiDAR Scan Package Import</span>
                     <button className="fpb__delete-btn" onClick={() => setShowScanImportFlow(false)}>✕</button>
@@ -3310,13 +3378,22 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {/* ── PR9: Object library bottom sheet ── */}
             {showObjectLibrary && (
               <>
-                <div className="fpb__bottom-sheet-backdrop" onClick={() => setShowObjectLibrary(false)} />
-                <div className="fpb__bottom-sheet">
+                <div
+                  className="fpb__bottom-sheet-backdrop"
+                  onClick={() => setShowObjectLibrary(false)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                />
+                <div
+                  className="fpb__bottom-sheet"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
                   <ObjectLibraryPanel
                     onSelect={(type) => {
                       setPendingFloorObjectType(type);
                       setPendingKind(null);
-                      changeTool('placeNode');
+                      // PR31: use activateTool so any stale pendingKind / ghostPos is cleared.
+                      activateTool('placeNode');
                       setObjectLibraryHighlight(null);
                       setShowObjectLibrary(false);
                     }}
