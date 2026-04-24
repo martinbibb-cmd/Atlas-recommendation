@@ -57,8 +57,8 @@ import type { VisualBlock } from '../contracts/VisualBlock';
 // CANONICAL QA FIXTURE
 //
 // One set of inputs drives every flow in this test file. The property has:
-//   - 3 occupants, 2 bathrooms → combi is borderline (occupancyCount=3 → warn;
-//     bathroomCount>=2 → fail) so the engine should recommend stored DHW
+//   - 4 occupants, 2 bathrooms → bathroomCount>=2 triggers the hard
+//     simultaneous-demand gate, so the engine should recommend stored DHW
 //   - Electric shower → showerCompatibilityNote with severity 'info'
 //   - Full spatial plan with rooms, boiler, flue, cylinder, discharge route
 // ─────────────────────────────────────────────────────────────────────────────
@@ -414,8 +414,7 @@ describe('QA Flow 3 — Decision to customer deck', () => {
   it('spatial_proof block contains room names from the plan', () => {
     const spatial = QA_BLOCKS.find((b) => b.type === 'spatial_proof');
     if (spatial?.type !== 'spatial_proof') {
-      expect.fail('No spatial_proof block found');
-      return;
+      throw new Error('No spatial_proof block found');
     }
     expect(spatial.rooms.some((r) => /kitchen/i.test(r))).toBe(true);
   });
@@ -423,8 +422,7 @@ describe('QA Flow 3 — Decision to customer deck', () => {
   it('spatial_proof block contains the discharge route in routeSummary', () => {
     const spatial = QA_BLOCKS.find((b) => b.type === 'spatial_proof');
     if (spatial?.type !== 'spatial_proof') {
-      expect.fail('No spatial_proof block found');
-      return;
+      throw new Error('No spatial_proof block found');
     }
     const hasDischarge = spatial.routeSummary.some((s) => /discharge/i.test(s));
     expect(hasDischarge).toBe(true);
@@ -433,8 +431,7 @@ describe('QA Flow 3 — Decision to customer deck', () => {
   it('assumed discharge route is labelled "needs verification" in spatial_proof', () => {
     const spatial = QA_BLOCKS.find((b) => b.type === 'spatial_proof');
     if (spatial?.type !== 'spatial_proof') {
-      expect.fail('No spatial_proof block found');
-      return;
+      throw new Error('No spatial_proof block found');
     }
     const dischargeEntry = spatial.routeSummary.find((s) => /discharge/i.test(s));
     expect(dischargeEntry).toContain('needs verification');
@@ -461,8 +458,7 @@ describe('QA Flow 4 — Customer advice pack contract', () => {
   it('included_scope block items have id, label, category, and status fields', () => {
     const scopeBlock = QA_BLOCKS.find((b) => b.type === 'included_scope');
     if (scopeBlock?.type !== 'included_scope') {
-      expect.fail('No included_scope block');
-      return;
+      throw new Error('No included_scope block');
     }
     for (const item of scopeBlock.items) {
       expect(item.id).toBeTruthy();
