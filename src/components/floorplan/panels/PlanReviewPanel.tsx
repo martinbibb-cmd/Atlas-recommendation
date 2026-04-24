@@ -83,11 +83,12 @@ function ChecklistItemRow({ item }: { item: PlanChecklistItem }) {
       display: 'flex',
       alignItems: 'flex-start',
       gap: 8,
-      padding: '7px 10px',
+      padding: '9px 10px',
       borderRadius: 6,
       background: cfg.bg,
       border: `1px solid ${cfg.border}`,
       marginBottom: 5,
+      minHeight: 44,
     }}>
       <span style={{
         flexShrink: 0,
@@ -137,11 +138,14 @@ export default function PlanReviewPanel({ result, heading = 'Plan review' }: Pla
         {heading}
       </h3>
 
-      <OverallBanner result={result} />
+      {/* Status banner is sticky so it stays visible when scrolling the checklist */}
+      <div className="fpb__review-banner">
+        <OverallBanner result={result} />
+      </div>
 
       {missing.length > 0 && (
         <div style={{ marginBottom: 8 }}>
-          <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 600, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          <p className="fpb__review-group-heading" style={{ color: '#b91c1c' }}>
             Missing
           </p>
           {missing.map((item) => <ChecklistItemRow key={item.key} item={item} />)}
@@ -150,7 +154,7 @@ export default function PlanReviewPanel({ result, heading = 'Plan review' }: Pla
 
       {needsChecking.length > 0 && (
         <div style={{ marginBottom: 8 }}>
-          <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 600, color: '#92400e', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          <p className="fpb__review-group-heading" style={{ color: '#92400e' }}>
             Needs checking
           </p>
           {needsChecking.map((item) => <ChecklistItemRow key={item.key} item={item} />)}
@@ -159,7 +163,7 @@ export default function PlanReviewPanel({ result, heading = 'Plan review' }: Pla
 
       {assumed.length > 0 && (
         <div style={{ marginBottom: 8 }}>
-          <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          <p className="fpb__review-group-heading" style={{ color: '#475569' }}>
             Assumed
           </p>
           {assumed.map((item) => <ChecklistItemRow key={item.key} item={item} />)}
@@ -168,7 +172,7 @@ export default function PlanReviewPanel({ result, heading = 'Plan review' }: Pla
 
       {complete.length > 0 && (
         <div>
-          <p style={{ margin: '0 0 5px', fontSize: 11, fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+          <p className="fpb__review-group-heading" style={{ color: '#15803d' }}>
             Complete
           </p>
           {complete.map((item) => <ChecklistItemRow key={item.key} item={item} />)}

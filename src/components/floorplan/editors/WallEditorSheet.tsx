@@ -76,6 +76,7 @@ function OpeningRow({ opening, wallLenM, onUpdate, onDelete }: OpeningRowProps) 
         <span style={{ fontSize: 11, color: '#64748b' }}>offset</span>
         <input
           type="number"
+          inputMode="decimal"
           min={0}
           step={0.05}
           value={draftOffset}
@@ -93,6 +94,7 @@ function OpeningRow({ opening, wallLenM, onUpdate, onDelete }: OpeningRowProps) 
         <span style={{ fontSize: 11, color: '#64748b' }}>width</span>
         <input
           type="number"
+          inputMode="decimal"
           min={0.1}
           step={0.05}
           value={draftWidth}

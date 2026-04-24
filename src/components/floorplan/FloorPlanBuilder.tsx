@@ -493,6 +493,15 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  // ── PR21: Mobile layout detection & inspector sheet state ───────────────
+  const [isMobileLayout, setIsMobileLayout] = useState<boolean>(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches,
+  );
+  /** Bottom-sheet state for the inspector panel on mobile. */
+  const [inspectorSheetState, setInspectorSheetState] = useState<'collapsed' | 'half' | 'full'>('half');
+  /** Whether the mobile sidebar is visible (toggled by the tools button). */
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+
   // ── Bottom sheet & editor state ─────────────────────────────────────────
   const [showAddRoomSheet, setShowAddRoomSheet] = useState(false);
   const [addRoomSheetMode, setAddRoomSheetMode] = useState<'menu' | 'form'>('menu');
@@ -611,6 +620,19 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [floorPlanAutosave.hasPendingSave, floorPlanAutosave.status]);
+
+  // PR21: Track mobile breakpoint changes.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobileLayout(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  // PR21: When a selection opens on mobile, open the inspector sheet to half.
+  useEffect(() => {
+    if (isMobileLayout && selection) setInspectorSheetState('half');
+  }, [selection, isMobileLayout]);
 
 
 
@@ -1787,12 +1809,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       {/* ── Workspace ── */}
       <div className="fpb__workspace">
         {/* ── Left sidebar ── */}
-        <aside className="fpb__sidebar">
+        <aside className={`fpb__sidebar${isMobileLayout && showMobileSidebar ? ' fpb__sidebar--mobile-visible' : ''}`}>
           <section className="fpb__section">
             <h3 className="fpb__section-title">Manual room layout</h3>
             <label className="fpb__field">
               <span>Default room height (m)</span>
-              <input type="number" min={2} max={4} step={0.1} value={defaultRoomHeightM} onChange={(e) => setDefaultRoomHeightM(Number(e.target.value))} />
+              <input type="number" inputMode="decimal" min={2} max={4} step={0.1} value={defaultRoomHeightM} onChange={(e) => setDefaultRoomHeightM(Number(e.target.value))} />
             </label>
             <label className="fpb__field">
               <span>Room name</span>
@@ -1800,11 +1822,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             </label>
             <label className="fpb__field">
               <span>Width (m)</span>
-              <input type="number" min={1.5} step={0.1} value={manualRoomWidthM} onChange={(e) => setManualRoomWidthM(Number(e.target.value))} />
+              <input type="number" inputMode="decimal" min={1.5} step={0.1} value={manualRoomWidthM} onChange={(e) => setManualRoomWidthM(Number(e.target.value))} />
             </label>
             <label className="fpb__field">
               <span>Length (m)</span>
-              <input type="number" min={1.5} step={0.1} value={manualRoomLengthM} onChange={(e) => setManualRoomLengthM(Number(e.target.value))} />
+              <input type="number" inputMode="decimal" min={1.5} step={0.1} value={manualRoomLengthM} onChange={(e) => setManualRoomLengthM(Number(e.target.value))} />
             </label>
             <label className="fpb__field">
               <span>Level</span>
@@ -1973,6 +1995,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         <div className="fpb__canvas-wrap">
           {/* Tool hint bar */}
           <div className="fpb__hint-bar">
+            {/* PR21: Mobile tools toggle */}
+            <button
+              className={`fpb__mobile-tools-btn${showMobileSidebar ? ' active' : ''}`}
+              onClick={() => setShowMobileSidebar((v) => !v)}
+              title="Toggle tools panel"
+              aria-expanded={showMobileSidebar}
+              aria-label="Toggle tools panel"
+            >
+              ☰
+            </button>
             {/* Active mode chip */}
             {(() => {
               const def = TOOL_DEFS.find((t) => t.id === tool);
@@ -2793,6 +2825,30 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               </div>
             )}
 
+            {/* ── PR21: Floating action buttons (mobile primary actions) ── */}
+            {/* Finish route — visible on mobile when a route is in progress with ≥2 points */}
+            {tool === 'addFloorRoute' && inProgressRoutePoints.length >= 2 && (
+              <button
+                className="fpb__fab"
+                onClick={() => commitFloorRoute(inProgressRoutePoints)}
+                title="Finish and save route"
+                aria-label="Finish route"
+              >
+                ✓ Finish
+              </button>
+            )}
+            {/* Cancel route — visible on mobile when any route points have been placed */}
+            {tool === 'addFloorRoute' && inProgressRoutePoints.length > 0 && (
+              <button
+                className="fpb__fab fpb__fab--cancel"
+                onClick={() => setInProgressRoutePoints([])}
+                title="Cancel current route"
+                aria-label="Cancel route"
+              >
+                ✕ Cancel
+              </button>
+            )}
+
             {/* ── Add Room bottom sheet ── */}
             {showAddRoomSheet && (
               <>
@@ -2851,7 +2907,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       </label>
                       <label className="fpb__field">
                         <span>Width (m)</span>
-                        <input type="number" min={1.5} step={0.1} value={manualRoomWidthM} onChange={(e) => {
+                        <input type="number" inputMode="decimal" min={1.5} step={0.1} value={manualRoomWidthM} onChange={(e) => {
                           const v = Number(e.target.value);
                           setManualRoomWidthM(v);
                           if (squareRoomLocked) setManualRoomLengthM(v);
@@ -2859,7 +2915,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       </label>
                       <label className="fpb__field">
                         <span>Length (m)</span>
-                        <input type="number" min={1.5} step={0.1} value={manualRoomLengthM} onChange={(e) => {
+                        <input type="number" inputMode="decimal" min={1.5} step={0.1} value={manualRoomLengthM} onChange={(e) => {
                           const v = Number(e.target.value);
                           setManualRoomLengthM(v);
                           if (squareRoomLocked) setManualRoomWidthM(v);
@@ -2970,6 +3026,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   })()}
                   <input
                     type="number"
+                    inputMode="decimal"
                     className="fpb__dimension-editor-input"
                     min={0.5}
                     step={0.1}
@@ -3060,9 +3117,43 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
           </div>{/* end fpb__board */}
         </div>{/* end fpb__canvas-wrap */}
 
-        {/* ── Right inspector panel ── */}
+        {/* ── Right inspector panel / mobile bottom sheet ── */}
         {selection && (
-          <aside className="fpb__inspector">
+          <aside
+            className={[
+              'fpb__inspector',
+              isMobileLayout ? `fpb__inspector--${inspectorSheetState}` : '',
+            ].filter(Boolean).join(' ')}
+            onTouchStart={(e) => e.stopPropagation()}
+            onPointerDown={(e) => { if (isMobileLayout) e.stopPropagation(); }}
+          >
+            {/* PR21: Drag handle — shown on mobile only via CSS */}
+            <div
+              className="fpb__inspector-handle"
+              onClick={() => setInspectorSheetState((s) =>
+                s === 'collapsed' ? 'half' : s === 'half' ? 'full' : 'collapsed',
+              )}
+              title="Tap to resize"
+              role="button"
+              aria-label="Resize inspector panel"
+            >
+              <div className="fpb__inspector-handle-bar" />
+            </div>
+            {/* Collapsed summary strip */}
+            <div className="fpb__inspector-collapsed-summary">
+              {selectedRoom && <><span>🏠</span> {selectedRoom.name}</>}
+              {selectedWall && <><span>🧱</span> Wall</>}
+              {selectedNode && <><span>🔧</span> Component</>}
+              {selectedDisruption && <><span>⚠️</span> Disruption</>}
+              {selectedOpening && <><span>🚪</span> Opening</>}
+              {selectedFloorObject && <><span>{selectedFloorObject.type}</span> {selectedFloorObject.label ?? 'Object'}</>}
+              {selectedFloorRoute && <><span>〰</span> Route</>}
+              <button
+                style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#f8fafc', cursor: 'pointer' }}
+                onClick={() => setSelection(null)}
+                aria-label="Close inspector"
+              >✕</button>
+            </div>
             {selectedRoom && (
               <RoomInspectorPanel
                 room={selectedRoom}
