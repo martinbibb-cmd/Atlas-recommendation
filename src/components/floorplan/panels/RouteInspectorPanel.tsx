@@ -11,6 +11,10 @@ import {
   FLOOR_ROUTE_TYPE_COLORS,
   FLOOR_ROUTE_STATUS_LABELS,
 } from '../propertyPlan.types';
+import {
+  routeProvenanceToLayoutConfidence,
+  LAYOUT_CONFIDENCE_LABELS,
+} from '../../../features/floorplan/provenanceToLayoutConfidence';
 
 interface Props {
   route: FloorRoute;
@@ -128,10 +132,9 @@ export default function RouteInspectorPanel({ route, onUpdate, onDelete }: Props
       {/* Provenance */}
       {route.provenance && (
         <div className="fpb__field fpb__field--static">
-          <span>Source</span>
+          <span>Confidence</span>
           <span className="fpb__provenance-badge">
-            {route.provenance.source === 'manual' ? '✎ manual' : route.provenance.source}
-            {route.provenance.reviewStatus === 'corrected' ? ' · confirmed' : ''}
+            {LAYOUT_CONFIDENCE_LABELS[routeProvenanceToLayoutConfidence(route.status, route.provenance)]}
           </span>
         </div>
       )}

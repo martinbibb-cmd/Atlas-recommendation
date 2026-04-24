@@ -7,6 +7,10 @@
 
 import type { FloorObject, FloorObjectType, Room, Wall } from '../propertyPlan.types';
 import { FLOOR_OBJECT_TYPE_LABELS, FLOOR_OBJECT_TYPE_EMOJI } from '../propertyPlan.types';
+import {
+  provenanceToLayoutConfidence,
+  LAYOUT_CONFIDENCE_LABELS,
+} from '../../../features/floorplan/provenanceToLayoutConfidence';
 
 interface Props {
   object: FloorObject;
@@ -107,10 +111,9 @@ export default function ObjectInspectorPanel({ object, rooms, walls, onUpdate, o
       {/* Provenance */}
       {object.provenance && (
         <div className="fpb__field fpb__field--static">
-          <span>Source</span>
+          <span>Confidence</span>
           <span className="fpb__provenance-badge">
-            {object.provenance.source === 'manual' ? '✎ manual' : object.provenance.source}
-            {object.provenance.reviewStatus === 'corrected' ? ' · confirmed' : ''}
+            {LAYOUT_CONFIDENCE_LABELS[provenanceToLayoutConfidence(object.provenance)]}
           </span>
         </div>
       )}

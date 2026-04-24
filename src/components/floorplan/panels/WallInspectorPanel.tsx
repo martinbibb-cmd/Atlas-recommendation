@@ -9,6 +9,10 @@
 
 import { useState } from 'react';
 import type { Wall, WallKind } from '../propertyPlan.types';
+import {
+  provenanceToLayoutConfidence,
+  LAYOUT_CONFIDENCE_LABELS,
+} from '../../../features/floorplan/provenanceToLayoutConfidence';
 
 const GRID = 24;
 
@@ -104,10 +108,9 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
       {/* Provenance badge — informational only */}
       {wall.provenance && (
         <div className="fpb__field fpb__field--static">
-          <span>Source</span>
+          <span>Confidence</span>
           <span className="fpb__provenance-badge">
-            {wall.provenance.source === 'manual' ? '✎ manual' : wall.provenance.source}
-            {wall.provenance.reviewStatus === 'corrected' ? ' · confirmed' : ''}
+            {LAYOUT_CONFIDENCE_LABELS[provenanceToLayoutConfidence(wall.provenance)]}
           </span>
         </div>
       )}

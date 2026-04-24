@@ -22,8 +22,11 @@ import type {
   EngineerLayoutObjectType,
   EngineerLayoutRoute,
   EngineerLayoutRouteType,
-  LayoutConfidence,
 } from '../../contracts/EngineerLayout';
+import {
+  provenanceToLayoutConfidence,
+  routeProvenanceToLayoutConfidence,
+} from '../../features/floorplan/provenanceToLayoutConfidence';
 
 // ─── Rooms ────────────────────────────────────────────────────────────────────
 
@@ -122,23 +125,47 @@ function adaptObjects(plan: PropertyPlan): EngineerLayoutObject[] {
     }
   }
 
-  return plan.placementNodes.map(node => {
+  const objects: EngineerLayoutObject[] = [];
+
+  // PlacementNodes (heating-topology graph).
+  // These carry no provenance — placement is always intentional, so
+  // provenanceToLayoutConfidence(undefined, 'confirmed') = 'confirmed'.
+  for (const node of plan.placementNodes) {
     const room = node.roomId ? roomById.get(node.roomId) : undefined;
     const positionHint = room ? `Located in ${room.name}` : undefined;
 
-    return {
+    objects.push({
       id:    node.id,
       type:  nodeToObjectType(node),
-      ...(node.roomId     ? { roomId: node.roomId }            : {}),
-      ...(nodeLabel(node) ? { label: nodeLabel(node)! }        : {}),
-      ...(positionHint    ? { positionHint }                   : {}),
-      // All nodes from a plan start as 'confirmed' — they were placed by a
-      // user or imported from a scan. The provenance field is on Room/Wall
-      // entities; nodes don't carry it, so we default to 'confirmed' here
-      // since placement is always intentional.
-      confidence: 'confirmed' as LayoutConfidence,
-    };
-  });
+      ...(node.roomId     ? { roomId: node.roomId }     : {}),
+      ...(nodeLabel(node) ? { label: nodeLabel(node)! } : {}),
+      ...(positionHint    ? { positionHint }            : {}),
+      confidence: provenanceToLayoutConfidence(undefined, 'confirmed'),
+    });
+  }
+
+  // FloorObjects (survey fixtures: sinks, baths, flues, etc.).
+  // These carry EntityProvenance so we use the shared mapper for confidence.
+  for (const floor of plan.floors) {
+    for (const obj of floor.floorObjects ?? []) {
+      const room = obj.roomId ? roomById.get(obj.roomId) : undefined;
+      const positionHint = room ? `Located in ${room.name}` : undefined;
+
+      objects.push({
+        id:   obj.id,
+        type: obj.type as EngineerLayoutObjectType,
+        ...(obj.roomId              ? { roomId: obj.roomId }                           : {}),
+        ...(obj.label               ? { label: obj.label }                             : {}),
+        ...(obj.widthM  !== undefined ? { widthMm:  Math.round(obj.widthM  * 1000) }  : {}),
+        ...(obj.heightM !== undefined ? { heightMm: Math.round(obj.heightM * 1000) }  : {}),
+        ...(obj.depthM  !== undefined ? { depthMm:  Math.round(obj.depthM  * 1000) }  : {}),
+        ...(positionHint              ? { positionHint }                               : {}),
+        confidence: provenanceToLayoutConfidence(obj.provenance),
+      });
+    }
+  }
+
+  return objects;
 }
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -169,12 +196,6 @@ function resolveRouteLabel(nodeId: string, plan: PropertyPlan): string | undefin
   return nodeLabel(node) ?? nodeToObjectType(node);
 }
 
-function confidenceFromRouteStatus(status: 'existing' | 'proposed' | 'assumed'): LayoutConfidence {
-  if (status === 'assumed') return 'assumed';
-  if (status === 'proposed') return 'needs_verification';
-  return 'confirmed';
-}
-
 function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
   const routes: EngineerLayoutRoute[] = [];
 
@@ -187,11 +208,10 @@ function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
       type:      routeType,
       fromLabel: resolveRouteLabel(conn.fromNodeId, plan),
       toLabel:   resolveRouteLabel(conn.toNodeId,   plan),
-      // All connections in a plan are existing-and-placed or proposed by the
-      // engineer. Without an explicit status field on ConnectionPath we default
-      // to 'existing' and mark confidence as 'confirmed'.
+      // ConnectionPath has no explicit status field — default to 'existing'.
+      // Provenance is not carried on connections, so fallback to 'confirmed'.
       status:     'existing',
-      confidence: 'confirmed',
+      confidence: provenanceToLayoutConfidence(undefined, 'confirmed'),
     });
   }
 
@@ -217,7 +237,10 @@ function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
         fromLabel,
         toLabel,
         status:     fr.status,
-        confidence: confidenceFromRouteStatus(fr.status),
+        // Route status is authoritative: 'assumed' is never overridden by
+        // provenance.  'proposed' falls back to 'needs_verification' unless
+        // provenance confirms it; 'existing' falls back to 'confirmed'.
+        confidence: routeProvenanceToLayoutConfidence(fr.status, fr.provenance),
       });
     }
   }
