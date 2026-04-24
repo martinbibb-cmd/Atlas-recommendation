@@ -178,7 +178,7 @@ function makeBlocks(overrides: {
   // Portal CTA always last
   blocks.push({
     id: 'portal-cta', type: 'portal_cta',
-    title: 'See your full Atlas report',
+    title: 'Open your portal',
     outcome: 'Explore the interactive model, costs, and comparison in your portal.',
     supportingPoints: ['Interactive cost comparison', 'Share with your partner'],
     visualKey: 'portal_demo_cta',
@@ -268,7 +268,16 @@ describe('CustomerAdvicePrintPack — portal CTA block', () => {
 
   it('renders "Open your portal" heading', () => {
     render(<CustomerAdvicePrintPack {...makeProps()} />);
-    expect(screen.getByText('Open your portal')).toBeTruthy();
+    const elements = screen.getAllByText('Open your portal');
+    expect(elements.length).toBeGreaterThan(0);
+  });
+
+  it('renders the portal CTA block title as "Open your portal"', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const ctaPage = screen.getByTestId('capp-block-portal_cta');
+    // Title must say "Open your portal" — no "full report" language
+    expect(ctaPage.textContent).toContain('Open your portal');
+    expect(ctaPage.textContent).not.toMatch(/full.*report/i);
   });
 
   it('renders portal URL when portalUrl is provided', () => {
