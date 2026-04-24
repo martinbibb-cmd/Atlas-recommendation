@@ -88,6 +88,9 @@ import ObjectLibraryPanel from './panels/ObjectLibraryPanel';
 import RouteInspectorPanel from './panels/RouteInspectorPanel';
 import WallEditorSheet from './editors/WallEditorSheet';
 import WallDimensionLabels from './overlays/WallDimensionLabels';
+// PR23 handoff preview banner
+import HandoffPreviewBanner from './panels/HandoffPreviewBanner';
+import { validatePlanReadiness } from '../../features/floorplan/planReadinessValidator';
 import './floorplan.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -529,6 +532,28 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   /** PR22: "Handoff preview" mode — approximates what the engineer handoff will show.
    *  Hides editor chrome to let the surveyor check readability before handoff. */
   const [previewMode, setPreviewMode] = useState(false);
+
+  /**
+   * PR23: When the handoff preview banner offers a "place X" quick-fix,
+   * stores the FloorObjectType to highlight in the object library panel.
+   * Cleared once the library opens or preview exits.
+   */
+  const [objectLibraryHighlight, setObjectLibraryHighlight] = useState<FloorObjectType | null>(null);
+
+  /**
+   * PR23: Plan readiness result — computed from the current plan whenever
+   * preview mode is active.  Always recomputes on plan change; the component
+   * only renders in preview mode so the cost is minimal.
+   */
+  const planReadinessResult = useMemo(
+    () => validatePlanReadiness(plan, {
+      needsStoredHotWater: plan.placementNodes.some(
+        (n) => n.type === 'heat_source_system_boiler' ||
+               n.type === 'heat_source_regular_boiler',
+      ),
+    }),
+    [plan],
+  );
 
   // ── Zoom & pan state ────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -1686,16 +1711,21 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       previewMode ? 'fpb--handoff-preview' : '',
       selection ? 'fpb--has-selection' : '',
     ].filter(Boolean).join(' ')}>
-      {/* ── PR22: Handoff preview banner ── */}
+      {/* ── PR23: Handoff preview banner with readiness validation ── */}
       {previewMode && (
-        <div className="fpb__preview-banner" role="status">
-          <span className="fpb__preview-banner-text">
-            👁 Handoff preview — this approximates what the engineer will see. No data is being exported.
-          </span>
-          <button className="fpb__preview-banner-close" onClick={() => setPreviewMode(false)}>
-            ✕ Exit preview
-          </button>
-        </div>
+        <HandoffPreviewBanner
+          result={planReadinessResult}
+          plan={plan}
+          onExitPreview={() => setPreviewMode(false)}
+          onOpenObjectLibrary={(highlightType) => {
+            setObjectLibraryHighlight(highlightType);
+            setShowObjectLibrary(true);
+            setPreviewMode(false);
+          }}
+          onSelectItem={(target) => {
+            setSelection(target);
+          }}
+        />
       )}
       {/* ── Header ── */}
       <header className="fpb__header">
@@ -3197,9 +3227,14 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       setPendingFloorObjectType(type);
                       setPendingKind(null);
                       changeTool('placeNode');
+                      setObjectLibraryHighlight(null);
                       setShowObjectLibrary(false);
                     }}
-                    onClose={() => setShowObjectLibrary(false)}
+                    onClose={() => {
+                      setObjectLibraryHighlight(null);
+                      setShowObjectLibrary(false);
+                    }}
+                    highlightType={objectLibraryHighlight ?? undefined}
                   />
                 </div>
               </>
