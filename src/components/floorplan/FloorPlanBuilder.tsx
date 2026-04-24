@@ -1223,13 +1223,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       return;
     }
 
-    // Ghost node preview
-    if (tool === 'placeNode' && pendingKind) {
-      setGhostPos(pos);
-    }
-
-    // Ghost FloorObject preview
-    if (tool === 'placeNode' && pendingFloorObjectType) {
+    // Ghost preview for node or floor-object placement
+    if (tool === 'placeNode' && (pendingKind || pendingFloorObjectType)) {
       setGhostPos(pos);
     }
 
