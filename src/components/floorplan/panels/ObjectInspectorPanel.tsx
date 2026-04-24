@@ -215,7 +215,7 @@ export default function ObjectInspectorPanel({
 
       {/* Height (depth from wall) */}
       <label className="fpb__field">
-        <span>{dimLabel('Depth (m)', heightIsDefault)}</span>
+        <span>{dimLabel('Depth from wall (m)', heightIsDefault)}</span>
         <input
           type="number"
           min={0}
