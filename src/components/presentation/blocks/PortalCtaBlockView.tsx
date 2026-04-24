@@ -62,18 +62,17 @@ export function PortalCtaBlockView({ block, onOpenPortal }: Props) {
           </ul>
         )}
 
-        {onOpenPortal && (
-          <div className="customer-deck__cta-row">
-            <button
-              className="customer-deck__cta-button"
-              type="button"
-              onClick={handleCta}
-              aria-label="Open your customer portal"
-            >
-              Open your portal →
-            </button>
-          </div>
-        )}
+        <div className="customer-deck__cta-row">
+          <button
+            className="customer-deck__cta-button"
+            type="button"
+            onClick={handleCta}
+            aria-label="Open your customer portal"
+            disabled={!onOpenPortal}
+          >
+            Open your portal →
+          </button>
+        </div>
       </div>
     </article>
   );
