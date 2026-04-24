@@ -70,7 +70,7 @@ function base64urlDecode(str: string): Uint8Array<ArrayBuffer> {
   const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
   const padded = b64.padEnd(b64.length + (4 - (b64.length % 4)) % 4, '=');
   const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length) as Uint8Array<ArrayBuffer>;
+  const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
@@ -147,7 +147,7 @@ export async function validatePortalToken(
       'HMAC',
       key,
       signatureBytes,
-      new TextEncoder().encode(payloadPart) as Uint8Array<ArrayBuffer>,
+      new TextEncoder().encode(payloadPart),
     );
   } catch {
     return 'invalid';
