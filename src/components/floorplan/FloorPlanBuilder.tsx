@@ -2003,7 +2003,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               aria-expanded={showMobileSidebar}
               aria-label="Toggle tools panel"
             >
-              ☰
+              <span aria-hidden="true">☰</span>
             </button>
             {/* Active mode chip */}
             {(() => {
@@ -3141,13 +3141,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             </div>
             {/* Collapsed summary strip */}
             <div className="fpb__inspector-collapsed-summary">
-              {selectedRoom && <><span>🏠</span> {selectedRoom.name}</>}
-              {selectedWall && <><span>🧱</span> Wall</>}
-              {selectedNode && <><span>🔧</span> Component</>}
-              {selectedDisruption && <><span>⚠️</span> Disruption</>}
-              {selectedOpening && <><span>🚪</span> Opening</>}
-              {selectedFloorObject && <><span>{selectedFloorObject.type}</span> {selectedFloorObject.label ?? 'Object'}</>}
-              {selectedFloorRoute && <><span>〰</span> Route</>}
+              {selectedRoom && <><span aria-hidden="true">🏠</span> {selectedRoom.name}</>}
+              {selectedWall && <><span aria-hidden="true">🧱</span> Wall</>}
+              {selectedNode && <><span aria-hidden="true">🔧</span> Component</>}
+              {selectedDisruption && <><span aria-hidden="true">⚠️</span> Disruption</>}
+              {selectedOpening && <><span aria-hidden="true">🚪</span> Opening</>}
+              {selectedFloorObject && <><span aria-hidden="true">{selectedFloorObject.type}</span> {selectedFloorObject.label ?? 'Object'}</>}
+              {selectedFloorRoute && <><span aria-hidden="true">〰</span> Route</>}
               <button
                 style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 8px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#f8fafc', cursor: 'pointer' }}
                 onClick={() => setSelection(null)}
