@@ -153,10 +153,26 @@ const CONNECTION_TYPE_MAP: Partial<Record<string, EngineerLayoutRouteType>> = {
   prv:        'discharge',
 };
 
+// Map FloorRouteType → EngineerLayoutRouteType (they are already aligned).
+const FLOOR_ROUTE_TYPE_MAP: Partial<Record<string, EngineerLayoutRouteType>> = {
+  flow:       'flow',
+  return:     'return',
+  hot:        'hot',
+  cold:       'cold',
+  condensate: 'condensate',
+  discharge:  'discharge',
+};
+
 function resolveRouteLabel(nodeId: string, plan: PropertyPlan): string | undefined {
   const node = plan.placementNodes.find(n => n.id === nodeId);
   if (!node) return undefined;
   return nodeLabel(node) ?? nodeToObjectType(node);
+}
+
+function confidenceFromRouteStatus(status: 'existing' | 'proposed' | 'assumed'): LayoutConfidence {
+  if (status === 'assumed') return 'assumed';
+  if (status === 'proposed') return 'needs_verification';
+  return 'confirmed';
 }
 
 function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
@@ -177,6 +193,33 @@ function adaptRoutes(plan: PropertyPlan): EngineerLayoutRoute[] {
       status:     'existing',
       confidence: 'confirmed',
     });
+  }
+
+  // PR10: merge floor routes authored by the surveyor.
+  for (const floor of plan.floors) {
+    for (const fr of floor.floorRoutes ?? []) {
+      const routeType = FLOOR_ROUTE_TYPE_MAP[fr.type as string];
+      if (!routeType) continue;
+
+      // Resolve human-readable labels from object IDs when possible.
+      const fromNode = fr.fromObjectId ? plan.placementNodes.find(n => n.id === fr.fromObjectId) : undefined;
+      const toNode = fr.toObjectId ? plan.placementNodes.find(n => n.id === fr.toObjectId) : undefined;
+      const fromLabel = fromNode
+        ? (nodeLabel(fromNode) ?? nodeToObjectType(fromNode))
+        : fr.fromObjectId;
+      const toLabel = toNode
+        ? (nodeLabel(toNode) ?? nodeToObjectType(toNode))
+        : fr.toObjectId;
+
+      routes.push({
+        id:         fr.id,
+        type:       routeType,
+        fromLabel,
+        toLabel,
+        status:     fr.status,
+        confidence: confidenceFromRouteStatus(fr.status),
+      });
+    }
   }
 
   return routes;
