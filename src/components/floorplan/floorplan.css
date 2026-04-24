@@ -961,6 +961,25 @@
   justify-content: flex-end;
 }
 
+/* PR18: Before/after display inside wall-length editor */
+.fpb__dimension-before {
+  font-size: 11px;
+  color: #475569;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* PR18: Inline wall-length validation warning */
+.fpb__dimension-warning {
+  font-size: 11px;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 4px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+}
+
 /* ── Corner handles on selected rooms ──────────────────────────────────── */
 
 .fpb__corner-handle {

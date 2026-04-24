@@ -37,6 +37,7 @@ import type {
   Opening,
   OpeningType,
   PlacementNode,
+  Point,
   PropertyMetadata,
   PropertyPlan,
   Room,
@@ -66,6 +67,14 @@ import { addOpeningToWall } from '../../features/floorplan/addOpeningToWall';
 import { addObjectToPlan, updateFloorObject, removeFloorObject } from '../../features/floorplan/addObjectToPlan';
 // PR16 selection helpers — priority hit-testing
 import { selectWall, selectOpening } from '../../features/floorplan/selection';
+// PR18 snap / alignment helpers
+import {
+  computeObjectSnap,
+  computeAlignmentGuides,
+  routeLabelPosition,
+  validateWallLength,
+} from '../../features/floorplan/snapHelpers';
+import type { SnapKind, AlignGuide } from '../../features/floorplan/snapHelpers';
 // PR10 feature modules — route authoring
 import { addRouteToPlan, updateRoute, removeRoute } from '../../features/floorplan/addRouteToPlan';
 // PR9 panel / editor components
@@ -395,6 +404,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const changeTool = useCallback((next: EditorTool) => {
     try { sessionStorage.setItem('atlas.floorplan.lastTool', next); } catch { /* ignore */ }
     setTool(next);
+    // PR18: clear transient snap state when switching tools
+    setSnapPreview(null);
+    setAlignGuides([]);
   }, []);
 
   const [pendingWallStart, setPendingWallStart] = useState<{ x: number; y: number } | null>(null);
@@ -434,6 +446,10 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [pendingRouteStatus, setPendingRouteStatus] = useState<FloorRouteStatus>('proposed');
   /** PR10: Points accumulated during an in-progress route drawing session. */
   const [inProgressRoutePoints, setInProgressRoutePoints] = useState<import('./propertyPlan.types').Point[]>([]);
+  /** PR18: Snap preview — position and kind of the nearest snap target under the cursor. */
+  const [snapPreview, setSnapPreview] = useState<{ pos: Point; kind: SnapKind } | null>(null);
+  /** PR18: Alignment guides computed while placing objects or drawing route waypoints. */
+  const [alignGuides, setAlignGuides] = useState<AlignGuide[]>([]);
 
   // ── Undo / redo history ──────────────────────────────────────────────────
 
@@ -755,6 +771,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         setInProgressRoutePoints([]);
         setRoomDraftOrigin(null);
         setRoomDraftSize(null);
+        setSnapPreview(null);   // PR18
+        setAlignGuides([]);     // PR18
         return;
       }
       if (!isCtrl) return;
@@ -1274,7 +1292,13 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
     // PR9: place a FloorObject from the object library
     if (tool === 'placeNode' && pendingFloorObjectType) {
-      placeFloorObject(pendingFloorObjectType, pos.x, pos.y);
+      // PR18: snap to wall/corner/object before placing
+      const snap = activeFloor
+        ? computeObjectSnap(pos, activeFloor.walls, activeFloor.floorObjects ?? [], visibleNodes, activeFloor.floorRoutes ?? [], zoom)
+        : { snapped: pos, kind: 'free' as const };
+      placeFloorObject(pendingFloorObjectType, snap.snapped.x, snap.snapped.y);
+      setSnapPreview(null);
+      setAlignGuides([]);
       // stayInTool: placeFloorObject already conditionally clears pendingFloorObjectType
       return;
     }
@@ -1284,9 +1308,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       return;
     }
 
-    // PR10: accumulate route waypoints
+    // PR10/PR18: accumulate route waypoints — snap before committing
     if (tool === 'addFloorRoute') {
-      setInProgressRoutePoints((prev) => [...prev, pos]);
+      const snap = activeFloor
+        ? computeObjectSnap(pos, activeFloor.walls, activeFloor.floorObjects ?? [], visibleNodes, activeFloor.floorRoutes ?? [], zoom)
+        : { snapped: pos, kind: 'free' as const };
+      setInProgressRoutePoints((prev) => [...prev, snap.snapped]);
       return;
     }
 
@@ -1321,7 +1348,24 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
     // Ghost preview for node or floor-object placement
     if (tool === 'placeNode' && (pendingKind || pendingFloorObjectType)) {
-      setGhostPos(pos);
+      if (pendingFloorObjectType && activeFloor) {
+        // PR18: snap ghost to wall/corner/object and show alignment guides
+        const snap = computeObjectSnap(pos, activeFloor.walls, activeFloor.floorObjects ?? [], visibleNodes, activeFloor.floorRoutes ?? [], zoom);
+        setGhostPos(snap.snapped);
+        setSnapPreview({ pos: snap.snapped, kind: snap.kind });
+        setAlignGuides(computeAlignmentGuides(snap.snapped, activeFloor.rooms, activeFloor.walls, activeFloor.floorObjects ?? [], visibleNodes));
+      } else {
+        setGhostPos(pos);
+        setSnapPreview(null);
+        setAlignGuides([]);
+      }
+    }
+
+    // PR18: snap preview cursor for route waypoint drawing
+    if (tool === 'addFloorRoute' && activeFloor) {
+      const snap = computeObjectSnap(pos, activeFloor.walls, activeFloor.floorObjects ?? [], visibleNodes, activeFloor.floorRoutes ?? [], zoom);
+      setSnapPreview({ pos: snap.snapped, kind: snap.kind });
+      setAlignGuides(computeAlignmentGuides(snap.snapped, activeFloor.rooms, activeFloor.walls, activeFloor.floorObjects ?? [], visibleNodes));
     }
 
     if (!dragRef.current) return;
@@ -1416,6 +1460,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     dragStartPosRef.current = null;
     dragRef.current = null;
     emit(plan);
+    // PR18: clear transient snap state on pointer-up
+    setSnapPreview(null);
+    setAlignGuides([]);
   }
 
   // ── Save / load ──────────────────────────────────────────────────────────
@@ -2277,8 +2324,6 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   : fRoute.status === 'proposed'
                   ? '4 2'
                   : undefined;
-                const midIdx = Math.floor(fRoute.points.length / 2);
-                const mid = fRoute.points[midIdx] ?? fRoute.points[0];
                 return (
                   <g
                     key={fRoute.id}
@@ -2332,21 +2377,25 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       r={3.5}
                       fill={color}
                     />
-                    {/* Type + status label */}
-                    {mid && (
-                      <text
-                        x={mid.x}
-                        y={mid.y - 7}
-                        fontSize="8"
-                        fill={color}
-                        textAnchor="middle"
-                        className="fpb__pipe-label"
-                        style={{ pointerEvents: 'none' }}
-                      >
-                        {FLOOR_ROUTE_TYPE_LABELS[fRoute.type]}
-                        {fRoute.status !== 'existing' ? ` (${FLOOR_ROUTE_STATUS_LABELS[fRoute.status]})` : ''}
-                      </text>
-                    )}
+                    {/* PR18: Type + status label — positioned to avoid endpoint overlap */}
+                    {(() => {
+                      const labelPos = routeLabelPosition(fRoute.points);
+                      if (!labelPos) return null;
+                      return (
+                        <text
+                          x={labelPos.x + labelPos.perpOffsetX}
+                          y={labelPos.y + labelPos.perpOffsetY}
+                          fontSize="8"
+                          fill={color}
+                          textAnchor="middle"
+                          className="fpb__pipe-label"
+                          style={{ pointerEvents: 'none' }}
+                        >
+                          {FLOOR_ROUTE_TYPE_LABELS[fRoute.type]}
+                          {fRoute.status !== 'existing' ? ` (${FLOOR_ROUTE_STATUS_LABELS[fRoute.status]})` : ''}
+                        </text>
+                      );
+                    })()}
                   </g>
                 );
               })}
@@ -2366,6 +2415,51 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   {inProgressRoutePoints.map((p, i) => (
                     <circle key={i} cx={p.x} cy={p.y} r={3} fill={FLOOR_ROUTE_TYPE_COLORS[pendingRouteType]} opacity={0.75} />
                   ))}
+                </g>
+              )}
+
+              {/* PR18: Alignment guides — axis-aligned dashed lines shown while placing objects */}
+              {alignGuides.map((guide, i) =>
+                guide.axis === 'x' ? (
+                  <line
+                    key={`guide-x-${i}`}
+                    x1={guide.value} y1={0} x2={guide.value} y2={CANVAS_H}
+                    stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 4" opacity={0.55}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                ) : (
+                  <line
+                    key={`guide-y-${i}`}
+                    x1={0} y1={guide.value} x2={CANVAS_W} y2={guide.value}
+                    stroke="#f59e0b" strokeWidth={1} strokeDasharray="4 4" opacity={0.55}
+                    style={{ pointerEvents: 'none' }}
+                  />
+                ),
+              )}
+
+              {/* PR18: Snap target preview marker — shows what will be snapped-to before click */}
+              {snapPreview && (
+                <g style={{ pointerEvents: 'none' }}>
+                  {snapPreview.kind === 'corner' && (
+                    <circle cx={snapPreview.pos.x} cy={snapPreview.pos.y} r={7}
+                      fill="none" stroke="#2563eb" strokeWidth={2.5} opacity={0.9} />
+                  )}
+                  {snapPreview.kind === 'wall' && (
+                    <circle cx={snapPreview.pos.x} cy={snapPreview.pos.y} r={5}
+                      fill="none" stroke="#7c3aed" strokeWidth={2} opacity={0.9} />
+                  )}
+                  {snapPreview.kind === 'object_centre' && (
+                    <circle cx={snapPreview.pos.x} cy={snapPreview.pos.y} r={6}
+                      fill="none" stroke="#059669" strokeWidth={2} opacity={0.9} />
+                  )}
+                  {snapPreview.kind === 'route_endpoint' && (
+                    <circle cx={snapPreview.pos.x} cy={snapPreview.pos.y} r={5}
+                      fill="#2563eb" stroke="#1d4ed8" strokeWidth={1.5} opacity={0.75} />
+                  )}
+                  {snapPreview.kind === 'free' && (
+                    <circle cx={snapPreview.pos.x} cy={snapPreview.pos.y} r={3}
+                      fill="#94a3b8" opacity={0.45} />
+                  )}
                 </g>
               )}
 
@@ -2393,18 +2487,29 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 </g>
               )}
 
-              {/* Ghost FloorObject being placed (PR9 / PR16: show emoji + name) */}
-              {ghostPos && pendingFloorObjectType && (
-                <g transform={`translate(${ghostPos.x - GHOST_OBJECT_W / 2}, ${ghostPos.y - GHOST_OBJECT_H / 2})`} opacity="0.65">
-                  <rect width={GHOST_OBJECT_W} height={GHOST_OBJECT_H} rx={8} fill="#f0fdf4" stroke="#16a34a" strokeWidth={2} strokeDasharray="4 2" />
-                  <text x={GHOST_OBJECT_W / 2} y={16} textAnchor="middle" fontSize={14}>
-                    {FLOOR_OBJECT_TYPE_EMOJI[pendingFloorObjectType]}
-                  </text>
-                  <text x={GHOST_OBJECT_W / 2} y={32} textAnchor="middle" fontSize={9} fill="#166534" fontWeight="600">
-                    {FLOOR_OBJECT_TYPE_LABELS[pendingFloorObjectType]}
-                  </text>
-                </g>
-              )}
+              {/* Ghost FloorObject being placed (PR9 / PR16: show emoji + name; PR18: snap visual cue) */}
+              {ghostPos && pendingFloorObjectType && (() => {
+                const isSnapped = snapPreview !== null && snapPreview.kind !== 'free';
+                return (
+                  <g transform={`translate(${ghostPos.x - GHOST_OBJECT_W / 2}, ${ghostPos.y - GHOST_OBJECT_H / 2})`} opacity={isSnapped ? 0.85 : 0.65}>
+                    <rect
+                      width={GHOST_OBJECT_W}
+                      height={GHOST_OBJECT_H}
+                      rx={8}
+                      fill={isSnapped ? '#eff6ff' : '#f0fdf4'}
+                      stroke={isSnapped ? '#2563eb' : '#16a34a'}
+                      strokeWidth={isSnapped ? 2.5 : 2}
+                      strokeDasharray={isSnapped ? undefined : '4 2'}
+                    />
+                    <text x={GHOST_OBJECT_W / 2} y={16} textAnchor="middle" fontSize={14}>
+                      {FLOOR_OBJECT_TYPE_EMOJI[pendingFloorObjectType]}
+                    </text>
+                    <text x={GHOST_OBJECT_W / 2} y={32} textAnchor="middle" fontSize={9} fill={isSnapped ? '#1e40af' : '#166534'} fontWeight="600">
+                      {FLOOR_OBJECT_TYPE_LABELS[pendingFloorObjectType]}
+                    </text>
+                  </g>
+                );
+              })()}
 
               {/* PR9: Wall dimension labels overlay — engineer view only */}
               {viewMode === 'engineer' && visibleLayers.geometry && !cleanView && (
@@ -2839,6 +2944,29 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   <div className="fpb__dimension-editor-title">
                     {editingDimension.type === 'room-width' ? 'Width (m)' : editingDimension.type === 'room-height' ? 'Height (m)' : 'Length (m)'}
                   </div>
+                  {/* PR18: before/after display and inline validation for wall-length edits */}
+                  {editingDimension.type === 'wall-length' && (() => {
+                    const currentWall = activeFloor.walls.find((w) => w.id === editingDimension.id);
+                    const beforeM = currentWall
+                      ? Math.hypot(currentWall.x2 - currentWall.x1, currentWall.y2 - currentWall.y1) / GRID
+                      : null;
+                    const afterM = editingDimension.currentValue;
+                    const wallWarning = validateWallLength(afterM);
+                    return (
+                      <>
+                        {beforeM !== null && (
+                          <div className="fpb__dimension-before">
+                            {beforeM.toFixed(2)} m → {afterM > 0 ? `${afterM.toFixed(2)} m` : '—'}
+                          </div>
+                        )}
+                        {wallWarning && (
+                          <div className="fpb__dimension-warning" role="alert">
+                            ⚠ {wallWarning}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   <input
                     type="number"
                     className="fpb__dimension-editor-input"
