@@ -162,13 +162,30 @@ function buildWhyCards(decision: AtlasDecisionV1): ProofCard[] {
     });
   }
 
-  // Compatibility constraints — shown as advisory evidence
-  if (decision.compatibilityWarnings.length > 0) {
+  // Compatibility constraints — shown as advisory evidence (exclude shower
+  // summary which is surfaced as its own card below)
+  const physicsWarnings = decision.showerCompatibilityNote
+    ? decision.compatibilityWarnings.filter(
+        (w) => w !== decision.showerCompatibilityNote?.customerSummary,
+      )
+    : decision.compatibilityWarnings;
+
+  if (physicsWarnings.length > 0) {
     cards.push({
       id: 'compatibility',
       title: 'Installation consideration',
-      value: decision.compatibilityWarnings[0],
-      supportingPoints: top(decision.compatibilityWarnings.slice(1), 2),
+      value: physicsWarnings[0],
+      supportingPoints: top(physicsWarnings.slice(1), 2),
+    });
+  }
+
+  // Shower compatibility — dedicated proof card when a note is present
+  const shower = decision.showerCompatibilityNote;
+  if (shower) {
+    cards.push({
+      id: 'shower-compatibility',
+      title: 'Shower compatibility',
+      value: shower.customerSummary,
     });
   }
 

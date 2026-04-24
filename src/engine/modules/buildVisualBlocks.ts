@@ -53,6 +53,7 @@ const VK = {
   dailyUse: 'daily_use_showers',
   includedScope: 'included_scope_system_boiler_mixergy',
   lifecycleWarning: 'boiler_lifecycle_warning',
+  showerWarning: 'shower_compatibility_warning',
   futureUpgrade: 'future_upgrade_solar',
   portalCta: 'portal_demo_cta',
   spatialProof: 'spatial_proof_where_work_happens',
@@ -228,6 +229,8 @@ function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock 
 /**
  * Build warning blocks from compatibility warnings and lifecycle condition.
  * Returns an empty array if there is nothing to surface.
+ *
+ * Block order: lifecycle → shower compatibility → physics compatibility.
  */
 function buildWarningBlocks(decision: AtlasDecisionV1): WarningBlock[] {
   const blocks: WarningBlock[] = [];
@@ -246,15 +249,33 @@ function buildWarningBlocks(decision: AtlasDecisionV1): WarningBlock[] {
     });
   }
 
-  // Compatibility warnings from the recommendation
-  if (decision.compatibilityWarnings.length > 0) {
+  // Shower compatibility warning — dedicated block when a note is present
+  const shower = decision.showerCompatibilityNote;
+  if (shower) {
+    blocks.push({
+      id: 'shower-compatibility-warning',
+      type: 'warning',
+      severity: shower.severity,
+      title: 'Shower compatibility',
+      outcome: shower.customerSummary,
+      visualKey: VK.showerWarning,
+    });
+  }
+
+  // Physics compatibility warnings from the recommendation (exclude shower
+  // summary which is already surfaced in the shower block above)
+  const physicsWarnings = shower
+    ? decision.compatibilityWarnings.filter((w) => w !== shower.customerSummary)
+    : decision.compatibilityWarnings;
+
+  if (physicsWarnings.length > 0) {
     blocks.push({
       id: 'compatibility-warning',
       type: 'warning',
       severity: 'advisory',
       title: 'Installation considerations',
-      outcome: top(decision.compatibilityWarnings, 1)[0],
-      supportingPoints: top(decision.compatibilityWarnings.slice(1), 2),
+      outcome: top(physicsWarnings, 1)[0],
+      supportingPoints: top(physicsWarnings.slice(1), 2),
       visualKey: VK.lifecycleWarning,
     });
   }

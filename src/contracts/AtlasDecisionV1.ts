@@ -17,6 +17,7 @@
 
 import type { LifecycleAssessment } from './LifecycleAssessment';
 import type { QuoteScopeItem } from './QuoteScope';
+import type { ShowerCompatibilityNote } from './ShowerCompatibilityNote';
 
 /** A single supporting fact with its data source. */
 export interface DecisionSupportingFact {
@@ -94,4 +95,13 @@ export interface AtlasDecisionV1 {
    * Condition 'at_risk' or 'worn' will push a lifecycle reason into keyReasons.
    */
   lifecycle: LifecycleAssessment;
+
+  /**
+   * Shower compatibility note derived from the surveyed shower type.
+   * Present when a notable compatibility consideration exists; absent otherwise.
+   *
+   * PR26 — Drives the shower warning block, portal proof card, and engineer
+   * install note without re-deriving logic on any output surface.
+   */
+  showerCompatibilityNote?: ShowerCompatibilityNote | null;
 }
