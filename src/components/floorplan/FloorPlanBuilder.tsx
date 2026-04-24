@@ -574,6 +574,22 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   );
 
   /**
+   * PR24: Shared tool-activation helper — calls changeTool and clears the
+   * transient placement/drawing state for any tool that is being de-activated.
+   * Used by both the sidebar tool buttons and the guided survey action handler
+   * to keep tool-switch behaviour in one place.
+   */
+  const activateTool = useCallback((next: EditorTool) => {
+    changeTool(next);
+    if (next !== 'placeNode') { setPendingKind(null); setPendingFloorObjectType(null); setGhostPos(null); }
+    if (next !== 'drawWall') setPendingWallStart(null);
+    if (next !== 'connectRoute') setPendingPort(null);
+    if (next !== 'addFloorRoute') setInProgressRoutePoints([]);
+  // All setters are stable React dispatch functions.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changeTool]);
+
+  /**
    * PR24: Handle a guided-step primary action.
    * Activates the appropriate tool, opens the object library, or enters preview mode
    * without altering any plan data or disrupting the current canvas state.
@@ -581,11 +597,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const handleGuidedAction = useCallback((action: GuidedStepAction) => {
     switch (action.kind) {
       case 'switchTool':
-        changeTool(action.tool);
-        if (action.tool !== 'placeNode') { setPendingKind(null); setPendingFloorObjectType(null); setGhostPos(null); }
-        if (action.tool !== 'drawWall') setPendingWallStart(null);
-        if (action.tool !== 'connectRoute') setPendingPort(null);
-        if (action.tool !== 'addFloorRoute') setInProgressRoutePoints([]);
+        activateTool(action.tool);
         break;
       case 'openLibrary':
         setObjectLibraryHighlight(action.highlightType);
@@ -595,9 +607,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         setPreviewMode(true);
         break;
     }
-  // changeTool is stable (memoised); other setters are stable React dispatch fns.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [changeTool]);
+  }, [activateTool]);
 
   // ── Zoom & pan state ────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -2000,13 +2010,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               <button
                 key={t.id}
                 className={`fpb__tool-btn ${tool === t.id ? 'active' : ''}`}
-                onClick={() => {
-                  changeTool(t.id);
-                  if (t.id !== 'placeNode') { setPendingKind(null); setPendingFloorObjectType(null); setGhostPos(null); }
-                  if (t.id !== 'drawWall') setPendingWallStart(null);
-                  if (t.id !== 'connectRoute') setPendingPort(null);
-                  if (t.id !== 'addFloorRoute') setInProgressRoutePoints([]);
-                }}
+                onClick={() => activateTool(t.id)}
                 title={t.hint}
               >
                 <span className="fpb__tool-icon">{t.icon}</span>

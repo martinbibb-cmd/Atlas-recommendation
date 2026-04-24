@@ -259,7 +259,7 @@ export default function GuidedSurveyChecklist({
           </p>
         </div>
         <button
-          className="fpb__delete-btn"
+          className="fpb__guided-close-btn"
           onClick={onClose}
           title="Close guided survey"
           aria-label="Close guided survey checklist"

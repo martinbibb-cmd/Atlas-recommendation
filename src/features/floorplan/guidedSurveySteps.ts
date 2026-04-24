@@ -71,19 +71,15 @@ function allFloorObjects(plan: PropertyPlan) {
   return plan.floors.flatMap((f) => f.floorObjects ?? []);
 }
 
-function hasObjectType(plan: PropertyPlan, type: FloorObjectType): boolean {
-  return allFloorObjects(plan).some((o) => o.type === type);
-}
-
-function hasRadiators(plan: PropertyPlan): boolean {
+function hasRadiators(plan: PropertyPlan, objects: ReturnType<typeof allFloorObjects>): boolean {
   // Radiator floor objects placed via the object library
-  if (hasObjectType(plan, 'radiator')) return true;
+  if (objects.some((o) => o.type === 'radiator')) return true;
   // Radiator_loop placement nodes placed via the lego palette
   return plan.placementNodes.some((n) => n.type === 'radiator_loop');
 }
 
-function hasHotWaterOutlets(plan: PropertyPlan): boolean {
-  return allFloorObjects(plan).some(
+function hasHotWaterOutlets(objects: ReturnType<typeof allFloorObjects>): boolean {
+  return objects.some(
     (o) => o.type === 'sink' || o.type === 'bath' || o.type === 'shower',
   );
 }
@@ -163,8 +159,8 @@ function stepMarkCylinder(
   };
 }
 
-function stepMarkRadiators(plan: PropertyPlan): GuidedStep {
-  const status: GuidedStepStatus = hasRadiators(plan) ? 'done' : 'missing';
+function stepMarkRadiators(plan: PropertyPlan, objects: ReturnType<typeof allFloorObjects>): GuidedStep {
+  const status: GuidedStepStatus = hasRadiators(plan, objects) ? 'done' : 'missing';
   return {
     key:         'mark_radiators',
     label:       'Mark radiators / emitters',
@@ -175,8 +171,8 @@ function stepMarkRadiators(plan: PropertyPlan): GuidedStep {
   };
 }
 
-function stepMarkOutlets(plan: PropertyPlan): GuidedStep {
-  const status: GuidedStepStatus = hasHotWaterOutlets(plan) ? 'done' : 'optional';
+function stepMarkOutlets(objects: ReturnType<typeof allFloorObjects>): GuidedStep {
+  const status: GuidedStepStatus = hasHotWaterOutlets(objects) ? 'done' : 'optional';
   return {
     key:         'mark_outlets',
     label:       'Mark key hot-water outlets',
@@ -234,14 +230,17 @@ export function deriveGuidedSteps(
   options: GuidedSurveyOptions = {},
 ): GuidedStep[] {
   const { needsStoredHotWater = false } = options;
+  // Compute the flat floor-objects list once and share it across steps that
+  // need it — avoids redundant iteration over plan.floors.
+  const objects = allFloorObjects(plan);
 
   return [
     stepConfirmRooms(readiness),
     stepMarkBoiler(readiness),
     stepMarkFlue(readiness),
     stepMarkCylinder(readiness, needsStoredHotWater),
-    stepMarkRadiators(plan),
-    stepMarkOutlets(plan),
+    stepMarkRadiators(plan, objects),
+    stepMarkOutlets(objects),
     stepMarkRoutes(readiness),
     stepReviewHandoff(readiness),
   ];

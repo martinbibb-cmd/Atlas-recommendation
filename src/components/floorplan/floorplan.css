@@ -2506,9 +2506,22 @@
   opacity: 0.85;
 }
 
-/* Responsive: hide guided rail below medium breakpoint — use bottom-sheet instead */
-@media (max-width: 640px) {
-  .fpb__guided-rail {
-    display: none;
-  }
+.fpb__guided-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fpb__guided-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
