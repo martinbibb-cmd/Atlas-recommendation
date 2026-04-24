@@ -218,7 +218,10 @@ export function computeObjectSnap(
 
 // ─── Alignment guides ─────────────────────────────────────────────────────────
 
-/** How close (canvas px) the ghost must be to trigger an alignment guide. */
+/** How close (canvas px) the ghost must be to trigger an alignment guide.
+ * 4 px was chosen to be finger-reachable on a tablet at zoom=1 while avoiding
+ * false positives when objects are densely packed on a grid.
+ */
 const ALIGN_TOLERANCE_PX = 4;
 
 /**
@@ -317,19 +320,26 @@ export function validateWallLength(newLengthM: number): string | null {
 const LABEL_ENDPOINT_CLEARANCE_PX = 16;
 
 /**
+ * Result of routeLabelPosition.  Callers render the label at
+ * `(x + perpOffsetX, y + perpOffsetY)`.
+ */
+export interface RouteLabelPlacement {
+  x: number;
+  y: number;
+  perpOffsetX: number;
+  perpOffsetY: number;
+}
+
+/**
  * Compute a safe label position for a route polyline.
  *
  * Prefers the segment at the midpoint.  If the midpoint is too close to the
  * start or end dot (< LABEL_ENDPOINT_CLEARANCE_PX), the perpendicular offset
  * is increased so the label does not overlap a terminal marker.
  *
- * Returns `{ x, y, perpOffsetX, perpOffsetY }`.  Callers should render the
- * label at `(x + perpOffsetX, y + perpOffsetY)`.
  * Returns null when the route has fewer than 2 points.
  */
-export function routeLabelPosition(
-  points: Point[],
-): { x: number; y: number; perpOffsetX: number; perpOffsetY: number } | null {
+export function routeLabelPosition(points: Point[]): RouteLabelPlacement | null {
   if (points.length < 2) return null;
 
   const midIdx  = Math.floor(points.length / 2);

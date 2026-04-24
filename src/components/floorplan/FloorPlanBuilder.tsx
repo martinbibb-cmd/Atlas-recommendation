@@ -2488,25 +2488,28 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               )}
 
               {/* Ghost FloorObject being placed (PR9 / PR16: show emoji + name; PR18: snap visual cue) */}
-              {ghostPos && pendingFloorObjectType && (
-                <g transform={`translate(${ghostPos.x - GHOST_OBJECT_W / 2}, ${ghostPos.y - GHOST_OBJECT_H / 2})`} opacity={snapPreview && snapPreview.kind !== 'free' ? 0.85 : 0.65}>
-                  <rect
-                    width={GHOST_OBJECT_W}
-                    height={GHOST_OBJECT_H}
-                    rx={8}
-                    fill={snapPreview && snapPreview.kind !== 'free' ? '#eff6ff' : '#f0fdf4'}
-                    stroke={snapPreview && snapPreview.kind !== 'free' ? '#2563eb' : '#16a34a'}
-                    strokeWidth={snapPreview && snapPreview.kind !== 'free' ? 2.5 : 2}
-                    strokeDasharray={snapPreview && snapPreview.kind !== 'free' ? undefined : '4 2'}
-                  />
-                  <text x={GHOST_OBJECT_W / 2} y={16} textAnchor="middle" fontSize={14}>
-                    {FLOOR_OBJECT_TYPE_EMOJI[pendingFloorObjectType]}
-                  </text>
-                  <text x={GHOST_OBJECT_W / 2} y={32} textAnchor="middle" fontSize={9} fill={snapPreview && snapPreview.kind !== 'free' ? '#1e40af' : '#166534'} fontWeight="600">
-                    {FLOOR_OBJECT_TYPE_LABELS[pendingFloorObjectType]}
-                  </text>
-                </g>
-              )}
+              {ghostPos && pendingFloorObjectType && (() => {
+                const isSnapped = snapPreview !== null && snapPreview.kind !== 'free';
+                return (
+                  <g transform={`translate(${ghostPos.x - GHOST_OBJECT_W / 2}, ${ghostPos.y - GHOST_OBJECT_H / 2})`} opacity={isSnapped ? 0.85 : 0.65}>
+                    <rect
+                      width={GHOST_OBJECT_W}
+                      height={GHOST_OBJECT_H}
+                      rx={8}
+                      fill={isSnapped ? '#eff6ff' : '#f0fdf4'}
+                      stroke={isSnapped ? '#2563eb' : '#16a34a'}
+                      strokeWidth={isSnapped ? 2.5 : 2}
+                      strokeDasharray={isSnapped ? undefined : '4 2'}
+                    />
+                    <text x={GHOST_OBJECT_W / 2} y={16} textAnchor="middle" fontSize={14}>
+                      {FLOOR_OBJECT_TYPE_EMOJI[pendingFloorObjectType]}
+                    </text>
+                    <text x={GHOST_OBJECT_W / 2} y={32} textAnchor="middle" fontSize={9} fill={isSnapped ? '#1e40af' : '#166534'} fontWeight="600">
+                      {FLOOR_OBJECT_TYPE_LABELS[pendingFloorObjectType]}
+                    </text>
+                  </g>
+                );
+              })()}
 
               {/* PR9: Wall dimension labels overlay — engineer view only */}
               {viewMode === 'engineer' && visibleLayers.geometry && !cleanView && (
