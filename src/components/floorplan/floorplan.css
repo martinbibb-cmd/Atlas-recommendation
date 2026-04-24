@@ -233,6 +233,7 @@
   cursor: pointer;
   margin-bottom: 4px;
   transition: background 0.12s, border-color 0.12s;
+  min-height: 44px;
 }
 
 .fpb__tool-btn:hover { background: #f1f5f9; }
@@ -324,12 +325,48 @@
 .fpb__hint-bar {
   background: #f8fafc;
   border-bottom: 1px solid #e2e8f0;
-  padding: 6px 14px;
+  padding: 5px 14px;
   font-size: 12px;
   color: #475569;
-  min-height: 30px;
+  min-height: 36px;
   display: flex;
   align-items: center;
+  gap: 0;
+}
+
+/* ── Active mode chip ──────────────────────────────────────────────────── */
+
+.fpb__mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 10px;
+  border: 1.5px solid;
+}
+
+.fpb__mode-chip--select        { background: #f1f5f9; color: #334155;  border-color: #cbd5e1; }
+.fpb__mode-chip--addRoom       { background: #eff6ff; color: #1d4ed8;  border-color: #93c5fd; }
+.fpb__mode-chip--drawWall      { background: #fef3c7; color: #92400e;  border-color: #fcd34d; }
+.fpb__mode-chip--addOpening    { background: #f0fdf4; color: #166534;  border-color: #86efac; }
+.fpb__mode-chip--placeNode     { background: #fdf4ff; color: #7e22ce;  border-color: #d8b4fe; }
+.fpb__mode-chip--connectRoute  { background: #fff1f2; color: #be123c;  border-color: #fda4af; }
+.fpb__mode-chip--addDisruption { background: #fff7ed; color: #c2410c;  border-color: #fdba74; }
+.fpb__mode-chip--addFloorRoute { background: #fef2f2; color: #b91c1c;  border-color: #fca5a5; }
+.fpb__mode-chip--pan           { background: #f8fafc; color: #475569;  border-color: #e2e8f0; }
+
+.fpb__hint-text {
+  flex: 1;
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fpb__board {
@@ -728,6 +765,8 @@
   transition: background 0.12s;
   line-height: 1;
   color: #334155;
+  min-height: 36px;
+  min-width: 36px;
 }
 
 .fpb__zoom-btn:hover {
@@ -1035,6 +1074,66 @@
   margin-left: auto;
 }
 
+/* ── Floating route-drawing overlay ─────────────────────────────────────── */
+
+.fpb__route-overlay {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1.5px solid #fca5a5;
+  border-radius: 24px;
+  padding: 6px 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 65;
+  white-space: nowrap;
+}
+
+.fpb__route-overlay-status {
+  font-size: 12px;
+  font-weight: 700;
+  color: #b91c1c;
+  margin-right: 4px;
+}
+
+.fpb__route-overlay-btn {
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 16px;
+  cursor: pointer;
+  border: 1.5px solid;
+  transition: background 0.12s, border-color 0.12s;
+  min-height: 36px;
+}
+
+.fpb__route-overlay-btn--finish {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.fpb__route-overlay-btn--finish:hover {
+  background: #15803d;
+  border-color: #15803d;
+}
+
+.fpb__route-overlay-btn--cancel {
+  background: #f8fafc;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.fpb__route-overlay-btn--cancel:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
 .fpb__pipe-legend {
   display: flex;
   align-items: center;
@@ -1237,7 +1336,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 8px;
+  padding: 7px 8px;
   font-size: 12px;
   background: transparent;
   border: 1px solid transparent;
@@ -1246,6 +1345,7 @@
   color: #78350f;
   text-align: left;
   transition: background 0.12s;
+  min-height: 44px;
 }
 
 .fpb__disruption-kind-btn:hover { background: #fef3c7; }

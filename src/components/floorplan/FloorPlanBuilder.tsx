@@ -712,8 +712,17 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const isCtrl = e.ctrlKey || e.metaKey;
-      if (e.key === 'Escape' && tool === 'addFloorRoute' && inProgressRoutePoints.length > 0) {
+      if (e.key === 'Escape') {
+        // Cancel any active non-select tool and clear all pending placement state.
+        if (tool !== 'select') setTool('select');
+        setPendingWallStart(null);
+        setPendingPort(null);
+        setPendingKind(null);
+        setPendingFloorObjectType(null);
+        setGhostPos(null);
         setInProgressRoutePoints([]);
+        setRoomDraftOrigin(null);
+        setRoomDraftSize(null);
         return;
       }
       if (!isCtrl) return;
@@ -1219,6 +1228,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       setGhostPos(pos);
     }
 
+    // Ghost FloorObject preview
+    if (tool === 'placeNode' && pendingFloorObjectType) {
+      setGhostPos(pos);
+    }
+
     if (!dragRef.current) return;
     const state = dragRef.current;
 
@@ -1670,7 +1684,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 className={`fpb__tool-btn ${tool === t.id ? 'active' : ''}`}
                 onClick={() => {
                   setTool(t.id);
-                  if (t.id !== 'placeNode') setPendingKind(null);
+                  if (t.id !== 'placeNode') { setPendingKind(null); setPendingFloorObjectType(null); setGhostPos(null); }
                   if (t.id !== 'drawWall') setPendingWallStart(null);
                   if (t.id !== 'connectRoute') setPendingPort(null);
                   if (t.id !== 'addFloorRoute') setInProgressRoutePoints([]);
@@ -1820,10 +1834,27 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
         <div className="fpb__canvas-wrap">
           {/* Tool hint bar */}
           <div className="fpb__hint-bar">
-            {TOOL_DEFS.find((t) => t.id === tool)?.hint}
-            {pendingKind && ` — selected: ${pendingKind.replace(/_/g, ' ')}`}
-            {pendingWallStart && ' — click endpoint to complete wall'}
-            {pendingPort && ' — click target port to connect'}
+            {/* Active mode chip */}
+            {(() => {
+              const def = TOOL_DEFS.find((t) => t.id === tool);
+              return (
+                <span className={`fpb__mode-chip fpb__mode-chip--${tool}`} aria-label={`Current mode: ${def?.label}`}>
+                  <span aria-hidden="true">{def?.icon}</span>
+                  {def?.label}
+                </span>
+              );
+            })()}
+            {/* Contextual hint text */}
+            <span className="fpb__hint-text">
+              {TOOL_DEFS.find((t) => t.id === tool)?.hint}
+              {pendingKind && ` — ${pendingKind.replace(/_/g, ' ')}`}
+              {pendingFloorObjectType && ` — ${FLOOR_OBJECT_TYPE_LABELS[pendingFloorObjectType]}`}
+              {pendingWallStart && ' — click endpoint to complete wall'}
+              {pendingPort && ' — click target port to connect'}
+              {tool === 'addFloorRoute' && inProgressRoutePoints.length > 0 && (
+                <> — <strong>{inProgressRoutePoints.length} point{inProgressRoutePoints.length !== 1 ? 's' : ''}</strong> placed</>
+              )}
+            </span>
             <div className="fpb__hint-actions">
               {autoRoutes.length > 0 && (
                 <span className="fpb__pipe-legend">
@@ -1913,6 +1944,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       }
                     }}
                   >
+                    {/* Wide transparent hit area for easier wall selection */}
+                    {segments.map((seg, i) => (
+                      <line
+                        key={`hit-${i}`}
+                        x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+                        stroke="transparent"
+                        strokeWidth={16}
+                        strokeLinecap="round"
+                      />
+                    ))}
                     {segments.map((seg, i) => (
                       <line
                         key={i}
@@ -2427,6 +2468,44 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               <button className="fpb__zoom-btn" onClick={handleFitFloor} title="Fit floor (reset zoom)">⌂</button>
             </div>
 
+            {/* ── Floating route-drawing overlay — visible while drawing a route ── */}
+            {tool === 'addFloorRoute' && inProgressRoutePoints.length > 0 && (
+              <div className="fpb__route-overlay" role="toolbar" aria-label="Route drawing controls">
+                <span className="fpb__route-overlay-status">
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 8,
+                      borderRadius: 2,
+                      background: FLOOR_ROUTE_TYPE_COLORS[pendingRouteType],
+                      marginRight: 5,
+                      verticalAlign: 'middle',
+                    }}
+                  />
+                  {FLOOR_ROUTE_TYPE_LABELS[pendingRouteType]}
+                  {' · '}{inProgressRoutePoints.length} point{inProgressRoutePoints.length !== 1 ? 's' : ''}
+                </span>
+                {inProgressRoutePoints.length >= 2 && (
+                  <button
+                    className="fpb__route-overlay-btn fpb__route-overlay-btn--finish"
+                    onClick={() => commitFloorRoute(inProgressRoutePoints)}
+                    title="Finish and save route"
+                  >
+                    ✓ Finish
+                  </button>
+                )}
+                <button
+                  className="fpb__route-overlay-btn fpb__route-overlay-btn--cancel"
+                  onClick={() => setInProgressRoutePoints([])}
+                  title="Cancel current route (Escape)"
+                >
+                  ✕ Cancel
+                </button>
+              </div>
+            )}
+
             {/* ── Bottom action bar for selected items ── */}
             {selectedRoom && (
               <div className="fpb__bottom-actions">
@@ -2661,7 +2740,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                     const next = activeFloor.walls[(wallIdx + delta + activeFloor.walls.length) % activeFloor.walls.length];
                     if (next) { setWallDetailWallId(next.id); setSelection({ kind: 'wall', id: next.id }); }
                   }}
-                  onClose={() => setShowWallDetailSheet(false)}
+                  onClose={() => {
+                    setShowWallDetailSheet(false);
+                    // Return to select mode so the wall stays selected and mode is predictable.
+                    setTool('select');
+                    if (wallDetailWallId) setSelection({ kind: 'wall', id: wallDetailWallId });
+                  }}
                 />
               );
             })()}
