@@ -182,6 +182,8 @@ export interface FloorPlan {
   walls: Wall[];
   openings: Opening[];
   zones: Zone[];
+  /** Non-HVAC fixtures placed by survey (sinks, baths, showers, flues, etc.). */
+  floorObjects?: FloorObject[];
   /**
    * True-north bearing for this floor plan in degrees clockwise from north
    * (0 = north, 90 = east, 180 = south, 270 = west).
@@ -371,6 +373,78 @@ export interface ValidationIssue {
   message: string;
 }
 
+// ─── Floor objects (non-HVAC fixtures) ───────────────────────────────────────
+
+/**
+ * Fixture types that can be placed on a floor plan independent of the
+ * PlacementNode / lego heating palette.  Used by the object library panel
+ * and ObjectInspectorPanel to capture survey truth for sinks, baths, etc.
+ */
+export type FloorObjectType =
+  | 'boiler'
+  | 'cylinder'
+  | 'radiator'
+  | 'sink'
+  | 'bath'
+  | 'shower'
+  | 'flue'
+  | 'other';
+
+export const FLOOR_OBJECT_TYPE_LABELS: Record<FloorObjectType, string> = {
+  boiler:   'Boiler',
+  cylinder: 'Cylinder',
+  radiator: 'Radiator',
+  sink:     'Sink',
+  bath:     'Bath',
+  shower:   'Shower',
+  flue:     'Flue',
+  other:    'Other',
+};
+
+export const FLOOR_OBJECT_TYPE_EMOJI: Record<FloorObjectType, string> = {
+  boiler:   '🔥',
+  cylinder: '💧',
+  radiator: '🌡️',
+  sink:     '🚰',
+  bath:     '🛁',
+  shower:   '🚿',
+  flue:     '🏭',
+  other:    '📦',
+};
+
+/**
+ * A physical fixture placed on the floor plan — distinct from a PlacementNode
+ * (which models a heating-circuit component in the lego graph).
+ *
+ * FloorObjects capture the spatial truth of fixtures such as sinks, baths,
+ * showers, and flues for engineer survey purposes.  They are not wired into
+ * the heating topology graph but ARE part of the canonical PropertyPlan and
+ * are consumed by the engineer handoff view.
+ */
+export interface FloorObject {
+  id: string;
+  floorId: string;
+  type: FloorObjectType;
+  /** Optional human-readable label (e.g. "Main bathroom sink"). */
+  label?: string;
+  /** Canvas x position of the object anchor. */
+  x: number;
+  /** Canvas y position of the object anchor. */
+  y: number;
+  /** Physical width in metres (along the wall / x-axis). */
+  widthM?: number;
+  /** Physical height in metres (depth from wall / y-axis). */
+  heightM?: number;
+  /** Physical depth in metres (only relevant for 3-D objects like cylinders). */
+  depthM?: number;
+  /** Room assignment (if known). */
+  roomId?: string;
+  /** Wall assignment — when the object is wall-mounted. */
+  wallId?: string;
+  /** Provenance metadata. Newly-created objects always carry source='manual'. */
+  provenance?: EntityProvenance;
+}
+
 // ─── Editor tool modes ────────────────────────────────────────────────────────
 
 export type EditorTool =
@@ -386,9 +460,10 @@ export type EditorTool =
 // ─── Selection model ──────────────────────────────────────────────────────────
 
 export type SelectionTarget =
-  | { kind: 'room';        id: string }
-  | { kind: 'wall';        id: string }
-  | { kind: 'opening';     id: string }
-  | { kind: 'node';        id: string }
-  | { kind: 'connection';  id: string }
-  | { kind: 'disruption';  id: string };
+  | { kind: 'room';         id: string }
+  | { kind: 'wall';         id: string }
+  | { kind: 'opening';      id: string }
+  | { kind: 'node';         id: string }
+  | { kind: 'connection';   id: string }
+  | { kind: 'disruption';   id: string }
+  | { kind: 'floor_object'; id: string };
