@@ -492,22 +492,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     dimensions: boolean;
     confidenceBadges: boolean;
   }>(() => {
-    try {
-      const raw = sessionStorage.getItem('atlas.floorplan.visibleLayers');
-      if (raw) {
-        const parsed = JSON.parse(raw) as Record<string, boolean>;
-        return {
-          geometry:        parsed.geometry        ?? true,
-          openings:        parsed.openings        ?? true,
-          components:      parsed.components      ?? true,
-          routes:          parsed.routes          ?? true,
-          disruptions:     parsed.disruptions     ?? true,
-          dimensions:      parsed.dimensions      ?? false,
-          confidenceBadges: parsed.confidenceBadges ?? false,
-        };
-      }
-    } catch { /* ignore */ }
-    return {
+    const defaults = {
       geometry:        true,
       openings:        true,
       components:      true,
@@ -516,6 +501,26 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
       dimensions:      false,
       confidenceBadges: false,
     };
+    try {
+      const raw = sessionStorage.getItem('atlas.floorplan.visibleLayers');
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        // Guard: only use parsed value if it is a plain object
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const p = parsed as Record<string, unknown>;
+          return {
+            geometry:        typeof p.geometry        === 'boolean' ? p.geometry        : defaults.geometry,
+            openings:        typeof p.openings        === 'boolean' ? p.openings        : defaults.openings,
+            components:      typeof p.components      === 'boolean' ? p.components      : defaults.components,
+            routes:          typeof p.routes          === 'boolean' ? p.routes          : defaults.routes,
+            disruptions:     typeof p.disruptions     === 'boolean' ? p.disruptions     : defaults.disruptions,
+            dimensions:      typeof p.dimensions      === 'boolean' ? p.dimensions      : defaults.dimensions,
+            confidenceBadges: typeof p.confidenceBadges === 'boolean' ? p.confidenceBadges : defaults.confidenceBadges,
+          };
+        }
+      }
+    } catch { /* sessionStorage unavailable or JSON malformed — fall through to defaults */ }
+    return defaults;
   });
 
   /** "Clean view" collapses all labels/dimensions — useful for presentation screenshots. */
