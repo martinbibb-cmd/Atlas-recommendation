@@ -31,7 +31,8 @@ import { IncludedScopeBlockView } from './blocks/IncludedScopeBlockView';
 import { WarningBlockView } from './blocks/WarningBlockView';
 import { FutureUpgradeBlockView } from './blocks/FutureUpgradeBlockView';
 import { PortalCtaBlockView } from './blocks/PortalCtaBlockView';
-import type { HeroBlock, FactsBlock, ProblemBlock, SolutionBlock, DailyUseBlock, IncludedScopeBlock, WarningBlock, FutureUpgradeBlock, PortalCtaBlock } from '../../contracts/VisualBlock';
+import { SpatialProofBlockView } from './blocks/SpatialProofBlockView';
+import type { HeroBlock, FactsBlock, ProblemBlock, SolutionBlock, DailyUseBlock, IncludedScopeBlock, WarningBlock, FutureUpgradeBlock, PortalCtaBlock, SpatialProofBlock } from '../../contracts/VisualBlock';
 import './CustomerDeck.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ function renderBlock(
     case 'warning':        return <WarningBlockView        block={block as WarningBlock} />;
     case 'future_upgrade': return <FutureUpgradeBlockView  block={block as FutureUpgradeBlock} />;
     case 'portal_cta':     return <PortalCtaBlockView      block={block as PortalCtaBlock} onOpenPortal={onOpenPortal} />;
+    case 'spatial_proof':  return <SpatialProofBlockView   block={block as SpatialProofBlock} />;
     default:               return null;
   }
 }

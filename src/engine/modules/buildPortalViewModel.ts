@@ -12,7 +12,7 @@
 
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
-import type { VisualBlock } from '../../contracts/VisualBlock';
+import type { VisualBlock, SpatialProofBlock } from '../../contracts/VisualBlock';
 import type { DailyUseSimulation } from '../../contracts/DailyUseSimulation';
 import { buildDailyUseSimulation } from './buildDailyUseSimulation';
 
@@ -85,6 +85,12 @@ export interface PortalViewModel {
 
   /** VisualBlocks for the "Future upgrades" tab (future_upgrade blocks only). */
   futureBlocks: VisualBlock[];
+
+  /**
+   * Optional spatial proof block for the "Why Atlas chose this" tab.
+   * Present only when the deck contains a spatial_proof block derived from EngineerLayout.
+   */
+  spatialProof: SpatialProofBlock | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,7 +116,6 @@ const RECOMMENDED_TAB_TYPES = new Set<VisualBlock['type']>([
   'warning',
   'included_scope',
 ]);
-
 const FUTURE_TAB_TYPES = new Set<VisualBlock['type']>(['future_upgrade']);
 
 // ─── Card builders ────────────────────────────────────────────────────────────
@@ -249,6 +254,8 @@ export function buildPortalViewModel(
 
   const futureBlocks = blocks.filter((b) => FUTURE_TAB_TYPES.has(b.type));
 
+  const spatialProofBlock = blocks.find((b): b is SpatialProofBlock => b.type === 'spatial_proof') ?? null;
+
   return {
     tabs,
     recommendedBlocks,
@@ -257,5 +264,6 @@ export function buildPortalViewModel(
     dailyUseCards:       buildDailyUseCards(decision, scenarios),
     dailyUseSimulation:  buildDailyUseSimulation(decision, scenarios),
     futureBlocks,
+    spatialProof:        spatialProofBlock,
   };
 }

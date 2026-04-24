@@ -101,3 +101,11 @@
   flex-direction: column;
   gap: 1rem;
 }
+
+/* ─── Why tab stack (spatial proof + proof cards) ──────────────────────── */
+
+.portal-page__why-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
