@@ -18,7 +18,7 @@ import type { EngineInputV2_3Contract } from '../../contracts/EngineInputV2_3';
 import type { EngineerHandoff, EngineerHandoffFact, EngineerHandoffEvidence } from '../../contracts/EngineerHandoff';
 import type { PropertyPlan } from '../../components/floorplan/propertyPlan.types';
 import { buildEngineerLayout, buildLayoutSummaryLines } from './buildEngineerLayout';
-import { buildQuoteScope, scopeIncluded, synthesizeLegacyScope } from './buildQuoteScope';
+import { scopeIncluded, synthesizeLegacyScope } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
 
 // ─── Included scope ───────────────────────────────────────────────────────────
