@@ -103,5 +103,5 @@ export interface AtlasDecisionV1 {
    * PR26 — Drives the shower warning block, portal proof card, and engineer
    * install note without re-deriving logic on any output surface.
    */
-  showerCompatibilityNote?: ShowerCompatibilityNote | null;
+  showerCompatibilityNote?: ShowerCompatibilityNote;
 }
