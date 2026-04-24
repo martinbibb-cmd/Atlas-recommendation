@@ -21,10 +21,10 @@ export function HeroBlockView({ block }: Props) {
 
   return (
     <article className="customer-deck__block customer-deck__block--hero" aria-label={block.title}>
-      {/* Large visual area */}
+      {/* Large visual area — dominates the page */}
       <div
         className="customer-deck__visual-ring"
-        style={{ background: `radial-gradient(circle, ${visual.accentColor}22 0%, transparent 70%)` }}
+        style={{ background: `radial-gradient(circle, ${visual.accentColor}33 0%, transparent 70%)` }}
         aria-label={visual.ariaLabel}
         role="img"
       >
@@ -33,15 +33,16 @@ export function HeroBlockView({ block }: Props) {
         </span>
       </div>
 
-      {/* Text content */}
+      {/* Text content — recommendation first */}
       <div className="customer-deck__block-body">
         <h1 className="customer-deck__title">{block.title}</h1>
         <p className="customer-deck__outcome">{block.outcome}</p>
+        {/* Supporting reasons rendered as chips — visual and scannable */}
         {block.supportingPoints && block.supportingPoints.length > 0 && (
-          <ul className="customer-deck__supporting-points" aria-label="Key points">
+          <ul className="customer-deck__reason-chips" aria-label="Key reasons">
             {block.supportingPoints.slice(0, 3).map((point) => (
-              <li key={point} className="customer-deck__supporting-point">
-                <span className="customer-deck__point-marker" aria-hidden="true">✓</span>
+              <li key={point} className="customer-deck__reason-chip">
+                <span aria-hidden="true">✓</span>
                 {point}
               </li>
             ))}

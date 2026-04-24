@@ -46,9 +46,9 @@ const VISUAL_REGISTRY: Record<string, VisualEntry> = {
   combi_solution:             { icon: '🔥', accentColor: '#dc2626', ariaLabel: 'Combi boiler solution' },
   mixergy_solution:           { icon: '⚡', accentColor: '#7c3aed', ariaLabel: 'Mixergy smart cylinder' },
 
-  // Warning / lifecycle keys
-  boiler_lifecycle_warning:   { icon: '⏰', accentColor: '#d97706', ariaLabel: 'Boiler approaching end of life' },
-  boiler_at_risk_warning:     { icon: '🔴', accentColor: '#dc2626', ariaLabel: 'Boiler at risk of failure' },
+  // Warning / lifecycle keys — softer icons to signal advisory tone, not alarm
+  boiler_lifecycle_warning:   { icon: '📅', accentColor: '#d97706', ariaLabel: 'Boiler approaching end of expected service life' },
+  boiler_at_risk_warning:     { icon: '⚠️', accentColor: '#dc2626', ariaLabel: 'Boiler reliability declining — worth planning ahead' },
   compatibility_warning:      { icon: '🔧', accentColor: '#9333ea', ariaLabel: 'Compatibility note' },
 
   // Facts keys
@@ -69,8 +69,8 @@ const VISUAL_REGISTRY: Record<string, VisualEntry> = {
   future_upgrade_heat_pump:   { icon: '🌿', accentColor: '#059669', ariaLabel: 'Heat pump upgrade pathway' },
   future_upgrade_paths:       { icon: '🔮', accentColor: '#7c3aed', ariaLabel: 'Future upgrade options' },
 
-  // Portal CTA key
-  portal_cta:                 { icon: '📱', accentColor: '#0ea5e9', ariaLabel: 'Customer portal' },
+  // Portal CTA key — signals opening the portal, decision moment
+  portal_cta:                 { icon: '🚪', accentColor: '#0ea5e9', ariaLabel: 'Open your customer portal' },
 
   // Spatial proof keys
   spatial_proof_where_work_happens: { icon: '📍', accentColor: '#0284c7', ariaLabel: 'Where the work happens in your home' },

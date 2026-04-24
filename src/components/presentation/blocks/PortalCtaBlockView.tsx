@@ -38,7 +38,7 @@ export function PortalCtaBlockView({ block, onOpenPortal }: Props) {
     <article className="customer-deck__block customer-deck__block--portal-cta" aria-label={block.title}>
       <div
         className="customer-deck__visual-ring"
-        style={{ background: `radial-gradient(circle, ${visual.accentColor}22 0%, transparent 70%)` }}
+        style={{ background: `radial-gradient(circle, ${visual.accentColor}33 0%, transparent 70%)` }}
         aria-label={visual.ariaLabel}
         role="img"
       >
@@ -68,8 +68,9 @@ export function PortalCtaBlockView({ block, onOpenPortal }: Props) {
             type="button"
             onClick={handleCta}
             disabled={!onOpenPortal}
+            aria-label="Open your customer portal"
           >
-            View your report
+            Open your portal →
           </button>
         </div>
       </div>

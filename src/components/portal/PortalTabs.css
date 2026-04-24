@@ -18,13 +18,13 @@
 
 .portal-tabs__tab {
   flex-shrink: 0;
-  padding: 0.75rem 1.1rem;
+  padding: 0.85rem 1.1rem;
   font-size: 0.875rem;
   font-weight: 500;
   color: #718096;
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   cursor: pointer;
   white-space: nowrap;
   margin-bottom: -2px;
@@ -37,7 +37,8 @@
 }
 
 .portal-tabs__tab--active {
-  color: #3182ce;
+  color: #2b6cb0;
   font-weight: 700;
-  border-bottom-color: #3182ce;
+  border-bottom-color: #2b6cb0;
+  font-size: 0.9rem;
 }
