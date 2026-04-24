@@ -91,6 +91,10 @@ import WallDimensionLabels from './overlays/WallDimensionLabels';
 // PR23 handoff preview banner
 import HandoffPreviewBanner from './panels/HandoffPreviewBanner';
 import { validatePlanReadiness } from '../../features/floorplan/planReadinessValidator';
+// PR24 guided survey checklist
+import GuidedSurveyChecklist from './panels/GuidedSurveyChecklist';
+import { deriveGuidedSteps } from '../../features/floorplan/guidedSurveySteps';
+import type { GuidedStepAction } from '../../features/floorplan/guidedSurveySteps';
 import './floorplan.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -533,6 +537,9 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
    *  Hides editor chrome to let the surveyor check readability before handoff. */
   const [previewMode, setPreviewMode] = useState(false);
 
+  /** PR24: Show the guided survey checklist rail. */
+  const [showGuidedChecklist, setShowGuidedChecklist] = useState(false);
+
   /**
    * PR23: When the handoff preview banner offers a "place X" quick-fix,
    * stores the FloorObjectType to highlight in the object library panel.
@@ -541,19 +548,56 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   const [objectLibraryHighlight, setObjectLibraryHighlight] = useState<FloorObjectType | null>(null);
 
   /**
-   * PR23: Plan readiness result — computed from the current plan whenever
-   * preview mode is active.  Always recomputes on plan change; the component
-   * only renders in preview mode so the cost is minimal.
+   * PR23/PR24: Plan readiness result — computed from the current plan.
+   * Used by the handoff preview banner (PR23) and guided survey checklist (PR24).
    */
-  const planReadinessResult = useMemo(
-    () => validatePlanReadiness(plan, {
-      needsStoredHotWater: plan.placementNodes.some(
-        (n) => n.type === 'heat_source_system_boiler' ||
-               n.type === 'heat_source_regular_boiler',
-      ),
-    }),
-    [plan],
+  const needsStoredHotWaterFlag = useMemo(
+    () => plan.placementNodes.some(
+      (n) => n.type === 'heat_source_system_boiler' ||
+             n.type === 'heat_source_regular_boiler',
+    ),
+    [plan.placementNodes],
   );
+
+  const planReadinessResult = useMemo(
+    () => validatePlanReadiness(plan, { needsStoredHotWater: needsStoredHotWaterFlag }),
+    [plan, needsStoredHotWaterFlag],
+  );
+
+  /**
+   * PR24: Guided survey steps — derived from plan state and readiness result.
+   * Recomputed whenever the plan or readiness changes.
+   */
+  const guidedSteps = useMemo(
+    () => deriveGuidedSteps(plan, planReadinessResult, { needsStoredHotWater: needsStoredHotWaterFlag }),
+    [plan, planReadinessResult, needsStoredHotWaterFlag],
+  );
+
+  /**
+   * PR24: Handle a guided-step primary action.
+   * Activates the appropriate tool, opens the object library, or enters preview mode
+   * without altering any plan data or disrupting the current canvas state.
+   */
+  const handleGuidedAction = useCallback((action: GuidedStepAction) => {
+    switch (action.kind) {
+      case 'switchTool':
+        changeTool(action.tool);
+        if (action.tool !== 'placeNode') { setPendingKind(null); setPendingFloorObjectType(null); setGhostPos(null); }
+        if (action.tool !== 'drawWall') setPendingWallStart(null);
+        if (action.tool !== 'connectRoute') setPendingPort(null);
+        if (action.tool !== 'addFloorRoute') setInProgressRoutePoints([]);
+        break;
+      case 'openLibrary':
+        setObjectLibraryHighlight(action.highlightType);
+        setShowObjectLibrary(true);
+        break;
+      case 'enterPreview':
+        setPreviewMode(true);
+        break;
+    }
+  // changeTool is stable (memoised); other setters are stable React dispatch fns.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [changeTool]);
 
   // ── Zoom & pan state ────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -1803,6 +1847,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {previewMode ? '✕ Exit preview' : '👁 Preview handoff'}
           </button>
 
+          {/* ── PR24: Guided survey checklist toggle ── */}
+          <button
+            className={`fpb__action-btn fpb__guided-toggle-btn ${showGuidedChecklist ? 'active' : ''}`}
+            onClick={() => setShowGuidedChecklist((v) => !v)}
+            title={showGuidedChecklist ? 'Hide guided survey checklist' : 'Show guided survey — step-by-step capture guide'}
+            aria-pressed={showGuidedChecklist}
+          >
+            {showGuidedChecklist ? '✕ Hide guide' : '📋 Guided survey'}
+          </button>
+
           {/* ── View mode toggle ── */}
           <div className="fpb__view-toggle" role="group" aria-label="View mode">
             <button
@@ -2093,6 +2147,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             </section>
           )}
         </aside>
+
+        {/* ── PR24: Guided survey checklist rail (desktop) ── */}
+        {showGuidedChecklist && !isMobileLayout && (
+          <GuidedSurveyChecklist
+            steps={guidedSteps}
+            onAction={handleGuidedAction}
+            onClose={() => setShowGuidedChecklist(false)}
+            isMobile={false}
+          />
+        )}
 
         {/* ── Canvas area ── */}
         <div className="fpb__canvas-wrap">
@@ -2967,6 +3031,28 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               >
                 ✕ Cancel
               </button>
+            )}
+
+            {/* ── PR24: Guided survey checklist — mobile bottom sheet ── */}
+            {showGuidedChecklist && isMobileLayout && (
+              <>
+                <div
+                  className="fpb__bottom-sheet-backdrop"
+                  onClick={() => setShowGuidedChecklist(false)}
+                />
+                <div className="fpb__bottom-sheet fpb__bottom-sheet--guided">
+                  <GuidedSurveyChecklist
+                    steps={guidedSteps}
+                    onAction={(action) => {
+                      handleGuidedAction(action);
+                      // Close sheet after triggering an action so the canvas is visible
+                      setShowGuidedChecklist(false);
+                    }}
+                    onClose={() => setShowGuidedChecklist(false)}
+                    isMobile={true}
+                  />
+                </div>
+              </>
             )}
 
             {/* ── Add Room bottom sheet ── */}

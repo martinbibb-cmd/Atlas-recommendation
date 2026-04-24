@@ -2477,3 +2477,38 @@
   font-weight: 700;
   box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
 }
+
+/* ── PR24: Guided survey checklist ─────────────────────────────────────── */
+
+.fpb__guided-toggle-btn.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.fpb__guided-rail {
+  width: 220px;
+  min-width: 200px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: #fff;
+  border-right: 1px solid #e2e8f0;
+}
+
+/* Mobile bottom sheet variant */
+.fpb__bottom-sheet--guided {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.fpb__guided-step-btn:hover {
+  opacity: 0.85;
+}
+
+/* Responsive: hide guided rail below medium breakpoint — use bottom-sheet instead */
+@media (max-width: 640px) {
+  .fpb__guided-rail {
+    display: none;
+  }
+}
