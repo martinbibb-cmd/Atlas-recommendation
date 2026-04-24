@@ -48,16 +48,10 @@ const sessionStorageMock = (() => {
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 Object.defineProperty(window, 'sessionStorage', { value: sessionStorageMock });
 
-// Stub ResizeObserver so tests don't throw in jsdom.
-if (typeof globalThis.ResizeObserver === 'undefined') {
-  globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-}
-
 // ── Fixtures ─────────────────────────────────────────────────────────────────
+// (ResizeObserver is already stubbed in src/test/setup.ts for all tests.)
+
+const GRID = 24; // canvas pixels per metre (matches geometry module)
 
 const MOCK_OBJECT: FloorObject = {
   id: 'obj_1',
@@ -79,7 +73,7 @@ const MOCK_WALL: Wall = {
   id: 'wall_1',
   floorId: 'floor_1',
   kind: 'internal',
-  x1: 0, y1: 0, x2: 120, y2: 0, // 5 m (at 24 px/m grid)
+  x1: 0, y1: 0, x2: 5 * GRID, y2: 0, // 5 m wall
 };
 
 const MOCK_ROOM: Room = {
