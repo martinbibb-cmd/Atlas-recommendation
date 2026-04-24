@@ -262,8 +262,14 @@ describe('EngineerHandoffPage — included scope (QuoteScopeItem[])', () => {
         scenarios={[makeScenario()]}
       />,
     );
-    // IncludedScopeSection renders '[Requirement]' with brackets for compliance items
-    expect(screen.getByText('[Requirement]')).toBeTruthy();
+    // IncludedScopeSection renders '[Requirement]' with brackets for compliance items.
+    // Verify the label is co-located with the compliance item's text.
+    const requirementEl = screen.getByText('[Requirement]');
+    expect(requirementEl).toBeTruthy();
+    // The [Requirement] span is a sibling of the item label within the same list item
+    const listItem = requirementEl.closest('li');
+    expect(listItem).not.toBeNull();
+    expect(listItem!.textContent).toContain('G3 unvented regulations');
   });
 
   it('non-compliance items do NOT carry Requirement label', () => {

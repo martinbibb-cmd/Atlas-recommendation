@@ -215,7 +215,10 @@ describe('PortalPage — container and tab bar', () => {
 
   it('does not render a header when propertyTitle is absent', () => {
     render(<PortalPage viewModel={makeViewModel()} />);
+    // No header banner — the tab bar is the top-level navigation element
     expect(screen.queryByRole('banner')).toBeNull();
+    // Tab list (navigation) is still rendered
+    expect(screen.getByRole('tablist', { name: 'Portal navigation' })).toBeTruthy();
   });
 });
 
