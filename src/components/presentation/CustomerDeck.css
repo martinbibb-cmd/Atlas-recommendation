@@ -393,3 +393,27 @@
     animation: none;
   }
 }
+
+/* ─── Spatial proof block ─────────────────────────────────────────────────── */
+
+.spatial-proof__objects {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.spatial-proof__object-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: #f0fff4;
+  color: #276749;
+  border: 1px solid #c6f6d5;
+}

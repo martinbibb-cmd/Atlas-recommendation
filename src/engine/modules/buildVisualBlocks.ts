@@ -25,6 +25,7 @@
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
+import type { EngineerLayout } from '../../contracts/EngineerLayout';
 import type {
   VisualBlock,
   HeroBlock,
@@ -36,6 +37,7 @@ import type {
   WarningBlock,
   FutureUpgradeBlock,
   PortalCtaBlock,
+  SpatialProofBlock,
 } from '../../contracts/VisualBlock';
 
 // ─── Visual key constants ─────────────────────────────────────────────────────
@@ -51,6 +53,7 @@ const VK = {
   lifecycleWarning: 'boiler_lifecycle_warning',
   futureUpgrade: 'future_upgrade_solar',
   portalCta: 'portal_demo_cta',
+  spatialProof: 'spatial_proof_where_work_happens',
 } as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -271,6 +274,128 @@ function buildPortalCtaBlock(launchContext: PortalLaunchContext): PortalCtaBlock
   };
 }
 
+// ─── Confidence label helpers ─────────────────────────────────────────────────
+
+/**
+ * Maps route status to customer-facing language.
+ * 'assumed' maps to 'needs verification' intentionally — never present
+ * an assumed route as a confirmed fact to the customer.
+ */
+const ROUTE_STATUS_LABEL: Record<string, string> = {
+  existing:  'existing',
+  proposed:  'proposed',
+  assumed:   'needs verification',
+};
+
+const ROUTE_TYPE_LABEL: Record<string, string> = {
+  flow:        'heating flow route',
+  return:      'heating return route',
+  cold:        'cold water supply route',
+  hot:         'hot water supply route',
+  condensate:  'condensate route',
+  discharge:   'discharge route',
+};
+
+/** Capitalise the first character of a string. */
+function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * buildSpatialProofBlock
+ *
+ * Derives a customer-facing SpatialProofBlock from EngineerLayout truth.
+ * Returns null when no meaningful spatial data is available.
+ *
+ * Rules:
+ *  - Derives content entirely from the supplied EngineerLayout.
+ *  - Assumed routes are labelled "needs verification" — never presented as confirmed.
+ *  - Route and object counts are capped to keep the block concise.
+ *  - No engineer-internal confidence levels exposed verbatim.
+ */
+export function buildSpatialProofBlock(layout: EngineerLayout): SpatialProofBlock | null {
+  const { rooms, objects, routes = [] } = layout;
+
+  // Require at least one room or object to emit a spatial block
+  if (rooms.length === 0 && objects.length === 0) return null;
+
+  // Rooms — up to 4 distinct room names
+  const roomNames = top(
+    rooms.map((r) => r.name).filter(Boolean),
+    4,
+  );
+
+  // Key objects — boiler and cylinder surface as named location strings
+  const keyObjects: string[] = top(
+    objects
+      .filter((o) => o.type === 'boiler' || o.type === 'cylinder' || o.type === 'flue')
+      .map((o) => {
+        const label = o.label ?? capitalize(o.type);
+        const location = o.positionHint ?? (o.roomId ? rooms.find((r) => r.id === o.roomId)?.name : undefined);
+        return location ? `${label} — ${location}` : label;
+      }),
+    4,
+  );
+
+  // Route summaries — softened by status
+  const routeSummary: string[] = top(
+    routes.map((r) => {
+      const typeLabel = ROUTE_TYPE_LABEL[r.type] ?? r.type;
+      const statusLabel = ROUTE_STATUS_LABEL[r.status] ?? r.status;
+      if (r.fromLabel && r.toLabel) {
+        return `${capitalize(typeLabel)} from ${r.fromLabel} to ${r.toLabel} (${statusLabel})`;
+      }
+      return `${capitalize(typeLabel)} (${statusLabel})`;
+    }),
+    4,
+  );
+
+  // Confidence summary — plain customer-facing status sentences
+  const confidenceSummary: string[] = [];
+
+  const boilerObj = objects.find((o) => o.type === 'boiler');
+  if (boilerObj) {
+    if (boilerObj.confidence === 'confirmed' || boilerObj.confidence === 'inferred') {
+      confidenceSummary.push('Boiler location recorded');
+    } else {
+      confidenceSummary.push('Boiler location to be confirmed on site');
+    }
+  }
+
+  const cylinderObj = objects.find((o) => o.type === 'cylinder');
+  if (cylinderObj) {
+    if (cylinderObj.confidence === 'confirmed' || cylinderObj.confidence === 'inferred') {
+      confidenceSummary.push('Cylinder position planned');
+    } else {
+      confidenceSummary.push('Cylinder position to be agreed on site');
+    }
+  }
+
+  const hasAssumedRoute = routes.some((r) => r.status === 'assumed' || r.confidence === 'needs_verification');
+  const hasDischargeRoute = routes.some((r) => r.type === 'discharge' || r.type === 'condensate');
+  if (hasDischargeRoute && hasAssumedRoute) {
+    confidenceSummary.push('Discharge route needs checking');
+  } else if (hasDischargeRoute) {
+    confidenceSummary.push('Discharge route identified');
+  }
+
+  if (confidenceSummary.length === 0 && roomNames.length > 0) {
+    confidenceSummary.push('Room layout recorded');
+  }
+
+  return {
+    id: 'spatial-proof',
+    type: 'spatial_proof',
+    title: 'Where the work happens',
+    outcome: 'A summary of where the proposed system will be installed in your home.',
+    visualKey: VK.spatialProof,
+    rooms: roomNames,
+    keyObjects,
+    routeSummary,
+    confidenceSummary: top(confidenceSummary, 3),
+  };
+}
+
 // ─── Public builder ───────────────────────────────────────────────────────────
 
 /**
@@ -280,10 +405,15 @@ function buildPortalCtaBlock(launchContext: PortalLaunchContext): PortalCtaBlock
  * ordered VisualBlock[] that drives both the customer pack and portal deck.
  *
  * The page order is fixed for PR2. Do not make it dynamic until PR3+.
+ *
+ * @param layout — Optional EngineerLayout. When present, a SpatialProofBlock is
+ *                 inserted before the Portal CTA to show the customer where the
+ *                 work will happen.
  */
 export function buildVisualBlocks(
   decision: AtlasDecisionV1,
   scenarios: ScenarioResult[],
+  layout?: EngineerLayout,
 ): VisualBlock[] {
   const blocks: VisualBlock[] = [];
 
@@ -319,7 +449,13 @@ export function buildVisualBlocks(
   const futureBlock = buildFutureUpgradeBlock(decision);
   if (futureBlock) blocks.push(futureBlock);
 
-  // 9. Portal CTA
+  // 9. Spatial proof — where the work happens (omitted when no layout is supplied)
+  if (layout) {
+    const spatialBlock = buildSpatialProofBlock(layout);
+    if (spatialBlock) blocks.push(spatialBlock);
+  }
+
+  // 10. Portal CTA
   blocks.push(buildPortalCtaBlock({ recommendedScenarioId: decision.recommendedScenarioId }));
 
   return blocks;

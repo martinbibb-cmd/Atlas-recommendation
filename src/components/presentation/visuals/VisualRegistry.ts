@@ -71,6 +71,9 @@ const VISUAL_REGISTRY: Record<string, VisualEntry> = {
 
   // Portal CTA key
   portal_cta:                 { icon: '📱', accentColor: '#0ea5e9', ariaLabel: 'Customer portal' },
+
+  // Spatial proof keys
+  spatial_proof_where_work_happens: { icon: '📍', accentColor: '#0284c7', ariaLabel: 'Where the work happens in your home' },
 };
 
 // ─── Fallback ─────────────────────────────────────────────────────────────────

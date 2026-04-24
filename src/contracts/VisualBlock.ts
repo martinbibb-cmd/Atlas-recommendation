@@ -29,7 +29,8 @@ type BaseVisualBlock = {
     | 'included_scope'
     | 'warning'
     | 'future_upgrade'
-    | 'portal_cta';
+    | 'portal_cta'
+    | 'spatial_proof';
   title: string;
   /** One sentence. No paragraphs. */
   outcome: string;
@@ -95,6 +96,31 @@ export type PortalCtaBlock = BaseVisualBlock & {
   launchContext?: PortalLaunchContext;
 };
 
+/**
+ * SpatialProofBlock — Customer-facing spatial context block.
+ *
+ * Derived from EngineerLayout truth. Shows the customer where the proposed
+ * work happens without exposing engineer-level complexity or assumed routes
+ * as confirmed facts.
+ *
+ * Rules:
+ *  - rooms, keyObjects, routeSummary, confidenceSummary come from EngineerLayout only.
+ *  - Never show assumed routes as confirmed.
+ *  - No full floor-plan or CAD detail.
+ *  - Confidence language must be simple and reassurance-first.
+ */
+export type SpatialProofBlock = BaseVisualBlock & {
+  type: 'spatial_proof';
+  /** Room names relevant to the proposed installation. */
+  rooms: string[];
+  /** Short labels for key objects (e.g. "Boiler — kitchen"). */
+  keyObjects: string[];
+  /** Short route summaries softened by confidence (e.g. "Discharge route needs checking"). */
+  routeSummary: string[];
+  /** Simple confidence notes visible to the customer (e.g. "Cylinder position planned"). */
+  confidenceSummary: string[];
+};
+
 // ─── Union ────────────────────────────────────────────────────────────────────
 
 export type VisualBlock =
@@ -106,4 +132,5 @@ export type VisualBlock =
   | IncludedScopeBlock
   | WarningBlock
   | FutureUpgradeBlock
-  | PortalCtaBlock;
+  | PortalCtaBlock
+  | SpatialProofBlock;

@@ -21,6 +21,7 @@ import { PortalTabs } from './PortalTabs';
 import { ProofCard } from './cards/ProofCard';
 import { ComparisonCard } from './cards/ComparisonCard';
 import { DailyUseCard } from './cards/DailyUseCard';
+import { SpatialProofSection } from './cards/SpatialProofSection';
 import { DailyUseSimulatorPanel } from '../simulator/DailyUseSimulatorPanel';
 import type { VisualBlock, HeroBlock, FactsBlock, SolutionBlock, WarningBlock, IncludedScopeBlock, FutureUpgradeBlock } from '../../contracts/VisualBlock';
 import { HeroBlockView } from '../presentation/blocks/HeroBlockView';
@@ -66,15 +67,22 @@ function RecommendedTab({ blocks }: { blocks: PortalViewModel['recommendedBlocks
   );
 }
 
-function WhyTab({ cards }: { cards: PortalViewModel['whyCards'] }) {
-  if (cards.length === 0) {
+function WhyTab({ cards, spatialProof }: { cards: PortalViewModel['whyCards']; spatialProof: PortalViewModel['spatialProof'] }) {
+  if (cards.length === 0 && !spatialProof) {
     return <p className="portal-page__empty">No proof cards available.</p>;
   }
   return (
-    <div className="portal-page__card-grid">
-      {cards.map((card) => (
-        <ProofCard key={card.id} card={card} />
-      ))}
+    <div className="portal-page__why-stack">
+      {spatialProof && (
+        <SpatialProofSection block={spatialProof} />
+      )}
+      {cards.length > 0 && (
+        <div className="portal-page__card-grid">
+          {cards.map((card) => (
+            <ProofCard key={card.id} card={card} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -154,7 +162,7 @@ export function PortalPage({ viewModel, propertyTitle, initialTab }: PortalPageP
   function renderActivePanel() {
     switch (activeTab) {
       case 'recommended': return <RecommendedTab blocks={viewModel.recommendedBlocks} />;
-      case 'why':         return <WhyTab         cards={viewModel.whyCards} />;
+      case 'why':         return <WhyTab         cards={viewModel.whyCards} spatialProof={viewModel.spatialProof} />;
       case 'compare':     return <CompareTab     cards={viewModel.comparisonCards} />;
       case 'daily_use':   return <DailyUseTab    cards={viewModel.dailyUseCards} simulation={viewModel.dailyUseSimulation} />;
       case 'future':      return <FutureTab      blocks={viewModel.futureBlocks} />;
