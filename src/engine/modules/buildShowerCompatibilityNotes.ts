@@ -65,9 +65,9 @@ const ENGINEER_NOTE: Record<Exclude<ShowerCompatibilityWarningKey, null>, string
 
 const SEVERITY: Record<Exclude<ShowerCompatibilityWarningKey, null>, ShowerCompatibilitySeverity> =
   {
-    electric_unaffected:    'info',
+    electric_unaffected:     'info',
     pumped_gravity_unvented: 'important',
-    mixer_balanced_supply:  'advisory',
+    mixer_balanced_supply:   'advisory',
   };
 
 // ─── Input type ───────────────────────────────────────────────────────────────
