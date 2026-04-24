@@ -18,8 +18,15 @@
 
 import type { CSSProperties } from 'react';
 import { getStepMeta } from '../../../config/surveyStepRegistry';
-import type { PrioritiesState, PriorityKey } from './prioritiesTypes';
-import { PRIORITY_META } from './prioritiesTypes';
+import type {
+  PrioritiesState,
+  PriorityKey,
+} from './prioritiesTypes';
+import {
+  PRIORITY_META,
+  BUDGET_SENSITIVITY_META,
+  DISRUPTION_TOLERANCE_META,
+} from './prioritiesTypes';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -59,6 +66,20 @@ function chipStyle(isSelected: boolean): CSSProperties {
   };
 }
 
+function smallChipStyle(isSelected: boolean): CSSProperties {
+  return {
+    padding: '0.35rem 0.75rem',
+    borderRadius: '6px',
+    border: isSelected ? '2px solid #3182ce' : '1px solid #e2e8f0',
+    background: isSelected ? '#ebf8ff' : '#fff',
+    cursor: 'pointer',
+    fontSize: '0.82rem',
+    fontWeight: isSelected ? 600 : 400,
+    color: isSelected ? '#2b6cb0' : '#4a5568',
+    transition: 'border-color 0.15s, background 0.15s',
+  };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PrioritiesStep({
@@ -88,7 +109,7 @@ export function PrioritiesStep({
 
       {/* ── Priority chips ─────────────────────────────────────────────── */}
       <div>
-        <p style={sectionHeadingStyle}>Priorities</p>
+        <p style={sectionHeadingStyle}>What matters most?</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {PRIORITY_META.map(({ key, label, sub, emoji }) => {
             const isSelected = selectedSet.has(key);
@@ -151,6 +172,157 @@ export function PrioritiesStep({
           will surface these benefits first where relevant.
         </div>
       )}
+
+      {/* ── Future plans ───────────────────────────────────────────────── */}
+      <div style={{ marginTop: '1.5rem' }}>
+        <p style={sectionHeadingStyle}>Future plans</p>
+        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.75rem' }}>
+          Any planned changes that affect heating or hot-water demand?{' '}
+          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3182ce', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+            Used by recommendation
+          </span>
+        </p>
+
+        {/* Loft conversion */}
+        <div style={{ marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>
+            Loft conversion planned or completed?
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: '✓ Yes', testId: 'future-loft-yes' },
+              { value: false, label: '✗ No',  testId: 'future-loft-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, futureLoftConversion: value })}
+                style={smallChipStyle(state.futureLoftConversion === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Extra bathroom */}
+        <div style={{ marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>
+            Additional bathroom planned?
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: '✓ Yes', testId: 'future-bathroom-yes' },
+              { value: false, label: '✗ No',  testId: 'future-bathroom-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, futureAddBathroom: value })}
+                style={smallChipStyle(state.futureAddBathroom === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Heat pump interest */}
+        <div>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>
+            Interested in a heat pump in future?
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: '✓ Yes', testId: 'heat-pump-interest-yes' },
+              { value: false, label: '✗ No',  testId: 'heat-pump-interest-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, heatPumpInterest: value })}
+                style={smallChipStyle(state.heatPumpInterest === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Customer constraints ───────────────────────────────────────── */}
+      <div style={{ marginTop: '1.5rem' }}>
+        <p style={sectionHeadingStyle}>Customer constraints</p>
+        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.75rem' }}>
+          How the customer is thinking about cost and disruption.{' '}
+          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3182ce', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+            Used by recommendation
+          </span>
+        </p>
+
+        {/* Budget sensitivity */}
+        <div style={{ marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+            Budget outlook
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {BUDGET_SENSITIVITY_META.map(({ value, label, sub, emoji }) => {
+              const isSelected = state.budgetSensitivity === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  data-testid={`budget-${value}`}
+                  onClick={() => onChange({ ...state, budgetSensitivity: value })}
+                  style={chipStyle(isSelected)}
+                  aria-pressed={isSelected}
+                >
+                  <span style={{ fontSize: '1rem', lineHeight: 1, flexShrink: 0, marginTop: '0.1rem' }}>{emoji}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.88rem', color: isSelected ? '#2b6cb0' : '#2d3748' }}>
+                      {label}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096' }}>{sub}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Disruption tolerance */}
+        <div>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.4rem' }}>
+            Installation disruption
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {DISRUPTION_TOLERANCE_META.map(({ value, label, sub, emoji }) => {
+              const isSelected = state.disruptionTolerance === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  data-testid={`disruption-${value}`}
+                  onClick={() => onChange({ ...state, disruptionTolerance: value })}
+                  style={chipStyle(isSelected)}
+                  aria-pressed={isSelected}
+                >
+                  <span style={{ fontSize: '1rem', lineHeight: 1, flexShrink: 0, marginTop: '0.1rem' }}>{emoji}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.88rem', color: isSelected ? '#2b6cb0' : '#2d3748' }}>
+                      {label}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#718096' }}>{sub}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* ── Navigation ─────────────────────────────────────────────────── */}
       <div className="step-actions" style={{ marginTop: '1.5rem' }}>

@@ -134,3 +134,81 @@ export function isSystemBuilderComplete(state: SystemBuilderState): boolean {
     state.emitters !== null
   );
 }
+
+// ─── Shower compatibility warnings ────────────────────────────────────────────
+
+/**
+ * Shower compatibility warning keys.
+ *
+ * Derived from the surveyed shower type to flag potential incompatibilities
+ * that should be explained to the customer when the hot-water system changes.
+ *
+ *  'electric_unaffected'     — Electric shower is independent of the boiler hot-water
+ *                              supply; a new boiler will not affect it.
+ *  'pumped_gravity_unvented' — A pumped or gravity-fed shower relies on a cold-water
+ *                              storage tank.  Moving to a mains-pressure (unvented)
+ *                              system removes the tank, making the pump redundant or
+ *                              damaging it.  The pump should be removed or bypassed.
+ *  'mixer_balanced_supply'   — Mixer and thermostatic showers need balanced hot/cold
+ *                              supply pressures.  Mains-fed systems work well, but
+ *                              a thermostatic cartridge may need replacing if the
+ *                              pressure balance changes significantly.
+ */
+export type ShowerCompatibilityWarningKey =
+  | 'electric_unaffected'
+  | 'pumped_gravity_unvented'
+  | 'mixer_balanced_supply'
+  | null;
+
+/** Human-readable copy for each shower compatibility warning. */
+export const SHOWER_COMPATIBILITY_COPY: Record<
+  Exclude<ShowerCompatibilityWarningKey, null>,
+  { title: string; body: string }
+> = {
+  electric_unaffected: {
+    title: 'Electric shower unaffected',
+    body:  'An electric shower has its own in-line heating element and does not use the boiler hot-water supply.  Replacing or upgrading the boiler will not affect it.',
+  },
+  pumped_gravity_unvented: {
+    title: 'Pumped or power shower — check before fitting mains-pressure system',
+    body:  'A pumped or power shower relies on a cold-water storage tank in the loft.  Switching to a mains-pressure (unvented) cylinder removes that tank, making the pump redundant.  The pump must be removed or bypassed, and the shower head/valve may need replacing.',
+  },
+  mixer_balanced_supply: {
+    title: 'Mixer shower needs balanced supply',
+    body:  'A mixer or thermostatic shower requires hot and cold supplies at similar pressures.  Mains-fed systems work well here, but the thermostatic cartridge may need adjustment if the pressure balance changes significantly.',
+  },
+};
+
+/**
+ * Derive a shower compatibility warning from the surveyed shower type and
+ * the selected current DHW type.
+ *
+ * Returns null when the shower type is unknown or there is no notable
+ * compatibility consideration to communicate.
+ */
+export function deriveShowerCompatibilityWarning(
+  state: SystemBuilderState,
+): ShowerCompatibilityWarningKey {
+  const { currentShowerType, electricShowerPresent, pumpedShowerPresent } = state;
+
+  // Electric shower — always flag so the customer knows it is unaffected.
+  if (currentShowerType === 'electric' || electricShowerPresent === true) {
+    return 'electric_unaffected';
+  }
+
+  // Pumped/gravity showers — flag risk of incompatibility with unvented systems.
+  if (
+    currentShowerType === 'pumped_mixer' ||
+    currentShowerType === 'power_shower' ||
+    pumpedShowerPresent === true
+  ) {
+    return 'pumped_gravity_unvented';
+  }
+
+  // Mixer / thermostatic showers — flag balanced-supply requirement.
+  if (currentShowerType === 'mixer' || currentShowerType === 'thermostatic') {
+    return 'mixer_balanced_supply';
+  }
+
+  return null;
+}

@@ -723,5 +723,42 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     }
   }
 
+  // ── Survey priorities → future plans engine fields ────────────────────────
+  // Propagate futureLoftConversion and futureAddBathroom from the Priorities
+  // step into the root EngineInputV2_3 fields.  Existing explicit values are
+  // never overwritten (explicit wins).
+  const sp = sanitised.fullSurvey?.priorities;
+  if (sp != null) {
+    if (sanitised.futureLoftConversion === undefined && sp.futureLoftConversion != null) {
+      sanitised.futureLoftConversion = sp.futureLoftConversion;
+    }
+    if (sanitised.futureAddBathroom === undefined && sp.futureAddBathroom != null) {
+      sanitised.futureAddBathroom = sp.futureAddBathroom;
+    }
+  }
+
+  // ── Survey disruption tolerance → preferences.disruptionTolerance ─────────
+  // Map the customer's stated disruption tolerance from the Priorities step
+  // into UserPreferencesV1.disruptionTolerance for the recommendation engine.
+  // Existing preference values are never overwritten.
+  if (sp != null && sp.disruptionTolerance !== 'unknown' && sp.disruptionTolerance != null) {
+    const tolMap: Record<Exclude<typeof sp.disruptionTolerance, 'unknown'>, 'low' | 'medium' | 'high'> = {
+      'minimal':       'low',
+      'some_ok':       'medium',
+      'open_to_major': 'high',
+    };
+    const mappedTol = tolMap[sp.disruptionTolerance as Exclude<typeof sp.disruptionTolerance, 'unknown'>];
+    if (mappedTol !== undefined) {
+      if (sanitised.preferences == null) {
+        sanitised.preferences = { disruptionTolerance: mappedTol };
+      } else if (sanitised.preferences.disruptionTolerance == null) {
+        sanitised.preferences = {
+          ...sanitised.preferences,
+          disruptionTolerance: mappedTol,
+        };
+      }
+    }
+  }
+
   return sanitised;
 }

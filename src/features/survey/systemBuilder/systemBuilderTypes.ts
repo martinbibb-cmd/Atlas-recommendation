@@ -62,6 +62,43 @@ export type HeatingSystemType = 'open_vented' | 'sealed' | 'unknown';
 /** Whether the primary pipework is accessible for inspection or replacement. */
 export type PipeworkAccess = 'accessible' | 'buried' | 'unknown';
 
+// ─── Shower ───────────────────────────────────────────────────────────────────
+
+/**
+ * Type of shower(s) currently installed in the property.
+ *
+ * Used to derive a shower compatibility warning whenever the hot water
+ * system is changed — the surveyor should flag this to the customer.
+ *
+ *  - 'electric':      Electric shower with its own in-line element — completely
+ *                     independent of the boiler hot-water supply.  A new boiler
+ *                     does not affect it.
+ *  - 'mixer':         Standard mixer bar shower — requires balanced hot/cold
+ *                     supply pressure.  Mains-fed (unvented) systems work well
+ *                     here; tank-fed gravity supplies may give low-pressure mixing.
+ *  - 'pumped_mixer':  Gravity-fed system boosted by a dedicated shower pump.
+ *                     Incompatible with mains-pressure (unvented) systems unless
+ *                     the pump is removed or bypassed.
+ *  - 'power_shower':  Pump-in-unit power shower — same tank-fed pump dependency
+ *                     as 'pumped_mixer'.  Will not work with mains unvented.
+ *  - 'thermostatic':  Thermostatic mixer valve (TMV) — requires balanced supply
+ *                     pressures (hot and cold at comparable bar).  Works well
+ *                     with unvented; may need a pressure-reducing valve on the
+ *                     hot side if moving from gravity to mains.
+ *  - 'multiple':      More than one shower type is installed in the property.
+ *  - 'none':          No shower — baths only.
+ *  - 'unknown':       Not yet assessed.
+ */
+export type CurrentShowerType =
+  | 'electric'
+  | 'mixer'
+  | 'pumped_mixer'
+  | 'power_shower'
+  | 'thermostatic'
+  | 'multiple'
+  | 'none'
+  | 'unknown';
+
 // ─── Cylinder (current installation) ─────────────────────────────────────────
 // Only relevant when heatSource is 'regular' or 'system' (i.e. a separate
 // cylinder is physically present).
@@ -169,6 +206,13 @@ export type SystemBuilderState = {
   cylinderCondition: CylinderCondition | null;
   /** Whether an immersion heater is fitted as backup. */
   cylinderHasImmersion: boolean | null;
+  // ── Shower setup ─────────────────────────────────────────────────────────
+  /** Primary shower type installed in the property. Drives compatibility warnings. */
+  currentShowerType: CurrentShowerType | null;
+  /** Whether an electric shower is installed (may coexist with other shower types). */
+  electricShowerPresent: boolean | null;
+  /** Whether a pumped/gravity shower is installed (shower pump or power shower unit). */
+  pumpedShowerPresent: boolean | null;
 };
 
 export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
@@ -195,4 +239,7 @@ export const INITIAL_SYSTEM_BUILDER_STATE: SystemBuilderState = {
   cylinderInsulationType: null,
   cylinderCondition: null,
   cylinderHasImmersion: null,
+  currentShowerType: null,
+  electricShowerPresent: null,
+  pumpedShowerPresent: null,
 };
