@@ -2,11 +2,14 @@
  * buildEngineerHandoff.test.ts
  *
  * PR7 — Unit tests for buildEngineerHandoff.
+ * PR13 — Updated for QuoteScopeItem[] includedScope.
  *
  * Coverage:
  *   - Throws when recommendedScenarioId is not found in scenarios[].
  *   - Job summary projects scenarioId, system label, and summary correctly.
- *   - includedScope and requiredWorks pass through from AtlasDecisionV1.
+ *   - includedScope derives from quoteScope when present (QuoteScopeItem[]).
+ *   - includedScope falls back to includedItems string list when quoteScope is empty.
+ *   - requiredWorks pass through from AtlasDecisionV1.
  *   - existingSystem uses lifecycle data when engineInput is absent.
  *   - existingSystem uses engineInput data when present (takes precedence).
  *   - measuredFacts includes supportingFacts from AtlasDecisionV1.
@@ -23,6 +26,7 @@ import { buildEngineerHandoff } from '../modules/buildEngineerHandoff';
 import type { AtlasDecisionV1 } from '../../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 import type { EngineInputV2_3Contract } from '../../../contracts/EngineInputV2_3';
+import type { QuoteScopeItem } from '../../../contracts/QuoteScope';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -37,6 +41,7 @@ function makeDecision(overrides: Partial<AtlasDecisionV1> = {}): AtlasDecisionV1
     requiredWorks:          ['Install system boiler'],
     compatibilityWarnings:  [],
     includedItems:          ['210L Mixergy cylinder', 'System boiler'],
+    quoteScope:             [],
     futureUpgradePaths:     ['Heat pump pathway via low-temperature emitter spec'],
     supportingFacts: [
       { label: 'System age',   value: '8 years', source: 'survey' },
@@ -173,10 +178,31 @@ describe('buildEngineerHandoff — job summary', () => {
 // ─── Scope pass-through ───────────────────────────────────────────────────────
 
 describe('buildEngineerHandoff — scope pass-through', () => {
-  it('passes includedItems through as includedScope', () => {
-    const decision  = makeDecision({ includedItems: ['210L Mixergy cylinder', 'System boiler'] });
+  it('includedScope falls back to includedItems when quoteScope is empty', () => {
+    const decision  = makeDecision({ includedItems: ['210L Mixergy cylinder', 'System boiler'], quoteScope: [] });
     const result    = buildEngineerHandoff(decision, [makeScenario()]);
-    expect(result.includedScope).toEqual(['210L Mixergy cylinder', 'System boiler']);
+    expect(result.includedScope.map(i => i.label)).toEqual(['210L Mixergy cylinder', 'System boiler']);
+  });
+
+  it('includedScope uses quoteScope included items when quoteScope is non-empty', () => {
+    const scopeItems: QuoteScopeItem[] = [
+      { id: 's1', label: '210L Mixergy cylinder', category: 'hot_water', status: 'included' },
+      { id: 's2', label: 'System boiler',         category: 'heat_source', status: 'included' },
+    ];
+    const decision = makeDecision({ quoteScope: scopeItems });
+    const result   = buildEngineerHandoff(decision, [makeScenario()]);
+    expect(result.includedScope).toEqual(scopeItems);
+  });
+
+  it('includedScope excludes optional/future items from quoteScope', () => {
+    const scopeItems: QuoteScopeItem[] = [
+      { id: 's1', label: 'System boiler',   category: 'heat_source', status: 'included' },
+      { id: 's2', label: 'Solar pathway',   category: 'future',      status: 'optional' },
+    ];
+    const decision = makeDecision({ quoteScope: scopeItems });
+    const result   = buildEngineerHandoff(decision, [makeScenario()]);
+    expect(result.includedScope).toHaveLength(1);
+    expect(result.includedScope[0].label).toBe('System boiler');
   });
 
   it('passes requiredWorks through unchanged', () => {

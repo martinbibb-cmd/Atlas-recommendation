@@ -18,6 +18,29 @@ import type { EngineInputV2_3Contract } from '../../contracts/EngineInputV2_3';
 import type { EngineerHandoff, EngineerHandoffFact, EngineerHandoffEvidence } from '../../contracts/EngineerHandoff';
 import type { PropertyPlan } from '../../components/floorplan/propertyPlan.types';
 import { buildEngineerLayout, buildLayoutSummaryLines } from './buildEngineerLayout';
+import { buildQuoteScope, scopeIncluded, inferCategory } from './buildQuoteScope';
+import type { QuoteScopeItem } from '../../contracts/QuoteScope';
+
+// ─── Included scope ───────────────────────────────────────────────────────────
+
+/**
+ * Derives the engineer handoff includedScope from the canonical quoteScope.
+ * Falls back to synthesising QuoteScopeItem entries from the string-list
+ * includedItems when quoteScope has no included items (e.g. legacy decisions
+ * built before PR13).
+ */
+function buildIncludedScope(decision: AtlasDecisionV1): QuoteScopeItem[] {
+  const fromScope = scopeIncluded(decision.quoteScope);
+  if (fromScope.length > 0) return fromScope;
+
+  // Fallback: synthesise from string-list includedItems
+  return decision.includedItems.map((label, i) => ({
+    id: `included-legacy-${i}`,
+    label,
+    category: inferCategory(label),
+    status: 'included' as const,
+  }));
+}
 
 // ─── System type labels ───────────────────────────────────────────────────────
 
@@ -212,7 +235,7 @@ export function buildEngineerHandoff(
 
   return {
     jobSummary:            buildJobSummary(decision, recommended),
-    includedScope:         decision.includedItems,
+    includedScope:         buildIncludedScope(decision),
     requiredWorks:         decision.requiredWorks,
     compatibilityWarnings: decision.compatibilityWarnings,
     keyReasons:            decision.keyReasons,

@@ -29,6 +29,7 @@ function makeDecision(recommendedScenarioId: string): AtlasDecisionV1 {
     requiredWorks: [],
     compatibilityWarnings: [],
     includedItems: [],
+    quoteScope: [],
     futureUpgradePaths: [],
     supportingFacts: [],
     lifecycle: {

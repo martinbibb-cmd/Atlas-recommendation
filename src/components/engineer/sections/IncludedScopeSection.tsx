@@ -2,9 +2,10 @@
  * IncludedScopeSection.tsx
  *
  * PR7 — Lists all items included in the proposed scope of work.
+ * PR13 — Updated to use QuoteScopeItem[] from the canonical scope model.
  *
- * Items come directly from AtlasDecisionV1.includedItems via the EngineerHandoff
- * projection. Rendered as a simple scan-friendly list.
+ * Items come from AtlasDecisionV1.quoteScope via the EngineerHandoff projection.
+ * Compliance items are clearly labelled as requirements, not benefits.
  */
 
 import type { EngineerHandoff } from '../../../contracts/EngineerHandoff';
@@ -37,23 +38,37 @@ export function IncludedScopeSection({ includedScope, requiredWorks }: Props) {
             📦 Included scope
           </h2>
           <ul style={{ listStyle: 'none', margin: '0 0 1rem', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            {includedScope.map((item, i) => (
+            {includedScope.map((item) => (
               <li
-                key={i}
+                key={item.id}
                 style={{
                   fontSize: '0.85rem',
-                  color: '#2d3748',
+                  color: item.category === 'compliance' ? '#744210' : '#2d3748',
                   padding: '0.35rem 0.65rem',
-                  background: '#f7fafc',
-                  border: '1px solid #e2e8f0',
+                  background: item.category === 'compliance' ? '#fffff0' : '#f7fafc',
+                  border: `1px solid ${item.category === 'compliance' ? '#fefcbf' : '#e2e8f0'}`,
                   borderRadius: '5px',
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
+                  flexDirection: 'column',
+                  gap: '0.15rem',
                 }}
               >
-                <span aria-hidden="true" style={{ color: '#48bb78', fontWeight: 700 }}>✓</span>
-                {item}
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span aria-hidden="true" style={{ color: item.category === 'compliance' ? '#d69e2e' : '#48bb78', fontWeight: 700 }}>
+                    {item.category === 'compliance' ? '⚠' : '✓'}
+                  </span>
+                  {item.label}
+                  {item.category === 'compliance' && (
+                    <span style={{ fontSize: '0.75rem', color: '#d69e2e', fontWeight: 600 }}>
+                      [Requirement]
+                    </span>
+                  )}
+                </span>
+                {item.engineerNote && (
+                  <span style={{ fontSize: '0.78rem', color: '#718096', paddingLeft: '1.1rem' }}>
+                    {item.engineerNote}
+                  </span>
+                )}
               </li>
             ))}
           </ul>

@@ -15,6 +15,7 @@
  */
 
 import type { PortalLaunchContext } from './PortalLaunchContext';
+import type { QuoteScopeItem } from './QuoteScope';
 
 // ─── Base ─────────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,12 @@ export type DailyUseBlock = BaseVisualBlock & {
 
 export type IncludedScopeBlock = BaseVisualBlock & {
   type: 'included_scope';
-  items: string[];
+  /**
+   * Canonical scope items — status='included', non-compliance items only.
+   * PR13 — Uses QuoteScopeItem so the customer deck block and engineer handoff
+   * derive from the same canonical QuoteScopeItem[] in AtlasDecisionV1.quoteScope.
+   */
+  items: QuoteScopeItem[];
 };
 
 export type WarningBlock = BaseVisualBlock & {

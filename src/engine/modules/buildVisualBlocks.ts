@@ -39,6 +39,8 @@ import type {
   PortalCtaBlock,
   SpatialProofBlock,
 } from '../../contracts/VisualBlock';
+import { scopeIncluded, scopeFuturePaths, inferCategory } from './buildQuoteScope';
+import type { QuoteScopeItem } from '../../contracts/QuoteScope';
 
 // ─── Visual key constants ─────────────────────────────────────────────────────
 
@@ -202,13 +204,28 @@ function buildDailyUseBlock(decision: AtlasDecisionV1): DailyUseBlock {
   };
 }
 
-function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock {
+function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock | null {
+  // Prefer canonical quoteScope when available
+  const fromScope = scopeIncluded(decision.quoteScope);
+
+  // Fall back to synthesising items from the flat includedItems string list
+  const items: QuoteScopeItem[] = fromScope.length > 0
+    ? fromScope
+    : decision.includedItems.map((label, i) => ({
+        id: `included-legacy-${i}`,
+        label,
+        category: inferCategory(label),
+        status: 'included' as const,
+      }));
+
+  if (items.length === 0) return null;
+
   return {
     id: 'included-scope',
     type: 'included_scope',
     title: 'What is included',
     outcome: 'Everything covered in the proposed scope of work.',
-    items: decision.includedItems,
+    items,
     visualKey: VK.includedScope,
   };
 }
@@ -251,14 +268,20 @@ function buildWarningBlocks(decision: AtlasDecisionV1): WarningBlock[] {
 }
 
 function buildFutureUpgradeBlock(decision: AtlasDecisionV1): FutureUpgradeBlock | null {
-  if (decision.futureUpgradePaths.length === 0) return null;
+  // Use canonical scope to get future paths with included items already filtered out.
+  // Fall back to futureUpgradePaths string list when quoteScope is empty.
+  const paths = decision.quoteScope.length > 0
+    ? scopeFuturePaths(decision.quoteScope)
+    : decision.futureUpgradePaths;
+
+  if (paths.length === 0) return null;
 
   return {
     id: 'future-upgrades',
     type: 'future_upgrade',
     title: 'Future upgrade paths',
     outcome: 'This system is designed to grow with your home.',
-    paths: decision.futureUpgradePaths,
+    paths,
     visualKey: VK.futureUpgrade,
   };
 }
@@ -435,10 +458,9 @@ export function buildVisualBlocks(
     blocks.push(buildDailyUseBlock(decision));
   }
 
-  // 6. Included scope
-  if (decision.includedItems.length > 0) {
-    blocks.push(buildIncludedScopeBlock(decision));
-  }
+  // 6. Included scope — null when no items in scope or includedItems
+  const includedScopeBlock = buildIncludedScopeBlock(decision);
+  if (includedScopeBlock) blocks.push(includedScopeBlock);
 
   // 7. Warnings (lifecycle + compatibility) — lifecycle first
   for (const w of buildWarningBlocks(decision)) {

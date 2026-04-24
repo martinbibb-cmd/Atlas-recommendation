@@ -15,6 +15,7 @@
  */
 
 import type { EngineerLayout } from './EngineerLayout';
+import type { QuoteScopeItem } from './QuoteScope';
 
 /** A single measured or surveyed fact, traceable to its source. */
 export interface EngineerHandoffFact {
@@ -60,8 +61,14 @@ export type EngineerHandoff = {
     summary: string;
   };
 
-  /** Items included in the proposed scope of work, e.g. "210L Mixergy cylinder". */
-  includedScope: string[];
+  /**
+   * Items included in the proposed scope of work.
+   *
+   * PR13 — Uses the canonical QuoteScopeItem model so customer deck and
+   * engineer handoff agree on exactly what is installed.
+   * status='included' items only; compliance items carry an engineerNote.
+   */
+  includedScope: QuoteScopeItem[];
 
   /** Works that must be carried out before or during installation. */
   requiredWorks: string[];

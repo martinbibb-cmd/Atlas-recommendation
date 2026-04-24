@@ -16,6 +16,7 @@
  */
 
 import type { LifecycleAssessment } from './LifecycleAssessment';
+import type { QuoteScopeItem } from './QuoteScope';
 
 /** A single supporting fact with its data source. */
 export interface DecisionSupportingFact {
@@ -63,6 +64,20 @@ export interface AtlasDecisionV1 {
 
   /** Items included in the proposed scope of work. */
   includedItems: string[];
+
+  /**
+   * Canonical quote scope — the single authoritative list from which all
+   * scope-related surfaces are derived.
+   *
+   * PR13 — Populated by buildQuoteScope() from includedItems, requiredWorks,
+   * compatibilityWarnings, and futureUpgradePaths.
+   *
+   * - Customer deck uses items where status='included' (non-compliance)
+   * - Engineer handoff uses items where status='included'
+   * - Portal future tab uses items where status='optional', category='future',
+   *   after excluding anything already in the included scope.
+   */
+  quoteScope: QuoteScopeItem[];
 
   /** Future upgrade paths this recommendation enables. */
   futureUpgradePaths: string[];

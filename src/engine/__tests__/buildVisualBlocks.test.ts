@@ -79,6 +79,7 @@ function makeDecision(overrides: Partial<AtlasDecisionV1> = {}): AtlasDecisionV1
     requiredWorks:          ['Install unvented cylinder'],
     compatibilityWarnings:  [],
     includedItems:          ['System boiler', 'Unvented cylinder', 'Smart controls'],
+    quoteScope:             [],
     futureUpgradePaths:     ['Heat pump ready', 'Solar thermal compatible'],
     supportingFacts: [
       { label: 'Occupants',       value: 4,          source: 'survey' },

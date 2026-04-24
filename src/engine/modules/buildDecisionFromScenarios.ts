@@ -25,6 +25,7 @@ import type { BuildLifecycleAssessmentInput } from './buildLifecycleAssessment';
 import { buildLifecycleAssessment } from './buildLifecycleAssessment';
 import type { PerformanceBand } from '../../contracts/ScenarioResult';
 import type { MaintenanceLevel, WaterQualityBand } from '../../contracts/LifecycleAssessment';
+import { buildQuoteScope } from './buildQuoteScope';
 
 // ─── Performance band scoring ─────────────────────────────────────────────────
 
@@ -211,6 +212,15 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
   const keyReasons = buildKeyReasons(recommended, lifecycle);
   const supportingFacts = buildSupportingFacts(lifecycle, input);
 
+  const quoteScope = buildQuoteScope({
+    includedItems:        [],
+    requiredWorks:        recommended.requiredWorks,
+    compatibilityWarnings: recommended.physicsFlags
+      ? buildCompatibilityWarnings(recommended)
+      : [],
+    futureUpgradePaths:   recommended.upgradePaths,
+  });
+
   return {
     recommendedScenarioId:  recommended.scenarioId,
     headline:               buildHeadline(recommended),
@@ -223,6 +233,7 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
       ? buildCompatibilityWarnings(recommended)
       : [],
     includedItems:          [],
+    quoteScope,
     futureUpgradePaths:     recommended.upgradePaths,
     supportingFacts,
     lifecycle,
