@@ -128,6 +128,7 @@ export default function WallInspectorPanel({ wall, onUpdate, onUpdateLength, onD
           <span className="fpb__wall-length-edit">
             <input
               type="number"
+              aria-label="Length in metres"
               min={MIN_WALL_LENGTH_M}
               step={0.1}
               value={draftLength}
