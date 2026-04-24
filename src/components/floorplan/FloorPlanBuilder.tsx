@@ -106,6 +106,12 @@ const DRAG_THRESHOLD_PX = 4;
 const GHOST_OBJECT_W = 72;
 const GHOST_OBJECT_H = 40;
 
+/**
+ * PR22: Zoom threshold below which route labels and non-selected object labels
+ * are suppressed to reduce canvas clutter at low zoom levels.
+ */
+const LABEL_HIDE_ZOOM_THRESHOLD = 0.6;
+
 /** True when the page is running inside an iOS app that exposes a native LiDAR bridge. */
 function hasNativeLidarSupport(): boolean {
   return typeof window !== 'undefined' &&
@@ -470,7 +476,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
   /**
    * Controls which visual layers are rendered on the canvas.
-   * All layers are visible by default.
+   * PR22: expanded with `dimensions` (wall dimension labels) and
+   * `confidenceBadges` (provenance / confidence badges on objects and routes).
+   * All visible by default except `dimensions` which is off by default in
+   * field mode so the plan starts calmer.
+   * State is persisted to sessionStorage so toggles survive hot-reloads and
+   * brief navigations without requiring a fresh load.
    */
   const [visibleLayers, setVisibleLayers] = useState<{
     geometry: boolean;
@@ -478,16 +489,46 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
     components: boolean;
     routes: boolean;
     disruptions: boolean;
-  }>({
-    geometry: true,
-    openings: true,
-    components: true,
-    routes: true,
-    disruptions: true,
+    dimensions: boolean;
+    confidenceBadges: boolean;
+  }>(() => {
+    const defaults = {
+      geometry:        true,
+      openings:        true,
+      components:      true,
+      routes:          true,
+      disruptions:     true,
+      dimensions:      false,
+      confidenceBadges: false,
+    };
+    try {
+      const raw = sessionStorage.getItem('atlas.floorplan.visibleLayers');
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        // Guard: only use parsed value if it is a plain object
+        if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const p = parsed as Record<string, unknown>;
+          return {
+            geometry:        typeof p.geometry        === 'boolean' ? p.geometry        : defaults.geometry,
+            openings:        typeof p.openings        === 'boolean' ? p.openings        : defaults.openings,
+            components:      typeof p.components      === 'boolean' ? p.components      : defaults.components,
+            routes:          typeof p.routes          === 'boolean' ? p.routes          : defaults.routes,
+            disruptions:     typeof p.disruptions     === 'boolean' ? p.disruptions     : defaults.disruptions,
+            dimensions:      typeof p.dimensions      === 'boolean' ? p.dimensions      : defaults.dimensions,
+            confidenceBadges: typeof p.confidenceBadges === 'boolean' ? p.confidenceBadges : defaults.confidenceBadges,
+          };
+        }
+      }
+    } catch { /* sessionStorage unavailable or JSON malformed — fall through to defaults */ }
+    return defaults;
   });
 
   /** "Clean view" collapses all labels/dimensions — useful for presentation screenshots. */
   const [cleanView, setCleanView] = useState(false);
+
+  /** PR22: "Handoff preview" mode — approximates what the engineer handoff will show.
+   *  Hides editor chrome to let the surveyor check readability before handoff. */
+  const [previewMode, setPreviewMode] = useState(false);
 
   // ── Zoom & pan state ────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
@@ -561,7 +602,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   // ── Layer toggle helper ───────────────────────────────────────────────────
 
   function toggleLayer(layer: keyof typeof visibleLayers) {
-    setVisibleLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
+    setVisibleLayers((prev) => {
+      const next = { ...prev, [layer]: !prev[layer] };
+      try { sessionStorage.setItem('atlas.floorplan.visibleLayers', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
   }
 
   // ── localStorage autosave ─────────────────────────────────────────────────
@@ -1635,7 +1680,23 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
   if (!activeFloor) return <div>No floors defined.</div>;
 
   return (
-    <div className={`fpb${cleanView ? ' fpb--clean-view' : ''}`}>
+    <div className={[
+      'fpb',
+      cleanView ? 'fpb--clean-view' : '',
+      previewMode ? 'fpb--handoff-preview' : '',
+      selection ? 'fpb--has-selection' : '',
+    ].filter(Boolean).join(' ')}>
+      {/* ── PR22: Handoff preview banner ── */}
+      {previewMode && (
+        <div className="fpb__preview-banner" role="status">
+          <span className="fpb__preview-banner-text">
+            👁 Handoff preview — this approximates what the engineer will see. No data is being exported.
+          </span>
+          <button className="fpb__preview-banner-close" onClick={() => setPreviewMode(false)}>
+            ✕ Exit preview
+          </button>
+        </div>
+      )}
       {/* ── Header ── */}
       <header className="fpb__header">
         <div className="fpb__header-title">
@@ -1665,15 +1726,17 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             </button>
           </div>
 
-          {/* ── Layer visibility toggles ── */}
+          {/* ── Layer visibility toggles (PR22) ── */}
           <div className="fpb__layer-toggles" role="group" aria-label="Layer visibility">
             {(
               [
-                ['geometry',    '🏠', 'Geometry'],
-                ['openings',    '🚪', 'Openings'],
-                ['components',  '🔧', 'Components'],
-                ['routes',      '〰',  'Routes'],
-                ['disruptions', '⚠️', 'Disruptions'],
+                ['geometry',         '🏠', 'Rooms'],
+                ['openings',         '🚪', 'Openings'],
+                ['components',       '🔧', 'Objects'],
+                ['routes',           '〰',  'Routes'],
+                ['dimensions',       '📏', 'Dimensions'],
+                ['disruptions',      '⚠️', 'Disruptions'],
+                ['confidenceBadges', '🔵', 'Confidence'],
               ] as const
             ).map(([layer, icon, label]) => (
               <button
@@ -1698,6 +1761,16 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             aria-pressed={cleanView}
           >
             {cleanView ? '🔍 Detail' : '🖼 Clean view'}
+          </button>
+
+          {/* ── PR22: Handoff preview toggle ── */}
+          <button
+            className={`fpb__action-btn fpb__preview-btn ${previewMode ? 'active' : ''}`}
+            onClick={() => setPreviewMode((v) => !v)}
+            title={previewMode ? 'Exit handoff preview' : 'Preview handoff — approximates what the engineer will see'}
+            aria-pressed={previewMode}
+          >
+            {previewMode ? '✕ Exit preview' : '👁 Preview handoff'}
           </button>
 
           {/* ── View mode toggle ── */}
@@ -2144,17 +2217,20 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                         strokeLinecap="round"
                       />
                     ))}
-                    {/* Wall kind label */}
-                    <text
-                      x={(wall.x1 + wall.x2) / 2}
-                      y={(wall.y1 + wall.y2) / 2 - 5}
-                      fontSize="9"
-                      fill="#94a3b8"
-                      textAnchor="middle"
-                      style={{ pointerEvents: 'none' }}
-                    >
-                      {wall.kind === 'external' ? 'ext' : ''}
-                    </text>
+                    {/* PR22: Wall kind label — improved contrast (#475569 instead of pale #94a3b8),
+                         hidden when zoom is too low to read and wall is not selected */}
+                    {!(zoom < LABEL_HIDE_ZOOM_THRESHOLD && !isWallSelected) && wall.kind === 'external' && (
+                      <text
+                        x={(wall.x1 + wall.x2) / 2}
+                        y={(wall.y1 + wall.y2) / 2 - 5}
+                        fontSize="9"
+                        fill="#475569"
+                        textAnchor="middle"
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        ext
+                      </text>
+                    )}
                   </g>
                 );
               })}
@@ -2352,11 +2428,14 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               {visibleLayers.routes && (activeFloor.floorRoutes ?? []).map((fRoute) => {
                 const isSelected = selection?.kind === 'floor_route' && selection.id === fRoute.id;
                 const color = FLOOR_ROUTE_TYPE_COLORS[fRoute.type];
+                // PR22: assumed routes use slightly heavier dashes for field-friendly visibility
                 const strokeDash = fRoute.status === 'assumed'
-                  ? '8 4'
+                  ? '10 5'
                   : fRoute.status === 'proposed'
                   ? '4 2'
                   : undefined;
+                // PR22: assumed routes get a slightly higher base stroke width so they read in bright rooms
+                const baseStrokeWidth = fRoute.status === 'assumed' ? 3 : 2.5;
                 return (
                   <g
                     key={fRoute.id}
@@ -2391,7 +2470,7 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       points={fRoute.points.map((p) => `${p.x},${p.y}`).join(' ')}
                       fill="none"
                       stroke={color}
-                      strokeWidth={isSelected ? 4 : 2.5}
+                      strokeWidth={isSelected ? 4 : baseStrokeWidth}
                       strokeDasharray={strokeDash}
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -2410,10 +2489,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                       r={3.5}
                       fill={color}
                     />
-                    {/* PR18: Type + status label — positioned to avoid endpoint overlap */}
+                    {/* PR18 / PR22: Type + status label — suppressed below zoom threshold and when unselected at low zoom */}
                     {(() => {
                       const labelPos = routeLabelPosition(fRoute.points);
                       if (!labelPos) return null;
+                      // PR22: hide route labels when zoom is below threshold and route is not selected
+                      if (zoom < LABEL_HIDE_ZOOM_THRESHOLD && !isSelected) return null;
                       return (
                         <text
                           x={labelPos.x + labelPos.perpOffsetX}
@@ -2544,8 +2625,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                 );
               })()}
 
-              {/* PR9: Wall dimension labels overlay — engineer view only */}
-              {viewMode === 'engineer' && visibleLayers.geometry && !cleanView && (
+              {/* PR9 / PR22: Wall dimension labels overlay — gated by `visibleLayers.dimensions` toggle */}
+              {visibleLayers.dimensions && visibleLayers.geometry && !cleanView && (
                 <WallDimensionLabels
                   walls={activeFloor.walls}
                   selectedWallId={selectedWall?.id}
@@ -2602,7 +2683,8 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   <div className="fpb__room-measure">
                     {toMeters(room.width)}m × {toMeters(room.height)}m
                   </div>
-                  {badge !== 'ok' && validationBadge(room.id)}
+                  {/* PR22: gate confidence/validation badges on visibleLayers.confidenceBadges */}
+                  {badge !== 'ok' && visibleLayers.confidenceBadges && validationBadge(room.id)}
                   {isSelected && (
                     <>
                       <div
@@ -2667,10 +2749,12 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               const palette = PALETTE_SECTIONS.flatMap((s) => s.items).find((i) => i.kind === node.type);
               const room = node.roomId ? activeFloor.rooms.find((r) => r.id === node.roomId) : null;
               const buildNode: BuildNode = { id: node.id, kind: node.type, x: node.anchor.x, y: node.anchor.y, r: 0 };
+              // PR22: collapse label to emoji-only when zoom is below threshold and node is not selected
+              const iconOnlyMode = zoom < LABEL_HIDE_ZOOM_THRESHOLD && !isSelected;
               return (
                 <div
                   key={node.id}
-                  className={`fpb__node ${isSelected ? 'selected' : ''} fpb__node--badge-${badge}`}
+                  className={`fpb__node ${isSelected ? 'selected' : ''} fpb__node--badge-${badge}${iconOnlyMode ? ' fpb__node--icon-only' : ''}`}
                   style={{ left: node.anchor.x - 52, top: node.anchor.y - 22 }}
                   onPointerDown={(e) => {
                     if (tool !== 'select' && tool !== 'connectRoute') return;
@@ -2688,8 +2772,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   title={room ? `In: ${room.name}` : 'Not in a room'}
                 >
                   <span className="fpb__node-emoji">{palette?.emoji ?? '🔧'}</span>
-                  <span className="fpb__node-label">{palette?.label ?? node.type.replace(/_/g, ' ')}</span>
-                  {badge !== 'ok' && validationBadge(node.id)}
+                  {!iconOnlyMode && (
+                    <span className="fpb__node-label">{palette?.label ?? node.type.replace(/_/g, ' ')}</span>
+                  )}
+                  {/* PR22: gate confidence/validation badges on visibleLayers.confidenceBadges */}
+                  {badge !== 'ok' && visibleLayers.confidenceBadges && validationBadge(node.id)}
 
                   {/* Ports — visible in connectRoute mode */}
                   {tool === 'connectRoute' && getPortDefs(node.type).map((port) => (
@@ -2714,10 +2801,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
             {/* ── PR9: Layer 5: Floor Objects (DOM divs) ── */}
             {visibleLayers.components && (activeFloor.floorObjects ?? []).map((obj) => {
               const isSelected = selection?.kind === 'floor_object' && selection.id === obj.id;
+              const iconOnlyMode = zoom < LABEL_HIDE_ZOOM_THRESHOLD && !isSelected;
               return (
                 <div
                   key={obj.id}
-                  className={`fpb__node${isSelected ? ' selected' : ''}`}
+                  className={`fpb__node${isSelected ? ' selected' : ''}${iconOnlyMode ? ' fpb__node--icon-only' : ''}`}
                   style={{ left: obj.x - 20, top: obj.y - 14 }}
                   onPointerDown={(e) => {
                     if (tool !== 'select') return;
@@ -2727,9 +2815,11 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
                   title={obj.label ?? FLOOR_OBJECT_TYPE_LABELS[obj.type]}
                 >
                   <span className="fpb__node-emoji">{FLOOR_OBJECT_TYPE_EMOJI[obj.type]}</span>
-                  <span className="fpb__node-label">
-                    {obj.label ?? FLOOR_OBJECT_TYPE_LABELS[obj.type]}
-                  </span>
+                  {!iconOnlyMode && (
+                    <span className="fpb__node-label">
+                      {obj.label ?? FLOOR_OBJECT_TYPE_LABELS[obj.type]}
+                    </span>
+                  )}
                 </div>
               );
             })}

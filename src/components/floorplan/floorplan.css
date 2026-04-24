@@ -1061,6 +1061,8 @@
 }
 
 /* ── Heating pipe auto-routing (SVG polylines) ─────────────────────────── */
+/* PR22: colours aligned with FLOOR_ROUTE_TYPE_COLORS in propertyPlan.types.ts
+   so auto-routed pipes and manual floor routes use the same palette everywhere. */
 
 .fpb__pipe {
   stroke-width: 3;
@@ -1069,16 +1071,16 @@
   fill: none;
 }
 
-/* Flow pipes: warm orange-red (hot water leaving boiler) */
+/* Flow pipes: red — matches FLOOR_ROUTE_TYPE_COLORS.flow (#e53e3e) */
 .fpb__pipe--flow {
-  stroke: #f97316;
+  stroke: #e53e3e;
   stroke-width: 3;
   opacity: 0.85;
 }
 
-/* Return pipes: cool blue (cooled water returning to boiler) */
+/* Return pipes: blue — matches FLOOR_ROUTE_TYPE_COLORS.return (#3182ce) */
 .fpb__pipe--return {
-  stroke: #3b82f6;
+  stroke: #3182ce;
   stroke-width: 3;
   stroke-dasharray: 7 4;
   opacity: 0.75;
@@ -1166,8 +1168,8 @@
   padding: 3px 10px;
 }
 
-.fpb__pipe-legend-flow   { color: #f97316; font-size: 15px; line-height: 1; }
-.fpb__pipe-legend-return { color: #3b82f6; font-size: 15px; line-height: 1; }
+.fpb__pipe-legend-flow   { color: #e53e3e; font-size: 15px; line-height: 1; }
+.fpb__pipe-legend-return { color: #3182ce; font-size: 15px; line-height: 1; }
 
 .fpb__insert-btn {
   font-weight: 700;
@@ -2242,3 +2244,137 @@
   background: inherit;
   padding-bottom: 12px;
 }
+
+/* ── PR22: Handoff preview banner ───────────────────────────────────────── */
+
+.fpb__preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #1e3a8a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+
+.fpb__preview-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.fpb__preview-banner-close {
+  border: 1.5px solid rgba(255,255,255,0.5);
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+.fpb__preview-banner-close:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+/* ── PR22: Handoff preview mode — hides editor chrome ───────────────────── */
+
+.fpb--handoff-preview .fpb__header {
+  display: none;
+}
+
+.fpb--handoff-preview .fpb__template-bar {
+  display: none;
+}
+
+.fpb--handoff-preview .fpb__sidebar {
+  display: none !important;
+}
+
+.fpb--handoff-preview .fpb__workspace,
+.fpb--handoff-preview .fpb__workspace:has(.fpb__inspector) {
+  grid-template-columns: 1fr;
+}
+
+.fpb--handoff-preview .fpb__hint-bar {
+  background: #f1f5f9;
+  border-bottom-color: #cbd5e1;
+}
+
+/* In preview mode, suppress editor controls that are not relevant to readability check */
+.fpb--handoff-preview .fpb__stay-toggle,
+.fpb--handoff-preview .fpb__insert-btn,
+.fpb--handoff-preview .fpb__zoom-controls .fpb__zoom-btn:last-child {
+  display: none;
+}
+
+/* ── PR22: Preview button active state ──────────────────────────────────── */
+
+.fpb__preview-btn.active {
+  background: #1e3a8a;
+  color: #fff;
+  border-color: #1e3a8a;
+}
+
+/* ── PR22: Selected-item focus — fade non-selected items ────────────────── */
+
+/* When any item is selected, slightly fade non-selected rooms and nodes
+   to draw the eye to the selected item. Keep it subtle so context is preserved. */
+.fpb--has-selection .fpb__room:not(.selected) {
+  opacity: 0.62;
+  transition: opacity 0.15s;
+}
+
+.fpb--has-selection .fpb__node:not(.selected) {
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+/* Restore full opacity on hover so items remain accessible */
+.fpb--has-selection .fpb__room:not(.selected):hover,
+.fpb--has-selection .fpb__node:not(.selected):hover {
+  opacity: 0.9;
+}
+
+/* ── PR22: Icon-only (compact) node mode at low zoom ────────────────────── */
+
+.fpb__node--icon-only {
+  width: 34px !important;
+  min-height: 34px !important;
+  padding: 4px !important;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50% !important;
+  background: #fff !important;
+  border-width: 1.5px !important;
+}
+
+.fpb__node--icon-only .fpb__node-emoji {
+  font-size: 18px;
+}
+
+/* ── PR22: Improved room label contrast for bright-room use ─────────────── */
+
+/* Room type subtitle: slightly darker than before for brightness-room legibility */
+.fpb__room-type {
+  color: #334155;
+}
+
+/* Room measure: readable in daylight */
+.fpb__room-measure {
+  color: #475569;
+}
+
+/* ── PR22: Disruption label contrast ───────────────────────────────────── */
+
+.fpb__disruption-label {
+  fill: #5b3307;
+}
+
+/* ── PR22: Assumed-route dashes — slightly bolder stroke in SVG is handled
+   inline; ensure the legend colour stays consistent. ────────────────────── */
