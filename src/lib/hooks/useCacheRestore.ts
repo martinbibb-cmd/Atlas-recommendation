@@ -69,7 +69,9 @@ export function useCacheRestore(): CacheRestoreResult {
     }
 
     // ── Check for stale (version-mismatched) data ──────────────────────────
-    // Re-read without version filter to detect version mismatches.
+    // This branch only runs when both versioned reads above returned null
+    // (i.e. neither session nor visit matched the current schemaVersion).
+    // Re-read the raw bytes to distinguish "never written" from "wrong version".
     const rawSession = (() => {
       try {
         const raw = localStorage.getItem(ATLAS_CACHE_KEY_SESSION);

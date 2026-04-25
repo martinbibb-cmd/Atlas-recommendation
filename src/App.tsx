@@ -506,7 +506,7 @@ export default function App() {
         ATLAS_CACHE_KEY_SESSION,
         ATLAS_CACHE_SCHEMA_VERSION,
         { journey },
-        activeVisitId != null ? { visitId: activeVisitId } : {},
+        activeVisitId != null ? { visitId: activeVisitId } : undefined,
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -514,6 +514,7 @@ export default function App() {
 
   useEffect(() => {
     if (activeVisitId != null) {
+      // Store visitId only in metadata (envelope header); value is kept minimal.
       writeVersionedCache(
         ATLAS_CACHE_KEY_VISIT,
         ATLAS_CACHE_SCHEMA_VERSION,
