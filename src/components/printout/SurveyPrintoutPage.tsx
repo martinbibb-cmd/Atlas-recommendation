@@ -328,10 +328,10 @@ export default function SurveyPrintoutPage({
               {/* ── Reported current issues (only when answered) ── */}
               {prioritiesState && (() => {
                 const issues: string[] = [];
-                if (prioritiesState.runsOutOfHotWater === true)          issues.push('Runs out of hot water');
-                if (prioritiesState.canUseMultipleTaps === false)         issues.push('Cannot use multiple taps simultaneously');
-                if (prioritiesState.allRoomsReachTemperature === false)   issues.push('Some rooms struggle to reach temperature');
-                if (prioritiesState.otherIssues?.trim())                  issues.push(prioritiesState.otherIssues.trim());
+                if (prioritiesState.runsOutOfHotWater === true) issues.push('Runs out of hot water');
+                if (prioritiesState.canUseMultipleTaps === false) issues.push('Cannot use multiple taps simultaneously');
+                if (prioritiesState.allRoomsReachTemperature === false) issues.push('Some rooms struggle to reach temperature');
+                if (prioritiesState.otherIssues?.trim()) issues.push(prioritiesState.otherIssues.trim());
                 if (issues.length === 0) return null;
                 return (
                   <div className="spp-issues" data-testid="spp-reported-issues">
