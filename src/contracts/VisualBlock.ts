@@ -29,6 +29,7 @@ type BaseVisualBlock = {
     | 'solution'
     | 'daily_use'
     | 'included_scope'
+    | 'system_work_explainer'
     | 'warning'
     | 'future_upgrade'
     | 'portal_cta'
@@ -190,6 +191,34 @@ export type CustomerNeedResolutionBlock = BaseVisualBlock & {
   items: CustomerNeedResolutionItem[];
 };
 
+/**
+ * SystemWorkExplainerCard — one work-type explainer card.
+ *
+ * Each card covers a single category of work (flush, filter, controls, etc.)
+ * and answers three questions: what it is, what it does, and why it helps.
+ */
+export type SystemWorkExplainerCard = {
+  /** Short work-type label, e.g. "Power flush". */
+  whatItIs: string;
+  /** Plain-English description of the work, e.g. "Removes magnetite sludge…". */
+  whatItDoes: string;
+  /** Customer benefit framing, e.g. "Protects the new boiler long-term.". */
+  whyItHelps: string;
+};
+
+/**
+ * SystemWorkExplainerBlock — explains included and recommended work items.
+ *
+ * Built from QuoteScopeItem[] (included + recommended).
+ * Max 6 cards — only one card per scope item.
+ * Placed after the IncludedScopeBlock so context flows naturally.
+ */
+export type SystemWorkExplainerBlock = BaseVisualBlock & {
+  type: 'system_work_explainer';
+  /** Up to 6 explainer cards, one per included or recommended scope item. */
+  cards: SystemWorkExplainerCard[];
+};
+
 // ─── Union ────────────────────────────────────────────────────────────────────
 
 export type VisualBlock =
@@ -200,6 +229,7 @@ export type VisualBlock =
   | SolutionBlock
   | DailyUseBlock
   | IncludedScopeBlock
+  | SystemWorkExplainerBlock
   | WarningBlock
   | FutureUpgradeBlock
   | PortalCtaBlock

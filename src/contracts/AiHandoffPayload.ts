@@ -56,8 +56,12 @@ export interface AiHandoffPayload {
   /** Physics-grounded reasons why this scenario was selected. */
   keyReasons: string[];
 
-  /** Rejected alternatives with the primary constraint for each. */
-  rejectedAlternatives: Array<{ summary: string; constraint: string }>;
+  /**
+   * Non-recommended options with the primary reason each was not chosen.
+   * Framed as "Options considered" — neutral, not adversarial.
+   * Uses "less suited because…" / "possible future pathway if…" language.
+   */
+  optionsConsidered: Array<{ summary: string; constraint: string }>;
 
   /** Key household facts from the survey. */
   householdFacts: Array<{ label: string; value: string | number }>;

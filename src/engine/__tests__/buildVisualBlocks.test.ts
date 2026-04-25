@@ -233,10 +233,10 @@ describe('buildVisualBlocks — optional blocks omitted when empty', () => {
     expect(blocks.some((b) => b.type === 'daily_use')).toBe(false);
   });
 
-  it('omits included_scope block when includedItems is empty', () => {
-    const decision = makeDecision({ includedItems: [] });
+  it('included_scope block is always emitted, even when includedItems is empty', () => {
+    const decision = makeDecision({ includedItems: [], quoteScope: [] });
     const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario()]);
-    expect(blocks.some((b) => b.type === 'included_scope')).toBe(false);
+    expect(blocks.some((b) => b.type === 'included_scope')).toBe(true);
   });
 
   it('omits future_upgrade block when futureUpgradePaths is empty', () => {
@@ -341,5 +341,54 @@ describe('buildVisualBlocks — problem block physics flags', () => {
     const blocks    = buildVisualBlocks(decision, scenarios);
     const problem   = blocks.find((b) => b.type === 'problem');
     expect(problem?.title).toBe('Why your home needs stored hot water');
+  });
+});
+
+describe('buildVisualBlocks — system_work_explainer block', () => {
+  it('emits a system_work_explainer block when quoteScope has included items with descriptions', () => {
+    const decision = makeDecision({
+      quoteScope: [
+        {
+          id: 'flush-1', label: 'Power flush', category: 'flush', status: 'included',
+          whatItDoes: 'Clears sludge from the circuit', customerBenefit: 'Radiators heat evenly',
+        },
+      ],
+    });
+    const blocks = buildVisualBlocks(decision, [makeRecommendedScenario()]);
+    expect(blocks.some((b) => b.type === 'system_work_explainer')).toBe(true);
+  });
+
+  it('system_work_explainer cards contain whatItIs, whatItDoes, whyItHelps', () => {
+    const decision = makeDecision({
+      quoteScope: [
+        {
+          id: 'filter-1', label: 'Magnetic filter', category: 'protection', status: 'included',
+          whatItDoes: 'Captures magnetite particles', customerBenefit: 'Keeps the boiler efficient',
+        },
+      ],
+    });
+    const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario()]);
+    const explainer = blocks.find((b) => b.type === 'system_work_explainer') as import('../../contracts/VisualBlock').SystemWorkExplainerBlock | undefined;
+    expect(explainer?.cards).toBeDefined();
+    expect(explainer?.cards[0].whatItIs).toBe('Magnetic filter');
+    expect(explainer?.cards[0].whatItDoes).toBe('Captures magnetite particles');
+    expect(explainer?.cards[0].whyItHelps).toBe('Keeps the boiler efficient');
+  });
+
+  it('system_work_explainer block is omitted when quoteScope is empty', () => {
+    const decision = makeDecision({ quoteScope: [] });
+    const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario()]);
+    expect(blocks.some((b) => b.type === 'system_work_explainer')).toBe(false);
+  });
+
+  it('system_work_explainer caps cards at 6', () => {
+    const manyItems = Array.from({ length: 8 }, (_, i) => ({
+      id: `item-${i}`, label: `Item ${i + 1}`, category: 'protection' as const, status: 'included' as const,
+      whatItDoes: 'Does something', customerBenefit: 'Helps you',
+    }));
+    const decision  = makeDecision({ quoteScope: manyItems });
+    const blocks    = buildVisualBlocks(decision, [makeRecommendedScenario()]);
+    const explainer = blocks.find((b) => b.type === 'system_work_explainer') as import('../../contracts/VisualBlock').SystemWorkExplainerBlock | undefined;
+    expect(explainer?.cards.length).toBeLessThanOrEqual(6);
   });
 });

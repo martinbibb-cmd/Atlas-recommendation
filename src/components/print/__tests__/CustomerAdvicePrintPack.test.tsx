@@ -587,3 +587,29 @@ describe('CustomerAdvicePrintPack — AI handoff summary', () => {
     expect(handoff.textContent).toContain('Do not invent missing facts');
   });
 });
+
+describe('CustomerAdvicePrintPack — options considered (AI handoff)', () => {
+
+  it('AI handoff uses "Options considered" heading, not "Rejected alternatives"', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).not.toContain('Rejected alternatives');
+  });
+
+  it('empty included scope shows the advisor fallback message', () => {
+    const emptyScope: IncludedScopeBlock = {
+      id: 'included-scope',
+      type: 'included_scope',
+      title: 'What is included',
+      outcome: 'Everything covered in the proposed scope of work.',
+      items: [],
+      complianceItems: [],
+      recommendedItems: [],
+      futureItems: [],
+      visualKey: 'included_scope_system_boiler_mixergy',
+    };
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: [emptyScope] })} />);
+    expect(screen.getByTestId('capp-scope-empty')).toBeTruthy();
+    expect(screen.getByText('Scope not fully captured yet — confirm quote inclusions before presenting this pack.')).toBeTruthy();
+  });
+});

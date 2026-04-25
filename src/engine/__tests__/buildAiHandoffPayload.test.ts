@@ -8,8 +8,8 @@
  *     validationPolicy, trustedSourceCategories, sourceUseRules).
  *   - buildAiHandoffPayload projects recommendedHeadline from decision.
  *   - buildAiHandoffPayload includes up to 3 keyReasons.
- *   - buildAiHandoffPayload excludes the recommended scenario from rejectedAlternatives.
- *   - buildAiHandoffPayload falls back constraint to 'not suitable for this home'.
+ *   - buildAiHandoffPayload excludes the recommended scenario from optionsConsidered.
+ *   - buildAiHandoffPayload falls back constraint to 'less suited for this home configuration'.
  *   - buildAiHandoffPayload includes up to 6 householdFacts.
  *   - buildAiHandoffPayload includes up to 8 includedScope items.
  *   - buildAiHandoffPayload includes up to 5 requiredWorks items.
@@ -124,7 +124,7 @@ describe('buildAiHandoffPayload', () => {
     expect(payload.keyReasons).toEqual(['Reason A', 'Reason B', 'Reason C']);
   });
 
-  it('excludes the recommended scenario from rejectedAlternatives', () => {
+  it('excludes the recommended scenario from optionsConsidered', () => {
     const recommended = makeScenario({ scenarioId: 'system_unvented' });
     const rejected    = makeScenario({
       scenarioId: 'combi',
@@ -132,19 +132,19 @@ describe('buildAiHandoffPayload', () => {
       keyConstraints: ['Not suitable for two bathrooms'],
     });
     const payload = buildAiHandoffPayload(makeDecision(), [recommended, rejected]);
-    expect(payload.rejectedAlternatives).toHaveLength(1);
-    expect(payload.rejectedAlternatives[0].summary).toBe('Combi boiler');
-    expect(payload.rejectedAlternatives[0].constraint).toBe('Not suitable for two bathrooms');
+    expect(payload.optionsConsidered).toHaveLength(1);
+    expect(payload.optionsConsidered[0].summary).toBe('Combi boiler');
+    expect(payload.optionsConsidered[0].constraint).toBe('Not suitable for two bathrooms');
   });
 
-  it('falls back constraint to "not suitable for this home" when keyConstraints is empty', () => {
+  it('falls back constraint to "less suited for this home configuration" when keyConstraints is empty', () => {
     const rejected = makeScenario({
       scenarioId:    'combi',
       system:        { type: 'combi', summary: 'Combi boiler' },
       keyConstraints: [],
     });
     const payload = buildAiHandoffPayload(makeDecision(), [makeScenario(), rejected]);
-    expect(payload.rejectedAlternatives[0].constraint).toBe('not suitable for this home');
+    expect(payload.optionsConsidered[0].constraint).toBe('less suited for this home configuration');
   });
 
   it('includes up to 6 householdFacts', () => {
@@ -197,9 +197,9 @@ describe('buildAiHandoffPayload', () => {
     expect(payload.futureUpgrades).toHaveLength(4);
   });
 
-  it('returns empty rejectedAlternatives when there is only one scenario matching the recommendation', () => {
+  it('returns empty optionsConsidered when there is only one scenario matching the recommendation', () => {
     const payload = buildAiHandoffPayload(makeDecision(), [makeScenario()]);
-    expect(payload.rejectedAlternatives).toHaveLength(0);
+    expect(payload.optionsConsidered).toHaveLength(0);
   });
 
   it('returns empty recommendedUpgrades when quoteScope has no recommended items', () => {
@@ -351,7 +351,7 @@ describe('serialiseAiHandoffPayload', () => {
     });
     const payload = buildAiHandoffPayload(makeDecision(), [makeScenario(), rejected]);
     const text = serialiseAiHandoffPayload(payload);
-    expect(text).toContain('Rejected alternatives:');
+    expect(text).toContain('Options considered:');
     expect(text).toContain('• Combi boiler — Two bathrooms exceed combi capacity');
   });
 
