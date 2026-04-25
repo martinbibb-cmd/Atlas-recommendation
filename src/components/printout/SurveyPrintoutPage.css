@@ -377,6 +377,57 @@
   margin: 6px 0 3px;
 }
 
+/* ─── Reported issues block ───────────────────────────────────────────────── */
+
+.spp-issues {
+  margin-top: 0.6rem;
+  padding: 0.45rem 0.75rem;
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 6px;
+}
+
+.spp-issues__label {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c53030;
+  margin: 0 0 0.3rem;
+}
+
+.spp-list--issues {
+  color: #c53030;
+}
+
+/* ─── What matters to you — priority list ────────────────────────────────── */
+
+.spp-list--priorities {
+  list-style: none;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.spp-priority-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: #2d3748;
+}
+
+.spp-priority-item__emoji {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}
+
+.spp-priority-item__sub {
+  color: #718096;
+  font-weight: 400;
+}
+
 /* ─── Print overrides ─────────────────────────────────────────────────────── */
 
 @media print {

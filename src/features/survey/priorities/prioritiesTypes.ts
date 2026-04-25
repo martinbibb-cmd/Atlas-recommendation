@@ -65,9 +65,8 @@ export type PriorityKey =
  * yet (not that none matter — treat downstream as "unknown").
  *
  * Also captures future plans (loft conversion, extra bathroom, heat pump
- * interest) and customer constraints (budget sensitivity, disruption
- * tolerance).  These are stored here because they represent what the
- * customer wants, not physics facts about the property.
+ * interest), customer constraints (budget sensitivity, disruption
+ * tolerance), and current system issues reported by the customer.
  */
 export interface PrioritiesState {
   selected: PriorityKey[];
@@ -83,6 +82,28 @@ export interface PrioritiesState {
   budgetSensitivity?: BudgetSensitivity;
   /** How much installation disruption the customer will tolerate. Wired to preferences.disruptionTolerance. */
   disruptionTolerance?: CustomerDisruptionTolerance;
+  // ── Current system issues (customer-reported) ────────────────────────────
+  /**
+   * Does the customer run out of hot water?
+   * true = yes, false = no, null = not answered.
+   */
+  runsOutOfHotWater?: boolean | null;
+  /**
+   * Can the customer use multiple taps simultaneously without loss of
+   * pressure or hot water?
+   * true = yes (no issue), false = no (problem exists), null = not answered.
+   */
+  canUseMultipleTaps?: boolean | null;
+  /**
+   * Do all rooms in the property reach the desired temperature?
+   * true = yes (no issue), false = no (problem exists), null = not answered.
+   */
+  allRoomsReachTemperature?: boolean | null;
+  /**
+   * Free-text field for any other issues the customer has raised.
+   * Recorded verbatim and surfaced on the customer summary printout.
+   */
+  otherIssues?: string;
 }
 
 export const INITIAL_PRIORITIES_STATE: PrioritiesState = {
@@ -92,6 +113,10 @@ export const INITIAL_PRIORITIES_STATE: PrioritiesState = {
   heatPumpInterest: null,
   budgetSensitivity: 'unknown',
   disruptionTolerance: 'unknown',
+  runsOutOfHotWater: null,
+  canUseMultipleTaps: null,
+  allRoomsReachTemperature: null,
+  otherIssues: '',
 };
 
 // ─── Priority metadata ────────────────────────────────────────────────────────
