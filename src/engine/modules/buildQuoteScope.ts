@@ -39,7 +39,7 @@ export const EMPTY_SCOPE_MESSAGE =
  * labelled "powerflush", "system flush", or "power flush primary circuit"
  * all resolve to the same canonical scope item.
  */
-const LABEL_NORMALIZE_MAP: Array<{ pattern: RegExp; canonical: string }> = [
+const LABEL_NORMALIZE_MAP: Array<{ pattern: RegExp; canonical: string | undefined }> = [
   { pattern: /^power.?flush|system.?flush|flush.?primary|circuit.?flush|power.?clean/i, canonical: 'Power flush' },
   { pattern: /^(system\s+)?clean$|system clean/i, canonical: 'Power flush' },
   { pattern: /^magnetic.?filter|mag.?filter|filter$/i, canonical: 'Magnetic filter' },
