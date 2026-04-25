@@ -92,7 +92,40 @@ export function normalizeLabel(label: string): string {
   return trimmed;
 }
 
-// ─── Category inference ───────────────────────────────────────────────────────
+// ─── Verification item detection ─────────────────────────────────────────────
+
+/**
+ * VERIFICATION_PATTERNS — phrases that identify pre-installation checks and
+ * confirmation notes rather than actual work items.
+ *
+ * These are things the engineer must verify or confirm before ordering or
+ * installing — not deliverables that belong in the customer "included" scope.
+ *
+ * Any label matching these patterns is reclassified to:
+ *   status: 'required'   (or 'recommended' when non-regulatory)
+ *   category: 'compliance'
+ * and never receives a customerBenefit or whatItDoes description.
+ */
+const VERIFICATION_PATTERNS: RegExp[] = [
+  /\bconfirm\b/i,
+  /\bcheck\b/i,
+  /\bverif(y|ication)\b/i,
+  /\bremains accessible\b/i,
+  /\bbefore ordering\b/i,
+  /\brequires confirmation\b/i,
+];
+
+/**
+ * isVerificationItem — returns true when a label describes a pre-install
+ * check or confirmation note rather than an actual deliverable work item.
+ *
+ * Exported so callers (e.g. buildVisualBlocks) can apply the same gate.
+ */
+export function isVerificationItem(label: string): boolean {
+  return VERIFICATION_PATTERNS.some((p) => p.test(label));
+}
+
+
 
 /** Keyword patterns mapped to categories — first match wins. */
 const CATEGORY_PATTERNS: Array<{ pattern: RegExp; category: QuoteScopeCategory }> = [
@@ -240,20 +273,36 @@ export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
     if (seenLabels.has(key)) return;
     seenLabels.add(key);
 
-    const category = categoryOverride ?? inferCategory(label);
-    const id = `scope-${status}-${category}-${items.length}`;
+    // Verification / pre-install check items must never appear as included
+    // deliverables. Reclassify them to compliance/required so they surface
+    // as engineer notes only, without customer benefit framing.
+    const verification = isVerificationItem(label);
+    const resolvedStatus: QuoteScopeStatus = verification ? 'required' : status;
+    const resolvedCategory: QuoteScopeCategory = verification
+      ? 'compliance'
+      : (categoryOverride ?? inferCategory(label));
+    const id = `scope-${resolvedStatus}-${resolvedCategory}-${items.length}`;
 
-    const item: QuoteScopeItem = { id, label, category, status };
+    const item: QuoteScopeItem = {
+      id,
+      label,
+      category: resolvedCategory,
+      status: resolvedStatus,
+    };
 
     if (engineerNote) item.engineerNote = engineerNote;
 
-    // Attach whatItDoes and customerBenefit for non-compliance, non-future items.
-    // Compliance items must not carry a benefit description (they are requirements).
-    // Future items carry no benefit in the current quote context.
-    if (status !== 'excluded' && category !== 'compliance' && category !== 'future') {
-      const whatItDoes = defaultWhatItDoes(category);
+    // Attach whatItDoes and customerBenefit for real, non-compliance, non-future items.
+    // Compliance, future, and verification items must not carry a benefit description.
+    const isRealWork =
+      resolvedStatus !== 'excluded' &&
+      resolvedCategory !== 'compliance' &&
+      resolvedCategory !== 'future' &&
+      !verification;
+    if (isRealWork) {
+      const whatItDoes = defaultWhatItDoes(resolvedCategory);
       if (whatItDoes) item.whatItDoes = whatItDoes;
-      const benefit = defaultBenefit(category);
+      const benefit = defaultBenefit(resolvedCategory);
       if (benefit) item.customerBenefit = benefit;
     }
 

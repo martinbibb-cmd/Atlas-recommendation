@@ -49,6 +49,8 @@ import {
   scopeRecommended,
   scopeFuture,
   synthesizeLegacyScope,
+  isVerificationItem,
+  EMPTY_SCOPE_MESSAGE,
 } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
@@ -247,15 +249,21 @@ function buildDailyUseBlock(decision: AtlasDecisionV1): DailyUseBlock {
 function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock {
   const qscope = decision.quoteScope;
 
-  // ── Included now (non-compliance, status='included') ──────────────────────
+  // ── Included now (non-compliance, status='included', not verification) ─────
   let includedItems: QuoteScopeItem[];
   if (qscope.length > 0) {
     includedItems = qscope.filter(
-      (s) => s.status === 'included' && s.category !== 'compliance' && s.category !== 'future',
+      (s) =>
+        s.status === 'included' &&
+        s.category !== 'compliance' &&
+        s.category !== 'future' &&
+        !isVerificationItem(s.label),
     );
   } else {
-    // Legacy fallback: synthesise from flat string list
-    includedItems = synthesizeLegacyScope(decision.includedItems);
+    // Legacy fallback: synthesise from flat string list (filter verification items)
+    includedItems = synthesizeLegacyScope(
+      decision.includedItems.filter((label) => !isVerificationItem(label)),
+    );
   }
 
   // ── Compliance requirements (status='included', category='compliance') ────
@@ -267,13 +275,18 @@ function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock 
   // ── Future options (status='optional', category='future') ─────────────────
   const futureItems: QuoteScopeItem[] = qscope.length > 0 ? scopeFuture(qscope) : [];
 
-  // Always emit the block — when empty, IncludedScopeBlockView shows the
-  // "Scope not fully captured yet" fallback message to the advisor.
+  // When no real included works have been captured, use the honest advisor
+  // message rather than pretending the scope is complete.
+  const hasRealWork = includedItems.length > 0;
+  const outcome = hasRealWork
+    ? 'Everything covered in the proposed scope of work.'
+    : EMPTY_SCOPE_MESSAGE;
+
   return {
     id: 'included-scope',
     type: 'included_scope',
     title: 'What is included',
-    outcome: 'Everything covered in the proposed scope of work.',
+    outcome,
     items: includedItems,
     complianceItems,
     recommendedItems,
@@ -283,11 +296,34 @@ function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock 
 }
 
 /**
+ * REAL_WORK_CATEGORIES — the scope categories that represent actual
+ * installation deliverables a customer can see and benefit from.
+ *
+ * Explicitly excludes:
+ *   - 'compliance' — regulatory requirements, not benefits
+ *   - 'future'     — pathways, not current work
+ *
+ * Verification items (label matches isVerificationItem()) are also excluded
+ * regardless of their category.
+ */
+const REAL_WORK_CATEGORIES = new Set<string>([
+  'heat_source',
+  'hot_water',
+  'controls',
+  'protection',
+  'flush',
+  'pipework',
+]);
+
+/**
  * buildSystemWorkExplainerBlock
  *
- * Builds a SystemWorkExplainerBlock from the included and recommended scope items.
+ * Builds a SystemWorkExplainerBlock from real included/recommended scope items.
  * Each card explains: what it is, what it does, and why it helps the customer.
  * Capped at 6 cards. Only emitted when there are items with meaningful descriptions.
+ *
+ * Verification notes (confirm/check/verify phrases) are excluded — they are
+ * engineer pre-conditions, not customer deliverables.
  */
 function buildSystemWorkExplainerBlock(
   decision: AtlasDecisionV1,
@@ -298,8 +334,8 @@ function buildSystemWorkExplainerBlock(
   const eligibleItems = qscope.filter(
     (s) =>
       (s.status === 'included' || s.status === 'recommended') &&
-      s.category !== 'compliance' &&
-      s.category !== 'future' &&
+      REAL_WORK_CATEGORIES.has(s.category) &&
+      !isVerificationItem(s.label) &&
       (s.whatItDoes ?? s.customerBenefit),
   );
 
@@ -320,6 +356,7 @@ function buildSystemWorkExplainerBlock(
     visualKey: VK.workExplainer,
   };
 }
+
 
 /**
  * Build warning blocks from compatibility warnings and lifecycle condition.

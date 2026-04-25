@@ -527,8 +527,8 @@ describe('CustomerAdvicePrintPack — AI handoff summary', () => {
     expect(screen.getByTestId('capp-ai-handoff')).toBeTruthy();
   });
 
-  it('AI handoff contains the recommended system headline', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('AI handoff contains the recommended system headline when full text is printed', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('system boiler');
   });
@@ -544,45 +544,45 @@ describe('CustomerAdvicePrintPack — AI handoff summary', () => {
     expect(handoff.textContent?.trim().length).toBeGreaterThan(50);
   });
 
-  // ── Acceptance criteria: evidence-aware handoff ──────────────────────────
+  // ── Acceptance criteria: evidence-aware handoff (require printFullAiHandoff) ─
 
-  it('AI handoff includes a clear assistant introduction', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('AI handoff includes a clear assistant introduction when full text is printed', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('Atlas has helped me understand your home');
     expect(handoff.textContent).toContain('Instructions for the AI assistant');
   });
 
-  it('AI handoff warns that AI systems can make mistakes (hallucination warning)', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('AI handoff warns that AI systems can make mistakes when full text is printed', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('AI systems can make mistakes');
   });
 
-  it('AI handoff instructs the assistant to validate using trusted sources', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('AI handoff instructs the assistant to validate using trusted sources when full text is printed', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('Trusted source categories');
     expect(handoff.textContent).toContain('Manufacturer installation manuals');
     expect(handoff.textContent).toContain('Ofgem');
   });
 
-  it('AI handoff preserves Atlas as the case-specific source via validation policy', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('AI handoff preserves Atlas as the case-specific source when full text is printed', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('supplied Atlas payload as the primary case-specific source');
     expect(handoff.textContent).toContain('Case-specific Atlas data');
   });
 
-  it('AI handoff includes source use rules', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('AI handoff includes source use rules when full text is printed', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('Source use rules');
     expect(handoff.textContent).toContain('Never override site-specific Atlas facts');
   });
 
-  it('AI handoff instructs assistant not to invent missing facts', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('AI handoff instructs assistant not to invent missing facts when full text is printed', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('Do not invent missing facts');
   });
@@ -611,5 +611,71 @@ describe('CustomerAdvicePrintPack — options considered (AI handoff)', () => {
     render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: [emptyScope] })} />);
     expect(screen.getByTestId('capp-scope-empty')).toBeTruthy();
     expect(screen.getByText('Scope not fully captured yet — confirm quote inclusions before presenting this pack.')).toBeTruthy();
+  });
+});
+
+// ─── Problem block suppression ────────────────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — ProblemBlock suppression', () => {
+
+  function makeProblemBlock(): VisualBlock {
+    return {
+      id: 'problem-block',
+      type: 'problem',
+      title: 'Why your home needs stored hot water',
+      outcome: 'On-demand combi cannot sustain simultaneous demand.',
+      supportingPoints: ['24 kW at 10 L/min', 'ΔT 35°C'],
+      visualKey: 'combi_concurrency_problem',
+    } as VisualBlock;
+  }
+
+  it('does NOT render a problem block by default (showRejectedOptionProof=false)', () => {
+    const blocks = [...makeBlocks(), makeProblemBlock()];
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.queryByTestId('capp-block-problem')).toBeNull();
+  });
+
+  it('renders a problem block when showRejectedOptionProof=true', () => {
+    const blocks = [...makeBlocks(), makeProblemBlock()];
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks, showRejectedOptionProof: true })} />);
+    expect(screen.getByTestId('capp-block-problem')).toBeTruthy();
+  });
+
+  it('does NOT render combi maths prose in default print pack', () => {
+    const blocks = [...makeBlocks(), makeProblemBlock()];
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.queryByText('On-demand combi cannot sustain simultaneous demand.')).toBeNull();
+  });
+});
+
+// ─── Compact AI handoff ───────────────────────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — compact AI handoff (printFullAiHandoff=false)', () => {
+
+  it('does NOT render the full AI text <pre> block by default', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.queryByTestId('capp-ai-handoff-text')).toBeNull();
+  });
+
+  it('renders the AI handoff heading even without full text', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.getByText('Want to understand this in more detail?')).toBeTruthy();
+  });
+
+  it('renders the compact copy prompt directing to portal link', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('installer can share a full AI summary via your portal link');
+  });
+
+  it('renders the full AI text when printFullAiHandoff=true', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
+    expect(screen.getByTestId('capp-ai-handoff-text')).toBeTruthy();
+  });
+
+  it('full AI text contains the assistant intro when printFullAiHandoff=true', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
+    const text = screen.getByTestId('capp-ai-handoff-text');
+    expect(text.textContent).toContain('Atlas has helped me understand your home');
   });
 });

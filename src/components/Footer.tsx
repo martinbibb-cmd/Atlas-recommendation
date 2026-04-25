@@ -1,4 +1,5 @@
 import { ENGINE_VERSION, ASSUMPTION_VERSION } from '../contracts/versions';
+import { ResetSessionButton } from './ResetSessionButton';
 
 type GovernancePage = 'scope' | 'methodology' | 'privacy' | 'neutrality';
 
@@ -10,6 +11,7 @@ export default function Footer({ onNavigate }: { onNavigate: (page: GovernancePa
         <button className="footer-link" onClick={() => onNavigate('methodology')}>Methodology</button>
         <button className="footer-link" onClick={() => onNavigate('neutrality')}>Neutrality</button>
         <button className="footer-link" onClick={() => onNavigate('privacy')}>Privacy</button>
+        <ResetSessionButton className="footer-link footer-link--reset" />
       </nav>
       <p className="footer-meta">
         Engine v{ENGINE_VERSION} &nbsp;·&nbsp; Assumptions {ASSUMPTION_VERSION}
