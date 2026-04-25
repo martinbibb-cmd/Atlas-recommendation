@@ -19,6 +19,59 @@
 
 import type { QuoteScopeItem, QuoteScopeCategory, QuoteScopeStatus } from '../../contracts/QuoteScope';
 
+// ─── Empty scope sentinel ─────────────────────────────────────────────────────
+
+/**
+ * Message shown in the "What is included" section when no scope items have
+ * been captured yet.  Advisor-facing: prompts confirmation before pack is
+ * presented to the customer.
+ */
+export const EMPTY_SCOPE_MESSAGE =
+  'Scope not fully captured yet — confirm quote inclusions before presenting this pack.';
+
+// ─── Label normalisation ──────────────────────────────────────────────────────
+
+/**
+ * Maps common label variants to a single canonical label.
+ * Case-insensitive key matching is applied by normalizeLabel().
+ *
+ * Covers the most frequent field-capture variants so that a quoted item
+ * labelled "powerflush", "system flush", or "power flush primary circuit"
+ * all resolve to the same canonical scope item.
+ */
+const LABEL_NORMALIZE_MAP: Array<{ pattern: RegExp; canonical: string }> = [
+  { pattern: /^power.?flush|system.?flush|flush.?primary|circuit.?flush|power.?clean/i, canonical: 'Power flush' },
+  { pattern: /^(system\s+)?clean$|system clean/i, canonical: 'Power flush' },
+  { pattern: /^magnetic.?filter|mag.?filter|filter$/i, canonical: 'Magnetic filter' },
+  // TRVs must appear before the generic thermostat/controls pattern to avoid
+  // "thermostatic radiator valves" being swallowed by the thermostat rule.
+  { pattern: /^(smart\s+)?trvs?$|thermostatic.?radiator/i, canonical: 'TRVs' },
+  { pattern: /^(smart\s+)?controls?$|^thermostat$|^programmer$|weather.?comp/i, canonical: 'Heating controls' },
+  { pattern: /^radiator.?(upgrade|replacement)|replace.?radiator/i, canonical: 'Radiator upgrade' },
+  { pattern: /^pipework.?(upgrade|replacement)|primary.?pipework|pipe.?upgrade/i, canonical: 'Pipework upgrade' },
+  { pattern: /^mixergy.?cylinder|unvented.?cylinder|vented.?cylinder|dhw.?cylinder/i, canonical: undefined },
+  { pattern: /^g3|discharge.?route|tundish|condensate.?(route|drain)|flue.?(route|check)/i, canonical: undefined },
+];
+
+/**
+ * normalizeLabel — maps a raw label string to its canonical form.
+ *
+ * Returns the canonical label when a known variant is matched, or the
+ * original label (trimmed) when no mapping exists.
+ *
+ * Exported so callers can apply normalisation before constructing
+ * BuildQuoteScopeInput.includedItems.
+ */
+export function normalizeLabel(label: string): string {
+  const trimmed = label.trim();
+  for (const { pattern, canonical } of LABEL_NORMALIZE_MAP) {
+    if (pattern.test(trimmed)) {
+      return canonical ?? trimmed;
+    }
+  }
+  return trimmed;
+}
+
 // ─── Category inference ───────────────────────────────────────────────────────
 
 /** Keyword patterns mapped to categories — first match wins. */
@@ -97,11 +150,35 @@ const DEFAULT_CATEGORY_BENEFITS: Partial<Record<QuoteScopeCategory, string>> = {
 };
 
 /**
+ * Plain-English "what it does" descriptions by category.
+ *
+ * Explains the work in simple terms, without jargon.  Shown alongside
+ * the customer benefit so a customer can understand both what each item
+ * is and why it matters before seeing the benefit framing.
+ */
+const DEFAULT_WHAT_IT_DOES: Partial<Record<QuoteScopeCategory, string>> = {
+  heat_source: 'Replaces or upgrades your main boiler or heat pump — the heart of your heating system.',
+  hot_water:   'Stores pre-heated hot water so multiple outlets can run simultaneously without any wait.',
+  controls:    'Manages when and how your heating and hot water runs, reducing waste and improving comfort.',
+  protection:  'Catches magnetite particles and debris circulating inside the heating system before they cause damage.',
+  flush:       'Clears accumulated sludge and scale from the pipework and radiators before the new system is fitted.',
+  pipework:    'Upgrades or replaces sections of pipe to ensure hot water flows freely around the entire system.',
+};
+
+/**
  * Look up a default customer benefit for a scope item.
  * Returns undefined for compliance and future items — they carry no benefit framing.
  */
 function defaultBenefit(category: QuoteScopeCategory): string | undefined {
   return DEFAULT_CATEGORY_BENEFITS[category];
+}
+
+/**
+ * Look up a default "what it does" description for a scope item.
+ * Returns undefined for compliance and future items.
+ */
+function defaultWhatItDoes(category: QuoteScopeCategory): string | undefined {
+  return DEFAULT_WHAT_IT_DOES[category];
 }
 
 // ─── Builder ──────────────────────────────────────────────────────────────────
@@ -119,20 +196,26 @@ function defaultBenefit(category: QuoteScopeCategory): string | undefined {
  * Deduplication: items with identical labels (case-insensitive) are collapsed
  * so the same work cannot appear in both includedItems and requiredWorks.
  *
- * customerBenefit is populated from DEFAULT_CATEGORY_BENEFITS for non-compliance,
- * non-future items so the "Included now" section in the advice pack can explain
- * why each piece of work matters to the customer.
+ * Labels are normalised before deduplication so common variants
+ * ("powerflush", "system flush", "power flush primary circuit") are treated
+ * as the same item.
+ *
+ * customerBenefit and whatItDoes are populated from DEFAULT_CATEGORY_BENEFITS
+ * and DEFAULT_WHAT_IT_DOES for non-compliance, non-future items so the
+ * "Included now" section in the advice pack can explain why each piece of
+ * work matters to the customer.
  */
 export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
   const items: QuoteScopeItem[] = [];
   const seenLabels = new Set<string>();
 
   function addItem(
-    label: string,
+    rawLabel: string,
     status: QuoteScopeStatus,
     categoryOverride?: QuoteScopeCategory,
     engineerNote?: string,
   ) {
+    const label = normalizeLabel(rawLabel);
     const key = label.toLowerCase().trim();
     if (seenLabels.has(key)) return;
     seenLabels.add(key);
@@ -144,10 +227,12 @@ export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
 
     if (engineerNote) item.engineerNote = engineerNote;
 
-    // Attach a customer benefit sentence for non-compliance, non-future included items.
+    // Attach whatItDoes and customerBenefit for non-compliance, non-future items.
     // Compliance items must not carry a benefit description (they are requirements).
     // Future items carry no benefit in the current quote context.
     if (status !== 'excluded' && category !== 'compliance' && category !== 'future') {
+      const whatItDoes = defaultWhatItDoes(category);
+      if (whatItDoes) item.whatItDoes = whatItDoes;
       const benefit = defaultBenefit(category);
       if (benefit) item.customerBenefit = benefit;
     }
@@ -162,7 +247,7 @@ export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
 
   // 2. Required works — mandatory pre-works and compliance actions
   for (const label of input.requiredWorks) {
-    const category = inferCategory(label);
+    const category = inferCategory(normalizeLabel(label));
     // Compliance-flavoured required works surface explicitly as compliance items
     const engineerNote = category === 'compliance'
       ? `Required: ${label}`

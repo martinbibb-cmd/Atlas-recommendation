@@ -116,7 +116,7 @@ export function IncludedScopeBlockView({ block }: Props) {
 
         {allEmpty && (
           <p className="customer-deck__scope-empty" data-testid="capp-scope-empty">
-            Scope not fully captured yet — your installer will confirm all included works.
+            Scope not fully captured yet — confirm quote inclusions before presenting this pack.
           </p>
         )}
 

@@ -93,9 +93,9 @@ export function buildAiHandoffPayload(
 
     recommendedHeadline: decision.headline,
     keyReasons:          decision.keyReasons.slice(0, 3),
-    rejectedAlternatives: rejected.map((s) => ({
+    optionsConsidered: rejected.map((s) => ({
       summary:    s.system.summary,
-      constraint: s.keyConstraints[0] ?? 'not suitable for this home',
+      constraint: s.keyConstraints[0] ?? 'less suited for this home configuration',
     })),
     householdFacts: decision.supportingFacts
       .slice(0, 6)
@@ -150,9 +150,9 @@ export function serialiseAiHandoffPayload(payload: AiHandoffPayload): string {
     lines.push('');
   }
 
-  if (payload.rejectedAlternatives.length > 0) {
-    lines.push('Rejected alternatives:');
-    payload.rejectedAlternatives.forEach((a) => lines.push(`• ${a.summary} — ${a.constraint}`));
+  if (payload.optionsConsidered.length > 0) {
+    lines.push('Options considered:');
+    payload.optionsConsidered.forEach((a) => lines.push(`• ${a.summary} — ${a.constraint}`));
     lines.push('');
   }
 

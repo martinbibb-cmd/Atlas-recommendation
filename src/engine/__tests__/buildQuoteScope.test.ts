@@ -23,11 +23,13 @@ import { describe, it, expect } from 'vitest';
 import {
   buildQuoteScope,
   inferCategory,
+  normalizeLabel,
   scopeIncluded,
   scopeCompliance,
   scopeRecommended,
   scopeFuture,
   scopeFuturePaths,
+  EMPTY_SCOPE_MESSAGE,
 } from '../modules/buildQuoteScope';
 
 // ─── inferCategory ────────────────────────────────────────────────────────────
@@ -140,7 +142,7 @@ describe('buildQuoteScope — requiredWorks', () => {
       compatibilityWarnings: [],
       futureUpgradePaths: [],
     });
-    const item = scope.find((s) => s.label === 'Power flush primary circuit');
+    const item = scope.find((s) => s.label === 'Power flush');
     expect(item?.status).toBe('included');
     expect(item?.category).toBe('flush');
   });
@@ -372,7 +374,7 @@ describe('buildQuoteScope — customerBenefit', () => {
       compatibilityWarnings: [],
       futureUpgradePaths: [],
     });
-    const item = scope.find((s) => s.label === 'Power flush primary circuit');
+    const item = scope.find((s) => s.label === 'Power flush');
     expect(item?.category).toBe('flush');
     expect(item?.customerBenefit).toBeTruthy();
   });
@@ -411,5 +413,137 @@ describe('buildQuoteScope — customerBenefit', () => {
     const item = scope.find((s) => s.label === 'Solar PV diverter ready');
     expect(item?.category).toBe('future');
     expect(item?.customerBenefit).toBeUndefined();
+  });
+});
+
+// ─── normalizeLabel ───────────────────────────────────────────────────────────
+
+describe('normalizeLabel', () => {
+  it('normalizes "powerflush" to "Power flush"', () => {
+    expect(normalizeLabel('powerflush')).toBe('Power flush');
+  });
+
+  it('normalizes "system flush" to "Power flush"', () => {
+    expect(normalizeLabel('system flush')).toBe('Power flush');
+  });
+
+  it('normalizes "system clean" to "Power flush"', () => {
+    expect(normalizeLabel('system clean')).toBe('Power flush');
+  });
+
+  it('normalizes "power clean" to "Power flush"', () => {
+    expect(normalizeLabel('power clean')).toBe('Power flush');
+  });
+
+  it('normalizes "magnetic filter" to "Magnetic filter"', () => {
+    expect(normalizeLabel('magnetic filter')).toBe('Magnetic filter');
+  });
+
+  it('normalizes "filter" (standalone) to "Magnetic filter"', () => {
+    expect(normalizeLabel('filter')).toBe('Magnetic filter');
+  });
+
+  it('normalizes "thermostat" to "Heating controls"', () => {
+    expect(normalizeLabel('thermostat')).toBe('Heating controls');
+  });
+
+  it('normalizes "programmer" to "Heating controls"', () => {
+    expect(normalizeLabel('programmer')).toBe('Heating controls');
+  });
+
+  it('normalizes "weather compensation" to "Heating controls"', () => {
+    expect(normalizeLabel('weather compensation')).toBe('Heating controls');
+  });
+
+  it('normalizes "TRVs" to "TRVs"', () => {
+    expect(normalizeLabel('TRVs')).toBe('TRVs');
+  });
+
+  it('normalizes "thermostatic radiator valves" to "TRVs"', () => {
+    expect(normalizeLabel('thermostatic radiator valves')).toBe('TRVs');
+  });
+
+  it('returns original label for unknown variants', () => {
+    expect(normalizeLabel('Some bespoke item')).toBe('Some bespoke item');
+  });
+
+  it('trims whitespace from labels', () => {
+    expect(normalizeLabel('  Power flush  ')).toBe('Power flush');
+  });
+});
+
+// ─── whatItDoes population ────────────────────────────────────────────────────
+
+describe('buildQuoteScope — whatItDoes population', () => {
+  it('populates whatItDoes for flush items', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['powerflush'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.category === 'flush');
+    expect(item?.whatItDoes).toBeDefined();
+    expect(item?.whatItDoes).toContain('sludge');
+  });
+
+  it('populates whatItDoes for protection items', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['magnetic filter'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.category === 'protection');
+    expect(item?.whatItDoes).toBeDefined();
+    expect(item?.whatItDoes).toContain('magnetite');
+  });
+
+  it('does NOT populate whatItDoes for compliance items', () => {
+    const scope = buildQuoteScope({
+      includedItems: [],
+      requiredWorks: ['G3 notification required'],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.category === 'compliance');
+    expect(item?.whatItDoes).toBeUndefined();
+  });
+
+  it('does NOT populate whatItDoes for future items', () => {
+    const scope = buildQuoteScope({
+      includedItems: [],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: ['Solar PV ready'],
+    });
+    const item = scope.find((s) => s.category === 'future');
+    expect(item?.whatItDoes).toBeUndefined();
+  });
+});
+
+// ─── quote with powerflush/filter/controls/TRVs ───────────────────────────────
+
+describe('buildQuoteScope — common quoted items produce included scope with benefits', () => {
+  it('quote with powerflush/filter/controls/TRVs produces four included scope items with benefits', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['powerflush', 'magnetic filter', 'smart controls', 'TRVs'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const includedWithBenefits = scope.filter(
+      (s) => s.status === 'included' && s.customerBenefit != null,
+    );
+    expect(includedWithBenefits.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+// ─── EMPTY_SCOPE_MESSAGE ──────────────────────────────────────────────────────
+
+describe('EMPTY_SCOPE_MESSAGE', () => {
+  it('is exported and contains the expected advisor-facing text', () => {
+    expect(EMPTY_SCOPE_MESSAGE).toContain('Scope not fully captured yet');
+    expect(EMPTY_SCOPE_MESSAGE).toContain('confirm quote inclusions');
   });
 });

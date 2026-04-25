@@ -36,6 +36,7 @@ import { ProblemBlockView }                  from '../presentation/blocks/Proble
 import { SolutionBlockView }                 from '../presentation/blocks/SolutionBlockView';
 import { DailyUseBlockView }                 from '../presentation/blocks/DailyUseBlockView';
 import { IncludedScopeBlockView }            from '../presentation/blocks/IncludedScopeBlockView';
+import { SystemWorkExplainerBlockView }      from '../presentation/blocks/SystemWorkExplainerBlockView';
 import { WarningBlockView }                  from '../presentation/blocks/WarningBlockView';
 import { FutureUpgradeBlockView }            from '../presentation/blocks/FutureUpgradeBlockView';
 import { SpatialProofBlockView }             from '../presentation/blocks/SpatialProofBlockView';
@@ -47,6 +48,7 @@ import type {
   SolutionBlock,
   DailyUseBlock,
   IncludedScopeBlock,
+  SystemWorkExplainerBlock,
   WarningBlock,
   FutureUpgradeBlock,
   SpatialProofBlock,
@@ -188,6 +190,7 @@ function renderBlockContent(block: VisualBlock): React.ReactElement | null {
     case 'solution':                return <SolutionBlockView               block={block as SolutionBlock} />;
     case 'daily_use':               return <DailyUseBlockView               block={block as DailyUseBlock} />;
     case 'included_scope':          return <IncludedScopeBlockView          block={block as IncludedScopeBlock} />;
+    case 'system_work_explainer':   return <SystemWorkExplainerBlockView    block={block as SystemWorkExplainerBlock} />;
     case 'warning':                 return <WarningBlockView                block={block as WarningBlock} />;
     case 'future_upgrade':          return <FutureUpgradeBlockView          block={block as FutureUpgradeBlock} />;
     case 'spatial_proof':           return <SpatialProofBlockView           block={block as SpatialProofBlock} />;
@@ -216,6 +219,7 @@ const SECTION_LABELS: Partial<Record<VisualBlock['type'], string>> = {
   solution:                'Why this works',
   daily_use:               'Day-to-day life',
   included_scope:          'What is included',
+  system_work_explainer:   'What the work involves',
   warning:                 'Something to consider',
   future_upgrade:          'Future options',
   portal_cta:              'Your portal',

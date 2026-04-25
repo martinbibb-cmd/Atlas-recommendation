@@ -78,6 +78,12 @@ export interface QuoteScopeItem {
   /** Scope status in this quotation. */
   status: QuoteScopeStatus;
   /**
+   * Plain-English description of what the work actually does.
+   * e.g. "Removes magnetite sludge from the heating circuit before fitting new parts."
+   * Only present for non-compliance, non-future items.
+   */
+  whatItDoes?: string;
+  /**
    * Customer-facing benefit sentence.
    * Only present for non-compliance items where there is a meaningful
    * end-user outcome to communicate.

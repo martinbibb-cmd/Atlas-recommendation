@@ -37,6 +37,7 @@ import type {
   SolutionBlock,
   DailyUseBlock,
   IncludedScopeBlock,
+  SystemWorkExplainerBlock,
   WarningBlock,
   FutureUpgradeBlock,
   PortalCtaBlock,
@@ -87,6 +88,7 @@ const VK = {
   solution: 'stored_hot_water_solution',
   dailyUse: 'daily_use_showers',
   includedScope: 'included_scope_system_boiler_mixergy',
+  workExplainer: 'system_work_explainer_cards',
   lifecycleWarning: 'boiler_lifecycle_warning',
   showerWarning: 'shower_compatibility_warning',
   futureUpgrade: 'future_upgrade_solar',
@@ -242,7 +244,7 @@ function buildDailyUseBlock(decision: AtlasDecisionV1): DailyUseBlock {
   };
 }
 
-function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock | null {
+function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock {
   const qscope = decision.quoteScope;
 
   // ── Included now (non-compliance, status='included') ──────────────────────
@@ -265,11 +267,8 @@ function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock 
   // ── Future options (status='optional', category='future') ─────────────────
   const futureItems: QuoteScopeItem[] = qscope.length > 0 ? scopeFuture(qscope) : [];
 
-  // Emit the block only when there is something to show across any group.
-  const totalItems =
-    includedItems.length + complianceItems.length + recommendedItems.length + futureItems.length;
-  if (totalItems === 0) return null;
-
+  // Always emit the block — when empty, IncludedScopeBlockView shows the
+  // "Scope not fully captured yet" fallback message to the advisor.
   return {
     id: 'included-scope',
     type: 'included_scope',
@@ -280,6 +279,45 @@ function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock 
     recommendedItems,
     futureItems,
     visualKey: VK.includedScope,
+  };
+}
+
+/**
+ * buildSystemWorkExplainerBlock
+ *
+ * Builds a SystemWorkExplainerBlock from the included and recommended scope items.
+ * Each card explains: what it is, what it does, and why it helps the customer.
+ * Capped at 6 cards. Only emitted when there are items with meaningful descriptions.
+ */
+function buildSystemWorkExplainerBlock(
+  decision: AtlasDecisionV1,
+): SystemWorkExplainerBlock | null {
+  const qscope = decision.quoteScope;
+  if (qscope.length === 0) return null;
+
+  const eligibleItems = qscope.filter(
+    (s) =>
+      (s.status === 'included' || s.status === 'recommended') &&
+      s.category !== 'compliance' &&
+      s.category !== 'future' &&
+      (s.whatItDoes ?? s.customerBenefit),
+  );
+
+  if (eligibleItems.length === 0) return null;
+
+  const cards = eligibleItems.slice(0, 6).map((item) => ({
+    whatItIs:   item.label,
+    whatItDoes: item.whatItDoes ?? '',
+    whyItHelps: item.customerBenefit ?? '',
+  }));
+
+  return {
+    id: 'system-work-explainer',
+    type: 'system_work_explainer',
+    title: 'What the work involves',
+    outcome: 'A plain-English guide to each item in your scope.',
+    cards,
+    visualKey: VK.workExplainer,
   };
 }
 
@@ -552,9 +590,13 @@ export function buildVisualBlocks(
     blocks.push(buildDailyUseBlock(decision));
   }
 
-  // 7. Included scope — null when no items in scope or includedItems
+  // 7. Included scope — always emitted; shows empty-scope message when nothing captured
   const includedScopeBlock = buildIncludedScopeBlock(decision);
-  if (includedScopeBlock) blocks.push(includedScopeBlock);
+  blocks.push(includedScopeBlock);
+
+  // 7b. System work explainer — only when scope items have descriptions
+  const workExplainerBlock = buildSystemWorkExplainerBlock(decision);
+  if (workExplainerBlock) blocks.push(workExplainerBlock);
 
   // 8. Warnings (lifecycle + compatibility) — lifecycle first
   for (const w of buildWarningBlocks(decision)) {
