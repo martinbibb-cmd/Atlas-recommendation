@@ -154,6 +154,8 @@ export type SpatialProofBlock = BaseVisualBlock & {
  *  - need, action, and outcome must each fit on one line (no paragraphs)
  *  - confidence 'direct' = backed by a hard survey signal; 'inferred' = derived from
  *    correlated evidence
+ *  - evidence is a short proof phrase (max 80 chars) grounding the item in the
+ *    customer's specific home; no jargon, no raw metrics, supportive not alarmist
  */
 export type CustomerNeedResolutionItem = {
   /** Survey-grounded customer complaint, e.g. "Some rooms don't heat properly". */
@@ -164,6 +166,13 @@ export type CustomerNeedResolutionItem = {
   outcome: string;
   /** Whether this item is directly observed ('direct') or inferred from correlated signals ('inferred'). */
   confidence?: 'direct' | 'inferred';
+  /**
+   * Short proof phrase grounding this item in the customer's home (max 80 chars).
+   * Rendered in smaller, muted, italic text beneath the need line.
+   * Must use "we've seen", "this suggests", or "based on your home" language.
+   * Never show raw metrics, technical values, or alarm language.
+   */
+  evidence?: string;
 };
 
 /**
@@ -171,13 +180,13 @@ export type CustomerNeedResolutionItem = {
  *
  * Turns survey answers into visible, personalised justification for the work.
  * Only emitted when at least one survey signal is present.
- * Maximum 5 items.
+ * Maximum 4 items — 3 is optimal, 4 acceptable; 5+ dilutes the "I feel understood" moment.
  *
  * Placement: after the Facts block, before the Problem/Solution blocks.
  */
 export type CustomerNeedResolutionBlock = BaseVisualBlock & {
   type: 'customer_need_resolution';
-  /** Up to 5 need→action→outcome items, each backed by a survey signal. */
+  /** Up to 4 need→action→outcome items, each backed by a survey signal. */
   items: CustomerNeedResolutionItem[];
 };
 
