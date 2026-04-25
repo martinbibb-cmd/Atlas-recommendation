@@ -182,7 +182,7 @@ function AiDataBlobPanel({ aiSummaryText }: { aiSummaryText: string }) {
         <span className="portal-ai-blob__icon" aria-hidden="true">✦</span>
         <span className="portal-ai-blob__title">AI agent payload</span>
         <span className="portal-ai-blob__hint">
-          {expanded ? 'Hide' : 'Show full data blob — paste into any AI assistant'}
+          {expanded ? 'Hide' : 'Show data for AI assistant'}
         </span>
         <span className="portal-ai-blob__chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
       </button>
