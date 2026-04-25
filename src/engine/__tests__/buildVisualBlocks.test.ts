@@ -260,6 +260,43 @@ describe('buildVisualBlocks — optional blocks omitted when empty', () => {
     const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario(), noConstraintsWeaker]);
     expect(blocks.some((b) => b.type === 'problem')).toBe(false);
   });
+
+  it('omits problem block when weaker scenario has no physics flag (no generic combi page)', () => {
+    const unflaggedWeaker: ScenarioResult = {
+      ...makeWeakerCombiScenario(),
+      physicsFlags: {},
+      keyConstraints: ['Some constraint without a physics measurement'],
+    };
+    const decision = makeDecision();
+    const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario(), unflaggedWeaker]);
+    expect(blocks.some((b) => b.type === 'problem')).toBe(false);
+  });
+});
+
+describe('buildVisualBlocks — text truncation', () => {
+  it('hero outcome longer than 140 chars is truncated', () => {
+    const longHeadline = 'A'.repeat(150);
+    const decision = makeDecision({ headline: longHeadline });
+    const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario()]);
+    const hero     = blocks.find((b) => b.type === 'hero');
+    expect(hero?.outcome?.length).toBeLessThanOrEqual(140);
+  });
+
+  it('supporting points longer than 110 chars are truncated', () => {
+    const longPoint = 'B'.repeat(120);
+    const decision  = makeDecision({ keyReasons: [longPoint] });
+    const blocks    = buildVisualBlocks(decision, [makeRecommendedScenario()]);
+    const hero      = blocks.find((b) => b.type === 'hero');
+    expect((hero?.supportingPoints ?? []).every((p) => p.length <= 110)).toBe(true);
+  });
+
+  it('hero outcome within 140 chars is not truncated', () => {
+    const shortHeadline = 'A system boiler is the right fit for this home.';
+    const decision = makeDecision({ headline: shortHeadline });
+    const blocks   = buildVisualBlocks(decision, [makeRecommendedScenario()]);
+    const hero     = blocks.find((b) => b.type === 'hero');
+    expect(hero?.outcome).toBe(shortHeadline);
+  });
 });
 
 describe('buildVisualBlocks — problem block physics flags', () => {

@@ -450,9 +450,17 @@ describe('QA Flow 4 — Customer advice pack contract', () => {
     expect(blockIds).not.toMatch(/qa.snapshot/i);
   });
 
-  it('included_scope block contains at least one item', () => {
+  it('included_scope block contains at least one item across all scope groups', () => {
     const scopeBlock = QA_BLOCKS.find((b) => b.type === 'included_scope');
-    expect(scopeBlock?.type === 'included_scope' && scopeBlock.items.length).toBeGreaterThan(0);
+    if (scopeBlock?.type !== 'included_scope') {
+      throw new Error('No included_scope block found');
+    }
+    const totalItems =
+      scopeBlock.items.length +
+      (scopeBlock.complianceItems?.length ?? 0) +
+      (scopeBlock.recommendedItems?.length ?? 0) +
+      (scopeBlock.futureItems?.length ?? 0);
+    expect(totalItems).toBeGreaterThan(0);
   });
 
   it('included_scope block items have id, label, category, and status fields', () => {
@@ -460,11 +468,16 @@ describe('QA Flow 4 — Customer advice pack contract', () => {
     if (scopeBlock?.type !== 'included_scope') {
       throw new Error('No included_scope block');
     }
-    for (const item of scopeBlock.items) {
+    const allItems = [
+      ...scopeBlock.items,
+      ...(scopeBlock.complianceItems ?? []),
+      ...(scopeBlock.recommendedItems ?? []),
+    ];
+    for (const item of allItems) {
       expect(item.id).toBeTruthy();
       expect(item.label).toBeTruthy();
       expect(item.category).toBeTruthy();
-      expect(item.status).toBe('included');
+      expect(['included', 'recommended', 'optional']).toContain(item.status);
     }
   });
 

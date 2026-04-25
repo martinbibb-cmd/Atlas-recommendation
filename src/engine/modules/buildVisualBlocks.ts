@@ -39,8 +39,37 @@ import type {
   PortalCtaBlock,
   SpatialProofBlock,
 } from '../../contracts/VisualBlock';
-import { scopeIncluded, scopeFuturePaths, synthesizeLegacyScope } from './buildQuoteScope';
+import {
+  scopeFuturePaths,
+  scopeCompliance,
+  scopeRecommended,
+  scopeFuture,
+  synthesizeLegacyScope,
+} from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
+
+// ─── Text length limits ───────────────────────────────────────────────────────
+
+/** Maximum character count for a block title. */
+const MAX_TITLE_CHARS   = 70;
+/** Maximum character count for a block outcome sentence. */
+const MAX_OUTCOME_CHARS = 140;
+/** Maximum character count for a single supporting point. */
+const MAX_POINT_CHARS   = 110;
+
+/**
+ * Hard-truncate a string to `max` characters.
+ * Appends an ellipsis when truncation occurs.
+ * Long physics prose must stay in the portal, not the print pack.
+ */
+function truncateText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1)}\u2026`;
+}
+
+function truncatePoints(points: string[]): string[] {
+  return points.map((p) => truncateText(p, MAX_POINT_CHARS));
+}
 
 // ─── Visual key constants ─────────────────────────────────────────────────────
 
@@ -76,8 +105,9 @@ function findScenario(
 
 /**
  * Choose the "weaker" scenario to illustrate the problem block.
- * Prefers a scenario with physics flags that signal a real problem.
- * Falls back to the first non-recommended scenario.
+ * Only returns a scenario when it has a concrete physics flag — we never
+ * emit a generic "why X struggles" explainer page for a system that has
+ * no measured constraint against this home.
  */
 function pickWeakerScenario(
   scenarios: ScenarioResult[],
@@ -86,14 +116,15 @@ function pickWeakerScenario(
   const others = scenarios.filter((s) => s.scenarioId !== recommendedId);
   if (others.length === 0) return undefined;
 
-  // Prefer a scenario with a concrete physics flag that maps to a problem block
-  const flagged = others.find(
+  // Only surface a problem block when an actual physics flag exists.
+  // Without a flag, the scenario has no concrete measured constraint to
+  // explain, and we would produce a generic combi page that does not belong.
+  return others.find(
     (s) =>
       s.physicsFlags.combiFlowRisk ||
       s.physicsFlags.hydraulicLimit ||
       s.physicsFlags.pressureConstraint,
   );
-  return flagged ?? others[0];
 }
 
 /** Derive a semantic visual key for the problem block based on physics flags. */
@@ -110,9 +141,9 @@ function buildHeroBlock(decision: AtlasDecisionV1): HeroBlock {
     id: 'hero',
     type: 'hero',
     recommendedScenarioId: decision.recommendedScenarioId,
-    title: 'Recommended system',
-    outcome: decision.headline,
-    supportingPoints: top(decision.keyReasons, 3),
+    title: truncateText('Recommended system', MAX_TITLE_CHARS),
+    outcome: truncateText(decision.headline, MAX_OUTCOME_CHARS),
+    supportingPoints: truncatePoints(top(decision.keyReasons, 3)),
     visualKey: VK.hero,
   };
 }
@@ -142,7 +173,7 @@ function buildFactsBlock(decision: AtlasDecisionV1): FactsBlock {
     id: 'home-facts',
     type: 'facts',
     title: 'About this home',
-    outcome: 'Key facts that shaped the recommendation.',
+    outcome: truncateText('Key facts that shaped the recommendation.', MAX_OUTCOME_CHARS),
     visualKey: VK.facts,
     facts: [...facts, ...extraFacts],
   };
@@ -170,9 +201,9 @@ function buildProblemBlock(
     id: 'problem',
     type: 'problem',
     scenarioId: weaker.scenarioId,
-    title,
-    outcome: weaker.keyConstraints[0],
-    supportingPoints: top(weaker.keyConstraints.slice(1), 2),
+    title: truncateText(title, MAX_TITLE_CHARS),
+    outcome: truncateText(weaker.keyConstraints[0], MAX_OUTCOME_CHARS),
+    supportingPoints: truncatePoints(top(weaker.keyConstraints.slice(1), 2)),
     visualKey: problemVisualKey(weaker),
   };
 }
@@ -187,8 +218,8 @@ function buildSolutionBlock(
     type: 'solution',
     scenarioId: decision.recommendedScenarioId,
     title: 'Why this works for your home',
-    outcome: recommended?.system.summary ?? decision.summary,
-    supportingPoints: top(decision.keyReasons, 3),
+    outcome: truncateText(recommended?.system.summary ?? decision.summary, MAX_OUTCOME_CHARS),
+    supportingPoints: truncatePoints(top(decision.keyReasons, 3)),
     visualKey: VK.solution,
   };
 }
@@ -206,22 +237,42 @@ function buildDailyUseBlock(decision: AtlasDecisionV1): DailyUseBlock {
 }
 
 function buildIncludedScopeBlock(decision: AtlasDecisionV1): IncludedScopeBlock | null {
-  // Prefer canonical quoteScope when available
-  const fromScope = scopeIncluded(decision.quoteScope);
+  const qscope = decision.quoteScope;
 
-  // Fall back to synthesising items from the flat includedItems string list
-  const items: QuoteScopeItem[] = fromScope.length > 0
-    ? fromScope
-    : synthesizeLegacyScope(decision.includedItems);
+  // ── Included now (non-compliance, status='included') ──────────────────────
+  let includedItems: QuoteScopeItem[];
+  if (qscope.length > 0) {
+    includedItems = qscope.filter(
+      (s) => s.status === 'included' && s.category !== 'compliance' && s.category !== 'future',
+    );
+  } else {
+    // Legacy fallback: synthesise from flat string list
+    includedItems = synthesizeLegacyScope(decision.includedItems);
+  }
 
-  if (items.length === 0) return null;
+  // ── Compliance requirements (status='included', category='compliance') ────
+  const complianceItems: QuoteScopeItem[] = qscope.length > 0 ? scopeCompliance(qscope) : [];
+
+  // ── Recommended upgrades (status='recommended') ───────────────────────────
+  const recommendedItems: QuoteScopeItem[] = qscope.length > 0 ? scopeRecommended(qscope) : [];
+
+  // ── Future options (status='optional', category='future') ─────────────────
+  const futureItems: QuoteScopeItem[] = qscope.length > 0 ? scopeFuture(qscope) : [];
+
+  // Emit the block only when there is something to show across any group.
+  const totalItems =
+    includedItems.length + complianceItems.length + recommendedItems.length + futureItems.length;
+  if (totalItems === 0) return null;
 
   return {
     id: 'included-scope',
     type: 'included_scope',
     title: 'What is included',
     outcome: 'Everything covered in the proposed scope of work.',
-    items,
+    items: includedItems,
+    complianceItems,
+    recommendedItems,
+    futureItems,
     visualKey: VK.includedScope,
   };
 }

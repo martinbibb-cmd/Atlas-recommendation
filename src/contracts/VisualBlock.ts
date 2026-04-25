@@ -76,11 +76,26 @@ export type DailyUseBlock = BaseVisualBlock & {
 export type IncludedScopeBlock = BaseVisualBlock & {
   type: 'included_scope';
   /**
-   * Canonical scope items — status='included', non-compliance items only.
+   * Included-now items — status='included', category !== 'compliance', category !== 'future'.
    * PR13 — Uses QuoteScopeItem so the customer deck block and engineer handoff
    * derive from the same canonical QuoteScopeItem[] in AtlasDecisionV1.quoteScope.
    */
   items: QuoteScopeItem[];
+  /**
+   * Compliance/regulatory requirements — status='included', category='compliance'.
+   * Rendered with a "Requirement" badge rather than a benefit framing.
+   */
+  complianceItems?: QuoteScopeItem[];
+  /**
+   * Recommended upgrades — status='recommended'.
+   * Advised but not yet committed in the current quote.
+   */
+  recommendedItems?: QuoteScopeItem[];
+  /**
+   * Future options — status='optional', category='future'.
+   * Pathways this installation enables, shown as forward-looking cards.
+   */
+  futureItems?: QuoteScopeItem[];
 };
 
 export type WarningBlock = BaseVisualBlock & {
