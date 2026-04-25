@@ -39,7 +39,23 @@ export const EMPTY_SCOPE_MESSAGE =
  * labelled "powerflush", "system flush", or "power flush primary circuit"
  * all resolve to the same canonical scope item.
  */
-const LABEL_NORMALIZE_MAP: Array<{ pattern: RegExp; canonical: string | undefined }> = [
+const LABEL_NORMALIZE_MAP: Array<{
+  pattern: RegExp;
+  /**
+   * Canonical replacement.
+   * - string → replace label with this value
+   * - undefined → recognised but preserve original wording
+   *
+   * Three distinct states arise from this:
+   *   1. pattern matches + canonical string  → normalise to canonical
+   *   2. pattern matches + undefined         → recognised; keep original label
+   *   3. no pattern match                    → keep original label
+   *
+   * Guard: always use `canonical ?? trimmed` (never `canonical || trimmed`)
+   * so that an empty string canonical is honoured and undefined falls through.
+   */
+  canonical: string | undefined;
+}> = [
   { pattern: /^power.?flush|system.?flush|flush.?primary|circuit.?flush|power.?clean/i, canonical: 'Power flush' },
   { pattern: /^(system\s+)?clean$|system clean/i, canonical: 'Power flush' },
   { pattern: /^magnetic.?filter|mag.?filter|filter$/i, canonical: 'Magnetic filter' },
