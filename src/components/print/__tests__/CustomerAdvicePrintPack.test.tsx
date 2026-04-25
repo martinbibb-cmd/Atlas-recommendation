@@ -80,11 +80,25 @@ const COMPLIANCE_ITEM: QuoteScopeItem = {
 };
 
 const INCLUDED_ITEM: QuoteScopeItem = {
-  id:             'system-boiler',
-  label:          'System boiler',
-  category:       'equipment',
-  status:         'included',
+  id:              'system-boiler',
+  label:           'System boiler',
+  category:        'heat_source',
+  status:          'included',
   customerBenefit: 'Reliable central heating',
+};
+
+const RECOMMENDED_ITEM: QuoteScopeItem = {
+  id:       'smart-controls',
+  label:    'Smart thermostat upgrade',
+  category: 'controls',
+  status:   'recommended',
+};
+
+const FUTURE_ITEM: QuoteScopeItem = {
+  id:       'ashp-pathway',
+  label:    'Heat pump pathway',
+  category: 'future',
+  status:   'optional',
 };
 
 function makeBlocks(overrides: {
@@ -92,6 +106,7 @@ function makeBlocks(overrides: {
   includeShowerWarning?: boolean;
   includeSpatialProof?: boolean;
   includeScope?: boolean;
+  includeScopeAllGroups?: boolean;
   includeFuture?: boolean;
 } = {}): VisualBlock[] {
   const blocks: VisualBlock[] = [
@@ -146,7 +161,24 @@ function makeBlocks(overrides: {
       id: 'included-scope', type: 'included_scope',
       title: 'What is included',
       outcome: 'Everything covered in the proposed scope of work.',
-      items: [COMPLIANCE_ITEM, INCLUDED_ITEM],
+      items: [INCLUDED_ITEM],
+      complianceItems: [COMPLIANCE_ITEM],
+      recommendedItems: [],
+      futureItems: [],
+      visualKey: 'included_scope_system_boiler_mixergy',
+    };
+    blocks.push(scope);
+  }
+
+  if (overrides.includeScopeAllGroups) {
+    const scope: IncludedScopeBlock = {
+      id: 'included-scope', type: 'included_scope',
+      title: 'What is included',
+      outcome: 'Everything covered in the proposed scope of work.',
+      items: [INCLUDED_ITEM],
+      complianceItems: [COMPLIANCE_ITEM],
+      recommendedItems: [RECOMMENDED_ITEM],
+      futureItems: [FUTURE_ITEM],
       visualKey: 'included_scope_system_boiler_mixergy',
     };
     blocks.push(scope);
@@ -426,5 +458,80 @@ describe('CustomerAdvicePrintPack — no diagnostic/internal artefacts', () => {
     const headline = makeDecision().headline;
     const footers = screen.getAllByText((text) => text.includes(headline));
     expect(footers.length).toBeGreaterThan(0);
+  });
+});
+
+describe('CustomerAdvicePrintPack — grouped scope sections', () => {
+
+  it('renders "Included now" group header when included items are present', () => {
+    const blocks = makeBlocks({ includeScope: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.getByTestId('capp-scope-group-included')).toBeTruthy();
+  });
+
+  it('renders "Required" group header when compliance items are present', () => {
+    const blocks = makeBlocks({ includeScope: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.getByTestId('capp-scope-group-compliance')).toBeTruthy();
+  });
+
+  it('renders all four groups when includeScopeAllGroups is set', () => {
+    const blocks = makeBlocks({ includeScopeAllGroups: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.getByTestId('capp-scope-group-included')).toBeTruthy();
+    expect(screen.getByTestId('capp-scope-group-compliance')).toBeTruthy();
+    expect(screen.getByTestId('capp-scope-group-recommended')).toBeTruthy();
+    expect(screen.getByTestId('capp-scope-group-future')).toBeTruthy();
+  });
+
+  it('renders recommended item with "Recommended" badge', () => {
+    const blocks = makeBlocks({ includeScopeAllGroups: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.getByText('Smart thermostat upgrade')).toBeTruthy();
+    expect(screen.getByText('Recommended')).toBeTruthy();
+  });
+
+  it('renders future item as a chip', () => {
+    const blocks = makeBlocks({ includeScopeAllGroups: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.getByText('Heat pump pathway')).toBeTruthy();
+  });
+
+  it('compliance item renders with "Requirement" label in new grouped view', () => {
+    const blocks = makeBlocks({ includeScope: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.getByText('G3 unvented cylinder regulations')).toBeTruthy();
+    expect(screen.getByText('Requirement')).toBeTruthy();
+  });
+
+  it('included item renders with tick in included group', () => {
+    const blocks = makeBlocks({ includeScope: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
+    expect(screen.getByText('System boiler')).toBeTruthy();
+  });
+});
+
+describe('CustomerAdvicePrintPack — AI handoff summary', () => {
+
+  it('renders the AI handoff section within the portal CTA block', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.getByTestId('capp-ai-handoff')).toBeTruthy();
+  });
+
+  it('AI handoff contains the recommended system headline', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('system boiler');
+  });
+
+  it('AI handoff contains "AI handoff summary" header', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.getByText('AI handoff summary')).toBeTruthy();
+  });
+
+  it('AI handoff does not use white-on-white hidden text (has visible text content)', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent?.trim().length).toBeGreaterThan(50);
   });
 });
