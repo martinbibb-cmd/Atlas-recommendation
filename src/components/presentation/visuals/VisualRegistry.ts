@@ -55,6 +55,9 @@ const VISUAL_REGISTRY: Record<string, VisualEntry> = {
   home_facts:                 { icon: '📊', accentColor: '#0369a1', ariaLabel: 'Home facts and data' },
   energy_facts:               { icon: '⚡', accentColor: '#ca8a04', ariaLabel: 'Energy performance data' },
 
+  // Customer need resolution key — personalised "What matters to you" block
+  customer_need_resolution:   { icon: '💬', accentColor: '#0891b2', ariaLabel: 'Your concerns and how we are addressing them' },
+
   // Daily-use keys
   daily_use_heat_pump:        { icon: '🌿', accentColor: '#059669', ariaLabel: 'Heat pump daily experience' },
   daily_use_stored_hw:        { icon: '🚿', accentColor: '#0284c7', ariaLabel: 'Stored hot water daily experience' },

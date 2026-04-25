@@ -16,6 +16,7 @@
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { AiHandoffPayload } from '../../contracts/AiHandoffPayload';
+import { scopeRecommended } from './buildQuoteScope';
 
 // ─── Static policy constants ──────────────────────────────────────────────────
 
@@ -101,6 +102,9 @@ export function buildAiHandoffPayload(
       .map((f) => ({ label: f.label, value: f.value })),
     includedScope:   decision.includedItems.slice(0, 8),
     requiredWorks:   decision.requiredWorks.slice(0, 5),
+    recommendedUpgrades: scopeRecommended(decision.quoteScope)
+      .map((s) => s.customerBenefit ? `${s.label} — ${s.customerBenefit}` : s.label)
+      .slice(0, 5),
     warnings:        decision.compatibilityWarnings.slice(0, 3),
     futureUpgrades:  decision.futureUpgradePaths.slice(0, 4),
   };
@@ -167,6 +171,12 @@ export function serialiseAiHandoffPayload(payload: AiHandoffPayload): string {
   if (payload.requiredWorks.length > 0) {
     lines.push('Required works:');
     payload.requiredWorks.forEach((w) => lines.push(`• ${w}`));
+    lines.push('');
+  }
+
+  if (payload.recommendedUpgrades.length > 0) {
+    lines.push('Recommended upgrades (advised but not yet committed):');
+    payload.recommendedUpgrades.forEach((u) => lines.push(`• ${u}`));
     lines.push('');
   }
 
