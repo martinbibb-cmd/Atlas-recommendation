@@ -192,10 +192,10 @@ function slowHotWaterItem(input: EngineInputV2_3): SignalItem {
 }
 
 function runsOutOfHotWaterItem(scenario: ScenarioResult): SignalItem {
-  const usesStoredSystem = scenario.system.type === 'system' || scenario.system.type === 'regular';
+  const hasStoredHotWater = scenario.system.type === 'system' || scenario.system.type === 'regular';
   return {
     need: 'Hot water runs out during use',
-    action: usesStoredSystem
+    action: hasStoredHotWater
       ? "We're recommending stored hot water to match your household's demand"
       : "We're sizing the system to meet your household's peak demand",
     outcome: 'Hot water available even during busy times',
@@ -204,14 +204,14 @@ function runsOutOfHotWaterItem(scenario: ScenarioResult): SignalItem {
 }
 
 function lowPressureShowerItem(input: EngineInputV2_3): SignalItem {
-  const isGravity = input.dhwDeliveryMode === 'gravity' || (input.cwsHeadMetres !== undefined && input.cwsHeadMetres < 0.5);
+  const isTankFed = input.dhwDeliveryMode === 'gravity' || (input.cwsHeadMetres !== undefined && input.cwsHeadMetres < 0.5);
   return {
     need: "Shower pressure isn't strong enough",
-    action: isGravity
-      ? 'System designed to move away from gravity-fed supply'
+    action: isTankFed
+      ? 'System designed to move away from tank-fed supply'
       : 'System designed to suit your water supply',
     outcome: 'More consistent shower performance',
-    confidence: isGravity ? 'direct' : 'inferred',
+    confidence: isTankFed ? 'direct' : 'inferred',
   };
 }
 

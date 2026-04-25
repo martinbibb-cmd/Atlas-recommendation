@@ -240,6 +240,13 @@ describe('buildCustomerNeedResolution — low pressure shower', () => {
     expect(block!.items.some((i) => i.need.includes("pressure isn't strong"))).toBe(true);
   });
 
+  it('low pressure item action mentions tank-fed supply for gravity/low-head systems', () => {
+    const input: EngineInputV2_3 = { ...makeBaseInput(), dhwDeliveryMode: 'gravity' };
+    const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
+    const item = block!.items.find((i) => i.need.includes("pressure isn't strong"));
+    expect(item?.action).toContain('tank-fed supply');
+  });
+
   it('does NOT emit low pressure item at 2.5 bar normal pressure without gravity mode', () => {
     const input: EngineInputV2_3 = { ...makeBaseInput(), dynamicMainsPressure: 2.5 };
     const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
