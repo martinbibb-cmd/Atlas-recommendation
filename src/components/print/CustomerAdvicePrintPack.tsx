@@ -83,6 +83,19 @@ export interface CustomerAdvicePrintPackProps {
   visitDate?: string;
   /** Called when the user clicks Back on the screen toolbar. */
   onBack?: () => void;
+  /**
+   * When false (default), `problem` type blocks (combi rejection prose,
+   * kW/ΔT maths, "why your home needs stored hot water" essays) are not
+   * rendered in the print pack. Set to true only for portal / AI handoff
+   * surfaces that need the full technical comparison.
+   */
+  showRejectedOptionProof?: boolean;
+  /**
+   * When false (default), the AI handoff section is rendered as a compact
+   * heading + copy prompt only — the full instruction text is not printed.
+   * Set to true to print the full AI payload (portal and AI summary export only).
+   */
+  printFullAiHandoff?: boolean;
 }
 
 // ─── QR code image ────────────────────────────────────────────────────────────
@@ -248,6 +261,8 @@ export function CustomerAdvicePrintPack({
   portalUrl,
   visitDate,
   onBack,
+  showRejectedOptionProof = false,
+  printFullAiHandoff = false,
 }: CustomerAdvicePrintPackProps) {
   const packTitle    = `Atlas advice pack${visitDate ? ` — ${visitDate}` : ''}`;
   const headline     = decision.headline;
@@ -298,6 +313,10 @@ export function CustomerAdvicePrintPack({
           </section>
         )}
         {visualBlocks.map((block, index) => {
+          // Suppress problem blocks (combi rejection prose, kW/ΔT maths) unless
+          // the caller explicitly opts in via showRejectedOptionProof=true.
+          if (block.type === 'problem' && !showRejectedOptionProof) return null;
+
           const isPortalCta = block.type === 'portal_cta';
           const ctaBlock    = isPortalCta ? (block as PortalCtaBlock) : null;
           const modifier    = pageModifier(block);
@@ -341,7 +360,11 @@ export function CustomerAdvicePrintPack({
                   {/* Compact QR + URL card — not a full blank page */}
                   <PrintPortalCta portalUrl={portalUrl} />
 
-                  {/* AI handoff — visible, copyable summary for any AI assistant */}
+                  {/* AI handoff section
+                      When printFullAiHandoff is false (default for customer print):
+                        compact heading + copy-prompt only — no full instruction text.
+                      When printFullAiHandoff is true (portal / AI summary export):
+                        full payload rendered for copying. */}
                   <section
                     className="capp-ai-handoff"
                     aria-label="AI depth section"
@@ -350,9 +373,20 @@ export function CustomerAdvicePrintPack({
                     <div className="capp-ai-handoff__header">
                       <span className="capp-ai-handoff__icon" aria-hidden="true">✦</span>
                       <span className="capp-ai-handoff__title">Want to understand this in more detail?</span>
-                      <span className="capp-ai-handoff__hint">Copy the text below into ChatGPT, Claude, or Gemini to explore the reasoning behind this recommendation</span>
+                      <span className="capp-ai-handoff__hint">
+                        {printFullAiHandoff
+                          ? 'Copy the text below into ChatGPT, Claude, or Gemini to explore the reasoning behind this recommendation'
+                          : 'Your installer can share a full AI summary via your portal link above.'}
+                      </span>
                     </div>
-                    <pre className="capp-ai-handoff__text">{aiHandoff}</pre>
+                    {printFullAiHandoff && (
+                      <pre
+                        className="capp-ai-handoff__text"
+                        data-testid="capp-ai-handoff-text"
+                      >
+                        {aiHandoff}
+                      </pre>
+                    )}
                   </section>
                 </>
               ) : (

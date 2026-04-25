@@ -48,12 +48,14 @@ export type QuoteScopeCategory =
  * Scope status — describes whether the item is covered in the current quote.
  *
  * included     — confirmed in the current scope of work / quotation
+ * required     — must happen before or during install (verification, compliance check)
  * recommended  — advised but not yet committed (upgrade opportunity)
  * optional     — customer choice, not required for the system to function
  * excluded     — out of scope; present to avoid ambiguity when relevant to decision
  */
 export type QuoteScopeStatus =
   | 'included'
+  | 'required'
   | 'recommended'
   | 'optional'
   | 'excluded';

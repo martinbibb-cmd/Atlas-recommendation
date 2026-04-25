@@ -1198,6 +1198,90 @@ h3.journey-section-label {
   color: #718096;
 }
 
+.footer-link--reset {
+  color: #a0aec0;
+}
+
+.footer-link--reset:hover {
+  color: #e53e3e;
+}
+
+/* ── Reset-session confirm dialog ─────────────────────────────────────────── */
+
+.reset-session-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.reset-session-dialog {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  padding: 1.75rem 2rem;
+  max-width: 360px;
+  width: calc(100% - 2rem);
+}
+
+.reset-session-dialog__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 0.75rem;
+}
+
+.reset-session-dialog__body {
+  font-size: 0.9rem;
+  color: #4a5568;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.reset-session-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.reset-session-dialog__cancel {
+  background: none;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #4a5568;
+}
+
+.reset-session-dialog__cancel:hover:not(:disabled) {
+  background: #f7fafc;
+}
+
+.reset-session-dialog__confirm {
+  background: #e53e3e;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 600;
+}
+
+.reset-session-dialog__confirm:hover:not(:disabled) {
+  background: #c53030;
+}
+
+.reset-session-dialog__cancel:disabled,
+.reset-session-dialog__confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ── Story Mode ─────────────────────────────────────────────────────────────── */
 
 /* Scenario selector grid */

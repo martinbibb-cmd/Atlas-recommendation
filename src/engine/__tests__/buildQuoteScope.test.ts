@@ -547,3 +547,110 @@ describe('EMPTY_SCOPE_MESSAGE', () => {
     expect(EMPTY_SCOPE_MESSAGE).toContain('confirm quote inclusions');
   });
 });
+
+// ─── isVerificationItem ───────────────────────────────────────────────────────
+
+import { isVerificationItem } from '../modules/buildQuoteScope';
+
+describe('isVerificationItem', () => {
+  it('identifies "Confirm cylinder location" as a verification item', () => {
+    expect(isVerificationItem('Confirm cylinder location')).toBe(true);
+  });
+
+  it('identifies "Check loft access" as a verification item', () => {
+    expect(isVerificationItem('Check loft access')).toBe(true);
+  });
+
+  it('identifies "Verify discharge route" as a verification item', () => {
+    expect(isVerificationItem('Verify discharge route')).toBe(true);
+  });
+
+  it('identifies "Loft remains accessible" as a verification item', () => {
+    expect(isVerificationItem('Loft remains accessible for ongoing maintenance')).toBe(true);
+  });
+
+  it('identifies "Confirm before ordering" variant as a verification item', () => {
+    expect(isVerificationItem('Confirm flue position before ordering')).toBe(true);
+  });
+
+  it('identifies "requires confirmation" phrase as a verification item', () => {
+    expect(isVerificationItem('Cylinder position requires confirmation')).toBe(true);
+  });
+
+  it('does NOT flag "System boiler" as a verification item', () => {
+    expect(isVerificationItem('System boiler')).toBe(false);
+  });
+
+  it('does NOT flag "Mixergy cylinder" as a verification item', () => {
+    expect(isVerificationItem('Mixergy cylinder')).toBe(false);
+  });
+
+  it('does NOT flag "Power flush" as a verification item', () => {
+    expect(isVerificationItem('Power flush')).toBe(false);
+  });
+});
+
+// ─── buildQuoteScope — verification item reclassification ────────────────────
+
+describe('buildQuoteScope — verification items are reclassified as required/compliance', () => {
+  it('reclassifies "Confirm cylinder location" from included to required/compliance', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['Confirm cylinder location'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label === 'Confirm cylinder location');
+    expect(item).toBeDefined();
+    expect(item?.status).toBe('required');
+    expect(item?.category).toBe('compliance');
+  });
+
+  it('does NOT attach customerBenefit to "Confirm cylinder location"', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['Confirm cylinder location'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label === 'Confirm cylinder location');
+    expect(item?.customerBenefit).toBeUndefined();
+  });
+
+  it('does NOT attach whatItDoes to "Confirm cylinder location"', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['Confirm cylinder location'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label === 'Confirm cylinder location');
+    expect(item?.whatItDoes).toBeUndefined();
+  });
+
+  it('reclassifies "Loft remains accessible" from included to required/compliance', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['Loft remains accessible for ongoing maintenance'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label.includes('Loft remains accessible'));
+    expect(item?.status).toBe('required');
+    expect(item?.category).toBe('compliance');
+    expect(item?.customerBenefit).toBeUndefined();
+  });
+
+  it('does not affect real work items — System boiler remains included/heat_source', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['System boiler', 'Confirm cylinder location'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const boiler = scope.find((s) => s.label === 'System boiler');
+    expect(boiler?.status).toBe('included');
+    expect(boiler?.category).toBe('heat_source');
+    expect(boiler?.customerBenefit).toBeTruthy();
+  });
+});
