@@ -49,7 +49,11 @@ const LABEL_NORMALIZE_MAP: Array<{ pattern: RegExp; canonical: string }> = [
   { pattern: /^(smart\s+)?controls?$|^thermostat$|^programmer$|weather.?comp/i, canonical: 'Heating controls' },
   { pattern: /^radiator.?(upgrade|replacement)|replace.?radiator/i, canonical: 'Radiator upgrade' },
   { pattern: /^pipework.?(upgrade|replacement)|primary.?pipework|pipe.?upgrade/i, canonical: 'Pipework upgrade' },
+  // Cylinder variants: preserve original label (e.g. "Mixergy cylinder", "unvented cylinder")
+  // so the actual product name is visible to the customer rather than a generic label.
   { pattern: /^mixergy.?cylinder|unvented.?cylinder|vented.?cylinder|dhw.?cylinder/i, canonical: undefined },
+  // Compliance items: preserve original label for regulatory clarity
+  // (e.g. "G3 notification" must appear verbatim, not genericised).
   { pattern: /^g3|discharge.?route|tundish|condensate.?(route|drain)|flue.?(route|check)/i, canonical: undefined },
 ];
 
