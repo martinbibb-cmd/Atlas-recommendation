@@ -1,0 +1,102 @@
+/**
+ * PortalShareActions.css — Styles for the portal share/export action strip.
+ *
+ * Design intent:
+ *   - Compact horizontal strip that wraps cleanly on small screens.
+ *   - Minimum 44 px touch target on every button.
+ *   - Icons + labels — no icon-only targets.
+ *   - Success feedback is visible but not distracting.
+ *   - Hidden from print (share/export actions are irrelevant when printing).
+ */
+
+/* ─── Container ──────────────────────────────────────────────────────────── */
+
+.portal-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.85rem 1.25rem;
+  background: #f7fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* ─── Action buttons ─────────────────────────────────────────────────────── */
+
+.portal-share-actions__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0.5rem 0.9rem;
+  background: #ffffff;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2d3748;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.13s ease, border-color 0.13s ease, color 0.13s ease;
+  font-family: inherit;
+}
+
+.portal-share-actions__btn:hover {
+  background: #ebf4ff;
+  border-color: #90cdf4;
+  color: #2b6cb0;
+}
+
+.portal-share-actions__btn:active {
+  background: #dbeafe;
+}
+
+/* Disabled / unsupported state */
+.portal-share-actions__btn--disabled {
+  cursor: default;
+  opacity: 0.55;
+  background: #f7fafc;
+  border-color: #e2e8f0;
+  color: #718096;
+}
+
+.portal-share-actions__btn--disabled:hover {
+  background: #f7fafc;
+  border-color: #e2e8f0;
+  color: #718096;
+}
+
+/* ─── Icon ───────────────────────────────────────────────────────────────── */
+
+.portal-share-actions__icon {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ─── Label ──────────────────────────────────────────────────────────────── */
+
+.portal-share-actions__label {
+  line-height: 1.2;
+}
+
+/* ─── Helper text ────────────────────────────────────────────────────────── */
+
+.portal-share-actions__helper {
+  width: 100%;
+  margin: 0.15rem 0 0;
+  font-size: 0.76rem;
+  color: #718096;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+/* ─── Print ──────────────────────────────────────────────────────────────── */
+
+@media print {
+  .portal-share-actions {
+    display: none !important;
+  }
+}

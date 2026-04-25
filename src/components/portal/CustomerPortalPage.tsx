@@ -32,6 +32,7 @@ import { buildPortalViewModel } from '../../engine/modules/buildPortalViewModel'
 import { buildVisualBlocks } from '../../engine/modules/buildVisualBlocks';
 import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
 import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
+import { buildAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import './CustomerPortalPage.css';
 
@@ -57,10 +58,10 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   // Launch context received from the deck CTA — drives the initial tab of the portal.
   const [portalLaunchContext, setPortalLaunchContext] = useState<PortalLaunchContext | null>(null);
 
-  // ── Portal view model (memoised — built once when engine data is ready) ────
-  // useMemo is declared here (before conditional returns) to satisfy the Rules
-  // of Hooks. It is a no-op until engineResult and engineInput are both set.
-  const portalViewModel = useMemo(() => {
+  // ── Portal data: decision + scenarios (memoised — built once) ────────────
+  // Computed before portalViewModel and aiSummaryText to avoid duplicating
+  // the engine output parsing. Both memos below depend on this.
+  const portalData = useMemo(() => {
     if (!engineResult || !engineInput) return null;
     const scenarios = buildScenariosFromEngineOutput(engineResult.engineOutput);
     if (scenarios.length === 0) return null;
@@ -68,20 +69,41 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       const rawType = engineInput.currentHeatSourceType;
       const boilerType: 'combi' | 'system' | 'regular' =
         rawType === 'system' || rawType === 'regular' ? rawType : 'combi';
-      const ageYears = engineInput.currentSystem?.boiler?.ageYears ?? 0;
       const decision = buildDecisionFromScenarios({
         scenarios,
         boilerType,
-        ageYears,
+        ageYears: engineInput.currentSystem?.boiler?.ageYears ?? 0,
         occupancyCount: engineInput.occupancyCount,
         bathroomCount:  engineInput.bathroomCount,
       });
-      const blocks = buildVisualBlocks(decision, scenarios);
-      return buildPortalViewModel(decision, scenarios, blocks);
+      return { decision, scenarios };
     } catch {
       return null;
     }
   }, [engineResult, engineInput]);
+
+  // ── Portal view model (memoised — built once when portal data is ready) ──
+  // useMemo is declared here (before conditional returns) to satisfy the Rules
+  // of Hooks. It is a no-op until portalData is set.
+  const portalViewModel = useMemo(() => {
+    if (!portalData) return null;
+    try {
+      const blocks = buildVisualBlocks(portalData.decision, portalData.scenarios);
+      return buildPortalViewModel(portalData.decision, portalData.scenarios, blocks);
+    } catch {
+      return null;
+    }
+  }, [portalData]);
+
+  // ── AI summary text (memoised — derived from portal data) ────────────────
+  const aiSummaryText = useMemo(() => {
+    if (!portalData) return undefined;
+    try {
+      return buildAiHandoffText(portalData.decision, portalData.scenarios);
+    } catch {
+      return undefined;
+    }
+  }, [portalData]);
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +295,9 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             viewModel={portalViewModel}
             propertyTitle={postcode ?? undefined}
             initialTab={portalLaunchContext?.initialTab}
+            portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
+            aiSummaryText={aiSummaryText}
+            aiSummaryFilename={`atlas-ai-summary-${new Date().toISOString().slice(0, 10)}.txt`}
           />
         ) : (
           <div className="portal-page__error" role="alert" data-testid="portal-view-error">
