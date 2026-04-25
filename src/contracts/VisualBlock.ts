@@ -24,6 +24,7 @@ type BaseVisualBlock = {
   type:
     | 'hero'
     | 'facts'
+    | 'customer_need_resolution'
     | 'problem'
     | 'solution'
     | 'daily_use'
@@ -142,11 +143,50 @@ export type SpatialProofBlock = BaseVisualBlock & {
   confidenceSummary: string[];
 };
 
+/**
+ * CustomerNeedResolutionItem — a single "You told us → We're doing → So you get" entry.
+ *
+ * Each item maps one survey-observed customer need to a concrete action and
+ * the benefit the customer will experience.
+ *
+ * Rules:
+ *  - phrasing uses "You told us…" (never "customer reported…")
+ *  - need, action, and outcome must each fit on one line (no paragraphs)
+ *  - confidence 'direct' = backed by a hard survey signal; 'inferred' = derived from
+ *    correlated evidence
+ */
+export type CustomerNeedResolutionItem = {
+  /** Survey-grounded customer complaint, e.g. "Some rooms don't heat properly". */
+  need: string;
+  /** Intervention being made, e.g. "We'll clean the system and check radiators and pipework". */
+  action: string;
+  /** Benefit the customer will experience, e.g. "Heat can circulate properly and reach every room". */
+  outcome: string;
+  /** Whether this item is directly observed ('direct') or inferred from correlated signals ('inferred'). */
+  confidence?: 'direct' | 'inferred';
+};
+
+/**
+ * CustomerNeedResolutionBlock — personalised "What matters to you" block.
+ *
+ * Turns survey answers into visible, personalised justification for the work.
+ * Only emitted when at least one survey signal is present.
+ * Maximum 5 items.
+ *
+ * Placement: after the Facts block, before the Problem/Solution blocks.
+ */
+export type CustomerNeedResolutionBlock = BaseVisualBlock & {
+  type: 'customer_need_resolution';
+  /** Up to 5 need→action→outcome items, each backed by a survey signal. */
+  items: CustomerNeedResolutionItem[];
+};
+
 // ─── Union ────────────────────────────────────────────────────────────────────
 
 export type VisualBlock =
   | HeroBlock
   | FactsBlock
+  | CustomerNeedResolutionBlock
   | ProblemBlock
   | SolutionBlock
   | DailyUseBlock
