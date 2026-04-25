@@ -356,6 +356,56 @@ describe('buildCustomerNeedResolution — item structure', () => {
     }
   });
 
+  it('every item has an evidence string', () => {
+    const input: EngineInputV2_3 = {
+      ...makeBaseInput(),
+      currentSystem: { conditionSignals: { radiatorPerformance: 'some_cold_spots' } },
+      boilerConditionBand: 'poor',
+      futureLoftConversion: true,
+    };
+    const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
+    expect(block).not.toBeNull();
+    for (const item of block!.items) {
+      expect(typeof item.evidence).toBe('string');
+      expect(item.evidence!.length).toBeGreaterThan(0);
+      expect(item.evidence!.length).toBeLessThanOrEqual(80);
+    }
+  });
+
+  it('cold spots evidence references circulation', () => {
+    const input: EngineInputV2_3 = {
+      ...makeBaseInput(),
+      currentSystem: { conditionSignals: { radiatorPerformance: 'some_cold_spots' } },
+    };
+    const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
+    const item = block!.items.find((i) => i.need.includes("rooms don't heat"));
+    expect(item?.evidence?.toLowerCase()).toContain("we've seen");
+  });
+
+  it('noisy system evidence references sludge or air', () => {
+    const input: EngineInputV2_3 = {
+      ...makeBaseInput(),
+      currentSystem: { conditionSignals: { circulationIssues: 'frequent_noise_or_poor_flow' } },
+    };
+    const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
+    const item = block!.items.find((i) => i.need.includes('noisy'));
+    expect(item?.evidence?.toLowerCase()).toContain("we've identified");
+  });
+
+  it('runs out of hot water evidence references occupancy or usage', () => {
+    const input: EngineInputV2_3 = { ...makeBaseInput(), highOccupancy: true };
+    const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
+    const item = block!.items.find((i) => i.need.includes('runs out'));
+    expect(item?.evidence).toMatch(/occupancy|usage/i);
+  });
+
+  it('future extension evidence references home changes', () => {
+    const input: EngineInputV2_3 = { ...makeBaseInput(), futureLoftConversion: true };
+    const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
+    const item = block!.items.find((i) => i.need.includes('add rooms or bathrooms'));
+    expect(item?.evidence).toContain('future changes');
+  });
+
   it('block type is customer_need_resolution', () => {
     const input: EngineInputV2_3 = {
       ...makeBaseInput(),
@@ -384,8 +434,8 @@ describe('buildCustomerNeedResolution — item structure', () => {
   });
 });
 
-describe('buildCustomerNeedResolution — max 5 items', () => {
-  it('caps items at 5 even when all signals are present', () => {
+describe('buildCustomerNeedResolution — max 4 items', () => {
+  it('caps items at 4 even when all signals are present', () => {
     const input: EngineInputV2_3 = {
       ...makeBaseInput(),
       currentSystem: { conditionSignals: { radiatorPerformance: 'many_cold', circulationIssues: 'frequent_noise_or_poor_flow' } },
@@ -397,7 +447,7 @@ describe('buildCustomerNeedResolution — max 5 items', () => {
     };
     const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
     expect(block).not.toBeNull();
-    expect(block!.items.length).toBeLessThanOrEqual(5);
+    expect(block!.items.length).toBeLessThanOrEqual(4);
   });
 });
 

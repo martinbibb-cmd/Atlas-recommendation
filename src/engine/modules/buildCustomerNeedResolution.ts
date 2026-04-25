@@ -6,10 +6,13 @@
  *
  * Design rules:
  *  - Only emit items backed by survey evidence (no hallucination).
- *  - Maximum 5 items — the first 5 matched signals are emitted.
+ *  - Maximum 4 items — 3 is optimal, 4 acceptable; 5+ dilutes the
+ *    "I feel understood" moment.
  *  - Phrasing always uses "You told us…" (never "customer reported…").
  *  - No jargon in need/action/outcome strings.
  *  - Each string is one line — no paragraphs.
+ *  - evidence is max 80 chars, uses "we've seen" / "this suggests" /
+ *    "based on your home" — never raw metrics, never alarm language.
  *  - Returns null when no survey signal is present.
  */
 
@@ -22,7 +25,7 @@ import type {
 } from '../../contracts/VisualBlock';
 
 /** Maximum number of items in the block. */
-const MAX_ITEMS = 5;
+const MAX_ITEMS = 4;
 
 // ─── Signal detectors ─────────────────────────────────────────────────────────
 
@@ -175,6 +178,7 @@ function coldSpotsItem(): SignalItem {
     action: "We'll clean the system and check radiators and pipework",
     outcome: 'Heat can circulate properly and reach every room',
     confidence: 'direct',
+    evidence: "We've seen signs of restricted circulation in the system",
   };
 }
 
@@ -188,6 +192,7 @@ function slowHotWaterItem(input: EngineInputV2_3): SignalItem {
     action: 'System layout and pipework will be optimised',
     outcome: 'Faster hot water at taps and showers',
     confidence,
+    evidence: 'Your system layout suggests delayed hot water delivery',
   };
 }
 
@@ -200,6 +205,7 @@ function runsOutOfHotWaterItem(scenario: ScenarioResult): SignalItem {
       : "We're sizing the system to meet your household's peak demand",
     outcome: 'Hot water available even during busy times',
     confidence: 'direct',
+    evidence: 'Based on your occupancy and usage patterns',
   };
 }
 
@@ -212,6 +218,7 @@ function lowPressureShowerItem(input: EngineInputV2_3): SignalItem {
       : 'System designed to suit your water supply',
     outcome: 'More consistent shower performance',
     confidence: isTankFed ? 'direct' : 'inferred',
+    evidence: 'Your incoming water supply is limited based on your home',
   };
 }
 
@@ -221,6 +228,7 @@ function highBillsItem(): SignalItem {
     action: 'Improved controls and system efficiency',
     outcome: 'Less wasted energy and better control',
     confidence: 'direct',
+    evidence: 'Your current system is operating less efficiently than it could',
   };
 }
 
@@ -230,6 +238,7 @@ function noisySystemItem(): SignalItem {
     action: 'Cleaning and protection added',
     outcome: 'Quieter and more stable operation',
     confidence: 'direct',
+    evidence: "We've identified signs of sludge or air in the system",
   };
 }
 
@@ -239,6 +248,7 @@ function futureExtensionItem(): SignalItem {
     action: 'System sized and designed for expansion',
     outcome: 'No need to replace everything later',
     confidence: 'direct',
+    evidence: 'You mentioned possible future changes to the home',
   };
 }
 
