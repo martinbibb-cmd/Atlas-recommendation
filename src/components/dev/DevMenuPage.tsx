@@ -36,6 +36,7 @@ import {
   type DevUiViewMode,
 } from '../../dev/devUiFilters';
 import { generateCopyBoxOutput, formatSingleItemAsText, type CopyFormat } from '../../dev/devUiCopyExport';
+import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -132,6 +133,7 @@ export default function DevMenuPage({ onBack }: Props) {
 
   const [copyFormat, setCopyFormat] = useState<CopyFormat>('text');
   const [copyBoxCopied, setCopyBoxCopied] = useState(false);
+  const [cacheResetDone, setCacheResetDone] = useState(false);
 
   const filtered = useMemo(
     () => applyFilters(DEV_UI_REGISTRY, filters),
@@ -166,6 +168,17 @@ export default function DevMenuPage({ onBack }: Props) {
       setCopyBoxCopied(true);
       setTimeout(() => setCopyBoxCopied(false), 2000);
     });
+  }
+
+  function handleResetCache() {
+    if (!window.confirm('Reset local Atlas session cache?\n\nThis clears only Atlas state — not browser-wide storage. The page will reload.')) {
+      return;
+    }
+    clearAtlasCache();
+    console.info('[Atlas] Dev reset: Atlas local session cache cleared.');
+    setCacheResetDone(true);
+    // Give the user a moment to see the confirmation before reloading.
+    setTimeout(() => window.location.reload(), 800);
   }
 
   if (selectedItem != null) {
@@ -314,6 +327,22 @@ export default function DevMenuPage({ onBack }: Props) {
         onFormatChange={setCopyFormat}
         onCopy={handleCopyCopyBox}
       />
+
+      {/* Dev/support: reset local Atlas session cache */}
+      <div style={STYLES.cacheResetSection}>
+        <p style={STYLES.cacheResetHint}>
+          ⚠️ <strong>Reset local session cache</strong> — clears Atlas-owned localStorage keys only.
+          Use when state becomes stale or to reproduce a fresh-start scenario.
+        </p>
+        <button
+          className="chip-btn"
+          onClick={handleResetCache}
+          disabled={cacheResetDone}
+          style={STYLES.cacheResetBtn}
+        >
+          {cacheResetDone ? '✓ Cache cleared — reloading…' : '🗑 Reset local session cache'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1030,5 +1059,26 @@ const STYLES: Record<string, CSSProperties> = {
   },
   previewContent: {
     padding: '1.5rem',
+  },
+  cacheResetSection: {
+    marginTop: '2rem',
+    padding: '1rem',
+    background: '#fef9c3',
+    border: '1px solid #fde047',
+    borderRadius: '0.5rem',
+  },
+  cacheResetHint: {
+    margin: '0 0 0.75rem',
+    fontSize: '0.875rem',
+    color: '#92400e',
+  },
+  cacheResetBtn: {
+    background: '#dc2626',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '0.375rem',
+    padding: '0.5rem 1rem',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
   },
 };
