@@ -21,7 +21,7 @@
  *  15.  propertyTitle appears in the header when supplied
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PortalPage } from '../../../components/portal/PortalPage';
 import type { PortalViewModel, PortalTabId } from '../../../engine/modules/buildPortalViewModel';
@@ -361,5 +361,65 @@ describe('PortalPage — Future upgrades tab', () => {
     render(<PortalPage viewModel={vm} initialTab={'future' as PortalTabId} />);
     const instances = screen.getAllByText('Heat pump pathway');
     expect(instances).toHaveLength(1);
+  });
+});
+
+// ─── PortalPage — share strip ──────────────────────────────────────────────────
+
+describe('PortalPage — share strip', () => {
+
+  it('renders the share strip toolbar when portalUrl is provided', () => {
+    render(<PortalPage viewModel={makeViewModel()} portalUrl="https://atlas.example.com/portal/ref" />);
+    expect(screen.getByRole('toolbar', { name: 'Share and export actions' })).toBeTruthy();
+  });
+
+  it('renders the share strip toolbar when aiSummaryText is provided', () => {
+    render(<PortalPage viewModel={makeViewModel()} aiSummaryText="=== ATLAS RECOMMENDATION SUMMARY ===" />);
+    expect(screen.getByRole('toolbar', { name: 'Share and export actions' })).toBeTruthy();
+  });
+
+  it('does not render the share strip when no share props are provided', () => {
+    render(<PortalPage viewModel={makeViewModel()} />);
+    expect(screen.queryByRole('toolbar', { name: 'Share and export actions' })).toBeNull();
+  });
+
+  it('share strip includes a copy-link button when portalUrl is provided', () => {
+    render(<PortalPage viewModel={makeViewModel()} portalUrl="https://atlas.example.com/portal/ref" />);
+    expect(screen.getByTestId('share-copy-link')).toBeTruthy();
+  });
+
+  it('share strip includes copy-AI and download-AI buttons when aiSummaryText is provided', () => {
+    render(<PortalPage viewModel={makeViewModel()} aiSummaryText="AI summary content" />);
+    expect(screen.getByTestId('share-copy-ai')).toBeTruthy();
+    expect(screen.getByTestId('share-download-ai')).toBeTruthy();
+  });
+
+  it('share strip renders a download link when advicePackUrl is provided', () => {
+    render(<PortalPage viewModel={makeViewModel()} advicePackUrl="https://cdn.example.com/pack.pdf" />);
+    const link = screen.getByTestId('share-download-pack-link');
+    expect(link).toBeTruthy();
+    expect(link.getAttribute('href')).toBe('https://cdn.example.com/pack.pdf');
+  });
+
+  it('share strip renders a callback button when onDownloadAdvicePack is provided and no URL', () => {
+    const callback = vi.fn();
+    render(<PortalPage viewModel={makeViewModel()} onDownloadAdvicePack={callback} />);
+    expect(screen.getByTestId('share-download-pack-btn')).toBeTruthy();
+  });
+});
+
+// ─── PortalPage — no internal/QA artefacts ────────────────────────────────────
+
+describe('PortalPage — no internal/QA artefacts', () => {
+
+  it('does not render raw JSON output', () => {
+    render(<PortalPage viewModel={makeViewModel()} />);
+    expect(screen.queryByText(/Show raw JSON/i)).toBeNull();
+  });
+
+  it('does not render engineering scoring labels', () => {
+    render(<PortalPage viewModel={makeViewModel()} />);
+    expect(screen.queryByText(/objective score/i)).toBeNull();
+    expect(screen.queryByText(/physics flag/i)).toBeNull();
   });
 });

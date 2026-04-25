@@ -86,7 +86,7 @@ export function PortalShareActions({
     } catch {
       // Clipboard write failed — nothing to show
     }
-  }, [portalUrl]);
+  }, [portalUrl, scheduleFeedbackClear]);
 
   // ── Copy AI summary ───────────────────────────────────────────────────────
   const handleCopyAiSummary = useCallback(async () => {
@@ -98,7 +98,7 @@ export function PortalShareActions({
     } catch {
       // Clipboard write failed — nothing to show
     }
-  }, [aiSummaryText]);
+  }, [aiSummaryText, scheduleFeedbackClear]);
 
   // ── Download AI summary ───────────────────────────────────────────────────
   const handleDownloadAiSummary = useCallback(() => {
