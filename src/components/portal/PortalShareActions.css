@@ -100,3 +100,20 @@
     display: none !important;
   }
 }
+
+/* ─── Share to AI app button ─────────────────────────────────────────────── */
+
+.portal-share-actions__btn--ai-share {
+  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%);
+  border-color: #c4b5fd;
+  color: #5b21b6;
+}
+
+.portal-share-actions__btn--ai-share:hover {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  border-color: #a78bfa;
+}
+
+.portal-share-actions__btn--ai-share .portal-share-actions__icon {
+  color: #7c3aed;
+}

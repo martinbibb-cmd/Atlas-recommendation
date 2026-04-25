@@ -165,14 +165,15 @@ describe('buildCustomerNeedResolution — slow hot water', () => {
     expect(block!.items.some((i) => i.need.includes('Hot water takes too long'))).toBe(true);
   });
 
-  it('emits slow hot water item when fouling factor is below 0.85', () => {
+  it('does NOT emit slow hot water item for fouling factor alone (engine-derived — not a direct survey signal)', () => {
     const input: EngineInputV2_3 = {
       ...makeBaseInput(),
       plateHexFoulingFactor: 0.70,
     };
     const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
-    expect(block).not.toBeNull();
-    expect(block!.items.some((i) => i.need.includes('Hot water takes too long'))).toBe(true);
+    // Fouling factor alone (no condition band) must not generate an assumed item
+    const hasSlowHotWater = block?.items.some((i) => i.need.includes('Hot water takes too long'));
+    expect(hasSlowHotWater ?? false).toBe(false);
   });
 
   it('slow hot water item outcome mentions faster hot water', () => {

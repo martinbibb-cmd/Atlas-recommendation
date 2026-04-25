@@ -111,6 +111,37 @@ export function PortalShareActions({
     if (onDownloadAdvicePack) onDownloadAdvicePack();
   }, [onDownloadAdvicePack]);
 
+  // ── Share AI payload to AI app ────────────────────────────────────────────
+  const [aiShareUnsupported, setAiShareUnsupported] = useState(false);
+  const [aiShared, setAiShared] = useState(false);
+
+  const handleShareToAiApp = useCallback(async () => {
+    if (!aiSummaryText) return;
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: 'Atlas AI recommendation summary',
+          text: aiSummaryText,
+        });
+        setAiShared(true);
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        feedbackTimerRef.current = setTimeout(() => setAiShared(false), 3000);
+        return;
+      } catch {
+        // User cancelled or share failed — fall through to copy
+      }
+    }
+    // Fallback: copy to clipboard on desktop or when share is unavailable
+    try {
+      await navigator.clipboard.writeText(aiSummaryText);
+      setAiShared(true);
+      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = setTimeout(() => setAiShared(false), 3000);
+    } catch {
+      setAiShareUnsupported(true);
+    }
+  }, [aiSummaryText, feedbackTimerRef]);
+
   // ── Open with app / Share ─────────────────────────────────────────────────
   const handleShare = useCallback(async () => {
     if (!portalUrl) return;
@@ -172,6 +203,22 @@ export function PortalShareActions({
           <span className="portal-share-actions__icon" aria-hidden="true">🤖</span>
           <span className="portal-share-actions__label">
             {copied === 'ai' ? 'Copied!' : 'Copy AI summary'}
+          </span>
+        </button>
+      )}
+
+      {/* Share AI payload to AI app */}
+      {aiSummaryText && !aiShareUnsupported && (
+        <button
+          type="button"
+          className="portal-share-actions__btn portal-share-actions__btn--ai-share"
+          onClick={handleShareToAiApp}
+          aria-label="Share AI payload to an AI assistant app"
+          data-testid="share-ai-app"
+        >
+          <span className="portal-share-actions__icon" aria-hidden="true">✦</span>
+          <span className="portal-share-actions__label">
+            {aiShared ? 'Sent to AI!' : 'Share to AI app'}
           </span>
         </button>
       )}

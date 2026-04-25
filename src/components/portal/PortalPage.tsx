@@ -154,6 +154,52 @@ function FutureTab({ blocks }: { blocks: PortalViewModel['futureBlocks'] }) {
   );
 }
 
+// ─── AI data blob panel ───────────────────────────────────────────────────────
+
+/**
+ * AiDataBlobPanel
+ *
+ * Renders the full AI agent handoff payload as a visible, copyable text block.
+ * Collapsed by default — expanded on click so it does not dominate the portal.
+ * The customer can copy/paste this directly into any AI assistant.
+ */
+function AiDataBlobPanel({ aiSummaryText }: { aiSummaryText: string }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <section
+      className="portal-ai-blob"
+      data-testid="portal-ai-blob"
+      aria-label="AI agent data payload"
+    >
+      <button
+        type="button"
+        className="portal-ai-blob__toggle"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+        data-testid="portal-ai-blob-toggle"
+      >
+        <span className="portal-ai-blob__icon" aria-hidden="true">✦</span>
+        <span className="portal-ai-blob__title">AI agent payload</span>
+        <span className="portal-ai-blob__hint">
+          {expanded ? 'Hide' : 'Show full data blob — paste into any AI assistant'}
+        </span>
+        <span className="portal-ai-blob__chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <pre
+          className="portal-ai-blob__text"
+          data-testid="portal-ai-blob-text"
+          tabIndex={0}
+          aria-label="AI handoff payload text — select all and copy to use in an AI assistant"
+        >
+          {aiSummaryText}
+        </pre>
+      )}
+    </section>
+  );
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface PortalPageProps {
@@ -235,6 +281,11 @@ export function PortalPage({ viewModel, propertyTitle, initialTab, portalUrl, ad
       >
         {renderActivePanel()}
       </main>
+
+      {/* AI agent data blob — full payload for pasting into any AI assistant */}
+      {aiSummaryText && (
+        <AiDataBlobPanel aiSummaryText={aiSummaryText} />
+      )}
 
     </div>
   );

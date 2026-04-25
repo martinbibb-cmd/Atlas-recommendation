@@ -51,7 +51,9 @@ function detectColdSpots(input: EngineInputV2_3): boolean {
 }
 
 /**
- * Slow hot water — plate HEX condition or combi stress signals.
+ * Slow hot water — plate HEX condition directly observed as poor or severe.
+ * Only fires on confirmed poor/severe condition bands (not 'moderate' which is
+ * borderline and would be an assumption without direct survey evidence).
  */
 function detectSlowHotWater(input: EngineInputV2_3): boolean {
   if (
@@ -60,36 +62,23 @@ function detectSlowHotWater(input: EngineInputV2_3): boolean {
   ) {
     return true;
   }
-  // A moderately fouled plate HEX is an inferred signal for slow response
-  if (input.plateHexConditionBand === 'moderate') {
-    return true;
-  }
-  // Combi with degraded plate HEX fouling factor
-  if (input.plateHexFoulingFactor !== undefined && input.plateHexFoulingFactor < 0.85) {
-    return true;
-  }
   return false;
 }
 
 /**
- * Runs out of hot water — simultaneous demand, high occupancy, or
- * insufficient cylinder capacity signals.
+ * Runs out of hot water — simultaneous demand or high occupancy from survey,
+ * or cylinder volume directly measured and insufficient for occupancy.
+ * Cylinder coil transfer factor is engine-derived and excluded — we only use
+ * directly surveyed values.
  */
 function detectRunsOutOfHotWater(input: EngineInputV2_3): boolean {
   if (input.simultaneousDrawSeverity === 'high') return true;
   if (input.highOccupancy) return true;
-  // Cylinder volume too small for occupancy
+  // Cylinder volume is a directly surveyed measurement
   if (
     input.cylinderVolumeLitres !== undefined &&
     input.occupancyCount !== undefined &&
     input.cylinderVolumeLitres < input.occupancyCount * 25
-  ) {
-    return true;
-  }
-  // Cylinder coil degradation reduces recovery rate — cylinder runs out faster
-  if (
-    input.cylinderCoilTransferFactor !== undefined &&
-    input.cylinderCoilTransferFactor < 0.80
   ) {
     return true;
   }
@@ -116,7 +105,10 @@ function detectLowPressureShower(input: EngineInputV2_3): boolean {
 }
 
 /**
- * High bills — boiler condition or known high energy spend.
+ * High bills — poor or severe boiler condition band (directly graded from survey)
+ * or high annual gas spend explicitly provided in the survey.
+ * The age+non-condensing heuristic is retained as it is derived from direct
+ * survey measurements (boiler age and condensing status), not an assumption.
  */
 function detectHighBills(input: EngineInputV2_3): boolean {
   if (
@@ -125,11 +117,11 @@ function detectHighBills(input: EngineInputV2_3): boolean {
   ) {
     return true;
   }
-  // High annual gas spend threshold (typical UK average ≈ £800–1,000/yr; >£1,500 = concern)
+  // High annual gas spend threshold explicitly stated by the homeowner
   if (input.annualGasSpendGbp !== undefined && input.annualGasSpendGbp > 1500) {
     return true;
   }
-  // Old, non-condensing boiler running well below modern efficiency
+  // Old, non-condensing boiler — both facts are direct survey observations
   const age = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears;
   if (
     age !== undefined &&
@@ -183,16 +175,16 @@ function coldSpotsItem(): SignalItem {
 }
 
 function slowHotWaterItem(input: EngineInputV2_3): SignalItem {
-  const confidence: 'direct' | 'inferred' =
-    input.plateHexConditionBand === 'poor' || input.plateHexConditionBand === 'severe'
-      ? 'direct'
-      : 'inferred';
+  // Only fires on 'poor' or 'severe' — both are directly surveyed condition bands.
+  const isSevere = input.plateHexConditionBand === 'severe';
   return {
     need: 'Hot water takes too long to arrive',
     action: 'System layout and pipework will be optimised',
     outcome: 'Faster hot water at taps and showers',
-    confidence,
-    evidence: 'Your system layout suggests delayed hot water delivery',
+    confidence: 'direct',
+    evidence: isSevere
+      ? 'The plate heat exchanger is severely scaled — hot-water delivery is reduced'
+      : 'The plate heat exchanger is in poor condition, slowing hot-water delivery',
   };
 }
 
@@ -205,30 +197,46 @@ function runsOutOfHotWaterItem(scenario: ScenarioResult): SignalItem {
       : "We're sizing the system to meet your household's peak demand",
     outcome: 'Hot water available even during busy times',
     confidence: 'direct',
-    evidence: 'Based on your occupancy and usage patterns',
+    evidence: 'Based on your surveyed occupancy count and bathroom configuration',
   };
 }
 
 function lowPressureShowerItem(input: EngineInputV2_3): SignalItem {
   const isTankFed = input.dhwDeliveryMode === 'gravity' || (input.cwsHeadMetres !== undefined && input.cwsHeadMetres < 0.5);
+  const evidenceDetail = input.dhwDeliveryMode === 'gravity'
+    ? 'Your hot water is supplied via a gravity-fed tank arrangement'
+    : input.cwsHeadMetres !== undefined && input.cwsHeadMetres < 0.5
+      ? `We've measured the cold-water head at ${input.cwsHeadMetres.toFixed(1)} m — below the minimum needed`
+      : 'Your surveyed mains pressure is below the minimum for shower performance';
   return {
     need: "Shower pressure isn't strong enough",
     action: isTankFed
       ? 'System designed to move away from tank-fed supply'
       : 'System designed to suit your water supply',
     outcome: 'More consistent shower performance',
-    confidence: isTankFed ? 'direct' : 'inferred',
-    evidence: 'Your incoming water supply is limited based on your home',
+    confidence: 'direct',
+    evidence: evidenceDetail,
   };
 }
 
-function highBillsItem(): SignalItem {
+function highBillsItem(input: EngineInputV2_3): SignalItem {
+  let evidenceDetail = 'Your current system is running less efficiently than it could';
+  if (input.boilerConditionBand === 'poor' || input.boilerConditionBand === 'severe') {
+    evidenceDetail = "We've rated your boiler condition as poor — running costs are higher";
+  } else if (input.annualGasSpendGbp !== undefined && input.annualGasSpendGbp > 1500) {
+    evidenceDetail = `Your annual gas spend of £${Math.round(input.annualGasSpendGbp)} is above typical range for UK homes`;
+  } else {
+    const age = input.currentSystem?.boiler?.ageYears ?? input.currentBoilerAgeYears;
+    if (age !== undefined && age > 15) {
+      evidenceDetail = `Boiler is ${age} years old and non-condensing — less efficient than modern`;
+    }
+  }
   return {
     need: 'Energy costs are a concern',
     action: 'Improved controls and system efficiency',
     outcome: 'Less wasted energy and better control',
     confidence: 'direct',
-    evidence: 'Your current system is operating less efficiently than it could',
+    evidence: evidenceDetail,
   };
 }
 
@@ -287,7 +295,7 @@ export function buildCustomerNeedResolution(
     items.push(lowPressureShowerItem(input));
   }
   if (items.length < MAX_ITEMS && detectHighBills(input)) {
-    items.push(highBillsItem());
+    items.push(highBillsItem(input));
   }
   if (items.length < MAX_ITEMS && detectNoisySystem(input)) {
     items.push(noisySystemItem());
