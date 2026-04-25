@@ -315,6 +315,8 @@ describe('CustomerAdvicePrintPack — portal CTA block', () => {
   it('renders portal URL when portalUrl is provided', () => {
     render(<CustomerAdvicePrintPack {...makeProps({ portalUrl: 'https://portal.example.com/r/abc123' })} />);
     expect(screen.getByTestId('capp-portal-url')).toBeTruthy();
+    expect(screen.getByText('Open your portal online')).toBeTruthy();
+    expect(screen.getByTestId('capp-portal-url-raw')).toBeTruthy();
     expect(screen.getByText('https://portal.example.com/r/abc123')).toBeTruthy();
   });
 
