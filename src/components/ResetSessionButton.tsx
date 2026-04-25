@@ -74,9 +74,11 @@ export function ResetSessionButton({ className }: Props) {
 
   async function handleConfirm() {
     setClearing(true);
+    // clearAtlasCache() is synchronous (localStorage.removeItem only).
     clearAtlasCache();
+    // Service worker / Cache API cleanup is best-effort and asynchronous.
     await unregisterServiceWorkerCaches();
-    // Reload without query params so the app starts cleanly
+    // Reload without query params so the app starts cleanly.
     window.location.replace(window.location.pathname);
   }
 

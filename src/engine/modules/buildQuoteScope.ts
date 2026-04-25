@@ -107,12 +107,11 @@ export function normalizeLabel(label: string): string {
  * and never receives a customerBenefit or whatItDoes description.
  */
 const VERIFICATION_PATTERNS: RegExp[] = [
-  /\bconfirm\b/i,
+  /\bconfirm/i,
   /\bcheck\b/i,
   /\bverif(y|ication)\b/i,
   /\bremains accessible\b/i,
   /\bbefore ordering\b/i,
-  /\brequires confirmation\b/i,
 ];
 
 /**
