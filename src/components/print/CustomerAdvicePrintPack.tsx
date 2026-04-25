@@ -208,7 +208,7 @@ function pageModifier(block: VisualBlock): string {
 const SECTION_LABELS: Partial<Record<VisualBlock['type'], string>> = {
   hero:           'Recommendation',
   facts:          'Your home',
-  problem:        'Current system',
+  problem:        'What your home needs',
   solution:       'Why this works',
   daily_use:      'Day-to-day life',
   included_scope: 'What is included',
@@ -336,13 +336,13 @@ export function CustomerAdvicePrintPack({
                   {/* AI handoff — visible, copyable summary for any AI assistant */}
                   <section
                     className="capp-ai-handoff"
-                    aria-label="AI handoff summary"
+                    aria-label="AI depth section"
                     data-testid="capp-ai-handoff"
                   >
                     <div className="capp-ai-handoff__header">
                       <span className="capp-ai-handoff__icon" aria-hidden="true">✦</span>
-                      <span className="capp-ai-handoff__title">AI handoff summary</span>
-                      <span className="capp-ai-handoff__hint">Copy and paste into ChatGPT, Claude, or Gemini</span>
+                      <span className="capp-ai-handoff__title">Want to understand this in more detail?</span>
+                      <span className="capp-ai-handoff__hint">Copy the text below into ChatGPT, Claude, or Gemini to explore the reasoning behind this recommendation</span>
                     </div>
                     <pre className="capp-ai-handoff__text">{aiHandoff}</pre>
                   </section>

@@ -321,7 +321,7 @@ describe('buildVisualBlocks — problem block physics flags', () => {
     expect(problem?.visualKey).toBe('ashp_pipe_limit_problem');
   });
 
-  it('problem block title uses "heat pump" for ashp system type', () => {
+  it('problem block title uses "a conventional system" for ashp system type', () => {
     const weaker: ScenarioResult = {
       ...makeWeakerCombiScenario(),
       scenarioId:  'ashp',
@@ -332,14 +332,14 @@ describe('buildVisualBlocks — problem block physics flags', () => {
     const scenarios = [makeRecommendedScenario(), weaker];
     const blocks    = buildVisualBlocks(decision, scenarios);
     const problem   = blocks.find((b) => b.type === 'problem');
-    expect(problem?.title).toBe('Why a heat pump struggles here');
+    expect(problem?.title).toBe('Why your home needs a conventional system');
   });
 
-  it('problem block title uses "combi boiler" for combi system type', () => {
+  it('problem block title uses "stored hot water" for combi system type', () => {
     const decision  = makeDecision();
     const scenarios = [makeRecommendedScenario(), makeWeakerCombiScenario()];
     const blocks    = buildVisualBlocks(decision, scenarios);
     const problem   = blocks.find((b) => b.type === 'problem');
-    expect(problem?.title).toBe('Why a combi boiler struggles here');
+    expect(problem?.title).toBe('Why your home needs stored hot water');
   });
 });
