@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -69,6 +69,16 @@ import { buildInsightPackFromEngine } from './features/insightPack/buildInsightP
 import type { InsightPackSurveyContext } from './features/insightPack/buildInsightPackFromEngine';
 import type { QuoteInput } from './features/insightPack/insightPack.types';
 import type { LifecycleBoilerType } from './contracts/LifecycleAssessment';
+import {
+  writeVersionedCache,
+  readVersionedCache,
+} from './lib/storage/versionedCache';
+import {
+  clearAtlasCache,
+  ATLAS_CACHE_KEY_SESSION,
+  ATLAS_CACHE_KEY_VISIT,
+  ATLAS_CACHE_SCHEMA_VERSION,
+} from './lib/storage/atlasCacheKeys';
 import './App.css';
 
 /**
@@ -214,6 +224,22 @@ const INTERNAL_PRINT_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('internal') === '1';
 
+/**
+ * Detect ?cacheBust=1 — clears all Atlas-owned localStorage keys and reloads
+ * the app cleanly.  Useful for support / debugging when local state becomes stale.
+ * The reload removes the query param from the URL so it does not loop.
+ */
+if (
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('cacheBust') === '1'
+) {
+  clearAtlasCache();
+  console.info('[Atlas] Cache busted — all Atlas local state cleared.');
+  // Remove ?cacheBust=1 so the page does not loop.
+  const cleanUrl = window.location.pathname + window.location.hash;
+  window.location.replace(cleanUrl);
+}
+
 /** Demo quotes used by ?insight-pack=1 mode. */
 const DEMO_QUOTES: QuoteInput[] = [
   {
@@ -348,11 +374,41 @@ function CanonicalPresentationRoute({
 }
 
 export default function App() {
+  // ── Mobile-state persistence: restore session cache on load ───────────────
+  // Read once at component initialisation (before first render) so restored
+  // values can be used as useState initialisers without a re-render flash.
+  const _restoredSession = (() => {
+    if (
+      FLOOR_PLAN_TOOL_MODE ||
+      ENGINEER_VISIT_ID != null ||
+      INITIAL_REPORT_ID != null
+    ) {
+      // URL-driven routes take precedence over cached state.
+      return null;
+    }
+    return readVersionedCache<{ journey: string }>(
+      ATLAS_CACHE_KEY_SESSION,
+      ATLAS_CACHE_SCHEMA_VERSION,
+    );
+  })();
+  const _restoredVisit = (() => {
+    if (ENGINEER_VISIT_ID != null) return null;
+    return readVersionedCache<{ visitId: string }>(
+      ATLAS_CACHE_KEY_VISIT,
+      ATLAS_CACHE_SCHEMA_VERSION,
+    );
+  })();
+
+  // Small notice shown when cache is restored or found to be stale.
+  const [cacheNotice, setCacheNotice] = useState<'restored' | 'stale' | null>(
+    () => (_restoredSession !== null || _restoredVisit !== null ? 'restored' : null),
+  );
+
   const [journey, setJourney] = useState<Journey>(
     FLOOR_PLAN_TOOL_MODE    ? 'floor-plan'
     : ENGINEER_VISIT_ID != null ? 'engineer'
     : INITIAL_REPORT_ID != null ? 'report'
-    : 'landing'
+    : (_restoredSession?.value?.journey as Journey | undefined) ?? 'landing'
   );
   /** Active report ID for the /report/:id route. */
   const [activeReportId, setActiveReportId] = useState<string | null>(INITIAL_REPORT_ID);
@@ -414,7 +470,7 @@ export default function App() {
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   /** Active visit ID — set when the user starts or opens a visit. */
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>(
-    ENGINEER_VISIT_ID ?? undefined,
+    ENGINEER_VISIT_ID ?? _restoredVisit?.value?.visitId ?? undefined,
   );
   /** Controls whether the new-visit dialog is open. */
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
@@ -434,6 +490,45 @@ export default function App() {
    * portal can validate the link.
    */
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
+
+  // ── Session persistence: write journey + visitId to versioned cache ────────
+  // These effects run whenever journey or activeVisitId changes, keeping the
+  // cache up-to-date so a mobile reload can restore the user's last position.
+  // Print/lab/dev-only routes are excluded to avoid polluting the cache with
+  // transient states that are not meaningful to restore.
+  const PERSISTED_JOURNEYS: Journey[] = [
+    'visit', 'visit-hub', 'remote-survey', 'simulator', 'presentation',
+  ];
+
+  useEffect(() => {
+    if (PERSISTED_JOURNEYS.includes(journey)) {
+      writeVersionedCache(
+        ATLAS_CACHE_KEY_SESSION,
+        ATLAS_CACHE_SCHEMA_VERSION,
+        { journey },
+        activeVisitId != null ? { visitId: activeVisitId } : {},
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journey, activeVisitId]);
+
+  useEffect(() => {
+    if (activeVisitId != null) {
+      writeVersionedCache(
+        ATLAS_CACHE_KEY_VISIT,
+        ATLAS_CACHE_SCHEMA_VERSION,
+        { visitId: activeVisitId },
+        { visitId: activeVisitId },
+      );
+    }
+  }, [activeVisitId]);
+
+  // Auto-dismiss the cache-restore notice after 4 s.
+  useEffect(() => {
+    if (cacheNotice === null) return;
+    const timer = setTimeout(() => setCacheNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [cacheNotice]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -896,6 +991,31 @@ export default function App() {
 
   return (
     <>
+      {/* Cache-restore / stale-cache notice — shown briefly after a mobile reload */}
+      {cacheNotice !== null && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: '1rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: cacheNotice === 'stale' ? '#d97706' : '#2563eb',
+            color: '#fff',
+            padding: '0.5rem 1rem',
+            borderRadius: '0.5rem',
+            fontSize: '0.875rem',
+            zIndex: 9999,
+            pointerEvents: 'none',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+          }}
+        >
+          {cacheNotice === 'restored'
+            ? 'Session restored'
+            : 'Cache version changed — started fresh'}
+        </div>
+      )}
       {/* /report/:id — render a saved report by ID */}
       {journey === 'report' && activeReportId != null && (
         <ReportPage
