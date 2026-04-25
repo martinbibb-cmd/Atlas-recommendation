@@ -349,3 +349,67 @@ describe('scopeFuturePaths', () => {
     expect(scopeFuturePaths(scope)).toHaveLength(0);
   });
 });
+
+// ─── buildQuoteScope — customerBenefit ───────────────────────────────────────
+
+describe('buildQuoteScope — customerBenefit', () => {
+  it('attaches a customerBenefit to protection items', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['Magnetic filter'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label === 'Magnetic filter');
+    expect(item?.category).toBe('protection');
+    expect(item?.customerBenefit).toContain('sludge');
+  });
+
+  it('attaches a customerBenefit to flush items', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['Power flush primary circuit'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label === 'Power flush primary circuit');
+    expect(item?.category).toBe('flush');
+    expect(item?.customerBenefit).toBeTruthy();
+  });
+
+  it('attaches a customerBenefit to controls items', () => {
+    const scope = buildQuoteScope({
+      includedItems: ['Smart thermostat'],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label === 'Smart thermostat');
+    expect(item?.category).toBe('controls');
+    expect(item?.customerBenefit).toContain('comfort');
+  });
+
+  it('does NOT attach a customerBenefit to compliance items', () => {
+    const scope = buildQuoteScope({
+      includedItems: [],
+      requiredWorks: ['G3 commissioning'],
+      compatibilityWarnings: [],
+      futureUpgradePaths: [],
+    });
+    const item = scope.find((s) => s.label === 'G3 commissioning');
+    expect(item?.category).toBe('compliance');
+    expect(item?.customerBenefit).toBeUndefined();
+  });
+
+  it('does NOT attach a customerBenefit to future items', () => {
+    const scope = buildQuoteScope({
+      includedItems: [],
+      requiredWorks: [],
+      compatibilityWarnings: [],
+      futureUpgradePaths: ['Solar PV diverter ready'],
+    });
+    const item = scope.find((s) => s.label === 'Solar PV diverter ready');
+    expect(item?.category).toBe('future');
+    expect(item?.customerBenefit).toBeUndefined();
+  });
+});

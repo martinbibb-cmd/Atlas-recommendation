@@ -78,6 +78,32 @@ export interface BuildQuoteScopeInput {
   futureUpgradePaths: string[];
 }
 
+// ─── Customer benefit lookup ──────────────────────────────────────────────────
+
+/**
+ * Default customer-facing benefit sentences by category.
+ *
+ * These are shown in the "Included now" section of the advice pack next to
+ * each scope item label, so the customer understands why each piece of work
+ * matters to them. Compliance items never carry a benefit (they are requirements).
+ */
+const DEFAULT_CATEGORY_BENEFITS: Partial<Record<QuoteScopeCategory, string>> = {
+  heat_source: 'Delivers reliable heat and hot water for your home',
+  hot_water:   'Stores enough hot water for everyone even when used simultaneously',
+  controls:    'Improves comfort and reduces wasted energy',
+  protection:  'Captures debris and sludge, protecting the new boiler and keeping it efficient',
+  flush:       'Removes sludge and scale, improving heat output and extending system life',
+  pipework:    'Ensures proper flow throughout the system, preventing bottlenecks',
+};
+
+/**
+ * Look up a default customer benefit for a scope item.
+ * Returns undefined for compliance and future items — they carry no benefit framing.
+ */
+function defaultBenefit(category: QuoteScopeCategory): string | undefined {
+  return DEFAULT_CATEGORY_BENEFITS[category];
+}
+
 // ─── Builder ──────────────────────────────────────────────────────────────────
 
 /**
@@ -92,6 +118,10 @@ export interface BuildQuoteScopeInput {
  *
  * Deduplication: items with identical labels (case-insensitive) are collapsed
  * so the same work cannot appear in both includedItems and requiredWorks.
+ *
+ * customerBenefit is populated from DEFAULT_CATEGORY_BENEFITS for non-compliance,
+ * non-future items so the "Included now" section in the advice pack can explain
+ * why each piece of work matters to the customer.
  */
 export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
   const items: QuoteScopeItem[] = [];
@@ -113,6 +143,14 @@ export function buildQuoteScope(input: BuildQuoteScopeInput): QuoteScopeItem[] {
     const item: QuoteScopeItem = { id, label, category, status };
 
     if (engineerNote) item.engineerNote = engineerNote;
+
+    // Attach a customer benefit sentence for non-compliance, non-future included items.
+    // Compliance items must not carry a benefit description (they are requirements).
+    // Future items carry no benefit in the current quote context.
+    if (status !== 'excluded' && category !== 'compliance' && category !== 'future') {
+      const benefit = defaultBenefit(category);
+      if (benefit) item.customerBenefit = benefit;
+    }
 
     items.push(item);
   }

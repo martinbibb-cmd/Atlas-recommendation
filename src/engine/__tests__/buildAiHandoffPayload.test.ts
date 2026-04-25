@@ -201,6 +201,64 @@ describe('buildAiHandoffPayload', () => {
     const payload = buildAiHandoffPayload(makeDecision(), [makeScenario()]);
     expect(payload.rejectedAlternatives).toHaveLength(0);
   });
+
+  it('returns empty recommendedUpgrades when quoteScope has no recommended items', () => {
+    const payload = buildAiHandoffPayload(makeDecision({ quoteScope: [] }), [makeScenario()]);
+    expect(payload.recommendedUpgrades).toEqual([]);
+  });
+
+  it('populates recommendedUpgrades from quoteScope recommended items with benefit', () => {
+    const decision = makeDecision({
+      quoteScope: [
+        {
+          id: 'rec-controls',
+          label: 'Smart thermostat',
+          category: 'controls',
+          status: 'recommended',
+          customerBenefit: 'Improves comfort and reduces wasted energy',
+        },
+        {
+          id: 'rec-filter',
+          label: 'Magnetic filter',
+          category: 'protection',
+          status: 'recommended',
+          customerBenefit: 'Captures debris and sludge',
+        },
+      ],
+    });
+    const payload = buildAiHandoffPayload(decision, [makeScenario()]);
+    expect(payload.recommendedUpgrades).toHaveLength(2);
+    expect(payload.recommendedUpgrades[0]).toBe('Smart thermostat — Improves comfort and reduces wasted energy');
+    expect(payload.recommendedUpgrades[1]).toBe('Magnetic filter — Captures debris and sludge');
+  });
+
+  it('includes label only (no benefit suffix) when customerBenefit is absent', () => {
+    const decision = makeDecision({
+      quoteScope: [
+        {
+          id: 'rec-pipe',
+          label: 'Pipework upgrade',
+          category: 'pipework',
+          status: 'recommended',
+        },
+      ],
+    });
+    const payload = buildAiHandoffPayload(decision, [makeScenario()]);
+    expect(payload.recommendedUpgrades[0]).toBe('Pipework upgrade');
+  });
+
+  it('caps recommendedUpgrades at 5 items', () => {
+    const decision = makeDecision({
+      quoteScope: Array.from({ length: 7 }, (_, i) => ({
+        id: `rec-${i}`,
+        label: `Upgrade ${i + 1}`,
+        category: 'controls' as const,
+        status: 'recommended' as const,
+      })),
+    });
+    const payload = buildAiHandoffPayload(decision, [makeScenario()]);
+    expect(payload.recommendedUpgrades).toHaveLength(5);
+  });
 });
 
 // ─── serialiseAiHandoffPayload ─────────────────────────────────────────────────
@@ -295,5 +353,31 @@ describe('serialiseAiHandoffPayload', () => {
     const text = serialiseAiHandoffPayload(payload);
     expect(text).toContain('Rejected alternatives:');
     expect(text).toContain('• Combi boiler — Two bathrooms exceed combi capacity');
+  });
+
+  it('renders Recommended upgrades section when recommendedUpgrades is non-empty', () => {
+    const payload = buildAiHandoffPayload(
+      makeDecision({
+        quoteScope: [
+          {
+            id: 'rec-ctrl',
+            label: 'Smart thermostat',
+            category: 'controls',
+            status: 'recommended',
+            customerBenefit: 'Improves comfort and reduces wasted energy',
+          },
+        ],
+      }),
+      [makeScenario()],
+    );
+    const text = serialiseAiHandoffPayload(payload);
+    expect(text).toContain('Recommended upgrades (advised but not yet committed):');
+    expect(text).toContain('• Smart thermostat — Improves comfort and reduces wasted energy');
+  });
+
+  it('omits Recommended upgrades section when recommendedUpgrades is empty', () => {
+    const payload = buildAiHandoffPayload(makeDecision({ quoteScope: [] }), [makeScenario()]);
+    const text = serialiseAiHandoffPayload(payload);
+    expect(text).not.toContain('Recommended upgrades');
   });
 });

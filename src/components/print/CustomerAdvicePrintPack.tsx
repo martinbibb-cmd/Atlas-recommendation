@@ -29,18 +29,20 @@ import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import { buildAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
-import { HeroBlockView }          from '../presentation/blocks/HeroBlockView';
-import { FactsBlockView }         from '../presentation/blocks/FactsBlockView';
-import { ProblemBlockView }       from '../presentation/blocks/ProblemBlockView';
-import { SolutionBlockView }      from '../presentation/blocks/SolutionBlockView';
-import { DailyUseBlockView }      from '../presentation/blocks/DailyUseBlockView';
-import { IncludedScopeBlockView } from '../presentation/blocks/IncludedScopeBlockView';
-import { WarningBlockView }       from '../presentation/blocks/WarningBlockView';
-import { FutureUpgradeBlockView } from '../presentation/blocks/FutureUpgradeBlockView';
-import { SpatialProofBlockView }  from '../presentation/blocks/SpatialProofBlockView';
+import { HeroBlockView }                     from '../presentation/blocks/HeroBlockView';
+import { FactsBlockView }                    from '../presentation/blocks/FactsBlockView';
+import { CustomerNeedResolutionBlockView }   from '../presentation/blocks/CustomerNeedResolutionBlockView';
+import { ProblemBlockView }                  from '../presentation/blocks/ProblemBlockView';
+import { SolutionBlockView }                 from '../presentation/blocks/SolutionBlockView';
+import { DailyUseBlockView }                 from '../presentation/blocks/DailyUseBlockView';
+import { IncludedScopeBlockView }            from '../presentation/blocks/IncludedScopeBlockView';
+import { WarningBlockView }                  from '../presentation/blocks/WarningBlockView';
+import { FutureUpgradeBlockView }            from '../presentation/blocks/FutureUpgradeBlockView';
+import { SpatialProofBlockView }             from '../presentation/blocks/SpatialProofBlockView';
 import type {
   HeroBlock,
   FactsBlock,
+  CustomerNeedResolutionBlock,
   ProblemBlock,
   SolutionBlock,
   DailyUseBlock,
@@ -179,17 +181,18 @@ function PrintPortalCta({ portalUrl }: { portalUrl?: string }) {
  */
 function renderBlockContent(block: VisualBlock): React.ReactElement | null {
   switch (block.type) {
-    case 'hero':           return <HeroBlockView           block={block as HeroBlock} />;
-    case 'facts':          return <FactsBlockView          block={block as FactsBlock} />;
-    case 'problem':        return <ProblemBlockView        block={block as ProblemBlock} />;
-    case 'solution':       return <SolutionBlockView       block={block as SolutionBlock} />;
-    case 'daily_use':      return <DailyUseBlockView       block={block as DailyUseBlock} />;
-    case 'included_scope': return <IncludedScopeBlockView  block={block as IncludedScopeBlock} />;
-    case 'warning':        return <WarningBlockView        block={block as WarningBlock} />;
-    case 'future_upgrade': return <FutureUpgradeBlockView  block={block as FutureUpgradeBlock} />;
-    case 'spatial_proof':  return <SpatialProofBlockView   block={block as SpatialProofBlock} />;
-    case 'portal_cta':     return null; // handled separately in renderBlockPage
-    default:               return null;
+    case 'hero':                    return <HeroBlockView                   block={block as HeroBlock} />;
+    case 'facts':                   return <FactsBlockView                  block={block as FactsBlock} />;
+    case 'customer_need_resolution': return <CustomerNeedResolutionBlockView block={block as CustomerNeedResolutionBlock} />;
+    case 'problem':                 return <ProblemBlockView                block={block as ProblemBlock} />;
+    case 'solution':                return <SolutionBlockView               block={block as SolutionBlock} />;
+    case 'daily_use':               return <DailyUseBlockView               block={block as DailyUseBlock} />;
+    case 'included_scope':          return <IncludedScopeBlockView          block={block as IncludedScopeBlock} />;
+    case 'warning':                 return <WarningBlockView                block={block as WarningBlock} />;
+    case 'future_upgrade':          return <FutureUpgradeBlockView          block={block as FutureUpgradeBlock} />;
+    case 'spatial_proof':           return <SpatialProofBlockView           block={block as SpatialProofBlock} />;
+    case 'portal_cta':              return null; // handled separately in renderBlockPage
+    default:                        return null;
   }
 }
 
@@ -206,16 +209,17 @@ function pageModifier(block: VisualBlock): string {
 
 /** Human-readable section label for the top of each page. */
 const SECTION_LABELS: Partial<Record<VisualBlock['type'], string>> = {
-  hero:           'Recommendation',
-  facts:          'Your home',
-  problem:        'What your home needs',
-  solution:       'Why this works',
-  daily_use:      'Day-to-day life',
-  included_scope: 'What is included',
-  warning:        'Something to consider',
-  future_upgrade: 'Future options',
-  portal_cta:     'Your portal',
-  spatial_proof:  'Where the work happens',
+  hero:                    'Recommendation',
+  facts:                   'Your home',
+  customer_need_resolution: 'What matters to you',
+  problem:                 'What your home needs',
+  solution:                'Why this works',
+  daily_use:               'Day-to-day life',
+  included_scope:          'What is included',
+  warning:                 'Something to consider',
+  future_upgrade:          'Future options',
+  portal_cta:              'Your portal',
+  spatial_proof:           'Where the work happens',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

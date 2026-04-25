@@ -68,6 +68,9 @@ export interface AiHandoffPayload {
   /** Works required to complete the installation. */
   requiredWorks: string[];
 
+  /** Advised upgrades not yet committed in the current quote. */
+  recommendedUpgrades: string[];
+
   /** Compatibility warnings (e.g. radiator sizing, pipe-work constraints). */
   warnings: string[];
 
