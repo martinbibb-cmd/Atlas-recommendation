@@ -3,15 +3,16 @@
  * AtlasDecisionV1 and the evaluated ScenarioResult array.
  *
  * Page order (hardcoded — do not make dynamic until PR3+):
- *  1. Hero          — recommended system, short summary, top reasons
- *  2. Home facts    — strongest supporting facts (occupants, bathrooms, etc.)
- *  3. Problem       — why the weaker pathway struggles
- *  4. Solution      — why the recommended system works in this home
- *  5. Daily use     — day-to-day lived-experience cards
- *  6. Included scope — works and items in the proposed scope
- *  7. Warning       — compatibility warnings or lifecycle risk (when relevant)
- *  8. Future upgrades — paths this recommendation enables
- *  9. Portal CTA    — closing block
+ *  1. Hero                     — recommended system, short summary, top reasons
+ *  2. Home facts               — strongest supporting facts (occupants, bathrooms, etc.)
+ *  3. Customer need resolution — "What matters to you" (omitted when no survey signals)
+ *  4. Problem                  — why the weaker pathway struggles
+ *  5. Solution                 — why the recommended system works in this home
+ *  6. Daily use                — day-to-day lived-experience cards
+ *  7. Included scope           — works and items in the proposed scope
+ *  8. Warning                  — compatibility warnings or lifecycle risk (when relevant)
+ *  9. Future upgrades          — paths this recommendation enables
+ * 10. Portal CTA               — closing block
  *
  * Rules:
  *  - No block contains long-form paragraphs. outcome = one sentence.
@@ -20,6 +21,7 @@
  *    AtlasDecisionV1 or ScenarioResult fields.
  *  - A lifecycle WarningBlock is emitted automatically when condition is
  *    'worn' or 'at_risk'.
+ *  - CustomerNeedResolutionBlock is only emitted when survey evidence is present.
  */
 
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
@@ -30,6 +32,7 @@ import type {
   VisualBlock,
   HeroBlock,
   FactsBlock,
+  CustomerNeedResolutionBlock,
   ProblemBlock,
   SolutionBlock,
   DailyUseBlock,
@@ -47,6 +50,8 @@ import {
   synthesizeLegacyScope,
 } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
+import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
+import { buildCustomerNeedResolution } from './buildCustomerNeedResolution';
 
 // ─── Text length limits ───────────────────────────────────────────────────────
 
@@ -76,6 +81,7 @@ function truncatePoints(points: string[]): string[] {
 const VK = {
   hero: 'recommended_system_hero',
   facts: 'home_facts_overview',
+  customerNeedResolution: 'customer_need_resolution',
   combiProblem: 'combi_concurrency_problem',
   ashpProblem: 'ashp_pipe_limit_problem',
   solution: 'stored_hot_water_solution',
@@ -504,11 +510,14 @@ export function buildSpatialProofBlock(layout: EngineerLayout): SpatialProofBloc
  * @param layout — Optional EngineerLayout. When present, a SpatialProofBlock is
  *                 inserted before the Portal CTA to show the customer where the
  *                 work will happen.
+ * @param input  — Optional EngineInputV2_3. When present, a CustomerNeedResolutionBlock
+ *                 is inserted after the Facts block when survey signals are detected.
  */
 export function buildVisualBlocks(
   decision: AtlasDecisionV1,
   scenarios: ScenarioResult[],
   layout?: EngineerLayout,
+  input?: EngineInputV2_3,
 ): VisualBlock[] {
   const blocks: VisualBlock[] = [];
 
@@ -518,38 +527,51 @@ export function buildVisualBlocks(
   // 2. Home facts
   blocks.push(buildFactsBlock(decision));
 
-  // 3. Problem — weaker option (omitted if only one scenario)
+  // 3. Customer need resolution — personalised "What matters to you" block
+  //    Only emitted when survey signals are present (no generic filler).
+  if (input) {
+    const recommendedScenario = scenarios.find(
+      (s) => s.scenarioId === decision.recommendedScenarioId,
+    );
+    if (recommendedScenario) {
+      const needResolutionBlock: CustomerNeedResolutionBlock | null =
+        buildCustomerNeedResolution(decision, input, recommendedScenario);
+      if (needResolutionBlock) blocks.push(needResolutionBlock);
+    }
+  }
+
+  // 4. Problem — weaker option (omitted if only one scenario)
   const problemBlock = buildProblemBlock(decision, scenarios);
   if (problemBlock) blocks.push(problemBlock);
 
-  // 4. Solution
+  // 5. Solution
   blocks.push(buildSolutionBlock(decision, scenarios));
 
-  // 5. Daily use
+  // 6. Daily use
   if (decision.dayToDayOutcomes.length > 0) {
     blocks.push(buildDailyUseBlock(decision));
   }
 
-  // 6. Included scope — null when no items in scope or includedItems
+  // 7. Included scope — null when no items in scope or includedItems
   const includedScopeBlock = buildIncludedScopeBlock(decision);
   if (includedScopeBlock) blocks.push(includedScopeBlock);
 
-  // 7. Warnings (lifecycle + compatibility) — lifecycle first
+  // 8. Warnings (lifecycle + compatibility) — lifecycle first
   for (const w of buildWarningBlocks(decision)) {
     blocks.push(w);
   }
 
-  // 8. Future upgrades
+  // 9. Future upgrades
   const futureBlock = buildFutureUpgradeBlock(decision);
   if (futureBlock) blocks.push(futureBlock);
 
-  // 9. Spatial proof — where the work happens (omitted when no layout is supplied)
+  // 10. Spatial proof — where the work happens (omitted when no layout is supplied)
   if (layout) {
     const spatialBlock = buildSpatialProofBlock(layout);
     if (spatialBlock) blocks.push(spatialBlock);
   }
 
-  // 10. Portal CTA
+  // 11. Portal CTA
   blocks.push(buildPortalCtaBlock({ recommendedScenarioId: decision.recommendedScenarioId }));
 
   return blocks;
