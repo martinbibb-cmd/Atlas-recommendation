@@ -30,6 +30,7 @@ import { SolutionBlockView } from '../presentation/blocks/SolutionBlockView';
 import { WarningBlockView } from '../presentation/blocks/WarningBlockView';
 import { IncludedScopeBlockView } from '../presentation/blocks/IncludedScopeBlockView';
 import { FutureUpgradeBlockView } from '../presentation/blocks/FutureUpgradeBlockView';
+import { PortalShareActions } from './PortalShareActions';
 import '../presentation/CustomerDeck.css';
 import './PortalPage.css';
 
@@ -161,6 +162,16 @@ export interface PortalPageProps {
    * Defaults to 'recommended' when absent.
    */
   initialTab?: PortalTabId;
+  /** Full URL of this portal page — enables copy-link and native share. */
+  portalUrl?: string;
+  /** Direct download URL for the advice pack PDF, if pre-generated. */
+  advicePackUrl?: string;
+  /** Pre-serialised AI handoff text for copy/download actions. */
+  aiSummaryText?: string;
+  /** Filename for the AI summary .txt download. */
+  aiSummaryFilename?: string;
+  /** Callback to trigger advice pack generation when no advicePackUrl exists. */
+  onDownloadAdvicePack?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -171,7 +182,7 @@ export interface PortalPageProps {
  * Five-tab portal proof surface. Renders each tab's content using the
  * supplied PortalViewModel — no recommendation logic lives here.
  */
-export function PortalPage({ viewModel, propertyTitle, initialTab }: PortalPageProps) {
+export function PortalPage({ viewModel, propertyTitle, initialTab, portalUrl, advicePackUrl, aiSummaryText, aiSummaryFilename, onDownloadAdvicePack }: PortalPageProps) {
   const [activeTab, setActiveTab] = useState<PortalTabId>(initialTab ?? 'recommended');
 
   function renderActivePanel() {
@@ -193,6 +204,15 @@ export function PortalPage({ viewModel, propertyTitle, initialTab }: PortalPageP
           <span className="portal-page__property-title">{propertyTitle}</span>
         </header>
       )}
+
+      {/* Share / export action strip */}
+      <PortalShareActions
+        portalUrl={portalUrl}
+        advicePackUrl={advicePackUrl}
+        aiSummaryText={aiSummaryText}
+        aiSummaryFilename={aiSummaryFilename}
+        onDownloadAdvicePack={onDownloadAdvicePack}
+      />
 
       {/* Tab bar */}
       <PortalTabs
