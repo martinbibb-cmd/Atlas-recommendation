@@ -318,6 +318,13 @@ describe('CustomerAdvicePrintPack — portal CTA block', () => {
     expect(screen.getByText('https://portal.example.com/r/abc123')).toBeTruthy();
   });
 
+  it('portal URL element is a link with href pointing to the portal', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ portalUrl: 'https://portal.example.com/r/abc123' })} />);
+    const link = screen.getByTestId('capp-portal-url');
+    expect(link.tagName.toLowerCase()).toBe('a');
+    expect(link.getAttribute('href')).toBe('https://portal.example.com/r/abc123');
+  });
+
   it('renders portal URL placeholder when portalUrl is absent', () => {
     render(<CustomerAdvicePrintPack {...makeProps()} />);
     expect(screen.getByTestId('capp-portal-url-placeholder')).toBeTruthy();

@@ -228,6 +228,7 @@
 }
 
 .capp-portal-cta__url {
+  display: block;
   font-size: 0.78rem;
   color: var(--capp-blue);
   word-break: break-all;
