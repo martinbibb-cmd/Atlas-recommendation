@@ -27,7 +27,7 @@ interface Props {
 
 export function CustomerNeedResolutionBlockView({ block }: Props) {
   const visual = getVisualEntry(block.visualKey);
-  const items = block.items.slice(0, 4);
+  const items = block.items.slice(0, 4); // max 4; 3 is optimal — 4 acceptable when all signals are direct
 
   return (
     <article
