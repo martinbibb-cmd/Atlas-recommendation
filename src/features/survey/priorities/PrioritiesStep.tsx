@@ -324,6 +324,112 @@ export function PrioritiesStep({
         </div>
       </div>
 
+      {/* ── Current system issues ─────────────────────────────────────── */}
+      <div style={{ marginTop: '1.5rem' }}>
+        <p style={sectionHeadingStyle}>Current system issues</p>
+        <p style={{ fontSize: '0.78rem', color: '#718096', margin: '0 0 0.75rem' }}>
+          How the current system is performing for the customer.{' '}
+          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#3182ce', textTransform: 'uppercase' as const, letterSpacing: '0.04em' }}>
+            Shown on customer summary
+          </span>
+        </p>
+
+        {/* Hot water adequacy */}
+        <div style={{ marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>
+            Do you run out of hot water?
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: '✓ Yes', testId: 'issues-runs-out-hot-water-yes' },
+              { value: false, label: '✗ No',  testId: 'issues-runs-out-hot-water-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, runsOutOfHotWater: value })}
+                style={smallChipStyle(state.runsOutOfHotWater === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Multiple tap use */}
+        <div style={{ marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>
+            Can you use multiple taps at once?
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: '✓ Yes', testId: 'issues-multiple-taps-yes' },
+              { value: false, label: '✗ No',  testId: 'issues-multiple-taps-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, canUseMultipleTaps: value })}
+                style={smallChipStyle(state.canUseMultipleTaps === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Room temperature */}
+        <div style={{ marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>
+            Do all rooms reach temperature?
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {([
+              { value: true,  label: '✓ Yes', testId: 'issues-rooms-temp-yes' },
+              { value: false, label: '✗ No',  testId: 'issues-rooms-temp-no' },
+            ] as const).map(({ value, label, testId }) => (
+              <button
+                key={String(value)}
+                type="button"
+                data-testid={testId}
+                onClick={() => onChange({ ...state, allRoomsReachTemperature: value })}
+                style={smallChipStyle(state.allRoomsReachTemperature === value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Other issues */}
+        <div>
+          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#374151', marginBottom: '0.3rem' }}>
+            Any other issues?
+          </p>
+          <textarea
+            data-testid="issues-other-text"
+            value={state.otherIssues ?? ''}
+            onChange={e => onChange({ ...state, otherIssues: e.target.value })}
+            placeholder="Describe any other problems with the current system…"
+            rows={3}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '0.5rem 0.65rem',
+              border: '1px solid #e2e8f0',
+              borderRadius: '6px',
+              fontSize: '0.82rem',
+              color: '#2d3748',
+              resize: 'vertical',
+              fontFamily: 'inherit',
+              lineHeight: 1.5,
+            }}
+          />
+        </div>
+      </div>
+
       {/* ── Navigation ─────────────────────────────────────────────────── */}
       <div className="step-actions" style={{ marginTop: '1.5rem' }}>
         <button className="back-btn" type="button" onClick={onPrev}>

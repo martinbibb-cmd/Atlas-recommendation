@@ -23,6 +23,7 @@ import type { RecommendationResult } from '../../engine/recommendation/Recommend
 import type { RecommendationState } from '../../features/survey/recommendation/recommendationTypes';
 import { buildCanonicalPresentation, type SystemComparisonBlock } from '../presentation/buildCanonicalPresentation';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
+import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import './SurveyPrintoutPage.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -293,7 +294,7 @@ export default function SurveyPrintoutPage({
 
             {/* ── What we know ────────────────────────────── */}
             <section className="spp-section">
-              <h2 className="spp-section__title">What we know about this home</h2>
+              <h2 className="spp-section__title">About your home</h2>
               <div className="spp-fact-grid">
                 <div className="spp-fact">
                   <span className="spp-fact__label">Heat loss</span>
@@ -324,7 +325,45 @@ export default function SurveyPrintoutPage({
                   <span className="spp-fact__value">{page1.home.peakOutletsLabel}</span>
                 </div>
               </div>
+              {/* ── Reported current issues (only when answered) ── */}
+              {prioritiesState && (() => {
+                const issues: string[] = [];
+                if (prioritiesState.runsOutOfHotWater === true) issues.push('Runs out of hot water');
+                if (prioritiesState.canUseMultipleTaps === false) issues.push('Cannot use multiple taps simultaneously');
+                if (prioritiesState.allRoomsReachTemperature === false) issues.push('Some rooms struggle to reach temperature');
+                if (prioritiesState.otherIssues?.trim()) issues.push(prioritiesState.otherIssues.trim());
+                if (issues.length === 0) return null;
+                return (
+                  <div className="spp-issues" data-testid="spp-reported-issues">
+                    <p className="spp-issues__label">Reported issues</p>
+                    <ul className="spp-list spp-list--issues">
+                      {issues.map((issue, i) => <li key={i}>{issue}</li>)}
+                    </ul>
+                  </div>
+                );
+              })()}
             </section>
+
+            {/* ── What matters to you ─────────────────────── */}
+            {prioritiesState && prioritiesState.selected.length > 0 && (
+              <section className="spp-section">
+                <h2 className="spp-section__title">What matters to you</h2>
+                <ul className="spp-list spp-list--priorities" data-testid="spp-what-matters">
+                  {PRIORITY_META
+                    .filter(m => prioritiesState.selected.includes(m.key))
+                    .map(m => (
+                      <li key={m.key} className="spp-priority-item">
+                        <span className="spp-priority-item__emoji">{m.emoji}</span>
+                        <span>
+                          <strong>{m.label}</strong>
+                          <span className="spp-priority-item__sub"> — {m.sub}</span>
+                        </span>
+                      </li>
+                    ))
+                  }
+                </ul>
+              </section>
+            )}
 
             {/* ── Required work ───────────────────────────── */}
             {topDetail && topDetail.requiredWork.length > 0 && (
