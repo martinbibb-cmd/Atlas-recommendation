@@ -533,9 +533,9 @@ describe('CustomerAdvicePrintPack — AI handoff summary', () => {
     expect(handoff.textContent).toContain('system boiler');
   });
 
-  it('AI handoff contains "AI handoff summary" header', () => {
+  it('AI handoff contains "Want to understand this in more detail?" header', () => {
     render(<CustomerAdvicePrintPack {...makeProps()} />);
-    expect(screen.getByText('AI handoff summary')).toBeTruthy();
+    expect(screen.getByText('Want to understand this in more detail?')).toBeTruthy();
   });
 
   it('AI handoff does not use white-on-white hidden text (has visible text content)', () => {

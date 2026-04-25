@@ -189,13 +189,13 @@ function buildProblemBlock(
   // Skip the problem block when the weaker scenario has no constraints to surface
   if (weaker.keyConstraints.length === 0) return null;
 
-  const systemTypeLabel: Record<ScenarioResult['system']['type'], string> = {
-    combi:   'combi boiler',
-    system:  'system boiler',
-    regular: 'regular boiler',
-    ashp:    'heat pump',
+  const homeNeedLabels: Record<ScenarioResult['system']['type'], string> = {
+    combi:   'stored hot water',
+    system:  'mains-fed supply',
+    regular: 'mains-fed supply',
+    ashp:    'a conventional system',
   };
-  const title = `Why a ${systemTypeLabel[weaker.system.type]} struggles here`;
+  const title = `Why your home needs ${homeNeedLabels[weaker.system.type]}`;
 
   return {
     id: 'problem',
@@ -359,6 +359,11 @@ function buildPortalCtaBlock(launchContext: PortalLaunchContext): PortalCtaBlock
     type: 'portal_cta',
     title: 'Open your portal',
     outcome: 'Explore the interactive model, costs, and comparison in your portal.',
+    supportingPoints: [
+      'Understand this recommendation in more depth',
+      'Explore costs, timelines, and alternatives',
+      'Share your recommendation with household members',
+    ],
     visualKey: VK.portalCta,
     launchContext,
   };
