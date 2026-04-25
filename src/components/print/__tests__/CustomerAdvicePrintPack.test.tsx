@@ -543,4 +543,47 @@ describe('CustomerAdvicePrintPack — AI handoff summary', () => {
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent?.trim().length).toBeGreaterThan(50);
   });
+
+  // ── Acceptance criteria: evidence-aware handoff ──────────────────────────
+
+  it('AI handoff includes a clear assistant introduction', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('Atlas has helped me understand your home');
+    expect(handoff.textContent).toContain('Instructions for the AI assistant');
+  });
+
+  it('AI handoff warns that AI systems can make mistakes (hallucination warning)', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('AI systems can make mistakes');
+  });
+
+  it('AI handoff instructs the assistant to validate using trusted sources', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('Trusted source categories');
+    expect(handoff.textContent).toContain('Manufacturer installation manuals');
+    expect(handoff.textContent).toContain('Ofgem');
+  });
+
+  it('AI handoff preserves Atlas as the case-specific source via validation policy', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('supplied Atlas payload as the primary case-specific source');
+    expect(handoff.textContent).toContain('Case-specific Atlas data');
+  });
+
+  it('AI handoff includes source use rules', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('Source use rules');
+    expect(handoff.textContent).toContain('Never override site-specific Atlas facts');
+  });
+
+  it('AI handoff instructs assistant not to invent missing facts', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const handoff = screen.getByTestId('capp-ai-handoff');
+    expect(handoff.textContent).toContain('Do not invent missing facts');
+  });
 });
