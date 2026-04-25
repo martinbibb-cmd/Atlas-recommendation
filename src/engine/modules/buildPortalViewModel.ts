@@ -113,7 +113,9 @@ const SYSTEM_TYPE_LABEL: Record<ScenarioResult['system']['type'], string> = {
 const RECOMMENDED_TAB_TYPES = new Set<VisualBlock['type']>([
   'hero',
   'facts',
+  'customer_need_resolution',
   'solution',
+  'system_work_explainer',
   'warning',
   'included_scope',
 ]);

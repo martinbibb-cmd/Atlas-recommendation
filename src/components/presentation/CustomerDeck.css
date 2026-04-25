@@ -591,3 +591,120 @@
   color: #276749;
   border: 1px solid #c6f6d5;
 }
+
+/* ─── Customer Need Resolution (CNR) table ────────────────────────────────── */
+
+.cnr-table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  font-size: 0.85rem;
+}
+
+.cnr-table__header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cnr-table__col-label {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #718096;
+}
+
+.cnr-table__col-label--need  { color: #4a5568; }
+.cnr-table__col-label--action  { color: #2b6cb0; }
+.cnr-table__col-label--outcome { color: #276749; }
+
+.cnr-table__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-bottom: 1px solid #edf2f7;
+  align-items: start;
+}
+
+.cnr-table__row:last-child {
+  border-bottom: none;
+}
+
+.cnr-table__cell {
+  padding: 0.65rem 0.75rem;
+  color: #2d3748;
+  line-height: 1.5;
+  font-size: 0.85rem;
+}
+
+.cnr-table__cell--need {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cnr-table__need-text {
+  font-weight: 500;
+}
+
+.cnr-table__evidence {
+  font-size: 0.75rem;
+  color: #718096;
+  font-style: italic;
+}
+
+.cnr-table__cell--action {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+  color: #2b6cb0;
+}
+
+.cnr-table__action-marker {
+  flex-shrink: 0;
+  margin-top: 0.05em;
+  color: #90cdf4;
+}
+
+.cnr-table__cell--outcome {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+  color: #276749;
+}
+
+.cnr-table__outcome-marker {
+  flex-shrink: 0;
+  margin-top: 0.05em;
+  color: #68d391;
+}
+
+/* Responsive: stack columns vertically on narrow screens */
+@media (max-width: 520px) {
+  .cnr-table__header { display: none; }
+
+  .cnr-table__row {
+    grid-template-columns: 1fr;
+    padding: 0.5rem 0;
+  }
+
+  .cnr-table__cell {
+    padding: 0.4rem 0.75rem;
+  }
+
+  .cnr-table__cell--need::before   { content: 'You told us'; font-size: 0.7rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+  .cnr-table__cell--action::before  { content: 'We\'re doing'; font-size: 0.7rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+  .cnr-table__cell--outcome::before { content: 'So you get'; font-size: 0.7rem; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .cnr-table__cell--action,
+  .cnr-table__cell--outcome {
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+}

@@ -76,7 +76,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         occupancyCount: engineInput.occupancyCount,
         bathroomCount:  engineInput.bathroomCount,
       });
-      return { decision, scenarios };
+      return { decision, scenarios, engineInput };
     } catch {
       return null;
     }
@@ -88,7 +88,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
   const portalViewModel = useMemo(() => {
     if (!portalData) return null;
     try {
-      const blocks = buildVisualBlocks(portalData.decision, portalData.scenarios);
+      const blocks = buildVisualBlocks(portalData.decision, portalData.scenarios, undefined, portalData.engineInput);
       return buildPortalViewModel(portalData.decision, portalData.scenarios, blocks);
     } catch {
       return null;

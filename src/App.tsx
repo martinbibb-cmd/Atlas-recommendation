@@ -976,7 +976,7 @@ export default function App() {
         occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
         bathroomCount:  CONSOLE_DEMO_INPUT.bathroomCount,
       });
-      const demoBlocks = buildVisualBlocks(demoDecision, demoScenarios);
+      const demoBlocks = buildVisualBlocks(demoDecision, demoScenarios, undefined, CONSOLE_DEMO_INPUT);
       return (
         <CustomerAdvicePrintPack
           decision={demoDecision}
@@ -1202,7 +1202,7 @@ export default function App() {
           occupancyCount: labEngineInput.occupancyCount,
           bathroomCount:  labEngineInput.bathroomCount,
         });
-        const visualBlocks = buildVisualBlocks(decision, scenarios);
+        const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, labEngineInput);
         return (
           <CustomerAdvicePrintPack
             decision={decision}

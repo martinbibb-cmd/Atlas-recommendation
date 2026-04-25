@@ -23,12 +23,14 @@ import { ComparisonCard } from './cards/ComparisonCard';
 import { DailyUseCard } from './cards/DailyUseCard';
 import { SpatialProofSection } from './cards/SpatialProofSection';
 import { DailyUseSimulatorPanel } from '../simulator/DailyUseSimulatorPanel';
-import type { VisualBlock, HeroBlock, FactsBlock, SolutionBlock, WarningBlock, IncludedScopeBlock, FutureUpgradeBlock } from '../../contracts/VisualBlock';
+import type { VisualBlock, HeroBlock, FactsBlock, SolutionBlock, WarningBlock, IncludedScopeBlock, SystemWorkExplainerBlock, CustomerNeedResolutionBlock, FutureUpgradeBlock } from '../../contracts/VisualBlock';
 import { HeroBlockView } from '../presentation/blocks/HeroBlockView';
 import { FactsBlockView } from '../presentation/blocks/FactsBlockView';
 import { SolutionBlockView } from '../presentation/blocks/SolutionBlockView';
 import { WarningBlockView } from '../presentation/blocks/WarningBlockView';
 import { IncludedScopeBlockView } from '../presentation/blocks/IncludedScopeBlockView';
+import { SystemWorkExplainerBlockView } from '../presentation/blocks/SystemWorkExplainerBlockView';
+import { CustomerNeedResolutionBlockView } from '../presentation/blocks/CustomerNeedResolutionBlockView';
 import { FutureUpgradeBlockView } from '../presentation/blocks/FutureUpgradeBlockView';
 import { PortalShareActions } from './PortalShareActions';
 import '../presentation/CustomerDeck.css';
@@ -43,6 +45,8 @@ function renderPortalBlock(block: VisualBlock): React.ReactElement | null {
     case 'solution':       return <SolutionBlockView      block={block as SolutionBlock} />;
     case 'warning':        return <WarningBlockView       block={block as WarningBlock} />;
     case 'included_scope': return <IncludedScopeBlockView block={block as IncludedScopeBlock} />;
+    case 'system_work_explainer': return <SystemWorkExplainerBlockView block={block as SystemWorkExplainerBlock} />;
+    case 'customer_need_resolution': return <CustomerNeedResolutionBlockView block={block as CustomerNeedResolutionBlock} />;
     case 'future_upgrade': return <FutureUpgradeBlockView block={block as FutureUpgradeBlock} />;
     default:               return null;
   }
