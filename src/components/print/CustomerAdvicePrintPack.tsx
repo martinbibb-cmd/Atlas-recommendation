@@ -223,15 +223,20 @@ function PrintPortalCta({ portalUrl }: { portalUrl?: string }) {
           See the interactive model, explore alternatives, and share your recommendation.
         </p>
         {portalUrl ? (
-          <a
-            className="capp-portal-cta__url"
-            href={portalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="capp-portal-url"
-          >
-            {portalUrl}
-          </a>
+          <>
+            <a
+              className="capp-portal-cta__url"
+              href={portalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-testid="capp-portal-url"
+            >
+              Open your portal online
+            </a>
+            <span className="capp-portal-cta__url-raw" data-testid="capp-portal-url-raw">
+              {portalUrl}
+            </span>
+          </>
         ) : (
           <p className="capp-portal-cta__url capp-portal-cta__url--placeholder" data-testid="capp-portal-url-placeholder">
             Your portal link will be shared by your installer.
