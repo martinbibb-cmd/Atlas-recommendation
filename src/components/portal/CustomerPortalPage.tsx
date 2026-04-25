@@ -105,6 +105,12 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     }
   }, [portalData]);
 
+  // ── AI summary filename — computed once, not on every render ─────────────
+  const aiSummaryFilename = useMemo(
+    () => `atlas-ai-summary-${new Date().toISOString().slice(0, 10)}.txt`,
+    [],
+  );
+
   useEffect(() => {
     let cancelled = false;
     async function loadPortal() {
@@ -297,7 +303,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             initialTab={portalLaunchContext?.initialTab}
             portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
             aiSummaryText={aiSummaryText}
-            aiSummaryFilename={`atlas-ai-summary-${new Date().toISOString().slice(0, 10)}.txt`}
+            aiSummaryFilename={aiSummaryFilename}
           />
         ) : (
           <div className="portal-page__error" role="alert" data-testid="portal-view-error">

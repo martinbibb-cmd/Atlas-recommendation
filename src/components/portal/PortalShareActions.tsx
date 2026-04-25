@@ -71,10 +71,10 @@ export function PortalShareActions({
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Clear feedback after a short delay ──────────────────────────────────
-  function scheduleFeedbackClear() {
+  const scheduleFeedbackClear = useCallback(() => {
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
     feedbackTimerRef.current = setTimeout(() => setCopied(null), 2000);
-  }
+  }, []);
 
   // ── Copy portal link ──────────────────────────────────────────────────────
   const handleCopyLink = useCallback(async () => {
