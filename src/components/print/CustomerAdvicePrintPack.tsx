@@ -226,7 +226,7 @@ function pageModifier(block: VisualBlock): string {
 /** Human-readable section label for the top of each page. */
 const SECTION_LABELS: Partial<Record<VisualBlock['type'], string>> = {
   hero:                    'Recommendation',
-  facts:                   'Your home',
+  facts:                   'About your home',
   customer_need_resolution: 'What matters to you',
   problem:                 'What your home needs',
   solution:                'Why this works',

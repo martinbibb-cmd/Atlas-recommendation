@@ -166,3 +166,75 @@
   color: #4a5568;
   line-height: 1.45;
 }
+
+/* ─── AI agent data blob panel ─────────────────────────────────────────────── */
+
+.portal-ai-blob {
+  border-top: 1px solid #e2e8f0;
+  margin: 0;
+  padding: 0;
+}
+
+.portal-ai-blob__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: #f7fafc;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: #4a5568;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.portal-ai-blob__toggle:hover {
+  background: #edf2f7;
+}
+
+.portal-ai-blob__icon {
+  font-size: 1rem;
+  color: #7c3aed;
+  flex-shrink: 0;
+}
+
+.portal-ai-blob__title {
+  font-weight: 600;
+  color: #2d3748;
+  flex-shrink: 0;
+}
+
+.portal-ai-blob__hint {
+  color: #718096;
+  font-size: 0.8rem;
+  flex: 1;
+}
+
+.portal-ai-blob__chevron {
+  color: #a0aec0;
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.portal-ai-blob__text {
+  display: block;
+  margin: 0;
+  padding: 1.25rem 1.5rem;
+  background: #1a202c;
+  color: #e2e8f0;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  border-top: 1px solid #2d3748;
+}
+
+.portal-ai-blob__text:focus {
+  outline: 2px solid #7c3aed;
+  outline-offset: -2px;
+}

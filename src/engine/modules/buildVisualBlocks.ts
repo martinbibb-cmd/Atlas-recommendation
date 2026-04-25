@@ -158,8 +158,78 @@ function buildHeroBlock(decision: AtlasDecisionV1): HeroBlock {
   };
 }
 
-function buildFactsBlock(decision: AtlasDecisionV1): FactsBlock {
-  // Surface the strongest supporting facts — capped at 5 to stay concise
+// ─── Label helpers ────────────────────────────────────────────────────────────
+
+function formatDwellingType(v: string): string {
+  const map: Record<string, string> = {
+    detached: 'Detached house',
+    semi: 'Semi-detached house',
+    end_terrace: 'End-terrace house',
+    mid_terrace: 'Mid-terrace house',
+    flat_ground: 'Ground-floor flat',
+    flat_mid: 'Mid-floor flat',
+    flat_penthouse: 'Penthouse flat',
+  };
+  return map[v] ?? v.replace(/_/g, ' ');
+}
+
+function formatDhwDeliveryMode(v: string): string {
+  const map: Record<string, string> = {
+    gravity: 'Tank-fed (gravity)',
+    pumped_from_tank: 'Tank-fed (pumped)',
+    tank_pumped: 'Tank-fed (pumped)',
+    pumped: 'Tank-fed (pumped)',
+    mains_mixer: 'Mains-fed (mixer)',
+    accumulator_supported: 'Accumulator-supported',
+    break_tank_booster: 'Break-tank booster',
+    electric_cold_only: 'Electric cold only',
+    unknown: 'Unknown',
+  };
+  return map[v] ?? v.replace(/_/g, ' ');
+}
+
+function formatEmitterType(v: string): string {
+  const map: Record<string, string> = {
+    radiators: 'Radiators',
+    ufh: 'Underfloor heating',
+    mixed: 'Radiators and underfloor',
+  };
+  return map[v] ?? v.replace(/_/g, ' ');
+}
+
+function formatWallType(v: string): string {
+  const map: Record<string, string> = {
+    cavity_insulated: 'Cavity wall (insulated)',
+    cavity_uninsulated: 'Cavity wall (uninsulated)',
+    solid_masonry: 'Solid masonry wall',
+    solid_insulated: 'Solid wall (insulated)',
+    timber_frame: 'Timber frame',
+    unknown: 'Unknown',
+  };
+  return map[v] ?? v.replace(/_/g, ' ');
+}
+
+function formatPvStatus(v: string): string {
+  const map: Record<string, string> = {
+    none: 'Not installed',
+    existing: 'Installed',
+    planned: 'Planned',
+  };
+  return map[v] ?? v;
+}
+
+// ─── Facts block ──────────────────────────────────────────────────────────────
+
+/**
+ * Build the 'About your home' facts block from the decision and, when
+ * available, the full survey input.  Survey-sourced fields are appended after
+ * the core decision facts so the most engine-grounded values come first.
+ */
+function buildFactsBlock(
+  decision: AtlasDecisionV1,
+  input?: EngineInputV2_3,
+): FactsBlock {
+  // ── Core decision facts (engine-grounded) ────────────────────────────────
   const priorityLabels = [
     'Occupants',
     'Bathrooms',
@@ -173,19 +243,81 @@ function buildFactsBlock(decision: AtlasDecisionV1): FactsBlock {
     .slice(0, 5)
     .map((f) => ({ label: f.label, value: f.value }));
 
-  // Include any facts not already covered (e.g. mains/pipe constraint)
-  const extraFacts = decision.supportingFacts
+  // Include any engine facts not already covered (e.g. mains/pipe constraint)
+  const extraDecisionFacts = decision.supportingFacts
     .filter((f) => !priorityLabels.includes(f.label))
     .slice(0, 2)
     .map((f) => ({ label: f.label, value: f.value }));
 
+  const baseFacts = [...facts, ...extraDecisionFacts];
+
+  // ── Additional survey-sourced fields ─────────────────────────────────────
+  // Only appended when an engine input is available; each field is only added
+  // when it carries a meaningful value (not 'unknown' or absent).
+  const surveyFacts: Array<{ label: string; value: string | number }> = [];
+
+  if (input) {
+    // Property
+    if (input.dwellingType) {
+      surveyFacts.push({ label: 'Property type', value: formatDwellingType(input.dwellingType) });
+    }
+    if (input.bedrooms !== undefined) {
+      surveyFacts.push({ label: 'Bedrooms', value: input.bedrooms });
+    }
+
+    // Heating demand
+    if (input.heatLossWatts) {
+      const kw = (input.heatLossWatts / 1000).toFixed(1);
+      surveyFacts.push({ label: 'Peak heat loss', value: `${kw} kW` });
+    }
+    if (input.radiatorCount) {
+      surveyFacts.push({ label: 'Radiators', value: input.radiatorCount });
+    }
+    if (input.emitterType && input.emitterType !== 'radiators') {
+      surveyFacts.push({ label: 'Emitters', value: formatEmitterType(input.emitterType) });
+    }
+
+    // Pipework
+    if (input.primaryPipeDiameter) {
+      surveyFacts.push({ label: 'Pipe size', value: `${input.primaryPipeDiameter} mm` });
+    }
+
+    // Hot water
+    if (input.dhwDeliveryMode && input.dhwDeliveryMode !== 'unknown') {
+      surveyFacts.push({ label: 'Hot water type', value: formatDhwDeliveryMode(input.dhwDeliveryMode) });
+    }
+    if (input.cylinderVolumeLitres !== undefined) {
+      surveyFacts.push({ label: 'Cylinder volume', value: `${input.cylinderVolumeLitres} L` });
+    }
+
+    // Water services
+    const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+    if (dynamicBar !== undefined) {
+      surveyFacts.push({ label: 'Mains pressure', value: `${dynamicBar.toFixed(1)} bar` });
+    }
+
+    // Building fabric
+    const wallType = input.building?.fabric?.wallType;
+    if (wallType && wallType !== 'unknown') {
+      surveyFacts.push({ label: 'Wall type', value: formatWallType(wallType) });
+    }
+
+    // Low-carbon / future tech
+    if (input.pvStatus && input.pvStatus !== 'none') {
+      surveyFacts.push({ label: 'Solar PV', value: formatPvStatus(input.pvStatus) });
+    }
+    if (input.batteryStatus && input.batteryStatus !== 'none') {
+      surveyFacts.push({ label: 'Battery storage', value: formatPvStatus(input.batteryStatus) });
+    }
+  }
+
   return {
     id: 'home-facts',
     type: 'facts',
-    title: 'About this home',
-    outcome: truncateText('Key facts that shaped the recommendation.', MAX_OUTCOME_CHARS),
+    title: 'About your home',
+    outcome: truncateText('Key facts about your home that shaped this recommendation.', MAX_OUTCOME_CHARS),
     visualKey: VK.facts,
-    facts: [...facts, ...extraFacts],
+    facts: [...baseFacts, ...surveyFacts],
   };
 }
 
@@ -599,8 +731,8 @@ export function buildVisualBlocks(
   // 1. Hero
   blocks.push(buildHeroBlock(decision));
 
-  // 2. Home facts
-  blocks.push(buildFactsBlock(decision));
+  // 2. Home facts — expanded with survey data when input is available
+  blocks.push(buildFactsBlock(decision, input));
 
   // 3. Customer need resolution — personalised "What matters to you" block
   //    Only emitted when survey signals are present (no generic filler).
