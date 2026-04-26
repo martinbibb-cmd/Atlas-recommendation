@@ -1215,9 +1215,9 @@ function buildBestAdvice(
         // The engine decision (AtlasDecisionV1) is authoritative; the legacy heuristic
         // is a sanity check only.  Throwing here would crash the customer portal.
         console.warn(
-          `[Atlas] Decision mismatch: Advice Pack shadow engine diverged from engine output. ` +
+          `[Atlas] Decision mismatch: the heuristic quote selection diverged from the engine decision. ` +
           `AtlasDecisionV1 recommends "${recommendedScenario.system.type}" ` +
-          `(scenarioId: "${decision.recommendedScenarioId}") but the shadow engine ` +
+          `(scenarioId: "${decision.recommendedScenarioId}") but the heuristic ` +
           `selected "${legacyBest.qi.quote.systemType}" from engine text: "${output.recommendation?.primary ?? ''}". ` +
           `Using AtlasDecisionV1 as authoritative. ` +
           `Investigate: ensure EngineOutputV1 and AtlasDecisionV1 are derived from the same engine inputs.`,
@@ -1676,6 +1676,7 @@ function buildNextSteps(
 
   // When no quote is matched, derive included works from the engine decision's
   // requiredWorks (engine-sourced) rather than falling back to hardcoded strings.
+  // Limit to 4 items to match the maximum displayed in the NextStepsCard.
   const includedFallback = decision?.requiredWorks?.length
     ? decision.requiredWorks.slice(0, 4)
     : ['Replacement heat source', 'Commissioning and handover'];
