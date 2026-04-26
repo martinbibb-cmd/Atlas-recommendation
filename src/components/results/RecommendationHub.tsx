@@ -1103,7 +1103,8 @@ export default function RecommendationHub({ result, input }: Props) {
 
       {/* 1 — Canonical presentation (house/home/energy/system/objectives — physics-first) */}
       {input && (
-        <section className="rec-hub__section" aria-label="Canonical presentation">
+        <section className="rec-hub__section" aria-label="Engine-driven recommendation">
+          <h3 className="rec-hub__section-title">Engine-Driven Recommendation</h3>
           <CanonicalPresentationPage
             result={result}
             input={input}

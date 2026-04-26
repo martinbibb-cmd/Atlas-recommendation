@@ -43,7 +43,7 @@ export default function CustomerSummaryPanel({ pathway }: Props) {
       {/* Header */}
       <div style={{ padding: '0.65rem 0.9rem', borderBottom: '1px solid #c3dafe', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontWeight: 700, color: '#2b6cb0', fontSize: '0.9rem' }}>
-          📋 Customer Summary — {pathway.title}
+          📋 Expert Pathway Plan — {pathway.title}
         </span>
         <button
           onClick={handleCopy}
@@ -123,7 +123,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function buildPlainText(pathway: PathwayOptionV1): string {
   const lines: string[] = [];
 
-  lines.push(`CUSTOMER SUMMARY — ${toPlainText(pathway.title)}`);
+  lines.push(`EXPERT PATHWAY PLAN — ${toPlainText(pathway.title)}`);
   lines.push('');
   lines.push('RECOMMENDATION');
   lines.push(toPlainText(pathway.rationale));
