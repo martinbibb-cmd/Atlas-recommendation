@@ -2,6 +2,7 @@ import type { ENGINE_VERSION, CONTRACT_VERSION } from './versions';
 import type { AssumptionId } from './assumptions.ids';
 import type { PenaltyId } from './scoring.penaltyIds';
 import type { InstallMarkupAnalysisV1 } from '../features/installMarkup/installMarkup.types';
+import type { ControlsAdviceV1 } from '../engine/modules/ControlsAdviceModule';
 
 export interface AssumptionV1 {
   id: AssumptionId;
@@ -741,4 +742,13 @@ export interface EngineOutputV1 {
    * plain-language install insights for recommendations and reports.
    */
   installMarkupAnalysis?: InstallMarkupAnalysisV1;
+  /**
+   * Controls upgrade advice — plain-English recommendations for heating controls
+   * upgrades alongside the recommended system.
+   *
+   * Graded by priority: 'recommended' (clear benefit), 'consider' (marginal / optional).
+   * Expansion vessels are installation requirements and are never included here.
+   * Present when survey input is supplied.
+   */
+  controlsAdvice?: ControlsAdviceV1;
 }
