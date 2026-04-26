@@ -292,7 +292,7 @@ describe('buildCustomerSummary', () => {
 
     const summary = buildCustomerSummary(decision, scenarios);
 
-    expect(summary.confidenceNotes.some((n) => n.includes('at_risk') || n.includes('elevated risk'))).toBe(true);
+    expect(summary.confidenceNotes.some((n) => n.includes('elevated risk of failure'))).toBe(true);
   });
 
   it('confidenceNotes includes lifecycle urgency for worn systems', () => {
@@ -309,7 +309,7 @@ describe('buildCustomerSummary', () => {
 
     const summary = buildCustomerSummary(decision, scenarios);
 
-    expect(summary.confidenceNotes.some((n) => n.includes('worn') || n.includes('reliability may decline'))).toBe(true);
+    expect(summary.confidenceNotes.some((n) => n.includes('reliability may decline'))).toBe(true);
   });
 
   it('throws when recommended scenario is missing from scenarios array', () => {

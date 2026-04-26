@@ -18,18 +18,36 @@ import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 // ─── Other system labels ──────────────────────────────────────────────────────
 
 /**
- * All customer-visible system labels used in the recommendation engine.
+ * ALL_SYSTEM_LABELS — all customer-visible system name variants.
+ *
  * Used to detect when AI text mentions a non-recommended system as preferred.
+ * Grouped by system type so synonym exclusion can be applied: if the recommended
+ * label is "Air source heat pump", all variants in the 'ashp' group are excluded
+ * from the non-recommended check.
  */
-const ALL_SYSTEM_LABELS: string[] = [
-  'combi boiler',
-  'system boiler',
-  'regular boiler',
-  'heat-only boiler',
-  'air source heat pump',
-  'heat pump',
-  'ashp',
-];
+const SYSTEM_LABEL_GROUPS: Record<string, string[]> = {
+  combi:   ['combi boiler'],
+  system:  ['system boiler'],
+  regular: ['regular boiler', 'heat-only boiler', 'regular (heat-only) boiler'],
+  ashp:    ['air source heat pump', 'heat pump', 'ashp'],
+};
+
+/** Flat list of all system labels (used for presence checks). */
+const ALL_SYSTEM_LABELS: string[] = Object.values(SYSTEM_LABEL_GROUPS).flat();
+
+/**
+ * Returns the set of system label variants that are NOT the recommended system.
+ * Excludes any variant that could refer to the same system as the recommended label.
+ */
+function getNonRecommendedLabels(recommendedLabel: string): string[] {
+  const lowerLabel = recommendedLabel.toLowerCase();
+  // Find the group(s) that contain the recommended label (exact or substring match)
+  const recommendedGroups = Object.values(SYSTEM_LABEL_GROUPS).filter((group) =>
+    group.some((variant) => lowerLabel.includes(variant) || variant.includes(lowerLabel)),
+  );
+  const excludedVariants = new Set<string>(recommendedGroups.flat());
+  return ALL_SYSTEM_LABELS.filter((label) => !excludedVariants.has(label));
+}
 
 /** Phrases that indicate a recommendation claim. */
 const RECOMMENDATION_TRIGGER_PHRASES =
@@ -84,15 +102,12 @@ export function validateAiCustomerSummary(
   // ── Gate 2: no other system near a recommendation phrase ──────────────────
   // Split on sentence boundaries for context proximity testing.
   const sentences = text.split(/[.!?\n]+/);
+  const nonRecommendedLabels = getNonRecommendedLabels(lockedSummary.recommendedSystemLabel);
   for (const sentence of sentences) {
     const lowerSentence = sentence.toLowerCase();
     if (!RECOMMENDATION_TRIGGER_PHRASES.test(lowerSentence)) continue;
 
-    for (const otherLabel of ALL_SYSTEM_LABELS) {
-      if (otherLabel === lowerLabel) continue;
-      // Skip labels that are substrings of the recommended label (e.g. "heat pump"
-      // is contained within "air source heat pump" — not a different system).
-      if (lowerLabel.includes(otherLabel)) continue;
+    for (const otherLabel of nonRecommendedLabels) {
       if (lowerSentence.includes(otherLabel)) {
         reasons.push(
           `AI text mentions non-selected system "${otherLabel}" near a recommendation phrase: "${sentence.trim()}"`,
@@ -137,11 +152,35 @@ export function validateAiCustomerSummary(
   }
 
   // ── Gate 4: no invented physics claims ────────────────────────────────────
+  // Build a flat string of all locked summary text to check whether a measurement
+  // already appears in the authoritative locked content.
+  const lockedText = [
+    lockedSummary.headline,
+    lockedSummary.plainEnglishDecision,
+    ...lockedSummary.whyThisWins,
+    ...lockedSummary.whatThisAvoids,
+    ...lockedSummary.includedNow,
+    ...lockedSummary.requiredChecks,
+    ...lockedSummary.optionalUpgrades,
+    ...lockedSummary.futureReady,
+    ...lockedSummary.confidenceNotes,
+  ].join(' ').toLowerCase();
+
   for (const pattern of INVENTED_PHYSICS_PATTERNS) {
     if (pattern.test(text)) {
-      reasons.push(
-        `AI text contains invented technical measurement matching "${pattern.source}"`,
-      );
+      // Only flag if the matching measurement does not already appear in the
+      // locked summary (where it would be a pass-through, not an invention).
+      const matchInAi = text.match(pattern);
+      const matchInLocked = lockedText.match(pattern);
+      const aiMeasurement = matchInAi?.[0]?.toLowerCase();
+      const lockedHasSame = matchInLocked?.some(
+        (m) => m.toLowerCase() === aiMeasurement,
+      ) ?? false;
+      if (!lockedHasSame) {
+        reasons.push(
+          `AI text contains invented technical measurement matching "${pattern.source}"`,
+        );
+      }
     }
   }
 
