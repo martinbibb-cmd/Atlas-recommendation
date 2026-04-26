@@ -107,6 +107,87 @@ describe('HeatPumpRegimeModuleV1', () => {
   });
 });
 
+// ─── Low heat loss adjustment ──────────────────────────────────────────────────
+
+describe('HeatPumpRegimeModuleV1 — low heat loss adjustment', () => {
+  const lowHeatLossInput: EngineInputV2_3 = {
+    ...baseInput,
+    heatLossWatts: 1800,
+  };
+
+  it('returns 45°C flow and ok SPF when heat loss <= 3000 W and appetite is none', () => {
+    const result = runHeatPumpRegimeModuleV1(lowHeatLossInput);
+    expect(result.designFlowTempBand).toBe(45);
+    expect(result.spfBand).toBe('ok');
+  });
+
+  it('returns 45°C flow and ok SPF when heat loss <= 3000 W and no retrofit field', () => {
+    const result = runHeatPumpRegimeModuleV1({ ...lowHeatLossInput, retrofit: undefined });
+    expect(result.designFlowTempBand).toBe(45);
+    expect(result.spfBand).toBe('ok');
+  });
+
+  it('emits regime-low-heat-loss-emitter-oversize info flag for low heat loss with none appetite', () => {
+    const result = runHeatPumpRegimeModuleV1(lowHeatLossInput);
+    const flag = result.flags.find(f => f.id === 'regime-low-heat-loss-emitter-oversize');
+    expect(flag).toBeDefined();
+    expect(flag?.severity).toBe('info');
+  });
+
+  it('emits regime-cop-penalty and regime-full-job-unlocks-low-temp alongside the oversize flag', () => {
+    const result = runHeatPumpRegimeModuleV1(lowHeatLossInput);
+    const ids = result.flags.map(f => f.id);
+    expect(ids).toContain('regime-low-heat-loss-emitter-oversize');
+    expect(ids).toContain('regime-cop-penalty');
+    expect(ids).toContain('regime-full-job-unlocks-low-temp');
+  });
+
+  it('does NOT emit regime-flow-temp-elevated for low heat loss with none appetite', () => {
+    const result = runHeatPumpRegimeModuleV1(lowHeatLossInput);
+    const ids = result.flags.map(f => f.id);
+    expect(ids).not.toContain('regime-flow-temp-elevated');
+  });
+
+  it('regime-low-heat-loss-emitter-oversize flag detail includes the heat loss value', () => {
+    const result = runHeatPumpRegimeModuleV1(lowHeatLossInput);
+    const flag = result.flags.find(f => f.id === 'regime-low-heat-loss-emitter-oversize');
+    expect(flag?.detail).toContain('1800');
+  });
+
+  it('returns 50°C flow and poor SPF for heat loss just above threshold (3001 W)', () => {
+    const result = runHeatPumpRegimeModuleV1({ ...baseInput, heatLossWatts: 3001 });
+    expect(result.designFlowTempBand).toBe(50);
+    expect(result.spfBand).toBe('poor');
+  });
+
+  it('returns 45°C and ok SPF at exactly the threshold (3000 W)', () => {
+    const result = runHeatPumpRegimeModuleV1({ ...baseInput, heatLossWatts: 3000 });
+    expect(result.designFlowTempBand).toBe(45);
+    expect(result.spfBand).toBe('ok');
+  });
+
+  it('full_job appetite always gives 35°C regardless of heat loss', () => {
+    const result = runHeatPumpRegimeModuleV1({
+      ...lowHeatLossInput,
+      retrofit: { emitterUpgradeAppetite: 'full_job' },
+    });
+    expect(result.designFlowTempBand).toBe(35);
+    expect(result.spfBand).toBe('good');
+  });
+
+  it('some appetite always gives 45°C without the oversize flag regardless of heat loss', () => {
+    const result = runHeatPumpRegimeModuleV1({
+      ...lowHeatLossInput,
+      retrofit: { emitterUpgradeAppetite: 'some' },
+    });
+    expect(result.designFlowTempBand).toBe(45);
+    expect(result.spfBand).toBe('ok');
+    // Not adjusted by heat loss — flag should be absent
+    const ids = result.flags.map(f => f.id);
+    expect(ids).not.toContain('regime-low-heat-loss-emitter-oversize');
+  });
+});
+
 // ─── Affine (planar) COP curve ────────────────────────────────────────────────
 
 import { computeAshpCop, describeCopModelAssumptions } from '../modules/HeatPumpRegimeModule';

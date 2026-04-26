@@ -41,6 +41,23 @@ const MIN_COP = 1.5;
 const MAX_COP = 5.0;
 
 /**
+ * Design heat-loss threshold (W) below which existing radiators are assumed to be
+ * oversized relative to actual demand.
+ *
+ * Physics basis: properties with ≤ 3 kW peak heat loss are typically well-insulated
+ * or post-retrofit homes where insulation improvements reduced the heat demand but
+ * the original radiator surface area was not reduced.  Oversized emitters can
+ * achieve the required output at lower flow temperatures (45 °C rather than the
+ * default 50 °C assumed for an unknown emitter state).  This removes an unfair
+ * "poor SPF" framing for the ASHP candidate in homes where it is genuinely well
+ * suited to the load.
+ *
+ * Threshold of 3 kW is substantially below the UK average (6–8 kW for older
+ * stock), encompassing highly insulated new-builds and well-retrofitted homes.
+ */
+const LOW_HEAT_LOSS_W = 3000;
+
+/**
  * Affine (planar) ASHP COP approximation.
  *
  * COP = REF_COP
@@ -104,6 +121,12 @@ export function describeCopModelAssumptions(): {
  *   - 45°C flow  → moderate SPF (ok). Partial upgrade — some rads replaced / UFH in wet rooms.
  *   - 50°C flow  → poor SPF.  Minimal change — keep existing rads at near-conventional temps.
  *
+ * Low-heat-loss adjustment:
+ *   When emitter upgrade appetite is absent or 'none' AND peak heat loss is at or below
+ *   LOW_HEAT_LOSS_W (3 kW), the module assumes existing emitters are oversized relative
+ *   to actual demand and assigns a 45 °C flow band with an 'ok' SPF band instead.
+ *   A 'regime-low-heat-loss-emitter-oversize' info flag is emitted to explain the adjustment.
+ *
  * Lower flow temps increase SPF; high flow temps collapse COP.
  */
 export function runHeatPumpRegimeModuleV1(input: EngineInputV2_3): HeatPumpRegimeModuleV1Result {
@@ -111,6 +134,7 @@ export function runHeatPumpRegimeModuleV1(input: EngineInputV2_3): HeatPumpRegim
 
   let designFlowTempBand: 35 | 45 | 50;
   let spfBand: 'good' | 'ok' | 'poor';
+  let lowHeatLossAdjusted = false;
 
   switch (appetite) {
     case 'full_job':
@@ -123,8 +147,21 @@ export function runHeatPumpRegimeModuleV1(input: EngineInputV2_3): HeatPumpRegim
       break;
     case 'none':
     default:
-      designFlowTempBand = 50;
-      spfBand = 'poor';
+      if (input.heatLossWatts != null && input.heatLossWatts <= LOW_HEAT_LOSS_W) {
+        // Very low heat loss — existing radiators are almost certainly oversized
+        // relative to actual demand.  At this heat-loss level the emitters can
+        // achieve the required output at 45 °C flow rather than the 50 °C assumed
+        // for an unknown emitter state on a standard-loss home.  Using 50 °C would
+        // over-penalise the ASHP candidate for a property where it is genuinely
+        // well suited.  The flow-temp assumption is adjusted; emitter confirmation
+        // is still recommended before installation.
+        designFlowTempBand = 45;
+        spfBand = 'ok';
+        lowHeatLossAdjusted = true;
+      } else {
+        designFlowTempBand = 50;
+        spfBand = 'poor';
+      }
       break;
   }
 
@@ -167,6 +204,19 @@ export function runHeatPumpRegimeModuleV1(input: EngineInputV2_3): HeatPumpRegim
         'enables 35°C design flow, which is the optimal operating point for an ASHP.',
     });
   } else if (designFlowTempBand === 45) {
+    if (lowHeatLossAdjusted) {
+      flags.push({
+        id: 'regime-low-heat-loss-emitter-oversize',
+        severity: 'info',
+        title: 'Low heat loss — emitters likely oversized',
+        detail:
+          `Peak heat loss is ${input.heatLossWatts} W, well below the UK average. ` +
+          'At this demand level, existing radiators are very likely oversized relative to ' +
+          'actual output requirements and can typically achieve the required heat delivery ' +
+          'at 45 °C flow rather than the default 50 °C assumed for unknown emitter states. ' +
+          'Emitter confirmation is recommended before installation.',
+      });
+    }
     flags.push({
       id: 'regime-cop-penalty',
       severity: 'info',

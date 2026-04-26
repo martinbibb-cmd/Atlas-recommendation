@@ -517,3 +517,106 @@ describe('Scenario 5: Combi-only viable (no cylinder space)', () => {
     expect(combiScore - systemScore).toBeGreaterThan(10);
   });
 });
+
+// ─── Scenario 6: Very low heat loss — ASHP front-runner ──────────────────────
+//
+// A well-insulated property with 1.8 kW peak heat loss, existing stored-water
+// architecture (S-plan), and cylinder space.  With emitter upgrade appetite
+// unset, the engine previously assumed 50 °C flow and 'poor' SPF, heavily
+// penalising ASHP on eco and performance.
+//
+// Fix (HeatPumpRegimeModule): when appetite is 'none' AND heat loss ≤ 3000 W,
+// assume emitters are oversized and use 45 °C / 'ok' SPF instead.  This
+// suppresses emitter_temperature_constraint and hp_high_flow_temp_penalty,
+// making ASHP a genuine front-runner on eco rather than a gloomy fallback.
+
+const VERY_LOW_HEAT_LOSS_HOME: EngineInputV2_3 = {
+  postcode: 'SW1A 1AA',
+  dynamicMainsPressure: 2.0,   // 2 bar dynamic — strong supply
+  buildingMass: 'medium',
+  primaryPipeDiameter: 22,
+  heatLossWatts: 1800,         // 1.8 kW — very low heat loss
+  radiatorCount: 8,
+  hasLoftConversion: false,
+  returnWaterTemp: 45,
+  bathroomCount: 1,
+  occupancySignature: 'professional',
+  occupancyCount: 2,
+  highOccupancy: false,
+  preferCombi: false,
+  mainsDynamicFlowLpm: 18,
+  dhwStorageLitres: 150,       // existing cylinder
+  availableSpace: 'adequate',  // cylinder space confirmed
+};
+
+describe('Scenario 6: Very low heat loss — ASHP front-runner', () => {
+  it('heat pump wins eco objective when heat loss is very low (1.8 kW)', () => {
+    const system = systemBundle(VERY_LOW_HEAT_LOSS_HOME);
+    const hp     = hpBundle(VERY_LOW_HEAT_LOSS_HOME);
+
+    const result = buildRecommendationsFromEvidence([system, hp]);
+    expect(result.bestByObjective.eco?.family).toBe('heat_pump');
+  });
+
+  it('heat pump eco score is substantially higher than system boiler eco score', () => {
+    const system = systemBundle(VERY_LOW_HEAT_LOSS_HOME);
+    const hp     = hpBundle(VERY_LOW_HEAT_LOSS_HOME);
+
+    const result = buildRecommendationsFromEvidence([system, hp]);
+
+    const hpEco     = result.allDecisions.find(d => d.family === 'heat_pump')?.objectiveScores.eco ?? 0;
+    const systemEco = result.allDecisions.find(d => d.family === 'system')?.objectiveScores.eco ?? 0;
+
+    // ASHP eco baseline is 90; at low heat loss no emitter or flow-temp penalties apply.
+    // System eco baseline is 65.  The gap should be substantial.
+    expect(hpEco).toBeGreaterThan(systemEco);
+    expect(hpEco - systemEco).toBeGreaterThan(10);
+  });
+
+  it('heat pump is NOT marked not_recommended (suitable or suitable_with_caveats)', () => {
+    const hp = hpBundle(VERY_LOW_HEAT_LOSS_HOME);
+
+    const result = buildRecommendationsFromEvidence([hp]);
+
+    const hpDecision = result.bestOverall ?? result.allDecisions[0];
+    expect(hpDecision?.suitability).not.toBe('not_recommended');
+  });
+
+  it('heat pump candidate does NOT have emitter_temperature_constraint limiter', () => {
+    const hp = hpBundle(VERY_LOW_HEAT_LOSS_HOME);
+
+    const result = buildRecommendationsFromEvidence([hp]);
+
+    const hpDecision = result.bestOverall ?? result.allDecisions[0];
+    expect(
+      hpDecision?.evidenceTrace.limitersConsidered.includes('emitter_temperature_constraint'),
+    ).toBe(false);
+  });
+
+  it('heat pump candidate does NOT have hp_high_flow_temp_penalty limiter', () => {
+    const hp = hpBundle(VERY_LOW_HEAT_LOSS_HOME);
+
+    const result = buildRecommendationsFromEvidence([hp]);
+
+    const hpDecision = result.bestOverall ?? result.allDecisions[0];
+    expect(
+      hpDecision?.evidenceTrace.limitersConsidered.includes('hp_high_flow_temp_penalty'),
+    ).toBe(false);
+  });
+
+  it('overall score gap between system and heat pump is small (≤ 15 points)', () => {
+    const system = systemBundle(VERY_LOW_HEAT_LOSS_HOME);
+    const hp     = hpBundle(VERY_LOW_HEAT_LOSS_HOME);
+
+    const result = buildRecommendationsFromEvidence([system, hp]);
+
+    const systemScore = result.allDecisions.find(d => d.family === 'system')?.overallScore ?? 0;
+    const hpScore     = result.allDecisions.find(d => d.family === 'heat_pump')?.overallScore ?? 0;
+
+    // ASHP competes closely with system boiler on overall score despite disruption/space
+    // baselines — the elimination of eco/performance penalties from the 45°C correction
+    // brings it into genuine contention.
+    const gap = Math.abs(systemScore - hpScore);
+    expect(gap).toBeLessThanOrEqual(15);
+  });
+});
