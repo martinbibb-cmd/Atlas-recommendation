@@ -15,7 +15,7 @@
  *  - Portal URL placeholder renders when portalUrl is absent
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { CustomerAdvicePrintPack } from '../CustomerAdvicePrintPack';
 import type { CustomerAdvicePrintPackProps } from '../CustomerAdvicePrintPack';
@@ -23,6 +23,7 @@ import type { AtlasDecisionV1 } from '../../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 import type { VisualBlock, WarningBlock, IncludedScopeBlock } from '../../../contracts/VisualBlock';
 import type { QuoteScopeItem } from '../../../contracts/QuoteScope';
+import type { CustomerSummaryV1 } from '../../../contracts/CustomerSummaryV1';
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -678,5 +679,224 @@ describe('CustomerAdvicePrintPack — compact AI handoff (printFullAiHandoff=fal
     render(<CustomerAdvicePrintPack {...makeProps({ printFullAiHandoff: true })} />);
     const text = screen.getByTestId('capp-ai-handoff-text');
     expect(text.textContent).toContain('Atlas has helped me understand your home');
+  });
+});
+
+// ─── CustomerSummaryV1 trust boundary ─────────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — CustomerSummaryV1 trust boundary', () => {
+
+  // ── Fixtures ──────────────────────────────────────────────────────────────
+
+  function makeAshpDecision(): AtlasDecisionV1 {
+    return {
+      recommendedScenarioId: 'ashp',
+      headline: 'An air source heat pump is the right fit for this home.',
+      summary:  'Air source heat pump with low-temperature radiators.',
+      keyReasons: ['Low heat loss at modern fabric standard', 'Compatible flow temperature'],
+      avoidedRisks: ['Gas dependency', 'Inefficient combi operation at low load'],
+      dayToDayOutcomes: ['Steady background warmth', 'Silent outdoor unit operation'],
+      requiredWorks: ['Radiator upsizing', 'Low-loss header installation'],
+      compatibilityWarnings: [],
+      includedItems: ['Air source heat pump', 'Cylinder'],
+      quoteScope: [],
+      futureUpgradePaths: ['Solar PV ready'],
+      supportingFacts: [
+        { label: 'Occupants', value: 2, source: 'survey' },
+        { label: 'Bathrooms', value: 1, source: 'survey' },
+      ],
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 14, condition: 'worn' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 13] },
+        influencingFactors: {
+          waterQuality: 'good', scaleRisk: 'low',
+          usageIntensity: 'low', maintenanceLevel: 'average',
+        },
+        riskIndicators: [],
+        summary: 'The system is approaching end of lifespan.',
+      },
+    };
+  }
+
+  function makeAshpScenario(): ScenarioResult {
+    return {
+      scenarioId: 'ashp',
+      system: { type: 'ashp', summary: 'Air source heat pump' },
+      performance: { hotWater: 'good', heating: 'very_good', efficiency: 'excellent', reliability: 'very_good' },
+      keyBenefits: ['High efficiency', 'Low running cost'],
+      keyConstraints: [],
+      dayToDayOutcomes: ['Steady warmth'],
+      requiredWorks: ['Radiator upsizing'],
+      upgradePaths: ['Solar PV ready'],
+      physicsFlags: {},
+    };
+  }
+
+  function makeCombiScenario(): ScenarioResult {
+    return {
+      scenarioId: 'combi',
+      system: { type: 'combi', summary: 'Combi boiler replacement' },
+      performance: { hotWater: 'adequate', heating: 'good', efficiency: 'good', reliability: 'good' },
+      keyBenefits: ['Simple installation'],
+      keyConstraints: ["Not suitable for this home's heat loss profile"],
+      dayToDayOutcomes: ['Instant hot water'],
+      requiredWorks: [],
+      upgradePaths: [],
+      physicsFlags: {},
+    };
+  }
+
+  function makeAshpBlocks(): VisualBlock[] {
+    return [
+      {
+        id: 'hero', type: 'hero',
+        recommendedScenarioId: 'ashp',
+        title: 'Recommended system',
+        outcome: 'An air source heat pump is the right fit.',
+        supportingPoints: ['Low heat loss home', 'Compatible flow temperature'],
+        visualKey: 'recommended_system_hero',
+      },
+      {
+        id: 'portal-cta', type: 'portal_cta',
+        title: 'Open your portal',
+        outcome: 'Explore the interactive model.',
+        supportingPoints: [],
+        visualKey: 'portal_demo_cta',
+        launchContext: { recommendedScenarioId: 'ashp' },
+      },
+    ];
+  }
+
+  // ── Tests ──────────────────────────────────────────────────────────────────
+
+  it('builds CustomerSummaryV1 internally when no lockedSummary prop is passed', () => {
+    // When no lockedSummary is supplied, the component derives it from decision + scenarios.
+    // We verify this by checking that AI handoff text contains the system label from
+    // buildCustomerSummary (which maps scenario system type to a human label).
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeAshpDecision()}
+        scenarios={[makeAshpScenario()]}
+        visualBlocks={makeAshpBlocks()}
+        printFullAiHandoff
+      />
+    );
+    const handoff = screen.getByTestId('capp-ai-handoff-text');
+    expect(handoff.textContent).toContain('Air source heat pump');
+  });
+
+  it('renders the selected ASHP summary when ASHP is selected and combi is rejected', () => {
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeAshpDecision()}
+        scenarios={[makeAshpScenario(), makeCombiScenario()]}
+        visualBlocks={makeAshpBlocks()}
+        printFullAiHandoff
+      />
+    );
+    const handoff = screen.getByTestId('capp-ai-handoff-text');
+    expect(handoff.textContent).toContain('Air source heat pump');
+    expect(handoff.textContent).toContain('An air source heat pump is the right fit for this home.');
+  });
+
+  it('does not render rejected combi as advice in the AI handoff', () => {
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeAshpDecision()}
+        scenarios={[makeAshpScenario(), makeCombiScenario()]}
+        visualBlocks={makeAshpBlocks()}
+        printFullAiHandoff
+      />
+    );
+    const handoff = screen.getByTestId('capp-ai-handoff-text');
+    // Combi should not appear as a recommendation or scope item
+    // (it may appear in whatThisAvoids but not as "Recommended:")
+    const text = handoff.textContent ?? '';
+    const recommendedLine = text.split('\n').find((l) => l.startsWith('Recommended:'));
+    expect(recommendedLine).not.toContain('combi');
+    expect(recommendedLine).not.toContain('Combi');
+  });
+
+  it('AI handoff text is generated from CustomerSummaryV1 when lockedSummary is passed', () => {
+    const lockedSummary: CustomerSummaryV1 = {
+      recommendedScenarioId: 'ashp',
+      recommendedSystemLabel: 'Air source heat pump',
+      headline: 'Locked summary headline for ASHP.',
+      plainEnglishDecision: 'This is the locked plain English decision.',
+      whyThisWins: ['Physics reason A'],
+      whatThisAvoids: ['Combi risk'],
+      includedNow: ['Heat pump unit'],
+      requiredChecks: ['Radiator survey'],
+      optionalUpgrades: ['Smart controls'],
+      futureReady: ['Solar PV pathway'],
+      confidenceNotes: [],
+    };
+
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeAshpDecision()}
+        scenarios={[makeAshpScenario()]}
+        visualBlocks={makeAshpBlocks()}
+        lockedSummary={lockedSummary}
+        printFullAiHandoff
+      />
+    );
+    const handoff = screen.getByTestId('capp-ai-handoff-text');
+    expect(handoff.textContent).toContain('Locked summary headline for ASHP.');
+    expect(handoff.textContent).toContain('This is the locked plain English decision.');
+    expect(handoff.textContent).toContain('Physics reason A');
+    expect(handoff.textContent).toContain('Heat pump unit');
+    expect(handoff.textContent).toContain('Radiator survey');
+    expect(handoff.textContent).toContain('Smart controls');
+    expect(handoff.textContent).toContain('Solar PV pathway');
+  });
+
+  it('lockedSummary overrides internally built CustomerSummaryV1', () => {
+    // Decision headline is 'An air source heat pump is the right fit for this home.'
+    // but lockedSummary has a different headline — lockedSummary must win.
+    const lockedSummary: CustomerSummaryV1 = {
+      recommendedScenarioId: 'ashp',
+      recommendedSystemLabel: 'Air source heat pump',
+      headline: 'OVERRIDE: this headline must appear, not the decision headline.',
+      plainEnglishDecision: '',
+      whyThisWins: [],
+      whatThisAvoids: [],
+      includedNow: [],
+      requiredChecks: [],
+      optionalUpgrades: [],
+      futureReady: [],
+      confidenceNotes: [],
+    };
+
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeAshpDecision()}
+        scenarios={[makeAshpScenario()]}
+        visualBlocks={makeAshpBlocks()}
+        lockedSummary={lockedSummary}
+        printFullAiHandoff
+      />
+    );
+    const handoff = screen.getByTestId('capp-ai-handoff-text');
+    expect(handoff.textContent).toContain('OVERRIDE: this headline must appear');
+    expect(handoff.textContent).not.toContain('An air source heat pump is the right fit for this home.');
+  });
+
+  it('buildAiHandoffText(decision, scenarios) is not called by CustomerAdvicePrintPack', async () => {
+    // Spy on the module to confirm buildAiHandoffText is never invoked.
+    const mod = await import('../../../engine/modules/buildAiHandoffPayload');
+    const spy = vi.spyOn(mod, 'buildAiHandoffText');
+
+    render(
+      <CustomerAdvicePrintPack
+        decision={makeAshpDecision()}
+        scenarios={[makeAshpScenario()]}
+        visualBlocks={makeAshpBlocks()}
+        printFullAiHandoff
+      />
+    );
+
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 });
