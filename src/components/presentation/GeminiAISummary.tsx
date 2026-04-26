@@ -43,7 +43,8 @@ interface GeminiApiResponse {
  * Build the locked rewrite prompt from CustomerSummaryV1.
  *
  * The prompt instructs the AI to rewrite only — no new facts, no alternative
- * recommendations, no changes to scope or warnings.
+ * recommendations, no changes to scope or warnings, and absolutely no softening
+ * of physics constraints.
  */
 function buildLockedPrompt(lockedSummary: CustomerSummaryV1): string {
   const lines: string[] = [
@@ -52,16 +53,34 @@ function buildLockedPrompt(lockedSummary: CustomerSummaryV1): string {
     'Keep all warnings and required checks. Do not invent technical measurements.',
     'Write 3–5 sentences maximum.',
     '',
+    'HARD RULES (non-negotiable):',
+    '1. Do NOT soften, hedge, or qualify any hard constraint. If the locked summary',
+    '   states a system will fail or cannot work, say exactly that — never reframe',
+    '   "will fail" as "may struggle", "could be less suitable", or "might have issues".',
+    '2. Do NOT compare systems or suggest alternatives not already present.',
+    '3. Do NOT rebalance or reinterpret the recommendation — only translate it.',
+    '4. Do NOT introduce any new claims, facts, or measurements.',
+    '',
     '=== LOCKED ATLAS SUMMARY ===',
     '',
     `Recommended system: ${lockedSummary.recommendedSystemLabel}`,
     `Headline: ${lockedSummary.headline}`,
-    `Decision: ${lockedSummary.plainEnglishDecision}`,
+    `Decision: ${lockedSummary.fitNarrative || lockedSummary.plainEnglishDecision}`,
   ];
 
   if (lockedSummary.whyThisWins.length > 0) {
     lines.push('', 'Why this wins:');
     lockedSummary.whyThisWins.forEach((r) => lines.push(`- ${r}`));
+  }
+
+  if (lockedSummary.hardConstraints.length > 0) {
+    lines.push('', 'Hard constraints (physics failures — preserve these exactly, do not soften):');
+    lockedSummary.hardConstraints.forEach((c) => lines.push(`- ${c}`));
+  }
+
+  if (lockedSummary.performancePenalties.length > 0) {
+    lines.push('', 'Performance penalties (present these directly, do not hedge):');
+    lockedSummary.performancePenalties.forEach((p) => lines.push(`- ${p}`));
   }
 
   if (lockedSummary.whatThisAvoids.length > 0) {

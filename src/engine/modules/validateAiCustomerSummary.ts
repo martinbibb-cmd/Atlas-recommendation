@@ -157,8 +157,11 @@ export function validateAiCustomerSummary(
   const lockedText = [
     lockedSummary.headline,
     lockedSummary.plainEnglishDecision,
+    lockedSummary.fitNarrative,
     ...lockedSummary.whyThisWins,
     ...lockedSummary.whatThisAvoids,
+    ...lockedSummary.hardConstraints,
+    ...lockedSummary.performancePenalties,
     ...lockedSummary.includedNow,
     ...lockedSummary.requiredChecks,
     ...lockedSummary.optionalUpgrades,
@@ -180,6 +183,46 @@ export function validateAiCustomerSummary(
         reasons.push(
           `AI text contains invented technical measurement matching "${pattern.source}"`,
         );
+      }
+    }
+  }
+
+  // ── Gate 5: hard constraints must not be softened ─────────────────────────
+  // For each hard constraint, extract the first significant noun phrase and
+  // check whether hedging language appears in the same sentence as that phrase.
+  // This avoids false positives from hedging in unrelated sections (e.g.
+  // discussing optional upgrades or future pathways).
+  const SOFTENING_PATTERNS = [
+    /\bmay\s+(struggle|have\s+issues|be\s+less\s+(?:suitable|efficient|effective))\b/i,
+    /\bcould\s+be\s+(?:less\s+)?(?:suited|suitable|problematic)\b/i,
+    /\bmight\s+(?:struggle|not\s+work\s+as\s+well)\b/i,
+    /\bin\s+some\s+cases\b/i,
+    /\bunder\s+certain\s+conditions\b/i,
+  ];
+
+  if (lockedSummary.hardConstraints.length > 0) {
+    // Build a set of short key phrases from each hard constraint (first 3 words).
+    const constraintPhrases = lockedSummary.hardConstraints.map((c) =>
+      c.toLowerCase().split(/\s+/).slice(0, 3).join(' '),
+    );
+
+    // Split the AI text into sentences and check each sentence.
+    const aiSentences = text.split(/[.!?\n]+/);
+    for (const sentence of aiSentences) {
+      const lowerSentence = sentence.toLowerCase();
+      // Only check sentences that contain a word from at least one constraint phrase.
+      const relatedToConstraint = constraintPhrases.some((phrase) =>
+        phrase.split(' ').some((word) => word.length > 3 && lowerSentence.includes(word)),
+      );
+      if (!relatedToConstraint) continue;
+
+      for (const pattern of SOFTENING_PATTERNS) {
+        if (pattern.test(sentence)) {
+          reasons.push(
+            `AI text appears to soften a hard constraint using hedging language matching "${pattern.source}" in sentence: "${sentence.trim()}"`,
+          );
+          break; // one violation per sentence is enough
+        }
       }
     }
   }

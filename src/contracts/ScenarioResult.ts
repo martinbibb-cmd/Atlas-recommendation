@@ -76,4 +76,16 @@ export interface ScenarioResult {
 
   /** Physics constraint flags — used for visual callouts and engineer notes. */
   physicsFlags: ScenarioPhysicsFlags;
+
+  /**
+   * Hard physics failures that disqualify this scenario (fail-severity engine flags).
+   * Populated from the option card's fail-status planes and rejection reasons.
+   */
+  hardConstraints?: string[];
+
+  /**
+   * Warn-level performance degradation notes for this scenario.
+   * Examples: short-draw efficiency collapse, reduced flow at low pressure.
+   */
+  performancePenalties?: string[];
 }

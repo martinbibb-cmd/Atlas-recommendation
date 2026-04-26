@@ -343,6 +343,49 @@ describe('buildCustomerSummary', () => {
 
     expect(summary.plainEnglishDecision).toBe('The heat pump is the authoritative summary.');
   });
+
+  it('fitNarrative equals decision.summary', () => {
+    const scenarios = [makeScenario('ashp', 'ashp')];
+    const decision = makeDecision('ashp', {
+      summary: 'Single canonical narrative from engine.',
+    });
+
+    const summary = buildCustomerSummary(decision, scenarios);
+
+    expect(summary.fitNarrative).toBe('Single canonical narrative from engine.');
+  });
+
+  it('hardConstraints populated from decision.hardConstraints', () => {
+    const scenarios = [makeScenario('ashp', 'ashp')];
+    const decision = makeDecision('ashp', {
+      hardConstraints: ['Combi: mains pressure too low — burner cannot fire'],
+    });
+
+    const summary = buildCustomerSummary(decision, scenarios);
+
+    expect(summary.hardConstraints).toEqual(['Combi: mains pressure too low — burner cannot fire']);
+  });
+
+  it('performancePenalties populated from decision.performancePenalties', () => {
+    const scenarios = [makeScenario('ashp', 'ashp')];
+    const decision = makeDecision('ashp', {
+      performancePenalties: ['Short draws collapse combi efficiency to ~28%'],
+    });
+
+    const summary = buildCustomerSummary(decision, scenarios);
+
+    expect(summary.performancePenalties).toEqual(['Short draws collapse combi efficiency to ~28%']);
+  });
+
+  it('hardConstraints and performancePenalties default to empty arrays when absent from decision', () => {
+    const scenarios = [makeScenario('ashp', 'ashp')];
+    const decision = makeDecision('ashp');
+
+    const summary = buildCustomerSummary(decision, scenarios);
+
+    expect(summary.hardConstraints).toEqual([]);
+    expect(summary.performancePenalties).toEqual([]);
+  });
 });
 
 // ─── validateAiCustomerSummary ────────────────────────────────────────────────
@@ -354,8 +397,11 @@ describe('validateAiCustomerSummary', () => {
       recommendedSystemLabel: 'Air source heat pump',
       headline: 'An air source heat pump is the right fit for this home.',
       plainEnglishDecision: 'The heat pump provides low-carbon heating at reduced cost.',
+      fitNarrative: 'The heat pump provides low-carbon heating at reduced cost.',
       whyThisWins: ['Low carbon', 'Efficient'],
       whatThisAvoids: ['Avoided gas dependency'],
+      hardConstraints: [],
+      performancePenalties: [],
       includedNow: ['Air source heat pump', 'Pipework upgrade'],
       requiredChecks: ['Hydraulic assessment required'],
       optionalUpgrades: ['Smart controls'],

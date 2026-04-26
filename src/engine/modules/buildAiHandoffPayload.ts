@@ -43,6 +43,10 @@ export const VALIDATION_POLICY = [
   'Flag anything that requires site verification.',
   'Do not provide financial, legal, or regulatory certainty unless supported by an official source.',
   'If sources conflict, say so.',
+  'HARD RULE: Do NOT soften, hedge, or qualify any hard constraint. If the Atlas payload states a system will fail, say it will fail — never reframe "will fail" as "may struggle" or "could be less suitable".',
+  'HARD RULE: Do NOT compare systems or suggest alternatives beyond what the Atlas payload contains.',
+  'HARD RULE: Do NOT rebalance or reinterpret the recommendation — translate only.',
+  'HARD RULE: Do NOT introduce new claims, facts, or measurements not present in this payload.',
 ].join('\n');
 
 export const TRUSTED_SOURCE_CATEGORIES: string[] = [
@@ -108,6 +112,8 @@ export function buildAiHandoffPayload(
       .slice(0, 5),
     warnings:        decision.compatibilityWarnings.slice(0, 3),
     futureUpgrades:  decision.futureUpgradePaths.slice(0, 4),
+    hardConstraints:      (decision.hardConstraints ?? []).slice(0, 5),
+    performancePenalties: (decision.performancePenalties ?? []).slice(0, 5),
   };
 }
 
@@ -151,8 +157,20 @@ export function serialiseAiHandoffPayload(payload: AiHandoffPayload): string {
     lines.push('');
   }
 
+  if (payload.hardConstraints.length > 0) {
+    lines.push('Hard constraints (physics failures — do NOT soften these):');
+    payload.hardConstraints.forEach((c) => lines.push(`• ${c}`));
+    lines.push('');
+  }
+
+  if (payload.performancePenalties.length > 0) {
+    lines.push('Performance penalties (present these directly):');
+    payload.performancePenalties.forEach((p) => lines.push(`• ${p}`));
+    lines.push('');
+  }
+
   if (payload.optionsConsidered.length > 0) {
-    lines.push('Options considered:');
+    lines.push('Options considered (why each was not selected):');
     payload.optionsConsidered.forEach((a) => lines.push(`• ${a.summary} — ${a.constraint}`));
     lines.push('');
   }
@@ -251,7 +269,11 @@ export function buildLockedAiHandoffText(summary: CustomerSummaryV1): string {
     '',
   ];
 
-  if (summary.plainEnglishDecision) {
+  if (summary.fitNarrative) {
+    lines.push(summary.fitNarrative);
+    lines.push('');
+  } else if (summary.plainEnglishDecision) {
+    // Fallback for summaries built before fitNarrative was added.
     lines.push(summary.plainEnglishDecision);
     lines.push('');
   }
@@ -259,6 +281,20 @@ export function buildLockedAiHandoffText(summary: CustomerSummaryV1): string {
   if (summary.whyThisWins.length > 0) {
     lines.push('Why selected:');
     summary.whyThisWins.forEach((r) => lines.push(`• ${r}`));
+    lines.push('');
+  }
+
+  const hardConstraints = summary.hardConstraints ?? [];
+  if (hardConstraints.length > 0) {
+    lines.push('Hard constraints (physics failures — do NOT soften these):');
+    hardConstraints.forEach((c) => lines.push(`• ${c}`));
+    lines.push('');
+  }
+
+  const performancePenalties = summary.performancePenalties ?? [];
+  if (performancePenalties.length > 0) {
+    lines.push('Performance penalties (present these directly):');
+    performancePenalties.forEach((p) => lines.push(`• ${p}`));
     lines.push('');
   }
 
