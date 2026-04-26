@@ -254,8 +254,8 @@ function formatPlainText(data: AccessibleTechnicalSummaryJson): string {
   if (facts.currentSystem) {
     const cs = facts.currentSystem;
     const age = cs.ageYears !== undefined ? `, ${cs.ageYears} years old` : '';
-    const cond = cs.condensing && cs.condensing !== 'unknown' ? `, ${cs.condensing} condensing` : '';
-    lines.push(`Current system: ${cs.type}${age}${cond}`);
+    const condensingText = cs.condensing && cs.condensing !== 'unknown' ? `, ${cs.condensing} condensing` : '';
+    lines.push(`Current system: ${cs.type}${age}${condensingText}`);
   }
   lines.push('');
 
