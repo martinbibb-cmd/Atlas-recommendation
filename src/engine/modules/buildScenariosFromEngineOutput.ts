@@ -85,9 +85,15 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
     hardConstraints.push(...option.heat.bullets.slice(0, 3));
   }
   // For rejected options, add why[] reasons not already captured above.
+  // Deduplication here avoids duplicate strings going into the Set in
+  // buildDecisionFromScenarios and inflating the constraint list.
   if (option.status === 'rejected') {
+    const seen = new Set(hardConstraints);
     for (const w of option.why.slice(0, 4)) {
-      if (!hardConstraints.includes(w)) hardConstraints.push(w);
+      if (!seen.has(w)) {
+        hardConstraints.push(w);
+        seen.add(w);
+      }
     }
   }
 

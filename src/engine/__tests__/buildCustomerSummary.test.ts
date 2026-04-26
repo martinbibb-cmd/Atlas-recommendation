@@ -391,7 +391,7 @@ describe('buildCustomerSummary', () => {
 // ─── validateAiCustomerSummary ────────────────────────────────────────────────
 
 describe('validateAiCustomerSummary', () => {
-function makeLockedSummary() {
+  function makeLockedSummary() {
     return {
       recommendedScenarioId: 'ashp',
       recommendedSystemLabel: 'Air source heat pump',
