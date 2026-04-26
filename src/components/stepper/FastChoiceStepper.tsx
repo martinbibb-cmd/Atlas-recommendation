@@ -356,10 +356,16 @@ function ResultsCockpit({
 }) {
   const options = result.engineOutput.options ?? [];
   const selected = options.find(option => option.id === selectedOptionId) ?? options[0];
-  const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(undefined);
-  const [expertOpen, setExpertOpen] = useState(false);
 
+  // Derive the plan before initialising selectedPathwayId so we can default
+  // to the engine's rank-1 pathway instead of leaving it undefined.
+  // This ensures the CustomerSummaryPanel shows real engine output on first render
+  // rather than the empty "Select a pathway above" placeholder.
   const plan = result.engineOutput.plans;
+  const [selectedPathwayId, setSelectedPathwayId] = useState<string | undefined>(
+    plan?.pathways.find(p => p.rank === 1)?.id,
+  );
+  const [expertOpen, setExpertOpen] = useState(false);
   const selectedPathway = plan?.pathways.find(p => p.id === selectedPathwayId);
 
   return (
