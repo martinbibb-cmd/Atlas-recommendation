@@ -647,6 +647,14 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
 
     // Minimum volume for the current cylinder type (using current cylinder's usable fraction).
     // This is the adequate threshold for judging whether the existing cylinder is sufficient.
+    //
+    // Adequacy is assessed against the raw physics minimum (currentMinRawL), NOT the
+    // nearest purchasable standard size.  The standard-size rounding is only for recommending
+    // what to buy when replacing — it is not appropriate for evaluating an existing cylinder.
+    //
+    // Example: for 1 occupant, 1 bathroom the physics minimum is ~44 L.  A 98 L cylinder
+    // clearly satisfies this even though roundUpToStandardSize(44) = 120 L.  Without this
+    // distinction, any sub-120 L cylinder would be incorrectly flagged as undersized.
     const currentMinRawL = computeMinimumCylinderVolumeL({
       occupancyCount,
       bathroomCount,
@@ -656,11 +664,14 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
       usableFraction,
       drawSeverity,
     });
-    const currentMinVolumeL = roundUpToStandardSize(currentMinRawL);
+    // Physics minimum rounded up to the nearest whole litre (for display only — adequacy
+    // comparison uses the unrounded value so a 98 L cylinder is not penalised against a
+    // 120 L purchase threshold intended for new-install sizing recommendations).
+    const currentMinPhysicsL = Math.ceil(currentMinRawL);
 
     const sizeAdequacy: CylinderCurrentPerformance['sizeAdequacy'] =
-      currentVolumeL >= currentMinVolumeL ? 'adequate'  :
-      currentVolumeL >= currentMinVolumeL * 0.85 ? 'marginal' :
+      currentVolumeL >= currentMinRawL ? 'adequate'  :
+      currentVolumeL >= currentMinRawL * 0.85 ? 'marginal' :
       'undersized';
 
     currentPerformance = {
@@ -673,7 +684,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
       standingLossKwhPer24h: Math.round(standingLossKwh * 100) / 100,
       ambientTempC,
       sizeAdequacy,
-      minimumAdequateVolumeL: currentMinVolumeL,
+      minimumAdequateVolumeL: currentMinPhysicsL,
     };
 
     // ── Flag: undersized ────────────────────────────────────────────────────
@@ -684,9 +695,9 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
         title: 'Cylinder undersized for household demand',
         detail:
           `Current cylinder (${currentVolumeL} L nominal) is below the estimated ` +
-          `minimum ${currentMinVolumeL} L required for ${occupancyCount} occupant(s) and ` +
+          `physics minimum ${currentMinPhysicsL} L required for ${occupancyCount} occupant(s) and ` +
           `${bathroomCount} bathroom(s). This is likely causing back-to-back hot-water ` +
-          `shortfalls. Upgrade to at least ${currentMinVolumeL} L (recommended: ${targetVolumeL} L).`,
+          `shortfalls. Upgrade to at least ${currentMinPhysicsL} L (recommended: ${targetVolumeL} L).`,
       });
     } else if (sizeAdequacy === 'marginal') {
       flags.push({
@@ -695,7 +706,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
         title: 'Cylinder is marginally sized for demand',
         detail:
           `Current cylinder (${currentVolumeL} L) is slightly below the estimated ` +
-          `minimum ${currentMinVolumeL} L. Hot-water shortfalls may occur during back-to-back ` +
+          `physics minimum ${currentMinPhysicsL} L. Hot-water shortfalls may occur during back-to-back ` +
           `draws or high-demand periods. Consider upgrading to ${targetVolumeL} L.`,
       });
     } else {
@@ -705,7 +716,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
         title: 'Current cylinder volume is adequate',
         detail:
           `Current cylinder (${currentVolumeL} L nominal) meets the estimated ` +
-          `minimum ${currentMinVolumeL} L for this household. Replacement may not be ` +
+          `physics minimum ${currentMinPhysicsL} L for this household. Replacement may not be ` +
           `required on size grounds alone.`,
       });
     }

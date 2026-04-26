@@ -133,7 +133,11 @@ export interface ExpertAssumptionsV1 {
  * removed from the output so it never appears in the presentation layer.
  *
  * Currently enforced:
- *   - `allowUFH`      — controls the `add_underfloor_heating` intervention.
+ *   - `allowUFH`          — controls the `add_underfloor_heating` intervention.
+ *   - `quotedBoilerFamily` — when set, the recommendation ranking applies a score
+ *                            bonus to the quoted family so that the recommendation
+ *                            aligns with the installer's quote unless physics clearly
+ *                            contradicts it.
  *
  * Not yet enforced (reserved for future use):
  *   - `allowHeatPump` — would filter heat-pump-specific interventions.
@@ -155,6 +159,26 @@ export interface ProductConstraints {
    * Not yet enforced in the intervention filter.
    */
   allowCylinder?: boolean;
+  /**
+   * The appliance family that has been quoted to the customer.
+   *
+   * When set, the recommendation engine applies a score bonus to this family
+   * so that the bestOverall recommendation aligns with the quote — unless the
+   * physics evidence strongly contradicts it (e.g. a combi quote when there is
+   * confirmed multi-outlet simultaneous demand and multiple bathrooms).
+   *
+   * This prevents the recommendation engine from suggesting a different system
+   * type (e.g. system boiler) when the installer has only quoted for one type
+   * (e.g. combi).  The score boost is advisory — it does not suppress
+   * evidence-based caveats or override safety-critical physical constraints.
+   *
+   * Supported values:
+   *   'combi'   — on-demand (combi) boiler only; no cylinder required.
+   *   'system'  — system boiler with hot water cylinder.
+   *   'regular' — regular (heat-only) boiler with open-vented cylinder.
+   *   'heat_pump' — air source heat pump with cylinder.
+   */
+  quotedBoilerFamily?: 'combi' | 'system' | 'regular' | 'heat_pump';
 }
 
 /**

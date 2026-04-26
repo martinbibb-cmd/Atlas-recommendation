@@ -864,6 +864,18 @@ function buildWhyNotExplanations(
   return explanations;
 }
 
+/**
+ * Score bonus applied to the quoted boiler family when `constraints.quotedBoilerFamily` is set.
+ *
+ * The bonus nudges the recommendation toward the quoted option when scores are close —
+ * for example, when a combi-only quote should be recommended over a system boiler
+ * that would require a separate, more expensive installation.
+ *
+ * The bonus (20 points) is intentionally smaller than a typical 'limit'-severity limiter
+ * penalty (~38 points) so that strong physics evidence still overrides the quote preference.
+ */
+const QUOTED_FAMILY_SCORE_BONUS = 20;
+
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 /**
@@ -878,7 +890,9 @@ function buildWhyNotExplanations(
  *                     Must be non-empty; order does not affect output.
  * @param constraints  Optional product constraints — controls which intervention
  *                     types (e.g. UFH, heat pump) are eligible for inclusion.
- *                     When absent, UFH is excluded by default.
+ *                     When `constraints.quotedBoilerFamily` is set, a score bonus
+ *                     is applied to the quoted family to align the recommendation
+ *                     with the installer's quote.
  * @param context      Optional context signals — demographics, PV opportunity, and
  *                     user preferences.  When `context.userPreferences` is present,
  *                     objective weights are derived from the household's stated
@@ -898,8 +912,23 @@ export function buildRecommendationsFromEvidence(
   const weights = deriveObjectiveWeights(context?.userPreferences);
 
   // Score every candidate using the scenario weights
-  const allDecisions: RecommendationDecision[] = bundles
-    .map(bundle => scoreCandidate(bundle, context, weights))
+  const scoredDecisions: RecommendationDecision[] = bundles
+    .map(bundle => scoreCandidate(bundle, context, weights));
+
+  // Apply quoted-family score bonus when the installer has quoted a specific system type.
+  // This nudges the recommendation toward the quoted option when physics scores are close,
+  // without overriding strong evidence-based constraints (bonus < typical limiter penalty).
+  const quotedFamily = constraints?.quotedBoilerFamily;
+  const allDecisions: RecommendationDecision[] = scoredDecisions
+    .map(decision => {
+      if (quotedFamily != null && decision.family === quotedFamily) {
+        return {
+          ...decision,
+          overallScore: Math.min(100, decision.overallScore + QUOTED_FAMILY_SCORE_BONUS),
+        };
+      }
+      return decision;
+    })
     .sort((a, b) => {
       // Primary: overall score descending
       const scoreDiff = b.overallScore - a.overallScore;

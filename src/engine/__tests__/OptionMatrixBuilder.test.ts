@@ -767,4 +767,48 @@ describe('PR4: stored_vented and stored_unvented status logic', () => {
     // With multiple missing inputs, level should be low or medium
     expect(['medium', 'low']).toContain(options[0].confidenceBadge!.level);
   });
+
+  describe('system_unvented cylinder space gate', () => {
+    it('system_unvented is caution (not viable) when availableSpace is none', () => {
+      // Regression: system_unvented must not show as viable when no cylinder space is
+      // confirmed — a system boiler requires a hot water cylinder to function.
+      const noSpaceInput = {
+        ...baseInput,
+        availableSpace: 'none' as const,
+        dynamicMainsPressure: 2.5,
+        mainsDynamicFlowLpm: 25,
+        mainsDynamicFlowLpmKnown: true,
+      };
+      const result = runEngine(noSpaceInput);
+      const options = buildOptionMatrixV1(result, noSpaceInput);
+      const sysCard = options.find(o => o.id === 'system_unvented')!;
+      expect(sysCard.status).toBe('caution');
+    });
+
+    it('system_unvented headline explains the space constraint when availableSpace is none', () => {
+      const noSpaceInput = {
+        ...baseInput,
+        availableSpace: 'none' as const,
+      };
+      const result = runEngine(noSpaceInput);
+      const options = buildOptionMatrixV1(result, noSpaceInput);
+      const sysCard = options.find(o => o.id === 'system_unvented')!;
+      expect(sysCard.headline).toContain('no space');
+    });
+
+    it('system_unvented is viable when availableSpace is ok and pressure is adequate', () => {
+      // Confirm the space gate does not affect cases with adequate space
+      const okSpaceInput = {
+        ...baseInput,
+        availableSpace: 'ok' as const,
+        dynamicMainsPressure: 2.0,
+        mainsDynamicFlowLpm: 20,
+        mainsDynamicFlowLpmKnown: true,
+      };
+      const result = runEngine(okSpaceInput);
+      const options = buildOptionMatrixV1(result, okSpaceInput);
+      const sysCard = options.find(o => o.id === 'system_unvented')!;
+      expect(sysCard.status).toBe('viable');
+    });
+  });
 });

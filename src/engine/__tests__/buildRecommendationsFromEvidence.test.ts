@@ -798,3 +798,76 @@ describe('buildRecommendationsFromEvidence — allDecisions', () => {
     }
   });
 });
+
+describe('buildRecommendationsFromEvidence — quotedBoilerFamily constraint', () => {
+  it('applies a score bonus to the quoted family so it ranks higher when scores are close', () => {
+    // System and combi are both clean (no limiters); without a quote, system wins
+    // on performance/reliability. With quotedBoilerFamily: 'combi', combi should win.
+    const combi  = combiBundle(CLEAN_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+
+    const withoutQuote = buildRecommendationsFromEvidence([combi, system]);
+    const withCombiQuote = buildRecommendationsFromEvidence(
+      [combi, system],
+      { quotedBoilerFamily: 'combi' },
+    );
+
+    // With the combi quote, combi should be bestOverall (or at least score higher
+    // than without the quote).
+    const combiScoreWithout = withoutQuote.allDecisions.find(d => d.family === 'combi')!.overallScore;
+    const combiScoreWith    = withCombiQuote.allDecisions.find(d => d.family === 'combi')!.overallScore;
+    expect(combiScoreWith).toBeGreaterThan(combiScoreWithout);
+    // The quoted family should be bestOverall
+    expect(withCombiQuote.bestOverall?.family).toBe('combi');
+  });
+
+  it('does not allow the bonus to push a score above 100', () => {
+    // Even if the quoted family has a near-perfect baseline score, the clamped
+    // score must not exceed 100.
+    const combi = combiBundle(CLEAN_INPUT);
+    const result = buildRecommendationsFromEvidence(
+      [combi],
+      { quotedBoilerFamily: 'combi' },
+    );
+    const combiDecision = result.allDecisions.find(d => d.family === 'combi')!;
+    expect(combiDecision.overallScore).toBeLessThanOrEqual(100);
+  });
+
+  it('non-quoted families receive no score change', () => {
+    const combi  = combiBundle(CLEAN_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+
+    const withoutQuote = buildRecommendationsFromEvidence([combi, system]);
+    const withCombiQuote = buildRecommendationsFromEvidence(
+      [combi, system],
+      { quotedBoilerFamily: 'combi' },
+    );
+
+    const systemScoreWithout = withoutQuote.allDecisions.find(d => d.family === 'system')!.overallScore;
+    const systemScoreWith    = withCombiQuote.allDecisions.find(d => d.family === 'system')!.overallScore;
+    expect(systemScoreWith).toBe(systemScoreWithout);
+  });
+
+  it('strong physics evidence (space constraint) still overrides the quoted-family bonus', () => {
+    // When the quoted family (system) has a hard space constraint (no cylinder space),
+    // the physics penalty (~38 pts × multiple objectives) should outweigh the +20 bonus.
+    //
+    // Use heatLossWatts: 0 to prevent combi from accumulating a service-switching
+    // penalty; this gives combi its maximum baseline score so the comparison is clean.
+    const noSpaceInput: EngineInputV2_3 = {
+      ...CLEAN_INPUT,
+      availableSpace: 'none',
+      heatLossWatts: 0,  // no CH demand → no combi service-switching penalty
+    };
+    const combi  = combiBundle(noSpaceInput);
+    const system = systemBundle(noSpaceInput);
+
+    const result = buildRecommendationsFromEvidence(
+      [combi, system],
+      { quotedBoilerFamily: 'system' },
+    );
+    // Combi should still win even though system is quoted, because the space
+    // constraint penalty far exceeds the +20 quote bonus.
+    expect(result.bestOverall?.family).toBe('combi');
+  });
+});
