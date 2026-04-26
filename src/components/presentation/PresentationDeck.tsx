@@ -37,6 +37,7 @@ import {
 } from 'recharts';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
+import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import { ALL_OBJECTIVES } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
 import {
@@ -1704,6 +1705,13 @@ export interface PresentationDeckProps {
    * When provided, the Your Objectives tile shows the selected chips.
    */
   prioritiesState?: PrioritiesState;
+  /**
+   * Optional locked customer summary (CustomerSummaryV1).
+   * When provided, the AI summary section uses this as its sole input — no
+   * ranked options, no viability notes, no full survey context.
+   * When absent, the AI summary section is not rendered.
+   */
+  lockedSummary?: CustomerSummaryV1;
 }
 
 /**
@@ -1722,6 +1730,7 @@ export default function PresentationDeck({
   onOptionsChange,
   heatLossState,
   prioritiesState,
+  lockedSummary,
 }: PresentationDeckProps) {
   const reducedMotion = useReducedMotion();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -1874,10 +1883,7 @@ export default function PresentationDeck({
             input={input}
           />
           <GeminiAISummary
-            model={model}
-            input={input}
-            result={result}
-            recommendationResult={recommendationResult}
+            lockedSummary={lockedSummary}
           />
         </div>
       ),
