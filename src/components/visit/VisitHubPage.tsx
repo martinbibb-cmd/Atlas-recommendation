@@ -589,7 +589,7 @@ function HubActions({
                   aria-label="Open insight view"
                   data-testid="open-insight-pack-btn"
                 >
-                  📊 Insight view{hasQuotes ? '' : ' ·  Add quotes for full detail'}
+                  📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
                 </button>
               )}
             </div>
