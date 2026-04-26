@@ -2,14 +2,14 @@
  * POST /api/gemini
  *
  * Server-side proxy for the Google Gemini API.
- * Reads the API key from the GRMINI_API_KEY Cloudflare secret so that
+ * Reads the API key from the GEMINI_API_KEY Cloudflare secret so that
  * the key is never exposed to the client.
  *
  * Request body (JSON): standard Gemini generateContent request body.
  *
  * Response: proxied Gemini API response (JSON).
  *
- * Returns 503 when GRMINI_API_KEY is not configured, allowing the client
+ * Returns 503 when GEMINI_API_KEY is not configured, allowing the client
  * to degrade gracefully (render nothing).
  */
 
@@ -19,7 +19,7 @@ const GEMINI_URL =
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
 
-  const apiKey = env.GRMINI_API_KEY;
+  const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) {
     return Response.json(
       { ok: false, error: 'Gemini API key not configured' },

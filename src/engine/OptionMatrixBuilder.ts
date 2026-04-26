@@ -717,12 +717,12 @@ export function buildOptionMatrixV1(
     mustHave: [
       'G3-qualified installer.',
       'Tundish and discharge pipe routed to external drain.',
+      'Expansion vessel sized to cylinder volume (required for sealed unvented circuit).',
       ...(mainsPressure < 1.0 ? ['⚠️ Mains pressure is very low — a Mixergy or vented cylinder is recommended instead.'] : []),
       ...(!cwsSupplyV1.hasMeasurements ? ['Measure mains flow (L/min) and pressure (bar) before specifying.'] : []),
     ],
     likelyUpgrades: [
       ...(mainsStaticPressure !== undefined && mainsStaticPressure < 1.5 && mainsStaticPressure >= 1.0 && !strongOperatingPoint(cwsSupplyV1) ? ['💧 Consider a Mixergy cylinder — more tolerant of weak mains supply than a standard unvented; no minimum pressure gate in Atlas.'] : []),
-      'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
       '💧 Mixergy cylinder for stratified DHW — more tolerant of weak mains supply, and reduces energy use.',
@@ -1120,11 +1120,11 @@ export function buildOptionMatrixV1(
     mustHave: [
       'G3-qualified installer.',
       'Tundish and discharge pipe routed to external drain.',
+      'Expansion vessel sized to cylinder volume (required for sealed unvented circuit).',
       ...(pressure < 1.0 ? ['⚠️ Mains pressure is very low — a Mixergy or vented cylinder is recommended instead.'] : []),
     ],
     likelyUpgrades: [
       ...(staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['💧 Consider a Mixergy cylinder — more tolerant of weak mains supply than a standard unvented; no minimum pressure gate in Atlas.'] : []),
-      'Expansion vessel sized to cylinder volume.',
     ],
     niceToHave: [
       '💧 Mixergy cylinder for stratified DHW — more tolerant of weak mains supply, and reduces energy use.',

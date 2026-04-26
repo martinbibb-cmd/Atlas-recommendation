@@ -1882,9 +1882,6 @@ export default function PresentationDeck({
             objectives={page1.objectives}
             input={input}
           />
-          <GeminiAISummary
-            lockedSummary={lockedSummary}
-          />
         </div>
       ),
     },
@@ -2071,6 +2068,9 @@ export default function PresentationDeck({
             onOpenSimulator={onOpenSimulator}
             onPrint={onPrint}
             onOpenPortal={onOpenPortal}
+          />
+          <GeminiAISummary
+            lockedSummary={lockedSummary}
           />
         </>
       ),

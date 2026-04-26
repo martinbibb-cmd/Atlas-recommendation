@@ -11,6 +11,7 @@ import { buildPathwaysV1 } from './modules/PathwayBuilderModule';
 import { assessFutureEnergyOpportunities } from './modules/FutureEnergyOpportunitiesModule';
 import { buildRealWorldBehavioursV1 } from './modules/RealWorldBehaviourModule';
 import { analyseInstallMarkup } from './modules/InstallMarkupModule';
+import { buildControlsAdviceV1 } from './modules/ControlsAdviceModule';
 
 /**
  * Flag ID emitted by CombiDhwModule when mains pressure is below the absolute
@@ -910,6 +911,9 @@ export function buildEngineOutputV1(
   // Install markup analysis — complexity, materials, and disruption from scan data
   const installMarkupAnalysis = analyseInstallMarkup(input?.installMarkup);
 
+  // Controls upgrade advice — graded controls recommendations alongside the recommendation
+  const controlsAdvice = input ? buildControlsAdviceV1(input, primaryRecommendation) : undefined;
+
   return {
     eligibility: eligibilityItems,
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
@@ -933,5 +937,6 @@ export function buildEngineOutputV1(
     futureEnergyOpportunities,
     realWorldBehaviours,
     installMarkupAnalysis,
+    controlsAdvice,
   };
 }
