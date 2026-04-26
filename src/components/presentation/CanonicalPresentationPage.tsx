@@ -29,6 +29,7 @@
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { ApplianceFamily } from '../../engine/topology/SystemTopology';
+import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import {
   buildCanonicalPresentation,
   type CanonicalPresentationModel,
@@ -555,6 +556,12 @@ interface Props {
    * When provided, the Your Priorities tile shows the selected chips.
    */
   prioritiesState?: import('../../features/survey/priorities/prioritiesTypes').PrioritiesState;
+  /**
+   * Optional locked customer summary (CustomerSummaryV1).
+   * When provided, passed to GeminiAISummary as its sole input.
+   * When absent, the AI summary section is not rendered.
+   */
+  lockedSummary?: CustomerSummaryV1;
 }
 
 /**
@@ -574,6 +581,7 @@ export default function CanonicalPresentationPage({
   deckMode = true,
   heatLossState,
   prioritiesState,
+  lockedSummary,
 }: Props) {
   // Delegate to the swipeable deck when deckMode is enabled.
   if (deckMode) {
@@ -588,6 +596,7 @@ export default function CanonicalPresentationPage({
         onOptionsChange={onOptionsChange}
         heatLossState={heatLossState}
         prioritiesState={prioritiesState}
+        lockedSummary={lockedSummary}
       />
     );
   }
