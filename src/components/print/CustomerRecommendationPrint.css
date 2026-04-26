@@ -277,6 +277,7 @@
 
 .crp-list__item--green { color: var(--crp-green); }
 .crp-list__item--amber { color: var(--crp-amber); }
+.crp-list__item--info  { color: var(--crp-blue); }
 
 .crp-list__icon {
   flex-shrink: 0;
