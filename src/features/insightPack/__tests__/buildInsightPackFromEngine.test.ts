@@ -12,7 +12,7 @@
  *   - DEFAULT_NOMINAL_EFFICIENCY_PCT used in efficiency physics strings.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { buildInsightPackFromEngine } from '../buildInsightPackFromEngine';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { AtlasDecisionV1 } from '../../../contracts/AtlasDecisionV1';
@@ -938,8 +938,10 @@ describe('decision-bound path', () => {
     ).toThrow('AdvicePack: recommended scenario missing');
   });
 
-  it('throws a mismatch error when shadow engine would pick a different system type', () => {
+  it('warns (not throws) when shadow engine would pick a different system type', () => {
     // Engine text says "System boiler" but decision says "combi"
+    // The engine decision is authoritative — a divergence is a warning, not a fatal error,
+    // so the customer portal is not crashed by a throw.
     const { decision, scenarios } = makeMinimalDecision('combi', 'combi');
     const output = makeMinimalEngineOutput({
       recommendation: { primary: 'System boiler with stored cylinder' },
@@ -958,9 +960,12 @@ describe('decision-bound path', () => {
         },
       ],
     });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() =>
       buildInsightPackFromEngine(output, [COMBI_QUOTE, SYSTEM_QUOTE], undefined, decision, scenarios),
-    ).toThrow('Decision mismatch: Advice Pack diverged from engine output');
+    ).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[Atlas] Decision mismatch'));
+    warnSpy.mockRestore();
   });
 });
 

@@ -40,10 +40,14 @@ export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, prope
     ?? (currentSystem?.systemType ? (SYSTEM_TYPE_SHORT[currentSystem.systemType] ?? currentSystem.systemType) : null)
     ?? 'Not recorded';
 
-  // Derive the recommended system label for the hero block
+  // Derive the recommended system label for the hero block.
+  // Falls back to bestAdvice.recommendation (engine headline from AtlasDecisionV1)
+  // when no quote matches — ensures the recommendation block is always shown
+  // when the engine has a clear recommendation, even when no quotes were entered.
   const recommendedSystemLabel = bestQuote
     ? (SYSTEM_TYPE_SHORT[bestQuote.quote.systemType] ?? bestQuote.quote.label)
     : null;
+  const displayRecommendation = recommendedSystemLabel ?? bestAdvice.recommendation ?? null;
 
   // First "because" reason used as a supporting tagline under the recommendation
   const primaryReason = bestAdvice.because[0] ?? null;
@@ -70,10 +74,10 @@ export default function CoverHeroCard({ quotes, bestAdvice, currentSystem, prope
       </div>
 
       {/* Prominent recommendation block */}
-      {recommendedSystemLabel && (
+      {displayRecommendation && (
         <div className="cover-hero__rec-block">
           <p className="cover-hero__rec-label">Atlas recommendation</p>
-          <p className="cover-hero__rec-system">{recommendedSystemLabel}</p>
+          <p className="cover-hero__rec-system">{displayRecommendation}</p>
           {primaryReason && (
             <p className="cover-hero__rec-reason">{primaryReason}</p>
           )}
