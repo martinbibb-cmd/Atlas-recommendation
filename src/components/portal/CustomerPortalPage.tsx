@@ -33,6 +33,7 @@ import { buildVisualBlocks } from '../../engine/modules/buildVisualBlocks';
 import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
 import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
 import { buildAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
+import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import './CustomerPortalPage.css';
 
@@ -100,6 +101,18 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     if (!portalData) return undefined;
     try {
       return buildAiHandoffText(portalData.decision, portalData.scenarios);
+    } catch {
+      return undefined;
+    }
+  }, [portalData]);
+
+  // ── Locked CustomerSummaryV1 projection (memoised — built once) ──────────
+  // GeminiAISummary receives only this projection — no ranked options, no raw
+  // survey context. Built from the same portalData decision + scenarios.
+  const lockedSummary = useMemo(() => {
+    if (!portalData) return undefined;
+    try {
+      return buildCustomerSummary(portalData.decision, portalData.scenarios);
     } catch {
       return undefined;
     }
@@ -386,6 +399,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           onOpenSimulator={surveyData ? () => setShowSimulator(true) : undefined}
           onOpenPortal={portalViewModel?.comparisonCards[0]?.scenarioId ? handleOpenPortal : undefined}
           deckMode
+          lockedSummary={lockedSummary}
         />
       )}
 

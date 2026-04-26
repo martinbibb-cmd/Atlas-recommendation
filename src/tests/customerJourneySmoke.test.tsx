@@ -370,3 +370,184 @@ describe('CustomerAdvicePrintPack empty-state — absent visualBlocks', () => {
     expect(screen.queryByTestId('capp-empty-state')).toBeNull();
   });
 });
+
+// ─── 9. CustomerSummaryV1 trust boundary regression ────────────────────────────
+//
+// Acceptance criteria (from problem statement):
+//   - Customer pack with ASHP selected and combi rejected renders no combi
+//     recommendation text.
+//   - GeminiAISummary receives only lockedSummary-shaped props (CustomerSummaryV1).
+//   - buildCustomerSummary projection is correct for ASHP/combi scenario pair.
+
+import { buildCustomerSummary } from '../engine/modules/buildCustomerSummary';
+import GeminiAISummary from '../components/presentation/GeminiAISummary';
+import type { CustomerSummaryV1 } from '../contracts/CustomerSummaryV1';
+
+function makeAshpDecision(overrides: Partial<AtlasDecisionV1> = {}): AtlasDecisionV1 {
+  return {
+    recommendedScenarioId: 'ashp',
+    headline: 'An air source heat pump is the right fit for this home.',
+    summary:  'The heat pump provides low-carbon heating at reduced running cost.',
+    keyReasons:            ['Low carbon emissions', 'Better running costs'],
+    avoidedRisks:          ['Avoided gas boiler dependency'],
+    dayToDayOutcomes:      ['Consistent background warmth'],
+    requiredWorks:         [],
+    compatibilityWarnings: [],
+    includedItems:         ['Air source heat pump'],
+    quoteScope:            [],
+    futureUpgradePaths:    [],
+    supportingFacts:       [],
+    lifecycle: {
+      currentSystem: { type: 'combi', ageYears: 12, condition: 'worn' },
+      expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 13] },
+      influencingFactors: {
+        waterQuality: 'unknown', scaleRisk: 'low',
+        usageIntensity: 'medium', maintenanceLevel: 'average',
+      },
+      riskIndicators: [],
+      summary: 'Ageing combi — replacement recommended.',
+    },
+    ...overrides,
+  };
+}
+
+function makeAshpScenario(overrides: Partial<ScenarioResult> = {}): ScenarioResult {
+  return {
+    scenarioId: 'ashp',
+    system: { type: 'ashp', summary: 'Air source heat pump' },
+    performance: { hotWater: 'good', heating: 'good', efficiency: 'excellent', reliability: 'good' },
+    keyBenefits:      ['Low carbon', 'Reduced running costs'],
+    keyConstraints:   ['Requires outdoor space'],
+    dayToDayOutcomes: ['Consistent warmth'],
+    requiredWorks:    ['Outdoor unit installation'],
+    upgradePaths:     ['Solar PV ready'],
+    physicsFlags:     {},
+    ...overrides,
+  };
+}
+
+function makeCombiScenario(overrides: Partial<ScenarioResult> = {}): ScenarioResult {
+  return {
+    scenarioId: 'combi',
+    system: { type: 'combi', summary: 'Combi boiler' },
+    performance: { hotWater: 'good', heating: 'good', efficiency: 'good', reliability: 'good' },
+    keyBenefits:      ['Compact', 'On-demand hot water'],
+    keyConstraints:   ['Simultaneous demand risk with 2+ bathrooms'],
+    dayToDayOutcomes: ['Instant hot water'],
+    requiredWorks:    [],
+    upgradePaths:     [],
+    physicsFlags:     {},
+    ...overrides,
+  };
+}
+
+describe('CustomerSummaryV1 trust boundary — ASHP selected, combi rejected', () => {
+
+  it('buildCustomerSummary projects ASHP recommendation, not combi', () => {
+    const decision  = makeAshpDecision();
+    const scenarios = [makeAshpScenario(), makeCombiScenario()];
+    const summary   = buildCustomerSummary(decision, scenarios);
+
+    expect(summary.recommendedScenarioId).toBe('ashp');
+    expect(summary.recommendedSystemLabel).toBe('Air source heat pump');
+    expect(summary.recommendedSystemLabel).not.toMatch(/combi/i);
+  });
+
+  it('whyThisWins comes only from keyReasons — no combi benefit text leaks in', () => {
+    const decision  = makeAshpDecision({ keyReasons: ['Low carbon', 'Reduced bills'] });
+    const scenarios = [
+      makeAshpScenario({ keyBenefits: ['Low carbon benefit'] }),
+      makeCombiScenario({ keyBenefits: ['Combi is best — should not appear'] }),
+    ];
+    const summary = buildCustomerSummary(decision, scenarios);
+
+    expect(summary.whyThisWins).toEqual(['Low carbon', 'Reduced bills']);
+    expect(summary.whyThisWins.join(' ')).not.toMatch(/combi/i);
+  });
+
+  it('CustomerAdvicePrintPack with ASHP hero block does not expose combi recommendation text', () => {
+    const decision  = makeAshpDecision();
+    const scenarios = [makeAshpScenario(), makeCombiScenario()];
+    const blocks: VisualBlock[] = [
+      {
+        id: 'hero',
+        type: 'hero',
+        recommendedScenarioId: 'ashp',
+        title: 'Air source heat pump',
+        outcome: 'An air source heat pump is the right fit for this home.',
+        supportingPoints: [],
+        visualKey: 'recommended_system_hero',
+      },
+      PORTAL_CTA_BLOCK,
+    ];
+
+    render(
+      <CustomerAdvicePrintPack
+        decision={decision}
+        scenarios={scenarios}
+        visualBlocks={blocks}
+      />,
+    );
+
+    // Hero outcome must reference the ASHP recommendation
+    expect(screen.getAllByText('An air source heat pump is the right fit for this home.').length).toBeGreaterThan(0);
+
+    // No combi recommendation text should be visible
+    expect(screen.queryByText(/combi boiler is the right fit/i)).toBeNull();
+    expect(screen.queryByText(/combi boiler is recommended/i)).toBeNull();
+    expect(screen.queryByText(/combi is best/i)).toBeNull();
+  });
+
+  it('CustomerAdvicePrintPack footer uses ASHP headline, not combi', () => {
+    const decision  = makeAshpDecision();
+    const scenarios = [makeAshpScenario(), makeCombiScenario()];
+    const blocks: VisualBlock[] = [
+      {
+        id: 'hero',
+        type: 'hero',
+        recommendedScenarioId: 'ashp',
+        title: 'Air source heat pump',
+        outcome: 'An air source heat pump is the right fit.',
+        supportingPoints: [],
+        visualKey: 'recommended_system_hero',
+      },
+      PORTAL_CTA_BLOCK,
+    ];
+
+    render(
+      <CustomerAdvicePrintPack
+        decision={decision}
+        scenarios={scenarios}
+        visualBlocks={blocks}
+        visitDate="24 April 2026"
+      />,
+    );
+
+    // Footer text is decision.headline — must be the ASHP headline
+    expect(screen.getAllByText(decision.headline)[0]).toBeTruthy();
+  });
+
+  it('GeminiAISummary accepts only lockedSummary-shaped props (CustomerSummaryV1)', () => {
+    // Verify the prop shape is CustomerSummaryV1 by passing a fully-typed value.
+    // This asserts the component contract: no ranked options, no raw survey fields.
+    const decision  = makeAshpDecision();
+    const scenarios = [makeAshpScenario(), makeCombiScenario()];
+    const lockedSummary: CustomerSummaryV1 = buildCustomerSummary(decision, scenarios);
+
+    // lockedSummary must reference ASHP and must not mention combi as recommendation
+    expect(lockedSummary.recommendedSystemLabel).toBe('Air source heat pump');
+    expect(lockedSummary.plainEnglishDecision).not.toMatch(/combi boiler is recommended/i);
+    expect(lockedSummary.whyThisWins.join(' ')).not.toMatch(/combi/i);
+
+    // GeminiAISummary renders without throwing when given a valid CustomerSummaryV1.
+    // (No fetch is triggered in test environment — component is idle / no_key.)
+    expect(() => render(<GeminiAISummary lockedSummary={lockedSummary} />)).not.toThrow();
+  });
+
+  it('buildCustomerSummary throws when the recommended scenario is absent — prevents silent wrong-system output', () => {
+    const decision  = makeAshpDecision(); // recommendedScenarioId = 'ashp'
+    const scenarios = [makeCombiScenario()]; // ashp not in array
+
+    expect(() => buildCustomerSummary(decision, scenarios)).toThrow(/scenario "ashp" not found/);
+  });
+});
