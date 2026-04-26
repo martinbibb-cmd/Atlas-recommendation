@@ -106,7 +106,8 @@ export function buildControlsAdviceV1(
       detail:
         'Fitting TRVs to each radiator (except the one in the room with the main thermostat) ' +
         'allows individual room temperature control — reducing heat in unused rooms and ' +
-        'avoiding simultaneous demand conflicts. Required in all rooms under Part L of the Building Regulations for new boilers.',
+        'avoiding simultaneous demand conflicts. Required by Part L of the Building Regulations ' +
+        'for new boiler installations (except in the room with the main thermostat).',
       priority: 'recommended',
     });
   }
@@ -114,9 +115,11 @@ export function buildControlsAdviceV1(
   // ── 3. Zone control — S-plan (two-port valves for heating + DHW) ───────────
   // Recommend when the system has stored hot water AND the current controls are
   // Y-plan or unknown — S-plan gives better independent control of each circuit.
+  // combi_integral is excluded: a stored system replacing a combi will need
+  // new zone valves as part of the installation (mustHave), not here.
   if (
     isStoredSystem &&
-    (controlFamily === 'y_plan' || controlFamily === 'combi_integral' || controlFamily === 'unknown' || controlFamily === undefined)
+    (controlFamily === 'y_plan' || controlFamily === 'unknown' || controlFamily === undefined)
   ) {
     items.push({
       id: 'zone-control-s-plan',
@@ -129,7 +132,7 @@ export function buildControlsAdviceV1(
           : 'S-plan zone control uses separate two-port valves for the heating and hot water circuits, ' +
             'allowing each to operate independently. This is the recommended wiring arrangement for a ' +
             'system boiler with a cylinder and significantly reduces wasted heat.',
-      priority: isStoredSystem ? 'recommended' : 'consider',
+      priority: 'recommended',
     });
   }
 
