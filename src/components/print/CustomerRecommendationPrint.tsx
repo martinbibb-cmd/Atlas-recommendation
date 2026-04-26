@@ -595,10 +595,25 @@ export default function CustomerRecommendationPrint({
   const isVisibleRow = (row: { value: string }): boolean =>
     row.value !== '' && row.value !== PLACEHOLDER_DASH && !NOT_RECORDED_RE.test(row.value);
 
+  // Mains flow row — only shown when flow data is present in the engine input.
+  // Builds "12 L/min @ 2.0 bar" when both values are recorded, or "12 L/min" alone.
+  const mainsFlowValue = (() => {
+    const flow = input.mainsDynamicFlowLpm;
+    const pressure = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+    if (flow != null && pressure != null) {
+      return `${flow} L/min @ ${pressure} bar`;
+    }
+    if (flow != null) {
+      return `${flow} L/min`;
+    }
+    return null;
+  })();
+
   const homeFactRows = [
     { label: 'Heat loss',   value: house.heatLossLabel },
     { label: 'Insulation',  value: house.insulationLabel },
     { label: 'Walls',       value: house.wallTypeLabel },
+    ...(mainsFlowValue != null ? [{ label: 'Mains flow', value: mainsFlowValue }] : []),
   ].filter(isVisibleRow);
 
   const householdFactRows = [
@@ -729,22 +744,17 @@ export default function CustomerRecommendationPrint({
               </section>
             )}
 
-            {(topConstraints.length > 0 || topRankingItem) && (
+            {topConstraints.length > 0 && (
               <section className="crp-section" aria-label="How this performs in your home">
                 <h2 className="crp-section__title">How this system performs in your home</h2>
-                <p className="crp-comparison__note">
-                  This system works best in homes that can run low temperatures — this home may need adjustments to get the most from it.
-                </p>
-                {topConstraints.length > 0 && (
-                  <ul className="crp-list" aria-label="Constraints for this home">
-                    {topConstraints.map((constraint, i) => (
-                      <li key={i} className="crp-list__item crp-list__item--amber">
-                        <span className="crp-list__icon" aria-hidden="true">⚠</span>
-                        {constraint}
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <ul className="crp-list" aria-label="Constraints for this home">
+                  {topConstraints.map((constraint, i) => (
+                    <li key={i} className="crp-list__item crp-list__item--amber">
+                      <span className="crp-list__icon" aria-hidden="true">⚠</span>
+                      {constraint}
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
 
@@ -763,6 +773,17 @@ export default function CustomerRecommendationPrint({
 
               {currentSystemRows.length > 0 && (
                 <FactsBlock block={{ icon: '🔧', heading: 'Current system', rows: currentSystemRows }} />
+              )}
+
+              {house.notes.length > 0 && (
+                <ul className="crp-list crp-list--notes" aria-label="Property notes">
+                  {house.notes.map((note, i) => (
+                    <li key={i} className="crp-list__item crp-list__item--info">
+                      <span className="crp-list__icon" aria-hidden="true">ℹ</span>
+                      {note}
+                    </li>
+                  ))}
+                </ul>
               )}
             </section>
 
