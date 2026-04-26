@@ -252,10 +252,10 @@ export default function InsightPackDeck({
       </div>
       {/* Accessible summary note — visible on screen only, hidden on print.
           Informs users that a structured sidecar exists for screen readers,
-          assistive tools, and LLM-based review.
+          assistive tools, and advanced review.
           The .accessible-summary-note class is suppressed by InsightPackPrint.css. */}
       <p className="accessible-summary-note" aria-live="polite">
-        Accessible structured summary available with this PDF for screen readers,
+        An accessible structured summary is available with this PDF for screen readers,
         assistive tools, and advanced review.
       </p>
     </div>
