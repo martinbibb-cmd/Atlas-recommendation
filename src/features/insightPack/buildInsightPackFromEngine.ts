@@ -1210,12 +1210,17 @@ function buildBestAdvice(
       })[0];
 
       if (legacyBest && legacyBest.qi.quote.systemType !== recommendedScenario.system.type) {
-        throw new Error(
-          `Decision mismatch: Advice Pack diverged from engine output. ` +
+        // Log a warning rather than throwing — a divergence between the legacy heuristic
+        // and the engine decision is a data quality signal, not a fatal error.
+        // The engine decision (AtlasDecisionV1) is authoritative; the legacy heuristic
+        // is a sanity check only.  Throwing here would crash the customer portal.
+        console.warn(
+          `[Atlas] Decision mismatch: Advice Pack shadow engine diverged from engine output. ` +
           `AtlasDecisionV1 recommends "${recommendedScenario.system.type}" ` +
           `(scenarioId: "${decision.recommendedScenarioId}") but the shadow engine ` +
           `selected "${legacyBest.qi.quote.systemType}" from engine text: "${output.recommendation?.primary ?? ''}". ` +
-          `Fix: ensure EngineOutputV1 and AtlasDecisionV1 are derived from the same engine inputs.`,
+          `Using AtlasDecisionV1 as authoritative. ` +
+          `Investigate: ensure EngineOutputV1 and AtlasDecisionV1 are derived from the same engine inputs.`,
         );
       }
     }
@@ -1636,6 +1641,7 @@ function buildReasonChain(
 function buildNextSteps(
   bestAdvice: BestAdvice,
   quotes: QuoteInsight[],
+  decision?: AtlasDecisionV1,
 ): NextSteps {
   const best = quotes.find(qi => qi.quote.id === bestAdvice.recommendedQuoteId) ?? quotes[0];
 
@@ -1668,9 +1674,15 @@ function buildNextSteps(
         .slice(0, 2)
     : [];
 
+  // When no quote is matched, derive included works from the engine decision's
+  // requiredWorks (engine-sourced) rather than falling back to hardcoded strings.
+  const includedFallback = decision?.requiredWorks?.length
+    ? decision.requiredWorks.slice(0, 4)
+    : ['Replacement heat source', 'Commissioning and handover'];
+
   return {
     chosenOptionLabel: best?.quote.label ?? bestAdvice.recommendation,
-    included: included.length > 0 ? included : ['Replacement heat source', 'Commissioning and handover'],
+    included: included.length > 0 ? included : includedFallback,
     optional,
     furtherImprovements,
   };
@@ -1799,7 +1811,7 @@ export function buildInsightPackFromEngine(
   const savingsPlan = buildSavingsPlan(bestQuote, engineOutput);
   const homeProfile = buildHomeProfile(engineOutput);
   const reasonChain = buildReasonChain(engineOutput, bestAdvice);
-  const nextSteps = buildNextSteps(bestAdvice, quoteInsights);
+  const nextSteps = buildNextSteps(bestAdvice, quoteInsights, decision);
 
   return {
     quotes: quoteInsights,

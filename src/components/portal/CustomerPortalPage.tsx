@@ -256,9 +256,12 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       mainsDynamicFlowLpm: engineInput.mainsDynamicFlowLpm,
       heatLossWatts: engineInput.heatLossWatts,
     };
+    // Include quotes entered during the survey so the customer pack reflects the
+    // real contractor options and the recommendation is tied to a specific quote.
+    const surveyQuotes = surveyData?.fullSurvey?.quotes ?? [];
     const pack = buildInsightPackFromEngine(
       engineResult.engineOutput,
-      [],
+      surveyQuotes,
       surveyContext,
       portalData?.decision ?? undefined,
       portalData?.scenarios ?? undefined,
