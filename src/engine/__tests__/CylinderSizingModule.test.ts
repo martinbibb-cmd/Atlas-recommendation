@@ -239,6 +239,37 @@ describe('runCylinderSizingModule', () => {
       expect(flag!.severity).toBe('warn');
     });
 
+    it('98 L cylinder is NOT flagged as undersized for a single-occupant household', () => {
+      // Regression: a 98 L cylinder for 1 person should be "adequate" because the
+      // physics minimum (~44 L raw) is well below 98 L.  Previously, the minimum
+      // was rounded up to the nearest standard size (120 L), which incorrectly
+      // flagged any sub-120 L cylinder as undersized regardless of actual demand.
+      const result = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 1,
+        bathroomCount: 1,
+        cylinderVolumeLitres: 98,
+      });
+      const undersizedFlag = result.flags.find(f => f.id === 'sizing-undersized-for-demand');
+      const adequateFlag   = result.flags.find(f => f.id === 'sizing-current-adequate');
+      expect(undersizedFlag).toBeUndefined();
+      expect(adequateFlag).toBeDefined();
+    });
+
+    it('minimumAdequateVolumeL reflects physics minimum, not rounded standard size', () => {
+      // For 1 occupant, 1 bathroom the physics minimum is ~44 L.
+      // The reported minimumAdequateVolumeL must be close to this value (≤ 60 L),
+      // NOT rounded up to 120 L (the smallest standard purchase size).
+      const result = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 1,
+        bathroomCount: 1,
+        cylinderVolumeLitres: 98,
+      });
+      expect(result.currentPerformance?.minimumAdequateVolumeL).toBeDefined();
+      expect(result.currentPerformance!.minimumAdequateVolumeL).toBeLessThanOrEqual(60);
+    });
+
     it('emits sizing-current-adequate info flag for a large enough cylinder', () => {
       // 300 L cylinder for 2 occupants, 1 bathroom — clearly adequate
       const result = runCylinderSizingModule({
@@ -436,18 +467,27 @@ describe('runCylinderSizingModule', () => {
       expect(result.recommendation.targetVolumeL).toBeGreaterThanOrEqual(180);
     });
 
-    it('recommends at least 210 L for a 4-person, 2-bathroom household with standard cylinder', () => {
-      // When current cylinder is explicitly standard (Mixergy not recommended — testing the standard path).
-      // Check via the current-cylinder minimum adequacy threshold.
+    it('physics minimum is ≥ 200 L (standard fraction) for a 4-person, 2-bathroom household; Mixergy target is ≥ 180 L', () => {
+      // For 4 occupants, 2 bathrooms:
+      //   Current cylinder adequacy uses the INSTALLED cylinder's fraction (standard, 0.75):
+      //     dailyDemand = 250 L → requiredHot = 150 L → minCylinder = 200 L (raw physics).
+      //   The RECOMMENDED type is Mixergy (isHighDemand = true), using 0.95 fraction:
+      //     minCylinder = 150/0.95 ≈ 158 L → roundUpToStandard = 180 L.
+      //
+      // minimumAdequateVolumeL reports the physics minimum (~200 L) for the installed
+      // standard cylinder — it does NOT use the rounded purchase size (210 L).
       const result = runCylinderSizingModule({
         ...baseInput,
         occupancyCount: 4,
         bathroomCount: 2,
-        dhwStorageType: 'unvented',   // standard cylinder
+        dhwStorageType: 'unvented',   // current cylinder is standard unvented
         cylinderVolumeLitres: 150,    // give it a current cylinder to trigger adequacy check
       });
-      // The minimumAdequateVolumeL (computed with standard 0.75 fraction) should be ≥ 210L
-      expect(result.currentPerformance?.minimumAdequateVolumeL).toBeGreaterThanOrEqual(210);
+      // Physics minimum for adequacy assessment of the current standard cylinder
+      expect(result.currentPerformance?.minimumAdequateVolumeL).toBeGreaterThanOrEqual(200);
+      // Recommended purchase is Mixergy (high demand), so target rounds to 180 L minimum
+      expect(result.recommendation.cylinderType).toBe('mixergy');
+      expect(result.recommendation.targetVolumeL).toBeGreaterThanOrEqual(180);
     });
 
     it('high simultaneous-draw severity increases recommended volume', () => {

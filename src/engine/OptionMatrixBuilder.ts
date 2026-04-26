@@ -1017,13 +1017,16 @@ export function buildOptionMatrixV1(
     sensitivities: buildSensitivities('regular_vented', core, input, combiDhwResult),
   });
 
-  // System / unvented: needs adequate mains pressure.
+  // System / unvented: needs adequate mains pressure AND cylinder space.
   // Status mirrors stored_unvented: use the full CWS operating-point gate (hasMeasurements +
   // meetsUnventedRequirement) when measurements are available, rather than dynamic pressure alone.
   // A 30 L/min @ 1.0 bar operating point meets the gate and should not be flagged as 'caution'.
+  // When no cylinder space is confirmed (availableSpace === 'none'), the card is 'caution' —
+  // a system boiler requires a hot water cylinder and cannot be installed without one.
   const sysUnventedCws = core.cwsSupplyV1;
   const unventedStatus: OptionCardV1['status'] =
-    pressure < 1.0 ? 'rejected'
+    noSpaceForCylinder ? 'caution'
+    : pressure < 1.0 ? 'rejected'
     : (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement) ? 'viable'
     : pressure < 1.5 ? 'caution'
     : 'viable';
@@ -1031,6 +1034,9 @@ export function buildOptionMatrixV1(
     'Sealed system with unvented cylinder — mains-pressure hot water throughout.',
     operatingPointBullet(sysUnventedCws, pressure),
   ];
+  if (noSpaceForCylinder) {
+    unventedWhy.push('No cylinder space confirmed — a system boiler requires a hot water cylinder and cannot be installed without one.');
+  }
   if (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement && pressure < 1.5) {
     if (strongOperatingPoint(sysUnventedCws)) {
       unventedWhy.push('Strong measured flow under load — mains-fed stored hot water is well supported.');
@@ -1049,6 +1055,9 @@ export function buildOptionMatrixV1(
     'Mains pressure ≥ 1.5 bar recommended for reliable performance.',
     'Unvented cylinder requires G3-qualified installer and annual servicing.',
   ];
+  if (noSpaceForCylinder) {
+    unventedRequirements.push('No cylinder space confirmed — this option is not feasible without creating suitable installation space.');
+  }
   if (staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws)) {
     unventedRequirements.push('💧 Standing pressure is low — a Mixergy cylinder is a better choice here, as it remains usable on weaker supplies where combi hot water can become unreliable or cut out.');
   }
@@ -1127,7 +1136,9 @@ export function buildOptionMatrixV1(
     id: 'system_unvented',
     label: 'System Boiler + Unvented Cylinder',
     status: unventedStatus,
-    headline: unventedStatus === 'viable' && pressure < 1.5
+    headline: noSpaceForCylinder
+      ? 'System boiler not feasible — no space confirmed for a hot water cylinder.'
+      : unventedStatus === 'viable' && pressure < 1.5
       ? 'System boiler + unvented cylinder suits your operating point — strong measured flow supports delivery.'
       : unventedStatus === 'viable'
       ? 'System boiler + unvented cylinder suits your pressure and demand.'
