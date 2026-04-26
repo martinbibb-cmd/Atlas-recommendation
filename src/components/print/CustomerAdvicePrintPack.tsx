@@ -28,7 +28,9 @@ import type { VisualBlock, PortalCtaBlock } from '../../contracts/VisualBlock';
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
-import { buildAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
+import { buildLockedAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
+import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
+import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import { HeroBlockView }                     from '../presentation/blocks/HeroBlockView';
 import { FactsBlockView }                    from '../presentation/blocks/FactsBlockView';
 import { CustomerNeedResolutionBlockView }   from '../presentation/blocks/CustomerNeedResolutionBlockView';
@@ -83,6 +85,13 @@ export interface CustomerAdvicePrintPackProps {
   visitDate?: string;
   /** Called when the user clicks Back on the screen toolbar. */
   onBack?: () => void;
+  /**
+   * Pre-built locked customer summary. When provided, this is used directly
+   * as the source for the AI handoff text and print summary copy.
+   * When absent, CustomerAdvicePrintPack builds it internally via
+   * buildCustomerSummary(decision, scenarios).
+   */
+  lockedSummary?: CustomerSummaryV1;
   /**
    * When false (default), `problem` type blocks (combi rejection prose,
    * kW/ΔT maths, "why your home needs stored hot water" essays) are not
@@ -261,12 +270,14 @@ export function CustomerAdvicePrintPack({
   portalUrl,
   visitDate,
   onBack,
+  lockedSummary,
   showRejectedOptionProof = false,
   printFullAiHandoff = false,
 }: CustomerAdvicePrintPackProps) {
   const packTitle    = `Atlas advice pack${visitDate ? ` — ${visitDate}` : ''}`;
   const headline     = decision.headline;
-  const aiHandoff    = buildAiHandoffText(decision, scenarios);
+  const summary      = lockedSummary ?? buildCustomerSummary(decision, scenarios);
+  const aiHandoff    = buildLockedAiHandoffText(summary);
 
   return (
     <div className="capp-wrap" data-testid="capp-wrap">
