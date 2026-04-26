@@ -135,13 +135,13 @@ describe('buildCustomerNeedResolution — cold spots', () => {
     expect(block!.items[0].outcome).toContain('every room');
   });
 
-  it('emits cold spots item when bleed water is sludge', () => {
+  it('does NOT emit cold spots item from bleed water sludge alone', () => {
     const input: EngineInputV2_3 = {
       ...makeBaseInput(),
       currentSystem: { conditionSignals: { bleedWaterColour: 'sludge' } },
     };
     const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
-    expect(block).not.toBeNull();
+    expect(block).toBeNull();
   });
 
   it('cold spots item confidence is direct', () => {
@@ -453,23 +453,13 @@ describe('buildCustomerNeedResolution — max 4 items', () => {
 });
 
 describe('buildCustomerNeedResolution — no duplicate items', () => {
-  it('does not emit both cold spots and noisy items separately when only sludge signal present', () => {
+  it('does not emit cold spots/noisy items when only sludge signal is present', () => {
     const input: EngineInputV2_3 = {
       ...makeBaseInput(),
       currentSystem: { conditionSignals: { bleedWaterColour: 'sludge' } },
     };
     const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
-    // bleedWaterColour sludge triggers BOTH cold_spots and noisy detectors —
-    // cold_spots fires first; noisy fires second.
-    // Both items should appear (they are distinct needs).
-    expect(block).not.toBeNull();
-    const coldItem = block!.items.find((i) => i.need.includes("rooms don't heat"));
-    const noisyItem = block!.items.find((i) => i.need.includes('noisy'));
-    expect(coldItem).toBeDefined();
-    expect(noisyItem).toBeDefined();
-    // Each need appears at most once
-    const needSet = new Set(block!.items.map((i) => i.need));
-    expect(needSet.size).toBe(block!.items.length);
+    expect(block).toBeNull();
   });
 });
 
