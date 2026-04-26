@@ -18,6 +18,7 @@ import { CustomerAdvicePrintPack } from './components/print/CustomerAdvicePrintP
 import { buildScenariosFromEngineOutput } from './engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from './engine/modules/buildDecisionFromScenarios';
 import { buildVisualBlocks } from './engine/modules/buildVisualBlocks';
+import { buildCustomerSummary } from './engine/modules/buildCustomerSummary';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
 import LegoBuildingSetPage from './explainers/lego/LegoBuildingSetPage';
@@ -344,6 +345,26 @@ function CanonicalPresentationRoute({
   onOptionsChange?: (opt1Family: ApplianceFamily | null, opt2Family: ApplianceFamily | null) => void;
 }) {
   const result = runEngine(engineInput);
+
+  // Build the locked CustomerSummaryV1 projection so GeminiAISummary only
+  // sees lockedSummary fields — no ranked options, no raw survey context.
+  const lockedSummary = (() => {
+    try {
+      const scenarios = buildScenariosFromEngineOutput(result.engineOutput);
+      if (scenarios.length === 0) return undefined;
+      const decision = buildDecisionFromScenarios({
+        scenarios,
+        boilerType:     toLifecycleBoilerType(engineInput.currentHeatSourceType),
+        ageYears:       engineInput.currentSystem?.boiler?.ageYears ?? 0,
+        occupancyCount: engineInput.occupancyCount,
+        bathroomCount:  engineInput.bathroomCount,
+      });
+      return buildCustomerSummary(decision, scenarios);
+    } catch {
+      return undefined;
+    }
+  })();
+
   return (
     <div style={{
       position: 'fixed',
@@ -367,6 +388,7 @@ function CanonicalPresentationRoute({
           heatLossState={heatLossState}
           prioritiesState={prioritiesState}
           onOptionsChange={onOptionsChange}
+          lockedSummary={lockedSummary}
         />
       </div>
     </div>
