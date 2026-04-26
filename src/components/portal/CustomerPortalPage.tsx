@@ -32,7 +32,7 @@ import { buildPortalViewModel } from '../../engine/modules/buildPortalViewModel'
 import { buildVisualBlocks } from '../../engine/modules/buildVisualBlocks';
 import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
 import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
-import { buildAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
+import { buildLockedAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
 import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import './CustomerPortalPage.css';
@@ -96,16 +96,6 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     }
   }, [portalData]);
 
-  // ── AI summary text (memoised — derived from portal data) ────────────────
-  const aiSummaryText = useMemo(() => {
-    if (!portalData) return undefined;
-    try {
-      return buildAiHandoffText(portalData.decision, portalData.scenarios);
-    } catch {
-      return undefined;
-    }
-  }, [portalData]);
-
   // ── Locked CustomerSummaryV1 projection (memoised — built once) ──────────
   // GeminiAISummary receives only this projection — no ranked options, no raw
   // survey context. Built from the same portalData decision + scenarios.
@@ -117,6 +107,18 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       return undefined;
     }
   }, [portalData]);
+
+  // ── AI summary text (memoised — derived from locked summary) ─────────────
+  // Must use buildLockedAiHandoffText(lockedSummary) — never buildAiHandoffText
+  // directly — so customer-facing AI text is gated through CustomerSummaryV1.
+  const aiSummaryText = useMemo(() => {
+    if (!lockedSummary) return undefined;
+    try {
+      return buildLockedAiHandoffText(lockedSummary);
+    } catch {
+      return undefined;
+    }
+  }, [lockedSummary]);
 
   // ── AI summary filename — computed once, not on every render ─────────────
   const aiSummaryFilename = useMemo(
