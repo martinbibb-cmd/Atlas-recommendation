@@ -376,7 +376,7 @@ export function CustomerAdvicePrintPack({
                       <span className="capp-ai-handoff__hint">
                         {printFullAiHandoff
                           ? 'Copy the text below into ChatGPT, Claude, or Gemini to explore the reasoning behind this recommendation'
-                          : 'Your installer can share a full AI summary via your portal link above.'}
+                          : 'Your installer can share a full AI summary via your portal link above. We can also include a machine-readable AI summary inside this PDF as an optional export.'}
                       </span>
                     </div>
                     {printFullAiHandoff && (

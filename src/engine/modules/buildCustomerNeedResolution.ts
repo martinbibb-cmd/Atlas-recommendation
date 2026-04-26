@@ -30,20 +30,15 @@ const MAX_ITEMS = 4;
 // ─── Signal detectors ─────────────────────────────────────────────────────────
 
 /**
- * Cold spots — radiator performance signals or confirmed heating unevenness.
+ * Cold spots — only explicit radiator unevenness captured in the survey.
+ * Do not infer this from sludge/bleed colour alone; that can be true even
+ * when the customer has not reported room-heating unevenness.
  */
 function detectColdSpots(input: EngineInputV2_3): boolean {
   const signals = input.currentSystem?.conditionSignals;
   if (
     signals?.radiatorPerformance === 'some_cold_spots' ||
     signals?.radiatorPerformance === 'many_cold'
-  ) {
-    return true;
-  }
-  // Bleed water colour indicating sludge strongly correlates with cold spots
-  if (
-    signals?.bleedWaterColour === 'dark' ||
-    signals?.bleedWaterColour === 'sludge'
   ) {
     return true;
   }
@@ -134,19 +129,15 @@ function detectHighBills(input: EngineInputV2_3): boolean {
 }
 
 /**
- * Noisy system — circulation issues, cavitation, or confirmed sludge.
+ * Noisy system — only explicit noise/flow issues captured in the survey.
+ * Do not infer noise from bleed/sludge alone, otherwise the wording
+ * "You told us..." can appear without a directly reported noise concern.
  */
 function detectNoisySystem(input: EngineInputV2_3): boolean {
   const signals = input.currentSystem?.conditionSignals;
   if (
     signals?.circulationIssues === 'frequent_noise_or_poor_flow' ||
     signals?.circulationIssues === 'occasional_noise'
-  ) {
-    return true;
-  }
-  if (
-    signals?.bleedWaterColour === 'dark' ||
-    signals?.bleedWaterColour === 'sludge'
   ) {
     return true;
   }

@@ -666,6 +666,7 @@ describe('CustomerAdvicePrintPack — compact AI handoff (printFullAiHandoff=fal
     render(<CustomerAdvicePrintPack {...makeProps()} />);
     const handoff = screen.getByTestId('capp-ai-handoff');
     expect(handoff.textContent).toContain('installer can share a full AI summary via your portal link');
+    expect(handoff.textContent).toContain('machine-readable AI summary inside this PDF as an optional export');
   });
 
   it('renders the full AI text when printFullAiHandoff=true', () => {
