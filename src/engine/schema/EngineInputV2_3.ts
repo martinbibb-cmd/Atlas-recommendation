@@ -998,6 +998,15 @@ export interface EngineInputV2_3 {
    * engine degrades gracefully and produces zero-state analysis output.
    */
   installMarkup?: InstallLayerModelV1;
+
+  /**
+   * Whether weather compensation is active on the current system.
+   *
+   * When true, the boiler setpoint follows outdoor temperature (lower in mild weather),
+   * which keeps the boiler in condensing mode for more of the heating season.
+   * Used by ControlsAdviceModule to determine whether to recommend weather compensation.
+   */
+  hasWeatherCompensation?: boolean;
 }
 
 export interface HydraulicResult {
