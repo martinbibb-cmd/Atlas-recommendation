@@ -135,5 +135,15 @@ export function buildCustomerSummary(
     optionalUpgrades,
     futureReady,
     confidenceNotes,
+
+    // Hard constraints and performance penalties from rejected scenarios.
+    // These must be rendered verbatim — no surface may soften or hedge them.
+    hardConstraints:      [...(decision.hardConstraints ?? [])],
+    performancePenalties: [...(decision.performancePenalties ?? [])],
+
+    // fitNarrative is the single canonical explanation string.
+    // All surfaces must use this verbatim or treat it as the sole source for
+    // any rewrite. It must never be re-derived or paraphrased independently.
+    fitNarrative: decision.summary,
   };
 }

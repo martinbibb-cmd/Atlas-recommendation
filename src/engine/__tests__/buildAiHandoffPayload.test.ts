@@ -259,6 +259,28 @@ describe('buildAiHandoffPayload', () => {
     const payload = buildAiHandoffPayload(decision, [makeScenario()]);
     expect(payload.recommendedUpgrades).toHaveLength(5);
   });
+
+  it('includes hardConstraints from decision.hardConstraints', () => {
+    const decision = makeDecision({
+      hardConstraints: ['Combi will fail: mains pressure below 0.3 bar'],
+    });
+    const payload = buildAiHandoffPayload(decision, [makeScenario()]);
+    expect(payload.hardConstraints).toEqual(['Combi will fail: mains pressure below 0.3 bar']);
+  });
+
+  it('includes performancePenalties from decision.performancePenalties', () => {
+    const decision = makeDecision({
+      performancePenalties: ['Short-draw efficiency collapses to ~28%'],
+    });
+    const payload = buildAiHandoffPayload(decision, [makeScenario()]);
+    expect(payload.performancePenalties).toEqual(['Short-draw efficiency collapses to ~28%']);
+  });
+
+  it('hardConstraints and performancePenalties default to empty arrays when absent', () => {
+    const payload = buildAiHandoffPayload(makeDecision(), [makeScenario()]);
+    expect(payload.hardConstraints).toEqual([]);
+    expect(payload.performancePenalties).toEqual([]);
+  });
 });
 
 // ─── serialiseAiHandoffPayload ─────────────────────────────────────────────────
@@ -351,7 +373,7 @@ describe('serialiseAiHandoffPayload', () => {
     });
     const payload = buildAiHandoffPayload(makeDecision(), [makeScenario(), rejected]);
     const text = serialiseAiHandoffPayload(payload);
-    expect(text).toContain('Options considered:');
+    expect(text).toContain('Options considered (why each was not selected):');
     expect(text).toContain('• Combi boiler — Two bathrooms exceed combi capacity');
   });
 
@@ -379,5 +401,27 @@ describe('serialiseAiHandoffPayload', () => {
     const payload = buildAiHandoffPayload(makeDecision({ quoteScope: [] }), [makeScenario()]);
     const text = serialiseAiHandoffPayload(payload);
     expect(text).not.toContain('Recommended upgrades');
+  });
+
+  it('renders hard constraints section when hardConstraints are present', () => {
+    const decision = makeDecision({
+      hardConstraints: ['Combi will fail: mains pressure below 0.3 bar'],
+    });
+    const payload = buildAiHandoffPayload(decision, [makeScenario()]);
+    const text = serialiseAiHandoffPayload(payload);
+    expect(text).toContain('Hard constraints (physics failures — do NOT soften these):');
+    expect(text).toContain('• Combi will fail: mains pressure below 0.3 bar');
+  });
+
+  it('omits hard constraints section when hardConstraints is empty', () => {
+    const payload = buildAiHandoffPayload(makeDecision(), [makeScenario()]);
+    const text = serialiseAiHandoffPayload(payload);
+    expect(text).not.toContain('Hard constraints');
+  });
+
+  it('VALIDATION_POLICY contains anti-softening hard rules', () => {
+    expect(VALIDATION_POLICY).toContain('HARD RULE: Do NOT soften, hedge, or qualify any hard constraint');
+    expect(VALIDATION_POLICY).toContain('HARD RULE: Do NOT compare systems or suggest alternatives');
+    expect(VALIDATION_POLICY).toContain('HARD RULE: Do NOT rebalance or reinterpret the recommendation');
   });
 });

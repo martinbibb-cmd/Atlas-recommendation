@@ -71,4 +71,33 @@ export interface CustomerSummaryV1 {
    * in requiredChecks, plus lifecycle urgency notes.
    */
   confidenceNotes: string[];
+
+  /**
+   * Non-negotiable physics failures — hard gates from the engine that
+   * disqualify alternative systems. Sourced from rejected scenarios'
+   * fail-severity physics flags.
+   *
+   * AI must render these with the same directness as the engine output.
+   * It must NEVER soften "will fail" to "may struggle" or "could be less suited".
+   */
+  hardConstraints: string[];
+
+  /**
+   * Quantifiable performance penalties identified by the engine — warn-level
+   * degradations such as short-draw efficiency collapse (<30 %) or reduced
+   * flow at low mains pressure.
+   *
+   * AI must present these directly and may not hedge or qualify them.
+   */
+  performancePenalties: string[];
+
+  /**
+   * Single canonical explanation string — the authoritative narrative locked
+   * from engine output. This is the one string all surfaces (UI, print, portal,
+   * AI handoff) must use verbatim or treat as the sole source for any rewrite.
+   *
+   * Equal to AtlasDecisionV1.summary and must not be re-derived or paraphrased
+   * by any output surface.
+   */
+  fitNarrative: string;
 }

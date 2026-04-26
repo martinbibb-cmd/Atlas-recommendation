@@ -237,6 +237,16 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
     futureUpgradePaths:   recommended.upgradePaths,
   });
 
+  // Collect hard constraints and performance penalties from rejected scenarios.
+  // These are the non-negotiable physics failures and warn-level penalties that
+  // ruled out the alternatives — they feed CustomerSummaryV1 directly and must
+  // never be softened by any output surface.
+  const rejected = input.scenarios.filter(
+    (s) => s.scenarioId !== recommended.scenarioId,
+  );
+  const hardConstraints = [...new Set(rejected.flatMap((s) => s.hardConstraints ?? []))];
+  const performancePenalties = [...new Set(rejected.flatMap((s) => s.performancePenalties ?? []))];
+
   return {
     recommendedScenarioId:  recommended.scenarioId,
     headline:               buildHeadline(recommended),
@@ -252,6 +262,8 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
     supportingFacts,
     lifecycle,
     showerCompatibilityNote: showerNote ?? undefined,
+    hardConstraints:        hardConstraints.length > 0 ? hardConstraints : undefined,
+    performancePenalties:   performancePenalties.length > 0 ? performancePenalties : undefined,
   };
 }
 

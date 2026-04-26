@@ -104,4 +104,20 @@ export interface AtlasDecisionV1 {
    * install note without re-deriving logic on any output surface.
    */
   showerCompatibilityNote?: ShowerCompatibilityNote;
+
+  /**
+   * Non-negotiable physics failures from rejected scenarios — hard gates that
+   * ruled those options out. Populated by buildDecisionFromScenarios from the
+   * rejected scenarios' fail-severity physics flags.
+   *
+   * Consumed verbatim by buildCustomerSummary and buildAiHandoffPayload.
+   * Must never be softened or hedged by any output surface.
+   */
+  hardConstraints?: string[];
+
+  /**
+   * Quantifiable performance penalties identified across evaluated scenarios.
+   * Populated from rejected scenarios' warn-level flags.
+   */
+  performancePenalties?: string[];
 }

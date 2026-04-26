@@ -74,6 +74,33 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
   const benefits     = option.status === 'viable'    ? option.why.slice(0, 4) : [];
   const constraints  = option.status !== 'viable'    ? option.why.slice(0, 4) : [];
 
+  // ── Derive hardConstraints from fail-status planes and rejection why[] ──────
+  // Hard constraints are non-negotiable physics failures: fail-severity plane
+  // bullets, or the rejection reasons for rejected options.
+  const hardConstraints: string[] = [];
+  if (option.dhw.status === 'fail') {
+    hardConstraints.push(...option.dhw.bullets.slice(0, 3));
+  }
+  if (option.heat.status === 'fail') {
+    hardConstraints.push(...option.heat.bullets.slice(0, 3));
+  }
+  // For rejected options, add why[] reasons not already captured above.
+  if (option.status === 'rejected') {
+    for (const w of option.why.slice(0, 4)) {
+      if (!hardConstraints.includes(w)) hardConstraints.push(w);
+    }
+  }
+
+  // ── Derive performancePenalties from caution-status planes ──────────────────
+  // Performance penalties are warn-level degradations, not hard failures.
+  const performancePenalties: string[] = [];
+  if (option.dhw.status === 'caution') {
+    performancePenalties.push(...option.dhw.bullets.slice(0, 3));
+  }
+  if (option.heat.status === 'caution') {
+    performancePenalties.push(...option.heat.bullets.slice(0, 3));
+  }
+
   return {
     scenarioId:       option.id,
     system:           { type: systemType, summary: option.headline || option.label },
@@ -84,6 +111,8 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
     requiredWorks:    option.typedRequirements?.mustHave ?? option.requirements.slice(0, 3),
     upgradePaths:     option.typedRequirements?.likelyUpgrades ?? [],
     physicsFlags:     derivePhysicsFlags(option),
+    ...(hardConstraints.length > 0    ? { hardConstraints }    : {}),
+    ...(performancePenalties.length > 0 ? { performancePenalties } : {}),
   };
 }
 

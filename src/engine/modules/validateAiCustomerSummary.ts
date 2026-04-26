@@ -157,8 +157,11 @@ export function validateAiCustomerSummary(
   const lockedText = [
     lockedSummary.headline,
     lockedSummary.plainEnglishDecision,
+    lockedSummary.fitNarrative,
     ...lockedSummary.whyThisWins,
     ...lockedSummary.whatThisAvoids,
+    ...lockedSummary.hardConstraints,
+    ...lockedSummary.performancePenalties,
     ...lockedSummary.includedNow,
     ...lockedSummary.requiredChecks,
     ...lockedSummary.optionalUpgrades,
@@ -180,6 +183,30 @@ export function validateAiCustomerSummary(
         reasons.push(
           `AI text contains invented technical measurement matching "${pattern.source}"`,
         );
+      }
+    }
+  }
+
+  // ── Gate 5: hard constraints must not be softened ─────────────────────────
+  // For each hard constraint in the locked summary, check that the AI text
+  // does not replace definitive failure language with hedging.
+  // We detect softening by checking if the AI text uses hedge phrases near the
+  // key noun phrase of any hard constraint, instead of the original direct claim.
+  const SOFTENING_PATTERNS = [
+    /\bmay\s+(struggle|have\s+issues|be\s+less\s+(?:suitable|efficient|effective))\b/i,
+    /\bcould\s+be\s+(?:less\s+)?(?:suited|suitable|problematic)\b/i,
+    /\bmight\s+(?:struggle|not\s+work\s+as\s+well)\b/i,
+    /\bin\s+some\s+cases\b/i,
+    /\bunder\s+certain\s+conditions\b/i,
+  ];
+
+  if (lockedSummary.hardConstraints.length > 0) {
+    for (const pattern of SOFTENING_PATTERNS) {
+      if (pattern.test(text)) {
+        reasons.push(
+          `AI text appears to soften a hard constraint using hedging language matching "${pattern.source}" — hard constraints must not be weakened`,
+        );
+        break; // one violation is enough to flag
       }
     }
   }

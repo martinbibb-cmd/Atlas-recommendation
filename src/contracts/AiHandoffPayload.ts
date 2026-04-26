@@ -80,4 +80,19 @@ export interface AiHandoffPayload {
 
   /** Future upgrade paths this recommendation enables. */
   futureUpgrades: string[];
+
+  /**
+   * Non-negotiable physics failures from rejected scenarios. Sourced from
+   * CustomerSummaryV1.hardConstraints.
+   * AI must render these with the same directness as the engine — never soften
+   * "will fail" to "may struggle" or "could be less suitable".
+   */
+  hardConstraints: string[];
+
+  /**
+   * Quantifiable performance penalties from rejected scenarios. Sourced from
+   * CustomerSummaryV1.performancePenalties.
+   * AI must present these directly and may not hedge or qualify them.
+   */
+  performancePenalties: string[];
 }
