@@ -256,7 +256,13 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       mainsDynamicFlowLpm: engineInput.mainsDynamicFlowLpm,
       heatLossWatts: engineInput.heatLossWatts,
     };
-    const pack = buildInsightPackFromEngine(engineResult.engineOutput, [], surveyContext);
+    const pack = buildInsightPackFromEngine(
+      engineResult.engineOutput,
+      [],
+      surveyContext,
+      portalData?.decision ?? undefined,
+      portalData?.scenarios ?? undefined,
+    );
 
     return (
       <div className="portal-page portal-page--full-width" data-testid="customer-portal">
