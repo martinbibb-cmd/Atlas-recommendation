@@ -115,8 +115,14 @@ export interface ConfidenceSummary {
  * This is the canonical shape emitted alongside the PDF.
  */
 export interface AccessibleTechnicalSummaryJson {
+  /** Canonical source identifier — always "AtlasDecisionV1". */
+  source: 'AtlasDecisionV1';
   schemaVersion: typeof ACCESSIBLE_SUMMARY_SCHEMA_VERSION;
   generatedAt: string;
+  /** Visit identifier forwarded from the calling context, when available. */
+  visitId?: string;
+  /** Engine run identifier forwarded from EngineMetaV1, when available. */
+  engineRunId?: string;
   llmGroundingNote: string;
   surveyedFacts: SurveyedFacts;
   energyContext: EnergyContext;
@@ -233,8 +239,11 @@ function formatPlainText(data: AccessibleTechnicalSummaryJson): string {
   lines.push('===================================');
   lines.push(data.llmGroundingNote);
   lines.push('');
+  lines.push(`Source: ${data.source}`);
   lines.push(`Generated: ${data.generatedAt}`);
   lines.push(`Schema version: ${data.schemaVersion}`);
+  if (data.visitId) lines.push(`Visit ID: ${data.visitId}`);
+  if (data.engineRunId) lines.push(`Engine run ID: ${data.engineRunId}`);
   lines.push('');
 
   // Surveyed facts
@@ -325,6 +334,44 @@ function formatPlainText(data: AccessibleTechnicalSummaryJson): string {
   return lines.join('\n');
 }
 
+/**
+ * Optional identity fields forwarded into the sidecar for traceability.
+ */
+export interface AccessibleSummaryIdentity {
+  /** Visit identifier from the calling context. */
+  visitId?: string;
+  /**
+   * Engine run identifier.  When EngineMetaV1 carries a stable run ID in the
+   * future this should be sourced from there; callers may also supply it
+   * directly from their own call-site context.
+   */
+  engineRunId?: string;
+}
+
+// ─── Mismatch assertion ───────────────────────────────────────────────────────
+
+/**
+ * Asserts that the scenarioId recorded in the sidecar recommendation block
+ * matches the decision's authoritative recommendedScenarioId.
+ *
+ * Exported separately so it can be tested directly and re-used by any future
+ * code path that builds or mutates a sidecar outside of the main builder.
+ *
+ * @throws {Error} when the IDs diverge.
+ */
+export function assertSidecarRecommendationMatch(
+  sidecarRecommendedScenarioId: string,
+  decisionRecommendedScenarioId: string,
+): void {
+  if (sidecarRecommendedScenarioId !== decisionRecommendedScenarioId) {
+    throw new Error(
+      `AccessibleTechnicalSummary mismatch: ` +
+      `summary.recommendation.recommendedScenarioId "${sidecarRecommendedScenarioId}" ` +
+      `does not match decision.recommendedScenarioId "${decisionRecommendedScenarioId}"`,
+    );
+  }
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 /**
@@ -339,6 +386,8 @@ function formatPlainText(data: AccessibleTechnicalSummaryJson): string {
  *                       block.  Drawn from InsightPackSurveyContext.
  * @param quoteScopeItems  Optional canonical quote scope items to attach as
  *                       supporting evidence.
+ * @param identity       Optional identity fields (visitId, engineRunId) to
+ *                       embed in the sidecar for traceability.
  */
 export function buildAccessibleTechnicalSummary(
   engineOutput: EngineOutputV1,
@@ -346,6 +395,7 @@ export function buildAccessibleTechnicalSummary(
   scenarios: ScenarioResult[],
   surveyContext?: InsightPackSurveyContext,
   quoteScopeItems?: QuoteScopeItem[],
+  identity?: AccessibleSummaryIdentity,
 ): AccessibleTechnicalSummary {
   // Find the recommended scenario for system-type lookup.
   const recommendedScenario = scenarios.find(
@@ -380,8 +430,11 @@ export function buildAccessibleTechnicalSummary(
     }));
 
   const json: AccessibleTechnicalSummaryJson = {
+    source: 'AtlasDecisionV1',
     schemaVersion: ACCESSIBLE_SUMMARY_SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
+    ...(identity?.visitId ? { visitId: identity.visitId } : {}),
+    ...(identity?.engineRunId ? { engineRunId: identity.engineRunId } : {}),
     llmGroundingNote: LLM_GROUNDING_NOTE,
     surveyedFacts: buildSurveyedFacts(surveyContext),
     energyContext,
@@ -399,6 +452,13 @@ export function buildAccessibleTechnicalSummary(
       ? { quoteScopeItems }
       : {}),
   };
+
+  // Mismatch assertion: the recommendation in the sidecar must faithfully
+  // reflect the decision.  If they diverge, something has gone wrong upstream.
+  assertSidecarRecommendationMatch(
+    json.recommendation.recommendedScenarioId,
+    decision.recommendedScenarioId,
+  );
 
   return {
     plainText: formatPlainText(json),

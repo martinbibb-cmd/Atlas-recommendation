@@ -19,6 +19,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildAccessibleTechnicalSummary,
+  assertSidecarRecommendationMatch,
   LLM_GROUNDING_NOTE,
   ACCESSIBLE_SUMMARY_SCHEMA_VERSION,
 } from '../buildAccessibleTechnicalSummary';
@@ -609,3 +610,140 @@ describe('determinism (no Math.random)', () => {
     expect(JSON.stringify(j1)).toBe(JSON.stringify(j2));
   });
 });
+
+// ─── Identity fields ──────────────────────────────────────────────────────────
+
+describe('identity fields', () => {
+  it('source is always "AtlasDecisionV1"', () => {
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      makeDecision('system_unvented'),
+      [makeScenario('system_unvented', 'system')],
+    );
+    expect(summary.json.source).toBe('AtlasDecisionV1');
+  });
+
+  it('visitId is included when supplied via identity', () => {
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      makeDecision('system_unvented'),
+      [makeScenario('system_unvented', 'system')],
+      undefined,
+      undefined,
+      { visitId: 'visit-001' },
+    );
+    expect(summary.json.visitId).toBe('visit-001');
+  });
+
+  it('engineRunId is included when supplied via identity', () => {
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      makeDecision('system_unvented'),
+      [makeScenario('system_unvented', 'system')],
+      undefined,
+      undefined,
+      { engineRunId: 'run-abc' },
+    );
+    expect(summary.json.engineRunId).toBe('run-abc');
+  });
+
+  it('visitId and engineRunId are absent when identity is not provided', () => {
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      makeDecision('system_unvented'),
+      [makeScenario('system_unvented', 'system')],
+    );
+    expect(summary.json.visitId).toBeUndefined();
+    expect(summary.json.engineRunId).toBeUndefined();
+  });
+
+  it('plainText contains Source: AtlasDecisionV1', () => {
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      makeDecision('system_unvented'),
+      [makeScenario('system_unvented', 'system')],
+    );
+    expect(summary.plainText).toContain('Source: AtlasDecisionV1');
+  });
+
+  it('plainText contains Visit ID when visitId is supplied', () => {
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      makeDecision('system_unvented'),
+      [makeScenario('system_unvented', 'system')],
+      undefined,
+      undefined,
+      { visitId: 'visit-42' },
+    );
+    expect(summary.plainText).toContain('Visit ID: visit-42');
+  });
+
+  it('plainText contains Engine run ID when engineRunId is supplied', () => {
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      makeDecision('system_unvented'),
+      [makeScenario('system_unvented', 'system')],
+      undefined,
+      undefined,
+      { engineRunId: 'run-99' },
+    );
+    expect(summary.plainText).toContain('Engine run ID: run-99');
+  });
+});
+
+// ─── Mismatch assertion ───────────────────────────────────────────────────────
+
+describe('mismatch assertion', () => {
+  it('does NOT throw when summary.recommendedScenarioId matches decision.recommendedScenarioId', () => {
+    expect(() =>
+      buildAccessibleTechnicalSummary(
+        makeMinimalEngineOutput(),
+        makeDecision('system_unvented'),
+        [makeScenario('system_unvented', 'system')],
+      ),
+    ).not.toThrow();
+  });
+
+  it('summary.recommendation.recommendedScenarioId always equals decision.recommendedScenarioId', () => {
+    const decision = makeDecision('system_unvented');
+    const summary = buildAccessibleTechnicalSummary(
+      makeMinimalEngineOutput(),
+      decision,
+      [makeScenario('system_unvented', 'system')],
+    );
+    expect(summary.json.recommendation.recommendedScenarioId).toBe(
+      decision.recommendedScenarioId,
+    );
+  });
+
+  // Direct tests of the exported assertion function — covers the throw path
+  // that cannot currently be triggered through buildAccessibleTechnicalSummary's
+  // public API (because the ID is always forwarded directly from the decision).
+  describe('assertSidecarRecommendationMatch', () => {
+    it('does not throw when IDs match', () => {
+      expect(() =>
+        assertSidecarRecommendationMatch('system_unvented', 'system_unvented'),
+      ).not.toThrow();
+    });
+
+    it('throws with a descriptive message when IDs diverge', () => {
+      expect(() =>
+        assertSidecarRecommendationMatch('combi', 'system_unvented'),
+      ).toThrow(
+        /AccessibleTechnicalSummary mismatch.*combi.*system_unvented/,
+      );
+    });
+
+    it('error message includes both the sidecar ID and the decision ID', () => {
+      let message = '';
+      try {
+        assertSidecarRecommendationMatch('ashp', 'system_unvented');
+      } catch (e) {
+        message = (e as Error).message;
+      }
+      expect(message).toContain('ashp');
+      expect(message).toContain('system_unvented');
+    });
+  });
+});
+
