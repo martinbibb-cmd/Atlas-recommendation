@@ -921,7 +921,7 @@ export function buildRecommendationsFromEvidence(
   const quotedFamily = constraints?.quotedBoilerFamily;
   const allDecisions: RecommendationDecision[] = scoredDecisions
     .map(decision => {
-      if (quotedFamily != null && decision.family === quotedFamily) {
+      if (quotedFamily !== null && quotedFamily !== undefined && decision.family === quotedFamily) {
         return {
           ...decision,
           overallScore: Math.min(100, decision.overallScore + QUOTED_FAMILY_SCORE_BONUS),
