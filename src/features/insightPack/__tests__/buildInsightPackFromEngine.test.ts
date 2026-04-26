@@ -15,6 +15,8 @@
 import { describe, it, expect } from 'vitest';
 import { buildInsightPackFromEngine } from '../buildInsightPackFromEngine';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
+import type { AtlasDecisionV1 } from '../../../contracts/AtlasDecisionV1';
+import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 import type { QuoteInput, RatingBand } from '../insightPack.types';
 import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../../engine/utils/efficiency';
 
@@ -862,3 +864,170 @@ describe('best advice', () => {
     }
   });
 });
+
+// ─── Decision-bound path ──────────────────────────────────────────────────────
+
+function makeMinimalDecision(
+  recommendedScenarioId: string,
+  systemType: ScenarioResult['system']['type'],
+  overrides: Partial<AtlasDecisionV1> = {},
+): { decision: AtlasDecisionV1; scenarios: ScenarioResult[] } {
+  const scenario: ScenarioResult = {
+    scenarioId: recommendedScenarioId,
+    system: { type: systemType, summary: `A ${systemType} is the right fit.` },
+    performance: { hotWater: 'good', heating: 'good', efficiency: 'good', reliability: 'good' },
+    keyBenefits: ['Physics-derived reason A', 'Physics-derived reason B'],
+    keyConstraints: ['Avoided risk A'],
+    dayToDayOutcomes: [],
+    requiredWorks: [],
+    upgradePaths: [],
+    physicsFlags: {},
+  };
+  const decision: AtlasDecisionV1 = {
+    recommendedScenarioId,
+    headline: `A ${systemType} is the right fit for this home.`,
+    summary: 'Physics-driven summary.',
+    keyReasons: ['Physics-derived reason A', 'Physics-derived reason B'],
+    avoidedRisks: ['Avoided risk A'],
+    dayToDayOutcomes: [],
+    requiredWorks: [],
+    compatibilityWarnings: [],
+    includedItems: [],
+    quoteScope: [],
+    futureUpgradePaths: [],
+    supportingFacts: [],
+    lifecycle: {
+      currentSystem: { type: 'combi', ageYears: 0, condition: 'unknown' },
+      summary: 'Unknown condition.',
+      influencingFactors: { waterQuality: 'unknown', scaleRisk: 'low', usageIntensity: 'moderate' },
+      replacementTimeline: { horizon: 'unknown', urgency: 'low', bands: [] },
+    },
+    ...overrides,
+  };
+  return { decision, scenarios: [scenario] };
+}
+
+describe('decision-bound path', () => {
+  it('uses decision.keyReasons for bestAdvice.because when decision is provided', () => {
+    const { decision, scenarios } = makeMinimalDecision('combi', 'combi');
+    const output = makeMinimalEngineOutput({ recommendation: { primary: 'Combi boiler' } });
+    const pack = buildInsightPackFromEngine(output, [COMBI_QUOTE], undefined, decision, scenarios);
+    expect(pack.bestAdvice.because).toContain('Physics-derived reason A');
+    expect(pack.bestAdvice.because).toContain('Physics-derived reason B');
+  });
+
+  it('uses decision.avoidedRisks for bestAdvice.avoids when decision is provided', () => {
+    const { decision, scenarios } = makeMinimalDecision('combi', 'combi');
+    const output = makeMinimalEngineOutput({ recommendation: { primary: 'Combi boiler' } });
+    const pack = buildInsightPackFromEngine(output, [COMBI_QUOTE], undefined, decision, scenarios);
+    expect(pack.bestAdvice.avoids).toContain('Avoided risk A');
+  });
+
+  it('selects the quote matching the decision system type', () => {
+    const { decision, scenarios } = makeMinimalDecision('system_unvented', 'system');
+    const output = makeMinimalEngineOutput({ recommendation: { primary: 'System boiler with cylinder' } });
+    const pack = buildInsightPackFromEngine(output, [COMBI_QUOTE, SYSTEM_QUOTE], undefined, decision, scenarios);
+    expect(pack.bestAdvice.recommendedQuoteId).toBe(SYSTEM_QUOTE.id);
+  });
+
+  it('throws when recommended scenario is not found in scenarios array', () => {
+    const { decision } = makeMinimalDecision('missing_scenario', 'combi');
+    const output = makeMinimalEngineOutput();
+    expect(() =>
+      buildInsightPackFromEngine(output, [COMBI_QUOTE], undefined, decision, []),
+    ).toThrow('AdvicePack: recommended scenario missing');
+  });
+
+  it('throws a mismatch error when shadow engine would pick a different system type', () => {
+    // Engine text says "System boiler" but decision says "combi"
+    const { decision, scenarios } = makeMinimalDecision('combi', 'combi');
+    const output = makeMinimalEngineOutput({
+      recommendation: { primary: 'System boiler with stored cylinder' },
+      options: [
+        {
+          id: 'system_unvented',
+          label: 'System boiler',
+          status: 'viable',
+          headline: 'Suitable',
+          why: [], requirements: [],
+          heat: { status: 'ok', headline: '', bullets: [] },
+          dhw: { status: 'ok', headline: '', bullets: [] },
+          engineering: { status: 'ok', headline: '', bullets: [] },
+          typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
+          boundaryConditions: [],
+        },
+      ],
+    });
+    expect(() =>
+      buildInsightPackFromEngine(output, [COMBI_QUOTE, SYSTEM_QUOTE], undefined, decision, scenarios),
+    ).toThrow('Decision mismatch: Advice Pack diverged from engine output');
+  });
+});
+
+// ─── Simultaneity guard ───────────────────────────────────────────────────────
+
+describe('simultaneity guard', () => {
+  it('for 1 bathroom, 2 occupants: simultaneity is NOT a primary reason in bestAdvice.because', () => {
+    // Engine has no simultaneous-demand flags — combi is valid for this small household.
+    const output = makeMinimalEngineOutput({
+      recommendation: { primary: 'Combination boiler (on-demand hot water)' },
+      verdict: {
+        confidence: { level: 'high', reasons: [] },
+        primaryReason: 'Low demand profile matched to combi capacity.',
+        reasons: ['Low demand profile matched to combi capacity.'],
+        title: 'Combi recommended',
+      },
+    });
+    const pack = buildInsightPackFromEngine(
+      output,
+      [COMBI_QUOTE],
+      { occupancyCount: 2, bathroomCount: 1 },
+    );
+    // The primary reason must not mention simultaneity — that would be a
+    // shadow-engine heuristic injected without physics evidence.
+    const primaryReason = (pack.bestAdvice.because[0] ?? '').toLowerCase();
+    expect(primaryReason).not.toContain('simultan');
+  });
+
+  it('simultaneity reason is only added when combi simultaneous-demand flag is present', () => {
+    const output = makeMinimalEngineOutput({
+      recommendation: { primary: 'System boiler with stored cylinder' },
+      redFlags: [
+        {
+          id: 'combi-simultaneous-demand',
+          severity: 'fail',
+          title: 'Simultaneous demand exceeds combi capacity',
+          detail: 'Two bathrooms.',
+        },
+      ],
+    });
+    const pack = buildInsightPackFromEngine(
+      output,
+      [SYSTEM_QUOTE],
+      { occupancyCount: 3, bathroomCount: 2 },
+    );
+    // When the engine flags simultaneous demand, the avoids section may mention it
+    const avoidsText = pack.bestAdvice.avoids.join(' ').toLowerCase();
+    expect(avoidsText).toContain('simultan');
+  });
+
+  it('decision-bound path: 1 bathroom, 2 occupants — simultaneity NOT in because when decision provides non-simultan reasons', () => {
+    const { decision, scenarios } = makeMinimalDecision('combi', 'combi', {
+      keyReasons: ['Low demand profile matched to combi capacity.', 'Single bathroom household.'],
+      avoidedRisks: ['Cylinder standby losses avoided.'],
+    });
+    const output = makeMinimalEngineOutput({ recommendation: { primary: 'Combi boiler' } });
+    const pack = buildInsightPackFromEngine(
+      output,
+      [COMBI_QUOTE],
+      { occupancyCount: 2, bathroomCount: 1 },
+      decision,
+      scenarios,
+    );
+    const becauseText = pack.bestAdvice.because.join(' ').toLowerCase();
+    expect(becauseText).not.toContain('simultan');
+    // Decision reasons ARE present
+    expect(pack.bestAdvice.because).toContain('Low demand profile matched to combi capacity.');
+  });
+});
+

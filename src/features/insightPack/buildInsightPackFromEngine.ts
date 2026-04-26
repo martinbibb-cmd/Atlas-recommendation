@@ -12,6 +12,8 @@
  */
 
 import type { EngineOutputV1, OptionCardV1, LimiterV1, RedFlagItem } from '../../contracts/EngineOutputV1';
+import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
+import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import {
   computeRecoveryTimeMins,
@@ -1169,7 +1171,83 @@ function buildBestAdvice(
   quotes: QuoteInsight[],
   output: EngineOutputV1,
   currentSystem?: CurrentSystemSummary,
+  decision?: AtlasDecisionV1,
+  scenarios?: ScenarioResult[],
 ): BestAdvice {
+  // ── Decision-bound path (preferred) ────────────────────────────────────────
+  // When AtlasDecisionV1 is provided, the recommendation is bound directly to
+  // the engine's authoritative output — no independent re-derivation allowed.
+  // The Advice Pack is a pure renderer of the decision, never a decision-maker.
+  if (decision && scenarios) {
+    const recommendedScenario = scenarios.find(
+      s => s.scenarioId === decision.recommendedScenarioId,
+    );
+    if (!recommendedScenario) {
+      throw new Error(
+        `AdvicePack: recommended scenario missing — ` +
+        `scenarioId "${decision.recommendedScenarioId}" not found in scenarios array.`,
+      );
+    }
+
+    // Mismatch guard: run the legacy heuristic selection and compare to the
+    // decision. If they disagree, the shadow engine has diverged — surface this
+    // immediately rather than silently producing conflicting outputs.
+    if (quotes.length > 0) {
+      const primaryRec = output.recommendation?.primary ?? '';
+      const SUITABILITY_ORDER: RatingBand[] = ['Excellent', 'Very Good', 'Good', 'Needs Right Setup', 'Less Suited'];
+      const legacyScored = quotes.map(qi => {
+        const textAligns = checkRecommendationAlignment(qi.quote, primaryRec, output);
+        const optionCard = findOptionCard(qi.quote, output);
+        const viableAligns = optionCard?.status === 'viable';
+        return { qi, textAligns, aligns: textAligns || viableAligns, suitabilityScore: SUITABILITY_ORDER.indexOf(qi.rating.suitability.rating) };
+      });
+      const legacyBest = legacyScored.sort((a, b) => {
+        if (a.textAligns && !b.textAligns) return -1;
+        if (!a.textAligns && b.textAligns) return 1;
+        if (a.aligns && !b.aligns) return -1;
+        if (!a.aligns && b.aligns) return 1;
+        return a.suitabilityScore - b.suitabilityScore;
+      })[0];
+
+      if (legacyBest && legacyBest.qi.quote.systemType !== recommendedScenario.system.type) {
+        throw new Error(
+          `Decision mismatch: Advice Pack diverged from engine output. ` +
+          `AtlasDecisionV1 recommends "${recommendedScenario.system.type}" ` +
+          `(scenarioId: "${decision.recommendedScenarioId}") but the shadow engine ` +
+          `selected "${legacyBest.qi.quote.systemType}" from engine text: "${output.recommendation?.primary ?? ''}". ` +
+          `Fix: ensure EngineOutputV1 and AtlasDecisionV1 are derived from the same engine inputs.`,
+        );
+      }
+    }
+
+    // Find the quote whose system type matches the decision's recommended system.
+    const best = quotes.find(qi => qi.quote.systemType === recommendedScenario.system.type);
+
+    const recommendation = best
+      ? `${best.quote.label} — ${systemLabel(best.quote.systemType)}`
+      : decision.headline;
+
+    // Bind reasoning to engine truth — use decision.keyReasons, not re-derived heuristics.
+    const because: string[] = [];
+    if (currentSystem) {
+      because.push(`Recommended as the best replacement for your ${currentSystem.label}.`);
+    }
+    because.push(...decision.keyReasons.slice(0, 3));
+
+    // Bind avoids to engine truth — use decision.avoidedRisks.
+    const avoids = decision.avoidedRisks.slice(0, 3);
+
+    return {
+      recommendation,
+      because: because.length > 0 ? because : ["Best physics fit based on this home's survey data."],
+      avoids: avoids.length > 0 ? avoids : ['No significant avoided risks identified from current survey data.'],
+      recommendedQuoteId: best?.quote.id,
+    };
+  }
+
+  // ── Legacy path: heuristic-based selection ─────────────────────────────────
+  // Used when no AtlasDecisionV1 is provided. Callers should pass a decision
+  // whenever possible to eliminate this shadow-engine path.
   const primaryRec = output.recommendation?.primary ?? '';
   const verdict = output.verdict;
 
@@ -1609,12 +1687,21 @@ function buildNextSteps(
  * @param surveyContext  Optional — subset of EngineInputV2_3 used to ground
  *                       advice in actual survey data (current system, occupancy,
  *                       bathrooms, mains flow, heat loss).
+ * @param decision       Optional — AtlasDecisionV1 from buildDecisionFromScenarios.
+ *                       When provided, bestAdvice is bound directly to the decision
+ *                       and its keyReasons / avoidedRisks, eliminating shadow-engine
+ *                       re-derivation. A mismatch guard throws if the legacy heuristic
+ *                       would have produced a different system recommendation.
+ * @param scenarios      Required when decision is provided — the ScenarioResult[] used
+ *                       to build the decision. Used to resolve recommendedScenarioId.
  * @returns              A fully populated InsightPack — all fields guaranteed.
  */
 export function buildInsightPackFromEngine(
   engineOutput: EngineOutputV1,
   quotes: QuoteInput[],
   surveyContext?: InsightPackSurveyContext,
+  decision?: AtlasDecisionV1,
+  scenarios?: ScenarioResult[],
 ): InsightPack {
   const currentSystem = buildCurrentSystemSummary(surveyContext);
 
@@ -1707,7 +1794,7 @@ export function buildInsightPackFromEngine(
     }
   }
 
-  const bestAdvice = buildBestAdvice(quoteInsights, engineOutput, currentSystem);
+  const bestAdvice = buildBestAdvice(quoteInsights, engineOutput, currentSystem, decision, scenarios);
   const bestQuote = quoteInsights.find(qi => qi.quote.id === bestAdvice.recommendedQuoteId);
   const savingsPlan = buildSavingsPlan(bestQuote, engineOutput);
   const homeProfile = buildHomeProfile(engineOutput);

@@ -905,7 +905,23 @@ export default function App() {
       mainsDynamicFlowLpm: CONSOLE_DEMO_INPUT.mainsDynamicFlowLpm,
       heatLossWatts: CONSOLE_DEMO_INPUT.heatLossWatts,
     };
-    const pack = buildInsightPackFromEngine(engineOutput, DEMO_QUOTES, demoSurveyContext);
+    const demoScenarios = buildScenariosFromEngineOutput(engineOutput);
+    const demoDecision = demoScenarios.length > 0
+      ? buildDecisionFromScenarios({
+          scenarios: demoScenarios,
+          boilerType: toLifecycleBoilerType(CONSOLE_DEMO_INPUT.currentHeatSourceType),
+          ageYears: 10,
+          occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
+          bathroomCount: CONSOLE_DEMO_INPUT.bathroomCount,
+        })
+      : undefined;
+    const pack = buildInsightPackFromEngine(
+      engineOutput,
+      DEMO_QUOTES,
+      demoSurveyContext,
+      demoDecision,
+      demoScenarios.length > 0 ? demoScenarios : undefined,
+    );
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <div style={{ padding: '0.5rem 1rem' }}>
@@ -1224,7 +1240,23 @@ export default function App() {
           mainsDynamicFlowLpm: labEngineInput.mainsDynamicFlowLpm,
           heatLossWatts: labEngineInput.heatLossWatts,
         };
-        const pack = buildInsightPackFromEngine(engineOutput, labQuotes, surveyContext);
+        const ipScenarios = buildScenariosFromEngineOutput(engineOutput);
+        const ipDecision = ipScenarios.length > 0
+          ? buildDecisionFromScenarios({
+              scenarios: ipScenarios,
+              boilerType: toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
+              ageYears: labEngineInput.currentSystem?.boiler?.ageYears ?? 10,
+              occupancyCount: labEngineInput.occupancyCount,
+              bathroomCount: labEngineInput.bathroomCount,
+            })
+          : undefined;
+        const pack = buildInsightPackFromEngine(
+          engineOutput,
+          labQuotes,
+          surveyContext,
+          ipDecision,
+          ipScenarios.length > 0 ? ipScenarios : undefined,
+        );
         return (
           <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
             <div style={{ padding: '0.5rem 1rem' }}>
