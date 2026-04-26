@@ -2024,7 +2024,7 @@ export interface MCSReport {
 
 /** Flag item emitted by HeatPumpRegimeModuleV1. */
 export interface HeatPumpRegimeFlagItem {
-  id: 'regime-flow-temp-elevated' | 'regime-cop-penalty' | 'regime-full-job-unlocks-low-temp';
+  id: 'regime-flow-temp-elevated' | 'regime-cop-penalty' | 'regime-full-job-unlocks-low-temp' | 'regime-low-heat-loss-emitter-oversize';
   severity: 'info' | 'warn';
   title: string;
   detail: string;
