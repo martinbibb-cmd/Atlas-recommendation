@@ -31,6 +31,7 @@ import { generateReportTitle } from '../../lib/reports/generateReportTitle';
 import { generatePortalToken } from '../../lib/portal/portalToken';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { runEngine } from '../../engine/Engine';
+import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { sanitiseModelForEngine } from '../../ui/fullSurvey/sanitiseModelForEngine';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -68,7 +69,7 @@ const ENGINE_RUN_META_KEY = '_atlasEngineRunMeta';
 
 interface EngineRunMeta {
   runAt: string;
-  output: Record<string, unknown>;
+  output: EngineOutputV1;
 }
 
 // ─── Customer summary text builder ───────────────────────────────────────────
@@ -827,7 +828,7 @@ export default function VisitHubPage({
   const [hasQuotes, setHasQuotes] = useState(false);
   // Engine run metadata.
   const [engineRunAt, setEngineRunAt] = useState<string | null>(null);
-  const [lastEngineOutput, setLastEngineOutput] = useState<Record<string, unknown> | null>(null);
+  const [lastEngineOutput, setLastEngineOutput] = useState<EngineOutputV1 | null>(null);
   const [isEngineRunning, setIsEngineRunning] = useState(false);
 
   useEffect(() => {
@@ -850,7 +851,7 @@ export default function VisitHubPage({
         if (engineMeta && typeof engineMeta === 'object') {
           const m = engineMeta as Partial<EngineRunMeta>;
           if (typeof m.runAt === 'string') setEngineRunAt(m.runAt);
-          if (m.output) setLastEngineOutput(m.output);
+          if (m.output) setLastEngineOutput(m.output as unknown as EngineOutputV1);
         }
         setLoading(false);
       })
@@ -1031,11 +1032,11 @@ export default function VisitHubPage({
       const engineInput = toEngineInput(sanitiseModelForEngine(survey));
       const { engineOutput } = runEngine(engineInput);
       const runAt = new Date().toISOString();
-      const engineMeta: EngineRunMeta = { runAt, output: engineOutput as Record<string, unknown> };
+      const engineMeta: EngineRunMeta = { runAt, output: engineOutput };
       const updated = { ...payload, [ENGINE_RUN_META_KEY]: engineMeta };
       workingPayloadRef.current = updated;
       setEngineRunAt(runAt);
-      setLastEngineOutput(engineOutput as Record<string, unknown>);
+      setLastEngineOutput(engineOutput);
       saveVisit(visitId, { working_payload: updated }).catch(() => {/* best effort */});
     } finally {
       setIsEngineRunning(false);
