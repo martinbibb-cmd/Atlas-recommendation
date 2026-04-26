@@ -74,17 +74,13 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
   const benefits     = option.status === 'viable'    ? option.why.slice(0, 4) : [];
   const constraints  = option.status !== 'viable'    ? option.why.slice(0, 4) : [];
 
-  // ── Derive hardConstraints from fail-status planes and rejection why[] ──────
-  // Hard constraints are non-negotiable physics failures: fail-severity plane
-  // bullets, or the rejection reasons for rejected options.
+  // ── Derive hardConstraints from rejection why[] ──────────────────────────────
+  // Hard constraints are non-negotiable physics failures captured as rejection
+  // reasons for rejected options. OptionPlane.status is 'ok' | 'caution' | 'na'
+  // (no 'fail' value exists in the contract), so plane bullets are surfaced via
+  // performancePenalties below when status is 'caution'.
   const hardConstraints: string[] = [];
-  if (option.dhw.status === 'fail') {
-    hardConstraints.push(...option.dhw.bullets.slice(0, 3));
-  }
-  if (option.heat.status === 'fail') {
-    hardConstraints.push(...option.heat.bullets.slice(0, 3));
-  }
-  // For rejected options, add why[] reasons not already captured above.
+  // For rejected options, add why[] reasons.
   // Deduplication here avoids duplicate strings going into the Set in
   // buildDecisionFromScenarios and inflating the constraint list.
   if (option.status === 'rejected') {
