@@ -209,6 +209,24 @@ function buildRecommendedWork(topDetail: ShortlistedOptionDetail | null): string
   return topDetail.bestPerformanceUpgrades.slice(0, 4);
 }
 
+/**
+ * Format the mains flow row value from the engine input.
+ * Returns "12 L/min @ 2.0 bar" when both values are recorded,
+ * "12 L/min" when only flow is recorded, or null when absent.
+ */
+function formatMainsFlow(
+  flow: number | undefined,
+  pressure: number | undefined,
+): string | null {
+  if (flow != null && pressure != null) {
+    return `${flow} L/min @ ${pressure} bar`;
+  }
+  if (flow != null) {
+    return `${flow} L/min`;
+  }
+  return null;
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 interface SummaryChip {
@@ -596,18 +614,10 @@ export default function CustomerRecommendationPrint({
     row.value !== '' && row.value !== PLACEHOLDER_DASH && !NOT_RECORDED_RE.test(row.value);
 
   // Mains flow row — only shown when flow data is present in the engine input.
-  // Builds "12 L/min @ 2.0 bar" when both values are recorded, or "12 L/min" alone.
-  const mainsFlowValue = (() => {
-    const flow = input.mainsDynamicFlowLpm;
-    const pressure = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
-    if (flow != null && pressure != null) {
-      return `${flow} L/min @ ${pressure} bar`;
-    }
-    if (flow != null) {
-      return `${flow} L/min`;
-    }
-    return null;
-  })();
+  const mainsFlowValue = formatMainsFlow(
+    input.mainsDynamicFlowLpm,
+    input.dynamicMainsPressureBar ?? input.dynamicMainsPressure,
+  );
 
   const homeFactRows = [
     { label: 'Heat loss',   value: house.heatLossLabel },
@@ -777,8 +787,8 @@ export default function CustomerRecommendationPrint({
 
               {house.notes.length > 0 && (
                 <ul className="crp-list crp-list--notes" aria-label="Property notes">
-                  {house.notes.map((note, i) => (
-                    <li key={i} className="crp-list__item crp-list__item--info">
+                  {house.notes.map((note) => (
+                    <li key={note} className="crp-list__item crp-list__item--info">
                       <span className="crp-list__icon" aria-hidden="true">ℹ</span>
                       {note}
                     </li>
