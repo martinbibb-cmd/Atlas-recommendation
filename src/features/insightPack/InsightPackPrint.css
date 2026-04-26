@@ -165,6 +165,12 @@
     print-color-adjust: exact;
   }
 
+  /* Accessible summary note and hidden summary block: screen-only, never printed */
+  .accessible-summary-note,
+  .accessible-technical-summary {
+    display: none !important;
+  }
+
   /* General typography */
   body {
     font-size: 10.5pt;
