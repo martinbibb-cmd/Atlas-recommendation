@@ -1194,12 +1194,12 @@ function buildBestAdvice(
     // immediately rather than silently producing conflicting outputs.
     if (quotes.length > 0) {
       const primaryRec = output.recommendation?.primary ?? '';
+      const SUITABILITY_ORDER: RatingBand[] = ['Excellent', 'Very Good', 'Good', 'Needs Right Setup', 'Less Suited'];
       const legacyScored = quotes.map(qi => {
         const textAligns = checkRecommendationAlignment(qi.quote, primaryRec, output);
         const optionCard = findOptionCard(qi.quote, output);
         const viableAligns = optionCard?.status === 'viable';
-        const suitabilityOrder: RatingBand[] = ['Excellent', 'Very Good', 'Good', 'Needs Right Setup', 'Less Suited'];
-        return { qi, textAligns, aligns: textAligns || viableAligns, suitabilityScore: suitabilityOrder.indexOf(qi.rating.suitability.rating) };
+        return { qi, textAligns, aligns: textAligns || viableAligns, suitabilityScore: SUITABILITY_ORDER.indexOf(qi.rating.suitability.rating) };
       });
       const legacyBest = legacyScored.sort((a, b) => {
         if (a.textAligns && !b.textAligns) return -1;

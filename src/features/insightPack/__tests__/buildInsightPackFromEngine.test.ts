@@ -1010,5 +1010,24 @@ describe('simultaneity guard', () => {
     const avoidsText = pack.bestAdvice.avoids.join(' ').toLowerCase();
     expect(avoidsText).toContain('simultan');
   });
+
+  it('decision-bound path: 1 bathroom, 2 occupants — simultaneity NOT in because when decision provides non-simultan reasons', () => {
+    const { decision, scenarios } = makeMinimalDecision('combi', 'combi', {
+      keyReasons: ['Low demand profile matched to combi capacity.', 'Single bathroom household.'],
+      avoidedRisks: ['Cylinder standby losses avoided.'],
+    });
+    const output = makeMinimalEngineOutput({ recommendation: { primary: 'Combi boiler' } });
+    const pack = buildInsightPackFromEngine(
+      output,
+      [COMBI_QUOTE],
+      { occupancyCount: 2, bathroomCount: 1 },
+      decision,
+      scenarios,
+    );
+    const becauseText = pack.bestAdvice.because.join(' ').toLowerCase();
+    expect(becauseText).not.toContain('simultan');
+    // Decision reasons ARE present
+    expect(pack.bestAdvice.because).toContain('Low demand profile matched to combi capacity.');
+  });
 });
 

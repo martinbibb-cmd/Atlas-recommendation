@@ -1247,7 +1247,7 @@ export default function App() {
               boilerType: toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
               ageYears: labEngineInput.currentSystem?.boiler?.ageYears ?? 10,
               occupancyCount: labEngineInput.occupancyCount,
-              bathroomCount:  labEngineInput.bathroomCount,
+              bathroomCount: labEngineInput.bathroomCount,
             })
           : undefined;
         const pack = buildInsightPackFromEngine(
