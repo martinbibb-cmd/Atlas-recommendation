@@ -812,3 +812,83 @@ describe('PR4: stored_vented and stored_unvented status logic', () => {
     });
   });
 });
+
+// ─── Honest framing: combi recommended within constraints ─────────────────────
+
+describe('honest framing: combi headline when recommended despite demand risk', () => {
+  it('combi headline uses "not advisable" copy when demand risk is fail and combi is NOT the recommended family', () => {
+    // Without the recommendedFamily hint, the legacy "not advisable" copy is used.
+    const highDemandInput = {
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+    };
+    const result = runEngine(highDemandInput);
+    const options = buildOptionMatrixV1(result, highDemandInput); // no recommendedFamily
+    const combi = options.find(o => o.id === 'combi')!;
+    expect(combi.status).toBe('caution');
+    expect(combi.headline).toContain('not advisable');
+  });
+
+  it('combi headline uses honest "recommended within current constraints" framing when combi IS the recommended family', () => {
+    // Simulate the scenario where combi is the only feasible option:
+    // no cylinder space → stored options blocked, combi is recommended.
+    const noSpaceHighDemandInput = {
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+      availableSpace: 'none' as const,
+    };
+    const result = runEngine(noSpaceHighDemandInput);
+    const options = buildOptionMatrixV1(result, noSpaceHighDemandInput, 'combi');
+    const combi = options.find(o => o.id === 'combi')!;
+    expect(combi.status).toBe('caution');
+    // Should NOT say "not advisable" when combi is recommended
+    expect(combi.headline).not.toContain('not advisable');
+    // Should acknowledge it is recommended within constraints
+    expect(combi.headline).toContain('recommended');
+    // Should still mention the demand risk honestly
+    expect(combi.headline.toLowerCase()).toContain('demand');
+  });
+
+  it('combi DHW plane headline uses honest framing when combi is recommended with demand risk', () => {
+    const noSpaceHighDemandInput = {
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+      availableSpace: 'none' as const,
+    };
+    const result = runEngine(noSpaceHighDemandInput);
+    const options = buildOptionMatrixV1(result, noSpaceHighDemandInput, 'combi');
+    const combi = options.find(o => o.id === 'combi')!;
+    // DHW plane should not say "makes combi unsuitable" when combi is recommended
+    expect(combi.dhw.headline).not.toContain('unsuitable');
+    expect(combi.dhw.headline.toLowerCase()).toContain('demand');
+  });
+
+  it('combi mustHave requirement uses upgrade framing when combi is recommended with demand risk', () => {
+    const noSpaceHighDemandInput = {
+      ...baseInput,
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+      availableSpace: 'none' as const,
+    };
+    const result = runEngine(noSpaceHighDemandInput);
+    const options = buildOptionMatrixV1(result, noSpaceHighDemandInput, 'combi');
+    const combi = options.find(o => o.id === 'combi')!;
+    const mustHave = combi.typedRequirements.mustHave.join(' ');
+    // Should NOT say "usually a better fit" (contradicts recommendation)
+    expect(mustHave).not.toContain('usually a better fit');
+    // Should instead suggest a future upgrade path
+    expect(mustHave.toLowerCase()).toContain('upgrade');
+  });
+
+  it('honest framing does NOT activate when combi is viable (no demand risk)', () => {
+    // When combiRisk is not fail, no honest framing needed — should stay "viable"
+    const result = runEngine(baseInput);
+    const options = buildOptionMatrixV1(result, baseInput, 'combi');
+    const combi = options.find(o => o.id === 'combi')!;
+    expect(combi.status).toBe('viable');
+    expect(combi.headline).toContain('suits your');
+  });
+});

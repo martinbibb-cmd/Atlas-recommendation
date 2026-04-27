@@ -825,7 +825,7 @@ export function buildEngineOutputV1(
 
   // confidence and assumptions computed at the top of this function for the hierarchy.
 
-  const options = input ? buildOptionMatrixV1(result, input) : undefined;
+  const options = input ? buildOptionMatrixV1(result, input, canonicalBestFamily) : undefined;
   const explainers = buildExplainers(result, input);
 
   // ── Behaviour Console additions ───────────────────────────────────────────
