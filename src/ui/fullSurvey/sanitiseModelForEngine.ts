@@ -26,6 +26,10 @@ import type {
  *   (currentHeatSourceType, currentBoilerAgeYears, emitterType, systemPlanType,
  *   pipingTopology, hasMagneticFilter, systemAgeYears, dhwStorageType, and the extended
  *   currentSystem.* architecture fields). Existing values are never overwritten.
+ *   Also bridges shower fields (currentShowerType, electricShowerPresent, pumpedShowerPresent)
+ *   and cylinder volume (cylinderVolumeL → cylinderVolumeLitres for regular/system boiler paths).
+ *   Runs cylinder condition inference from systemBuilder cylinder data when fullSurvey.dhwCondition
+ *   is absent and the current heat source is not a combi.
  * - Bridges flat survey fields (currentBoilerAgeYears, currentHeatSourceType,
  *   currentBoilerOutputKw) into the nested currentSystem.boiler structure that
  *   BoilerEfficiencyModelV1 expects. Existing nested values are never overwritten.
@@ -213,6 +217,31 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
           : undefined
       ),
     };
+
+    // Shower compatibility fields — bridged from system builder into flat engine
+    // fields so buildShowerCompatibilityNotes (called inside the engine) receives
+    // the surveyed shower data.  Existing explicit values are never overwritten.
+    if (sanitised.currentShowerType === undefined && sb.currentShowerType != null) {
+      sanitised.currentShowerType = sb.currentShowerType;
+    }
+    if (sanitised.electricShowerPresent === undefined && sb.electricShowerPresent != null) {
+      sanitised.electricShowerPresent = sb.electricShowerPresent;
+    }
+    if (sanitised.pumpedShowerPresent === undefined && sb.pumpedShowerPresent != null) {
+      sanitised.pumpedShowerPresent = sb.pumpedShowerPresent;
+    }
+
+    // Cylinder volume from system builder — bridge to cylinderVolumeLitres when
+    // not already set from dhwCondition.currentCylinderVolumeLitres.
+    // Only meaningful for regular and system boiler paths (which have a cylinder).
+    const hasCylinderPath = sb.heatSource === 'regular' || sb.heatSource === 'system';
+    if (
+      hasCylinderPath &&
+      sanitised.cylinderVolumeLitres === undefined &&
+      sb.cylinderVolumeL != null
+    ) {
+      sanitised.cylinderVolumeLitres = sb.cylinderVolumeL;
+    }
   }
 
 
@@ -345,6 +374,90 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
       sanitised.cylinderInsulationFactor = cylCondition.insulationFactor;
       sanitised.cylinderCoilTransferFactor = cylCondition.coilTransferFactor;
       sanitised.cylinderConditionBand = cylCondition.conditionBand;
+    }
+  }
+
+  // ── System builder cylinder condition inference fallback ──────────────────
+  // When fullSurvey.dhwCondition is absent but fullSurvey.systemBuilder has
+  // cylinder data (ageBand, insulationType, condition), run a lightweight
+  // cylinder condition inference using the system-builder observations.
+  // This covers the common survey path where the surveyor records cylinder
+  // details in the System Builder step rather than the DHW Condition step.
+  // Only runs when cylinderInsulationFactor has not already been set above.
+  // Only runs for stored hot water paths (non-combi).
+  const sbForCylinder = sanitised.fullSurvey?.systemBuilder;
+  const isStoredPathForSb = sanitised.currentHeatSourceType !== 'combi';
+  if (
+    dc === undefined &&
+    isStoredPathForSb &&
+    sanitised.cylinderInsulationFactor === undefined &&
+    sbForCylinder !== undefined
+  ) {
+    const hasSbCylinder = sbForCylinder.heatSource === 'regular' || sbForCylinder.heatSource === 'system';
+    if (hasSbCylinder) {
+      // Map SystemBuilder cylinderInsulationType to CylinderInputs.cylinderType.
+      // Most values pass through directly; only 'copper_bare' is renamed to 'copper'.
+      const cylinderTypeFromSb: 'modern_factory' | 'foam_lagged' | 'copper' | 'mixergy' | 'unknown' =
+        sbForCylinder.cylinderInsulationType === 'copper_bare'
+          ? 'copper'
+          : (sbForCylinder.cylinderInsulationType ?? 'unknown') as 'modern_factory' | 'foam_lagged' | 'mixergy' | 'unknown';
+
+      // Map SystemBuilder cylinderAgeBand to CylinderInputs.ageBand.
+      // CylinderAgeBand: 'under_5' | '5_to_10' | '10_to_15' | 'over_15' | 'unknown'
+      const sbAgeBandMap: Record<string, '<5' | '5-10' | '10-20' | '20+'> = {
+        under_5:    '<5',
+        '5_to_10':  '5-10',
+        '10_to_15': '10-20',
+        over_15:    '20+',
+      };
+      const ageBandFromSb = sbForCylinder.cylinderAgeBand != null &&
+        sbForCylinder.cylinderAgeBand !== 'unknown'
+        ? sbAgeBandMap[sbForCylinder.cylinderAgeBand]
+        : undefined;
+
+      // Map SystemBuilder cylinderCondition to retentionBand.
+      // CylinderCondition: 'good' | 'average' | 'poor' | 'unknown' — pass through directly.
+      // ('fair' and 'bad' are not valid CylinderCondition values so no extra aliases needed.)
+      const retentionBandFromSb: 'good' | 'average' | 'poor' | undefined =
+        sbForCylinder.cylinderCondition === 'good'    ? 'good'    :
+        sbForCylinder.cylinderCondition === 'average' ? 'average' :
+        sbForCylinder.cylinderCondition === 'poor'    ? 'poor'    :
+        undefined;
+
+      const hasSbCylinderEvidence =
+        cylinderTypeFromSb !== 'unknown' ||
+        ageBandFromSb !== undefined ||
+        retentionBandFromSb !== undefined;
+
+      if (hasSbCylinderEvidence) {
+        const normalizerResultSb = normalizeInput(sanitised);
+        const waterConditionSb = {
+          hardnessBand: normalizerResultSb.waterHardnessCategory as 'soft' | 'moderate' | 'hard' | 'very_hard',
+          softenerPresent: sanitised.hasSoftener ?? false,
+        };
+        const occupancySb = sanitised.occupancyCount ?? 2;
+        const bathroomCountSb = sanitised.bathroomCount ?? 1;
+        const peakOutletsSb = sanitised.peakConcurrentOutlets;
+        const usageConditionSb = {
+          dhwUseBand: inferDhwUseBand(occupancySb, bathroomCountSb, peakOutletsSb),
+          occupancy: occupancySb,
+          simultaneousUseLikely: (peakOutletsSb ?? 0) >= 2,
+        };
+
+        const cylConditionSb = inferCylinderCondition(
+          waterConditionSb,
+          usageConditionSb,
+          {
+            cylinderType: cylinderTypeFromSb,
+            ageBand: ageBandFromSb,
+            retentionBand: retentionBandFromSb,
+          },
+        );
+
+        sanitised.cylinderInsulationFactor = cylConditionSb.insulationFactor;
+        sanitised.cylinderCoilTransferFactor = cylConditionSb.coilTransferFactor;
+        sanitised.cylinderConditionBand = cylConditionSb.conditionBand;
+      }
     }
   }
 
@@ -758,6 +871,69 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
         };
       }
     }
+  }
+
+  // ── Survey budget sensitivity → preferences.budgetSensitivity ─────────────
+  // Map the customer's stated budget sensitivity from the Priorities step into
+  // UserPreferencesV1.budgetSensitivity for the recommendation engine.
+  // Existing preference values are never overwritten.
+  if (sp != null && sp.budgetSensitivity != null && sp.budgetSensitivity !== 'unknown') {
+    if (sanitised.preferences == null) {
+      sanitised.preferences = { budgetSensitivity: sp.budgetSensitivity };
+    } else if (sanitised.preferences.budgetSensitivity == null) {
+      sanitised.preferences = {
+        ...sanitised.preferences,
+        budgetSensitivity: sp.budgetSensitivity,
+      };
+    }
+  }
+
+  // ── Survey heat pump interest → expertAssumptions.futureReadinessPriority ──
+  // When the customer has explicitly stated interest in a heat pump in future,
+  // promote expertAssumptions.futureReadinessPriority to 'high' so the
+  // recommendation engine surfaces heat-pump-compatible pathways prominently.
+  // Existing expert assumptions are never overwritten (surveyor judgement wins).
+  if (sp?.heatPumpInterest === true && sanitised.expertAssumptions?.futureReadinessPriority == null) {
+    sanitised.expertAssumptions = {
+      ...sanitised.expertAssumptions,
+      futureReadinessPriority: 'high',
+    };
+  }
+
+  // ── Customer-reported hot-water issues → simultaneousDrawSeverity ──────────
+  // When the customer reports running out of hot water or being unable to use
+  // multiple outlets simultaneously, treat the draw severity as 'high'.
+  // This raises the simultaneous-demand stress applied by CombiDhwModule and
+  // CylinderSizingModule even when occupancy/bathroom data alone would not trigger it.
+  // Existing explicit values are never overwritten.
+  if (sanitised.simultaneousDrawSeverity == null && sp != null) {
+    const demandIssueReported =
+      sp.runsOutOfHotWater === true ||
+      sp.canUseMultipleTaps === false;
+    if (demandIssueReported) {
+      sanitised.simultaneousDrawSeverity = 'high';
+    }
+  }
+
+  // ── Customer-reported room heating issue → conditionSignals.radiatorPerformance ──
+  // When the customer reports that not all rooms reach temperature (allRoomsReachTemperature
+  // === false), treat this as evidence of cold-spot behaviour in the circuit.
+  // This allows buildCustomerNeedResolution.detectColdSpots to surface the appropriate
+  // "rooms don't heat properly" need resolution without requiring a direct surveyor observation.
+  // Only applied when conditionSignals.radiatorPerformance has not already been set from
+  // a direct surveyor observation (direct observation always wins).
+  if (
+    sp?.allRoomsReachTemperature === false &&
+    sanitised.currentSystem?.conditionSignals?.radiatorPerformance == null
+  ) {
+    const existingCs = sanitised.currentSystem ?? {};
+    sanitised.currentSystem = {
+      ...existingCs,
+      conditionSignals: {
+        ...existingCs.conditionSignals,
+        radiatorPerformance: 'some_cold_spots',
+      },
+    };
   }
 
   return sanitised;

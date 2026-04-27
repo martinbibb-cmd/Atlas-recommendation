@@ -76,6 +76,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
         ageYears: engineInput.currentSystem?.boiler?.ageYears ?? 0,
         occupancyCount: engineInput.occupancyCount,
         bathroomCount:  engineInput.bathroomCount,
+        showerCompatibilityNote: engineResult.engineOutput.showerCompatibilityNote,
       });
       return { decision, scenarios, engineInput };
     } catch {
