@@ -55,6 +55,7 @@ import type {
   FutureUpgradeBlock,
   SpatialProofBlock,
 } from '../../contracts/VisualBlock';
+import { TechnicalAuditAppendix } from './TechnicalAuditAppendix';
 import '../presentation/CustomerDeck.css';
 import './CustomerAdvicePrintPack.css';
 
@@ -105,6 +106,12 @@ export interface CustomerAdvicePrintPackProps {
    * Set to true to print the full AI payload (portal and AI summary export only).
    */
   printFullAiHandoff?: boolean;
+  /**
+   * When true, renders the TechnicalAuditAppendix as the final section of
+   * the document — a dense machine-readable log for surveyor / engineer use.
+   * Default false.
+   */
+  showTechnicalAudit?: boolean;
 }
 
 // ─── QR code image ────────────────────────────────────────────────────────────
@@ -273,6 +280,7 @@ export function CustomerAdvicePrintPack({
   lockedSummary,
   showRejectedOptionProof = false,
   printFullAiHandoff = false,
+  showTechnicalAudit = false,
 }: CustomerAdvicePrintPackProps) {
   const packTitle    = `Atlas advice pack${visitDate ? ` — ${visitDate}` : ''}`;
   const headline     = decision.headline;
@@ -412,6 +420,9 @@ export function CustomerAdvicePrintPack({
             </section>
           );
         })}
+        {showTechnicalAudit && (
+          <TechnicalAuditAppendix decision={decision} scenarios={scenarios} />
+        )}
       </div>
     </div>
   );
