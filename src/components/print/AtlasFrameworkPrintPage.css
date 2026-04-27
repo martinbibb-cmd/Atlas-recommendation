@@ -1,0 +1,396 @@
+/**
+ * AtlasFrameworkPrintPage.css
+ *
+ * Print-first stylesheet for the Atlas Recommendation Framework printable page.
+ *
+ * Screen: toolbar + white A4-shaped page card with drop shadow.
+ * Print:  hides toolbar, removes shadow, clean A4 portrait output.
+ *
+ * Class prefix: afp- (Atlas Framework Print)
+ */
+
+/* ─── Outer wrapper ───────────────────────────────────────────────────────── */
+
+.afp-wrap {
+  background: #e8edf2;
+  min-height: 100vh;
+  padding: 1.25rem 1rem 3rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #1e293b;
+  box-sizing: border-box;
+}
+
+/* ─── Screen toolbar (hidden on print) ───────────────────────────────────── */
+
+.afp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 794px;
+  margin: 0 auto 1rem;
+  padding: 0.4rem 0;
+  flex-wrap: wrap;
+}
+
+.afp-toolbar__back {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #475569;
+}
+
+.afp-toolbar__back:hover {
+  background: #f8fafc;
+}
+
+.afp-toolbar__label {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.afp-toolbar__print {
+  background: #1e40af;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.4rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.afp-toolbar__print:hover {
+  background: #1d3a9a;
+}
+
+/* ─── A4 page card ────────────────────────────────────────────────────────── */
+
+.afp-page {
+  background: #fff;
+  max-width: 794px;
+  margin: 0 auto;
+  padding: 2.5rem 2.75rem 3rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 16px 0 rgba(0, 0, 0, 0.10);
+  min-height: 267mm;
+}
+
+/* ─── Page header ─────────────────────────────────────────────────────────── */
+
+.afp-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
+  border-bottom: 2px solid #1e40af;
+  padding-bottom: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.afp-header__logo {
+  font-size: 2rem;
+  color: #1e40af;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.afp-header__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.afp-header__subtitle {
+  margin: 0;
+  font-size: 0.92rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+/* ─── Generic section ─────────────────────────────────────────────────────── */
+
+.afp-section {
+  margin-bottom: 2rem;
+}
+
+.afp-section__heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.55rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-left: 3px solid #1e40af;
+  padding-left: 0.6rem;
+}
+
+.afp-section__icon {
+  font-size: 1rem;
+}
+
+.afp-section__intro {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  color: #475569;
+  line-height: 1.55;
+}
+
+/* ─── Pillars grid ────────────────────────────────────────────────────────── */
+
+.afp-pillars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+
+.afp-pillar {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.afp-pillar__number {
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  background: #1e40af;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.afp-pillar__title {
+  margin: 0 0 0.2rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.afp-pillar__subtitle {
+  font-weight: 400;
+  color: #475569;
+}
+
+.afp-pillar__text {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+/* ─── Portal sections ─────────────────────────────────────────────────────── */
+
+.afp-portal-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.afp-portal-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 6px;
+  padding: 0.7rem 0.85rem;
+}
+
+.afp-portal-section__num {
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  background: #0284c7;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 0.1rem;
+}
+
+.afp-portal-section__heading {
+  margin: 0 0 0.2rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.afp-portal-section__source,
+.afp-portal-section__outcome {
+  margin: 0 0 0.2rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.afp-portal-section__logic {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.afp-label {
+  font-weight: 600;
+  color: #334155;
+}
+
+/* ─── PDF pages ──────────────────────────────────────────────────────────── */
+
+.afp-pdf-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.afp-pdf-page {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: #fefce8;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 0.7rem 0.85rem;
+}
+
+.afp-pdf-page__label {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #92400e;
+  background: #fde68a;
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  margin-top: 0.1rem;
+  white-space: nowrap;
+}
+
+.afp-pdf-page__heading {
+  margin: 0 0 0.3rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.afp-pdf-page__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.6;
+}
+
+/* ─── LLM context block ──────────────────────────────────────────────────── */
+
+.afp-llm-block {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.afp-llm-row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  flex-wrap: wrap;
+}
+
+.afp-llm-row__label {
+  font-weight: 700;
+  color: #334155;
+  flex-shrink: 0;
+}
+
+.afp-llm-row__example {
+  color: #475569;
+  font-style: italic;
+}
+
+/* ─── Summary table ──────────────────────────────────────────────────────── */
+
+.afp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.afp-table__th {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.6rem;
+  font-weight: 700;
+  color: #334155;
+  text-align: left;
+}
+
+.afp-table__td {
+  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.6rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.afp-table__td--label {
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+}
+
+/* ─── Footer ──────────────────────────────────────────────────────────────── */
+
+.afp-footer {
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.afp-footer__text {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* ─── Print overrides ─────────────────────────────────────────────────────── */
+
+@media print {
+  .afp-wrap {
+    background: #fff;
+    padding: 0;
+  }
+
+  .afp-toolbar {
+    display: none;
+  }
+
+  .afp-page {
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+    padding: 1.5rem 1.75rem 2rem;
+    max-width: none;
+  }
+}
