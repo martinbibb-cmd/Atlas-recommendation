@@ -1,6 +1,7 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { OptionCardV1, OptionPlane, OptionRequirements, SensitivityItem } from '../contracts/EngineOutputV1';
 import type { CombiDhwV1Result } from './schema/EngineInputV2_3';
+import type { ApplianceFamily } from './topology/SystemTopology';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { runCombiDhwModuleV1 } from './modules/CombiDhwModule';
 
@@ -271,10 +272,18 @@ function buildSensitivities(
 /**
  * Builds the Option Matrix V1 — a set of option cards derived from the
  * deterministic physics modules already computed in FullEngineResultCore.
+ *
+ * @param recommendedFamily  The canonical recommended appliance family from the
+ *   evidence-backed ranking (RecommendationResult.bestOverall?.family).  When
+ *   provided and a card family matches, the card headline and narrative are
+ *   adjusted to honest "recommended within current constraints" framing instead
+ *   of "not advisable" — resolving the decision-vs-narrative split that arises
+ *   when combi is the only feasible option despite a high demand-risk signal.
  */
 export function buildOptionMatrixV1(
   core: FullEngineResultCore,
   input: EngineInputV2_3,
+  recommendedFamily?: ApplianceFamily | null,
 ): OptionCardV1[] {
   const cards: OptionCardV1[] = [];
 
@@ -358,10 +367,18 @@ export function buildOptionMatrixV1(
   for (const f of combiDhwResult.flags) {
     combiDhwBullets.push(`${f.title}: ${f.detail}`);
   }
+  // When combi IS the recommended family despite a demand-risk signal, reframe
+  // from "not advisable" to honest "recommended within current constraints" copy.
+  // This reconciles the decision engine (feasibility) with the option narrative
+  // (performance) — the two layers that previously produced contradictory copy.
+  const isRecommendedCombi = recommendedFamily === 'combi';
+
   const combiDhw: OptionPlane = {
     status: combiRisk === 'fail' ? 'caution' : combiRisk === 'warn' ? 'caution' : 'ok',
     headline: combiRisk === 'fail'
-      ? 'DHW: simultaneous demand or pressure issue makes combi unsuitable.'
+      ? isRecommendedCombi
+        ? 'DHW: simultaneous demand risk noted — combi is the best available option given current constraints.'
+        : 'DHW: simultaneous demand or pressure issue makes combi unsuitable.'
       : combiRisk === 'warn'
       ? 'DHW: borderline — short draws and pressure margin are risks.'
       : 'DHW: single-outlet demand is within combi capability.',
@@ -401,9 +418,13 @@ export function buildOptionMatrixV1(
         ]
       : combiRisk === 'fail'
       ? [
-          simultaneousDemandNarrativeActive
-            ? 'Simultaneous hot-water demand is high for this household — a stored hot water option is usually a better fit.'
-            : 'High daily hot-water demand for this household — a stored hot water option handles recovery and volume demands better.',
+          isRecommendedCombi
+            ? simultaneousDemandNarrativeActive
+              ? 'Simultaneous demand is a concern — consider creating space for a stored cylinder as a future upgrade.'
+              : 'Higher daily hot-water demand is a concern — consider creating space for a stored cylinder as a future upgrade.'
+            : simultaneousDemandNarrativeActive
+              ? 'Simultaneous hot-water demand is high for this household — a stored hot water option is usually a better fit.'
+              : 'High daily hot-water demand for this household — a stored hot water option handles recovery and volume demands better.',
         ]
       : [
           'Confirm mains flow rate and pressure performance before finalising combi specification.',
@@ -422,7 +443,9 @@ export function buildOptionMatrixV1(
       ? 'Combi boiler suits your single-outlet demand.'
       : combiStatus === 'caution'
       ? combiRisk === 'fail'
-        ? 'Combi not advisable — simultaneous demand risk is high. Consider stored options.'
+        ? isRecommendedCombi
+          ? 'Combi is recommended within current constraints — simultaneous demand risk noted. A stored system would suit this household better if cylinder space is available.'
+          : 'Combi not advisable — simultaneous demand risk is high. Consider stored options.'
         : 'Combi possible but demand is borderline.'
       : combiRejectedByTopology
       ? 'Combi not suitable — topology barrier.'
