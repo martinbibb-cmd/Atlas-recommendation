@@ -1,0 +1,139 @@
+/* ComparisonMatrix.css — Surveyor comparison matrix styles */
+
+.comparison-matrix {
+  width: 100%;
+  font-family: inherit;
+}
+
+.comparison-matrix--empty {
+  padding: 1.5rem;
+  color: #718096;
+  font-size: 0.9rem;
+}
+
+.comparison-matrix__scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.comparison-matrix__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 480px;
+}
+
+/* ── Column headers ── */
+
+.comparison-matrix__col-header {
+  padding: 0.6rem 0.75rem;
+  text-align: center;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  font-weight: 600;
+  color: #2d3748;
+  vertical-align: bottom;
+}
+
+.comparison-matrix__col-header--recommended {
+  background: #f0fff4;
+  border-color: #9ae6b4;
+}
+
+.comparison-matrix__system-name {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.comparison-matrix__recommended-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  background: #38a169;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ── Row label ── */
+
+.comparison-matrix__row-label {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #4a5568;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.comparison-matrix__row-label--physics {
+  color: #744210;
+  font-style: italic;
+}
+
+/* ── Cells ── */
+
+.comparison-matrix__cell {
+  padding: 0.45rem 0.75rem;
+  text-align: center;
+  border: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.comparison-matrix__cell--recommended {
+  background: #f0fff4;
+  border-color: #c6f6d5;
+}
+
+.comparison-matrix__cell--physics {
+  background: #fffbeb;
+}
+
+.comparison-matrix__cell--physics.comparison-matrix__cell--recommended {
+  background: #f0fff4;
+}
+
+.comparison-matrix__marker {
+  display: block;
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-bottom: 0.15rem;
+}
+
+.comparison-matrix__cell-label {
+  display: block;
+  font-size: 0.72rem;
+  color: #718096;
+}
+
+/* ── Summary row ── */
+
+.comparison-matrix__row--summary .comparison-matrix__cell {
+  background: #f7fafc;
+}
+
+.comparison-matrix__row--summary .comparison-matrix__cell--recommended {
+  background: #c6f6d5;
+}
+
+.comparison-matrix__verdict-badge {
+  font-size: 0.78rem;
+  color: #a0aec0;
+}
+
+.comparison-matrix__verdict-badge--recommended {
+  color: #276749;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+/* ── Row alternating tint ── */
+
+.comparison-matrix__row--performance:nth-child(even) .comparison-matrix__cell:not(.comparison-matrix__cell--recommended) {
+  background: #fafafa;
+}

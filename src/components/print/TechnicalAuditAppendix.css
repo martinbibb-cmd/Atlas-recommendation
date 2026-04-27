@@ -1,0 +1,155 @@
+/* TechnicalAuditAppendix.css — Dense print appendix styles */
+
+.taa-appendix {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.78rem;
+  color: #1a202c;
+  padding: 1.5rem 2rem;
+  border-top: 2px solid #2d3748;
+  page-break-before: always;
+}
+
+/* ── Header ── */
+
+.taa-appendix__header {
+  margin-bottom: 1.5rem;
+}
+
+.taa-appendix__title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: #1a202c;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.taa-appendix__preamble {
+  font-size: 0.8rem;
+  color: #4a5568;
+  margin: 0;
+  font-style: italic;
+  border-left: 3px solid #4299e1;
+  padding-left: 0.75rem;
+}
+
+/* ── Sections ── */
+
+.taa-appendix__section {
+  margin-bottom: 1.25rem;
+}
+
+.taa-appendix__section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #2d3748;
+  margin: 0 0 0.4rem 0;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.2rem;
+}
+
+/* ── Tables ── */
+
+.taa-appendix__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+.taa-appendix__th {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  background: #edf2f7;
+  border: 1px solid #cbd5e0;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.taa-appendix__td {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.taa-appendix__td--value {
+  font-weight: 600;
+}
+
+.taa-appendix__td--source {
+  color: #718096;
+  font-style: italic;
+}
+
+.taa-appendix__tr:nth-child(even) .taa-appendix__td {
+  background: #f7fafc;
+}
+
+.taa-appendix__tr--recommended .taa-appendix__td {
+  background: #f0fff4;
+}
+
+.taa-appendix__rec-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #276749;
+}
+
+/* ── Lists ── */
+
+.taa-appendix__list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.taa-appendix__list-item {
+  font-size: 0.76rem;
+  padding: 0.15rem 0;
+  color: #2d3748;
+}
+
+.taa-appendix__list-item--constraint {
+  color: #c53030;
+}
+
+.taa-appendix__list-item--penalty {
+  color: #744210;
+}
+
+/* ── JSON block ── */
+
+.taa-appendix__section--json {
+  margin-top: 1.5rem;
+}
+
+.taa-appendix__json-label {
+  font-size: 0.7rem;
+  color: #718096;
+  margin: 0 0 0.4rem 0;
+  font-style: italic;
+}
+
+.taa-appendix__json-block {
+  background: #f7fafc;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  font-size: 0.68rem;
+  overflow-x: auto;
+  white-space: pre;
+  color: #2d3748;
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+@media print {
+  .taa-appendix__json-block {
+    max-height: none;
+    overflow: visible;
+    font-size: 0.6rem;
+  }
+}

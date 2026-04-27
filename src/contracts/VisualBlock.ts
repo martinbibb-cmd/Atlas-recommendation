@@ -41,6 +41,8 @@ type BaseVisualBlock = {
   supportingPoints?: string[];
   /** Stable semantic key for artwork / layout selection. */
   visualKey: string;
+  /** Which audience this block is intended for. */
+  audience?: 'surveyor' | 'customer' | 'engineer' | 'all';
 };
 
 // ─── Block variants ───────────────────────────────────────────────────────────
