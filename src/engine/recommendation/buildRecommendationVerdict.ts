@@ -17,6 +17,8 @@
  */
 
 import type { EngineInputV2_3, FullEngineResult } from '../schema/EngineInputV2_3';
+
+type FullEngineResultWithoutVerdict = Omit<FullEngineResult, 'verdictV1'>;
 import type { ApplianceFamily } from '../topology/SystemTopology';
 import type {
   RecommendationVerdictV1,
@@ -42,7 +44,7 @@ const FAMILY_LABELS: Record<ApplianceFamily, string> = {
  * Applies Tier 1 precedence — these systems cannot be recommended under any
  * circumstances without the constraint being resolved first.
  */
-function deriveRejectedSystems(result: FullEngineResult, _input: EngineInputV2_3): RejectedSystem[] {
+function deriveRejectedSystems(result: FullEngineResultWithoutVerdict, _input: EngineInputV2_3): RejectedSystem[] {
   const rejected: RejectedSystem[] = [];
   const { redFlags } = result;
 
@@ -104,7 +106,7 @@ function deriveRejectedSystems(result: FullEngineResult, _input: EngineInputV2_3
  * Derive conditionally possible (flagged) systems from RedFlagModule.
  * Applies Tier 2 precedence — these may only appear in `futurePath`.
  */
-function deriveFlaggedSystems(result: FullEngineResult, _input: EngineInputV2_3): FlaggedSystem[] {
+function deriveFlaggedSystems(result: FullEngineResultWithoutVerdict, _input: EngineInputV2_3): FlaggedSystem[] {
   const flagged: FlaggedSystem[] = [];
   const { redFlags } = result;
 
@@ -139,7 +141,7 @@ function deriveFlaggedSystems(result: FullEngineResult, _input: EngineInputV2_3)
  * overall scores and neither is rejected or flagged.
  */
 export function buildRecommendationVerdict(
-  result: FullEngineResult,
+  result: FullEngineResultWithoutVerdict,
   input: EngineInputV2_3,
 ): RecommendationVerdictV1 {
   const rejectedSystems = deriveRejectedSystems(result, input);
