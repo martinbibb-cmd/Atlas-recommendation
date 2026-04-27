@@ -14,6 +14,7 @@ import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import CustomerRecommendationPrint from './components/print/CustomerRecommendationPrint';
+import AtlasFrameworkPrintPage from './components/print/AtlasFrameworkPrintPage';
 import { CustomerAdvicePrintPack } from './components/print/CustomerAdvicePrintPack';
 import { buildScenariosFromEngineOutput } from './engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from './engine/modules/buildDecisionFromScenarios';
@@ -284,7 +285,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'engineer' | 'insight-pack';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -427,12 +428,24 @@ export default function App() {
     () => (_restoredSession !== null || _restoredVisit !== null ? 'restored' : null),
   );
 
-  const [journey, setJourney] = useState<Journey>(
-    FLOOR_PLAN_TOOL_MODE    ? 'floor-plan'
-    : ENGINEER_VISIT_ID != null ? 'engineer'
-    : INITIAL_REPORT_ID != null ? 'report'
-    : (_restoredSession?.value?.journey as Journey | undefined) ?? 'landing'
-  );
+  const [journey, setJourney] = useState<Journey>(() => {
+    if (FLOOR_PLAN_TOOL_MODE)        return 'floor-plan';
+    if (ENGINEER_VISIT_ID != null)   return 'engineer';
+    if (INITIAL_REPORT_ID != null)   return 'report';
+    const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'landing';
+    // 'presentation' and 'printout' require labEngineInput which is not persisted.
+    // 'framework-print' is a transient print destination and should not be restored as an entry point.
+    // Restoring any of these without the necessary data would result in a white screen — fall back to 'landing'.
+    if (restored === 'presentation' || restored === 'printout' || restored === 'framework-print') {
+      return 'landing';
+    }
+    // 'visit-hub' and 'visit' require an active visit ID.
+    // If the visit cache is absent, fall back to 'landing' to avoid a white screen.
+    if ((restored === 'visit-hub' || restored === 'visit') && !_restoredVisit?.value?.visitId) {
+      return 'landing';
+    }
+    return restored;
+  });
   /** Active report ID for the /report/:id route. */
   const [activeReportId, setActiveReportId] = useState<string | null>(INITIAL_REPORT_ID);
   const [fullSurveyPrefill, setFullSurveyPrefill] = useState<Partial<EngineInputV2_3> | undefined>();
@@ -709,7 +722,7 @@ export default function App() {
             setLabPortalUrl(buildPortalUrl(reportId, window.location.origin, token));
           })
           .catch((err) => { console.warn('[Atlas] Portal URL generation failed for printout:', err); });
-        setJourney('printout');
+        setJourney('framework-print');
         return;
       }
     } catch (err) {
@@ -1228,7 +1241,7 @@ export default function App() {
           engineInput={labEngineInput}
           onBack={() => setJourney(presentationFromJourney)}
           onOpenSimulator={() => setJourney('simulator')}
-          onPrint={() => setJourney('printout')}
+          onPrint={() => setJourney('framework-print')}
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}
         />
@@ -1257,6 +1270,18 @@ export default function App() {
           />
         );
       })()}
+      {journey === 'framework-print' && (
+        <AtlasFrameworkPrintPage
+          onBack={() => {
+            // Return to the visit hub if we came from there, otherwise go to the presentation.
+            if (activeVisitId != null) {
+              setJourney('visit-hub');
+            } else {
+              setJourney('presentation');
+            }
+          }}
+        />
+      )}
       {journey === 'insight-pack' && labEngineInput != null && labQuotes.length > 0 && (() => {
         const { engineOutput } = runEngine(labEngineInput);
         const surveyContext: InsightPackSurveyContext = {
