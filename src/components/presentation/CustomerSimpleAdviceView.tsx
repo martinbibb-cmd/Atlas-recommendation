@@ -24,7 +24,9 @@ import './CustomerSimpleAdviceView.css';
 
 export interface CustomerSimpleAdviceViewProps {
   decision: AtlasDecisionV1;
+  /** All evaluated scenarios — accepted for API consistency; not rendered directly. */
   scenarios: ScenarioResult[];
+  /** The Atlas-recommended scenario — used to display the system name. */
   recommendedScenario: ScenarioResult | undefined;
   onOpenSimulator?: () => void;
 }
