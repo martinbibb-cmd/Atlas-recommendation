@@ -20,6 +20,14 @@ import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import './CustomerSimpleAdviceView.css';
 
+// ─── Display limits ───────────────────────────────────────────────────────────
+
+/** Maximum key reasons shown in the "Why" section. */
+const MAX_DISPLAYED_REASONS = 3;
+
+/** Maximum required works shown in the "What's included" section. */
+const MAX_DISPLAYED_WORKS = 5;
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface CustomerSimpleAdviceViewProps {
@@ -44,8 +52,8 @@ export function CustomerSimpleAdviceView({
   recommendedScenario,
   onOpenSimulator,
 }: CustomerSimpleAdviceViewProps) {
-  const topReasons = decision.keyReasons.slice(0, 3);
-  const topWorks   = decision.requiredWorks.slice(0, 5);
+  const topReasons = decision.keyReasons.slice(0, MAX_DISPLAYED_REASONS);
+  const topWorks   = decision.requiredWorks.slice(0, MAX_DISPLAYED_WORKS);
 
   return (
     <div className="csav" data-testid="customer-simple-advice-view">
