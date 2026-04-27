@@ -18,7 +18,6 @@
 import type { LifecycleAssessment } from './LifecycleAssessment';
 import type { QuoteScopeItem } from './QuoteScope';
 import type { ShowerCompatibilityNote } from './ShowerCompatibilityNote';
-export type { DecisionEnergyMetrics };
 
 /**
  * Physics-first energy metrics for the recommended system.
@@ -55,6 +54,14 @@ export interface DecisionEnergyMetrics {
    * Sized for the outdoor design temperature specified in designDeltaT.
    */
   peakLoadKw: number;
+  /**
+   * ISO date string for the energy price cap used when deriving any financial
+   * projection from these energy figures (e.g. "2025-01-01").
+   *
+   * Present only when the caller can supply a verifiable price-cap date.
+   * Output surfaces must not display currency savings without this field.
+   */
+  priceCapsDate?: string;
 }
 
 /** A single supporting fact with its data source. */

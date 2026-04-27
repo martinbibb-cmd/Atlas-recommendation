@@ -54,11 +54,17 @@ export interface CustomerSimpleAdviceViewProps {
   /**
    * Optional currency saving projection.
    *
-   * Only shown when this prop is provided AND priceCapsDate is also provided.
+   * Only shown when this prop is provided AND a price-cap date is available
+   * (either from decision.energyMetrics.priceCapsDate or the priceCapsDate prop).
    * The date label makes the assumption explicit so it remains verifiable.
    */
   projectedSavingGbp?: number;
-  /** ISO date string (e.g. "2025-01-01") for the price cap used in projectedSavingGbp. */
+  /**
+   * ISO date string (e.g. "2025-01-01") for the price cap used in projectedSavingGbp.
+   *
+   * Prefer supplying priceCapsDate inside decision.energyMetrics. This prop is
+   * accepted as a fallback for callers that set the date outside the energy block.
+   */
   priceCapsDate?: string;
 }
 
@@ -80,6 +86,8 @@ export function CustomerSimpleAdviceView({
   const topReasons = decision.keyReasons.slice(0, MAX_DISPLAYED_REASONS);
   const topWorks   = decision.requiredWorks.slice(0, MAX_DISPLAYED_WORKS);
   const energyReductionKwh = decision.energyMetrics?.annualEnergyReductionKwh;
+  // Prefer priceCapsDate embedded in energyMetrics; fall back to the prop.
+  const resolvedPriceCapsDate = decision.energyMetrics?.priceCapsDate ?? priceCapsDate;
 
   return (
     <div className="csav" data-testid="customer-simple-advice-view">
@@ -102,9 +110,9 @@ export function CustomerSimpleAdviceView({
             Reduces your home's energy appetite by{' '}
             <strong>{Math.round(energyReductionKwh).toLocaleString()} kWh/year</strong>.
           </p>
-          {projectedSavingGbp !== undefined && priceCapsDate !== undefined && (
+          {projectedSavingGbp !== undefined && resolvedPriceCapsDate !== undefined && (
             <p className="csav__energy-currency" data-testid="csav-projected-saving">
-              Projection based on {formatPriceCapDate(priceCapsDate)} price caps: approx.{' '}
+              Projection based on {formatPriceCapDate(resolvedPriceCapsDate)} price caps: approx.{' '}
               <strong>£{Math.round(projectedSavingGbp).toLocaleString()}/year</strong>.
             </p>
           )}
