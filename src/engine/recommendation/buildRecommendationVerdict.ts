@@ -122,16 +122,6 @@ function deriveFlaggedSystems(result: FullEngineResult, _input: EngineInputV2_3)
   return flagged;
 }
 
-// ─── Lifestyle signal label ───────────────────────────────────────────────────
-
-function lifestyleFitLabel(result: FullEngineResult): string {
-  const needs = result.lifestyle.lifestyleNeeds;
-  if (needs.includes('fast_reheat'))      return 'Fast reheat preference';
-  if (needs.includes('steady_low_temp'))  return 'Steady low-temperature preference';
-  if (needs.includes('stored_resilience')) return 'Stored-water resilience preference';
-  return 'Standard occupancy';
-}
-
 // ─── Main verdict builder ─────────────────────────────────────────────────────
 
 /**
@@ -143,7 +133,7 @@ function lifestyleFitLabel(result: FullEngineResult): string {
  *   1. Start with `recommendationResult.bestOverall.family` (Tier 3 winner).
  *   2. If that family is hard-rejected (Tier 1), promote the next suitable
  *      candidate that is not hard-rejected.
- *   3. If no un-rejected candidate has a suitable suitability, return null.
+ *   3. If no un-rejected candidate is suitable, return null.
  *
  * Lifestyle needs (Tier 4) only break ties when two candidates have equal
  * overall scores and neither is rejected or flagged.
