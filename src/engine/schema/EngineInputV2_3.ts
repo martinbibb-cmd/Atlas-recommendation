@@ -224,6 +224,21 @@ export interface UserPreferencesV1 {
     | 'cost_tendency'
     | 'future_compatibility'
   )[];
+  /**
+   * How sensitive the customer is to upfront installation cost.
+   *
+   * Populated from PrioritiesState.budgetSensitivity via sanitiseModelForEngine.
+   *
+   * 'price_sensitive' — lower upfront spend is important; simpler / lower-cost
+   *                     options boosted in recommendation scoring.
+   * 'balanced'        — willing to invest for better performance or reliability;
+   *                     standard weighting.
+   * 'long_term'       — will spend more now to reduce running costs over time;
+   *                     efficient / future-proof pathways boosted.
+   *
+   * Default: absent (treated as 'balanced' when not supplied).
+   */
+  budgetSensitivity?: 'price_sensitive' | 'balanced' | 'long_term';
 }
 
 /**
@@ -760,6 +775,36 @@ export interface EngineInputV2_3 {
   hasMagneticFilter?: boolean;
   systemAgeYears?: number;
   annualGasSpendGbp?: number;
+
+  // Shower compatibility
+  /**
+   * Primary shower type currently installed in the property.
+   *
+   * Used by buildShowerCompatibilityNotes in the engine to derive a structured
+   * shower compatibility note whenever the hot-water system changes.
+   *
+   * Bridged from fullSurvey.systemBuilder.currentShowerType by sanitiseModelForEngine.
+   */
+  currentShowerType?: 'electric' | 'mixer' | 'pumped_mixer' | 'power_shower' | 'thermostatic' | 'multiple' | 'none' | 'unknown';
+  /**
+   * Whether an electric shower is installed (may coexist with other shower types).
+   *
+   * Electric showers have their own in-line heating element and are completely
+   * independent of the boiler hot-water supply — a new boiler does not affect them.
+   *
+   * Bridged from fullSurvey.systemBuilder.electricShowerPresent by sanitiseModelForEngine.
+   */
+  electricShowerPresent?: boolean;
+  /**
+   * Whether a pumped or power shower is installed.
+   *
+   * Pumped/power showers rely on a gravity cold-water storage tank and a dedicated
+   * pump.  They are incompatible with mains-pressure (unvented) systems unless the
+   * pump is removed or bypassed.
+   *
+   * Bridged from fullSurvey.systemBuilder.pumpedShowerPresent by sanitiseModelForEngine.
+   */
+  pumpedShowerPresent?: boolean;
 
   // Behaviour
   drawFrequency?: 'low' | 'high';

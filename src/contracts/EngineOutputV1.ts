@@ -3,6 +3,7 @@ import type { AssumptionId } from './assumptions.ids';
 import type { PenaltyId } from './scoring.penaltyIds';
 import type { InstallMarkupAnalysisV1 } from '../features/installMarkup/installMarkup.types';
 import type { ControlsAdviceV1 } from '../engine/modules/ControlsAdviceModule';
+import type { ShowerCompatibilityNote } from '../engine/modules/buildShowerCompatibilityNotes';
 
 export interface AssumptionV1 {
   id: AssumptionId;
@@ -751,4 +752,17 @@ export interface EngineOutputV1 {
    * Present when survey input is supplied.
    */
   controlsAdvice?: ControlsAdviceV1;
+  /**
+   * Shower compatibility note derived from the surveyed shower type.
+   *
+   * Computed by buildShowerCompatibilityNotes in the engine from the surveyed
+   * currentShowerType / electricShowerPresent / pumpedShowerPresent fields.
+   * Present when the shower type carries a compatibility consideration worth
+   * surfacing to the customer (e.g. pumped shower vs unvented cylinder).
+   * Absent when no note is needed (unknown, none, or multiple without a specific flag).
+   *
+   * Intended to be passed directly to buildDecisionFromScenarios as the
+   * showerCompatibilityNote input, avoiding any UI-layer re-derivation.
+   */
+  showerCompatibilityNote?: ShowerCompatibilityNote;
 }

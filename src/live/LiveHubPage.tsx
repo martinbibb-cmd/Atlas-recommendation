@@ -258,6 +258,7 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
           ageYears:       input.currentSystem?.boiler?.ageYears ?? 0,
           occupancyCount: input.occupancyCount,
           bathroomCount:  input.bathroomCount,
+          showerCompatibilityNote: engineOutput.showerCompatibilityNote,
         });
         const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, input);
         return (

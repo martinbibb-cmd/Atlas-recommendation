@@ -12,6 +12,7 @@ import { assessFutureEnergyOpportunities } from './modules/FutureEnergyOpportuni
 import { buildRealWorldBehavioursV1 } from './modules/RealWorldBehaviourModule';
 import { analyseInstallMarkup } from './modules/InstallMarkupModule';
 import { buildControlsAdviceV1 } from './modules/ControlsAdviceModule';
+import { buildShowerCompatibilityNotes } from './modules/buildShowerCompatibilityNotes';
 
 /**
  * Flag ID emitted by CombiDhwModule when mains pressure is below the absolute
@@ -914,6 +915,16 @@ export function buildEngineOutputV1(
   // Controls upgrade advice — graded controls recommendations alongside the recommendation
   const controlsAdvice = input ? buildControlsAdviceV1(input, primaryRecommendation) : undefined;
 
+  // Shower compatibility note — computed once in the engine from surveyed shower data.
+  // Absent when no input is provided or when the shower type carries no notable consideration.
+  const showerCompatibilityNote = input
+    ? buildShowerCompatibilityNotes({
+        currentShowerType: input.currentShowerType,
+        electricShowerPresent: input.electricShowerPresent,
+        pumpedShowerPresent: input.pumpedShowerPresent,
+      }) ?? undefined
+    : undefined;
+
   return {
     eligibility: eligibilityItems,
     redFlags: [...buildRedFlags(allReasons), ...combiFlags, ...storedFlags],
@@ -938,5 +949,6 @@ export function buildEngineOutputV1(
     realWorldBehaviours,
     installMarkupAnalysis,
     controlsAdvice,
+    showerCompatibilityNote,
   };
 }

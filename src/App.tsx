@@ -358,6 +358,7 @@ function CanonicalPresentationRoute({
         ageYears:       engineInput.currentSystem?.boiler?.ageYears ?? 0,
         occupancyCount: engineInput.occupancyCount,
         bathroomCount:  engineInput.bathroomCount,
+        showerCompatibilityNote: result.engineOutput.showerCompatibilityNote,
       });
       return buildCustomerSummary(decision, scenarios);
     } catch {
@@ -935,6 +936,7 @@ export default function App() {
           ageYears: 10,
           occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
           bathroomCount: CONSOLE_DEMO_INPUT.bathroomCount,
+          showerCompatibilityNote: engineOutput.showerCompatibilityNote,
         })
       : undefined;
     const pack = buildInsightPackFromEngine(
@@ -1014,6 +1016,7 @@ export default function App() {
         ageYears:    surveyPrintInput.currentSystem?.boiler?.ageYears ?? 0,
         occupancyCount: surveyPrintInput.occupancyCount,
         bathroomCount:  surveyPrintInput.bathroomCount,
+        showerCompatibilityNote: surveyPrintResult.engineOutput.showerCompatibilityNote,
       });
       const surveyPrintBlocks = buildVisualBlocks(surveyPrintDecision, surveyPrintScenarios, undefined, surveyPrintInput);
       return (
@@ -1240,6 +1243,7 @@ export default function App() {
           ageYears:       labEngineInput.currentSystem?.boiler?.ageYears ?? 0,
           occupancyCount: labEngineInput.occupancyCount,
           bathroomCount:  labEngineInput.bathroomCount,
+          showerCompatibilityNote: result.engineOutput.showerCompatibilityNote,
         });
         const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, labEngineInput);
         return (
@@ -1271,6 +1275,7 @@ export default function App() {
               ageYears: labEngineInput.currentSystem?.boiler?.ageYears ?? 10,
               occupancyCount: labEngineInput.occupancyCount,
               bathroomCount: labEngineInput.bathroomCount,
+              showerCompatibilityNote: engineOutput.showerCompatibilityNote,
             })
           : undefined;
         const pack = buildInsightPackFromEngine(
