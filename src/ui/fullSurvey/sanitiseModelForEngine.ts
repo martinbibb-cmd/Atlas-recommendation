@@ -395,46 +395,34 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
   ) {
     const hasSbCylinder = sbForCylinder.heatSource === 'regular' || sbForCylinder.heatSource === 'system';
     if (hasSbCylinder) {
-      // Map SystemBuilder cylinderInsulationType to CylinderInputs.cylinderType
-      // Note: 'copper_bare' in system builder maps to 'copper' in the engine.
-      const sbInsulTypeMap: Record<string, 'modern_factory' | 'foam_lagged' | 'copper' | 'mixergy' | 'unknown'> = {
-        modern_factory: 'modern_factory',
-        foam_lagged:    'foam_lagged',
-        copper_bare:    'copper',
-        mixergy:        'mixergy',
-        unknown:        'unknown',
-      };
-      const cylinderTypeFromSb = sbForCylinder.cylinderInsulationType != null
-        ? sbInsulTypeMap[sbForCylinder.cylinderInsulationType] ?? 'unknown'
-        : 'unknown';
+      // Map SystemBuilder cylinderInsulationType to CylinderInputs.cylinderType.
+      // Most values pass through directly; only 'copper_bare' is renamed to 'copper'.
+      const cylinderTypeFromSb: 'modern_factory' | 'foam_lagged' | 'copper' | 'mixergy' | 'unknown' =
+        sbForCylinder.cylinderInsulationType === 'copper_bare'
+          ? 'copper'
+          : (sbForCylinder.cylinderInsulationType ?? 'unknown') as 'modern_factory' | 'foam_lagged' | 'mixergy' | 'unknown';
 
-      // Map SystemBuilder cylinderAgeBand to CylinderInputs.ageBand
+      // Map SystemBuilder cylinderAgeBand to CylinderInputs.ageBand.
+      // CylinderAgeBand: 'under_5' | '5_to_10' | '10_to_15' | 'over_15' | 'unknown'
       const sbAgeBandMap: Record<string, '<5' | '5-10' | '10-20' | '20+'> = {
         under_5:    '<5',
         '5_to_10':  '5-10',
         '10_to_15': '10-20',
-        '10_to_20': '10-20',
         over_15:    '20+',
-        over_20:    '20+',
       };
       const ageBandFromSb = sbForCylinder.cylinderAgeBand != null &&
         sbForCylinder.cylinderAgeBand !== 'unknown'
         ? sbAgeBandMap[sbForCylinder.cylinderAgeBand]
         : undefined;
 
-      // Map SystemBuilder cylinderCondition (surveyor-observed) to retentionBand.
-      // 'good' → 'good', 'average'/'fair' → 'average', 'poor'/'bad' → 'poor'.
-      const sbConditionMap: Record<string, 'good' | 'average' | 'poor'> = {
-        good:    'good',
-        average: 'average',
-        fair:    'average',
-        poor:    'poor',
-        bad:     'poor',
-      };
-      const retentionBandFromSb = sbForCylinder.cylinderCondition != null &&
-        sbForCylinder.cylinderCondition !== 'unknown'
-        ? sbConditionMap[sbForCylinder.cylinderCondition]
-        : undefined;
+      // Map SystemBuilder cylinderCondition to retentionBand.
+      // CylinderCondition: 'good' | 'average' | 'poor' | 'unknown' — pass through directly.
+      // ('fair' and 'bad' are not valid CylinderCondition values so no extra aliases needed.)
+      const retentionBandFromSb: 'good' | 'average' | 'poor' | undefined =
+        sbForCylinder.cylinderCondition === 'good'    ? 'good'    :
+        sbForCylinder.cylinderCondition === 'average' ? 'average' :
+        sbForCylinder.cylinderCondition === 'poor'    ? 'poor'    :
+        undefined;
 
       const hasSbCylinderEvidence =
         cylinderTypeFromSb !== 'unknown' ||
