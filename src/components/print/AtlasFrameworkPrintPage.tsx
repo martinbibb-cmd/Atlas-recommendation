@@ -59,7 +59,7 @@ const PORTAL_SECTIONS = [
     source: 'Your stated priorities',
     logic:
       'Dynamic cards based on what you told us — for example, "hot water runs out" or "system is noisy".',
-    outcome: "\u201cWe\u2019re recommending stored hot water to match your household\u2019s demand.\u201d",
+    outcome: `"We're recommending stored hot water to match your household's demand."`,
   },
   {
     number: '2',

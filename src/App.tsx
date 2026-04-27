@@ -434,7 +434,8 @@ export default function App() {
     if (INITIAL_REPORT_ID != null)   return 'report';
     const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'landing';
     // 'presentation' and 'printout' require labEngineInput which is not persisted.
-    // Restoring them without engine data would result in a white screen — fall back to 'landing'.
+    // 'framework-print' is a transient print destination and should not be restored as an entry point.
+    // Restoring any of these without the necessary data would result in a white screen — fall back to 'landing'.
     if (restored === 'presentation' || restored === 'printout' || restored === 'framework-print') {
       return 'landing';
     }
