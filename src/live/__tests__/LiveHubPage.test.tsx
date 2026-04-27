@@ -7,7 +7,7 @@
  *   - Renders "Technical Comparison" only when ≥ 2 options exist
  *   - Hides "Technical Comparison" when fewer than 2 options are present
  *   - "Customer Summary" and "Full Output Report" legacy buttons are removed
- *   - Clicking "Print Recommendation" opens PrintableRecommendationPage overlay
+ *   - Clicking "Print Recommendation" opens CustomerAdvicePrintPack overlay
  *   - Clicking "Engineering Detail" opens the LabPrintTechnical overlay
  *   - Clicking "Technical Comparison" opens the LabPrintComparison overlay
  *   - The print overlay's "← Back" button returns to the hub
@@ -23,16 +23,17 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 
 /** Base FullEngineResult stub with just enough fields for LiveHubPage to render. */
 function makeResult(options?: { optionCount?: number }): FullEngineResult {
+  const singleOption = {
+    id: 'combi', label: 'Gas Combi', status: 'viable',
+    headline: 'Viable option', why: ['Good fit'], requirements: [],
+    heat:        { status: 'ok', headline: 'Adequate heat', bullets: [] },
+    dhw:         { status: 'ok', headline: 'Good DHW flow', bullets: [] },
+    engineering: { status: 'ok', headline: 'No major changes', bullets: [] },
+    typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
+  };
   const optionList = options?.optionCount === 2
     ? [
-        {
-          id: 'combi', label: 'Gas Combi', status: 'viable',
-          headline: 'Viable option', why: ['Good fit'], requirements: [],
-          heat:        { status: 'ok', headline: 'Adequate heat', bullets: [] },
-          dhw:         { status: 'ok', headline: 'Good DHW flow', bullets: [] },
-          engineering: { status: 'ok', headline: 'No major changes', bullets: [] },
-          typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
-        },
+        singleOption,
         {
           id: 'ashp', label: 'ASHP', status: 'viable',
           headline: 'Viable option', why: ['Eco fit'], requirements: [],
@@ -42,6 +43,8 @@ function makeResult(options?: { optionCount?: number }): FullEngineResult {
           typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
         },
       ]
+    : options?.optionCount === 1
+    ? [singleOption]
     : [];
 
   return {
@@ -116,24 +119,24 @@ describe('LiveHubPage — primary export button', () => {
     expect(screen.queryByRole('button', { name: /full output report/i })).toBeNull();
   });
 
-  it('clicking "Print Recommendation" opens the CustomerRecommendationPrint overlay', () => {
+  it('clicking "Print Recommendation" opens the CustomerAdvicePrintPack overlay', () => {
     render(
-      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+      <LiveHubPage result={makeResult({ optionCount: 1 })} input={makeInput()} onBack={() => {}} />,
     );
     fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
-    // CustomerRecommendationPrint renders data-testid="customer-recommendation-print"
-    expect(screen.getByTestId('customer-recommendation-print')).toBeTruthy();
+    // CustomerAdvicePrintPack renders data-testid="capp-wrap"
+    expect(screen.getByTestId('capp-wrap')).toBeTruthy();
   });
 
   it('"← Back" in the Print Recommendation overlay returns to the hub', () => {
     render(
-      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+      <LiveHubPage result={makeResult({ optionCount: 1 })} input={makeInput()} onBack={() => {}} />,
     );
     fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
-    expect(screen.getByTestId('customer-recommendation-print')).toBeTruthy();
+    expect(screen.getByTestId('capp-wrap')).toBeTruthy();
 
-    // CustomerRecommendationPrint renders a plain "← Back" button (no aria-label)
-    fireEvent.click(screen.getByRole('button', { name: /← back/i }));
+    // CustomerAdvicePrintPack renders data-testid="capp-back-button"
+    fireEvent.click(screen.getByTestId('capp-back-button'));
     expect(screen.getByText('📡 Atlas Live Output Hub')).toBeTruthy();
   });
 });

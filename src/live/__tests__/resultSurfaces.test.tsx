@@ -36,7 +36,17 @@ import type { CompareSeed } from '../../lib/simulator/buildCompareSeedFromSurvey
 
 // ─── Stubs ────────────────────────────────────────────────────────────────────
 
-function makeResult(): FullEngineResult {
+function makeResult(options?: { withOption?: boolean }): FullEngineResult {
+  const optionList = options?.withOption
+    ? [{
+        id: 'combi', label: 'Gas Combi', status: 'viable',
+        headline: 'Viable option', why: ['Good fit'], requirements: [],
+        heat:        { status: 'ok', headline: 'Adequate heat', bullets: [] },
+        dhw:         { status: 'ok', headline: 'Good DHW flow', bullets: [] },
+        engineering: { status: 'ok', headline: 'No major changes', bullets: [] },
+        typedRequirements: { mustHave: [], likelyUpgrades: [], niceToHave: [] },
+      }]
+    : [];
   return {
     combiDhwV1:   { verdict: { combiRisk: 'pass' } },
     storedDhwV1:  { verdict: { storedRisk: 'pass' } },
@@ -66,7 +76,7 @@ function makeResult(): FullEngineResult {
       explainers:     [],
       limiters:       { limiters: [] },
       evidence:       [],
-      options:        [],
+      options:        optionList,
     },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as FullEngineResult;
@@ -178,12 +188,12 @@ describe('resultSurfaces — LiveHubPage primary export', () => {
     expect(screen.getByRole('button', { name: /print recommendation/i })).toBeTruthy();
   });
 
-  it('clicking "Print Recommendation" opens CustomerRecommendationPrint', () => {
+  it('clicking "Print Recommendation" opens CustomerAdvicePrintPack', () => {
     render(
-      <LiveHubPage result={makeResult()} input={makeInput()} onBack={() => {}} />,
+      <LiveHubPage result={makeResult({ withOption: true })} input={makeInput()} onBack={() => {}} />,
     );
     fireEvent.click(screen.getByRole('button', { name: /print recommendation/i }));
-    expect(screen.getByTestId('customer-recommendation-print')).toBeTruthy();
+    expect(screen.getByTestId('capp-wrap')).toBeTruthy();
   });
 });
 

@@ -31,7 +31,11 @@ import HubPage from '../components/hub/HubPage';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
 import LabPrintTechnical from '../components/lab/LabPrintTechnical';
 import LabPrintComparison from '../components/lab/LabPrintComparison';
-import CustomerRecommendationPrint from '../components/print/CustomerRecommendationPrint';
+import { CustomerAdvicePrintPack } from '../components/print/CustomerAdvicePrintPack';
+import { buildScenariosFromEngineOutput } from '../engine/modules/buildScenariosFromEngineOutput';
+import { buildDecisionFromScenarios } from '../engine/modules/buildDecisionFromScenarios';
+import { buildVisualBlocks } from '../engine/modules/buildVisualBlocks';
+import type { LifecycleBoilerType } from '../contracts/LifecycleAssessment';
 import { buildPrintData } from './buildPrintData';
 import { buildOutputHubSections } from './printSections.model';
 import RecommendationCard from '../components/live/RecommendationCard';
@@ -60,6 +64,17 @@ interface Props {
   result: FullEngineResult;
   input: FullSurveyModelV1;
   onBack: () => void;
+}
+
+/**
+ * Maps the engine heat-source family to the nearest LifecycleBoilerType.
+ * Falls back to 'regular' for non-gas-boiler variants (ashp, other, unknown).
+ */
+function toLifecycleBoilerType(
+  value: 'combi' | 'system' | 'regular' | 'ashp' | 'other' | undefined,
+): LifecycleBoilerType {
+  if (value === 'combi' || value === 'system' || value === 'regular') return value;
+  return 'regular';
 }
 
 /** Derive a status chip value from engine output for each section. */
@@ -232,17 +247,31 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
     const printData = buildPrintData(result, input);
     const closePrint = () => setPrintView(null);
     if (printView === 'recommendation') {
-      return (
-        <CustomerRecommendationPrint
-          result={result}
-          input={input}
-          recommendationResult={result.recommendationResult}
-          prioritiesState={input.fullSurvey?.priorities}
-          selectedOption1Family={deckOpt1Family ?? undefined}
-          selectedOption2Family={deckOpt2Family ?? undefined}
-          onBack={closePrint}
-        />
-      );
+      // Build the canonical Decision-First print pack from the same
+      // VisualBlock[] truth used by the presentation deck.  Falls back to
+      // closing the overlay when the engine produced no option cards.
+      const scenarios = buildScenariosFromEngineOutput(engineOutput);
+      if (scenarios.length > 0) {
+        const decision = buildDecisionFromScenarios({
+          scenarios,
+          boilerType:     toLifecycleBoilerType(input.currentHeatSourceType),
+          ageYears:       input.currentSystem?.boiler?.ageYears ?? 0,
+          occupancyCount: input.occupancyCount,
+          bathroomCount:  input.bathroomCount,
+        });
+        const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, input);
+        return (
+          <CustomerAdvicePrintPack
+            decision={decision}
+            scenarios={scenarios}
+            visualBlocks={visualBlocks}
+            onBack={closePrint}
+          />
+        );
+      }
+      // No scenarios — engine hasn't produced option cards yet; close overlay.
+      closePrint();
+      return null;
     }
     if (printView === 'technical') {
       return <LabPrintTechnical data={printData} onBack={closePrint} />;
