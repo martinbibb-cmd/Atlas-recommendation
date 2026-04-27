@@ -163,11 +163,11 @@ export function ComparisonMatrix({ scenarios, recommendedScenarioId }: Compariso
                   const band = s.performance[key];
                   // For the Efficiency dimension, prefer the numeric efficiencyMetric
                   // (COP or η %) over the generic PerformanceBand label when available.
-                  const useMetric = key === 'efficiency' && s.efficiencyMetric !== undefined;
-                  const marker = useMetric
+                  const hasEfficiencyMetric = key === 'efficiency' && s.efficiencyMetric !== undefined;
+                  const marker = hasEfficiencyMetric
                     ? efficiencyMetricToMarker(s.efficiencyMetric)
                     : bandToMarker(band);
-                  const desc = useMetric
+                  const desc = hasEfficiencyMetric
                     ? efficiencyMetricToLabel(s.efficiencyMetric)
                     : bandToLabel(band);
                   return (

@@ -30,6 +30,18 @@ const MAX_DISPLAYED_REASONS = 3;
 /** Maximum required works shown in the "What's included" section. */
 const MAX_DISPLAYED_WORKS = 5;
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Format an ISO date string as "Month YYYY" for use in price-cap labels.
+ * Returns the raw string unchanged if it cannot be parsed.
+ */
+function formatPriceCapDate(isoDate: string): string {
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface CustomerSimpleAdviceViewProps {
@@ -92,7 +104,7 @@ export function CustomerSimpleAdviceView({
           </p>
           {projectedSavingGbp !== undefined && priceCapsDate !== undefined && (
             <p className="csav__energy-currency" data-testid="csav-projected-saving">
-              Projection based on {new Date(priceCapsDate).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })} price caps: approx.{' '}
+              Projection based on {formatPriceCapDate(priceCapsDate)} price caps: approx.{' '}
               <strong>£{Math.round(projectedSavingGbp).toLocaleString()}/year</strong>.
             </p>
           )}

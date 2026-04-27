@@ -85,7 +85,7 @@ function deriveEfficiencyMetric(option: OptionCardV1): ScenarioResult['efficienc
   if (option.id === 'ashp') {
     return {
       kind:  'cop',
-      value: parseFloat(estimateCop(OUTDOOR_DESIGN_TEMP_C, ASHP_DESIGN_FLOW_TEMP_C).toFixed(1)),
+      value: Math.round(estimateCop(OUTDOOR_DESIGN_TEMP_C, ASHP_DESIGN_FLOW_TEMP_C) * 10) / 10,
     };
   }
   return {
