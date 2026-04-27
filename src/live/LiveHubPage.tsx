@@ -216,10 +216,10 @@ export default function LiveHubPage({ result, input, onBack }: Props) {
   // Track which Option 1 / Option 2 families the engineer agreed with the
   // customer during the in-room presentation so the printout reflects the
   // same choices.  Initialised to the engine's top-2 recommendation.
-  const [deckOpt1Family, setDeckOpt1Family] = useState<ApplianceFamily | null>(
+  const [_deckOpt1Family, setDeckOpt1Family] = useState<ApplianceFamily | null>(
     () => (result.recommendationResult?.bestOverall?.family ?? null) as ApplianceFamily | null,
   );
-  const [deckOpt2Family, setDeckOpt2Family] = useState<ApplianceFamily | null>(null);
+  const [_deckOpt2Family, setDeckOpt2Family] = useState<ApplianceFamily | null>(null);
 
   const handleOptionsChange = useCallback(
     (opt1: ApplianceFamily | null, opt2: ApplianceFamily | null) => {
