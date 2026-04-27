@@ -59,6 +59,41 @@ function flagToLabel(flag: boolean | undefined): string {
   return flag ? 'Risk present' : 'No issue';
 }
 
+/**
+ * Derive a status marker from a numeric efficiency metric.
+ *
+ * COP thresholds (ASHP):
+ *   ✅ ≥ 3.2 — heat pump operating well within efficient range
+ *   ⚠️ 2.0 – 3.2 — acceptable but constrained
+ *   ❌ < 2.0 — poor COP; high standing losses or high flow temp
+ *
+ * η thresholds (boiler, percentage points):
+ *   ✅ ≥ 94 — ErP A-rated condensing (best in class)
+ *   ⚠️ 80 – 93 — condensing but below peak seasonal efficiency
+ *   ❌ < 80 — non-condensing or heavily degraded
+ */
+function efficiencyMetricToMarker(metric: ScenarioResult['efficiencyMetric']): string {
+  if (!metric) return '❓';
+  if (metric.kind === 'cop') {
+    if (metric.value >= 3.2) return '✅';
+    if (metric.value >= 2.0) return '⚠️';
+    return '❌';
+  }
+  // kind === 'eta'
+  if (metric.value >= 94) return '✅';
+  if (metric.value >= 80) return '⚠️';
+  return '❌';
+}
+
+/**
+ * Human-readable efficiency label combining the numeric value and kind.
+ */
+function efficiencyMetricToLabel(metric: ScenarioResult['efficiencyMetric']): string {
+  if (!metric) return 'Unknown';
+  if (metric.kind === 'cop') return `COP ${metric.value.toFixed(1)}`;
+  return `${metric.value} % efficiency`;
+}
+
 // ─── Row definitions ──────────────────────────────────────────────────────────
 
 type PerformanceRowKey = keyof ScenarioResult['performance'];
@@ -125,9 +160,16 @@ export function ComparisonMatrix({ scenarios, recommendedScenarioId }: Compariso
               <tr key={key} className="comparison-matrix__row comparison-matrix__row--performance">
                 <th className="comparison-matrix__row-label" scope="row">{label}</th>
                 {scenarios.map((s) => {
-                  const band   = s.performance[key];
-                  const marker = bandToMarker(band);
-                  const desc   = bandToLabel(band);
+                  const band = s.performance[key];
+                  // For the Efficiency dimension, prefer the numeric efficiencyMetric
+                  // (COP or η %) over the generic PerformanceBand label when available.
+                  const useMetric = key === 'efficiency' && s.efficiencyMetric !== undefined;
+                  const marker = useMetric
+                    ? efficiencyMetricToMarker(s.efficiencyMetric)
+                    : bandToMarker(band);
+                  const desc = useMetric
+                    ? efficiencyMetricToLabel(s.efficiencyMetric)
+                    : bandToLabel(band);
                   return (
                     <td
                       key={s.scenarioId}

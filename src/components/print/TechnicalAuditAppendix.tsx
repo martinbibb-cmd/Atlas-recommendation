@@ -32,11 +32,13 @@ function buildJsonSummary(decision: AtlasDecisionV1, scenarios: ScenarioResult[]
     recommendedScenarioId: decision.recommendedScenarioId,
     headline: decision.headline,
     supportingFacts: decision.supportingFacts,
+    ...(decision.energyMetrics ? { energyMetrics: decision.energyMetrics } : {}),
     scenarios: scenarios.map((s) => ({
       scenarioId: s.scenarioId,
       'system.type': s.system.type,
       'system.summary': s.system.summary,
       performance: s.performance,
+      ...(s.efficiencyMetric ? { efficiencyMetric: s.efficiencyMetric } : {}),
       hardConstraints: s.hardConstraints ?? [],
     })),
     hardConstraints: decision.hardConstraints ?? [],

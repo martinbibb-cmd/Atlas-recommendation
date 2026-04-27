@@ -18,6 +18,44 @@
 import type { LifecycleAssessment } from './LifecycleAssessment';
 import type { QuoteScopeItem } from './QuoteScope';
 import type { ShowerCompatibilityNote } from './ShowerCompatibilityNote';
+export type { DecisionEnergyMetrics };
+
+/**
+ * Physics-first energy metrics for the recommended system.
+ *
+ * These are the machine-verifiable numbers that allow any independent engineer
+ * or AI assistant to cross-check the Atlas recommendation without needing to
+ * know what energy tariff was assumed at the time of survey.
+ *
+ * Absent when the engine cannot resolve peak heat loss from the survey input.
+ */
+export interface DecisionEnergyMetrics {
+  /**
+   * Estimated reduction in annual heating + DHW energy consumption after
+   * installing the recommended system (kWh/year).
+   */
+  annualEnergyReductionKwh: number;
+  /**
+   * Current system's estimated annual energy consumption (kWh/year) — the
+   * "before" baseline derived from peak heat loss and seasonal efficiency.
+   */
+  baselineKwh: number;
+  /**
+   * Projected annual energy consumption with the recommended system (kWh/year).
+   */
+  projectedKwh: number;
+  /**
+   * Temperature difference used for the peak heat-loss calculation (°C).
+   * Typically the design indoor setpoint minus the outdoor design temperature
+   * (e.g. 21 °C − (−3 °C) = 24 °C for UK design conditions).
+   */
+  designDeltaT: number;
+  /**
+   * Peak heat demand on the coldest design day (kW).
+   * Sized for the outdoor design temperature specified in designDeltaT.
+   */
+  peakLoadKw: number;
+}
 
 /** A single supporting fact with its data source. */
 export interface DecisionSupportingFact {
@@ -120,4 +158,16 @@ export interface AtlasDecisionV1 {
    * Populated from rejected scenarios' warn-level flags.
    */
   performancePenalties?: string[];
+
+  /**
+   * Physics-first energy metrics for the recommended system.
+   *
+   * Present when the engine resolves a peak heat-loss figure from the survey
+   * input. Absent when `heatLossWatts` is unknown.
+   *
+   * Used by TechnicalAuditAppendix (JSON block) and CustomerSimpleAdviceView
+   * (energy-reduction headline). Never drives financial projections directly —
+   * currency layers are built on top by the Customer Portal sliders.
+   */
+  energyMetrics?: DecisionEnergyMetrics;
 }

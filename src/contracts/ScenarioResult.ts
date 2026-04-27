@@ -88,4 +88,20 @@ export interface ScenarioResult {
    * Examples: short-draw efficiency collapse, reduced flow at low pressure.
    */
   performancePenalties?: string[];
+
+  /**
+   * Physics-derived efficiency metric for this scenario.
+   *
+   * kind 'eta' — boiler seasonal efficiency fraction expressed as percentage
+   *               points (e.g. 92 for a 92 % SEDBUK condensing boiler).
+   * kind 'cop'  — heat-pump Coefficient of Performance (e.g. 3.3 for ASHP at
+   *               design conditions: −3 °C outdoor, 45 °C flow temperature).
+   *
+   * Absent when the engine cannot resolve a reliable numeric efficiency for
+   * this option; the ComparisonMatrix falls back to the PerformanceBand label.
+   */
+  efficiencyMetric?: {
+    kind: 'cop' | 'eta';
+    value: number;
+  };
 }

@@ -18,6 +18,13 @@
 
 import type { EngineOutputV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult, ScenarioPerformance, ScenarioPhysicsFlags, ScenarioSystemType } from '../../contracts/ScenarioResult';
+import { resolveNominalEfficiencyPct } from '../utils/efficiency';
+import { estimateCop } from '../../features/explainers/energy/lib/energyMath';
+
+// UK design outdoor temperature (°C) — canonical value matching SystemConditionImpactModule.
+const OUTDOOR_DESIGN_TEMP_C = -3;
+// Standard ASHP design flow temperature (°C) for a typical UK wet-system installation.
+const ASHP_DESIGN_FLOW_TEMP_C = 45;
 
 // ─── Maps ─────────────────────────────────────────────────────────────────────
 
@@ -59,6 +66,31 @@ function derivePhysicsFlags(option: OptionCardV1): ScenarioPhysicsFlags {
     combiFlowRisk:       option.id === 'combi' && option.dhw.status !== 'ok',
     highTempRequired:    sensitivityKeys.some((key) => key.includes('temp') || key.includes('heat')),
     pressureConstraint:  sensitivityKeys.some((key) => key.includes('pressure') || key.includes('mains')),
+  };
+}
+
+/**
+ * Derive a physics-based efficiency metric for a given option.
+ *
+ * ASHP options: estimated COP at UK design conditions (−3 °C outdoor, 45 °C
+ * flow temperature) using the Carnot-fraction model from energyMath.ts.
+ * Boiler options: nominal SEDBUK seasonal efficiency from efficiency.ts
+ * (defaults to DEFAULT_NOMINAL_EFFICIENCY_PCT when no better data is available).
+ *
+ * The returned value is a conservative physics default.  Callers with richer
+ * per-option engine data (e.g. measured SEDBUK or SPF) should override this
+ * field on the returned ScenarioResult.
+ */
+function deriveEfficiencyMetric(option: OptionCardV1): ScenarioResult['efficiencyMetric'] {
+  if (option.id === 'ashp') {
+    return {
+      kind:  'cop',
+      value: parseFloat(estimateCop(OUTDOOR_DESIGN_TEMP_C, ASHP_DESIGN_FLOW_TEMP_C).toFixed(1)),
+    };
+  }
+  return {
+    kind:  'eta',
+    value: resolveNominalEfficiencyPct(),
   };
 }
 
@@ -113,6 +145,7 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
     requiredWorks:    option.typedRequirements?.mustHave ?? option.requirements.slice(0, 3),
     upgradePaths:     option.typedRequirements?.likelyUpgrades ?? [],
     physicsFlags:     derivePhysicsFlags(option),
+    efficiencyMetric: deriveEfficiencyMetric(option),
     ...(hardConstraints.length > 0    ? { hardConstraints }    : {}),
     ...(performancePenalties.length > 0 ? { performancePenalties } : {}),
   };
