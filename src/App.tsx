@@ -988,17 +988,18 @@ export default function App() {
   if (PRINT_VIEW === 'technical')  return <LabPrintTechnical />;
   if (PRINT_VIEW === 'comparison') return <LabPrintComparison />;
   if (PRINT_VIEW === 'survey') {
-    const demoResult  = runEngine(CONSOLE_DEMO_INPUT);
-    const demoScenarios = buildScenariosFromEngineOutput(demoResult.engineOutput);
+    const surveyPrintInput = labEngineInput ?? CONSOLE_DEMO_INPUT;
+    const surveyPrintResult  = runEngine(surveyPrintInput);
+    const surveyPrintScenarios = buildScenariosFromEngineOutput(surveyPrintResult.engineOutput);
 
     // ?print=survey&internal=1 — old diagnostic report for dev/internal use only.
     // Not reachable as the default customer output.
     if (INTERNAL_PRINT_ENABLED) {
       return (
         <CustomerRecommendationPrint
-          result={demoResult}
-          input={CONSOLE_DEMO_INPUT}
-          recommendationResult={demoResult.recommendationResult}
+          result={surveyPrintResult}
+          input={surveyPrintInput}
+          recommendationResult={surveyPrintResult.recommendationResult}
           portalUrl={buildPortalUrl('demo', window.location.origin)}
           visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
         />
@@ -1006,20 +1007,20 @@ export default function App() {
     }
 
     // Default: customer-facing advice pack from VisualBlock[] truth.
-    if (demoScenarios.length > 0) {
-      const demoDecision = buildDecisionFromScenarios({
-        scenarios:   demoScenarios,
-        boilerType:  toLifecycleBoilerType(CONSOLE_DEMO_INPUT.currentHeatSourceType),
-        ageYears:    10,
-        occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
-        bathroomCount:  CONSOLE_DEMO_INPUT.bathroomCount,
+    if (surveyPrintScenarios.length > 0) {
+      const surveyPrintDecision = buildDecisionFromScenarios({
+        scenarios:   surveyPrintScenarios,
+        boilerType:  toLifecycleBoilerType(surveyPrintInput.currentHeatSourceType),
+        ageYears:    surveyPrintInput.currentSystem?.boiler?.ageYears ?? 0,
+        occupancyCount: surveyPrintInput.occupancyCount,
+        bathroomCount:  surveyPrintInput.bathroomCount,
       });
-      const demoBlocks = buildVisualBlocks(demoDecision, demoScenarios, undefined, CONSOLE_DEMO_INPUT);
+      const surveyPrintBlocks = buildVisualBlocks(surveyPrintDecision, surveyPrintScenarios, undefined, surveyPrintInput);
       return (
         <CustomerAdvicePrintPack
-          decision={demoDecision}
-          scenarios={demoScenarios}
-          visualBlocks={demoBlocks}
+          decision={surveyPrintDecision}
+          scenarios={surveyPrintScenarios}
+          visualBlocks={surveyPrintBlocks}
           portalUrl={buildPortalUrl('demo', window.location.origin)}
           visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
           onBack={() => { window.location.href = window.location.pathname; }}
@@ -1236,7 +1237,7 @@ export default function App() {
         const decision = buildDecisionFromScenarios({
           scenarios,
           boilerType:     toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
-          ageYears:       10,
+          ageYears:       labEngineInput.currentSystem?.boiler?.ageYears ?? 0,
           occupancyCount: labEngineInput.occupancyCount,
           bathroomCount:  labEngineInput.bathroomCount,
         });
