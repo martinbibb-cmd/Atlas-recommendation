@@ -101,7 +101,15 @@ export function buildBehaviourTimelineV1(
 
   // ── Appliance capacity ────────────────────────────────────────────────────
   // Combi / boiler sprint capacity = 30 kW (per custom instructions spec).
-  const isAshp = lifestyle.recommendedSystem === 'ashp';
+  //
+  // isAshp resolution order:
+  //   1. currentHeatSourceType === 'ashp' — explicit current system is ASHP.
+  //   2. lifestyle.lifestyleNeeds includes 'steady_low_temp' — occupancy pattern
+  //      is best served by ASHP.  This is a chart-rendering modifier (showing COP
+  //      vs efficiency, ASHP horizon vs stepped boiler curve) — not a system
+  //      recommendation.  The recommendation itself is resolved by verdictV1.
+  const isAshp = input.currentHeatSourceType === 'ashp' ||
+    lifestyle.lifestyleNeeds.includes('steady_low_temp');
   const applianceCap = isAshp ? heatLossKw * 1.2 : 30;
 
   // A combi boiler enforces DHW priority lockout: when DHW demand is present

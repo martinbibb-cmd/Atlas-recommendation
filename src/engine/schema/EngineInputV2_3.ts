@@ -1797,9 +1797,39 @@ export interface OccupancyHour {
   cylinderVolumeL: number;
 }
 
+/**
+ * Lifestyle preference signals emitted by LifestyleSimulationModule.
+ *
+ * These are demand-fit hints, not system decisions.  The recommendation engine
+ * uses them as a fourth-tier modifier after hard constraints, flagged systems,
+ * and demand/performance evidence have already been resolved.
+ *
+ *   fast_reheat      — occupancy pattern benefits from a high-output rapid-reheat
+ *                      appliance (double-peak professional schedule).
+ *   steady_low_temp  — continuous occupancy suits a modulating low-ΔT system that
+ *                      exploits building thermal mass (steady_home / retired).
+ *   stored_resilience — irregular or offset-peak occupancy benefits from a stored
+ *                       hot-water reserve that decouples demand from delivery
+ *                       (shift_worker).
+ */
+export type LifestyleNeed = 'fast_reheat' | 'steady_low_temp' | 'stored_resilience';
+
 export interface LifestyleResult {
   signature: OccupancySignature;
+  /**
+   * @deprecated Use `lifestyleNeeds` instead.
+   * Lifestyle preference signals must be a modifier, not a recommender.
+   * Hard physics constraints in RedFlagModule take precedence over this field.
+   * Kept for backward compatibility; will be removed in a future release.
+   */
   recommendedSystem: 'boiler' | 'ashp' | 'stored_water';
+  /**
+   * Demand-fit preference signals derived from the occupancy signature.
+   * These describe what the household *prefers*, not which system is recommended.
+   * The recommendation engine applies these as a low-priority modifier only after
+   * hard constraints and physics evidence have been resolved.
+   */
+  lifestyleNeeds: LifestyleNeed[];
   hourlyData: OccupancyHour[];
   notes: string[];
 }
@@ -2231,6 +2261,21 @@ export type FullEngineResult = FullEngineResultCore & {
    * heuristics.  UI recommendation surfaces must bind to this field.
    */
   recommendationResult: import('../recommendation/RecommendationModel').RecommendationResult;
+  /**
+   * Single locked recommendation verdict — the authoritative decision layer.
+   *
+   * Produced by buildRecommendationVerdict() after buildRecommendationsFromEvidence().
+   * Applies decision precedence:
+   *   Tier 1  hard rejections (physics impossible)
+   *   Tier 2  conditional flags (remedial work required)
+   *   Tier 3  demand/performance fit (limiter ledger + fit-map evidence)
+   *   Tier 4  lifestyle preference signals (modifier only)
+   *   Tier 5  efficiency / eco / cost (secondary dimension)
+   *
+   * Presentation surfaces must render this verdict exclusively.
+   * No presentation layer may re-derive a recommendation from raw module outputs.
+   */
+  verdictV1: import('../recommendation/RecommendationVerdictV1').RecommendationVerdictV1;
 };
 
 // ─── Connected Insights V2.4 ──────────────────────────────────────────────────

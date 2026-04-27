@@ -25,6 +25,7 @@ import { buildLimiterLedger } from './limiter/buildLimiterLedger';
 import { buildFitMapModel } from './fitmap/buildFitMapModel';
 import { buildRecommendationsFromEvidence } from './recommendation/buildRecommendationsFromEvidence';
 import type { CandidateEvidenceBundle } from './recommendation/RecommendationModel';
+import { buildRecommendationVerdict } from './recommendation/buildRecommendationVerdict';
 import { runDemographicsAssessmentModule } from './modules/DemographicsAssessmentModule';
 import { runPvAssessmentModule } from './modules/PvAssessmentModule';
 import { runCylinderSizingModule } from './modules/CylinderSizingModule';
@@ -188,5 +189,12 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
   ENGINE_MODULE_REGISTRY.emit('engine:core-complete', { input });
   ENGINE_MODULE_REGISTRY.emit('engine:output-ready', { input, output: engineOutput });
 
-  return { ...core, engineOutput, inputValidation, recommendationResult };
+  // ── Single locked verdict: resolves all contradictions before any ─────────
+  // presentation surface sees them.  Applies decision precedence:
+  //   Tier 1 hard rejections → Tier 2 conditional flags →
+  //   Tier 3 physics fit → Tier 4 lifestyle → Tier 5 eco.
+  const fullResult = { ...core, engineOutput, inputValidation, recommendationResult };
+  const verdictV1 = buildRecommendationVerdict(fullResult, input);
+
+  return { ...fullResult, verdictV1 };
 }
