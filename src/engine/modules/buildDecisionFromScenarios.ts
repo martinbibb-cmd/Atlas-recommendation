@@ -19,7 +19,7 @@
  */
 
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
-import type { AtlasDecisionV1, DecisionSupportingFact } from '../../contracts/AtlasDecisionV1';
+import type { AtlasDecisionV1, DecisionSupportingFact, DecisionEnergyMetrics } from '../../contracts/AtlasDecisionV1';
 import type { LifecycleAssessment } from '../../contracts/LifecycleAssessment';
 import type { BuildLifecycleAssessmentInput } from './buildLifecycleAssessment';
 import { buildLifecycleAssessment } from './buildLifecycleAssessment';
@@ -186,6 +186,16 @@ export interface BuildDecisionInput {
    * PR26 — Pass the output of buildShowerCompatibilityNotes here.
    */
   showerCompatibilityNote?: ShowerCompatibilityNote | null;
+
+  /**
+   * Physics-first energy metrics to include in the decision output.
+   *
+   * When provided, these values are passed through verbatim to
+   * AtlasDecisionV1.energyMetrics — no computation is performed here.
+   * Callers that have access to the survey's heatLossWatts and seasonal
+   * efficiency data should compute and supply this block.
+   */
+  energyMetrics?: DecisionEnergyMetrics;
 }
 
 // ─── Main builder ─────────────────────────────────────────────────────────────
@@ -264,6 +274,7 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
     showerCompatibilityNote: showerNote ?? undefined,
     hardConstraints:        hardConstraints.length > 0 ? hardConstraints : undefined,
     performancePenalties:   performancePenalties.length > 0 ? performancePenalties : undefined,
+    ...(input.energyMetrics ? { energyMetrics: input.energyMetrics } : {}),
   };
 }
 

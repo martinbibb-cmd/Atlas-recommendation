@@ -5,15 +5,17 @@
  *
  * Sections:
  *   1. Primary Recommendation — headline + system name
- *   2. Why — top 3 key reasons with large checkmarks
- *   3. What's Included — top 5 required works
- *   4. Open Simulator CTA — optional button
+ *   2. Energy Metric — annual energy reduction (kWh) when engine data is available
+ *   3. Why — top 3 key reasons with large checkmarks
+ *   4. What's Included — top 5 required works
+ *   5. Open Simulator CTA — optional button
  *
  * Rules:
  *   - No recommendation logic — all content from AtlasDecisionV1 / ScenarioResult.
  *   - No Math.random().
  *   - Audience: customer.
  *   - Terminology: use "on-demand hot water", "mains-fed supply", "tank-fed hot water" only.
+ *   - Currency projections must never appear without an explicit price-cap date label.
  */
 
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
@@ -28,6 +30,18 @@ const MAX_DISPLAYED_REASONS = 3;
 /** Maximum required works shown in the "What's included" section. */
 const MAX_DISPLAYED_WORKS = 5;
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Format an ISO date string as "Month YYYY" for use in price-cap labels.
+ * Returns the raw string unchanged if it cannot be parsed.
+ */
+function formatPriceCapDate(isoDate: string): string {
+  const d = new Date(isoDate);
+  if (isNaN(d.getTime())) return isoDate;
+  return d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface CustomerSimpleAdviceViewProps {
@@ -37,6 +51,15 @@ export interface CustomerSimpleAdviceViewProps {
   /** The Atlas-recommended scenario — used to display the system name. */
   recommendedScenario: ScenarioResult | undefined;
   onOpenSimulator?: () => void;
+  /**
+   * Optional currency saving projection.
+   *
+   * Only shown when this prop is provided AND priceCapsDate is also provided.
+   * The date label makes the assumption explicit so it remains verifiable.
+   */
+  projectedSavingGbp?: number;
+  /** ISO date string (e.g. "2025-01-01") for the price cap used in projectedSavingGbp. */
+  priceCapsDate?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -51,9 +74,12 @@ export function CustomerSimpleAdviceView({
   decision,
   recommendedScenario,
   onOpenSimulator,
+  projectedSavingGbp,
+  priceCapsDate,
 }: CustomerSimpleAdviceViewProps) {
   const topReasons = decision.keyReasons.slice(0, MAX_DISPLAYED_REASONS);
   const topWorks   = decision.requiredWorks.slice(0, MAX_DISPLAYED_WORKS);
+  const energyReductionKwh = decision.energyMetrics?.annualEnergyReductionKwh;
 
   return (
     <div className="csav" data-testid="customer-simple-advice-view">
@@ -69,7 +95,23 @@ export function CustomerSimpleAdviceView({
         </div>
       </section>
 
-      {/* ── Section 2: Why ── */}
+      {/* ── Section 2: Energy Metric ── */}
+      {energyReductionKwh !== undefined && (
+        <section className="csav__section csav__section--energy" aria-label="Energy saving">
+          <p className="csav__energy-headline" data-testid="csav-energy-reduction">
+            Reduces your home's energy appetite by{' '}
+            <strong>{Math.round(energyReductionKwh).toLocaleString()} kWh/year</strong>.
+          </p>
+          {projectedSavingGbp !== undefined && priceCapsDate !== undefined && (
+            <p className="csav__energy-currency" data-testid="csav-projected-saving">
+              Projection based on {formatPriceCapDate(priceCapsDate)} price caps: approx.{' '}
+              <strong>£{Math.round(projectedSavingGbp).toLocaleString()}/year</strong>.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* ── Section 3: Why ── */}
       {topReasons.length > 0 && (
         <section className="csav__section" aria-label="Why this works for your home">
           <h2 className="csav__section-title">Why this works for your home</h2>
@@ -84,7 +126,7 @@ export function CustomerSimpleAdviceView({
         </section>
       )}
 
-      {/* ── Section 3: What's Included ── */}
+      {/* ── Section 4: What's Included ── */}
       {topWorks.length > 0 && (
         <section className="csav__section" aria-label="What is included">
           <h2 className="csav__section-title">What's included</h2>
@@ -99,7 +141,7 @@ export function CustomerSimpleAdviceView({
         </section>
       )}
 
-      {/* ── Section 4: Open Simulator CTA ── */}
+      {/* ── Section 5: Open Simulator CTA ── */}
       {onOpenSimulator && (
         <section className="csav__section csav__section--cta" aria-label="Explore your options">
           <button
