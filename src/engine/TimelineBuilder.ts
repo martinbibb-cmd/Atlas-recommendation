@@ -464,9 +464,12 @@ export function buildTimeline24hV1(
   systemIds?: [string, string],
   debug?: boolean,
 ): VisualSpecV1 {
-  // Resolve the recommendation for system B default
-  const primaryRec = core.lifestyle.recommendedSystem === 'ashp' ? 'ashp'
-    : core.lifestyle.recommendedSystem === 'stored_water' ? 'stored_unvented'
+  // Resolve the default system B from lifestyle preference signals.
+  // lifestyleNeeds is a modifier/hint, not a decision — the caller should pass
+  // explicit systemIds when a canonical recommendation is available.
+  const needs = core.lifestyle.lifestyleNeeds;
+  const primaryRec = needs.includes('steady_low_temp') ? 'ashp'
+    : needs.includes('stored_resilience') ? 'stored_unvented'
     : 'on_demand';
 
   const [idA, idB] = systemIds ?? ['current', primaryRec];

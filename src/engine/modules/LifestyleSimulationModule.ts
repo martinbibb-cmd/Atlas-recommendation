@@ -1,6 +1,7 @@
 import type {
   EngineInputV2_3,
   LifestyleResult,
+  LifestyleNeed,
   OccupancyHour,
   OccupancySignature,
   BuildingMass,
@@ -137,6 +138,27 @@ function getRecommendedSystem(signature: OccupancySignature): LifestyleResult['r
     case 'steady':       return 'ashp';
     case 'shift_worker':
     case 'shift':        return 'stored_water';
+  }
+}
+
+/**
+ * Map an occupancy signature to preference signals.
+ *
+ * These are demand-fit hints, NOT system decisions.  The recommendation engine
+ * applies them only as a fourth-tier modifier after hard physics constraints,
+ * flagged systems, and demand/performance evidence have been resolved.
+ *
+ *   professional  → fast_reheat   (double-peak schedule benefits from high-output rapid reheat)
+ *   steady_home   → steady_low_temp (continuous occupancy suits modulating low-ΔT operation)
+ *   shift_worker  → stored_resilience (irregular peaks benefit from pre-stored reserve)
+ */
+function getLifestyleNeeds(signature: OccupancySignature): LifestyleNeed[] {
+  switch (signature) {
+    case 'professional':              return ['fast_reheat'];
+    case 'steady_home':
+    case 'steady':                    return ['steady_low_temp'];
+    case 'shift_worker':
+    case 'shift':                     return ['stored_resilience'];
   }
 }
 
@@ -330,22 +352,24 @@ export function runLifestyleSimulationModule(input: EngineInputV2_3, cyclingLoss
   });
 
   const recommendedSystem = getRecommendedSystem(input.occupancySignature);
+  const lifestyleNeeds = getLifestyleNeeds(input.occupancySignature);
 
   const systemDescriptions: Record<typeof recommendedSystem, string> = {
     boiler:
-      '🔥 Boiler recommended for fast reheat under a double-peak schedule — ' +
+      '🔥 Fast reheat preference: double-peak schedule benefits from high-output rapid reheat — ' +
       'control tuning recommended to reduce cycling.',
     ashp:
-      '🌿 ASHP Recommended: "Low and slow" 24/7 equilibrium line exploits building ' +
+      '🌿 Steady low-temp preference: "low and slow" 24/7 equilibrium exploits building ' +
       'thermal mass (τ) as a thermal battery for continuous occupancy.',
     stored_water:
-      '🚿 Stored Water Recommended: Prevents combi "Service Switching" latency where ' +
-      'DHW and space heating compete during irregular demand patterns.',
+      '🚿 Stored resilience preference: pre-stored hot-water reserve decouples demand from ' +
+      'delivery, avoiding DHW/space heating competition under irregular demand patterns.',
   };
 
   return {
     signature: input.occupancySignature,
     recommendedSystem,
+    lifestyleNeeds,
     hourlyData,
     notes: [systemDescriptions[recommendedSystem]],
   };
