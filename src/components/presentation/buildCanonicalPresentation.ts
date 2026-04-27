@@ -1950,7 +1950,7 @@ function mainsWaterLabel(
   input: EngineInputV2_3,
 ): string {
   if (family === 'open_vented' || family === 'regular') {
-    return 'Gravity-fed — mains-independent';
+    return 'Tank-fed — mains-independent';
   }
   const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
   const consideredLimiters = new Set(decision?.evidenceTrace.limitersConsidered ?? []);
