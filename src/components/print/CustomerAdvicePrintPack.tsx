@@ -463,9 +463,9 @@ function InstallComplexityBadge({ decision }: { decision: AtlasDecisionV1 }) {
   const isHigh = decision.quoteScope.some((item) =>
     HIGH_COMPLEXITY_CATEGORIES.has(item.category) && item.status !== 'optional',
   );
-  const label    = isHigh ? 'Higher complexity'  : 'Low disruption';
+  const label = isHigh ? 'Higher complexity' : 'Low disruption';
   const cssClass = isHigh ? 'capp-complexity--high' : 'capp-complexity--low';
-  const desc     = isHigh
+  const desc = isHigh
     ? 'This installation involves pipework, electrical, or investigation work — allow additional time.'
     : 'Straightforward swap — minimal disruption expected.';
 
@@ -483,12 +483,11 @@ function InstallComplexityBadge({ decision }: { decision: AtlasDecisionV1 }) {
  * Format: User Goal · Constraint · Efficiency Trap · Physics Verdict · Improvement Pathway.
  */
 function AiContextBlock({ decision }: { decision: AtlasDecisionV1 }) {
-  const userGoal  = decision.keyReasons[0] ?? '';
-  const constraint =
-    decision.hardConstraints?.[0] ?? decision.compatibilityWarnings[0] ?? '';
-  const efficiencyTrap    = decision.performancePenalties?.[0] ?? '';
-  const physicsVerdict    = decision.summary;
-  const improvementPath   = decision.futureUpgradePaths[0] ?? '';
+  const userGoal = decision.keyReasons[0] ?? '';
+  const constraint = decision.hardConstraints?.[0] ?? decision.compatibilityWarnings[0] ?? '';
+  const efficiencyTrap = decision.performancePenalties?.[0] ?? '';
+  const physicsVerdict = decision.summary;
+  const improvementPath = decision.futureUpgradePaths[0] ?? '';
 
   const hasContent = userGoal || constraint || physicsVerdict;
   if (!hasContent) return null;
