@@ -4,6 +4,16 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+// Register the Atlas service worker for Web Share Target support and offline
+// caching.  Registration is best-effort — the app works without it.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err: unknown) => {
+      console.warn('[Atlas] Service worker registration failed:', err);
+    });
+  });
+}
+
 window.addEventListener('error', (e) => {
   const root = document.getElementById('root')
   if (!root) return

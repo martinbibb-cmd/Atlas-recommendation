@@ -19,7 +19,7 @@
  * Gated by SCAN_IMPORT_ENABLED in App.tsx (same as ScanImportHarness).
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import {
   reviewScanPackage,
   confirmScanPackageImport,
@@ -60,6 +60,12 @@ export interface ScanPackageImportFlowProps {
    * rather than silently overriding manually-entered values.
    */
   existingRooms?: Room[];
+  /**
+   * Pre-loaded FileList injected by ReceiveScanPage when the app was opened
+   * via the Web Share Target API.  When provided the file-picker step is
+   * skipped and the review step is entered immediately on mount.
+   */
+  preloadedFiles?: FileList;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -68,10 +74,36 @@ export default function ScanPackageImportFlow({
   onImported,
   onCancel,
   existingRooms = [],
+  preloadedFiles,
 }: ScanPackageImportFlowProps) {
   const [step, setStep] = useState<Step>({ name: 'select' });
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Auto-advance when preloadedFiles are provided (share-target entry) ──
+  // Uses a ref so the effect runs exactly once on mount (preloadedFiles comes
+  // from the parent at construction time and never changes).
+  const preloadedFilesRef = useRef(preloadedFiles);
+  useEffect(() => {
+    const files = preloadedFilesRef.current;
+    if (!files || files.length === 0) return;
+    setLoading(true);
+    reviewScanPackage(files)
+      .then((result) => {
+        if (result.status === 'failed' || result.status === 'bundle_invalid') {
+          setStep({ name: 'error', errors: result.errors });
+        } else {
+          setStep({ name: 'reviewing', reviewReady: result });
+        }
+      })
+      .catch((err: unknown) => {
+        setStep({
+          name: 'error',
+          errors: [err instanceof Error ? err.message : String(err)],
+        });
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   // ── Step 1: File selection ──
   const handleFilesSelected = useCallback(async (files: FileList) => {
