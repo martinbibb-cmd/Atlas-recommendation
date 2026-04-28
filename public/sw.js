@@ -75,11 +75,15 @@ async function handleShareTarget(request) {
     }
   }
 
-  const params = stored > 0
-    ? `?receive-scan=1&files=${stored}`
-    : '?receive-scan=1&share-error=no-files';
+  const params = new URLSearchParams();
+  params.set('receive-scan', '1');
+  if (stored > 0) {
+    params.set('files', String(stored));
+  } else {
+    params.set('share-error', 'no-files');
+  }
 
-  return Response.redirect('/' + params, 303);
+  return Response.redirect('/?' + params.toString(), 303);
 }
 
 // ─── Fetch handler ────────────────────────────────────────────────────────────

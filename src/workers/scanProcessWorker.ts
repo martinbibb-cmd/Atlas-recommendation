@@ -61,6 +61,10 @@ function parsePly(buffer: ArrayBuffer): { positions: Float32Array; vertexCount: 
   let yIdx = -1;
   let zIdx = -1;
   let propIdx = 0;
+  // Track byte offsets for each property (float32 = 4 bytes assumed; this
+  // covers the vast majority of LiDAR exports from apps like Atlas Scan).
+  const propByteOffsets: number[] = [];
+  let currentByteOffset = 0;
   let inVertexElement = false;
 
   for (const line of lines) {
@@ -72,17 +76,33 @@ function parsePly(buffer: ArrayBuffer): { positions: Float32Array; vertexCount: 
       if (inVertexElement) {
         vertexCount = parseInt(parts[2], 10);
         propIdx = 0;
+        currentByteOffset = 0;
+        propByteOffsets.length = 0;
       }
     } else if (parts[0] === 'property' && inVertexElement) {
+      propByteOffsets.push(currentByteOffset);
       if (parts[2] === 'x') xIdx = propIdx;
       else if (parts[2] === 'y') yIdx = propIdx;
       else if (parts[2] === 'z') zIdx = propIdx;
+      // All common property types are 4 bytes (float, int, uint) except
+      // uchar/char (1 byte) and short/ushort (2 bytes).
+      const typeSize: Record<string, number> = {
+        float: 4, float32: 4, double: 8, float64: 8,
+        int: 4, int32: 4, uint: 4, uint32: 4,
+        short: 2, int16: 2, ushort: 2, uint16: 2,
+        char: 1, int8: 1, uchar: 1, uint8: 1,
+      };
+      currentByteOffset += typeSize[parts[1]] ?? 4;
       propIdx++;
     }
   }
 
   if (vertexCount <= 0) throw new Error('PLY file contains no vertex data');
+  if (xIdx < 0 || yIdx < 0 || zIdx < 0) {
+    throw new Error('PLY file is missing required x, y, or z vertex properties');
+  }
 
+  const stride = currentByteOffset; // total bytes per vertex
   const positions = new Float32Array(vertexCount * 3);
 
   if (isBinaryLittle) {
@@ -99,33 +119,32 @@ function parsePly(buffer: ArrayBuffer): { positions: Float32Array; vertexCount: 
       if (match) { dataOffset = i + endHeaderBytes.length; break; }
     }
 
-    // Assume float32 x,y,z are the first three properties
+    // Use the header-derived per-property byte offsets and stride so files
+    // with normals, colours, or other properties are read correctly.
     const dv = new DataView(buffer, dataOffset);
-    const stride = 12; // 3 × 4 bytes — minimal assumption for float xyz
+    const xOff = propByteOffsets[xIdx] ?? 0;
+    const yOff = propByteOffsets[yIdx] ?? 4;
+    const zOff = propByteOffsets[zIdx] ?? 8;
     for (let i = 0; i < vertexCount; i++) {
       const base = i * stride;
-      positions[i * 3]     = dv.getFloat32(base,      true);
-      positions[i * 3 + 1] = dv.getFloat32(base + 4,  true);
-      positions[i * 3 + 2] = dv.getFloat32(base + 8,  true);
+      positions[i * 3]     = dv.getFloat32(base + xOff, true);
+      positions[i * 3 + 1] = dv.getFloat32(base + yOff, true);
+      positions[i * 3 + 2] = dv.getFloat32(base + zOff, true);
     }
   } else {
-    // ASCII PLY
+    // ASCII PLY — x/y/z indices are validated above; no silent fallback.
     const fullText = new TextDecoder().decode(new Uint8Array(buffer));
     const bodyStart = fullText.indexOf('end_header\n') + 'end_header\n'.length;
     const bodyLines = fullText.slice(bodyStart).split(/\r?\n/);
-
-    const xi = xIdx >= 0 ? xIdx : 0;
-    const yi = yIdx >= 0 ? yIdx : 1;
-    const zi = zIdx >= 0 ? zIdx : 2;
 
     let written = 0;
     for (let i = 0; i < bodyLines.length && written < vertexCount; i++) {
       const line = bodyLines[i].trim();
       if (!line) continue;
       const cols = line.split(/\s+/);
-      positions[written * 3]     = parseFloat(cols[xi] ?? '0');
-      positions[written * 3 + 1] = parseFloat(cols[yi] ?? '0');
-      positions[written * 3 + 2] = parseFloat(cols[zi] ?? '0');
+      positions[written * 3]     = parseFloat(cols[xIdx] ?? '0');
+      positions[written * 3 + 1] = parseFloat(cols[yIdx] ?? '0');
+      positions[written * 3 + 2] = parseFloat(cols[zIdx] ?? '0');
       written++;
     }
   }

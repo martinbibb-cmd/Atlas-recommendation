@@ -78,6 +78,17 @@ export interface PointCloudViewerProps {
   /** CSS height of the canvas — defaults to '100%'. */
   height?: string;
   className?: string;
+  /**
+   * Enable WebGL anti-aliasing.  Defaults to false for battery efficiency on
+   * mobile; set to true when rendering on a high-performance GPU.
+   */
+  antialias?: boolean;
+  /**
+   * GPU power preference hint passed to the WebGL context.
+   * Defaults to 'low-power' (mobile-friendly); use 'high-performance' on
+   * workstations for maximum rendering quality.
+   */
+  powerPreference?: 'default' | 'low-power' | 'high-performance';
 }
 
 export default function PointCloudViewer({
@@ -85,6 +96,8 @@ export default function PointCloudViewer({
   vertexCount,
   height = '100%',
   className,
+  antialias = false,
+  powerPreference = 'low-power',
 }: PointCloudViewerProps) {
   return (
     <div
@@ -93,7 +106,7 @@ export default function PointCloudViewer({
     >
       <Canvas
         camera={{ fov: 50, near: 0.01, far: 10000, position: [0, 0, 5] }}
-        gl={{ antialias: false, powerPreference: 'low-power' }}
+        gl={{ antialias, powerPreference }}
       >
         <ambientLight intensity={0.4} />
         <PointsScene positions={positions} />

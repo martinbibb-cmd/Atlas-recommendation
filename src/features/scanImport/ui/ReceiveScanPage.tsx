@@ -92,7 +92,9 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
             new URL('../../../workers/scanProcessWorker.ts', import.meta.url),
             { type: 'module' },
           );
-          // Clone the buffer before transferring so it stays usable here on error
+          // Clone the buffer so entry.data remains valid (retries re-read from
+          // IDB, but keeping entry.data intact avoids a second IDB round-trip
+          // in error-recovery scenarios).
           const transferBuffer = entry.data.slice(0);
           worker.postMessage({ type: 'parse_ply', buffer: transferBuffer }, [transferBuffer]);
           worker.onmessage = (e: MessageEvent) => {

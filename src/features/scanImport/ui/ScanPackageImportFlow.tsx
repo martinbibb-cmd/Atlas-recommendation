@@ -81,15 +81,14 @@ export default function ScanPackageImportFlow({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Auto-advance when preloadedFiles are provided (share-target entry) ──
+  // Uses a ref so the effect runs exactly once on mount (preloadedFiles comes
+  // from the parent at construction time and never changes).
+  const preloadedFilesRef = useRef(preloadedFiles);
   useEffect(() => {
-    if (!preloadedFiles || preloadedFiles.length === 0) return;
-    // Only auto-advance if we are still on the initial 'select' step.
-    setStep((current) => {
-      if (current.name !== 'select') return current;
-      return current; // trigger the async handler below instead
-    });
+    const files = preloadedFilesRef.current;
+    if (!files || files.length === 0) return;
     setLoading(true);
-    reviewScanPackage(preloadedFiles)
+    reviewScanPackage(files)
       .then((result) => {
         if (result.status === 'failed' || result.status === 'bundle_invalid') {
           setStep({ name: 'error', errors: result.errors });
@@ -104,7 +103,6 @@ export default function ScanPackageImportFlow({
         });
       })
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Step 1: File selection ──
