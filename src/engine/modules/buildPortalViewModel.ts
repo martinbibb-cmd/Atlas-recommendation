@@ -146,6 +146,12 @@ const SYSTEM_TYPE_LABEL: Record<ScenarioResult['system']['type'], string> = {
   ashp:    'Heat pump',
 };
 
+/** Returns the customer-facing system title for a scenario. */
+function scenarioTitle(scenario: ScenarioResult): string {
+  if (scenario.dhwSubtype === 'mixergy') return 'Mixergy cylinder';
+  return SYSTEM_TYPE_LABEL[scenario.system.type] ?? scenario.system.type;
+}
+
 // ─── Block selectors ──────────────────────────────────────────────────────────
 
 /** Pillar 1 — Identity: blocks that establish what the property needs and what matters to the customer. */
@@ -251,7 +257,7 @@ function buildComparisonCards(
 
   return ordered.map((scenario) => ({
     scenarioId: scenario.scenarioId,
-    title: SYSTEM_TYPE_LABEL[scenario.system.type] ?? scenario.system.type,
+    title: scenarioTitle(scenario),
     isRecommended: scenario.scenarioId === decision.recommendedScenarioId,
     summary: scenario.system.summary,
     strengths: top(scenario.keyBenefits, 3),
@@ -272,7 +278,7 @@ function buildDailyUseCards(
   if (recommended) {
     cards.push({
       scenarioId: recommended.scenarioId,
-      title: `${SYSTEM_TYPE_LABEL[recommended.system.type] ?? recommended.system.type} — day to day`,
+      title: `${scenarioTitle(recommended)} — day to day`,
       outcomes: top(recommended.dayToDayOutcomes, 4),
     });
   }

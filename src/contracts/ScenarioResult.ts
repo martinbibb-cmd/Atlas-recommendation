@@ -104,4 +104,17 @@ export interface ScenarioResult {
     kind: 'cop' | 'eta';
     value: number;
   };
+
+  /**
+   * Optional DHW subtype for stored-water scenarios.
+   *
+   * Set to 'mixergy' when the engine's Mixergy recommendation applies —
+   * i.e. when the stored-water option is an unvented class but mains supply
+   * does not fully meet the standard unvented requirement, making a Mixergy
+   * (pressure-tolerant) cylinder the preferred DHW appliance.
+   *
+   * Used by headline builders and label maps to surface the correct
+   * customer-facing copy instead of the generic "unvented cylinder" framing.
+   */
+  dhwSubtype?: 'mixergy';
 }
