@@ -38,6 +38,23 @@ const SYSTEM_LABEL: Record<ScenarioResult['system']['type'], string> = {
   ashp:    'Air source heat pump',
 };
 
+/**
+ * Subtype-aware system labels for stored hot water scenarios.
+ *
+ * For stored-water options, the system label must include the DHW arrangement
+ * (unvented or vented cylinder) so the customer knows what is actually being
+ * recommended — not just the heat source type.  Without this, "System boiler"
+ * appears as the recommendation even when the constraint engine has identified
+ * that the standard unvented cylinder is unsuitable (low pressure), creating
+ * the "bipolar document" contradiction.
+ */
+const STORED_SCENARIO_LABEL: Record<string, string> = {
+  stored_unvented: 'Stored hot water (unvented cylinder)',
+  stored_vented:   'Stored hot water (vented cylinder)',
+  system_unvented: 'Stored hot water (unvented cylinder)',
+  regular_vented:  'Stored hot water (vented cylinder)',
+};
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -124,7 +141,7 @@ export function buildCustomerSummary(
     recommendedScenarioId: decision.recommendedScenarioId,
 
     // Rules 4, 5, 6, 7
-    recommendedSystemLabel: SYSTEM_LABEL[selected.system.type],
+    recommendedSystemLabel: STORED_SCENARIO_LABEL[selected.scenarioId] ?? SYSTEM_LABEL[selected.system.type],
     headline:               decision.headline,
     plainEnglishDecision:   decision.summary,
     whyThisWins:            [...decision.keyReasons],

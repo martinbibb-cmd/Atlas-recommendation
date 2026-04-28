@@ -816,10 +816,12 @@ describe('PR4: stored_vented and stored_unvented status logic', () => {
 // ─── Honest framing: combi recommended within constraints ─────────────────────
 
 describe('honest framing: combi headline when recommended despite demand risk', () => {
-  it('combi headline uses "not advisable" copy when demand risk is fail and combi is NOT the recommended family', () => {
-    // Without the recommendedFamily hint, the legacy "not advisable" copy is used.
+  it('combi headline uses "not advisable" copy when demand risk is fail, combi is NOT recommended, and customer did not choose combi', () => {
+    // "not advisable" framing only applies when: no recommendedFamily hint AND preferCombi is false.
+    // When preferCombi is true the card uses "selected compromise" framing instead.
     const highDemandInput = {
       ...baseInput,
+      preferCombi: false,  // customer did not choose combi
       bathroomCount: 2,
       peakConcurrentOutlets: 2,
     };
@@ -828,6 +830,26 @@ describe('honest framing: combi headline when recommended despite demand risk', 
     const combi = options.find(o => o.id === 'combi')!;
     expect(combi.status).toBe('caution');
     expect(combi.headline).toContain('not advisable');
+  });
+
+  it('combi headline uses "selected" compromise framing when demand risk is fail and customer chose combi (preferCombi=true)', () => {
+    // When the customer explicitly chose combi but the engine does not recommend it,
+    // frame as "accepted compromise" rather than "not advisable" — the customer has
+    // already decided and a rejection framing contradicts their selection.
+    const combiChosenHighDemand = {
+      ...baseInput,
+      preferCombi: true,   // customer chose combi
+      bathroomCount: 2,
+      peakConcurrentOutlets: 2,
+    };
+    const result = runEngine(combiChosenHighDemand);
+    const options = buildOptionMatrixV1(result, combiChosenHighDemand); // no recommendedFamily override
+    const combi = options.find(o => o.id === 'combi')!;
+    expect(combi.status).toBe('caution');
+    // Should NOT say "not advisable" when customer already chose combi
+    expect(combi.headline).not.toContain('not advisable');
+    // Should acknowledge combi was selected
+    expect(combi.headline.toLowerCase()).toContain('selected');
   });
 
   it('combi headline uses honest "recommended within current constraints" framing when combi IS the recommended family', () => {

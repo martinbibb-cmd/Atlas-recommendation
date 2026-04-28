@@ -373,11 +373,19 @@ export function buildOptionMatrixV1(
   // (performance) — the two layers that previously produced contradictory copy.
   const isRecommendedCombi = recommendedFamily === 'combi';
 
+  // When the customer explicitly chose combi (preferCombi) but the engine did not
+  // select it as the best family, frame the card as an "accepted compromise" rather
+  // than "not advisable" — the distinction matters because the customer has already
+  // made their choice and a rejection framing contradicts the selection.
+  const customerChoseCombi = input.preferCombi === true;
+
   const combiDhw: OptionPlane = {
     status: combiRisk === 'fail' ? 'caution' : combiRisk === 'warn' ? 'caution' : 'ok',
     headline: combiRisk === 'fail'
       ? isRecommendedCombi
         ? 'DHW: simultaneous demand risk noted — combi is the best available option given current constraints.'
+        : customerChoseCombi
+        ? 'DHW: combi selected — meets day-to-day single-outlet use; cannot support simultaneous draws.'
         : 'DHW: simultaneous demand or pressure issue makes combi unsuitable.'
       : combiRisk === 'warn'
       ? 'DHW: borderline — short draws and pressure margin are risks.'
@@ -422,6 +430,10 @@ export function buildOptionMatrixV1(
             ? simultaneousDemandNarrativeActive
               ? 'Simultaneous demand is a concern — consider creating space for a stored cylinder as a future upgrade.'
               : 'Higher daily hot-water demand is a concern — consider creating space for a stored cylinder as a future upgrade.'
+            : customerChoseCombi
+            ? simultaneousDemandNarrativeActive
+              ? 'Combi selected — note that simultaneous demand is present; a stored cylinder would handle this better if space allows.'
+              : 'Combi selected — note that higher daily hot-water demand may require a stored cylinder as the household grows.'
             : simultaneousDemandNarrativeActive
               ? 'Simultaneous hot-water demand is high for this household — a stored hot water option is usually a better fit.'
               : 'High daily hot-water demand for this household — a stored hot water option handles recovery and volume demands better.',
@@ -445,6 +457,8 @@ export function buildOptionMatrixV1(
       ? combiRisk === 'fail'
         ? isRecommendedCombi
           ? 'Combi is recommended within current constraints — simultaneous demand risk noted. A stored system would suit this household better if cylinder space is available.'
+          : customerChoseCombi
+          ? 'Combi selected — meets day-to-day needs but cannot support simultaneous outlet use.'
           : 'Combi not advisable — simultaneous demand risk is high. Consider stored options.'
         : 'Combi possible but demand is borderline.'
       : combiRejectedByTopology
@@ -764,7 +778,12 @@ export function buildOptionMatrixV1(
     label: 'Stored hot water — Unvented cylinder',
     status: storedUnventedStatus,
     headline: storedUnventedStatus === 'viable'
-      ? isHighDemandHousehold
+      ? mainsPressure < 1.0
+        // Flow-only gate met (≥12 L/min) but pressure is very low: headline must
+        // not say "suits your mains pressure" when pressure is below the minimum
+        // operating threshold — that directly contradicts the requirements section.
+        ? '💧 Unvented viable by flow rate — mains pressure is very low; Mixergy cylinder strongly preferred.'
+        : isHighDemandHousehold
         ? 'Unvented cylinder is a strong fit — mains-fed stored hot water suits high household demand.'
         : 'Unvented cylinder suits your mains pressure and demand.'
       : storedUnventedStatus === 'caution' && cwsSupplyV1.hasMeasurements && !cwsSupplyV1.meetsUnventedRequirement
