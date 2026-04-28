@@ -308,6 +308,19 @@ function ThemedBlock({ block }: { block: VisualBlock }) {
 
 // ─── Supplementary sections ───────────────────────────────────────────────────
 
+/** Returns true when the supportingFact label identifies a DHW cylinder volume field. */
+function isCylinderVolumeFact(label: string): boolean {
+  const key = label.toLowerCase();
+  return (
+    key === 'cylinder volume' ||
+    key === 'tank volume' ||
+    key === 'dhw volume' ||
+    key === 'storage volume' ||
+    key === 'cylinder capacity' ||
+    key === 'tank capacity'
+  );
+}
+
 /**
  * At-a-Glance panel — compact property stats for the Executive Summary sidebar.
  * Pulls from decision.supportingFacts (occupants, bathrooms, cylinder volume)
@@ -340,13 +353,7 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
       if (!isNaN(n)) occupantCount = n;
     } else if (key.includes('bathroom') || key.includes('shower room')) {
       stats.push({ label: fact.label, value: fact.value });
-    } else if (
-      key.includes('cylinder') ||
-      key === 'tank volume' ||
-      key === 'dhw volume' ||
-      key === 'storage volume' ||
-      (key.includes('volume') && key.includes('litre'))
-    ) {
+    } else if (isCylinderVolumeFact(fact.label)) {
       stats.push({ label: fact.label, value: fact.value });
       const n = typeof fact.value === 'number'
         ? fact.value
@@ -390,7 +397,8 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
       )}
       {hasVolumeGap && (
         <p className="capp-at-a-glance__volume-gap" data-testid="capp-at-a-glance-volume-gap">
-          Volume gap — cylinder may be undersized for this household size.
+          Volume gap — cylinder may be undersized for this household size. A larger
+          cylinder (200 L or above) is recommended for households of 4 or more.
         </p>
       )}
     </aside>

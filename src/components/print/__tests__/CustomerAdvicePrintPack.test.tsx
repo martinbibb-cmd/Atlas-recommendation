@@ -970,8 +970,10 @@ describe('CustomerAdvicePrintPack — At-a-Glance panel enhancements', () => {
       ],
     });
     render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
-    expect(screen.getByTestId('capp-at-a-glance-volume-gap')).toBeTruthy();
-    expect(screen.getByText(/Volume gap/)).toBeTruthy();
+    const gap = screen.getByTestId('capp-at-a-glance-volume-gap');
+    expect(gap).toBeTruthy();
+    expect(gap.textContent).toContain('Volume gap');
+    expect(gap.textContent).toContain('200 L');
   });
 
   it('does not show volume gap advisory when cylinder is large enough', () => {
@@ -1210,7 +1212,7 @@ describe('CustomerAdvicePrintPack — MixerShowerCompatibilitySection', () => {
     // When the visualBlocks warning has "Shower compatibility" title AND
     // the showerCompatibilityNote has warningKey === 'mixer_balanced_supply',
     // only one element with "Shower compatibility" text should appear
-    // (the new section uses a different heading).
+    // (the new section uses a different heading "Thermostatic mixer valve (TMV)...").
     const decision = makeDecision({
       showerCompatibilityNote: {
         warningKey: 'mixer_balanced_supply',
@@ -1221,8 +1223,12 @@ describe('CustomerAdvicePrintPack — MixerShowerCompatibilitySection', () => {
     });
     const blocks = makeBlocks({ includeShowerWarning: true });
     render(<CustomerAdvicePrintPack {...makeProps({ decision, visualBlocks: blocks })} />);
+    // The WarningBlock heading "Shower compatibility" appears exactly once
     const showerCompatibilityElements = screen.getAllByText('Shower compatibility');
     expect(showerCompatibilityElements).toHaveLength(1);
+    // The new TMV section also renders with its own distinct heading
+    expect(screen.getByTestId('capp-mixer-shower-check')).toBeTruthy();
+    expect(screen.getByText('Thermostatic mixer valve (TMV) compatibility check')).toBeTruthy();
   });
 });
 
