@@ -33,10 +33,14 @@ const BASE_INPUT: EngineInputV2_3 = {
   preferCombi: true,
 };
 
-// ─── Regression 1: rejected combi can never be recommended ────────────────────
+// ─── Regression 1: physics-rejected combi can never be recommended ────────────
 
-describe('Regression 1 — rejected combi cannot appear as recommended', () => {
-  // Combi is rejected when: low mains pressure (<0.3 bar) OR 2+ bathrooms + high occupancy.
+describe('Regression 1 — physics-rejected combi cannot appear as recommended', () => {
+  // Combi is hard-rejected only for genuine physics impossibilities:
+  //   - dynamicMainsPressure < 0.3 bar: burner cannot fire.
+  // Demand-side conditions (bathroomCount >= 2 && highOccupancy) are advisory —
+  // combi is penalised by the limiter ledger but remains eligible for
+  // recommendation when stored options face their own hard constraints.
   it('combi is not recommendedFamily when mains pressure is below minimum (< 0.3 bar)', () => {
     const input: EngineInputV2_3 = {
       ...BASE_INPUT,
@@ -60,7 +64,10 @@ describe('Regression 1 — rejected combi cannot appear as recommended', () => {
     expect(rejectedFamilies).toContain('combi');
   });
 
-  it('combi is not recommendedFamily when 2+ bathrooms + high occupancy', () => {
+  it('combi is not recommendedFamily for 2+ bathrooms + high occupancy (scored lower by limiter ledger)', () => {
+    // Demand-side: bathroomCount >= 2 triggers combi_dhw_demand_risk 'limit' limiter,
+    // which penalises combi's score so that a stored-water system wins.  Combi is NOT
+    // hard-rejected — it remains eligible as a fallback if stored options also have constraints.
     const input: EngineInputV2_3 = {
       ...BASE_INPUT,
       bathroomCount: 2,
@@ -69,12 +76,44 @@ describe('Regression 1 — rejected combi cannot appear as recommended', () => {
     const result = runEngine(input);
     const verdict = buildRecommendationVerdict(result, input);
 
+    // Combi should not win — limiter ledger penalises it for multi-bathroom homes.
     expect(verdict.recommendedFamily).not.toBe('combi');
+    // Combi must NOT be in rejectedSystems — it is advisory, not a physics hard stop.
     const rejectedFamilies = verdict.rejectedSystems.map(r => r.family);
-    expect(rejectedFamilies).toContain('combi');
+    expect(rejectedFamilies).not.toContain('combi');
   });
 
-  it('verdictHeadline does not mention combi when combi is rejected', () => {
+  it('combi CAN be recommended when stored options face hard constraints despite bathroomCount >= 2', () => {
+    // When there is no cylinder space, stored options receive a
+    // space_for_cylinder_unavailable 'limit' limiter.  A user who expresses
+    // spacePriority='high' boosts the weight on the space/disruption objectives,
+    // which tilts the overall score toward combi (no cylinder needed = strong
+    // space advantage).  Before this fix, combi was hard-rejected in the verdict
+    // for the demand-side rejectCombi flag and would never be recommended even
+    // when it was the only physically installable option.
+    const input: EngineInputV2_3 = {
+      ...BASE_INPUT,
+      heatLossWatts: 2000,   // low heat-loss home → heating interruptions remain low
+      returnWaterTemp: 30,   // cool emitters → no emitter_temperature_constraint
+      bathroomCount: 2,
+      highOccupancy: true,   // triggers rejectCombi (demand-side advisory) + storageBenefitSignal
+      peakConcurrentOutlets: 1, // explicit single outlet — keeps storageBenefitSignal at 'medium'
+      availableSpace: 'none',   // no cylinder space — stored options heavily penalised
+      preferences: { spacePriority: 'high' }, // user explicitly values space saving
+    };
+    const result = runEngine(input);
+    const verdict = buildRecommendationVerdict(result, input);
+
+    // Combi must NOT be in rejectedSystems — demand-side rejectCombi is advisory only.
+    const rejectedFamilies = verdict.rejectedSystems.map(r => r.family);
+    expect(rejectedFamilies).not.toContain('combi');
+
+    // With no cylinder space and high space priority, combi's score advantage on
+    // space/disruption dominates and it becomes the recommended family.
+    expect(verdict.recommendedFamily).toBe('combi');
+  });
+
+  it('verdictHeadline does not mention combi when combi is physics-rejected (< 0.3 bar)', () => {
     const input: EngineInputV2_3 = {
       ...BASE_INPUT,
       dynamicMainsPressure: 0.15,
@@ -157,21 +196,23 @@ describe('Regression 2 — ASHP with pipework flag appears in futurePath only', 
 
 describe('Regression 3 — stored hot water wins for high-concurrency regardless of lifestyle', () => {
   // professional lifestyle → would naively prefer boiler (fast_reheat)
-  // but 2 bathrooms + high occupancy must cause combi rejection → stored wins
+  // but 2 bathrooms + high occupancy triggers combi_dhw_demand_risk 'limit' limiter
+  // which scores combi lower than a stored system — stored correctly wins.
   it('stored-water family wins for professional lifestyle with 2 bathrooms + high occupancy', () => {
     const input: EngineInputV2_3 = {
       ...BASE_INPUT,
       occupancySignature: 'professional', // lifestyle says fast_reheat / boiler preference
       bathroomCount: 2,
-      highOccupancy: true,               // combi hard-rejected by RedFlagModule
+      highOccupancy: true,               // combi_dhw_demand_risk 'limit' applied
     };
     const result = runEngine(input);
     const verdict = buildRecommendationVerdict(result, input);
 
-    // Combi must be rejected
-    expect(verdict.rejectedSystems.some(r => r.family === 'combi')).toBe(true);
+    // Combi must NOT be in rejectedSystems — demand-side condition is advisory,
+    // handled by the limiter ledger score penalty rather than a hard rejection.
+    expect(verdict.rejectedSystems.some(r => r.family === 'combi')).toBe(false);
 
-    // Recommended family must NOT be combi
+    // Recommended family must NOT be combi — scored lower due to limiter penalty.
     expect(verdict.recommendedFamily).not.toBe('combi');
 
     // Recommended family should be a stored-water variant
@@ -181,7 +222,7 @@ describe('Regression 3 — stored hot water wins for high-concurrency regardless
     ).toBe(true);
   });
 
-  it('lifestyle fast_reheat signal is listed but does not override physics rejection', () => {
+  it('lifestyle fast_reheat signal is listed but does not override limiter-based scoring', () => {
     const input: EngineInputV2_3 = {
       ...BASE_INPUT,
       occupancySignature: 'professional',

@@ -49,13 +49,30 @@ function deriveRejectedSystems(result: FullEngineResultWithoutVerdict, _input: E
   const { redFlags } = result;
 
   if (redFlags.rejectCombi) {
-    const reason = redFlags.reasons.find(r => r.includes('Combi')) ??
-      'Combi on-demand flow cannot serve this home under physics constraints.';
-    rejected.push({
-      family: 'combi',
-      reasonId: 'combi_rejected_physics',
-      reason,
-    });
+    // Only hard-reject combi when it is a genuine physics impossibility.
+    // `rejectCombi` fires for two distinct conditions in RedFlagModule:
+    //   1. dynamicMainsPressure < 0.3 bar — the burner cannot fire at this
+    //      pressure; hot-water delivery is physically impossible.  This warrants
+    //      a Tier-1 hard rejection at the verdict level.
+    //   2. bathroomCount >= 2 && highOccupancy — a demand-side advisory.  This
+    //      is already penalised by the limiter ledger (combi_dhw_demand_risk at
+    //      'limit' severity), which reduces combi's ranking score so that stored
+    //      options win for large/multi-outlet households.  Hard-rejecting combi
+    //      here as well would prevent it from being recommended when stored
+    //      options face their own hard constraints (e.g. space_for_cylinder_
+    //      unavailable), which the limiter ledger correctly handles by scoring
+    //      those options lower than combi.  The scoring engine, not a blanket
+    //      exclusion, should resolve this trade-off.
+    const isBelowMinPressure = _input.dynamicMainsPressure < 0.3;
+    if (isBelowMinPressure) {
+      const reason = redFlags.reasons.find(r => r.includes('Combi')) ??
+        'Combi on-demand flow cannot serve this home under physics constraints.';
+      rejected.push({
+        family: 'combi',
+        reasonId: 'combi_rejected_physics',
+        reason,
+      });
+    }
   }
 
   if (redFlags.rejectAshp) {
