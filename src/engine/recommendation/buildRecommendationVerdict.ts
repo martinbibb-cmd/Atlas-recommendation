@@ -63,8 +63,8 @@ function deriveRejectedSystems(result: FullEngineResultWithoutVerdict, _input: E
     //      unavailable), which the limiter ledger correctly handles by scoring
     //      those options lower than combi.  The scoring engine, not a blanket
     //      exclusion, should resolve this trade-off.
-    const isBelowMinPressure = _input.dynamicMainsPressure < 0.3;
-    if (isBelowMinPressure) {
+    const isPhysicsImpossible = _input.dynamicMainsPressure < 0.3;
+    if (isPhysicsImpossible) {
       const reason = redFlags.reasons.find(r => r.includes('Combi')) ??
         'Combi on-demand flow cannot serve this home under physics constraints.';
       rejected.push({

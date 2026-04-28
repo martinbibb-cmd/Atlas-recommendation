@@ -93,7 +93,7 @@ describe('Regression 1 — physics-rejected combi cannot appear as recommended',
     // when it was the only physically installable option.
     const input: EngineInputV2_3 = {
       ...BASE_INPUT,
-      heatLossWatts: 2000,   // low heat-loss home → heating interruptions remain low
+      heatLossWatts: 2000,   // well-insulated home (~2 kW design loss); typical mid-terrace ~6–10 kW
       returnWaterTemp: 30,   // cool emitters → no emitter_temperature_constraint
       bathroomCount: 2,
       highOccupancy: true,   // triggers rejectCombi (demand-side advisory) + storageBenefitSignal
