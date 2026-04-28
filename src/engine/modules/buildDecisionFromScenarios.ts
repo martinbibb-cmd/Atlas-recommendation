@@ -27,6 +27,7 @@ import type { PerformanceBand } from '../../contracts/ScenarioResult';
 import type { MaintenanceLevel, WaterQualityBand } from '../../contracts/LifecycleAssessment';
 import { buildQuoteScope } from './buildQuoteScope';
 import type { ShowerCompatibilityNote } from '../../contracts/ShowerCompatibilityNote';
+import { buildScenarioDisplayIdentity } from './buildScenarioDisplayIdentity';
 
 // ─── Performance band scoring ─────────────────────────────────────────────────
 
@@ -46,40 +47,6 @@ function scoreScenario(s: ScenarioResult): number {
     PERFORMANCE_BAND_SCORE[p.efficiency] +
     PERFORMANCE_BAND_SCORE[p.reliability]
   );
-}
-
-// ─── Headline builder ─────────────────────────────────────────────────────────
-
-function buildHeadline(scenario: ScenarioResult): string {
-  // Mixergy / pressure-tolerant override — when the engine has flagged this
-  // scenario as Mixergy-recommended (dhwSubtype === 'mixergy'), the headline
-  // must reflect that explicitly.  Defaulting to "unvented cylinder" directly
-  // contradicts the constraint layer, which notes that mains pressure is
-  // insufficient for a standard unvented cylinder.
-  if (scenario.dhwSubtype === 'mixergy') {
-    return 'A Mixergy cylinder / pressure-tolerant stored hot water system is the right fit for this home.';
-  }
-
-  // For stored-water scenarios, use the full DHW arrangement in the headline
-  // so the recommendation is unambiguous about the complete system (heat source + DHW).
-  // Using just "system boiler" or "regular boiler" loses the critical DHW subtype
-  // context, which causes the hero copy to contradict the constraint layer.
-  const STORED_SCENARIO_TO_HEADLINE: Record<string, string> = {
-    stored_unvented: 'stored hot water system (unvented cylinder)',
-    stored_vented:   'stored hot water system (vented cylinder)',
-    system_unvented: 'stored hot water system (unvented cylinder)',
-    regular_vented:  'stored hot water system (vented cylinder)',
-  };
-  if (STORED_SCENARIO_TO_HEADLINE[scenario.scenarioId]) {
-    return `A ${STORED_SCENARIO_TO_HEADLINE[scenario.scenarioId]} is the right fit for this home.`;
-  }
-  const typeLabel: Record<ScenarioResult['system']['type'], string> = {
-    combi:   'combi boiler',
-    system:  'system boiler',
-    regular: 'regular (heat-only) boiler',
-    ashp:    'air source heat pump',
-  };
-  return `A ${typeLabel[scenario.system.type]} is the right fit for this home.`;
 }
 
 // ─── Summary builder ─────────────────────────────────────────────────────────
@@ -281,7 +248,7 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
 
   return {
     recommendedScenarioId:  recommended.scenarioId,
-    headline:               buildHeadline(recommended),
+    headline:               (recommended.display ?? buildScenarioDisplayIdentity(recommended)).headline,
     summary:                buildSummary(recommended, lifecycle),
     keyReasons,
     avoidedRisks:           recommended.keyConstraints,

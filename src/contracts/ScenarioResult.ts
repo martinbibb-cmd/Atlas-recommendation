@@ -10,6 +10,8 @@
  * AtlasDecisionV1.
  */
 
+import type { ScenarioDisplayIdentity } from './ScenarioDisplayIdentity';
+
 export type PerformanceBand =
   | 'excellent'
   | 'very_good'
@@ -113,8 +115,22 @@ export interface ScenarioResult {
    * does not fully meet the standard unvented requirement, making a Mixergy
    * (pressure-tolerant) cylinder the preferred DHW appliance.
    *
-   * Used by headline builders and label maps to surface the correct
-   * customer-facing copy instead of the generic "unvented cylinder" framing.
+   * Engine / contract metadata only — do not branch on this in presentation
+   * components.  Use scenario.display (resolved by buildScenarioDisplayIdentity)
+   * for all customer-facing copy.
    */
   dhwSubtype?: 'mixergy';
+
+  /**
+   * Pre-resolved display identity for this scenario.
+   *
+   * Populated by buildScenariosFromEngineOutput (and any other adapter that
+   * constructs ScenarioResult values).  All customer-facing surfaces must use
+   * these fields rather than reconstructing names from system.type or family
+   * label maps.
+   *
+   * When absent (e.g. in unit-test stubs that pre-date this field), callers
+   * should fall back to buildScenarioDisplayIdentity(scenario).
+   */
+  display?: ScenarioDisplayIdentity;
 }

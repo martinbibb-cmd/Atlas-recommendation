@@ -16,6 +16,7 @@ import type { VisualBlock, SpatialProofBlock } from '../../contracts/VisualBlock
 import type { DailyUseSimulation } from '../../contracts/DailyUseSimulation';
 import { buildDailyUseSimulation } from './buildDailyUseSimulation';
 import { scopeIncluded } from './buildQuoteScope';
+import { buildScenarioDisplayIdentity } from './buildScenarioDisplayIdentity';
 
 // ─── Tab identifiers ──────────────────────────────────────────────────────────
 
@@ -139,19 +140,6 @@ function top<T>(arr: T[], max: number): T[] {
   return arr.slice(0, max);
 }
 
-const SYSTEM_TYPE_LABEL: Record<ScenarioResult['system']['type'], string> = {
-  combi:   'Combi boiler',
-  system:  'System boiler',
-  regular: 'Regular boiler',
-  ashp:    'Heat pump',
-};
-
-/** Returns the customer-facing system title for a scenario. */
-function scenarioTitle(scenario: ScenarioResult): string {
-  if (scenario.dhwSubtype === 'mixergy') return 'Mixergy cylinder';
-  return SYSTEM_TYPE_LABEL[scenario.system.type] ?? scenario.system.type;
-}
-
 // ─── Block selectors ──────────────────────────────────────────────────────────
 
 /** Pillar 1 — Identity: blocks that establish what the property needs and what matters to the customer. */
@@ -257,7 +245,7 @@ function buildComparisonCards(
 
   return ordered.map((scenario) => ({
     scenarioId: scenario.scenarioId,
-    title: scenarioTitle(scenario),
+    title: (scenario.display ?? buildScenarioDisplayIdentity(scenario)).title,
     isRecommended: scenario.scenarioId === decision.recommendedScenarioId,
     summary: scenario.system.summary,
     strengths: top(scenario.keyBenefits, 3),
@@ -278,7 +266,7 @@ function buildDailyUseCards(
   if (recommended) {
     cards.push({
       scenarioId: recommended.scenarioId,
-      title: `${scenarioTitle(recommended)} — day to day`,
+      title: `${(recommended.display ?? buildScenarioDisplayIdentity(recommended)).title} — day to day`,
       outcomes: top(recommended.dayToDayOutcomes, 4),
     });
   }

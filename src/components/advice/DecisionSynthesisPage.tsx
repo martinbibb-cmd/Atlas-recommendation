@@ -77,17 +77,8 @@ import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionTo
 import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
+import { COMBI_SELECTED_COMPROMISE_HEADLINE } from '../../engine/modules/buildScenarioDisplayIdentity';
 import './DecisionSynthesisPage.css';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-/**
- * Headline shown when the customer has chosen combi despite a recommendation
- * against it (e.g. simultaneous demand risk).  Replaces "Combi not advisable"
- * framing with an honest-but-affirming acknowledgment of their selection.
- */
-const COMBI_SELECTED_COMPROMISE_HEADLINE =
-  'Combi selected — acceptable day-to-day compromise, but not ideal for simultaneous outlet use.';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
