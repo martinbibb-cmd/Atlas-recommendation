@@ -207,8 +207,7 @@ function PrintPortalCta({ portalUrl }: { portalUrl?: string }) {
 
 /**
  * Renders the appropriate block view for a given VisualBlock.
- * portal_cta is handled separately in renderBlockPage to allow the
- * print CTA section to be appended within the same page.
+ * portal_cta is handled separately in the main component.
  */
 function renderBlockContent(block: VisualBlock): React.ReactElement | null {
   switch (block.type) {
@@ -223,52 +222,338 @@ function renderBlockContent(block: VisualBlock): React.ReactElement | null {
     case 'warning':                 return <WarningBlockView                block={block as WarningBlock} />;
     case 'future_upgrade':          return <FutureUpgradeBlockView          block={block as FutureUpgradeBlock} />;
     case 'spatial_proof':           return <SpatialProofBlockView           block={block as SpatialProofBlock} />;
-    case 'portal_cta':              return null; // handled separately in renderBlockPage
+    case 'portal_cta':              return null; // handled separately in the main component
     default:                        return null;
   }
 }
 
-/** Maps a block type to a page-level modifier class for tinting. */
-function pageModifier(block: VisualBlock): string {
-  if (block.type === 'hero')        return 'capp-page--hero';
-  if (block.type === 'portal_cta')  return 'capp-page--portal-cta';
-  if (block.type === 'warning') {
-    const w = block as WarningBlock;
-    return `capp-page--warning-${w.severity}`;
-  }
-  return '';
+/** Maps a warning block's severity to a CSS modifier class for page tinting. */
+function warningModifier(block: VisualBlock): string {
+  if (block.type !== 'warning') return '';
+  return `capp-page--warning-${(block as WarningBlock).severity}`;
 }
 
-/** Human-readable section label for the top of each page. */
-const SECTION_LABELS: Partial<Record<VisualBlock['type'], string>> = {
-  hero:                    'Recommendation',
-  facts:                   'About your home',
-  customer_need_resolution: 'What matters to you',
-  problem:                 'What your home needs',
-  solution:                'Why this works',
-  daily_use:               'Day-to-day life',
-  included_scope:          'What is included',
-  system_work_explainer:   'What the work involves',
-  warning:                 'Something to consider',
-  future_upgrade:          'Future options',
-  portal_cta:              'Your portal',
-  spatial_proof:           'Where the work happens',
-};
+// ─── Block categorisation ─────────────────────────────────────────────────────
+
+/**
+ * Pillar 1 — Identity: blocks that establish property context and priorities.
+ * Rendered on the Executive Summary page.
+ */
+const IDENTITY_BLOCK_TYPES = new Set<VisualBlock['type']>([
+  'hero',
+  'facts',
+  'customer_need_resolution',
+]);
+
+/**
+ * Pillar 4 — Roadmap: future upgrade paths.
+ * Rendered on the Comparison & Roadmap page.
+ */
+const ROADMAP_BLOCK_TYPES = new Set<VisualBlock['type']>(['future_upgrade']);
+
+/**
+ * Technical blocks: installation requirements, warnings, work explainer, spatial proof.
+ * Rendered on the Technical Blueprint page.
+ */
+const TECHNICAL_BLOCK_TYPES = new Set<VisualBlock['type']>([
+  'included_scope',
+  'system_work_explainer',
+  'warning',
+  'daily_use',
+  'spatial_proof',
+]);
+
+interface CategorisedBlocks {
+  identity:  VisualBlock[];
+  verdict:   VisualBlock[];   // solution, problem (if shown)
+  roadmap:   VisualBlock[];
+  technical: VisualBlock[];
+  cta:       PortalCtaBlock | null;
+}
+
+function categoriseBlocks(blocks: VisualBlock[], showRejected: boolean): CategorisedBlocks {
+  const result: CategorisedBlocks = { identity: [], verdict: [], roadmap: [], technical: [], cta: null };
+  for (const b of blocks) {
+    if (b.type === 'portal_cta') { result.cta = b as PortalCtaBlock; continue; }
+    if (b.type === 'problem' && !showRejected)               continue;
+    if (IDENTITY_BLOCK_TYPES.has(b.type))                    { result.identity.push(b);  continue; }
+    if (ROADMAP_BLOCK_TYPES.has(b.type))                     { result.roadmap.push(b);   continue; }
+    if (TECHNICAL_BLOCK_TYPES.has(b.type))                   { result.technical.push(b); continue; }
+    result.verdict.push(b); // solution, problem (when shown)
+  }
+  return result;
+}
+
+// ─── Themed block wrapper ─────────────────────────────────────────────────────
+
+/**
+ * Renders a block with its canonical data-testid inside a themed-block section.
+ * Preserves the `capp-block-{type}` testid pattern used by tests.
+ */
+function ThemedBlock({ block }: { block: VisualBlock }) {
+  const content = renderBlockContent(block);
+  if (!content) return null;
+  const extra = block.type === 'warning' ? ` ${warningModifier(block)}` : '';
+  return (
+    <section
+      className={`capp-themed-block${extra}`}
+      data-testid={`capp-block-${block.type}`}
+      data-block-id={block.id}
+      aria-label={block.title}
+    >
+      {content}
+    </section>
+  );
+}
+
+// ─── Supplementary sections ───────────────────────────────────────────────────
+
+/**
+ * At-a-Glance panel — compact property stats for the Executive Summary sidebar.
+ * Pulls from decision.supportingFacts (occupants, bathrooms) and energyMetrics
+ * (peak heat load kW).
+ */
+function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
+  const stats: Array<{ label: string; value: string | number }> = [];
+
+  // Heat loss kW — prefer energyMetrics, fall back to supportingFacts
+  const peakLoad = decision.energyMetrics?.peakLoadKw;
+  if (peakLoad != null) {
+    stats.push({ label: 'Heat loss', value: `${peakLoad.toFixed(1)} kW` });
+  }
+
+  // Occupants and bathrooms from supportingFacts
+  for (const fact of decision.supportingFacts) {
+    const key = fact.label.toLowerCase();
+    if (key.includes('occupant') || key.includes('person') || key.includes('resident')) {
+      stats.push({ label: fact.label, value: fact.value });
+    } else if (key.includes('bathroom') || key.includes('shower room')) {
+      stats.push({ label: fact.label, value: fact.value });
+    }
+  }
+
+  // Only render if we have something to show
+  if (stats.length === 0) return null;
+
+  return (
+    <aside className="capp-at-a-glance" aria-label="At-a-glance property stats" data-testid="capp-at-a-glance">
+      <p className="capp-at-a-glance__heading">At a glance</p>
+      <ul className="capp-at-a-glance__list">
+        {stats.map((s) => (
+          <li key={s.label} className="capp-at-a-glance__item">
+            <span className="capp-at-a-glance__label">{s.label}</span>
+            <span className="capp-at-a-glance__value">{s.value}</span>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
+
+/**
+ * Comparison section — Atlas Pick vs alternatives for the Verdict & Roadmap page.
+ * Shows only scenarios that differ from the recommended one.
+ */
+function ComparisonSection({ decision, scenarios }: { decision: AtlasDecisionV1; scenarios: ScenarioResult[] }) {
+  if (scenarios.length <= 1) return null;
+
+  const SYSTEM_LABEL: Record<ScenarioResult['system']['type'], string> = {
+    combi:   'Combi boiler',
+    system:  'System boiler',
+    regular: 'Regular boiler',
+    ashp:    'Air source heat pump',
+  };
+
+  return (
+    <section className="capp-comparison" aria-label="Atlas Pick vs alternatives" data-testid="capp-comparison">
+      <p className="capp-comparison__heading">Atlas Pick vs alternatives</p>
+      <div className="capp-comparison__grid">
+        {scenarios.map((scenario) => {
+          const isAtlasPick = scenario.scenarioId === decision.recommendedScenarioId;
+          return (
+            <div
+              key={scenario.scenarioId}
+              className={`capp-comparison__card${isAtlasPick ? ' capp-comparison__card--pick' : ''}`}
+            >
+              {isAtlasPick && (
+                <span className="capp-comparison__badge">Atlas Pick</span>
+              )}
+              <p className="capp-comparison__system-name">
+                {SYSTEM_LABEL[scenario.system.type] ?? scenario.system.type}
+              </p>
+              <p className="capp-comparison__system-summary">{scenario.system.summary}</p>
+              {scenario.keyBenefits.length > 0 && (
+                <ul className="capp-comparison__benefits" aria-label="Key benefits">
+                  {scenario.keyBenefits.slice(0, 2).map((b) => (
+                    <li key={b} className="capp-comparison__benefit">✓ {b}</li>
+                  ))}
+                </ul>
+              )}
+              {scenario.keyConstraints.length > 0 && (
+                <ul className="capp-comparison__constraints" aria-label="Constraints">
+                  {scenario.keyConstraints.slice(0, 2).map((c) => (
+                    <li key={c} className="capp-comparison__constraint">· {c}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Avoided Risks section — surfaces risks the recommendation mitigates.
+ */
+function AvoidedRisksSection({ avoidedRisks }: { avoidedRisks: string[] }) {
+  if (avoidedRisks.length === 0) return null;
+  return (
+    <section className="capp-avoided-risks" aria-label="Avoided risks" data-testid="capp-avoided-risks">
+      <p className="capp-avoided-risks__heading">Avoided risks</p>
+      <ul className="capp-avoided-risks__list">
+        {avoidedRisks.map((risk) => (
+          <li key={risk} className="capp-avoided-risks__item">
+            <span className="capp-avoided-risks__shield" aria-hidden="true">🛡</span>
+            {risk}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * Requirements section — lists must-have compliance and required scope items
+ * for the Technical Blueprint page.
+ */
+function RequirementsSection({ decision }: { decision: AtlasDecisionV1 }) {
+  const required = decision.quoteScope.filter(
+    (item) =>
+      item.status === 'required' ||
+      (item.status === 'included' && item.category === 'compliance'),
+  );
+  if (required.length === 0 && decision.compatibilityWarnings.length === 0) return null;
+
+  return (
+    <section className="capp-requirements" aria-label="Requirements checklist" data-testid="capp-requirements">
+      <p className="capp-requirements__heading">Requirements</p>
+      <ul className="capp-requirements__list">
+        {required.map((item) => (
+          <li key={item.id} className="capp-requirements__item">
+            <span className="capp-requirements__marker" aria-hidden="true">■</span>
+            {item.label}
+          </li>
+        ))}
+        {decision.compatibilityWarnings.map((w, i) => (
+          <li key={`warn-${i}`} className="capp-requirements__item capp-requirements__item--advisory">
+            <span className="capp-requirements__marker" aria-hidden="true">!</span>
+            {w}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Installation complexity badge derived from the quote scope. */
+function InstallComplexityBadge({ decision }: { decision: AtlasDecisionV1 }) {
+  const HIGH_COMPLEXITY_CATEGORIES = new Set(['pipework', 'electrical', 'investigation']);
+  const isHigh = decision.quoteScope.some((item) =>
+    HIGH_COMPLEXITY_CATEGORIES.has(item.category) && item.status !== 'optional',
+  );
+  const label    = isHigh ? 'Higher complexity'  : 'Low disruption';
+  const cssClass = isHigh ? 'capp-complexity--high' : 'capp-complexity--low';
+  const desc     = isHigh
+    ? 'This installation involves pipework, electrical, or investigation work — allow additional time.'
+    : 'Straightforward swap — minimal disruption expected.';
+
+  return (
+    <aside className={`capp-complexity ${cssClass}`} aria-label="Installation complexity" data-testid="capp-complexity">
+      <span className="capp-complexity__label">{label}</span>
+      <span className="capp-complexity__desc">{desc}</span>
+    </aside>
+  );
+}
+
+/**
+ * AI-Ready Context Block — structured text block for AI querying.
+ * Placed in each page footer area (collapsed by default in screen view).
+ * Format: User Goal · Constraint · Efficiency Trap · Physics Verdict · Improvement Pathway.
+ */
+function AiContextBlock({ decision }: { decision: AtlasDecisionV1 }) {
+  const userGoal  = decision.keyReasons[0] ?? '';
+  const constraint =
+    decision.hardConstraints?.[0] ?? decision.compatibilityWarnings[0] ?? '';
+  const efficiencyTrap    = decision.performancePenalties?.[0] ?? '';
+  const physicsVerdict    = decision.summary;
+  const improvementPath   = decision.futureUpgradePaths[0] ?? '';
+
+  const hasContent = userGoal || constraint || physicsVerdict;
+  if (!hasContent) return null;
+
+  return (
+    <section className="capp-ai-context" aria-label="AI context block" data-testid="capp-ai-context">
+      <p className="capp-ai-context__heading">Atlas context for AI assistants</p>
+      <dl className="capp-ai-context__fields">
+        {userGoal && (
+          <>
+            <dt className="capp-ai-context__term">User Goal</dt>
+            <dd className="capp-ai-context__desc">{userGoal}</dd>
+          </>
+        )}
+        {constraint && (
+          <>
+            <dt className="capp-ai-context__term">Constraint</dt>
+            <dd className="capp-ai-context__desc">{constraint}</dd>
+          </>
+        )}
+        {efficiencyTrap && (
+          <>
+            <dt className="capp-ai-context__term">Efficiency Trap</dt>
+            <dd className="capp-ai-context__desc">{efficiencyTrap}</dd>
+          </>
+        )}
+        {physicsVerdict && (
+          <>
+            <dt className="capp-ai-context__term">Physics Verdict</dt>
+            <dd className="capp-ai-context__desc">{physicsVerdict}</dd>
+          </>
+        )}
+        {improvementPath && (
+          <>
+            <dt className="capp-ai-context__term">Improvement Pathway</dt>
+            <dd className="capp-ai-context__desc">{improvementPath}</dd>
+          </>
+        )}
+      </dl>
+    </section>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
  * CustomerAdvicePrintPack
  *
- * Renders the customer advice pack from VisualBlock[].  Each content block
- * occupies one A4 page.  The portal_cta block is rendered as a compact
- * card at the end of the document rather than a full blank page.
+ * Multi-page customer advice document structured around the Four Atlas Pillars.
+ *
+ * Page 1 — Executive Summary (Pillar 1: Identity)
+ *   Hero/facts/priority blocks + At-a-Glance panel + AI context block.
+ *
+ * Page 2 — Comparison & Roadmap (Pillars 2 & 4: Verdict + Roadmap)
+ *   Solution blocks + Atlas Pick vs alternatives + Avoided Risks +
+ *   future upgrade paths + AI context block.
+ *
+ * Page 3 — Technical Blueprint (Pillar 2: Verdict)
+ *   Requirements checklist + scope/warning/spatial blocks +
+ *   installation complexity badge + AI context block.
+ *
+ * Portal CTA page — unchanged from previous design.
  *
  * Screen view: toolbar with Back + Print, then stacked A4 pages with shadow.
  * Print view:  toolbar hidden, pages fill the physical paper with margins.
- *
- * The AI handoff summary is appended within the portal_cta section so the
- * customer can copy/paste it into any AI assistant without hidden content.
  */
 export function CustomerAdvicePrintPack({
   decision,
@@ -282,13 +567,19 @@ export function CustomerAdvicePrintPack({
   printFullAiHandoff = false,
   showTechnicalAudit = false,
 }: CustomerAdvicePrintPackProps) {
-  const packTitle    = `Atlas advice pack${visitDate ? ` — ${visitDate}` : ''}`;
-  const headline     = decision.headline;
-  const summary      = lockedSummary ?? buildCustomerSummary(decision, scenarios);
-  const aiHandoff    = buildLockedAiHandoffText(summary);
+  const packTitle = `Atlas advice pack${visitDate ? ` — ${visitDate}` : ''}`;
+  const headline  = decision.headline;
+  const summary   = lockedSummary ?? buildCustomerSummary(decision, scenarios);
+  const aiHandoff = buildLockedAiHandoffText(summary);
+
+  const { identity, verdict, roadmap, technical, cta } = categoriseBlocks(
+    visualBlocks,
+    showRejectedOptionProof,
+  );
 
   return (
     <div className="capp-wrap" data-testid="capp-wrap">
+
       {/* ── Screen toolbar ── */}
       <div className="capp-toolbar" data-testid="capp-toolbar">
         {onBack && (
@@ -314,6 +605,8 @@ export function CustomerAdvicePrintPack({
 
       {/* ── Document ── */}
       <div className="capp-document" data-testid="capp-document">
+
+        {/* Empty state — shown only when no blocks have been built yet */}
         {visualBlocks.length === 0 && (
           <section
             className="capp-page capp-page--empty"
@@ -331,95 +624,162 @@ export function CustomerAdvicePrintPack({
             </div>
           </section>
         )}
-        {visualBlocks.map((block, index) => {
-          // Suppress problem blocks (combi rejection prose, kW/ΔT maths) unless
-          // the caller explicitly opts in via showRejectedOptionProof=true.
-          if (block.type === 'problem' && !showRejectedOptionProof) return null;
 
-          const isPortalCta = block.type === 'portal_cta';
-          const ctaBlock    = isPortalCta ? (block as PortalCtaBlock) : null;
-          const modifier    = pageModifier(block);
-          const label       = SECTION_LABELS[block.type] ?? '';
-          const isLast      = index === visualBlocks.length - 1;
-
-          return (
+        {visualBlocks.length > 0 && (
+          <>
+            {/* ── Page 1: Executive Summary (Identity) ── */}
             <section
-              key={block.id}
-              className={`capp-page${modifier ? ` ${modifier}` : ''}`}
-              data-testid={`capp-block-${block.type}`}
-              data-block-id={block.id}
-              aria-label={label || block.title}
+              className="capp-page capp-page--hero capp-page--identity"
+              data-testid="capp-page-identity"
+              aria-label="Executive Summary"
             >
-              {/* Section label */}
-              {label && (
-                <p className="capp-page__label" aria-hidden="true">{label}</p>
-              )}
+              <p className="capp-page__label capp-page__label--pillar">
+                Pillar 1 · Identity — Executive Summary
+              </p>
 
-              {/* Block content — portal_cta handled inline below */}
-              {isPortalCta ? (
-                <>
-                  {/* Portal CTA heading and supporting points */}
-                  <div className="customer-deck__block customer-deck__block--portal-cta">
-                    <div className="customer-deck__block-body">
-                      <h2 className="customer-deck__title">{ctaBlock?.title ?? 'Open your portal'}</h2>
-                      <p className="customer-deck__outcome">{ctaBlock?.outcome ?? 'Explore the interactive model, costs, and comparison in your portal.'}</p>
-                      {ctaBlock?.supportingPoints && ctaBlock.supportingPoints.length > 0 && (
-                        <ul className="customer-deck__supporting-points" aria-label="What you can do">
-                          {ctaBlock.supportingPoints.slice(0, 3).map((point) => (
-                            <li key={point} className="customer-deck__supporting-point">
-                              <span className="customer-deck__point-marker" aria-hidden="true">✓</span>
-                              {point}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
+              {/* Identity blocks: hero, facts, customer_need_resolution */}
+              {identity.map((block) => (
+                <ThemedBlock key={block.id} block={block} />
+              ))}
 
-                  {/* Compact QR + URL card — not a full blank page */}
-                  <PrintPortalCta portalUrl={portalUrl} />
+              {/* At-a-Glance property stats sidebar */}
+              <AtAGlancePanel decision={decision} />
 
-                  {/* AI handoff section
-                      When printFullAiHandoff is false (default for customer print):
-                        compact heading + copy-prompt only — no full instruction text.
-                      When printFullAiHandoff is true (portal / AI summary export):
-                        full payload rendered for copying. */}
-                  <section
-                    className="capp-ai-handoff"
-                    aria-label="AI depth section"
-                    data-testid="capp-ai-handoff"
-                  >
-                    <div className="capp-ai-handoff__header">
-                      <span className="capp-ai-handoff__icon" aria-hidden="true">✦</span>
-                      <span className="capp-ai-handoff__title">Want to understand this in more detail?</span>
-                      <span className="capp-ai-handoff__hint">
-                        {printFullAiHandoff
-                          ? 'Copy the text below into ChatGPT, Claude, or Gemini to explore the reasoning behind this recommendation'
-                          : 'Your installer can share a full AI summary via your portal link above. We can also include a machine-readable AI summary inside this PDF as an optional export.'}
-                      </span>
-                    </div>
-                    {printFullAiHandoff && (
-                      <pre
-                        className="capp-ai-handoff__text"
-                        data-testid="capp-ai-handoff-text"
-                      >
-                        {aiHandoff}
-                      </pre>
-                    )}
-                  </section>
-                </>
-              ) : (
-                renderBlockContent(block)
-              )}
+              {/* AI-Ready Context Block */}
+              <AiContextBlock decision={decision} />
 
-              {/* Footer strip */}
               <footer className="capp-page__footer" aria-hidden="true">
-                {headline}
-                {isLast && visitDate ? ` · ${visitDate}` : ''}
+                {headline}{visitDate ? ` · ${visitDate}` : ''}
               </footer>
             </section>
-          );
-        })}
+
+            {/* ── Page 2: Comparison & Roadmap (Verdict + Roadmap) ── */}
+            <section
+              className="capp-page capp-page--verdict-roadmap"
+              data-testid="capp-page-verdict"
+              aria-label="Comparison and Roadmap"
+            >
+              <p className="capp-page__label capp-page__label--pillar">
+                Pillars 2 & 4 · Verdict & Roadmap — Comparison
+              </p>
+
+              {/* Verdict blocks: solution, problem (if shown) */}
+              {verdict.map((block) => (
+                <ThemedBlock key={block.id} block={block} />
+              ))}
+
+              {/* Atlas Pick vs alternatives */}
+              <ComparisonSection decision={decision} scenarios={scenarios} />
+
+              {/* Avoided Risks */}
+              <AvoidedRisksSection avoidedRisks={decision.avoidedRisks} />
+
+              {/* Roadmap blocks: future_upgrade */}
+              {roadmap.map((block) => (
+                <ThemedBlock key={block.id} block={block} />
+              ))}
+
+              {/* AI-Ready Context Block */}
+              <AiContextBlock decision={decision} />
+
+              <footer className="capp-page__footer" aria-hidden="true">
+                {headline}
+              </footer>
+            </section>
+
+            {/* ── Page 3: Technical Blueprint ── */}
+            <section
+              className="capp-page capp-page--technical"
+              data-testid="capp-page-technical"
+              aria-label="Technical Blueprint"
+            >
+              <p className="capp-page__label capp-page__label--pillar">
+                Pillar 2 · Verdict — Technical Blueprint
+              </p>
+
+              {/* Requirements checklist from quote scope */}
+              <RequirementsSection decision={decision} />
+
+              {/* Technical blocks: included_scope, system_work_explainer, warning, spatial_proof */}
+              {technical.map((block) => (
+                <ThemedBlock key={block.id} block={block} />
+              ))}
+
+              {/* Installation complexity summary */}
+              <InstallComplexityBadge decision={decision} />
+
+              {/* AI-Ready Context Block */}
+              <AiContextBlock decision={decision} />
+
+              <footer className="capp-page__footer" aria-hidden="true">
+                {headline}
+              </footer>
+            </section>
+
+            {/* ── Portal CTA page ── */}
+            {cta && (
+              <section
+                className="capp-page capp-page--portal-cta"
+                data-testid="capp-block-portal_cta"
+                data-block-id={cta.id}
+                aria-label="Your portal"
+              >
+                <p className="capp-page__label">Your portal</p>
+
+                {/* Portal CTA heading and supporting points */}
+                <div className="customer-deck__block customer-deck__block--portal-cta">
+                  <div className="customer-deck__block-body">
+                    <h2 className="customer-deck__title">{cta.title}</h2>
+                    <p className="customer-deck__outcome">{cta.outcome}</p>
+                    {cta.supportingPoints && cta.supportingPoints.length > 0 && (
+                      <ul className="customer-deck__supporting-points" aria-label="What you can do">
+                        {cta.supportingPoints.slice(0, 3).map((point) => (
+                          <li key={point} className="customer-deck__supporting-point">
+                            <span className="customer-deck__point-marker" aria-hidden="true">✓</span>
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+
+                {/* Compact QR + URL card */}
+                <PrintPortalCta portalUrl={portalUrl} />
+
+                {/* AI handoff section */}
+                <section
+                  className="capp-ai-handoff"
+                  aria-label="AI depth section"
+                  data-testid="capp-ai-handoff"
+                >
+                  <div className="capp-ai-handoff__header">
+                    <span className="capp-ai-handoff__icon" aria-hidden="true">✦</span>
+                    <span className="capp-ai-handoff__title">Want to understand this in more detail?</span>
+                    <span className="capp-ai-handoff__hint">
+                      {printFullAiHandoff
+                        ? 'Copy the text below into ChatGPT, Claude, or Gemini to explore the reasoning behind this recommendation'
+                        : 'Your installer can share a full AI summary via your portal link above. We can also include a machine-readable AI summary inside this PDF as an optional export.'}
+                    </span>
+                  </div>
+                  {printFullAiHandoff && (
+                    <pre
+                      className="capp-ai-handoff__text"
+                      data-testid="capp-ai-handoff-text"
+                    >
+                      {aiHandoff}
+                    </pre>
+                  )}
+                </section>
+
+                <footer className="capp-page__footer" aria-hidden="true">
+                  {headline}{visitDate ? ` · ${visitDate}` : ''}
+                </footer>
+              </section>
+            )}
+          </>
+        )}
+
         {showTechnicalAudit && (
           <TechnicalAuditAppendix decision={decision} scenarios={scenarios} />
         )}

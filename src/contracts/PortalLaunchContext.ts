@@ -17,6 +17,6 @@ import type { PortalTabId } from '../engine/modules/buildPortalViewModel';
 export type PortalLaunchContext = {
   /** The scenarioId of the recommended ScenarioResult. */
   recommendedScenarioId: string;
-  /** Tab to activate on launch. Defaults to 'recommended' when absent. */
+  /** Tab to activate on launch. Defaults to 'identity' when absent. */
   initialTab?: PortalTabId;
 };

@@ -19,12 +19,19 @@ import { scopeIncluded } from './buildQuoteScope';
 
 // ─── Tab identifiers ──────────────────────────────────────────────────────────
 
+/**
+ * The four Atlas Pillars that organise the customer portal.
+ *
+ *   identity   — Pillar 1: Who you are and what matters to you (property facts + priority cards)
+ *   verdict    — Pillar 2: Physics-based ratings, why Atlas chose this, Scenario Explorer
+ *   experience — Pillar 3: 24-hour simulation of life with the recommended system
+ *   roadmap    — Pillar 4: Future upgrade paths and installation requirements
+ */
 export type PortalTabId =
-  | 'recommended'
-  | 'why'
-  | 'compare'
-  | 'daily_use'
-  | 'future';
+  | 'identity'
+  | 'verdict'
+  | 'experience'
+  | 'roadmap';
 
 // ─── Card types ───────────────────────────────────────────────────────────────
 
@@ -65,33 +72,64 @@ export interface DailyUseCard {
 
 // ─── Portal view model ────────────────────────────────────────────────────────
 
-export interface PortalViewModel {
-  /** Ordered tab definitions. */
-  tabs: Array<{ id: PortalTabId; label: string }>;
-
-  /** VisualBlocks for the "Recommended for you" tab (hero/facts/solution/warning/scope). */
-  recommendedBlocks: VisualBlock[];
-
-  /** Proof cards for the "Why Atlas chose this" tab. */
+/**
+ * Data bundle for the Verdict pillar (Pillar 2).
+ * Combines physics proof cards, scenario comparison, and spatial evidence
+ * into a single content object so the tab renderer does not need to
+ * conditionally merge them.
+ */
+export interface VerdictData {
+  /** Physics-based proof cards — key reasons, avoided risks, compatibility notes. */
   whyCards: ProofCard[];
-
-  /** One card per scenario for the "Compare other options" tab — recommended first. */
+  /** One card per scenario — recommended scenario first. */
   comparisonCards: ComparisonCard[];
-
-  /** Day-to-day outcome cards for the "Daily-use demo" tab. */
-  dailyUseCards: DailyUseCard[];
-
-  /** Interactive daily-use simulator for the recommended scenario (PR5). */
-  dailyUseSimulation: DailyUseSimulation | null;
-
-  /** VisualBlocks for the "Future upgrades" tab (future_upgrade blocks only). */
-  futureBlocks: VisualBlock[];
-
   /**
-   * Optional spatial proof block for the "Why Atlas chose this" tab.
+   * Optional spatial proof block.
    * Present only when the deck contains a spatial_proof block derived from EngineerLayout.
    */
   spatialProof: SpatialProofBlock | null;
+}
+
+/**
+ * Data bundle for the Experience pillar (Pillar 3).
+ * Prefers the interactive simulator; falls back to static day-to-day cards
+ * when simulation data is absent.
+ */
+export interface ExperienceData {
+  /** Static day-to-day outcome cards — used when simulation is null. */
+  cards: DailyUseCard[];
+  /** 24-hour interactive simulation for the recommended scenario. */
+  simulation: DailyUseSimulation | null;
+}
+
+export interface PortalViewModel {
+  /** Ordered tab definitions aligned with the Four Atlas Pillars. */
+  tabs: Array<{ id: PortalTabId; label: string }>;
+
+  /**
+   * Pillar 1 — Identity.
+   * VisualBlocks for the "What Matters to You" tab.
+   * Contains: hero, facts, customer_need_resolution, solution, warning, included_scope blocks.
+   */
+  identityBlocks: VisualBlock[];
+
+  /**
+   * Pillar 2 — Verdict.
+   * Physics proof cards + comparison + spatial evidence for the Verdict & Physics tab.
+   */
+  verdictData: VerdictData;
+
+  /**
+   * Pillar 3 — Experience.
+   * 24-hour simulation data for the Your Day tab.
+   */
+  experienceData: ExperienceData;
+
+  /**
+   * Pillar 4 — Roadmap.
+   * VisualBlocks for the Roadmap tab (future_upgrade blocks).
+   */
+  roadmapBlocks: VisualBlock[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,7 +148,8 @@ const SYSTEM_TYPE_LABEL: Record<ScenarioResult['system']['type'], string> = {
 
 // ─── Block selectors ──────────────────────────────────────────────────────────
 
-const RECOMMENDED_TAB_TYPES = new Set<VisualBlock['type']>([
+/** Pillar 1 — Identity: blocks that establish what the property needs and what matters to the customer. */
+const IDENTITY_TAB_TYPES = new Set<VisualBlock['type']>([
   'hero',
   'facts',
   'customer_need_resolution',
@@ -119,7 +158,9 @@ const RECOMMENDED_TAB_TYPES = new Set<VisualBlock['type']>([
   'warning',
   'included_scope',
 ]);
-const FUTURE_TAB_TYPES = new Set<VisualBlock['type']>(['future_upgrade']);
+
+/** Pillar 4 — Roadmap: future upgrade paths. */
+const ROADMAP_TAB_TYPES = new Set<VisualBlock['type']>(['future_upgrade']);
 
 // ─── Card builders ────────────────────────────────────────────────────────────
 
@@ -250,7 +291,7 @@ function buildDailyUseCards(
  * buildPortalViewModel
  *
  * Converts an AtlasDecisionV1, its ScenarioResult[], and the assembled
- * VisualBlock[] into a PortalViewModel that drives the five-tab portal surface.
+ * VisualBlock[] into a PortalViewModel organised around the Four Atlas Pillars.
  *
  * No recommendation logic is re-derived here. All reasoning flows from the
  * supplied inputs.
@@ -261,24 +302,24 @@ export function buildPortalViewModel(
   blocks: VisualBlock[],
 ): PortalViewModel {
   const tabs: PortalViewModel['tabs'] = [
-    { id: 'recommended', label: 'Recommended for you' },
-    { id: 'why',         label: 'Why Atlas chose this' },
-    { id: 'compare',     label: 'Compare other options' },
-    { id: 'daily_use',   label: 'Daily-use demo' },
-    { id: 'future',      label: 'Future upgrades' },
+    { id: 'identity',   label: 'What Matters to You' },
+    { id: 'verdict',    label: 'Verdict & Physics' },
+    { id: 'experience', label: 'Your Day' },
+    { id: 'roadmap',    label: 'Roadmap' },
   ];
 
-  const recommendedBlocks = blocks.filter((b) =>
-    RECOMMENDED_TAB_TYPES.has(b.type),
+  // Pillar 1 — Identity blocks (hero, facts, customer_need_resolution, solution, etc.)
+  const identityBlocks = blocks.filter((b) =>
+    IDENTITY_TAB_TYPES.has(b.type),
   );
 
-  // Future blocks exclude anything already in the included scope to avoid
+  // Pillar 4 — Roadmap blocks, excluding anything already in the included scope to avoid
   // presenting already-committed work as a future upsell opportunity.
   const includedLabels = new Set(
     scopeIncluded(decision.quoteScope).map((s) => s.label.toLowerCase().trim()),
   );
-  const futureBlocks = blocks
-    .filter((b) => FUTURE_TAB_TYPES.has(b.type))
+  const roadmapBlocks = blocks
+    .filter((b) => ROADMAP_TAB_TYPES.has(b.type))
     .map((b) => {
       if (b.type !== 'future_upgrade') return b;
       return {
@@ -294,12 +335,16 @@ export function buildPortalViewModel(
 
   return {
     tabs,
-    recommendedBlocks,
-    whyCards:            buildWhyCards(decision),
-    comparisonCards:     buildComparisonCards(decision, scenarios),
-    dailyUseCards:       buildDailyUseCards(decision, scenarios),
-    dailyUseSimulation:  buildDailyUseSimulation(decision, scenarios),
-    futureBlocks,
-    spatialProof:        spatialProofBlock,
+    identityBlocks,
+    verdictData: {
+      whyCards:       buildWhyCards(decision),
+      comparisonCards: buildComparisonCards(decision, scenarios),
+      spatialProof:   spatialProofBlock,
+    },
+    experienceData: {
+      cards:      buildDailyUseCards(decision, scenarios),
+      simulation: buildDailyUseSimulation(decision, scenarios),
+    },
+    roadmapBlocks,
   };
 }

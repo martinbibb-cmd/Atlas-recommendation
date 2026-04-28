@@ -420,3 +420,320 @@
     background: none;
   }
 }
+
+/* ─── Four-Pillar page variants ────────────────────────────────────────────── */
+
+.capp-page--identity     { border-top: 4px solid var(--capp-green); }
+.capp-page--verdict-roadmap { border-top: 4px solid var(--capp-blue); }
+.capp-page--technical    { border-top: 4px solid var(--capp-amber); }
+
+/* Pillar label above block labels */
+.capp-page__label--pillar {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--capp-muted);
+  margin: 0 0 1rem;
+}
+
+/* ─── Themed block wrapper ──────────────────────────────────────────────────── */
+
+.capp-themed-block {
+  margin-bottom: 1.5rem;
+}
+
+.capp-themed-block:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── At-a-Glance panel ─────────────────────────────────────────────────────── */
+
+.capp-at-a-glance {
+  background: var(--capp-green-light);
+  border: 1px solid #c6f6d5;
+  border-radius: var(--capp-radius);
+  padding: 0.875rem 1rem;
+  margin: 1rem 0;
+}
+
+.capp-at-a-glance__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-green);
+  margin: 0 0 0.5rem;
+}
+
+.capp-at-a-glance__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
+.capp-at-a-glance__item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-size: 0.85rem;
+}
+
+.capp-at-a-glance__label {
+  color: var(--capp-muted);
+}
+
+.capp-at-a-glance__value {
+  font-weight: 700;
+  color: var(--capp-text);
+}
+
+/* ─── Comparison section ────────────────────────────────────────────────────── */
+
+.capp-comparison {
+  margin: 1rem 0;
+}
+
+.capp-comparison__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-blue);
+  margin: 0 0 0.75rem;
+}
+
+.capp-comparison__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.capp-comparison__card {
+  border: 1px solid var(--capp-border);
+  border-radius: var(--capp-radius);
+  padding: 0.75rem;
+  background: #fff;
+  position: relative;
+}
+
+.capp-comparison__card--pick {
+  border-color: var(--capp-blue);
+  background: #eff6ff;
+}
+
+.capp-comparison__badge {
+  display: inline-block;
+  background: var(--capp-blue);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  margin-bottom: 0.4rem;
+}
+
+.capp-comparison__system-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin: 0 0 0.2rem;
+  color: var(--capp-text);
+}
+
+.capp-comparison__system-summary {
+  font-size: 0.8rem;
+  color: var(--capp-muted);
+  margin: 0 0 0.5rem;
+}
+
+.capp-comparison__benefits,
+.capp-comparison__constraints {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+}
+
+.capp-comparison__benefit {
+  font-size: 0.78rem;
+  color: var(--capp-green);
+  padding: 0.1rem 0;
+}
+
+.capp-comparison__constraint {
+  font-size: 0.78rem;
+  color: var(--capp-muted);
+  padding: 0.1rem 0;
+}
+
+/* ─── Avoided Risks section ─────────────────────────────────────────────────── */
+
+.capp-avoided-risks {
+  margin: 1rem 0;
+}
+
+.capp-avoided-risks__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-green);
+  margin: 0 0 0.5rem;
+}
+
+.capp-avoided-risks__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capp-avoided-risks__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  color: var(--capp-text);
+}
+
+.capp-avoided-risks__shield {
+  flex-shrink: 0;
+}
+
+/* ─── Requirements section ──────────────────────────────────────────────────── */
+
+.capp-requirements {
+  margin: 1rem 0;
+}
+
+.capp-requirements__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-amber);
+  margin: 0 0 0.5rem;
+}
+
+.capp-requirements__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capp-requirements__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.25rem 0;
+  color: var(--capp-text);
+}
+
+.capp-requirements__item--advisory {
+  color: var(--capp-amber);
+}
+
+.capp-requirements__marker {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  margin-top: 0.2rem;
+}
+
+/* ─── Installation complexity badge ────────────────────────────────────────── */
+
+.capp-complexity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--capp-radius);
+  padding: 0.6rem 0.875rem;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+}
+
+.capp-complexity--low {
+  background: var(--capp-green-light);
+  border: 1px solid #c6f6d5;
+  color: var(--capp-green);
+}
+
+.capp-complexity--high {
+  background: var(--capp-amber-light);
+  border: 1px solid #f6e05e;
+  color: var(--capp-amber);
+}
+
+.capp-complexity__label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.capp-complexity__desc {
+  color: var(--capp-muted);
+  font-size: 0.8rem;
+}
+
+/* ─── AI-Ready Context Block ────────────────────────────────────────────────── */
+
+.capp-ai-context {
+  margin: 1.25rem 0 0;
+  border-top: 1px dashed var(--capp-border);
+  padding-top: 0.875rem;
+}
+
+.capp-ai-context__heading {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-muted);
+  margin: 0 0 0.5rem;
+}
+
+.capp-ai-context__fields {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 0.75rem;
+  margin: 0;
+}
+
+.capp-ai-context__term {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--capp-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.capp-ai-context__desc {
+  font-size: 0.8rem;
+  color: var(--capp-text);
+  margin: 0;
+}
+
+/* ─── Print overrides for new sections ──────────────────────────────────────── */
+
+@media print {
+  .capp-at-a-glance,
+  .capp-comparison,
+  .capp-avoided-risks,
+  .capp-requirements,
+  .capp-complexity,
+  .capp-ai-context {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .capp-page--identity,
+  .capp-page--verdict-roadmap,
+  .capp-page--technical {
+    page-break-after: always;
+    break-after: page;
+  }
+}
