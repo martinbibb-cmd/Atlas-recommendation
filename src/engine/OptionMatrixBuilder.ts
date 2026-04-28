@@ -773,6 +773,11 @@ export function buildOptionMatrixV1(
   // are separate concerns.
   const isHighDemandHousehold = (core.storedDhwV1?.flags ?? []).some(f => f.id === 'stored-high-demand');
 
+  // When the flow-only gate is met (≥12 L/min at very low pressure), the headline
+  // must not claim "suits your mains pressure" — it must instead steer to Mixergy.
+  const UNVENTED_LOW_PRESSURE_FLOW_ONLY_HEADLINE =
+    '💧 Unvented viable by flow rate — mains pressure is very low; Mixergy cylinder strongly preferred.';
+
   cards.push({
     id: 'stored_unvented',
     label: 'Stored hot water — Unvented cylinder',
@@ -782,7 +787,7 @@ export function buildOptionMatrixV1(
         // Flow-only gate met (≥12 L/min) but pressure is very low: headline must
         // not say "suits your mains pressure" when pressure is below the minimum
         // operating threshold — that directly contradicts the requirements section.
-        ? '💧 Unvented viable by flow rate — mains pressure is very low; Mixergy cylinder strongly preferred.'
+        ? UNVENTED_LOW_PRESSURE_FLOW_ONLY_HEADLINE
         : isHighDemandHousehold
         ? 'Unvented cylinder is a strong fit — mains-fed stored hot water suits high household demand.'
         : 'Unvented cylinder suits your mains pressure and demand.'

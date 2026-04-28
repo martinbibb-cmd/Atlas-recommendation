@@ -55,14 +55,14 @@ function buildHeadline(scenario: ScenarioResult): string {
   // so the recommendation is unambiguous about the complete system (heat source + DHW).
   // Using just "system boiler" or "regular boiler" loses the critical DHW subtype
   // context, which causes the hero copy to contradict the constraint layer.
-  const storedSubtypeLabel: Record<string, string> = {
+  const STORED_SCENARIO_TO_HEADLINE: Record<string, string> = {
     stored_unvented: 'stored hot water system (unvented cylinder)',
     stored_vented:   'stored hot water system (vented cylinder)',
     system_unvented: 'stored hot water system (unvented cylinder)',
     regular_vented:  'stored hot water system (vented cylinder)',
   };
-  if (storedSubtypeLabel[scenario.scenarioId]) {
-    return `A ${storedSubtypeLabel[scenario.scenarioId]} is the right fit for this home.`;
+  if (STORED_SCENARIO_TO_HEADLINE[scenario.scenarioId]) {
+    return `A ${STORED_SCENARIO_TO_HEADLINE[scenario.scenarioId]} is the right fit for this home.`;
   }
   const typeLabel: Record<ScenarioResult['system']['type'], string> = {
     combi:   'combi boiler',

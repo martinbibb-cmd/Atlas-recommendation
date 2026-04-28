@@ -47,11 +47,16 @@ const SYSTEM_LABEL: Record<ScenarioResult['system']['type'], string> = {
  * appears as the recommendation even when the constraint engine has identified
  * that the standard unvented cylinder is unsuitable (low pressure), creating
  * the "bipolar document" contradiction.
+ *
+ * The pairs (stored_unvented / system_unvented) and (stored_vented / regular_vented)
+ * intentionally map to the same labels because both scenario IDs represent the
+ * same DHW arrangement — they differ only in which boiler model the card describes.
+ * The customer-facing label reflects the DHW subtype, not the boiler variant.
  */
 const STORED_SCENARIO_LABEL: Record<string, string> = {
   stored_unvented: 'Stored hot water (unvented cylinder)',
-  stored_vented:   'Stored hot water (vented cylinder)',
   system_unvented: 'Stored hot water (unvented cylinder)',
+  stored_vented:   'Stored hot water (vented cylinder)',
   regular_vented:  'Stored hot water (vented cylinder)',
 };
 

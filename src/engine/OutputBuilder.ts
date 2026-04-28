@@ -552,6 +552,23 @@ export const FAMILY_TO_ELIGIBILITY_ID: Record<ApplianceFamily, string> = {
   open_vented: 'stored_vented',
 };
 
+/**
+ * Recommendation label used when the 'system' family is recommended but mains
+ * supply is insufficient for a standard unvented cylinder and Mixergy is the
+ * preferred DHW subtype (storedDhwV1.recommended.type === 'mixergy').
+ *
+ * Exported so tests can assert the exact string without embedding it literally.
+ */
+export const MIXERGY_RECOMMENDATION_LABEL = 'Mixergy cylinder (stored hot water — pressure-tolerant)';
+
+/**
+ * Recommendation label used when the 'system' family is recommended but mains
+ * supply is insufficient for a standard unvented cylinder and no specific
+ * Mixergy recommendation exists — falls through to the vented-cylinder eligibility
+ * item label, with this constant as a final safety net when the item is absent.
+ */
+export const VENTED_FALLBACK_LABEL = 'Stored hot water — Vented or Mixergy cylinder';
+
 export function buildEngineOutputV1(
   result: FullEngineResultCore,
   input?: EngineInputV2_3,
@@ -597,12 +614,12 @@ export function buildEngineOutputV1(
     if (canonicalBestFamily === 'system' && !result.cwsSupplyV1.meetsUnventedRequirement) {
       const recType = result.storedDhwV1?.recommended.type;
       if (recType === 'mixergy') {
-        primaryRecommendation = 'Mixergy cylinder (stored hot water — pressure-tolerant)';
+        primaryRecommendation = MIXERGY_RECOMMENDATION_LABEL;
       } else {
         // Fall back to vented-cylinder label; vented does not depend on mains pressure.
         eligibilityId = 'stored_vented';
         const ventedItem = eligibilityItems.find(e => e.id === eligibilityId);
-        primaryRecommendation = ventedItem?.label ?? 'Stored hot water — Vented or Mixergy cylinder';
+        primaryRecommendation = ventedItem?.label ?? VENTED_FALLBACK_LABEL;
       }
     } else {
       const canonicalItem = eligibilityItems.find(e => e.id === eligibilityId);

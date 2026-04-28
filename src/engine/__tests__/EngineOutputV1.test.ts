@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runEngine } from '../Engine';
-import { FAMILY_TO_ELIGIBILITY_ID } from '../OutputBuilder';
+import { FAMILY_TO_ELIGIBILITY_ID, MIXERGY_RECOMMENDATION_LABEL, VENTED_FALLBACK_LABEL } from '../OutputBuilder';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -373,8 +373,8 @@ describe('EngineOutputV1 shape', () => {
       let expectedLabel: string;
       if (bestFamily === 'system' && !cwsSupplyV1.meetsUnventedRequirement) {
         expectedLabel = storedDhwV1?.recommended.type === 'mixergy'
-          ? 'Mixergy cylinder (stored hot water — pressure-tolerant)'
-          : engineOutput.eligibility.find(e => e.id === 'stored_vented')?.label ?? 'Stored hot water — Vented or Mixergy cylinder';
+          ? MIXERGY_RECOMMENDATION_LABEL
+          : engineOutput.eligibility.find(e => e.id === 'stored_vented')?.label ?? VENTED_FALLBACK_LABEL;
       } else {
         const familyToId: Record<string, string> = {
           combi: 'on_demand', system: 'stored_unvented',
@@ -421,8 +421,8 @@ describe('EngineOutputV1 shape', () => {
       if (bestFamily === 'system' && !cwsSupplyV1.meetsUnventedRequirement) {
         // Low-pressure system family: uses Mixergy or vented label, not stored_unvented
         expectedLabel = storedDhwV1?.recommended.type === 'mixergy'
-          ? 'Mixergy cylinder (stored hot water — pressure-tolerant)'
-          : engineOutput.eligibility.find(e => e.id === 'stored_vented')?.label ?? 'Stored hot water — Vented or Mixergy cylinder';
+          ? MIXERGY_RECOMMENDATION_LABEL
+          : engineOutput.eligibility.find(e => e.id === 'stored_vented')?.label ?? VENTED_FALLBACK_LABEL;
       } else {
         const familyToId: Record<string, string> = {
           combi: 'on_demand', system: 'stored_unvented',
