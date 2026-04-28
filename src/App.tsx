@@ -60,6 +60,7 @@ import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
+import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
 import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
@@ -171,6 +172,14 @@ const SCAN_IMPORT_ENABLED =
 const SCAN_PACKAGE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('scan-package') === '1';
+
+/**
+ * Detect ?receive-scan=1 — renders the Web Share Target receive page.
+ * Set by the service worker after it stores a shared scan file in IndexedDB.
+ */
+const RECEIVE_SCAN_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('receive-scan') === '1';
 
 /**
  * Detect ?handoff=1 — renders the canonical AtlasPropertyV1 handoff arrival page.
@@ -972,6 +981,17 @@ export default function App() {
         </div>
         <InsightPackDeck pack={pack} propertyTitle="Demo — SW1A 1AA" />
       </div>
+    );
+  }
+
+  // ?receive-scan=1 — render the Web Share Target receive page.
+  // The service worker sets this param after storing shared file(s) in IDB.
+  if (RECEIVE_SCAN_ENABLED) {
+    return (
+      <ReceiveScanPage
+        onImported={() => { window.location.href = window.location.pathname; }}
+        onCancel={() => { window.location.href = window.location.pathname; }}
+      />
     );
   }
 
