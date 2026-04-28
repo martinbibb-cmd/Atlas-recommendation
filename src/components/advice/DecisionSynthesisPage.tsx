@@ -79,6 +79,16 @@ import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
 import './DecisionSynthesisPage.css';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * Headline shown when the customer has chosen combi despite a recommendation
+ * against it (e.g. simultaneous demand risk).  Replaces "Combi not advisable"
+ * framing with an honest-but-affirming acknowledgment of their selection.
+ */
+const COMBI_SELECTED_COMPROMISE_HEADLINE =
+  'Combi selected — acceptable day-to-day compromise, but not ideal for simultaneous outlet use.';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
@@ -1500,8 +1510,8 @@ export default function DecisionSynthesisPage({
               </p>
             )}
             <p className="advice-chosen-hero__headline">
-              {chosenOptionId === 'combi' && chosenOptionCard.headline.includes('not advisable')
-                ? 'Combi selected — acceptable day-to-day compromise, but not ideal for simultaneous outlet use.'
+              {chosenOptionId === 'combi' && chosenOptionCard.status !== 'viable'
+                ? COMBI_SELECTED_COMPROMISE_HEADLINE
                 : chosenOptionCard.headline}
             </p>
             <p className="advice-chosen-hero__guide">
@@ -1625,8 +1635,8 @@ export default function DecisionSynthesisPage({
                       <SystemRealWorldImage image={optionImage} testId={`option-real-world-image-${option.id}`} />
                     )}
                     <p className="advice-option-block__headline">
-                      {option.id === 'combi' && isChosen && option.headline.includes('not advisable')
-                        ? 'Combi selected — acceptable day-to-day compromise, but not ideal for simultaneous outlet use.'
+                      {option.id === 'combi' && isChosen && option.status !== 'viable'
+                        ? COMBI_SELECTED_COMPROMISE_HEADLINE
                         : option.headline}
                     </p>
                   </div>
@@ -1790,8 +1800,8 @@ export default function DecisionSynthesisPage({
                       <SystemRealWorldImage image={optionImage} testId={`option-real-world-image-${option.id}`} />
                     )}
                     <p className="advice-option-block__headline">
-                      {option.id === 'combi' && isChosen && option.headline.includes('not advisable')
-                        ? 'Combi selected — acceptable day-to-day compromise, but not ideal for simultaneous outlet use.'
+                      {option.id === 'combi' && isChosen && option.status !== 'viable'
+                        ? COMBI_SELECTED_COMPROMISE_HEADLINE
                         : option.headline}
                     </p>
                   </div>

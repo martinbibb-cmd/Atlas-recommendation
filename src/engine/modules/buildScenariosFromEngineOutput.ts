@@ -175,12 +175,12 @@ export function buildScenariosFromEngineOutput(engineOutput: EngineOutputV1): Sc
   // scenarios must be tagged so downstream headline builders and label maps
   // can surface the correct Mixergy / pressure-tolerant copy instead of the
   // generic "unvented cylinder" framing.
-  const isMixeryRecommended = /mixergy/i.test(recommendedLabel);
+  const isMixergyRecommended = /mixergy/i.test(recommendedLabel);
   const UNVENTED_IDS = new Set<string>(['stored_unvented', 'system_unvented']);
 
   return options.map((o) => {
     const adapted = adaptOption(o);
-    if (isMixeryRecommended && UNVENTED_IDS.has(o.id)) {
+    if (isMixergyRecommended && UNVENTED_IDS.has(o.id)) {
       return { ...adapted, dhwSubtype: 'mixergy' as const };
     }
     return adapted;
