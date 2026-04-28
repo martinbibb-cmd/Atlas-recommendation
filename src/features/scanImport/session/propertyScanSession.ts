@@ -3,7 +3,7 @@ import type { CanonicalFloorPlanDraft } from '../importer/scanMapper';
 
 export type SessionScanState = 'scanning' | 'scanned' | 'reviewed' | 'needs_attention' | 'blocked_incomplete';
 export type SessionReviewState = 'scanned' | 'reviewed' | 'needs_attention' | 'blocked_incomplete';
-export type SessionSyncState = 'local_only' | 'queued_for_atlas' | 'uploaded' | 'failed_upload' | 'archived_remote';
+export type SessionSyncState = 'local_only' | 'queued_for_atlas' | 'syncing' | 'uploaded' | 'failed_upload' | 'archived_remote';
 
 export interface TaggedObject {
   id: string;
@@ -49,6 +49,8 @@ export interface PropertyScanSession {
   scanState: SessionScanState;
   reviewState: SessionReviewState;
   syncState: SessionSyncState;
+  /** ID of the corresponding row in the server-side scan_sessions table, once synced. */
+  remoteSessionId?: string;
   floors: CanonicalFloorPlanDraft['floors'];
   rooms: CanonicalFloorPlanDraft['floors'][number]['rooms'];
   taggedObjects: TaggedObject[];

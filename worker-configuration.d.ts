@@ -5,6 +5,8 @@ declare namespace Cloudflare {
 	interface Env {
 		ATLAS_CACHE_KV: KVNamespace;
 		ATLAS_REPORTS_D1: D1Database;
+		/** R2 bucket for binary scan assets (photos, PLY files, scan bundles). */
+		ATLAS_ASSETS_R2: R2Bucket;
 		/** Google Gemini API key. Stored as a Cloudflare secret (GEMINI_API_KEY). */
 		GEMINI_API_KEY: string;
 		/** OpenAI API key. Stored as a Cloudflare secret (OPENAI_API_KEY). */

@@ -39,5 +39,21 @@
       "binding": "ATLAS_CACHE_KV",
       "id": "84aa1f5c442c4286b1589595c5635d8d"
     }
+  ],
+
+  // ─── R2 bucket binding ───────────────────────────────────────────────────────
+  // Stores binary blobs: photos, .ply point clouds, and scan bundles uploaded
+  // from the Atlas PWA / iOS app.
+  // Binding name used in Functions: context.env.ATLAS_ASSETS_R2
+  // Dashboard: Workers & Pages → your project → Settings → Bindings → R2 Bucket
+  //   Variable name : ATLAS_ASSETS_R2
+  //   Bucket name   : atlas-assets-r2
+  //
+  // After creating the bucket and adding the binding, redeploy for it to take effect.
+  "r2_buckets": [
+    {
+      "binding": "ATLAS_ASSETS_R2",
+      "bucket_name": "atlas-assets-r2"
+    }
   ]
 }
