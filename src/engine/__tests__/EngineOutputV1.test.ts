@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runEngine } from '../Engine';
-import { FAMILY_TO_ELIGIBILITY_ID } from '../OutputBuilder';
+import { FAMILY_TO_ELIGIBILITY_ID, MIXERGY_RECOMMENDATION_LABEL, VENTED_FALLBACK_LABEL } from '../OutputBuilder';
 
 const baseInput = {
   postcode: 'SW1A 1AA',
@@ -348,29 +348,40 @@ describe('EngineOutputV1 shape', () => {
     // even when it is "suitable_with_caveats" — more actionable than withholding.
     //
     // bathroomCount: 2 + highOccupancy → combi_dhw_demand_risk 'limit' penalty (combi caution)
-    // mainsDynamicFlowLpm: 6 (below 10 L/min threshold) → stored_unvented caution
+    // mainsDynamicFlowLpm: 6 (below 10 L/min threshold) → stored_unvented caution; Mixergy recommended (high demand)
     // futureLoftConversion: true → stored_vented caution
     // 22mm + 8kW → ASHP caution
-    const { engineOutput, recommendationResult } = runEngine({
+    const result = runEngine({
       ...baseInput,
       currentHeatSourceType: 'combi' as const,
       bathroomCount: 2,
       highOccupancy: true,
       dynamicMainsPressure: 2.5,
-      mainsDynamicFlowLpm: 6,       // below 10 L/min → stored_unvented caution
+      mainsDynamicFlowLpm: 6,       // below 10 L/min → stored_unvented caution; !meetsUnventedRequirement
       futureLoftConversion: true,   // stored_vented caution
       currentBoilerAgeYears: 10,
       currentBoilerOutputKw: 24,
     });
+    const { engineOutput, recommendationResult, cwsSupplyV1, storedDhwV1 } = result;
     // The canonical bestOverall picks the highest-scoring candidate with suitability
     // !== 'not_recommended'.  Assert that engineOutput.primary matches this.
     const bestFamily = recommendationResult.bestOverall?.family;
     if (bestFamily != null) {
-      const familyToId: Record<string, string> = {
-        combi: 'on_demand', system: 'stored_unvented',
-        heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
-      };
-      const expectedLabel = engineOutput.eligibility.find(e => e.id === familyToId[bestFamily])?.label ?? bestFamily;
+      // Subtype-aware alignment check: 'system' family with low mains pressure
+      // resolves to Mixergy (high demand) or vented (standard demand) rather than
+      // always mapping to 'stored_unvented' — this is the root bug fix.
+      let expectedLabel: string;
+      if (bestFamily === 'system' && !cwsSupplyV1.meetsUnventedRequirement) {
+        expectedLabel = storedDhwV1?.recommended.type === 'mixergy'
+          ? MIXERGY_RECOMMENDATION_LABEL
+          : engineOutput.eligibility.find(e => e.id === 'stored_vented')?.label ?? VENTED_FALLBACK_LABEL;
+      } else {
+        const familyToId: Record<string, string> = {
+          combi: 'on_demand', system: 'stored_unvented',
+          heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
+        };
+        expectedLabel = engineOutput.eligibility.find(e => e.id === familyToId[bestFamily])?.label ?? bestFamily;
+      }
       expect(engineOutput.recommendation.primary).toBe(expectedLabel);
     } else {
       // No eligible candidate at all — recommendation is withheld
@@ -387,8 +398,9 @@ describe('EngineOutputV1 shape', () => {
     // overall score exceeds ASHP's score for this input profile.
     //
     // 28mm + 8kW → ASHP has no pipe constraint; on_demand has occupancy caution;
-    // stored unvented has minor flow caution (9 L/min); stored vented has loft caution.
-    const { engineOutput, recommendationResult } = runEngine({
+    // stored unvented gate not met (9 L/min < 10 L/min) → !meetsUnventedRequirement;
+    // stored vented has loft caution.
+    const result = runEngine({
       ...baseInput,
       currentHeatSourceType: 'combi' as const,
       primaryPipeDiameter: 28,
@@ -397,18 +409,27 @@ describe('EngineOutputV1 shape', () => {
       bathroomCount: 1,
       peakConcurrentOutlets: 1,
       hasLoftConversion: true,   // independently rejects stored_vented
-      mainsDynamicFlowLpm: 9,    // below unvented gate (< 10 L/min) → stored unvented caution
+      mainsDynamicFlowLpm: 9,    // below unvented gate (< 10 L/min) → !meetsUnventedRequirement
       currentBoilerAgeYears: 10, // reduces missingKeyCount for medium confidence
       currentBoilerOutputKw: 24, // reduces missingKeyCount for medium confidence
     });
-    // Assert alignment: headline must match canonical bestOverall
+    const { engineOutput, recommendationResult, cwsSupplyV1, storedDhwV1 } = result;
+    // Assert alignment: headline must match canonical bestOverall (subtype-aware)
     const bestFamily = recommendationResult.bestOverall?.family;
     if (bestFamily != null) {
-      const familyToId: Record<string, string> = {
-        combi: 'on_demand', system: 'stored_unvented',
-        heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
-      };
-      const expectedLabel = engineOutput.eligibility.find(e => e.id === familyToId[bestFamily])?.label ?? bestFamily;
+      let expectedLabel: string;
+      if (bestFamily === 'system' && !cwsSupplyV1.meetsUnventedRequirement) {
+        // Low-pressure system family: uses Mixergy or vented label, not stored_unvented
+        expectedLabel = storedDhwV1?.recommended.type === 'mixergy'
+          ? MIXERGY_RECOMMENDATION_LABEL
+          : engineOutput.eligibility.find(e => e.id === 'stored_vented')?.label ?? VENTED_FALLBACK_LABEL;
+      } else {
+        const familyToId: Record<string, string> = {
+          combi: 'on_demand', system: 'stored_unvented',
+          heat_pump: 'ashp', regular: 'stored_vented', open_vented: 'stored_vented',
+        };
+        expectedLabel = engineOutput.eligibility.find(e => e.id === familyToId[bestFamily])?.label ?? bestFamily;
+      }
       expect(engineOutput.recommendation.primary).toBe(expectedLabel);
     }
   });

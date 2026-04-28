@@ -552,6 +552,23 @@ export const FAMILY_TO_ELIGIBILITY_ID: Record<ApplianceFamily, string> = {
   open_vented: 'stored_vented',
 };
 
+/**
+ * Recommendation label used when the 'system' family is recommended but mains
+ * supply is insufficient for a standard unvented cylinder and Mixergy is the
+ * preferred DHW subtype (storedDhwV1.recommended.type === 'mixergy').
+ *
+ * Exported so tests can assert the exact string without embedding it literally.
+ */
+export const MIXERGY_RECOMMENDATION_LABEL = 'Mixergy cylinder (stored hot water — pressure-tolerant)';
+
+/**
+ * Recommendation label used when the 'system' family is recommended but mains
+ * supply is insufficient for a standard unvented cylinder and no specific
+ * Mixergy recommendation exists — falls through to the vented-cylinder eligibility
+ * item label, with this constant as a final safety net when the item is absent.
+ */
+export const VENTED_FALLBACK_LABEL = 'Stored hot water — Vented or Mixergy cylinder';
+
 export function buildEngineOutputV1(
   result: FullEngineResultCore,
   input?: EngineInputV2_3,
@@ -585,9 +602,29 @@ export function buildEngineOutputV1(
     primaryRecommendation = 'Recommendation withheld — not enough measured data';
   } else if (canonicalBestFamily != null) {
     // Canonical path: use the evidence-backed bestOverall family label.
-    const eligibilityId = FAMILY_TO_ELIGIBILITY_ID[canonicalBestFamily];
-    const canonicalItem = eligibilityItems.find(e => e.id === eligibilityId);
-    primaryRecommendation = canonicalItem?.label ?? canonicalBestFamily;
+    //
+    // Subtype-aware override for the 'system' family: the recommendation engine operates
+    // at appliance-family granularity and cannot distinguish unvented from Mixergy/vented.
+    // When the family is 'system' but mains supply cannot meet the standard unvented
+    // cylinder requirement, the hero label must reflect the pressure-tolerant alternative
+    // rather than stating "Stored hot water — Unvented cylinder" — which would directly
+    // contradict the constraint engine's verdict.  This resolves the "bipolar document"
+    // failure mode described in the problem statement.
+    let eligibilityId = FAMILY_TO_ELIGIBILITY_ID[canonicalBestFamily];
+    if (canonicalBestFamily === 'system' && !result.cwsSupplyV1.meetsUnventedRequirement) {
+      const recType = result.storedDhwV1?.recommended.type;
+      if (recType === 'mixergy') {
+        primaryRecommendation = MIXERGY_RECOMMENDATION_LABEL;
+      } else {
+        // Fall back to vented-cylinder label; vented does not depend on mains pressure.
+        eligibilityId = 'stored_vented';
+        const ventedItem = eligibilityItems.find(e => e.id === eligibilityId);
+        primaryRecommendation = ventedItem?.label ?? VENTED_FALLBACK_LABEL;
+      }
+    } else {
+      const canonicalItem = eligibilityItems.find(e => e.id === eligibilityId);
+      primaryRecommendation = canonicalItem?.label ?? canonicalBestFamily;
+    }
   } else {
     const viableItems = eligibilityItems.filter(e => e.status === 'viable');
     const viableStoredItems = viableItems.filter(e => e.id.includes('stored'));
