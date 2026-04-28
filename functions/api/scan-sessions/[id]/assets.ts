@@ -32,6 +32,9 @@ function isAssetType(v: unknown): v is AssetType {
   return typeof v === "string" && (ALLOWED_ASSET_TYPES as readonly string[]).includes(v);
 }
 
+// Two D1 queries in the asset upload handler: session existence check + insert.
+const ASSET_UPLOAD_QUERY_COUNT = 2;
+
 export const onRequestPost: PagesFunction<Env, "id"> = async (context) => {
   const { env, request, params } = context;
   const sessionId = params.id as string;
@@ -76,7 +79,7 @@ export const onRequestPost: PagesFunction<Env, "id"> = async (context) => {
   }
 
   // ── Verify session exists ──────────────────────────────────────────────────
-  const breaker = createD1CircuitBreaker(2);
+  const breaker = createD1CircuitBreaker(ASSET_UPLOAD_QUERY_COUNT);
   const sessionCheck = await breaker.run(() =>
     env.ATLAS_REPORTS_D1.prepare("SELECT id FROM scan_sessions WHERE id = ?")
       .bind(sessionId)
@@ -89,7 +92,10 @@ export const onRequestPost: PagesFunction<Env, "id"> = async (context) => {
 
   // ── Upload to R2 ───────────────────────────────────────────────────────────
   const assetId = crypto.randomUUID();
-  const ext = fileField.name.split(".").pop() ?? "bin";
+  // Sanitize the file extension to alphanumeric characters only to prevent
+  // path traversal or unusual extension injection in the R2 object key.
+  const rawExt = fileField.name.split(".").pop() ?? "bin";
+  const ext = rawExt.replace(/[^a-z0-9]/gi, '').slice(0, 10) || 'bin';
   const r2Key = `scan-sessions/${sessionId}/${assetId}.${ext}`;
   const arrayBuffer = await fileField.arrayBuffer();
 

@@ -58,11 +58,14 @@ interface TranscriptRow {
   created_at: string;
 }
 
+// Number of concurrent D1 queries in the session GET handler (session + assets + transcripts).
+const CONCURRENT_QUERY_COUNT = 3;
+
 export const onRequestGet: PagesFunction<Env, "id"> = async (context) => {
   const { env, params } = context;
   const sessionId = params.id as string;
 
-  const breaker = createD1CircuitBreaker(3);
+  const breaker = createD1CircuitBreaker(CONCURRENT_QUERY_COUNT);
 
   const [sessionResult, assetsResult, transcriptsResult] = await Promise.all([
     breaker.run(() =>

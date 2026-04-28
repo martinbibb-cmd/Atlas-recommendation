@@ -14,8 +14,10 @@ import path from 'path'
 // plugin must NOT be loaded — Cloudflare Workers bindings (D1, KV, R2) are
 // server-only and cannot be bundled into the native WebView build.
 const isCapacitor = process.env.VITE_MODE === 'capacitor' ||
-  process.argv.includes('--mode') &&
-  process.argv[process.argv.indexOf('--mode') + 1] === 'capacitor';
+  (() => {
+    const idx = process.argv.indexOf('--mode');
+    return idx !== -1 && idx + 1 < process.argv.length && process.argv[idx + 1] === 'capacitor';
+  })();
 
 const cloudflarePlugin = isCapacitor
   ? []
