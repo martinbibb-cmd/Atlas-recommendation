@@ -61,6 +61,7 @@ import DevMenuPage from './components/dev/DevMenuPage';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
+import ScanSessionListPage from './features/scanImport/ui/ScanSessionListPage';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
 import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
@@ -180,6 +181,14 @@ const SCAN_PACKAGE_ENABLED =
 const RECEIVE_SCAN_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('receive-scan') === '1';
+
+/**
+ * Detect ?my-scans=1 — renders the My Scans management page.
+ * Lists all scan sessions (local IDB + server) for the engineer.
+ */
+const MY_SCANS_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('my-scans') === '1';
 
 /**
  * Detect ?handoff=1 — renders the canonical AtlasPropertyV1 handoff arrival page.
@@ -991,6 +1000,20 @@ export default function App() {
       <ReceiveScanPage
         onImported={() => { window.location.href = window.location.pathname; }}
         onCancel={() => { window.location.href = window.location.pathname; }}
+      />
+    );
+  }
+
+  // ?my-scans=1 — render the My Scans management page.
+  if (MY_SCANS_ENABLED) {
+    return (
+      <ScanSessionListPage
+        onBack={() => { window.location.href = window.location.pathname; }}
+        onOpenSession={(sessionId) => {
+          // Navigate to the scan session viewer — reuse receive-scan route with
+          // the session ID passed as a query param for future deep-linking.
+          window.location.href = `${window.location.pathname}?receive-scan=1&session=${encodeURIComponent(sessionId)}`;
+        }}
       />
     );
   }

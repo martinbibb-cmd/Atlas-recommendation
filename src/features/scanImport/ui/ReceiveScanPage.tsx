@@ -1,14 +1,16 @@
 /**
  * ReceiveScanPage.tsx
  *
- * Shown when the app is opened via the Web Share Target API (?receive-scan=1).
+ * Shown when the app is opened via the Web Share Target API (?receive-scan=1)
+ * or via a Capacitor deep-link (atlasapp://receive-scan?…).
  *
  * The service worker (public/sw.js) intercepts the POST to /receive-scan,
  * stores received file(s) in IndexedDB, then redirects to /?receive-scan=1.
- * This page reads the latest file from IDB and routes to:
+ * This page reads the latest file from IDB (browser) or from the deep-link
+ * (native) and routes to:
  *
  *   - ScanPackageImportFlow   — for .json (Atlas Scan bundle packages)
- *   - PointCloudViewer        — for .ply (raw LiDAR point clouds)
+ *   - RoomScanEditor          — for .ply (raw LiDAR point clouds) — full review surface
  *   - An error / fallback UI  — for unsupported formats or empty IDB
  *
  * The "files=N" query param (written by sw.js) is used to show a count badge;
@@ -22,12 +24,14 @@ import {
   scanEntryToFile,
   type ScanFileEntry,
 } from '../../../lib/storage/scanFileCache';
+import { getLaunchScanEntry, listenForIncomingScan } from '../../../lib/nativeBridge';
 import ScanPackageImportFlow from './ScanPackageImportFlow';
 import type { CanonicalFloorPlanDraft } from '../importer/scanMapper';
+import type { PropertyScanSession } from '../session/propertyScanSession';
 
-// Lazy-load the heavy 3D viewer — only downloaded when a .ply file is received
-const PointCloudViewer = lazy(
-  () => import('../../lidarViewer/PointCloudViewer'),
+// Lazy-load the heavy 3D editor — only downloaded when a .ply file is received
+const RoomScanEditor = lazy(
+  () => import('../../lidarViewer/RoomScanEditor'),
 );
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,7 +40,7 @@ type ViewState =
   | { name: 'loading' }
   | { name: 'empty' }
   | { name: 'json_import'; file: ScanFileEntry }
-  | { name: 'ply_viewer'; file: ScanFileEntry; positions: Float32Array; vertexCount: number }
+  | { name: 'ply_editor'; file: ScanFileEntry; positions: Float32Array; vertexCount: number; session: PropertyScanSession }
   | { name: 'processing_ply'; file: ScanFileEntry }
   | { name: 'unsupported'; file: ScanFileEntry }
   | { name: 'error'; message: string };
@@ -61,19 +65,92 @@ interface ReceiveScanPageProps {
   onCancel: () => void;
 }
 
+/** Build a minimal stub PropertyScanSession for a raw .ply file that has no
+ *  Atlas scan bundle metadata (no rooms, objects, etc.). */
+function stubSessionForPly(file: ScanFileEntry): PropertyScanSession {
+  const id = `ply-${Date.now()}`;
+  const now = new Date().toISOString();
+  return {
+    id,
+    jobReference: id,
+    propertyAddress: file.name,
+    createdAt: now,
+    updatedAt: now,
+    scanState: 'scanned',
+    reviewState: 'scanned',
+    syncState: 'local_only',
+    floors: [],
+    rooms: [],
+    taggedObjects: [],
+    photos: [],
+    issues: [],
+  };
+}
+
 export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPageProps) {
   const [state, setState] = useState<ViewState>({ name: 'loading' });
 
-  // ── Hydrate from IndexedDB on mount ──
+  // ── Shared PLY processing helper ─────────────────────────────────────────
+  function processPlyEntry(entry: ScanFileEntry, cancelled: () => boolean) {
+    setState({ name: 'processing_ply', file: entry });
+    const worker = new Worker(
+      new URL('../../../workers/scanProcessWorker.ts', import.meta.url),
+      { type: 'module' },
+    );
+    // Clone the buffer so entry.data remains valid for retries.
+    const transferBuffer = entry.data.slice(0);
+    worker.postMessage({ type: 'parse_ply', buffer: transferBuffer }, [transferBuffer]);
+    worker.onmessage = (e: MessageEvent) => {
+      worker.terminate();
+      if (cancelled()) return;
+      const msg = e.data as { type: string; positions?: Float32Array; vertexCount?: number; message?: string };
+      if (msg.type === 'ply_result' && msg.positions && msg.vertexCount != null) {
+        setState({
+          name: 'ply_editor',
+          file: entry,
+          positions: msg.positions,
+          vertexCount: msg.vertexCount,
+          session: stubSessionForPly(entry),
+        });
+      } else {
+        setState({ name: 'error', message: msg.message ?? 'PLY parsing failed' });
+      }
+    };
+    worker.onerror = (e) => {
+      worker.terminate();
+      if (!cancelled()) setState({ name: 'error', message: e.message });
+    };
+  }
+
+  // ── Hydrate from native deep-link or IDB on mount ────────────────────────
   useEffect(() => {
     let cancelled = false;
+    let cleanupListener: (() => void) | undefined;
 
     async function load() {
       try {
-        const entry = await getLatestScanFile();
+        // On native platforms, check the launch URL first (cold-start deep-link).
+        const nativeEntry = await getLaunchScanEntry();
+        if (cancelled) return;
+
+        const entry = nativeEntry ?? await getLatestScanFile();
         if (cancelled) return;
 
         if (!entry) {
+          // On native: register a listener for future deep-links while the
+          // page is shown (warm-start / foregrounded from background).
+          listenForIncomingScan((liveEntry) => {
+            if (cancelled) return;
+            const ext = getFileExtension(liveEntry.name);
+            if (ext === 'json') {
+              setState({ name: 'json_import', file: liveEntry });
+            } else if (ext === 'ply') {
+              processPlyEntry(liveEntry, () => cancelled);
+            } else {
+              setState({ name: 'unsupported', file: liveEntry });
+            }
+          }).then(cleanup => { cleanupListener = cleanup; }).catch(() => {/* best effort */});
+
           setState({ name: 'empty' });
           return;
         }
@@ -86,31 +163,7 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
         }
 
         if (ext === 'ply') {
-          setState({ name: 'processing_ply', file: entry });
-          // Offload PLY parsing to the Web Worker
-          const worker = new Worker(
-            new URL('../../../workers/scanProcessWorker.ts', import.meta.url),
-            { type: 'module' },
-          );
-          // Clone the buffer so entry.data remains valid (retries re-read from
-          // IDB, but keeping entry.data intact avoids a second IDB round-trip
-          // in error-recovery scenarios).
-          const transferBuffer = entry.data.slice(0);
-          worker.postMessage({ type: 'parse_ply', buffer: transferBuffer }, [transferBuffer]);
-          worker.onmessage = (e: MessageEvent) => {
-            worker.terminate();
-            if (cancelled) return;
-            const msg = e.data as { type: string; positions?: Float32Array; vertexCount?: number; message?: string };
-            if (msg.type === 'ply_result' && msg.positions && msg.vertexCount != null) {
-              setState({ name: 'ply_viewer', file: entry, positions: msg.positions, vertexCount: msg.vertexCount });
-            } else {
-              setState({ name: 'error', message: msg.message ?? 'PLY parsing failed' });
-            }
-          };
-          worker.onerror = (e) => {
-            worker.terminate();
-            if (!cancelled) setState({ name: 'error', message: e.message });
-          };
+          processPlyEntry(entry, () => cancelled);
           return;
         }
 
@@ -123,7 +176,11 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
     }
 
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      cleanupListener?.();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const containerStyle: React.CSSProperties = {
@@ -227,34 +284,17 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
     );
   }
 
-  // ── PLY viewer ──
-  if (state.name === 'ply_viewer') {
+  // ── PLY editor — full 3D review surface ──
+  if (state.name === 'ply_editor') {
     return (
-      <div style={{ ...containerStyle, maxWidth: '100%', padding: 0, height: '100dvh', display: 'flex', flexDirection: 'column' }}>
-        {/* Toolbar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#1a1a2e', color: '#e5e7eb' }}>
-          <button
-            onClick={handleDone}
-            style={{ fontSize: 13, padding: '4px 12px', background: 'rgba(255,255,255,0.1)', color: '#e5e7eb', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, cursor: 'pointer' }}
-          >
-            ← Done
-          </button>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>{state.file.name}</span>
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af' }}>
-            Drag to orbit · Scroll to zoom · Two-finger pan
-          </span>
-        </div>
-        {/* Canvas */}
-        <div style={{ flex: 1, position: 'relative' }}>
-          <Suspense fallback={<p style={{ padding: 24, color: '#9ca3af' }}>Loading 3D viewer…</p>}>
-            <PointCloudViewer
-              positions={state.positions}
-              vertexCount={state.vertexCount}
-              height="100%"
-            />
-          </Suspense>
-        </div>
-      </div>
+      <Suspense fallback={<p style={{ padding: 24, color: '#9ca3af' }}>Loading 3D editor…</p>}>
+        <RoomScanEditor
+          positions={state.positions}
+          vertexCount={state.vertexCount}
+          session={state.session}
+          onDone={handleDone}
+        />
+      </Suspense>
     );
   }
 

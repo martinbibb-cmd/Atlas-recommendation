@@ -8,8 +8,31 @@ import path from 'path'
 // source entry-point so that both Vite and Vitest can resolve it.
 // If the contracts package ever moves its source entry-point, this alias
 // and the corresponding tsconfig.app.json `paths` entry must be updated too.
+
+// ── Capacitor mode ────────────────────────────────────────────────────────────
+// When building for iOS (`--mode capacitor`) the Cloudflare Pages/Workers
+// plugin must NOT be loaded — Cloudflare Workers bindings (D1, KV, R2) are
+// server-only and cannot be bundled into the native WebView build.
+const isCapacitor = process.env.VITE_MODE === 'capacitor' ||
+  process.argv.includes('--mode') &&
+  process.argv[process.argv.indexOf('--mode') + 1] === 'capacitor';
+
+const cloudflarePlugin = isCapacitor
+  ? []
+  : (() => {
+      try {
+        // Dynamically import so the file can be parsed in Capacitor builds
+        // even if @cloudflare/vite-plugin is unavailable.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { cloudflare } = require('@cloudflare/vite-plugin');
+        return [cloudflare()];
+      } catch {
+        return [];
+      }
+    })();
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), ...cloudflarePlugin],
   resolve: {
     alias: {
       '@atlas/contracts': path.resolve(
