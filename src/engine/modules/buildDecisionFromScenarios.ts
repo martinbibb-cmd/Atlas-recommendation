@@ -51,6 +51,15 @@ function scoreScenario(s: ScenarioResult): number {
 // ─── Headline builder ─────────────────────────────────────────────────────────
 
 function buildHeadline(scenario: ScenarioResult): string {
+  // Mixergy / pressure-tolerant override — when the engine has flagged this
+  // scenario as Mixergy-recommended (dhwSubtype === 'mixergy'), the headline
+  // must reflect that explicitly.  Defaulting to "unvented cylinder" directly
+  // contradicts the constraint layer, which notes that mains pressure is
+  // insufficient for a standard unvented cylinder.
+  if (scenario.dhwSubtype === 'mixergy') {
+    return 'A Mixergy cylinder / pressure-tolerant stored hot water system is the right fit for this home.';
+  }
+
   // For stored-water scenarios, use the full DHW arrangement in the headline
   // so the recommendation is unambiguous about the complete system (heat source + DHW).
   // Using just "system boiler" or "regular boiler" loses the critical DHW subtype

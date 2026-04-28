@@ -170,7 +170,21 @@ export function buildScenariosFromEngineOutput(engineOutput: EngineOutputV1): Sc
   const recommended = options.find((o) => o.label === recommendedLabel || o.status === 'viable');
   const recommendedId = recommended?.id;
 
-  return options.map(adaptOption).sort((a, b) => {
+  // When the engine's primary recommendation contains "mixergy" (i.e. the
+  // MIXERGY_RECOMMENDATION_LABEL from OutputBuilder), the stored-water unvented
+  // scenarios must be tagged so downstream headline builders and label maps
+  // can surface the correct Mixergy / pressure-tolerant copy instead of the
+  // generic "unvented cylinder" framing.
+  const isMixeryRecommended = /mixergy/i.test(recommendedLabel);
+  const UNVENTED_IDS = new Set<string>(['stored_unvented', 'system_unvented']);
+
+  return options.map((o) => {
+    const adapted = adaptOption(o);
+    if (isMixeryRecommended && UNVENTED_IDS.has(o.id)) {
+      return { ...adapted, dhwSubtype: 'mixergy' as const };
+    }
+    return adapted;
+  }).sort((a, b) => {
     if (recommendedId && a.scenarioId === recommendedId) return -1;
     if (recommendedId && b.scenarioId === recommendedId) return 1;
     return 0;

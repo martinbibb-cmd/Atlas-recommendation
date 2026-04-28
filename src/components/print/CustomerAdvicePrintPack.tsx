@@ -419,6 +419,12 @@ function ComparisonSection({ decision, scenarios }: { decision: AtlasDecisionV1;
     ashp:    'Air source heat pump',
   };
 
+  /** Returns the customer-facing system label for a scenario, with Mixergy override. */
+  const scenarioSystemName = (scenario: ScenarioResult): string => {
+    if (scenario.dhwSubtype === 'mixergy') return 'Mixergy cylinder';
+    return SYSTEM_LABEL[scenario.system.type] ?? scenario.system.type;
+  };
+
   return (
     <section className="capp-comparison" aria-label="Atlas Pick vs alternatives" data-testid="capp-comparison">
       <p className="capp-comparison__heading">Atlas Pick vs alternatives</p>
@@ -434,7 +440,7 @@ function ComparisonSection({ decision, scenarios }: { decision: AtlasDecisionV1;
                 <span className="capp-comparison__badge">Atlas Pick</span>
               )}
               <p className="capp-comparison__system-name">
-                {SYSTEM_LABEL[scenario.system.type] ?? scenario.system.type}
+                {scenarioSystemName(scenario)}
               </p>
               <p className="capp-comparison__system-summary">{scenario.system.summary}</p>
               {scenario.keyBenefits.length > 0 && (
