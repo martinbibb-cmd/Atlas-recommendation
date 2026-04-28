@@ -20,6 +20,7 @@ import type { EngineOutputV1, OptionCardV1 } from '../../contracts/EngineOutputV
 import type { ScenarioResult, ScenarioPerformance, ScenarioPhysicsFlags, ScenarioSystemType } from '../../contracts/ScenarioResult';
 import { resolveNominalEfficiencyPct } from '../utils/efficiency';
 import { estimateCop } from '../../features/explainers/energy/lib/energyMath';
+import { buildScenarioDisplayIdentity } from './buildScenarioDisplayIdentity';
 
 // UK design outdoor temperature (°C) — canonical value matching SystemConditionImpactModule.
 const OUTDOOR_DESIGN_TEMP_C = -3;
@@ -180,10 +181,10 @@ export function buildScenariosFromEngineOutput(engineOutput: EngineOutputV1): Sc
 
   return options.map((o) => {
     const adapted = adaptOption(o);
-    if (isMixergyRecommended && UNVENTED_IDS.has(o.id)) {
-      return { ...adapted, dhwSubtype: 'mixergy' as const };
-    }
-    return adapted;
+    const withSubtype: ScenarioResult = isMixergyRecommended && UNVENTED_IDS.has(o.id)
+      ? { ...adapted, dhwSubtype: 'mixergy' as const }
+      : adapted;
+    return { ...withSubtype, display: buildScenarioDisplayIdentity(withSubtype) };
   }).sort((a, b) => {
     if (recommendedId && a.scenarioId === recommendedId) return -1;
     if (recommendedId && b.scenarioId === recommendedId) return 1;

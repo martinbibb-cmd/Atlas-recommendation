@@ -56,6 +56,7 @@ import type {
   SpatialProofBlock,
 } from '../../contracts/VisualBlock';
 import { TechnicalAuditAppendix } from './TechnicalAuditAppendix';
+import { buildScenarioDisplayIdentity } from '../../engine/modules/buildScenarioDisplayIdentity';
 import '../presentation/CustomerDeck.css';
 import './CustomerAdvicePrintPack.css';
 
@@ -412,25 +413,13 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
 function ComparisonSection({ decision, scenarios }: { decision: AtlasDecisionV1; scenarios: ScenarioResult[] }) {
   if (scenarios.length <= 1) return null;
 
-  const SYSTEM_LABEL: Record<ScenarioResult['system']['type'], string> = {
-    combi:   'Combi boiler',
-    system:  'System boiler',
-    regular: 'Regular boiler',
-    ashp:    'Air source heat pump',
-  };
-
-  /** Returns the customer-facing system label for a scenario, with Mixergy override. */
-  const scenarioSystemName = (scenario: ScenarioResult): string => {
-    if (scenario.dhwSubtype === 'mixergy') return 'Mixergy cylinder';
-    return SYSTEM_LABEL[scenario.system.type] ?? scenario.system.type;
-  };
-
   return (
     <section className="capp-comparison" aria-label="Atlas Pick vs alternatives" data-testid="capp-comparison">
       <p className="capp-comparison__heading">Atlas Pick vs alternatives</p>
       <div className="capp-comparison__grid">
         {scenarios.map((scenario) => {
           const isAtlasPick = scenario.scenarioId === decision.recommendedScenarioId;
+          const display = scenario.display ?? buildScenarioDisplayIdentity(scenario);
           return (
             <div
               key={scenario.scenarioId}
@@ -440,7 +429,7 @@ function ComparisonSection({ decision, scenarios }: { decision: AtlasDecisionV1;
                 <span className="capp-comparison__badge">Atlas Pick</span>
               )}
               <p className="capp-comparison__system-name">
-                {scenarioSystemName(scenario)}
+                {display.title}
               </p>
               <p className="capp-comparison__system-summary">{scenario.system.summary}</p>
               {scenario.keyBenefits.length > 0 && (
