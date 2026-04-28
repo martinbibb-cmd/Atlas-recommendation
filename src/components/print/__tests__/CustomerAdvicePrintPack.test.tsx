@@ -397,7 +397,8 @@ describe('CustomerAdvicePrintPack — future upgrade block', () => {
   it('renders future upgrade paths', () => {
     const blocks = makeBlocks({ includeFuture: true });
     render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: blocks })} />);
-    expect(screen.getByText('Heat pump ready')).toBeTruthy();
+    // "Heat pump ready" may appear in both the future_upgrade block and the AI context block
+    expect(screen.getAllByText('Heat pump ready').length).toBeGreaterThan(0);
     expect(screen.getByText('Solar thermal compatible')).toBeTruthy();
   });
 });

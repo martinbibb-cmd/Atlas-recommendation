@@ -199,7 +199,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
 
   // ── Callback: deck CTA opens the five-tab portal surface ─────────────────
   function handleOpenPortal() {
-    const recommendedScenarioId = portalViewModel?.comparisonCards[0]?.scenarioId;
+    const recommendedScenarioId = portalViewModel?.verdictData.comparisonCards[0]?.scenarioId;
     if (!recommendedScenarioId) return; // guard: no valid scenario — do not open a degenerate portal
     setPortalLaunchContext({ recommendedScenarioId });
     setViewMode('portal');
@@ -400,7 +400,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           input={engineInput}
           recommendationResult={engineResult.recommendationResult}
           onOpenSimulator={surveyData ? () => setShowSimulator(true) : undefined}
-          onOpenPortal={portalViewModel?.comparisonCards[0]?.scenarioId ? handleOpenPortal : undefined}
+          onOpenPortal={portalViewModel?.verdictData.comparisonCards[0]?.scenarioId ? handleOpenPortal : undefined}
           deckMode
           lockedSummary={lockedSummary}
         />

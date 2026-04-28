@@ -18,8 +18,8 @@
  *   3. Decision to customer deck — VisualBlock[] contains all required block types
  *   4. Customer advice pack — print surface, no diagnostics, Requirement label,
  *      portal CTA visible
- *   5. Portal proof — all five tabs render; shower and spatial proof in "why" tab;
- *      future tab excludes included scope
+ *   5. Portal proof — Four Atlas Pillar tabs render; shower and spatial proof in
+ *      verdict tab; roadmap tab excludes included scope
  *   6. Engineer handoff — same recommended scenario, same quote scope, shower note,
  *      spatial layout and routes present
  *   7. Internal route guard — diagnostic surfaces unavailable by default
@@ -500,42 +500,41 @@ describe('QA Flow 4 — Customer advice pack contract', () => {
 
 describe('QA Flow 5 — Portal view model contract', () => {
 
-  it('portal view model has five tabs', () => {
-    expect(QA_PORTAL_VM.tabs).toHaveLength(5);
+  it('portal view model has four tabs (Four Atlas Pillars)', () => {
+    expect(QA_PORTAL_VM.tabs).toHaveLength(4);
   });
 
-  it('tabs include recommended, why, compare, daily_use, and future', () => {
+  it('tabs include identity, verdict, experience, and roadmap (Four Atlas Pillars)', () => {
     const ids = QA_PORTAL_VM.tabs.map((t) => t.id);
-    expect(ids).toContain('recommended');
-    expect(ids).toContain('why');
-    expect(ids).toContain('compare');
-    expect(ids).toContain('daily_use');
-    expect(ids).toContain('future');
+    expect(ids).toContain('identity');
+    expect(ids).toContain('verdict');
+    expect(ids).toContain('experience');
+    expect(ids).toContain('roadmap');
   });
 
-  describe('recommended tab', () => {
-    it('recommendedBlocks are present (hero/facts/solution)', () => {
-      expect(QA_PORTAL_VM.recommendedBlocks.length).toBeGreaterThan(0);
+  describe('identity tab (Pillar 1)', () => {
+    it('identityBlocks are present (hero/facts/solution)', () => {
+      expect(QA_PORTAL_VM.identityBlocks.length).toBeGreaterThan(0);
     });
 
-    it('recommendedBlocks starts with the hero block', () => {
-      expect(QA_PORTAL_VM.recommendedBlocks[0]?.type).toBe('hero');
+    it('identityBlocks starts with the hero block', () => {
+      expect(QA_PORTAL_VM.identityBlocks[0]?.type).toBe('hero');
     });
 
-    it('recommended hero carries the same scenarioId as the decision', () => {
-      const hero = QA_PORTAL_VM.recommendedBlocks.find((b) => b.type === 'hero');
+    it('identity hero carries the same scenarioId as the decision', () => {
+      const hero = QA_PORTAL_VM.identityBlocks.find((b) => b.type === 'hero');
       expect(hero?.type === 'hero' && hero.recommendedScenarioId)
         .toBe(QA_DECISION.recommendedScenarioId);
     });
   });
 
-  describe('why tab', () => {
-    it('whyCards are present', () => {
-      expect(QA_PORTAL_VM.whyCards.length).toBeGreaterThan(0);
+  describe('verdict tab (Pillar 2)', () => {
+    it('verdictData.whyCards are present', () => {
+      expect(QA_PORTAL_VM.verdictData.whyCards.length).toBeGreaterThan(0);
     });
 
-    it('shower compatibility card appears in whyCards', () => {
-      const showerCard = QA_PORTAL_VM.whyCards.find(
+    it('shower compatibility card appears in verdictData.whyCards', () => {
+      const showerCard = QA_PORTAL_VM.verdictData.whyCards.find(
         (c) => c.id === 'shower-compatibility',
       );
       expect(showerCard).toBeDefined();
@@ -543,49 +542,49 @@ describe('QA Flow 5 — Portal view model contract', () => {
 
     it('shower compatibility card value matches the customerSummary', () => {
       const note = QA_DECISION.showerCompatibilityNote!;
-      const showerCard = QA_PORTAL_VM.whyCards.find(
+      const showerCard = QA_PORTAL_VM.verdictData.whyCards.find(
         (c) => c.id === 'shower-compatibility',
       );
       expect(showerCard?.value).toBe(note.customerSummary);
     });
 
-    it('spatialProof is present in portal view model (from QA plan)', () => {
-      expect(QA_PORTAL_VM.spatialProof).not.toBeNull();
+    it('verdictData.spatialProof is present in portal view model (from QA plan)', () => {
+      expect(QA_PORTAL_VM.verdictData.spatialProof).not.toBeNull();
     });
 
-    it('spatialProof block type is spatial_proof', () => {
-      expect(QA_PORTAL_VM.spatialProof?.type).toBe('spatial_proof');
+    it('verdictData.spatialProof block type is spatial_proof', () => {
+      expect(QA_PORTAL_VM.verdictData.spatialProof?.type).toBe('spatial_proof');
     });
   });
 
-  describe('compare tab', () => {
-    it('comparisonCards are present', () => {
-      expect(QA_PORTAL_VM.comparisonCards.length).toBeGreaterThan(0);
+  describe('verdict comparison (Scenario Explorer)', () => {
+    it('verdictData.comparisonCards are present', () => {
+      expect(QA_PORTAL_VM.verdictData.comparisonCards.length).toBeGreaterThan(0);
     });
 
     it('first comparison card is the recommended scenario', () => {
-      expect(QA_PORTAL_VM.comparisonCards[0].isRecommended).toBe(true);
+      expect(QA_PORTAL_VM.verdictData.comparisonCards[0].isRecommended).toBe(true);
     });
 
     it('recommended comparison card scenarioId matches the decision', () => {
-      expect(QA_PORTAL_VM.comparisonCards[0].scenarioId)
+      expect(QA_PORTAL_VM.verdictData.comparisonCards[0].scenarioId)
         .toBe(QA_DECISION.recommendedScenarioId);
     });
   });
 
-  describe('daily_use tab', () => {
-    it('dailyUseCards are present for the recommended scenario', () => {
-      expect(QA_PORTAL_VM.dailyUseCards.length).toBeGreaterThan(0);
+  describe('experience tab (Pillar 3)', () => {
+    it('experienceData.cards are present for the recommended scenario', () => {
+      expect(QA_PORTAL_VM.experienceData.cards.length).toBeGreaterThan(0);
     });
 
-    it('dailyUseCards first entry covers the recommended scenario', () => {
-      expect(QA_PORTAL_VM.dailyUseCards[0].scenarioId)
+    it('experienceData.cards first entry covers the recommended scenario', () => {
+      expect(QA_PORTAL_VM.experienceData.cards[0].scenarioId)
         .toBe(QA_DECISION.recommendedScenarioId);
     });
   });
 
-  describe('future tab — excludes included scope', () => {
-    it('future blocks do not contain paths that are already in the included scope', () => {
+  describe('roadmap tab (Pillar 4) — excludes included scope', () => {
+    it('roadmap blocks do not contain paths that are already in the included scope', () => {
       // Build the set of included scope labels
       const includedLabels = new Set(
         QA_DECISION.quoteScope
@@ -593,7 +592,7 @@ describe('QA Flow 5 — Portal view model contract', () => {
           .map((i) => i.label.toLowerCase().trim()),
       );
 
-      for (const block of QA_PORTAL_VM.futureBlocks) {
+      for (const block of QA_PORTAL_VM.roadmapBlocks) {
         if (block.type !== 'future_upgrade') continue;
         for (const path of block.paths) {
           expect(includedLabels.has(path.toLowerCase().trim())).toBe(false);
@@ -697,8 +696,8 @@ describe('QA Flow 7 — Internal route guard', () => {
     expect(allText).not.toMatch(/objectiveScore/);
   });
 
-  it('portal view model whyCards do not expose raw engine score labels', () => {
-    const allCards = JSON.stringify(QA_PORTAL_VM.whyCards);
+  it('portal view model verdictData.whyCards do not expose raw engine score labels', () => {
+    const allCards = JSON.stringify(QA_PORTAL_VM.verdictData.whyCards);
     expect(allCards).not.toMatch(/overallScore/);
     expect(allCards).not.toMatch(/hydraulicLimit/);
     expect(allCards).not.toMatch(/physicsFlag/);
@@ -733,7 +732,7 @@ describe('QA Cross-surface alignment', () => {
       return hero?.type === 'hero' ? hero.recommendedScenarioId : null;
     })();
     const handoffId   = QA_HANDOFF.jobSummary.recommendedScenarioId;
-    const portalCmpId = QA_PORTAL_VM.comparisonCards[0].scenarioId;
+    const portalCmpId = QA_PORTAL_VM.verdictData.comparisonCards[0].scenarioId;
 
     expect(heroId).toBe(QA_DECISION.recommendedScenarioId);
     expect(handoffId).toBe(QA_DECISION.recommendedScenarioId);
@@ -755,12 +754,12 @@ describe('QA Cross-surface alignment', () => {
     }
   });
 
-  it('shower compatibility customer summary appears in both decision.compatibilityWarnings and portal whyCards', () => {
+  it('shower compatibility customer summary appears in both decision.compatibilityWarnings and portal verdictData.whyCards', () => {
     const note = QA_DECISION.showerCompatibilityNote!;
     // In the decision
     expect(QA_DECISION.compatibilityWarnings).toContain(note.customerSummary);
     // In the portal why cards
-    const showerCard = QA_PORTAL_VM.whyCards.find((c) => c.id === 'shower-compatibility');
+    const showerCard = QA_PORTAL_VM.verdictData.whyCards.find((c) => c.id === 'shower-compatibility');
     expect(showerCard?.value).toBe(note.customerSummary);
   });
 
@@ -771,8 +770,8 @@ describe('QA Cross-surface alignment', () => {
 
   it('spatialProof in portal view model matches the spatial_proof block in QA_BLOCKS', () => {
     const blocksProof = QA_BLOCKS.find((b) => b.type === 'spatial_proof');
-    expect(QA_PORTAL_VM.spatialProof?.id).toBe(blocksProof?.id);
-    expect(QA_PORTAL_VM.spatialProof?.rooms).toEqual(
+    expect(QA_PORTAL_VM.verdictData.spatialProof?.id).toBe(blocksProof?.id);
+    expect(QA_PORTAL_VM.verdictData.spatialProof?.rooms).toEqual(
       blocksProof?.type === 'spatial_proof' ? blocksProof.rooms : [],
     );
   });

@@ -1,18 +1,16 @@
 /**
- * PortalPage.tsx — Five-tab portal proof surface.
+ * PortalPage.tsx — Four-Pillar customer portal surface.
  *
- * Tabs:
- *   1. Recommended for you  — hero/facts/solution/warning/scope blocks
- *   2. Why Atlas chose this — proof cards (reasons, risks, facts, lifecycle)
- *   3. Compare other options — one comparison card per scenario
- *   4. Daily-use demo       — day-to-day outcome cards
- *   5. Future upgrades      — future_upgrade blocks
+ * Pillars:
+ *   1. What Matters to You (identity)   — priority cards + property facts
+ *   2. Verdict & Physics (verdict)      — physics proof cards, Scenario Explorer with "Why?" drill-downs
+ *   3. Your Day (experience)            — 24-hour interactive timeline
+ *   4. Roadmap (roadmap)               — future upgrade paths
  *
  * Design rules:
  *   - Renderer is dumb — no recommendation logic re-derived here.
  *   - Reuses existing block views from CustomerDeck for block rendering.
  *   - PortalViewModel drives all content — built externally by buildPortalViewModel.
- *   - CTA button is presentational only — no portal routing yet (PR6).
  */
 
 import { useState } from 'react';
@@ -54,7 +52,13 @@ function renderPortalBlock(block: VisualBlock): React.ReactElement | null {
 
 // ─── Tab panels ───────────────────────────────────────────────────────────────
 
-function RecommendedTab({ blocks }: { blocks: PortalViewModel['recommendedBlocks'] }) {
+/**
+ * Pillar 1 — Identity: "What Matters to You"
+ * Shows priority cards (customer_need_resolution), property facts, and the
+ * recommended system headline so the customer can see why the system was chosen
+ * in the context of their stated needs.
+ */
+function IdentityTab({ blocks }: { blocks: PortalViewModel['identityBlocks'] }) {
   if (blocks.length === 0) {
     return <p className="portal-page__empty">No recommendation content available.</p>;
   }
@@ -72,52 +76,73 @@ function RecommendedTab({ blocks }: { blocks: PortalViewModel['recommendedBlocks
   );
 }
 
-function WhyTab({ cards, spatialProof }: { cards: PortalViewModel['whyCards']; spatialProof: PortalViewModel['spatialProof'] }) {
-  if (cards.length === 0 && !spatialProof) {
+/**
+ * Pillar 2 — Verdict: "Verdict & Physics"
+ * Physics-based proof cards, scenario comparison with "Why?" drill-downs,
+ * and spatial evidence.  The "Why?" section on each proof card lets the
+ * customer explore the physics evidence behind every rating.
+ */
+function VerdictTab({ verdictData }: { verdictData: PortalViewModel['verdictData'] }) {
+  const { whyCards, comparisonCards, spatialProof } = verdictData;
+  const hasContent = whyCards.length > 0 || comparisonCards.length > 0 || spatialProof;
+  if (!hasContent) {
     return <p className="portal-page__empty">No proof cards available.</p>;
   }
   return (
-    <div className="portal-page__why-stack">
-      {spatialProof && (
-        <SpatialProofSection block={spatialProof} />
-      )}
-      {cards.length > 0 && (
-        <>
+    <div className="portal-page__verdict-stack">
+      {/* Physics proof — key reasons and avoided risks */}
+      {whyCards.length > 0 && (
+        <section className="portal-page__verdict-section" aria-label="Physics evidence">
           <p className="portal-page__why-intro">
             These are the specific measurements and signals Atlas used to make this recommendation for your home
           </p>
           <div className="portal-page__card-grid">
-            {cards.map((card) => (
+            {whyCards.map((card) => (
               <ProofCard key={card.id} card={card} />
             ))}
           </div>
-        </>
+        </section>
+      )}
+
+      {/* Scenario Explorer — Atlas Pick vs alternatives */}
+      {comparisonCards.length > 0 && (
+        <section className="portal-page__verdict-section" aria-label="Scenario Explorer">
+          <p className="portal-page__scenario-intro">
+            See how the recommended system compares to the alternatives evaluated for your home
+          </p>
+          <div className="portal-page__comparison-stack">
+            {comparisonCards.map((card) => (
+              <ComparisonCard key={card.scenarioId} card={card} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Spatial proof — where the work happens */}
+      {spatialProof && (
+        <section className="portal-page__verdict-section" aria-label="Spatial evidence">
+          <SpatialProofSection block={spatialProof} />
+        </section>
       )}
     </div>
   );
 }
 
-function CompareTab({ cards }: { cards: PortalViewModel['comparisonCards'] }) {
-  if (cards.length === 0) {
-    return <p className="portal-page__empty">No comparison data available.</p>;
-  }
-  return (
-    <div className="portal-page__comparison-stack">
-      {cards.map((card) => (
-        <ComparisonCard key={card.scenarioId} card={card} />
-      ))}
-    </div>
-  );
-}
-
-function DailyUseTab({ cards, simulation }: { cards: PortalViewModel['dailyUseCards']; simulation: PortalViewModel['dailyUseSimulation'] }) {
+/**
+ * Pillar 3 — Experience: "Your Day"
+ * Interactive 24-hour simulation showing how the recommended system performs
+ * across a typical day — from the morning shower to the evening heating cycle.
+ * Falls back to static day-to-day outcome cards when simulation is unavailable.
+ */
+function ExperienceTab({ experienceData }: { experienceData: PortalViewModel['experienceData'] }) {
+  const { simulation, cards } = experienceData;
   if (simulation) {
     return (
       <>
         <div className="portal-page__daily-use-header">
-          <p className="portal-page__daily-use-header-title">See how it works day-to-day</p>
+          <p className="portal-page__daily-use-header-title">Your 24-hour experience</p>
           <p className="portal-page__daily-use-header-desc">
-            Adjust occupancy, outdoor temperature, and usage patterns to see how the recommended system responds in real time.
+            Move through the day to see how the recommended system responds to a morning shower, kitchen tap use, and evening heating cycle.
           </p>
         </div>
         <DailyUseSimulatorPanel simulation={simulation} />
@@ -136,7 +161,11 @@ function DailyUseTab({ cards, simulation }: { cards: PortalViewModel['dailyUseCa
   );
 }
 
-function FutureTab({ blocks }: { blocks: PortalViewModel['futureBlocks'] }) {
+/**
+ * Pillar 4 — Roadmap: "Roadmap"
+ * Future upgrade paths enabled by this installation.
+ */
+function RoadmapTab({ blocks }: { blocks: PortalViewModel['roadmapBlocks'] }) {
   if (blocks.length === 0) {
     return <p className="portal-page__empty">No future upgrade paths available.</p>;
   }
@@ -209,7 +238,7 @@ export interface PortalPageProps {
   propertyTitle?: string;
   /**
    * Optional tab to activate on first render.
-   * Defaults to 'recommended' when absent.
+   * Defaults to 'identity' when absent.
    */
   initialTab?: PortalTabId;
   /** Full URL of this portal page — enables copy-link and native share. */
@@ -229,19 +258,18 @@ export interface PortalPageProps {
 /**
  * PortalPage
  *
- * Five-tab portal proof surface. Renders each tab's content using the
+ * Four-Pillar portal surface. Renders each pillar's content using the
  * supplied PortalViewModel — no recommendation logic lives here.
  */
 export function PortalPage({ viewModel, propertyTitle, initialTab, portalUrl, advicePackUrl, aiSummaryText, aiSummaryFilename, onDownloadAdvicePack }: PortalPageProps) {
-  const [activeTab, setActiveTab] = useState<PortalTabId>(initialTab ?? 'recommended');
+  const [activeTab, setActiveTab] = useState<PortalTabId>(initialTab ?? 'identity');
 
   function renderActivePanel() {
     switch (activeTab) {
-      case 'recommended': return <RecommendedTab blocks={viewModel.recommendedBlocks} />;
-      case 'why':         return <WhyTab         cards={viewModel.whyCards} spatialProof={viewModel.spatialProof} />;
-      case 'compare':     return <CompareTab     cards={viewModel.comparisonCards} />;
-      case 'daily_use':   return <DailyUseTab    cards={viewModel.dailyUseCards} simulation={viewModel.dailyUseSimulation} />;
-      case 'future':      return <FutureTab      blocks={viewModel.futureBlocks} />;
+      case 'identity':   return <IdentityTab    blocks={viewModel.identityBlocks} />;
+      case 'verdict':    return <VerdictTab      verdictData={viewModel.verdictData} />;
+      case 'experience': return <ExperienceTab   experienceData={viewModel.experienceData} />;
+      case 'roadmap':    return <RoadmapTab      blocks={viewModel.roadmapBlocks} />;
     }
   }
 
