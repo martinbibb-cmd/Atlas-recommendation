@@ -14,7 +14,6 @@ import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
 import CustomerRecommendationPrint from './components/print/CustomerRecommendationPrint';
-import AtlasFrameworkPrintPage from './components/print/AtlasFrameworkPrintPage';
 import { CustomerAdvicePrintPack } from './components/print/CustomerAdvicePrintPack';
 import { buildScenariosFromEngineOutput } from './engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from './engine/modules/buildDecisionFromScenarios';
@@ -1270,18 +1269,37 @@ export default function App() {
           />
         );
       })()}
-      {journey === 'framework-print' && (
-        <AtlasFrameworkPrintPage
-          onBack={() => {
-            // Return to the visit hub if we came from there, otherwise go to the presentation.
-            if (activeVisitId != null) {
-              setJourney('visit-hub');
-            } else {
-              setJourney('presentation');
-            }
-          }}
-        />
-      )}
+      {journey === 'framework-print' && labEngineInput != null && (() => {
+        const result    = runEngine(labEngineInput);
+        const scenarios = buildScenariosFromEngineOutput(result.engineOutput);
+        if (scenarios.length === 0) return null;
+        const decision = buildDecisionFromScenarios({
+          scenarios,
+          boilerType:     toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
+          ageYears:       labEngineInput.currentSystem?.boiler?.ageYears ?? 0,
+          occupancyCount: labEngineInput.occupancyCount,
+          bathroomCount:  labEngineInput.bathroomCount,
+          showerCompatibilityNote: result.engineOutput.showerCompatibilityNote,
+        });
+        const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, labEngineInput);
+        return (
+          <CustomerAdvicePrintPack
+            decision={decision}
+            scenarios={scenarios}
+            visualBlocks={visualBlocks}
+            portalUrl={labPortalUrl}
+            visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            onBack={() => {
+              // Return to the visit hub if we came from there, otherwise go to the presentation.
+              if (activeVisitId != null) {
+                setJourney('visit-hub');
+              } else {
+                setJourney('presentation');
+              }
+            }}
+          />
+        );
+      })()}
       {journey === 'insight-pack' && labEngineInput != null && labQuotes.length > 0 && (() => {
         const { engineOutput } = runEngine(labEngineInput);
         const surveyContext: InsightPackSurveyContext = {
