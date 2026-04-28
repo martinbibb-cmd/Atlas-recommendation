@@ -1,4 +1,4 @@
-import { createD1CircuitBreaker } from "../../../_utils/circuitBreaker.js";
+import { createD1CircuitBreaker } from "../../_utils/circuitBreaker.js";
 
 /**
  * POST /api/scan-sessions/:id/assets
