@@ -717,6 +717,194 @@
   margin: 0;
 }
 
+/* ─── Condition badge within At-a-Glance ────────────────────────────────────── */
+
+.capp-at-a-glance__condition-badge {
+  display: inline-block;
+  margin-top: 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  padding: 0.2rem 0.6rem;
+  border-radius: 3px;
+}
+
+.capp-at-a-glance__condition-badge--at_risk {
+  background: var(--capp-red-light);
+  color: var(--capp-red);
+  border: 1px solid #feb2b2;
+}
+
+.capp-at-a-glance__condition-badge--worn {
+  background: var(--capp-amber-light);
+  color: var(--capp-amber);
+  border: 1px solid #f6ad55;
+}
+
+.capp-at-a-glance__volume-gap {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--capp-amber);
+  font-style: italic;
+}
+
+/* ─── Mixergy Bridge Panel ───────────────────────────────────────────────────── */
+
+.capp-mixery-bridge {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: #eff6ff;
+  border: 1px solid #bee3f8;
+  border-radius: var(--capp-radius);
+}
+
+.capp-mixery-bridge__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-blue);
+  margin: 0 0 0.4rem;
+}
+
+.capp-mixery-bridge__body {
+  font-size: 0.85rem;
+  color: var(--capp-text);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ─── Radiator Upsell Panel ──────────────────────────────────────────────────── */
+
+.capp-radiator-upsell {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--capp-amber-light);
+  border: 1px solid #fbd38d;
+  border-radius: var(--capp-radius);
+}
+
+.capp-radiator-upsell__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-amber);
+  margin: 0 0 0.4rem;
+}
+
+.capp-radiator-upsell__body {
+  font-size: 0.85rem;
+  color: var(--capp-text);
+  margin: 0.3rem 0 0;
+  line-height: 1.6;
+}
+
+.capp-radiator-upsell__body:first-of-type {
+  margin-top: 0;
+}
+
+/* ─── Simultaneous Use Panel ─────────────────────────────────────────────────── */
+
+.capp-simultaneous-use {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--capp-green-light);
+  border: 1px solid #c6f6d5;
+  border-radius: var(--capp-radius);
+}
+
+.capp-simultaneous-use__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-green);
+  margin: 0 0 0.4rem;
+}
+
+.capp-simultaneous-use__body {
+  font-size: 0.85rem;
+  color: var(--capp-text);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ─── Mixer Shower Compatibility Section ─────────────────────────────────────── */
+
+.capp-mixer-shower-check {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--capp-amber-light);
+  border: 1px solid #fbd38d;
+  border-left: 3px solid var(--capp-amber);
+  border-radius: var(--capp-radius);
+}
+
+.capp-mixer-shower-check__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-amber);
+  margin: 0 0 0.4rem;
+}
+
+.capp-mixer-shower-check__summary {
+  font-size: 0.85rem;
+  color: var(--capp-text);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ─── Three-Year Roadmap Section ─────────────────────────────────────────────── */
+
+.capp-three-year-roadmap {
+  margin: 1.25rem 0;
+  padding: 0.875rem 1rem;
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: var(--capp-radius);
+}
+
+.capp-three-year-roadmap__heading {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--capp-green);
+  margin: 0 0 0.75rem;
+}
+
+.capp-three-year-roadmap__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.capp-three-year-roadmap__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.capp-three-year-roadmap__year {
+  font-weight: 700;
+  color: var(--capp-green);
+  white-space: nowrap;
+  min-width: 3.5rem;
+  flex-shrink: 0;
+}
+
+.capp-three-year-roadmap__action {
+  color: var(--capp-text);
+  line-height: 1.55;
+}
+
 /* ─── Print overrides for new sections ──────────────────────────────────────── */
 
 @media print {
@@ -725,7 +913,12 @@
   .capp-avoided-risks,
   .capp-requirements,
   .capp-complexity,
-  .capp-ai-context {
+  .capp-ai-context,
+  .capp-mixery-bridge,
+  .capp-radiator-upsell,
+  .capp-simultaneous-use,
+  .capp-mixer-shower-check,
+  .capp-three-year-roadmap {
     page-break-inside: avoid;
     break-inside: avoid;
   }
