@@ -907,3 +907,455 @@ describe('CustomerAdvicePrintPack — CustomerSummaryV1 trust boundary', () => {
     spy.mockRestore();
   });
 });
+
+// ─── Pillar 1: At-a-Glance panel enhancements ─────────────────────────────────
+
+describe('CustomerAdvicePrintPack — At-a-Glance panel enhancements', () => {
+
+  it('shows cylinder volume when present in supportingFacts', () => {
+    const decision = makeDecision({
+      supportingFacts: [
+        { label: 'Occupants', value: 5, source: 'survey' },
+        { label: 'Bathrooms', value: 2, source: 'survey' },
+        { label: 'Cylinder volume', value: 112, source: 'survey' },
+      ],
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByText('Cylinder volume')).toBeTruthy();
+    expect(screen.getByText('112')).toBeTruthy();
+  });
+
+  it('shows condition badge when lifecycle condition is at_risk', () => {
+    const decision = makeDecision({
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'System is at risk.',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const badge = screen.getByTestId('capp-at-a-glance-condition');
+    expect(badge).toBeTruthy();
+    expect(badge.textContent).toContain('at risk');
+  });
+
+  it('shows condition badge when lifecycle condition is worn', () => {
+    const decision = makeDecision({
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 14, condition: 'worn' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'moderate', scaleRisk: 'medium', usageIntensity: 'moderate', maintenanceLevel: 'average' },
+        riskIndicators: [],
+        summary: 'System is worn.',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const badge = screen.getByTestId('capp-at-a-glance-condition');
+    expect(badge.textContent).toContain('worn');
+  });
+
+  it('does not show condition badge when condition is good', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.queryByTestId('capp-at-a-glance-condition')).toBeNull();
+  });
+
+  it('shows volume gap advisory when occupants >= 4 and cylinder <= 150L', () => {
+    const decision = makeDecision({
+      supportingFacts: [
+        { label: 'Occupants', value: 5, source: 'survey' },
+        { label: 'Bathrooms', value: 2, source: 'survey' },
+        { label: 'Cylinder volume', value: 112, source: 'survey' },
+      ],
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const gap = screen.getByTestId('capp-at-a-glance-volume-gap');
+    expect(gap).toBeTruthy();
+    expect(gap.textContent).toContain('Volume gap');
+    expect(gap.textContent).toContain('200 L');
+  });
+
+  it('does not show volume gap advisory when cylinder is large enough', () => {
+    const decision = makeDecision({
+      supportingFacts: [
+        { label: 'Occupants', value: 5, source: 'survey' },
+        { label: 'Cylinder volume', value: 210, source: 'survey' },
+      ],
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.queryByTestId('capp-at-a-glance-volume-gap')).toBeNull();
+  });
+
+  it('does not show volume gap advisory when occupants < 4', () => {
+    const decision = makeDecision({
+      supportingFacts: [
+        { label: 'Occupants', value: 3, source: 'survey' },
+        { label: 'Cylinder volume', value: 112, source: 'survey' },
+      ],
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.queryByTestId('capp-at-a-glance-volume-gap')).toBeNull();
+  });
+});
+
+// ─── Pillar 1: InstallComplexityBadge cleaning note ───────────────────────────
+
+describe('CustomerAdvicePrintPack — InstallComplexityBadge at_risk cleaning note', () => {
+
+  it('appends system cleaning note to description when condition is at_risk', () => {
+    const decision = makeDecision({
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'System is at risk.',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const badge = screen.getByTestId('capp-complexity');
+    expect(badge.textContent).toContain('System cleaning and corrosion protection');
+  });
+
+  it('does not append cleaning note when condition is good', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const badge = screen.getByTestId('capp-complexity');
+    expect(badge.textContent).not.toContain('System cleaning');
+  });
+});
+
+// ─── Pillar 2: Mixergy Bridge Panel ───────────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — MixeryBridgePanel', () => {
+
+  it('renders when stored system has pressureConstraint flag', () => {
+    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    expect(screen.getByTestId('capp-mixery-bridge')).toBeTruthy();
+  });
+
+  it('does not render when pressureConstraint is false', () => {
+    const scenario = makeScenario({ physicsFlags: { pressureConstraint: false } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    expect(screen.queryByTestId('capp-mixery-bridge')).toBeNull();
+  });
+
+  it('does not render for combi scenarios even with pressureConstraint', () => {
+    const scenario = makeScenario({
+      scenarioId: 'combi',
+      system: { type: 'combi', summary: 'Combi boiler' },
+      physicsFlags: { pressureConstraint: true },
+    });
+    const decision = makeDecision({ recommendedScenarioId: 'combi' });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision, scenarios: [scenario] })} />);
+    expect(screen.queryByTestId('capp-mixery-bridge')).toBeNull();
+  });
+
+  it('contains tank-fed terminology (not "low pressure system")', () => {
+    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    const panel = screen.getByTestId('capp-mixery-bridge');
+    expect(panel.textContent).toContain('tank-fed');
+    expect(panel.textContent).not.toMatch(/low pressure system/i);
+    expect(panel.textContent).not.toMatch(/gravity system/i);
+  });
+});
+
+// ─── Pillar 2: Radiator Upsell Panel ──────────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — RadiatorUpsellPanel', () => {
+
+  it('renders when highTempRequired flag is set', () => {
+    const scenario = makeScenario({ physicsFlags: { highTempRequired: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    expect(screen.getByTestId('capp-radiator-upsell')).toBeTruthy();
+  });
+
+  it('renders when hydraulicLimit flag is set', () => {
+    const scenario = makeScenario({ physicsFlags: { hydraulicLimit: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    expect(screen.getByTestId('capp-radiator-upsell')).toBeTruthy();
+  });
+
+  it('does not render when neither flag is set', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.queryByTestId('capp-radiator-upsell')).toBeNull();
+  });
+
+  it('hydraulicLimit body uses hedged pipework language', () => {
+    const scenario = makeScenario({ physicsFlags: { hydraulicLimit: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    const panel = screen.getByTestId('capp-radiator-upsell');
+    expect(panel.textContent).toContain('may need upgrading');
+    expect(panel.textContent).toContain('confirm against the selected model');
+  });
+});
+
+// ─── Pillar 3: Simultaneous Use Panel ─────────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — SimultaneousUsePanel', () => {
+
+  it('renders for stored system with 5 occupants', () => {
+    const decision = makeDecision({
+      supportingFacts: [
+        { label: 'Occupants', value: 5, source: 'survey' },
+        { label: 'Bathrooms', value: 2, source: 'survey' },
+      ],
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByTestId('capp-simultaneous-use')).toBeTruthy();
+    expect(screen.getByText(/Simultaneous use: 5 people/)).toBeTruthy();
+  });
+
+  it('renders for stored system with exactly 4 occupants', () => {
+    const decision = makeDecision({
+      supportingFacts: [
+        { label: 'Occupants', value: 4, source: 'survey' },
+      ],
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByTestId('capp-simultaneous-use')).toBeTruthy();
+  });
+
+  it('does not render when occupants is 3', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.queryByTestId('capp-simultaneous-use')).toBeNull();
+  });
+
+  it('does not render for combi scenarios even with high occupancy', () => {
+    const decision = makeDecision({
+      recommendedScenarioId: 'combi',
+      supportingFacts: [{ label: 'Occupants', value: 5, source: 'survey' }],
+    });
+    const scenario = makeScenario({
+      scenarioId: 'combi',
+      system: { type: 'combi', summary: 'Combi boiler' },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision, scenarios: [scenario] })} />);
+    expect(screen.queryByTestId('capp-simultaneous-use')).toBeNull();
+  });
+
+  it('body uses "stored hot water" terminology (not "unlimited hot water")', () => {
+    const decision = makeDecision({
+      supportingFacts: [{ label: 'Occupants', value: 5, source: 'survey' }],
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const panel = screen.getByTestId('capp-simultaneous-use');
+    expect(panel.textContent).toContain('Stored hot water');
+    expect(panel.textContent).not.toMatch(/unlimited hot water/i);
+  });
+});
+
+// ─── Pillar 3: Mixer Shower Compatibility Section ─────────────────────────────
+
+describe('CustomerAdvicePrintPack — MixerShowerCompatibilitySection', () => {
+
+  it('renders when showerCompatibilityNote.warningKey is mixer_balanced_supply', () => {
+    const decision = makeDecision({
+      showerCompatibilityNote: {
+        warningKey: 'mixer_balanced_supply',
+        customerSummary: 'Your mixer shower may require a balanced pressure valve after the upgrade.',
+        engineerNote: 'Check TMV balanced supply requirement.',
+        severity: 'advisory',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByTestId('capp-mixer-shower-check')).toBeTruthy();
+  });
+
+  it('shows "Thermostatic mixer valve (TMV) compatibility check" heading', () => {
+    const decision = makeDecision({
+      showerCompatibilityNote: {
+        warningKey: 'mixer_balanced_supply',
+        customerSummary: 'Your mixer shower may require a balanced pressure valve.',
+        engineerNote: 'Check TMV balanced supply.',
+        severity: 'advisory',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByText('Thermostatic mixer valve (TMV) compatibility check')).toBeTruthy();
+  });
+
+  it('renders the customerSummary text', () => {
+    const decision = makeDecision({
+      showerCompatibilityNote: {
+        warningKey: 'mixer_balanced_supply',
+        customerSummary: 'Balanced supply check required for your mixer shower.',
+        engineerNote: 'Check TMV.',
+        severity: 'advisory',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByText('Balanced supply check required for your mixer shower.')).toBeTruthy();
+  });
+
+  it('does not render when warningKey is electric_unaffected', () => {
+    const decision = makeDecision({
+      showerCompatibilityNote: {
+        warningKey: 'electric_unaffected',
+        customerSummary: 'Electric shower is unaffected.',
+        engineerNote: 'No action required.',
+        severity: 'info',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.queryByTestId('capp-mixer-shower-check')).toBeNull();
+  });
+
+  it('does not render when showerCompatibilityNote is absent', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.queryByTestId('capp-mixer-shower-check')).toBeNull();
+  });
+
+  it('does not duplicate "Shower compatibility" title from WarningBlock', () => {
+    // When the visualBlocks warning has "Shower compatibility" title AND
+    // the showerCompatibilityNote has warningKey === 'mixer_balanced_supply',
+    // only one element with "Shower compatibility" text should appear
+    // (the new section uses a different heading "Thermostatic mixer valve (TMV)...").
+    const decision = makeDecision({
+      showerCompatibilityNote: {
+        warningKey: 'mixer_balanced_supply',
+        customerSummary: 'Balanced supply check required.',
+        engineerNote: 'Check TMV.',
+        severity: 'advisory',
+      },
+    });
+    const blocks = makeBlocks({ includeShowerWarning: true });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision, visualBlocks: blocks })} />);
+    // The WarningBlock heading "Shower compatibility" appears exactly once
+    const showerCompatibilityElements = screen.getAllByText('Shower compatibility');
+    expect(showerCompatibilityElements).toHaveLength(1);
+    // The new TMV section also renders with its own distinct heading
+    expect(screen.getByTestId('capp-mixer-shower-check')).toBeTruthy();
+    expect(screen.getByText('Thermostatic mixer valve (TMV) compatibility check')).toBeTruthy();
+  });
+});
+
+// ─── Pillar 4: Three-Year Roadmap Section ─────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — ThreeYearRoadmapSection', () => {
+
+  it('renders when condition is at_risk and system is stored', () => {
+    const decision = makeDecision({
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'At risk.',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByTestId('capp-three-year-roadmap')).toBeTruthy();
+  });
+
+  it('always renders Year 1 with the recommended system summary', () => {
+    const decision = makeDecision({
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'At risk.',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const year1 = screen.getByTestId('capp-roadmap-year-1');
+    expect(year1.textContent).toContain('Year 1');
+    expect(year1.textContent).toContain('system clean');
+  });
+
+  it('renders Year 2 when highTempRequired flag is set', () => {
+    const decision = makeDecision({
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'At risk.',
+      },
+    });
+    const scenario = makeScenario({ physicsFlags: { highTempRequired: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision, scenarios: [scenario] })} />);
+    expect(screen.getByTestId('capp-roadmap-year-2')).toBeTruthy();
+    expect(screen.getByTestId('capp-roadmap-year-2').textContent).toContain('Radiator upgrade');
+  });
+
+  it('renders Year 3 when ASHP appears in futureUpgradePaths', () => {
+    const decision = makeDecision({
+      futureUpgradePaths: ['Heat pump ready'],
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'At risk.',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    expect(screen.getByTestId('capp-roadmap-year-3')).toBeTruthy();
+    expect(screen.getByTestId('capp-roadmap-year-3').textContent).toContain('air source heat pump');
+  });
+
+  it('does not render when condition is good (not at_risk)', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.queryByTestId('capp-three-year-roadmap')).toBeNull();
+  });
+
+  it('does not render for ASHP recommendations even when at_risk', () => {
+    const decision = makeDecision({
+      recommendedScenarioId: 'ashp',
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'At risk.',
+      },
+    });
+    const scenario = makeScenario({
+      scenarioId: 'ashp',
+      system: { type: 'ashp', summary: 'Air source heat pump' },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision, scenarios: [scenario] })} />);
+    expect(screen.queryByTestId('capp-three-year-roadmap')).toBeNull();
+  });
+});
+
+// ─── AI Context Block: new fields ─────────────────────────────────────────────
+
+describe('CustomerAdvicePrintPack — AiContextBlock new fields', () => {
+
+  it('contains "Mixergy Bridge" field when pressureConstraint flag is set on stored system', () => {
+    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    const contexts = screen.getAllByTestId('capp-ai-context');
+    const hasField = contexts.some((el) => el.textContent?.includes('Mixergy Bridge'));
+    expect(hasField).toBe(true);
+  });
+
+  it('contains "Three-Year Roadmap" field when condition is at_risk and system is stored', () => {
+    const decision = makeDecision({
+      lifecycle: {
+        currentSystem: { type: 'combi', ageYears: 25, condition: 'at_risk' },
+        expectedLifespan: { typicalRangeYears: [12, 15], adjustedRangeYears: [10, 14] },
+        influencingFactors: { waterQuality: 'hard', scaleRisk: 'high', usageIntensity: 'high', maintenanceLevel: 'poor' },
+        riskIndicators: [],
+        summary: 'At risk.',
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const contexts = screen.getAllByTestId('capp-ai-context');
+    const hasField = contexts.some((el) => el.textContent?.includes('Three-Year Roadmap'));
+    expect(hasField).toBe(true);
+  });
+
+  it('does not contain "Mixergy Bridge" field when no pressureConstraint', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const contexts = screen.getAllByTestId('capp-ai-context');
+    const hasField = contexts.some((el) => el.textContent?.includes('Mixergy Bridge'));
+    expect(hasField).toBe(false);
+  });
+});
+

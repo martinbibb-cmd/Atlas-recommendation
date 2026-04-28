@@ -308,10 +308,29 @@ function ThemedBlock({ block }: { block: VisualBlock }) {
 
 // ─── Supplementary sections ───────────────────────────────────────────────────
 
+/** Returns true when the supportingFact label identifies a DHW cylinder volume field. */
+function isCylinderVolumeFact(label: string): boolean {
+  const key = label.toLowerCase();
+  return (
+    key === 'cylinder volume' ||
+    key === 'tank volume' ||
+    key === 'dhw volume' ||
+    key === 'storage volume' ||
+    key === 'cylinder capacity' ||
+    key === 'tank capacity'
+  );
+}
+
 /**
  * At-a-Glance panel — compact property stats for the Executive Summary sidebar.
- * Pulls from decision.supportingFacts (occupants, bathrooms) and energyMetrics
- * (peak heat load kW).
+ * Pulls from decision.supportingFacts (occupants, bathrooms, cylinder volume)
+ * and energyMetrics (peak heat load kW).
+ *
+ * Pillar 1 additions:
+ *  - Cylinder volume is shown when present in supportingFacts.
+ *  - Condition band badge is shown when the system is 'at_risk' or 'worn'.
+ *  - Volume gap advisory is shown when occupants ≥ 4 and cylinder volume ≤ 150 L,
+ *    highlighting that the Mixergy selection is a logical necessity.
  */
 function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
   const stats: Array<{ label: string; value: string | number }> = [];
@@ -322,18 +341,40 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
     stats.push({ label: 'Heat loss', value: `${peakLoad.toFixed(1)} kW` });
   }
 
-  // Occupants and bathrooms from supportingFacts
+  let occupantCount: number | null = null;
+  let cylinderVolumeLitres: number | null = null;
+
+  // Occupants, bathrooms, and cylinder volume from supportingFacts
   for (const fact of decision.supportingFacts) {
     const key = fact.label.toLowerCase();
     if (key.includes('occupant') || key.includes('person') || key.includes('resident')) {
       stats.push({ label: fact.label, value: fact.value });
+      const n = typeof fact.value === 'number' ? fact.value : parseInt(String(fact.value), 10);
+      if (!isNaN(n)) occupantCount = n;
     } else if (key.includes('bathroom') || key.includes('shower room')) {
       stats.push({ label: fact.label, value: fact.value });
+    } else if (isCylinderVolumeFact(fact.label)) {
+      stats.push({ label: fact.label, value: fact.value });
+      const n = typeof fact.value === 'number'
+        ? fact.value
+        : parseInt(String(fact.value).replace(/[^\d]/g, ''), 10);
+      if (!isNaN(n)) cylinderVolumeLitres = n;
     }
   }
 
+  // Condition band — show when at_risk or worn for explicit customer visibility
+  const condition = decision.lifecycle.currentSystem.condition;
+  const isConditionVisible = condition === 'at_risk' || condition === 'worn';
+
+  // Volume gap — flag when cylinder is undersized relative to occupancy
+  const hasVolumeGap =
+    occupantCount !== null &&
+    cylinderVolumeLitres !== null &&
+    occupantCount >= 4 &&
+    cylinderVolumeLitres <= 150;
+
   // Only render if we have something to show
-  if (stats.length === 0) return null;
+  if (stats.length === 0 && !isConditionVisible) return null;
 
   return (
     <aside className="capp-at-a-glance" aria-label="At-a-glance property stats" data-testid="capp-at-a-glance">
@@ -346,6 +387,20 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
           </li>
         ))}
       </ul>
+      {isConditionVisible && (
+        <p
+          className={`capp-at-a-glance__condition-badge capp-at-a-glance__condition-badge--${condition}`}
+          data-testid="capp-at-a-glance-condition"
+        >
+          Condition band: {condition.replace('_', ' ')}
+        </p>
+      )}
+      {hasVolumeGap && (
+        <p className="capp-at-a-glance__volume-gap" data-testid="capp-at-a-glance-volume-gap">
+          Volume gap — cylinder may be undersized for this household size. A larger
+          cylinder (200 L or above) is recommended for households of 4 or more.
+        </p>
+      )}
     </aside>
   );
 }
@@ -457,17 +512,27 @@ function RequirementsSection({ decision }: { decision: AtlasDecisionV1 }) {
   );
 }
 
-/** Installation complexity badge derived from the quote scope. */
+/**
+ * Installation complexity badge derived from the quote scope.
+ *
+ * Pillar 1 addition: when the existing system is 'at_risk', a note about
+ * system cleaning and corrosion protection is appended to the description —
+ * reflecting that a "straightforward swap" may involve necessary protection work.
+ */
 function InstallComplexityBadge({ decision }: { decision: AtlasDecisionV1 }) {
   const HIGH_COMPLEXITY_CATEGORIES = new Set(['pipework', 'electrical', 'investigation']);
   const isHigh = decision.quoteScope.some((item) =>
     HIGH_COMPLEXITY_CATEGORIES.has(item.category) && item.status !== 'optional',
   );
+  const isAtRisk = decision.lifecycle.currentSystem.condition === 'at_risk';
   const label = isHigh ? 'Higher complexity' : 'Low disruption';
   const cssClass = isHigh ? 'capp-complexity--high' : 'capp-complexity--low';
+  const cleaningNote = isAtRisk
+    ? ' System cleaning and corrosion protection are recommended before or during installation.'
+    : '';
   const desc = isHigh
-    ? 'This installation involves pipework, electrical, or investigation work — allow additional time.'
-    : 'Straightforward swap — minimal disruption expected.';
+    ? `This installation involves pipework, electrical, or investigation work — allow additional time.${cleaningNote}`
+    : `Straightforward swap — minimal disruption expected.${cleaningNote}`;
 
   return (
     <aside className={`capp-complexity ${cssClass}`} aria-label="Installation complexity" data-testid="capp-complexity">
@@ -480,14 +545,46 @@ function InstallComplexityBadge({ decision }: { decision: AtlasDecisionV1 }) {
 /**
  * AI-Ready Context Block — structured text block for AI querying.
  * Placed in each page footer area (collapsed by default in screen view).
- * Format: User Goal · Constraint · Efficiency Trap · Physics Verdict · Improvement Pathway.
+ * Format: User Goal · Constraint · Efficiency Trap · Physics Verdict ·
+ *         Mixergy Bridge (when applicable) · Improvement Pathway ·
+ *         Three-Year Roadmap (when at_risk).
+ *
+ * Updated AI-Ready Context Block additions (Four Pillar framework):
+ *  - "Mixergy Bridge" field: when the recommended system is stored hot water
+ *    and a pressure-constraint flag is raised, frames the tank-fed supply
+ *    positively as the reason for the Mixergy selection.
+ *  - "Three-Year Roadmap" field: when the existing system is at_risk and a
+ *    stored system is recommended, summarises the Year 1 / Year 2 / Year 3
+ *    capital programme in a single machine-readable line.
  */
-function AiContextBlock({ decision }: { decision: AtlasDecisionV1 }) {
+function AiContextBlock({
+  decision,
+  recommendedScenario,
+}: {
+  decision: AtlasDecisionV1;
+  recommendedScenario?: ScenarioResult;
+}) {
   const userGoal = decision.keyReasons[0] ?? '';
   const constraint = decision.hardConstraints?.[0] ?? decision.compatibilityWarnings[0] ?? '';
   const efficiencyTrap = decision.performancePenalties?.[0] ?? '';
   const physicsVerdict = decision.summary;
   const improvementPath = decision.futureUpgradePaths[0] ?? '';
+
+  // Mixergy Bridge — positive framing of tank-fed supply pressure constraint
+  const isStoredSystem =
+    recommendedScenario?.system.type === 'system' ||
+    recommendedScenario?.system.type === 'regular';
+  const mixeryBridge =
+    isStoredSystem && recommendedScenario?.physicsFlags.pressureConstraint
+      ? 'Stored hot water cylinder selected because it operates from tank-fed supply pressures — mains-pressure ready for future improvement.'
+      : '';
+
+  // Three-Year Roadmap context — triggered by at_risk condition on stored system
+  const isAtRisk = decision.lifecycle.currentSystem.condition === 'at_risk';
+  const roadmapContext =
+    isAtRisk && isStoredSystem
+      ? 'Year 1: new system + system clean. Year 2: radiator upgrade to lower flow temperature. Year 3: pipework optimisation for heat pump pathway.'
+      : '';
 
   const hasContent = userGoal || constraint || physicsVerdict;
   if (!hasContent) return null;
@@ -520,13 +617,279 @@ function AiContextBlock({ decision }: { decision: AtlasDecisionV1 }) {
             <dd className="capp-ai-context__desc">{physicsVerdict}</dd>
           </>
         )}
+        {mixeryBridge && (
+          <>
+            <dt className="capp-ai-context__term">Mixergy Bridge</dt>
+            <dd className="capp-ai-context__desc">{mixeryBridge}</dd>
+          </>
+        )}
         {improvementPath && (
           <>
             <dt className="capp-ai-context__term">Improvement Pathway</dt>
             <dd className="capp-ai-context__desc">{improvementPath}</dd>
           </>
         )}
+        {roadmapContext && (
+          <>
+            <dt className="capp-ai-context__term">Three-Year Roadmap</dt>
+            <dd className="capp-ai-context__desc">{roadmapContext}</dd>
+          </>
+        )}
       </dl>
+    </section>
+  );
+}
+
+// ─── Pillar 2: Mixergy Bridge Panel ──────────────────────────────────────────
+
+/**
+ * MixeryBridgePanel — Pillar 2 Verdict.
+ *
+ * Frames a pressure-constraint physics flag as the positive reason for the
+ * Mixergy cylinder selection, replacing the old pattern of flagging low pressure
+ * as a "problem to be tested".
+ *
+ * Narrative: Mixergy operates efficiently from tank-fed supply pressures upward,
+ * providing an immediate upgrade while remaining mains-pressure ready for future.
+ *
+ * Rendered only when: stored system type (system/regular) AND
+ *                     physicsFlags.pressureConstraint is true.
+ */
+function MixeryBridgePanel({
+  recommendedScenario,
+}: {
+  recommendedScenario: ScenarioResult | undefined;
+}) {
+  if (!recommendedScenario) return null;
+  const isStoredSystem =
+    recommendedScenario.system.type === 'system' ||
+    recommendedScenario.system.type === 'regular';
+  if (!isStoredSystem || !recommendedScenario.physicsFlags.pressureConstraint) return null;
+
+  return (
+    <section
+      className="capp-mixery-bridge"
+      aria-label="Why Mixergy cylinder"
+      data-testid="capp-mixery-bridge"
+    >
+      <p className="capp-mixery-bridge__heading">Why Mixergy?</p>
+      <p className="capp-mixery-bridge__body">
+        Mixergy is selected because it operates efficiently from tank-fed supply pressures
+        upward — an immediate upgrade for your current setup. If your external mains supply
+        is ever improved, the system is already mains-pressure ready.
+      </p>
+    </section>
+  );
+}
+
+// ─── Pillar 2: Radiator Upsell Panel ─────────────────────────────────────────
+
+/**
+ * RadiatorUpsellPanel — Pillar 2 Verdict.
+ *
+ * Highlights the current high flow temperature (physicsFlags.highTempRequired)
+ * or undersized primary pipework (physicsFlags.hydraulicLimit) as a
+ * future-proofing barrier. Frames a radiator upgrade programme as the path
+ * toward condensing-mode efficiency and heat-pump readiness.
+ *
+ * Uses hedged language for pipework claims per atlas-terminology.md §14.
+ *
+ * Rendered only when: physicsFlags.highTempRequired OR physicsFlags.hydraulicLimit.
+ */
+function RadiatorUpsellPanel({
+  recommendedScenario,
+}: {
+  recommendedScenario: ScenarioResult | undefined;
+}) {
+  if (!recommendedScenario) return null;
+  const { highTempRequired, hydraulicLimit } = recommendedScenario.physicsFlags;
+  if (!highTempRequired && !hydraulicLimit) return null;
+
+  return (
+    <section
+      className="capp-radiator-upsell"
+      aria-label="Future-proofing: radiator upgrade"
+      data-testid="capp-radiator-upsell"
+    >
+      <p className="capp-radiator-upsell__heading">Future-proofing: radiator upgrade</p>
+      {highTempRequired && (
+        <p className="capp-radiator-upsell__body">
+          Your current system requires a high flow temperature to heat the existing
+          radiators. Upgrading key radiators to allow a lower flow temperature unlocks
+          condensing-mode efficiency and prepares the system for lower-temperature
+          technologies in future.
+        </p>
+      )}
+      {hydraulicLimit && (
+        <p className="capp-radiator-upsell__body">
+          Your current primary pipework may need upgrading to support a future air source
+          heat pump — confirm against the selected model's primary flow rate requirements.
+        </p>
+      )}
+    </section>
+  );
+}
+
+// ─── Pillar 3: Simultaneous Use Panel ────────────────────────────────────────
+
+/**
+ * SimultaneousUsePanel — Pillar 3 Technical Blueprint.
+ *
+ * Shown for stored-hot-water systems when the household has 4 or more occupants.
+ * Illustrates how stored hot water allows concurrent draws without the efficiency
+ * degradation that on-demand systems experience on short draws.
+ *
+ * Rendered only when: stored system type AND occupants ≥ 4.
+ */
+function SimultaneousUsePanel({
+  decision,
+  recommendedScenario,
+}: {
+  decision: AtlasDecisionV1;
+  recommendedScenario: ScenarioResult | undefined;
+}) {
+  if (!recommendedScenario) return null;
+  const isStoredSystem =
+    recommendedScenario.system.type === 'system' ||
+    recommendedScenario.system.type === 'regular';
+  if (!isStoredSystem) return null;
+
+  const occupantFact = decision.supportingFacts.find(
+    (f) =>
+      f.label.toLowerCase().includes('occupant') ||
+      f.label.toLowerCase().includes('person') ||
+      f.label.toLowerCase().includes('resident'),
+  );
+  const occupantCount =
+    typeof occupantFact?.value === 'number'
+      ? occupantFact.value
+      : parseInt(String(occupantFact?.value ?? '0'), 10);
+  if (isNaN(occupantCount) || occupantCount < 4) return null;
+
+  return (
+    <section
+      className="capp-simultaneous-use"
+      aria-label="Simultaneous use scenario"
+      data-testid="capp-simultaneous-use"
+    >
+      <p className="capp-simultaneous-use__heading">
+        Simultaneous use: {occupantCount} people
+      </p>
+      <p className="capp-simultaneous-use__body">
+        Stored hot water allows multiple outlets to draw simultaneously from the
+        cylinder. On-demand hot water can show significant efficiency degradation
+        on short draws — stored systems avoid this because heat is already in
+        reserve, and concurrent use does not reduce delivery temperature.
+      </p>
+    </section>
+  );
+}
+
+// ─── Pillar 3: Mixer Shower Compatibility Section ─────────────────────────────
+
+/**
+ * MixerShowerCompatibilitySection — Pillar 3 Technical Blueprint.
+ *
+ * Shown when the shower compatibility note identifies a balanced-supply
+ * requirement (warningKey === 'mixer_balanced_supply'). Warns that a
+ * Thermostatic Mixer Valve (TMV) designed for tank-fed systems may require
+ * a balanced supply check when transitioning to a mains-fed or unvented supply.
+ *
+ * The title "Thermostatic mixer valve (TMV) compatibility check" is deliberately
+ * distinct from the WarningBlock title so there is no duplicate heading when both
+ * the VisualBlock warning and this section are rendered.
+ *
+ * Rendered only when: showerCompatibilityNote.warningKey === 'mixer_balanced_supply'.
+ */
+function MixerShowerCompatibilitySection({ decision }: { decision: AtlasDecisionV1 }) {
+  const note = decision.showerCompatibilityNote;
+  if (!note || note.warningKey !== 'mixer_balanced_supply') return null;
+
+  return (
+    <section
+      className="capp-mixer-shower-check"
+      aria-label="Thermostatic mixer valve compatibility check"
+      data-testid="capp-mixer-shower-check"
+    >
+      <p className="capp-mixer-shower-check__heading">
+        Thermostatic mixer valve (TMV) compatibility check
+      </p>
+      <p className="capp-mixer-shower-check__summary">{note.customerSummary}</p>
+    </section>
+  );
+}
+
+// ─── Pillar 4: Three-Year Roadmap Section ─────────────────────────────────────
+
+/**
+ * ThreeYearRoadmapSection — Pillar 4 Roadmap.
+ *
+ * Shown when the existing system is at_risk and the recommendation is a
+ * stored-hot-water system. Converts "at risk" status into a structured
+ * three-year capital programme:
+ *
+ *  Year 1 — Install recommended system + system clean and corrosion protection.
+ *  Year 2 — Radiator upgrade programme (when highTempRequired flag is raised).
+ *  Year 3 — Pipework optimisation to clear the path for an air source heat pump
+ *            (when hydraulicLimit flag or ASHP appears in futureUpgradePaths).
+ *
+ * Rendered only when: lifecycle.currentSystem.condition === 'at_risk' AND
+ *                     stored system type (system/regular).
+ */
+function ThreeYearRoadmapSection({
+  decision,
+  recommendedScenario,
+}: {
+  decision: AtlasDecisionV1;
+  recommendedScenario: ScenarioResult | undefined;
+}) {
+  if (!recommendedScenario) return null;
+  const isAtRisk = decision.lifecycle.currentSystem.condition === 'at_risk';
+  const isStoredSystem =
+    recommendedScenario.system.type === 'system' ||
+    recommendedScenario.system.type === 'regular';
+  if (!isAtRisk || !isStoredSystem) return null;
+
+  const showRadiatorYear = Boolean(recommendedScenario.physicsFlags.highTempRequired);
+  const showPipeworkYear = Boolean(
+    recommendedScenario.physicsFlags.hydraulicLimit ||
+      decision.futureUpgradePaths.some((p) => p.toLowerCase().includes('heat pump')),
+  );
+
+  return (
+    <section
+      className="capp-three-year-roadmap"
+      aria-label="Three-year upgrade roadmap"
+      data-testid="capp-three-year-roadmap"
+    >
+      <p className="capp-three-year-roadmap__heading">Three-year upgrade roadmap</p>
+      <ol className="capp-three-year-roadmap__list">
+        <li className="capp-three-year-roadmap__item" data-testid="capp-roadmap-year-1">
+          <span className="capp-three-year-roadmap__year">Year 1</span>
+          <span className="capp-three-year-roadmap__action">
+            Install {recommendedScenario.system.summary} + system clean and corrosion
+            protection.
+          </span>
+        </li>
+        {showRadiatorYear && (
+          <li className="capp-three-year-roadmap__item" data-testid="capp-roadmap-year-2">
+            <span className="capp-three-year-roadmap__year">Year 2</span>
+            <span className="capp-three-year-roadmap__action">
+              Radiator upgrade programme — target rooms with highest heat loss to reduce
+              system flow temperature toward condensing mode.
+            </span>
+          </li>
+        )}
+        {showPipeworkYear && (
+          <li className="capp-three-year-roadmap__item" data-testid="capp-roadmap-year-3">
+            <span className="capp-three-year-roadmap__year">Year 3</span>
+            <span className="capp-three-year-roadmap__action">
+              Pipework optimisation — remove flow restrictions and prepare the primary
+              circuit for an air source heat pump.
+            </span>
+          </li>
+        )}
+      </ol>
     </section>
   );
 }
@@ -539,15 +902,19 @@ function AiContextBlock({ decision }: { decision: AtlasDecisionV1 }) {
  * Multi-page customer advice document structured around the Four Atlas Pillars.
  *
  * Page 1 — Executive Summary (Pillar 1: Identity)
- *   Hero/facts/priority blocks + At-a-Glance panel + AI context block.
+ *   Hero/facts/priority blocks + At-a-Glance panel (enhanced: cylinder volume,
+ *   condition band badge, volume gap advisory) + AI context block.
  *
  * Page 2 — Comparison & Roadmap (Pillars 2 & 4: Verdict + Roadmap)
- *   Solution blocks + Atlas Pick vs alternatives + Avoided Risks +
- *   future upgrade paths + AI context block.
+ *   Solution blocks + Mixergy Bridge panel + Radiator Upsell panel +
+ *   Atlas Pick vs alternatives + Avoided Risks + future upgrade paths +
+ *   Three-Year Roadmap section (when at_risk) + AI context block.
  *
- * Page 3 — Technical Blueprint (Pillar 2: Verdict)
+ * Page 3 — Technical Blueprint (Pillar 2: Verdict / Pillar 3: Experience)
  *   Requirements checklist + scope/warning/spatial blocks +
- *   installation complexity badge + AI context block.
+ *   Simultaneous Use panel + Mixer Shower Compatibility section +
+ *   installation complexity badge (enhanced: cleaning note when at_risk) +
+ *   AI context block.
  *
  * Portal CTA page — unchanged from previous design.
  *
@@ -570,6 +937,11 @@ export function CustomerAdvicePrintPack({
   const headline  = decision.headline;
   const summary   = lockedSummary ?? buildCustomerSummary(decision, scenarios);
   const aiHandoff = buildLockedAiHandoffText(summary);
+
+  // Derive recommended scenario once — used by physics-driven conditional panels.
+  const recommendedScenario = scenarios.find(
+    (s) => s.scenarioId === decision.recommendedScenarioId,
+  );
 
   const { identity, verdict, roadmap, technical, cta } = categoriseBlocks(
     visualBlocks,
@@ -645,7 +1017,7 @@ export function CustomerAdvicePrintPack({
               <AtAGlancePanel decision={decision} />
 
               {/* AI-Ready Context Block */}
-              <AiContextBlock decision={decision} />
+              <AiContextBlock decision={decision} recommendedScenario={recommendedScenario} />
 
               <footer className="capp-page__footer" aria-hidden="true">
                 {headline}{visitDate ? ` · ${visitDate}` : ''}
@@ -667,6 +1039,12 @@ export function CustomerAdvicePrintPack({
                 <ThemedBlock key={block.id} block={block} />
               ))}
 
+              {/* Pillar 2: Mixergy Bridge — positive framing of pressure constraint */}
+              <MixeryBridgePanel recommendedScenario={recommendedScenario} />
+
+              {/* Pillar 2: Radiator Upsell — future-proofing via flow temperature */}
+              <RadiatorUpsellPanel recommendedScenario={recommendedScenario} />
+
               {/* Atlas Pick vs alternatives */}
               <ComparisonSection decision={decision} scenarios={scenarios} />
 
@@ -678,8 +1056,11 @@ export function CustomerAdvicePrintPack({
                 <ThemedBlock key={block.id} block={block} />
               ))}
 
+              {/* Pillar 4: Three-Year Roadmap — structured capital programme for at_risk systems */}
+              <ThreeYearRoadmapSection decision={decision} recommendedScenario={recommendedScenario} />
+
               {/* AI-Ready Context Block */}
-              <AiContextBlock decision={decision} />
+              <AiContextBlock decision={decision} recommendedScenario={recommendedScenario} />
 
               <footer className="capp-page__footer" aria-hidden="true">
                 {headline}
@@ -704,11 +1085,17 @@ export function CustomerAdvicePrintPack({
                 <ThemedBlock key={block.id} block={block} />
               ))}
 
+              {/* Pillar 3: Simultaneous Use — stored hot water for high-occupancy households */}
+              <SimultaneousUsePanel decision={decision} recommendedScenario={recommendedScenario} />
+
+              {/* Pillar 3: Mixer Shower Compatibility — TMV balanced supply check */}
+              <MixerShowerCompatibilitySection decision={decision} />
+
               {/* Installation complexity summary */}
               <InstallComplexityBadge decision={decision} />
 
               {/* AI-Ready Context Block */}
-              <AiContextBlock decision={decision} />
+              <AiContextBlock decision={decision} recommendedScenario={recommendedScenario} />
 
               <footer className="capp-page__footer" aria-hidden="true">
                 {headline}
