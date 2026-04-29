@@ -35,6 +35,8 @@ import { getLaunchScanEntry, listenForIncomingScan } from '../../../lib/nativeBr
 import SessionCaptureImportFlow from './SessionCaptureImportFlow';
 import ScanPackageImportFlow from './ScanPackageImportFlow';
 import { isSessionCaptureJson } from '../importer/sessionCaptureImporter';
+import { isSessionCaptureV2Json } from '../importer/sessionCaptureV2Importer';
+import SessionCaptureV2ImportFlow from './SessionCaptureV2ImportFlow';
 import type { CanonicalFloorPlanDraft } from '../importer/scanMapper';
 import type { PropertyScanSession } from '../session/propertyScanSession';
 import { upsertSession, syncToServer } from '../../../lib/storage/scanSessionStore';
@@ -49,6 +51,7 @@ const RoomScanEditor = lazy(
 type ViewState =
   | { name: 'loading' }
   | { name: 'empty' }
+  | { name: 'session_capture_v2_import'; file: ScanFileEntry }
   | { name: 'session_capture_import'; file: ScanFileEntry }
   | { name: 'legacy_json_import'; file: ScanFileEntry }
   | { name: 'ply_editor'; file: ScanFileEntry; positions: Float32Array; vertexCount: number; session: PropertyScanSession }
@@ -70,22 +73,28 @@ function buildFileList(file: ScanFileEntry): FileList {
 }
 
 /**
- * Detect whether a ScanFileEntry contains a SessionCaptureV1 payload.
+ * Detect whether a ScanFileEntry contains a SessionCaptureV2 or SessionCaptureV1
+ * payload.
  *
- * Reads the first 4096 bytes to check for the `sessionId` field rather than
- * parsing the full file — avoids loading large JSON for the type check.
- * If the slice cuts mid-JSON, the parse will fail and we fall back to false,
- * which causes the file to be routed to the legacy ScanBundleV1 path for
- * a subsequent full-parse attempt.
+ * Reads the first 4096 bytes to check for discriminant fields.  Returns:
+ *   'v2'     — SessionCaptureV2 (version: "2.0", sessionId, roomScans, photos)
+ *   'v1'     — SessionCaptureV1 (version: "1.0", sessionId, rooms, photos)
+ *   'other'  — not a session capture (falls back to legacy ScanBundleV1 path)
+ *
+ * If the slice cuts mid-JSON the parse will fail and 'other' is returned.
  */
-async function detectSessionCapture(entry: ScanFileEntry): Promise<boolean> {
+async function detectSessionCaptureVersion(
+  entry: ScanFileEntry,
+): Promise<'v2' | 'v1' | 'other'> {
   try {
     const slice = entry.data.slice(0, 4096);
     const text = new TextDecoder().decode(slice);
     const json = JSON.parse(text);
-    return isSessionCaptureJson(json);
+    if (isSessionCaptureV2Json(json)) return 'v2';
+    if (isSessionCaptureJson(json)) return 'v1';
+    return 'other';
   } catch {
-    return false;
+    return 'other';
   }
 }
 
@@ -166,10 +175,12 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
     let cleanupListener: (() => void) | undefined;
 
     async function routeJsonEntry(liveEntry: ScanFileEntry) {
-      // Primary path: detect SessionCaptureV1, fall back to legacy ScanBundle package
-      const isCapture = await detectSessionCapture(liveEntry);
+      // Detection order: V2 first (primary), then V1, then legacy ScanBundleV1 package
+      const version = await detectSessionCaptureVersion(liveEntry);
       if (cancelled) return;
-      if (isCapture) {
+      if (version === 'v2') {
+        setState({ name: 'session_capture_v2_import', file: liveEntry });
+      } else if (version === 'v1') {
         setState({ name: 'session_capture_import', file: liveEntry });
       } else {
         setState({ name: 'legacy_json_import', file: liveEntry });
@@ -269,7 +280,7 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
         <div style={{ marginTop: 16, fontSize: 13, color: '#6b7280' }}>
           <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Supported formats:</p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
-            <li><code>session_capture.json</code> — Atlas Scan session capture (primary)</li>
+            <li><code>session_capture.json</code> — Atlas Scan session capture V2 (primary) or V1</li>
             <li><code>.ply</code> — LiDAR point cloud (binary or ASCII)</li>
           </ul>
         </div>
@@ -347,8 +358,25 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
     );
   }
 
-  // ── Session capture import — primary path ──
-  // state.name === 'session_capture_import'
+  // ── Session capture V2 import — primary path ──
+  if (state.name === 'session_capture_v2_import') {
+    const captureFile = scanEntryToFile(state.file);
+    return (
+      <SessionCaptureV2ImportFlow
+        preloadedFile={captureFile}
+        onImported={(_sessionId) => {
+          void clearScanFiles();
+          onCancel();
+        }}
+        onCancel={() => {
+          void clearScanFiles();
+          onCancel();
+        }}
+      />
+    );
+  }
+
+  // ── Session capture V1 import — primary path ──
   if (state.name === 'session_capture_import') {
     const captureFile = scanEntryToFile(state.file);
     return (

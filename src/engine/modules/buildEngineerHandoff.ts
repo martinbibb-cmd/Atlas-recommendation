@@ -20,6 +20,8 @@ import type { PropertyPlan } from '../../components/floorplan/propertyPlan.types
 import { buildEngineerLayout, buildLayoutSummaryLines } from './buildEngineerLayout';
 import { scopeIncluded, synthesizeLegacyScope } from './buildQuoteScope';
 import type { QuoteScopeItem } from '../../contracts/QuoteScope';
+import { buildEngineerEvidenceFromV2 } from '../../features/scanImport/importer/sessionCaptureV2Importer';
+import type { SessionCaptureV2 } from '../../features/scanImport/importer/sessionCaptureV2Importer';
 
 // ─── Included scope ───────────────────────────────────────────────────────────
 
@@ -243,6 +245,19 @@ function buildEvidence(capture?: import('@atlas/contracts').SessionCaptureV1): E
   return items;
 }
 
+/**
+ * Builds the evidence array for the engineer handoff from a SessionCaptureV2.
+ * Delegates to buildEngineerEvidenceFromV2 which handles the V2-specific
+ * fields (objectPins, voiceNotes, floorPlanSnapshots, qaFlags).
+ */
+function buildEvidenceFromV2(capture: SessionCaptureV2): EngineerHandoffEvidence[] {
+  return buildEngineerEvidenceFromV2(capture).map((item) => ({
+    kind: item.kind === 'photo' ? ('photo' as const) : ('capture' as const),
+    title: item.title,
+    ref: item.ref,
+  }));
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -251,13 +266,15 @@ function buildEvidence(capture?: import('@atlas/contracts').SessionCaptureV1): E
  * Projects an AtlasDecisionV1 and its source ScenarioResult[] into an
  * EngineerHandoff view model.
  *
- * @param decision       The canonical AtlasDecisionV1 for this job.
- * @param scenarios      All evaluated ScenarioResult entries for this job.
- * @param engineInput    Optional engine input — used to surface measured facts
- *                       (pipe sizes, pressures, outputs) not already in decision.supportingFacts.
- * @param propertyPlan   Optional floor-plan model — used to build the spatial layout section.
- * @param sessionCapture Optional SessionCaptureV1 — when provided, populates the evidence
- *                       section with captured rooms, photos, notes, and transcript.
+ * @param decision         The canonical AtlasDecisionV1 for this job.
+ * @param scenarios        All evaluated ScenarioResult entries for this job.
+ * @param engineInput      Optional engine input — used to surface measured facts.
+ * @param propertyPlan     Optional floor-plan model — used to build the spatial layout section.
+ * @param sessionCapture   Optional SessionCaptureV1 — when provided, populates the evidence
+ *                         section with captured rooms, photos, notes, and transcript.
+ * @param sessionCaptureV2 Optional SessionCaptureV2 — when provided, takes precedence over
+ *                         sessionCapture and populates evidence from V2 fields (roomScans,
+ *                         objectPins, photos, voiceNotes, floorPlanSnapshots, qaFlags).
  *
  * @throws {Error} when the recommended scenario cannot be located in scenarios[].
  */
@@ -267,6 +284,7 @@ export function buildEngineerHandoff(
   engineInput?: EngineInputV2_3Contract,
   propertyPlan?: PropertyPlan,
   sessionCapture?: import('@atlas/contracts').SessionCaptureV1,
+  sessionCaptureV2?: SessionCaptureV2,
 ): EngineerHandoff {
   const recommended = scenarios.find(s => s.scenarioId === decision.recommendedScenarioId);
   if (!recommended) {
@@ -278,6 +296,11 @@ export function buildEngineerHandoff(
   const layout        = buildEngineerLayout(propertyPlan);
   const layoutSummary = layout ? buildLayoutSummaryLines(layout) : undefined;
 
+  // V2 evidence takes precedence over V1 when both are provided
+  const evidence = sessionCaptureV2
+    ? buildEvidenceFromV2(sessionCaptureV2)
+    : buildEvidence(sessionCapture);
+
   return {
     jobSummary:            buildJobSummary(decision, recommended),
     includedScope:         buildIncludedScope(decision),
@@ -287,7 +310,7 @@ export function buildEngineerHandoff(
     existingSystem:        buildExistingSystem(decision, engineInput),
     measuredFacts:         buildMeasuredFacts(decision, engineInput),
     installNotes:          buildInstallNotes(decision, recommended, engineInput),
-    evidence:              buildEvidence(sessionCapture),
+    evidence,
     futurePath:            decision.futureUpgradePaths,
     ...(layout        ? { layout }        : {}),
     ...(layoutSummary ? { layoutSummary } : {}),
