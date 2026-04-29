@@ -9,8 +9,7 @@
  * so the React app can retrieve shared files after the service worker
  * redirects to /?receive-scan=1.
  *
- * Database  : 'atlas-scan-share'
- * Version   : 1
+ * Database  : 'atlas-scan-share'  (shared singleton — see atlasDb.ts)
  * Store     : 'incoming'
  *   id         — auto-increment primary key
  *   name       — original filename
@@ -19,8 +18,8 @@
  *   receivedAt — Unix ms timestamp
  */
 
-import Dexie from 'dexie';
 import type { Table } from 'dexie';
+import { getAtlasDb } from './atlasDb';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -32,25 +31,10 @@ export interface ScanFileEntry {
   receivedAt: number;
 }
 
-// ─── Database ─────────────────────────────────────────────────────────────────
+// ─── Database accessor ────────────────────────────────────────────────────────
 
-class ScanShareDb extends Dexie {
-  incoming!: Table<ScanFileEntry, number>;
-
-  constructor() {
-    super('atlas-scan-share');
-    this.version(1).stores({
-      incoming: '++id, receivedAt',
-    });
-  }
-}
-
-/** Singleton instance — created lazily so tests can avoid opening IDB. */
-let _db: ScanShareDb | null = null;
-
-function getDb(): ScanShareDb {
-  if (!_db) _db = new ScanShareDb();
-  return _db;
+function getDb(): Table<ScanFileEntry, number> {
+  return getAtlasDb().table<ScanFileEntry, number>('incoming');
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -60,8 +44,8 @@ function getDb(): ScanShareDb {
  * Used by ReceiveScanPage on mount to hydrate the import flow.
  */
 export async function getLatestScanFile(): Promise<ScanFileEntry | undefined> {
-  const db = getDb();
-  const entries = await db.incoming.orderBy('receivedAt').reverse().limit(1).toArray();
+  const table = getDb();
+  const entries = await table.orderBy('receivedAt').reverse().limit(1).toArray();
   return entries[0];
 }
 
@@ -69,8 +53,8 @@ export async function getLatestScanFile(): Promise<ScanFileEntry | undefined> {
  * Returns all pending scan file entries ordered newest-first.
  */
 export async function getAllScanFiles(): Promise<ScanFileEntry[]> {
-  const db = getDb();
-  return db.incoming.orderBy('receivedAt').reverse().toArray();
+  const table = getDb();
+  return table.orderBy('receivedAt').reverse().toArray();
 }
 
 /**
@@ -78,16 +62,14 @@ export async function getAllScanFiles(): Promise<ScanFileEntry[]> {
  * Call after the import flow has consumed the file.
  */
 export async function clearScanFiles(): Promise<void> {
-  const db = getDb();
-  await db.incoming.clear();
+  await getDb().clear();
 }
 
 /**
  * Removes a single entry by id.
  */
 export async function deleteScanFile(id: number): Promise<void> {
-  const db = getDb();
-  await db.incoming.delete(id);
+  await getDb().delete(id);
 }
 
 /**

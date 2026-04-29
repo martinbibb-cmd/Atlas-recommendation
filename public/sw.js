@@ -9,25 +9,47 @@
  *      after the redirect.
  *   3. Precaches key app-shell assets for basic offline support.
  *
- * IndexedDB schema
+ * IndexedDB schema  (must stay in sync with src/lib/storage/atlasDb.ts)
  *   database : 'atlas-scan-share'
- *   version  : 1
- *   store    : 'incoming' (keyPath: 'id', autoIncrement)
- *     fields : id, name, mimeType, data (ArrayBuffer), receivedAt (ms timestamp)
+ *   version  : 2
+ *   stores:
+ *     incoming    (keyPath: 'id', autoIncrement) — scan files from share target
+ *     sessions    (keyPath: 'id')                — PropertyScanSession records
+ *     asset_queue (keyPath: 'id', autoIncrement) — pending asset uploads
  */
 
 const CACHE_NAME = 'atlas-shell-v1';
 
 // ─── IDB helpers (inline — no import() in service workers) ────────────────────
 
-/** Open the atlas-scan-share IDB database. */
+/** Open the atlas-scan-share IDB database at the current schema version. */
 function openScanDb() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('atlas-scan-share', 1);
+    const req = indexedDB.open('atlas-scan-share', 2);
     req.onupgradeneeded = (event) => {
       const db = event.target.result;
-      if (!db.objectStoreNames.contains('incoming')) {
-        db.createObjectStore('incoming', { keyPath: 'id', autoIncrement: true });
+      const oldVersion = event.oldVersion;
+
+      // Version 1 — incoming file cache
+      if (oldVersion < 1) {
+        if (!db.objectStoreNames.contains('incoming')) {
+          db.createObjectStore('incoming', { keyPath: 'id', autoIncrement: true });
+        }
+      }
+
+      // Version 2 — scan sessions + asset upload queue
+      if (oldVersion < 2) {
+        if (!db.objectStoreNames.contains('sessions')) {
+          const sessStore = db.createObjectStore('sessions', { keyPath: 'id' });
+          sessStore.createIndex('updatedAt', 'updatedAt');
+          sessStore.createIndex('dirty', 'dirty');
+          sessStore.createIndex('syncState', 'syncState');
+        }
+        if (!db.objectStoreNames.contains('asset_queue')) {
+          const aqStore = db.createObjectStore('asset_queue', { keyPath: 'id', autoIncrement: true });
+          aqStore.createIndex('sessionId', 'sessionId');
+          aqStore.createIndex('attempts', 'attempts');
+        }
       }
     };
     req.onsuccess = () => resolve(req.result);

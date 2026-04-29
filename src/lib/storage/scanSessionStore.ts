@@ -10,15 +10,15 @@
  *   A `syncToServer()` call pushes dirty sessions and queued asset blobs to
  *   the Cloudflare Functions API when the device is online.
  *
- * Database  : 'atlas-scan-sessions'
- * Version   : 1
+ * Database  : 'atlas-scan-share'  (shared singleton — see atlasDb.ts)
+ * Version   : 2
  * Stores:
  *   sessions       — PropertyScanSession (minus non-serialisable fields)
  *   asset_queue    — Pending asset uploads (ArrayBuffer + metadata)
  */
 
-import Dexie from 'dexie';
 import type { Table } from 'dexie';
+import { getAtlasDb } from './atlasDb';
 import type { PropertyScanSession } from '../../features/scanImport/session/propertyScanSession';
 
 // ─── Stored session record ────────────────────────────────────────────────────
@@ -60,33 +60,20 @@ export interface QueuedAsset {
   attempts: number;
 }
 
-// ─── Database ─────────────────────────────────────────────────────────────────
+// ─── Database accessors ───────────────────────────────────────────────────────
 
-class ScanSessionDb extends Dexie {
-  sessions!: Table<StoredScanSession, string>;
-  asset_queue!: Table<QueuedAsset, number>;
-
-  constructor() {
-    super('atlas-scan-sessions');
-    this.version(1).stores({
-      sessions: 'id, updatedAt, dirty, syncState',
-      asset_queue: '++id, sessionId, attempts',
-    });
-  }
+function getSessionsTable(): Table<StoredScanSession, string> {
+  return getAtlasDb().table<StoredScanSession, string>('sessions');
 }
 
-let _db: ScanSessionDb | null = null;
-
-function getDb(): ScanSessionDb {
-  if (!_db) _db = new ScanSessionDb();
-  return _db;
+function getAssetQueueTable(): Table<QueuedAsset, number> {
+  return getAtlasDb().table<QueuedAsset, number>('asset_queue');
 }
 
 // ─── Public CRUD ──────────────────────────────────────────────────────────────
 
 /** Save or update a session in IDB and mark it as dirty (pending sync). */
 export async function upsertSession(session: PropertyScanSession): Promise<void> {
-  const db = getDb();
   const stored: StoredScanSession = {
     id: session.id,
     jobReference: session.jobReference,
@@ -100,18 +87,17 @@ export async function upsertSession(session: PropertyScanSession): Promise<void>
     payloadJson: JSON.stringify(session),
     dirty: 1,
   };
-  await db.sessions.put(stored);
+  await getSessionsTable().put(stored);
 }
 
 /** Retrieve all stored sessions ordered newest-first. */
 export async function listSessions(): Promise<StoredScanSession[]> {
-  const db = getDb();
-  return db.sessions.orderBy('updatedAt').reverse().toArray();
+  return getSessionsTable().orderBy('updatedAt').reverse().toArray();
 }
 
 /** Retrieve a single stored session by ID. */
 export async function getSession(id: string): Promise<StoredScanSession | undefined> {
-  return getDb().sessions.get(id);
+  return getSessionsTable().get(id);
 }
 
 /** Deserialise a StoredScanSession back to a PropertyScanSession. */
@@ -121,10 +107,9 @@ export function hydrateSession(stored: StoredScanSession): PropertyScanSession {
 
 /** Delete a session and its queued assets from IDB. */
 export async function deleteSession(id: string): Promise<void> {
-  const db = getDb();
   await Promise.all([
-    db.sessions.delete(id),
-    db.asset_queue.where('sessionId').equals(id).delete(),
+    getSessionsTable().delete(id),
+    getAssetQueueTable().where('sessionId').equals(id).delete(),
   ]);
 }
 
@@ -132,7 +117,7 @@ export async function deleteSession(id: string): Promise<void> {
 
 /** Enqueue a binary asset to be uploaded on the next sync. */
 export async function enqueueAsset(asset: Omit<QueuedAsset, 'id' | 'attempts'>): Promise<void> {
-  await getDb().asset_queue.add({ ...asset, attempts: 0 });
+  await getAssetQueueTable().add({ ...asset, attempts: 0 });
 }
 
 // ─── Sync to server ───────────────────────────────────────────────────────────
@@ -157,10 +142,11 @@ function isOnline(): boolean {
 export async function syncToServer(): Promise<void> {
   if (!isOnline()) return;
 
-  const db = getDb();
+  const sessions = getSessionsTable();
+  const assetQueue = getAssetQueueTable();
 
   // ── 1. Sync dirty sessions ────────────────────────────────────────────────
-  const dirtySessions = await db.sessions.where('dirty').equals(1).toArray();
+  const dirtySessions = await sessions.where('dirty').equals(1).toArray();
 
   for (const stored of dirtySessions) {
     try {
@@ -183,7 +169,7 @@ export async function syncToServer(): Promise<void> {
         const json = (await res.json()) as { ok: boolean; id?: string };
         if (!json.ok || !json.id) throw new Error('Server returned ok:false on session create');
         // Mark as synced.
-        await db.sessions.update(stored.id, {
+        await sessions.update(stored.id, {
           dirty: 0,
           remoteSessionId: json.id,
           syncState: 'uploaded',
@@ -200,23 +186,23 @@ export async function syncToServer(): Promise<void> {
           }),
         });
         if (!res.ok) throw new Error(`PATCH scan-session failed: ${res.status}`);
-        await db.sessions.update(stored.id, { dirty: 0, syncState: 'uploaded' });
+        await sessions.update(stored.id, { dirty: 0, syncState: 'uploaded' });
       }
     } catch (err) {
       console.error('[Atlas] Session sync failed:', stored.id, err);
-      await db.sessions.update(stored.id, { syncState: 'failed_upload' });
+      await sessions.update(stored.id, { syncState: 'failed_upload' });
     }
   }
 
   // ── 2. Upload queued assets ────────────────────────────────────────────────
-  const pendingAssets = await db.asset_queue
+  const pendingAssets = await assetQueue
     .where('attempts')
     .below(3) // skip permanently-failed items
     .toArray();
 
   for (const queued of pendingAssets) {
     // Resolve the remote session ID for this asset's session.
-    const parent = await db.sessions.get(queued.sessionId);
+    const parent = await sessions.get(queued.sessionId);
     const remoteId = parent?.remoteSessionId;
     if (!remoteId) {
       // Session not yet synced — skip asset; it will be retried once the
@@ -242,12 +228,12 @@ export async function syncToServer(): Promise<void> {
 
       // Remove from queue on success.
       if (queued.id != null) {
-        await db.asset_queue.delete(queued.id);
+        await assetQueue.delete(queued.id);
       }
     } catch (err) {
       console.error('[Atlas] Asset upload failed:', queued.id, err);
       if (queued.id != null) {
-        await db.asset_queue.update(queued.id, { attempts: queued.attempts + 1 });
+        await assetQueue.update(queued.id, { attempts: queued.attempts + 1 });
       }
     }
   }
