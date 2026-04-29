@@ -28,7 +28,7 @@
  * in the Cloudflare Pages dashboard before deploying to production.
  */
 
-import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors.js";
+import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../_utils/errors";
 
 /** Valid report lifecycle statuses. */
 const VALID_STATUSES = new Set(["draft", "complete", "archived"]);

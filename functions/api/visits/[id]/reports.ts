@@ -1,4 +1,4 @@
-import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../../_utils/errors.js";
+import { isMissingTableError, SCHEMA_DRIFT_RESPONSE } from "../../_utils/errors";
 
 /**
  * GET /api/visits/:id/reports
