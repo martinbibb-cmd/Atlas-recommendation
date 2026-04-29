@@ -6,14 +6,15 @@ Internal design documentation for the Atlas scan ingestion infrastructure.
 
 ## Purpose
 
-This document explains the design of the scan import boundary introduced to
-prepare Atlas for future native LiDAR / floor-plan scan clients (starting with
-an iOS RoomPlan companion app).
+This document explains the design of the scan import boundary for Atlas.
+
+**SessionCaptureV1 is the canonical import format.** It is the only top-level
+handoff produced by Atlas Scan iOS and consumed by Atlas Mind. No production
+path depends on `ScanBundleV1` as the primary import contract.
 
 The goal is to make Atlas **scan-ready, not scan-dependent**. The repository
-gains a strict contract, validator, importer pipeline, and test infrastructure
-before any native client exists, so that the first scan client can integrate
-cleanly without touching Atlas core.
+maintains a strict contract, validator, importer pipeline, and test infrastructure
+so that Atlas Scan iOS can integrate cleanly against a stable surface.
 
 ---
 
@@ -27,37 +28,150 @@ Atlas remains the only canonical source of truth for:
 - simulation / physics engine outputs
 - advice and report outputs
 
-Future scan clients are **external producers of draft spatial evidence only**.
-They supply raw geometry that Atlas ingests, validates, and converts into editable
-draft data. Scan data does not automatically become canonical truth.
+Atlas Scan is an **external producer of session evidence only**.  It captures
+rooms, objects, photos, audio, notes, and a timeline of events, then exports
+a `SessionCaptureV1` payload.  Atlas ingests, validates, and converts this
+evidence into editable draft data.  Scan data does not automatically become
+canonical truth — it must pass through Atlas's import review step.
 
 ---
 
-## Boundary architecture
+## Primary handoff: SessionCaptureV1
 
 ```
-Native scan client
+Atlas Scan iOS
        │
-       │  ScanBundleV1 (JSON)
+       │  session_capture.json  (SessionCaptureV1)
+       │  + optional photo files
        ▼
-┌──────────────────────────────────────┐
-│  src/features/scanImport/            │  ← import boundary
-│                                      │
-│  contracts/                          │
-│    scanContracts.ts   — types        │
-│    scanValidation.ts  — validate()   │
-│                                      │
-│  importer/                           │
-│    scanNormaliser.ts  — normalise()  │
-│    scanMapper.ts      — map()        │
-│    scanImporter.ts    — import()     │
-│                                      │
-│  dev/                                │
-│    ScanImportHarness.tsx (dev only)  │
-│                                      │
-│  fixtures/            — test data    │
-│  __tests__/           — tests        │
-└──────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│  src/features/scanImport/                        │  ← import boundary
+│                                                  │
+│  importer/                                       │
+│    sessionCaptureImporter.ts  — primary importer │
+│      importSessionCapture()   — validates + reviews │
+│      isSessionCaptureJson()   — detection helper │
+│                                                  │
+│  ui/                                             │
+│    SessionCaptureImportFlow.tsx  — import wizard │
+│    SessionCaptureImportReview.tsx — review screen│
+│                                                  │
+│  fixtures/                                       │
+│    session-capture-full.json  — full fixture     │
+│                                                  │
+│  __tests__/                                      │
+│    sessionCaptureImporter.test.ts                │
+└──────────────────────────────────────────────────┘
+       │
+       │  Evidence stored in D1 + R2
+       │  (scan_sessions, scan_assets, transcripts)
+       ▼
+┌──────────────────────────────────────────────────┐
+│  src/engine/modules/buildEngineerHandoff.ts       │  ← wired to engineer output
+│    evidence populated from SessionCaptureV1       │
+└──────────────────────────────────────────────────┘
+```
+
+Raw `SessionCaptureV1` types **must not** spread across the wider application.
+Only the importer translates them into canonical Atlas entities.
+
+---
+
+## Boundary architecture (floor-plan path)
+
+The `SessionCaptureV1` spatial data flows through a separate path:
+
+```
+SessionCaptureV1
+       │
+       ▼
+buildInitialSpatialTwinFromCapture()   ← spatialTwin/import
+       │
+       ▼
+SpatialTwinModelV1                     ← editable spatial model
+       │
+       ▼
+AtlasSpatialModelV1                    ← canonical floor-plan model
+       │
+       ▼
+HeatLossModelV1 / EngineInputV2_3
+```
+
+---
+
+## Contract versioning policy
+
+### Current version: `1.0`
+
+All session captures carry an explicit `version` field.  The importer uses
+this to detect unsupported versions before attempting structural validation.
+
+### Versioning rules
+
+| Change type | Action |
+|---|---|
+| New optional field added | Increment **minor** — old importers may ignore the field |
+| Required field added or semantics changed | Increment **major** — old importers must reject |
+| Field removed | Increment **major** |
+
+---
+
+## Importer responsibilities
+
+The importer pipeline (`importSessionCapture`) performs these steps in order:
+
+1. **Structural validation** — validate via `@atlas/contracts` `validateSessionCapture`.
+   Returns `rejected_invalid` with error list if the payload fails.
+
+2. **Evidence inventory** — extract all captured rooms, objects, photos, notes,
+   and transcript into a typed `SessionCaptureReview`.
+
+3. **Readiness signals** — derive `missingFields` and `verificationRequired`
+   lists so the review screen can surface gaps before import is confirmed.
+
+4. **Evidence routing** — classify each evidence item as `customerSafe: true/false`.
+   Session/room-scope photos are customer-safe; object photos, notes, and
+   transcript are engineer-only.
+
+5. **Warning derivation** — surface incomplete rooms, objects without photos,
+   orphan photo references, and non-ready session status as import warnings.
+
+---
+
+## Evidence routing rules
+
+| Evidence kind | Customer-safe | Engineer-visible |
+|---|---|---|
+| Rooms (captured) | ✓ | ✓ |
+| Session-scope photos | ✓ | ✓ |
+| Room-scope photos | ✓ | ✓ |
+| Object-scope photos | ✗ | ✓ |
+| Note markers | ✗ | ✓ |
+| Transcript text | ✗ | ✓ |
+
+Customer-facing outputs (portal, report, print pack) must not surface
+engineer notes or object-level photos without explicit review approval.
+
+---
+
+## Persistence
+
+After import review is confirmed:
+
+1. A `scan_sessions` D1 record is created (session ID, address, review state).
+2. Photo files are uploaded to R2 (`scan-sessions/:id/assets`).
+3. Transcript text is stored in D1 (`scan-sessions/:id/transcripts`).
+4. No raw audio is transmitted or stored.
+
+---
+
+## Legacy ScanBundleV1
+
+`ScanBundleV1` package import (`manifest.json` + `scan_bundle.json`) is retained
+as a fallback path in `ReceiveScanPage` for backward compatibility, but is not
+promoted as the primary route.  No new work should reference `ScanBundleV1` as
+the canonical handoff format.
+
        │
        │  CanonicalFloorPlanDraft
        │  (canonical Atlas entities with provenance)

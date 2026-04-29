@@ -9,12 +9,19 @@
  * This page reads the latest file from IDB (browser) or from the deep-link
  * (native) and routes to:
  *
- *   - ScanPackageImportFlow   — for .json (Atlas Scan bundle packages)
- *   - RoomScanEditor          — for .ply (raw LiDAR point clouds) — full review surface
- *   - An error / fallback UI  — for unsupported formats or empty IDB
+ *   - SessionCaptureImportFlow — primary path for session_capture.json
+ *                                (SessionCaptureV1 from Atlas Scan iOS)
+ *   - RoomScanEditor           — for .ply (raw LiDAR point clouds)
+ *   - An error / fallback UI   — for unsupported formats or empty IDB
  *
  * The "files=N" query param (written by sw.js) is used to show a count badge;
  * it is not security-critical (IDB is the source of truth).
+ *
+ * Detection logic for .json files:
+ *   1. If the file parses as a SessionCaptureV1 (has sessionId + rooms) →
+ *      SessionCaptureImportFlow (canonical).
+ *   2. Otherwise → legacy fallback (ScanPackageImportFlow for ScanBundleV1
+ *      package bundles).
  */
 
 import { useState, useEffect, lazy, Suspense } from 'react';
@@ -25,7 +32,9 @@ import {
   type ScanFileEntry,
 } from '../../../lib/storage/scanFileCache';
 import { getLaunchScanEntry, listenForIncomingScan } from '../../../lib/nativeBridge';
+import SessionCaptureImportFlow from './SessionCaptureImportFlow';
 import ScanPackageImportFlow from './ScanPackageImportFlow';
+import { isSessionCaptureJson } from '../importer/sessionCaptureImporter';
 import type { CanonicalFloorPlanDraft } from '../importer/scanMapper';
 import type { PropertyScanSession } from '../session/propertyScanSession';
 import { upsertSession, syncToServer } from '../../../lib/storage/scanSessionStore';
@@ -40,7 +49,8 @@ const RoomScanEditor = lazy(
 type ViewState =
   | { name: 'loading' }
   | { name: 'empty' }
-  | { name: 'json_import'; file: ScanFileEntry }
+  | { name: 'session_capture_import'; file: ScanFileEntry }
+  | { name: 'legacy_json_import'; file: ScanFileEntry }
   | { name: 'ply_editor'; file: ScanFileEntry; positions: Float32Array; vertexCount: number; session: PropertyScanSession }
   | { name: 'processing_ply'; file: ScanFileEntry }
   | { name: 'unsupported'; file: ScanFileEntry }
@@ -57,6 +67,23 @@ function buildFileList(file: ScanFileEntry): FileList {
   const dt = new DataTransfer();
   dt.items.add(f);
   return dt.files;
+}
+
+/**
+ * Detect whether a ScanFileEntry contains a SessionCaptureV1 payload.
+ *
+ * Reads the first 512 bytes to check for the `sessionId` field rather than
+ * parsing the full file — avoids loading large JSON for the type check.
+ */
+async function detectSessionCapture(entry: ScanFileEntry): Promise<boolean> {
+  try {
+    const slice = entry.data.slice(0, 4096);
+    const text = new TextDecoder().decode(slice);
+    const json = JSON.parse(text);
+    return isSessionCaptureJson(json);
+  } catch {
+    return false;
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -135,6 +162,17 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
     let cancelled = false;
     let cleanupListener: (() => void) | undefined;
 
+    async function routeJsonEntry(liveEntry: ScanFileEntry) {
+      // Primary path: detect SessionCaptureV1, fall back to legacy ScanBundle package
+      const isCapture = await detectSessionCapture(liveEntry);
+      if (cancelled) return;
+      if (isCapture) {
+        setState({ name: 'session_capture_import', file: liveEntry });
+      } else {
+        setState({ name: 'legacy_json_import', file: liveEntry });
+      }
+    }
+
     async function load() {
       try {
         // On native platforms, check the launch URL first (cold-start deep-link).
@@ -151,7 +189,7 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
             if (cancelled) return;
             const ext = getFileExtension(liveEntry.name);
             if (ext === 'json') {
-              setState({ name: 'json_import', file: liveEntry });
+              void routeJsonEntry(liveEntry);
             } else if (ext === 'ply') {
               processPlyEntry(liveEntry, () => cancelled);
             } else {
@@ -166,7 +204,7 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
         const ext = getFileExtension(entry.name);
 
         if (ext === 'json') {
-          setState({ name: 'json_import', file: entry });
+          await routeJsonEntry(entry);
           return;
         }
 
@@ -222,13 +260,13 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
         </div>
         <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 8, padding: '16px 20px' }}>
           <p style={{ margin: 0, fontSize: 14, color: '#92400e' }}>
-            No scan file was received. Share a scan file from your scanning app to import it into Atlas.
+            No scan file was received. Share a session capture from Atlas Scan to import it.
           </p>
         </div>
         <div style={{ marginTop: 16, fontSize: 13, color: '#6b7280' }}>
           <p style={{ margin: '0 0 6px', fontWeight: 600 }}>Supported formats:</p>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
-            <li><code>.json</code> — Atlas Scan package bundle</li>
+            <li><code>session_capture.json</code> — Atlas Scan session capture (primary)</li>
             <li><code>.ply</code> — LiDAR point cloud (binary or ASCII)</li>
           </ul>
         </div>
@@ -268,7 +306,7 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
         <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 8, padding: '16px 20px' }}>
           <p style={{ margin: 0, fontSize: 14, color: '#92400e' }}>
             <strong>{state.file.name}</strong> is not a supported format.
-            Atlas supports <code>.json</code> (Atlas Scan bundles) and <code>.ply</code> (LiDAR point clouds).
+            Atlas accepts <code>session_capture.json</code> (session captures from Atlas Scan) and <code>.ply</code> (LiDAR point clouds).
           </p>
         </div>
         <button
@@ -306,8 +344,27 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
     );
   }
 
-  // ── JSON import — delegate to existing ScanPackageImportFlow ──
-  // state.name === 'json_import'
+  // ── Session capture import — primary path ──
+  // state.name === 'session_capture_import'
+  if (state.name === 'session_capture_import') {
+    const captureFile = scanEntryToFile(state.file);
+    return (
+      <SessionCaptureImportFlow
+        preloadedFile={captureFile}
+        onImported={(_sessionId) => {
+          void clearScanFiles();
+          onCancel();
+        }}
+        onCancel={() => {
+          void clearScanFiles();
+          onCancel();
+        }}
+      />
+    );
+  }
+
+  // ── Legacy JSON import — ScanBundleV1 package fallback ──
+  // state.name === 'legacy_json_import'
   const jsonFile = state.file;
   return (
     <ScanPackageImportFlow
