@@ -21,6 +21,7 @@ import { readScanPackage } from './scanPackageReader';
 import { validateScanManifest, type ScanImportManifest } from './ScanImportManifest';
 import { importScanBundle, type ScanImportResult } from '../importer/scanImporter';
 import type { CanonicalFloorPlanDraft, ProvenanceSummary, ScanImportWarning } from '../importer/scanMapper';
+import type { PropertyScanSession } from '../session/propertyScanSession';
 
 // ─── Import readiness verdict ─────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ export interface ScanPackageReviewReady {
 export interface ScanPackageImportSuccess {
   status: 'imported';
   draft: CanonicalFloorPlanDraft;
+  session: PropertyScanSession;
   provenanceSummary: ProvenanceSummary;
   warnings: ScanImportWarning[];
   summary: ImportSummary;
@@ -280,7 +282,7 @@ export function confirmScanPackageImport(
     return { status: 'failed', errors };
   }
 
-  const { draft, warnings, provenanceSummary } = importResult;
+  const { draft, warnings, provenanceSummary, session } = importResult;
   const summary = buildImportSummary(
     draft,
     provenanceSummary,
@@ -291,6 +293,7 @@ export function confirmScanPackageImport(
   return {
     status: 'imported',
     draft,
+    session,
     provenanceSummary,
     warnings,
     summary,
