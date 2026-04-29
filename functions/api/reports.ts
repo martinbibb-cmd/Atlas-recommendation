@@ -1,4 +1,4 @@
-import { withD1CircuitBreaker } from "./_utils/circuitBreaker.js";
+import { withD1CircuitBreaker } from "./_utils/circuitBreaker";
 
 /**
  * POST /api/reports

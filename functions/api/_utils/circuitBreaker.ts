@@ -33,7 +33,7 @@
  *   // result.value is the D1 result
  */
 
-import { isMissingTableError, isMissingColumnError, SCHEMA_DRIFT_RESPONSE } from "./errors.js";
+import { isMissingTableError, isMissingColumnError, SCHEMA_DRIFT_RESPONSE } from "./errors";
 
 // ─── Response bodies ──────────────────────────────────────────────────────────
 
