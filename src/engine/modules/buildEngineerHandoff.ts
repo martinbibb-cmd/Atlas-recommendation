@@ -195,11 +195,52 @@ function buildInstallNotes(
 // ─── Evidence ─────────────────────────────────────────────────────────────────
 
 /**
- * Placeholder — evidence records will be populated from AtlasPropertyV1
- * in a future PR when floor plan / object / photo truth is fed in.
+ * Builds the evidence array for the engineer handoff from an optional
+ * SessionCaptureV1.  When no capture is provided, returns an empty array.
+ *
+ * Evidence is engineer-facing only — customer-safe filtering is enforced at
+ * the customer portal / report layer, not here.
  */
-function buildEvidence(): EngineerHandoffEvidence[] {
-  return [];
+function buildEvidence(capture?: import('@atlas/contracts').SessionCaptureV1): EngineerHandoffEvidence[] {
+  if (!capture) return [];
+
+  const items: EngineerHandoffEvidence[] = [];
+
+  // Rooms captured during the session
+  for (const room of capture.rooms ?? []) {
+    items.push({
+      kind: 'capture',
+      title: room.label || room.roomId,
+      ref: room.roomId,
+    });
+  }
+
+  // Photos
+  for (const photo of capture.photos ?? []) {
+    const room = (capture.rooms ?? []).find((r) => r.roomId === photo.roomId);
+    let title = 'Photo';
+    if (photo.scope === 'object') title = 'Object photo';
+    else if (photo.scope === 'room' && room) title = `Photo — ${room.label}`;
+    else if (photo.scope === 'room') title = 'Room photo';
+    items.push({ kind: 'photo', title, ref: photo.photoId });
+  }
+
+  // Note markers
+  for (const note of capture.notes ?? []) {
+    items.push({
+      kind: 'note',
+      title: note.text ?? 'Field note',
+      ref: note.markerId,
+    });
+  }
+
+  // Transcript (if available)
+  const transcriptText = capture.audio?.transcription?.text;
+  if (transcriptText) {
+    items.push({ kind: 'note', title: 'Session transcript', ref: 'transcript' });
+  }
+
+  return items;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -210,11 +251,13 @@ function buildEvidence(): EngineerHandoffEvidence[] {
  * Projects an AtlasDecisionV1 and its source ScenarioResult[] into an
  * EngineerHandoff view model.
  *
- * @param decision     The canonical AtlasDecisionV1 for this job.
- * @param scenarios    All evaluated ScenarioResult entries for this job.
- * @param engineInput  Optional engine input — used to surface measured facts
- *                     (pipe sizes, pressures, outputs) not already in decision.supportingFacts.
- * @param propertyPlan Optional floor-plan model — used to build the spatial layout section.
+ * @param decision       The canonical AtlasDecisionV1 for this job.
+ * @param scenarios      All evaluated ScenarioResult entries for this job.
+ * @param engineInput    Optional engine input — used to surface measured facts
+ *                       (pipe sizes, pressures, outputs) not already in decision.supportingFacts.
+ * @param propertyPlan   Optional floor-plan model — used to build the spatial layout section.
+ * @param sessionCapture Optional SessionCaptureV1 — when provided, populates the evidence
+ *                       section with captured rooms, photos, notes, and transcript.
  *
  * @throws {Error} when the recommended scenario cannot be located in scenarios[].
  */
@@ -223,6 +266,7 @@ export function buildEngineerHandoff(
   scenarios: ScenarioResult[],
   engineInput?: EngineInputV2_3Contract,
   propertyPlan?: PropertyPlan,
+  sessionCapture?: import('@atlas/contracts').SessionCaptureV1,
 ): EngineerHandoff {
   const recommended = scenarios.find(s => s.scenarioId === decision.recommendedScenarioId);
   if (!recommended) {
@@ -243,7 +287,7 @@ export function buildEngineerHandoff(
     existingSystem:        buildExistingSystem(decision, engineInput),
     measuredFacts:         buildMeasuredFacts(decision, engineInput),
     installNotes:          buildInstallNotes(decision, recommended, engineInput),
-    evidence:              buildEvidence(),
+    evidence:              buildEvidence(sessionCapture),
     futurePath:            decision.futureUpgradePaths,
     ...(layout        ? { layout }        : {}),
     ...(layoutSummary ? { layoutSummary } : {}),

@@ -1,0 +1,231 @@
+{
+  "version": "1.0",
+  "sessionId": "sc-fixture-001-full",
+  "startedAt": "2026-04-01T09:00:00Z",
+  "updatedAt": "2026-04-01T11:30:00Z",
+  "completedAt": "2026-04-01T11:30:00Z",
+  "status": "ready",
+  "property": {
+    "address": "14 Maple Close, Guildford",
+    "postcode": "GU1 1AA"
+  },
+  "rooms": [
+    {
+      "roomId": "room-001",
+      "label": "Utility Room",
+      "status": "complete"
+    },
+    {
+      "roomId": "room-002",
+      "label": "Airing Cupboard",
+      "status": "complete"
+    },
+    {
+      "roomId": "room-003",
+      "label": "Kitchen",
+      "status": "complete"
+    },
+    {
+      "roomId": "room-004",
+      "label": "Living Room",
+      "status": "complete"
+    },
+    {
+      "roomId": "room-005",
+      "label": "Main Bedroom",
+      "status": "complete"
+    }
+  ],
+  "objects": [
+    {
+      "objectId": "obj-001",
+      "type": "boiler",
+      "roomId": "room-001",
+      "status": "confirmed",
+      "metadata": {
+        "subtype": "combi",
+        "notes": "Worcester Bosch Greenstar 30i — approx 14 years old"
+      },
+      "photoIds": ["photo-001", "photo-002"],
+      "noteMarkerIds": ["note-001"]
+    },
+    {
+      "objectId": "obj-002",
+      "type": "cylinder",
+      "roomId": "room-002",
+      "status": "confirmed",
+      "metadata": {
+        "subtype": "vented",
+        "notes": "180 L unvented cylinder — data plate visible"
+      },
+      "photoIds": ["photo-003"],
+      "noteMarkerIds": []
+    },
+    {
+      "objectId": "obj-003",
+      "type": "radiator",
+      "roomId": "room-003",
+      "status": "placed",
+      "metadata": {},
+      "photoIds": [],
+      "noteMarkerIds": []
+    },
+    {
+      "objectId": "obj-004",
+      "type": "radiator",
+      "roomId": "room-004",
+      "status": "placed",
+      "metadata": {},
+      "photoIds": [],
+      "noteMarkerIds": []
+    },
+    {
+      "objectId": "obj-005",
+      "type": "thermostat",
+      "roomId": "room-004",
+      "status": "confirmed",
+      "metadata": {
+        "subtype": "smart",
+        "notes": "Hive smart thermostat"
+      },
+      "photoIds": ["photo-004"],
+      "noteMarkerIds": []
+    }
+  ],
+  "photos": [
+    {
+      "photoId": "photo-001",
+      "uri": "file://session/photo-001.jpg",
+      "createdAt": "2026-04-01T09:15:00Z",
+      "scope": "object",
+      "roomId": "room-001",
+      "objectId": "obj-001",
+      "tags": ["data_plate"]
+    },
+    {
+      "photoId": "photo-002",
+      "uri": "file://session/photo-002.jpg",
+      "createdAt": "2026-04-01T09:17:00Z",
+      "scope": "object",
+      "roomId": "room-001",
+      "objectId": "obj-001",
+      "tags": ["condition", "flue_clearance"]
+    },
+    {
+      "photoId": "photo-003",
+      "uri": "file://session/photo-003.jpg",
+      "createdAt": "2026-04-01T09:35:00Z",
+      "scope": "object",
+      "roomId": "room-002",
+      "objectId": "obj-002",
+      "tags": ["data_plate"]
+    },
+    {
+      "photoId": "photo-004",
+      "uri": "file://session/photo-004.jpg",
+      "createdAt": "2026-04-01T10:10:00Z",
+      "scope": "object",
+      "roomId": "room-004",
+      "objectId": "obj-005",
+      "tags": ["condition"]
+    },
+    {
+      "photoId": "photo-005",
+      "uri": "file://session/photo-005.jpg",
+      "createdAt": "2026-04-01T10:45:00Z",
+      "scope": "room",
+      "roomId": "room-003",
+      "tags": []
+    },
+    {
+      "photoId": "photo-006",
+      "uri": "file://session/photo-006.jpg",
+      "createdAt": "2026-04-01T11:00:00Z",
+      "scope": "session",
+      "tags": ["overview"]
+    }
+  ],
+  "audio": {
+    "mode": "continuous",
+    "segments": [
+      {
+        "segmentId": "seg-001",
+        "uri": "file://session/audio-segment-001.m4a",
+        "startedAt": "2026-04-01T09:00:00Z",
+        "endedAt": "2026-04-01T11:25:00Z"
+      }
+    ],
+    "transcription": {
+      "status": "complete",
+      "text": "Property is a 1990s detached house. Combi boiler in the utility room, approximately 14 years old, showing signs of wear. Pressure gauge reading around 1 bar. No separate cylinder currently but space exists in the airing cupboard for a 180 litre unvented cylinder if upgrading. Mains pressure tested at 2.8 bar static, 2.1 bar dynamic at 12 litres per minute. Primary pipework is 22mm throughout. Five radiators total — all working but one in the kitchen is slower to heat."
+    }
+  },
+  "notes": [
+    {
+      "markerId": "note-001",
+      "createdAt": "2026-04-01T09:18:00Z",
+      "roomId": "room-001",
+      "objectId": "obj-001",
+      "text": "Boiler — check flue clearance to window, approx 250mm — borderline",
+      "category": "risk"
+    },
+    {
+      "markerId": "note-002",
+      "createdAt": "2026-04-01T09:40:00Z",
+      "roomId": "room-002",
+      "text": "Airing cupboard — adequate space for 180L cylinder, existing pipe run could be reused"
+    },
+    {
+      "markerId": "note-003",
+      "createdAt": "2026-04-01T10:55:00Z",
+      "roomId": "room-003",
+      "text": "Kitchen radiator — one TRV stuck, may need replacement on install day",
+      "category": "follow_up"
+    }
+  ],
+  "events": [
+    {
+      "eventId": "evt-001",
+      "type": "room_assigned",
+      "timestamp": "2026-04-01T09:05:00Z",
+      "roomId": "room-001"
+    },
+    {
+      "eventId": "evt-002",
+      "type": "object_added",
+      "timestamp": "2026-04-01T09:10:00Z",
+      "roomId": "room-001",
+      "objectId": "obj-001"
+    },
+    {
+      "eventId": "evt-003",
+      "type": "photo_taken",
+      "timestamp": "2026-04-01T09:15:00Z",
+      "roomId": "room-001",
+      "objectId": "obj-001"
+    },
+    {
+      "eventId": "evt-004",
+      "type": "room_finished",
+      "timestamp": "2026-04-01T09:30:00Z",
+      "roomId": "room-001"
+    },
+    {
+      "eventId": "evt-005",
+      "type": "room_assigned",
+      "timestamp": "2026-04-01T09:31:00Z",
+      "roomId": "room-002"
+    },
+    {
+      "eventId": "evt-006",
+      "type": "room_finished",
+      "timestamp": "2026-04-01T09:50:00Z",
+      "roomId": "room-002"
+    }
+  ],
+  "device": {
+    "model": "iPhone 15 Pro",
+    "os": "iOS 18.3",
+    "appVersion": "AtlasScan 2.0.0"
+  }
+}
