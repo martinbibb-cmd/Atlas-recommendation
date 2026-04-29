@@ -28,6 +28,7 @@ import { getLaunchScanEntry, listenForIncomingScan } from '../../../lib/nativeBr
 import ScanPackageImportFlow from './ScanPackageImportFlow';
 import type { CanonicalFloorPlanDraft } from '../importer/scanMapper';
 import type { PropertyScanSession } from '../session/propertyScanSession';
+import { upsertSession, syncToServer } from '../../../lib/storage/scanSessionStore';
 
 // Lazy-load the heavy 3D editor — only downloaded when a .ply file is received
 const RoomScanEditor = lazy(
@@ -105,12 +106,19 @@ export default function ReceiveScanPage({ onImported, onCancel }: ReceiveScanPag
       if (cancelled()) return;
       const msg = e.data as { type: string; positions?: Float32Array; vertexCount?: number; message?: string };
       if (msg.type === 'ply_result' && msg.positions && msg.vertexCount != null) {
+        const session = stubSessionForPly(entry);
+        // Save to IDB so the session appears in My Scans and can be picked up later.
+        void upsertSession(session)
+          .then(() => syncToServer())
+          .catch((err: unknown) => {
+            console.error('[Atlas] Failed to persist PLY scan session:', err);
+          });
         setState({
           name: 'ply_editor',
           file: entry,
           positions: msg.positions,
           vertexCount: msg.vertexCount,
-          session: stubSessionForPly(entry),
+          session,
         });
       } else {
         setState({ name: 'error', message: msg.message ?? 'PLY parsing failed' });

@@ -35,6 +35,7 @@ import ScanConflictResolutionPanel, {
 } from './ScanConflictResolutionPanel';
 import type { CanonicalFloorPlanDraft } from '../importer/scanMapper';
 import type { Room } from '../../../components/floorplan/propertyPlan.types';
+import { upsertSession, syncToServer } from '../../../lib/storage/scanSessionStore';
 
 // ─── Step types ───────────────────────────────────────────────────────────────
 
@@ -145,7 +146,12 @@ export default function ScanPackageImportFlow({
       }
     }
 
-    // No conflicts — proceed directly to done.
+    // No conflicts — save session to IDB and trigger server sync, then proceed.
+    void upsertSession(dryResult.session)
+      .then(() => syncToServer())
+      .catch((err: unknown) => {
+        console.error('[Atlas] Failed to persist scan session after import:', err);
+      });
     setStep({ name: 'done', importResult: dryResult });
   }, [existingRooms]);
 
@@ -164,6 +170,12 @@ export default function ScanPackageImportFlow({
         if (result.status === 'failed') {
           setStep({ name: 'error', errors: result.errors });
         } else {
+          // Save session to IDB and trigger server sync.
+          void upsertSession(result.session)
+            .then(() => syncToServer())
+            .catch((err: unknown) => {
+              console.error('[Atlas] Failed to persist scan session after import:', err);
+            });
           setStep({ name: 'done', importResult: result });
         }
       } catch (err) {
