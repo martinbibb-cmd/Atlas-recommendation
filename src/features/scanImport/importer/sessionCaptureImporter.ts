@@ -130,11 +130,12 @@ function buildEvidenceItems(capture: SessionCaptureV1): CaptureEvidenceItem[] {
   const items: CaptureEvidenceItem[] = [];
 
   // Rooms
-  for (const room of capture.rooms) {
+  for (let i = 0; i < capture.rooms.length; i++) {
+    const room = capture.rooms[i];
     items.push({
       kind: 'room',
       ref: room.roomId,
-      label: room.label || `Room ${items.length + 1}`,
+      label: room.label || `Room ${i + 1}`,
       roomId: room.roomId,
       customerSafe: true,
     });

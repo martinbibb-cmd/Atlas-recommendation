@@ -236,7 +236,7 @@ export default function SessionCaptureImportFlow({
       }
 
       // 3. Store transcript text (no audio transmitted)
-      const transcriptText = capture.audio.transcription?.text;
+      const transcriptText = capture.audio?.transcription?.text;
       if (transcriptText) {
         try {
           await storeTranscript(sessionId, transcriptText);

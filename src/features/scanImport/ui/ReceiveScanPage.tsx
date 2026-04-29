@@ -72,8 +72,11 @@ function buildFileList(file: ScanFileEntry): FileList {
 /**
  * Detect whether a ScanFileEntry contains a SessionCaptureV1 payload.
  *
- * Reads the first 512 bytes to check for the `sessionId` field rather than
+ * Reads the first 4096 bytes to check for the `sessionId` field rather than
  * parsing the full file — avoids loading large JSON for the type check.
+ * If the slice cuts mid-JSON, the parse will fail and we fall back to false,
+ * which causes the file to be routed to the legacy ScanBundleV1 path for
+ * a subsequent full-parse attempt.
  */
 async function detectSessionCapture(entry: ScanFileEntry): Promise<boolean> {
   try {
