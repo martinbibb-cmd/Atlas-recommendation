@@ -38,6 +38,11 @@ import type {
   QaFlagV2,
 } from '../contracts/sessionCaptureV2';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/** Maximum number of characters shown when previewing a transcript in a label. */
+const TRANSCRIPT_PREVIEW_MAX_LENGTH = 60;
+
 // ─── Evidence item types ──────────────────────────────────────────────────────
 
 /**
@@ -198,7 +203,7 @@ function buildEvidenceItemsV2(capture: SessionCaptureV2): CaptureEvidenceV2Item[
       kind: 'voice_note',
       ref: vn.voiceNoteId,
       label: vn.transcript
-        ? `Voice note — ${vn.transcript.slice(0, 60)}${vn.transcript.length > 60 ? '…' : ''}`
+        ? `Voice note — ${vn.transcript.slice(0, TRANSCRIPT_PREVIEW_MAX_LENGTH)}${vn.transcript.length > TRANSCRIPT_PREVIEW_MAX_LENGTH ? '…' : ''}`
         : 'Voice note',
       roomId: vn.roomId,
       customerSafe: false,
@@ -466,7 +471,7 @@ export function buildEngineerEvidenceFromV2(
     items.push({
       kind: 'note',
       title: vn.transcript
-        ? `Voice note: ${vn.transcript.slice(0, 80)}${vn.transcript.length > 80 ? '…' : ''}`
+        ? `Voice note: ${vn.transcript.slice(0, TRANSCRIPT_PREVIEW_MAX_LENGTH)}${vn.transcript.length > TRANSCRIPT_PREVIEW_MAX_LENGTH ? '…' : ''}`
         : 'Voice note',
       ref: vn.voiceNoteId,
     });
@@ -499,3 +504,6 @@ export type {
   FloorPlanSnapshotV2,
   QaFlagV2,
 };
+
+// Export constant for use by UI components that truncate transcripts
+export { TRANSCRIPT_PREVIEW_MAX_LENGTH };

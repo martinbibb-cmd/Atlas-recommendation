@@ -240,6 +240,10 @@ export default function SessionCaptureV2ImportFlow({
     return () => {
       cancelled = true;
     };
+  // preloadedFile is intentionally omitted from the dependency array.
+  // The flow runs once on mount to parse the pre-loaded file; re-running
+  // on subsequent renders is not desired (this matches the same pattern used
+  // in SessionCaptureImportFlow.tsx for the V1 import path).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
