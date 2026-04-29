@@ -1,0 +1,155 @@
+{
+  "version": "2.0",
+  "sessionId": "sc-v2-fixture-001",
+  "visitReference": "JOB-2026-04-15-GU1",
+  "capturedAt": "2026-04-15T09:00:00Z",
+  "exportedAt": "2026-04-15T11:45:00Z",
+  "deviceModel": "iPhone 15 Pro",
+  "property": {
+    "address": "22 Birchwood Avenue, Guildford",
+    "postcode": "GU2 4RX"
+  },
+  "roomScans": [
+    {
+      "roomId": "rs-001",
+      "label": "Utility Room",
+      "status": "complete",
+      "floorIndex": 0,
+      "areaM2": 4.2
+    },
+    {
+      "roomId": "rs-002",
+      "label": "Kitchen",
+      "status": "complete",
+      "floorIndex": 0,
+      "areaM2": 14.5
+    },
+    {
+      "roomId": "rs-003",
+      "label": "Living Room",
+      "status": "complete",
+      "floorIndex": 0,
+      "areaM2": 22.1
+    },
+    {
+      "roomId": "rs-004",
+      "label": "Main Bedroom",
+      "status": "complete",
+      "floorIndex": 1,
+      "areaM2": 16.8
+    }
+  ],
+  "photos": [
+    {
+      "photoId": "ph-v2-001",
+      "uri": "file://session/ph-v2-001.jpg",
+      "capturedAt": "2026-04-15T09:12:00Z",
+      "scope": "object",
+      "roomId": "rs-001",
+      "objectPinId": "pin-001",
+      "tags": ["data_plate"]
+    },
+    {
+      "photoId": "ph-v2-002",
+      "uri": "file://session/ph-v2-002.jpg",
+      "capturedAt": "2026-04-15T09:14:00Z",
+      "scope": "object",
+      "roomId": "rs-001",
+      "objectPinId": "pin-001",
+      "tags": ["condition", "flue_clearance"]
+    },
+    {
+      "photoId": "ph-v2-003",
+      "uri": "file://session/ph-v2-003.jpg",
+      "capturedAt": "2026-04-15T09:50:00Z",
+      "scope": "room",
+      "roomId": "rs-002",
+      "tags": []
+    },
+    {
+      "photoId": "ph-v2-004",
+      "uri": "file://session/ph-v2-004.jpg",
+      "capturedAt": "2026-04-15T10:20:00Z",
+      "scope": "room",
+      "roomId": "rs-003",
+      "tags": []
+    },
+    {
+      "photoId": "ph-v2-005",
+      "uri": "file://session/ph-v2-005.jpg",
+      "capturedAt": "2026-04-15T11:30:00Z",
+      "scope": "session",
+      "tags": ["overview"]
+    }
+  ],
+  "voiceNotes": [
+    {
+      "voiceNoteId": "vn-001",
+      "roomId": "rs-001",
+      "createdAt": "2026-04-15T09:20:00Z",
+      "transcript": "Boiler in utility room. Worcester Bosch Greenstar 30i, approximately 12 years old. Pressure reading 1.1 bar. Flue clearance to window frame looks borderline — around 240 mm. Recommend flagging for installer review."
+    },
+    {
+      "voiceNoteId": "vn-002",
+      "roomId": "rs-002",
+      "createdAt": "2026-04-15T09:55:00Z",
+      "transcript": "Kitchen radiator — single panel, TRV present and working. Pipework is 15 mm. No obvious blockages observed."
+    }
+  ],
+  "objectPins": [
+    {
+      "pinId": "pin-001",
+      "objectType": "boiler",
+      "roomId": "rs-001",
+      "label": "Worcester Bosch Greenstar 30i",
+      "photoIds": ["ph-v2-001", "ph-v2-002"],
+      "metadata": {
+        "subtype": "combi",
+        "ageYears": 12,
+        "notes": "Flue clearance borderline — approx 240 mm to window"
+      }
+    },
+    {
+      "pinId": "pin-002",
+      "objectType": "radiator",
+      "roomId": "rs-002",
+      "photoIds": [],
+      "metadata": {
+        "panel": "single",
+        "pipeSizeMm": 15
+      }
+    },
+    {
+      "pinId": "pin-003",
+      "objectType": "thermostat",
+      "roomId": "rs-003",
+      "label": "Hive Active Heating",
+      "photoIds": [],
+      "metadata": {
+        "subtype": "smart"
+      }
+    }
+  ],
+  "floorPlanSnapshots": [
+    {
+      "snapshotId": "fps-001",
+      "uri": "file://session/floorplan-ground.jpg",
+      "capturedAt": "2026-04-15T11:15:00Z",
+      "floorIndex": 0
+    }
+  ],
+  "qaFlags": [
+    {
+      "code": "FLUE_CLEARANCE_BORDERLINE",
+      "severity": "warn",
+      "message": "Flue clearance to window frame may be below minimum — field measurement required",
+      "entityId": "pin-001"
+    },
+    {
+      "code": "RADIATOR_NO_PHOTO",
+      "severity": "info",
+      "message": "Radiator pin has no photos attached",
+      "entityId": "pin-002"
+    }
+  ]
+}
