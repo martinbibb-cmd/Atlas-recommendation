@@ -61,6 +61,8 @@ interface Props {
   onOpenInsightPack?: () => void;
   /** Open the completed-visit handoff review page. */
   onOpenHandoffReview?: () => void;
+  /** Open the Atlas Scan import flow to receive a scan from the Atlas Scan iOS app. */
+  onImportScan?: () => void;
 }
 
 // Delay (ms) between opening the print dialog and launching the email client,
@@ -384,6 +386,7 @@ function HubActions({
   portalUrl,
   portalLoading,
   hasQuotes,
+  onImportScan,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
@@ -401,6 +404,7 @@ function HubActions({
   portalUrl?: string;
   portalLoading?: boolean;
   hasQuotes?: boolean;
+  onImportScan?: () => void;
 }) {
   const surveyDone = isSurveyComplete(meta);
   const visitDone = isVisitCompleted(meta);
@@ -533,6 +537,17 @@ function HubActions({
               📦 Export visit pack
             </button>
           )}
+
+          {onImportScan && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onImportScan}
+              aria-label="Import from Atlas Scan"
+              data-testid="import-from-atlas-scan-btn"
+            >
+              📲 Import from Atlas Scan
+            </button>
+          )}
         </div>
 
         {/* Diagnostics — always visible */}
@@ -661,6 +676,17 @@ function HubActions({
               📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
             </button>
           )}
+
+          {onImportScan && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onImportScan}
+              aria-label="Import from Atlas Scan"
+              data-testid="import-from-atlas-scan-btn"
+            >
+              📲 Import from Atlas Scan
+            </button>
+          )}
         </div>
       </div>
     );
@@ -747,6 +773,17 @@ function HubActions({
         >
           ▶ Present to customer
         </button>
+
+        {onImportScan && (
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={onImportScan}
+            aria-label="Import from Atlas Scan"
+            data-testid="import-from-atlas-scan-btn"
+          >
+            📲 Import from Atlas Scan
+          </button>
+        )}
       </div>
     </div>
   );
@@ -764,6 +801,7 @@ export default function VisitHubPage({
   onOpenEngineerRoute,
   onOpenInsightPack,
   onOpenHandoffReview,
+  onImportScan,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1110,6 +1148,7 @@ export default function VisitHubPage({
           portalUrl={portalUrl}
           portalLoading={portalLoading}
           hasQuotes={hasQuotes}
+          onImportScan={onImportScan}
         />
 
         {/* ── Lifecycle-aware body panels ────────────────────────────────────── */}
