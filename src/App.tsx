@@ -62,6 +62,8 @@ import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
 import ScanSessionListPage from './features/scanImport/ui/ScanSessionListPage';
+import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
+import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
 import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
@@ -354,6 +356,17 @@ const PORTAL_TOKEN =
 const EXPLORER_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('explorer') === '1';
+
+/** Detect /workspace — renders the Visit Workspace home page. */
+const WORKSPACE_HOME =
+  typeof window !== 'undefined' && window.location.pathname === '/workspace';
+
+/** Detect /workspace/:id — renders a single workspace detail page. */
+const WORKSPACE_DETAIL_MATCH =
+  typeof window !== 'undefined'
+    ? window.location.pathname.match(/^\/workspace\/([^/]+)$/)
+    : null;
+const WORKSPACE_DETAIL_ID = WORKSPACE_DETAIL_MATCH ? WORKSPACE_DETAIL_MATCH[1] : null;
 
 function CanonicalPresentationRoute({
   engineInput,
@@ -809,6 +822,26 @@ export default function App() {
     }
     // Fallback: resume survey so the user can complete the quotes step.
     setJourney('visit');
+  }
+
+  // /workspace/:id — render a single workspace detail page.
+  if (WORKSPACE_DETAIL_ID != null) {
+    return (
+      <WorkspaceDetailPage
+        workspaceId={WORKSPACE_DETAIL_ID}
+        onBack={() => { window.location.href = '/workspace'; }}
+      />
+    );
+  }
+
+  // /workspace — render the Visit Workspace home page.
+  if (WORKSPACE_HOME) {
+    return (
+      <WorkspaceHomePage
+        onOpenWorkspace={(id) => { window.location.href = `/workspace/${id}`; }}
+        onBack={() => { window.location.href = window.location.origin; }}
+      />
+    );
   }
 
   // /portal/:reference — render the customer-facing recommendation portal.
@@ -1527,6 +1560,18 @@ export default function App() {
               <h2>Remote / Manual Survey</h2>
               <p>Use when surveying off-site by phone, video, or existing customer information.</p>
               <button className="cta-btn">Start Remote Survey →</button>
+            </div>
+
+            {/* Visit Workspaces — local / drive import workspace */}
+            <div
+              id="visit-workspaces-card"
+              className="journey-card"
+              onClick={() => { window.location.href = '/workspace'; }}
+            >
+              <div className="card-icon">📂</div>
+              <h2>Visit Workspaces</h2>
+              <p>Import, review, and export scan captures — stored locally or on Drive. No DB write until you publish.</p>
+              <button className="cta-btn">Open Workspaces →</button>
             </div>
 
             {/* Tools — standalone utilities */}
