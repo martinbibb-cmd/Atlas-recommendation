@@ -536,7 +536,7 @@ export default function WorkspaceDetailPage({
                 ['Device', capture.deviceModel],
                 workspace.property?.address ? ['Address', workspace.property.address] : null,
                 workspace.property?.postcode ? ['Postcode', workspace.property.postcode] : null,
-              ].filter(Boolean).map(([label, value]) => (
+              ].filter((x): x is string[] => Boolean(x)).map(([label, value]) => (
                 <tr key={String(label)}>
                   <td style={{ color: '#6b7280', paddingRight: 20, paddingBottom: 6, width: '35%' }}>{label}</td>
                   <td style={{ paddingBottom: 6 }}>{value}</td>
