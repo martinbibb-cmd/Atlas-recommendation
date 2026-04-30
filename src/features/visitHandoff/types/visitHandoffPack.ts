@@ -186,6 +186,24 @@ export interface VisitHandoffPack {
   visitId: string;
 
   /**
+   * Which app originated this handoff pack.
+   * "scan"  — pack was built by Atlas Scan iOS after completing a field capture.
+   * "mind"  — pack was built by Atlas Mind (this web app) from a completed survey.
+   *
+   * Used to distinguish the handoff direction and to display the correct
+   * context on the receiving surface.
+   */
+  sourceApp?: 'scan' | 'mind';
+
+  /**
+   * Review status of the pack on the receiving surface.
+   * "pending"   — arrived but not yet reviewed by an engineer.
+   * "reviewed"  — engineer has reviewed and confirmed the captured evidence.
+   * "published" — evidence has been accepted and attached to the active visit.
+   */
+  reviewStatus?: 'pending' | 'reviewed' | 'published';
+
+  /**
    * ISO 8601 timestamp of when the visit was completed and the pack was built.
    * Example: "2025-10-14T14:32:00Z"
    */

@@ -213,6 +213,24 @@ const HANDOFF_ENABLED =
   new URLSearchParams(window.location.search).get('handoff') === '1';
 
 /**
+ * Detect ?visitId=<id> — opens the visit-hub for the given visit ID on load.
+ *
+ * Used by Atlas Scan iOS (and other handoff sources) to open a specific visit
+ * directly when launching Atlas Mind.  Takes precedence over cached session
+ * state but yields to URL-mode routes (ENGINEER_VISIT_ID, INITIAL_REPORT_ID,
+ * SCAN_PACKAGE_ENABLED, RECEIVE_SCAN_ENABLED, etc.) which render before the
+ * main App state machine is reached.
+ *
+ * Examples:
+ *   /?visitId=visit_abc123          — open visit-hub for that visit
+ *   /?scan-package=1&visitId=xyz    — import scan, then return to that visit
+ */
+const INITIAL_VISIT_ID_PARAM =
+  typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search).get('visitId')
+    : null;
+
+/**
  * Detect ?visit-handoff=1 — renders the completed-visit handoff review page.
  * Shows customer and engineer read-only review surfaces from a VisitHandoffPack.
  * Loads the built-in dev fixture by default; supports upload/paste JSON in-page.
@@ -479,9 +497,11 @@ export default function App() {
   );
 
   const [journey, setJourney] = useState<Journey>(() => {
-    if (FLOOR_PLAN_TOOL_MODE)        return 'floor-plan';
-    if (ENGINEER_VISIT_ID != null)   return 'engineer';
-    if (INITIAL_REPORT_ID != null)   return 'report';
+    if (FLOOR_PLAN_TOOL_MODE)            return 'floor-plan';
+    if (ENGINEER_VISIT_ID != null)       return 'engineer';
+    if (INITIAL_REPORT_ID != null)       return 'report';
+    // ?visitId= deep-link: open visit-hub directly without restoring cached state.
+    if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-hub';
     const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'landing';
     // 'presentation' and 'printout' require labEngineInput which is not persisted.
     // 'framework-print' is a transient print destination and should not be restored as an entry point.
@@ -556,7 +576,7 @@ export default function App() {
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   /** Active visit ID — set when the user starts or opens a visit. */
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>(
-    ENGINEER_VISIT_ID ?? _restoredVisit?.value?.visitId ?? undefined,
+    ENGINEER_VISIT_ID ?? INITIAL_VISIT_ID_PARAM ?? _restoredVisit?.value?.visitId ?? undefined,
   );
   /** Controls whether the new-visit dialog is open. */
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
@@ -1091,10 +1111,16 @@ export default function App() {
 
   // ?receive-scan=1 — render the Web Share Target receive page.
   // The service worker sets this param after storing shared file(s) in IDB.
+  // After a successful import:
+  //   - If ?visitId=X is also present, navigate back to that visit's hub.
+  //   - Otherwise, navigate to /workspace where the stored scan session can be reviewed.
   if (RECEIVE_SCAN_ENABLED) {
+    const afterReceiveScan = INITIAL_VISIT_ID_PARAM
+      ? `${window.location.pathname}?visitId=${encodeURIComponent(INITIAL_VISIT_ID_PARAM)}`
+      : '/workspace';
     return (
       <ReceiveScanPage
-        onImported={() => { window.location.href = window.location.pathname; }}
+        onImported={() => { window.location.href = afterReceiveScan; }}
         onCancel={() => { window.location.href = window.location.pathname; }}
       />
     );
@@ -1115,10 +1141,17 @@ export default function App() {
   }
 
   // ?scan-package=1 — render Atlas Scan package import flow.
+  // After a successful import:
+  //   - If ?visitId=X is also present, navigate back to that visit's hub so the
+  //     captured evidence is available in context.
+  //   - Otherwise, navigate to /workspace where the stored scan session can be reviewed.
   if (SCAN_PACKAGE_ENABLED) {
+    const afterScanImport = INITIAL_VISIT_ID_PARAM
+      ? `${window.location.pathname}?visitId=${encodeURIComponent(INITIAL_VISIT_ID_PARAM)}`
+      : '/workspace';
     return (
       <ScanPackageImportFlow
-        onImported={() => { window.location.href = window.location.pathname; }}
+        onImported={() => { window.location.href = afterScanImport; }}
         onCancel={() => { window.location.href = window.location.pathname; }}
       />
     );
@@ -1248,10 +1281,13 @@ export default function App() {
           onImportScan={() => setJourney('receive-scan')}
         />
       )}
-      {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app */}
+      {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
+           After a successful import, navigate to /workspace so the engineer can review
+           the captured evidence.  The scan session is already persisted to IDB at this
+           point; /workspace lists all local sessions and opens the evidence review. */}
       {journey === 'receive-scan' && (
         <ReceiveScanPage
-          onImported={() => setJourney('visit-hub')}
+          onImported={() => { window.location.href = '/workspace'; }}
           onCancel={() => setJourney('visit-hub')}
         />
       )}
