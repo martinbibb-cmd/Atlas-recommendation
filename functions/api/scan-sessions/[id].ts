@@ -55,6 +55,7 @@ interface TranscriptRow {
   room_id: string | null;
   source: string;
   text: string;
+  voice_note_id: string | null;
   created_at: string;
 }
 
@@ -87,7 +88,7 @@ export const onRequestGet: PagesFunction<Env, "id"> = async (context) => {
     ),
     breaker.run(() =>
       env.ATLAS_REPORTS_D1.prepare(
-        `SELECT id, session_id, room_id, source, text, created_at
+        `SELECT id, session_id, room_id, source, text, voice_note_id, created_at
          FROM transcripts WHERE session_id = ? ORDER BY created_at ASC`,
       )
         .bind(sessionId)

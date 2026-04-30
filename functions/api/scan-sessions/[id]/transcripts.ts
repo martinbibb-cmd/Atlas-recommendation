@@ -54,15 +54,18 @@ export const onRequestPost: PagesFunction<Env, "id"> = async (context) => {
   const roomId = typeof body.room_id === "string" && body.room_id.length > 0
     ? body.room_id
     : null;
+  const voiceNoteId = typeof body.voice_note_id === "string" && body.voice_note_id.length > 0
+    ? body.voice_note_id
+    : null;
   const now = new Date().toISOString();
 
   const breaker = createD1CircuitBreaker();
   const result = await breaker.run(() =>
     env.ATLAS_REPORTS_D1.prepare(
-      `INSERT INTO transcripts (id, session_id, room_id, source, text, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO transcripts (id, session_id, room_id, source, text, voice_note_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     )
-      .bind(id, sessionId, roomId, body.source, body.text, now)
+      .bind(id, sessionId, roomId, body.source, body.text, voiceNoteId, now)
       .run(),
   );
 

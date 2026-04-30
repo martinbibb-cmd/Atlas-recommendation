@@ -25,7 +25,14 @@ interface AssetRow {
   r2_key: string;
 }
 
-const ALLOWED_ASSET_TYPES = ["photo", "ply", "transcript", "scan_bundle"] as const;
+const ALLOWED_ASSET_TYPES = [
+  "photo",
+  "ply",
+  "transcript",
+  "scan_bundle",
+  "floor_plan_snapshot",
+  "object_pin_ref",
+] as const;
 type AssetType = (typeof ALLOWED_ASSET_TYPES)[number];
 
 function isAssetType(v: unknown): v is AssetType {
