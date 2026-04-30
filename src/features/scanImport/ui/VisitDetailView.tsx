@@ -516,7 +516,7 @@ function ObjectPinPanel({ rooms, existingPin, onSave, onCancel }: ObjectPinPanel
                 <img
                   key={p.id}
                   src={p.uri}
-                  alt="Object photo"
+                  alt={`${OBJECT_TYPE_LABELS[objectType]} photo`}
                   style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 4, border: '1px solid #334155' }}
                 />
               ))}
@@ -740,7 +740,7 @@ function FloorPlanPanel({ draft, onMovePin, onAddSnapshot, onClose }: FloorPlanP
                 <img
                   key={s.snapshotId}
                   src={s.uri}
-                  alt="Floor plan snapshot"
+                  alt={`Floor plan snapshot${s.floorIndex != null ? ` — ${s.floorIndex === 0 ? 'ground floor' : `floor ${s.floorIndex}`}` : ''}`}
                   style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid #334155' }}
                 />
               ))}
@@ -993,11 +993,17 @@ function EvidenceList({
         <div style={S.section}>
           <p style={S.sectionTitle}>📷 Photos ({draft.photos.length})</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {draft.photos.map((photo) => (
+            {draft.photos.map((photo, idx) => (
               <img
                 key={photo.photoId}
                 src={photo.uri}
-                alt="Captured evidence"
+                alt={
+                  photo.objectPinId
+                    ? `Photo ${idx + 1} linked to object pin`
+                    : photo.roomId
+                      ? `Photo ${idx + 1} in room`
+                      : `Session photo ${idx + 1}`
+                }
                 style={{
                   width: 70,
                   height: 70,
@@ -1059,7 +1065,7 @@ function EvidenceList({
               <img
                 key={s.snapshotId}
                 src={s.uri}
-                alt="Floor plan snapshot"
+                alt={`Floor plan snapshot${s.floorIndex != null ? ` — ${s.floorIndex === 0 ? 'ground floor' : `floor ${s.floorIndex}`}` : ''}`}
                 style={{
                   width: 80,
                   height: 80,
