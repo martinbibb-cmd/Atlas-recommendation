@@ -206,32 +206,27 @@ describe('VisitHubPage — completed visit primary actions (PR 17)', () => {
   });
 });
 
-describe('VisitHubPage — Review handoff is inside Diagnostics (PR 17)', () => {
-  it('renders the handoff review button inside the diagnostics collapse', async () => {
+describe('VisitHubPage — Review handoff is visible in Diagnostics (PR 17)', () => {
+  it('renders the handoff review button inside the diagnostics section (always visible)', async () => {
     const { getVisit } = await import('../../../lib/visits/visitApi');
     vi.mocked(getVisit).mockResolvedValue(makeCompletedVisit());
 
     render(<VisitHubPage {...BASE_PROPS} />);
     await screen.findByTestId('visit-hub-body-completed-hint');
 
-    // The handoff button must be inside the diagnostics details element
+    // The handoff button must be inside the diagnostics section
     const handoffBtn = screen.getByTestId('open-handoff-review-btn');
     const diagnosticsSection = screen.getByTestId('diagnostics-section');
     expect(diagnosticsSection.contains(handoffBtn)).toBe(true);
   });
 
-  it('opens the handoff review when the button inside diagnostics is clicked', async () => {
+  it('opens the handoff review when the button in diagnostics is clicked', async () => {
     const { getVisit } = await import('../../../lib/visits/visitApi');
     vi.mocked(getVisit).mockResolvedValue(makeCompletedVisit());
     const onOpenHandoffReview = vi.fn();
 
     render(<VisitHubPage {...BASE_PROPS} onOpenHandoffReview={onOpenHandoffReview} />);
     await screen.findByTestId('visit-hub-body-completed-hint');
-
-    // Open the diagnostics section first
-    const detailsEl = screen.getByTestId('diagnostics-section');
-    const summary = detailsEl.querySelector('summary');
-    if (summary) await userEvent.click(summary);
 
     await userEvent.click(screen.getByTestId('open-handoff-review-btn'));
     expect(onOpenHandoffReview).toHaveBeenCalledTimes(1);

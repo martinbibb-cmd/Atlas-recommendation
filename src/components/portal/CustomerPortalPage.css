@@ -861,3 +861,65 @@
   color: #4a5568;
   line-height: 1.5;
 }
+
+/* ── Responsive layout: PC / Mac (≥ 900 px) ──────────────────────────────── */
+
+@media (min-width: 900px) {
+  .portal-page {
+    max-width: 1080px;
+    padding: 0 2rem 4rem;
+  }
+
+  .portal-page__hero {
+    padding: 2.5rem 2.5rem 2rem;
+  }
+
+  .portal-hero__title {
+    font-size: 2.1rem;
+  }
+
+  .portal-signal-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .portal-improvement-tiles {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .portal-comparison-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+
+  /* Keep the recommended card full-width on top */
+  .portal-comparison-card--recommended {
+    grid-column: 1 / -1;
+  }
+
+  .portal-welcome__cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .portal-welcome__card {
+    padding: 2rem 1.75rem;
+  }
+
+  .portal-section--alt {
+    margin-left: -2rem;
+    margin-right: -2rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .portal-page {
+    max-width: 1280px;
+  }
+
+  .portal-improvement-tiles {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
