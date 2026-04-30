@@ -12,7 +12,23 @@
  *   import { RemoteWorkspaceProvider } from './RemoteWorkspaceProvider';
  *   export const defaultWorkspace = new RemoteWorkspaceProvider();
  *
- * The switch requires no changes to any call-site because both providers
+ * To switch to Google Drive (OAuth PKCE):
+ *
+ *   import { GoogleDriveWorkspaceProvider } from './GoogleDriveWorkspaceProvider';
+ *   export const defaultWorkspace = new GoogleDriveWorkspaceProvider({
+ *     clientId:    'YOUR_CLIENT_ID.apps.googleusercontent.com',
+ *     redirectUri: 'https://your-app.example.com/oauth/google',
+ *   });
+ *
+ * To switch to Microsoft OneDrive (OAuth PKCE):
+ *
+ *   import { OneDriveWorkspaceProvider } from './OneDriveWorkspaceProvider';
+ *   export const defaultWorkspace = new OneDriveWorkspaceProvider({
+ *     clientId:    'YOUR_AZURE_APP_CLIENT_ID',
+ *     redirectUri: 'https://your-app.example.com/oauth/microsoft',
+ *   });
+ *
+ * The switch requires no changes to any call-site because all providers
  * implement the same WorkspaceProvider interface.
  *
  * Singleton pattern
