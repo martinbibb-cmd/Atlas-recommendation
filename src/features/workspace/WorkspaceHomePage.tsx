@@ -285,7 +285,6 @@ export default function WorkspaceHomePage({
               borderRadius: 6,
               cursor: importing ? 'default' : 'pointer',
             }}
-            onClick={(e) => { e.stopPropagation(); if (!importing) fileInputRef.current?.click(); }}
           >
             {importing ? 'Importing…' : 'Choose file'}
           </button>

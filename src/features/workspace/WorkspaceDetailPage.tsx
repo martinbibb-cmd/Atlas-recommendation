@@ -433,9 +433,6 @@ export default function WorkspaceDetailPage({
               label={STORAGE_LABELS[workspace.storageType] ?? workspace.storageType}
               style={{ bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' }}
             />
-            {!workspace.reviewDecisions.some(d => d.reviewStatus === 'pending') && workspace.status === 'ready_for_report' && (
-              <Badge label="✓ Ready for report" style={{ bg: '#f0fdf4', color: '#166534', border: '#86efac' }} />
-            )}
           </div>
           {workspace.property?.address && (
             <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{workspace.property.address}{workspace.property.postcode ? `, ${workspace.property.postcode}` : ''}</p>
