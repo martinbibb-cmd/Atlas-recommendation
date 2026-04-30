@@ -68,6 +68,7 @@ import CustomerSummaryPrintPage from './features/visitHandoff/components/Custome
 import EngineerSummaryPrintPage from './features/visitHandoff/components/EngineerSummaryPrintPage';
 import { SAMPLE_VISIT_HANDOFF_PACK } from './features/visitHandoff/fixtures/sampleVisitHandoffPack';
 import InsightPackDeck from './features/insightPack/InsightPackDeck';
+import VisitDetailView from './features/scanImport/ui/VisitDetailView';
 import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
 import type { InsightPackSurveyContext } from './features/insightPack/buildInsightPackFromEngine';
 import type { QuoteInput } from './features/insightPack/insightPack.types';
@@ -156,6 +157,15 @@ const GALLERY_MODE_ENABLED =
 const AUDIT_MODE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('audit') === '1';
+
+/**
+ * Detect ?atlas-capture=1 — renders the on-device capture view (VisitDetailView)
+ * for building a SessionCaptureV2 capture session directly in the browser.
+ * This is the primary entry point for the SessionCaptureV2 visit flow.
+ */
+const ATLAS_CAPTURE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('atlas-capture') === '1';
 
 /**
  * Detect ?scan-import=1 — renders the Scan Import Dev Harness directly.
@@ -990,6 +1000,17 @@ export default function App() {
         </div>
         <InsightPackDeck pack={pack} propertyTitle="Demo — SW1A 1AA" />
       </div>
+    );
+  }
+
+  // ?atlas-capture=1 — render the on-device capture view for building a
+  // SessionCaptureV2 session directly in the browser.
+  if (ATLAS_CAPTURE_ENABLED) {
+    return (
+      <VisitDetailView
+        onBack={() => { window.location.href = window.location.pathname; }}
+        onExported={() => { window.location.href = window.location.pathname; }}
+      />
     );
   }
 
