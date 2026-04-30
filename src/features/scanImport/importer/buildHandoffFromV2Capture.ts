@@ -20,7 +20,7 @@
  *   - Do NOT invent geometry or synthesise missing fields.
  */
 
-import type { CaptureReviewModel, ReviewObjectPin } from '../importer/captureReviewModel';
+import type { CaptureReviewModel, ReviewObjectPin, ReviewStatus } from '../importer/captureReviewModel';
 
 // ─── Engineer handoff types ───────────────────────────────────────────────────
 
@@ -41,6 +41,11 @@ export interface EngineerHandoffItem {
    *   'review'     — QA flag or incomplete state.
    */
   confidence: 'confirmed' | 'inferred' | 'review';
+  /**
+   * The engineer's review decision for this item (where applicable).
+   * Rooms and QA flags do not carry a reviewStatus.
+   */
+  reviewStatus?: ReviewStatus;
 }
 
 /** Engineer handoff output produced from a V2 capture. */
@@ -128,6 +133,7 @@ export function buildEngineerHandoffFromV2(model: CaptureReviewModel): EngineerH
       title: formatObjectPinTitle(pin),
       roomId: pin.roomId,
       confidence: pin.needsConfirmation ? 'inferred' : 'confirmed',
+      reviewStatus: pin.reviewStatus,
     });
   }
 
@@ -149,6 +155,7 @@ export function buildEngineerHandoffFromV2(model: CaptureReviewModel): EngineerH
       title,
       roomId: photo.roomId,
       confidence: 'confirmed',
+      reviewStatus: photo.reviewStatus,
     });
   }
 
@@ -172,7 +179,13 @@ export function buildEngineerHandoffFromV2(model: CaptureReviewModel): EngineerH
       snap.floorIndex !== undefined
         ? `Floor plan — floor ${snap.floorIndex}`
         : 'Floor plan snapshot';
-    items.push({ kind: 'floor_plan', ref: snap.snapshotId, title, confidence: 'confirmed' });
+    items.push({
+      kind: 'floor_plan',
+      ref: snap.snapshotId,
+      title,
+      confidence: 'confirmed',
+      reviewStatus: snap.reviewStatus,
+    });
   }
 
   // QA flags — engineer needs to see all error/warn flags
@@ -227,21 +240,22 @@ export function buildCustomerProofFromV2(model: CaptureReviewModel): CustomerPro
     }
   }
 
-  // Customer-safe photos (session + room scope)
-  const safePhotoSet = new Set(model.customerSafePhotoIds);
+  // Customer-safe photos: confirmed + explicitly included in customer report
   for (const photo of model.photos) {
-    if (safePhotoSet.has(photo.photoId)) {
+    if (photo.reviewStatus === 'confirmed' && photo.includeInCustomerReport) {
       items.push({ kind: 'photo', ref: photo.photoId, title: `Photo — ${photo.scope}` });
     }
   }
 
-  // Floor-plan snapshots (always safe for customers)
+  // Floor-plan snapshots: confirmed + explicitly included in customer report
   for (const snap of model.floorPlanSnapshots) {
-    const title =
-      snap.floorIndex !== undefined
-        ? `Floor plan — floor ${snap.floorIndex}`
-        : 'Floor plan snapshot';
-    items.push({ kind: 'floor_plan', ref: snap.snapshotId, title });
+    if (snap.reviewStatus === 'confirmed' && snap.includeInCustomerReport) {
+      const title =
+        snap.floorIndex !== undefined
+          ? `Floor plan — floor ${snap.floorIndex}`
+          : 'Floor plan snapshot';
+      items.push({ kind: 'floor_plan', ref: snap.snapshotId, title });
+    }
   }
 
   const capturedDate = new Date(model.capturedAt).toLocaleDateString('en-GB', {

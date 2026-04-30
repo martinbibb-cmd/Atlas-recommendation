@@ -7,8 +7,11 @@
  *   1. Parse and validate the JSON (auto-triggered when `preloadedFile` is set)
  *   2. Pre-import review — shows rooms, object pins, photos, voice notes,
  *      floor-plan snapshots, QA flags, missing fields, readiness
- *   3. Confirm → create DB record, upload photos to R2, store transcripts
- *   4. Import complete — summary of what was stored
+ *   3. Evidence review — engineer confirms/rejects each item and sets
+ *      customer-report visibility before import is finalised
+ *   4. Confirm → create DB record, upload photos to R2, store transcripts,
+ *      persist review decisions
+ *   5. Import complete — summary of what was stored
  *
  * This is the V2 primary import surface for captures arriving from Atlas Scan iOS.
  * It must not surface raw SessionCaptureV2 types to any component outside the
@@ -21,6 +24,8 @@
  *   - Transcript text is stored as text only; no audio is transmitted.
  *   - Photos are stored as evidence records with stable asset keys.
  *   - Customer-facing outputs must only show reviewed/safe evidence.
+ *   - Review decisions (reviewStatus, includeInCustomerReport) are persisted
+ *     to scan_assets so they survive reload and apply to downstream outputs.
  */
 
 import { useState, useEffect } from 'react';
@@ -30,7 +35,9 @@ import {
   type SessionCaptureV2Review,
   type SessionCaptureV2,
 } from '../importer/sessionCaptureV2Importer';
+import { buildCaptureReviewModel, type CaptureReviewModel } from '../importer/captureReviewModel';
 import SessionCaptureV2ImportReview from './SessionCaptureV2ImportReview';
+import CaptureEvidenceReviewScreen from './CaptureEvidenceReviewScreen';
 
 // ─── Server sync helpers ──────────────────────────────────────────────────────
 
@@ -128,11 +135,72 @@ async function storeFloorPlanSnapshot(
   }
 }
 
+/**
+ * storeReviewDecisions — persists per-item review decisions (reviewStatus,
+ * includeInCustomerReport) to the scan_assets table via the API.
+ *
+ * This ensures review decisions survive reload and are applied to downstream
+ * outputs (customer proof, engineer handoff) when the session is re-opened.
+ *
+ * Best-effort: failures are logged but do not block the import flow.
+ */
+async function storeReviewDecisions(
+  sessionId: string,
+  model: CaptureReviewModel,
+): Promise<void> {
+  const decisions: Array<{
+    ref: string;
+    kind: string;
+    reviewStatus: string;
+    includeInCustomerReport: boolean;
+  }> = [];
+
+  for (const photo of model.photos) {
+    decisions.push({
+      ref: photo.photoId,
+      kind: 'photo',
+      reviewStatus: photo.reviewStatus,
+      includeInCustomerReport: photo.includeInCustomerReport,
+    });
+  }
+
+  for (const pin of model.objectPins) {
+    decisions.push({
+      ref: pin.pinId,
+      kind: 'object_pin',
+      reviewStatus: pin.reviewStatus,
+      includeInCustomerReport: false,
+    });
+  }
+
+  for (const snap of model.floorPlanSnapshots) {
+    decisions.push({
+      ref: snap.snapshotId,
+      kind: 'floor_plan_snapshot',
+      reviewStatus: snap.reviewStatus,
+      includeInCustomerReport: snap.includeInCustomerReport,
+    });
+  }
+
+  const res = await fetch(`/api/scan-sessions/${sessionId}/review-decisions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decisions }),
+  });
+
+  if (!res.ok) {
+    console.warn(
+      `[Atlas] Review decisions store failed for session ${sessionId}: ${res.status}`,
+    );
+  }
+}
+
 // ─── Step types ───────────────────────────────────────────────────────────────
 
 type Step =
   | { name: 'parsing' }
-  | { name: 'review'; importResult: SessionCaptureV2ImportResult & { status: 'success' | 'success_with_warnings' } }
+  | { name: 'review'; importResult: SessionCaptureV2ImportResult & { status: 'success' | 'success_with_warnings' }; capture: SessionCaptureV2 }
+  | { name: 'evidence_review'; capture: SessionCaptureV2; review: SessionCaptureV2Review; reviewModel: CaptureReviewModel }
   | { name: 'error'; importResult: SessionCaptureV2ImportResult & { status: 'rejected_invalid' } }
   | { name: 'importing'; review: SessionCaptureV2Review }
   | { name: 'done'; review: SessionCaptureV2Review; warnings: string[] };
@@ -220,7 +288,7 @@ export default function SessionCaptureV2ImportFlow({
         return;
       }
 
-      setStep({ name: 'review', importResult: result });
+      setStep({ name: 'review', importResult: result, capture: result.capture });
     };
 
     reader.onerror = () => {
@@ -247,8 +315,18 @@ export default function SessionCaptureV2ImportFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Confirm handler ───────────────────────────────────────────────────────
-  async function handleConfirm(capture: SessionCaptureV2, review: SessionCaptureV2Review) {
+  // ── Pre-import review confirm: advance to evidence review ────────────────
+  function handlePreImportConfirm(capture: SessionCaptureV2, review: SessionCaptureV2Review) {
+    const reviewModel = buildCaptureReviewModel(capture);
+    setStep({ name: 'evidence_review', capture, review, reviewModel });
+  }
+
+  // ── Evidence review confirm: run import with reviewed model ───────────────
+  async function handleConfirm(
+    capture: SessionCaptureV2,
+    review: SessionCaptureV2Review,
+    reviewModel: CaptureReviewModel,
+  ) {
     setStep({ name: 'importing', review });
 
     const warnings: string[] = [];
@@ -257,7 +335,16 @@ export default function SessionCaptureV2ImportFlow({
       // 1. Create scan session record in D1
       const sessionId = await createScanSessionV2(capture);
 
-      // 2. Upload photo files matched by basename to their stable photoId key.
+      // 2. Persist review decisions (reviewStatus, includeInCustomerReport)
+      try {
+        await storeReviewDecisions(sessionId, reviewModel);
+      } catch (err) {
+        warnings.push(
+          `Review decisions storage failed — ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      // 3. Upload photo files matched by basename to their stable photoId key.
       //    Photos are stored as evidence records — not just counted.
       if (photoFiles.length > 0) {
         const photoMap = new Map(
@@ -284,7 +371,7 @@ export default function SessionCaptureV2ImportFlow({
         }
       }
 
-      // 3. Store voice note transcripts — text only, no audio transmitted.
+      // 4. Store voice note transcripts — text only, no audio transmitted.
       for (const vn of capture.voiceNotes) {
         if (vn.transcript) {
           try {
@@ -297,7 +384,7 @@ export default function SessionCaptureV2ImportFlow({
         }
       }
 
-      // 4. Upload floor-plan snapshot files matched by basename.
+      // 5. Upload floor-plan snapshot files matched by basename.
       if (snapshotFiles.length > 0) {
         const snapshotMap = new Map(
           capture.floorPlanSnapshots.map((s) => {
@@ -380,13 +467,25 @@ export default function SessionCaptureV2ImportFlow({
     );
   }
 
-  // Review
+  // Review (pre-import summary)
   if (step.name === 'review') {
-    const { importResult } = step;
+    const { importResult, capture } = step;
     return (
       <SessionCaptureV2ImportReview
         review={importResult.review}
-        onConfirm={() => void handleConfirm(importResult.capture, importResult.review)}
+        onConfirm={() => handlePreImportConfirm(capture, importResult.review)}
+        onCancel={onCancel}
+      />
+    );
+  }
+
+  // Evidence review (per-item confirm/reject)
+  if (step.name === 'evidence_review') {
+    const { capture, review, reviewModel } = step;
+    return (
+      <CaptureEvidenceReviewScreen
+        initialModel={reviewModel}
+        onConfirm={(confirmedModel) => void handleConfirm(capture, review, confirmedModel)}
         onCancel={onCancel}
       />
     );
