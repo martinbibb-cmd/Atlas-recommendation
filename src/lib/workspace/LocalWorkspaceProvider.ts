@@ -73,13 +73,9 @@ export class AtlasWorkspaceDb extends Dexie {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Generate a stable, unique visit ID. */
+/** Generate a stable, unique visit ID using the Web Crypto API. */
 function generateId(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  // Fallback for environments that do not support crypto.randomUUID.
-  return `visit_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+  return crypto.randomUUID();
 }
 
 function nowIso(): string {
