@@ -153,7 +153,6 @@ export default function WorkspaceHomePage({
           setImportError(
             `Package import failed: ${result.errors.slice(0, 3).join('; ')}`,
           );
-          setImporting(false);
           return;
         }
 
@@ -164,7 +163,6 @@ export default function WorkspaceHomePage({
             result.reviewDecisions,
           )
           .then((newId) => {
-            setImporting(false);
             // Navigate to workspace detail and auto-open evidence review.
             onOpenWorkspace(newId, true);
           });
@@ -173,6 +171,8 @@ export default function WorkspaceHomePage({
         setImportError(
           `Package import failed: ${err instanceof Error ? err.message : String(err)}`,
         );
+      })
+      .finally(() => {
         setImporting(false);
       });
   }
@@ -372,6 +372,8 @@ export default function WorkspaceHomePage({
         <div style={{ marginBottom: 24 }}>
           <button
             onClick={() => setShowLegacyImport((v) => !v)}
+            aria-expanded={showLegacyImport}
+            aria-controls="legacy-import-panel"
             style={{
               fontSize: 12,
               color: '#64748b',
@@ -382,10 +384,11 @@ export default function WorkspaceHomePage({
               textDecoration: 'underline',
             }}
           >
-            {showLegacyImport ? '▲ Hide' : '▼ Advanced'}: import JSON file directly
+            {showLegacyImport ? 'Hide advanced' : 'Advanced'}: import JSON file directly
           </button>
           {showLegacyImport && (
             <div
+              id="legacy-import-panel"
               style={{
                 marginTop: 10,
                 border: '1px solid #e2e8f0',

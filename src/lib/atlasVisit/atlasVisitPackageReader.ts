@@ -141,8 +141,10 @@ function parseReviewDecisions(raw: unknown): VisitWorkspaceReviewDecision[] | nu
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.heic', '.webp', '.gif']);
 
 function hasImageExtension(name: string): boolean {
+  const dotIndex = name.lastIndexOf('.');
+  if (dotIndex === -1) return false;
   const lower = name.toLowerCase();
-  return IMAGE_EXTENSIONS.has(lower.substring(lower.lastIndexOf('.')));
+  return IMAGE_EXTENSIONS.has(lower.substring(dotIndex));
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -241,8 +243,9 @@ export async function readAtlasVisitPackage(
       if (decisionsRaw !== null) {
         reviewDecisions = parseReviewDecisions(decisionsRaw);
       }
-    } catch {
-      // Non-fatal — fall back to generated decisions
+    } catch (err) {
+      // Non-fatal — fall back to generated decisions; log for diagnostics.
+      console.warn('[Atlas] Failed to parse review_decisions.json in .atlasvisit package:', err);
     }
   }
 
@@ -252,13 +255,14 @@ export async function readAtlasVisitPackage(
 
   zip.forEach((relativePath, entry) => {
     if (entry.dir) return;
-    const lower = relativePath.toLowerCase();
-    const basename = relativePath.split('/').pop() ?? relativePath;
+    // Normalise to forward-slash separators for consistent prefix matching.
+    const normalised = relativePath.replace(/\\/g, '/').toLowerCase();
+    const basename = normalised.split('/').pop() ?? normalised;
     if (!hasImageExtension(basename)) return;
 
-    if (lower.startsWith('photos/') || lower.startsWith('photos\\')) {
+    if (normalised.startsWith('photos/')) {
       photoFileNames.push(basename);
-    } else if (lower.startsWith('floorplans/') || lower.startsWith('floorplans\\')) {
+    } else if (normalised.startsWith('floorplans/')) {
       floorplanFileNames.push(basename);
     }
   });
