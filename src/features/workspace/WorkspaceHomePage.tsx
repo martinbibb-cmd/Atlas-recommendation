@@ -7,19 +7,23 @@
  * Title: Visit Workspaces
  *
  * Sections:
- *   - Import Scan Capture — accepts session_capture_v2.json or workspace.json
+ *   - Import Atlas Visit Package — accepts .atlasvisit packages (primary flow)
  *   - Recent Workspaces list with storage / status badges
+ *   - Advanced import — legacy JSON file upload (hidden by default)
  *
  * Architecture rules:
  *   - Does NOT write to the remote D1 database.
  *   - All reads/writes go through VisitWorkspaceStore (IndexedDB only).
  *   - Import is local-only; no fetch() calls to /api/* are made.
+ *   - After a successful package import, navigates to /workspace/:id?review=1
+ *     so the detail page opens directly into evidence review.
  */
 
 import { useState, useEffect, useRef } from 'react';
 import type { WorkspaceSummary } from '../../lib/visitWorkspace/VisitWorkspaceV1';
 import { visitWorkspaceStore } from '../../lib/visitWorkspace/VisitWorkspaceStore';
 import { validateSessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
+import { readAtlasVisitPackage } from '../../lib/atlasVisit/atlasVisitPackageReader';
 
 // ─── Status / storage badge helpers ──────────────────────────────────────────
 
@@ -92,7 +96,13 @@ function Badge({ label, style }: { label: string; style: { bg: string; color: st
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface WorkspaceHomePageProps {
-  onOpenWorkspace: (id: string) => void;
+  /**
+   * Called when a workspace is ready to be opened.
+   *
+   * `openReview` — when true the workspace detail page should immediately
+   * open the evidence review screen (set after a fresh .atlasvisit import).
+   */
+  onOpenWorkspace: (id: string, openReview?: boolean) => void;
   onBack: () => void;
 }
 
@@ -106,7 +116,10 @@ export default function WorkspaceHomePage({
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  /** Whether the legacy JSON import section is expanded. */
+  const [showLegacyImport, setShowLegacyImport] = useState(false);
+  const packageInputRef = useRef<HTMLInputElement>(null);
+  const legacyFileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Load recent workspaces ─────────────────────────────────────────────────
   useEffect(() => {
@@ -122,16 +135,68 @@ export default function WorkspaceHomePage({
     return () => { cancelled = true; };
   }, []);
 
-  // ── File import handler ────────────────────────────────────────────────────
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // ── .atlasvisit package import ─────────────────────────────────────────────
+  function handlePackageFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    importFile(file);
-    // Reset input so the same file can be re-selected if needed.
+    importPackageFile(file);
     e.target.value = '';
   }
 
-  function importFile(file: File) {
+  function importPackageFile(file: File) {
+    setImportError(null);
+    setImporting(true);
+
+    readAtlasVisitPackage(file)
+      .then((result) => {
+        if (!result.ok) {
+          setImportError(
+            `Package import failed: ${result.errors.slice(0, 3).join('; ')}`,
+          );
+          return;
+        }
+
+        return visitWorkspaceStore
+          .importFromPackage(
+            result.sessionCapture,
+            result.meta,
+            result.reviewDecisions,
+          )
+          .then((newId) => {
+            // Navigate to workspace detail and auto-open evidence review.
+            onOpenWorkspace(newId, true);
+          });
+      })
+      .catch((err: unknown) => {
+        setImportError(
+          `Package import failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      })
+      .finally(() => {
+        setImporting(false);
+      });
+  }
+
+  // ── Drag-and-drop for .atlasvisit packages ────────────────────────────────
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) importPackageFile(file);
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+  }
+
+  // ── Legacy JSON import (advanced / hidden by default) ─────────────────────
+  function handleLegacyFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    importLegacyFile(file);
+    e.target.value = '';
+  }
+
+  function importLegacyFile(file: File) {
     setImportError(null);
     setImporting(true);
 
@@ -146,9 +211,7 @@ export default function WorkspaceHomePage({
         return;
       }
 
-      // Support both bare SessionCaptureV2 and workspace.json wrapper
       const captureJson = extractCapture(json);
-
       const result = validateSessionCaptureV2(captureJson);
       if (!result.ok) {
         setImportError(
@@ -190,17 +253,6 @@ export default function WorkspaceHomePage({
       return (json as Record<string, unknown>)['sessionCapture'];
     }
     return json;
-  }
-
-  // ── Drag-and-drop support ─────────────────────────────────────────────────
-  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) importFile(file);
-  }
-
-  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
-    e.preventDefault();
   }
 
   // ── Styles ─────────────────────────────────────────────────────────────────
@@ -257,20 +309,20 @@ export default function WorkspaceHomePage({
       {/* Body */}
       <div style={bodyStyle}>
 
-        {/* Import zone */}
+        {/* Primary import zone — .atlasvisit package */}
         <section
-          aria-label="Import Scan Capture"
+          aria-label="Import Atlas Visit Package"
           style={importZoneStyle}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
-          onClick={() => !importing && fileInputRef.current?.click()}
+          onClick={() => !importing && packageInputRef.current?.click()}
         >
-          <div style={{ fontSize: 32, marginBottom: 8 }}>📥</div>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📦</div>
           <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 600, color: '#3730a3' }}>
-            Import Scan Capture
+            Import Atlas Visit Package
           </p>
           <p style={{ margin: '0 0 16px', fontSize: 13, color: '#4338ca' }}>
-            Accepts <code>session_capture_v2.json</code> or <code>workspace.json</code>
+            Accepts <code>.atlasvisit</code> packages
             <br />Drop a file here or click to browse
           </p>
           <button
@@ -286,15 +338,15 @@ export default function WorkspaceHomePage({
               cursor: importing ? 'default' : 'pointer',
             }}
           >
-            {importing ? 'Importing…' : 'Choose file'}
+            {importing ? 'Importing…' : 'Choose package'}
           </button>
           <input
-            ref={fileInputRef}
+            ref={packageInputRef}
             type="file"
-            accept=".json,.zip"
+            accept=".atlasvisit,.zip"
             style={{ display: 'none' }}
-            onChange={handleFileChange}
-            aria-label="Import scan capture file"
+            onChange={handlePackageFileChange}
+            aria-label="Import Atlas Visit package file"
           />
         </section>
 
@@ -315,6 +367,73 @@ export default function WorkspaceHomePage({
             <strong>Import error: </strong>{importError}
           </div>
         )}
+
+        {/* Advanced / legacy JSON import (hidden by default) */}
+        <div style={{ marginBottom: 24 }}>
+          <button
+            onClick={() => setShowLegacyImport((v) => !v)}
+            aria-expanded={showLegacyImport}
+            aria-controls="legacy-import-panel"
+            style={{
+              fontSize: 12,
+              color: '#64748b',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px 0',
+              textDecoration: 'underline',
+            }}
+          >
+            {showLegacyImport ? 'Hide advanced' : 'Advanced'}: import JSON file directly
+          </button>
+          {showLegacyImport && (
+            <div
+              id="legacy-import-panel"
+              style={{
+                marginTop: 10,
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                background: '#fff',
+                padding: '16px 20px',
+              }}
+            >
+              <p style={{ margin: '0 0 10px', fontSize: 13, color: '#374151' }}>
+                Import a bare <code>session_capture_v2.json</code> or{' '}
+                <code>workspace.json</code> file directly.
+              </p>
+              <label style={{ fontSize: 13, cursor: 'pointer' }}>
+                <input
+                  ref={legacyFileInputRef}
+                  type="file"
+                  accept=".json"
+                  style={{ display: 'none' }}
+                  onChange={handleLegacyFileChange}
+                  aria-label="Import session capture JSON file"
+                  disabled={importing}
+                />
+                <button
+                  disabled={importing}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    legacyFileInputRef.current?.click();
+                  }}
+                  style={{
+                    padding: '6px 16px',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: importing ? '#e2e8f0' : '#f1f5f9',
+                    color: importing ? '#94a3b8' : '#374151',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 6,
+                    cursor: importing ? 'default' : 'pointer',
+                  }}
+                >
+                  Choose JSON file
+                </button>
+              </label>
+            </div>
+          )}
+        </div>
 
         {/* Recent workspaces */}
         <section aria-label="Recent Workspaces">
@@ -338,7 +457,7 @@ export default function WorkspaceHomePage({
                 fontSize: 14,
               }}
             >
-              No workspaces yet. Import a scan capture to get started.
+              No workspaces yet. Import an Atlas Visit Package to get started.
             </div>
           )}
 

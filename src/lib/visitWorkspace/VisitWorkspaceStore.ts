@@ -28,6 +28,7 @@ import type {
   VisitWorkspaceReviewDecision,
 } from './VisitWorkspaceV1';
 import type { SessionCaptureV2 } from '../../features/scanImport/contracts/sessionCaptureV2';
+import type { AtlasVisitWorkspaceMeta } from '../atlasVisit/atlasVisitPackageReader';
 
 // ─── Internal stored record ───────────────────────────────────────────────────
 
@@ -203,6 +204,49 @@ export class VisitWorkspaceStore {
       property: capture.property
         ? { address: capture.property.address, postcode: capture.property.postcode }
         : undefined,
+    };
+
+    await this.db.workspaces.add(toStoredRecord(workspace));
+    return id;
+  }
+
+  /**
+   * Import a validated SessionCaptureV2 from an .atlasvisit package.
+   *
+   * Similar to importCapture but:
+   *   - Accepts optional AtlasVisitWorkspaceMeta to override visitReference and
+   *     property fields (meta values take precedence over capture fields).
+   *   - Accepts optional pre-saved review decisions from review_decisions.json;
+   *     when absent, falls back to buildInitialReviewDecisions.
+   *
+   * Returns the new workspace's ID.
+   */
+  async importFromPackage(
+    capture: SessionCaptureV2,
+    meta?: AtlasVisitWorkspaceMeta,
+    reviewDecisions?: VisitWorkspaceReviewDecision[] | null,
+  ): Promise<string> {
+    const id = generateId();
+    const now = nowIso();
+
+    const workspace: VisitWorkspaceV1 = {
+      id,
+      visitReference:
+        meta?.visitReference ??
+        capture.visitReference ??
+        capture.sessionId,
+      importedAt: now,
+      capturedAt: capture.capturedAt,
+      storageType: 'local',
+      status: 'needs_review',
+      sessionCapture: capture,
+      reviewDecisions: reviewDecisions ?? buildInitialReviewDecisions(capture),
+      property:
+        meta?.property ?? (
+          capture.property
+            ? { address: capture.property.address, postcode: capture.property.postcode }
+            : undefined
+        ),
     };
 
     await this.db.workspaces.add(toStoredRecord(workspace));
