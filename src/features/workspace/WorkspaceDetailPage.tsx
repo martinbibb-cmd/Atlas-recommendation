@@ -129,6 +129,12 @@ function SectionCard({
 export interface WorkspaceDetailPageProps {
   workspaceId: string;
   onBack: () => void;
+  /**
+   * When true the evidence review screen opens automatically on mount.
+   * Set by App.tsx when the page is reached via /workspace/:id?review=1
+   * (immediately after a fresh .atlasvisit package import).
+   */
+  autoOpenReview?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -136,6 +142,7 @@ export interface WorkspaceDetailPageProps {
 export default function WorkspaceDetailPage({
   workspaceId,
   onBack,
+  autoOpenReview = false,
 }: WorkspaceDetailPageProps) {
   const [workspace, setWorkspace] = useState<VisitWorkspaceV1 | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,7 +153,16 @@ export default function WorkspaceDetailPage({
   useEffect(() => {
     let cancelled = false;
     visitWorkspaceStore.getWorkspace(workspaceId).then((ws) => {
-      if (!cancelled) { setWorkspace(ws); setLoading(false); }
+      if (!cancelled) {
+        setWorkspace(ws);
+        setLoading(false);
+        // Auto-open evidence review when arriving from a fresh package import.
+        if (autoOpenReview) {
+          const model = buildCaptureReviewModel(ws.sessionCapture);
+          setReviewModel(model);
+          setMode('evidence_review');
+        }
+      }
     }).catch((err) => {
       if (!cancelled) {
         setError(err instanceof Error ? err.message : 'Failed to load workspace');
@@ -154,7 +170,7 @@ export default function WorkspaceDetailPage({
       }
     });
     return () => { cancelled = true; };
-  }, [workspaceId]);
+  }, [workspaceId, autoOpenReview]);
 
   if (loading) {
     return (

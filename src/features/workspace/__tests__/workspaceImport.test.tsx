@@ -293,7 +293,7 @@ describe('Acceptance criterion 1 — WorkspaceHomePage renders', () => {
         onBack={() => undefined}
       />,
     );
-    expect(screen.getByText('Import Scan Capture')).toBeDefined();
+    expect(screen.getByText('Import Atlas Visit Package')).toBeDefined();
     unmount();
   });
 

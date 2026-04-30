@@ -369,6 +369,15 @@ const WORKSPACE_DETAIL_MATCH =
     : null;
 const WORKSPACE_DETAIL_ID = WORKSPACE_DETAIL_MATCH ? WORKSPACE_DETAIL_MATCH[1] : null;
 
+/**
+ * Detect ?review=1 — auto-opens the evidence review screen on
+ * /workspace/:id pages reached immediately after a package import.
+ */
+const WORKSPACE_AUTO_REVIEW =
+  typeof window !== 'undefined' &&
+  WORKSPACE_DETAIL_ID != null &&
+  new URLSearchParams(window.location.search).get('review') === '1';
+
 function CanonicalPresentationRoute({
   engineInput,
   onBack,
@@ -857,6 +866,7 @@ export default function App() {
     return (
       <WorkspaceDetailPage
         workspaceId={WORKSPACE_DETAIL_ID}
+        autoOpenReview={WORKSPACE_AUTO_REVIEW}
         onBack={() => { window.location.href = '/workspace'; }}
       />
     );
@@ -866,7 +876,11 @@ export default function App() {
   if (WORKSPACE_HOME) {
     return (
       <WorkspaceHomePage
-        onOpenWorkspace={(id) => { window.location.href = `/workspace/${id}`; }}
+        onOpenWorkspace={(id, openReview) => {
+          window.location.href = openReview
+            ? `/workspace/${id}?review=1`
+            : `/workspace/${id}`;
+        }}
         onBack={() => { window.location.href = window.location.origin; }}
       />
     );
