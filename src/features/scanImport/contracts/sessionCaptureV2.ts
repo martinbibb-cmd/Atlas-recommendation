@@ -77,7 +77,7 @@ export interface VoiceNoteV2 {
   transcript?: string;
 }
 
-/** Type of captured object (matches V1 CapturedObjectType). */
+/** Type of captured object. */
 export type ObjectPinType =
   | 'radiator'
   | 'boiler'
@@ -86,6 +86,11 @@ export type ObjectPinType =
   | 'flue'
   | 'pipe'
   | 'consumer_unit'
+  | 'gas_meter'
+  | 'sink'
+  | 'bath'
+  | 'shower'
+  | 'pipe_route'
   | 'other';
 
 /**
@@ -260,7 +265,7 @@ function validateVoiceNoteV2(value: unknown, path: string): string[] {
 
 const VALID_OBJECT_PIN_TYPES: ObjectPinType[] = [
   'radiator', 'boiler', 'cylinder', 'thermostat', 'flue',
-  'pipe', 'consumer_unit', 'other',
+  'pipe', 'consumer_unit', 'gas_meter', 'sink', 'bath', 'shower', 'pipe_route', 'other',
 ];
 
 function validateObjectPinV2(value: unknown, path: string): string[] {
