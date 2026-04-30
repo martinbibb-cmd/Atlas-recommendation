@@ -315,7 +315,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -1245,6 +1245,14 @@ export default function App() {
           onOpenEngineerRoute={() => setJourney('engineer')}
           onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
           onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
+          onImportScan={() => setJourney('receive-scan')}
+        />
+      )}
+      {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app */}
+      {journey === 'receive-scan' && (
+        <ReceiveScanPage
+          onImported={() => setJourney('visit-hub')}
+          onCancel={() => setJourney('visit-hub')}
         />
       )}
       {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
