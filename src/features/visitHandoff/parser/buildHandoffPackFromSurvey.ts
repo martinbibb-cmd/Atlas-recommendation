@@ -30,7 +30,7 @@ import type {
 // ─── Customer summary derivation ─────────────────────────────────────────────
 
 function deriveCurrentSystemDescription(
-  systemBuilder: FullSurveyModelV1['fullSurvey']['systemBuilder'] | undefined,
+  systemBuilder: NonNullable<FullSurveyModelV1['fullSurvey']>['systemBuilder'] | undefined,
 ): string | undefined {
   if (!systemBuilder?.heatSource) return undefined;
   const heatMap: Record<string, string> = {
@@ -49,7 +49,7 @@ function deriveCurrentSystemDescription(
 }
 
 function deriveFindingsFromSurvey(
-  systemBuilder: FullSurveyModelV1['fullSurvey']['systemBuilder'] | undefined,
+  systemBuilder: NonNullable<FullSurveyModelV1['fullSurvey']>['systemBuilder'] | undefined,
 ): string[] {
   if (!systemBuilder) return [];
   const findings: string[] = [];
@@ -63,7 +63,7 @@ function deriveFindingsFromSurvey(
 }
 
 function derivePlannedWorkFromRecommendation(
-  recommendation: FullSurveyModelV1['fullSurvey']['recommendation'] | undefined,
+  recommendation: NonNullable<FullSurveyModelV1['fullSurvey']>['recommendation'] | undefined,
 ): string[] {
   if (!recommendation?.heatSource) return [];
   const heatOpt = HEAT_SOURCE_OPTIONS.find(o => o.value === recommendation.heatSource);
@@ -99,7 +99,7 @@ function buildCustomerSummary(
 // ─── Engineer summary derivation ─────────────────────────────────────────────
 
 function deriveKeyObjects(
-  systemBuilder: FullSurveyModelV1['fullSurvey']['systemBuilder'] | undefined,
+  systemBuilder: NonNullable<FullSurveyModelV1['fullSurvey']>['systemBuilder'] | undefined,
 ): HandoffKeyObject[] {
   if (!systemBuilder) return [];
   const objects: HandoffKeyObject[] = [];
@@ -119,7 +119,7 @@ function deriveKeyObjects(
     });
   }
 
-  if (systemBuilder.dhwType && systemBuilder.dhwType !== 'combi') {
+  if (systemBuilder.dhwType) {
     const cylinderLabels: Record<string, string> = {
       cylinder:        'Hot water cylinder',
       megaflo:         'Unvented (mains-pressure) hot water cylinder',
