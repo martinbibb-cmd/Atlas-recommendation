@@ -37,6 +37,7 @@ import { visitWorkspaceStore } from '../../lib/visitWorkspace/VisitWorkspaceStor
 import { buildCaptureReviewModel } from '../scanImport/importer/captureReviewModel';
 import type { CaptureReviewModel } from '../scanImport/importer/captureReviewModel';
 import CaptureEvidenceReviewScreen from '../scanImport/ui/CaptureEvidenceReviewScreen';
+import './WorkspaceDetailPage.css';
 
 // ─── Status / storage helpers ─────────────────────────────────────────────────
 
@@ -121,55 +122,6 @@ function SectionCard({
       {children}
     </section>
   );
-}
-
-// ─── Customer proof builder ───────────────────────────────────────────────────
-
-/**
- * Build a customer-facing proof from the workspace.
- *
- * Only includes evidence that is:
- *   - status is 'confirmed' (not pending or rejected)
- *   - includeInCustomerReport is true
- *
- * Returns a plain-text summary suitable for export / display.
- */
-function buildCustomerProof(workspace: VisitWorkspaceV1): string {
-  const decisions = new Map<string, VisitWorkspaceReviewDecision>(
-    workspace.reviewDecisions.map((d) => [d.ref, d]),
-  );
-
-  const confirmedPhotos = workspace.sessionCapture.photos.filter((p) => {
-    const d = decisions.get(p.photoId);
-    return (
-      (d?.reviewStatus ?? 'confirmed') === 'confirmed' &&
-      (d?.includeInCustomerReport ?? (p.scope !== 'object'))
-    );
-  });
-
-  const confirmedFloorPlans = workspace.sessionCapture.floorPlanSnapshots.filter((s) => {
-    const d = decisions.get(s.snapshotId);
-    return (
-      (d?.reviewStatus ?? 'confirmed') === 'confirmed' &&
-      (d?.includeInCustomerReport ?? true)
-    );
-  });
-
-  const lines: string[] = [
-    `Visit Workspace — Customer Proof`,
-    `Reference: ${workspace.visitReference}`,
-    workspace.property?.address ? `Address: ${workspace.property.address}` : null,
-    workspace.property?.postcode ? `Postcode: ${workspace.property.postcode}` : null,
-    `Captured: ${formatDate(workspace.capturedAt)}`,
-    '',
-    `Rooms: ${workspace.sessionCapture.roomScans.length}`,
-    ...workspace.sessionCapture.roomScans.map((r) => `  • ${r.label}`),
-    '',
-    `Customer-approved photos: ${confirmedPhotos.length}`,
-    `Customer-approved floor plans: ${confirmedFloorPlans.length}`,
-  ].filter((l): l is string => l !== null);
-
-  return lines.join('\n');
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -268,47 +220,85 @@ export default function WorkspaceDetailPage({
 
   // ── Customer proof mode ──────────────────────────────────────────────────
   if (mode === 'customer_proof') {
-    const proof = buildCustomerProof(workspace);
+    const confirmedPhotos = workspace.sessionCapture.photos.filter((p) => {
+      const d = workspace.reviewDecisions.find((dec) => dec.ref === p.photoId);
+      return (
+        (d?.reviewStatus ?? 'confirmed') === 'confirmed' &&
+        (d?.includeInCustomerReport ?? (p.scope !== 'object'))
+      );
+    });
+    const confirmedFloorPlans = workspace.sessionCapture.floorPlanSnapshots.filter((s) => {
+      const d = workspace.reviewDecisions.find((dec) => dec.ref === s.snapshotId);
+      return (
+        (d?.reviewStatus ?? 'confirmed') === 'confirmed' &&
+        (d?.includeInCustomerReport ?? true)
+      );
+    });
+
     return (
-      <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 640, margin: '0 auto', padding: 24 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
-          <button onClick={() => setMode('detail')} style={{ fontSize: 13, padding: '4px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>
+      <div className="wdp-wrap">
+        <div className="wdp-toolbar">
+          <button className="wdp-toolbar__back" onClick={() => setMode('detail')}>
             ← Back
           </button>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Customer Proof</h1>
+          <span className="wdp-toolbar__title">Customer Proof</span>
+          <button className="wdp-toolbar__print" onClick={() => window.print()}>
+            🖨 Print / Save as PDF
+          </button>
         </div>
-        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
-          Only confirmed evidence with "Include in customer report" is shown below.
-          Pending and rejected items are excluded.
-        </p>
-        <pre
-          style={{
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            padding: '16px 20px',
-            fontSize: 13,
-            lineHeight: 1.6,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {proof}
-        </pre>
-        <button
-          onClick={() => {
-            const blob = new Blob([proof], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `customer-proof-${workspace.visitReference}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          style={{ marginTop: 16, padding: '8px 20px', fontSize: 14, fontWeight: 600, background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-        >
-          Download proof
-        </button>
+
+        <div className="wdp-page">
+          <h1 className="wdp-page__heading">Customer Proof</h1>
+          <p className="wdp-page__meta">
+            {workspace.visitReference}
+            {workspace.property?.address ? ` · ${workspace.property.address}` : ''}
+            {workspace.property?.postcode ? `, ${workspace.property.postcode}` : ''}
+            {' · Captured '}
+            {formatDate(workspace.capturedAt)}
+          </p>
+
+          <div className="wdp-page__notice">
+            Only confirmed evidence with "Include in customer report" is included below.
+            Pending and rejected items are excluded.
+          </div>
+
+          <div className="wdp-page__section">
+            <p className="wdp-page__section-title">Rooms</p>
+            {workspace.sessionCapture.roomScans.length === 0 ? (
+              <p style={{ color: '#94a3b8', margin: 0 }}>No rooms recorded.</p>
+            ) : (
+              <ul className="wdp-page__list">
+                {workspace.sessionCapture.roomScans.map((r) => (
+                  <li key={r.roomId}>{r.label}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="wdp-page__section">
+            <p className="wdp-page__section-title">Customer-approved photos</p>
+            {confirmedPhotos.length === 0 ? (
+              <p style={{ color: '#94a3b8', margin: 0 }}>No approved photos.</p>
+            ) : (
+              <ul className="wdp-page__list">
+                {confirmedPhotos.map((p) => (
+                  <li key={p.photoId}>{p.uri}{p.roomId ? ` (${p.roomId})` : ''}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {confirmedFloorPlans.length > 0 && (
+            <div className="wdp-page__section">
+              <p className="wdp-page__section-title">Customer-approved floor plans</p>
+              <ul className="wdp-page__list">
+                {confirmedFloorPlans.map((s) => (
+                  <li key={s.snapshotId}>Floor {s.floorIndex ?? 0} · {formatDate(s.capturedAt)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -316,62 +306,100 @@ export default function WorkspaceDetailPage({
   // ── Engineer handoff mode ─────────────────────────────────────────────────
   if (mode === 'engineer_handoff') {
     const capture = workspace.sessionCapture;
-    const lines = [
-      `Engineer Handoff — ${workspace.visitReference}`,
-      workspace.property?.address ? `Address: ${workspace.property.address}` : null,
-      workspace.property?.postcode ? `Postcode: ${workspace.property.postcode}` : null,
-      `Captured: ${formatDate(workspace.capturedAt)}`,
-      `Device: ${capture.deviceModel}`,
-      '',
-      'ROOMS:',
-      ...capture.roomScans.map((r) => `  ${r.label} (Floor ${r.floorIndex ?? 0}, ${r.areaM2 != null ? `${r.areaM2} m²` : 'area unknown'})`),
-      '',
-      'OBJECT PINS:',
-      ...capture.objectPins.map((p) => `  [${formatObjectType(p.objectType)}] ${p.label ?? p.pinId}`),
-      '',
-      'QA FLAGS:',
-      ...(capture.qaFlags.length > 0
-        ? capture.qaFlags.map((f) => `  [${f.severity.toUpperCase()}] ${f.code}${f.message ? ` — ${f.message}` : ''}`)
-        : ['  No QA flags']),
-    ].filter((l): l is string => l !== null);
 
-    const text = lines.join('\n');
     return (
-      <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 640, margin: '0 auto', padding: 24 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
-          <button onClick={() => setMode('detail')} style={{ fontSize: 13, padding: '4px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer' }}>
+      <div className="wdp-wrap">
+        <div className="wdp-toolbar">
+          <button className="wdp-toolbar__back" onClick={() => setMode('detail')}>
             ← Back
           </button>
-          <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Engineer Handoff</h1>
+          <span className="wdp-toolbar__title">Engineer Handoff</span>
+          <button className="wdp-toolbar__print" onClick={() => window.print()}>
+            🖨 Print / Save as PDF
+          </button>
         </div>
-        <pre
-          style={{
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            borderRadius: 8,
-            padding: '16px 20px',
-            fontSize: 13,
-            lineHeight: 1.6,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {text}
-        </pre>
-        <button
-          onClick={() => {
-            const blob = new Blob([text], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `engineer-handoff-${workspace.visitReference}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          style={{ marginTop: 16, padding: '8px 20px', fontSize: 14, fontWeight: 600, background: '#0f172a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-        >
-          Download handoff
-        </button>
+
+        <div className="wdp-page">
+          <h1 className="wdp-page__heading">Engineer Handoff</h1>
+          <p className="wdp-page__meta">
+            {workspace.visitReference}
+            {workspace.property?.address ? ` · ${workspace.property.address}` : ''}
+            {workspace.property?.postcode ? `, ${workspace.property.postcode}` : ''}
+            {' · Captured '}
+            {formatDate(workspace.capturedAt)}
+          </p>
+
+          <div className="wdp-page__section">
+            <p className="wdp-page__section-title">Visit details</p>
+            {[
+              ['Reference', workspace.visitReference],
+              ['Address', workspace.property?.address ?? '—'],
+              ['Postcode', workspace.property?.postcode ?? '—'],
+              ['Captured', formatDate(capture.capturedAt)],
+              ['Exported', formatDate(capture.exportedAt)],
+              ['Device', capture.deviceModel],
+            ].map(([label, value]) => (
+              <div key={label} style={{ marginBottom: 4 }}>
+                <span className="wdp-page__label">{label}</span>
+                <span className="wdp-page__value">{value}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="wdp-page__section">
+            <p className="wdp-page__section-title">Rooms ({capture.roomScans.length})</p>
+            {capture.roomScans.length === 0 ? (
+              <p style={{ color: '#94a3b8', margin: 0 }}>No rooms recorded.</p>
+            ) : (
+              <ul className="wdp-page__list">
+                {capture.roomScans.map((r) => (
+                  <li key={r.roomId}>
+                    {r.label} — Floor {r.floorIndex ?? 0}
+                    {r.areaM2 != null ? `, ${r.areaM2} m²` : ''}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="wdp-page__section">
+            <p className="wdp-page__section-title">Object pins ({capture.objectPins.length})</p>
+            {capture.objectPins.length === 0 ? (
+              <p style={{ color: '#94a3b8', margin: 0 }}>No object pins recorded.</p>
+            ) : (
+              <ul className="wdp-page__list">
+                {capture.objectPins.map((p) => (
+                  <li key={p.pinId}>[{formatObjectType(p.objectType)}] {p.label ?? p.pinId}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {capture.voiceNotes.length > 0 && (
+            <div className="wdp-page__section">
+              <p className="wdp-page__section-title">Voice notes / transcripts ({capture.voiceNotes.length})</p>
+              <ul className="wdp-page__list">
+                {capture.voiceNotes.map((vn) => (
+                  <li key={vn.voiceNoteId}>
+                    {vn.voiceNoteId}{vn.roomId ? ` (${vn.roomId})` : ''}
+                    {vn.transcript ? `: "${vn.transcript}"` : ' — no transcript'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {capture.qaFlags.length > 0 && (
+            <div className="wdp-page__section">
+              <p className="wdp-page__section-title">QA flags ({capture.qaFlags.length})</p>
+              <ul className="wdp-page__list">
+                {capture.qaFlags.map((f, i) => (
+                  <li key={i}>[{f.severity.toUpperCase()}] {f.code}{f.message ? ` — ${f.message}` : ''}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
