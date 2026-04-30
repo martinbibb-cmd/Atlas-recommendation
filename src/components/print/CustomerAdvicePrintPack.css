@@ -343,6 +343,15 @@
 /* ─── Print overrides ─────────────────────────────────────────────────────── */
 
 @media print {
+  /* Declare page size and margins explicitly.
+   * Setting margin to 0 suppresses the browser-added URL / date / page-number
+   * footer that would otherwise appear in the margin area.  Visual margins are
+   * provided by .capp-page padding (15 mm top, 16 mm sides, 12 mm bottom). */
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
   .capp-wrap {
     background: none;
     padding: 0;
@@ -913,7 +922,6 @@
   .capp-avoided-risks,
   .capp-requirements,
   .capp-complexity,
-  .capp-ai-context,
   .capp-mixery-bridge,
   .capp-radiator-upsell,
   .capp-simultaneous-use,
@@ -921,6 +929,14 @@
   .capp-three-year-roadmap {
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+
+  /* Hide per-page "Atlas context for AI assistants" blocks from the customer
+   * print.  Technical/AI grounding belongs in the JSON sidecar, not the PDF.
+   * The portal CTA page AI handoff section is controlled separately via the
+   * printFullAiHandoff prop and is not affected by this rule. */
+  .capp-ai-context {
+    display: none !important;
   }
 
   .capp-page--identity,
