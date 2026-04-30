@@ -220,15 +220,16 @@ export default function WorkspaceDetailPage({
 
   // ── Customer proof mode ──────────────────────────────────────────────────
   if (mode === 'customer_proof') {
+    const decisionsMap = new Map(workspace.reviewDecisions.map((d) => [d.ref, d]));
     const confirmedPhotos = workspace.sessionCapture.photos.filter((p) => {
-      const d = workspace.reviewDecisions.find((dec) => dec.ref === p.photoId);
+      const d = decisionsMap.get(p.photoId);
       return (
         (d?.reviewStatus ?? 'confirmed') === 'confirmed' &&
         (d?.includeInCustomerReport ?? (p.scope !== 'object'))
       );
     });
     const confirmedFloorPlans = workspace.sessionCapture.floorPlanSnapshots.filter((s) => {
-      const d = workspace.reviewDecisions.find((dec) => dec.ref === s.snapshotId);
+      const d = decisionsMap.get(s.snapshotId);
       return (
         (d?.reviewStatus ?? 'confirmed') === 'confirmed' &&
         (d?.includeInCustomerReport ?? true)
@@ -282,7 +283,7 @@ export default function WorkspaceDetailPage({
             ) : (
               <ul className="wdp-page__list">
                 {confirmedPhotos.map((p) => (
-                  <li key={p.photoId}>{p.uri}{p.roomId ? ` (${p.roomId})` : ''}</li>
+                  <li key={p.photoId}>{p.uri}{p.roomId ? ` — Room: ${p.roomId}` : ''}</li>
                 ))}
               </ul>
             )}
@@ -379,12 +380,11 @@ export default function WorkspaceDetailPage({
             <div className="wdp-page__section">
               <p className="wdp-page__section-title">Voice notes / transcripts ({capture.voiceNotes.length})</p>
               <ul className="wdp-page__list">
-                {capture.voiceNotes.map((vn) => (
-                  <li key={vn.voiceNoteId}>
-                    {vn.voiceNoteId}{vn.roomId ? ` (${vn.roomId})` : ''}
-                    {vn.transcript ? `: "${vn.transcript}"` : ' — no transcript'}
-                  </li>
-                ))}
+                {capture.voiceNotes.map((vn) => {
+                  const label = vn.voiceNoteId + (vn.roomId ? ` (${vn.roomId})` : '');
+                  const body = vn.transcript ? `"${vn.transcript}"` : 'no transcript';
+                  return <li key={vn.voiceNoteId}>{label}: {body}</li>;
+                })}
               </ul>
             </div>
           )}
