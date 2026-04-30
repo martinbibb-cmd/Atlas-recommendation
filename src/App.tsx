@@ -782,10 +782,11 @@ export default function App() {
     try {
       const visitDetail = await getVisit(visitId);
       const { working_payload, ...metaFields } = visitDetail;
-      if (working_payload && Object.keys(working_payload).length > 0) {
+      const survey = working_payload as import('./ui/fullSurvey/FullSurveyModelV1').FullSurveyModelV1;
+      if (working_payload && (survey.fullSurvey != null || survey.bedrooms != null)) {
         const pack = buildHandoffPackFromSurvey(
           metaFields,
-          working_payload as import('./ui/fullSurvey/FullSurveyModelV1').FullSurveyModelV1,
+          survey,
         );
         setActiveHandoffPack(pack);
       } else {

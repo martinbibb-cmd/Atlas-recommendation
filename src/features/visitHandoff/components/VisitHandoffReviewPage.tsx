@@ -359,7 +359,7 @@ export default function VisitHandoffReviewPage({
         {!parseError && !pack && (
           visitCompleted
             ? <NoResultState message="No completed engine result found" />
-            : <NoResultState message="No recommendation yet" />
+            : <NoResultState message="No handoff data available" />
         )}
 
         {/* Pack loaded — show review */}
