@@ -10,9 +10,11 @@
  *   - Customer / Engineer tab switcher
  *   - Read-only notice
  *   - Error state when the pack fails to parse
+ *   - Empty-state rules:
+ *       • If visitCompleted is true and no pack: show "No completed engine result found"
+ *       • If visitCompleted is false/absent and no pack: show "No handoff pack loaded"
  *   - Sparse section graceful handling (delegated to child views)
- *   - Dev: raw JSON toggle (only shown when import.meta.env.DEV)
- *   - Dev: upload / paste JSON to load a different pack
+ *   - Dev JSON loader hidden inside the Internal diagnostics collapse (not shown top-level)
  *
  * Architecture rules:
  *   - No dependency on the legacy report / Insight pipeline.
@@ -208,16 +210,47 @@ function DevPackLoader({ onLoad }: { onLoad: (raw: unknown) => void }) {
   );
 }
 
+// ─── Empty state ─────────────────────────────────────────────────────────────
+
+function NoResultState({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        padding: '2rem 1rem',
+        maxWidth: 480,
+        margin: '3rem auto',
+        textAlign: 'center',
+        fontFamily: 'inherit',
+      }}
+      data-testid="handoff-no-result-state"
+    >
+      <div style={{ fontSize: '2rem', marginBottom: '1rem' }} aria-hidden="true">📋</div>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#1e293b', marginBottom: '0.5rem' }}>
+        {message}
+      </h2>
+      <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.6 }}>
+        Complete the survey and engine run to generate this output.
+      </p>
+    </div>
+  );
+}
+
 // ─── Main page component ──────────────────────────────────────────────────────
 
 export interface VisitHandoffReviewPageProps {
-  /** Initial pack to display.  Pass null / undefined to show the loader. */
+  /** Initial pack to display.  Pass null / undefined if no pack is available. */
   initialPack?: VisitHandoffPack | null;
+  /**
+   * When true, the page knows this visit is completed and uses context-aware
+   * empty-state messages.  When false/absent, generic messages are shown.
+   */
+  visitCompleted?: boolean;
   onBack?: () => void;
 }
 
 export default function VisitHandoffReviewPage({
   initialPack,
+  visitCompleted,
   onBack,
 }: VisitHandoffReviewPageProps) {
   const [pack, setPack] = useState<VisitHandoffPack | null>(initialPack ?? null);
@@ -322,14 +355,11 @@ export default function VisitHandoffReviewPage({
           <InvalidPackState onTryAgain={handleTryAgain} />
         )}
 
-        {/* No pack loaded yet — show dev loader */}
+        {/* No pack available — show context-aware empty state */}
         {!parseError && !pack && (
-          <div style={{ marginTop: '1.5rem' }}>
-            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1rem' }}>
-              No handoff pack loaded. Use the controls below to load one.
-            </p>
-            <DevPackLoader onLoad={handleLoad} />
-          </div>
+          visitCompleted
+            ? <NoResultState message="No completed engine result found" />
+            : <NoResultState message="No handoff data available" />
         )}
 
         {/* Pack loaded — show review */}
@@ -372,14 +402,12 @@ export default function VisitHandoffReviewPage({
               )}
             </div>
 
-            {/* Dev controls */}
+            {/* Raw JSON toggle — dev only */}
             {import.meta.env.DEV && (
-              <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <DevPackLoader onLoad={handleLoad} />
+              <div style={{ marginTop: '1rem' }}>
                 <button
                   onClick={() => setShowRawJson((v) => !v)}
                   style={{
-                    alignSelf: 'flex-start',
                     background: 'none',
                     border: '1px solid #cbd5e1',
                     borderRadius: 6,
@@ -393,6 +421,7 @@ export default function VisitHandoffReviewPage({
                 </button>
                 {showRawJson && (
                   <pre style={{
+                    marginTop: '0.75rem',
                     background: '#0f172a',
                     color: '#e2e8f0',
                     borderRadius: 8,
@@ -409,6 +438,25 @@ export default function VisitHandoffReviewPage({
             )}
           </>
         )}
+
+        {/* ── Internal diagnostics — Dev JSON loader (hidden from normal workflow) */}
+        <details
+          style={{ marginTop: '2rem' }}
+          data-testid="handoff-internal-diagnostics"
+        >
+          <summary style={{
+            fontSize: '0.78rem',
+            color: '#94a3b8',
+            cursor: 'pointer',
+            userSelect: 'none',
+            padding: '0.25rem 0',
+          }}>
+            🔬 Internal diagnostics
+          </summary>
+          <div style={{ marginTop: '0.75rem' }} data-testid="handoff-dev-json-loader">
+            <DevPackLoader onLoad={handleLoad} />
+          </div>
+        </details>
       </main>
     </div>
   );

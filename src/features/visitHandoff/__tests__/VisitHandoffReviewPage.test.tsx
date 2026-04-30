@@ -63,14 +63,14 @@ describe('VisitHandoffReviewPage', () => {
   });
 
   describe('no pack / error states', () => {
-    it('shows "no pack" message when no initialPack is provided', () => {
+    it('shows a meaningful empty state when no initialPack is provided', () => {
       render(<VisitHandoffReviewPage />);
-      expect(screen.getByText(/No handoff pack loaded/)).toBeTruthy();
+      expect(screen.getByTestId('handoff-no-result-state')).toBeTruthy();
     });
 
-    it('shows "no pack" message when initialPack is null', () => {
+    it('shows a meaningful empty state when initialPack is null', () => {
       render(<VisitHandoffReviewPage initialPack={null} />);
-      expect(screen.getByText(/No handoff pack loaded/)).toBeTruthy();
+      expect(screen.getByTestId('handoff-no-result-state')).toBeTruthy();
     });
 
     it('shows "Visit Review" title when no pack is loaded', () => {
