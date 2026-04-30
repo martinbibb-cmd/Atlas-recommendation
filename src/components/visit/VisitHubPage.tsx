@@ -407,6 +407,7 @@ function HubActions({
   onOpenEngineerRoute,
   onOpenInsightPack,
   onOpenHandoffReview,
+  onExportVisitPack,
   onCompleteVisit,
   isCompleting,
   completingError,
@@ -423,6 +424,7 @@ function HubActions({
   onOpenEngineerRoute?: () => void;
   onOpenInsightPack?: () => void;
   onOpenHandoffReview?: () => void;
+  onExportVisitPack?: () => void;
   onCompleteVisit: () => void;
   isCompleting: boolean;
   completingError: string | null;
@@ -433,7 +435,6 @@ function HubActions({
   const surveyDone = isSurveyComplete(meta);
   const visitDone = isVisitCompleted(meta);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
 
   function handleSendPortal() {
     if (!portalUrl) return;
@@ -486,36 +487,27 @@ function HubActions({
       <div className="visit-hub__actions">
         {lifecycleCard}
 
-        {/* Primary — Review handoff as a large descriptive card */}
-        {onOpenHandoffReview && (
-          <button
-            className="visit-hub__action-btn visit-hub__action-btn--handoff-card"
-            onClick={onOpenHandoffReview}
-            aria-label="Review completed-visit handoff"
-            data-testid="open-handoff-review-btn"
-          >
-            <span className="visit-hub__handoff-card-icon">🤝</span>
-            <span className="visit-hub__handoff-card-body">
-              <span className="visit-hub__handoff-card-title">Review handoff</span>
-              <span className="visit-hub__handoff-card-sub">
-                View customer summary and engineer handoff outputs
-              </span>
-            </span>
-            <span className="visit-hub__handoff-card-arrow">›</span>
-          </button>
-        )}
+        {/* Primary actions */}
+        <div className="visit-hub__actions-primary">
+          <p className="visit-hub__section-label">Customer outputs</p>
 
-        {/* Secondary group */}
-        <div className="visit-hub__actions-secondary">
-          <p className="visit-hub__section-label">Summary &amp; handoff</p>
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--primary"
+            onClick={onOpenPresentation}
+            aria-label="Present to customer"
+            data-testid="present-to-customer-btn"
+          >
+            ▶ Present to customer
+          </button>
 
           {onPrintSummary && (
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
               onClick={onPrintSummary}
-              aria-label="Print customer summary"
+              aria-label="Download customer PDF"
+              data-testid="download-customer-pdf-btn"
             >
-              🖨 Print customer summary
+              📄 Download customer PDF
             </button>
           )}
 
@@ -523,21 +515,10 @@ function HubActions({
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
               onClick={onEmailSummary}
-              aria-label="Email customer summary"
-              data-testid="email-summary-btn"
+              aria-label="Send customer PDF"
+              data-testid="send-customer-pdf-btn"
             >
-              📧 Email summary
-            </button>
-          )}
-
-          {onSaveSummary && (
-            <button
-              className="visit-hub__action-btn visit-hub__action-btn--secondary"
-              onClick={onSaveSummary}
-              aria-label="Save customer summary to file"
-              data-testid="save-summary-btn"
-            >
-              💾 Save summary
+              📧 Send customer PDF
             </button>
           )}
 
@@ -551,6 +532,11 @@ function HubActions({
           >
             {portalBtnLabel}
           </button>
+        </div>
+
+        {/* Operational actions */}
+        <div className="visit-hub__actions-secondary">
+          <p className="visit-hub__section-label">Operational</p>
 
           {onOpenEngineerRoute && (
             <button
@@ -562,40 +548,48 @@ function HubActions({
               🔧 Engineer handoff
             </button>
           )}
-        </div>
 
-        {/* More tools — collapsed by default */}
-        <div className="visit-hub__more-tools">
-          <button
-            className="visit-hub__more-tools-toggle"
-            onClick={() => setMoreToolsOpen((o) => !o)}
-            aria-expanded={moreToolsOpen}
-          >
-            {moreToolsOpen ? '▲ Hide tools' : '▼ More tools'}
-          </button>
-          {moreToolsOpen && (
-            <div className="visit-hub__more-tools-body">
-              <button
-                className="visit-hub__action-btn visit-hub__action-btn--secondary"
-                onClick={onOpenPresentation}
-                aria-label="Present to customer"
-              >
-                ▶ Present to customer
-              </button>
+          {onOpenInsightPack && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenInsightPack}
+              aria-label="Open insight view"
+              data-testid="open-insight-pack-btn"
+            >
+              📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
+            </button>
+          )}
 
-              {onOpenInsightPack && (
-                <button
-                  className="visit-hub__action-btn visit-hub__action-btn--secondary"
-                  onClick={onOpenInsightPack}
-                  aria-label="Open insight view"
-                  data-testid="open-insight-pack-btn"
-                >
-                  📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
-                </button>
-              )}
-            </div>
+          {onExportVisitPack && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onExportVisitPack}
+              aria-label="Export visit pack"
+              data-testid="export-visit-pack-btn"
+            >
+              📦 Export visit pack
+            </button>
           )}
         </div>
+
+        {/* Diagnostics — collapsed by default */}
+        <details className="visit-hub__more-tools" data-testid="diagnostics-section">
+          <summary className="visit-hub__more-tools-toggle">
+            🔬 Diagnostics
+          </summary>
+          <div className="visit-hub__more-tools-body">
+            {onOpenHandoffReview && (
+              <button
+                className="visit-hub__action-btn visit-hub__action-btn--secondary"
+                onClick={onOpenHandoffReview}
+                aria-label="Review completed-visit handoff"
+                data-testid="open-handoff-review-btn"
+              >
+                🤝 Review handoff
+              </button>
+            )}
+          </div>
+        </details>
       </div>
     );
   }
@@ -638,9 +632,9 @@ function HubActions({
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
               onClick={onPrintSummary}
-              aria-label="Print customer summary"
+              aria-label="Download customer PDF"
             >
-              🖨 Print customer summary
+              📄 Download customer PDF
             </button>
           )}
 
@@ -648,10 +642,10 @@ function HubActions({
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
               onClick={onEmailSummary}
-              aria-label="Email customer summary"
-              data-testid="email-summary-btn"
+              aria-label="Send customer PDF"
+              data-testid="send-customer-pdf-btn"
             >
-              📧 Email summary
+              📧 Send customer PDF
             </button>
           )}
 
@@ -659,10 +653,10 @@ function HubActions({
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
               onClick={onSaveSummary}
-              aria-label="Save customer summary to file"
+              aria-label="Download customer PDF to file"
               data-testid="save-summary-btn"
             >
-              💾 Save summary
+              💾 Download customer PDF
             </button>
           )}
 
@@ -735,9 +729,9 @@ function HubActions({
             className="visit-hub__action-btn visit-hub__action-btn--secondary"
             disabled
             aria-disabled="true"
-            aria-label="Print customer summary — complete survey first"
+            aria-label="Download customer PDF — complete survey first"
           >
-            🖨 Print customer summary
+            📄 Download customer PDF
           </button>
         )}
 
@@ -746,9 +740,9 @@ function HubActions({
             className="visit-hub__action-btn visit-hub__action-btn--secondary"
             disabled
             aria-disabled="true"
-            aria-label="Email summary — complete survey first"
+            aria-label="Send customer PDF — complete survey first"
           >
-            📧 Email summary
+            📧 Send customer PDF
           </button>
         )}
 
@@ -757,9 +751,9 @@ function HubActions({
             className="visit-hub__action-btn visit-hub__action-btn--secondary"
             disabled
             aria-disabled="true"
-            aria-label="Save summary — complete survey first"
+            aria-label="Download customer PDF — complete survey first"
           >
-            💾 Save summary
+            💾 Download customer PDF
           </button>
         )}
 
@@ -1058,23 +1052,72 @@ export default function VisitHubPage({
     URL.revokeObjectURL(url);
   }
 
-  /** Open the default email client with a plain-text customer summary pre-filled. */
+  /**
+   * Open the default email client with a short message and the customer portal
+   * URL so the recipient can access and print their PDF summary.
+   */
   function handleEmailSummary() {
     if (!meta) return;
-    const preview = deriveCustomerPreview(workingPayloadRef.current as Partial<FullSurveyModelV1>);
-    const text = buildCustomerSummaryText(meta, preview);
-    const subject = encodeURIComponent(`Visit Summary – ${visitDisplayLabel(meta)}`);
-    const body = encodeURIComponent(text);
+    const subject = encodeURIComponent(`Your Atlas visit summary – ${visitDisplayLabel(meta)}`);
+    const portalLine = portalUrl
+      ? `\n\nView and download your customer summary here:\n${portalUrl}`
+      : '';
+    const body = encodeURIComponent(
+      `Please find your visit summary from Atlas below.${portalLine}\n\n` +
+      'Your engineer will be in touch to confirm the installation date.\n\n' +
+      `Generated by Atlas on ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
+    );
     window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
   }
 
-  /** Download a plain-text customer summary file. */
+  /**
+   * Download the customer summary as a PDF via the print page.
+   * Routes to the framework-print journey so the engineer can use the
+   * browser's Save as PDF to produce the file.
+   * Falls back to plain-text download if onPrintSummary is not wired.
+   */
   function handleSaveSummary() {
+    if (onPrintSummary) {
+      onPrintSummary();
+      return;
+    }
     if (!meta) return;
     const preview = deriveCustomerPreview(workingPayloadRef.current as Partial<FullSurveyModelV1>);
     const text = buildCustomerSummaryText(meta, preview);
-    const filename = `atlas-visit-summary-${visitId.slice(-8).toUpperCase()}.txt`;
-    const blob = new Blob([text], { type: 'text/plain' });
+    const visitRef = meta.visit_reference ?? visitId.slice(-8).toUpperCase();
+    const filename = `atlas-customer-summary-${visitRef}.pdf`;
+    // Generate a printable HTML blob with PDF MIME type so the browser prompts
+    // to open in a PDF viewer or offers Save As with a .pdf filename.
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>${filename}</title>
+<style>body{font-family:sans-serif;max-width:600px;margin:2rem auto;color:#1e293b;line-height:1.6}pre{white-space:pre-wrap}</style>
+</head><body><pre>${text}</pre></body></html>`;
+    const blob = new Blob([html], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /** Export the full visit workspace as a JSON pack for internal use. */
+  function handleExportVisitPack() {
+    if (!meta) return;
+    const visitRef = meta.visit_reference ?? visitId.slice(-8).toUpperCase();
+    const filename = `atlas-visit-pack-${visitRef}.json`;
+    const pack = {
+      visitId: meta.id,
+      visitReference: meta.visit_reference,
+      exportedAt: new Date().toISOString(),
+      meta,
+      workingPayload: workingPayloadRef.current,
+      engineOutput: lastEngineOutput,
+    };
+    const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1119,6 +1162,7 @@ export default function VisitHubPage({
           onOpenEngineerRoute={onOpenEngineerRoute}
           onOpenInsightPack={onOpenInsightPack}
           onOpenHandoffReview={onOpenHandoffReview}
+          onExportVisitPack={handleExportVisitPack}
           onCompleteVisit={handleCompleteVisit}
           isCompleting={completing}
           completingError={completingError}

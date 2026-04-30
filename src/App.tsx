@@ -69,6 +69,7 @@ import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHand
 import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
 import EngineerSummaryPrintPage from './features/visitHandoff/components/EngineerSummaryPrintPage';
 import { SAMPLE_VISIT_HANDOFF_PACK } from './features/visitHandoff/fixtures/sampleVisitHandoffPack';
+import { buildHandoffPackFromSurvey } from './features/visitHandoff/parser/buildHandoffPackFromSurvey';
 import InsightPackDeck from './features/insightPack/InsightPackDeck';
 import VisitDetailView from './features/scanImport/ui/VisitDetailView';
 import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
@@ -772,6 +773,32 @@ export default function App() {
   }
 
   /**
+   * Build a VisitHandoffPack from the current visit's working payload and open
+   * the handoff review page.  When the working payload is available the pack is
+   * built locally — no JSON upload/paste required.  Falls back gracefully to
+   * the review page with an empty pack when the payload is missing.
+   */
+  async function handleOpenHandoffReview(visitId: string) {
+    try {
+      const visitDetail = await getVisit(visitId);
+      const { working_payload, ...metaFields } = visitDetail;
+      if (working_payload && Object.keys(working_payload).length > 0) {
+        const pack = buildHandoffPackFromSurvey(
+          metaFields,
+          working_payload as import('./ui/fullSurvey/FullSurveyModelV1').FullSurveyModelV1,
+        );
+        setActiveHandoffPack(pack);
+      } else {
+        setActiveHandoffPack(null);
+      }
+    } catch (err) {
+      console.warn('[Atlas] Could not build handoff pack for visit', visitId, err);
+      setActiveHandoffPack(null);
+    }
+    setJourney('visit-handoff');
+  }
+
+  /**
    * Open the Simulator Dashboard, optionally with a partial engine input already
    * known from Fast Choice.  If simulation-critical fields are missing, route
    * through the quick-input gate first; otherwise open the simulator directly.
@@ -1202,13 +1229,14 @@ export default function App() {
           }}
           onOpenEngineerRoute={() => setJourney('engineer')}
           onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
-          onOpenHandoffReview={() => { setActiveHandoffPack(null); setJourney('visit-handoff'); }}
+          onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
         />
       )}
       {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
       {journey === 'visit-handoff' && (
         <VisitHandoffReviewPage
           initialPack={activeHandoffPack ?? undefined}
+          visitCompleted={true}
           onBack={() => setJourney('visit-hub')}
         />
       )}
@@ -1256,7 +1284,7 @@ export default function App() {
               setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
               setJourney('floor-plan');
             }}
-            onOpenHandoffReview={() => { setActiveHandoffPack(null); setJourney('visit-handoff'); }}
+            onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
             floorplanOutput={floorplanOutput}
           />
         </GlobalMenuShell>
