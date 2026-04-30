@@ -282,6 +282,16 @@ function deriveVerificationRequiredV2(
     items.push(`${pinsWithoutPhotos.length} object pin(s) have no photos attached`);
   }
 
+  // LiDAR-inferred object pins require engineer confirmation before use
+  const lidarInferredPins = capture.objectPins.filter(
+    (p) => p.metadata?.['inferredByLidar'] === true,
+  );
+  if (lidarInferredPins.length > 0) {
+    items.push(
+      `${lidarInferredPins.length} object pin(s) were inferred by LiDAR — confirm before use in outputs`,
+    );
+  }
+
   // QA error-severity flags require verification
   const errorFlags = capture.qaFlags.filter((f) => f.severity === 'error');
   if (errorFlags.length > 0) {
