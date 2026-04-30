@@ -26,6 +26,19 @@ import type {
   QaFlagV2,
 } from '../contracts/sessionCaptureV2';
 
+// ─── Review status ────────────────────────────────────────────────────────────
+
+/**
+ * Per-item review decision made by the engineer on the Capture Review Screen.
+ *
+ *   confirmed — engineer has reviewed and accepted this item as trusted.
+ *   pending   — item has not yet been reviewed (default for LiDAR-inferred pins
+ *               and QA flags).
+ *   rejected  — engineer has explicitly rejected this item; it will not appear
+ *               in any downstream output.
+ */
+export type ReviewStatus = 'pending' | 'confirmed' | 'rejected';
+
 // ─── View-model types ─────────────────────────────────────────────────────────
 
 /** Normalised room item for the review model. */
@@ -48,10 +61,22 @@ export interface ReviewPhoto {
   objectPinId?: string;
   tags?: string[];
   /**
-   * Whether this photo is safe to surface in customer-facing outputs.
-   * true for session and room scope; false for object scope.
+   * Whether this photo is safe to surface in customer-facing outputs based on
+   * its scope.  true for session and room scope; false for object scope.
+   * This is an immutable, scope-derived property.
    */
   customerSafe: boolean;
+  /**
+   * Engineer's explicit decision to include this photo in the customer report.
+   * Defaults to `customerSafe` (i.e. session/room photos start as included).
+   * The engineer can toggle this during review.
+   */
+  includeInCustomerReport: boolean;
+  /**
+   * Review status for this photo.
+   * Manual (non-LiDAR) photos default to 'confirmed'.
+   */
+  reviewStatus: ReviewStatus;
 }
 
 /** Normalised voice note item for the review model. */
@@ -81,6 +106,12 @@ export interface ReviewObjectPin {
    * confirmed truth in any output.
    */
   needsConfirmation: boolean;
+  /**
+   * Review status for this pin.
+   * LiDAR-inferred pins default to 'pending'; manual pins default to
+   * 'confirmed'.
+   */
+  reviewStatus: ReviewStatus;
 }
 
 /** Normalised floor-plan snapshot item for the review model. */
@@ -89,6 +120,16 @@ export interface ReviewFloorPlanSnapshot {
   uri: string;
   capturedAt: string;
   floorIndex?: number;
+  /**
+   * Engineer's explicit decision to include this floor plan in the customer
+   * report.  Defaults to true.
+   */
+  includeInCustomerReport: boolean;
+  /**
+   * Review status for this snapshot.
+   * Defaults to 'confirmed'.
+   */
+  reviewStatus: ReviewStatus;
 }
 
 /** Normalised QA flag item for the review model. */
@@ -105,8 +146,12 @@ export interface ReviewQaFlag {
  * Normalised view model produced by buildCaptureReviewModel().
  *
  * Contains full evidence arrays (not just counts) with customer-safety
- * signals already applied.  The raw SessionCaptureV2 types do not escape
- * beyond this boundary.
+ * signals and per-item review statuses already applied.  The raw
+ * SessionCaptureV2 types do not escape beyond this boundary.
+ *
+ * The review status of each item is mutable — the engineer updates items
+ * on the Capture Review Screen.  Call deriveReviewWarnings(model) at any
+ * point to get up-to-date warnings reflecting the current review state.
  */
 export interface CaptureReviewModel {
   // ── Identity ──────────────────────────────────────────────────────────────
@@ -127,15 +172,18 @@ export interface CaptureReviewModel {
 
   // ── Derived ───────────────────────────────────────────────────────────────
   /**
-   * Human-readable warnings about capture quality or missing evidence.
-   * These should be surfaced in the review screen before confirming import.
+   * Human-readable warnings about capture quality or missing evidence,
+   * computed at model-build time from the raw capture.
+   *
+   * For dynamic review-state warnings (e.g. "Unconfirmed LiDAR objects"),
+   * call deriveReviewWarnings(model) instead.
    */
   evidenceWarnings: string[];
 
   /**
-   * Items safe to surface in customer-facing outputs.
-   * Never includes: QA flags, object-scope photos, voice-note transcripts,
-   * unconfirmed / LiDAR-inferred object pins.
+   * Photo IDs safe to surface in customer-facing outputs, based on scope.
+   * Note: buildCustomerProofFromV2 further filters by reviewStatus and
+   * includeInCustomerReport before including photos in the proof.
    */
   customerSafePhotoIds: string[];
   customerSafeFloorPlanIds: string[];
@@ -169,16 +217,21 @@ function normaliseRooms(roomScans: RoomScanV2[]): ReviewRoom[] {
 }
 
 function normalisePhotos(photos: PhotoV2[]): ReviewPhoto[] {
-  return photos.map((p) => ({
-    photoId: p.photoId,
-    uri: p.uri,
-    capturedAt: p.capturedAt,
-    scope: p.scope,
-    roomId: p.roomId,
-    objectPinId: p.objectPinId,
-    tags: p.tags,
-    customerSafe: p.scope === 'session' || p.scope === 'room',
-  }));
+  return photos.map((p) => {
+    const customerSafe = p.scope === 'session' || p.scope === 'room';
+    return {
+      photoId: p.photoId,
+      uri: p.uri,
+      capturedAt: p.capturedAt,
+      scope: p.scope,
+      roomId: p.roomId,
+      objectPinId: p.objectPinId,
+      tags: p.tags,
+      customerSafe,
+      includeInCustomerReport: customerSafe,
+      reviewStatus: 'confirmed',
+    };
+  });
 }
 
 function normaliseVoiceNotes(voiceNotes: VoiceNoteV2[]): ReviewVoiceNote[] {
@@ -191,15 +244,19 @@ function normaliseVoiceNotes(voiceNotes: VoiceNoteV2[]): ReviewVoiceNote[] {
 }
 
 function normaliseObjectPins(objectPins: ObjectPinV2[]): ReviewObjectPin[] {
-  return objectPins.map((pin) => ({
-    pinId: pin.pinId,
-    objectType: pin.objectType,
-    roomId: pin.roomId,
-    label: pin.label,
-    photoIds: pin.photoIds,
-    metadata: pin.metadata,
-    needsConfirmation: isPinLidarInferred(pin),
-  }));
+  return objectPins.map((pin) => {
+    const lidarInferred = isPinLidarInferred(pin);
+    return {
+      pinId: pin.pinId,
+      objectType: pin.objectType,
+      roomId: pin.roomId,
+      label: pin.label,
+      photoIds: pin.photoIds,
+      metadata: pin.metadata,
+      needsConfirmation: lidarInferred,
+      reviewStatus: lidarInferred ? 'pending' : 'confirmed',
+    };
+  });
 }
 
 function normaliseFloorPlanSnapshots(snapshots: FloorPlanSnapshotV2[]): ReviewFloorPlanSnapshot[] {
@@ -208,6 +265,8 @@ function normaliseFloorPlanSnapshots(snapshots: FloorPlanSnapshotV2[]): ReviewFl
     uri: s.uri,
     capturedAt: s.capturedAt,
     floorIndex: s.floorIndex,
+    includeInCustomerReport: true,
+    reviewStatus: 'confirmed',
   }));
 }
 
@@ -283,6 +342,60 @@ function deriveEvidenceWarnings(capture: SessionCaptureV2): string[] {
   for (const flag of warnFlags) {
     warnings.push(
       `QA warning: ${flag.message ?? flag.code}${flag.entityId ? ` (${flag.entityId})` : ''}`,
+    );
+  }
+
+  return warnings;
+}
+
+// ─── Dynamic review-state warnings ───────────────────────────────────────────
+
+/**
+ * deriveReviewWarnings — computes warnings based on the current review state
+ * of items in a CaptureReviewModel.
+ *
+ * Unlike evidenceWarnings (computed once at import time from raw capture data),
+ * these warnings reflect the engineer's current review decisions and should be
+ * re-evaluated as items are confirmed or rejected on the Capture Review Screen.
+ *
+ * Covers:
+ *   - "Unconfirmed LiDAR objects"         — LiDAR pins still pending/rejected
+ *   - "No confirmed photos selected"      — no photos confirmed for customer report
+ *   - "Floor plan not reviewed"           — any floor plan still pending/rejected
+ *
+ * Usage:
+ *   const warnings = deriveReviewWarnings(model);
+ */
+export function deriveReviewWarnings(
+  model: Pick<CaptureReviewModel, 'objectPins' | 'photos' | 'floorPlanSnapshots'>,
+): string[] {
+  const warnings: string[] = [];
+
+  // Unconfirmed LiDAR objects
+  const unconfirmedLidar = model.objectPins.filter(
+    (p) => p.needsConfirmation && p.reviewStatus !== 'confirmed',
+  );
+  if (unconfirmedLidar.length > 0) {
+    warnings.push(
+      `Unconfirmed LiDAR objects: ${unconfirmedLidar.length} object pin(s) inferred by LiDAR require confirmation`,
+    );
+  }
+
+  // No confirmed photos selected for customer report
+  const hasConfirmedCustomerPhoto = model.photos.some(
+    (p) => p.reviewStatus === 'confirmed' && p.includeInCustomerReport,
+  );
+  if (model.photos.length > 0 && !hasConfirmedCustomerPhoto) {
+    warnings.push('No confirmed photos selected for customer report');
+  }
+
+  // Floor plan not reviewed
+  const unconfirmedFloorPlans = model.floorPlanSnapshots.filter(
+    (s) => s.reviewStatus !== 'confirmed',
+  );
+  if (unconfirmedFloorPlans.length > 0) {
+    warnings.push(
+      `Floor plan not reviewed: ${unconfirmedFloorPlans.length} floor plan snapshot(s) pending review`,
     );
   }
 
