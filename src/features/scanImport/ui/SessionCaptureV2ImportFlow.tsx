@@ -189,8 +189,9 @@ async function storeReviewDecisions(
   });
 
   if (!res.ok) {
+    const detail = await res.text().catch(() => '');
     console.warn(
-      `[Atlas] Review decisions store failed for session ${sessionId}: ${res.status}`,
+      `[Atlas] Review decisions store failed for session ${sessionId}: ${res.status}${detail ? ` — ${detail}` : ''}`,
     );
   }
 }

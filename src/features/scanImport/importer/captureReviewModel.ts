@@ -266,7 +266,7 @@ function normaliseFloorPlanSnapshots(snapshots: FloorPlanSnapshotV2[]): ReviewFl
     capturedAt: s.capturedAt,
     floorIndex: s.floorIndex,
     includeInCustomerReport: true,
-    reviewStatus: 'confirmed' as ReviewStatus,
+    reviewStatus: 'confirmed',
   }));
 }
 

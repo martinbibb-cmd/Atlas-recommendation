@@ -38,6 +38,14 @@ import type {
 } from '../importer/captureReviewModel';
 import { deriveReviewWarnings } from '../importer/captureReviewModel';
 
+// ─── Shared utilities ─────────────────────────────────────────────────────────
+
+function formatObjectType(objectType: string): string {
+  return objectType
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // ─── Palette ──────────────────────────────────────────────────────────────────
 
 const COLORS = {
@@ -415,7 +423,7 @@ export default function CaptureEvidenceReviewScreen({
         {objectPins.map((pin) => (
           <ItemRow key={pin.pinId} rejected={pin.reviewStatus === 'rejected'}>
             <span style={labelStyle}>
-              {pin.label || pin.objectType.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+              {pin.label || formatObjectType(pin.objectType)}
               {pin.roomId && <span style={{ ...metaStyle, marginLeft: 6 }}>in {pin.roomId}</span>}
               {pin.needsConfirmation && (
                 <span style={{ marginLeft: 6, fontSize: 11, color: '#1e40af', fontWeight: 600 }}>
