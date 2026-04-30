@@ -288,7 +288,7 @@ function deriveVerificationRequiredV2(
   );
   if (lidarInferredPins.length > 0) {
     items.push(
-      `${lidarInferredPins.length} object pin(s) were inferred by LiDAR — confirm before use in outputs`,
+      `${lidarInferredPins.length} object pin(s) were inferred by LiDAR and require engineer confirmation`,
     );
   }
 
