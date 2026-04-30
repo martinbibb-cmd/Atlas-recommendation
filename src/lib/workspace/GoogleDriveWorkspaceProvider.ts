@@ -151,10 +151,14 @@ export class GoogleDriveWorkspaceProvider implements WorkspaceProvider {
   private _indexFileId:    string | null = null;
 
   constructor(config?: Partial<OAuthConfig>) {
-    this.oauth = new DriveOAuthClient({
-      ...GOOGLE_DRIVE_OAUTH_DEFAULTS,
-      ...config,
-    });
+    const merged = { ...GOOGLE_DRIVE_OAUTH_DEFAULTS, ...config };
+    if (!merged.clientId) {
+      throw new Error(
+        'GoogleDriveWorkspaceProvider: clientId is required. ' +
+        'Provide your Google Cloud OAuth 2.0 client ID when constructing the provider.',
+      );
+    }
+    this.oauth = new DriveOAuthClient(merged);
   }
 
   // ── Authentication shortcuts ─────────────────────────────────────────────

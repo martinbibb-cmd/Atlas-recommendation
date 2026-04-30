@@ -148,10 +148,14 @@ export class OneDriveWorkspaceProvider implements WorkspaceProvider {
   private readonly oauth: DriveOAuthClient;
 
   constructor(config?: Partial<OAuthConfig>) {
-    this.oauth = new DriveOAuthClient({
-      ...ONEDRIVE_OAUTH_DEFAULTS,
-      ...config,
-    });
+    const merged = { ...ONEDRIVE_OAUTH_DEFAULTS, ...config };
+    if (!merged.clientId) {
+      throw new Error(
+        'OneDriveWorkspaceProvider: clientId is required. ' +
+        'Provide your Azure app registration client ID when constructing the provider.',
+      );
+    }
+    this.oauth = new DriveOAuthClient(merged);
   }
 
   // ── Authentication shortcuts ─────────────────────────────────────────────
