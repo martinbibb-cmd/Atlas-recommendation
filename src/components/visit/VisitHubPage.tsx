@@ -63,6 +63,11 @@ interface Props {
   onOpenHandoffReview?: () => void;
 }
 
+// Delay (ms) between opening the print dialog and launching the email client,
+// giving the browser time to render the print preview before the email client
+// takes window focus.
+const PRINT_DIALOG_DELAY_MS = 400;
+
 // ─── Engine run metadata key in working_payload ───────────────────────────────
 
 const ENGINE_RUN_META_KEY = '_atlasEngineRunMeta';
@@ -368,7 +373,7 @@ function HubActions({
   onOpenPresentation,
   onPrintSummary,
   onEmailSummary,
-  onSaveSummary,
+  onSaveVisitLocally,
   onOpenEngineerRoute,
   onOpenInsightPack,
   onOpenHandoffReview,
@@ -385,7 +390,7 @@ function HubActions({
   onOpenPresentation: () => void;
   onPrintSummary?: () => void;
   onEmailSummary?: () => void;
-  onSaveSummary?: () => void;
+  onSaveVisitLocally?: () => void;
   onOpenEngineerRoute?: () => void;
   onOpenInsightPack?: () => void;
   onOpenHandoffReview?: () => void;
@@ -399,18 +404,15 @@ function HubActions({
 }) {
   const surveyDone = isSurveyComplete(meta);
   const visitDone = isVisitCompleted(meta);
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   function handleSendPortal() {
     if (!portalUrl) return;
-    navigator.clipboard.writeText(portalUrl).then(() => {
-      setCopyState('copied');
-      setTimeout(() => setCopyState('idle'), 2000);
-    }).catch(() => {
-      setCopyState('failed');
-      setTimeout(() => setCopyState('idle'), 3000);
-    });
-    window.open(portalUrl, '_blank', 'noopener,noreferrer');
+    const subject = encodeURIComponent('Your personalised heating advice');
+    const body = encodeURIComponent(
+      `Hi,\n\nPlease follow the link below to view your personalised heating advice:\n\n${portalUrl}\n\n` +
+      `This gives you access to your full heating recommendation, the options we considered, and your next steps.\n\nKind regards`,
+    );
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
   }
 
   // ── Lifecycle status card ──────────────────────────────────────────────────
@@ -439,11 +441,7 @@ function HubActions({
 
   const portalBtnLabel = portalLoading
     ? '⏳ Preparing portal…'
-    : copyState === 'copied'
-      ? '✅ Link copied!'
-      : copyState === 'failed'
-        ? '⚠ Copy failed — check URL'
-        : '📤 Send customer portal';
+    : '📮 Send portal via email';
 
   // ── COMPLETED state ────────────────────────────────────────────────────────
 
@@ -537,11 +535,9 @@ function HubActions({
           )}
         </div>
 
-        {/* Diagnostics — collapsed by default */}
-        <details className="visit-hub__more-tools" data-testid="diagnostics-section">
-          <summary className="visit-hub__more-tools-toggle">
-            🔬 Diagnostics
-          </summary>
+        {/* Diagnostics — always visible */}
+        <div className="visit-hub__more-tools" data-testid="diagnostics-section">
+          <p className="visit-hub__section-label">Diagnostics</p>
           <div className="visit-hub__more-tools-body">
             {onOpenHandoffReview && (
               <button
@@ -554,7 +550,7 @@ function HubActions({
               </button>
             )}
           </div>
-        </details>
+        </div>
       </div>
     );
   }
@@ -614,14 +610,14 @@ function HubActions({
             </button>
           )}
 
-          {onSaveSummary && (
+          {onSaveVisitLocally && (
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
-              onClick={onSaveSummary}
-              aria-label="Download customer PDF to file"
-              data-testid="save-summary-btn"
+              onClick={onSaveVisitLocally}
+              aria-label="Save visit data locally"
+              data-testid="save-visit-locally-btn"
             >
-              💾 Download customer PDF
+              💾 Save visit locally
             </button>
           )}
 
@@ -711,14 +707,14 @@ function HubActions({
           </button>
         )}
 
-        {onSaveSummary && (
+        {onSaveVisitLocally && (
           <button
             className="visit-hub__action-btn visit-hub__action-btn--secondary"
             disabled
             aria-disabled="true"
-            aria-label="Download customer PDF — complete survey first"
+            aria-label="Save visit locally — complete survey first"
           >
-            💾 Download customer PDF
+            💾 Save visit locally
           </button>
         )}
 
@@ -726,9 +722,9 @@ function HubActions({
           className="visit-hub__action-btn visit-hub__action-btn--secondary"
           disabled
           aria-disabled="true"
-          aria-label="Send customer portal — complete survey first"
+          aria-label="Send portal via email — complete survey first"
         >
-          📤 Send customer portal
+          📮 Send portal via email
         </button>
 
         {onOpenEngineerRoute && (
@@ -1018,33 +1014,35 @@ export default function VisitHubPage({
   }
 
   /**
-   * Open the default email client with a short message and the customer portal
-   * URL so the recipient can access and print their PDF summary.
+   * Open the default email client asking the user to attach the customer
+   * summary PDF that was just downloaded.
+   * Also triggers the print page so the PDF lands in the downloads folder
+   * before the email client opens.
    */
   function handleEmailSummary() {
     if (!meta) return;
+    // Trigger PDF download/print so the file is ready to attach.
+    if (onPrintSummary) onPrintSummary();
     const subject = encodeURIComponent(`Your Atlas visit summary – ${visitDisplayLabel(meta)}`);
-    const portalLine = portalUrl
-      ? `\n\nView and download your customer summary here:\n${portalUrl}`
-      : '';
     const body = encodeURIComponent(
-      `Please find your visit summary from Atlas below.${portalLine}\n\n` +
-      'Your engineer will be in touch to confirm the installation date.\n\n' +
+      `Please find your personalised heating summary attached.\n\n` +
+      `Your summary PDF has been saved to your device — please attach it to this email.\n\n` +
+      (portalUrl
+        ? `You can also view your summary online:\n${portalUrl}\n\n`
+        : '') +
       `Generated by Atlas on ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
     );
-    window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
+    // Small delay so the print dialog has time to open before the email client takes focus.
+    setTimeout(() => { window.open(`mailto:?subject=${subject}&body=${body}`, '_self'); }, PRINT_DIALOG_DELAY_MS);
   }
 
   /**
-   * Download the customer summary PDF via the print page.
-   * Routes to the framework-print journey so the engineer can use the
-   * browser's Save as PDF to produce the file.
-   * No-ops when onPrintSummary is not wired — the button is not shown in that case.
+   * Save the visit workspace locally as a JSON file.
+   * Uses the same visit-pack export as handleExportVisitPack so the engineer
+   * has a portable copy of the full visit data on their device.
    */
-  function handleSaveSummary() {
-    if (onPrintSummary) {
-      onPrintSummary();
-    }
+  function handleSaveVisitLocally() {
+    handleExportVisitPack();
   }
 
   /** Export the full visit workspace as a JSON pack for internal use. */
@@ -1101,7 +1099,7 @@ export default function VisitHubPage({
           onOpenPresentation={onOpenPresentation}
           onPrintSummary={onPrintSummary}
           onEmailSummary={handleEmailSummary}
-          onSaveSummary={handleSaveSummary}
+          onSaveVisitLocally={handleSaveVisitLocally}
           onOpenEngineerRoute={onOpenEngineerRoute}
           onOpenInsightPack={onOpenInsightPack}
           onOpenHandoffReview={onOpenHandoffReview}
