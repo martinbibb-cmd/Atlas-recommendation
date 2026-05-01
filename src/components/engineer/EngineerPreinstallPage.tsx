@@ -25,6 +25,8 @@ import type { VisitMeta } from '../../lib/visits/visitApi';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { buildEngineerDisplayModel } from './selectors/buildEngineerDisplayModel';
+import { useScanCaptureForVisit } from '../../features/scanHandoff/useScanCaptureForVisit';
+import { ScanEvidenceSummary } from '../../features/scanEvidence';
 import { EngineerJobSummaryCard } from './EngineerJobSummaryCard';
 import { EngineerLayoutSummary } from './EngineerLayoutSummary';
 import { EngineerCurrentSystemPanel } from './EngineerCurrentSystemPanel';
@@ -49,6 +51,9 @@ export default function EngineerPreinstallPage({ visitId, onBack }: Props) {
   const [error, setError]       = useState<string | null>(null);
   const [visitMeta, setVisitMeta] = useState<VisitMeta | null>(null);
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
+
+  // Scan capture received from Atlas Scan via the handoff store.
+  const scanCapture = useScanCaptureForVisit(visitId);
 
   // The raw report payload and survey — used to build the display model.
   const reportPayloadRef = useRef<unknown>(null);
@@ -207,6 +212,11 @@ export default function EngineerPreinstallPage({ visitId, onBack }: Props) {
             <EngineerFlueClearancePanel scenes={displayModel.externalClearanceScenes} />
           )}
         </>
+      )}
+
+      {/* Scan evidence — shown when a capture has been received from Atlas Scan */}
+      {scanCapture && (
+        <ScanEvidenceSummary capture={scanCapture} />
       )}
 
       {/* Visit replay — available regardless of display model (uses survey + voice notes) */}
