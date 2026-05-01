@@ -24,7 +24,7 @@
  * - Uses inline styles consistent with the existing scan import pages.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { receiveScanHandoff } from './receiveScanHandoff';
 import type { ReceiveScanHandoffResult } from './receiveScanHandoff';
 import type { AtlasVisitV1 } from './contracts/AtlasVisitV1';
@@ -32,9 +32,16 @@ import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/** Narrowed result type for a successfully validated handoff. */
+type ValidHandoffResult = ReceiveScanHandoffResult & {
+  ok: true;
+  visit: AtlasVisitV1;
+  capture: SessionCaptureV2;
+};
+
 type PageState =
   | { name: 'loading' }
-  | { name: 'success'; result: ReceiveScanHandoffResult & { ok: true; visit: AtlasVisitV1; capture: SessionCaptureV2 } }
+  | { name: 'success'; result: ValidHandoffResult }
   | { name: 'error'; errors: string[]; warnings: string[] }
   | { name: 'empty' };
 
@@ -93,6 +100,10 @@ export function ScanHandoffReceivePage({
   onCancel,
 }: ScanHandoffReceivePageProps) {
   const [state, setState] = useState<PageState>({ name: 'loading' });
+  // Keep a ref to the latest onVisitReady so the navigation effect always
+  // calls the current version without triggering re-runs.
+  const onVisitReadyRef = useRef(onVisitReady);
+  onVisitReadyRef.current = onVisitReady;
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +116,7 @@ export function ScanHandoffReceivePage({
         const result = receiveScanHandoff(urlPayload);
         if (cancelled) return;
         if (result.ok && result.visit && result.capture) {
-          setState({ name: 'success', result: result as ReceiveScanHandoffResult & { ok: true; visit: AtlasVisitV1; capture: SessionCaptureV2 } });
+          setState({ name: 'success', result: result as ValidHandoffResult });
         } else {
           setState({ name: 'error', errors: result.errors, warnings: result.warnings });
         }
@@ -133,7 +144,7 @@ export function ScanHandoffReceivePage({
         const result = receiveScanHandoff(parsed);
 
         if (result.ok && result.visit && result.capture) {
-          setState({ name: 'success', result: result as ReceiveScanHandoffResult & { ok: true; visit: AtlasVisitV1; capture: SessionCaptureV2 } });
+          setState({ name: 'success', result: result as ValidHandoffResult });
         } else {
           setState({ name: 'error', errors: result.errors, warnings: result.warnings });
         }
@@ -147,14 +158,13 @@ export function ScanHandoffReceivePage({
   }, []);
 
   // ── Automatically navigate when valid visit is ready ─────────────────────
+  // Derive visitToOpen outside the effect so exhaustive-deps is satisfied.
+  const visitToOpen = state.name === 'success' ? state.result.visit : null;
   useEffect(() => {
-    if (state.name === 'success') {
-      onVisitReady(state.result.visit);
+    if (visitToOpen !== null) {
+      onVisitReadyRef.current(visitToOpen);
     }
-  // onVisitReady is a stable callback from the parent — intentionally excluded
-  // from deps to avoid calling it twice on re-renders.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.name]);
+  }, [visitToOpen]);
 
   // ── Loading ──
   if (state.name === 'loading') {
