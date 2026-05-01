@@ -139,6 +139,34 @@ function deriveKeyObjects(
   return objects;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * Engineer-facing note added to the handoff access notes when the survey
+ * records pipework as buried / concealed in walls.
+ */
+const BURIED_PIPEWORK_ACCESS_NOTE =
+  'Pipework is buried / concealed in walls — access for inspection or replacement will be restricted. Include a full repipe in the installation scope if the system type changes or the existing pipe condition is unknown.'
+
+/**
+ * Maps engine option IDs to the comparable recommendation heat-source key so
+ * the handoff builder can detect mismatches between the physics ranking and
+ * the surveyor's manual selection.
+ *
+ * Keep in sync with the `OptionCardV1['id']` union and
+ * `HEAT_SOURCE_OPTIONS` in recommendationTypes.ts.
+ */
+const ENGINE_OPTION_ID_TO_HEAT_SOURCE: Readonly<Record<string, string>> = {
+  combi:           'combi_boiler',
+  stored_vented:   'regular_boiler',
+  stored_unvented: 'system_boiler',
+  ashp:            'heat_pump_air',
+  regular_vented:  'regular_boiler',
+  system_unvented: 'system_boiler',
+}
+
+// ─── Engineer summary derivation ─────────────────────────────────────────────
+
 function buildEngineerSummary(
   payload: Partial<FullSurveyModelV1>,
   engineTopOptionId?: string,
@@ -151,7 +179,7 @@ function buildEngineerSummary(
   if (systemBuilder?.pipeworkAccess === 'buried') {
     accessNotes.push({
       location: 'Primary pipework',
-      note: 'Pipework is buried / concealed in walls — access for inspection or replacement will be restricted. Include a full repipe in the installation scope if the system type changes or the existing pipe condition is unknown.',
+      note: BURIED_PIPEWORK_ACCESS_NOTE,
     })
   }
 
@@ -170,20 +198,8 @@ function buildEngineerSummary(
   }
 
   // Flag when the physics-ranked top option differs from the manual selection.
-  if (
-    engineTopOptionId != null &&
-    recommendation?.heatSource != null
-  ) {
-    // Map the engine option ID to a comparable heat-source key.
-    const ENGINE_ID_TO_HEAT_SOURCE: Record<string, string> = {
-      combi:            'combi_boiler',
-      stored_vented:    'regular_boiler',
-      stored_unvented:  'system_boiler',
-      ashp:             'heat_pump_air',
-      regular_vented:   'regular_boiler',
-      system_unvented:  'system_boiler',
-    }
-    const physicsHeatSource = ENGINE_ID_TO_HEAT_SOURCE[engineTopOptionId]
+  if (engineTopOptionId != null && recommendation?.heatSource != null) {
+    const physicsHeatSource = ENGINE_OPTION_ID_TO_HEAT_SOURCE[engineTopOptionId]
     if (physicsHeatSource != null && physicsHeatSource !== recommendation.heatSource) {
       const physicsLabel =
         HEAT_SOURCE_OPTIONS.find(o => o.value === physicsHeatSource)?.label ?? engineTopOptionId
