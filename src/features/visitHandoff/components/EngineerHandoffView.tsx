@@ -204,6 +204,33 @@ export default function EngineerHandoffView({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
+      {/* ── ⚠ Recommendation mismatch warning (blocking banner) ──────────── */}
+      {summary.recommendationMismatchWarning && (
+        <div
+          data-testid="engineer-handoff-mismatch-warning"
+          role="alert"
+          style={{
+            display: 'flex',
+            gap: '0.75rem',
+            alignItems: 'flex-start',
+            background: '#fff7ed',
+            border: '2px solid #f97316',
+            borderRadius: 8,
+            padding: '0.9rem 1.1rem',
+          }}
+        >
+          <span style={{ fontSize: '1.1rem', flexShrink: 0, marginTop: '0.05rem' }}>⚠️</span>
+          <div>
+            <p style={{ margin: '0 0 0.25rem', fontSize: '0.875rem', fontWeight: 700, color: '#9a3412' }}>
+              Recommendation mismatch — confirm before handoff
+            </p>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#7c2d12', lineHeight: 1.6 }}>
+              {summary.recommendationMismatchWarning}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── 1. Rooms ───────────────────────────────────────────────────── */}
       <section>
         <SectionHeader>Rooms</SectionHeader>

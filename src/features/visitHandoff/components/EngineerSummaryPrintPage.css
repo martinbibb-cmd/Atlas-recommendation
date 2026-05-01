@@ -21,6 +21,7 @@
  *  .esp-header        — address + completion date block
  *  .esp-badge         — read-only / handoff badge
  *  .esp-completion    — visit-complete banner row
+ *  .esp-mismatch-warning — recommendation mismatch blocking banner
  *  .esp-section       — generic section (heading + content)
  *  .esp-table         — structured data table (emitters, objects, notes)
  *  .esp-notes-block   — free-text notes block
@@ -222,6 +223,42 @@
 .esp-completion__meta {
   font-size: 0.75rem;
   color: #64748b;
+  margin: 0;
+}
+
+/* ─── Generic content section ───────────────────────────────────────────────── */
+
+/* ─── Recommendation mismatch warning banner ────────────────────────────────── */
+
+.esp-mismatch-warning {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  background: #fff7ed;
+  border: 2px solid #f97316;
+  border-radius: 6px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 18px;
+  break-inside: avoid;
+}
+
+.esp-mismatch-warning__icon {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.esp-mismatch-warning__heading {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #9a3412;
+  margin: 0 0 0.2rem;
+}
+
+.esp-mismatch-warning__body {
+  font-size: 0.78rem;
+  color: #7c2d12;
+  line-height: 1.6;
   margin: 0;
 }
 
