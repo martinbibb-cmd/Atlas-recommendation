@@ -32,6 +32,7 @@ import { buildLockedAiHandoffText } from '../../engine/modules/buildAiHandoffPay
 import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import { BrandProvider, BrandedHeader, BrandedFooter, getBrandCtaCopy, useBrandProfile } from '../../features/branding';
+import { UK_GAS_CARBON_KG_PER_KWH } from '../../engine/utils/efficiency';
 import { HeroBlockView }                     from '../presentation/blocks/HeroBlockView';
 import { FactsBlockView }                    from '../presentation/blocks/FactsBlockView';
 import { CustomerNeedResolutionBlockView }   from '../presentation/blocks/CustomerNeedResolutionBlockView';
@@ -944,11 +945,9 @@ function EnergyPricingBlock({ decision }: { decision: AtlasDecisionV1 }) {
  * Gated by brand.outputSettings.showCarbon — hidden when false.
  *
  * Uses the standard UK grid carbon intensity factor (BEIS 2024):
- *   0.233 kg CO₂ per kWh (electricity), 0.183 kg CO₂ per kWh (gas).
+ *   0.183 kg CO₂ per kWh (gas), imported from `src/engine/utils/efficiency.ts`.
  * Atlas applies the gas factor since the baseline is a gas heating system.
  */
-const UK_GAS_CARBON_KG_PER_KWH = 0.183;
-
 function CarbonBlock({ decision }: { decision: AtlasDecisionV1 }) {
   const brand = useBrandProfile();
   const em = decision.energyMetrics;

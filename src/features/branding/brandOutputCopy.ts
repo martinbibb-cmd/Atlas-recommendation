@@ -29,21 +29,18 @@ export interface BrandCtaCopy {
 // ─── Lookup table ─────────────────────────────────────────────────────────────
 
 const CTA_BY_TONE: Record<BrandProfileV1['outputSettings']['tone'], BrandCtaCopy> = {
-  formal: {
-    portalCta:       'Please contact us to discuss the next step.',
-    contactCta:      'Please contact us to discuss the next step.',
-    printFooterNote: 'Please contact us to discuss the next step.',
-  },
-  friendly: {
-    portalCta:       'Ready to talk through the best next step?',
-    contactCta:      'Ready to talk through the best next step?',
-    printFooterNote: 'Ready to talk through the best next step?',
-  },
-  technical: {
-    portalCta:       'Review the recommendation and supporting evidence before proceeding.',
-    contactCta:      'Review the recommendation and supporting evidence before proceeding.',
-    printFooterNote: 'Review the recommendation and supporting evidence before proceeding.',
-  },
+  formal: (() => {
+    const copy = 'Please contact us to discuss the next step.';
+    return { portalCta: copy, contactCta: copy, printFooterNote: copy };
+  })(),
+  friendly: (() => {
+    const copy = 'Ready to talk through the best next step?';
+    return { portalCta: copy, contactCta: copy, printFooterNote: copy };
+  })(),
+  technical: (() => {
+    const copy = 'Review the recommendation and supporting evidence before proceeding.';
+    return { portalCta: copy, contactCta: copy, printFooterNote: copy };
+  })(),
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
