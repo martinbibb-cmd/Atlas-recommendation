@@ -49,7 +49,7 @@ function TranscriptEntry({ note }: { note: VoiceNoteV2 }) {
       {/* Meta row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontVariantNumeric: 'tabular-nums' }}>
-          {formatDateTime(note.createdAt)}
+          Recorded {formatDateTime(note.createdAt)}
         </span>
         {note.roomId && (
           <span style={{

@@ -65,7 +65,7 @@ export type AnchorConfidenceTier = 'high' | 'medium' | 'low';
  * Convention: `metadata.inferredByLidar === true`.
  */
 export function isLidarInferred(pin: ObjectPinV2): boolean {
-  return pin.metadata?.['inferredByLidar'] === true;
+  return pin.metadata?.inferredByLidar === true;
 }
 
 // ─── Selectors ────────────────────────────────────────────────────────────────

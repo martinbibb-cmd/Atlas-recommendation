@@ -73,7 +73,10 @@ function RoomRow({
       </span>
 
       {room.areaM2 != null && (
-        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+        <span
+          aria-label={`Floor area: ${room.areaM2} square metres`}
+          style={{ fontSize: '0.78rem', color: '#64748b' }}
+        >
           {room.areaM2} m²
         </span>
       )}

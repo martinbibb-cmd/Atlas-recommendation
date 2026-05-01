@@ -301,9 +301,10 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {qaFlags.map((flag, i) => {
               const style = QA_SEVERITY_STYLE[flag.severity] ?? QA_SEVERITY_STYLE['info'];
+              const flagKey = `${flag.code}-${flag.severity}-${flag.entityId ?? i}`;
               return (
                 <div
-                  key={i}
+                  key={flagKey}
                   style={{
                     display: 'flex',
                     gap: '0.5rem',
