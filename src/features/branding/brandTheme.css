@@ -1,0 +1,37 @@
+/**
+ * src/features/branding/brandTheme.css
+ *
+ * CSS variable bridge for the active brand theme.
+ *
+ * BrandProvider sets these custom properties on the wrapper element so that
+ * any descendant can consume them via `var(--atlas-brand-*)`.
+ *
+ * Layout classes:
+ *   .brand-theme-root    — outermost container that receives the CSS variables
+ *   .brand-logo          — logo image element
+ *   .brand-company-name  — company name text element
+ */
+
+.brand-theme-root {
+  --atlas-brand-primary: #2563eb;
+  --atlas-brand-secondary: #1e40af;
+  --atlas-brand-accent: #3b82f6;
+  --atlas-brand-background: #ffffff;
+  --atlas-brand-surface: #f8fafc;
+  --atlas-brand-text: #0f172a;
+
+  color: var(--atlas-brand-text);
+  background-color: var(--atlas-brand-background);
+}
+
+.brand-logo {
+  display: block;
+  max-height: 2.5rem;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-company-name {
+  font-weight: 600;
+  color: var(--atlas-brand-primary);
+}
