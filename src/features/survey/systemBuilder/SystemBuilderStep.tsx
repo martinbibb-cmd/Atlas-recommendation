@@ -475,6 +475,38 @@ export function SystemBuilderStep({
             ))}
           </div>
         </div>
+        <div>
+          <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
+            Pipework routing
+          </p>
+          <div style={inlineRowStyle}>
+            {PIPEWORK_ACCESS_OPTIONS.map(({ value, label, description }) => (
+              <button
+                key={value}
+                type="button"
+                data-testid={`pipework-access-${value}`}
+                onClick={() => onChange({ ...state, pipeworkAccess: value })}
+                style={chipStyle(state.pipeworkAccess === value)}
+                title={description || undefined}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {state.pipeworkAccess === 'buried' && (
+            <p style={{
+              fontSize: '0.75rem',
+              color: '#92400e',
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+              borderRadius: '4px',
+              padding: '0.4rem 0.6rem',
+              marginTop: '0.4rem',
+            }}>
+              ⚠ Buried / concealed pipework will be difficult to inspect or replace. Consider including a full repipe as part of the installation scope.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ── 5. Controls ────────────────────────────────────────────────────── */}
@@ -665,26 +697,6 @@ export function SystemBuilderStep({
               </div>
             </div>
 
-            {/* 7b. Pipework routing */}
-            <div>
-              <p style={{ fontSize: '0.78rem', color: '#4a5568', margin: '0.5rem 0 0.35rem' }}>
-                Pipework routing
-              </p>
-              <div style={inlineRowStyle}>
-                {PIPEWORK_ACCESS_OPTIONS.map(({ value, label, description }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    data-testid={`pipework-access-${value}`}
-                    onClick={() => onChange({ ...state, pipeworkAccess: value })}
-                    style={chipStyle(state.pipeworkAccess === value)}
-                    title={description || undefined}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
 
           </div>
         </>

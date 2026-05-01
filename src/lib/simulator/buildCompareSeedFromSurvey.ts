@@ -23,7 +23,11 @@ import { DEFAULT_SYSTEM_INPUTS, CYLINDER_SIZES_BY_TYPE } from '../../explainers/
 import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback'
 import { adaptFullSurveyToSimulatorInputs } from '../../explainers/lego/simulator/adaptFullSurveyToSimulatorInputs'
 import type { MainsSupply, ProposedSupplyAdjustment } from './mainsSupply'
-import { extractMainsSupplyFromSurvey, getEffectiveProposedMainsSupply } from './mainsSupply'
+import {
+  extractMainsSupplyFromSurvey,
+  getEffectiveProposedMainsSupply,
+  buildCombiHexRemovalAdjustment,
+} from './mainsSupply'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -35,7 +39,7 @@ export type CompareSeedSide = {
 
 // Re-export supply types so consumers can import from one place.
 export type { MainsSupply, ProposedSupplyAdjustment } from './mainsSupply'
-export { extractMainsSupplyFromSurvey, getEffectiveProposedMainsSupply } from './mainsSupply'
+export { extractMainsSupplyFromSurvey, getEffectiveProposedMainsSupply, buildCombiHexRemovalAdjustment } from './mainsSupply'
 
 /**
  * Compare mode — describes the relationship between the two sides.
@@ -170,17 +174,6 @@ export function buildCompareSeedFromSurvey(
   // simulation engine but too restrictive for supply provenance tracking).
   const measuredMainsSupply = extractMainsSupplyFromSurvey(survey)
 
-  // No supply-side upgrade is encoded in the recommendation at this stage.
-  // This field is reserved for future use when a booster/accumulator/break-tank
-  // is explicitly included in the recommendation output.
-  const proposedSupplyAdjustment: ProposedSupplyAdjustment = { type: 'none' }
-
-  // Effective supply for the proposed system (same as measured when no upgrade).
-  const effectiveProposedSupply = getEffectiveProposedMainsSupply(
-    measuredMainsSupply,
-    proposedSupplyAdjustment,
-  )
-
   // ── Right (proposed) side ──────────────────────────────────────────────────
   // Pick the first viable option; fall back to first caution; then first of any.
   const options = engineOutput.options ?? []
@@ -194,6 +187,23 @@ export function buildCompareSeedFromSurvey(
     proposedSystemChoice =
       OPTION_ID_TO_SYSTEM_CHOICE[proposedOption.id] ?? 'combi'
   }
+
+  // ── Supply adjustment — combi HEX removal ───────────────────────────────────
+  // When the current system is a combi and the proposed system is stored (not
+  // combi), the measured mains flow was taken against the combi plate HEX
+  // (~0.3 bar pressure drop).  Removing the combi means the unvented cylinder
+  // charges without that restriction, so the effective mains flow is higher.
+  // Use Q ∝ √P scaling to compute the corrected proposed-side flow.
+  const proposedSupplyAdjustment: ProposedSupplyAdjustment =
+    left.systemChoice === 'combi' && proposedSystemChoice !== 'combi'
+      ? buildCombiHexRemovalAdjustment(measuredMainsSupply)
+      : { type: 'none' }
+
+  // Effective supply for the proposed system (corrected when switching from combi).
+  const effectiveProposedSupply = getEffectiveProposedMainsSupply(
+    measuredMainsSupply,
+    proposedSupplyAdjustment,
+  )
 
   // Inherit survey mains and occupancy truth (these are property facts, not
   // system facts — both current and proposed system operate in the same house).

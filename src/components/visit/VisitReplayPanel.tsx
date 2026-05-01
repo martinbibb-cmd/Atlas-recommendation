@@ -125,13 +125,22 @@ function SurveySnapshot({ survey }: { survey: FullSurveyModelV1 | null }) {
     );
   }
 
+  const pipeworkAccessLabel = survey.fullSurvey?.systemBuilder?.pipeworkAccess === 'accessible'
+    ? 'Exposed / accessible'
+    : survey.fullSurvey?.systemBuilder?.pipeworkAccess === 'buried'
+      ? 'Buried / in walls'
+      : survey.fullSurvey?.systemBuilder?.pipeworkAccess === 'unknown'
+        ? 'Unknown'
+        : undefined
+
   const rows: Array<{ label: string; value: string | number | undefined | null }> = [
-    { label: 'Postcode',   value: survey.postcode },
-    { label: 'Bedrooms',   value: survey.bedrooms },
-    { label: 'Bathrooms',  value: survey.bathroomCount },
-    { label: 'Occupants',  value: survey.occupancyCount },
-    { label: 'Wall type',  value: survey.building?.fabric?.wallType },
-    { label: 'Boiler age', value: survey.currentBoilerAgeYears != null ? `${survey.currentBoilerAgeYears} yrs` : undefined },
+    { label: 'Postcode',         value: survey.postcode },
+    { label: 'Bedrooms',         value: survey.bedrooms },
+    { label: 'Bathrooms',        value: survey.bathroomCount },
+    { label: 'Occupants',        value: survey.occupancyCount },
+    { label: 'Wall type',        value: survey.building?.fabric?.wallType },
+    { label: 'Boiler age',       value: survey.currentBoilerAgeYears != null ? `${survey.currentBoilerAgeYears} yrs` : undefined },
+    { label: 'Pipework routing', value: pipeworkAccessLabel },
   ].filter(r => r.value != null && r.value !== '');
 
   if (rows.length === 0) {
