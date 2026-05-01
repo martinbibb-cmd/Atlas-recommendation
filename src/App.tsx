@@ -36,6 +36,9 @@ import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
 import { createVisit, getVisit } from './lib/visits/visitApi';
+import { VisitProvider } from './features/visits/VisitProvider';
+import { createAtlasVisit } from './features/visits/createAtlasVisit';
+import type { AtlasVisit } from './features/visits/createAtlasVisit';
 import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
 import { generateReportTitle } from './lib/reports/generateReportTitle';
 import { generatePortalToken } from './lib/portal/portalToken';
@@ -578,6 +581,12 @@ export default function App() {
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>(
     ENGINEER_VISIT_ID ?? INITIAL_VISIT_ID_PARAM ?? _restoredVisit?.value?.visitId ?? undefined,
   );
+  /**
+   * Active AtlasVisit — carries the visitId and attached brandId for the
+   * current visit session.  Null until a visit is created or opened with a
+   * brand attachment (PR 5).
+   */
+  const [activeAtlasVisit, setActiveAtlasVisit] = useState<AtlasVisit | null>(null);
   /** Controls whether the new-visit dialog is open. */
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
   /** Tracks whether "Start new visit" is in flight. */
@@ -668,6 +677,9 @@ export default function App() {
       const { id } = await createVisit(opts);
       console.info('[Atlas] Visit created:', id);
       setActiveVisitId(id);
+      // Brand defaults to atlas-default here; brand attachment via StartVisitPanel
+      // is the dedicated route for white-label visits (PR 5).
+      setActiveAtlasVisit(createAtlasVisit(id));
       setShowNewVisitDialog(false);
       setJourney('visit');
     } catch (err) {
@@ -1271,50 +1283,52 @@ export default function App() {
         />
       )}
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
-      {/* Visit Hub — shown when opening an existing visit */}
-      {journey === 'visit-hub' && activeVisitId != null && (
-        <VisitHubPage
-          visitId={activeVisitId}
-          onBack={() => setJourney('landing')}
-          onResumeSurvey={() => setJourney('visit')}
-          onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
-          onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
-          onOpenReport={(reportId) => {
-            const reportUrl = `${window.location.origin}/report/${reportId}`;
-            window.open(reportUrl, '_blank', 'noopener,noreferrer');
-          }}
-          onOpenEngineerRoute={() => setJourney('engineer')}
-          onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
-          onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
-          onImportScan={() => setJourney('receive-scan')}
-        />
-      )}
-      {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
-           After a successful import, navigate to /workspace so the engineer can review
-           the captured evidence.  The scan session is already persisted to IDB at this
-           point; /workspace lists all local sessions and opens the evidence review. */}
-      {journey === 'receive-scan' && (
-        <ReceiveScanPage
-          onImported={() => { window.location.href = '/workspace'; }}
-          onCancel={() => setJourney('visit-hub')}
-        />
-      )}
-      {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
-      {journey === 'visit-handoff' && (
-        <VisitHandoffReviewPage
-          initialPack={activeHandoffPack ?? undefined}
-          visitCompleted={true}
-          onBack={() => setJourney('visit-hub')}
-        />
-      )}
-      {/* Engineer pre-install route — /visit/:visitId/engineer */}
-      {journey === 'engineer' && activeVisitId != null && (
-        <EngineerPreinstallPage
-          visitId={activeVisitId}
-          onBack={() => setJourney('visit-hub')}
-        />
-      )}
-      {journey === 'visit' && activeVisitId != null && (
+      {/* Visit journey area — wrapped with VisitProvider to carry visit identity and brandId */}
+      <VisitProvider initialVisit={activeAtlasVisit}>
+        {/* Visit Hub — shown when opening an existing visit */}
+        {journey === 'visit-hub' && activeVisitId != null && (
+          <VisitHubPage
+            visitId={activeVisitId}
+            onBack={() => setJourney('landing')}
+            onResumeSurvey={() => setJourney('visit')}
+            onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
+            onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
+            onOpenReport={(reportId) => {
+              const reportUrl = `${window.location.origin}/report/${reportId}`;
+              window.open(reportUrl, '_blank', 'noopener,noreferrer');
+            }}
+            onOpenEngineerRoute={() => setJourney('engineer')}
+            onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
+            onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
+            onImportScan={() => setJourney('receive-scan')}
+          />
+        )}
+        {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
+             After a successful import, navigate to /workspace so the engineer can review
+             the captured evidence.  The scan session is already persisted to IDB at this
+             point; /workspace lists all local sessions and opens the evidence review. */}
+        {journey === 'receive-scan' && (
+          <ReceiveScanPage
+            onImported={() => { window.location.href = '/workspace'; }}
+            onCancel={() => setJourney('visit-hub')}
+          />
+        )}
+        {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
+        {journey === 'visit-handoff' && (
+          <VisitHandoffReviewPage
+            initialPack={activeHandoffPack ?? undefined}
+            visitCompleted={true}
+            onBack={() => setJourney('visit-hub')}
+          />
+        )}
+        {/* Engineer pre-install route — /visit/:visitId/engineer */}
+        {journey === 'engineer' && activeVisitId != null && (
+          <EngineerPreinstallPage
+            visitId={activeVisitId}
+            onBack={() => setJourney('visit-hub')}
+          />
+        )}
+        {journey === 'visit' && activeVisitId != null && (
         <GlobalMenuShell>
           <VisitPage
             visitId={activeVisitId}
@@ -1356,6 +1370,7 @@ export default function App() {
           />
         </GlobalMenuShell>
       )}
+      </VisitProvider>
       {journey === 'remote-survey' && (
         <GlobalMenuShell>
           <FullSurveyStepper
