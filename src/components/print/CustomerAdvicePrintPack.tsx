@@ -31,6 +31,7 @@ import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import { buildLockedAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
 import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
+import { BrandProvider, BrandedHeader, BrandedFooter, getBrandCtaCopy, useBrandProfile } from '../../features/branding';
 import { HeroBlockView }                     from '../presentation/blocks/HeroBlockView';
 import { FactsBlockView }                    from '../presentation/blocks/FactsBlockView';
 import { CustomerNeedResolutionBlockView }   from '../presentation/blocks/CustomerNeedResolutionBlockView';
@@ -108,11 +109,21 @@ export interface CustomerAdvicePrintPackProps {
    */
   printFullAiHandoff?: boolean;
   /**
-   * When true, renders the TechnicalAuditAppendix as the final section of
-   * the document — a dense machine-readable log for surveyor / engineer use.
-   * Default false.
+   * Optional brand ID for white-label output.
+   * When provided the BrandProvider resolves this brand's profile so that
+   * BrandedHeader, BrandedFooter, and pricing/carbon gating reflect the
+   * active brand's outputSettings.
+   * When absent the atlas-default brand is used.
    */
-  showTechnicalAudit?: boolean;
+  brandId?: string;
+  /**
+   * Optional raw BrandProfileV1 for direct profile injection (bypasses the
+   * brandId registry). Useful in tests and Storybook to render a specific
+   * profile without registering it in BRAND_PROFILES.
+   * When both brandId and brandProfile are supplied, brandProfile takes
+   * precedence.
+   */
+  brandProfile?: import('../../features/branding/brandProfile').BrandProfileV1;
 }
 
 // ─── QR code image ────────────────────────────────────────────────────────────
@@ -889,6 +900,79 @@ function ThreeYearRoadmapSection({
   );
 }
 
+// ─── Brand-gated output sections ─────────────────────────────────────────────
+
+/**
+ * EnergyPricingBlock — Pillar 1 Identity supplement.
+ *
+ * Shows estimated annual energy savings when decision.energyMetrics contains
+ * financial projection data (priceCapsDate present).
+ * Gated by brand.outputSettings.showPricing — hidden when false.
+ */
+function EnergyPricingBlock({ decision }: { decision: AtlasDecisionV1 }) {
+  const brand = useBrandProfile();
+  const em = decision.energyMetrics;
+  if (!em || !em.priceCapsDate || !brand.outputSettings.showPricing) return null;
+  const saved = em.annualEnergyReductionKwh;
+  return (
+    <section
+      className="capp-energy-pricing"
+      aria-label="Estimated energy savings"
+      data-testid="capp-energy-pricing"
+    >
+      <p className="capp-energy-pricing__heading">Estimated energy reduction</p>
+      <p className="capp-energy-pricing__body">
+        Based on your survey data, the recommended system is projected to use{' '}
+        approximately <strong>{Math.round(em.projectedKwh).toLocaleString()} kWh/year</strong>{' '}
+        compared to the current estimated baseline of{' '}
+        <strong>{Math.round(em.baselineKwh).toLocaleString()} kWh/year</strong>{' '}
+        — a potential reduction of{' '}
+        <strong>{Math.round(saved).toLocaleString()} kWh/year</strong>.
+      </p>
+      <p className="capp-energy-pricing__note">
+        Energy price cap date: {em.priceCapsDate}. Figures are estimates only;
+        actual savings depend on usage, tariff, and installation quality.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * CarbonBlock — Pillar 1 Identity supplement.
+ *
+ * Shows estimated annual CO₂ reduction derived from the energy reduction figure.
+ * Gated by brand.outputSettings.showCarbon — hidden when false.
+ *
+ * Uses the standard UK grid carbon intensity factor (BEIS 2024):
+ *   0.233 kg CO₂ per kWh (electricity), 0.183 kg CO₂ per kWh (gas).
+ * Atlas applies the gas factor since the baseline is a gas heating system.
+ */
+const UK_GAS_CARBON_KG_PER_KWH = 0.183;
+
+function CarbonBlock({ decision }: { decision: AtlasDecisionV1 }) {
+  const brand = useBrandProfile();
+  const em = decision.energyMetrics;
+  if (!em || !brand.outputSettings.showCarbon) return null;
+  const annualCo2KgReduction = em.annualEnergyReductionKwh * UK_GAS_CARBON_KG_PER_KWH;
+  const annualCo2TonnesReduction = annualCo2KgReduction / 1000;
+  return (
+    <section
+      className="capp-carbon-block"
+      aria-label="Estimated CO₂ reduction"
+      data-testid="capp-carbon-block"
+    >
+      <p className="capp-carbon-block__heading">Estimated carbon reduction</p>
+      <p className="capp-carbon-block__body">
+        The projected energy reduction of{' '}
+        <strong>{Math.round(em.annualEnergyReductionKwh).toLocaleString()} kWh/year</strong>{' '}
+        corresponds to an estimated{' '}
+        <strong>{annualCo2TonnesReduction.toFixed(2)} tonnes CO₂/year</strong>{' '}
+        reduction (using {UK_GAS_CARBON_KG_PER_KWH} kg CO₂/kWh, BEIS 2024).
+      </p>
+    </section>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -916,7 +1000,7 @@ function ThreeYearRoadmapSection({
  * Screen view: toolbar with Back + Print, then stacked A4 pages with shadow.
  * Print view:  toolbar hidden, pages fill the physical paper with margins.
  */
-export function CustomerAdvicePrintPack({
+function CustomerAdvicePrintPackContent({
   decision,
   scenarios,
   visualBlocks,
@@ -927,7 +1011,9 @@ export function CustomerAdvicePrintPack({
   showRejectedOptionProof = false,
   printFullAiHandoff = false,
   showTechnicalAudit = false,
-}: CustomerAdvicePrintPackProps) {
+}: Omit<CustomerAdvicePrintPackProps, 'brandId'>) {
+  const brand = useBrandProfile();
+  const ctaCopy = getBrandCtaCopy(brand);
   const packTitle = `Atlas advice pack${visitDate ? ` — ${visitDate}` : ''}`;
   const headline  = decision.headline;
   const summary   = lockedSummary ?? buildCustomerSummary(decision, scenarios);
@@ -945,6 +1031,9 @@ export function CustomerAdvicePrintPack({
 
   return (
     <div className="capp-wrap" data-testid="capp-wrap">
+
+      {/* ── Branded header ── */}
+      <BrandedHeader />
 
       {/* ── Screen toolbar ── */}
       <div className="capp-toolbar" data-testid="capp-toolbar">
@@ -1010,6 +1099,12 @@ export function CustomerAdvicePrintPack({
 
               {/* At-a-Glance property stats sidebar */}
               <AtAGlancePanel decision={decision} />
+
+              {/* Brand-gated: pricing block (shown when showPricing and priceCapsDate present) */}
+              <EnergyPricingBlock decision={decision} />
+
+              {/* Brand-gated: carbon reduction block (shown when showCarbon and energyMetrics present) */}
+              <CarbonBlock decision={decision} />
 
               {/* AI-Ready Context Block */}
               <AiContextBlock decision={decision} recommendedScenario={recommendedScenario} />
@@ -1147,7 +1242,28 @@ export function CustomerAdvicePrintPack({
           <TechnicalAuditAppendix decision={decision} scenarios={scenarios} />
         )}
       </div>
+
+      {/* ── Branded footer ── */}
+      <BrandedFooter footerNote={ctaCopy.printFooterNote} />
     </div>
+  );
+}
+
+/**
+ * CustomerAdvicePrintPack
+ *
+ * Public export. Wraps the content with a BrandProvider so BrandedHeader,
+ * BrandedFooter, EnergyPricingBlock, and CarbonBlock can consume brand
+ * settings via useBrandProfile().
+ *
+ * When brandId is absent the atlas-default brand is used, keeping existing
+ * visual output unchanged.
+ */
+export function CustomerAdvicePrintPack({ brandId, brandProfile, ...rest }: CustomerAdvicePrintPackProps) {
+  return (
+    <BrandProvider brandId={brandId} profile={brandProfile}>
+      <CustomerAdvicePrintPackContent {...rest} />
+    </BrandProvider>
   );
 }
 

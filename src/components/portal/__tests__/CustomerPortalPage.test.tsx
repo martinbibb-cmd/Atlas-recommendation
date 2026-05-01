@@ -179,3 +179,78 @@ describe('CustomerPortalPage', () => {
     expect(screen.queryByText('Actual heat loss')).toBeNull();
   });
 });
+
+// ─── Branding ─────────────────────────────────────────────────────────────────
+
+describe('CustomerPortalPage — branding', () => {
+  beforeEach(() => { vi.restoreAllMocks(); vi.stubGlobal('scrollTo', vi.fn()); });
+
+  it('renders atlas-default brand header (company name "Atlas") when no brandId supplied', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+
+    // BrandedHeader rendered inside portal-hero
+    const header = screen.getByTestId('branded-header');
+    expect(header).toBeTruthy();
+    expect(screen.getByTestId('branded-header-company').textContent).toBe('Atlas');
+  });
+
+  it('renders installer-demo company name when brandId="installer-demo"', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" brandId="installer-demo" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+
+    expect(screen.getByTestId('branded-header-company').textContent).toBe('Demo Heating Co');
+  });
+
+  it('shows installer contact in header when showInstallerContact is true (installer-demo)', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" brandId="installer-demo" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+
+    expect(screen.getByTestId('branded-header-contact')).toBeTruthy();
+  });
+
+  it('hides installer contact when showInstallerContact is false (atlas-default)', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+
+    expect(screen.queryByTestId('branded-header-contact')).toBeNull();
+  });
+
+  it('renders branded footer on the welcome page', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+
+    expect(screen.getByTestId('branded-footer')).toBeTruthy();
+    expect(screen.getByTestId('branded-footer-company').textContent).toBe('Atlas');
+  });
+
+  it('recommendation headline is unchanged regardless of brand', async () => {
+    // Both atlas-default and installer-demo must produce the same recommendation
+    // headline because brand never touches recommendation logic.
+    mockFetchSuccess(STUB_REPORT);
+    const { unmount } = render(
+      <CustomerPortalPage reference="test-report-1" token="valid-token" />,
+    );
+    await openPresentationView();
+    // Collect page labels — these come from the engine, not the brand
+    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const defaultLabels = Array.from(nav.querySelectorAll('button[aria-label^="Go to page:"]'))
+      .map(b => b.getAttribute('aria-label'));
+    unmount();
+
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" brandId="installer-demo" />);
+    await openPresentationView();
+    const nav2 = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const demoBrandLabels = Array.from(nav2.querySelectorAll('button[aria-label^="Go to page:"]'))
+      .map(b => b.getAttribute('aria-label'));
+
+    // Slide labels are driven by the engine — must be identical for both brands
+    expect(defaultLabels).toEqual(demoBrandLabels);
+  });
+});

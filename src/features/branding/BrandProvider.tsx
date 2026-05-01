@@ -20,7 +20,14 @@ const BrandContext = createContext<BrandProfileV1 | null>(null);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 interface BrandProviderProps {
+  /** Resolved from this brandId string when provided (and profile is absent). */
   brandId?: string;
+  /**
+   * Supply a raw BrandProfileV1 directly, bypassing the brandId resolver.
+   * Useful in tests and Storybook to render a specific profile without
+   * registering it in BRAND_PROFILES.
+   */
+  profile?: BrandProfileV1;
   children: ReactNode;
 }
 
@@ -34,9 +41,14 @@ interface BrandProviderProps {
  *   <BrandProvider brandId="installer-demo">
  *     <App />
  *   </BrandProvider>
+ *
+ *   // Or in tests, pass a profile directly:
+ *   <BrandProvider profile={myProfile}>
+ *     <App />
+ *   </BrandProvider>
  */
-export function BrandProvider({ brandId, children }: BrandProviderProps) {
-  const profile = resolveBrandProfile(brandId);
+export function BrandProvider({ brandId, profile: profileProp, children }: BrandProviderProps) {
+  const profile = profileProp ?? resolveBrandProfile(brandId);
 
   const inlineVars: CSSProperties = {
     ['--atlas-brand-primary' as string]: profile.theme.primaryColor,

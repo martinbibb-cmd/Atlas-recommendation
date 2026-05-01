@@ -1365,3 +1365,222 @@ describe('CustomerAdvicePrintPack — AiContextBlock new fields', () => {
   });
 });
 
+// ─── Branding ─────────────────────────────────────────────────────────────────
+
+import type { BrandProfileV1 } from '../../../features/branding/brandProfile';
+
+function makeInstallerDemoProfile(): BrandProfileV1 {
+  return {
+    version: '1.0',
+    brandId: 'installer-demo',
+    companyName: 'Demo Heating Co',
+    logoUrl: 'https://example.com/demo-logo.png',
+    theme: { primaryColor: '#1d4ed8' },
+    contact: {
+      phone: '01234 567890',
+      email: 'hello@demoheating.co.uk',
+      website: 'https://demoheating.co.uk',
+      address: '1 Demo Lane, London, SW1A 1AA',
+    },
+    outputSettings: {
+      showPricing: true,
+      showCarbon: true,
+      showInstallerContact: true,
+      tone: 'friendly',
+    },
+  };
+}
+
+describe('CustomerAdvicePrintPack — branding', () => {
+
+  it('renders atlas-default brand company name "Atlas" when no brandId supplied', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    const company = screen.getAllByTestId('branded-header-company');
+    expect(company.length).toBeGreaterThan(0);
+    expect(company[0].textContent).toBe('Atlas');
+  });
+
+  it('renders installer-demo company name when brandId="installer-demo"', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ brandId: 'installer-demo' })} />);
+    const company = screen.getAllByTestId('branded-header-company');
+    expect(company[0].textContent).toBe('Demo Heating Co');
+  });
+
+  it('renders the brand logo when logoUrl is set', () => {
+    const profileWithLogo = makeInstallerDemoProfile();
+    render(<CustomerAdvicePrintPack {...makeProps({ brandProfile: profileWithLogo })} />);
+    const logo = screen.queryByTestId('brand-logo') as HTMLImageElement | null;
+    expect(logo).toBeTruthy();
+    expect(logo?.src).toContain('example.com/demo-logo.png');
+  });
+
+  it('shows installer contact when showInstallerContact is true', () => {
+    render(<CustomerAdvicePrintPack {...makeProps({ brandId: 'installer-demo' })} />);
+    expect(screen.getByTestId('branded-header-contact')).toBeTruthy();
+  });
+
+  it('hides installer contact when showInstallerContact is false (atlas-default)', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.queryByTestId('branded-header-contact')).toBeNull();
+  });
+
+  it('renders branded footer', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.getByTestId('branded-footer')).toBeTruthy();
+  });
+
+  it('shows installer address in the branded footer when showInstallerContact true', () => {
+    const profileWithAddress = makeInstallerDemoProfile(); // has address
+    render(<CustomerAdvicePrintPack {...makeProps({ brandProfile: profileWithAddress })} />);
+    expect(screen.getByTestId('branded-footer-address')).toBeTruthy();
+  });
+
+  it('hides pricing block when showPricing is false', () => {
+    const decisionWithPricing = makeDecision({
+      energyMetrics: {
+        annualEnergyReductionKwh: 2000,
+        baselineKwh: 18000,
+        projectedKwh: 16000,
+        designDeltaT: 24,
+        peakLoadKw: 8,
+        priceCapsDate: '2025-01-01',
+      },
+    });
+    const noPricingProfile: BrandProfileV1 = {
+      version: '1.0',
+      brandId: 'no-pricing',
+      companyName: 'No Pricing Co',
+      theme: { primaryColor: '#000' },
+      contact: {},
+      outputSettings: { showPricing: false, showCarbon: true, showInstallerContact: false, tone: 'technical' },
+    };
+    render(
+      <CustomerAdvicePrintPack
+        {...makeProps({ decision: decisionWithPricing })}
+        brandProfile={noPricingProfile}
+      />,
+    );
+    expect(screen.queryByTestId('capp-energy-pricing')).toBeNull();
+  });
+
+  it('shows pricing block when showPricing is true and priceCapsDate is present', () => {
+    const decisionWithPricing = makeDecision({
+      energyMetrics: {
+        annualEnergyReductionKwh: 2000,
+        baselineKwh: 18000,
+        projectedKwh: 16000,
+        designDeltaT: 24,
+        peakLoadKw: 8,
+        priceCapsDate: '2025-01-01',
+      },
+    });
+    // atlas-default has showPricing: true
+    render(<CustomerAdvicePrintPack {...makeProps({ decision: decisionWithPricing })} />);
+    expect(screen.getByTestId('capp-energy-pricing')).toBeTruthy();
+  });
+
+  it('hides pricing block when priceCapsDate is absent (no financial data)', () => {
+    const decisionNoPricing = makeDecision({
+      energyMetrics: {
+        annualEnergyReductionKwh: 2000,
+        baselineKwh: 18000,
+        projectedKwh: 16000,
+        designDeltaT: 24,
+        peakLoadKw: 8,
+        // priceCapsDate absent
+      },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ decision: decisionNoPricing })} />);
+    expect(screen.queryByTestId('capp-energy-pricing')).toBeNull();
+  });
+
+  it('hides carbon block when showCarbon is false', () => {
+    const decisionWithEnergy = makeDecision({
+      energyMetrics: {
+        annualEnergyReductionKwh: 2000,
+        baselineKwh: 18000,
+        projectedKwh: 16000,
+        designDeltaT: 24,
+        peakLoadKw: 8,
+      },
+    });
+    const noCarbonProfile: BrandProfileV1 = {
+      version: '1.0',
+      brandId: 'no-carbon',
+      companyName: 'No Carbon Co',
+      theme: { primaryColor: '#000' },
+      contact: {},
+      outputSettings: { showPricing: true, showCarbon: false, showInstallerContact: false, tone: 'technical' },
+    };
+    render(
+      <CustomerAdvicePrintPack
+        {...makeProps({ decision: decisionWithEnergy })}
+        brandProfile={noCarbonProfile}
+      />,
+    );
+    expect(screen.queryByTestId('capp-carbon-block')).toBeNull();
+  });
+
+  it('shows carbon block when showCarbon is true and energyMetrics are present', () => {
+    const decisionWithEnergy = makeDecision({
+      energyMetrics: {
+        annualEnergyReductionKwh: 2000,
+        baselineKwh: 18000,
+        projectedKwh: 16000,
+        designDeltaT: 24,
+        peakLoadKw: 8,
+      },
+    });
+    // atlas-default has showCarbon: true
+    render(<CustomerAdvicePrintPack {...makeProps({ decision: decisionWithEnergy })} />);
+    expect(screen.getByTestId('capp-carbon-block')).toBeTruthy();
+  });
+
+  it('recommendation headline is unchanged regardless of active brand', () => {
+    const decision = makeDecision();
+    const expectedHeadline = decision.headline;
+
+    // Render with no brand (atlas-default)
+    const { unmount } = render(<CustomerAdvicePrintPack {...makeProps({ decision })} />);
+    const headlineEls = screen.getAllByText((text) => text.includes(expectedHeadline));
+    expect(headlineEls.length).toBeGreaterThan(0);
+    unmount();
+
+    // Render with installer-demo brand
+    render(<CustomerAdvicePrintPack {...makeProps({ decision, brandId: 'installer-demo' })} />);
+    const headlineEls2 = screen.getAllByText((text) => text.includes(expectedHeadline));
+    expect(headlineEls2.length).toBeGreaterThan(0);
+  });
+
+  it('scenario ranking is unchanged regardless of active brand', () => {
+    // Render comparison section with two scenarios — order must match regardless of brand
+    const scenario1 = makeScenario();
+    const scenario2: ScenarioResult = {
+      scenarioId: 'combi',
+      system: { type: 'combi', summary: 'Combi boiler' },
+      performance: { hotWater: 'poor', heating: 'good', efficiency: 'good', reliability: 'good' },
+      keyBenefits: ['Low cost'],
+      keyConstraints: ['Low flow rate'],
+      dayToDayOutcomes: [],
+      requiredWorks: [],
+      upgradePaths: [],
+      physicsFlags: {},
+    };
+
+    const { container: c1 } = render(
+      <CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario1, scenario2] })} />,
+    );
+    const comparison1 = c1.querySelector('[data-testid="capp-comparison"]')?.textContent ?? '';
+
+    const { container: c2 } = render(
+      <CustomerAdvicePrintPack
+        {...makeProps({ scenarios: [scenario1, scenario2], brandId: 'installer-demo' })}
+      />,
+    );
+    const comparison2 = c2.querySelector('[data-testid="capp-comparison"]')?.textContent ?? '';
+
+    // Scenario names and order must be identical regardless of brand
+    expect(comparison1).toBe(comparison2);
+  });
+});
+

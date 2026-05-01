@@ -150,3 +150,100 @@ describe('PresentationDeck — canonical page order', () => {
     }
   });
 });
+
+// ─── Branding ─────────────────────────────────────────────────────────────────
+
+import { BrandProvider } from '../../../features/branding';
+import type { BrandProfileV1 } from '../../../features/branding/brandProfile';
+
+describe('PresentationDeck — branding', () => {
+  const result = runEngine(FIXTURE);
+
+  function renderWithBrand(brandId?: string) {
+    render(
+      <BrandProvider brandId={brandId}>
+        <PresentationDeck
+          result={result}
+          input={FIXTURE}
+          recommendationResult={result.recommendationResult}
+        />
+      </BrandProvider>,
+    );
+  }
+
+  function renderWithProfile(profile: BrandProfileV1) {
+    render(
+      <BrandProvider profile={profile}>
+        <PresentationDeck
+          result={result}
+          input={FIXTURE}
+          recommendationResult={result.recommendationResult}
+        />
+      </BrandProvider>,
+    );
+  }
+
+  it('renders brand band when inside a BrandProvider', () => {
+    renderWithBrand();
+    expect(screen.getByTestId('deck-brand-band')).toBeTruthy();
+  });
+
+  it('shows atlas-default company name "Atlas" when no brandId supplied', () => {
+    renderWithBrand();
+    expect(screen.getByTestId('deck-brand-company').textContent).toBe('Atlas');
+  });
+
+  it('shows installer-demo company name when brandId="installer-demo"', () => {
+    renderWithBrand('installer-demo');
+    expect(screen.getByTestId('deck-brand-company').textContent).toBe('Demo Heating Co');
+  });
+
+  it('does NOT render brand band when rendered outside a BrandProvider', () => {
+    render(
+      <PresentationDeck
+        result={result}
+        input={FIXTURE}
+        recommendationResult={result.recommendationResult}
+      />,
+    );
+    expect(screen.queryByTestId('deck-brand-band')).toBeNull();
+  });
+
+  it('renders logo when logoUrl is set on the active brand', () => {
+    renderWithProfile({
+      version: '1.0',
+      brandId: 'logo-deck',
+      companyName: 'Deck Logo Co',
+      logoUrl: 'https://example.com/deck-logo.png',
+      theme: { primaryColor: '#abc' },
+      contact: {},
+      outputSettings: { showPricing: true, showCarbon: true, showInstallerContact: false, tone: 'friendly' },
+    });
+    const logo = screen.queryByTestId('brand-logo') as HTMLImageElement | null;
+    expect(logo).toBeTruthy();
+    expect(logo?.src).toContain('example.com/deck-logo.png');
+  });
+
+  it('page labels (recommendation order) are unchanged regardless of brand', () => {
+    // Render with no brand
+    const { unmount } = render(
+      <PresentationDeck
+        result={result}
+        input={FIXTURE}
+        recommendationResult={result.recommendationResult}
+      />,
+    );
+    const nav1 = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const labels1 = Array.from(nav1.querySelectorAll('button[aria-label^="Go to page:"]'))
+      .map(b => b.getAttribute('aria-label'));
+    unmount();
+
+    // Render with installer-demo brand
+    renderWithBrand('installer-demo');
+    const nav2 = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const labels2 = Array.from(nav2.querySelectorAll('button[aria-label^="Go to page:"]'))
+      .map(b => b.getAttribute('aria-label'));
+
+    expect(labels1).toEqual(labels2);
+  });
+});

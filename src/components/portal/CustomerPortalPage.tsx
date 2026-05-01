@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { getReport } from '../../lib/reports/reportApi';
 import { validatePortalToken } from '../../lib/portal/portalToken';
+import { BrandProvider, BrandedHeader, BrandedFooter, getBrandCtaCopy, useBrandProfile } from '../../features/branding';
 import UnifiedSimulatorView from '../simulator/UnifiedSimulatorView';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { readCanonicalReportPayload } from '../../features/reports/adapters/readCanonicalReportPayload';
@@ -37,13 +38,15 @@ import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary'
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import './CustomerPortalPage.css';
 
-interface Props { reference: string; token?: string; }
+interface Props { reference: string; token?: string; brandId?: string; }
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CustomerPortalPage({ reference, token }: Props) {
+function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
+  const brand = useBrandProfile();
+  const ctaCopy = getBrandCtaCopy(brand);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tokenDenied, setTokenDenied] = useState<'missing' | 'invalid' | 'expired' | null>(null);
@@ -210,6 +213,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
     return (
       <div className="portal-page" data-testid="customer-portal">
         <header className="portal-page__hero" data-testid="portal-hero">
+          <BrandedHeader />
           <div className="portal-hero__brand-row">
             <span className="portal-page__brand" aria-hidden="true"></span>
             {postcode && <span className="portal-page__postcode">{postcode}</span>}
@@ -253,11 +257,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           </div>
         </div>
 
-        <footer className="portal-page__footer">
-          <p className="portal-page__footer-text">
-            The evidence is always visible. Setup, proof, outcomes, and advice in one place.
-          </p>
-        </footer>
+        <BrandedFooter footerNote={ctaCopy.portalCta} />
       </div>
     );
   }
@@ -299,11 +299,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
           propertyTitle={postcode ?? undefined}
           onClose={() => setViewMode(null)}
         />
-        <footer className="portal-page__footer">
-          <p className="portal-page__footer-text">
-            The evidence is always visible. Setup, proof, outcomes, and advice in one place.
-          </p>
-        </footer>
+        <BrandedFooter footerNote={ctaCopy.printFooterNote} />
       </div>
     );
   }
@@ -336,11 +332,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
             <p className="portal-page__error-detail">Your portal could not be assembled from the available data.</p>
           </div>
         )}
-        <footer className="portal-page__footer">
-          <p className="portal-page__footer-text">
-            The evidence is always visible. Setup, proof, outcomes, and advice in one place.
-          </p>
-        </footer>
+        <BrandedFooter footerNote={ctaCopy.printFooterNote} />
       </div>
     );
   }
@@ -351,6 +343,7 @@ export default function CustomerPortalPage({ reference, token }: Props) {
 
       {/* ── Minimal portal header (brand + postcode only) ─────────────────── */}
       <header className="portal-page__hero" data-testid="portal-hero">
+        <BrandedHeader />
         <div className="portal-hero__brand-row">
           <span className="portal-page__brand" aria-hidden="true"></span>
           {postcode && <span className="portal-page__postcode">{postcode}</span>}
@@ -407,11 +400,24 @@ export default function CustomerPortalPage({ reference, token }: Props) {
       )}
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <footer className="portal-page__footer">
-        <p className="portal-page__footer-text">
-          The evidence is always visible. Setup, proof, outcomes, and advice in one place.
-        </p>
-      </footer>
+      <BrandedFooter footerNote={ctaCopy.printFooterNote} />
     </div>
+  );
+}
+
+// ─── Public default export ────────────────────────────────────────────────────
+
+/**
+ * CustomerPortalPage
+ *
+ * Wraps the portal content with the resolved brand profile so all descendant
+ * components (BrandedHeader, BrandedFooter, etc.) can consume it via
+ * useBrandProfile().
+ */
+export default function CustomerPortalPage({ brandId, ...rest }: Props) {
+  return (
+    <BrandProvider brandId={brandId}>
+      <CustomerPortalContent {...rest} />
+    </BrandProvider>
   );
 }

@@ -12,6 +12,17 @@ import type { BrandProfileV1 } from './brandProfile';
 import { BrandContext } from './BrandProvider';
 
 /**
+ * Returns the active BrandProfileV1, or null when used outside a BrandProvider.
+ *
+ * Use this hook in components that may be rendered both inside and outside a
+ * BrandProvider (e.g. PresentationDeck in both portal and engineer views).
+ * Unlike useBrandProfile, this hook never throws.
+ */
+export function useOptionalBrandProfile(): BrandProfileV1 | null {
+  return useContext(BrandContext);
+}
+
+/**
  * Returns the active BrandProfileV1.
  *
  * @throws Error if called outside a `<BrandProvider>` tree.
