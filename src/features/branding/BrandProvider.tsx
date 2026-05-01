@@ -7,7 +7,7 @@
  * importing any JS.
  */
 
-import { createContext, useContext, useRef, useEffect } from 'react';
+import { createContext } from 'react';
 import type { ReactNode, CSSProperties } from 'react';
 import type { BrandProfileV1 } from './brandProfile';
 import { resolveBrandProfile } from './resolveBrandProfile';
@@ -37,24 +37,7 @@ interface BrandProviderProps {
  */
 export function BrandProvider({ brandId, children }: BrandProviderProps) {
   const profile = resolveBrandProfile(brandId);
-  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-
-    const { theme } = profile;
-
-    el.style.setProperty('--atlas-brand-primary', theme.primaryColor);
-    el.style.setProperty('--atlas-brand-secondary', theme.secondaryColor ?? '');
-    el.style.setProperty('--atlas-brand-accent', theme.accentColor ?? '');
-    el.style.setProperty('--atlas-brand-background', theme.backgroundColor ?? '');
-    el.style.setProperty('--atlas-brand-surface', theme.surfaceColor ?? '');
-    el.style.setProperty('--atlas-brand-text', theme.textColor ?? '');
-  }, [profile]);
-
-  // Inline style ensures the variables are present on first render (before the
-  // effect fires) to avoid a flash of unstyled content.
   const inlineVars: CSSProperties = {
     ['--atlas-brand-primary' as string]: profile.theme.primaryColor,
     ['--atlas-brand-secondary' as string]: profile.theme.secondaryColor ?? '',
@@ -67,7 +50,6 @@ export function BrandProvider({ brandId, children }: BrandProviderProps) {
   return (
     <BrandContext.Provider value={profile}>
       <div
-        ref={wrapperRef}
         className="brand-theme-root"
         style={inlineVars}
         data-brand-id={profile.brandId}

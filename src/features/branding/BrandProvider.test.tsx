@@ -11,7 +11,7 @@
  *   - hook throws a useful error when used outside BrandProvider
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrandProvider } from './BrandProvider';
 import { useBrandProfile } from './useBrandProfile';
@@ -115,14 +115,13 @@ describe('BrandProvider', () => {
 
 describe('useBrandProfile', () => {
   it('throws a useful error when used outside BrandProvider', () => {
-    // Suppress the React error boundary console output for this test
-    const consoleError = console.error;
-    console.error = () => {};
-
-    expect(() => {
-      render(<BrandDisplay />);
-    }).toThrow(/useBrandProfile must be used inside a <BrandProvider>/);
-
-    console.error = consoleError;
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(() => {
+        render(<BrandDisplay />);
+      }).toThrow(/useBrandProfile must be used inside a <BrandProvider>/);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
