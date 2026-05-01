@@ -347,6 +347,25 @@ function EngineerSummaryContent({ pack }: EngineerSummaryContentProps) {
         <span className="esp-badge" aria-label="Read only">Read only</span>
       </header>
 
+      {/* ── ⚠ Recommendation mismatch warning (blocking banner) ── */}
+      {engineerSummary.recommendationMismatchWarning && (
+        <div
+          className="esp-mismatch-warning"
+          data-testid="esp-mismatch-warning"
+          role="alert"
+        >
+          <span className="esp-mismatch-warning__icon" aria-hidden="true">⚠️</span>
+          <div>
+            <p className="esp-mismatch-warning__heading">
+              Recommendation mismatch — confirm before handoff
+            </p>
+            <p className="esp-mismatch-warning__body">
+              {engineerSummary.recommendationMismatchWarning}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── 1. Visit complete ── */}
       <div className="esp-completion" data-testid="esp-completion">
         <span className="esp-completion__icon" aria-hidden="true">✓</span>

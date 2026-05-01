@@ -346,7 +346,14 @@
   /* Declare page size and margins explicitly.
    * Setting margin to 0 suppresses the browser-added URL / date / page-number
    * footer that would otherwise appear in the margin area.  Visual margins are
-   * provided by .capp-page padding (15 mm top, 16 mm sides, 12 mm bottom). */
+   * provided by .capp-page padding (8 mm top, 10 mm sides, 6 mm bottom).
+   *
+   * Two-section layout: each .capp-page is scaled to ~50 % of an A4 page so
+   * that two content sections fit on every physical A4 sheet.  This is achieved
+   * by applying zoom: 0.5 to .capp-document and setting each .capp-page
+   * min-height to the full 297 mm A4 height — at half scale each section
+   * occupies ~148.5 mm, allowing two to fill one physical 297 mm page.
+   * Page breaks are inserted after every second section via :nth-child(2n). */
   @page {
     size: A4 portrait;
     margin: 0;
@@ -364,17 +371,27 @@
   .capp-document {
     gap: 0;
     max-width: 100%;
+    /* Scale the entire document to 50 % so two sections fit per physical page */
+    zoom: 0.5;
   }
 
   .capp-page {
     box-shadow: none;
     border-radius: 0;
-    padding: 15mm 16mm 12mm;
-    min-height: 100vh;
-    page-break-after: always;
-    break-after: page;
+    padding: 8mm 10mm 6mm;
+    /* At zoom 0.5 this 297 mm height renders as ~148.5 mm — two fit per A4 */
+    min-height: 297mm;
+    /* Remove the per-section forced break — let :nth-child(2n) control it */
+    page-break-after: avoid;
+    break-after: avoid;
     margin: 0;
     gap: 0;
+  }
+
+  /* Insert a physical page break after every second section */
+  .capp-page:nth-child(2n) {
+    page-break-after: always;
+    break-after: page;
   }
 
   /* The portal CTA page is compact — it does not need a full page of whitespace. */
@@ -382,7 +399,7 @@
     min-height: 0;
     page-break-after: avoid;
     break-after: avoid;
-    padding-bottom: 16mm;
+    padding-bottom: 6mm;
   }
 
   .capp-page:last-of-type {

@@ -503,7 +503,7 @@ export function SystemBuilderStep({
               padding: '0.4rem 0.6rem',
               marginTop: '0.4rem',
             }}>
-              ⚠ Buried / concealed pipework will be difficult to inspect or replace. Consider including a full repipe as part of the installation scope.
+              ⚠ Pipework appears buried or difficult to access. Consider full repipe or verified accessible route as part of scope.
             </p>
           )}
         </div>

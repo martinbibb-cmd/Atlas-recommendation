@@ -157,6 +157,20 @@ export interface EngineerVisitSummary {
   specNotes?: string;
 
   /**
+   * Blocking handoff warning emitted when the Atlas physics ranking and the
+   * surveyor's manual selection disagree.
+   *
+   * When present this should be rendered as a prominent amber/red banner at the
+   * top of all engineer-facing surfaces (digital and printed) — not buried in
+   * specNotes — so the installing engineer cannot miss it.
+   *
+   * Example: "Atlas physics ranking placed "System boiler" as the top option,
+   * but the surveyor selected a different system. Confirm the agreed
+   * recommendation before customer handoff."
+   */
+  recommendationMismatchWarning?: string;
+
+  /**
    * Free-text field notes summary from the surveyor.
    * Typically the last thing recorded before completing the visit.
    */

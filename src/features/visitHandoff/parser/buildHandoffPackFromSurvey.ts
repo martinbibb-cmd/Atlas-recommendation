@@ -198,16 +198,17 @@ function buildEngineerSummary(
   }
 
   // Flag when the physics-ranked top option differs from the manual selection.
+  let recommendationMismatchWarning: string | undefined;
   if (engineTopOptionId != null && recommendation?.heatSource != null) {
     const physicsHeatSource = ENGINE_OPTION_ID_TO_HEAT_SOURCE[engineTopOptionId]
     if (physicsHeatSource != null && physicsHeatSource !== recommendation.heatSource) {
       const physicsLabel =
         HEAT_SOURCE_OPTIONS.find(o => o.value === physicsHeatSource)?.label ?? engineTopOptionId
-      specNoteParts.push(
-        `⚠ Note: Atlas physics ranking placed "${physicsLabel}" as the top option, ` +
-        `but the surveyor selected a different system above. ` +
-        `Confirm the agreed recommendation with the surveyor before ordering.`,
-      )
+      recommendationMismatchWarning =
+        `Atlas physics ranking placed "${physicsLabel}" as the top option, ` +
+        `but the surveyor selected a different system. ` +
+        `Confirm the agreed recommendation before customer handoff.`
+      specNoteParts.push(`⚠ Recommendation mismatch: ${recommendationMismatchWarning}`)
     }
   }
 
@@ -217,6 +218,7 @@ function buildEngineerSummary(
     proposedEmitters: [],
     accessNotes,
     specNotes: specNoteParts.length > 0 ? specNoteParts.join('\n\n') : undefined,
+    recommendationMismatchWarning,
   };
 }
 
