@@ -48,7 +48,7 @@ export const PENALTY_NARRATIVES: Partial<Record<PenaltyId, PenaltyNarrative>> = 
 
   // ASHP
   'ashp.hydraulics_warn': {
-    why: 'ASHP hydraulic risk: marginal pipe sizing may restrict flow at peak demand.',
+    why: 'Primary pipework assessment recommended to confirm ASHP flow rate compatibility.',
     group: 'ashp_hydraulics',
   },
   'ashp.pipe_upgrade_required': {

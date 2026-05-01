@@ -570,7 +570,7 @@ function AiContextBlock({
     recommendedScenario?.system.type === 'system' ||
     recommendedScenario?.system.type === 'regular';
   const mixeryBridge =
-    isStoredSystem && recommendedScenario?.physicsFlags.pressureConstraint
+    isStoredSystem && recommendedScenario?.physicsFlags.pressureConstraint && recommendedScenario?.dhwSubtype === 'mixergy'
       ? 'Stored hot water cylinder selected because it operates from tank-fed supply pressures — mains-pressure ready for future improvement.'
       : '';
 
@@ -659,7 +659,7 @@ function MixeryBridgePanel({
   const isStoredSystem =
     recommendedScenario.system.type === 'system' ||
     recommendedScenario.system.type === 'regular';
-  if (!isStoredSystem || !recommendedScenario.physicsFlags.pressureConstraint) return null;
+  if (!isStoredSystem || !recommendedScenario.physicsFlags.pressureConstraint || recommendedScenario.dhwSubtype !== 'mixergy') return null;
 
   return (
     <section
@@ -1107,25 +1107,7 @@ export function CustomerAdvicePrintPack({
               >
                 <p className="capp-page__label">Your portal</p>
 
-                {/* Portal CTA heading and supporting points */}
-                <div className="customer-deck__block customer-deck__block--portal-cta">
-                  <div className="customer-deck__block-body">
-                    <h2 className="customer-deck__title">{cta.title}</h2>
-                    <p className="customer-deck__outcome">{cta.outcome}</p>
-                    {cta.supportingPoints && cta.supportingPoints.length > 0 && (
-                      <ul className="customer-deck__supporting-points" aria-label="What you can do">
-                        {cta.supportingPoints.slice(0, 3).map((point) => (
-                          <li key={point} className="customer-deck__supporting-point">
-                            <span className="customer-deck__point-marker" aria-hidden="true">✓</span>
-                            {point}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-
-                {/* Compact QR + URL card */}
+                {/* Compact QR + URL card — single authoritative portal prompt */}
                 <PrintPortalCta portalUrl={portalUrl} />
 
                 {/* AI handoff section */}
