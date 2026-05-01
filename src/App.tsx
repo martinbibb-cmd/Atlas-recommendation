@@ -65,6 +65,7 @@ import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
 import ScanSessionListPage from './features/scanImport/ui/ScanSessionListPage';
+import { ScanHandoffReceivePage } from './features/scanHandoff';
 import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
 import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
@@ -398,6 +399,15 @@ const WORKSPACE_AUTO_REVIEW =
   typeof window !== 'undefined' &&
   WORKSPACE_DETAIL_ID != null &&
   new URLSearchParams(window.location.search).get('review') === '1';
+
+/**
+ * Detect /receive-scan path — renders the typed ScanToMindHandoffV1 receive page.
+ * Atlas Scan iOS navigates here after constructing a typed handoff payload, passing
+ * the serialised JSON as ?payload=<URL-encoded JSON>.
+ * Distinct from ?receive-scan=1 (Web Share Target file reception).
+ */
+const RECEIVE_SCAN_HANDOFF_PATH =
+  typeof window !== 'undefined' && window.location.pathname === '/receive-scan';
 
 function CanonicalPresentationRoute({
   engineInput,
@@ -929,6 +939,20 @@ export default function App() {
   // /portal/:reference — render the customer-facing recommendation portal.
   if (PORTAL_REFERENCE != null) {
     return <CustomerPortalPage reference={PORTAL_REFERENCE} token={PORTAL_TOKEN} />;
+  }
+
+  // /receive-scan — render the typed ScanToMindHandoffV1 receive page.
+  // Atlas Scan iOS navigates here with ?payload=<URL-encoded JSON>.
+  // After a successful receive, open the visit-hub for the received visit.
+  if (RECEIVE_SCAN_HANDOFF_PATH) {
+    return (
+      <ScanHandoffReceivePage
+        onVisitReady={(visit) => {
+          window.location.href = `/?visitId=${encodeURIComponent(visit.visitId)}`;
+        }}
+        onCancel={() => { window.location.href = window.location.origin; }}
+      />
+    );
   }
 
   // /visit/:visitId/engineer — render the dedicated pre-install engineer route.
