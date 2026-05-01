@@ -247,26 +247,34 @@ describe('buildCompareSeedFromSurvey — right (proposed) side', () => {
     expect(seed.right.systemInputs.mainsPressureBar).toBe(4.0)
   })
 
-  it('inherits measured mains flow from survey in right side', () => {
+  it('corrects proposed mains flow for combi HEX removal when switching to stored system (measured flow)', () => {
+    // When the current system is a combi and the proposed is a stored system,
+    // the measured flow (7 L/min at 2.5 bar) was taken against the combi HEX
+    // (~0.3 bar drop).  The proposed stored system sees no HEX pressure drop,
+    // so the effective flow is corrected upward via Q ∝ √P.
+    // adjusted = 7 × √(2.5 / 2.2) ≈ 7.5 L/min
     const seed = buildCompareSeedFromSurvey(
       minimalSurvey({ mainsDynamicFlowLpm: 7, mainsDynamicFlowLpmKnown: true }),
       minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
     )
-    expect(seed.right.systemInputs.mainsFlowLpm).toBe(7)
+    expect(seed.right.systemInputs.mainsFlowLpm).toBeGreaterThan(7)
+    expect(seed.right.systemInputs.mainsFlowLpm).toBe(7.5)
   })
 
-  it('inherits estimated mains flow (mainsDynamicFlowLpmKnown absent) in right side', () => {
+  it('corrects proposed mains flow for combi HEX removal when switching to stored system (estimated flow)', () => {
     // Even when the Known flag is not set, the flow should still be used for
-    // the proposed side — it is tagged 'estimated' but should not fall back
-    // to the 20 L/min default.
+    // the proposed side — tagged 'estimated' but corrected for HEX removal.
     const seed = buildCompareSeedFromSurvey(
       minimalSurvey({ mainsDynamicFlowLpm: 7 }),
       minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
     )
-    expect(seed.right.systemInputs.mainsFlowLpm).toBe(7)
+    expect(seed.right.systemInputs.mainsFlowLpm).toBeGreaterThan(7)
   })
 
-  it('proposed side matches current side for measured mains supply', () => {
+  it('proposed side has corrected (higher) mains flow vs current side when switching combi → stored', () => {
+    // The current combi side shows the measured 7 L/min; the proposed stored
+    // side shows the HEX-corrected value.  Pressure is unchanged (mains pressure
+    // is a property fact — only the HEX restriction is removed).
     const seed = buildCompareSeedFromSurvey(
       minimalSurvey({
         dynamicMainsPressure: 1.0,
@@ -275,11 +283,12 @@ describe('buildCompareSeedFromSurvey — right (proposed) side', () => {
       }),
       minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
     )
-    // Both sides should show the same house supply facts
+    // Pressure is unchanged (same mains connection)
     expect(seed.right.systemInputs.mainsPressureBar).toBe(
       seed.left.systemInputs.mainsPressureBar,
     )
-    expect(seed.right.systemInputs.mainsFlowLpm).toBe(7)
+    // Flow is corrected upward: 7 × √(1.0 / 0.7) ≈ 8.4
+    expect(seed.right.systemInputs.mainsFlowLpm).toBe(8.4)
   })
 
   it('inherits heat loss from survey in right side', () => {
@@ -332,12 +341,35 @@ describe('buildCompareSeedFromSurvey — measuredMainsSupply', () => {
     expect(seed.measuredMainsSupply?.dynamicFlowLpm).toBe(7)
   })
 
-  it('includes proposedSupplyAdjustment type none by default', () => {
+  it('includes proposedSupplyAdjustment type none when proposed system is also combi', () => {
     const seed = buildCompareSeedFromSurvey(
       minimalSurvey(),
       minimalEngineOutput([makeOptionCard('combi')]),
     )
     expect(seed.proposedSupplyAdjustment?.type).toBe('none')
+  })
+
+  it('includes proposedSupplyAdjustment type combi_hex_removal when switching combi → stored', () => {
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey({ dynamicMainsPressure: 2.5, mainsDynamicFlowLpm: 7, mainsDynamicFlowLpmKnown: true }),
+      minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
+    )
+    expect(seed.proposedSupplyAdjustment?.type).toBe('combi_hex_removal')
+  })
+
+  it('does not apply combi_hex_removal when current system is not combi', () => {
+    // A survey with currentHeatSourceType = 'system' → left.systemChoice = 'unvented'
+    const seed = buildCompareSeedFromSurvey(
+      minimalSurvey({
+        currentHeatSourceType: 'system',
+        dynamicMainsPressure: 1.5,
+        mainsDynamicFlowLpm: 19,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+      minimalEngineOutput([makeOptionCard('stored_unvented', 'viable')]),
+    )
+    expect(seed.proposedSupplyAdjustment?.type).toBe('none')
+    expect(seed.right.systemInputs.mainsFlowLpm).toBe(19)
   })
 })
 

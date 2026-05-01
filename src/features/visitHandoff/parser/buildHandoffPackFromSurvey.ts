@@ -10,7 +10,9 @@
  *  - Produces a valid VisitHandoffPack even when data is sparse.
  *  - Missing arrays default to [].
  *  - Missing strings default to undefined (not empty string).
- *  - No dependency on the recommendation engine — derived fields only.
+ *  - When an optional engineTopOptionId is provided, the engineer specNotes
+ *    will flag any mismatch between the physics ranking and the manually
+ *    selected recommendation so the installing engineer is never surprised.
  */
 
 import type { VisitMeta } from '../../../lib/visits/visitApi';
@@ -25,6 +27,7 @@ import type {
   CustomerVisitSummary,
   EngineerVisitSummary,
   HandoffKeyObject,
+  HandoffAccessNote,
 } from '../types/visitHandoffPack';
 
 // ─── Customer summary derivation ─────────────────────────────────────────────
@@ -136,16 +139,84 @@ function deriveKeyObjects(
   return objects;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * Engineer-facing note added to the handoff access notes when the survey
+ * records pipework as buried / concealed in walls.
+ */
+const BURIED_PIPEWORK_ACCESS_NOTE =
+  'Pipework is buried / concealed in walls — access for inspection or replacement will be restricted. Include a full repipe in the installation scope if the system type changes or the existing pipe condition is unknown.'
+
+/**
+ * Maps engine option IDs to the comparable recommendation heat-source key so
+ * the handoff builder can detect mismatches between the physics ranking and
+ * the surveyor's manual selection.
+ *
+ * Keep in sync with the `OptionCardV1['id']` union and
+ * `HEAT_SOURCE_OPTIONS` in recommendationTypes.ts.
+ */
+const ENGINE_OPTION_ID_TO_HEAT_SOURCE: Readonly<Record<string, string>> = {
+  combi:           'combi_boiler',
+  stored_vented:   'regular_boiler',
+  stored_unvented: 'system_boiler',
+  ashp:            'heat_pump_air',
+  regular_vented:  'regular_boiler',
+  system_unvented: 'system_boiler',
+}
+
+// ─── Engineer summary derivation ─────────────────────────────────────────────
+
 function buildEngineerSummary(
   payload: Partial<FullSurveyModelV1>,
+  engineTopOptionId?: string,
 ): EngineerVisitSummary {
   const systemBuilder = payload.fullSurvey?.systemBuilder;
+  const recommendation = payload.fullSurvey?.recommendation;
+
+  // ── Access notes ───────────────────────────────────────────────────────────
+  const accessNotes: HandoffAccessNote[] = []
+  if (systemBuilder?.pipeworkAccess === 'buried') {
+    accessNotes.push({
+      location: 'Primary pipework',
+      note: BURIED_PIPEWORK_ACCESS_NOTE,
+    })
+  }
+
+  // ── Spec notes — recommendation consistency check ──────────────────────────
+  const specNoteParts: string[] = []
+
+  if (recommendation?.heatSource) {
+    const heatOpt   = HEAT_SOURCE_OPTIONS.find(o => o.value === recommendation.heatSource)
+    const waterOpt  = recommendation.waterSource
+      ? WATER_SOURCE_OPTIONS.find(o => o.value === recommendation.waterSource)
+      : null
+    const agreedLabel = waterOpt && recommendation.waterSource !== 'keep_existing'
+      ? `${heatOpt?.label ?? recommendation.heatSource} + ${waterOpt.label}`
+      : (heatOpt?.label ?? recommendation.heatSource)
+    specNoteParts.push(`Agreed installation: ${agreedLabel}`)
+  }
+
+  // Flag when the physics-ranked top option differs from the manual selection.
+  if (engineTopOptionId != null && recommendation?.heatSource != null) {
+    const physicsHeatSource = ENGINE_OPTION_ID_TO_HEAT_SOURCE[engineTopOptionId]
+    if (physicsHeatSource != null && physicsHeatSource !== recommendation.heatSource) {
+      const physicsLabel =
+        HEAT_SOURCE_OPTIONS.find(o => o.value === physicsHeatSource)?.label ?? engineTopOptionId
+      specNoteParts.push(
+        `⚠ Note: Atlas physics ranking placed "${physicsLabel}" as the top option, ` +
+        `but the surveyor selected a different system above. ` +
+        `Confirm the agreed recommendation with the surveyor before ordering.`,
+      )
+    }
+  }
 
   return {
     rooms: [],
     keyObjects: deriveKeyObjects(systemBuilder),
     proposedEmitters: [],
-    accessNotes: [],
+    accessNotes,
+    specNotes: specNoteParts.length > 0 ? specNoteParts.join('\n\n') : undefined,
   };
 }
 
@@ -154,16 +225,22 @@ function buildEngineerSummary(
 /**
  * Builds a VisitHandoffPack from a completed visit's metadata and working
  * payload.  Returns a structurally valid pack even when data is sparse.
+ *
+ * @param engineTopOptionId  Optional ID of the engine's top-ranked option
+ *   (e.g. 'system_unvented', 'combi').  When provided, the engineer spec notes
+ *   will flag any mismatch between the physics ranking and the surveyor's
+ *   manually selected recommendation.
  */
 export function buildHandoffPackFromSurvey(
   meta: VisitMeta,
   payload: Partial<FullSurveyModelV1>,
+  engineTopOptionId?: string,
 ): VisitHandoffPack {
   return {
     schemaVersion: '1.0',
     visitId: meta.id,
     completedAt: meta.completed_at ?? new Date().toISOString(),
     customerSummary: buildCustomerSummary(meta, payload),
-    engineerSummary: buildEngineerSummary(payload),
+    engineerSummary: buildEngineerSummary(payload, engineTopOptionId),
   };
 }

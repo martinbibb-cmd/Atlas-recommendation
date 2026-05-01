@@ -11,11 +11,26 @@
 //     invented defaults, so the UI can render provenance labels.
 //   - The proposed side only diverges from measured supply when a
 //     recommendation explicitly includes a supply-side upgrade (booster,
-//     accumulator, break tank, etc.).
+//     accumulator, break tank, etc.) or when removing a combi plate HEX
+//     eliminates its inherent pressure-drop penalty.
 //   - getEffectiveProposedMainsSupply is the single entry point for both
 //     simulator and report/portal code so all surfaces agree on values.
 
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1'
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+/**
+ * Typical pressure drop across a combi boiler plate heat exchanger (bar).
+ *
+ * A combi's plate HEX sits in the DHW flow path and introduces a pressure loss
+ * of ~0.3 bar at domestic flow rates.  When the mains flow test was carried out
+ * against an existing combi, the measured flow rate reflects this restriction.
+ * If the proposed system removes the combi (replacing it with a stored system),
+ * the full mains pressure is available and the effective deliverable flow is
+ * proportionally higher.
+ */
+export const COMBI_HEX_PRESSURE_DROP_BAR = 0.3
 
 // ─── MainsSupply ──────────────────────────────────────────────────────────────
 
@@ -48,18 +63,24 @@ export type MainsSupply = {
 // ─── ProposedSupplyAdjustment ─────────────────────────────────────────────────
 
 /**
- * Describes any supply-side infrastructure upgrade that is part of the
- * proposed recommendation.
+ * Describes any supply-side infrastructure upgrade or physics correction that
+ * is part of the proposed recommendation.
  *
  * When type is 'none', the proposed card should show identical supply values
  * to the measured supply — only the suitability interpretation changes by
  * system type, not the underlying house supply numbers.
  *
+ * 'combi_hex_removal' represents the benefit of removing the combi plate HEX
+ * when switching to a stored system.  The measured mains flow was taken against
+ * the combi and therefore under-reports the achievable mains flow without the
+ * HEX restriction.  This adjustment corrects the proposed-side flow upward
+ * using Q ∝ √P scaling.
+ *
  * adjustedDynamicPressureBar / adjustedDynamicFlowLpm are only populated
  * when type is not 'none', and represent the expected post-upgrade supply.
  */
 export type ProposedSupplyAdjustment = {
-  type: 'none' | 'booster' | 'accumulator' | 'break_tank_pump'
+  type: 'none' | 'booster' | 'accumulator' | 'break_tank_pump' | 'combi_hex_removal'
   /** Expected dynamic pressure after the upgrade (bar). */
   adjustedDynamicPressureBar?: number
   /** Expected dynamic flow rate after the upgrade (L/min). */
@@ -110,6 +131,50 @@ export function extractMainsSupplyFromSurvey(survey: FullSurveyModelV1): MainsSu
   }
 }
 
+// ─── Combi-to-stored supply correction ───────────────────────────────────────
+
+/**
+ * Build a ProposedSupplyAdjustment that corrects the mains flow for the
+ * removal of a combi boiler's plate heat exchanger.
+ *
+ * When the mains flow test was performed against an existing combi, the
+ * measured flow (e.g. 19 L/min at 1.5 bar) already includes the restriction
+ * imposed by the combi HEX (~0.3 bar pressure drop).  When the proposed
+ * system replaces the combi with a stored cylinder (system boiler + unvented,
+ * regular boiler + vented, or heat pump), there is no HEX in the DHW flow
+ * path, so the effective deliverable mains flow is higher.
+ *
+ * Correction uses Q ∝ √P:
+ *   adjustedFlow = measuredFlow × √(P_mains / (P_mains − P_hex_drop))
+ *
+ * The mains pressure itself is unchanged — the cylinder charges at mains
+ * pressure and delivers at mains pressure regardless.
+ *
+ * Returns { type: 'none' } when no valid measured flow or pressure are
+ * available (nothing to correct).
+ */
+export function buildCombiHexRemovalAdjustment(
+  measuredSupply: MainsSupply,
+): ProposedSupplyAdjustment {
+  const p = measuredSupply.dynamicPressureBar
+  const q = measuredSupply.dynamicFlowLpm
+
+  if (p == null || p <= COMBI_HEX_PRESSURE_DROP_BAR || q == null || q <= 0) {
+    return { type: 'none' }
+  }
+
+  const adjustedFlowLpm = parseFloat(
+    (q * Math.sqrt(p / (p - COMBI_HEX_PRESSURE_DROP_BAR))).toFixed(1),
+  )
+
+  return {
+    type: 'combi_hex_removal',
+    adjustedDynamicPressureBar: p,
+    adjustedDynamicFlowLpm: adjustedFlowLpm,
+    note: `Combi plate HEX removed — effective mains flow corrected from ${q} to ${adjustedFlowLpm} L/min (no 0.3 bar HEX restriction on proposed stored system).`,
+  }
+}
+
 // ─── Effective-proposed helper ─────────────────────────────────────────────────
 
 /**
@@ -123,6 +188,8 @@ export function extractMainsSupplyFromSurvey(survey: FullSurveyModelV1): MainsSu
  *     break tank / pump set), the adjusted pressure and/or flow overrides are
  *     applied. Source remains the same (the base measurement is still the
  *     reference; the upgrade is additive).
+ *   - When type is 'combi_hex_removal', the corrected flow is applied to
+ *     reflect the absence of the combi plate HEX pressure restriction.
  *
  * All simulator, report, and portal code should call this single function
  * instead of duplicating the override logic independently.

@@ -813,9 +813,17 @@ export default function App() {
       const { working_payload, ...metaFields } = visitDetail;
       const survey = working_payload as unknown as import('./ui/fullSurvey/FullSurveyModelV1').FullSurveyModelV1;
       if (working_payload && (survey.fullSurvey != null || survey.bedrooms != null)) {
+        // Extract the cached engine top option from the working payload so the
+        // handoff builder can flag any mismatch with the manual recommendation.
+        const engineMeta = (working_payload as Record<string, unknown>)?.['_atlasEngineRunMeta'];
+        const engineOutput = engineMeta && typeof engineMeta === 'object'
+          ? (engineMeta as Record<string, unknown>).output as import('./contracts/EngineOutputV1').EngineOutputV1 | undefined
+          : undefined;
+        const engineTopOptionId = engineOutput?.recommendation?.primary ?? undefined;
         const pack = buildHandoffPackFromSurvey(
           metaFields,
           survey,
+          engineTopOptionId,
         );
         setActiveHandoffPack(pack);
       } else {

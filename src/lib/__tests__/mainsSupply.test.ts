@@ -5,12 +5,15 @@
 // Coverage:
 //   - extractMainsSupplyFromSurvey: source tagging for measured/estimated/default
 //   - getEffectiveProposedMainsSupply: passthrough and supply-upgrade override
+//   - buildCombiHexRemovalAdjustment: Q ∝ √P correction for combi → stored switch
 
 import { describe, it, expect } from 'vitest'
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1'
 import {
   extractMainsSupplyFromSurvey,
   getEffectiveProposedMainsSupply,
+  buildCombiHexRemovalAdjustment,
+  COMBI_HEX_PRESSURE_DROP_BAR,
 } from '../simulator/mainsSupply'
 import type { ProposedSupplyAdjustment } from '../simulator/mainsSupply'
 
@@ -231,5 +234,96 @@ describe('getEffectiveProposedMainsSupply — booster proposed', () => {
     expect(effective.dynamicFlowLpm).toBe(20)
     expect(effective.dynamicPressureBar).toBe(1.0)
     expect(effective.staticPressureBar).toBe(3.5)
+  })
+})
+
+// ─── buildCombiHexRemovalAdjustment ──────────────────────────────────────────
+
+describe('buildCombiHexRemovalAdjustment', () => {
+  it('returns combi_hex_removal type when pressure and flow are valid', () => {
+    const measured = extractMainsSupplyFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: 1.5,
+        mainsDynamicFlowLpm: 19,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+    )
+    const adjustment = buildCombiHexRemovalAdjustment(measured)
+    expect(adjustment.type).toBe('combi_hex_removal')
+  })
+
+  it('corrects flow upward using Q ∝ √P', () => {
+    // At 1.5 bar with 0.3 bar HEX drop:
+    //   adjustedFlow = 19 × √(1.5 / 1.2) ≈ 21.2 L/min
+    const measured = extractMainsSupplyFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: 1.5,
+        mainsDynamicFlowLpm: 19,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+    )
+    const adjustment = buildCombiHexRemovalAdjustment(measured)
+    expect(adjustment.adjustedDynamicFlowLpm).toBeGreaterThan(19)
+    expect(adjustment.adjustedDynamicFlowLpm).toBeCloseTo(21.2, 0)
+  })
+
+  it('preserves measured pressure unchanged', () => {
+    const measured = extractMainsSupplyFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: 1.5,
+        mainsDynamicFlowLpm: 19,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+    )
+    const adjustment = buildCombiHexRemovalAdjustment(measured)
+    expect(adjustment.adjustedDynamicPressureBar).toBe(1.5)
+  })
+
+  it('returns type none when mains pressure is at or below HEX drop threshold', () => {
+    // Cannot correct if pressure ≤ COMBI_HEX_PRESSURE_DROP_BAR
+    const measured = extractMainsSupplyFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: COMBI_HEX_PRESSURE_DROP_BAR,
+        mainsDynamicFlowLpm: 5,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+    )
+    const adjustment = buildCombiHexRemovalAdjustment(measured)
+    expect(adjustment.type).toBe('none')
+  })
+
+  it('returns type none when no flow measurement is available', () => {
+    const measured = extractMainsSupplyFromSurvey(
+      minimalSurvey({ dynamicMainsPressure: 1.5 }),
+    )
+    const adjustment = buildCombiHexRemovalAdjustment(measured)
+    expect(adjustment.type).toBe('none')
+  })
+
+  it('produces a note explaining the correction', () => {
+    const measured = extractMainsSupplyFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: 1.5,
+        mainsDynamicFlowLpm: 19,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+    )
+    const adjustment = buildCombiHexRemovalAdjustment(measured)
+    expect(adjustment.note).toBeDefined()
+    expect(adjustment.note).toMatch(/HEX/i)
+  })
+
+  it('getEffectiveProposedMainsSupply correctly applies combi_hex_removal adjustment', () => {
+    const measured = extractMainsSupplyFromSurvey(
+      minimalSurvey({
+        dynamicMainsPressure: 1.5,
+        mainsDynamicFlowLpm: 19,
+        mainsDynamicFlowLpmKnown: true,
+      }),
+    )
+    const adjustment = buildCombiHexRemovalAdjustment(measured)
+    const effective = getEffectiveProposedMainsSupply(measured, adjustment)
+    expect(effective.dynamicFlowLpm).toBeGreaterThan(19)
+    expect(effective.dynamicPressureBar).toBe(1.5)
   })
 })
