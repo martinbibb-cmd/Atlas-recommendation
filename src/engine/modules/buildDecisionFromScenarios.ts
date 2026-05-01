@@ -229,8 +229,10 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
   const showerNote = input.showerCompatibilityNote ?? null;
   const allCompatibilityWarnings = mergeShowerWarning(physicsWarnings, showerNote);
 
+  const scopeDeliverables = buildScopeDeliverables(recommended);
+
   const quoteScope = buildQuoteScope({
-    includedItems:        [],
+    includedItems:        scopeDeliverables,
     requiredWorks:        recommended.requiredWorks,
     compatibilityWarnings: allCompatibilityWarnings,
     futureUpgradePaths:   recommended.upgradePaths,
@@ -255,7 +257,7 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
     dayToDayOutcomes:       recommended.dayToDayOutcomes,
     requiredWorks:          recommended.requiredWorks,
     compatibilityWarnings:  allCompatibilityWarnings,
-    includedItems:          [],
+    includedItems:          scopeDeliverables,
     quoteScope,
     futureUpgradePaths:     recommended.upgradePaths,
     supportingFacts,
@@ -267,7 +269,48 @@ export function buildDecisionFromScenarios(input: BuildDecisionInput): AtlasDeci
   };
 }
 
-// ─── Shower warning merge ─────────────────────────────────────────────────────
+// ─── Scope deliverables builder ───────────────────────────────────────────────
+
+/**
+ * buildScopeDeliverables — Derives the standard included-scope items for a
+ * recommended scenario so the "What is included" block shows the core
+ * deliverables (boiler, cylinder, controls, filter, flush) alongside the
+ * compliance requirements produced by the engine's typedRequirements.
+ *
+ * Labels are chosen to match buildQuoteScope's LABEL_NORMALIZE_MAP and
+ * CATEGORY_PATTERNS so they resolve to the correct category automatically.
+ */
+function buildScopeDeliverables(scenario: ScenarioResult): string[] {
+  const items: string[] = [];
+
+  switch (scenario.system.type) {
+    case 'system':
+      items.push('System boiler');
+      items.push(scenario.dhwSubtype === 'mixergy' ? 'Mixergy cylinder' : 'Unvented cylinder');
+      break;
+    case 'regular':
+      items.push('Regular boiler');
+      items.push(scenario.dhwSubtype === 'mixergy' ? 'Mixergy cylinder' : 'Vented cylinder');
+      break;
+    case 'combi':
+      items.push('Combi boiler');
+      break;
+    case 'ashp':
+      items.push('Air source heat pump');
+      items.push('Hot water cylinder');
+      break;
+  }
+
+  if (scenario.system.type !== 'ashp') {
+    items.push('Heating controls');
+    items.push('Magnetic filter');
+    items.push('Power flush');
+  }
+
+  return items;
+}
+
+
 
 /**
  * Merges the shower compatibility customer summary into the warnings list.

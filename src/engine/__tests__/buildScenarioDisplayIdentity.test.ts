@@ -102,10 +102,10 @@ function makeMixergyEngineOutput(): EngineOutputV1 {
 
 describe('buildScenarioDisplayIdentity', () => {
   describe('Mixergy scenarios', () => {
-    it('returns title "Mixergy cylinder" when dhwSubtype is mixergy', () => {
+    it('returns title "System boiler with Mixergy cylinder" when dhwSubtype is mixergy', () => {
       const scenario = makeScenario({ dhwSubtype: 'mixergy' });
       const display = buildScenarioDisplayIdentity(scenario);
-      expect(display.title).toBe('Mixergy cylinder');
+      expect(display.title).toBe('System boiler with Mixergy cylinder');
     });
 
     it('returns shortTitle "Mixergy" when dhwSubtype is mixergy', () => {
@@ -120,17 +120,17 @@ describe('buildScenarioDisplayIdentity', () => {
       expect(display.familyLabel).toBe('Stored hot water');
     });
 
-    it('returns atlasPickLabel "Mixergy cylinder" when dhwSubtype is mixergy', () => {
+    it('returns atlasPickLabel "System boiler with Mixergy cylinder" when dhwSubtype is mixergy', () => {
       const scenario = makeScenario({ dhwSubtype: 'mixergy' });
       const display = buildScenarioDisplayIdentity(scenario);
-      expect(display.atlasPickLabel).toBe('Mixergy cylinder');
+      expect(display.atlasPickLabel).toBe('System boiler with Mixergy cylinder');
     });
 
     it('returns Mixergy headline when dhwSubtype is mixergy', () => {
       const scenario = makeScenario({ dhwSubtype: 'mixergy' });
       const display = buildScenarioDisplayIdentity(scenario);
       expect(display.headline).toContain('Mixergy cylinder');
-      expect(display.headline).toContain('pressure-tolerant');
+      expect(display.headline).toContain('system boiler');
     });
 
     it('does NOT render "unvented cylinder" as the primary label for Mixergy scenarios', () => {
@@ -139,6 +139,7 @@ describe('buildScenarioDisplayIdentity', () => {
       expect(display.title).not.toBe('unvented cylinder');
       expect(display.title).not.toContain('unvented cylinder');
       expect(display.atlasPickLabel).not.toContain('unvented cylinder');
+      expect(display.title).toContain('Mixergy cylinder');
     });
 
     it('populates constraintAwareDescription for Mixergy scenarios', () => {
@@ -222,19 +223,19 @@ describe('buildScenarioDisplayIdentity', () => {
 // ─── Integration: buildScenariosFromEngineOutput ──────────────────────────────
 
 describe('buildScenariosFromEngineOutput — Mixergy display propagation', () => {
-  it('populates display.title as "Mixergy cylinder" on unvented scenario when Mixergy is recommended', () => {
+  it('populates display.title as "System boiler with Mixergy cylinder" on unvented scenario when Mixergy is recommended', () => {
     const output = makeMixergyEngineOutput();
     const scenarios = buildScenariosFromEngineOutput(output);
     const mixergyScenario = scenarios.find(s => s.scenarioId === 'system_unvented');
     expect(mixergyScenario).toBeDefined();
-    expect(mixergyScenario?.display?.title).toBe('Mixergy cylinder');
+    expect(mixergyScenario?.display?.title).toBe('System boiler with Mixergy cylinder');
   });
 
-  it('populates display.atlasPickLabel as "Mixergy cylinder" on unvented scenario', () => {
+  it('populates display.atlasPickLabel as "System boiler with Mixergy cylinder" on unvented scenario', () => {
     const output = makeMixergyEngineOutput();
     const scenarios = buildScenariosFromEngineOutput(output);
     const mixergyScenario = scenarios.find(s => s.scenarioId === 'system_unvented');
-    expect(mixergyScenario?.display?.atlasPickLabel).toBe('Mixergy cylinder');
+    expect(mixergyScenario?.display?.atlasPickLabel).toBe('System boiler with Mixergy cylinder');
   });
 
   it('does not label Mixergy scenario as "unvented cylinder" in display.title', () => {
@@ -259,7 +260,7 @@ describe('buildDecisionFromScenarios — Mixergy headline', () => {
     const mixergyScenario = makeScenario({ dhwSubtype: 'mixergy' });
     const decision = makeMinimalDecision(mixergyScenario);
     expect(decision.headline).toContain('Mixergy cylinder');
-    expect(decision.headline).toContain('pressure-tolerant');
+    expect(decision.headline).toContain('system boiler');
   });
 
   it('does not produce "unvented cylinder" headline for Mixergy scenario', () => {
@@ -272,12 +273,12 @@ describe('buildDecisionFromScenarios — Mixergy headline', () => {
 // ─── Integration: buildPortalViewModel ───────────────────────────────────────
 
 describe('buildPortalViewModel — display identity in cards', () => {
-  it('comparison card title for Mixergy scenario is "Mixergy cylinder"', () => {
+  it('comparison card title for Mixergy scenario is "System boiler with Mixergy cylinder"', () => {
     const mixergyScenario = makeScenario({ dhwSubtype: 'mixergy', display: buildScenarioDisplayIdentity(makeScenario({ dhwSubtype: 'mixergy' })) });
     const decision = makeMinimalDecision(mixergyScenario);
     const viewModel = buildPortalViewModel(decision, [mixergyScenario], []);
     const card = viewModel.verdictData.comparisonCards.find(c => c.scenarioId === 'system_unvented');
-    expect(card?.title).toBe('Mixergy cylinder');
+    expect(card?.title).toBe('System boiler with Mixergy cylinder');
   });
 
   it('daily-use card title for Mixergy scenario contains "Mixergy cylinder"', () => {

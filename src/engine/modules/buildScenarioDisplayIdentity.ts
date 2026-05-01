@@ -135,12 +135,14 @@ export function buildScenarioDisplayIdentity(
 ): ScenarioDisplayIdentity {
   // ── 1. Mixergy override ──────────────────────────────────────────────────────
   if (scenario.dhwSubtype === 'mixergy') {
+    const boilerLabel = scenario.system.type === 'regular' ? 'Regular boiler' : 'System boiler';
+    const fullLabel = `${boilerLabel} with Mixergy cylinder`;
     return {
-      title:       'Mixergy cylinder',
+      title:       fullLabel,
       shortTitle:  'Mixergy',
       familyLabel: 'Stored hot water',
-      atlasPickLabel: 'Mixergy cylinder',
-      headline:    'A Mixergy cylinder / pressure-tolerant stored hot water system is the right fit for this home.',
+      atlasPickLabel: fullLabel,
+      headline:    `A ${boilerLabel.toLowerCase()} with Mixergy cylinder is the right fit for this home.`,
       constraintAwareDescription:
         'Mixergy operates efficiently from tank-fed supply pressures upward — an immediate upgrade for this property. If mains supply pressure improves in future, the system is already mains-pressure ready.',
     };

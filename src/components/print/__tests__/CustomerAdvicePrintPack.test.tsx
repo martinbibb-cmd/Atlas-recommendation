@@ -1029,10 +1029,16 @@ describe('CustomerAdvicePrintPack — InstallComplexityBadge at_risk cleaning no
 
 describe('CustomerAdvicePrintPack — MixeryBridgePanel', () => {
 
-  it('renders when stored system has pressureConstraint flag', () => {
-    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+  it('renders when stored system has pressureConstraint flag and dhwSubtype is mixergy', () => {
+    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     expect(screen.getByTestId('capp-mixery-bridge')).toBeTruthy();
+  });
+
+  it('does not render when pressureConstraint is true but dhwSubtype is not mixergy', () => {
+    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    expect(screen.queryByTestId('capp-mixery-bridge')).toBeNull();
   });
 
   it('does not render when pressureConstraint is false', () => {
@@ -1053,7 +1059,7 @@ describe('CustomerAdvicePrintPack — MixeryBridgePanel', () => {
   });
 
   it('contains tank-fed terminology (not "low pressure system")', () => {
-    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     const panel = screen.getByTestId('capp-mixery-bridge');
     expect(panel.textContent).toContain('tank-fed');
@@ -1327,8 +1333,8 @@ describe('CustomerAdvicePrintPack — ThreeYearRoadmapSection', () => {
 
 describe('CustomerAdvicePrintPack — AiContextBlock new fields', () => {
 
-  it('contains "Mixergy Bridge" field when pressureConstraint flag is set on stored system', () => {
-    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+  it('contains "Mixergy Bridge" field when pressureConstraint flag is set and dhwSubtype is mixergy', () => {
+    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     const contexts = screen.getAllByTestId('capp-ai-context');
     const hasField = contexts.some((el) => el.textContent?.includes('Mixergy Bridge'));
