@@ -37,6 +37,7 @@ import {
 } from '../../dev/devUiFilters';
 import { generateCopyBoxOutput, formatSingleItemAsText, type CopyFormat } from '../../dev/devUiCopyExport';
 import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
+import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -116,11 +117,12 @@ interface Props {
 
 // ─── Top-level page mode ──────────────────────────────────────────────────────
 
-type DevMenuPageMode = 'inventory' | 'visuals';
+type DevMenuPageMode = 'inventory' | 'visuals' | 'storage';
 
 const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   inventory: '🗂 UI Inventory',
   visuals:   '🎨 Visuals Gallery',
+  storage:   '💾 Storage',
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -187,6 +189,23 @@ export default function DevMenuPage({ onBack }: Props) {
 
   if (pageMode === 'visuals') {
     return <VisualsGalleryPage onBack={() => setPageMode('inventory')} />;
+  }
+
+  if (pageMode === 'storage') {
+    return (
+      <div style={STYLES.page}>
+        <header style={STYLES.header}>
+          <button className="back-btn" onClick={() => setPageMode('inventory')} style={{ marginBottom: '1rem' }}>
+            ← UI Inventory
+          </button>
+          <div style={STYLES.titleRow}>
+            <h1 style={STYLES.title}>💾 Storage</h1>
+            <span style={STYLES.devBadge}>DEV ONLY</span>
+          </div>
+        </header>
+        <StorageDiagnosticsPanel />
+      </div>
+    );
   }
 
   return (

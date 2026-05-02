@@ -95,6 +95,12 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routeKind: 'query_flag',
     access: 'dev_only',
   },
+  {
+    codeName: 'StorageDiagnosticsPanel',
+    fullRouteExample: '/?devmenu=1 → 💾 Storage tab',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
 
   // ── Pathname routes ──────────────────────────────────────────────────────
   {
