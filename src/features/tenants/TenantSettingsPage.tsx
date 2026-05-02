@@ -30,6 +30,8 @@ import type { BrandProfileV1 } from '../branding/brandProfile';
 export interface TenantSettingsPageProps {
   /** Called when the user navigates back. */
   onBack?: () => void;
+  /** Called when the user clicks "Create new workspace". */
+  onCreateWorkspace?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -40,7 +42,7 @@ export interface TenantSettingsPageProps {
  * Full-page settings surface for workspace branding.
  * Accessible from the landing page via the "Workspace Branding" card.
  */
-export function TenantSettingsPage({ onBack }: TenantSettingsPageProps) {
+export function TenantSettingsPage({ onBack, onCreateWorkspace }: TenantSettingsPageProps) {
   const tenants = listStoredTenants();
 
   const [selectedSlug, setSelectedSlug] = useState<string>(() => {
@@ -105,6 +107,24 @@ export function TenantSettingsPage({ onBack }: TenantSettingsPageProps) {
         <h1 style={{ margin: 0, fontSize: '1.375rem', fontWeight: 700, color: '#0f172a' }}>
           Workspace Branding
         </h1>
+        {onCreateWorkspace && (
+          <button
+            data-testid="tenant-settings-create-workspace-btn"
+            onClick={onCreateWorkspace}
+            style={{
+              marginLeft: 'auto',
+              padding: '0.4rem 0.875rem',
+              background: '#2563eb',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+            }}
+          >
+            + Create new workspace
+          </button>
+        )}
       </div>
 
       {/* Workspace selector */}

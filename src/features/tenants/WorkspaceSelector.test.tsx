@@ -96,3 +96,20 @@ describe('WorkspaceSelector — disabled state', () => {
     expect(select.disabled).toBe(false);
   });
 });
+
+describe('WorkspaceSelector — newly-created workspace', () => {
+  it('shows a workspace created via createTenantWorkspace', async () => {
+    const { createTenantWorkspace } = await import('./createTenantWorkspace');
+    createTenantWorkspace({
+      displayName: 'Newly Created',
+      workspaceSlug: 'newly-created',
+      companyName: 'Newly Created Co',
+      primaryColor: '#2563EB',
+    });
+
+    render(<WorkspaceSelector value="newly-created" onChange={vi.fn()} />);
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    const values = Array.from(select.options).map((o) => o.value);
+    expect(values).toContain('newly-created');
+  });
+});

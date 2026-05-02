@@ -179,6 +179,37 @@ describe('StartVisitPanel — cancellation', () => {
   });
 });
 
+describe('StartVisitPanel — create workspace link', () => {
+  it('renders "Create workspace" link when onCreateWorkspace is provided', () => {
+    render(
+      <StartVisitPanel
+        onStart={vi.fn()}
+        onCancel={vi.fn()}
+        onCreateWorkspace={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('start-visit-create-workspace-link')).toBeTruthy();
+  });
+
+  it('does not render "Create workspace" link when onCreateWorkspace is not provided', () => {
+    renderPanel();
+    expect(screen.queryByTestId('start-visit-create-workspace-link')).toBeNull();
+  });
+
+  it('calls onCreateWorkspace when the link is clicked', () => {
+    const onCreateWorkspace = vi.fn();
+    render(
+      <StartVisitPanel
+        onStart={vi.fn()}
+        onCancel={vi.fn()}
+        onCreateWorkspace={onCreateWorkspace}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('start-visit-create-workspace-link'));
+    expect(onCreateWorkspace).toHaveBeenCalledOnce();
+  });
+});
+
 describe('StartVisitPanel — error handling', () => {
   it('shows an error message when visit creation fails', async () => {
     const mockCreateVisit = vi.mocked(visitApi.createVisit);

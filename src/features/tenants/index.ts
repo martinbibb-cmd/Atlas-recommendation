@@ -56,6 +56,19 @@ export type { WorkspaceSelectorProps } from './WorkspaceSelector';
 export { TenantSettingsPage } from './TenantSettingsPage';
 export type { TenantSettingsPageProps } from './TenantSettingsPage';
 
+// ─── Onboarding page ──────────────────────────────────────────────────────────
+
+export { TenantOnboardingPage } from './TenantOnboardingPage';
+export type { TenantOnboardingPageProps } from './TenantOnboardingPage';
+
+// ─── Create workspace helper ──────────────────────────────────────────────────
+
+export { createTenantWorkspace } from './createTenantWorkspace';
+export type {
+  CreateTenantWorkspaceInput,
+  CreateTenantWorkspaceResult,
+} from './createTenantWorkspace';
+
 // ─── Host resolver ────────────────────────────────────────────────────────────
 
 export {
