@@ -8,17 +8,10 @@
  *
  * Storage strategy
  * ────────────────
- * - Primary:  localStorage (survives page reload and tab close).
- * - Fallback: sessionStorage (when localStorage is unavailable).
- * - Reads are defensive: malformed or missing data returns an empty store.
+ * All reads and writes are delegated to localAdapter (LocalStorageAdapter),
+ * which targets localStorage with a sessionStorage fallback.
  *
  * Storage key:  atlas:brand-profiles:v1
- *
- * Store shape:
- *   {
- *     schemaVersion: 1,
- *     profilesById: Record<string, BrandProfileV1>
- *   }
  *
  * Design rules
  * ────────────
@@ -29,67 +22,12 @@
 
 import type { BrandProfileV1 } from './brandProfile';
 import { BRAND_PROFILES } from './brandProfiles';
+import { localAdapter } from '../../lib/storage/localStorageAdapter';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+/** Storage key used by the underlying adapter for the brandProfiles collection. */
 export const BRAND_PROFILE_STORE_KEY = 'atlas:brand-profiles:v1';
-
-const SCHEMA_VERSION = 1 as const;
-
-// ─── Store shape ──────────────────────────────────────────────────────────────
-
-interface BrandProfileStoreShape {
-  schemaVersion: typeof SCHEMA_VERSION;
-  profilesById: Record<string, BrandProfileV1>;
-}
-
-// ─── Storage access helpers ───────────────────────────────────────────────────
-
-function getStorage(): Storage | null {
-  try {
-    if (typeof localStorage !== 'undefined') return localStorage;
-  } catch {
-    // localStorage may throw in some environments.
-  }
-  try {
-    if (typeof sessionStorage !== 'undefined') return sessionStorage;
-  } catch {
-    // sessionStorage also unavailable.
-  }
-  return null;
-}
-
-// ─── Store read / write helpers ───────────────────────────────────────────────
-
-function readStore(): BrandProfileStoreShape {
-  const storage = getStorage();
-  if (!storage) {
-    return { schemaVersion: SCHEMA_VERSION, profilesById: {} };
-  }
-  try {
-    const raw = storage.getItem(BRAND_PROFILE_STORE_KEY);
-    if (!raw) return { schemaVersion: SCHEMA_VERSION, profilesById: {} };
-    const parsed = JSON.parse(raw) as Partial<BrandProfileStoreShape>;
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      parsed.schemaVersion !== SCHEMA_VERSION ||
-      typeof parsed.profilesById !== 'object' ||
-      parsed.profilesById === null
-    ) {
-      return { schemaVersion: SCHEMA_VERSION, profilesById: {} };
-    }
-    return parsed as BrandProfileStoreShape;
-  } catch {
-    return { schemaVersion: SCHEMA_VERSION, profilesById: {} };
-  }
-}
-
-function writeStore(store: BrandProfileStoreShape): void {
-  const storage = getStorage();
-  if (!storage) return;
-  storage.setItem(BRAND_PROFILE_STORE_KEY, JSON.stringify(store));
-}
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -97,7 +35,7 @@ function writeStore(store: BrandProfileStoreShape): void {
  * Returns the raw persisted store (stored profiles only, no built-ins merged).
  */
 export function loadStoredBrandProfiles(): Record<string, BrandProfileV1> {
-  return { ...readStore().profilesById };
+  return localAdapter.readAllSync('brandProfiles');
 }
 
 /**
@@ -105,7 +43,7 @@ export function loadStoredBrandProfiles(): Record<string, BrandProfileV1> {
  * Overwrites any existing stored profiles.
  */
 export function saveStoredBrandProfiles(profiles: Record<string, BrandProfileV1>): void {
-  writeStore({ schemaVersion: SCHEMA_VERSION, profilesById: profiles });
+  localAdapter.replaceAllSync('brandProfiles', profiles);
 }
 
 /**
@@ -114,9 +52,7 @@ export function saveStoredBrandProfiles(profiles: Record<string, BrandProfileV1>
  * fully replaced.
  */
 export function upsertStoredBrandProfile(profile: BrandProfileV1): void {
-  const store = readStore();
-  store.profilesById[profile.brandId] = profile;
-  writeStore(store);
+  localAdapter.upsertSync('brandProfiles', profile.brandId, profile);
 }
 
 /**
@@ -124,13 +60,7 @@ export function upsertStoredBrandProfile(profile: BrandProfileV1): void {
  * Silently no-ops when no record exists for that brandId.
  */
 export function deleteStoredBrandProfile(brandId: string): void {
-  try {
-    const store = readStore();
-    delete store.profilesById[brandId];
-    writeStore(store);
-  } catch {
-    // Best effort.
-  }
+  localAdapter.deleteSync('brandProfiles', brandId);
 }
 
 /**
@@ -138,7 +68,7 @@ export function deleteStoredBrandProfile(brandId: string): void {
  * Stored profile wins when both have the same brandId.
  */
 export function listStoredBrandProfiles(): Record<string, BrandProfileV1> {
-  const stored = readStore().profilesById;
+  const stored = localAdapter.readAllSync('brandProfiles');
   return {
     ...BRAND_PROFILES,
     ...stored,
