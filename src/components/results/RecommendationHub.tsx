@@ -15,7 +15,7 @@
  * - All data sourced from EngineOutputV1 / FullEngineResult.
  * - No mention of "fail", "rejected", or judgement language in user-facing copy.
  */
-import { useState } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import type { FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { EvidenceItemV1, OptionCardV1 } from '../../contracts/EngineOutputV1';
@@ -34,6 +34,11 @@ import PvDemographicsDebugCard from './PvDemographicsDebugCard';
 import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage';
 import { NoteInfluencePanel } from '../../features/voiceNotes/NoteInfluencePanel';
 import { buildNoteInfluenceSummary } from '../../lib/advice/buildNoteInfluenceSummary';
+import { VisitContext } from '../../features/visits/VisitProvider';
+import {
+  trackRecommendationViewed,
+  trackRecommendationSelected,
+} from '../../features/analytics/analyticsTracker';
 import './results.css';
 import '../../live/LiveHubPage.css';
 
@@ -1051,12 +1056,42 @@ export default function RecommendationHub({ result, input }: Props) {
 
   // Depot notes clipboard state
   const [depotCopied, setDepotCopied] = useState(false);
+
+  // Analytics — read optional visit context (null-safe: component may render
+  // outside a VisitProvider in lab/audit surfaces).
+  const visitCtx = useContext(VisitContext);
+  const analyticsVisitId = visitCtx?.activeVisit?.visitId;
+
+  // Fire recommendation_viewed once on mount.
+  // The intent is to record a single "page viewed" event per render of this
+  // component.  Dependency changes (e.g. visitId or option list refreshing)
+  // should NOT re-fire the event because the engineer has not navigated away
+  // and back.  The eslint-disable comment suppresses the exhaustive-deps
+  // warning that would otherwise flag this intentional empty deps array.
+  useEffect(() => {
+    if (!analyticsVisitId) return;
+    const scenarioIds: string[] = [];
+    if (engineOutput.recommendation?.primary) {
+      scenarioIds.push(engineOutput.recommendation.primary);
+    }
+    for (const option of options) {
+      if (!scenarioIds.includes(option.id)) scenarioIds.push(option.id);
+    }
+    trackRecommendationViewed(analyticsVisitId, scenarioIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleDepotCopy = () => {
     const text = buildDepotNotes(result);
     navigator.clipboard.writeText(text).then(() => {
       setDepotCopied(true);
       setTimeout(() => setDepotCopied(false), 2500);
     });
+    // Track scenario selection — depot-copy is the engineer's act of confirming
+    // the primary recommendation for handoff use.
+    if (analyticsVisitId && engineOutput.recommendation?.primary) {
+      trackRecommendationSelected(analyticsVisitId, engineOutput.recommendation.primary);
+    }
   };
 
   // Mains operating point data (for OperatingPointChart)

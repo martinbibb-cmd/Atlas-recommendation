@@ -96,6 +96,7 @@ import {
   ATLAS_CACHE_KEY_VISIT,
   ATLAS_CACHE_SCHEMA_VERSION,
 } from './lib/storage/atlasCacheKeys';
+import { trackVisitCompleted } from './features/analytics/analyticsTracker';
 import './App.css';
 
 /**
@@ -1409,6 +1410,9 @@ export default function App() {
               // then route to the Visit Hub so the engineer can formally complete the visit
               // by clicking "Complete visit" and accessing handoff tools.
               setLabEngineInput(engineInput);
+              if (activeAtlasVisit) {
+                trackVisitCompleted(activeAtlasVisit);
+              }
               setJourney('visit-hub');
             }}
             onOpenSimulator={(engineInput) => {
