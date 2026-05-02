@@ -27,6 +27,7 @@
  */
 
 import type { AnalyticsEventV1 } from './analyticsEvents';
+import { assertNoCustomerPayload } from './privacyGuard';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -105,9 +106,13 @@ function writeEvents(events: AnalyticsEventV1[]): void {
 /**
  * Appends an analytics event to the local store.
  * Silently no-ops when storage is unavailable.
+ *
+ * The privacy guard runs before any write to catch accidental PII leakage
+ * early.  In development this throws; in production it warns.
  */
 export function trackEvent(event: AnalyticsEventV1): void {
   try {
+    assertNoCustomerPayload(event);
     const events = readEvents();
     events.push(event);
     writeEvents(events);
@@ -179,8 +184,14 @@ function filterEventsByDate(
 /**
  * Serialises a single tenant aggregate as a flat CSV row.
  * Returns a header line + one data row for use in full-export joins.
+ *
+ * The privacy guard is applied to every aggregate before serialisation so
+ * that a schema change adding PII fields is caught at the export boundary.
  */
 export function aggregatesToCsv(aggregates: TenantAnalyticsAggregate[]): string {
+  for (const agg of aggregates) {
+    assertNoCustomerPayload(agg);
+  }
   const header = [
     'tenantId',
     'visitsCreated',
