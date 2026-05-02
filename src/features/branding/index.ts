@@ -25,6 +25,11 @@ export { BRAND_PROFILES, DEFAULT_BRAND_ID } from './brandProfiles';
 
 export { resolveBrandProfile } from './resolveBrandProfile';
 
+// ─── Active brand resolver ────────────────────────────────────────────────────
+
+export { resolveActiveBrandId } from './activeBrand';
+export type { ResolveActiveBrandIdInput } from './activeBrand';
+
 // ─── React ────────────────────────────────────────────────────────────────────
 
 export { BrandProvider } from './BrandProvider';
@@ -35,6 +40,7 @@ export { useBrandProfile, useOptionalBrandProfile } from './useBrandProfile';
 export { BrandLogo } from './BrandLogo';
 export { BrandedHeader } from './BrandedHeader';
 export { BrandedFooter } from './BrandedFooter';
+export { ActiveBrandBanner } from './ActiveBrandBanner';
 
 // ─── Output copy ──────────────────────────────────────────────────────────────
 
