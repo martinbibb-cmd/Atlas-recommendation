@@ -86,6 +86,23 @@ describe('TenantSettingsPage', () => {
     expect(onBack).toHaveBeenCalledOnce();
   });
 
+  it('renders "Create new workspace" button when onCreateWorkspace is provided', () => {
+    render(<TenantSettingsPage onCreateWorkspace={vi.fn()} />);
+    expect(screen.getByTestId('tenant-settings-create-workspace-btn')).toBeTruthy();
+  });
+
+  it('calls onCreateWorkspace when "Create new workspace" button is clicked', () => {
+    const onCreateWorkspace = vi.fn();
+    render(<TenantSettingsPage onCreateWorkspace={onCreateWorkspace} />);
+    fireEvent.click(screen.getByTestId('tenant-settings-create-workspace-btn'));
+    expect(onCreateWorkspace).toHaveBeenCalledOnce();
+  });
+
+  it('does not render "Create new workspace" button when onCreateWorkspace is not provided', () => {
+    render(<TenantSettingsPage />);
+    expect(screen.queryByTestId('tenant-settings-create-workspace-btn')).toBeNull();
+  });
+
   it('saving workspace branding updates the preview card company name', () => {
     render(<TenantSettingsPage />);
     // Switch to demo-heating.

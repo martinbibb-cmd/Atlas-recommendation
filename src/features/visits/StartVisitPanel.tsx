@@ -43,6 +43,11 @@ interface StartVisitPanelProps {
    * change the workspace manually.
    */
   defaultWorkspaceSlug?: string;
+  /**
+   * Optional callback invoked when the engineer clicks "Create workspace".
+   * When provided a small "Create workspace" link is shown below the selector.
+   */
+  onCreateWorkspace?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -58,7 +63,7 @@ interface StartVisitPanelProps {
  * On submit: POSTs to /api/visits, constructs an AtlasVisit with the
  * brandId derived from the selected workspace, and calls onStart.
  */
-export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug }: StartVisitPanelProps) {
+export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCreateWorkspace }: StartVisitPanelProps) {
   const [reference, setReference] = useState('');
   const [workspaceSlug, setWorkspaceSlug] = useState(defaultWorkspaceSlug ?? 'atlas');
   const [creating, setCreating] = useState(false);
@@ -132,6 +137,25 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug }: Sta
             onChange={setWorkspaceSlug}
             disabled={creating}
           />
+          {onCreateWorkspace !== undefined && (
+            <button
+              type="button"
+              data-testid="start-visit-create-workspace-link"
+              onClick={onCreateWorkspace}
+              style={{
+                marginTop: '0.375rem',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                color: '#2563eb',
+                fontSize: '0.8125rem',
+                cursor: 'pointer',
+                textDecoration: 'underline',
+              }}
+            >
+              + Create workspace
+            </button>
+          )}
         </div>
 
         {/* Inline error */}

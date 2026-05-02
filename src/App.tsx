@@ -43,6 +43,7 @@ import { BrandProvider } from './features/branding/BrandProvider';
 import { StartVisitPanel } from './features/visits/StartVisitPanel';
 import { DEFAULT_BRAND_ID } from './features/branding/brandProfiles';
 import { TenantSettingsPage } from './features/tenants/TenantSettingsPage';
+import { TenantOnboardingPage } from './features/tenants/TenantOnboardingPage';
 import { useWorkspaceFromHost } from './features/tenants/useWorkspaceFromHost';
 import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
 import { generateReportTitle } from './lib/reports/generateReportTitle';
@@ -290,6 +291,14 @@ const INTERNAL_PRINT_ENABLED =
 const BRAND_SETTINGS_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('brand-settings') === '1';
+
+/**
+ * Detect ?create-workspace=1 — renders the Workspace Onboarding page.
+ * Allows a product customer to create a new Atlas workspace from the UI.
+ */
+const CREATE_WORKSPACE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('create-workspace') === '1';
 
 /**
  * Detect ?cacheBust=1 — clears all Atlas-owned localStorage keys and reloads
@@ -1208,7 +1217,28 @@ export default function App() {
   // ?brand-settings=1 — render Workspace Branding settings page.
   if (BRAND_SETTINGS_ENABLED) {
     return (
-      <TenantSettingsPage onBack={() => { window.location.href = window.location.pathname; }} />
+      <TenantSettingsPage
+        onBack={() => { window.location.href = window.location.pathname; }}
+        onCreateWorkspace={() => {
+          window.location.href = `${window.location.pathname}?create-workspace=1`;
+        }}
+      />
+    );
+  }
+
+  // ?create-workspace=1 — render Workspace Onboarding page.
+  if (CREATE_WORKSPACE_ENABLED) {
+    return (
+      <TenantOnboardingPage
+        onCancel={() => { window.location.href = window.location.pathname; }}
+        onCreated={() => { /* stay on success panel */ }}
+        onStartVisit={(slug) => {
+          window.location.href = `${window.location.pathname}?start-visit=1&workspace=${encodeURIComponent(slug)}`;
+        }}
+        onEditBranding={(slug) => {
+          window.location.href = `${window.location.pathname}?brand-settings=1&workspace=${encodeURIComponent(slug)}`;
+        }}
+      />
     );
   }
 
@@ -1766,6 +1796,18 @@ export default function App() {
               <button className="cta-btn">Open Branding →</button>
             </div>
 
+            {/* Create Workspace — self-serve workspace onboarding */}
+            <div
+              id="create-workspace-card"
+              className="journey-card"
+              onClick={() => { window.location.href = `${window.location.pathname}?create-workspace=1`; }}
+            >
+              <div className="card-icon">🏢</div>
+              <h2>Create workspace</h2>
+              <p>Set up a new Atlas workspace with your branding, contact details, and slug. Saved locally.</p>
+              <button className="cta-btn">Create workspace →</button>
+            </div>
+
             {/* Tools — standalone utilities */}
             <h3 className="journey-section-label">Tools</h3>
             <div
@@ -1868,6 +1910,10 @@ export default function App() {
               defaultWorkspaceSlug={
                 hostResolution.source === 'host' ? hostResolution.workspaceSlug : undefined
               }
+              onCreateWorkspace={() => {
+                setShowNewVisitDialog(false);
+                window.location.href = `${window.location.pathname}?create-workspace=1`;
+              }}
             />
           </div>
         </div>
