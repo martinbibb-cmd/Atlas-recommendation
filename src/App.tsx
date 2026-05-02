@@ -97,6 +97,7 @@ import {
   ATLAS_CACHE_SCHEMA_VERSION,
 } from './lib/storage/atlasCacheKeys';
 import { trackVisitCompleted } from './features/analytics/analyticsTracker';
+import AnalyticsDashboard from './features/analytics/AnalyticsDashboard';
 import './App.css';
 
 /**
@@ -406,6 +407,10 @@ const EXPLORER_ENABLED =
 /** Detect /workspace — renders the Visit Workspace home page. */
 const WORKSPACE_HOME =
   typeof window !== 'undefined' && window.location.pathname === '/workspace';
+
+/** Detect /analytics — renders the tenant-level KPI dashboard. */
+const ANALYTICS_HOME =
+  typeof window !== 'undefined' && window.location.pathname === '/analytics';
 
 /** Detect /workspace/:id — renders a single workspace detail page. */
 const WORKSPACE_DETAIL_MATCH =
@@ -916,6 +921,15 @@ export default function App() {
         workspaceId={WORKSPACE_DETAIL_ID}
         autoOpenReview={WORKSPACE_AUTO_REVIEW}
         onBack={() => { window.location.href = '/workspace'; }}
+      />
+    );
+  }
+
+  // /analytics — render the tenant-level KPI analytics dashboard.
+  if (ANALYTICS_HOME) {
+    return (
+      <AnalyticsDashboard
+        onBack={() => { window.location.href = window.location.origin; }}
       />
     );
   }
@@ -1786,6 +1800,18 @@ export default function App() {
               <h2>Visit Workspaces</h2>
               <p>Import, review, and export scan captures — stored locally or on Drive. No DB write until you publish.</p>
               <button className="cta-btn">Open Workspaces →</button>
+            </div>
+
+            {/* Workspace Analytics — tenant KPI dashboard */}
+            <div
+              id="workspace-analytics-card"
+              className="journey-card"
+              onClick={() => { window.location.href = '/analytics'; }}
+            >
+              <div className="card-icon">📊</div>
+              <h2>Workspace Analytics</h2>
+              <p>View usage metrics — visits, completion rate, and recommendation selections. No customer data stored.</p>
+              <button className="cta-btn">Open Analytics →</button>
             </div>
 
             {/* Workspace Branding — local brand editor */}
