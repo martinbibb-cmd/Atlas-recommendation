@@ -19,6 +19,9 @@ import {
   trackVisitCompleted,
   trackRecommendationViewed,
   trackRecommendationSelected,
+  trackQuoteMarkedWon,
+  trackQuoteMarkedLost,
+  trackQuoteFollowUpRequired,
 } from './analyticsTracker';
 import { listEvents, clearEvents } from './analyticsStore';
 import type { AtlasVisit } from '../visits/createAtlasVisit';
@@ -233,5 +236,99 @@ describe('full visit journey integration', () => {
       expect(ev.visitId).toBe('visit_journey');
       expect(ev.tenantId).toBe('tenant_abc');
     }
+  });
+});
+
+// ─── trackQuoteMarkedWon ──────────────────────────────────────────────────────
+
+describe('trackQuoteMarkedWon', () => {
+  it('stores a quote_marked_won event with correct visitId', () => {
+    trackQuoteMarkedWon('visit_won_001');
+    const [ev] = listEvents();
+    expect(ev.eventType).toBe('quote_marked_won');
+    expect(ev.visitId).toBe('visit_won_001');
+  });
+
+  it('forwards tenantId when provided', () => {
+    trackQuoteMarkedWon('visit_won_002', 'tenant_x');
+    const [ev] = listEvents();
+    expect(ev.tenantId).toBe('tenant_x');
+  });
+
+  it('tenantId is undefined when not provided', () => {
+    trackQuoteMarkedWon('visit_won_003');
+    const [ev] = listEvents();
+    expect(ev.tenantId).toBeUndefined();
+  });
+
+  it('generates a unique eventId', () => {
+    trackQuoteMarkedWon('v1');
+    trackQuoteMarkedWon('v2');
+    const events = listEvents();
+    expect(events[0].eventId).not.toBe(events[1].eventId);
+  });
+
+  it('stores no customer data fields', () => {
+    trackQuoteMarkedWon('visit_won_004', 'tenant_x');
+    const [ev] = listEvents();
+    const keys = Object.keys(ev);
+    expect(keys).not.toContain('address');
+    expect(keys).not.toContain('name');
+    expect(keys).not.toContain('jobDetails');
+  });
+});
+
+// ─── trackQuoteMarkedLost ─────────────────────────────────────────────────────
+
+describe('trackQuoteMarkedLost', () => {
+  it('stores a quote_marked_lost event with correct visitId', () => {
+    trackQuoteMarkedLost('visit_lost_001');
+    const [ev] = listEvents();
+    expect(ev.eventType).toBe('quote_marked_lost');
+    expect(ev.visitId).toBe('visit_lost_001');
+  });
+
+  it('forwards tenantId', () => {
+    trackQuoteMarkedLost('visit_lost_002', 'tenant_y');
+    const [ev] = listEvents();
+    expect(ev.tenantId).toBe('tenant_y');
+  });
+
+  it('stores no customer data fields', () => {
+    trackQuoteMarkedLost('visit_lost_003');
+    const [ev] = listEvents();
+    expect(Object.keys(ev)).not.toContain('address');
+    expect(Object.keys(ev)).not.toContain('name');
+  });
+});
+
+// ─── trackQuoteFollowUpRequired ───────────────────────────────────────────────
+
+describe('trackQuoteFollowUpRequired', () => {
+  it('stores a quote_follow_up_required event with correct visitId', () => {
+    trackQuoteFollowUpRequired('visit_fu_001');
+    const [ev] = listEvents();
+    expect(ev.eventType).toBe('quote_follow_up_required');
+    expect(ev.visitId).toBe('visit_fu_001');
+  });
+
+  it('forwards tenantId', () => {
+    trackQuoteFollowUpRequired('visit_fu_002', 'tenant_z');
+    const [ev] = listEvents();
+    expect(ev.tenantId).toBe('tenant_z');
+  });
+
+  it('stores no customer data fields', () => {
+    trackQuoteFollowUpRequired('visit_fu_003');
+    const [ev] = listEvents();
+    expect(Object.keys(ev)).not.toContain('address');
+    expect(Object.keys(ev)).not.toContain('name');
+  });
+
+  it('generates a unique eventId per call', () => {
+    trackQuoteFollowUpRequired('v1');
+    trackQuoteFollowUpRequired('v2');
+    const events = listEvents();
+    expect(events[0].eventId).not.toBe(events[1].eventId);
   });
 });

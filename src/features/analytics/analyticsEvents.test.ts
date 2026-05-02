@@ -19,6 +19,9 @@ import type {
   VisitAbandonedEvent,
   RecommendationViewedEvent,
   RecommendationSelectedEvent,
+  QuoteMarkedWonEvent,
+  QuoteMarkedLostEvent,
+  QuoteFollowUpRequiredEvent,
 } from './analyticsEvents';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -187,6 +190,9 @@ describe('AnalyticsEventV1 union', () => {
       { ...BASE, eventType: 'visit_abandoned' },
       { ...BASE, eventType: 'recommendation_viewed', scenarioIds: [] },
       { ...BASE, eventType: 'recommendation_selected', selectedScenarioId: 'x' },
+      { ...BASE, eventType: 'quote_marked_won' },
+      { ...BASE, eventType: 'quote_marked_lost' },
+      { ...BASE, eventType: 'quote_follow_up_required' },
     ];
     for (const ev of events) {
       // visitId must be present on every event
@@ -196,5 +202,55 @@ describe('AnalyticsEventV1 union', () => {
       expect(Object.keys(ev)).not.toContain('address');
       expect(Object.keys(ev)).not.toContain('name');
     }
+  });
+});
+
+// ─── QuoteMarkedWonEvent ──────────────────────────────────────────────────────
+
+describe('QuoteMarkedWonEvent', () => {
+  it('has eventType = quote_marked_won', () => {
+    const ev: QuoteMarkedWonEvent = { ...BASE, eventType: 'quote_marked_won' };
+    expect(ev.eventType).toBe('quote_marked_won');
+  });
+
+  it('carries no customer data fields', () => {
+    const ev: QuoteMarkedWonEvent = { ...BASE, eventType: 'quote_marked_won' };
+    const keys = Object.keys(ev);
+    expect(keys).not.toContain('address');
+    expect(keys).not.toContain('name');
+    expect(keys).not.toContain('jobDetails');
+  });
+
+  it('is assignable to AnalyticsEventV1 union', () => {
+    const union: AnalyticsEventV1 = { ...BASE, eventType: 'quote_marked_won' };
+    expect(union.eventType).toBe('quote_marked_won');
+  });
+});
+
+// ─── QuoteMarkedLostEvent ─────────────────────────────────────────────────────
+
+describe('QuoteMarkedLostEvent', () => {
+  it('has eventType = quote_marked_lost', () => {
+    const ev: QuoteMarkedLostEvent = { ...BASE, eventType: 'quote_marked_lost' };
+    expect(ev.eventType).toBe('quote_marked_lost');
+  });
+
+  it('is assignable to AnalyticsEventV1 union', () => {
+    const union: AnalyticsEventV1 = { ...BASE, eventType: 'quote_marked_lost' };
+    expect(union.eventType).toBe('quote_marked_lost');
+  });
+});
+
+// ─── QuoteFollowUpRequiredEvent ───────────────────────────────────────────────
+
+describe('QuoteFollowUpRequiredEvent', () => {
+  it('has eventType = quote_follow_up_required', () => {
+    const ev: QuoteFollowUpRequiredEvent = { ...BASE, eventType: 'quote_follow_up_required' };
+    expect(ev.eventType).toBe('quote_follow_up_required');
+  });
+
+  it('is assignable to AnalyticsEventV1 union', () => {
+    const union: AnalyticsEventV1 = { ...BASE, eventType: 'quote_follow_up_required' };
+    expect(union.eventType).toBe('quote_follow_up_required');
   });
 });

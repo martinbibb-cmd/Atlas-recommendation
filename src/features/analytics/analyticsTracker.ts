@@ -126,3 +126,60 @@ export function trackRecommendationSelected(
     selectedScenarioId,
   });
 }
+
+/**
+ * Records a quote_marked_won event.
+ *
+ * Call this when the engineer marks a visit/quote as won.
+ * Only visitId and tenantId are stored — no customer details.
+ *
+ * @param visitId  - The visit ID being marked.
+ * @param tenantId - Optional tenant identifier for aggregation.
+ */
+export function trackQuoteMarkedWon(visitId: string, tenantId?: string): void {
+  trackEvent({
+    eventId: generateEventId(),
+    eventType: 'quote_marked_won',
+    visitId,
+    tenantId,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Records a quote_marked_lost event.
+ *
+ * Call this when the engineer marks a visit/quote as lost.
+ * Only visitId and tenantId are stored — no customer details.
+ *
+ * @param visitId  - The visit ID being marked.
+ * @param tenantId - Optional tenant identifier for aggregation.
+ */
+export function trackQuoteMarkedLost(visitId: string, tenantId?: string): void {
+  trackEvent({
+    eventId: generateEventId(),
+    eventType: 'quote_marked_lost',
+    visitId,
+    tenantId,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Records a quote_follow_up_required event.
+ *
+ * Call this when the engineer flags a visit/quote for follow-up.
+ * Only visitId and tenantId are stored — no customer details.
+ *
+ * @param visitId  - The visit ID being flagged.
+ * @param tenantId - Optional tenant identifier for aggregation.
+ */
+export function trackQuoteFollowUpRequired(visitId: string, tenantId?: string): void {
+  trackEvent({
+    eventId: generateEventId(),
+    eventType: 'quote_follow_up_required',
+    visitId,
+    tenantId,
+    createdAt: new Date().toISOString(),
+  });
+}

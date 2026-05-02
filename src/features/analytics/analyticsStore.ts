@@ -44,6 +44,11 @@ export interface TenantAnalyticsAggregate {
   recommendationViews: number;
   recommendationSelections: number;
   topSelectedScenarioIds: Array<{ scenarioId: string; count: number }>;
+  wonJobs: number;
+  lostJobs: number;
+  followUpCount: number;
+  /** Won jobs / (won + lost).  0 when neither category has been marked. */
+  closeRate: number;
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -186,6 +191,10 @@ export function aggregatesToCsv(aggregates: TenantAnalyticsAggregate[]): string 
     'recommendationSelections',
     'topScenarioId',
     'topScenarioCount',
+    'wonJobs',
+    'lostJobs',
+    'followUpCount',
+    'closeRate',
   ].join(',');
 
   const rows = aggregates.map((a) => {
@@ -200,6 +209,10 @@ export function aggregatesToCsv(aggregates: TenantAnalyticsAggregate[]): string 
       a.recommendationSelections,
       top ? top.scenarioId : '',
       top ? top.count : '',
+      a.wonJobs,
+      a.lostJobs,
+      a.followUpCount,
+      a.closeRate.toFixed(4),
     ].join(',');
   });
 
@@ -213,8 +226,26 @@ export function aggregatesToCsv(aggregates: TenantAnalyticsAggregate[]): string 
  * events without a tenantId).  No individual visit details are exposed.
  */
 export function aggregateByTenant(): TenantAnalyticsAggregate[] {
-  const events = readEvents();
+  return aggregateEvents(readEvents());
+}
 
+/**
+ * Same as `aggregateByTenant` but restricted to events within the given date
+ * range.  Accepts an `AnalyticsDateFilter` to support the dashboard UI filters.
+ *
+ * Returns aggregates only for tenants that have at least one event in range.
+ */
+export function aggregateByTenantFiltered(
+  filter: AnalyticsDateFilter,
+): TenantAnalyticsAggregate[] {
+  const allEvents = readEvents();
+  const events = filterEventsByDate(allEvents, filter);
+  return aggregateEvents(events);
+}
+
+// ─── Internal aggregation helper ──────────────────────────────────────────────
+
+function aggregateEvents(events: AnalyticsEventV1[]): TenantAnalyticsAggregate[] {
   // Collect distinct tenantId keys (undefined is a valid group key).
   const tenantKeys = new Set<string | undefined>(events.map((e) => e.tenantId));
 
@@ -255,68 +286,12 @@ export function aggregateByTenant(): TenantAnalyticsAggregate[] {
       .map(([scenarioId, count]) => ({ scenarioId, count }))
       .sort((a, b) => b.count - a.count);
 
-    return {
-      tenantId,
-      visitsCreated: created,
-      visitsCompleted: completedCount,
-      completionRate: created > 0 ? completedCount / created : 0,
-      avgDurationSeconds,
-      recommendationViews: views,
-      recommendationSelections: selectionCount,
-      topSelectedScenarioIds,
-    };
-  });
-}
-
-/**
- * Same as `aggregateByTenant` but restricted to events within the given date
- * range.  Accepts an `AnalyticsDateFilter` to support the dashboard UI filters.
- *
- * Returns aggregates only for tenants that have at least one event in range.
- */
-export function aggregateByTenantFiltered(
-  filter: AnalyticsDateFilter,
-): TenantAnalyticsAggregate[] {
-  const allEvents = readEvents();
-  const events = filterEventsByDate(allEvents, filter);
-
-  const tenantKeys = new Set<string | undefined>(events.map((e) => e.tenantId));
-
-  return Array.from(tenantKeys).map((tenantId) => {
-    const tenantEvents = events.filter((e) => e.tenantId === tenantId);
-
-    const created = tenantEvents.filter((e) => e.eventType === 'visit_created').length;
-    const completed = tenantEvents.filter((e) => e.eventType === 'visit_completed');
-    const completedCount = completed.length;
-
-    const durations = completed
-      .map((e) => (e.eventType === 'visit_completed' ? e.durationSeconds : undefined))
-      .filter((d): d is number => typeof d === 'number' && d >= 0);
-
-    const avgDurationSeconds =
-      durations.length > 0
-        ? durations.reduce((sum, d) => sum + d, 0) / durations.length
-        : null;
-
-    const views = tenantEvents.filter(
-      (e) => e.eventType === 'recommendation_viewed',
+    const wonJobs = tenantEvents.filter((e) => e.eventType === 'quote_marked_won').length;
+    const lostJobs = tenantEvents.filter((e) => e.eventType === 'quote_marked_lost').length;
+    const followUpCount = tenantEvents.filter(
+      (e) => e.eventType === 'quote_follow_up_required',
     ).length;
-
-    const selections = tenantEvents.filter(
-      (e) => e.eventType === 'recommendation_selected',
-    );
-    const selectionCount = selections.length;
-
-    const scenarioCounts: Record<string, number> = {};
-    for (const ev of selections) {
-      if (ev.eventType === 'recommendation_selected') {
-        const id = ev.selectedScenarioId;
-        scenarioCounts[id] = (scenarioCounts[id] ?? 0) + 1;
-      }
-    }
-    const topSelectedScenarioIds = Object.entries(scenarioCounts)
-      .map(([scenarioId, count]) => ({ scenarioId, count }))
-      .sort((a, b) => b.count - a.count);
+    const closeRate = wonJobs + lostJobs > 0 ? wonJobs / (wonJobs + lostJobs) : 0;
 
     return {
       tenantId,
@@ -327,6 +302,10 @@ export function aggregateByTenantFiltered(
       recommendationViews: views,
       recommendationSelections: selectionCount,
       topSelectedScenarioIds,
+      wonJobs,
+      lostJobs,
+      followUpCount,
+      closeRate,
     };
   });
 }
