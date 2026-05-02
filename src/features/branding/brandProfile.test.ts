@@ -55,7 +55,7 @@ describe('resolveBrandProfile', () => {
     expect(profile.companyName).toBe('Demo Heating Co');
   });
 
-  it('is deterministic — repeated calls return the same brandId and companyName', () => {
+  it('returns consistent brandId and companyName on repeated calls (no stored overrides)', () => {
     const a = resolveBrandProfile('installer-demo');
     const b = resolveBrandProfile('installer-demo');
     expect(a.brandId).toBe(b.brandId);

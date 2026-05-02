@@ -60,7 +60,9 @@ export function TenantSettingsPage({ onBack }: TenantSettingsPageProps) {
   function handleWorkspaceChange(slug: string) {
     setSelectedSlug(slug);
     const tenant = tenants.find((t) => t.workspaceSlug === slug);
-    setPreviewProfile(resolveBrandProfile(tenant?.brandId));
+    // If no tenant matches (shouldn't happen with a valid select), fall back to atlas-default.
+    const brandId = tenant?.brandId;
+    setPreviewProfile(resolveBrandProfile(brandId));
   }
 
   const handleSave = useCallback((saved: BrandProfileV1) => {
