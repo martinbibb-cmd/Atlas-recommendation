@@ -3,9 +3,10 @@
  *
  * Minimal start-visit UI for Atlas Mind.
  *
- * Allows the engineer to optionally select a brand before creating a new
- * visit.  On confirmation the panel calls the supplied `onStart` callback
- * with the newly-created AtlasVisit so the caller can push it into context.
+ * Allows the engineer to select a workspace (tenant) before creating a new
+ * visit.  The selected workspace determines the brandId for the visit.
+ * On confirmation the panel calls the supplied `onStart` callback with the
+ * newly-created AtlasVisit so the caller can push it into context.
  *
  * Design rules
  * ────────────
@@ -13,14 +14,15 @@
  * - Calls createAtlasVisit() to assemble the AtlasVisit with the brandId.
  * - No direct sessionStorage writes here — caller owns persistence via
  *   VisitProvider / visitStore.
- * - Uses only BRAND_PROFILES registry for brand options — no hardcoded names.
+ * - Workspace selection drives brandId via resolveActiveTenant().
  */
 
 import { useState } from 'react';
 import { createVisit } from '../../lib/visits/visitApi';
 import { createAtlasVisit } from './createAtlasVisit';
 import type { AtlasVisit } from './createAtlasVisit';
-import { BRAND_PROFILES, DEFAULT_BRAND_ID } from '../branding';
+import { WorkspaceSelector } from '../tenants/WorkspaceSelector';
+import { resolveActiveTenant } from '../tenants/activeTenant';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -43,18 +45,17 @@ interface StartVisitPanelProps {
  *
  * Renders a minimal form with:
  *   - Optional visit reference input.
- *   - Brand selector (populated from BRAND_PROFILES registry).
+ *   - Workspace selector (determines the brandId for the visit).
  *   - Start / Cancel actions.
  *
- * On submit: POSTs to /api/visits, constructs an AtlasVisit, and calls onStart.
+ * On submit: POSTs to /api/visits, constructs an AtlasVisit with the
+ * brandId derived from the selected workspace, and calls onStart.
  */
 export function StartVisitPanel({ onStart, onCancel }: StartVisitPanelProps) {
   const [reference, setReference] = useState('');
-  const [brandId, setBrandId] = useState(DEFAULT_BRAND_ID);
+  const [workspaceSlug, setWorkspaceSlug] = useState('atlas');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const brandOptions = Object.values(BRAND_PROFILES);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,7 +65,8 @@ export function StartVisitPanel({ onStart, onCancel }: StartVisitPanelProps) {
     try {
       const opts = reference.trim().length > 0 ? { visit_reference: reference.trim() } : {};
       const { id } = await createVisit(opts);
-      const visit = createAtlasVisit(id, brandId);
+      const tenant = resolveActiveTenant({ workspaceSlug });
+      const visit = createAtlasVisit(id, tenant.brandId);
       onStart(visit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create visit');
@@ -105,35 +107,24 @@ export function StartVisitPanel({ onStart, onCancel }: StartVisitPanelProps) {
           />
         </div>
 
-        {/* Brand selector */}
+        {/* Workspace selector */}
         <div style={{ marginBottom: '1.5rem' }}>
           <label
-            htmlFor="start-visit-brand"
+            htmlFor="start-visit-workspace"
             style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}
           >
-            Brand
+            Workspace
           </label>
-          <select
-            id="start-visit-brand"
-            value={brandId}
-            onChange={(e) => setBrandId(e.target.value)}
-            disabled={creating}
-            style={{
-              width: '100%',
-              padding: '0.5rem 0.75rem',
-              border: '1px solid #cbd5e1',
-              borderRadius: 6,
-              fontSize: '1rem',
-              background: '#fff',
-              boxSizing: 'border-box',
-            }}
+          <p
+            style={{ margin: '0 0 0.375rem', fontSize: '0.8125rem', color: '#64748b' }}
           >
-            {brandOptions.map((profile) => (
-              <option key={profile.brandId} value={profile.brandId}>
-                {profile.companyName}
-              </option>
-            ))}
-          </select>
+            Brand used for customer outputs
+          </p>
+          <WorkspaceSelector
+            value={workspaceSlug}
+            onChange={setWorkspaceSlug}
+            disabled={creating}
+          />
         </div>
 
         {/* Inline error */}
