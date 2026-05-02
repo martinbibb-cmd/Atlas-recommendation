@@ -21,7 +21,6 @@
  */
 
 import {
-  isClientFileReferenceV1,
   validateClientFileReferenceV1Fields,
   type ClientFileKind,
   type ClientFileReferenceV1,
