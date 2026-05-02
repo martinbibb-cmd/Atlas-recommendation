@@ -110,6 +110,11 @@ export interface CustomerAdvicePrintPackProps {
    */
   printFullAiHandoff?: boolean;
   /**
+   * When true, renders the Technical Audit appendix page at the end of the
+   * pack. Off by default to keep the customer-facing print pack concise.
+   */
+  showTechnicalAudit?: boolean;
+  /**
    * Optional brand ID for white-label output.
    * When provided the BrandProvider resolves this brand's profile so that
    * BrandedHeader, BrandedFooter, and pricing/carbon gating reflect the
