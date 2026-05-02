@@ -84,6 +84,30 @@ const D1_TABLE: Readonly<Record<StorageCollectionName, string>> = {
   scanCaptures: 'atlas_adapter_scan_captures',
 };
 
+/** Set of all known-safe D1 table name values for runtime validation. */
+const SAFE_TABLE_NAMES: ReadonlySet<string> = new Set(Object.values(D1_TABLE));
+
+/**
+ * Returns the D1 table name for `collection` after asserting it is one of the
+ * statically-known safe values.
+ *
+ * D1 does not support parameterised table names, so the name must be
+ * interpolated into SQL.  The TypeScript type system already constrains
+ * `collection` to `StorageCollectionName`, and `D1_TABLE` is a Readonly map
+ * over that exact type, making injection through normal use impossible.  This
+ * runtime check is belt-and-suspenders defence against any future refactoring
+ * that could break those guarantees.
+ */
+function safeTable(collection: StorageCollectionName): string {
+  const name = D1_TABLE[collection];
+  if (!SAFE_TABLE_NAMES.has(name)) {
+    throw new Error(
+      `D1StorageAdapter: unexpected table name '${name}' for collection '${collection}'`,
+    );
+  }
+  return name;
+}
+
 // ─── D1StorageAdapter ─────────────────────────────────────────────────────────
 
 /**
@@ -108,7 +132,7 @@ export class D1StorageAdapter implements StorageAdapter {
   async list<K extends StorageCollectionName>(
     collection: K,
   ): Promise<StorageResult<StorageCollectionMap[K][]>> {
-    const table = D1_TABLE[collection];
+    const table = safeTable(collection);
     try {
       const result = await this.db
         .prepare(`SELECT id, payload_json FROM ${table} ORDER BY updated_at DESC`)
@@ -134,7 +158,7 @@ export class D1StorageAdapter implements StorageAdapter {
     collection: K,
     id: string,
   ): Promise<StorageResult<StorageCollectionMap[K] | null>> {
-    const table = D1_TABLE[collection];
+    const table = safeTable(collection);
     try {
       const row = await this.db
         .prepare(`SELECT payload_json FROM ${table} WHERE id = ?`)
@@ -159,7 +183,7 @@ export class D1StorageAdapter implements StorageAdapter {
     id: string,
     item: StorageCollectionMap[K],
   ): Promise<StorageResult<void>> {
-    const table = D1_TABLE[collection];
+    const table = safeTable(collection);
     try {
       const payload = JSON.stringify(item);
       const now = new Date().toISOString();
@@ -190,7 +214,7 @@ export class D1StorageAdapter implements StorageAdapter {
     collection: StorageCollectionName,
     id: string,
   ): Promise<StorageResult<void>> {
-    const table = D1_TABLE[collection];
+    const table = safeTable(collection);
     try {
       const result = await this.db
         .prepare(`DELETE FROM ${table} WHERE id = ?`)
