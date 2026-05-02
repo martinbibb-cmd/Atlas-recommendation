@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { redactString } from './lib/privacy/safeLog.ts'
 
 // Register the Atlas service worker for Web Share Target support and offline
 // caching.  Registration is best-effort — the app works without it.
@@ -19,7 +20,7 @@ window.addEventListener('error', (e) => {
   if (!root) return
   const pre = document.createElement('pre')
   pre.style.cssText = 'padding:16px;white-space:pre-wrap'
-  pre.textContent = String(e.error || e.message)
+  pre.textContent = redactString(String(e.error || e.message))
   root.replaceChildren(pre)
 })
 
@@ -28,7 +29,7 @@ window.addEventListener('unhandledrejection', (e) => {
   if (!root) return
   const pre = document.createElement('pre')
   pre.style.cssText = 'padding:16px;white-space:pre-wrap'
-  pre.textContent = String((e as PromiseRejectionEvent).reason)
+  pre.textContent = redactString(String((e as PromiseRejectionEvent).reason))
   root.replaceChildren(pre)
 })
 
@@ -80,7 +81,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
             }}>
-              {this.state.error.message}
+              {redactString(this.state.error.message)}
             </pre>
           </details>
         </div>

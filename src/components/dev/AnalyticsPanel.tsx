@@ -20,6 +20,7 @@ import { useState, useEffect } from 'react';
 import { listEvents, clearEvents, aggregateByTenant } from '../../features/analytics/analyticsStore';
 import type { TenantAnalyticsAggregate } from '../../features/analytics/analyticsStore';
 import type { AnalyticsEventV1 } from '../../features/analytics/analyticsEvents';
+import { safeStringify } from '../../lib/privacy/safeLog';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -153,7 +154,7 @@ export default function AnalyticsPanel() {
         </button>
         {showRaw && (
           <pre style={styles.rawJson}>
-            {JSON.stringify(events, null, 2)}
+            {safeStringify(events)}
           </pre>
         )}
       </div>
