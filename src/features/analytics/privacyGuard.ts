@@ -22,6 +22,7 @@
  *   name · address · postcode · photo · transcript · floorPlan
  *   roomScan · email · phone · customer · surveyData · surveyPayload
  *   heatLoss · report · visitDetails · jobDetails · rawSurvey
+ *   uri · externalId · fileUri · fileBlob · fileContent · fileData
  */
 
 // ─── Allowlist ────────────────────────────────────────────────────────────────
@@ -86,6 +87,13 @@ export const BLOCKED_CUSTOMER_KEYS: ReadonlySet<string> = new Set([
   'visitDetails',
   'jobDetails',
   'rawSurvey',
+  // ClientFileReferenceV1 fields that must never enter analytics
+  'uri',
+  'externalId',
+  'fileUri',
+  'fileBlob',
+  'fileContent',
+  'fileData',
 ]);
 
 // ─── Guard helper ─────────────────────────────────────────────────────────────
