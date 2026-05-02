@@ -140,6 +140,8 @@ export type AnalyticsDateFilter =
   | { type: 'last_30_days' }
   | { type: 'custom'; from: string; to: string };
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 function filterEventsByDate(
   events: AnalyticsEventV1[],
   filter: AnalyticsDateFilter,
@@ -151,14 +153,14 @@ function filterEventsByDate(
   let to: number;
 
   if (filter.type === 'last_7_days') {
-    from = now - 7 * 24 * 60 * 60 * 1000;
+    from = now - 7 * MS_PER_DAY;
     to = now;
   } else if (filter.type === 'last_30_days') {
-    from = now - 30 * 24 * 60 * 60 * 1000;
+    from = now - 30 * MS_PER_DAY;
     to = now;
   } else {
     from = Date.parse(filter.from);
-    to = Date.parse(filter.to) + 24 * 60 * 60 * 1000 - 1; // inclusive end-of-day
+    to = Date.parse(filter.to) + MS_PER_DAY - 1; // inclusive end-of-day
   }
 
   return events.filter((e) => {
