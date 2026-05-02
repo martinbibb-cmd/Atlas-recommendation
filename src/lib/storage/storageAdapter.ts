@@ -14,6 +14,7 @@
  *   brandProfiles  → BrandProfileV1
  *   visits         → AtlasVisit
  *   scanCaptures   → SessionCaptureV2
+ *   visitManifests → ExternalVisitManifestV1
  *
  * Design rules
  * ────────────
@@ -29,6 +30,7 @@ import type { TenantProfileV1 } from '../../features/tenants/tenantProfile';
 import type { BrandProfileV1 } from '../../features/branding/brandProfile';
 import type { AtlasVisit } from '../../features/visits/createAtlasVisit';
 import type { SessionCaptureV2 } from '../../features/scanImport/contracts/sessionCaptureV2';
+import type { ExternalVisitManifestV1 } from '../../contracts/ExternalVisitManifestV1';
 
 // ─── Result wrapper ───────────────────────────────────────────────────────────
 
@@ -56,6 +58,7 @@ export type StorageCollectionMap = {
   brandProfiles: BrandProfileV1;
   visits: AtlasVisit;
   scanCaptures: SessionCaptureV2;
+  visitManifests: ExternalVisitManifestV1;
 };
 
 /** Union of all valid collection names (derived from StorageCollectionMap). */
