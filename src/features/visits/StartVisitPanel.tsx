@@ -36,6 +36,13 @@ interface StartVisitPanelProps {
    * Called when the engineer cancels without creating a visit.
    */
   onCancel?: () => void;
+  /**
+   * Pre-select this workspace slug in the workspace selector on first render.
+   * Supplied by the host-workspace resolver when the app is accessed via a
+   * branded subdomain (e.g. britishgas.atlas-phm.uk).  The engineer can still
+   * change the workspace manually.
+   */
+  defaultWorkspaceSlug?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -51,9 +58,9 @@ interface StartVisitPanelProps {
  * On submit: POSTs to /api/visits, constructs an AtlasVisit with the
  * brandId derived from the selected workspace, and calls onStart.
  */
-export function StartVisitPanel({ onStart, onCancel }: StartVisitPanelProps) {
+export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug }: StartVisitPanelProps) {
   const [reference, setReference] = useState('');
-  const [workspaceSlug, setWorkspaceSlug] = useState('atlas');
+  const [workspaceSlug, setWorkspaceSlug] = useState(defaultWorkspaceSlug ?? 'atlas');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

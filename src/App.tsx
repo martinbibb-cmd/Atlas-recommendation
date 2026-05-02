@@ -43,6 +43,7 @@ import { BrandProvider } from './features/branding/BrandProvider';
 import { StartVisitPanel } from './features/visits/StartVisitPanel';
 import { DEFAULT_BRAND_ID } from './features/branding/brandProfiles';
 import { TenantSettingsPage } from './features/tenants/TenantSettingsPage';
+import { useWorkspaceFromHost } from './features/tenants/useWorkspaceFromHost';
 import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
 import { generateReportTitle } from './lib/reports/generateReportTitle';
 import { generatePortalToken } from './lib/portal/portalToken';
@@ -626,6 +627,14 @@ export default function App() {
    * portal can validate the link.
    */
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
+
+  /**
+   * Resolves the active workspace from the browser host once on mount.
+   * Drives the host-brand fallback for BrandProvider and the default workspace
+   * selection in StartVisitPanel when accessed via a branded subdomain.
+   * Priority: active visit brandId > host workspace brandId > atlas-default.
+   */
+  const hostResolution = useWorkspaceFromHost();
 
   // ── Session persistence: write journey + visitId to versioned cache ────────
   // These effects run whenever journey or activeVisitId changes, keeping the
@@ -1302,9 +1311,12 @@ export default function App() {
         />
       )}
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
-      {/* Visit journey area — wrapped with BrandProvider (driven by activeAtlasVisit.brandId)
-           and VisitProvider to carry visit identity and brand context through the journey. */}
-      <BrandProvider brandId={activeAtlasVisit?.brandId ?? undefined}>
+      {/* Visit journey area — wrapped with BrandProvider driven by:
+           1. activeAtlasVisit.brandId (highest priority — active visit brand)
+           2. hostResolution.brandId   (host workspace brand — e.g. branded subdomain)
+           3. atlas-default            (BrandProvider's built-in fallback)
+           And VisitProvider to carry visit identity through the journey. */}
+      <BrandProvider brandId={activeAtlasVisit?.brandId ?? hostResolution.brandId}>
       <VisitProvider initialVisit={activeAtlasVisit}>
         {/* Visit Hub — shown when opening an existing visit */}
         {journey === 'visit-hub' && activeVisitId != null && (
@@ -1618,6 +1630,42 @@ export default function App() {
       )}
       {journey === 'landing' && (
         <div className="landing">
+          {/* Workspace host indicator — visible when the app is accessed via a
+               branded subdomain (e.g. demo-heating.atlas-phm.uk).  Confirms to
+               the engineer which workspace context is active before any visit
+               is created.  Dev mode also shows the raw host for diagnostics. */}
+          {hostResolution.source === 'host' && hostResolution.workspaceSlug !== undefined && (
+            <div
+              data-testid="workspace-host-indicator"
+              style={{
+                padding: '0.375rem 0.75rem',
+                background: '#f0fdf4',
+                border: '1px solid #86efac',
+                borderRadius: 6,
+                fontSize: '0.8125rem',
+                marginBottom: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.375rem',
+              }}
+            >
+              <span
+                data-testid="workspace-host-slug"
+                style={{ fontWeight: 600, color: '#166534', fontFamily: 'monospace' }}
+              >
+                {hostResolution.workspaceSlug}
+              </span>
+              <span style={{ color: '#64748b' }}>workspace</span>
+              {import.meta.env.DEV && (
+                <span
+                  data-testid="workspace-host-dev-info"
+                  style={{ marginLeft: 'auto', fontFamily: 'monospace', fontSize: '0.6875rem', color: '#94a3b8' }}
+                >
+                  host:{hostResolution.host} · src:{hostResolution.source}
+                </span>
+              )}
+            </div>
+          )}
           <div className="hero">
             <h1>
               Atlas Field Visits
@@ -1786,7 +1834,9 @@ export default function App() {
 
       {/* New-visit panel — shown when the user clicks "Start new visit".
            StartVisitPanel handles the API call and brand selection internally;
-           on success the visit (with brandId) is set as the active visit. */}
+           on success the visit (with brandId) is set as the active visit.
+           When the app is accessed via a branded subdomain, defaultWorkspaceSlug
+           pre-selects that workspace so the engineer does not have to choose it. */}
       {showNewVisitDialog && (
         <div
           style={{
@@ -1815,6 +1865,9 @@ export default function App() {
               onCancel={() => {
                 setShowNewVisitDialog(false);
               }}
+              defaultWorkspaceSlug={
+                hostResolution.source === 'host' ? hostResolution.workspaceSlug : undefined
+              }
             />
           </div>
         </div>

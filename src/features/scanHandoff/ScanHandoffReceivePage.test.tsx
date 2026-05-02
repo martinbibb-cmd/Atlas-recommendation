@@ -202,6 +202,25 @@ describe('ScanHandoffReceivePage — action buttons', () => {
   });
 });
 
+describe('ScanHandoffReceivePage — scan payload brand authority (host cannot override)', () => {
+  it('uses the payload brandId even when host would resolve a different brand', async () => {
+    // Payload has 'installer-demo' brand.  The page resolves brand from the
+    // parsed visit — it does not inspect window.location.host — so the payload
+    // brand always wins regardless of the subdomain.
+    renderWithPayload('installer-demo');
+    await waitFor(() => {
+      expect(screen.getByTestId('receive-scan-brand-name').textContent).toContain('Demo Heating Co');
+    });
+  });
+
+  it('uses atlas-default brand when payload brandId is atlas-default', async () => {
+    renderWithPayload('atlas-default');
+    await waitFor(() => {
+      expect(screen.getByTestId('receive-scan-brand-name').textContent).toContain('Atlas');
+    });
+  });
+});
+
 describe('ScanHandoffReceivePage — empty state', () => {
   it('shows empty state when no payload and no IDB file', async () => {
     Object.defineProperty(window, 'location', {
