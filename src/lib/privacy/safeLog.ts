@@ -70,7 +70,7 @@ export function safeStringify(value: unknown): string {
 
 /**
  * Strips http / https URIs from a plain string, replacing each match with
- * `[redacted]`.  Use this to sanitise Error messages before displaying or
+ * `[redacted]`.  Use this to sanitize Error messages before displaying or
  * logging them when the source of the error is unknown (e.g. global error
  * handlers and React error boundaries).
  */
