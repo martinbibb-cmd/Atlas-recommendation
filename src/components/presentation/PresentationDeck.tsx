@@ -59,6 +59,7 @@ import GeminiAISummary from './GeminiAISummary';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import CylinderComparePanel from '../physics-visuals/CylinderComparePanel';
 import ConvectionExplainer from '../visualizers/ConvectionExplainer';
+import { useOptionalBrandProfile, BrandLogo } from '../../features/branding';
 import './PresentationDeck.css';
 import type React from 'react';
 
@@ -1733,6 +1734,7 @@ export default function PresentationDeck({
   lockedSummary,
 }: PresentationDeckProps) {
   const reducedMotion = useReducedMotion();
+  const brand = useOptionalBrandProfile();
   const [currentIndex, setCurrentIndex] = useState(0);
   // Tracks which system option the user tapped on the Options page.
   // Rendered at this level so the modal can escape the transformed slide track.
@@ -2152,6 +2154,16 @@ export default function PresentationDeck({
       aria-roledescription="carousel"
       aria-label="Recommendation story deck"
     >
+
+      {/* ── Brand header band — visible when inside a BrandProvider ─── */}
+      {brand && (
+        <div className="atlas-presentation-deck__brand-band" data-testid="deck-brand-band">
+          <BrandLogo />
+          <span className="brand-company-name" data-testid="deck-brand-company">
+            {brand.companyName}
+          </span>
+        </div>
+      )}
 
       {/* ── Progress dots ───────────────────────────────────────── */}
       <nav className="atlas-presentation-deck__progress" aria-label="Deck navigation">

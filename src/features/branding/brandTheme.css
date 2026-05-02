@@ -35,3 +35,60 @@
   font-weight: 600;
   color: var(--atlas-brand-primary);
 }
+
+/* ── BrandedHeader ─────────────────────────────────────────────────────────── */
+
+.branded-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--atlas-brand-surface, #f8fafc);
+  border-bottom: 1px solid var(--atlas-brand-accent, #3b82f6);
+}
+
+.branded-header__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.branded-header__contact {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.branded-header__contact-item {
+  color: var(--atlas-brand-primary);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.branded-header__contact-item:hover {
+  text-decoration: underline;
+}
+
+/* ── BrandedFooter ─────────────────────────────────────────────────────────── */
+
+.branded-footer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: var(--atlas-brand-surface, #f8fafc);
+  border-top: 1px solid var(--atlas-brand-accent, #3b82f6);
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.branded-footer__address {
+  color: var(--atlas-brand-text, #0f172a);
+}
+
+.branded-footer__note {
+  color: var(--atlas-brand-text, #0f172a);
+  font-style: italic;
+}

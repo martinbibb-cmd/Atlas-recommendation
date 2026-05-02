@@ -28,4 +28,15 @@ export { resolveBrandProfile } from './resolveBrandProfile';
 // ─── React ────────────────────────────────────────────────────────────────────
 
 export { BrandProvider } from './BrandProvider';
-export { useBrandProfile } from './useBrandProfile';
+export { useBrandProfile, useOptionalBrandProfile } from './useBrandProfile';
+
+// ─── Output components ────────────────────────────────────────────────────────
+
+export { BrandLogo } from './BrandLogo';
+export { BrandedHeader } from './BrandedHeader';
+export { BrandedFooter } from './BrandedFooter';
+
+// ─── Output copy ──────────────────────────────────────────────────────────────
+
+export { getBrandCtaCopy } from './brandOutputCopy';
+export type { BrandCtaCopy } from './brandOutputCopy';

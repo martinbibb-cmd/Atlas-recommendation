@@ -97,3 +97,16 @@ export function deriveErpClass(nominalPct: number): ErpClass | null {
   if (nominalPct >= ERP_TO_NOMINAL_PCT.F) return 'F';
   return 'G';
 }
+
+// ─── Carbon intensity ────────────────────────────────────────────────────────
+
+/**
+ * Standard UK grid carbon intensity factor for natural gas (BEIS 2024).
+ *
+ * Units: kg CO₂ per kWh of gas consumed.
+ *
+ * Used by any surface that converts an energy saving in kWh into an estimated
+ * CO₂ reduction in kg or tonnes. All output surfaces (CustomerAdvicePrintPack,
+ * PDF exports) must import this constant rather than hard-coding the value.
+ */
+export const UK_GAS_CARBON_KG_PER_KWH = 0.183;
