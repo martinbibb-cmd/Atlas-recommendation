@@ -46,3 +46,24 @@ export { ActiveBrandBanner } from './ActiveBrandBanner';
 
 export { getBrandCtaCopy } from './brandOutputCopy';
 export type { BrandCtaCopy } from './brandOutputCopy';
+
+// ─── Brand profile store ──────────────────────────────────────────────────────
+
+export {
+  BRAND_PROFILE_STORE_KEY,
+  loadStoredBrandProfiles,
+  saveStoredBrandProfiles,
+  upsertStoredBrandProfile,
+  deleteStoredBrandProfile,
+  listStoredBrandProfiles,
+} from './brandProfileStore';
+
+// ─── Brand editor ─────────────────────────────────────────────────────────────
+
+export { BrandEditorPanel } from './BrandEditorPanel';
+export type { BrandEditorPanelProps } from './BrandEditorPanel';
+
+// ─── Brand preview ────────────────────────────────────────────────────────────
+
+export { BrandPreviewCard } from './BrandPreviewCard';
+export type { BrandPreviewCardProps } from './BrandPreviewCard';

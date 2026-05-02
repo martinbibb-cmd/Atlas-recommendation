@@ -50,3 +50,8 @@ export type { ResolveActiveTenantInput } from './activeTenant';
 
 export { WorkspaceSelector } from './WorkspaceSelector';
 export type { WorkspaceSelectorProps } from './WorkspaceSelector';
+
+// ─── Settings page ────────────────────────────────────────────────────────────
+
+export { TenantSettingsPage } from './TenantSettingsPage';
+export type { TenantSettingsPageProps } from './TenantSettingsPage';
