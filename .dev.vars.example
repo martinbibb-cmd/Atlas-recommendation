@@ -10,3 +10,16 @@
 # The key is stored as a Cloudflare secret (GRMINI_API_KEY) and is never
 # exposed to the client. Obtain a key from https://aistudio.google.com/
 # GRMINI_API_KEY=replace_me
+
+# ─── Storage adapter selector ────────────────────────────────────────────────
+# Controls which StorageAdapter is used for the tenants / brand-profiles /
+# visits / scan-captures collections (src/lib/storage/adapterFactory.ts).
+#
+# 'local'  (default) — browser localStorage / sessionStorage; no change to
+#           existing behaviour.  Safe for all local development.
+# 'd1'     — Cloudflare D1 adapter (src/lib/storage/d1Adapter.ts).  Requires
+#           the ATLAS_REPORTS_D1 binding to be present in the runtime context.
+#           Only activate when running `wrangler pages dev` against a real or
+#           local D1 database that has migrations 0013–0016 applied.
+#
+# VITE_STORAGE_ADAPTER=local
