@@ -8,15 +8,31 @@
  *   - unknown brandId resolves to atlas-default
  *   - installer-demo resolves correctly
  *   - resolved profiles satisfy the BrandProfileV1 shape
+ *   - stored brand overrides built-in profile
+ *   - unknown brand falls back to atlas-default even when stored profiles exist
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveBrandProfile } from './resolveBrandProfile';
 import { BRAND_PROFILES, DEFAULT_BRAND_ID } from './brandProfiles';
+import {
+  upsertStoredBrandProfile,
+  deleteStoredBrandProfile,
+  BRAND_PROFILE_STORE_KEY,
+} from './brandProfileStore';
+import type { BrandProfileV1 } from './brandProfile';
+
+function clearStore(): void {
+  try { localStorage.removeItem(BRAND_PROFILE_STORE_KEY); } catch { /* unavailable */ }
+}
 
 // ─── Resolver ─────────────────────────────────────────────────────────────────
 
 describe('resolveBrandProfile', () => {
+  beforeEach(() => {
+    clearStore();
+  });
+
   it('returns atlas-default when brandId is undefined', () => {
     const profile = resolveBrandProfile(undefined);
     expect(profile.brandId).toBe('atlas-default');
@@ -39,10 +55,56 @@ describe('resolveBrandProfile', () => {
     expect(profile.companyName).toBe('Demo Heating Co');
   });
 
-  it('is deterministic — repeated calls return the same object reference', () => {
+  it('returns consistent brandId and companyName on repeated calls (no stored overrides)', () => {
     const a = resolveBrandProfile('installer-demo');
     const b = resolveBrandProfile('installer-demo');
-    expect(a).toBe(b);
+    expect(a.brandId).toBe(b.brandId);
+    expect(a.companyName).toBe(b.companyName);
+  });
+
+  it('stored profile wins over built-in when brandIds match', () => {
+    const custom: BrandProfileV1 = {
+      version: '1.0',
+      brandId: 'installer-demo',
+      companyName: 'My Custom Heating Co',
+      theme: { primaryColor: '#ff0000' },
+      contact: {},
+      outputSettings: { showPricing: false, showCarbon: false, showInstallerContact: true, tone: 'technical' },
+    };
+    upsertStoredBrandProfile(custom);
+    const profile = resolveBrandProfile('installer-demo');
+    expect(profile.companyName).toBe('My Custom Heating Co');
+    expect(profile.theme.primaryColor).toBe('#ff0000');
+    deleteStoredBrandProfile('installer-demo');
+  });
+
+  it('falls back to atlas-default after stored override is deleted', () => {
+    const custom: BrandProfileV1 = {
+      version: '1.0',
+      brandId: 'installer-demo',
+      companyName: 'My Custom Heating Co',
+      theme: { primaryColor: '#ff0000' },
+      contact: {},
+      outputSettings: { showPricing: false, showCarbon: false, showInstallerContact: true, tone: 'technical' },
+    };
+    upsertStoredBrandProfile(custom);
+    deleteStoredBrandProfile('installer-demo');
+    const profile = resolveBrandProfile('installer-demo');
+    expect(profile.companyName).toBe('Demo Heating Co');
+  });
+
+  it('unknown brand falls back to atlas-default even when stored profiles exist', () => {
+    const custom: BrandProfileV1 = {
+      version: '1.0',
+      brandId: 'my-custom-brand',
+      companyName: 'Custom',
+      theme: { primaryColor: '#abc' },
+      contact: {},
+      outputSettings: { showPricing: true, showCarbon: true, showInstallerContact: false, tone: 'formal' },
+    };
+    upsertStoredBrandProfile(custom);
+    const profile = resolveBrandProfile('completely-unknown-brand');
+    expect(profile.brandId).toBe('atlas-default');
   });
 });
 

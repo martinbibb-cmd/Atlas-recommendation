@@ -42,6 +42,7 @@ import { retrieveActiveVisit, storeActiveVisit } from './features/visits/visitSt
 import { BrandProvider } from './features/branding/BrandProvider';
 import { StartVisitPanel } from './features/visits/StartVisitPanel';
 import { DEFAULT_BRAND_ID } from './features/branding/brandProfiles';
+import { TenantSettingsPage } from './features/tenants/TenantSettingsPage';
 import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
 import { generateReportTitle } from './lib/reports/generateReportTitle';
 import { generatePortalToken } from './lib/portal/portalToken';
@@ -280,6 +281,14 @@ const INSIGHT_PACK_ENABLED =
 const INTERNAL_PRINT_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('internal') === '1';
+
+/**
+ * Detect ?brand-settings=1 — renders the Workspace Branding settings page.
+ * Allows an installer/workspace admin to edit their Atlas brand locally.
+ */
+const BRAND_SETTINGS_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('brand-settings') === '1';
 
 /**
  * Detect ?cacheBust=1 — clears all Atlas-owned localStorage keys and reloads
@@ -1187,6 +1196,13 @@ export default function App() {
     );
   }
 
+  // ?brand-settings=1 — render Workspace Branding settings page.
+  if (BRAND_SETTINGS_ENABLED) {
+    return (
+      <TenantSettingsPage onBack={() => { window.location.href = window.location.pathname; }} />
+    );
+  }
+
   // ?lab=1 feature flag — render Demo Lab directly.
   if (LAB_MODE_ENABLED) {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
@@ -1688,6 +1704,18 @@ export default function App() {
               <h2>Visit Workspaces</h2>
               <p>Import, review, and export scan captures — stored locally or on Drive. No DB write until you publish.</p>
               <button className="cta-btn">Open Workspaces →</button>
+            </div>
+
+            {/* Workspace Branding — local brand editor */}
+            <div
+              id="workspace-branding-card"
+              className="journey-card"
+              onClick={() => { window.location.href = `${window.location.pathname}?brand-settings=1`; }}
+            >
+              <div className="card-icon">🎨</div>
+              <h2>Workspace Branding</h2>
+              <p>Edit your company name, colours, and contact details for Atlas outputs. Saved locally.</p>
+              <button className="cta-btn">Open Branding →</button>
             </div>
 
             {/* Tools — standalone utilities */}
