@@ -8,19 +8,11 @@
  *
  * Storage strategy
  * ────────────────
- * - Primary:  localStorage (survives page reload and tab close — appropriate
- *             for persisting received scan evidence between sessions).
- * - Fallback: sessionStorage (used when localStorage is unavailable, e.g.
- *             private browsing with storage disabled).
- * - Reads are defensive: malformed or missing data returns null / empty.
+ * All reads and writes are delegated to localAdapter (LocalStorageAdapter),
+ * which targets localStorage for the scanCaptures collection (persists across
+ * sessions) with a sessionStorage fallback when localStorage is unavailable.
  *
  * Storage key:  atlas:scan-handoffs:v1
- *
- * Store shape:
- *   {
- *     schemaVersion: 1,
- *     capturesByVisitId: Record<string, SessionCaptureV2>
- *   }
  *
  * Design rules
  * ────────────
@@ -31,68 +23,12 @@
  */
 
 import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
+import { localAdapter } from '../../lib/storage/localStorageAdapter';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+/** Storage key used by the underlying adapter for the scanCaptures collection. */
 export const SCAN_HANDOFF_STORAGE_KEY = 'atlas:scan-handoffs:v1';
-
-const SCHEMA_VERSION = 1 as const;
-
-// ─── Store shape ──────────────────────────────────────────────────────────────
-
-interface ScanHandoffStoreShape {
-  schemaVersion: typeof SCHEMA_VERSION;
-  capturesByVisitId: Record<string, SessionCaptureV2>;
-}
-
-// ─── Storage access helpers ───────────────────────────────────────────────────
-
-function getStorage(): Storage | null {
-  try {
-    // Prefer localStorage so captures persist across sessions.
-    if (typeof localStorage !== 'undefined') return localStorage;
-  } catch {
-    // localStorage may throw in some environments.
-  }
-  try {
-    if (typeof sessionStorage !== 'undefined') return sessionStorage;
-  } catch {
-    // sessionStorage also unavailable.
-  }
-  return null;
-}
-
-// ─── Store read / write helpers ───────────────────────────────────────────────
-
-function readStore(): ScanHandoffStoreShape {
-  const storage = getStorage();
-  if (!storage) {
-    return { schemaVersion: SCHEMA_VERSION, capturesByVisitId: {} };
-  }
-  try {
-    const raw = storage.getItem(SCAN_HANDOFF_STORAGE_KEY);
-    if (!raw) return { schemaVersion: SCHEMA_VERSION, capturesByVisitId: {} };
-    const parsed = JSON.parse(raw) as Partial<ScanHandoffStoreShape>;
-    if (
-      typeof parsed !== 'object' ||
-      parsed === null ||
-      parsed.schemaVersion !== SCHEMA_VERSION ||
-      typeof parsed.capturesByVisitId !== 'object' ||
-      parsed.capturesByVisitId === null
-    ) {
-      return { schemaVersion: SCHEMA_VERSION, capturesByVisitId: {} };
-    }
-    return parsed as ScanHandoffStoreShape;
-  } catch {
-    return { schemaVersion: SCHEMA_VERSION, capturesByVisitId: {} };
-  }
-}
-
-function writeStore(store: ScanHandoffStoreShape): void {
-  const storage = getStorage();
-  if (!storage) return;
-  storage.setItem(SCAN_HANDOFF_STORAGE_KEY, JSON.stringify(store));
-}
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -107,9 +43,7 @@ export function storeScanCapture(
   visitId: string,
   capture: SessionCaptureV2,
 ): void {
-  const store = readStore();
-  store.capturesByVisitId[visitId] = capture;
-  writeStore(store);
+  localAdapter.upsertSync('scanCaptures', visitId, capture);
 }
 
 /**
@@ -118,8 +52,7 @@ export function storeScanCapture(
  * Returns null when no capture has been stored for that visit.
  */
 export function getScanCapture(visitId: string): SessionCaptureV2 | null {
-  const store = readStore();
-  return store.capturesByVisitId[visitId] ?? null;
+  return localAdapter.getSync('scanCaptures', visitId);
 }
 
 /**
@@ -128,13 +61,7 @@ export function getScanCapture(visitId: string): SessionCaptureV2 | null {
  * Silently no-ops when no capture exists for that visitId.
  */
 export function removeScanCapture(visitId: string): void {
-  try {
-    const store = readStore();
-    delete store.capturesByVisitId[visitId];
-    writeStore(store);
-  } catch {
-    // Best effort.
-  }
+  localAdapter.deleteSync('scanCaptures', visitId);
 }
 
 /**
@@ -142,7 +69,7 @@ export function removeScanCapture(visitId: string): void {
  * Returns an empty object when the store is empty or unavailable.
  */
 export function listScanCaptures(): Record<string, SessionCaptureV2> {
-  return { ...readStore().capturesByVisitId };
+  return localAdapter.readAllSync('scanCaptures');
 }
 
 /**
@@ -150,10 +77,6 @@ export function listScanCaptures(): Record<string, SessionCaptureV2> {
  * Used by cache-bust and test teardown.
  */
 export function clearScanHandoffStore(): void {
-  try {
-    const storage = getStorage();
-    storage?.removeItem(SCAN_HANDOFF_STORAGE_KEY);
-  } catch {
-    // Best effort.
-  }
+  localAdapter.clearSync('scanCaptures');
 }
+

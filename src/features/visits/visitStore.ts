@@ -3,73 +3,74 @@
  *
  * Visit storage helpers for Atlas Mind.
  *
- * Persists and retrieves the active AtlasVisit from sessionStorage so that a
- * page reload within the same browser tab can restore the in-progress visit.
+ * Persists and retrieves the active AtlasVisit so that a page reload within
+ * the same browser tab can restore the in-progress visit.
+ *
+ * Storage strategy
+ * ────────────────
+ * All reads and writes are delegated to localAdapter (LocalStorageAdapter),
+ * which targets sessionStorage for the visits collection.  The tab-scoped
+ * nature of sessionStorage ensures the visit is cleared automatically when
+ * the tab is closed.
+ *
+ * The active visit is stored under the reserved id 'active' within the
+ * visits collection.
  *
  * Design rules
  * ────────────
  * - sessionStorage scope: cleared automatically when the tab is closed.
- * - Reads are defensive: malformed or missing data returns null.
+ * - Reads are defensive: missing or invalid data returns null.
  * - No React dependencies — pure storage functions usable anywhere.
  */
 
 import type { AtlasVisit } from './createAtlasVisit';
+import { localAdapter } from '../../lib/storage/localStorageAdapter';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STORAGE_KEY = 'atlas_mind_active_visit_v1';
+/** Reserved id used to address the single active visit in the visits collection. */
+const ACTIVE_VISIT_ID = 'active' as const;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Persists an AtlasVisit to sessionStorage.
- * Silently no-ops if sessionStorage is unavailable (e.g. SSR, private browsing with
- * storage disabled).
+ * Persists an AtlasVisit to the visits collection.
+ * Silently no-ops if the underlying storage is unavailable.
  */
 export function storeActiveVisit(visit: AtlasVisit): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(visit));
+    localAdapter.upsertSync('visits', ACTIVE_VISIT_ID, visit);
   } catch {
     // Storage quota exceeded or unavailable — best effort.
   }
 }
 
 /**
- * Retrieves the previously stored AtlasVisit from sessionStorage.
+ * Retrieves the previously stored AtlasVisit.
  *
  * Returns null when:
  *  - No value has been stored yet.
- *  - The stored value is not valid JSON.
- *  - The parsed value is missing required `visitId` or `brandId` fields.
+ *  - The stored value is missing required `visitId` or `brandId` fields.
  */
 export function retrieveActiveVisit(): AtlasVisit | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<AtlasVisit>;
-    if (!parsed || typeof parsed !== 'object') return null;
-    if (
-      typeof parsed.visitId !== 'string' ||
-      parsed.visitId.trim().length === 0 ||
-      typeof parsed.brandId !== 'string' ||
-      parsed.brandId.trim().length === 0
-    ) {
-      return null;
-    }
-    return parsed as AtlasVisit;
-  } catch {
+  const visit = localAdapter.getSync('visits', ACTIVE_VISIT_ID);
+  if (!visit) return null;
+  if (
+    typeof visit.visitId !== 'string' ||
+    visit.visitId.trim().length === 0 ||
+    typeof visit.brandId !== 'string' ||
+    visit.brandId.trim().length === 0
+  ) {
     return null;
   }
+  return visit;
 }
 
 /**
- * Removes the stored AtlasVisit from sessionStorage.
+ * Removes the stored AtlasVisit.
  * Called when the engineer ends or discards the active visit.
  */
 export function clearActiveVisit(): void {
-  try {
-    sessionStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Storage unavailable — best effort.
-  }
+  localAdapter.deleteSync('visits', ACTIVE_VISIT_ID);
 }
+
