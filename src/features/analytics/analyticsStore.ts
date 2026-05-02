@@ -69,6 +69,9 @@ function readEvents(): AnalyticsEventV1[] {
       parsed === null ||
       parsed['schemaVersion'] !== SCHEMA_VERSION
     ) {
+      // Schema version mismatch — discard stale data rather than corrupt the store.
+      // When a future schema migration is introduced this block should be replaced
+      // with an upgrade path that transforms the old envelope into the new shape.
       return [];
     }
     const events = parsed['events'];

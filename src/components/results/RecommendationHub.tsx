@@ -1063,6 +1063,11 @@ export default function RecommendationHub({ result, input }: Props) {
   const analyticsVisitId = visitCtx?.activeVisit?.visitId;
 
   // Fire recommendation_viewed once on mount.
+  // The intent is to record a single "page viewed" event per render of this
+  // component.  Dependency changes (e.g. visitId or option list refreshing)
+  // should NOT re-fire the event because the engineer has not navigated away
+  // and back.  The eslint-disable comment suppresses the exhaustive-deps
+  // warning that would otherwise flag this intentional empty deps array.
   useEffect(() => {
     if (!analyticsVisitId) return;
     const scenarioIds: string[] = [];
@@ -1073,7 +1078,6 @@ export default function RecommendationHub({ result, input }: Props) {
       if (!scenarioIds.includes(option.id)) scenarioIds.push(option.id);
     }
     trackRecommendationViewed(analyticsVisitId, scenarioIds);
-    // Intentionally only fires on mount; deps array is empty.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

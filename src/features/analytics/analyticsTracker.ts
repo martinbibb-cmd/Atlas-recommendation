@@ -22,12 +22,16 @@ import type { AtlasVisit } from '../visits/createAtlasVisit';
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
+/** Monotonic counter for fallback ID generation — avoids collisions. */
+let _fallbackCounter = 0;
+
 function generateEventId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
   // Fallback for environments without crypto.randomUUID (e.g. old jsdom).
-  return `evt_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
+  // Uses timestamp + monotonic counter to guarantee uniqueness within the session.
+  return `evt_${Date.now()}_${(_fallbackCounter++).toString(36)}`;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
