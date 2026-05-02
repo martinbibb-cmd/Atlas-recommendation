@@ -33,6 +33,7 @@ export const ALL_COLLECTIONS: readonly StorageCollectionName[] = [
   'brandProfiles',
   'visits',
   'scanCaptures',
+  'visitManifests',
 ] as const;
 
 // ─── Diagnostic types ─────────────────────────────────────────────────────────

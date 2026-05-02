@@ -98,6 +98,7 @@ import {
 } from './lib/storage/atlasCacheKeys';
 import { trackVisitCompleted } from './features/analytics/analyticsTracker';
 import AnalyticsDashboard from './features/analytics/AnalyticsDashboard';
+import { ExternalVisitManifestPanel } from './features/externalFiles/ExternalVisitManifestPanel';
 import './App.css';
 
 /**
@@ -361,7 +362,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -1379,6 +1380,7 @@ export default function App() {
             onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
             onImportScan={() => setJourney('receive-scan')}
+            onOpenExternalFiles={() => setJourney('external-files')}
           />
         )}
         {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
@@ -1389,6 +1391,14 @@ export default function App() {
           <ReceiveScanPage
             onImported={() => { window.location.href = '/workspace'; }}
             onCancel={() => setJourney('visit-hub')}
+          />
+        )}
+        {/* External visit file manifest — opened from Visit Hub to attach file references. */}
+        {journey === 'external-files' && activeVisitId != null && (
+          <ExternalVisitManifestPanel
+            visitId={activeVisitId}
+            tenantId={hostResolution.workspaceSlug ?? 'default'}
+            onClose={() => setJourney('visit-hub')}
           />
         )}
         {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
