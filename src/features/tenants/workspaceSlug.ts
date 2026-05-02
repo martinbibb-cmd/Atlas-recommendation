@@ -56,10 +56,9 @@ export function normaliseWorkspaceSlug(input: string): string {
 export function isValidWorkspaceSlug(slug: string): boolean {
   if (typeof slug !== 'string') return false;
   if (slug.length < 3 || slug.length > 40) return false;
-  // Must start and end with a letter/digit; interior may contain hyphens.
-  // Length is already checked above (3–40), so the ≥ 2-char requirement of
-  // this pattern is always satisfied at this point.
-  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
+  // Must start with a letter/digit; if longer than 1 char, must also end with
+  // a letter/digit (no leading/trailing hyphens).  Interior may contain hyphens.
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(slug)) {
     return false;
   }
   if (RESERVED_SLUGS.has(slug)) return false;
@@ -81,7 +80,7 @@ export function assertValidWorkspaceSlug(slug: string): void {
   if (slug.length > 40) {
     throw new Error('Workspace slug must be no more than 40 characters long.');
   }
-  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(slug)) {
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(slug)) {
     throw new Error(
       'Workspace slug may only contain lowercase letters, numbers, and hyphens, ' +
         'and must not start or end with a hyphen.',

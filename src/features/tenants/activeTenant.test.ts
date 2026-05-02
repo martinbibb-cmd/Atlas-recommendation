@@ -107,7 +107,7 @@ describe('resolveActiveTenant', () => {
     expect(tenant.brandId).toBe('my-brand');
   });
 
-  it('fallback atlas tenant is the active is atlas', () => {
+  it('fallback atlas tenant brand is atlas-default', () => {
     const tenant = resolveActiveTenant({});
     expect(tenant.brandId).toBe('atlas-default');
   });
