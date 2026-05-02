@@ -1,0 +1,404 @@
+/**
+ * CustomerPackV1View.css
+ *
+ * Mind PR 35 — Print-first layout for CustomerPackV1View.
+ *
+ * Screen: toolbar + white A4-shaped page cards with drop shadow.
+ * Print:  toolbar hidden, page-break-after each section, A4 safe margins.
+ *
+ * Naming prefix: cpv1- (Customer Pack V1 View)
+ *
+ * Design rules:
+ *  - No Math.random()-based or JS-injected styles.
+ *  - Brand colours consumed via CSS custom properties from BrandProvider
+ *    (--atlas-brand-primary, --atlas-brand-secondary, --atlas-brand-text).
+ *  - Fallback tokens defined in :root for non-branded use.
+ *  - A4 page: 210 mm wide, min-height 267 mm with 10 mm margins.
+ */
+
+/* ─── Fallback tokens ─────────────────────────────────────────────────────── */
+
+:root {
+  --cpv1-primary:      var(--atlas-brand-primary,  #276749);
+  --cpv1-secondary:    var(--atlas-brand-secondary, #2b6cb0);
+  --cpv1-text:         var(--atlas-brand-text,      #1a202c);
+  --cpv1-muted:        #718096;
+  --cpv1-border:       #e2e8f0;
+  --cpv1-bg-light:     #f7fafc;
+  --cpv1-amber:        #b7791f;
+  --cpv1-amber-light:  #fffbeb;
+  --cpv1-green-light:  #f0fdf4;
+  --cpv1-font:         system-ui, -apple-system, 'Inter', 'Segoe UI', sans-serif;
+  --cpv1-radius:       8px;
+  --cpv1-page-width:   210mm;
+  --cpv1-page-min-h:   267mm;
+  --cpv1-page-pad:     12mm 14mm;
+}
+
+/* ─── Outer wrapper ───────────────────────────────────────────────────────── */
+
+.cpv1-wrap {
+  background: #e2e8f0;
+  min-height: 100vh;
+  padding: 1rem;
+  font-family: var(--cpv1-font);
+  color: var(--cpv1-text);
+  box-sizing: border-box;
+}
+
+/* ─── Screen toolbar ──────────────────────────────────────────────────────── */
+
+.cpv1-toolbar {
+  display:        flex;
+  align-items:    center;
+  gap:            0.75rem;
+  max-width:      var(--cpv1-page-width);
+  margin:         0 auto 1rem;
+  flex-wrap:      wrap;
+}
+
+.cpv1-toolbar__back {
+  background:    none;
+  border:        1px solid var(--cpv1-border);
+  border-radius: var(--cpv1-radius);
+  padding:       0.4rem 0.9rem;
+  cursor:        pointer;
+  font-size:     0.85rem;
+  color:         var(--cpv1-muted);
+}
+
+.cpv1-toolbar__print {
+  background:    var(--cpv1-primary);
+  color:         #fff;
+  border:        none;
+  border-radius: var(--cpv1-radius);
+  padding:       0.4rem 0.9rem;
+  cursor:        pointer;
+  font-size:     0.85rem;
+  font-weight:   600;
+}
+
+.cpv1-toolbar__title {
+  font-size:   0.8rem;
+  color:       var(--cpv1-muted);
+  margin-left: auto;
+}
+
+/* ─── Document wrapper ────────────────────────────────────────────────────── */
+
+.cpv1-document {
+  max-width: var(--cpv1-page-width);
+  margin:    0 auto;
+}
+
+/* ─── A4 page card ────────────────────────────────────────────────────────── */
+
+.cpv1-page {
+  background:    #fff;
+  border-radius: var(--cpv1-radius);
+  box-shadow:    0 2px 12px rgba(0, 0, 0, 0.10);
+  min-height:    var(--cpv1-page-min-h);
+  padding:       var(--cpv1-page-pad);
+  margin-bottom: 1.5rem;
+  page-break-after: always;
+  box-sizing:    border-box;
+}
+
+.cpv1-page:last-child {
+  margin-bottom: 0;
+}
+
+/* ─── Section headings ────────────────────────────────────────────────────── */
+
+.cpv1-section-label {
+  font-size:      0.65rem;
+  font-weight:    700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color:          var(--cpv1-primary);
+  margin:         0 0 0.3rem;
+}
+
+.cpv1-heading {
+  font-size:   1.4rem;
+  font-weight: 700;
+  color:       var(--cpv1-text);
+  margin:      0 0 0.5rem;
+  line-height: 1.25;
+}
+
+.cpv1-subheading {
+  font-size:   0.95rem;
+  font-weight: 600;
+  color:       var(--cpv1-text);
+  margin:      0 0 0.4rem;
+}
+
+.cpv1-body {
+  font-size:   0.9rem;
+  line-height: 1.55;
+  color:       var(--cpv1-text);
+  margin:      0 0 0.75rem;
+}
+
+/* ─── Section 1 — Decision ────────────────────────────────────────────────── */
+
+.cpv1-decision {
+  border-left:  3px solid var(--cpv1-primary);
+  padding-left: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cpv1-decision__system-label {
+  font-size:   0.8rem;
+  font-weight: 600;
+  color:       var(--cpv1-primary);
+  margin:      0 0 0.25rem;
+}
+
+.cpv1-decision__headline {
+  font-size:   1.5rem;
+  font-weight: 700;
+  color:       var(--cpv1-text);
+  margin:      0 0 0.6rem;
+  line-height: 1.2;
+}
+
+.cpv1-decision__summary {
+  font-size:   0.95rem;
+  line-height: 1.55;
+  color:       var(--cpv1-text);
+  margin:      0;
+}
+
+/* ─── Section 2 — Why this works ─────────────────────────────────────────── */
+
+.cpv1-why-list {
+  list-style:    none;
+  padding:       0;
+  margin:        0;
+}
+
+.cpv1-why-list__item {
+  display:     flex;
+  gap:         0.5rem;
+  align-items: flex-start;
+  font-size:   0.9rem;
+  line-height: 1.5;
+  margin-bottom: 0.4rem;
+}
+
+.cpv1-why-list__check {
+  color:       var(--cpv1-primary);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ─── Section 3 — Anti-default ────────────────────────────────────────────── */
+
+.cpv1-anti-default {
+  background:    var(--cpv1-bg-light);
+  border:        1px solid var(--cpv1-border);
+  border-radius: var(--cpv1-radius);
+  padding:       0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.cpv1-anti-default__narrative {
+  font-size:   0.9rem;
+  line-height: 1.55;
+  color:       var(--cpv1-text);
+  margin:      0 0 0.6rem;
+}
+
+.cpv1-anti-default__evidence {
+  list-style:  none;
+  padding:     0;
+  margin:      0;
+}
+
+.cpv1-anti-default__evidence-item {
+  font-size:     0.85rem;
+  line-height:   1.5;
+  color:         var(--cpv1-text);
+  padding-left:  1rem;
+  margin-bottom: 0.25rem;
+  position:      relative;
+}
+
+.cpv1-anti-default__evidence-item::before {
+  content:     '·';
+  position:    absolute;
+  left:        0;
+  color:       var(--cpv1-muted);
+}
+
+/* ─── Sections 4 & 5 — Daily benefits & full system ─────────────────────── */
+
+.cpv1-outcomes-list,
+.cpv1-scope-list {
+  list-style:    none;
+  padding:       0;
+  margin:        0;
+}
+
+.cpv1-outcomes-list__item,
+.cpv1-scope-list__item {
+  font-size:     0.9rem;
+  line-height:   1.5;
+  padding-left:  1.25rem;
+  margin-bottom: 0.3rem;
+  position:      relative;
+}
+
+.cpv1-outcomes-list__item::before {
+  content:  '✓';
+  position: absolute;
+  left:     0;
+  color:    var(--cpv1-primary);
+  font-size: 0.8rem;
+}
+
+.cpv1-scope-list__item::before {
+  content:  '■';
+  position: absolute;
+  left:     0;
+  color:    var(--cpv1-secondary);
+  font-size: 0.6rem;
+  top:      0.3em;
+}
+
+/* Required works sub-list */
+.cpv1-works-list {
+  list-style:  disc;
+  padding-left: 1.25rem;
+  margin:      0.3rem 0 0;
+}
+
+.cpv1-works-list__item {
+  font-size:     0.85rem;
+  line-height:   1.5;
+  margin-bottom: 0.2rem;
+}
+
+/* Compatibility notes */
+.cpv1-compat-notes {
+  margin-top: 0.75rem;
+}
+
+.cpv1-compat-note {
+  font-size:     0.85rem;
+  line-height:   1.5;
+  color:         var(--cpv1-amber);
+  padding-left:  1.25rem;
+  margin-bottom: 0.25rem;
+  position:      relative;
+}
+
+.cpv1-compat-note::before {
+  content:  '!';
+  position: absolute;
+  left:     0;
+  font-weight: 700;
+}
+
+/* ─── Section 6 — Daily use ──────────────────────────────────────────────── */
+
+.cpv1-guidance-list {
+  list-style:  none;
+  padding:     0;
+  margin:      0;
+}
+
+.cpv1-guidance-list__item {
+  font-size:     0.9rem;
+  line-height:   1.55;
+  padding:       0.4rem 0.6rem;
+  border-left:   2px solid var(--cpv1-border);
+  margin-bottom: 0.4rem;
+  color:         var(--cpv1-text);
+}
+
+/* ─── Section 7 — Future path ────────────────────────────────────────────── */
+
+.cpv1-future-list {
+  list-style:  none;
+  padding:     0;
+  margin:      0;
+}
+
+.cpv1-future-list__item {
+  font-size:     0.9rem;
+  line-height:   1.5;
+  padding-left:  1.25rem;
+  margin-bottom: 0.3rem;
+  position:      relative;
+  color:         var(--cpv1-text);
+}
+
+.cpv1-future-list__item::before {
+  content:  '→';
+  position: absolute;
+  left:     0;
+  color:    var(--cpv1-secondary);
+}
+
+/* ─── Section 8 — Close / CTA ─────────────────────────────────────────────── */
+
+.cpv1-close {
+  border:        1px solid var(--cpv1-border);
+  border-radius: var(--cpv1-radius);
+  padding:       1rem;
+  background:    var(--cpv1-green-light);
+}
+
+.cpv1-close__next-step {
+  font-size:   0.9rem;
+  line-height: 1.55;
+  color:       var(--cpv1-text);
+  margin:      0 0 0.75rem;
+}
+
+.cpv1-close__portal-link {
+  display:       block;
+  font-size:     0.85rem;
+  color:         var(--cpv1-secondary);
+  word-break:    break-all;
+  margin-bottom: 0.35rem;
+}
+
+.cpv1-close__portal-placeholder {
+  font-size:  0.85rem;
+  color:      var(--cpv1-muted);
+  font-style: italic;
+}
+
+/* ─── Print rules ─────────────────────────────────────────────────────────── */
+
+@media print {
+  .cpv1-wrap {
+    background: #fff;
+    padding:    0;
+  }
+
+  .cpv1-toolbar {
+    display: none;
+  }
+
+  .cpv1-document {
+    max-width: 100%;
+  }
+
+  .cpv1-page {
+    box-shadow:    none;
+    border-radius: 0;
+    margin-bottom: 0;
+    padding:       10mm 14mm;
+    min-height:    auto;
+    page-break-after: always;
+  }
+
+  .cpv1-page:last-child {
+    page-break-after: avoid;
+  }
+}
