@@ -55,6 +55,18 @@ export interface RecommendationSelectedEvent extends AnalyticsEventBaseV1 {
   selectedScenarioId: string;
 }
 
+export interface QuoteMarkedWonEvent extends AnalyticsEventBaseV1 {
+  eventType: 'quote_marked_won';
+}
+
+export interface QuoteMarkedLostEvent extends AnalyticsEventBaseV1 {
+  eventType: 'quote_marked_lost';
+}
+
+export interface QuoteFollowUpRequiredEvent extends AnalyticsEventBaseV1 {
+  eventType: 'quote_follow_up_required';
+}
+
 // ─── Union ────────────────────────────────────────────────────────────────────
 
 export type AnalyticsEventV1 =
@@ -62,4 +74,7 @@ export type AnalyticsEventV1 =
   | VisitCompletedEvent
   | VisitAbandonedEvent
   | RecommendationViewedEvent
-  | RecommendationSelectedEvent;
+  | RecommendationSelectedEvent
+  | QuoteMarkedWonEvent
+  | QuoteMarkedLostEvent
+  | QuoteFollowUpRequiredEvent;

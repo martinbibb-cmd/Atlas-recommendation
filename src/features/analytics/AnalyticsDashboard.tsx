@@ -206,6 +206,11 @@ export default function AnalyticsDashboard({ tenantId, onBack }: AnalyticsDashbo
       .map(([scenarioId, count]) => ({ scenarioId, count }))
       .sort((a, b) => b.count - a.count);
 
+    const wonJobs = aggregates.reduce((s, a) => s + a.wonJobs, 0);
+    const lostJobs = aggregates.reduce((s, a) => s + a.lostJobs, 0);
+    const followUpCount = aggregates.reduce((s, a) => s + a.followUpCount, 0);
+    const closeRate = wonJobs + lostJobs > 0 ? wonJobs / (wonJobs + lostJobs) : 0;
+
     return {
       tenantId: tenantId ?? undefined,
       visitsCreated,
@@ -217,6 +222,10 @@ export default function AnalyticsDashboard({ tenantId, onBack }: AnalyticsDashbo
       recommendationViews,
       recommendationSelections,
       topSelectedScenarioIds,
+      wonJobs,
+      lostJobs,
+      followUpCount,
+      closeRate,
     };
   }, [aggregates, tenantId]);
 
@@ -402,6 +411,14 @@ export default function AnalyticsDashboard({ tenantId, onBack }: AnalyticsDashbo
             value={top ? top.scenarioId : '—'}
             sub={top ? `${top.count} selection${top.count !== 1 ? 's' : ''}` : undefined}
           />
+          <KpiTile
+            label="Close rate"
+            value={formatPct(summary.closeRate)}
+            sub={`${summary.wonJobs} won / ${summary.lostJobs} lost`}
+          />
+          <KpiTile label="Won jobs" value={summary.wonJobs} />
+          <KpiTile label="Lost jobs" value={summary.lostJobs} />
+          <KpiTile label="Follow-ups" value={summary.followUpCount} />
         </div>
 
         {/* Export bar */}

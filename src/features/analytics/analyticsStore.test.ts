@@ -279,6 +279,10 @@ describe('No payload leakage', () => {
     expect(keys).toContain('recommendationViews');
     expect(keys).toContain('recommendationSelections');
     expect(keys).toContain('topSelectedScenarioIds');
+    expect(keys).toContain('wonJobs');
+    expect(keys).toContain('lostJobs');
+    expect(keys).toContain('followUpCount');
+    expect(keys).toContain('closeRate');
 
     // Never present
     expect(keys).not.toContain('surveyData');
@@ -286,5 +290,115 @@ describe('No payload leakage', () => {
     expect(keys).not.toContain('name');
     expect(keys).not.toContain('heatLoss');
     expect(keys).not.toContain('visitDetails');
+  });
+});
+
+// ─── Conversion / close-rate tracking ─────────────────────────────────────────
+
+function makeQuoteMarkedWon(visitId: string, tenantId?: string) {
+  return {
+    eventId: `evt_won_${visitId}`,
+    eventType: 'quote_marked_won' as const,
+    visitId,
+    tenantId,
+    createdAt: '2026-01-01T11:00:00.000Z',
+  };
+}
+
+function makeQuoteMarkedLost(visitId: string, tenantId?: string) {
+  return {
+    eventId: `evt_lost_${visitId}`,
+    eventType: 'quote_marked_lost' as const,
+    visitId,
+    tenantId,
+    createdAt: '2026-01-01T11:00:00.000Z',
+  };
+}
+
+function makeQuoteFollowUpRequired(visitId: string, tenantId?: string) {
+  return {
+    eventId: `evt_followup_${visitId}`,
+    eventType: 'quote_follow_up_required' as const,
+    visitId,
+    tenantId,
+    createdAt: '2026-01-01T11:00:00.000Z',
+  };
+}
+
+describe('aggregateByTenant — conversion tracking', () => {
+  it('counts wonJobs correctly', () => {
+    trackEvent(makeQuoteMarkedWon('v1', 'tenant_a'));
+    trackEvent(makeQuoteMarkedWon('v2', 'tenant_a'));
+    const [agg] = aggregateByTenant();
+    expect(agg.wonJobs).toBe(2);
+  });
+
+  it('counts lostJobs correctly', () => {
+    trackEvent(makeQuoteMarkedLost('v1', 'tenant_a'));
+    const [agg] = aggregateByTenant();
+    expect(agg.lostJobs).toBe(1);
+  });
+
+  it('counts followUpCount correctly', () => {
+    trackEvent(makeQuoteFollowUpRequired('v1', 'tenant_a'));
+    trackEvent(makeQuoteFollowUpRequired('v2', 'tenant_a'));
+    trackEvent(makeQuoteFollowUpRequired('v3', 'tenant_a'));
+    const [agg] = aggregateByTenant();
+    expect(agg.followUpCount).toBe(3);
+  });
+
+  it('computes closeRate as won / (won + lost)', () => {
+    trackEvent(makeQuoteMarkedWon('v1', 'tenant_a'));
+    trackEvent(makeQuoteMarkedWon('v2', 'tenant_a'));
+    trackEvent(makeQuoteMarkedWon('v3', 'tenant_a'));
+    trackEvent(makeQuoteMarkedLost('v4', 'tenant_a'));
+    const [agg] = aggregateByTenant();
+    expect(agg.wonJobs).toBe(3);
+    expect(agg.lostJobs).toBe(1);
+    expect(agg.closeRate).toBe(0.75);
+  });
+
+  it('closeRate is 0 when no won or lost events', () => {
+    trackEvent(makeVisitCreated('v1', 'tenant_a'));
+    const [agg] = aggregateByTenant();
+    expect(agg.closeRate).toBe(0);
+  });
+
+  it('closeRate is 0 when only lost events (no wins)', () => {
+    trackEvent(makeQuoteMarkedLost('v1', 'tenant_a'));
+    trackEvent(makeQuoteMarkedLost('v2', 'tenant_a'));
+    const [agg] = aggregateByTenant();
+    expect(agg.closeRate).toBe(0);
+  });
+
+  it('closeRate is 1 when only won events (no losses)', () => {
+    trackEvent(makeQuoteMarkedWon('v1', 'tenant_a'));
+    const [agg] = aggregateByTenant();
+    expect(agg.closeRate).toBe(1);
+  });
+
+  it('scopes conversion events per tenant', () => {
+    trackEvent(makeQuoteMarkedWon('v1', 'tenant_a'));
+    trackEvent(makeQuoteMarkedWon('v2', 'tenant_a'));
+    trackEvent(makeQuoteMarkedLost('v3', 'tenant_b'));
+
+    const aggs = aggregateByTenant();
+    const a = aggs.find((x) => x.tenantId === 'tenant_a')!;
+    const b = aggs.find((x) => x.tenantId === 'tenant_b')!;
+
+    expect(a.wonJobs).toBe(2);
+    expect(a.lostJobs).toBe(0);
+    expect(b.wonJobs).toBe(0);
+    expect(b.lostJobs).toBe(1);
+  });
+
+  it('stored events contain no customer data', () => {
+    trackEvent(makeQuoteMarkedWon('v1', 'tenant_a'));
+    const raw = localStorage.getItem(ANALYTICS_STORAGE_KEY)!;
+    expect(raw).not.toContain('address');
+    expect(raw).not.toContain('name');
+    expect(raw).not.toContain('jobDetails');
+    expect(raw).toContain('quote_marked_won');
+    expect(raw).toContain('v1');
   });
 });
