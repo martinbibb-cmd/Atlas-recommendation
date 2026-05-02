@@ -234,9 +234,14 @@ export function ScanHandoffReceivePage({
   const roomCount = capture.roomScans.length;
   const photoCount = capture.photos.length;
   const transcriptCount = capture.voiceNotes.length;
-  const objectPinCount = capture.objectPins.length;
-  const pipeRouteCount = capture.objectPins.filter((p) => p.objectType === 'pipe_route').length;
   const floorPlanCount = capture.floorPlanSnapshots.length;
+  // Compute objectPinCount and pipeRouteCount in a single pass to avoid iterating twice.
+  let objectPinCount = 0;
+  let pipeRouteCount = 0;
+  for (const pin of capture.objectPins) {
+    objectPinCount++;
+    if (pin.objectType === 'pipe_route') pipeRouteCount++;
+  }
 
   return (
     <div style={containerStyle}>

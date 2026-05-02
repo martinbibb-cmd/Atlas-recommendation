@@ -15,6 +15,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { StartVisitPanel } from './StartVisitPanel';
+import type { AtlasVisit } from './createAtlasVisit';
 import * as visitApi from '../../lib/visits/visitApi';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -25,7 +26,7 @@ vi.mock('../../lib/visits/visitApi', () => ({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function renderPanel(overrides?: { onStart?: (visit: import('./createAtlasVisit').AtlasVisit) => void; onCancel?: () => void }) {
+function renderPanel(overrides?: { onStart?: (visit: AtlasVisit) => void; onCancel?: () => void }) {
   const onStart = overrides?.onStart ?? vi.fn();
   const onCancel = overrides?.onCancel ?? vi.fn();
   render(<StartVisitPanel onStart={onStart} onCancel={onCancel} />);

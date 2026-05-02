@@ -19,6 +19,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import { ScanHandoffReceivePage } from './ScanHandoffReceivePage';
+import type { AtlasVisitV1 } from './contracts/AtlasVisitV1';
 import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
 
 // ─── Fixture builders ─────────────────────────────────────────────────────────
@@ -71,8 +72,8 @@ function validPayloadJson(brandId?: string): string {
 function renderWithPayload(
   brandId?: string,
   options: {
-    onVisitReady?: (v: import('./contracts/AtlasVisitV1').AtlasVisitV1) => void;
-    onOpenEngineerEvidence?: (v: import('./contracts/AtlasVisitV1').AtlasVisitV1) => void;
+    onVisitReady?: (v: AtlasVisitV1) => void;
+    onOpenEngineerEvidence?: (v: AtlasVisitV1) => void;
     onCancel?: () => void;
   } = {},
 ) {

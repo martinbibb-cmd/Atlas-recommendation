@@ -600,7 +600,7 @@ export default function App() {
    * page reload after a branded visit (e.g. receive-scan) restores the brand.
    */
   const [activeAtlasVisit, setActiveAtlasVisit] = useState<AtlasVisit | null>(() => {
-    if (ENGINEER_VISIT_ID != null) return null;
+    if (ENGINEER_VISIT_ID !== null) return null;
     return retrieveActiveVisit();
   });
   /** Controls whether the new-visit panel is open. */
