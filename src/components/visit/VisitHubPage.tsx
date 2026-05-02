@@ -63,6 +63,8 @@ interface Props {
   onOpenHandoffReview?: () => void;
   /** Open the Atlas Scan import flow to receive a scan from the Atlas Scan iOS app. */
   onImportScan?: () => void;
+  /** Open the external visit file manifest panel for this visit. */
+  onOpenExternalFiles?: () => void;
 }
 
 // Delay (ms) between opening the print dialog and launching the email client,
@@ -387,6 +389,7 @@ function HubActions({
   portalLoading,
   hasQuotes,
   onImportScan,
+  onOpenExternalFiles,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
@@ -405,6 +408,7 @@ function HubActions({
   portalLoading?: boolean;
   hasQuotes?: boolean;
   onImportScan?: () => void;
+  onOpenExternalFiles?: () => void;
 }) {
   const surveyDone = isSurveyComplete(meta);
   const visitDone = isVisitCompleted(meta);
@@ -548,6 +552,17 @@ function HubActions({
               📲 Import from Atlas Scan
             </button>
           )}
+
+          {onOpenExternalFiles && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenExternalFiles}
+              aria-label="External files"
+              data-testid="open-external-files-btn"
+            >
+              🔗 External files
+            </button>
+          )}
         </div>
 
         {/* Diagnostics — always visible */}
@@ -687,6 +702,17 @@ function HubActions({
               📲 Import from Atlas Scan
             </button>
           )}
+
+          {onOpenExternalFiles && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenExternalFiles}
+              aria-label="External files"
+              data-testid="open-external-files-btn"
+            >
+              🔗 External files
+            </button>
+          )}
         </div>
       </div>
     );
@@ -784,6 +810,17 @@ function HubActions({
             📲 Import from Atlas Scan
           </button>
         )}
+
+        {onOpenExternalFiles && (
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={onOpenExternalFiles}
+            aria-label="External files"
+            data-testid="open-external-files-btn"
+          >
+            🔗 External files
+          </button>
+        )}
       </div>
     </div>
   );
@@ -802,6 +839,7 @@ export default function VisitHubPage({
   onOpenInsightPack,
   onOpenHandoffReview,
   onImportScan,
+  onOpenExternalFiles,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1149,6 +1187,7 @@ export default function VisitHubPage({
           portalLoading={portalLoading}
           hasQuotes={hasQuotes}
           onImportScan={onImportScan}
+          onOpenExternalFiles={onOpenExternalFiles}
         />
 
         {/* ── Lifecycle-aware body panels ────────────────────────────────────── */}
