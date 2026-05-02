@@ -84,6 +84,11 @@ const COLLECTION_CONFIG: Readonly<Record<StorageCollectionName, CollectionConfig
     field: 'manifestsByVisitId',
     storageType: 'local',
   },
+  userProfiles: {
+    key: 'atlas:user-profiles:v1',
+    field: 'profilesById',
+    storageType: 'local',
+  },
 };
 
 // ─── LocalStorageAdapter ──────────────────────────────────────────────────────
