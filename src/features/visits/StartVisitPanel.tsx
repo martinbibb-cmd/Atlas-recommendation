@@ -23,6 +23,7 @@ import { createAtlasVisit } from './createAtlasVisit';
 import type { AtlasVisit } from './createAtlasVisit';
 import { WorkspaceSelector } from '../tenants/WorkspaceSelector';
 import { resolveActiveTenant } from '../tenants/activeTenant';
+import { trackVisitCreated } from '../analytics/analyticsTracker';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
       const { id } = await createVisit(opts);
       const tenant = resolveActiveTenant({ workspaceSlug });
       const visit = createAtlasVisit(id, tenant.brandId);
+      trackVisitCreated(visit, tenant.tenantId);
       onStart(visit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create visit');
