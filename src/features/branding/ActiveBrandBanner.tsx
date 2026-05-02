@@ -24,6 +24,21 @@ import { useOptionalBrandProfile } from './useBrandProfile';
 import { BrandLogo } from './BrandLogo';
 import './brandTheme.css';
 
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface ActiveBrandBannerProps {
+  /**
+   * Workspace slug from host resolution — shown as a small badge when
+   * the app is accessed via a branded subdomain (e.g. demo-heating.atlas-phm.uk).
+   */
+  workspaceSlug?: string;
+  /**
+   * Source of the host resolution.  When 'host', the workspace was resolved
+   * from the subdomain.  Developer-only detail shown in DEV mode.
+   */
+  hostSource?: 'host' | 'fallback';
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -34,7 +49,7 @@ import './brandTheme.css';
  *
  * Silently renders nothing when there is no active BrandProvider.
  */
-export function ActiveBrandBanner() {
+export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBannerProps = {}) {
   const profile = useOptionalBrandProfile();
 
   if (profile === null) {
@@ -71,6 +86,23 @@ export function ActiveBrandBanner() {
       >
         Atlas workspace
       </span>
+      {workspaceSlug !== undefined && (
+        <span
+          className="active-brand-banner__workspace"
+          data-testid="active-brand-banner-workspace"
+          style={{
+            marginLeft: '0.5rem',
+            fontFamily: 'monospace',
+            fontSize: '0.6875rem',
+            color: '#166534',
+            background: '#dcfce7',
+            padding: '1px 6px',
+            borderRadius: 4,
+          }}
+        >
+          {workspaceSlug}
+        </span>
+      )}
       {import.meta.env.DEV && (
         <span
           className="active-brand-banner__dev-id"
@@ -86,6 +118,7 @@ export function ActiveBrandBanner() {
           }}
         >
           {profile.brandId}
+          {hostSource !== undefined && ` · src:${hostSource}`}
         </span>
       )}
     </div>

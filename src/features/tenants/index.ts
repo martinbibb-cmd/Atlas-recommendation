@@ -55,3 +55,16 @@ export type { WorkspaceSelectorProps } from './WorkspaceSelector';
 
 export { TenantSettingsPage } from './TenantSettingsPage';
 export type { TenantSettingsPageProps } from './TenantSettingsPage';
+
+// ─── Host resolver ────────────────────────────────────────────────────────────
+
+export {
+  normaliseHost,
+  extractWorkspaceSlugFromHost,
+  resolveWorkspaceFromHost,
+} from './workspaceHost';
+export type { WorkspaceHostResolutionV1 } from './workspaceHost';
+
+// ─── Host resolver hook ───────────────────────────────────────────────────────
+
+export { useWorkspaceFromHost } from './useWorkspaceFromHost';

@@ -133,6 +133,44 @@ describe('StartVisitPanel — visit creation', () => {
   });
 });
 
+describe('StartVisitPanel — host workspace defaulting', () => {
+  it('defaults the workspace selector to the host-resolved workspace slug', () => {
+    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />);
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(select.value).toBe('demo-heating');
+  });
+
+  it('defaults to atlas when defaultWorkspaceSlug is not provided', () => {
+    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} />);
+    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    expect(select.value).toBe('atlas');
+  });
+
+  it('allows the user to change workspace after host defaulting', () => {
+    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />);
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: 'atlas' } });
+    expect((select as HTMLSelectElement).value).toBe('atlas');
+  });
+
+  it('creates visit with installer-demo brandId when host-defaulted to demo-heating', async () => {
+    const mockCreateVisit = vi.mocked(visitApi.createVisit);
+    mockCreateVisit.mockResolvedValueOnce({ id: 'visit_host_001', created_at: '2026-01-01T00:00:00Z' } as Awaited<ReturnType<typeof visitApi.createVisit>>);
+
+    const onStart = vi.fn();
+    render(<StartVisitPanel onStart={onStart} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />);
+    fireEvent.click(screen.getByText('Start Visit'));
+
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
+
+    const visit = (onStart as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(visit.visitId).toBe('visit_host_001');
+    expect(visit.brandId).toBe('installer-demo');
+  });
+});
+
 describe('StartVisitPanel — cancellation', () => {
   it('calls onCancel when Cancel button is clicked', () => {
     const { onCancel } = renderPanel();
