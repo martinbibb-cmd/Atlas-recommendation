@@ -132,6 +132,80 @@ export function clearEvents(): void {
   }
 }
 
+// ─── Date-range filter ────────────────────────────────────────────────────────
+
+export type AnalyticsDateFilter =
+  | { type: 'all_time' }
+  | { type: 'last_7_days' }
+  | { type: 'last_30_days' }
+  | { type: 'custom'; from: string; to: string };
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function filterEventsByDate(
+  events: AnalyticsEventV1[],
+  filter: AnalyticsDateFilter,
+): AnalyticsEventV1[] {
+  if (filter.type === 'all_time') return events;
+
+  const now = Date.now();
+  let from: number;
+  let to: number;
+
+  if (filter.type === 'last_7_days') {
+    from = now - 7 * MS_PER_DAY;
+    to = now;
+  } else if (filter.type === 'last_30_days') {
+    from = now - 30 * MS_PER_DAY;
+    to = now;
+  } else {
+    from = Date.parse(filter.from);
+    to = Date.parse(filter.to) + MS_PER_DAY - 1; // inclusive end-of-day
+  }
+
+  return events.filter((e) => {
+    const t = Date.parse(e.createdAt);
+    return Number.isFinite(t) && t >= from && t <= to;
+  });
+}
+
+// ─── CSV / JSON export helpers ────────────────────────────────────────────────
+
+/**
+ * Serialises a single tenant aggregate as a flat CSV row.
+ * Returns a header line + one data row for use in full-export joins.
+ */
+export function aggregatesToCsv(aggregates: TenantAnalyticsAggregate[]): string {
+  const header = [
+    'tenantId',
+    'visitsCreated',
+    'visitsCompleted',
+    'completionRate',
+    'avgDurationSeconds',
+    'recommendationViews',
+    'recommendationSelections',
+    'topScenarioId',
+    'topScenarioCount',
+  ].join(',');
+
+  const rows = aggregates.map((a) => {
+    const top = a.topSelectedScenarioIds[0];
+    return [
+      a.tenantId ?? '',
+      a.visitsCreated,
+      a.visitsCompleted,
+      a.completionRate.toFixed(4),
+      a.avgDurationSeconds !== null ? a.avgDurationSeconds.toFixed(1) : '',
+      a.recommendationViews,
+      a.recommendationSelections,
+      top ? top.scenarioId : '',
+      top ? top.count : '',
+    ].join(',');
+  });
+
+  return [header, ...rows].join('\n');
+}
+
 /**
  * Groups stored events by tenantId and computes aggregate statistics.
  *
@@ -170,6 +244,69 @@ export function aggregateByTenant(): TenantAnalyticsAggregate[] {
     const selectionCount = selections.length;
 
     // Count per selected scenario ID.
+    const scenarioCounts: Record<string, number> = {};
+    for (const ev of selections) {
+      if (ev.eventType === 'recommendation_selected') {
+        const id = ev.selectedScenarioId;
+        scenarioCounts[id] = (scenarioCounts[id] ?? 0) + 1;
+      }
+    }
+    const topSelectedScenarioIds = Object.entries(scenarioCounts)
+      .map(([scenarioId, count]) => ({ scenarioId, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      tenantId,
+      visitsCreated: created,
+      visitsCompleted: completedCount,
+      completionRate: created > 0 ? completedCount / created : 0,
+      avgDurationSeconds,
+      recommendationViews: views,
+      recommendationSelections: selectionCount,
+      topSelectedScenarioIds,
+    };
+  });
+}
+
+/**
+ * Same as `aggregateByTenant` but restricted to events within the given date
+ * range.  Accepts an `AnalyticsDateFilter` to support the dashboard UI filters.
+ *
+ * Returns aggregates only for tenants that have at least one event in range.
+ */
+export function aggregateByTenantFiltered(
+  filter: AnalyticsDateFilter,
+): TenantAnalyticsAggregate[] {
+  const allEvents = readEvents();
+  const events = filterEventsByDate(allEvents, filter);
+
+  const tenantKeys = new Set<string | undefined>(events.map((e) => e.tenantId));
+
+  return Array.from(tenantKeys).map((tenantId) => {
+    const tenantEvents = events.filter((e) => e.tenantId === tenantId);
+
+    const created = tenantEvents.filter((e) => e.eventType === 'visit_created').length;
+    const completed = tenantEvents.filter((e) => e.eventType === 'visit_completed');
+    const completedCount = completed.length;
+
+    const durations = completed
+      .map((e) => (e.eventType === 'visit_completed' ? e.durationSeconds : undefined))
+      .filter((d): d is number => typeof d === 'number' && d >= 0);
+
+    const avgDurationSeconds =
+      durations.length > 0
+        ? durations.reduce((sum, d) => sum + d, 0) / durations.length
+        : null;
+
+    const views = tenantEvents.filter(
+      (e) => e.eventType === 'recommendation_viewed',
+    ).length;
+
+    const selections = tenantEvents.filter(
+      (e) => e.eventType === 'recommendation_selected',
+    );
+    const selectionCount = selections.length;
+
     const scenarioCounts: Record<string, number> = {};
     for (const ev of selections) {
       if (ev.eventType === 'recommendation_selected') {
