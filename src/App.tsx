@@ -28,17 +28,20 @@ import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
 import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
-import NewVisitDialog from './components/visit/NewVisitDialog';
 import EngineerPreinstallPage from './components/engineer/EngineerPreinstallPage';
 import { SpatialTwinPage } from './features/spatialTwin/routes/SpatialTwinPage';
 import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
-import { createVisit, getVisit } from './lib/visits/visitApi';
+import { getVisit } from './lib/visits/visitApi';
 import { VisitProvider } from './features/visits/VisitProvider';
 import { createAtlasVisit } from './features/visits/createAtlasVisit';
 import type { AtlasVisit } from './features/visits/createAtlasVisit';
+import { retrieveActiveVisit, storeActiveVisit } from './features/visits/visitStore';
+import { BrandProvider } from './features/branding/BrandProvider';
+import { StartVisitPanel } from './features/visits/StartVisitPanel';
+import { DEFAULT_BRAND_ID } from './features/branding/brandProfiles';
 import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
 import { generateReportTitle } from './lib/reports/generateReportTitle';
 import { generatePortalToken } from './lib/portal/portalToken';
@@ -593,16 +596,15 @@ export default function App() {
   );
   /**
    * Active AtlasVisit — carries the visitId and attached brandId for the
-   * current visit session.  Null until a visit is created or opened with a
-   * brand attachment (PR 5).
+   * current visit session.  Initialized from sessionStorage so that a
+   * page reload after a branded visit (e.g. receive-scan) restores the brand.
    */
-  const [activeAtlasVisit, setActiveAtlasVisit] = useState<AtlasVisit | null>(null);
-  /** Controls whether the new-visit dialog is open. */
+  const [activeAtlasVisit, setActiveAtlasVisit] = useState<AtlasVisit | null>(() => {
+    if (ENGINEER_VISIT_ID != null) return null;
+    return retrieveActiveVisit();
+  });
+  /** Controls whether the new-visit panel is open. */
   const [showNewVisitDialog, setShowNewVisitDialog] = useState(false);
-  /** Tracks whether "Start new visit" is in flight. */
-  const [startingVisit, setStartingVisit] = useState(false);
-  /** Inline error shown when visit creation fails. Cleared on retry. */
-  const [visitCreateError, setVisitCreateError] = useState<string | null>(null);
   /**
    * Handoff pack for the 'visit-handoff' journey.
    * Set to null so the VisitHandoffReviewPage shows its built-in loader
@@ -662,43 +664,11 @@ export default function App() {
   }
 
   /**
-   * Start a new visit — opens the new-visit dialog to collect an optional
-   * reference number, then creates a visit record in D1 and routes to the
-   * visit survey shell.
+   * Start a new visit — opens the StartVisitPanel overlay.
+   * Brand selection and visit creation are handled by StartVisitPanel.
    */
   function handleStartNewVisit() {
-    setVisitCreateError(null);
     setShowNewVisitDialog(true);
-  }
-
-  /**
-   * Confirmed from the new-visit dialog — creates the visit with the supplied
-   * reference (may be empty string) and navigates to the visit page.
-   *
-   * Navigation only happens after the POST succeeds and returns a valid visit
-   * id. If creation fails the dialog stays open and shows an inline error.
-   */
-  async function handleConfirmNewVisit(reference: string) {
-    if (startingVisit) return;
-    setStartingVisit(true);
-    setVisitCreateError(null);
-    try {
-      const opts = reference.length > 0 ? { visit_reference: reference } : {};
-      const { id } = await createVisit(opts);
-      console.info('[Atlas] Visit created:', id);
-      setActiveVisitId(id);
-      // Brand defaults to atlas-default here; brand attachment via StartVisitPanel
-      // is the dedicated route for white-label visits (PR 5).
-      setActiveAtlasVisit(createAtlasVisit(id));
-      setShowNewVisitDialog(false);
-      setJourney('visit');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to create visit';
-      console.error('[Atlas] Visit creation failed:', err);
-      setVisitCreateError(message);
-    } finally {
-      setStartingVisit(false);
-    }
   }
 
   /** Open an existing visit by ID — routes to the Visit Hub page. */
@@ -948,7 +918,16 @@ export default function App() {
     return (
       <ScanHandoffReceivePage
         onVisitReady={(visit) => {
+          // Persist the AtlasVisit (including brandId) so the App restores
+          // the correct brand when navigating to the visit hub.
+          const atlasVisit = createAtlasVisit(visit.visitId, visit.brandId ?? DEFAULT_BRAND_ID);
+          storeActiveVisit(atlasVisit);
           window.location.href = `/?visitId=${encodeURIComponent(visit.visitId)}`;
+        }}
+        onOpenEngineerEvidence={(visit) => {
+          const atlasVisit = createAtlasVisit(visit.visitId, visit.brandId ?? DEFAULT_BRAND_ID);
+          storeActiveVisit(atlasVisit);
+          window.location.href = `/visit/${encodeURIComponent(visit.visitId)}/engineer`;
         }}
         onCancel={() => { window.location.href = window.location.origin; }}
       />
@@ -1307,7 +1286,9 @@ export default function App() {
         />
       )}
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
-      {/* Visit journey area — wrapped with VisitProvider to carry visit identity and brandId */}
+      {/* Visit journey area — wrapped with BrandProvider (driven by activeAtlasVisit.brandId)
+           and VisitProvider to carry visit identity and brand context through the journey. */}
+      <BrandProvider brandId={activeAtlasVisit?.brandId ?? undefined}>
       <VisitProvider initialVisit={activeAtlasVisit}>
         {/* Visit Hub — shown when opening an existing visit */}
         {journey === 'visit-hub' && activeVisitId != null && (
@@ -1395,6 +1376,7 @@ export default function App() {
         </GlobalMenuShell>
       )}
       </VisitProvider>
+      </BrandProvider>
       {journey === 'remote-survey' && (
         <GlobalMenuShell>
           <FullSurveyStepper
@@ -1774,17 +1756,41 @@ export default function App() {
         </div>
       )}
 
-      {/* New-visit dialog — shown when the user clicks "Start new visit" */}
-      <NewVisitDialog
-        open={showNewVisitDialog}
-        creating={startingVisit}
-        error={visitCreateError}
-        onConfirm={(ref) => { void handleConfirmNewVisit(ref); }}
-        onCancel={() => {
-          setShowNewVisitDialog(false);
-          setVisitCreateError(null);
-        }}
-      />
+      {/* New-visit panel — shown when the user clicks "Start new visit".
+           StartVisitPanel handles the API call and brand selection internally;
+           on success the visit (with brandId) is set as the active visit. */}
+      {showNewVisitDialog && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowNewVisitDialog(false);
+            }
+          }}
+        >
+          <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxWidth: 520, width: '100%', margin: '0 1rem' }}>
+            <StartVisitPanel
+              onStart={(visit) => {
+                setActiveAtlasVisit(visit);
+                setActiveVisitId(visit.visitId);
+                setShowNewVisitDialog(false);
+                setJourney('visit');
+              }}
+              onCancel={() => {
+                setShowNewVisitDialog(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

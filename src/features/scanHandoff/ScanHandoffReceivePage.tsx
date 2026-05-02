@@ -24,11 +24,12 @@
  * - Uses inline styles consistent with the existing scan import pages.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { receiveScanHandoff } from './receiveScanHandoff';
 import type { ReceiveScanHandoffResult } from './receiveScanHandoff';
 import type { AtlasVisitV1 } from './contracts/AtlasVisitV1';
 import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
+import { resolveBrandProfile } from '../branding/resolveBrandProfile';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,10 +69,16 @@ function readPayloadFromUrl(): unknown | null {
 
 export interface ScanHandoffReceivePageProps {
   /**
-   * Called when a valid handoff has been received and the capture stored.
+   * Called when the user confirms "Open visit" after a successful handoff.
    * The caller is responsible for navigating to the visit.
    */
   onVisitReady: (visit: AtlasVisitV1) => void;
+  /**
+   * Called when the user clicks "Open engineer evidence" after a successful
+   * handoff.  The caller routes to the engineer pre-install view.
+   * When absent, the button is not shown.
+   */
+  onOpenEngineerEvidence?: (visit: AtlasVisitV1) => void;
   /** Called when the user cancels or dismisses the page. */
   onCancel: () => void;
 }
@@ -97,13 +104,10 @@ const headingStyle: React.CSSProperties = {
 
 export function ScanHandoffReceivePage({
   onVisitReady,
+  onOpenEngineerEvidence,
   onCancel,
 }: ScanHandoffReceivePageProps) {
   const [state, setState] = useState<PageState>({ name: 'loading' });
-  // Keep a ref to the latest onVisitReady so the navigation effect always
-  // calls the current version without triggering re-runs.
-  const onVisitReadyRef = useRef(onVisitReady);
-  onVisitReadyRef.current = onVisitReady;
 
   useEffect(() => {
     let cancelled = false;
@@ -156,15 +160,6 @@ export function ScanHandoffReceivePage({
     void load();
     return () => { cancelled = true; };
   }, []);
-
-  // ── Automatically navigate when valid visit is ready ─────────────────────
-  // Derive visitToOpen outside the effect so exhaustive-deps is satisfied.
-  const visitToOpen = state.name === 'success' ? state.result.visit : null;
-  useEffect(() => {
-    if (visitToOpen !== null) {
-      onVisitReadyRef.current(visitToOpen);
-    }
-  }, [visitToOpen]);
 
   // ── Loading ──
   if (state.name === 'loading') {
@@ -232,18 +227,50 @@ export function ScanHandoffReceivePage({
     );
   }
 
-  // ── Success — briefly shown before onVisitReady navigates away ──
+  // ── Success — show capture summary and action buttons ──
   const { visit, capture, warnings } = state.result;
+  const brandProfile = resolveBrandProfile(visit.brandId);
+
+  const roomCount = capture.roomScans.length;
+  const photoCount = capture.photos.length;
+  const transcriptCount = capture.voiceNotes.length;
+  const objectPinCount = capture.objectPins.length;
+  const pipeRouteCount = capture.objectPins.filter((p) => p.objectType === 'pipe_route').length;
+  const floorPlanCount = capture.floorPlanSnapshots.length;
+
   return (
     <div style={containerStyle}>
       <div style={headerStyle}>
-        <h1 style={headingStyle}>Scan received</h1>
+        <h1 style={headingStyle}>Scan capture received</h1>
       </div>
+
+      {/* Brand / workspace identity */}
+      <div
+        data-testid="receive-scan-brand-banner"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 16,
+          padding: '8px 12px',
+          background: '#f0fdf4',
+          border: '1px solid #86efac',
+          borderRadius: 8,
+          fontSize: 13,
+        }}
+      >
+        <span style={{ fontWeight: 600, color: '#166534' }} data-testid="receive-scan-brand-name">
+          {brandProfile.companyName}
+        </span>
+        <span style={{ color: '#6b7280' }}>· Atlas workspace</span>
+      </div>
+
+      {/* Visit identity */}
       <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
         <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 600, color: '#166534' }}>
           Capture stored for visit
         </p>
-        <p style={{ margin: 0, fontSize: 13, color: '#166534', fontFamily: 'monospace' }}>
+        <p style={{ margin: 0, fontSize: 13, color: '#166534', fontFamily: 'monospace' }} data-testid="receive-scan-visit-id">
           {visit.visitId}
         </p>
         {capture.property?.address && (
@@ -252,6 +279,29 @@ export function ScanHandoffReceivePage({
           </p>
         )}
       </div>
+
+      {/* Evidence counts */}
+      <div style={{ marginBottom: 16 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 600, color: '#374151' }}>
+          Evidence captured:
+        </p>
+        <ul
+          style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#374151', lineHeight: 1.6 }}
+          data-testid="receive-scan-evidence-counts"
+        >
+          <li><strong>{roomCount}</strong> {roomCount === 1 ? 'room' : 'rooms'}</li>
+          <li><strong>{photoCount}</strong> {photoCount === 1 ? 'photo' : 'photos'}</li>
+          <li><strong>{transcriptCount}</strong> {transcriptCount === 1 ? 'voice note' : 'voice notes'}</li>
+          <li><strong>{objectPinCount}</strong> object {objectPinCount === 1 ? 'pin' : 'pins'}</li>
+          {pipeRouteCount > 0 && (
+            <li><strong>{pipeRouteCount}</strong> pipe {pipeRouteCount === 1 ? 'route' : 'routes'}</li>
+          )}
+          {floorPlanCount > 0 && (
+            <li><strong>{floorPlanCount}</strong> floor-plan {floorPlanCount === 1 ? 'snapshot' : 'snapshots'}</li>
+          )}
+        </ul>
+      </div>
+
       {warnings.length > 0 && (
         <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
           <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#92400e' }}>Warnings:</p>
@@ -260,7 +310,57 @@ export function ScanHandoffReceivePage({
           </ul>
         </div>
       )}
-      <p style={{ fontSize: 13, color: '#6b7280' }}>Opening visit…</p>
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button
+          data-testid="receive-scan-open-visit"
+          onClick={() => onVisitReady(visit)}
+          style={{
+            padding: '10px 20px',
+            fontSize: 14,
+            fontWeight: 600,
+            background: '#2563eb',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Open visit
+        </button>
+        {onOpenEngineerEvidence !== undefined && (
+          <button
+            data-testid="receive-scan-open-engineer"
+            onClick={() => onOpenEngineerEvidence(visit)}
+            style={{
+              padding: '10px 20px',
+              fontSize: 14,
+              background: '#fff',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            Open engineer evidence
+          </button>
+        )}
+        <button
+          onClick={onCancel}
+          style={{
+            padding: '10px 20px',
+            fontSize: 14,
+            background: 'transparent',
+            color: '#6b7280',
+            border: '1px solid #d1d5db',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Back
+        </button>
+      </div>
     </div>
   );
 }
