@@ -14,11 +14,12 @@
  * `created_at` / `updated_at` timestamps managed by the adapter.
  *
  *   Collection      Table
- *   ──────────────────────────────────────────
+ *   ──────────────────────────────────────────────────
  *   tenants         atlas_adapter_tenants
  *   brandProfiles   atlas_adapter_brand_profiles
  *   visits          atlas_adapter_visits
  *   scanCaptures    atlas_adapter_scan_captures
+ *   visitManifests  atlas_adapter_visit_manifests
  *
  * Design rules
  * ────────────
@@ -82,6 +83,7 @@ const D1_TABLE: Readonly<Record<StorageCollectionName, string>> = {
   brandProfiles: 'atlas_adapter_brand_profiles',
   visits: 'atlas_adapter_visits',
   scanCaptures: 'atlas_adapter_scan_captures',
+  visitManifests: 'atlas_adapter_visit_manifests',
 };
 
 /** Set of all known-safe D1 table name values for runtime validation. */

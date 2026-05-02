@@ -79,6 +79,11 @@ const COLLECTION_CONFIG: Readonly<Record<StorageCollectionName, CollectionConfig
     field: 'capturesByVisitId',
     storageType: 'local',
   },
+  visitManifests: {
+    key: 'atlas:visit-manifests:v1',
+    field: 'manifestsByVisitId',
+    storageType: 'local',
+  },
 };
 
 // ─── LocalStorageAdapter ──────────────────────────────────────────────────────
