@@ -62,7 +62,9 @@ export interface UserProfileV1 {
 
   /**
    * Default workspace slug to pre-select when this user opens Atlas.
-   * Takes lower priority than defaultTenantId when both are set.
+   * Takes lower priority than defaultTenantId when both are set: the tenant is
+   * resolved first, and this slug is used only when tenantId lookup fails or
+   * is absent.
    */
   defaultWorkspaceSlug?: string;
 
@@ -90,9 +92,14 @@ export interface UserProfileV1 {
 /**
  * Explicit membership record linking a user to a workspace within a tenant.
  *
- * In the local-only phase this is derived from UserProfileV1.rolesByTenant.
- * Modelled as a first-class type so it can be persisted independently once
- * multi-device sync is introduced.
+ * In the local-only phase, tenant-wide memberships are derived from
+ * UserProfileV1.rolesByTenant (one role per tenantId, workspaceSlug = null).
+ * When a user is granted a workspace-specific override (workspaceSlug is set),
+ * that override must be stored as a separate UserWorkspaceMembershipV1 record
+ * because UserProfileV1.rolesByTenant only carries tenant-level roles.
+ *
+ * Modelled as a first-class type so workspace-scoped memberships can be
+ * persisted independently once multi-device sync is introduced.
  */
 export interface UserWorkspaceMembershipV1 {
   /** Schema version — always '1.0'. */
