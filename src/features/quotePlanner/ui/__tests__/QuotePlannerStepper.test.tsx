@@ -125,8 +125,9 @@ describe('QuotePlannerStepper — proposed system selection', () => {
 // ─── 4. Job classification updates ───────────────────────────────────────────
 
 describe('QuotePlannerStepper — job classification', () => {
-  it('shows "Needs review" when combi → combi is selected (location unknown)', () => {
-    // classifyQuoteJob returns needs_review for same-family when location is not confirmed.
+  it('shows "Needs review" when combi → combi is selected (no location data available)', () => {
+    // classifyQuoteJob returns needs_review for same-family when no location data is provided
+    // by the stepper shell — this is correct engine behaviour, not a UI bug.
     renderStepper();
     // Step 1
     fireEvent.click(screen.getAllByRole('button', { name: /^Combi$/i })[0]);

@@ -51,8 +51,9 @@ export type UiProposedSystemLabel =
 /**
  * Map a UI tile label to the nearest `QuoteSystemFamily` for plan classification.
  *
- * "Storage combi" → `system_stored` (stored DHW, heat-only boiler variant).
- * "Thermal store" → `regular_stored` (gravity/vented stored DHW).
+ * "Storage combi" → `system_stored` (combi with integrated storage cylinder; mapped to
+ *                     the nearest stored-DHW family since there is no distinct engine type).
+ * "Thermal store"  → `regular_stored` (gravity/vented stored DHW).
  * "Warm air"      → `unknown` (no equivalent in the engine family set).
  */
 export function uiLabelToFamily(
