@@ -203,17 +203,13 @@ export function getQuotePlanConfidenceSummary(
 export function hasQuotePlannerMinimumLocations(
   plan: QuoteInstallationPlanV1,
 ): boolean {
-  const kinds = new Set(plan.locations.map((loc) => loc.kind));
+  const presentKinds = new Set(plan.locations.map((loc) => loc.kind));
 
-  // Evaluate directly against MINIMUM_LOCATION_KINDS so the gate stays in sync
-  // with the constant definition.
-  const boilerKinds = MINIMUM_LOCATION_KINDS.filter(
-    (k) => k === 'proposed_boiler' || k === 'existing_boiler',
-  );
-  const gasMeterKinds = MINIMUM_LOCATION_KINDS.filter((k) => k === 'gas_meter');
+  // MINIMUM_LOCATION_KINDS defines the required set; boiler slot accepts either variant.
+  const boilerKind  = MINIMUM_LOCATION_KINDS[0]; // 'proposed_boiler'
+  const boilerKind2 = MINIMUM_LOCATION_KINDS[1]; // 'existing_boiler'
+  const meterKind   = MINIMUM_LOCATION_KINDS[2]; // 'gas_meter'
 
-  const hasBoilerLocation = boilerKinds.some((k) => kinds.has(k));
-  const hasGasMeter       = gasMeterKinds.some((k) => kinds.has(k));
-
-  return hasBoilerLocation && hasGasMeter;
+  return (presentKinds.has(boilerKind) || presentKinds.has(boilerKind2)) &&
+    presentKinds.has(meterKind);
 }

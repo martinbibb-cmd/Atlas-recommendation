@@ -219,10 +219,14 @@ function importFlueRoutes(
 
 /**
  * Generates a simple plan identifier from the current timestamp.
- * Callers that need true UUIDs should supply a `planId` in the input.
+ * Produces a string like "qp-20260501090000000" (all numeric chars from the ISO
+ * string).  Callers that need true UUIDs should supply a `planId` in the input.
+ *
+ * Note: not guaranteed unique within the same millisecond.  The `planId` input
+ * parameter exists precisely for callers that require true uniqueness.
  */
 function generatePlanId(now: string): string {
-  return `qp-${now.replace(/[^0-9]/g, '').slice(0, 17)}`;
+  return `qp-${now.replace(/[^0-9]/g, '')}`;
 }
 
 // ─── buildQuoteInstallationPlanDraft ─────────────────────────────────────────
