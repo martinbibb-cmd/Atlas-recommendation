@@ -53,7 +53,7 @@ const asbestosHazard: HazardObservationCaptureV1 = {
 const criticalHazard: HazardObservationCaptureV1 = {
   hazardId: 'hz-structural',
   category: 'structural',
-  severity: 'critical',
+  severity: 'blocking',
   title: 'Structural crack above lintel',
   reviewStatus: 'pending',
 };
@@ -130,7 +130,7 @@ describe('ScanHazardObservationPanel — asbestos_suspected high example', () =>
     expect(screen.getByTestId('scan-hazard-blocking-banner')).toBeTruthy();
   });
 
-  it('shows blocking banner for a critical pending hazard', () => {
+  it('shows blocking banner for a blocking pending hazard', () => {
     render(<ScanHazardObservationPanel capture={baseCapture({ hazardObservations: [criticalHazard] })} />);
     expect(screen.getByTestId('scan-hazard-blocking-banner')).toBeTruthy();
   });

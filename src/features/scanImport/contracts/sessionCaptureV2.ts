@@ -112,7 +112,7 @@ export type HazardCategoryV1 =
   | 'other';
 
 /** Severity of a hazard observation. */
-export type HazardSeverityV1 = 'low' | 'medium' | 'high' | 'critical';
+export type HazardSeverityV1 = 'low' | 'medium' | 'high' | 'blocking';
 
 /** Engineer review state for a hazard observation. */
 export type HazardReviewStatusV1 = 'confirmed' | 'pending' | 'rejected';
@@ -514,7 +514,7 @@ function validateFloorPlanFabricCaptureV1(value: unknown, path: string): string[
 const VALID_HAZARD_CATEGORIES: HazardCategoryV1[] = [
   'asbestos_suspected', 'electrical', 'structural', 'gas', 'water_damage', 'other',
 ];
-const VALID_HAZARD_SEVERITIES: HazardSeverityV1[] = ['low', 'medium', 'high', 'critical'];
+const VALID_HAZARD_SEVERITIES: HazardSeverityV1[] = ['low', 'medium', 'high', 'blocking'];
 const VALID_HAZARD_REVIEW_STATUSES: HazardReviewStatusV1[] = ['confirmed', 'pending', 'rejected'];
 
 function validateHazardObservationCaptureV1(value: unknown, path: string): string[] {

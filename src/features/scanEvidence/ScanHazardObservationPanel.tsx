@@ -32,7 +32,7 @@ const SEVERITY_STYLE: Record<
   low:      { bg: '#f0f9ff', color: '#0369a1', border: '#bae6fd', label: 'Low' },
   medium:   { bg: '#fffbeb', color: '#92400e', border: '#fcd34d', label: 'Medium' },
   high:     { bg: '#fff7ed', color: '#c2410c', border: '#fdba74', label: 'High' },
-  critical: { bg: '#fef2f2', color: '#991b1b', border: '#fca5a5', label: 'Critical' },
+  blocking: { bg: '#fef2f2', color: '#991b1b', border: '#fca5a5', label: 'Blocking' },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -223,7 +223,7 @@ export function ScanHazardObservationPanel({ capture }: ScanHazardObservationPan
             color: '#b91c1c',
           }}
         >
-          ⚠ One or more high-severity hazards require engineer review before proceeding.
+          ⚠ One or more blocking hazards require engineer review before proceeding.
         </div>
       )}
       {hazards.map((hazard) => (
