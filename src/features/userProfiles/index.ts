@@ -38,6 +38,11 @@ export { ActiveUserProvider, ActiveUserContext } from './ActiveUserProvider';
 export type { ActiveUserContextValue } from './ActiveUserProvider';
 export { useActiveUser } from './useActiveUser';
 
+// ─── Permissions ──────────────────────────────────────────────────────────────
+
+export { useRolePermissions } from './useRolePermissions';
+export type { RolePermissions } from './useRolePermissions';
+
 // ─── UI ───────────────────────────────────────────────────────────────────────
 
 export { UserProfilePanel } from './UserProfilePanel';
