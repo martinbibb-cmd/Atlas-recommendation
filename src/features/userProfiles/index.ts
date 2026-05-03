@@ -31,3 +31,14 @@ export {
   setActiveUserId,
   clearActiveUserId,
 } from './activeUserStore';
+
+// ─── React context ────────────────────────────────────────────────────────────
+
+export { ActiveUserProvider, ActiveUserContext } from './ActiveUserProvider';
+export type { ActiveUserContextValue } from './ActiveUserProvider';
+export { useActiveUser } from './useActiveUser';
+
+// ─── UI ───────────────────────────────────────────────────────────────────────
+
+export { UserProfilePanel } from './UserProfilePanel';
+

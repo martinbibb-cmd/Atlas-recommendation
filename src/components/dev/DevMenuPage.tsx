@@ -39,6 +39,7 @@ import { generateCopyBoxOutput, formatSingleItemAsText, type CopyFormat } from '
 import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
 import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 import AnalyticsPanel from './AnalyticsPanel';
+import { useActiveUser } from '../../features/userProfiles/useActiveUser';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -138,6 +139,8 @@ export default function DevMenuPage({ onBack }: Props) {
   const [copyFormat, setCopyFormat] = useState<CopyFormat>('text');
   const [copyBoxCopied, setCopyBoxCopied] = useState(false);
   const [cacheResetDone, setCacheResetDone] = useState(false);
+
+  const { activeUser } = useActiveUser();
 
   const filtered = useMemo(
     () => applyFilters(DEV_UI_REGISTRY, filters),
@@ -242,6 +245,13 @@ export default function DevMenuPage({ onBack }: Props) {
           Inspect every UI surface with route details, hierarchy, and access type.
           Access via <code>?devmenu=1</code>.
         </p>
+        {activeUser !== null && (
+          <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#2563eb' }}>
+            👤 Active user: <strong>{activeUser.displayName}</strong>
+            {activeUser.email ? ` · ${activeUser.email}` : ''}
+            {activeUser.developerMode ? ' · dev mode' : ''}
+          </p>
+        )}
       </header>
 
       {/* Top-level page mode selector */}

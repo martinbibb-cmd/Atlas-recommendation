@@ -24,7 +24,7 @@
  *     - More tools (collapsible): Present to customer, Technical detail
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useContext } from 'react';
 import { getVisit, saveVisit, deleteVisit, visitDisplayLabel, isSurveyComplete, isVisitCompleted, type VisitMeta } from '../../lib/visits/visitApi';
 import { listReportsForVisit, saveReport } from '../../lib/reports/reportApi';
 import { generateReportTitle } from '../../lib/reports/generateReportTitle';
@@ -42,6 +42,8 @@ import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdat
 import { HEAT_SOURCE_OPTIONS, WATER_SOURCE_OPTIONS } from '../../features/survey/recommendation/recommendationTypes';
 import VisitReportsList from './VisitReportsList';
 import { VisitReplayPanel } from './VisitReplayPanel';
+import { VisitContext } from '../../features/visits/VisitProvider';
+import { getUserProfile } from '../../features/userProfiles/userProfileStore';
 import './VisitHubPage.css';
 
 interface Props {
@@ -862,6 +864,20 @@ export default function VisitHubPage({
   const [lastEngineOutput, setLastEngineOutput] = useState<EngineOutputV1 | null>(null);
   const [isEngineRunning, setIsEngineRunning] = useState(false);
 
+  // Active visit context — used to read createdByUserId for attribution display.
+  // Uses useContext(VisitContext) directly (rather than the throwing useActiveVisit
+  // hook) so that VisitHubPage is safe to render outside a VisitProvider (e.g. in
+  // unit tests).  Returns null when no provider is present; attribution is simply
+  // not shown in that case.
+  const visitCtx = useContext(VisitContext);
+  // Resolve the creator display name from their stored profile (if available).
+  const createdByDisplayName = (() => {
+    const uid = visitCtx?.activeVisit?.createdByUserId;
+    if (!uid) return null;
+    const profile = getUserProfile(uid);
+    return profile?.displayName ?? uid;
+  })();
+
   useEffect(() => {
     let cancelled = false;
     getVisit(visitId)
@@ -1312,6 +1328,16 @@ export default function VisitHubPage({
         </details>
 
         <div className="visit-hub__danger-zone">
+          {/* Visit attribution — shown when a user profile created this visit */}
+          {createdByDisplayName !== null && (
+            <p
+              className="visit-hub__attribution"
+              data-testid="visit-hub-attribution"
+              style={{ fontSize: '0.8125rem', color: '#64748b', marginBottom: '0.75rem' }}
+            >
+              Created by {createdByDisplayName}
+            </p>
+          )}
           {deleteConfirm ? (
             <div className="visit-hub__delete-confirm" role="alertdialog" aria-modal="true" aria-label="Confirm visit deletion">
               <p className="visit-hub__delete-confirm-msg">
