@@ -74,6 +74,7 @@ import ScanSessionListPage from './features/scanImport/ui/ScanSessionListPage';
 import { ScanHandoffReceivePage } from './features/scanHandoff';
 import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
 import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
+import WorkspaceDashboard from './features/workspace/WorkspaceDashboard';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
 import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
@@ -366,7 +367,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile';
+type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -548,17 +549,17 @@ function AppInner() {
     if (INITIAL_REPORT_ID != null)       return 'report';
     // ?visitId= deep-link: open visit-hub directly without restoring cached state.
     if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-hub';
-    const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'landing';
+    const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'workspace-dashboard';
     // 'presentation' and 'printout' require labEngineInput which is not persisted.
     // 'framework-print' is a transient print destination and should not be restored as an entry point.
-    // Restoring any of these without the necessary data would result in a white screen — fall back to 'landing'.
+    // Restoring any of these without the necessary data would result in a white screen — fall back to 'workspace-dashboard'.
     if (restored === 'presentation' || restored === 'printout' || restored === 'framework-print') {
-      return 'landing';
+      return 'workspace-dashboard';
     }
     // 'visit-hub' and 'visit' require an active visit ID.
-    // If the visit cache is absent, fall back to 'landing' to avoid a white screen.
+    // If the visit cache is absent, fall back to 'workspace-dashboard' to avoid a white screen.
     if ((restored === 'visit-hub' || restored === 'visit') && !_restoredVisit?.value?.visitId) {
-      return 'landing';
+      return 'workspace-dashboard';
     }
     return restored;
   });
@@ -1383,7 +1384,7 @@ function AppInner() {
         {journey === 'visit-hub' && activeVisitId != null && (
           <VisitHubPage
             visitId={activeVisitId}
-            onBack={() => setJourney('landing')}
+            onBack={() => setJourney('workspace-dashboard')}
             onResumeSurvey={() => setJourney('visit')}
             onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
             onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
@@ -1714,13 +1715,28 @@ function AppInner() {
             zIndex: 2000,
           }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) setJourney('landing');
+            if (e.target === e.currentTarget) setJourney('workspace-dashboard');
           }}
         >
           <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxWidth: 520, width: '100%', margin: '0 1rem' }}>
-            <UserProfilePanel onClose={() => setJourney('landing')} />
+            <UserProfilePanel onClose={() => setJourney('workspace-dashboard')} />
           </div>
         </div>
+      )}
+      {/* Workspace Dashboard — the primary landing page for each workspace.
+           Shows active tenant/user/role, visit buckets, analytics snapshot,
+           branding card, and role-aware quick actions. */}
+      {journey === 'workspace-dashboard' && (
+        <WorkspaceDashboard
+          onStartNewVisit={handleStartNewVisit}
+          onOpenVisit={handleOpenVisit}
+          onOpenAllVisits={() => { setJourney('landing'); setShowVisitsPanel(true); }}
+          onOpenAnalytics={() => { window.location.href = '/analytics'; }}
+          onOpenBranding={() => { window.location.href = `${window.location.pathname}?brand-settings=1`; }}
+          onOpenWorkspaceSettings={() => { window.location.href = `${window.location.pathname}?create-workspace=1`; }}
+          onOpenUserProfile={() => setJourney('user-profile')}
+          onOpenAllTools={() => setJourney('landing')}
+        />
       )}
       {journey === 'landing' && (
         <div className="landing">
@@ -1761,6 +1777,14 @@ function AppInner() {
             </div>
           )}
           <div className="hero">
+            <div style={{ marginBottom: '0.5rem' }}>
+              <button
+                onClick={() => setJourney('workspace-dashboard')}
+                style={{ fontSize: 13, padding: '4px 12px', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', color: '#4f46e5' }}
+              >
+                ← Dashboard
+              </button>
+            </div>
             <h1>
               Atlas Field Visits
             </h1>
