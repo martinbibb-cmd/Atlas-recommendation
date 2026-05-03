@@ -47,6 +47,9 @@ export { ScanFabricEvidencePanel } from './ScanFabricEvidencePanel';
 export type { ScanHazardObservationPanelProps } from './ScanHazardObservationPanel';
 export { ScanHazardObservationPanel } from './ScanHazardObservationPanel';
 
+export type { ScanPreinstallSignalsProps } from './ScanPreinstallSignals';
+export { ScanPreinstallSignals } from './ScanPreinstallSignals';
+
 // ─── Badge components ─────────────────────────────────────────────────────────
 
 export type { ReviewStatusBadgeProps, ReviewStatus } from './ReviewStatusBadge';
@@ -72,6 +75,7 @@ export type {
   FloorPlanFabricCaptureV1,
   FabricBoundaryV1,
   HazardObservationCaptureV1,
+  HazardSoftWarningEntry,
 } from './scanEvidenceSelectors';
 
 export {
@@ -92,6 +96,9 @@ export {
   getFabricEvidenceSummary,
   getConfirmedFabricBoundaries,
   getCustomerSafeFabricEvidence,
+  getFabricConfidenceSignals,
   getHazardEvidenceSummary,
+  getHazardSoftWarnings,
+  getHazardSoftWarningEntries,
   hasBlockingHazard,
 } from './scanEvidenceSelectors';

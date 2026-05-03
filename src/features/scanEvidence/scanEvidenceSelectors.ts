@@ -25,6 +25,7 @@ import type {
   FloorPlanFabricCaptureV1,
   FabricBoundaryV1,
   HazardObservationCaptureV1,
+  HazardSeverityV1,
 } from '../scanImport/contracts/sessionCaptureV2';
 
 // Re-export contract types so viewer components only need to import from here.
@@ -271,16 +272,128 @@ export function getHazardEvidenceSummary(
 
 /**
  * Returns true when the capture contains at least one non-rejected hazard
- * with severity 'high' or 'critical'.
+ * with severity 'blocking' or 'high'.
  *
  * A "blocking" hazard is one that should visually flag the engineer to take
  * action before proceeding.  Rejected hazards are excluded from this gate.
+ *
+ * Severity contract:
+ *   'blocking' — always triggers the gate (replaces the former 'critical' value).
+ *   'high'     — triggers the gate unconditionally.
+ *   'medium' / 'low' — do not trigger the gate.
  */
 export function hasBlockingHazard(capture: SessionCaptureV2): boolean {
   const hazards = getHazardEvidenceSummary(capture);
   return hazards.some(
     (h) =>
-      (h.severity === 'high' || h.severity === 'critical') &&
-      h.reviewStatus !== 'rejected',
+      h.reviewStatus !== 'rejected' &&
+      (h.severity === 'blocking' || h.severity === 'high'),
   );
+}
+
+// ─── Fabric confidence signals ────────────────────────────────────────────────
+
+/**
+ * Returns a list of human-readable fabric confidence indicator strings for the
+ * engineer view.  These are display-only signals derived from the presence and
+ * content of floorPlanFabric records.
+ *
+ * Rules:
+ *   - Never feeds into heat-loss or engine inputs.
+ *   - Indicator strings show what Atlas captured, not what it calculated.
+ *   - Engineer-internal: must not appear in customer-facing outputs.
+ */
+export function getFabricConfidenceSignals(capture: SessionCaptureV2): string[] {
+  const rooms = getFabricEvidenceSummary(capture);
+  if (rooms.length === 0) return [];
+
+  const signals: string[] = [];
+
+  const externalWallCount = rooms.reduce((acc, room) => {
+    const ext = (room.boundaries ?? []).filter((b) => b.type === 'external');
+    return acc + ext.length;
+  }, 0);
+
+  const windowCount = rooms.reduce((acc, room) => {
+    const wins = (room.openings ?? []).filter((o) => o.type === 'window');
+    return acc + wins.length;
+  }, 0);
+
+  const perimeterRooms = rooms.filter((r) => r.perimeterM !== undefined);
+
+  if (externalWallCount > 0) {
+    signals.push(
+      `External wall${externalWallCount !== 1 ? 's' : ''} identified (${externalWallCount})`,
+    );
+  }
+
+  if (windowCount > 0) {
+    signals.push(`Window opening${windowCount !== 1 ? 's' : ''} detected (${windowCount})`);
+  }
+
+  if (perimeterRooms.length > 0) {
+    signals.push(`Perimeter captured (${perimeterRooms.length} room${perimeterRooms.length !== 1 ? 's' : ''})`);
+  }
+
+  if (rooms.length > 0 && signals.length === 0) {
+    signals.push(`Fabric data received (${rooms.length} room${rooms.length !== 1 ? 's' : ''})`);
+  }
+
+  return signals;
+}
+
+// ─── Hazard soft warnings ─────────────────────────────────────────────────────
+
+/**
+ * Returns a list of soft-warning strings for confirmed or pending hazards.
+ * These are concise, action-oriented messages suitable for displaying in the
+ * engineer pre-install view.
+ *
+ * Rules:
+ *   - Rejected hazards are excluded.
+ *   - No recommendation logic — display only.
+ *   - Engineer-internal: must not appear in customer-facing outputs.
+ */
+export function getHazardSoftWarnings(capture: SessionCaptureV2): string[] {
+  return getHazardSoftWarningEntries(capture).map((e) => e.message);
+}
+
+/** A single hazard soft-warning entry with its severity for per-row styling. */
+export interface HazardSoftWarningEntry {
+  message: string;
+  severity: HazardSeverityV1;
+}
+
+function hazardMessage(h: HazardObservationCaptureV1): string {
+  if (h.category === 'asbestos_suspected') {
+    return 'Suspected asbestos — specialist inspection required';
+  }
+  if (h.category === 'structural') {
+    return 'Structural concern noted — verify before installation';
+  }
+  if (h.category === 'electrical') {
+    return 'Electrical hazard recorded — check access and isolation';
+  }
+  if (h.category === 'gas') {
+    return 'Gas safety concern recorded — engineer review required';
+  }
+  if (h.category === 'water_damage') {
+    return 'Water damage noted — assess affected area before installation';
+  }
+  return h.actionRequired
+    ? `Site observation: ${h.title} — ${h.actionRequired}`
+    : `Site observation: ${h.title}`;
+}
+
+/**
+ * Same as `getHazardSoftWarnings` but returns `{ message, severity }` entries
+ * so that each row can be styled according to its individual severity level.
+ */
+export function getHazardSoftWarningEntries(
+  capture: SessionCaptureV2,
+): HazardSoftWarningEntry[] {
+  const hazards = getHazardEvidenceSummary(capture);
+  return hazards
+    .filter((h) => h.reviewStatus !== 'rejected')
+    .map((h) => ({ message: hazardMessage(h), severity: h.severity }));
 }

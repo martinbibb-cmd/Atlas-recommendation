@@ -26,7 +26,7 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { buildEngineerDisplayModel } from './selectors/buildEngineerDisplayModel';
 import { useScanCaptureForVisit } from '../../features/scanHandoff/useScanCaptureForVisit';
-import { ScanEvidenceSummary } from '../../features/scanEvidence';
+import { ScanEvidenceSummary, ScanPreinstallSignals, hasBlockingHazard } from '../../features/scanEvidence';
 import { EngineerJobSummaryCard } from './EngineerJobSummaryCard';
 import { EngineerLayoutSummary } from './EngineerLayoutSummary';
 import { EngineerCurrentSystemPanel } from './EngineerCurrentSystemPanel';
@@ -216,7 +216,28 @@ export default function EngineerPreinstallPage({ visitId, onBack }: Props) {
 
       {/* Scan evidence — shown when a capture has been received from Atlas Scan */}
       {scanCapture && (
-        <ScanEvidenceSummary capture={scanCapture} />
+        <>
+          {hasBlockingHazard(scanCapture) && (
+            <div
+              data-testid="engineer-preinstall-hazard-banner"
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fca5a5',
+                borderRadius: 6,
+                padding: '0.6rem 0.9rem',
+                marginBottom: '0.75rem',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                color: '#b91c1c',
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+              }}
+            >
+              ⚠ Site observations require attention before installation
+            </div>
+          )}
+          <ScanPreinstallSignals capture={scanCapture} />
+          <ScanEvidenceSummary capture={scanCapture} />
+        </>
       )}
 
       {/* Visit replay — available regardless of display model (uses survey + voice notes) */}

@@ -83,7 +83,7 @@ const highHazard: HazardObservationCaptureV1 = {
 const criticalHazard: HazardObservationCaptureV1 = {
   hazardId: 'hz-crit',
   category: 'structural',
-  severity: 'critical',
+  severity: 'blocking',
   title: 'Structural crack',
   reviewStatus: 'pending',
 };
@@ -205,7 +205,7 @@ describe('hasBlockingHazard', () => {
     expect(hasBlockingHazard(capture)).toBe(true);
   });
 
-  it('returns true for a pending critical-severity hazard', () => {
+  it('returns true for a pending blocking-severity hazard', () => {
     const capture = baseCapture({ hazardObservations: [criticalHazard] });
     expect(hasBlockingHazard(capture)).toBe(true);
   });
