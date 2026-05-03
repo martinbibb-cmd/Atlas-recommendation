@@ -17,7 +17,7 @@ import type {
   QuotePlanLocationV1,
   QuotePlanCandidateRouteV1,
   QuotePlanCandidateFlueRouteV1,
-  QuotePlannerLocationKind,
+  QuotePlanLocationKind,
   QuotePlannerRouteType,
 } from './QuoteInstallationPlanV1';
 
@@ -62,7 +62,7 @@ export interface QuotePlanConfidenceSummary {
  *   - One `proposed_boiler` or `existing_boiler` location.
  *   - One `gas_meter` location.
  */
-const MINIMUM_LOCATION_KINDS: QuotePlannerLocationKind[] = [
+const MINIMUM_LOCATION_KINDS: QuotePlanLocationKind[] = [
   'proposed_boiler',
   'existing_boiler',
   'gas_meter',
@@ -75,7 +75,7 @@ const MINIMUM_LOCATION_KINDS: QuotePlannerLocationKind[] = [
  */
 export function getQuotePlanLocationsByKind(
   plan: QuoteInstallationPlanV1,
-  kind: QuotePlannerLocationKind,
+  kind: QuotePlanLocationKind,
 ): QuotePlanLocationV1[] {
   return plan.locations.filter((loc) => loc.kind === kind);
 }

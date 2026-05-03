@@ -24,13 +24,20 @@ export interface QuotePlannerPageProps {
    * "Atlas Pick" badge.
    */
   seedProposedSystem?: UiProposedSystemLabel | null;
+  /**
+   * Optional floor-plan image URI from the scan session.
+   * When provided, the Place Locations step shows the floor plan with an
+   * interactive overlay.
+   */
+  floorPlanUri?: string;
 }
 
-export function QuotePlannerPage({ onBack, seedProposedSystem }: QuotePlannerPageProps) {
+export function QuotePlannerPage({ onBack, seedProposedSystem, floorPlanUri }: QuotePlannerPageProps) {
   return (
     <QuotePlannerStepper
       onBack={onBack}
       seedProposedSystem={seedProposedSystem}
+      floorPlanUri={floorPlanUri}
     />
   );
 }

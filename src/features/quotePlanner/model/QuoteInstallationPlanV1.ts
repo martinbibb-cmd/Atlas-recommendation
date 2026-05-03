@@ -40,6 +40,22 @@ export type {
   QuotePlannerRouteConfidence,
 };
 
+// ─── Plan-layer location kind ─────────────────────────────────────────────────
+
+/**
+ * Extended location kind for the quote plan layer.
+ *
+ * Adds drainage/waste discharge points that are only relevant at the plan
+ * stage (not captured by the scan session kind set).  All scan-layer kinds
+ * remain valid here.
+ */
+export type QuotePlanLocationKind =
+  | QuotePlannerLocationKind
+  | 'internal_waste'
+  | 'soil_stack'
+  | 'gully'
+  | 'soakaway';
+
 // ─── Plan location ────────────────────────────────────────────────────────────
 
 /**
@@ -53,7 +69,7 @@ export interface QuotePlanLocationV1 {
   /** Stable identifier within the plan. */
   locationId: string;
   /** Role this location plays in the installation. */
-  kind: QuotePlannerLocationKind;
+  kind: QuotePlanLocationKind;
   /** How this location was identified — preserved from evidence. */
   provenance: QuotePlannerLocationProvenance;
   /** Confidence in this location — preserved from evidence. */
@@ -66,6 +82,23 @@ export interface QuotePlanLocationV1 {
   linkedPhotoIds?: string[];
   /** Optional engineer-facing note. */
   notes?: string;
+  /**
+   * Normalised (0–1) position on the floor-plan overlay image.
+   * Absent when the location has not been placed on the floor plan yet.
+   */
+  planCoord?: { x: number; y: number };
+  /**
+   * Floor index (zero-based, ground = 0) this location sits on.
+   * Absent when the floor is unknown or not yet assigned.
+   */
+  floorIndex?: number;
+  /**
+   * Whether the engineer has rejected/deleted this candidate.
+   *
+   * Rejected locations are retained as audit evidence but excluded from
+   * active plan logic.  Never delete them from the array — soft-delete only.
+   */
+  rejected?: boolean;
 }
 
 // ─── Plan route ───────────────────────────────────────────────────────────────

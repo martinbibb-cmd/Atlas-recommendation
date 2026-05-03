@@ -21,11 +21,12 @@ import { QuotePlannerProgress } from './QuotePlannerProgress';
 import { CurrentSystemStep } from './steps/CurrentSystemStep';
 import { ProposedSystemStep } from './steps/ProposedSystemStep';
 import { JobTypeStep } from './steps/JobTypeStep';
-import { LocationsIntroStep } from './steps/LocationsIntroStep';
+import { PlaceLocationsStep } from './steps/PlaceLocationsStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
 import { uiLabelToFamily } from './quotePlannerUiTypes';
 import type { UiCurrentSystemLabel, UiProposedSystemLabel } from './quotePlannerUiTypes';
 import type { QuoteJobClassificationV1 } from '../calculators/quotePlannerTypes';
+import type { QuotePlanLocationV1 } from '../model/QuoteInstallationPlanV1';
 import './quotePlannerStyles.css';
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -103,17 +104,24 @@ export interface QuotePlannerStepperProps {
    * "Atlas Pick" badge.  Does not change the recommendation decision.
    */
   seedProposedSystem?: UiProposedSystemLabel | null;
+  /**
+   * Optional floor-plan image URI (from the scan session).
+   * When provided, the Place Locations step shows the floor plan overlay.
+   */
+  floorPlanUri?: string;
 }
 
 export function QuotePlannerStepper({
   onBack,
   seedProposedSystem,
+  floorPlanUri,
 }: QuotePlannerStepperProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedCurrentSystem, setSelectedCurrentSystem] =
     useState<UiCurrentSystemLabel | null>(null);
   const [selectedProposedSystem, setSelectedProposedSystem] =
     useState<UiProposedSystemLabel | null>(seedProposedSystem ?? null);
+  const [locations, setLocations] = useState<QuotePlanLocationV1[]>([]);
 
   // Derive job classification whenever system selections change.
   const jobClassification = useMemo(
@@ -185,7 +193,14 @@ export function QuotePlannerStepper({
         );
 
       case 'place_locations':
-        return <LocationsIntroStep />;
+        return (
+          <PlaceLocationsStep
+            locations={locations}
+            onLocationsChange={setLocations}
+            floorPlanUri={floorPlanUri}
+            jobClassification={jobClassification}
+          />
+        );
 
       case 'flue_plan':
         return (
