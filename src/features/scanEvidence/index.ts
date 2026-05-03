@@ -41,6 +41,12 @@ export { ScanPipeRouteList } from './ScanPipeRouteList';
 export type { ScanPointCloudAssetListProps } from './ScanPointCloudAssetList';
 export { ScanPointCloudAssetList } from './ScanPointCloudAssetList';
 
+export type { ScanFabricEvidencePanelProps } from './ScanFabricEvidencePanel';
+export { ScanFabricEvidencePanel } from './ScanFabricEvidencePanel';
+
+export type { ScanHazardObservationPanelProps } from './ScanHazardObservationPanel';
+export { ScanHazardObservationPanel } from './ScanHazardObservationPanel';
+
 // ─── Badge components ─────────────────────────────────────────────────────────
 
 export type { ReviewStatusBadgeProps, ReviewStatus } from './ReviewStatusBadge';
@@ -63,6 +69,9 @@ export type {
   ObjectPinV2,
   FloorPlanSnapshotV2,
   QaFlagV2,
+  FloorPlanFabricCaptureV1,
+  FabricBoundaryV1,
+  HazardObservationCaptureV1,
 } from './scanEvidenceSelectors';
 
 export {
@@ -80,4 +89,9 @@ export {
   selectEvidenceCounts,
   deriveSessionConfidence,
   deriveEntityConfidence,
+  getFabricEvidenceSummary,
+  getConfirmedFabricBoundaries,
+  getCustomerSafeFabricEvidence,
+  getHazardEvidenceSummary,
+  hasBlockingHazard,
 } from './scanEvidenceSelectors';

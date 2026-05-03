@@ -30,6 +30,7 @@ import type { ReceiveScanHandoffResult } from './receiveScanHandoff';
 import type { AtlasVisitV1 } from './contracts/AtlasVisitV1';
 import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
 import { resolveBrandProfile } from '../branding/resolveBrandProfile';
+import { getFabricEvidenceSummary, getHazardEvidenceSummary } from '../scanEvidence/scanEvidenceSelectors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -242,6 +243,8 @@ export function ScanHandoffReceivePage({
     objectPinCount++;
     if (pin.objectType === 'pipe_route') pipeRouteCount++;
   }
+  const fabricRoomCount = getFabricEvidenceSummary(capture).length;
+  const hazardCount = getHazardEvidenceSummary(capture).length;
 
   return (
     <div style={containerStyle}>
@@ -303,6 +306,16 @@ export function ScanHandoffReceivePage({
           )}
           {floorPlanCount > 0 && (
             <li><strong>{floorPlanCount}</strong> floor-plan {floorPlanCount === 1 ? 'snapshot' : 'snapshots'}</li>
+          )}
+          {fabricRoomCount > 0 && (
+            <li data-testid="receive-scan-fabric-count">
+              <strong>{fabricRoomCount}</strong> fabric {fabricRoomCount === 1 ? 'room' : 'rooms'} (engineer)
+            </li>
+          )}
+          {hazardCount > 0 && (
+            <li data-testid="receive-scan-hazard-count">
+              <strong>{hazardCount}</strong> hazard {hazardCount === 1 ? 'observation' : 'observations'} (engineer)
+            </li>
           )}
         </ul>
       </div>

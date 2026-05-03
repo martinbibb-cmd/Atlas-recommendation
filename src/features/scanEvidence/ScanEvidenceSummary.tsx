@@ -29,6 +29,8 @@ import {
   selectEvidenceCounts,
   selectQaFlags,
   deriveSessionConfidence,
+  getFabricEvidenceSummary,
+  getHazardEvidenceSummary,
 } from './scanEvidenceSelectors';
 import { ScanRoomList } from './ScanRoomList';
 import { ScanPhotoEvidenceGrid } from './ScanPhotoEvidenceGrid';
@@ -37,6 +39,8 @@ import { ScanObjectPinList } from './ScanObjectPinList';
 import { ScanPipeRouteList } from './ScanPipeRouteList';
 import { ScanPointCloudAssetList } from './ScanPointCloudAssetList';
 import { AnchorConfidenceBadge } from './AnchorConfidenceBadge';
+import { ScanFabricEvidencePanel } from './ScanFabricEvidencePanel';
+import { ScanHazardObservationPanel } from './ScanHazardObservationPanel';
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -143,6 +147,8 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
   const counts = selectEvidenceCounts(capture);
   const qaFlags = selectQaFlags(capture);
   const sessionConfidence = deriveSessionConfidence(capture);
+  const fabricRooms = getFabricEvidenceSummary(capture);
+  const hazards = getHazardEvidenceSummary(capture);
 
   // Collapsible photo section (can be large)
   const [photosExpanded, setPhotosExpanded] = useState(false);
@@ -220,6 +226,12 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
           <CountChip label="Object pins" value={counts.objectPins} />
           <CountChip label="Pipe routes" value={counts.pipeRoutes} />
           <CountChip label="Point-cloud" value={counts.pointCloudAssets} />
+          {fabricRooms.length > 0 && (
+            <CountChip label="Fabric rooms" value={fabricRooms.length} />
+          )}
+          {hazards.length > 0 && (
+            <CountChip label="Hazards" value={hazards.length} />
+          )}
           {counts.qaFlags > 0 && (
             <CountChip label="QA flags" value={counts.qaFlags} />
           )}
@@ -295,9 +307,22 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
         <ScanPointCloudAssetList capture={capture} />
       </Section>
 
-      {/* ── 9. QA flags ───────────────────────────────────────────────────── */}
-      {qaFlags.length > 0 && (
-        <Section title="QA flags" count={qaFlags.length}>
+      {/* ── 9. Fabric evidence (engineer only) ───────────────────────────── */}
+      {fabricRooms.length > 0 && (
+        <Section title="Fabric evidence (engineer)" count={fabricRooms.length}>
+          <ScanFabricEvidencePanel capture={capture} />
+        </Section>
+      )}
+
+      {/* ── 10. Hazard observations (engineer only) ───────────────────────── */}
+      {hazards.length > 0 && (
+        <Section title="Hazard observations (engineer)" count={hazards.length}>
+          <ScanHazardObservationPanel capture={capture} />
+        </Section>
+      )}
+
+      {/* ── 11. QA flags ─────────────────────────────────────────────────── */}
+      {qaFlags.length > 0 && (        <Section title="QA flags" count={qaFlags.length}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {qaFlags.map((flag, i) => {
               const style = QA_SEVERITY_STYLE[flag.severity] ?? QA_SEVERITY_STYLE['info'];
