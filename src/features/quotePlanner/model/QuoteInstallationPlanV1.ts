@@ -21,6 +21,7 @@ import type {
   QuoteFlueCalculationMode,
   QuoteRouteV1,
   QuoteFlueRouteV1,
+  FlueFamily,
 } from '../calculators/quotePlannerTypes';
 
 import type {
@@ -38,6 +39,7 @@ export type {
   QuotePlannerLocationConfidence,
   QuotePlannerRouteType,
   QuotePlannerRouteConfidence,
+  FlueFamily,
 };
 
 // ─── Plan-layer location kind ─────────────────────────────────────────────────
@@ -142,6 +144,21 @@ export interface QuotePlanCandidateFlueRouteV1 {
   flueRouteId: string;
   /** Confidence in the flue route geometry / evidence. */
   confidence: QuotePlannerRouteConfidence;
+  /**
+   * Broad family / orientation of the flue run.
+   * Set to 'unknown' until the engineer confirms the family.
+   */
+  family: FlueFamily;
+  /**
+   * Location ID of the proposed boiler within this plan's `locations` array.
+   * Absent when the boiler location has not been linked yet.
+   */
+  boilerLocationId?: string;
+  /**
+   * Location ID of the proposed flue terminal within this plan's `locations` array.
+   * Absent when the terminal location has not been linked yet.
+   */
+  terminalLocationId?: string;
   /**
    * Flue route geometry (segments), if sufficient data is available.
    * Absent when the scan evidence does not provide segment data.

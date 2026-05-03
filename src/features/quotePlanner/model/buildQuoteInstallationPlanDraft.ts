@@ -208,6 +208,7 @@ function importFlueRoutes(
   return candidates.map<QuotePlanCandidateFlueRouteV1>((flue) => ({
     flueRouteId:     flue.flueRouteId,
     confidence:      flue.confidence,
+    family:          'unknown',
     calculationMode: 'generic_estimate',
     linkedPinIds:    flue.linkedPinIds,
     notes:           flue.notes,

@@ -57,6 +57,9 @@ export const GENERIC_FLUE_ASSUMPTION_90 =
 export const GENERIC_FLUE_ASSUMPTION_45 =
   'Generic estimate: 45° elbow assumed at 1.0 m equivalent length. Verify against manufacturer flue guide.';
 
+export const GENERIC_FLUE_ASSUMPTION_OFFSET =
+  'Generic estimate: offset assumed at 2.0 m equivalent length (2 × 45° estimate). Verify against manufacturer flue guide.';
+
 export const GENERIC_FLUE_ASSUMPTION_PLUME =
   'Generic estimate: plume management kit assumed at 0 m equivalent length. Verify against manufacturer flue guide.';
 

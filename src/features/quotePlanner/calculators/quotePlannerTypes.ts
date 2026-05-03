@@ -138,22 +138,50 @@ export interface QuoteRouteComplexityResultV1 {
 
 // ─── Flue segments ────────────────────────────────────────────────────────────
 
+// ─── Flue family ──────────────────────────────────────────────────────────────
+
+/**
+ * The broad family / orientation of a flue run.
+ *
+ * horizontal_rear      — exits the boiler horizontally through the rear wall.
+ * horizontal_side      — exits the boiler horizontally through a side wall.
+ * vertical             — exits vertically through the roof (no horizontal offset).
+ * vertical_with_offsets — vertical exit but with one or more horizontal offset sections.
+ * plume_management     — includes a plume management kit to redirect the terminal.
+ * unknown              — family not yet determined.
+ */
+export type FlueFamily =
+  | 'horizontal_rear'
+  | 'horizontal_side'
+  | 'vertical'
+  | 'vertical_with_offsets'
+  | 'plume_management'
+  | 'unknown';
+
 /**
  * The kind of flue segment or accessory.
  *
- * straight     — straight pipe section (contributes physical length only).
- * elbow_90     — 90° elbow; default equivalent length 2.0 m.
- * elbow_45     — 45° elbow; default equivalent length 1.0 m.
- * plume_kit    — plume management kit; equivalent length configurable (default 0).
- * terminal     — flue terminal; default equivalent length 0.
- * other        — any other accessory with a specified equivalent length.
+ * straight            — straight pipe section (contributes physical length only).
+ * elbow_90            — 90° elbow; default equivalent length 2.0 m.
+ * elbow_45            — 45° elbow; default equivalent length 1.0 m.
+ * offset              — offset section (pair of 45° elbows and a short straight).
+ * plume_kit           — plume management kit; equivalent length configurable (default 0).
+ * terminal            — generic flue terminal; default equivalent length 0.
+ * vertical_terminal   — vertical flue terminal (e.g. pitched-roof terminal).
+ * horizontal_terminal — horizontal wall terminal.
+ * roof_flashing       — roof penetration flashing; no equivalent-length penalty.
+ * other               — any other accessory with a specified equivalent length.
  */
 export type FlueSegmentKind =
   | 'straight'
   | 'elbow_90'
   | 'elbow_45'
+  | 'offset'
   | 'plume_kit'
   | 'terminal'
+  | 'vertical_terminal'
+  | 'horizontal_terminal'
+  | 'roof_flashing'
   | 'other';
 
 /**

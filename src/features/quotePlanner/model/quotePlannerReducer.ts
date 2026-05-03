@@ -22,7 +22,7 @@
  */
 
 import type { QuoteInstallationPlanV1 } from './QuoteInstallationPlanV1';
-import type { QuotePlanLocationV1 } from './QuoteInstallationPlanV1';
+import type { QuotePlanLocationV1, QuotePlanCandidateFlueRouteV1 } from './QuoteInstallationPlanV1';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -65,11 +65,24 @@ export interface UpdateLocationsAction {
   locations: QuotePlanLocationV1[];
 }
 
+/**
+ * Update a single flue route in the plan's `flueRoutes` array.
+ *
+ * If a route with the same `flueRouteId` already exists it is replaced;
+ * otherwise the route is appended.
+ * Has no effect when `state.plan` is `null`.
+ */
+export interface UpdateFlueRouteAction {
+  type: 'QUOTE_PLANNER/UPDATE_FLUE_ROUTE';
+  flueRoute: QuotePlanCandidateFlueRouteV1;
+}
+
 /** Discriminated union of all quote planner actions. */
 export type QuotePlannerAction =
   | SetPlanAction
   | ClearPlanAction
-  | UpdateLocationsAction;
+  | UpdateLocationsAction
+  | UpdateFlueRouteAction;
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
@@ -96,6 +109,21 @@ export function quotePlannerReducer(
       return {
         ...state,
         plan: { ...state.plan, locations: action.locations },
+      };
+    }
+
+    case 'QUOTE_PLANNER/UPDATE_FLUE_ROUTE': {
+      if (!state.plan) return state;
+      const { flueRoute } = action;
+      const existing = state.plan.flueRoutes;
+      const idx = existing.findIndex((r) => r.flueRouteId === flueRoute.flueRouteId);
+      const updatedFlueRoutes =
+        idx >= 0
+          ? existing.map((r) => (r.flueRouteId === flueRoute.flueRouteId ? flueRoute : r))
+          : [...existing, flueRoute];
+      return {
+        ...state,
+        plan: { ...state.plan, flueRoutes: updatedFlueRoutes },
       };
     }
 
