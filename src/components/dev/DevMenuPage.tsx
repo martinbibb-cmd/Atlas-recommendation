@@ -116,6 +116,8 @@ const VIEW_MODE_LABELS: Record<DevUiViewMode, string> = {
 
 interface Props {
   onBack: () => void;
+  /** Called after demo data is seeded — navigates to the workspace dashboard. */
+  onLoadDemoWorkspace?: () => void;
 }
 
 // ─── Top-level page mode ──────────────────────────────────────────────────────
@@ -131,7 +133,7 @@ const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function DevMenuPage({ onBack }: Props) {
+export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
   const [pageMode, setPageMode] = useState<DevMenuPageMode>('inventory');
   const [filters, setFilters] = useState<DevUiFilterState>(INITIAL_FILTER_STATE);
   const [selectedItem, setSelectedItem] = useState<DevUiRegistryItem | null>(null);
@@ -191,13 +193,20 @@ export default function DevMenuPage({ onBack }: Props) {
   }
 
   function handleResetDemoData() {
-    if (!window.confirm('Reset demo data?\n\nThis replaces all analytics events and demo user profiles with the canonical demo fixtures. The page will reload.')) {
+    if (!window.confirm('Load demo workspace?\n\nThis reseeds the canonical Demo Heating Co workspace (user profiles, analytics events, file manifest). All existing analytics events will be replaced. The page will navigate to the workspace dashboard.')) {
       return;
     }
     resetDemoData();
-    console.info('[Atlas] Dev reset: demo data reseeded.');
+    console.info('[Atlas] Dev: demo workspace loaded.');
     setDemoSeedDone(true);
-    setTimeout(() => window.location.reload(), 800);
+    setTimeout(() => {
+      if (onLoadDemoWorkspace) {
+        onLoadDemoWorkspace();
+      } else {
+        // Strip query params so we land on the workspace dashboard.
+        window.location.href = window.location.pathname;
+      }
+    }, 800);
   }
 
   if (selectedItem != null) {
@@ -391,8 +400,9 @@ export default function DevMenuPage({ onBack }: Props) {
       {/* Demo data seed */}
       <div style={STYLES.demoSeedSection}>
         <p style={STYLES.demoSeedHint}>
-          🎬 <strong>Reset demo data</strong> — restores the canonical Demo Heating Co workspace
+          🎬 <strong>Load demo workspace</strong> — restores the canonical Demo Heating Co workspace
           with sample user profiles, analytics events, and a sample file manifest.
+          After loading you will land on the workspace dashboard with the demo banner active.
           Clears all existing analytics events. Leaves brand profiles and real visits untouched.
         </p>
         <button
@@ -401,7 +411,7 @@ export default function DevMenuPage({ onBack }: Props) {
           disabled={demoSeedDone}
           style={STYLES.demoSeedBtn}
         >
-          {demoSeedDone ? '✓ Demo data reseeded — reloading…' : '🎬 Reset demo data'}
+          {demoSeedDone ? '✓ Demo workspace loaded — navigating…' : '🎬 Load demo workspace'}
         </button>
       </div>
 
