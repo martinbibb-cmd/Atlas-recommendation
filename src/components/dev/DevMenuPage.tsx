@@ -40,6 +40,7 @@ import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
 import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 import AnalyticsPanel from './AnalyticsPanel';
 import { useActiveUser } from '../../features/userProfiles/useActiveUser';
+import { resetDemoData } from '../../dev/demoSeed';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -139,6 +140,7 @@ export default function DevMenuPage({ onBack }: Props) {
   const [copyFormat, setCopyFormat] = useState<CopyFormat>('text');
   const [copyBoxCopied, setCopyBoxCopied] = useState(false);
   const [cacheResetDone, setCacheResetDone] = useState(false);
+  const [demoSeedDone, setDemoSeedDone] = useState(false);
 
   const { activeUser } = useActiveUser();
 
@@ -185,6 +187,16 @@ export default function DevMenuPage({ onBack }: Props) {
     console.info('[Atlas] Dev reset: Atlas local session cache cleared.');
     setCacheResetDone(true);
     // Give the user a moment to see the confirmation before reloading.
+    setTimeout(() => window.location.reload(), 800);
+  }
+
+  function handleResetDemoData() {
+    if (!window.confirm('Reset demo data?\n\nThis replaces all analytics events and demo user profiles with the canonical demo fixtures. The page will reload.')) {
+      return;
+    }
+    resetDemoData();
+    console.info('[Atlas] Dev reset: demo data reseeded.');
+    setDemoSeedDone(true);
     setTimeout(() => window.location.reload(), 800);
   }
 
@@ -375,6 +387,23 @@ export default function DevMenuPage({ onBack }: Props) {
         onFormatChange={setCopyFormat}
         onCopy={handleCopyCopyBox}
       />
+
+      {/* Demo data seed */}
+      <div style={STYLES.demoSeedSection}>
+        <p style={STYLES.demoSeedHint}>
+          🎬 <strong>Reset demo data</strong> — restores the canonical Demo Heating Co workspace
+          with sample user profiles, analytics events, and a sample file manifest.
+          Clears all existing analytics events. Leaves brand profiles and real visits untouched.
+        </p>
+        <button
+          className="chip-btn"
+          onClick={handleResetDemoData}
+          disabled={demoSeedDone}
+          style={STYLES.demoSeedBtn}
+        >
+          {demoSeedDone ? '✓ Demo data reseeded — reloading…' : '🎬 Reset demo data'}
+        </button>
+      </div>
 
       {/* Dev/support: reset local Atlas session cache */}
       <div style={STYLES.cacheResetSection}>
@@ -1122,6 +1151,27 @@ const STYLES: Record<string, CSSProperties> = {
   },
   cacheResetBtn: {
     background: '#dc2626',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '0.375rem',
+    padding: '0.5rem 1rem',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+  },
+  demoSeedSection: {
+    marginTop: '1.5rem',
+    padding: '1rem',
+    background: '#f0fdf4',
+    border: '1px solid #86efac',
+    borderRadius: '0.5rem',
+  },
+  demoSeedHint: {
+    margin: '0 0 0.75rem',
+    fontSize: '0.875rem',
+    color: '#166534',
+  },
+  demoSeedBtn: {
+    background: '#16a34a',
     color: '#fff',
     border: 'none',
     borderRadius: '0.375rem',
