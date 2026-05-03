@@ -265,6 +265,141 @@ export interface QaFlagV2 {
   entityId?: string;
 }
 
+// ─── Quote planner evidence types (optional — populated by Atlas Scan 2.x) ───
+
+/**
+ * Provenance of a scan-captured quote planner location candidate.
+ *
+ * scan_inferred — detected automatically (e.g. LiDAR / object detection);
+ *                 not manually confirmed by the engineer during the scan.
+ * scan_confirmed — engineer explicitly confirmed during the scan session.
+ * manual          — added manually outside the scan flow.
+ * unknown         — provenance cannot be determined.
+ */
+export type QuotePlannerLocationProvenance =
+  | 'scan_inferred'
+  | 'scan_confirmed'
+  | 'manual'
+  | 'unknown';
+
+/**
+ * Confidence in a scan-captured quote planner location.
+ *
+ * needs_verification — inferred or otherwise uncertain; must be reviewed before use.
+ */
+export type QuotePlannerLocationConfidence =
+  | 'high'
+  | 'medium'
+  | 'low'
+  | 'needs_verification';
+
+/**
+ * Kind / role of a candidate install location.
+ */
+export type QuotePlannerLocationKind =
+  | 'proposed_boiler'
+  | 'existing_boiler'
+  | 'gas_meter'
+  | 'flue_terminal'
+  | 'cylinder'
+  | 'other';
+
+/**
+ * A candidate install location captured during the scan session.
+ *
+ * Inferred locations (provenance `scan_inferred`) must not be automatically
+ * promoted to confirmed in the quote plan.  The engineer must review them.
+ */
+export interface QuotePlannerCandidateLocationV1 {
+  /** Stable identifier for this candidate location within the evidence set. */
+  locationId: string;
+  /** Role / kind of this install location. */
+  kind: QuotePlannerLocationKind;
+  /** How this location was identified. */
+  provenance: QuotePlannerLocationProvenance;
+  /** Confidence level — preserved verbatim from the scan output. */
+  confidence: QuotePlannerLocationConfidence;
+  /** Room context, if recorded during scan. */
+  roomId?: string;
+  /** Object pin that represents this location, if present. */
+  linkedPinId?: string;
+  /** Photo IDs linked to this location, if present. */
+  linkedPhotoIds?: string[];
+  /** Optional engineer-facing note captured during the scan. */
+  notes?: string;
+}
+
+/**
+ * Type of a candidate pipe or service route.
+ */
+export type QuotePlannerRouteType =
+  | 'primary_flow_return'
+  | 'gas_supply'
+  | 'condensate'
+  | 'cold_water_supply'
+  | 'other';
+
+/**
+ * Confidence in a route captured during scan.
+ *
+ * Mirrors QuoteRouteConfidence from quotePlannerTypes but is declared here
+ * independently to avoid a cross-feature import from the contracts layer.
+ *
+ * measured  — derived from a scan or scaled photo.
+ * drawn     — engineer-drawn on a floor plan.
+ * estimated — inferred from survey inputs; no direct measurement.
+ */
+export type QuotePlannerRouteConfidence = 'measured' | 'drawn' | 'estimated';
+
+/**
+ * A candidate pipe / service route captured during the scan session.
+ *
+ * Route lengths are NOT calculated here — do not fabricate lengths when
+ * measurable coordinates or a scale factor are not available.
+ */
+export interface QuotePlannerCandidateRouteV1 {
+  /** Stable identifier for this candidate route within the evidence set. */
+  routeId: string;
+  /** Service type this route carries. */
+  routeType: QuotePlannerRouteType;
+  /** Confidence in the route geometry / evidence. */
+  confidence: QuotePlannerRouteConfidence;
+  /** Object-pin IDs that trace this route, if present. */
+  linkedPinIds?: string[];
+  /** Optional engineer-facing note captured during the scan. */
+  notes?: string;
+}
+
+/**
+ * A candidate flue route captured during the scan session.
+ */
+export interface QuotePlannerCandidateFlueRouteV1 {
+  /** Stable identifier for this candidate flue route within the evidence set. */
+  flueRouteId: string;
+  /** Confidence in the flue route geometry / evidence. */
+  confidence: QuotePlannerRouteConfidence;
+  /** Object-pin IDs that trace this flue route, if present. */
+  linkedPinIds?: string[];
+  /** Optional engineer-facing note captured during the scan. */
+  notes?: string;
+}
+
+/**
+ * Quote planner evidence block captured by Atlas Scan 2.x.
+ *
+ * Engineer-internal only — drives quote planning, not customer outputs.
+ * Absent on older Scan 1.x payloads and sessions captured before the
+ * quote planner feature was enabled.
+ */
+export interface QuotePlannerEvidenceV1 {
+  /** Candidate install locations identified during the scan. */
+  candidateLocations: QuotePlannerCandidateLocationV1[];
+  /** Candidate pipe / service routes identified during the scan. */
+  candidateRoutes: QuotePlannerCandidateRouteV1[];
+  /** Candidate flue routes identified during the scan. */
+  candidateFlueRoutes: QuotePlannerCandidateFlueRouteV1[];
+}
+
 // ─── Top-level contract ───────────────────────────────────────────────────────
 
 /**
@@ -336,6 +471,17 @@ export interface SessionCaptureV2 {
   hazardObservations?:
     | HazardObservationCaptureV1
     | HazardObservationCaptureV1[];
+  /**
+   * Quote planner evidence captured by Atlas Scan 2.x.
+   *
+   * Engineer-internal only — drives quote planning, not customer outputs.
+   * Absent on older Scan 1.x payloads and sessions captured before the
+   * quote planner feature was enabled.
+   *
+   * Inferred / scan_inferred locations in candidateLocations must remain as
+   * evidence until the engineer reviews them — do not auto-promote.
+   */
+  quotePlannerEvidence?: QuotePlannerEvidenceV1;
 }
 
 /** Unvalidated incoming payload — used before structural validation. */
