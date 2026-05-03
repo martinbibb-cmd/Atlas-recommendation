@@ -276,7 +276,7 @@ export default function WorkspaceDashboard({
   }, [tenant.brandId]);
 
   const hasBrandingSetUp = brandProfile !== null && (
-    brandProfile.companyName.trim().length > 0 ||
+    (typeof brandProfile.companyName === 'string' && brandProfile.companyName.trim().length > 0) ||
     brandProfile.logoUrl != null
   );
 
@@ -616,7 +616,7 @@ export default function WorkspaceDashboard({
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, color: '#374151' }}>
-                    Brand not configured. Add your company name, colours, and logo for white-labelled outputs.
+                    Brand not configured. Add your company name, colors, and logo for white-labelled outputs.
                   </div>
                 </div>
                 <button
