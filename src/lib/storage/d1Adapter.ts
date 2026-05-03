@@ -84,6 +84,7 @@ const D1_TABLE: Readonly<Record<StorageCollectionName, string>> = {
   visits: 'atlas_adapter_visits',
   scanCaptures: 'atlas_adapter_scan_captures',
   visitManifests: 'atlas_adapter_visit_manifests',
+  userProfiles: 'atlas_adapter_user_profiles',
 };
 
 /** Set of all known-safe D1 table name values for runtime validation. */

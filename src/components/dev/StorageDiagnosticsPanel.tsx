@@ -45,6 +45,7 @@ const COLLECTION_LABELS: Record<StorageCollectionName, string> = {
   visits: 'Visits',
   scanCaptures: 'Scan captures',
   visitManifests: 'Visit manifests',
+  userProfiles: 'User profiles',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

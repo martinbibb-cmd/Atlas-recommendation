@@ -57,7 +57,7 @@ describe('gatherStorageDiagnostics', () => {
 
     expect(result.activeAdapterKind).toBe('local');
     expect(result.lastError).toBeNull();
-    expect(result.collections).toHaveLength(5);
+    expect(result.collections).toHaveLength(ALL_COLLECTIONS.length);
     for (const snap of result.collections) {
       expect(snap.count).toBe(0);
       expect(snap.error).toBeNull();
