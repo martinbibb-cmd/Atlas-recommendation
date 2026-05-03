@@ -198,7 +198,6 @@ export function FlueSegmentEditor({
                   key={meta.kind}
                   type="button"
                   className="flue-add-bar__kind-btn"
-                  role="menuitem"
                   onClick={() => handlePickKind(meta)}
                 >
                   <span aria-hidden="true">{meta.icon}</span> {meta.label}

@@ -82,7 +82,6 @@ export function FlueFamilyTiles({ selected, onSelect }: FlueFamilyTilesProps) {
           <button
             key={family}
             type="button"
-            role="button"
             aria-pressed={isSelected}
             aria-label={label}
             title={hint}

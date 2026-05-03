@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { FluePlanStep } from '../steps/FluePlanStep';
 import type { QuotePlanLocationV1, QuotePlanCandidateFlueRouteV1 } from '../../model/QuoteInstallationPlanV1';
 
@@ -55,7 +55,7 @@ function renderStep(
 
 function addStraightSegment(lengthM: number) {
   fireEvent.click(screen.getByRole('button', { name: '+ Add segment' }));
-  fireEvent.click(screen.getByRole('menuitem', { name: /Straight section/i }));
+  fireEvent.click(screen.getByRole('button', { name: /Straight section/i }));
   fireEvent.change(screen.getByLabelText('Straight length in metres'), {
     target: { value: String(lengthM) },
   });
@@ -65,7 +65,9 @@ function addStraightSegment(lengthM: number) {
 // Helper: add a fitting segment (no length required)
 function addFittingSegment(namePattern: RegExp) {
   fireEvent.click(screen.getByRole('button', { name: '+ Add segment' }));
-  fireEvent.click(screen.getByRole('menuitem', { name: namePattern }));
+  // Scope to the picker group to avoid matching Remove buttons with the same label text.
+  const picker = screen.getByRole('group', { name: 'Segment type picker' });
+  fireEvent.click(within(picker).getByRole('button', { name: namePattern }));
 }
 
 // ─── 1. Heading and copy ──────────────────────────────────────────────────────
