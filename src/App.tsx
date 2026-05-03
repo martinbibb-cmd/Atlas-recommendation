@@ -105,6 +105,7 @@ import { ActiveUserProvider } from './features/userProfiles/ActiveUserProvider';
 import { useActiveUser } from './features/userProfiles/useActiveUser';
 import { useRolePermissions } from './features/userProfiles/useRolePermissions';
 import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
+import { QuotePlannerPage } from './features/quotePlanner/ui/QuotePlannerPage';
 import './App.css';
 
 /**
@@ -443,6 +444,24 @@ const WORKSPACE_AUTO_REVIEW =
  */
 const RECEIVE_SCAN_HANDOFF_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/receive-scan';
+
+/**
+ * Detect /quote-planner path or ?quote-planner=1 — renders the Atlas Quote
+ * Planner visual stepper shell.
+ *
+ * This is a lab/dev route for the initial PR; it establishes the stepper flow
+ * only and does not alter the existing recommendation engine.
+ *
+ * Examples:
+ *   /quote-planner               — path-based entry (e.g. from VisitHubPage)
+ *   /?quote-planner=1            — query-param flag for quick dev access
+ */
+const QUOTE_PLANNER_ENABLED =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/quote-planner' ||
+    new URLSearchParams(window.location.search).get('quote-planner') === '1'
+  );
 
 function CanonicalPresentationRoute({
   engineInput,
@@ -990,6 +1009,15 @@ function AppInner() {
           window.location.href = `/visit/${encodeURIComponent(visit.visitId)}/engineer`;
         }}
         onCancel={() => { window.location.href = window.location.origin; }}
+      />
+    );
+  }
+
+  // /quote-planner or ?quote-planner=1 — render the Atlas Quote Planner stepper shell.
+  if (QUOTE_PLANNER_ENABLED) {
+    return (
+      <QuotePlannerPage
+        onBack={() => { window.history.back(); }}
       />
     );
   }
