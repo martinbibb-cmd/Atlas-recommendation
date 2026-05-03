@@ -131,7 +131,7 @@ function OpeningRow({ opening }: { opening: FabricOpeningV1 }) {
         {openingTypeLabel(opening.type)}
       </span>
       <span style={{ color: '#475569', minWidth: 70, flexShrink: 0 }}>
-        {fmtM(opening.widthM, 'm')} × {fmtM(opening.heightM, 'm')}
+        {fmtM(opening.widthM)} × {fmtM(opening.heightM)}
       </span>
       {opening.material && (
         <span style={{ color: '#64748b', flex: 1 }}>{opening.material}</span>

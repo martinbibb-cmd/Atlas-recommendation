@@ -322,7 +322,8 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
       )}
 
       {/* ── 11. QA flags ─────────────────────────────────────────────────── */}
-      {qaFlags.length > 0 && (        <Section title="QA flags" count={qaFlags.length}>
+      {qaFlags.length > 0 && (
+        <Section title="QA flags" count={qaFlags.length}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {qaFlags.map((flag, i) => {
               const style = QA_SEVERITY_STYLE[flag.severity] ?? QA_SEVERITY_STYLE['info'];
