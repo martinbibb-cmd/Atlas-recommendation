@@ -101,6 +101,7 @@ import AnalyticsDashboard from './features/analytics/AnalyticsDashboard';
 import { ExternalVisitManifestPanel } from './features/externalFiles/ExternalVisitManifestPanel';
 import { ActiveUserProvider } from './features/userProfiles/ActiveUserProvider';
 import { useActiveUser } from './features/userProfiles/useActiveUser';
+import { useRolePermissions } from './features/userProfiles/useRolePermissions';
 import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import './App.css';
 
@@ -657,6 +658,14 @@ function AppInner() {
 
   /** Active user profile — used for workspace defaults and visit attribution. */
   const { activeUser } = useActiveUser();
+
+  /** Role-based UI permission flags derived from the active user's role. */
+  const {
+    canCreateVisit,
+    canManageWorkspace,
+    canViewAnalytics,
+    canEditBranding,
+  } = useRolePermissions();
 
   // ── Session persistence: write journey + visitId to versioned cache ────────
   // These effects run whenever journey or activeVisitId changes, keeping the
@@ -1762,13 +1771,15 @@ function AppInner() {
 
           {/* Primary CTAs — new visit + search visits */}
           <div className="visit-cta-row">
-            <button
-              className="cta-btn cta-btn--visit"
-              onClick={handleStartNewVisit}
-              aria-haspopup="dialog"
-            >
-              ＋ New Visit
-            </button>
+            {canCreateVisit && (
+              <button
+                className="cta-btn cta-btn--visit"
+                onClick={handleStartNewVisit}
+                aria-haspopup="dialog"
+              >
+                ＋ New Visit
+              </button>
+            )}
             <button
               className="cta-btn cta-btn--search-visits"
               onClick={() => setShowVisitsPanel(v => !v)}
@@ -1828,6 +1839,7 @@ function AppInner() {
             </div>
 
             {/* Visit Workspaces — local / drive import workspace */}
+            {canManageWorkspace && (
             <div
               id="visit-workspaces-card"
               className="journey-card"
@@ -1838,8 +1850,10 @@ function AppInner() {
               <p>Import, review, and export scan captures — stored locally or on Drive. No DB write until you publish.</p>
               <button className="cta-btn">Open Workspaces →</button>
             </div>
+            )}
 
             {/* Workspace Analytics — tenant KPI dashboard */}
+            {canViewAnalytics && (
             <div
               id="workspace-analytics-card"
               className="journey-card"
@@ -1850,8 +1864,10 @@ function AppInner() {
               <p>View usage metrics — visits, completion rate, and recommendation selections. No customer data stored.</p>
               <button className="cta-btn">Open Analytics →</button>
             </div>
+            )}
 
             {/* Workspace Branding — local brand editor */}
+            {canEditBranding && (
             <div
               id="workspace-branding-card"
               className="journey-card"
@@ -1862,8 +1878,10 @@ function AppInner() {
               <p>Edit your company name, colours, and contact details for Atlas outputs. Saved locally.</p>
               <button className="cta-btn">Open Branding →</button>
             </div>
+            )}
 
             {/* Create Workspace — self-serve workspace onboarding */}
+            {canManageWorkspace && (
             <div
               id="create-workspace-card"
               className="journey-card"
@@ -1874,6 +1892,7 @@ function AppInner() {
               <p>Set up a new Atlas workspace with your branding, contact details, and slug. Saved locally.</p>
               <button className="cta-btn">Create workspace →</button>
             </div>
+            )}
 
             {/* User Profile — local engineer profile */}
             <div

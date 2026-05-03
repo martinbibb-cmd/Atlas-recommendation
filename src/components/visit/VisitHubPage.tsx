@@ -44,6 +44,8 @@ import VisitReportsList from './VisitReportsList';
 import { VisitReplayPanel } from './VisitReplayPanel';
 import { VisitContext } from '../../features/visits/VisitProvider';
 import { getUserProfile } from '../../features/userProfiles/userProfileStore';
+import { useRolePermissions } from '../../features/userProfiles/useRolePermissions';
+import VisitOutcomeActions from '../../features/analytics/VisitOutcomeActions';
 import './VisitHubPage.css';
 
 interface Props {
@@ -392,6 +394,8 @@ function HubActions({
   hasQuotes,
   onImportScan,
   onOpenExternalFiles,
+  canMarkOutcome,
+  visitId,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
@@ -411,6 +415,10 @@ function HubActions({
   hasQuotes?: boolean;
   onImportScan?: () => void;
   onOpenExternalFiles?: () => void;
+  /** When true the visit outcome actions (won / lost / follow-up) are shown. */
+  canMarkOutcome: boolean;
+  /** Visit ID forwarded to VisitOutcomeActions for analytics attribution. */
+  visitId: string;
 }) {
   const surveyDone = isSurveyComplete(meta);
   const visitDone = isVisitCompleted(meta);
@@ -566,6 +574,14 @@ function HubActions({
             </button>
           )}
         </div>
+
+        {/* Job outcome — owner / admin / sales only */}
+        {canMarkOutcome && (
+          <div className="visit-hub__actions-secondary" data-testid="outcome-actions-section">
+            <p className="visit-hub__section-label">Job outcome</p>
+            <VisitOutcomeActions visitId={visitId} />
+          </div>
+        )}
 
         {/* Diagnostics — always visible */}
         <div className="visit-hub__more-tools" data-testid="diagnostics-section">
@@ -877,6 +893,9 @@ export default function VisitHubPage({
     const profile = getUserProfile(uid);
     return profile?.displayName ?? uid;
   })();
+
+  // Role-based UI permission flags derived from the active user's role.
+  const { canMarkOutcome, canAccessDeveloperTools } = useRolePermissions();
 
   useEffect(() => {
     let cancelled = false;
@@ -1204,6 +1223,8 @@ export default function VisitHubPage({
           hasQuotes={hasQuotes}
           onImportScan={onImportScan}
           onOpenExternalFiles={onOpenExternalFiles}
+          canMarkOutcome={canMarkOutcome}
+          visitId={visitId}
         />
 
         {/* ── Lifecycle-aware body panels ────────────────────────────────────── */}
@@ -1319,13 +1340,15 @@ export default function VisitHubPage({
           </div>
         </details>
 
-        {/* Internal diagnostics — collapsed by default; not customer-facing */}
-        <details className="visit-hub__internal-diagnostics" data-testid="internal-diagnostics-section">
-          <summary className="visit-hub__internal-diagnostics-summary">
-            🔬 Internal diagnostics
-          </summary>
-          <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} internalOnly />
-        </details>
+        {/* Internal diagnostics — developer mode only; collapsed by default */}
+        {canAccessDeveloperTools && (
+          <details className="visit-hub__internal-diagnostics" data-testid="internal-diagnostics-section">
+            <summary className="visit-hub__internal-diagnostics-summary">
+              🔬 Internal diagnostics
+            </summary>
+            <VisitReportsList visitId={visitId} onOpenReport={onOpenReport} internalOnly />
+          </details>
+        )}
 
         <div className="visit-hub__danger-zone">
           {/* Visit attribution — shown when a user profile created this visit */}
