@@ -38,7 +38,9 @@ function generateUserId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `user_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
   }
-  return `user_${Date.now().toString(36)}`;
+  // Fallback: combine timestamp with a random number to avoid collisions when
+  // multiple profiles are created in rapid succession.
+  return `user_${Date.now().toString(36)}_${Math.floor(Math.random() * 0xffff).toString(16)}`;
 }
 
 function makeEmptyDraft(): Omit<UserProfileV1, 'userId' | 'version' | 'createdAt' | 'updatedAt'> {

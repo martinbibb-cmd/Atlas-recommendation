@@ -865,8 +865,10 @@ export default function VisitHubPage({
   const [isEngineRunning, setIsEngineRunning] = useState(false);
 
   // Active visit context — used to read createdByUserId for attribution display.
-  // Uses useContext directly (rather than the throwing useActiveVisit) so that
-  // VisitHubPage is safe to render outside a VisitProvider (e.g. in tests).
+  // Uses useContext(VisitContext) directly (rather than the throwing useActiveVisit
+  // hook) so that VisitHubPage is safe to render outside a VisitProvider (e.g. in
+  // unit tests).  Returns null when no provider is present; attribution is simply
+  // not shown in that case.
   const visitCtx = useContext(VisitContext);
   // Resolve the creator display name from their stored profile (if available).
   const createdByDisplayName = (() => {
