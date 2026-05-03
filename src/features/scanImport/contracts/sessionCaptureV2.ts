@@ -22,6 +22,130 @@
 /** Lifecycle status of the overall session. */
 export type SessionStatusV2 = 'active' | 'review' | 'ready' | 'synced';
 
+// ─── Fabric capture types (optional — introduced by Atlas Scan 2.x) ───────────
+
+/** Orientation of a fabric boundary element. */
+export type BoundaryTypeV1 = 'external' | 'internal' | 'party' | 'unknown';
+
+/** Category of a fabric opening element. */
+export type OpeningTypeV1 =
+  | 'door'
+  | 'window'
+  | 'patio'
+  | 'rooflight'
+  | 'open_arch';
+
+/** Engineer review state for a fabric element. */
+export type FabricReviewStatusV1 = 'confirmed' | 'pending' | 'rejected';
+
+/**
+ * A single boundary element within a room's fabric capture.
+ */
+export interface FabricBoundaryV1 {
+  /** Stable boundary identifier within the room. */
+  boundaryId: string;
+  /** Orientation / adjacency classification. */
+  type: BoundaryTypeV1;
+  /** Measured length in metres. */
+  lengthM?: number;
+  /** Measured height in metres. */
+  heightM?: number;
+  /** Material description (e.g. "solid brick", "timber frame"). */
+  material?: string;
+  /** Engineer review state. Absent means not yet reviewed (treat as pending). */
+  reviewStatus?: FabricReviewStatusV1;
+}
+
+/**
+ * A single opening (door, window, etc.) within a room's fabric capture.
+ */
+export interface FabricOpeningV1 {
+  /** Stable opening identifier within the room. */
+  openingId: string;
+  /** Opening category. */
+  type: OpeningTypeV1;
+  /** Measured width in metres. */
+  widthM?: number;
+  /** Measured height in metres. */
+  heightM?: number;
+  /** Frame / glazing material description. */
+  material?: string;
+  /** Boundary that this opening pierces, if linked. */
+  linkedBoundaryId?: string;
+  /** Engineer review state. Absent means not yet reviewed (treat as pending). */
+  reviewStatus?: FabricReviewStatusV1;
+}
+
+/**
+ * Floor-plan fabric data for a single room, produced by Atlas Scan 2.x.
+ *
+ * This is engineer-internal data until the heat-loss pipeline explicitly
+ * consumes it.  Do not feed it into heat-loss calculations or customer
+ * outputs until that integration is in place.
+ */
+export interface FloorPlanFabricCaptureV1 {
+  /** Owning room identifier — matches a RoomScanV2.roomId when present. */
+  roomId?: string;
+  /** Human-readable room name — may differ from the RoomScanV2 label. */
+  roomName?: string;
+  /** Measured floor area in m². */
+  floorAreaM2?: number;
+  /** Measured ceiling height in metres. */
+  ceilingHeightM?: number;
+  /** Measured perimeter length in metres. */
+  perimeterM?: number;
+  /** Boundary elements making up the room envelope. */
+  boundaries?: FabricBoundaryV1[];
+  /** Openings (doors, windows, etc.) within the room envelope. */
+  openings?: FabricOpeningV1[];
+}
+
+// ─── Hazard observation types (optional — introduced by Atlas Scan 2.x) ───────
+
+/** High-level category for a hazard observation. */
+export type HazardCategoryV1 =
+  | 'asbestos_suspected'
+  | 'electrical'
+  | 'structural'
+  | 'gas'
+  | 'water_damage'
+  | 'other';
+
+/** Severity of a hazard observation. */
+export type HazardSeverityV1 = 'low' | 'medium' | 'high' | 'critical';
+
+/** Engineer review state for a hazard observation. */
+export type HazardReviewStatusV1 = 'confirmed' | 'pending' | 'rejected';
+
+/**
+ * A single hazard observation captured during the session.
+ *
+ * Filtering rules:
+ *   - Engineer view: confirmed and pending hazards are surfaced.
+ *   - Rejected hazards: retained as audit evidence (shown with audit-only marker).
+ *   - Customer portal / deck / PDF: must never show hazard detail.
+ */
+export interface HazardObservationCaptureV1 {
+  /** Stable hazard identifier. */
+  hazardId: string;
+  /** High-level hazard category. */
+  category: HazardCategoryV1;
+  /** Severity level. */
+  severity: HazardSeverityV1;
+  /** Short engineer-facing title. */
+  title: string;
+  /** Optional engineer-facing description. */
+  description?: string;
+  /** Photo IDs that provide evidence for this hazard. */
+  linkedPhotoIds?: string[];
+  /** Object-pin IDs that relate to this hazard. */
+  linkedObjectPinIds?: string[];
+  /** Recommended or required action for the engineer. */
+  actionRequired?: string;
+  /** Engineer review state. Absent means not yet reviewed (treat as pending). */
+  reviewStatus?: HazardReviewStatusV1;
+}
+
 /** A room as captured during the session. */
 export interface RoomScanV2 {
   /** Stable room identifier. */
@@ -191,6 +315,27 @@ export interface SessionCaptureV2 {
   floorPlanSnapshots: FloorPlanSnapshotV2[];
   /** QA flags raised during capture or export. */
   qaFlags: QaFlagV2[];
+  /**
+   * Floor-plan fabric data captured by Atlas Scan 2.x.
+   *
+   * Engineer-internal only — do not use for heat-loss or customer outputs
+   * until the heat-loss pipeline integration is in place.
+   *
+   * May be a single object (one room) or an array (multi-room capture).
+   * Old payloads from Atlas Scan 1.x will not include this field.
+   */
+  floorPlanFabric?: FloorPlanFabricCaptureV1 | FloorPlanFabricCaptureV1[];
+  /**
+   * Hazard observations captured by Atlas Scan 2.x.
+   *
+   * Engineer-internal only — never expose to customer portal, deck, or PDF.
+   *
+   * May be a single object or an array.
+   * Old payloads from Atlas Scan 1.x will not include this field.
+   */
+  hazardObservations?:
+    | HazardObservationCaptureV1
+    | HazardObservationCaptureV1[];
 }
 
 /** Unvalidated incoming payload — used before structural validation. */
@@ -306,6 +451,92 @@ function validateQaFlagV2(value: unknown, path: string): string[] {
   return errors;
 }
 
+// ─── Optional fabric / hazard validators ──────────────────────────────────────
+// These only validate structure when the field is actually present.
+// A missing field never produces an error (backwards-compatible with Scan 1.x).
+
+const VALID_BOUNDARY_TYPES: BoundaryTypeV1[] = ['external', 'internal', 'party', 'unknown'];
+const VALID_OPENING_TYPES: OpeningTypeV1[] = ['door', 'window', 'patio', 'rooflight', 'open_arch'];
+const VALID_FABRIC_REVIEW_STATUSES: FabricReviewStatusV1[] = ['confirmed', 'pending', 'rejected'];
+
+function validateFabricBoundaryV1(value: unknown, path: string): string[] {
+  if (!isObject(value)) return [`${path}: must be an object`];
+  const errors: string[] = [];
+  if (!isString(value['boundaryId'])) errors.push(`${path}.boundaryId: must be a string`);
+  if (!(VALID_BOUNDARY_TYPES as string[]).includes(value['type'] as string)) {
+    errors.push(`${path}.type: must be one of ${VALID_BOUNDARY_TYPES.join(', ')}`);
+  }
+  if (
+    value['reviewStatus'] !== undefined &&
+    !(VALID_FABRIC_REVIEW_STATUSES as string[]).includes(value['reviewStatus'] as string)
+  ) {
+    errors.push(`${path}.reviewStatus: must be 'confirmed' | 'pending' | 'rejected'`);
+  }
+  return errors;
+}
+
+function validateFabricOpeningV1(value: unknown, path: string): string[] {
+  if (!isObject(value)) return [`${path}: must be an object`];
+  const errors: string[] = [];
+  if (!isString(value['openingId'])) errors.push(`${path}.openingId: must be a string`);
+  if (!(VALID_OPENING_TYPES as string[]).includes(value['type'] as string)) {
+    errors.push(`${path}.type: must be one of ${VALID_OPENING_TYPES.join(', ')}`);
+  }
+  if (
+    value['reviewStatus'] !== undefined &&
+    !(VALID_FABRIC_REVIEW_STATUSES as string[]).includes(value['reviewStatus'] as string)
+  ) {
+    errors.push(`${path}.reviewStatus: must be 'confirmed' | 'pending' | 'rejected'`);
+  }
+  return errors;
+}
+
+function validateFloorPlanFabricCaptureV1(value: unknown, path: string): string[] {
+  if (!isObject(value)) return [`${path}: must be an object`];
+  const errors: string[] = [];
+  if (isArray(value['boundaries'])) {
+    (value['boundaries'] as unknown[]).forEach((b, i) => {
+      errors.push(...validateFabricBoundaryV1(b, `${path}.boundaries[${i}]`));
+    });
+  } else if (value['boundaries'] !== undefined) {
+    errors.push(`${path}.boundaries: must be an array`);
+  }
+  if (isArray(value['openings'])) {
+    (value['openings'] as unknown[]).forEach((o, i) => {
+      errors.push(...validateFabricOpeningV1(o, `${path}.openings[${i}]`));
+    });
+  } else if (value['openings'] !== undefined) {
+    errors.push(`${path}.openings: must be an array`);
+  }
+  return errors;
+}
+
+const VALID_HAZARD_CATEGORIES: HazardCategoryV1[] = [
+  'asbestos_suspected', 'electrical', 'structural', 'gas', 'water_damage', 'other',
+];
+const VALID_HAZARD_SEVERITIES: HazardSeverityV1[] = ['low', 'medium', 'high', 'critical'];
+const VALID_HAZARD_REVIEW_STATUSES: HazardReviewStatusV1[] = ['confirmed', 'pending', 'rejected'];
+
+function validateHazardObservationCaptureV1(value: unknown, path: string): string[] {
+  if (!isObject(value)) return [`${path}: must be an object`];
+  const errors: string[] = [];
+  if (!isString(value['hazardId'])) errors.push(`${path}.hazardId: must be a string`);
+  if (!(VALID_HAZARD_CATEGORIES as string[]).includes(value['category'] as string)) {
+    errors.push(`${path}.category: must be one of ${VALID_HAZARD_CATEGORIES.join(', ')}`);
+  }
+  if (!(VALID_HAZARD_SEVERITIES as string[]).includes(value['severity'] as string)) {
+    errors.push(`${path}.severity: must be one of ${VALID_HAZARD_SEVERITIES.join(', ')}`);
+  }
+  if (!isString(value['title'])) errors.push(`${path}.title: must be a string`);
+  if (
+    value['reviewStatus'] !== undefined &&
+    !(VALID_HAZARD_REVIEW_STATUSES as string[]).includes(value['reviewStatus'] as string)
+  ) {
+    errors.push(`${path}.reviewStatus: must be 'confirmed' | 'pending' | 'rejected'`);
+  }
+  return errors;
+}
+
 function validateSessionCaptureV2Fields(raw: UnknownSessionCaptureV2): string[] {
   const errors: string[] = [];
 
@@ -360,6 +591,30 @@ function validateSessionCaptureV2Fields(raw: UnknownSessionCaptureV2): string[] 
     (raw['qaFlags'] as unknown[]).forEach((f, i) => {
       errors.push(...validateQaFlagV2(f, `qaFlags[${i}]`));
     });
+  }
+
+  // ── Optional: floorPlanFabric ─────────────────────────────────────────────
+  if (raw['floorPlanFabric'] !== undefined) {
+    if (isArray(raw['floorPlanFabric'])) {
+      (raw['floorPlanFabric'] as unknown[]).forEach((f, i) => {
+        errors.push(...validateFloorPlanFabricCaptureV1(f, `floorPlanFabric[${i}]`));
+      });
+    } else {
+      errors.push(...validateFloorPlanFabricCaptureV1(raw['floorPlanFabric'], 'floorPlanFabric'));
+    }
+  }
+
+  // ── Optional: hazardObservations ─────────────────────────────────────────
+  if (raw['hazardObservations'] !== undefined) {
+    if (isArray(raw['hazardObservations'])) {
+      (raw['hazardObservations'] as unknown[]).forEach((h, i) => {
+        errors.push(...validateHazardObservationCaptureV1(h, `hazardObservations[${i}]`));
+      });
+    } else {
+      errors.push(
+        ...validateHazardObservationCaptureV1(raw['hazardObservations'], 'hazardObservations'),
+      );
+    }
   }
 
   return errors;

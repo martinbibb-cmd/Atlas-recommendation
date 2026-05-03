@@ -22,6 +22,9 @@ import type {
   ObjectPinV2,
   FloorPlanSnapshotV2,
   QaFlagV2,
+  FloorPlanFabricCaptureV1,
+  FabricBoundaryV1,
+  HazardObservationCaptureV1,
 } from '../scanImport/contracts/sessionCaptureV2';
 
 // Re-export contract types so viewer components only need to import from here.
@@ -32,6 +35,9 @@ export type {
   ObjectPinV2,
   FloorPlanSnapshotV2,
   QaFlagV2,
+  FloorPlanFabricCaptureV1,
+  FabricBoundaryV1,
+  HazardObservationCaptureV1,
 };
 
 // ─── Derived types ────────────────────────────────────────────────────────────
@@ -194,4 +200,87 @@ export function deriveEntityConfidence(
   if (relevant.some((f) => f.severity === 'error')) return 'low';
   if (relevant.some((f) => f.severity === 'warn')) return 'medium';
   return 'high';
+}
+
+// ─── Fabric selectors ─────────────────────────────────────────────────────────
+
+/**
+ * Normalises the optional `floorPlanFabric` field to an array.
+ * Returns an empty array when the field is absent.
+ *
+ * Use for the engineer evidence view — not for heat-loss or customer outputs.
+ */
+export function getFabricEvidenceSummary(
+  capture: SessionCaptureV2,
+): FloorPlanFabricCaptureV1[] {
+  if (capture.floorPlanFabric === undefined) return [];
+  return Array.isArray(capture.floorPlanFabric)
+    ? capture.floorPlanFabric
+    : [capture.floorPlanFabric];
+}
+
+/**
+ * Returns confirmed boundaries across all fabric rooms.
+ * A boundary is confirmed when its reviewStatus is explicitly 'confirmed'.
+ */
+export function getConfirmedFabricBoundaries(
+  capture: SessionCaptureV2,
+): FabricBoundaryV1[] {
+  const rooms = getFabricEvidenceSummary(capture);
+  const result: FabricBoundaryV1[] = [];
+  for (const room of rooms) {
+    if (room.boundaries) {
+      for (const b of room.boundaries) {
+        if (b.reviewStatus === 'confirmed') result.push(b);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Returns customer-safe fabric evidence — currently always empty.
+ *
+ * Fabric data is engineer-internal until the heat-loss pipeline explicitly
+ * consumes it.  This selector is the designated gate: downstream customer
+ * outputs should call this function and receive nothing until the integration
+ * lands.
+ */
+export function getCustomerSafeFabricEvidence(
+  _capture: SessionCaptureV2,
+): FloorPlanFabricCaptureV1[] {
+  return [];
+}
+
+// ─── Hazard selectors ─────────────────────────────────────────────────────────
+
+/**
+ * Normalises the optional `hazardObservations` field to an array.
+ * Returns an empty array when the field is absent.
+ *
+ * Engineer-internal only — never pass this to customer-facing components.
+ */
+export function getHazardEvidenceSummary(
+  capture: SessionCaptureV2,
+): HazardObservationCaptureV1[] {
+  if (capture.hazardObservations === undefined) return [];
+  return Array.isArray(capture.hazardObservations)
+    ? capture.hazardObservations
+    : [capture.hazardObservations];
+}
+
+/**
+ * Returns true when the capture contains at least one non-rejected hazard
+ * with severity 'high' or 'critical'.
+ *
+ * A "blocking" hazard is one that should visually flag the engineer to take
+ * action before proceeding.  Rejected hazards are excluded from this gate.
+ */
+export function hasBlockingHazard(capture: SessionCaptureV2): boolean {
+  const hazards = getHazardEvidenceSummary(capture);
+  return hazards.some(
+    (h) =>
+      (h.severity === 'high' || h.severity === 'critical') &&
+      h.reviewStatus !== 'rejected',
+  );
 }
