@@ -60,6 +60,21 @@ export interface WorkspaceDashboardProps {
   onOpenUserProfile: () => void;
   /** Called to access the full legacy landing / all-tools view. */
   onOpenAllTools: () => void;
+  /**
+   * Called from the demo banner to open the external-files manifest for the
+   * completed demo visit.  Only wired when demo data is active.
+   */
+  onOpenDemoExternalFiles?: () => void;
+  /**
+   * Called from the demo banner to open the customer-facing presentation/pack
+   * for the completed demo visit.  Only wired when demo data is active.
+   */
+  onOpenDemoPresentation?: () => void;
+  /**
+   * Called from the demo banner (dev-mode only) to reseed the demo workspace
+   * and return to the dashboard.
+   */
+  onLoadDemoWorkspace?: () => void;
 }
 
 // ─── Role label map ───────────────────────────────────────────────────────────
@@ -255,6 +270,9 @@ export default function WorkspaceDashboard({
   onOpenWorkspaceSettings,
   onOpenUserProfile,
   onOpenAllTools,
+  onOpenDemoExternalFiles,
+  onOpenDemoPresentation,
+  onLoadDemoWorkspace,
 }: WorkspaceDashboardProps) {
   const { activeUser } = useActiveUser();
   const permissions = useRolePermissions(activeUser?.defaultTenantId);
@@ -347,6 +365,8 @@ export default function WorkspaceDashboard({
 
   // ── Styles ─────────────────────────────────────────────────────────────────
 
+  const isDemoActive = tenant.tenantId === 'demo-heating';
+
   const roleColors = effectiveRole != null
     ? (ROLE_COLORS[effectiveRole] ?? ROLE_COLORS['viewer'])
     : { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' };
@@ -433,6 +453,116 @@ export default function WorkspaceDashboard({
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '20px 20px 40px' }}>
+
+        {/* ── Demo workspace banner ──────────────────────────────────────── */}
+        {isDemoActive && (
+          <div
+            style={{
+              background: '#fffbeb',
+              border: '1px solid #fcd34d',
+              borderRadius: 10,
+              padding: '12px 16px',
+              marginBottom: 16,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <span style={{ fontSize: 20 }}>🎬</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>
+                  Demo workspace active
+                </div>
+                <div style={{ fontSize: 12, color: '#78350f' }}>
+                  Demo Heating Co — use the shortcuts below to explore the key journeys.
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <button
+                onClick={() => onOpenVisit('demo_visit_001')}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#92400e',
+                  background: '#fef3c7',
+                  border: '1px solid #fcd34d',
+                  borderRadius: 6,
+                  padding: '5px 12px',
+                  cursor: 'pointer',
+                }}
+              >
+                📋 Open sample visit
+              </button>
+              <button
+                onClick={onOpenAnalytics}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#92400e',
+                  background: '#fef3c7',
+                  border: '1px solid #fcd34d',
+                  borderRadius: 6,
+                  padding: '5px 12px',
+                  cursor: 'pointer',
+                }}
+              >
+                📊 View analytics
+              </button>
+              {onOpenDemoExternalFiles && (
+                <button
+                  onClick={onOpenDemoExternalFiles}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#92400e',
+                    background: '#fef3c7',
+                    border: '1px solid #fcd34d',
+                    borderRadius: 6,
+                    padding: '5px 12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  📎 View external files
+                </button>
+              )}
+              {onOpenDemoPresentation && (
+                <button
+                  onClick={onOpenDemoPresentation}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: '#92400e',
+                    background: '#fef3c7',
+                    border: '1px solid #fcd34d',
+                    borderRadius: 6,
+                    padding: '5px 12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🎯 View customer pack
+                </button>
+              )}
+            </div>
+            {activeUser?.developerMode && onLoadDemoWorkspace && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #fcd34d' }}>
+                <button
+                  onClick={onLoadDemoWorkspace}
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: '#78350f',
+                    background: 'none',
+                    border: '1px solid #fcd34d',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🔄 Reload demo workspace
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Start New Visit CTA ─────────────────────────────────────────── */}
         {canCreateVisit && (

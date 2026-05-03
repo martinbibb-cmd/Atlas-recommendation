@@ -72,6 +72,7 @@ import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlo
 import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
 import ScanSessionListPage from './features/scanImport/ui/ScanSessionListPage';
 import { ScanHandoffReceivePage } from './features/scanHandoff';
+import { resetDemoData, DEMO_VISIT_IDS } from './dev/demoSeed';
 import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
 import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
 import WorkspaceDashboard from './features/workspace/WorkspaceDashboard';
@@ -1242,7 +1243,10 @@ function AppInner() {
   // ?devmenu=1 feature flag — render Developer Component Browser directly.
   if (DEV_MENU_ENABLED) {
     return (
-      <DevMenuPage onBack={() => { window.location.href = window.location.pathname; }} />
+      <DevMenuPage
+        onBack={() => { window.location.href = window.location.pathname; }}
+        onLoadDemoWorkspace={() => { window.location.href = window.location.pathname; }}
+      />
     );
   }
 
@@ -1664,7 +1668,10 @@ function AppInner() {
         </div>
       )}
       {journey === 'dev-menu' && (
-        <DevMenuPage onBack={() => setJourney('landing')} />
+        <DevMenuPage
+          onBack={() => setJourney('landing')}
+          onLoadDemoWorkspace={() => setJourney('workspace-dashboard')}
+        />
       )}
       {journey === 'explorer' && EXPLORER_ENABLED && <AtlasExplorerPage onBack={() => setJourney('landing')} />}
       {journey === 'floor-plan' && (
@@ -1736,6 +1743,16 @@ function AppInner() {
           onOpenWorkspaceSettings={() => { window.location.href = `${window.location.pathname}?create-workspace=1`; }}
           onOpenUserProfile={() => setJourney('user-profile')}
           onOpenAllTools={() => setJourney('landing')}
+          onOpenDemoExternalFiles={() => {
+            setActiveVisitId(DEMO_VISIT_IDS.completed_won);
+            setJourney('external-files');
+          }}
+          onOpenDemoPresentation={() => { void handleOpenPresentation(DEMO_VISIT_IDS.completed_won); }}
+          onLoadDemoWorkspace={() => {
+            resetDemoData();
+            console.info('[Atlas] Demo workspace reloaded from dashboard.');
+            setTimeout(() => window.location.reload(), 600);
+          }}
         />
       )}
       {journey === 'landing' && (
