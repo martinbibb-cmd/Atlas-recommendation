@@ -16,9 +16,9 @@
 import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
 import {
   getFabricConfidenceSignals,
-  getHazardSoftWarnings,
-  hasBlockingHazard,
+  getHazardSoftWarningEntries,
 } from './scanEvidenceSelectors';
+import type { HazardSoftWarningEntry } from './scanEvidenceSelectors';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -44,7 +44,8 @@ function FabricSignalChip({ label }: { label: string }) {
   );
 }
 
-function HazardWarningRow({ message, isBlocking }: { message: string; isBlocking: boolean }) {
+function HazardWarningRow({ entry }: { entry: HazardSoftWarningEntry }) {
+  const isBlockingSeverity = entry.severity === 'blocking' || entry.severity === 'high';
   return (
     <div
       style={{
@@ -53,15 +54,15 @@ function HazardWarningRow({ message, isBlocking }: { message: string; isBlocking
         gap: '0.4rem',
         padding: '0.3rem 0.55rem',
         borderRadius: 4,
-        background: isBlocking ? '#fef2f2' : '#fffbeb',
-        border: `1px solid ${isBlocking ? '#fca5a5' : '#fcd34d'}`,
+        background: isBlockingSeverity ? '#fef2f2' : '#fffbeb',
+        border: `1px solid ${isBlockingSeverity ? '#fca5a5' : '#fcd34d'}`,
         fontSize: '0.76rem',
-        color: isBlocking ? '#b91c1c' : '#92400e',
+        color: isBlockingSeverity ? '#b91c1c' : '#92400e',
         fontWeight: 500,
       }}
     >
       <span>⚠</span>
-      <span>{message}</span>
+      <span>{entry.message}</span>
     </div>
   );
 }
@@ -81,10 +82,9 @@ export interface ScanPreinstallSignalsProps {
  */
 export function ScanPreinstallSignals({ capture }: ScanPreinstallSignalsProps) {
   const fabricSignals = getFabricConfidenceSignals(capture);
-  const hazardWarnings = getHazardSoftWarnings(capture);
-  const blocking = hasBlockingHazard(capture);
+  const hazardEntries = getHazardSoftWarningEntries(capture);
 
-  if (fabricSignals.length === 0 && hazardWarnings.length === 0) {
+  if (fabricSignals.length === 0 && hazardEntries.length === 0) {
     return null;
   }
 
@@ -129,13 +129,13 @@ export function ScanPreinstallSignals({ capture }: ScanPreinstallSignalsProps) {
         )}
 
         {/* Hazard soft warnings */}
-        {hazardWarnings.length > 0 && (
+        {hazardEntries.length > 0 && (
           <div
             data-testid="scan-preinstall-hazard-warnings"
             style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}
           >
-            {hazardWarnings.map((warning) => (
-              <HazardWarningRow key={warning} message={warning} isBlocking={blocking} />
+            {hazardEntries.map((entry) => (
+              <HazardWarningRow key={entry.message} entry={entry} />
             ))}
           </div>
         )}

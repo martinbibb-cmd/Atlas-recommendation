@@ -25,6 +25,7 @@ import type {
   FloorPlanFabricCaptureV1,
   FabricBoundaryV1,
   HazardObservationCaptureV1,
+  HazardSeverityV1,
 } from '../scanImport/contracts/sessionCaptureV2';
 
 // Re-export contract types so viewer components only need to import from here.
@@ -354,27 +355,45 @@ export function getFabricConfidenceSignals(capture: SessionCaptureV2): string[] 
  *   - Engineer-internal: must not appear in customer-facing outputs.
  */
 export function getHazardSoftWarnings(capture: SessionCaptureV2): string[] {
+  return getHazardSoftWarningEntries(capture).map((e) => e.message);
+}
+
+/** A single hazard soft-warning entry with its severity for per-row styling. */
+export interface HazardSoftWarningEntry {
+  message: string;
+  severity: HazardSeverityV1;
+}
+
+function hazardMessage(h: HazardObservationCaptureV1): string {
+  if (h.category === 'asbestos_suspected') {
+    return 'Suspected asbestos — specialist inspection required';
+  }
+  if (h.category === 'structural') {
+    return 'Structural concern noted — verify before installation';
+  }
+  if (h.category === 'electrical') {
+    return 'Electrical hazard recorded — check access and isolation';
+  }
+  if (h.category === 'gas') {
+    return 'Gas safety concern recorded — engineer review required';
+  }
+  if (h.category === 'water_damage') {
+    return 'Water damage noted — assess affected area before installation';
+  }
+  return h.actionRequired
+    ? `Site observation: ${h.title} — ${h.actionRequired}`
+    : `Site observation: ${h.title}`;
+}
+
+/**
+ * Same as `getHazardSoftWarnings` but returns `{ message, severity }` entries
+ * so that each row can be styled according to its individual severity level.
+ */
+export function getHazardSoftWarningEntries(
+  capture: SessionCaptureV2,
+): HazardSoftWarningEntry[] {
   const hazards = getHazardEvidenceSummary(capture);
   return hazards
     .filter((h) => h.reviewStatus !== 'rejected')
-    .map((h) => {
-      if (h.category === 'asbestos_suspected') {
-        return 'Suspected asbestos — specialist inspection required';
-      }
-      if (h.category === 'structural') {
-        return 'Structural concern noted — verify before installation';
-      }
-      if (h.category === 'electrical') {
-        return 'Electrical hazard recorded — check access and isolation';
-      }
-      if (h.category === 'gas') {
-        return 'Gas safety concern recorded — engineer review required';
-      }
-      if (h.category === 'water_damage') {
-        return 'Water damage noted — assess affected area before installation';
-      }
-      return h.actionRequired
-        ? `Site observation: ${h.title} — ${h.actionRequired}`
-        : `Site observation: ${h.title}`;
-    });
+    .map((h) => ({ message: hazardMessage(h), severity: h.severity }));
 }

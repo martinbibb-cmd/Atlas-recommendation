@@ -75,6 +75,7 @@ export type {
   FloorPlanFabricCaptureV1,
   FabricBoundaryV1,
   HazardObservationCaptureV1,
+  HazardSoftWarningEntry,
 } from './scanEvidenceSelectors';
 
 export {
@@ -98,5 +99,6 @@ export {
   getFabricConfidenceSignals,
   getHazardEvidenceSummary,
   getHazardSoftWarnings,
+  getHazardSoftWarningEntries,
   hasBlockingHazard,
 } from './scanEvidenceSelectors';
