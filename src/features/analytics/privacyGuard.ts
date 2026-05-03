@@ -40,6 +40,8 @@ export const ANALYTICS_FIELD_ALLOWLIST: ReadonlySet<string> = new Set([
   'tenantId',
   'visitId',
   'createdAt',
+  // VisitCreatedEvent / VisitCompletedEvent — attribution (userId only, no PII)
+  'createdByUserId',
   // VisitCompletedEvent
   'durationSeconds',
   // RecommendationViewedEvent

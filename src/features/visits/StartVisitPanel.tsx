@@ -24,6 +24,7 @@ import type { AtlasVisit } from './createAtlasVisit';
 import { WorkspaceSelector } from '../tenants/WorkspaceSelector';
 import { resolveActiveTenant } from '../tenants/activeTenant';
 import { trackVisitCreated } from '../analytics/analyticsTracker';
+import { useActiveUser } from '../userProfiles/useActiveUser';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -65,8 +66,13 @@ interface StartVisitPanelProps {
  * brandId derived from the selected workspace, and calls onStart.
  */
 export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCreateWorkspace }: StartVisitPanelProps) {
+  const { activeUser } = useActiveUser();
+
+  // Workspace default priority: explicit prop (host workspace) > active user default > 'atlas'
+  const resolvedDefaultSlug = defaultWorkspaceSlug ?? activeUser?.defaultWorkspaceSlug ?? 'atlas';
+
   const [reference, setReference] = useState('');
-  const [workspaceSlug, setWorkspaceSlug] = useState(defaultWorkspaceSlug ?? 'atlas');
+  const [workspaceSlug, setWorkspaceSlug] = useState(resolvedDefaultSlug);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +85,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
       const opts = reference.trim().length > 0 ? { visit_reference: reference.trim() } : {};
       const { id } = await createVisit(opts);
       const tenant = resolveActiveTenant({ workspaceSlug });
-      const visit = createAtlasVisit(id, tenant.brandId);
+      const visit = createAtlasVisit(id, tenant.brandId, activeUser?.userId);
       trackVisitCreated(visit, tenant.tenantId);
       onStart(visit);
     } catch (err) {

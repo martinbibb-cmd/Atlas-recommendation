@@ -51,6 +51,7 @@ export function trackVisitCreated(visit: AtlasVisit, tenantId?: string): void {
     visitId: visit.visitId,
     tenantId,
     createdAt: new Date().toISOString(),
+    ...(visit.createdByUserId !== undefined ? { createdByUserId: visit.createdByUserId } : {}),
   });
 }
 
@@ -76,6 +77,7 @@ export function trackVisitCompleted(visit: AtlasVisit, tenantId?: string): void 
     tenantId,
     createdAt: new Date().toISOString(),
     durationSeconds,
+    ...(visit.createdByUserId !== undefined ? { createdByUserId: visit.createdByUserId } : {}),
   });
 }
 

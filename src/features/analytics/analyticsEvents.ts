@@ -31,12 +31,24 @@ export interface AnalyticsEventBaseV1 {
 
 export interface VisitCreatedEvent extends AnalyticsEventBaseV1 {
   eventType: 'visit_created';
+  /**
+   * Optional userId of the engineer who created the visit.
+   * Stored only when the active user profile is set at creation time.
+   * Never contains email or displayName.
+   */
+  createdByUserId?: string;
 }
 
 export interface VisitCompletedEvent extends AnalyticsEventBaseV1 {
   eventType: 'visit_completed';
   /** Elapsed seconds from visit creation to survey completion. */
   durationSeconds?: number;
+  /**
+   * Optional userId of the engineer who created the visit.
+   * Carried forward from the creation event for aggregation.
+   * Never contains email or displayName.
+   */
+  createdByUserId?: string;
 }
 
 export interface VisitAbandonedEvent extends AnalyticsEventBaseV1 {

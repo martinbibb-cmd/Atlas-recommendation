@@ -15,9 +15,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { StartVisitPanel } from './StartVisitPanel';
 import type { AtlasVisit } from './createAtlasVisit';
 import * as visitApi from '../../lib/visits/visitApi';
+import { ActiveUserProvider } from '../userProfiles/ActiveUserProvider';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -27,10 +29,14 @@ vi.mock('../../lib/visits/visitApi', () => ({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function Wrapper({ children }: { children: ReactNode }) {
+  return <ActiveUserProvider>{children}</ActiveUserProvider>;
+}
+
 function renderPanel(overrides?: { onStart?: (visit: AtlasVisit) => void; onCancel?: () => void }) {
   const onStart = overrides?.onStart ?? vi.fn();
   const onCancel = overrides?.onCancel ?? vi.fn();
-  render(<StartVisitPanel onStart={onStart} onCancel={onCancel} />);
+  render(<StartVisitPanel onStart={onStart} onCancel={onCancel} />, { wrapper: Wrapper });
   return { onStart, onCancel };
 }
 
@@ -109,7 +115,7 @@ describe('StartVisitPanel — visit creation', () => {
     // atlas workspace → atlas-default brand
     const { onStart: onStart1, unmount: unmount1 } = (() => {
       const onStart = vi.fn();
-      const { unmount } = render(<StartVisitPanel onStart={onStart} onCancel={vi.fn()} />);
+      const { unmount } = render(<StartVisitPanel onStart={onStart} onCancel={vi.fn()} />, { wrapper: Wrapper });
       return { onStart, unmount };
     })();
     fireEvent.click(screen.getByText('Start Visit'));
@@ -123,7 +129,7 @@ describe('StartVisitPanel — visit creation', () => {
 
     // demo-heating workspace → installer-demo brand
     const onStart2 = vi.fn();
-    render(<StartVisitPanel onStart={onStart2} onCancel={vi.fn()} />);
+    render(<StartVisitPanel onStart={onStart2} onCancel={vi.fn()} />, { wrapper: Wrapper });
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'demo-heating' } });
     fireEvent.click(screen.getByText('Start Visit'));
     await waitFor(() => expect(onStart2).toHaveBeenCalledTimes(1));
@@ -135,19 +141,19 @@ describe('StartVisitPanel — visit creation', () => {
 
 describe('StartVisitPanel — host workspace defaulting', () => {
   it('defaults the workspace selector to the host-resolved workspace slug', () => {
-    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />);
+    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />, { wrapper: Wrapper });
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('demo-heating');
   });
 
   it('defaults to atlas when defaultWorkspaceSlug is not provided', () => {
-    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} />);
+    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} />, { wrapper: Wrapper });
     const select = screen.getByRole('combobox') as HTMLSelectElement;
     expect(select.value).toBe('atlas');
   });
 
   it('allows the user to change workspace after host defaulting', () => {
-    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />);
+    render(<StartVisitPanel onStart={vi.fn()} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />, { wrapper: Wrapper });
     const select = screen.getByRole('combobox');
     fireEvent.change(select, { target: { value: 'atlas' } });
     expect((select as HTMLSelectElement).value).toBe('atlas');
@@ -158,7 +164,7 @@ describe('StartVisitPanel — host workspace defaulting', () => {
     mockCreateVisit.mockResolvedValueOnce({ id: 'visit_host_001', created_at: '2026-01-01T00:00:00Z' } as Awaited<ReturnType<typeof visitApi.createVisit>>);
 
     const onStart = vi.fn();
-    render(<StartVisitPanel onStart={onStart} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />);
+    render(<StartVisitPanel onStart={onStart} onCancel={vi.fn()} defaultWorkspaceSlug="demo-heating" />, { wrapper: Wrapper });
     fireEvent.click(screen.getByText('Start Visit'));
 
     await waitFor(() => {
@@ -187,6 +193,7 @@ describe('StartVisitPanel — create workspace link', () => {
         onCancel={vi.fn()}
         onCreateWorkspace={vi.fn()}
       />,
+      { wrapper: Wrapper },
     );
     expect(screen.getByTestId('start-visit-create-workspace-link')).toBeTruthy();
   });
@@ -204,6 +211,7 @@ describe('StartVisitPanel — create workspace link', () => {
         onCancel={vi.fn()}
         onCreateWorkspace={onCreateWorkspace}
       />,
+      { wrapper: Wrapper },
     );
     fireEvent.click(screen.getByTestId('start-visit-create-workspace-link'));
     expect(onCreateWorkspace).toHaveBeenCalledOnce();

@@ -35,21 +35,30 @@ export interface AtlasVisit {
 
   /** ISO-8601 timestamp of when the visit object was created on this device. */
   createdAt: string;
+
+  /**
+   * Optional userId of the engineer who created the visit.
+   * Set from the active user profile when available.
+   * Never exposed to analytics without explicit opt-in.
+   */
+  createdByUserId?: string;
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
 /**
- * Constructs an AtlasVisit from a server-issued visitId and an optional brandId.
+ * Constructs an AtlasVisit from a server-issued visitId and optional options.
  *
- * @param visitId   - The stable visit ID returned by POST /api/visits.
- * @param brandId   - Optional brand to attach.  Falls back to DEFAULT_BRAND_ID.
- * @returns         A fully-populated AtlasVisit ready for context / storage.
+ * @param visitId           - The stable visit ID returned by POST /api/visits.
+ * @param brandId           - Optional brand to attach.  Falls back to DEFAULT_BRAND_ID.
+ * @param createdByUserId   - Optional userId of the engineer creating the visit.
+ * @returns                 A fully-populated AtlasVisit ready for context / storage.
  */
-export function createAtlasVisit(visitId: string, brandId?: string): AtlasVisit {
+export function createAtlasVisit(visitId: string, brandId?: string, createdByUserId?: string): AtlasVisit {
   return {
     visitId,
     brandId: brandId ?? DEFAULT_BRAND_ID,
     createdAt: new Date().toISOString(),
+    ...(createdByUserId !== undefined ? { createdByUserId } : {}),
   };
 }

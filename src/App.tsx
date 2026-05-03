@@ -99,6 +99,9 @@ import {
 import { trackVisitCompleted } from './features/analytics/analyticsTracker';
 import AnalyticsDashboard from './features/analytics/AnalyticsDashboard';
 import { ExternalVisitManifestPanel } from './features/externalFiles/ExternalVisitManifestPanel';
+import { ActiveUserProvider } from './features/userProfiles/ActiveUserProvider';
+import { useActiveUser } from './features/userProfiles/useActiveUser';
+import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import './App.css';
 
 /**
@@ -362,7 +365,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files';
+type Journey = 'landing' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -507,7 +510,7 @@ function CanonicalPresentationRoute({
   );
 }
 
-export default function App() {
+function AppInner() {
   // ── Mobile-state persistence: restore session cache on load ───────────────
   // Read once at component initialisation (before first render) so restored
   // values can be used as useState initialisers without a re-render flash.
@@ -651,6 +654,9 @@ export default function App() {
    * Priority: active visit brandId > host workspace brandId > atlas-default.
    */
   const hostResolution = useWorkspaceFromHost();
+
+  /** Active user profile — used for workspace defaults and visit attribution. */
+  const { activeUser } = useActiveUser();
 
   // ── Session persistence: write journey + visitId to versioned cache ────────
   // These effects run whenever journey or activeVisitId changes, keeping the
@@ -1686,6 +1692,27 @@ export default function App() {
       {journey === 'lego-set' && (
         <LegoBuildingSetPage onBack={() => setJourney('landing')} />
       )}
+      {/* User Profile — local engineer profile panel */}
+      {journey === 'user-profile' && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setJourney('landing');
+          }}
+        >
+          <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxWidth: 520, width: '100%', margin: '0 1rem' }}>
+            <UserProfilePanel onClose={() => setJourney('landing')} />
+          </div>
+        </div>
+      )}
       {journey === 'landing' && (
         <div className="landing">
           {/* Workspace host indicator — visible when the app is accessed via a
@@ -1848,6 +1875,22 @@ export default function App() {
               <button className="cta-btn">Create workspace →</button>
             </div>
 
+            {/* User Profile — local engineer profile */}
+            <div
+              id="user-profile-card"
+              className="journey-card"
+              onClick={() => setJourney('user-profile')}
+            >
+              <div className="card-icon">👤</div>
+              <h2>User Profile</h2>
+              {activeUser !== null ? (
+                <p>Signed in as <strong>{activeUser.displayName}</strong>. Edit your profile or switch user.</p>
+              ) : (
+                <p>Create a local profile to attribute visits, set a default workspace, and enable dev mode.</p>
+              )}
+              <button className="cta-btn">{activeUser !== null ? 'Manage Profile →' : 'Set Up Profile →'}</button>
+            </div>
+
             {/* Tools — standalone utilities */}
             <h3 className="journey-section-label">Tools</h3>
             <div
@@ -1959,5 +2002,13 @@ export default function App() {
         </div>
       )}
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <ActiveUserProvider>
+      <AppInner />
+    </ActiveUserProvider>
   );
 }
