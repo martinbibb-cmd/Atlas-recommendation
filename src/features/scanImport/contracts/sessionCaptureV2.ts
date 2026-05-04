@@ -265,10 +265,10 @@ export interface QaFlagV2 {
   entityId?: string;
 }
 
-// ─── Quote planner evidence types (optional — populated by Atlas Scan 2.x) ───
+// ─── Installation specification evidence types (optional — populated by Atlas Scan 2.x) ───
 
 /**
- * Provenance of a scan-captured quote planner location candidate.
+ * Provenance of a scan-captured installation specification location candidate.
  *
  * scan_inferred — detected automatically (e.g. LiDAR / object detection);
  *                 not manually confirmed by the engineer during the scan.
@@ -283,7 +283,7 @@ export type QuotePlannerLocationProvenance =
   | 'unknown';
 
 /**
- * Confidence in a scan-captured quote planner location.
+ * Confidence in a scan-captured installation specification location.
  *
  * needs_verification — inferred or otherwise uncertain; must be reviewed before use.
  */
@@ -308,7 +308,7 @@ export type QuotePlannerLocationKind =
  * A candidate install location captured during the scan session.
  *
  * Inferred locations (provenance `scan_inferred`) must not be automatically
- * promoted to confirmed in the quote plan.  The engineer must review them.
+ * promoted to confirmed in the installation specification.  The engineer must review them.
  */
 export interface QuotePlannerCandidateLocationV1 {
   /** Stable identifier for this candidate location within the evidence set. */
@@ -342,7 +342,7 @@ export type QuotePlannerRouteType =
 /**
  * Confidence in a route captured during scan.
  *
- * Mirrors QuoteRouteConfidence from quotePlannerTypes but is declared here
+ * Mirrors QuoteRouteConfidence from calculators/quotePlannerTypes but is declared here
  * independently to avoid a cross-feature import from the contracts layer.
  *
  * measured  — derived from a scan or scaled photo.
@@ -385,11 +385,14 @@ export interface QuotePlannerCandidateFlueRouteV1 {
 }
 
 /**
- * Quote planner evidence block captured by Atlas Scan 2.x.
+ * Installation specification evidence block captured by Atlas Scan 2.x.
  *
- * Engineer-internal only — drives quote planning, not customer outputs.
+ * Engineer-internal only — drives installation specification, not customer outputs.
  * Absent on older Scan 1.x payloads and sessions captured before the
- * quote planner feature was enabled.
+ * installation specification feature was enabled.
+ *
+ * @note Interface name `QuotePlannerEvidenceV1` and field `quotePlannerEvidence` are kept
+ * for iOS scan import backward compatibility. TODO: rename in a future migration.
  */
 export interface QuotePlannerEvidenceV1 {
   /** Candidate install locations identified during the scan. */
@@ -472,11 +475,14 @@ export interface SessionCaptureV2 {
     | HazardObservationCaptureV1
     | HazardObservationCaptureV1[];
   /**
-   * Quote planner evidence captured by Atlas Scan 2.x.
+   * Installation specification evidence captured by Atlas Scan 2.x.
    *
-   * Engineer-internal only — drives quote planning, not customer outputs.
+   * Engineer-internal only — drives installation specification, not customer outputs.
    * Absent on older Scan 1.x payloads and sessions captured before the
-   * quote planner feature was enabled.
+   * installation specification feature was enabled.
+   *
+   * @note Field name kept as `quotePlannerEvidence` for iOS backward compatibility.
+   * TODO: rename to installationSpecificationEvidence in a future migration.
    *
    * Inferred / scan_inferred locations in candidateLocations must remain as
    * evidence until the engineer reviews them — do not auto-promote.
