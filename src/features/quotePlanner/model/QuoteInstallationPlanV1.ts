@@ -30,6 +30,7 @@ import type {
   QuotePointScale,
   QuoteRoutePointV1,
 } from '../calculators/quotePlannerTypes';
+import type { QuoteScopeItemV1 } from '../scope/buildQuoteScopeFromInstallationPlan';
 
 import type {
   QuotePlannerLocationKind,
@@ -52,6 +53,7 @@ export type {
   PipeworkInstallMethod,
   QuotePipeworkCalculationV1,
 };
+export type { QuoteScopeItemV1 };
 
 // ─── Plan-layer location kind ─────────────────────────────────────────────────
 
@@ -285,8 +287,8 @@ export interface QuoteInstallationPlanV1 {
   jobClassification: QuoteJobClassificationV1;
   /**
    * Generated scope items.
-   * Empty in V1 — populated by a later PR.
-   * Must not contain customer-facing copy in this version.
+   * Empty until `buildQuoteScopeFromInstallationPlan` is called on this plan.
+   * Must not contain customer-facing copy.
    */
-  generatedScope: string[];
+  generatedScope: QuoteScopeItemV1[];
 }
