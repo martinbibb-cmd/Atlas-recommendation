@@ -104,7 +104,6 @@ export type {
   QuotePipeworkCalculationV1,
 };
 export type { QuoteScopeItemV1 };
-export type { CondensateDischargeKind };
 
 // ─── Plan-layer location kind ─────────────────────────────────────────────────
 
