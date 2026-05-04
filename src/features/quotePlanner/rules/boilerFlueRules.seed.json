@@ -1,0 +1,49 @@
+[
+  {
+    "_comment": "DEMO DATA — NOT FOR LIVE QUOTES. Awaiting real MI extraction.",
+    "manufacturer": "DEMO_MANUFACTURER_A",
+    "range": "DEMO_RANGE_X",
+    "model": "DEMO_MODEL_25",
+    "flueSystem": "60/100",
+    "maxEquivalentLengthM": 10,
+    "segmentEquivalents": {
+      "elbow_90": 1.5,
+      "elbow_45": 0.75,
+      "plume_kit": 0,
+      "terminal": 0
+    },
+    "source": "generic_estimate",
+    "notes": "DEMO — not_for_live_quote. Placeholder entry pending MI extraction from manufacturer documentation."
+  },
+  {
+    "_comment": "DEMO DATA — NOT FOR LIVE QUOTES. Awaiting real MI extraction.",
+    "manufacturer": "DEMO_MANUFACTURER_A",
+    "range": "DEMO_RANGE_X",
+    "model": "DEMO_MODEL_30",
+    "flueSystem": "60/100",
+    "maxEquivalentLengthM": 12,
+    "segmentEquivalents": {
+      "elbow_90": 1.5,
+      "elbow_45": 0.75,
+      "plume_kit": 0,
+      "terminal": 0
+    },
+    "source": "generic_estimate",
+    "notes": "DEMO — not_for_live_quote. Placeholder entry pending MI extraction from manufacturer documentation."
+  },
+  {
+    "_comment": "DEMO DATA — NOT FOR LIVE QUOTES. Range-level entry (no model specified).",
+    "manufacturer": "DEMO_MANUFACTURER_B",
+    "range": "DEMO_RANGE_Y",
+    "flueSystem": "80/125",
+    "maxEquivalentLengthM": 15,
+    "segmentEquivalents": {
+      "elbow_90": 2.0,
+      "elbow_45": 1.0,
+      "plume_kit": 1.0,
+      "terminal": 0
+    },
+    "source": "generic_estimate",
+    "notes": "DEMO — not_for_live_quote. Range-level placeholder; applies to all models in DEMO_RANGE_Y until model-level entries are added."
+  }
+]

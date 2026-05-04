@@ -12,6 +12,11 @@
  *     `needs_model_specific_check` — never pass or fail without a limit.
  *   - Generic rule sets produce `generic_estimate` mode output.
  *   - All assumptions made during the calculation are recorded in the output.
+ *
+ * Model-specific lookup:
+ *   Use `calculateFlueEquivalentLengthForModel` to resolve the correct rule
+ *   set automatically for a given manufacturer and model, falling back to
+ *   generic estimates when no manufacturer entry is available.
  */
 
 import type {
@@ -29,6 +34,10 @@ import {
   GENERIC_FLUE_ASSUMPTION_PLUME,
   GENERIC_FLUE_ASSUMPTION_TERMINAL,
 } from './genericFlueRules';
+import {
+  getFlueRulesForModel,
+  type FlueRuleResolutionV1,
+} from '../rules/getFlueRulesForModel';
 
 // ─── Assumption helpers ───────────────────────────────────────────────────────
 
@@ -155,4 +164,66 @@ export function calculateFlueEquivalentLength(
     calculationMode: ruleSet.calculationMode,
     assumptions,
   };
+}
+
+// ─── Model-aware convenience wrapper ─────────────────────────────────────────
+
+/**
+ * Result of `calculateFlueEquivalentLengthForModel`.
+ *
+ * Combines the standard calculation output with the rule-resolution metadata
+ * so consumers can drive UI labels without a separate lookup call.
+ */
+export interface FlueEquivalentLengthForModelResultV1 {
+  /** Full calculation output (same shape as `QuoteFlueCalculationV1`). */
+  calculation: QuoteFlueCalculationV1;
+  /**
+   * Resolution metadata from `getFlueRulesForModel`.
+   * Use `resolution.resolved` to drive the UI label:
+   *   - `'manufacturer_specific'` → "Manufacturer-specific"
+   *   - `'generic_estimate'`      → "Generic estimate — check MI"
+   */
+  resolution: FlueRuleResolutionV1;
+}
+
+/**
+ * Calculates flue equivalent length using the best available rule set for
+ * the specified manufacturer and model.
+ *
+ * If a catalog entry exists for the manufacturer/model combination, it is used
+ * and the result is labelled `manufacturer_specific`.  Otherwise, the generic
+ * estimate rule set is used and the result is labelled `generic_estimate`.
+ *
+ * When the matched catalog entry provides a `maxEquivalentLengthM`, it is
+ * merged into the flue route before calculation so that pass/fail is
+ * automatically determined.  An explicit `maxEquivalentLengthM` on the
+ * `flueRoute` takes precedence over the catalog value.
+ *
+ * @param flueRoute    - The complete flue route with segments and optional max limit.
+ * @param manufacturer - Canonical manufacturer name (case-insensitive).
+ * @param model        - Specific model identifier (optional).
+ * @param range        - Product range (optional; used when model is absent).
+ *
+ * @returns Combined calculation and resolution result.
+ */
+export function calculateFlueEquivalentLengthForModel(
+  flueRoute: QuoteFlueRouteV1,
+  manufacturer: string,
+  model?: string,
+  range?: string,
+): FlueEquivalentLengthForModelResultV1 {
+  const resolution = getFlueRulesForModel(manufacturer, model, range);
+
+  // If the catalog entry provides a maxEquivalentLengthM and the route does
+  // not already specify one, forward the catalog value into the route.
+  const catalogMaxM = resolution.matchedEntry?.maxEquivalentLengthM;
+
+  const effectiveRoute: QuoteFlueRouteV1 =
+    catalogMaxM !== undefined && flueRoute.maxEquivalentLengthM === undefined
+      ? { ...flueRoute, maxEquivalentLengthM: catalogMaxM }
+      : flueRoute;
+
+  const calculation = calculateFlueEquivalentLength(effectiveRoute, resolution.ruleSet);
+
+  return { calculation, resolution };
 }
