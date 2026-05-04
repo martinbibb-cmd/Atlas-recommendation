@@ -199,6 +199,29 @@ export function isProposedHeatPump(label: UiProposedHeatSourceLabel): boolean {
   return label === 'heat_pump';
 }
 
+// ─── Canonical current system summary ────────────────────────────────────────
+
+/**
+ * A read-only summary of the current installation, sourced from the canonical
+ * survey.  This is passed into the Installation Specification stepper so that
+ * the spec tool can show existing system facts without re-collecting them.
+ *
+ * All fields are nullable — when a field is absent, the UI shows
+ * "Missing from canonical survey" rather than "Unknown".
+ */
+export interface CanonicalCurrentSystemSummary {
+  /** Current heat source from canonical survey, or null when not recorded. */
+  heatSource: UiCurrentHeatSourceLabel | null;
+  /** Current hot-water arrangement from canonical survey, or null when not recorded. */
+  hotWater: UiCurrentHotWaterLabel | null;
+  /** Current primary circuit type from canonical survey, or null when not recorded. */
+  primaryCircuit: UiCurrentPrimaryCircuitLabel | null;
+  /** Human-readable boiler/heat-source location label, if known. */
+  boilerLocation?: string;
+  /** Human-readable cylinder/store location label, if known. */
+  cylinderLocation?: string;
+}
+
 /**
  * Whether a proposed heat source label is a gas boiler type
  * (for ASHP-to-gas gate logic).
