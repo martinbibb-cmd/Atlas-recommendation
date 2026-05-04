@@ -114,6 +114,13 @@ const InstallationSpecificationPage = lazy(() =>
     (m) => ({ default: m.InstallationSpecificationPage }),
   ),
 );
+
+// Visible fallback shown while InstallationSpecificationPage is loading.
+const specificationLoadingFallback = (
+  <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontSize: '0.9rem' }}>
+    Loading specification…
+  </div>
+);
 import './App.css';
 
 /**
@@ -1026,7 +1033,7 @@ function AppInner() {
     const handleBack = () => { window.history.back(); };
     return (
       <SpecificationErrorBoundary onBack={handleBack}>
-        <Suspense fallback={null}>
+        <Suspense fallback={specificationLoadingFallback}>
           <InstallationSpecificationPage onBack={handleBack} />
         </Suspense>
       </SpecificationErrorBoundary>
@@ -1464,7 +1471,7 @@ function AppInner() {
         {/* Installation Specification — opened from Visit Hub or QuoteCollectionStep */}
         {journey === 'installation-specification' && (
           <SpecificationErrorBoundary onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}>
-            <Suspense fallback={null}>
+            <Suspense fallback={specificationLoadingFallback}>
               <InstallationSpecificationPage
                 onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
               />
