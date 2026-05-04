@@ -44,6 +44,11 @@ interface Props {
    */
   onComplete?: (engineInput: EngineInputV2_3) => void;
   /**
+   * When provided, the Installation specification step shows an
+   * "Open installation specification" button that calls this callback.
+   */
+  onOpenInstallationSpec?: () => void;
+  /**
    * Called on every step transition (and at completion) with the current raw
    * FullSurveyModelV1 — including fullSurvey extras.  Used by VisitPage to
    * autosave mid-survey state so that navigation-away-and-back, refresh, and
@@ -107,7 +112,7 @@ const defaultInput: FullSurveyModelV1 = {
 /** Z-index reserved for any future full-screen overlays above the stepper. */
 // const OVERLAY_Z_INDEX = 1000;
 
-export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft, onOpenSimulator, onOpenInsightPack }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onComplete, onOpenInstallationSpec, onDraft, onOpenSimulator, onOpenInsightPack }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('system_builder');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -441,6 +446,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onNext={next}
           onPrev={prev}
           occupancyCount={deriveHomeSummary(usageState).occupancyCount}
+          onOpenInstallationSpec={onOpenInstallationSpec}
         />
       )}
 

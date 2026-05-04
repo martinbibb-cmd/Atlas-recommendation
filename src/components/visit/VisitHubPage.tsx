@@ -69,6 +69,8 @@ interface Props {
   onImportScan?: () => void;
   /** Open the external visit file manifest panel for this visit. */
   onOpenExternalFiles?: () => void;
+  /** Open the installation specification tool for this visit. */
+  onOpenInstallationSpec?: () => void;
 }
 
 // Delay (ms) between opening the print dialog and launching the email client,
@@ -394,6 +396,7 @@ function HubActions({
   hasQuotes,
   onImportScan,
   onOpenExternalFiles,
+  onOpenInstallationSpec,
   canMarkOutcome,
   visitId,
 }: {
@@ -415,6 +418,7 @@ function HubActions({
   hasQuotes?: boolean;
   onImportScan?: () => void;
   onOpenExternalFiles?: () => void;
+  onOpenInstallationSpec?: () => void;
   /** When true the visit outcome actions (won / lost / follow-up) are shown. */
   canMarkOutcome: boolean;
   /** Visit ID forwarded to VisitOutcomeActions for analytics attribution. */
@@ -519,6 +523,17 @@ function HubActions({
         <div className="visit-hub__actions-secondary">
           <p className="visit-hub__section-label">Operational</p>
 
+          {onOpenInstallationSpec && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenInstallationSpec}
+              aria-label="Open installation specification"
+              data-testid="open-installation-spec-btn"
+            >
+              🛠 Installation specification
+            </button>
+          )}
+
           {onOpenEngineerRoute && (
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
@@ -537,7 +552,7 @@ function HubActions({
               aria-label="Open insight view"
               data-testid="open-insight-pack-btn"
             >
-              📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
+              📊 Insight view{hasQuotes ? '' : ' · Add install spec for full detail'}
             </button>
           )}
 
@@ -706,7 +721,18 @@ function HubActions({
               aria-label="Open insight view"
               data-testid="open-insight-pack-btn"
             >
-              📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
+              📊 Insight view{hasQuotes ? '' : ' · Add install spec for full detail'}
+            </button>
+          )}
+
+          {onOpenInstallationSpec && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenInstallationSpec}
+              aria-label="Open installation specification"
+              data-testid="open-installation-spec-btn"
+            >
+              🛠 Installation specification
             </button>
           )}
 
@@ -829,6 +855,17 @@ function HubActions({
           </button>
         )}
 
+        {onOpenInstallationSpec && (
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={onOpenInstallationSpec}
+            aria-label="Open installation specification"
+            data-testid="open-installation-spec-btn"
+          >
+            🛠 Installation specification
+          </button>
+        )}
+
         {onOpenExternalFiles && (
           <button
             className="visit-hub__action-btn visit-hub__action-btn--secondary"
@@ -858,6 +895,7 @@ export default function VisitHubPage({
   onOpenHandoffReview,
   onImportScan,
   onOpenExternalFiles,
+  onOpenInstallationSpec,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -873,7 +911,7 @@ export default function VisitHubPage({
   const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
   // Voice notes — loaded from working_payload and saved back on change.
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
-  // Whether this visit's working payload contains contractor quotes.
+  // Whether this visit's working payload contains an installation specification.
   const [hasQuotes, setHasQuotes] = useState(false);
   // Engine run metadata.
   const [engineRunAt, setEngineRunAt] = useState<string | null>(null);
@@ -909,7 +947,7 @@ export default function VisitHubPage({
         const payload = working_payload as Partial<FullSurveyModelV1> | null;
         const persisted = payload?.fullSurvey?.voiceNotes;
         if (Array.isArray(persisted)) setVoiceNotes(persisted);
-        // Check if contractor quotes were collected in the survey.
+        // Check if an installation specification or installation options have been captured.
         const quotes = payload?.fullSurvey?.quotes;
         setHasQuotes(Array.isArray(quotes) && quotes.length > 0);
         // Restore any persisted engine run metadata.
@@ -1223,6 +1261,7 @@ export default function VisitHubPage({
           hasQuotes={hasQuotes}
           onImportScan={onImportScan}
           onOpenExternalFiles={onOpenExternalFiles}
+          onOpenInstallationSpec={onOpenInstallationSpec}
           canMarkOutcome={canMarkOutcome}
           visitId={visitId}
         />

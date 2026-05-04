@@ -1429,6 +1429,7 @@ function AppInner() {
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
             onImportScan={() => setJourney('receive-scan')}
             onOpenExternalFiles={() => setJourney('external-files')}
+            onOpenInstallationSpec={() => setJourney('quote-planner')}
           />
         )}
         {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
@@ -1505,6 +1506,7 @@ function AppInner() {
               setJourney('floor-plan');
             }}
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
+            onOpenInstallationSpec={() => setJourney('quote-planner')}
             floorplanOutput={floorplanOutput}
           />
         </GlobalMenuShell>

@@ -65,6 +65,11 @@ export interface Props {
    * button that navigates to the VisitHandoffReviewPage.
    */
   onOpenHandoffReview?: () => void;
+  /**
+   * When provided, the Installation specification survey step shows an
+   * "Open installation specification" button that launches the specification tool.
+   */
+  onOpenInstallationSpec?: () => void;
 }
 
 /** Debounce delay for autosave (ms). */
@@ -200,6 +205,7 @@ export default function VisitPage({
   onDraft,
   onOpenFloorPlan,
   onOpenHandoffReview,
+  onOpenInstallationSpec,
 }: Props) {
   // Derive initial error/ready state from visitId at mount — avoids calling
   // setState synchronously inside an effect (which triggers the
@@ -471,6 +477,7 @@ export default function VisitPage({
         onOpenInsightPack={onOpenInsightPack ? handleOpenInsightPack : undefined}
         onDraft={handleDraft}
         onOpenFloorPlan={onOpenFloorPlan}
+        onOpenInstallationSpec={onOpenInstallationSpec}
       />
     </div>
   );

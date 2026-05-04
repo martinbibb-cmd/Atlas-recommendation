@@ -275,3 +275,56 @@ describe('VisitHandoffReviewPage — empty state (PR 17)', () => {
     expect(screen.queryByTestId('handoff-no-result-state')).toBeNull();
   });
 });
+
+describe('VisitHubPage — Installation specification in Operational actions', () => {
+  it('renders Installation specification button in Operational section for completed visit', async () => {
+    const { getVisit } = await import('../../../lib/visits/visitApi');
+    vi.mocked(getVisit).mockResolvedValue(makeCompletedVisit());
+    const onOpenInstallationSpec = vi.fn();
+
+    render(<VisitHubPage {...BASE_PROPS} onOpenInstallationSpec={onOpenInstallationSpec} />);
+    await screen.findByTestId('visit-hub-body-completed-hint');
+
+    expect(screen.getByTestId('open-installation-spec-btn')).toBeTruthy();
+  });
+
+  it('Installation specification button is NOT inside Customer outputs section', async () => {
+    const { getVisit } = await import('../../../lib/visits/visitApi');
+    vi.mocked(getVisit).mockResolvedValue(makeCompletedVisit());
+    const onOpenInstallationSpec = vi.fn();
+
+    render(<VisitHubPage {...BASE_PROPS} onOpenInstallationSpec={onOpenInstallationSpec} />);
+    await screen.findByTestId('visit-hub-body-completed-hint');
+
+    // The installation spec button must not appear inside the "Customer outputs" section.
+    // Find the button and verify it is inside the Operational section (actions-secondary),
+    // not inside the actions-primary section which hosts customer outputs.
+    const btn = screen.getByTestId('open-installation-spec-btn');
+    const primarySection = btn.closest('.visit-hub__actions-primary');
+    expect(primarySection).toBeNull();
+  });
+
+  it('clicking Installation specification calls onOpenInstallationSpec', async () => {
+    const { getVisit } = await import('../../../lib/visits/visitApi');
+    vi.mocked(getVisit).mockResolvedValue(makeCompletedVisit());
+    const onOpenInstallationSpec = vi.fn();
+
+    render(<VisitHubPage {...BASE_PROPS} onOpenInstallationSpec={onOpenInstallationSpec} />);
+    await screen.findByTestId('visit-hub-body-completed-hint');
+
+    await userEvent.click(screen.getByTestId('open-installation-spec-btn'));
+    expect(onOpenInstallationSpec).toHaveBeenCalledTimes(1);
+  });
+
+  it('existing Engineer handoff and customer PDF buttons still render alongside Installation specification', async () => {
+    const { getVisit } = await import('../../../lib/visits/visitApi');
+    vi.mocked(getVisit).mockResolvedValue(makeCompletedVisit());
+
+    render(<VisitHubPage {...BASE_PROPS} onOpenInstallationSpec={vi.fn()} />);
+    await screen.findByTestId('visit-hub-body-completed-hint');
+
+    expect(screen.getByTestId('open-engineer-route-btn')).toBeTruthy();
+    expect(screen.getByTestId('present-to-customer-btn')).toBeTruthy();
+    expect(screen.getByTestId('download-customer-pdf-btn')).toBeTruthy();
+  });
+});

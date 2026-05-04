@@ -364,3 +364,76 @@ describe('Simulator naming reserved for proof surface only (atlas-terminology.md
     ).toHaveLength(0);
   });
 });
+
+// ─── Guardrails: surveyor tool must not use contractor-quote framing ──────────
+//
+// The installation specification is a surveyor tool, not a contractor quote
+// comparison form. User-facing copy must never use contractor quote language.
+// See problem statement: fix(quote-planner): surface installation spec in surveyor workflow.
+
+describe('No contractor-quote framing in surveyor-facing copy', () => {
+  const files = collectSourceFiles(SRC_DIR).filter(
+    // Allow test files (fixture strings) and internal model/type files.
+    f =>
+      !ALLOWED_FILES.has(path.basename(f)) &&
+      !f.includes('__tests__') &&
+      // The QuoteInput type and legacy insight-pack files use "quote" at schema level — allowed.
+      !['insightPack.types.ts', 'insightPack.ts', 'insightPackRenderer.tsx'].includes(path.basename(f)),
+  );
+
+  it('does not contain "contractor quote" in visible UI copy', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'contractor quote');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "contractor quote" found — use "installation specification" or "install spec":\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "Enter the contractor quotes" in visible UI copy', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'Enter the contractor quotes');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "Enter the contractor quotes" found — surveyors do not enter contractor quotes:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "Add at least one contractor quote" (hard-block language removed)', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'Add at least one contractor quote');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "Add at least one contractor quote" found — progression must never be blocked by contractor quote requirement:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+
+  it('does not contain "quotes you have received" in visible UI copy', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const hits = findPhraseLines(file, 'quotes you have received');
+      if (hits.length > 0) {
+        violations.push(`${path.relative(SRC_DIR, file)}:\n${hits.join('\n')}`);
+      }
+    }
+    expect(
+      violations,
+      `Forbidden phrase "quotes you have received" found — use surveyor-facing installation language instead:\n${violations.join('\n\n')}`,
+    ).toHaveLength(0);
+  });
+});
