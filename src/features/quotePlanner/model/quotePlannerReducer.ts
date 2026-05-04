@@ -22,7 +22,7 @@
  */
 
 import type { QuoteInstallationPlanV1 } from './QuoteInstallationPlanV1';
-import type { QuotePlanLocationV1, QuotePlanCandidateFlueRouteV1 } from './QuoteInstallationPlanV1';
+import type { QuotePlanLocationV1, QuotePlanCandidateFlueRouteV1, QuotePlanPipeworkRouteV1 } from './QuoteInstallationPlanV1';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -77,12 +77,25 @@ export interface UpdateFlueRouteAction {
   flueRoute: QuotePlanCandidateFlueRouteV1;
 }
 
+/**
+ * Update a single pipework route in the plan's `pipeworkRoutes` array.
+ *
+ * If a route with the same `pipeworkRouteId` already exists it is replaced;
+ * otherwise the route is appended.
+ * Has no effect when `state.plan` is `null`.
+ */
+export interface UpdatePipeworkRouteAction {
+  type: 'QUOTE_PLANNER/UPDATE_PIPEWORK_ROUTE';
+  pipeworkRoute: QuotePlanPipeworkRouteV1;
+}
+
 /** Discriminated union of all quote planner actions. */
 export type QuotePlannerAction =
   | SetPlanAction
   | ClearPlanAction
   | UpdateLocationsAction
-  | UpdateFlueRouteAction;
+  | UpdateFlueRouteAction
+  | UpdatePipeworkRouteAction;
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
@@ -124,6 +137,21 @@ export function quotePlannerReducer(
       return {
         ...state,
         plan: { ...state.plan, flueRoutes: updatedFlueRoutes },
+      };
+    }
+
+    case 'QUOTE_PLANNER/UPDATE_PIPEWORK_ROUTE': {
+      if (!state.plan) return state;
+      const { pipeworkRoute } = action;
+      const existing = state.plan.pipeworkRoutes;
+      const idx = existing.findIndex((r) => r.pipeworkRouteId === pipeworkRoute.pipeworkRouteId);
+      const updatedPipeworkRoutes =
+        idx >= 0
+          ? existing.map((r) => (r.pipeworkRouteId === pipeworkRoute.pipeworkRouteId ? pipeworkRoute : r))
+          : [...existing, pipeworkRoute];
+      return {
+        ...state,
+        plan: { ...state.plan, pipeworkRoutes: updatedPipeworkRoutes },
       };
     }
 

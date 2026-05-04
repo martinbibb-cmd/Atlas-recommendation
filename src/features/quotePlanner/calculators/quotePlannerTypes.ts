@@ -294,6 +294,95 @@ export interface FlueRuleSetV1 {
   calculationMode: QuoteFlueCalculationMode;
 }
 
+// ─── Pipework routes ──────────────────────────────────────────────────────────
+
+/**
+ * The type of service a pipework route carries.
+ *
+ * MVP priority: gas, condensate, heating_flow, heating_return.
+ * All eight kinds are defined so new routes can be captured without a schema
+ * change.
+ */
+export type PipeworkRouteKind =
+  | 'gas'
+  | 'heating_flow'
+  | 'heating_return'
+  | 'condensate'
+  | 'hot_water'
+  | 'cold_main'
+  | 'discharge'
+  | 'controls';
+
+/**
+ * The status an engineer assigns to a drawn route.
+ *
+ * proposed       — a new pipe run planned for this job.
+ * reused_existing — an existing pipe run that will be retained or reused.
+ * assumed        — position and length are approximate; not yet verified.
+ */
+export type PipeworkRouteStatus =
+  | 'proposed'
+  | 'reused_existing'
+  | 'assumed';
+
+/**
+ * How a pipework route is physically installed or will be installed.
+ *
+ * surface   — exposed on wall or floor.
+ * boxed     — within surface-mounted boxing.
+ * concealed — buried in plaster, screed, or structural fabric.
+ * underfloor — beneath a floor (suspended or solid).
+ * loft      — in the loft void above the ceiling.
+ * external  — outside the building envelope.
+ * unknown   — installation method not yet determined.
+ */
+export type PipeworkInstallMethod =
+  | 'surface'
+  | 'boxed'
+  | 'concealed'
+  | 'underfloor'
+  | 'loft'
+  | 'external'
+  | 'unknown';
+
+/**
+ * Confidence in the physical length value of a pipework route.
+ *
+ * measured_on_plan — derived from a scaled floor-plan drawing.
+ * estimated        — approximate value entered by the engineer.
+ * manual           — engineer has typed a length directly (manual override).
+ * needs_scale      — floor plan is pixel-only without a scale; length cannot
+ *                    be calculated and must not be fabricated.
+ */
+export type PipeworkLengthConfidence =
+  | 'measured_on_plan'
+  | 'estimated'
+  | 'manual'
+  | 'needs_scale';
+
+/**
+ * Calculation result for a single pipework route.
+ *
+ * lengthM is null when `lengthConfidence === 'needs_scale'` — no fake metres
+ * are introduced for pixel-only routes without a known scale factor.
+ */
+export interface QuotePipeworkCalculationV1 {
+  /** Physical length of the route in metres; null when scale is unavailable. */
+  lengthM: number | null;
+  /** Confidence in the length value. */
+  lengthConfidence: PipeworkLengthConfidence;
+  /** Number of explicit bend points on the route. */
+  bendCount: number;
+  /** Number of wall penetrations on the route. */
+  wallPenetrationCount: number;
+  /** Number of floor penetrations on the route. */
+  floorPenetrationCount: number;
+  /** Complexity band derived from length, bends, and penetrations. */
+  complexity: QuoteRouteComplexity;
+  /** Human-readable rationale for the complexity band. */
+  complexityRationale: string;
+}
+
 // ─── Job classification ───────────────────────────────────────────────────────
 
 /**

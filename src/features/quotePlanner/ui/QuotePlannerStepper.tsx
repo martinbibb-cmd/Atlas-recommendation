@@ -23,11 +23,16 @@ import { ProposedSystemStep } from './steps/ProposedSystemStep';
 import { JobTypeStep } from './steps/JobTypeStep';
 import { PlaceLocationsStep } from './steps/PlaceLocationsStep';
 import { FluePlanStep } from './steps/FluePlanStep';
+import { PipeworkPlanStep } from './steps/PipeworkPlanStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
 import { uiLabelToFamily } from './quotePlannerUiTypes';
 import type { UiCurrentSystemLabel, UiProposedSystemLabel } from './quotePlannerUiTypes';
 import type { QuoteJobClassificationV1 } from '../calculators/quotePlannerTypes';
-import type { QuotePlanLocationV1, QuotePlanCandidateFlueRouteV1 } from '../model/QuoteInstallationPlanV1';
+import type {
+  QuotePlanLocationV1,
+  QuotePlanCandidateFlueRouteV1,
+  QuotePlanPipeworkRouteV1,
+} from '../model/QuoteInstallationPlanV1';
 import './quotePlannerStyles.css';
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -124,6 +129,7 @@ export function QuotePlannerStepper({
     useState<UiProposedSystemLabel | null>(seedProposedSystem ?? null);
   const [locations, setLocations] = useState<QuotePlanLocationV1[]>([]);
   const [flueRoute, setFlueRoute] = useState<QuotePlanCandidateFlueRouteV1 | null>(null);
+  const [pipeworkRoutes, setPipeworkRoutes] = useState<QuotePlanPipeworkRouteV1[]>([]);
 
   // Derive job classification whenever system selections change.
   const jobClassification = useMemo(
@@ -223,10 +229,11 @@ export function QuotePlannerStepper({
 
       case 'pipework_plan':
         return (
-          <>
-            <h2 className="qp-step-heading">Pipework plan</h2>
-            <PlaceholderStep icon="🔧" label="Pipework route planning coming in the next release." />
-          </>
+          <PipeworkPlanStep
+            pipeworkRoutes={pipeworkRoutes}
+            onRoutesChange={setPipeworkRoutes}
+            floorPlanUri={floorPlanUri}
+          />
         );
 
       case 'generated_scope':
