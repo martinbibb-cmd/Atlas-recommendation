@@ -553,7 +553,7 @@ function HubActions({
               aria-label="Open installation specification"
               data-testid="open-installation-specification-btn"
             >
-              🛠 Installation specification
+              🛠 Installation Specification
             </button>
           )}
 
@@ -733,7 +733,7 @@ function HubActions({
               aria-label="Open installation specification"
               data-testid="open-installation-specification-btn"
             >
-              🛠 Installation specification
+              🛠 Installation Specification
             </button>
           )}
 
@@ -874,7 +874,7 @@ function HubActions({
             aria-label="Open installation specification"
             data-testid="open-installation-specification-btn"
           >
-            🛠 Installation specification
+            🛠 Installation Specification
           </button>
         )}
       </div>
