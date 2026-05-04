@@ -368,7 +368,10 @@ export function kindToProposedHotWater(kind: HotWaterKindV1): UiProposedHotWater
     case 'none':                  return 'no_stored_hot_water';
     // 'integrated_store' is a current-system hot water kind; there is no
     // corresponding proposed-system tile — return null to indicate no mapping.
-    case 'integrated_store':      return null;
-    case 'other':                 return null;
+    case 'integrated_store':           return null;
+    // 'instantaneous_from_combi' is a current-system hot water kind (combi on-demand);
+    // there is no corresponding proposed-system tile — return null.
+    case 'instantaneous_from_combi':   return null;
+    case 'other':                      return null;
   }
 }
