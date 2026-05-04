@@ -13,9 +13,19 @@
  *
  * "Unknown" is not shown as a normal tile — it exists only as an internal
  * fallback state (e.g. when import hydration fails).
+ *
+ * ASHP rule: when the current system is a heat pump, gas boiler families are
+ * not shown as normal proposed choices.  Changing an ASHP property back to gas
+ * heating is not a normal specification variant; it requires a technical
+ * review exception with a mandatory reason note.
  */
 
+import { useState } from 'react';
 import { SpecificationSystemTile } from '../components/SpecificationSystemTile';
+import {
+  GAS_BOILER_PROPOSED_VALUES,
+  isGasBoilerProposedValue,
+} from '../installationSpecificationUiTypes';
 import type { UiCurrentSystemLabel, UiProposedSystemLabel } from '../installationSpecificationUiTypes';
 
 interface SystemTileDefinition {
@@ -25,7 +35,8 @@ interface SystemTileDefinition {
   imageSrc: string | null;
 }
 
-const PROPOSED_SYSTEM_TILES: SystemTileDefinition[] = [
+/** All normal proposed-system tiles. */
+const ALL_PROPOSED_SYSTEM_TILES: SystemTileDefinition[] = [
   {
     value:    'combi',
     title:    'Combination boiler',
@@ -74,12 +85,23 @@ export interface ProposedSystemStepProps {
    */
   seedValue?: UiProposedSystemLabel | null;
   /**
-   * The surveyor's current-system selection — used to show a context hint.
+   * The surveyor's current-system selection — used to show a context hint
+   * and to apply the ASHP system-family gate.
    * Optional; hint is suppressed when absent.
    */
   currentSystemLabel?: UiCurrentSystemLabel | null;
   /** Called when the surveyor taps a tile. */
   onSelect: (value: UiProposedSystemLabel) => void;
+  /**
+   * Note entered when the ASHP → gas technical-review exception is open.
+   * Managed by the parent so the stepper can gate the Next button.
+   */
+  ashpExceptionNote?: string;
+  /**
+   * Called when the surveyor types in the ASHP exception note field.
+   * Managed by the parent (stepper) so canAdvance logic can check it.
+   */
+  onAshpExceptionNoteChange?: (note: string) => void;
 }
 
 export function ProposedSystemStep({
@@ -87,11 +109,41 @@ export function ProposedSystemStep({
   seedValue,
   currentSystemLabel,
   onSelect,
+  ashpExceptionNote = '',
+  onAshpExceptionNoteChange,
 }: ProposedSystemStepProps) {
   const contextLabel =
     currentSystemLabel != null
       ? CURRENT_SYSTEM_DISPLAY[currentSystemLabel]
       : null;
+
+  // ASHP gate: when the current system is a heat pump, gas boiler families are hidden.
+  const isCurrentHeatPump = currentSystemLabel === 'heat_pump';
+
+  // Exception-panel state for the ASHP → gas override.
+  // Pre-open the panel if the component is mounted with a gas system already
+  // selected (e.g. when the user navigated back after the exception was used).
+  const [showAshpException, setShowAshpException] = useState(
+    isCurrentHeatPump && selected != null && isGasBoilerProposedValue(selected),
+  );
+
+  // Tiles visible without the exception panel.
+  const normalTiles = isCurrentHeatPump
+    ? ALL_PROPOSED_SYSTEM_TILES.filter((t) => !GAS_BOILER_PROPOSED_VALUES.has(t.value))
+    : ALL_PROPOSED_SYSTEM_TILES;
+
+  function handleAshpExceptionOpen() {
+    setShowAshpException(true);
+  }
+
+  function handleAshpExceptionClose() {
+    setShowAshpException(false);
+    // If a gas system was selected via the exception, clear that selection.
+    if (selected != null && isGasBoilerProposedValue(selected)) {
+      onSelect('heat_pump');
+    }
+    onAshpExceptionNoteChange?.('');
+  }
 
   return (
     <>
@@ -105,8 +157,9 @@ export function ProposedSystemStep({
           Because you chose <strong>{contextLabel}</strong>, Atlas needs the proposed system next.
         </p>
       )}
+
       <div className="spec-sys-tile-grid">
-        {PROPOSED_SYSTEM_TILES.map(({ value, title, subtitle, imageSrc }) => {
+        {normalTiles.map(({ value, title, subtitle, imageSrc }) => {
           const isAtlasPick = seedValue != null && value === seedValue;
           return (
             <SpecificationSystemTile
@@ -117,11 +170,75 @@ export function ProposedSystemStep({
               imageSrc={imageSrc}
               selected={selected === value}
               badge={isAtlasPick ? 'Atlas selected' : undefined}
-              onClick={() => onSelect(value)}
+              onClick={() => {
+                setShowAshpException(false);
+                onSelect(value);
+              }}
             />
           );
         })}
       </div>
+
+      {/* ASHP → gas exception path */}
+      {isCurrentHeatPump && !showAshpException && (
+        <button
+          type="button"
+          className="spec-exception-btn"
+          onClick={handleAshpExceptionOpen}
+          data-testid="ashp-gas-exception-btn"
+        >
+          Change to gas or conventional heating — technical review required
+        </button>
+      )}
+
+      {isCurrentHeatPump && showAshpException && (
+        <div className="spec-exception-panel" data-testid="ashp-exception-panel">
+          <div className="spec-exception-panel__header">
+            <span className="spec-exception-panel__warning">
+              ⚠️ Technical review required
+            </span>
+            <button
+              type="button"
+              className="spec-exception-panel__cancel"
+              aria-label="Cancel ASHP exception"
+              onClick={handleAshpExceptionClose}
+            >
+              ✕
+            </button>
+          </div>
+          <p className="spec-exception-panel__body">
+            Changing an ASHP property back to a gas heat source is not a normal
+            specification variant. Record the reason before continuing.
+          </p>
+          <p className="spec-exception-panel__hint">
+            A reason note is required before you can continue.
+          </p>
+          <textarea
+            className="spec-exception-panel__note"
+            placeholder="Record the reason for the gas system change…"
+            value={ashpExceptionNote}
+            onChange={(e) => onAshpExceptionNoteChange?.(e.target.value)}
+            rows={3}
+            aria-label="ASHP to gas exception note"
+          />
+          {/* Gas system tiles are only shown inside the exception panel */}
+          <div className="spec-sys-tile-grid spec-sys-tile-grid--exception">
+            {ALL_PROPOSED_SYSTEM_TILES.filter((t) => GAS_BOILER_PROPOSED_VALUES.has(t.value)).map(
+              ({ value, title, subtitle, imageSrc }) => (
+                <SpecificationSystemTile
+                  key={value}
+                  value={value}
+                  title={title}
+                  subtitle={subtitle}
+                  imageSrc={imageSrc}
+                  selected={selected === value}
+                  onClick={() => onSelect(value)}
+                />
+              ),
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

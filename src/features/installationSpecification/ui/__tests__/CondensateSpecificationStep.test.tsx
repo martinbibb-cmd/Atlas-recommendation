@@ -5,26 +5,30 @@
  *
  * Coverage (from problem statement):
  *   1.  Heading and copy renders correctly.
- *   2.  All five discharge method tiles render.
- *   3.  Selecting a tile calls onCondensateRouteChange with the correct kind.
- *   4.  Selected tile becomes aria-pressed=true.
- *   5.  Route details section appears after a discharge kind is selected.
- *   6.  Freeze-risk notice shown for external discharge kinds.
- *   7.  Freeze-risk notice NOT shown for internal discharge kinds.
- *   8.  Pipe run length input updates the route.
- *   9.  Invalid / blank pipe run input keeps pipeRunM as null.
- *  10.  Needs verification toggle updates the route.
- *  11.  Verification warning shown when flagged.
- *  12.  Notes field updates the route.
- *  13.  Nudge hint shown when no discharge kind is selected.
- *  14.  Nudge hint hidden after a discharge kind is selected.
- *  15.  Route type label shows "Internal" / "External" as appropriate.
+ *   2.  Four discharge method tiles render (external_trace_heat removed).
+ *   3.  external_trace_heat tile does NOT render.
+ *   4.  Selecting a tile calls onCondensateRouteChange with the correct kind.
+ *   5.  Selected tile becomes aria-pressed=true.
+ *   6.  Route details section appears after a discharge kind is selected.
+ *   7.  Freeze-risk notice shown for external discharge kinds.
+ *   8.  Freeze-risk notice NOT shown for internal discharge kinds.
+ *   9.  Pipe run length input updates the route.
+ *  10.  Invalid / blank pipe run input keeps pipeRunM as null.
+ *  11.  Needs surveyor decision toggle updates the route.
+ *  12.  Surveyor decision warning shown when flagged.
+ *  13.  Notes field updates the route.
+ *  14.  Nudge hint shown when no discharge kind is selected.
+ *  15.  Nudge hint hidden after a discharge kind is selected.
+ *  16.  Route type label shows "Internal" / "External" as appropriate.
+ *  17.  Legacy condensate option warning shown when plan carries external_trace_heat.
+ *  18.  External gully and soakaway tiles show Freeze risk badge.
+ *  19.  Condensate pump tile shows power-and-maintenance note.
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CondensateSpecificationStep } from '../steps/CondensateSpecificationStep';
-import type { QuotePlanCondensateRouteV1 } from '../../model/QuoteInstallationPlanV1';
+import type { QuotePlanCondensateRouteV1, CondensateDischargeKind, LegacyCondensateDischargeKind } from '../../model/QuoteInstallationPlanV1';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,15 +52,15 @@ describe('CondensateSpecificationStep — heading and copy', () => {
     expect(screen.getByText('Condensate specification')).toBeTruthy();
   });
 
-  it('shows the subheading copy', () => {
+  it('shows the subheading copy (not "confirm the route")', () => {
     renderStep();
     expect(
-      screen.getByText('Select the discharge method and confirm the route.'),
+      screen.getByText('Select the discharge method and specify the route.'),
     ).toBeTruthy();
   });
 });
 
-// ─── 2. Discharge method tiles render ────────────────────────────────────────
+// ─── 2. Four discharge method tiles render ────────────────────────────────────
 
 describe('CondensateSpecificationStep — discharge tiles', () => {
   it('renders the discharge method tile group', () => {
@@ -64,17 +68,30 @@ describe('CondensateSpecificationStep — discharge tiles', () => {
     expect(screen.getByRole('group', { name: 'Condensate discharge method' })).toBeTruthy();
   });
 
-  it('renders all five discharge kind tiles', () => {
+  it('renders exactly four discharge kind tiles', () => {
     renderStep();
     expect(screen.getByRole('button', { name: /Internal waste/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /External gully/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Soakaway/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Condensate pump/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /External with trace heat/i })).toBeTruthy();
   });
 });
 
-// ─── 3. Selecting a tile calls onCondensateRouteChange ───────────────────────
+// ─── 3. external_trace_heat tile does NOT render ──────────────────────────────
+
+describe('CondensateSpecificationStep — no trace heat tile', () => {
+  it('does NOT render an External with trace heat tile', () => {
+    renderStep();
+    expect(screen.queryByRole('button', { name: /External with trace heat/i })).toBeNull();
+  });
+
+  it('does NOT render any tile with "trace" in the label', () => {
+    renderStep();
+    expect(screen.queryByText(/trace/i)).toBeNull();
+  });
+});
+
+// ─── 4. Selecting a tile calls onCondensateRouteChange ───────────────────────
 
 describe('CondensateSpecificationStep — tile selection', () => {
   it('selecting internal_waste calls onCondensateRouteChange with correct kind', () => {
@@ -117,7 +134,7 @@ describe('CondensateSpecificationStep — tile selection', () => {
   });
 });
 
-// ─── 4. Selected tile aria-pressed ───────────────────────────────────────────
+// ─── 5. Selected tile aria-pressed ───────────────────────────────────────────
 
 describe('CondensateSpecificationStep — aria-pressed', () => {
   it('selected tile has aria-pressed=true', () => {
@@ -135,7 +152,7 @@ describe('CondensateSpecificationStep — aria-pressed', () => {
   });
 });
 
-// ─── 5. Route details section after selection ─────────────────────────────────
+// ─── 6. Route details section after selection ─────────────────────────────────
 
 describe('CondensateSpecificationStep — route details section', () => {
   it('route details section hidden before any selection', () => {
@@ -150,7 +167,7 @@ describe('CondensateSpecificationStep — route details section', () => {
   });
 });
 
-// ─── 6. Freeze-risk notice for external routes ────────────────────────────────
+// ─── 7. Freeze-risk notice for external routes ────────────────────────────────
 
 describe('CondensateSpecificationStep — freeze-risk notice', () => {
   it('shows freeze-risk notice for external_gully', () => {
@@ -165,15 +182,9 @@ describe('CondensateSpecificationStep — freeze-risk notice', () => {
     fireEvent.click(screen.getByRole('button', { name: /Soakaway/i }));
     expect(screen.getByTestId('condensate-freeze-notice')).toBeTruthy();
   });
-
-  it('shows freeze-risk notice for external_trace_heat', () => {
-    renderStep();
-    fireEvent.click(screen.getByRole('button', { name: /External with trace heat/i }));
-    expect(screen.getByTestId('condensate-freeze-notice')).toBeTruthy();
-  });
 });
 
-// ─── 7. No freeze-risk notice for internal routes ────────────────────────────
+// ─── 8. No freeze-risk notice for internal routes ────────────────────────────
 
 describe('CondensateSpecificationStep — no freeze-risk for internal', () => {
   it('does NOT show freeze-risk notice for internal_waste', () => {
@@ -189,7 +200,7 @@ describe('CondensateSpecificationStep — no freeze-risk for internal', () => {
   });
 });
 
-// ─── 8. Pipe run length input ─────────────────────────────────────────────────
+// ─── 9. Pipe run length input ─────────────────────────────────────────────────
 
 describe('CondensateSpecificationStep — pipe run length', () => {
   it('entering a length calls onCondensateRouteChange with pipeRunM set', () => {
@@ -208,9 +219,17 @@ describe('CondensateSpecificationStep — pipe run length', () => {
     fireEvent.click(screen.getByRole('button', { name: /Internal waste/i }));
     expect(screen.getByLabelText(/Approximate pipe run in metres/i)).toBeTruthy();
   });
+
+  it('pipeRunM remains null until entered', () => {
+    const onChange = vi.fn();
+    renderStep(null, onChange);
+    fireEvent.click(screen.getByRole('button', { name: /Internal waste/i }));
+    const route: QuotePlanCondensateRouteV1 = onChange.mock.calls[0][0];
+    expect(route.pipeRunM).toBeNull();
+  });
 });
 
-// ─── 9. Invalid pipe run keeps pipeRunM null ──────────────────────────────────
+// ─── 10. Invalid pipe run keeps pipeRunM null ──────────────────────────────────
 
 describe('CondensateSpecificationStep — invalid pipe run', () => {
   it('blank length input keeps pipeRunM as null', () => {
@@ -236,15 +255,15 @@ describe('CondensateSpecificationStep — invalid pipe run', () => {
   });
 });
 
-// ─── 10. Needs verification toggle ───────────────────────────────────────────
+// ─── 11. Needs surveyor decision toggle ──────────────────────────────────────
 
-describe('CondensateSpecificationStep — needs verification toggle', () => {
-  it('checking the needs-verification checkbox calls onCondensateRouteChange with needsVerification=true', () => {
+describe('CondensateSpecificationStep — needs surveyor decision toggle', () => {
+  it('checking the checkbox calls onCondensateRouteChange with needsVerification=true', () => {
     const onChange = vi.fn();
     renderStep(null, onChange);
     fireEvent.click(screen.getByRole('button', { name: /Internal waste/i }));
     fireEvent.click(
-      screen.getByLabelText(/Mark condensate route as needs on-site verification/i),
+      screen.getByLabelText(/Mark condensate route as needing surveyor decision/i),
     );
     const route: QuotePlanCondensateRouteV1 = onChange.mock.calls.at(-1)![0];
     expect(route.needsVerification).toBe(true);
@@ -254,7 +273,7 @@ describe('CondensateSpecificationStep — needs verification toggle', () => {
     const onChange = vi.fn();
     renderStep(null, onChange);
     fireEvent.click(screen.getByRole('button', { name: /Internal waste/i }));
-    const checkbox = screen.getByLabelText(/Mark condensate route as needs on-site verification/i);
+    const checkbox = screen.getByLabelText(/Mark condensate route as needing surveyor decision/i);
     // Toggle on
     fireEvent.click(checkbox);
     // Toggle off
@@ -264,27 +283,40 @@ describe('CondensateSpecificationStep — needs verification toggle', () => {
   });
 });
 
-// ─── 11. Verification warning when flagged ────────────────────────────────────
+// ─── 12. Surveyor decision warning when flagged ───────────────────────────────
 
-describe('CondensateSpecificationStep — verification warning', () => {
-  it('shows verification warning when needsVerification is true', () => {
+describe('CondensateSpecificationStep — surveyor decision warning', () => {
+  it('shows surveyor decision warning when needsVerification is true', () => {
     const onChange = vi.fn();
     renderStep(null, onChange);
     fireEvent.click(screen.getByRole('button', { name: /Internal waste/i }));
     fireEvent.click(
-      screen.getByLabelText(/Mark condensate route as needs on-site verification/i),
+      screen.getByLabelText(/Mark condensate route as needing surveyor decision/i),
     );
     expect(screen.getByTestId('condensate-verify-warning')).toBeTruthy();
   });
 
-  it('does not show verification warning initially', () => {
+  it('does not show surveyor decision warning initially', () => {
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /Internal waste/i }));
     expect(screen.queryByTestId('condensate-verify-warning')).toBeNull();
   });
+
+  it('warning uses surveyor-tool language (not "verify on site")', () => {
+    const onChange = vi.fn();
+    renderStep(null, onChange);
+    fireEvent.click(screen.getByRole('button', { name: /Internal waste/i }));
+    fireEvent.click(
+      screen.getByLabelText(/Mark condensate route as needing surveyor decision/i),
+    );
+    const warning = screen.getByTestId('condensate-verify-warning');
+    expect(warning.textContent).not.toMatch(/verify on site/i);
+    expect(warning.textContent).not.toMatch(/confirm on site/i);
+    expect(warning.textContent).toMatch(/surveyor decision/i);
+  });
 });
 
-// ─── 12. Notes field ─────────────────────────────────────────────────────────
+// ─── 13. Notes field ─────────────────────────────────────────────────────────
 
 describe('CondensateSpecificationStep — notes field', () => {
   it('entering a note calls onCondensateRouteChange with notes set', () => {
@@ -310,7 +342,7 @@ describe('CondensateSpecificationStep — notes field', () => {
   });
 });
 
-// ─── 13. Nudge hint when no selection ────────────────────────────────────────
+// ─── 14. Nudge hint when no selection ────────────────────────────────────────
 
 describe('CondensateSpecificationStep — nudge hint', () => {
   it('shows nudge hint when no discharge kind is selected', () => {
@@ -327,7 +359,7 @@ describe('CondensateSpecificationStep — nudge hint', () => {
   });
 });
 
-// ─── 14. Route type label ─────────────────────────────────────────────────────
+// ─── 15. Route type label ─────────────────────────────────────────────────────
 
 describe('CondensateSpecificationStep — route type label', () => {
   it('shows "Internal" route type for internal_waste', () => {
@@ -340,5 +372,70 @@ describe('CondensateSpecificationStep — route type label', () => {
     renderStep();
     fireEvent.click(screen.getByRole('button', { name: /External gully/i }));
     expect(screen.getByText('External')).toBeTruthy();
+  });
+});
+
+// ─── 16. Dedicated condensate route feeds generated scope ─────────────────────
+
+describe('CondensateSpecificationStep — condensate route feeds scope', () => {
+  it('selected condensate route has the expected discharge kind', () => {
+    const onChange = vi.fn();
+    renderStep(null, onChange);
+    fireEvent.click(screen.getByRole('button', { name: /Soakaway/i }));
+    const route: QuotePlanCondensateRouteV1 = onChange.mock.calls[0][0];
+    expect(route.dischargeKind).toBe('soakaway');
+  });
+});
+
+// ─── 17. Legacy condensate warning ───────────────────────────────────────────
+
+describe('CondensateSpecificationStep — legacy warning', () => {
+  it('shows legacy warning when plan carries external_trace_heat', () => {
+    const legacyRoute = {
+      dischargeKind: 'external_trace_heat' as CondensateDischargeKind | LegacyCondensateDischargeKind,
+      isExternal: true,
+      pipeRunM: null,
+      needsVerification: false,
+    } as unknown as QuotePlanCondensateRouteV1;
+    renderStep(legacyRoute);
+    expect(screen.getByTestId('condensate-legacy-warning')).toBeTruthy();
+    expect(screen.getByText(/Legacy condensate option/i)).toBeTruthy();
+  });
+
+  it('does NOT show legacy warning for normal routes', () => {
+    renderStep();
+    expect(screen.queryByTestId('condensate-legacy-warning')).toBeNull();
+  });
+});
+
+// ─── 18. External gully and soakaway show Freeze risk badge ──────────────────
+
+describe('CondensateSpecificationStep — freeze risk badges on tiles', () => {
+  it('external gully tile has Freeze risk badge', () => {
+    renderStep();
+    const gully = screen.getByRole('button', { name: /External gully/i });
+    expect(gully.textContent).toMatch(/Freeze risk/i);
+  });
+
+  it('soakaway tile has Freeze risk badge', () => {
+    renderStep();
+    const soakaway = screen.getByRole('button', { name: /Soakaway/i });
+    expect(soakaway.textContent).toMatch(/Freeze risk/i);
+  });
+
+  it('internal waste tile does NOT have Freeze risk badge', () => {
+    renderStep();
+    const internal = screen.getByRole('button', { name: /Internal waste/i });
+    expect(internal.textContent).not.toMatch(/Freeze risk/i);
+  });
+});
+
+// ─── 19. Condensate pump note ─────────────────────────────────────────────────
+
+describe('CondensateSpecificationStep — condensate pump note', () => {
+  it('condensate pump tile shows power and maintenance note', () => {
+    renderStep();
+    const pump = screen.getByRole('button', { name: /Condensate pump/i });
+    expect(pump.textContent).toMatch(/Power and maintenance consideration/i);
   });
 });

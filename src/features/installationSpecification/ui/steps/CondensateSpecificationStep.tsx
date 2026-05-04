@@ -3,12 +3,12 @@
  *
  * Step 6 of the Installation Specification: "Condensate specification".
  *
- * Lets the engineer choose the condensate discharge method and record
- * route details (length, freeze-risk notes, verification flag).
+ * Lets the surveyor choose the condensate discharge method and record
+ * route details (length, freeze-risk notes, surveyor decision flag).
  *
  * UI copy:
  *   Heading:    "Condensate specification"
- *   Subheading: "Select the discharge method and confirm the route."
+ *   Subheading: "Select the discharge method and specify the route."
  *
  * Design rules:
  *   - Does not output customer-facing copy.
@@ -16,19 +16,22 @@
  *   - No fake lengths — pipeRunM stays null until explicitly entered.
  *   - External routes always show a freeze-risk notice.
  *   - `onCondensateRouteChange` is called with the updated route after every
- *     engineer action — the parent is responsible for storing it.
+ *     surveyor action — the parent is responsible for storing it.
+ *   - Legacy plans with `external_trace_heat` show a warning banner that
+ *     blocks completion until the surveyor selects a current route.
  */
 
 import { useState } from 'react';
-import { CondensateDischargeCards, CONDENSATE_DISCHARGE_LABELS } from '../condensate/CondensateDischargeCards';
+import { CondensateDischargeCards, LegacyCondensateWarning, CONDENSATE_DISCHARGE_LABELS } from '../condensate/CondensateDischargeCards';
 import {
   buildCondensateRouteDraft,
   updateCondensateDischargeKind,
   updateCondensatePipeRun,
   toggleCondensateNeedsVerification,
   updateCondensateNotes,
+  isLegacyCondensateKind,
 } from '../../model/condensateActions';
-import type { QuotePlanCondensateRouteV1, CondensateDischargeKind } from '../../model/QuoteInstallationPlanV1';
+import type { QuotePlanCondensateRouteV1, CondensateDischargeKind, LegacyCondensateDischargeKind } from '../../model/QuoteInstallationPlanV1';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -36,9 +39,11 @@ export interface CondensateSpecificationStepProps {
   /**
    * Current condensate route from the plan.
    * `null` when no route has been started yet.
+   * When a legacy plan supplies `external_trace_heat`, pass the route here;
+   * the step will show a warning and require a new route to be selected.
    */
   condensateRoute: QuotePlanCondensateRouteV1 | null;
-  /** Called whenever the engineer changes the condensate route. */
+  /** Called whenever the surveyor changes the condensate route. */
   onCondensateRouteChange: (route: QuotePlanCondensateRouteV1) => void;
 }
 
@@ -48,9 +53,16 @@ export function CondensateSpecificationStep({
   condensateRoute,
   onCondensateRouteChange,
 }: CondensateSpecificationStepProps) {
-  // Keep a local draft — initialised when the engineer selects the first discharge kind.
+  // Detect legacy route — external_trace_heat is no longer a valid selection.
+  const isLegacy =
+    condensateRoute != null &&
+    isLegacyCondensateKind(
+      condensateRoute.dischargeKind as CondensateDischargeKind | LegacyCondensateDischargeKind,
+    );
+
+  // Keep a local draft — initialised from the incoming route unless it is legacy.
   const [localRoute, setLocalRoute] = useState<QuotePlanCondensateRouteV1 | null>(
-    condensateRoute,
+    isLegacy ? null : condensateRoute,
   );
 
   function update(updated: QuotePlanCondensateRouteV1) {
@@ -79,7 +91,7 @@ export function CondensateSpecificationStep({
     update(updateCondensatePipeRun(localRoute, pipeRunM));
   }
 
-  // ── Needs verification ───────────────────────────────────────────────────────
+  // ── Needs surveyor decision ──────────────────────────────────────────────────
 
   function handleNeedsVerificationToggle() {
     if (localRoute == null) return;
@@ -102,8 +114,11 @@ export function CondensateSpecificationStep({
       <h2 className="qp-step-heading">Condensate specification</h2>
 
       <p className="qp-step-subheading">
-        Select the discharge method and confirm the route.
+        Select the discharge method and specify the route.
       </p>
+
+      {/* Legacy warning when plan carries the removed external_trace_heat option */}
+      {isLegacy && <LegacyCondensateWarning />}
 
       {/* 1. Discharge method tiles */}
       <section
@@ -179,28 +194,28 @@ export function CondensateSpecificationStep({
               </div>
             </dl>
 
-            {/* Needs verification toggle */}
+            {/* Needs surveyor decision toggle */}
             <label className="condensate-route-card__verify-row">
               <input
                 type="checkbox"
                 className="condensate-route-card__verify-checkbox"
                 checked={localRoute.needsVerification}
                 onChange={handleNeedsVerificationToggle}
-                aria-label="Mark condensate route as needs on-site verification"
+                aria-label="Mark condensate route as needing surveyor decision"
               />
               <span className="condensate-route-card__verify-label">
-                Needs on-site verification
+                Needs surveyor decision
               </span>
             </label>
 
-            {/* Verification badge when flagged */}
+            {/* Decision required badge when flagged */}
             {localRoute.needsVerification && (
               <p
                 className="condensate-route-card__verify-warning"
                 role="status"
                 data-testid="condensate-verify-warning"
               >
-                This route is based on assumed data — verify on site before quoting.
+                This route is based on assumed data — needs surveyor decision before completing specification.
               </p>
             )}
 

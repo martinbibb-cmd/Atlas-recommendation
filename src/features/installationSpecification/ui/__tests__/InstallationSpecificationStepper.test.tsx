@@ -371,6 +371,126 @@ describe('InstallationSpecificationStepper — no banned copy', () => {
   });
 });
 
+// ─── ASHP step gating ─────────────────────────────────────────────────────────
+
+describe('InstallationSpecificationStepper — ASHP step gating', () => {
+  /** Navigate current=combi → proposed=heat_pump → job type → key locations → step 5 */
+  function advanceToAshpStep5() {
+    // Step 1: current system = combi
+    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
+    // Step 2: proposed = heat pump
+    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
+    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
+    // Step 3: job type (no selection required)
+    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
+    // Step 4: key locations (no selection required)
+    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
+  }
+
+  it('ASHP path step 5 shows Outdoor unit siting — not Flue specification', () => {
+    renderStepper();
+    advanceToAshpStep5();
+    expect(screen.getByTestId('ashp-outdoor-unit-siting')).toBeTruthy();
+    expect(screen.queryByText('Flue specification')).toBeNull();
+  });
+
+  it('ASHP path step 5 progress pill shows "Outdoor unit siting"', () => {
+    renderStepper();
+    advanceToAshpStep5();
+    // "Outdoor unit siting" appears in both the pill strip and the step heading.
+    const matches = screen.getAllByText('Outdoor unit siting');
+    expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('ASHP path does not include Flue specification in progress pills', () => {
+    renderStepper();
+    advanceToProposedStep();
+    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
+    expect(screen.queryByText('Flue specification')).toBeNull();
+  });
+
+  it('ASHP path does not include Condensate specification in progress pills', () => {
+    renderStepper();
+    advanceToProposedStep();
+    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
+    expect(screen.queryByText('Condensate specification')).toBeNull();
+  });
+
+  it('ASHP path includes Hydraulic route and Electrical supply in progress pills', () => {
+    renderStepper();
+    advanceToProposedStep();
+    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
+    expect(screen.getByText('Hydraulic route')).toBeTruthy();
+    expect(screen.getByText('Electrical supply')).toBeTruthy();
+  });
+});
+
+// ─── ASHP → gas exception gating ─────────────────────────────────────────────
+
+describe('InstallationSpecificationStepper — ASHP current system proposed tiles', () => {
+  /** Navigate to proposed system step with current = heat_pump */
+  function advanceToProposedWithHeatPumpCurrent() {
+    const heatPumpBtns = screen.getAllByRole('button', { name: /Heat pump/i });
+    fireEvent.click(heatPumpBtns[0]);
+    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
+  }
+
+  it('when current is heat_pump, gas boiler tiles are not shown as normal proposed tiles', () => {
+    renderStepper();
+    advanceToProposedWithHeatPumpCurrent();
+    // Normal gas boiler tiles must not be visible outside the exception panel.
+    // We check that only the Heat pump tile is available as a primary choice.
+    expect(screen.queryByRole('button', { name: /Combination boiler/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /System boiler \+ cylinder/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Regular \/ open vent/i })).toBeNull();
+  });
+
+  it('when current is heat_pump, a heat_pump tile is still shown', () => {
+    renderStepper();
+    advanceToProposedWithHeatPumpCurrent();
+    expect(screen.getByRole('button', { name: /Heat pump/i })).toBeTruthy();
+  });
+
+  it('when current is heat_pump, an ASHP→gas exception button is present', () => {
+    renderStepper();
+    advanceToProposedWithHeatPumpCurrent();
+    expect(screen.getByTestId('ashp-gas-exception-btn')).toBeTruthy();
+  });
+
+  it('ASHP → gas requires technical review note before Next is enabled', () => {
+    renderStepper();
+    advanceToProposedWithHeatPumpCurrent();
+
+    // Open the exception panel
+    fireEvent.click(screen.getByTestId('ashp-gas-exception-btn'));
+    expect(screen.getByTestId('ashp-exception-panel')).toBeTruthy();
+
+    // Select a gas system inside the exception panel
+    const combiBtns = screen.getAllByRole('button', { name: /Combination boiler/i });
+    fireEvent.click(combiBtns[0]);
+
+    // Next should still be disabled (no note)
+    const nextBtn = screen.getByText('Next →').closest('button') as HTMLButtonElement;
+    expect(nextBtn.disabled).toBe(true);
+
+    // Enter a reason note
+    fireEvent.change(screen.getByLabelText(/ASHP to gas exception note/i), {
+      target: { value: 'Customer has decided to revert to gas due to cost.' },
+    });
+
+    // Now Next should be enabled
+    expect(nextBtn.disabled).toBe(false);
+  });
+
+  it('exception panel shows "Technical review required" title', () => {
+    renderStepper();
+    advanceToProposedWithHeatPumpCurrent();
+    fireEvent.click(screen.getByTestId('ashp-gas-exception-btn'));
+    expect(screen.getByText(/Technical review required/i)).toBeTruthy();
+  });
+});
+
 // ─── InstallationSpecificationPage — smoke tests ──────────────────────────────
 
 describe('InstallationSpecificationPage', () => {
@@ -385,3 +505,4 @@ describe('InstallationSpecificationPage', () => {
     expect(screen.getByText('Atlas selected')).toBeTruthy();
   });
 });
+

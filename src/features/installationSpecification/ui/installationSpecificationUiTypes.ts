@@ -46,6 +46,31 @@ export type UiProposedSystemLabel =
   | 'heat_pump'
   | 'unknown';
 
+// ─── Gas boiler family constants ──────────────────────────────────────────────
+
+/**
+ * Proposed-system values that belong to a gas boiler family.
+ *
+ * Used by both ProposedSystemStep (to gate ASHP → gas normal tile visibility)
+ * and InstallationSpecificationStepper (to detect the ASHP exception path).
+ * Defined here so both consumers can import from a single source of truth.
+ */
+export const GAS_BOILER_PROPOSED_VALUES = new Set<Exclude<UiProposedSystemLabel, 'unknown'>>([
+  'combi',
+  'system_boiler',
+  'regular_open_vent',
+]);
+
+/**
+ * Type guard that returns true when the given proposed-system label belongs
+ * to a gas boiler family.
+ */
+export function isGasBoilerProposedValue(
+  value: UiProposedSystemLabel,
+): value is Exclude<UiProposedSystemLabel, 'unknown' | 'heat_pump'> {
+  return GAS_BOILER_PROPOSED_VALUES.has(value as Exclude<UiProposedSystemLabel, 'unknown'>);
+}
+
 // ─── Family mapping ───────────────────────────────────────────────────────────
 
 /**
