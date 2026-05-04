@@ -311,7 +311,9 @@ export function InstallationSpecificationStepper({
     switch (stepId) {
       case 'current_system': {
         if (existenceLabel === null) {
-          // Allow advance via exception only if note is non-empty.
+          // Exception path: engineer cannot determine existence state.
+          // The exception note is mandatory so the rationale is always recorded.
+          // Downstream state correctly uses 'unknown' system family.
           return existenceExceptionNote.trim().length > 0;
         }
         return true;
@@ -437,9 +439,10 @@ export function InstallationSpecificationStepper({
         );
 
       case 'proposed_hot_water':
+        if (proposedHeatSource == null) return null;
         return (
           <ProposedHotWaterStep
-            proposedHeatSource={proposedHeatSource!}
+            proposedHeatSource={proposedHeatSource}
             selected={proposedHotWater}
             onSelect={setProposedHotWater}
           />

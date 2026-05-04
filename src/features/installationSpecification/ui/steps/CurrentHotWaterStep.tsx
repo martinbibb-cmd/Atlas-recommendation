@@ -5,12 +5,12 @@
  *
  * Only shown when the current heat source is NOT a combi or storage combi.
  * Skipped when:
- *   - current heat source is combi_boiler
- *   - current heat source is storage_combi
+ *   - current heat source is null (no_wet_heating path)
+ *   - current heat source is combi_boiler or storage_combi (isCombiHeatSource)
  *   - current heat source is none / direct_electric / warm_air
  *
- * Important: vented cylinder ≠ regular boiler. System boiler ≠ unvented cylinder.
- * Atlas records these as separate independent selections.
+ * See getActiveStepIds() in InstallationSpecificationStepper.tsx for the full
+ * step-skipping logic.
  */
 
 import { SpecificationSystemTile } from '../components/SpecificationSystemTile';

@@ -28,13 +28,7 @@ interface HeatSourceTileDefinition {
   imageSrc: string | null;
 }
 
-/** Gas boiler proposed heat-source values — used for ASHP gate. */
-const GAS_PROPOSED_VALUES = new Set<UiProposedHeatSourceLabel>([
-  'combi_boiler',
-  'regular_boiler',
-  'system_boiler',
-  'storage_combi',
-]);
+// Uses isGasBoilerProposedHeatSource() from installationSpecificationUiTypes for ASHP gate.
 
 /** All normal proposed heat-source tiles. */
 const ALL_PROPOSED_TILES: HeatSourceTileDefinition[] = [
@@ -111,11 +105,11 @@ export function ProposedSystemStep({
   const [showAshpException, setShowAshpException] = useState(
     isCurrentHeatPump &&
       selected != null &&
-      GAS_PROPOSED_VALUES.has(selected),
+      isGasBoilerProposedHeatSource(selected),
   );
 
   const normalTiles = isCurrentHeatPump
-    ? ALL_PROPOSED_TILES.filter((t) => !GAS_PROPOSED_VALUES.has(t.value))
+    ? ALL_PROPOSED_TILES.filter((t) => !isGasBoilerProposedHeatSource(t.value))
     : ALL_PROPOSED_TILES;
 
   function handleAshpExceptionOpen() {
@@ -124,7 +118,7 @@ export function ProposedSystemStep({
 
   function handleAshpExceptionClose() {
     setShowAshpException(false);
-    if (selected != null && GAS_PROPOSED_VALUES.has(selected)) {
+    if (selected != null && isGasBoilerProposedHeatSource(selected)) {
       onSelect('heat_pump');
     }
     onAshpExceptionNoteChange?.('');
@@ -207,7 +201,7 @@ export function ProposedSystemStep({
             aria-label="ASHP to gas exception note"
           />
           <div className="spec-sys-tile-grid spec-sys-tile-grid--exception">
-            {ALL_PROPOSED_TILES.filter((t) => GAS_PROPOSED_VALUES.has(t.value)).map(
+            {ALL_PROPOSED_TILES.filter((t) => isGasBoilerProposedHeatSource(t.value)).map(
               ({ value, title, subtitle, imageSrc }) => (
                 <SpecificationSystemTile
                   key={value}

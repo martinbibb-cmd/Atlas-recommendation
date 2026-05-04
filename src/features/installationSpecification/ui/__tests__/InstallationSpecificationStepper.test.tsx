@@ -360,8 +360,10 @@ describe('InstallationSpecificationStepper — proposed heat source step', () =>
 });
 
 // ─── 11. Classification path tests ────────────────────────────────────────────
-// Note: combi→combi shows needs_review at job_type because the classifier
-// requires heat-source location confirmation (not collected until place_locations).
+// combi→combi at job_type shows needs_review because classifyQuoteJob requires
+// heat-source location confirmation (which is collected at place_locations, after
+// job_type). This is permanent classification behavior — same-family jobs without
+// confirmed location data always yield needs_review.
 
 describe('InstallationSpecificationStepper — specification path', () => {
   it('combi → combi shows Needs technical review (location not yet collected)', () => {
