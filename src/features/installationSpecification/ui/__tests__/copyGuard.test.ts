@@ -2,9 +2,8 @@
  * copyGuard.test.ts
  *
  * Ensures visible UI copy does not contain deprecated "planner",
- * "contractor quotes", or "on site" surveyor-inappropriate terminology
- * anywhere in the known UI label constants.
- * Fails if any of the banned strings are found in the known UI label constants.
+ * "contractor quotes", "on site" surveyor-inappropriate terminology,
+ * or banned phrases anywhere in the known UI label constants.
  */
 
 const BANNED_TERMS = [
@@ -20,7 +19,7 @@ const BANNED_TERMS = [
   'View Insight Pack',
   'Add at least one contractor quote',
   'add quotes for full detail',
-  // Surveyor-facing Unknown must not appear as a normal tile label.
+  // Surveyor-facing "Unknown" must not appear as a normal tile label.
   'Unknown',
   // Planning-related terms must not appear in surveyor-facing copy.
   'Planner',
@@ -30,16 +29,15 @@ const BANNED_TERMS = [
   'Confirm on site',
   'check on site',
   'Check on site',
+  'verify on site',
+  'Verify on site',
   'installer to confirm',
   'Installer to confirm',
 ];
 
-// Known step labels from InstallationSpecificationStepper — full step list
+// Step labels in the new canonical-survey-first stepper
 const STEP_LABELS_ALL = [
   'Current system',
-  'Current heat source',
-  'Current hot water',
-  'Primary circuit',
   'Proposed heat source',
   'Proposed hot water',
   'Location change',
@@ -53,14 +51,18 @@ const STEP_LABELS_ALL = [
   'Generated scope',
 ];
 
-// Known existence tile titles from CurrentSystemStep
-const EXISTENCE_TILE_TITLES = [
-  'Existing wet heating system',
-  'No existing wet heating system',
-  'Partial or abandoned system',
+// Summary-step and action labels
+const SUMMARY_LABELS = [
+  'Current system from canonical survey',
+  'Correct canonical survey',
+  'Missing from canonical survey',
+  'Add to survey',
+  'Heat source',
+  'Hot water',
+  'Primary circuit',
 ];
 
-// Known heat-source tile titles from CurrentHeatSourceStep and ProposedSystemStep
+// Known heat-source tile titles from ProposedSystemStep
 const HEAT_SOURCE_TILE_TITLES = [
   'Combination boiler',
   'Regular boiler',
@@ -74,7 +76,7 @@ const HEAT_SOURCE_TILE_TITLES = [
   'None',
 ];
 
-// Known hot-water tile titles from CurrentHotWaterStep and ProposedHotWaterStep
+// Known hot-water tile titles from ProposedHotWaterStep
 const HOT_WATER_TILE_TITLES = [
   'No cylinder',
   'Vented cylinder',
@@ -90,12 +92,6 @@ const HOT_WATER_TILE_TITLES = [
   'No stored hot water',
 ];
 
-// Known primary-circuit tile titles from CurrentPrimaryCircuitStep
-const PRIMARY_CIRCUIT_TILE_TITLES = [
-  'Open vented primary',
-  'Sealed primary',
-];
-
 // Known page/card labels
 const UI_LABELS = [
   'Installation specification',
@@ -105,10 +101,9 @@ const UI_LABELS = [
   'Specification path',
   'Cannot confirm — needs technical review',
   ...STEP_LABELS_ALL,
-  ...EXISTENCE_TILE_TITLES,
+  ...SUMMARY_LABELS,
   ...HEAT_SOURCE_TILE_TITLES,
   ...HOT_WATER_TILE_TITLES,
-  ...PRIMARY_CIRCUIT_TILE_TITLES,
 ];
 
 describe('Installation specification copy guard', () => {
