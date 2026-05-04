@@ -115,16 +115,19 @@ const continueBtnStyle: CSSProperties = {
 
 interface QuoteCollectionStepProps {
   /**
-   * Previously collected installation options — kept for backward compatibility
-   * with existing persisted visits that may have captured installation options
-   * through an earlier session.
+   * Previously collected installation options — read-only in this component.
+   * Kept for backward compatibility with the FullSurveyStepper data contract
+   * and for detecting whether a legacy visit already has installation options
+   * saved, so the soft warning can be suppressed.
    */
   quotes: QuoteInput[];
+  /**
+   * Called when the installation options list changes — not currently triggered
+   * by this component but retained for interface compatibility with FullSurveyStepper.
+   */
   onChange: (next: QuoteInput[]) => void;
   onNext: () => void;
   onPrev: () => void;
-  /** Total occupant count — reserved for future use by the installation specification. */
-  occupancyCount?: number;
   /**
    * When provided, the "Open installation specification" button calls this
    * so the surveyor can launch the specification tool and return to this step.

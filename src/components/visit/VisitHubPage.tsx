@@ -393,7 +393,7 @@ function HubActions({
   completingError,
   portalUrl,
   portalLoading,
-  hasQuotes,
+  hasInstallSpec,
   onImportScan,
   onOpenExternalFiles,
   onOpenInstallationSpec,
@@ -415,7 +415,7 @@ function HubActions({
   completingError: string | null;
   portalUrl?: string;
   portalLoading?: boolean;
-  hasQuotes?: boolean;
+  hasInstallSpec?: boolean;
   onImportScan?: () => void;
   onOpenExternalFiles?: () => void;
   onOpenInstallationSpec?: () => void;
@@ -552,7 +552,7 @@ function HubActions({
               aria-label="Open insight view"
               data-testid="open-insight-pack-btn"
             >
-              📊 Insight view{hasQuotes ? '' : ' · Add install spec for full detail'}
+              📊 Insight view{hasInstallSpec ? '' : ' · Add install spec for full detail'}
             </button>
           )}
 
@@ -721,7 +721,7 @@ function HubActions({
               aria-label="Open insight view"
               data-testid="open-insight-pack-btn"
             >
-              📊 Insight view{hasQuotes ? '' : ' · Add install spec for full detail'}
+              📊 Insight view{hasInstallSpec ? '' : ' · Add install spec for full detail'}
             </button>
           )}
 
@@ -912,7 +912,7 @@ export default function VisitHubPage({
   // Voice notes — loaded from working_payload and saved back on change.
   const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
   // Whether this visit's working payload contains an installation specification.
-  const [hasQuotes, setHasQuotes] = useState(false);
+  const [hasInstallSpec, setHasInstallSpec] = useState(false);
   // Engine run metadata.
   const [engineRunAt, setEngineRunAt] = useState<string | null>(null);
   const [lastEngineOutput, setLastEngineOutput] = useState<EngineOutputV1 | null>(null);
@@ -949,7 +949,7 @@ export default function VisitHubPage({
         if (Array.isArray(persisted)) setVoiceNotes(persisted);
         // Check if an installation specification or installation options have been captured.
         const quotes = payload?.fullSurvey?.quotes;
-        setHasQuotes(Array.isArray(quotes) && quotes.length > 0);
+        setHasInstallSpec(Array.isArray(quotes) && quotes.length > 0);
         // Restore any persisted engine run metadata.
         const engineMeta = (working_payload as Record<string, unknown>)?.[ENGINE_RUN_META_KEY];
         if (engineMeta && typeof engineMeta === 'object') {
@@ -1258,7 +1258,7 @@ export default function VisitHubPage({
           completingError={completingError}
           portalUrl={portalUrl}
           portalLoading={portalLoading}
-          hasQuotes={hasQuotes}
+          hasInstallSpec={hasInstallSpec}
           onImportScan={onImportScan}
           onOpenExternalFiles={onOpenExternalFiles}
           onOpenInstallationSpec={onOpenInstallationSpec}

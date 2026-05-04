@@ -445,7 +445,6 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onOpenI
           onChange={setQuotesState}
           onNext={next}
           onPrev={prev}
-          occupancyCount={deriveHomeSummary(usageState).occupancyCount}
           onOpenInstallationSpec={onOpenInstallationSpec}
         />
       )}
