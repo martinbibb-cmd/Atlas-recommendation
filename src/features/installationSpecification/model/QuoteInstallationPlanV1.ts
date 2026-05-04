@@ -36,18 +36,26 @@ import type {
 /**
  * The discharge method selected for the condensate pipe.
  *
- * internal_waste        — routed to an internal waste pipe (sink trap, soil stack, etc.).
- * external_gully        — routed to an external gully at ground level.
- * soakaway              — terminated at a soakaway (requires soil permeability check).
- * condensate_pump       — lifted via a condensate pump to an internal discharge point.
- * external_trace_heat   — external run with trace heating to prevent freezing.
+ * internal_waste   — routed to an internal waste pipe (sink trap, soil stack, etc.).
+ * external_gully   — routed to an external gully at ground level.
+ * soakaway         — terminated at a soakaway (requires soil permeability check).
+ * condensate_pump  — lifted via a condensate pump to an internal discharge point.
  */
 export type CondensateDischargeKind =
   | 'internal_waste'
   | 'external_gully'
   | 'soakaway'
-  | 'condensate_pump'
-  | 'external_trace_heat';
+  | 'condensate_pump';
+
+/**
+ * Legacy condensate discharge kind — no longer available as a selectable option.
+ *
+ * Plans saved before this was removed will carry `external_trace_heat`.
+ * The UI renders a "Legacy condensate option — update specification" warning and
+ * requires the surveyor to select a current route before the specification can
+ * be completed.
+ */
+export type LegacyCondensateDischargeKind = 'external_trace_heat';
 
 /**
  * A condensate route in the installation plan.

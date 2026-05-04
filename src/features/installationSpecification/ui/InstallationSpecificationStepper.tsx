@@ -6,8 +6,12 @@
  * Manages the draft state (current system, proposed system, derived job
  * classification) and renders the active step with Back / Next navigation.
  *
- * Steps 1–3 are fully interactive; steps 4–8 show placeholder content until
- * later PRs provide the route-drawing UI.
+ * The active step list is derived from the proposed system family:
+ *   - Gas boiler families: current system → proposed system → job type →
+ *     key locations → flue → condensate → pipework → scope
+ *   - Heat pump:           current system → proposed system → job type →
+ *     key locations → outdoor unit siting → hydraulic route →
+ *     electrical supply → scope
  *
  * Design rules:
  *   - Does not alter any recommendation decision.
@@ -42,8 +46,8 @@ import './installationSpecificationStyles.css';
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
 
-/** The ordered list of step identifiers. */
-const STEP_IDS = [
+/** Steps used for gas boiler specification paths. */
+const GAS_BOILER_STEP_IDS = [
   'current_system',
   'proposed_system',
   'job_type',
@@ -54,21 +58,41 @@ const STEP_IDS = [
   'generated_scope',
 ] as const;
 
-type StepId = typeof STEP_IDS[number];
+/** Steps used for heat-pump specification paths. */
+const HEAT_PUMP_STEP_IDS = [
+  'current_system',
+  'proposed_system',
+  'job_type',
+  'place_locations',
+  'outdoor_unit_siting',
+  'hydraulic_route',
+  'electrical_supply',
+  'generated_scope',
+] as const;
+
+type GasBoilerStepId = typeof GAS_BOILER_STEP_IDS[number];
+type HeatPumpStepId  = typeof HEAT_PUMP_STEP_IDS[number];
+type StepId = GasBoilerStepId | HeatPumpStepId;
 
 /** Short display labels shown in the progress pill strip. */
 const STEP_LABELS: Record<StepId, string> = {
-  current_system:   'Current system',
-  proposed_system:  'Proposed system',
-  job_type:         'Location change',
-  place_locations:  'Key locations',
-  flue_plan:        'Flue specification',
-  condensate_plan:  'Condensate specification',
-  pipework_plan:    'Pipework specification',
-  generated_scope:  'Generated scope',
+  current_system:      'Current system',
+  proposed_system:     'Proposed system',
+  job_type:            'Location change',
+  place_locations:     'Key locations',
+  flue_plan:           'Flue specification',
+  condensate_plan:     'Condensate specification',
+  pipework_plan:       'Pipework specification',
+  outdoor_unit_siting: 'Outdoor unit siting',
+  hydraulic_route:     'Hydraulic route',
+  electrical_supply:   'Electrical supply',
+  generated_scope:     'Generated scope',
 };
 
-const STEP_LABEL_LIST = STEP_IDS.map((id) => STEP_LABELS[id]);
+/** Returns the ordered step ID list for the given proposed system. */
+function getStepIds(proposedLabel: UiProposedSystemLabel | null): readonly StepId[] {
+  return proposedLabel === 'heat_pump' ? HEAT_PUMP_STEP_IDS : GAS_BOILER_STEP_IDS;
+}
 
 // ─── Classification derivation ────────────────────────────────────────────────
 
@@ -116,6 +140,9 @@ export function InstallationSpecificationStepper({
     useState<UiProposedSystemLabel | null>(seedProposedSystem ?? null);
   // Exception-path note — required when selectedCurrentSystem === 'unknown'.
   const [exceptionNote, setExceptionNote] = useState('');
+  // ASHP-to-gas override note — required when current is heat_pump and surveyor
+  // selects a gas system via the technical review exception.
+  const [ashpExceptionNote, setAshpExceptionNote] = useState('');
   const [locations, setLocations] = useState<QuotePlanLocationV1[]>([]);
   const [flueRoute, setFlueRoute] = useState<QuotePlanCandidateFlueRouteV1 | null>(null);
   const [condensateRoute, setCondensateRoute] = useState<QuotePlanCondensateRouteV1 | undefined>(undefined);
@@ -125,6 +152,16 @@ export function InstallationSpecificationStepper({
   const jobClassification = useMemo(
     () => deriveClassification(selectedCurrentSystem, selectedProposedSystem),
     [selectedCurrentSystem, selectedProposedSystem],
+  );
+
+  // Active step list derived from proposed system family.
+  const stepIds = useMemo(
+    () => getStepIds(selectedProposedSystem),
+    [selectedProposedSystem],
+  );
+  const stepLabelList = useMemo(
+    () => stepIds.map((id) => STEP_LABELS[id]),
+    [stepIds],
   );
 
   // Build a minimal plan snapshot for scope generation.  Only the fields
@@ -155,18 +192,31 @@ export function InstallationSpecificationStepper({
     jobClassification,
   ]);
 
-  const totalSteps = STEP_IDS.length;
-  const stepId = STEP_IDS[currentStep];
+  const totalSteps = stepIds.length;
+  const stepId = stepIds[currentStep];
+
+  // Whether the current system is heat_pump and the surveyor has selected a gas system
+  // via the ASHP exception flow — requires a non-empty exception note.
+  const isHeatPumpToGasException = ((): boolean => {
+    if (selectedCurrentSystem !== 'heat_pump') return false;
+    if (selectedProposedSystem == null) return false;
+    const gasValues: UiProposedSystemLabel[] = ['combi', 'system_boiler', 'regular_open_vent'];
+    return gasValues.includes(selectedProposedSystem);
+  })();
 
   // Next is disabled when the active step requires a selection and none is made.
-  // When the exception path is taken (unknown), a note must be provided.
   const canAdvance: boolean = (() => {
     if (stepId === 'current_system') {
       if (selectedCurrentSystem === null) return false;
       if (selectedCurrentSystem === 'unknown') return exceptionNote.trim().length > 0;
       return true;
     }
-    if (stepId === 'proposed_system') return selectedProposedSystem !== null;
+    if (stepId === 'proposed_system') {
+      if (selectedProposedSystem === null) return false;
+      // ASHP → gas requires the exception note.
+      if (isHeatPumpToGasException) return ashpExceptionNote.trim().length > 0;
+      return true;
+    }
     return true;
   })();
 
@@ -186,7 +236,7 @@ export function InstallationSpecificationStepper({
 
   // Navigate back to the step identified by a source step ID from a scope item.
   function handleNavigateToStep(sourceStepId: NonNullable<QuoteScopeItemV1['sourceStepId']>) {
-    const index = STEP_IDS.indexOf(sourceStepId);
+    const index = stepIds.indexOf(sourceStepId as StepId);
     if (index !== -1) {
       setCurrentStep(index);
     }
@@ -227,6 +277,8 @@ export function InstallationSpecificationStepper({
             seedValue={seedProposedSystem}
             currentSystemLabel={selectedCurrentSystem}
             onSelect={setSelectedProposedSystem}
+            ashpExceptionNote={ashpExceptionNote}
+            onAshpExceptionNoteChange={setAshpExceptionNote}
           />
         );
 
@@ -275,6 +327,45 @@ export function InstallationSpecificationStepper({
           />
         );
 
+      case 'outdoor_unit_siting':
+        return (
+          <div className="spec-ashp-placeholder" data-testid="ashp-outdoor-unit-siting">
+            <h2 className="qp-step-heading">Outdoor unit siting</h2>
+            <p className="qp-step-subheading">
+              Specify the proposed outdoor unit location, access requirements, and siting constraints.
+            </p>
+            <p className="qp-context-hint">
+              Outdoor unit siting detail — not yet specified.
+            </p>
+          </div>
+        );
+
+      case 'hydraulic_route':
+        return (
+          <div className="spec-ashp-placeholder" data-testid="ashp-hydraulic-route">
+            <h2 className="qp-step-heading">Hydraulic route</h2>
+            <p className="qp-step-subheading">
+              Specify the hydraulic connection route from the outdoor unit to the indoor unit or cylinder.
+            </p>
+            <p className="qp-context-hint">
+              Hydraulic route detail — not yet specified.
+            </p>
+          </div>
+        );
+
+      case 'electrical_supply':
+        return (
+          <div className="spec-ashp-placeholder" data-testid="ashp-electrical-supply">
+            <h2 className="qp-step-heading">Electrical supply</h2>
+            <p className="qp-step-subheading">
+              Specify the electrical supply route and supply requirements for the outdoor unit.
+            </p>
+            <p className="qp-context-hint">
+              Electrical supply route — not yet specified.
+            </p>
+          </div>
+        );
+
       case 'generated_scope':
         return (
           <GeneratedScopeStep
@@ -287,7 +378,7 @@ export function InstallationSpecificationStepper({
 
   return (
     <div className="qp-page">
-      <SpecificationProgress steps={STEP_LABEL_LIST} currentStep={currentStep} />
+      <SpecificationProgress steps={stepLabelList} currentStep={currentStep} />
       <div className="qp-content">
         {renderStep()}
       </div>
@@ -308,3 +399,4 @@ export function InstallationSpecificationStepper({
     </div>
   );
 }
+

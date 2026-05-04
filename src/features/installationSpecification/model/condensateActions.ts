@@ -10,7 +10,7 @@
  *   - Never fabricates lengths: pipeRunM stays null until explicitly set.
  */
 
-import type { QuotePlanCondensateRouteV1, CondensateDischargeKind } from './QuoteInstallationPlanV1';
+import type { QuotePlanCondensateRouteV1, CondensateDischargeKind, LegacyCondensateDischargeKind } from './QuoteInstallationPlanV1';
 
 // ─── External discharge kinds ─────────────────────────────────────────────────
 
@@ -20,7 +20,6 @@ import type { QuotePlanCondensateRouteV1, CondensateDischargeKind } from './Quot
 const EXTERNAL_DISCHARGE_KINDS = new Set<CondensateDischargeKind>([
   'external_gully',
   'soakaway',
-  'external_trace_heat',
 ]);
 
 /**
@@ -31,17 +30,26 @@ export function isExternalDischargeKind(kind: CondensateDischargeKind): boolean 
 }
 
 /**
- * Human-readable label map for discharge kinds.
+ * Returns true when the discharge kind is the legacy external_trace_heat option
+ * that is no longer available as a normal selection.
+ */
+export function isLegacyCondensateKind(
+  kind: CondensateDischargeKind | LegacyCondensateDischargeKind,
+): kind is LegacyCondensateDischargeKind {
+  return kind === 'external_trace_heat';
+}
+
+/**
+ * Human-readable label map for current discharge kinds.
  *
  * Defined in the model layer so both the UI and the scope builder can import
  * it without the scope builder depending on a React component file.
  */
 export const CONDENSATE_DISCHARGE_LABELS: Record<CondensateDischargeKind, string> = {
-  internal_waste:       'Internal waste',
-  external_gully:       'External gully',
-  soakaway:             'Soakaway',
-  condensate_pump:      'Condensate pump',
-  external_trace_heat:  'External with trace heat',
+  internal_waste:  'Internal waste',
+  external_gully:  'External gully',
+  soakaway:        'Soakaway',
+  condensate_pump: 'Condensate pump',
 };
 
 // ─── Builder ──────────────────────────────────────────────────────────────────

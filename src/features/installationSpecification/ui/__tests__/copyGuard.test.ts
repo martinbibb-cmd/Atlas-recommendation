@@ -1,8 +1,9 @@
 /**
  * copyGuard.test.ts
  *
- * Ensures visible UI copy does not contain deprecated "planner" or
- * "contractor quotes" terminology anywhere in the known UI label constants.
+ * Ensures visible UI copy does not contain deprecated "planner",
+ * "contractor quotes", or "on site" surveyor-inappropriate terminology
+ * anywhere in the known UI label constants.
  * Fails if any of the banned strings are found in the known UI label constants.
  */
 
@@ -24,10 +25,17 @@ const BANNED_TERMS = [
   // Planning-related terms must not appear in surveyor-facing copy.
   'Planner',
   'Planning',
+  // Surveyor-inappropriate on-site confirmation language.
+  'confirm on site',
+  'Confirm on site',
+  'check on site',
+  'Check on site',
+  'installer to confirm',
+  'Installer to confirm',
 ];
 
-// Known visible step labels from InstallationSpecificationStepper
-const STEP_LABELS = [
+// Known visible step labels from InstallationSpecificationStepper — gas boiler path
+const STEP_LABELS_GAS = [
   'Current system',
   'Proposed system',
   'Location change',
@@ -35,6 +43,18 @@ const STEP_LABELS = [
   'Flue specification',
   'Condensate specification',
   'Pipework specification',
+  'Generated scope',
+];
+
+// Known visible step labels from InstallationSpecificationStepper — ASHP path
+const STEP_LABELS_ASHP = [
+  'Current system',
+  'Proposed system',
+  'Location change',
+  'Key locations',
+  'Outdoor unit siting',
+  'Hydraulic route',
+  'Electrical supply',
   'Generated scope',
 ];
 
@@ -57,7 +77,8 @@ const UI_LABELS = [
   'Installation specification progress',
   'Specification path',
   'Cannot confirm — needs technical review',
-  ...STEP_LABELS,
+  ...STEP_LABELS_GAS,
+  ...STEP_LABELS_ASHP,
   ...SYSTEM_TILE_TITLES,
 ];
 
