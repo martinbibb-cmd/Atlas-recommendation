@@ -42,6 +42,7 @@ import { CondensateSpecificationStep } from './steps/CondensateSpecificationStep
 import { PipeworkPlanStep } from './steps/PipeworkPlanStep';
 import { GeneratedScopeStep } from './steps/GeneratedScopeStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
+import { buildQuoteScopeFromInstallationPlan } from '../scope/buildQuoteScopeFromInstallationPlan';
 import {
   heatSourceToFamily,
   isProposedCombi,
@@ -50,6 +51,8 @@ import {
   proposedHotWaterToKind,
   currentHeatSourceToKind,
   currentHotWaterToKind,
+  kindToProposedHeatSource,
+  kindToProposedHotWater,
 } from './installationSpecificationUiTypes';
 import type {
   CanonicalCurrentSystemSummary,
@@ -65,6 +68,9 @@ import type {
   QuotePlanCondensateRouteV1,
   QuoteScopeItemV1,
   InstallationSpecificationSystemV1,
+  InstallationSpecificationOptionV1,
+  InstallationSpecificationFinishResultV1,
+  InstallationSpecificationOptionStatusV1,
 } from '../model/QuoteInstallationPlanV1';
 import type { ObjectPinV2 } from '../../scanImport/contracts/sessionCaptureV2';
 import './installationSpecificationStyles.css';
@@ -196,6 +202,21 @@ function buildCurrentSpec(
   };
 }
 
+// ─── Option status derivation ─────────────────────────────────────────────────
+
+/**
+ * Derive the lifecycle status for a specification option from its generated scope.
+ *
+ * complete         — scope items present and no items need verification.
+ * needs_decision   — scope items present but one or more need on-site verification.
+ * in_progress      — no scope items generated yet.
+ */
+function deriveOptionStatus(scope: QuoteScopeItemV1[]): InstallationSpecificationOptionStatusV1 {
+  if (scope.length === 0) return 'in_progress';
+  if (scope.some((i) => i.needsVerification)) return 'needs_decision';
+  return 'complete';
+}
+
 // ─── InstallationSpecificationStepper ────────────────────────────────────────
 
 export interface InstallationSpecificationStepperProps {
@@ -229,6 +250,42 @@ export interface InstallationSpecificationStepperProps {
    * are surfaced as "Suggested Location" cards in the Place Locations step.
    */
   scanObjectPins?: ObjectPinV2[];
+  /**
+   * Stable identifier of the specification option being edited.
+   * When provided, Finish updates this option rather than creating a new one.
+   */
+  optionId?: string;
+  /**
+   * Human-readable label for the option being edited (e.g. "Option A").
+   * Used in the Finish result.  Defaults to 'Option' when absent.
+   */
+  optionLabel?: string;
+  /**
+   * ISO-8601 creation timestamp for the option being edited.
+   * Preserved verbatim in the Finish result.  Defaults to now when absent.
+   */
+  optionCreatedAt?: string;
+  /**
+   * Source of the option being edited.
+   * Preserved verbatim in the Finish result.  Defaults to 'surveyor_variant'.
+   */
+  optionSource?: InstallationSpecificationOptionV1['source'];
+  /**
+   * Whether this option is the Atlas-recommended route.
+   * Preserved verbatim in the Finish result.
+   */
+  optionIsRecommended?: boolean;
+  /**
+   * Existing specification option to restore stepper state from.
+   * When provided, the stepper is pre-populated with the option's plan data.
+   */
+  initialPlan?: QuoteInstallationPlanV1;
+  /**
+   * Called when the surveyor taps Finish on the last step.
+   * Receives the built option with generated scope and derived status.
+   * Must never be a no-op — if absent the stepper falls back to onBack.
+   */
+  onFinish?: (result: InstallationSpecificationFinishResultV1) => void;
 }
 
 export function InstallationSpecificationStepper({
@@ -238,23 +295,58 @@ export function InstallationSpecificationStepper({
   seedProposedSystem,
   floorPlanUri,
   scanObjectPins,
+  optionId,
+  optionLabel = 'Option',
+  optionCreatedAt,
+  optionSource = 'surveyor_variant',
+  optionIsRecommended,
+  initialPlan,
+  onFinish,
 }: InstallationSpecificationStepperProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  // Show a save-confirmation banner briefly after Finish.
+  const [savedBanner, setSavedBanner] = useState(false);
 
-  // Proposed heat source — seeded from Atlas recommendation
+  // Restore proposed heat source from initialPlan when editing an existing option,
+  // otherwise seed from Atlas recommendation prop.
+  const restoredProposedHeatSource = useMemo<UiProposedHeatSourceLabel | null>(() => {
+    if (initialPlan?.proposedSpec?.heatSource) {
+      return kindToProposedHeatSource(initialPlan.proposedSpec.heatSource.kind);
+    }
+    return seedProposedSystem ?? null;
+  }, [initialPlan, seedProposedSystem]);
+
+  const restoredProposedHotWater = useMemo<UiProposedHotWaterLabel | null>(() => {
+    if (initialPlan?.proposedSpec?.hotWater) {
+      return kindToProposedHotWater(initialPlan.proposedSpec.hotWater.kind);
+    }
+    return null;
+  }, [initialPlan]);
+
+  // Proposed heat source — seeded from Atlas recommendation or restored from plan
   const [proposedHeatSource, setProposedHeatSource] = useState<UiProposedHeatSourceLabel | null>(
-    seedProposedSystem ?? null,
+    restoredProposedHeatSource,
   );
   const [ashpExceptionNote, setAshpExceptionNote] = useState('');
 
-  // Proposed hot water
-  const [proposedHotWater, setProposedHotWater] = useState<UiProposedHotWaterLabel | null>(null);
+  // Proposed hot water — restored from plan when editing
+  const [proposedHotWater, setProposedHotWater] = useState<UiProposedHotWaterLabel | null>(
+    restoredProposedHotWater,
+  );
 
-  // Other plan state
-  const [locations, setLocations] = useState<QuotePlanLocationV1[]>([]);
-  const [flueRoute, setFlueRoute] = useState<QuotePlanCandidateFlueRouteV1 | null>(null);
-  const [condensateRoute, setCondensateRoute] = useState<QuotePlanCondensateRouteV1 | undefined>(undefined);
-  const [pipeworkRoutes, setPipeworkRoutes] = useState<QuotePlanPipeworkRouteV1[]>([]);
+  // Other plan state — restored from initialPlan when editing
+  const [locations, setLocations] = useState<QuotePlanLocationV1[]>(
+    initialPlan?.locations ?? [],
+  );
+  const [flueRoute, setFlueRoute] = useState<QuotePlanCandidateFlueRouteV1 | null>(
+    initialPlan?.flueRoutes?.[0] ?? null,
+  );
+  const [condensateRoute, setCondensateRoute] = useState<QuotePlanCondensateRouteV1 | undefined>(
+    initialPlan?.condensateRoute,
+  );
+  const [pipeworkRoutes, setPipeworkRoutes] = useState<QuotePlanPipeworkRouteV1[]>(
+    initialPlan?.pipeworkRoutes ?? [],
+  );
 
   // Derive active step list from proposed system selection.
   const stepIds = useMemo(
@@ -357,6 +449,45 @@ export function InstallationSpecificationStepper({
   function handleNext() {
     if (currentStep < totalSteps - 1) {
       setCurrentStep((s) => s + 1);
+    }
+  }
+
+  /**
+   * Build and save the current specification option, then notify the caller.
+   * This is the Finish action — it must never be a no-op.
+   *
+   * If onFinish is provided it is called with the built result.
+   * If onFinish is absent, falls back to onBack so the app is never locked.
+   */
+  function handleFinish() {
+    const now = new Date().toISOString();
+    const scope = buildQuoteScopeFromInstallationPlan(planSnapshot);
+    const status = deriveOptionStatus(scope);
+
+    const id = optionId ?? `opt-${now.replace(/[^0-9]/g, '')}`;
+
+    const option: InstallationSpecificationOptionV1 = {
+      id,
+      label: optionLabel,
+      createdAt: optionCreatedAt ?? now,
+      updatedAt: now,
+      status,
+      source: optionSource,
+      isRecommended: optionIsRecommended,
+      specification: { ...planSnapshot, planId: id },
+      generatedScope: scope,
+    };
+
+    const result: InstallationSpecificationFinishResultV1 = { option, generatedScope: scope, status };
+
+    setSavedBanner(true);
+    setTimeout(() => setSavedBanner(false), 3000);
+
+    if (onFinish) {
+      onFinish(result);
+    } else {
+      // Fallback — never lock the user inside the stepper.
+      onBack();
     }
   }
 
@@ -504,6 +635,16 @@ export function InstallationSpecificationStepper({
   return (
     <div className="qp-page">
       <SpecificationProgress steps={stepLabelList} currentStep={currentStep} />
+      {savedBanner && (
+        <div
+          className="spec-saved-banner"
+          role="status"
+          aria-live="polite"
+          data-testid="spec-saved-banner"
+        >
+          ✓ Installation Specification saved.
+        </div>
+      )}
       <div className="qp-content">
         {renderStep()}
       </div>
@@ -514,7 +655,7 @@ export function InstallationSpecificationStepper({
         <button
           type="button"
           className="qp-nav__next"
-          onClick={handleNext}
+          onClick={currentStep < totalSteps - 1 ? handleNext : handleFinish}
           disabled={!canAdvance}
           aria-disabled={!canAdvance}
         >

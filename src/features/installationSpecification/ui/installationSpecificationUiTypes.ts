@@ -326,3 +326,49 @@ export function heatSourceToFamily(
     default:                return 'unknown';
   }
 }
+
+// ─── Reverse-mapping helpers (plan → UI state) ────────────────────────────────
+
+/**
+ * Map a HeatSourceKindV1 back to the nearest UiProposedHeatSourceLabel.
+ * Returns null when there is no suitable proposed label for the given kind
+ * (e.g. 'warm_air', 'direct_electric', 'back_boiler', 'none').
+ */
+export function kindToProposedHeatSource(kind: HeatSourceKindV1): UiProposedHeatSourceLabel | null {
+  switch (kind) {
+    case 'combi_boiler':    return 'combi_boiler';
+    case 'regular_boiler':  return 'regular_boiler';
+    case 'system_boiler':   return 'system_boiler';
+    case 'storage_combi':   return 'storage_combi';
+    case 'heat_pump':       return 'heat_pump';
+    case 'other':           return 'other_approved';
+    // The following heat source kinds are not available as proposed system options
+    // in the current specification stepper — return null to indicate no mapping.
+    case 'warm_air':          return null;
+    case 'back_boiler':       return null;
+    case 'direct_electric':   return null;
+    case 'none':              return null;
+  }
+}
+
+/**
+ * Map a HotWaterKindV1 back to the nearest UiProposedHotWaterLabel.
+ * Returns null when there is no suitable label for the given kind
+ * (e.g. 'integrated_store', which is only a current-system kind).
+ */
+export function kindToProposedHotWater(kind: HotWaterKindV1): UiProposedHotWaterLabel | null {
+  switch (kind) {
+    case 'existing_retained':     return 'retain_existing';
+    case 'vented_cylinder':       return 'vented_cylinder';
+    case 'unvented_cylinder':     return 'unvented_cylinder';
+    case 'mixergy_or_stratified': return 'mixergy_or_stratified';
+    case 'thermal_store':         return 'thermal_store';
+    case 'heat_pump_cylinder':    return 'heat_pump_cylinder';
+    // 'none' means no stored hot water (combi path) — maps to 'no_stored_hot_water'.
+    case 'none':                  return 'no_stored_hot_water';
+    // 'integrated_store' is a current-system hot water kind; there is no
+    // corresponding proposed-system tile — return null to indicate no mapping.
+    case 'integrated_store':      return null;
+    case 'other':                 return null;
+  }
+}
