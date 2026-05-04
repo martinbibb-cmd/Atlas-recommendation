@@ -11,7 +11,6 @@ import { ServicesStep } from '../../features/survey/services/ServicesStep';
 import { INITIAL_WATER_QUALITY_STATE } from '../../features/survey/services/waterQualityTypes';
 import { UsageStep } from '../../features/survey/usage/UsageStep';
 import { INITIAL_HOME_STATE } from '../../features/survey/usage/usageTypes';
-import { deriveHomeSummary } from '../../features/survey/usage/usageRules';
 import { PrioritiesStep } from '../../features/survey/priorities/PrioritiesStep';
 import { INITIAL_PRIORITIES_STATE } from '../../features/survey/priorities/prioritiesTypes';
 import { HeatLossStep, INITIAL_HEAT_LOSS_STATE } from '../../features/survey/heatLoss/HeatLossStep';
@@ -133,7 +132,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [recommendationState] = useState<RecommendationState>(
     () => prefill?.fullSurvey?.recommendation ?? INITIAL_RECOMMENDATION_STATE
   );
-  const [quotesState, setQuotesState] = useState<QuoteInput[]>(
+  const [quotesState] = useState<QuoteInput[]>(
     () => prefill?.fullSurvey?.quotes ?? []
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
@@ -237,7 +236,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
       const engineInput = toEngineInput(sanitisedDraft);
       if (onDraft) onDraft(draft);
       // If the parent wants to open the Insight Pack directly, do that first.
-      if (onOpenInsightPack && quotesState.length > 0) {
+      if (onOpenInsightPack) {
         onOpenInsightPack(engineInput, quotesState);
         return;
       }
@@ -436,11 +435,12 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
 
       {currentStep === 'quotes' && (
         <QuoteCollectionStep
-          quotes={quotesState}
-          onChange={setQuotesState}
           onNext={next}
           onPrev={prev}
-          occupancyCount={deriveHomeSummary(usageState).occupancyCount}
+          onOpenSpecification={() => {
+            // Save draft before leaving the stepper to enter the specification.
+            if (onDraft) onDraft(buildDraft());
+          }}
         />
       )}
 

@@ -134,7 +134,7 @@ describe('surveyStepRegistry — heading regression', () => {
       '☀️ Solar & Roof',
       '🎯 Priorities',
       '🧠 What we need to keep in mind',
-      '📄 Contractor Quotes',
+      '🛠 Installation Specification',
     ]);
   });
 

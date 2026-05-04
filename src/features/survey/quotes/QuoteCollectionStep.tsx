@@ -1,65 +1,23 @@
 /**
  * QuoteCollectionStep.tsx
  *
- * Survey step — Contractor Quotes
+ * Survey step — Installation Specification entry card (Step 9 of 9).
  *
- * Collects 1–N contractor quotes so the Atlas Insight Pack can compare them
- * against the engine-derived recommendation.
- *
- * Each quote captures:
- *   • Label (e.g. "Quote A — ABC Heating")
- *   • System type (combi / system / regular / ashp)
- *   • Nominal heat source output (kW) — optional
- *   • Cylinder spec (type + volume) — optional, only for system/regular
- *   • Included upgrades (powerflush, filter, controls, etc.)
- *   • Cylinder replacement vs reuse — for system/regular quotes
- *   • Scope: like-for-like vs upgrade
- *   • Warranty period in years — optional
+ * Replaces the old contractor-quote collection UI.  The surveyor uses this
+ * card to launch the Installation Specification stepper, which captures the
+ * technical install details (current system, proposed system, key locations,
+ * flue route, condensate route, pipework and generated install scope).
  *
  * Design rules:
- *   - No pricing fields — quote comparison is physics-based, not cost-based
- *   - Upgrade list uses checkboxes; free-text note per quote is NOT a price field
- *   - At least one quote must be entered before the user can proceed
+ *   - Does NOT ask for contractor quotes.
+ *   - Does NOT block survey progress — surveyor can continue without a spec.
+ *   - "Open specification" launches the InstallationSpecificationPage.
+ *   - "Continue without specification" calls onNext immediately.
+ *   - If a specification already exists, a status summary is shown.
  */
 
-import { useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { QuoteInput } from '../../insightPack/insightPack.types';
 import { getStepMeta } from '../../../config/surveyStepRegistry';
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const UPGRADE_OPTIONS: Array<{ id: string; label: string }> = [
-  { id: 'powerflush', label: 'Powerflush' },
-  { id: 'filter', label: 'Magnetic filter' },
-  { id: 'controls', label: 'Smart controls / thermostat' },
-  { id: 'trvs', label: 'TRVs on radiators' },
-  { id: 'scale_reducer', label: 'Scale reducer / inhibitor' },
-  { id: 'unvented_cylinder', label: 'Unvented cylinder upgrade' },
-  { id: 'flue_relocation', label: 'Flue relocation' },
-];
-
-const SYSTEM_TYPE_LABELS: Record<QuoteInput['systemType'], string> = {
-  combi: 'Combination boiler (on-demand hot water)',
-  system: 'System boiler + unvented cylinder',
-  regular: 'Regular boiler + vented cylinder',
-  ashp: 'Air source heat pump',
-};
-
-/**
- * Occupancy-based cylinder volume default.
- * Rule of thumb: ~50 L per occupant, minimum 120 L.
- * 1–2 → 120 L   (smallest common stock size)
- * 3   → 150 L
- * 4   → 180 L
- * 5+  → 210 L
- */
-function defaultCylinderVolumeForOccupancy(occupancyCount?: number): number {
-  if (!occupancyCount || occupancyCount <= 2) return 120;
-  if (occupancyCount <= 3) return 150;
-  if (occupancyCount <= 4) return 180;
-  return 210;
-}
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -67,351 +25,67 @@ const cardStyle: CSSProperties = {
   background: '#fff',
   border: '1px solid #e2e8f0',
   borderRadius: 10,
-  padding: '1rem',
-  marginBottom: '0.75rem',
+  padding: '1.25rem',
+  marginBottom: '1rem',
 };
 
-const labelStyle: CSSProperties = {
-  display: 'block',
-  fontSize: '0.78rem',
-  fontWeight: 600,
-  color: '#374151',
-  marginBottom: '0.25rem',
-  marginTop: '0.75rem',
-};
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  padding: '0.45rem 0.65rem',
-  border: '1px solid #d1d5db',
-  borderRadius: 6,
-  fontSize: '0.9rem',
-  boxSizing: 'border-box',
-};
-
-const selectStyle: CSSProperties = {
-  ...inputStyle,
-  background: '#fff',
-};
-
-const upgradeChipStyle = (active: boolean): CSSProperties => ({
+const statusBadgeStyle = (complete: boolean): CSSProperties => ({
   display: 'inline-flex',
   alignItems: 'center',
   gap: '0.35rem',
-  padding: '0.3rem 0.6rem',
-  borderRadius: 6,
-  border: active ? '2px solid #2563eb' : '1px solid #e2e8f0',
-  background: active ? '#eff6ff' : '#f9fafb',
-  fontSize: '0.8rem',
-  cursor: 'pointer',
-  marginRight: '0.4rem',
-  marginBottom: '0.4rem',
-  fontWeight: active ? 600 : 400,
-  color: active ? '#1d4ed8' : '#374151',
-  transition: 'all 0.12s',
-  userSelect: 'none',
+  padding: '0.25rem 0.65rem',
+  borderRadius: 20,
+  fontSize: '0.775rem',
+  fontWeight: 600,
+  background: complete ? '#dcfce7' : '#f1f5f9',
+  color: complete ? '#166534' : '#64748b',
+  marginBottom: '1rem',
 });
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+export interface SpecificationStatus {
+  /** Whether the specification has been started at all. */
+  started: boolean;
+  /** Whether the specification has been completed. */
+  complete: boolean;
+  /** Number of generated scope items (if any). */
+  scopeItemCount?: number;
+  /** Number of items that need verification. */
+  needsVerificationCount?: number;
+  /** Short description of the current and proposed system (e.g. "Combi → System"). */
+  systemSummary?: string;
+}
+
 interface QuoteCollectionStepProps {
-  quotes: QuoteInput[];
-  onChange: (next: QuoteInput[]) => void;
   onNext: () => void;
   onPrev: () => void;
-  /** Total occupant count — used to derive the default cylinder volume. */
-  occupancyCount?: number;
-}
-
-// ─── Quote form helpers ───────────────────────────────────────────────────────
-
-function makeBlankQuote(index: number): QuoteInput {
-  return {
-    id: `quote_${String.fromCharCode(97 + index)}`,
-    label: `Quote ${String.fromCharCode(65 + index)}`,
-    systemType: 'combi',
-    heatSourceKw: undefined,
-    cylinder: undefined,
-    includedUpgrades: [],
-    warrantyYears: undefined,
-    isLikeForLike: undefined,
-    cylinderReplaced: undefined,
-  };
-}
-
-function needsCylinder(type: QuoteInput['systemType']): boolean {
-  return type === 'system' || type === 'regular';
-}
-
-// ─── Single quote editor ──────────────────────────────────────────────────────
-
-interface QuoteEditorProps {
-  quote: QuoteInput;
-  index: number;
-  canRemove: boolean;
-  onChange: (updated: QuoteInput) => void;
-  onRemove: () => void;
-  /** Default cylinder volume derived from occupancy. */
-  defaultCylinderVolumeL: number;
-}
-
-function QuoteEditor({ quote, index, canRemove, onChange, onRemove, defaultCylinderVolumeL }: QuoteEditorProps) {
-  const showCylinder = needsCylinder(quote.systemType);
-  // Mixergy is an unvented (mains-pressure) cylinder — only valid for system boilers,
-  // not for regular (gravity/vented) boilers.
-  const allowMixergy = quote.systemType === 'system' || quote.systemType === 'ashp';
-
-  function toggleUpgrade(upgradeId: string) {
-    const current = quote.includedUpgrades;
-    const next = current.includes(upgradeId)
-      ? current.filter(u => u !== upgradeId)
-      : [...current, upgradeId];
-    onChange({ ...quote, includedUpgrades: next });
-  }
-
-  function setSystemType(type: QuoteInput['systemType']) {
-    const updated: QuoteInput = {
-      ...quote,
-      systemType: type,
-      // Clear cylinder if switching to a system that doesn't need one;
-      // use occupancy-based default volume otherwise.
-      cylinder: needsCylinder(type) ? (quote.cylinder ?? { type: 'standard', volumeL: defaultCylinderVolumeL }) : undefined,
-    };
-    // If the new type doesn't support Mixergy, downgrade cylinder type to standard
-    const newAllowMixergy = type === 'system' || type === 'ashp';
-    if (!newAllowMixergy && updated.cylinder?.type === 'mixergy') {
-      updated.cylinder = { ...updated.cylinder, type: 'standard' };
-    }
-    onChange(updated);
-  }
-
-  return (
-    <div style={cardStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong style={{ fontSize: '0.95rem', color: '#1e3a5f' }}>
-          Quote {String.fromCharCode(65 + index)}
-        </strong>
-        {canRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={`Remove Quote ${String.fromCharCode(65 + index)}`}
-            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem', padding: '0.25rem' }}
-          >
-            ✕ Remove
-          </button>
-        )}
-      </div>
-
-      {/* Label */}
-      <label style={labelStyle} htmlFor={`quote-label-${index}`}>
-        Quote label (optional — e.g. contractor name)
-      </label>
-      <input
-        id={`quote-label-${index}`}
-        style={inputStyle}
-        type="text"
-        value={quote.label}
-        onChange={e => onChange({ ...quote, label: e.target.value.trim() || `Quote ${String.fromCharCode(65 + index)}` })}
-        placeholder={`Quote ${String.fromCharCode(65 + index)}`}
-        aria-label={`Label for Quote ${String.fromCharCode(65 + index)}`}
-      />
-
-      {/* System type */}
-      <label style={labelStyle} htmlFor={`quote-type-${index}`}>
-        System type *
-      </label>
-      <select
-        id={`quote-type-${index}`}
-        style={selectStyle}
-        value={quote.systemType}
-        onChange={e => setSystemType(e.target.value as QuoteInput['systemType'])}
-        aria-label={`System type for Quote ${String.fromCharCode(65 + index)}`}
-      >
-        {(Object.entries(SYSTEM_TYPE_LABELS) as [QuoteInput['systemType'], string][]).map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </select>
-
-      {/* Heat source kW */}
-      <label style={labelStyle} htmlFor={`quote-kw-${index}`}>
-        Boiler / heat pump output (kW) — optional
-      </label>
-      <input
-        id={`quote-kw-${index}`}
-        style={{ ...inputStyle, width: 100 }}
-        type="number"
-        min={4}
-        max={100}
-        step={0.5}
-        value={quote.heatSourceKw ?? ''}
-        onChange={e => onChange({ ...quote, heatSourceKw: e.target.value ? parseFloat(e.target.value) : undefined })}
-        placeholder="e.g. 30"
-        aria-label={`Heat source output (kW) for Quote ${String.fromCharCode(65 + index)}`}
-      />
-
-      {/* Cylinder — only shown for system / regular */}
-      {showCylinder && (
-        <>
-          <label style={labelStyle}>
-            Cylinder
-          </label>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <select
-              style={{ ...selectStyle, width: 160 }}
-              value={quote.cylinder?.type ?? 'standard'}
-              onChange={e => onChange({
-                ...quote,
-                cylinder: { type: e.target.value as 'standard' | 'mixergy', volumeL: quote.cylinder?.volumeL ?? defaultCylinderVolumeL },
-              })}
-              aria-label={`Cylinder type for Quote ${String.fromCharCode(65 + index)}`}
-            >
-              <option value="standard">Standard cylinder</option>
-              {allowMixergy && (
-                <option value="mixergy">Mixergy smart cylinder</option>
-              )}
-            </select>
-            <input
-              style={{ ...inputStyle, width: 90 }}
-              type="number"
-              min={120}
-              max={400}
-              step={5}
-              value={quote.cylinder?.volumeL ?? defaultCylinderVolumeL}
-              onChange={e => onChange({
-                ...quote,
-                cylinder: { type: quote.cylinder?.type ?? 'standard', volumeL: parseInt(e.target.value, 10) || defaultCylinderVolumeL },
-              })}
-              aria-label={`Cylinder volume (litres) for Quote ${String.fromCharCode(65 + index)}`}
-            />
-            <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>litres</span>
-          </div>
-        </>
-      )}
-
-      {/* Included upgrades */}
-      <label style={{ ...labelStyle, marginTop: '0.85rem' }}>
-        Included in this quote
-      </label>
-      <div style={{ display: 'flex', flexWrap: 'wrap' }}>
-        {UPGRADE_OPTIONS.map(opt => (
-          <button
-            key={opt.id}
-            type="button"
-            style={upgradeChipStyle(quote.includedUpgrades.includes(opt.id))}
-            onClick={() => toggleUpgrade(opt.id)}
-            aria-pressed={quote.includedUpgrades.includes(opt.id)}
-            aria-label={`${opt.label} — ${quote.includedUpgrades.includes(opt.id) ? 'included' : 'not included'}`}
-          >
-            {quote.includedUpgrades.includes(opt.id) ? '✓ ' : ''}{opt.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Cylinder replacement — only for system / regular quotes */}
-      {showCylinder && (
-        <>
-          <label style={{ ...labelStyle, marginTop: '0.85rem' }}>
-            Cylinder replacement
-          </label>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {([
-              { value: true,  label: 'New cylinder included' },
-              { value: false, label: 'Reuse existing cylinder' },
-            ] as const).map(({ value, label }) => (
-              <button
-                key={String(value)}
-                type="button"
-                style={upgradeChipStyle(quote.cylinderReplaced === value)}
-                onClick={() => onChange({ ...quote, cylinderReplaced: value })}
-                aria-pressed={quote.cylinderReplaced === value}
-              >
-                {quote.cylinderReplaced === value ? '✓ ' : ''}{label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Like-for-like vs upgrade */}
-      <label style={{ ...labelStyle, marginTop: '0.85rem' }}>
-        Scope
-      </label>
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        {([
-          { value: true,  label: 'Like-for-like replacement' },
-          { value: false, label: 'Upgrade / technology change' },
-        ] as const).map(({ value, label }) => (
-          <button
-            key={String(value)}
-            type="button"
-            style={upgradeChipStyle(quote.isLikeForLike === value)}
-            onClick={() => onChange({ ...quote, isLikeForLike: value })}
-            aria-pressed={quote.isLikeForLike === value}
-          >
-            {quote.isLikeForLike === value ? '✓ ' : ''}{label}
-          </button>
-        ))}
-      </div>
-
-      {/* Warranty */}
-      <label style={{ ...labelStyle, marginTop: '0.85rem' }} htmlFor={`quote-warranty-${index}`}>
-        Warranty period (years) — optional
-      </label>
-      <input
-        id={`quote-warranty-${index}`}
-        style={{ ...inputStyle, width: 90 }}
-        type="number"
-        min={1}
-        max={25}
-        step={1}
-        value={quote.warrantyYears ?? ''}
-        onChange={e => onChange({ ...quote, warrantyYears: e.target.value ? parseInt(e.target.value, 10) : undefined })}
-        placeholder="e.g. 10"
-        aria-label={`Warranty period (years) for Quote ${String.fromCharCode(65 + index)}`}
-      />
-    </div>
-  );
+  /** Called when the surveyor clicks "Open specification". */
+  onOpenSpecification: () => void;
+  /** Optional status of the installation specification if one already exists. */
+  specificationStatus?: SpecificationStatus;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function QuoteCollectionStep({
-  quotes,
-  onChange,
   onNext,
   onPrev,
-  occupancyCount,
+  onOpenSpecification,
+  specificationStatus,
 }: QuoteCollectionStepProps) {
   const meta = getStepMeta('quotes');
-  const [triedNext, setTriedNext] = useState(false);
-  const defaultCylinderVolumeL = defaultCylinderVolumeForOccupancy(occupancyCount);
 
-  const canProceed = quotes.length >= 1;
+  const isComplete = specificationStatus?.complete ?? false;
+  const isStarted = specificationStatus?.started ?? false;
 
-  function addQuote() {
-    onChange([...quotes, makeBlankQuote(quotes.length)]);
-  }
-
-  function updateQuote(index: number, updated: QuoteInput) {
-    const next = quotes.map((q, i) => (i === index ? updated : q));
-    onChange(next);
-  }
-
-  function removeQuote(index: number) {
-    const next = quotes.filter((_, i) => i !== index);
-    // Re-index IDs to stay sequential
-    const reindexed = next.map((q, i) => ({
-      ...q,
-      id: `quote_${String.fromCharCode(97 + i)}`,
-    }));
-    onChange(reindexed);
-  }
-
-  function handleNext() {
-    setTriedNext(true);
-    if (!canProceed) return;
-    onNext();
+  let statusLabel: string;
+  if (isComplete) {
+    statusLabel = 'Specification complete';
+  } else if (isStarted) {
+    statusLabel = 'Specification started';
+  } else {
+    statusLabel = 'Not started';
   }
 
   return (
@@ -423,57 +97,65 @@ export function QuoteCollectionStep({
         {meta.heading}
       </h2>
       <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '1.25rem' }}>
-        Enter the contractor quotes you have received. Atlas will compare each quote
-        against the assessment and highlight strengths, limitations, and the best fit
-        for this home.
+        Build the technical install specification from the selected system, site
+        locations, flue route, condensate route and pipework.
       </p>
 
-      {quotes.length === 0 && (
-        <div style={{ padding: '1rem', background: '#f8fafc', borderRadius: 8, textAlign: 'center', color: '#6b7280', fontSize: '0.85rem', marginBottom: '0.75rem', border: '1px dashed #e2e8f0' }}>
-          No quotes added yet. Add at least one quote to compare.
+      <div style={cardStyle}>
+        {/* Status badge */}
+        <div style={statusBadgeStyle(isComplete)}>
+          {isComplete ? '✓ ' : ''}{statusLabel}
         </div>
-      )}
 
-      {quotes.map((quote, i) => (
-        <QuoteEditor
-          key={quote.id}
-          quote={quote}
-          index={i}
-          canRemove={quotes.length > 1}
-          onChange={updated => updateQuote(i, updated)}
-          onRemove={() => removeQuote(i)}
-          defaultCylinderVolumeL={defaultCylinderVolumeL}
-        />
-      ))}
+        {/* Scope summary — only shown when a spec exists */}
+        {isStarted && (
+          <div style={{ fontSize: '0.825rem', color: '#374151', marginBottom: '1rem' }}>
+            {specificationStatus?.systemSummary && (
+              <p style={{ margin: '0 0 0.3rem' }}>
+                <strong>System:</strong> {specificationStatus.systemSummary}
+              </p>
+            )}
+            {specificationStatus?.scopeItemCount != null && (
+              <p style={{ margin: '0 0 0.3rem' }}>
+                <strong>Generated scope:</strong>{' '}
+                {specificationStatus.scopeItemCount === 0
+                  ? '0 items'
+                  : `${specificationStatus.scopeItemCount} item${specificationStatus.scopeItemCount !== 1 ? 's' : ''}`}
+                {specificationStatus.needsVerificationCount != null &&
+                  specificationStatus.needsVerificationCount > 0 && (
+                    <span style={{ color: '#d97706', marginLeft: '0.5rem' }}>
+                      · {specificationStatus.needsVerificationCount} need{specificationStatus.needsVerificationCount !== 1 ? '' : 's'} verification
+                    </span>
+                  )}
+              </p>
+            )}
+          </div>
+        )}
 
-      {quotes.length < 4 && (
+        {/* Primary CTA */}
         <button
           type="button"
-          onClick={addQuote}
+          onClick={onOpenSpecification}
+          aria-label="Open installation specification"
+          data-testid="open-specification-btn"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.55rem 1rem',
-            border: '1.5px dashed #2563eb',
+            display: 'block',
+            width: '100%',
+            padding: '0.65rem 1.25rem',
             borderRadius: 8,
-            background: '#eff6ff',
-            color: '#2563eb',
-            fontSize: '0.875rem',
+            border: 'none',
+            background: '#1e3a5f',
+            color: '#fff',
             fontWeight: 600,
+            fontSize: '0.925rem',
             cursor: 'pointer',
-            marginBottom: '1.25rem',
+            marginBottom: '0.5rem',
+            textAlign: 'center',
           }}
         >
-          + Add quote
+          🛠 Open specification
         </button>
-      )}
-
-      {triedNext && !canProceed && (
-        <p role="alert" style={{ color: '#dc2626', fontSize: '0.825rem', marginBottom: '0.75rem' }}>
-          Add at least one contractor quote to continue.
-        </p>
-      )}
+      </div>
 
       {/* Navigation */}
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
@@ -486,26 +168,10 @@ export function QuoteCollectionStep({
         </button>
         <button
           type="button"
-          onClick={handleNext}
-          disabled={!canProceed}
-          style={{
-            padding: '0.6rem 1.5rem',
-            borderRadius: 8,
-            border: 'none',
-            background: canProceed ? '#2563eb' : '#cbd5e1',
-            color: '#fff',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            cursor: canProceed ? 'pointer' : 'not-allowed',
-          }}
-        >
-          View Insight Pack →
-        </button>
-        <button
-          type="button"
           onClick={onNext}
+          data-testid="continue-without-specification-btn"
           style={{
-            padding: '0.6rem 1rem',
+            padding: '0.6rem 1.25rem',
             borderRadius: 8,
             border: '1px solid #d1d5db',
             background: '#f8fafc',
@@ -514,9 +180,10 @@ export function QuoteCollectionStep({
             cursor: 'pointer',
           }}
         >
-          Skip →
+          Continue without specification
         </button>
       </div>
     </div>
   );
 }
+

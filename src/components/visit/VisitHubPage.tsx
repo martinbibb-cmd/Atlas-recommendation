@@ -61,7 +61,7 @@ interface Props {
   onOpenReport: (reportId: string) => void;
   /** Open the pre-install engineer route for this visit. */
   onOpenEngineerRoute?: () => void;
-  /** Open the Atlas Insight Pack for this visit (requires quotes to be collected). */
+  /** Open the Atlas Insight Pack for this visit. */
   onOpenInsightPack?: () => void;
   /** Open the completed-visit handoff review page. */
   onOpenHandoffReview?: () => void;
@@ -69,6 +69,8 @@ interface Props {
   onImportScan?: () => void;
   /** Open the external visit file manifest panel for this visit. */
   onOpenExternalFiles?: () => void;
+  /** Open the Installation Specification for this visit. */
+  onOpenInstallationSpecification?: () => void;
 }
 
 // Delay (ms) between opening the print dialog and launching the email client,
@@ -394,6 +396,7 @@ function HubActions({
   hasQuotes,
   onImportScan,
   onOpenExternalFiles,
+  onOpenInstallationSpecification,
   canMarkOutcome,
   visitId,
 }: {
@@ -415,6 +418,8 @@ function HubActions({
   hasQuotes?: boolean;
   onImportScan?: () => void;
   onOpenExternalFiles?: () => void;
+  /** Called when the engineer opens the Installation Specification. */
+  onOpenInstallationSpecification?: () => void;
   /** When true the visit outcome actions (won / lost / follow-up) are shown. */
   canMarkOutcome: boolean;
   /** Visit ID forwarded to VisitOutcomeActions for analytics attribution. */
@@ -537,7 +542,18 @@ function HubActions({
               aria-label="Open insight view"
               data-testid="open-insight-pack-btn"
             >
-              📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
+              📊 Insight view{hasQuotes ? '' : ' · Specification incomplete'}
+            </button>
+          )}
+
+          {onOpenInstallationSpecification && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenInstallationSpecification}
+              aria-label="Open installation specification"
+              data-testid="open-installation-specification-btn"
+            >
+              🛠 Installation specification
             </button>
           )}
 
@@ -706,7 +722,18 @@ function HubActions({
               aria-label="Open insight view"
               data-testid="open-insight-pack-btn"
             >
-              📊 Insight view{hasQuotes ? '' : ' · Add quotes for full detail'}
+              📊 Insight view{hasQuotes ? '' : ' · Specification incomplete'}
+            </button>
+          )}
+
+          {onOpenInstallationSpecification && (
+            <button
+              className="visit-hub__action-btn visit-hub__action-btn--secondary"
+              onClick={onOpenInstallationSpecification}
+              aria-label="Open installation specification"
+              data-testid="open-installation-specification-btn"
+            >
+              🛠 Installation specification
             </button>
           )}
 
@@ -858,6 +885,7 @@ export default function VisitHubPage({
   onOpenHandoffReview,
   onImportScan,
   onOpenExternalFiles,
+  onOpenInstallationSpecification,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1223,6 +1251,7 @@ export default function VisitHubPage({
           hasQuotes={hasQuotes}
           onImportScan={onImportScan}
           onOpenExternalFiles={onOpenExternalFiles}
+          onOpenInstallationSpecification={onOpenInstallationSpecification}
           canMarkOutcome={canMarkOutcome}
           visitId={visitId}
         />

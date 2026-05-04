@@ -1429,6 +1429,7 @@ function AppInner() {
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
             onImportScan={() => setJourney('receive-scan')}
             onOpenExternalFiles={() => setJourney('external-files')}
+            onOpenInstallationSpecification={() => setJourney('installation-specification')}
           />
         )}
         {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.

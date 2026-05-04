@@ -109,8 +109,8 @@ export const SURVEY_STEP_REGISTRY: readonly SurveyStepMeta[] = [
   {
     id: 'quotes',
     displayIndex: 9,
-    heading: '📄 Contractor Quotes',
-    shortLabel: 'Quotes',
+    heading: '🛠 Installation Specification',
+    shortLabel: 'Install spec',
     testId: 'quote-collection-step',
     analyticsEvent: 'survey_step_quotes',
   },

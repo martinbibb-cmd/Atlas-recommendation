@@ -172,8 +172,8 @@ async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
   // Step 8 (insight): click "Run Full Analysis →"
   const insightBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
   await user.click(insightBtn);
-  // Step 9 (quotes): click "Skip →" to complete the survey without entering quotes
-  const skipBtn = screen.getByRole('button', { name: /Skip →/ });
+  // Step 9 (installation specification): click "Continue without specification" to complete the survey
+  const skipBtn = screen.getByRole('button', { name: /Continue without specification/ });
   await user.click(skipBtn);
 }
 
