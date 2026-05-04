@@ -17,6 +17,7 @@
 import type { QuoteInstallationPlanV1, QuotePlanLocationV1, QuotePlanPipeworkRouteV1, QuotePlanCondensateRouteV1 } from '../model/QuoteInstallationPlanV1';
 import type { QuotePlannerLocationConfidence, PipeworkRouteKind } from '../model/QuoteInstallationPlanV1';
 import { CONDENSATE_DISCHARGE_LABELS } from '../model/condensateActions';
+import { buildScopeFromSpecification } from './buildScopeFromSpecification';
 
 // ─── Scope item types ─────────────────────────────────────────────────────────
 
@@ -722,7 +723,15 @@ function buildHeatPumpPlaceholderScope(
 export function buildQuoteScopeFromInstallationPlan(
   plan: QuoteInstallationPlanV1,
 ): QuoteScopeItemV1[] {
-  // Create a counter scoped to this call — keeps the function pure.
+  // When the layered model is populated, use the specification-based scope
+  // builder which reads proposedSpec / currentSpec directly.  This is the
+  // primary path for plans created after the layered model was introduced.
+  if (plan.proposedSpec != null) {
+    return buildScopeFromSpecification(plan);
+  }
+
+  // Legacy path: fall back to job-type-based dispatch for plans that still
+  // carry only the flat family fields.
   const nextId = makeIdCounter();
 
   const { jobType } = plan.jobClassification;
