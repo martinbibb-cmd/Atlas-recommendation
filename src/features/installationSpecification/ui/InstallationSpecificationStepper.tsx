@@ -66,6 +66,7 @@ import type {
   QuoteScopeItemV1,
   InstallationSpecificationSystemV1,
 } from '../model/QuoteInstallationPlanV1';
+import type { ObjectPinV2 } from '../../scanImport/contracts/sessionCaptureV2';
 import './installationSpecificationStyles.css';
 
 // ─── Step ID types ────────────────────────────────────────────────────────────
@@ -222,6 +223,12 @@ export interface InstallationSpecificationStepperProps {
    * When provided, the Place Locations step shows the floor plan overlay.
    */
   floorPlanUri?: string;
+  /**
+   * Object pins captured during the scan session.
+   * When provided, pins with recognised types (boiler, cylinder, gas_meter, flue)
+   * are surfaced as "Suggested Location" cards in the Place Locations step.
+   */
+  scanObjectPins?: ObjectPinV2[];
 }
 
 export function InstallationSpecificationStepper({
@@ -230,6 +237,7 @@ export function InstallationSpecificationStepper({
   canonicalCurrentSystem,
   seedProposedSystem,
   floorPlanUri,
+  scanObjectPins,
 }: InstallationSpecificationStepperProps) {
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -414,6 +422,7 @@ export function InstallationSpecificationStepper({
             onLocationsChange={setLocations}
             floorPlanUri={floorPlanUri}
             jobClassification={jobClassification}
+            scanObjectPins={scanObjectPins}
           />
         );
 

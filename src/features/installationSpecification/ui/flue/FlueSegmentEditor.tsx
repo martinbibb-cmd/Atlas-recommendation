@@ -51,6 +51,12 @@ export interface FlueSegmentEditorProps {
   onAddSegment: (segment: QuoteFlueSegmentV1) => void;
   /** Called when the engineer removes a segment by index. */
   onRemoveSegment: (index: number) => void;
+  /**
+   * Called when the engineer taps the flip button on an elbow segment.
+   * Only fired for elbow_90 and elbow_45 segments.
+   * The index is the 0-based position in the segments array.
+   */
+  onFlipSegment?: (index: number) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -59,6 +65,7 @@ export function FlueSegmentEditor({
   segments,
   onAddSegment,
   onRemoveSegment,
+  onFlipSegment,
 }: FlueSegmentEditorProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [pendingKind, setPendingKind] = useState<FlueSegmentKind | null>(null);
@@ -110,30 +117,51 @@ export function FlueSegmentEditor({
         </p>
       ) : (
         <ol className="flue-segment-list" aria-label="Flue segments">
-          {segments.map((seg, idx) => (
-            <li
-              key={idx}
-              className="flue-segment-item"
-              data-testid={`flue-segment-item-${idx}`}
-            >
-              <span className="flue-segment-item__label">
-                {SEGMENT_KIND_LABEL[seg.kind] ?? seg.kind}
-                {seg.physicalLengthM != null && (
-                  <span className="flue-segment-item__length">
-                    {' — '}{seg.physicalLengthM} m
-                  </span>
-                )}
-              </span>
-              <button
-                type="button"
-                className="flue-segment-item__remove"
-                aria-label={`Remove ${SEGMENT_KIND_LABEL[seg.kind] ?? seg.kind} at position ${idx + 1}`}
-                onClick={() => onRemoveSegment(idx)}
+          {segments.map((seg, idx) => {
+            const isElbow = seg.kind === 'elbow_90' || seg.kind === 'elbow_45';
+            const flipDir = seg.flipDirection ?? 'right';
+            return (
+              <li
+                key={idx}
+                className="flue-segment-item"
+                data-testid={`flue-segment-item-${idx}`}
               >
-                ✕
-              </button>
-            </li>
-          ))}
+                <span className="flue-segment-item__label">
+                  {SEGMENT_KIND_LABEL[seg.kind] ?? seg.kind}
+                  {seg.physicalLengthM != null && (
+                    <span className="flue-segment-item__length">
+                      {' — '}{seg.physicalLengthM} m
+                    </span>
+                  )}
+                  {isElbow && (
+                    <span className="flue-segment-item__flip-dir" aria-hidden="true">
+                      {' '}({flipDir})
+                    </span>
+                  )}
+                </span>
+                <div className="flue-segment-item__actions">
+                  {isElbow && onFlipSegment != null && (
+                    <button
+                      type="button"
+                      className="flue-segment-item__flip"
+                      aria-label={`Flip ${SEGMENT_KIND_LABEL[seg.kind] ?? seg.kind} at position ${idx + 1} — currently ${flipDir}`}
+                      onClick={() => onFlipSegment(idx)}
+                    >
+                      ↺ Flip
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="flue-segment-item__remove"
+                    aria-label={`Remove ${SEGMENT_KIND_LABEL[seg.kind] ?? seg.kind} at position ${idx + 1}`}
+                    onClick={() => onRemoveSegment(idx)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ol>
       )}
 

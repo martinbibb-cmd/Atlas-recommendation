@@ -228,6 +228,18 @@ export interface CanonicalCurrentSystemSummary {
   boilerLocation?: string;
   /** Human-readable cylinder/store location label, if known. */
   cylinderLocation?: string;
+  /**
+   * Inferred boiler condition band from the survey.
+   * Derived by sanitiseModelForEngine from boiler age, condensing status, and
+   * surveyor-observed symptoms.  Absent when no boiler condition data exists.
+   */
+  boilerConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
+  /**
+   * System age in years (typically sourced from currentBoilerAgeYears).
+   * Used to display age-context in the current system summary step.
+   * Absent when age was not recorded.
+   */
+  systemAgeYears?: number;
 }
 
 /**

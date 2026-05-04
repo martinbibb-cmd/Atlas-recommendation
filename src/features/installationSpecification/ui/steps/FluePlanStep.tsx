@@ -32,6 +32,7 @@ import {
   updateFlueLocations,
   addFlueSegment,
   removeFlueSegment,
+  flipFlueSegment,
 } from '../../model/flueActions';
 import { LOCATION_KIND_LABELS } from '../../model/locationActions';
 import type { QuotePlanCandidateFlueRouteV1, FlueFamily } from '../../model/QuoteInstallationPlanV1';
@@ -97,6 +98,10 @@ export function FluePlanStep({
 
   function handleRemoveSegment(index: number) {
     update(removeFlueSegment(localRoute, index));
+  }
+
+  function handleFlipSegment(index: number) {
+    update(flipFlueSegment(localRoute, index));
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -181,6 +186,7 @@ export function FluePlanStep({
           segments={segments}
           onAddSegment={handleAddSegment}
           onRemoveSegment={handleRemoveSegment}
+          onFlipSegment={handleFlipSegment}
         />
       </section>
 
