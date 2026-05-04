@@ -317,24 +317,8 @@ export function waterSlotsToHourlyFlows(
   return { hotLpmByHour, coldLpmByHour };
 }
 
-/**
- * HP "Horizon" Curve – room temperature stability (°C).
- *
- * Full Job (SPF ≈ 4.2, 35 °C flow) → efficiency factor ≈ 1.0 → flat horizon.
- * Fast Fit (SPF ≈ 3.0, 50 °C flow) → factor ≈ 0.71 → dips on cold mornings.
- */
-export function hpHorizonCurve(
-  hours: HourState[],
-  spfMidpoint: number,
-  designFlowTempC: number,
-): number[] {
-  const efficiencyFactor = spfMidpoint / 4.2;
-  return hours.map((state, h) => {
-    const base = state === 'away' ? 17 : 20;
-    // Cold morning dip when high flow temp reduces efficiency
-    const coldDip = h >= 0 && h < 7 ? (1 - efficiencyFactor) * 2 : 0;
-    // Additional penalty for high flow temperature (Fast Fit)
-    const flowPenalty = designFlowTempC > 45 ? 0.5 : 0;
-    return parseFloat((base - coldDip - flowPenalty).toFixed(2));
-  });
-}
+// hpHorizonCurve was removed — it used an invented normalisation factor
+// (spfMidpoint / 4.2) and a cold-dip heuristic with no physical basis,
+// violating the "No Theatre" rule.  The ASHP room-temperature trace is
+// now sourced exclusively from LifestyleSimulationModule.hourlyData.ashpRoomTempC,
+// which is computed by buildDynamicRoomTrace() using the first-order thermal model.

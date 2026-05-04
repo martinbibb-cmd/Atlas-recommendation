@@ -22,11 +22,26 @@ const NOISE_VELOCITY_THRESHOLD_MS = 1.0;
 // Expansion vessel sizing: UK rule-of-thumb (BS EN 13831) = 15% of primary circuit volume
 const EXPANSION_VESSEL_PRIMARY_FRACTION = 0.15;
 
-function generateReferenceNumber(): string {
+/**
+ * Compute a deterministic unsigned 32-bit hash from a string using a simple
+ * djb2-style algorithm.  Used to derive a reproducible 5-digit numeric suffix
+ * for MCS reference numbers instead of Math.random().
+ */
+function hashString(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; // unsigned 32-bit
+  }
+  return h;
+}
+
+function generateReferenceNumber(propertyAddress: string, installerMcsNumber: string): string {
   const now = new Date();
   const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const rand = Math.floor(Math.random() * 90000) + 10000;
-  return `MCS-${datePart}-${rand}`;
+  // Deterministic 5-digit suffix derived from property address + installer number.
+  // Range: hashString(...) % 90000 + 10000 → [10000, 99999] (always 5 digits).
+  const suffix = (hashString(propertyAddress + installerMcsNumber) % 90000) + 10000;
+  return `MCS-${datePart}-${suffix}`;
 }
 
 function checkVelocityCompliance(
@@ -186,7 +201,7 @@ export function generateMCSReport(input: MCSReportInput): MCSReport {
   ];
 
   return {
-    referenceNumber: generateReferenceNumber(),
+    referenceNumber: generateReferenceNumber(input.propertyAddress, input.installerMcsNumber),
     generatedAt: new Date().toISOString(),
     totalHeatLossW,
     designFlowTempC: input.designFlowTempC,
