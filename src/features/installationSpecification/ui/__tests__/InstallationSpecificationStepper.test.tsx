@@ -1,29 +1,31 @@
 /**
  * InstallationSpecificationStepper.test.tsx
  *
- * Acceptance tests for the Installation Specification visual stepper shell.
+ * Acceptance tests for the layered Installation Specification stepper.
  *
- * Coverage (from problem statement):
- *   1.  Renders route/page — stepper mounts, progress is visible.
- *   2.  CurrentSystemStep renders graphical tiles (title + subtitle).
+ * Coverage:
+ *   1.  Renders — stepper mounts, progress visible.
+ *   2.  CurrentSystemStep renders three existence tiles.
  *   3.  CurrentSystemStep does NOT render a normal "Unknown" tile.
  *   4.  Exception path "Cannot confirm — needs technical review" exists.
  *   5.  Exception path requires a note before Next is enabled.
  *   6.  Selecting a normal tile clears the exception path.
- *   7.  Selecting proposed system updates draft — tile becomes selected.
- *   8.  Combi → Combi shows like-for-like/relocation path.
- *   9.  Regular/open vent → Combi shows conversion path.
- *   10. Combi → System boiler + cylinder shows stored hot-water upgrade path.
- *   11. Proposed system can be prefilled from Atlas recommendation.
- *   12. Atlas selected badge shown when seeded.
- *   13. Back/Next navigation works.
- *   14. No visible copy contains Unknown as normal tile label.
+ *   7.  no_wet_heating skips heat source / hot water / primary circuit steps.
+ *   8.  has_wet_heating shows CurrentHeatSourceStep with all ten tiles.
+ *   9.  combi heat source skips hot water, shows primary circuit.
+ *   10. Proposed heat source step — tiles selectable, Next enabled.
+ *   11. Classification: combi→combi = Like-for-like; combi→heat pump = Heat-pump conversion.
+ *   12. Atlas recommendation seed pre-selects tile and shows badge.
+ *   13. Back/Next navigation works correctly.
+ *   14. ASHP step gating — heat pump path shows outdoor unit siting, not flue.
+ *   15. ASHP→gas exception gating.
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { InstallationSpecificationStepper } from '../InstallationSpecificationStepper';
 import { InstallationSpecificationPage } from '../InstallationSpecificationPage';
+import type { UiProposedHeatSourceLabel } from '../installationSpecificationUiTypes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -31,18 +33,67 @@ function renderStepper(onBack = vi.fn()) {
   return render(<InstallationSpecificationStepper onBack={onBack} />);
 }
 
-function renderSeededStepper(seedValue: 'combi' | 'system_boiler' | 'heat_pump', onBack = vi.fn()) {
-  return render(<InstallationSpecificationStepper onBack={onBack} seedProposedSystem={seedValue} />);
+function renderSeededStepper(seedValue: UiProposedHeatSourceLabel, onBack = vi.fn()) {
+  return render(
+    <InstallationSpecificationStepper onBack={onBack} seedProposedSystem={seedValue} />,
+  );
 }
 
-/** Advance from step 1 to step 2 by clicking the first Combi tile then Next. */
-function advanceToProposedStep() {
-  const combiBtn = screen.getAllByRole('button', { name: /Combination boiler/i })[0];
-  fireEvent.click(combiBtn);
-  fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
+function nextBtn() {
+  return screen.getByText('Next →').closest('button') as HTMLButtonElement;
 }
 
-// ─── 1. Renders route / page ──────────────────────────────────────────────────
+/**
+ * Advance from step 0 to proposed_heat_source using 'no_wet_heating'.
+ * This is the shortest path — skips heat source, hot water, and primary circuit.
+ */
+function advanceToProposedHeatSourceStep() {
+  fireEvent.click(
+    screen.getByRole('button', { name: /No existing wet heating system/i }),
+  );
+  fireEvent.click(nextBtn());
+}
+
+/**
+ * Advance to proposed_heat_source via 'has_wet_heating' → combi heat source.
+ * Combi skips hot water but shows primary circuit.
+ */
+function advanceToProposedViaCombiHeatSource() {
+  // Step 1: existence — has wet heating
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Existing wet heating system/i }),
+  );
+  fireEvent.click(nextBtn());
+  // Step 2: heat source — combi (skips hot water, shows primary circuit)
+  fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+  fireEvent.click(nextBtn());
+  // Step 3: primary circuit — select sealed
+  fireEvent.click(screen.getByRole('button', { name: /Sealed primary/i }));
+  fireEvent.click(nextBtn());
+  // Now at proposed_heat_source
+}
+
+/**
+ * Advance to proposed_heat_source with heat pump as the current heat source.
+ * heat_pump → shows hot water step (NOT isCombiHeatSource) → skips primary circuit (NOT isBoilerHeatSource).
+ */
+function advanceToProposedWithHeatPumpCurrent() {
+  // Step 1: existence — has wet heating
+  fireEvent.click(
+    screen.getByRole('button', { name: /^Existing wet heating system/i }),
+  );
+  fireEvent.click(nextBtn());
+  // Step 2: heat source — heat pump
+  fireEvent.click(screen.getByRole('button', { name: /^Heat pump/i }));
+  fireEvent.click(nextBtn());
+  // Step 3: current hot water — heat pump is not combi so this step is shown
+  fireEvent.click(screen.getByRole('button', { name: /^No cylinder/i }));
+  fireEvent.click(nextBtn());
+  // primary circuit is skipped (heat_pump is NOT isBoilerHeatSource)
+  // Now at proposed_heat_source
+}
+
+// ─── 1. Renders ───────────────────────────────────────────────────────────────
 
 describe('InstallationSpecificationStepper — renders', () => {
   it('mounts without crashing', () => {
@@ -50,9 +101,9 @@ describe('InstallationSpecificationStepper — renders', () => {
     expect(screen.getByRole('progressbar')).toBeTruthy();
   });
 
-  it('shows the current-system step heading on mount', () => {
+  it('shows the existence-step heading on mount', () => {
     renderStepper();
-    expect(screen.getByText('What system do you have now?')).toBeTruthy();
+    expect(screen.getByText('What is currently installed?')).toBeTruthy();
   });
 
   it('renders Back and Next buttons', () => {
@@ -61,74 +112,65 @@ describe('InstallationSpecificationStepper — renders', () => {
     expect(screen.getByText('Next →')).toBeTruthy();
   });
 
-  it('progress pills are visible', () => {
+  it('progress pill "Current system" is active on step 0', () => {
     renderStepper();
-    expect(screen.getByText('Current system')).toBeTruthy();
+    const activePills = document.querySelectorAll('.qp-progress__step--active');
+    expect(activePills.length).toBe(1);
+    expect(activePills[0].textContent).toBe('Current system');
   });
 });
 
-// ─── 2. CurrentSystemStep renders graphical tiles ─────────────────────────────
+// ─── 2. CurrentSystemStep renders existence tiles ─────────────────────────────
 
-describe('CurrentSystemStep — graphical tiles', () => {
-  it('renders all seven system tile titles', () => {
+describe('CurrentSystemStep — existence tiles', () => {
+  it('renders the three existence tile titles', () => {
     renderStepper();
-    expect(screen.getByText('Combination boiler')).toBeTruthy();
-    expect(screen.getByText('System boiler + cylinder')).toBeTruthy();
-    expect(screen.getByText('Regular / open vent')).toBeTruthy();
-    expect(screen.getByText('Storage combi')).toBeTruthy();
-    expect(screen.getByText('Thermal store')).toBeTruthy();
-    expect(screen.getByText('Heat pump')).toBeTruthy();
-    expect(screen.getByText('Warm air')).toBeTruthy();
+    expect(screen.getByText('Existing wet heating system')).toBeTruthy();
+    expect(screen.getByText('No existing wet heating system')).toBeTruthy();
+    expect(screen.getByText('Partial or abandoned system')).toBeTruthy();
   });
 
-  it('renders the subtitle for the combi tile', () => {
+  it('renders subtitles for the existence tiles', () => {
     renderStepper();
-    expect(screen.getByText('On-demand hot water')).toBeTruthy();
-  });
-
-  it('renders the subtitle for the system boiler tile', () => {
-    renderStepper();
-    expect(screen.getByText('Stored hot water, sealed primary')).toBeTruthy();
+    expect(screen.getByText(/Boiler, heat pump, or similar/i)).toBeTruthy();
+    expect(screen.getByText(/First install, electric-only/i)).toBeTruthy();
+    expect(screen.getByText(/Incomplete or decommissioned/i)).toBeTruthy();
   });
 });
 
-// ─── 3. No normal "Unknown" tile ─────────────────────────────────────────────
+// ─── 3. No normal "Unknown" tile ──────────────────────────────────────────────
 
 describe('CurrentSystemStep — no normal Unknown tile', () => {
-  it('does not render a button with label "Unknown"', () => {
+  it('does not render a button labelled "Unknown"', () => {
     renderStepper();
-    const unknownBtn = screen.queryByRole('button', { name: /^Unknown$/i });
-    expect(unknownBtn).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Unknown$/i })).toBeNull();
   });
 
-  it('does not render a tile labelled "Unknown" anywhere in the grid', () => {
+  it('does not render standalone "Unknown" text', () => {
     renderStepper();
-    // The text "Unknown" should not appear as a standalone tile label.
-    const unknownText = screen.queryByText('Unknown');
-    expect(unknownText).toBeNull();
+    expect(screen.queryByText('Unknown')).toBeNull();
   });
 });
 
 // ─── 4. Exception path exists ─────────────────────────────────────────────────
 
 describe('CurrentSystemStep — exception path', () => {
-  it('renders the "Cannot confirm" exception action button', () => {
+  it('renders the "Cannot confirm" exception button', () => {
     renderStepper();
     expect(
       screen.getByRole('button', { name: /Cannot confirm — needs technical review/i }),
     ).toBeTruthy();
   });
 
-  it('tapping the exception button shows a note textarea', () => {
+  it('tapping exception button shows the note textarea', () => {
     renderStepper();
-    const exceptionBtn = screen.getByRole('button', {
-      name: /Cannot confirm — needs technical review/i,
-    });
-    fireEvent.click(exceptionBtn);
+    fireEvent.click(
+      screen.getByRole('button', { name: /Cannot confirm — needs technical review/i }),
+    );
     expect(screen.getByRole('textbox', { name: /Technical review note/i })).toBeTruthy();
   });
 
-  it('shows "Needs technical review" warning when exception panel is open', () => {
+  it('shows "Needs technical review" warning in the exception panel', () => {
     renderStepper();
     fireEvent.click(
       screen.getByRole('button', { name: /Cannot confirm — needs technical review/i }),
@@ -137,180 +179,264 @@ describe('CurrentSystemStep — exception path', () => {
   });
 });
 
-// ─── 5. Exception path requires a note ───────────────────────────────────────
+// ─── 5. Exception note required ───────────────────────────────────────────────
 
 describe('CurrentSystemStep — exception note required', () => {
-  it('Next remains disabled when exception path is open with no note', () => {
+  it('Next remains disabled when exception panel is open with no note', () => {
     renderStepper();
     fireEvent.click(
       screen.getByRole('button', { name: /Cannot confirm — needs technical review/i }),
     );
-    const nextBtn = screen.getByText('Next →').closest('button') as HTMLButtonElement;
-    expect(nextBtn.disabled).toBe(true);
+    expect(nextBtn().disabled).toBe(true);
   });
 
-  it('Next becomes enabled once a note is entered on the exception path', () => {
+  it('Next becomes enabled once a note is entered', () => {
     renderStepper();
     fireEvent.click(
       screen.getByRole('button', { name: /Cannot confirm — needs technical review/i }),
     );
-    const noteInput = screen.getByRole('textbox', { name: /Technical review note/i });
-    fireEvent.change(noteInput, { target: { value: 'Unable to access boiler cupboard.' } });
-    const nextBtn = screen.getByText('Next →').closest('button') as HTMLButtonElement;
-    expect(nextBtn.disabled).toBe(false);
+    fireEvent.change(screen.getByRole('textbox', { name: /Technical review note/i }), {
+      target: { value: 'Unable to access boiler cupboard.' },
+    });
+    expect(nextBtn().disabled).toBe(false);
   });
 });
 
-// ─── 6. Normal tile clears exception path ────────────────────────────────────
+// ─── 6. Normal tile clears exception path ─────────────────────────────────────
 
 describe('CurrentSystemStep — tile clears exception', () => {
-  it('selecting a normal tile after opening the exception panel hides the panel', () => {
+  it('selecting a tile after opening the exception panel hides the panel', () => {
     renderStepper();
-    // Open exception panel.
     fireEvent.click(
       screen.getByRole('button', { name: /Cannot confirm — needs technical review/i }),
     );
     expect(screen.getByRole('textbox', { name: /Technical review note/i })).toBeTruthy();
-    // Click a normal tile — panel should disappear.
-    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
     expect(screen.queryByRole('textbox', { name: /Technical review note/i })).toBeNull();
   });
 });
 
-// ─── 7. Selecting current/proposed system updates draft ───────────────────────
+// ─── 7. no_wet_heating skips steps 2–4 ────────────────────────────────────────
 
-describe('InstallationSpecificationStepper — selection', () => {
-  it('tile becomes aria-pressed=true when clicked', () => {
+describe('InstallationSpecificationStepper — no_wet_heating step skipping', () => {
+  it('selecting no_wet_heating and Next goes directly to proposed heat source', () => {
     renderStepper();
-    const combiBtns = screen.getAllByRole('button', { name: /Combination boiler/i });
-    expect(combiBtns.length).toBeGreaterThan(0);
-    fireEvent.click(combiBtns[0]);
-    expect(combiBtns[0].getAttribute('aria-pressed')).toBe('true');
+    advanceToProposedHeatSourceStep();
+    expect(screen.getByText('What heat source are you proposing?')).toBeTruthy();
   });
 
-  it('only one tile is selected at a time', () => {
+  it('Next is disabled on step 0 without a tile selected', () => {
     renderStepper();
-    const combiBtns = screen.getAllByRole('button', { name: /Combination boiler/i });
-    const heatPumpBtns = screen.getAllByRole('button', { name: /Heat pump/i });
-    fireEvent.click(combiBtns[0]);
-    fireEvent.click(heatPumpBtns[0]);
-    expect(combiBtns[0].getAttribute('aria-pressed')).toBe('false');
-    expect(heatPumpBtns[0].getAttribute('aria-pressed')).toBe('true');
+    expect(nextBtn().disabled).toBe(true);
   });
 
-  it('Next button becomes enabled after selecting a tile', () => {
+  it('Next becomes enabled after existence tile is selected', () => {
     renderStepper();
-    const nextBtn = screen.getByText('Next →').closest('button') as HTMLButtonElement;
-    expect(nextBtn.disabled).toBe(true);
+    fireEvent.click(
+      screen.getByRole('button', { name: /No existing wet heating system/i }),
+    );
+    expect(nextBtn().disabled).toBe(false);
+  });
+});
+
+// ─── 8. has_wet_heating shows CurrentHeatSourceStep ───────────────────────────
+
+describe('InstallationSpecificationStepper — has_wet_heating path', () => {
+  it('selecting has_wet_heating and Next shows the current heat source step', () => {
+    renderStepper();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
+    fireEvent.click(nextBtn());
+    expect(screen.getByText('What is the current heat source?')).toBeTruthy();
+  });
+
+  it('heat source step shows all ten tiles', () => {
+    renderStepper();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
+    fireEvent.click(nextBtn());
+    expect(screen.getByText('Combination boiler')).toBeTruthy();
+    expect(screen.getByText('Regular boiler')).toBeTruthy();
+    expect(screen.getByText('System boiler')).toBeTruthy();
+    expect(screen.getByText('Storage combi')).toBeTruthy();
+    expect(screen.getByText('Heat pump')).toBeTruthy();
+    expect(screen.getByText('Warm air unit')).toBeTruthy();
+    expect(screen.getByText('Back boiler')).toBeTruthy();
+    expect(screen.getByText('Direct electric')).toBeTruthy();
+    expect(screen.getByText('Other heat source')).toBeTruthy();
+    expect(screen.getByText('None')).toBeTruthy();
+  });
+
+  it('heat source step Next is disabled without a tile selected', () => {
+    renderStepper();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
+    fireEvent.click(nextBtn());
+    expect(nextBtn().disabled).toBe(true);
+  });
+});
+
+// ─── 9. combi heat source: skips hot water, shows primary circuit ─────────────
+
+describe('InstallationSpecificationStepper — combi heat source routing', () => {
+  it('combi heat source skips hot water and shows the primary circuit step', () => {
+    renderStepper();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
+    fireEvent.click(nextBtn());
     fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    expect(nextBtn.disabled).toBe(false);
+    fireEvent.click(nextBtn());
+    expect(screen.getByText('What is the current primary circuit?')).toBeTruthy();
+    expect(screen.queryByText(/What is the current hot-water arrangement/i)).toBeNull();
   });
 
-  it('advances to proposed system step after current-system selection', () => {
+  it('primary circuit step tiles are present', () => {
     renderStepper();
-    advanceToProposedStep();
-    expect(screen.getByText('What system are you proposing?')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
+    fireEvent.click(nextBtn());
+    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+    fireEvent.click(nextBtn());
+    expect(screen.getByRole('button', { name: /Open vented primary/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Sealed primary/i })).toBeTruthy();
+  });
+
+  it('primary circuit step Next is disabled until a tile is selected', () => {
+    renderStepper();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
+    fireEvent.click(nextBtn());
+    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+    fireEvent.click(nextBtn());
+    expect(nextBtn().disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /Sealed primary/i }));
+    expect(nextBtn().disabled).toBe(false);
+  });
+});
+
+// ─── 10. Proposed heat source step ────────────────────────────────────────────
+
+describe('InstallationSpecificationStepper — proposed heat source step', () => {
+  it('shows proposed heat source heading after advancing', () => {
+    renderStepper();
+    advanceToProposedHeatSourceStep();
+    expect(screen.getByText('What heat source are you proposing?')).toBeTruthy();
   });
 
   it('proposed tile becomes aria-pressed=true when clicked', () => {
     renderStepper();
-    advanceToProposedStep();
-    const proposedCombiBtn = screen.getAllByRole('button', { name: /Combination boiler/i })[0];
-    fireEvent.click(proposedCombiBtn);
-    expect(proposedCombiBtn.getAttribute('aria-pressed')).toBe('true');
+    advanceToProposedHeatSourceStep();
+    const combiBtn = screen.getAllByRole('button', { name: /Combination boiler/i })[0];
+    fireEvent.click(combiBtn);
+    expect(combiBtn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('Next becomes enabled after selecting a proposed tile', () => {
+    renderStepper();
+    advanceToProposedHeatSourceStep();
+    expect(nextBtn().disabled).toBe(true);
+    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+    expect(nextBtn().disabled).toBe(false);
+  });
+
+  it('only one proposed tile is selected at a time', () => {
+    renderStepper();
+    advanceToProposedHeatSourceStep();
+    const combiBtn = screen.getAllByRole('button', { name: /Combination boiler/i })[0];
+    const heatPumpBtn = screen.getByRole('button', { name: /^Heat pump/i });
+    fireEvent.click(combiBtn);
+    fireEvent.click(heatPumpBtn);
+    expect(combiBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(heatPumpBtn.getAttribute('aria-pressed')).toBe('true');
   });
 });
 
-// ─── 8–10. Job classification / narrowing ────────────────────────────────────
+// ─── 11. Classification path tests ────────────────────────────────────────────
+// Note: combi→combi shows needs_review at job_type because the classifier
+// requires heat-source location confirmation (not collected until place_locations).
 
 describe('InstallationSpecificationStepper — specification path', () => {
-  it('combi → combi shows Needs review (no location data in stepper)', () => {
+  it('combi → combi shows Needs technical review (location not yet collected)', () => {
     renderStepper();
-    // Step 1: combi
+    advanceToProposedViaCombiHeatSource();
+    // Proposed: combi (skips proposed hot water)
     fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 2: combi
-    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 3
-    expect(screen.getAllByText('Specification path').length).toBeGreaterThan(0);
+    fireEvent.click(nextBtn());
+    // Same family but no location data collected yet → needs_review
+    expect(screen.getByRole('heading', { name: /Specification path/i })).toBeTruthy();
     expect(screen.getByText('Needs technical review')).toBeTruthy();
   });
 
-  it('regular/open vent → combi shows Conversion path with correct narrowing items', () => {
+  it('combi → heat pump advances through proposed hot water to job type', () => {
     renderStepper();
-    // Step 1: regular / open vent
-    fireEvent.click(screen.getAllByRole('button', { name: /Regular \/ open vent/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 2: combi
-    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 3 — should show Conversion and the redundant-cylinder narrowing item
-    expect(screen.getByText('Conversion')).toBeTruthy();
-    expect(screen.getByText('Redundant cylinder and tank scope')).toBeTruthy();
-    expect(screen.getByText('Flue route')).toBeTruthy();
-    expect(screen.getByText('Condensate route')).toBeTruthy();
-  });
-
-  it('combi → system boiler + cylinder shows Stored hot-water upgrade', () => {
-    renderStepper();
-    // Step 1: combi
-    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 2: system boiler
-    fireEvent.click(screen.getByRole('button', { name: /System boiler \+ cylinder/i }));
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 3
-    expect(screen.getByText('Stored hot-water upgrade')).toBeTruthy();
-    expect(screen.getByText('Cylinder location')).toBeTruthy();
-  });
-
-  it('combi → heat pump shows Heat-pump conversion with outdoor unit item', () => {
-    renderStepper();
-    // Step 1: combi
-    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 2: heat pump
-    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 3
+    advanceToProposedViaCombiHeatSource();
+    // Proposed: heat pump (shows proposed hot water)
+    fireEvent.click(screen.getByRole('button', { name: /^Heat pump/i }));
+    fireEvent.click(nextBtn());
+    // Proposed hot water step — heat pump shows only "Heat pump cylinder"
+    expect(screen.getByText('What hot-water arrangement are you proposing?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Heat pump cylinder/i }));
+    fireEvent.click(nextBtn());
+    // Job type step
     expect(screen.getByText('Heat-pump conversion')).toBeTruthy();
     expect(screen.getByText('Outdoor unit location')).toBeTruthy();
   });
+
+  it('no_wet_heating → combi reaches job type step', () => {
+    renderStepper();
+    advanceToProposedHeatSourceStep();
+    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+    fireEvent.click(nextBtn());
+    // combi proposed skips proposed hot water → job type
+    expect(screen.getAllByText('Specification path').length).toBeGreaterThan(0);
+  });
 });
 
-// ─── 11–12. Recommendation-seeded proposed system ────────────────────────────
+// ─── 12. Atlas recommendation seed ───────────────────────────────────────────
 
 describe('InstallationSpecificationStepper — Atlas selected badge', () => {
   it('shows Atlas selected badge on the seeded tile', () => {
     renderSeededStepper('system_boiler');
-    advanceToProposedStep();
+    advanceToProposedHeatSourceStep();
     expect(screen.getByText('Atlas selected')).toBeTruthy();
   });
 
-  it('pre-selects the seeded tile in ProposedSystemStep', () => {
-    renderSeededStepper('combi');
-    advanceToProposedStep();
+  it('pre-selects the seeded tile (aria-pressed=true)', () => {
+    renderSeededStepper('combi_boiler');
+    advanceToProposedHeatSourceStep();
     const combiButtons = screen.getAllByRole('button', { name: /Combination boiler/i });
     const selectedCombi = combiButtons.find((b) => b.getAttribute('aria-pressed') === 'true');
     expect(selectedCombi).toBeTruthy();
   });
 
-  it('does not show Atlas selected when seedProposedSystem is absent', () => {
+  it('Next is enabled immediately when the seeded tile is present', () => {
+    renderSeededStepper('heat_pump');
+    advanceToProposedHeatSourceStep();
+    expect(nextBtn().disabled).toBe(false);
+  });
+
+  it('does not show Atlas selected when no seed is provided', () => {
     renderStepper();
-    advanceToProposedStep();
+    advanceToProposedHeatSourceStep();
     expect(screen.queryByText('Atlas selected')).toBeNull();
   });
 
-  it('proposed system can be prefilled from Atlas recommendation (Next enabled)', () => {
-    renderSeededStepper('heat_pump');
-    advanceToProposedStep();
-    const nextBtn = screen.getByText('Next →').closest('button') as HTMLButtonElement;
-    expect(nextBtn.disabled).toBe(false);
+  it('does not show deprecated "Atlas Pick" badge label', () => {
+    renderSeededStepper('combi_boiler');
+    advanceToProposedHeatSourceStep();
+    expect(screen.queryByText('Atlas Pick')).toBeNull();
   });
 });
 
-// ─── 13. Back / Next navigation ──────────────────────────────────────────────
+// ─── 13. Back/Next navigation ─────────────────────────────────────────────────
 
 describe('InstallationSpecificationStepper — Back/Next navigation', () => {
   it('calls onBack when Back is pressed on step 0', () => {
@@ -323,164 +449,122 @@ describe('InstallationSpecificationStepper — Back/Next navigation', () => {
   it('does not call onBack when Back is pressed on step 1', () => {
     const onBack = vi.fn();
     renderStepper(onBack);
-    advanceToProposedStep();
-    expect(screen.getByText('What system are you proposing?')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: /^Existing wet heating system/i }),
+    );
+    fireEvent.click(nextBtn());
+    expect(screen.getByText('What is the current heat source?')).toBeTruthy();
     fireEvent.click(screen.getByText('← Back').closest('button') as HTMLButtonElement);
     expect(onBack).not.toHaveBeenCalled();
-    expect(screen.getByText('What system do you have now?')).toBeTruthy();
+    expect(screen.getByText('What is currently installed?')).toBeTruthy();
   });
 
-  it('advancing from step 2 to step 3 shows JobTypeStep', () => {
+  it('progress pill advances to "Proposed heat source" after no_wet_heating', () => {
     renderStepper();
-    advanceToProposedStep();
+    advanceToProposedHeatSourceStep();
+    const activePills = document.querySelectorAll('.qp-progress__step--active');
+    expect(activePills.length).toBe(1);
+    expect(activePills[0].textContent).toBe('Proposed heat source');
+  });
+
+  it('advancing to job_type shows Specification path heading', () => {
+    renderStepper();
+    advanceToProposedHeatSourceStep();
     fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    expect(screen.getAllByText('Specification path').length).toBeGreaterThan(0);
-  });
-
-  it('progress pill for the active step is labelled "Current system" on step 0', () => {
-    renderStepper();
-    const activePills = document.querySelectorAll('.qp-progress__step--active');
-    expect(activePills.length).toBe(1);
-    expect(activePills[0].textContent).toBe('Current system');
-  });
-
-  it('progress pill advances to "Proposed system" on step 1', () => {
-    renderStepper();
-    advanceToProposedStep();
-    const activePills = document.querySelectorAll('.qp-progress__step--active');
-    expect(activePills.length).toBe(1);
-    expect(activePills[0].textContent).toBe('Proposed system');
+    fireEvent.click(nextBtn());
+    expect(screen.getByRole('heading', { name: /Specification path/i })).toBeTruthy();
   });
 });
 
-// ─── 14. No banned copy ───────────────────────────────────────────────────────
-
-describe('InstallationSpecificationStepper — no banned copy', () => {
-  it('does not show "Unknown" as a normal tile label in CurrentSystemStep', () => {
-    renderStepper();
-    // The word "Unknown" should not be visible as a standalone label anywhere
-    // in the normal tile grid (exception path label text is "Needs technical review").
-    expect(screen.queryByText('Unknown')).toBeNull();
-  });
-
-  it('does not show "Atlas Pick" (deprecated badge label)', () => {
-    renderSeededStepper('combi');
-    advanceToProposedStep();
-    expect(screen.queryByText('Atlas Pick')).toBeNull();
-  });
-});
-
-// ─── ASHP step gating ─────────────────────────────────────────────────────────
+// ─── 14. ASHP step gating ─────────────────────────────────────────────────────
 
 describe('InstallationSpecificationStepper — ASHP step gating', () => {
-  /** Navigate current=combi → proposed=heat_pump → job type → key locations → step 5 */
-  function advanceToAshpStep5() {
-    // Step 1: current system = combi
-    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 2: proposed = heat pump
-    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 3: job type (no selection required)
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-    // Step 4: key locations (no selection required)
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
+  /** Navigate to the first ASHP routing step (outdoor_unit_siting). */
+  function advanceToAshpRoutingStep() {
+    advanceToProposedHeatSourceStep();
+    // Proposed: heat pump
+    fireEvent.click(screen.getByRole('button', { name: /^Heat pump/i }));
+    fireEvent.click(nextBtn());
+    // Proposed hot water — heat pump cylinder
+    fireEvent.click(screen.getByRole('button', { name: /Heat pump cylinder/i }));
+    fireEvent.click(nextBtn());
+    // Job type
+    fireEvent.click(nextBtn());
+    // Place locations
+    fireEvent.click(nextBtn());
+    // Now at outdoor_unit_siting
   }
 
-  it('ASHP path step 5 shows Outdoor unit siting — not Flue specification', () => {
+  it('heat pump path shows Outdoor unit siting — not Flue specification', () => {
     renderStepper();
-    advanceToAshpStep5();
+    advanceToAshpRoutingStep();
     expect(screen.getByTestId('ashp-outdoor-unit-siting')).toBeTruthy();
     expect(screen.queryByText('Flue specification')).toBeNull();
   });
 
-  it('ASHP path step 5 progress pill shows "Outdoor unit siting"', () => {
+  it('heat pump path does not include Flue/Condensate specification in progress pills', () => {
     renderStepper();
-    advanceToAshpStep5();
-    // "Outdoor unit siting" appears in both the pill strip and the step heading.
-    const matches = screen.getAllByText('Outdoor unit siting');
-    expect(matches.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('ASHP path does not include Flue specification in progress pills', () => {
-    renderStepper();
-    advanceToProposedStep();
-    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
+    advanceToProposedHeatSourceStep();
+    fireEvent.click(screen.getByRole('button', { name: /^Heat pump/i }));
     expect(screen.queryByText('Flue specification')).toBeNull();
-  });
-
-  it('ASHP path does not include Condensate specification in progress pills', () => {
-    renderStepper();
-    advanceToProposedStep();
-    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
     expect(screen.queryByText('Condensate specification')).toBeNull();
   });
 
-  it('ASHP path includes Hydraulic route and Electrical supply in progress pills', () => {
+  it('heat pump path includes Hydraulic route and Electrical supply pills', () => {
     renderStepper();
-    advanceToProposedStep();
-    fireEvent.click(screen.getByRole('button', { name: /Heat pump/i }));
+    advanceToProposedHeatSourceStep();
+    fireEvent.click(screen.getByRole('button', { name: /^Heat pump/i }));
     expect(screen.getByText('Hydraulic route')).toBeTruthy();
     expect(screen.getByText('Electrical supply')).toBeTruthy();
   });
+
+  it('gas boiler path shows Flue specification in progress pills', () => {
+    renderStepper();
+    advanceToProposedHeatSourceStep();
+    fireEvent.click(screen.getAllByRole('button', { name: /Combination boiler/i })[0]);
+    expect(screen.getByText('Flue specification')).toBeTruthy();
+  });
 });
 
-// ─── ASHP → gas exception gating ─────────────────────────────────────────────
+// ─── 15. ASHP → gas exception gating ─────────────────────────────────────────
 
-describe('InstallationSpecificationStepper — ASHP current system proposed tiles', () => {
-  /** Navigate to proposed system step with current = heat_pump */
-  function advanceToProposedWithHeatPumpCurrent() {
-    const heatPumpBtns = screen.getAllByRole('button', { name: /Heat pump/i });
-    fireEvent.click(heatPumpBtns[0]);
-    fireEvent.click(screen.getByText('Next →').closest('button') as HTMLButtonElement);
-  }
-
-  it('when current is heat_pump, gas boiler tiles are not shown as normal proposed tiles', () => {
+describe('InstallationSpecificationStepper — ASHP current → gas exception', () => {
+  it('when current is heat_pump, normal proposed tiles exclude gas boilers', () => {
     renderStepper();
     advanceToProposedWithHeatPumpCurrent();
-    // Normal gas boiler tiles must not be visible outside the exception panel.
-    // We check that only the Heat pump tile is available as a primary choice.
     expect(screen.queryByRole('button', { name: /Combination boiler/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /System boiler \+ cylinder/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Regular \/ open vent/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /System boiler/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Regular boiler/i })).toBeNull();
   });
 
-  it('when current is heat_pump, a heat_pump tile is still shown', () => {
+  it('when current is heat_pump, heat pump tile is still shown as proposed', () => {
     renderStepper();
     advanceToProposedWithHeatPumpCurrent();
-    expect(screen.getByRole('button', { name: /Heat pump/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Heat pump/i })).toBeTruthy();
   });
 
-  it('when current is heat_pump, an ASHP→gas exception button is present', () => {
+  it('when current is heat_pump, ASHP→gas exception button is present', () => {
     renderStepper();
     advanceToProposedWithHeatPumpCurrent();
     expect(screen.getByTestId('ashp-gas-exception-btn')).toBeTruthy();
   });
 
-  it('ASHP → gas requires technical review note before Next is enabled', () => {
+  it('ASHP → gas requires an exception note before Next is enabled', () => {
     renderStepper();
     advanceToProposedWithHeatPumpCurrent();
-
     // Open the exception panel
     fireEvent.click(screen.getByTestId('ashp-gas-exception-btn'));
     expect(screen.getByTestId('ashp-exception-panel')).toBeTruthy();
-
     // Select a gas system inside the exception panel
     const combiBtns = screen.getAllByRole('button', { name: /Combination boiler/i });
     fireEvent.click(combiBtns[0]);
-
-    // Next should still be disabled (no note)
-    const nextBtn = screen.getByText('Next →').closest('button') as HTMLButtonElement;
-    expect(nextBtn.disabled).toBe(true);
-
-    // Enter a reason note
+    // Next still disabled — no note yet
+    expect(nextBtn().disabled).toBe(true);
+    // Enter the note
     fireEvent.change(screen.getByLabelText(/ASHP to gas exception note/i), {
-      target: { value: 'Customer has decided to revert to gas due to cost.' },
+      target: { value: 'Customer decided to revert to gas due to cost.' },
     });
-
-    // Now Next should be enabled
-    expect(nextBtn.disabled).toBe(false);
+    expect(nextBtn().disabled).toBe(false);
   });
 
   it('exception panel shows "Technical review required" title', () => {
@@ -496,13 +580,14 @@ describe('InstallationSpecificationStepper — ASHP current system proposed tile
 describe('InstallationSpecificationPage', () => {
   it('renders the stepper through the page wrapper', () => {
     render(<InstallationSpecificationPage onBack={vi.fn()} />);
-    expect(screen.getByText('What system do you have now?')).toBeTruthy();
+    expect(screen.getByText('What is currently installed?')).toBeTruthy();
   });
 
-  it('accepts a seed proposed system and passes it to the stepper', () => {
-    render(<InstallationSpecificationPage onBack={vi.fn()} seedProposedSystem="heat_pump" />);
-    advanceToProposedStep();
+  it('accepts seed proposed system and shows Atlas selected badge', () => {
+    render(
+      <InstallationSpecificationPage onBack={vi.fn()} seedProposedSystem="heat_pump" />,
+    );
+    advanceToProposedHeatSourceStep();
     expect(screen.getByText('Atlas selected')).toBeTruthy();
   });
 });
-

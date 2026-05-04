@@ -16,6 +16,7 @@
  */
 
 import type { QuoteSystemFamily } from '../calculators/quotePlannerTypes';
+import type { HeatSourceKindV1, HotWaterKindV1 } from '../model/QuoteInstallationPlanV1';
 
 // ─── Current-system tile labels ───────────────────────────────────────────────
 
@@ -93,5 +94,192 @@ export function uiLabelToFamily(
     case 'heat_pump':         return 'heat_pump';
     case 'warm_air':          return 'unknown';
     case 'unknown':           return 'unknown';
+  }
+}
+
+// ─── Existence step labels ───────────────────────────────────────────────────
+
+/** The three existence-step tile choices shown in the new CurrentSystemStep. */
+export type UiExistenceLabel = 'has_wet_heating' | 'no_wet_heating' | 'partial_abandoned';
+
+// ─── Current heat source tile labels ─────────────────────────────────────────
+
+/** Heat-source tile choices shown in CurrentHeatSourceStep. */
+export type UiCurrentHeatSourceLabel =
+  | 'combi_boiler'
+  | 'regular_boiler'
+  | 'system_boiler'
+  | 'storage_combi'
+  | 'heat_pump'
+  | 'warm_air'
+  | 'back_boiler'
+  | 'direct_electric'
+  | 'other_heat_source'
+  | 'none';
+
+// ─── Current hot water tile labels ───────────────────────────────────────────
+
+/** Hot-water/cylinder tile choices shown in CurrentHotWaterStep. */
+export type UiCurrentHotWaterLabel =
+  | 'no_cylinder'
+  | 'vented_cylinder'
+  | 'unvented_cylinder'
+  | 'thermal_store'
+  | 'mixergy_or_stratified'
+  | 'integrated_store'
+  | 'other_hot_water';
+
+// ─── Current primary circuit tile labels ────────────────────────────────────
+
+/** Primary-circuit tile choices shown in CurrentPrimaryCircuitStep. */
+export type UiCurrentPrimaryCircuitLabel =
+  | 'open_vented_primary'
+  | 'sealed_primary'
+  | 'needs_technical_review';
+
+// ─── Proposed heat source tile labels ────────────────────────────────────────
+
+/** Proposed heat-source tile choices shown in ProposedHeatSourceStep. */
+export type UiProposedHeatSourceLabel =
+  | 'combi_boiler'
+  | 'regular_boiler'
+  | 'system_boiler'
+  | 'storage_combi'
+  | 'heat_pump'
+  | 'other_approved';
+
+// ─── Proposed hot water tile labels ──────────────────────────────────────────
+
+/** Proposed hot-water/cylinder tile choices shown in ProposedHotWaterStep. */
+export type UiProposedHotWaterLabel =
+  | 'retain_existing'
+  | 'vented_cylinder'
+  | 'unvented_cylinder'
+  | 'mixergy_or_stratified'
+  | 'thermal_store'
+  | 'heat_pump_cylinder'
+  | 'no_stored_hot_water';
+
+// ─── Mapping helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Whether a current heat source label means "has a boiler of some kind".
+ * Used to determine whether to show primary-circuit step.
+ */
+export function isBoilerHeatSource(label: UiCurrentHeatSourceLabel): boolean {
+  return (
+    label === 'combi_boiler' ||
+    label === 'regular_boiler' ||
+    label === 'system_boiler' ||
+    label === 'storage_combi' ||
+    label === 'back_boiler'
+  );
+}
+
+/**
+ * Whether a current heat source label means "has a combi-type appliance"
+ * (so the hot-water cylinder step should be skipped for current system).
+ */
+export function isCombiHeatSource(label: UiCurrentHeatSourceLabel): boolean {
+  return label === 'combi_boiler' || label === 'storage_combi';
+}
+
+/**
+ * Whether a proposed heat source label means "has a combi-type appliance"
+ * (so the proposed hot-water cylinder step should be skipped).
+ */
+export function isProposedCombi(label: UiProposedHeatSourceLabel): boolean {
+  return label === 'combi_boiler' || label === 'storage_combi';
+}
+
+/**
+ * Whether a proposed heat source label is a heat pump.
+ */
+export function isProposedHeatPump(label: UiProposedHeatSourceLabel): boolean {
+  return label === 'heat_pump';
+}
+
+/**
+ * Whether a proposed heat source label is a gas boiler type
+ * (for ASHP-to-gas gate logic).
+ */
+export function isGasBoilerProposedHeatSource(label: UiProposedHeatSourceLabel): boolean {
+  return (
+    label === 'combi_boiler' ||
+    label === 'regular_boiler' ||
+    label === 'system_boiler' ||
+    label === 'storage_combi'
+  );
+}
+
+/** Map UiCurrentHeatSourceLabel to HeatSourceKindV1. */
+export function currentHeatSourceToKind(label: UiCurrentHeatSourceLabel): HeatSourceKindV1 {
+  switch (label) {
+    case 'combi_boiler':    return 'combi_boiler';
+    case 'regular_boiler':  return 'regular_boiler';
+    case 'system_boiler':   return 'system_boiler';
+    case 'storage_combi':   return 'storage_combi';
+    case 'heat_pump':       return 'heat_pump';
+    case 'warm_air':        return 'warm_air';
+    case 'back_boiler':     return 'back_boiler';
+    case 'direct_electric': return 'direct_electric';
+    case 'other_heat_source': return 'other';
+    case 'none':            return 'none';
+  }
+}
+
+/** Map UiProposedHeatSourceLabel to HeatSourceKindV1. */
+export function proposedHeatSourceToKind(label: UiProposedHeatSourceLabel): HeatSourceKindV1 {
+  switch (label) {
+    case 'combi_boiler':    return 'combi_boiler';
+    case 'regular_boiler':  return 'regular_boiler';
+    case 'system_boiler':   return 'system_boiler';
+    case 'storage_combi':   return 'storage_combi';
+    case 'heat_pump':       return 'heat_pump';
+    case 'other_approved':  return 'other';
+  }
+}
+
+/** Map UiCurrentHotWaterLabel to HotWaterKindV1. */
+export function currentHotWaterToKind(label: UiCurrentHotWaterLabel): HotWaterKindV1 {
+  switch (label) {
+    case 'no_cylinder':          return 'none';
+    case 'vented_cylinder':      return 'vented_cylinder';
+    case 'unvented_cylinder':    return 'unvented_cylinder';
+    case 'thermal_store':        return 'thermal_store';
+    case 'mixergy_or_stratified': return 'mixergy_or_stratified';
+    case 'integrated_store':     return 'integrated_store';
+    case 'other_hot_water':      return 'other';
+  }
+}
+
+/** Map UiProposedHotWaterLabel to HotWaterKindV1. */
+export function proposedHotWaterToKind(label: UiProposedHotWaterLabel): HotWaterKindV1 {
+  switch (label) {
+    case 'retain_existing':       return 'existing_retained';
+    case 'vented_cylinder':       return 'vented_cylinder';
+    case 'unvented_cylinder':     return 'unvented_cylinder';
+    case 'mixergy_or_stratified': return 'mixergy_or_stratified';
+    case 'thermal_store':         return 'thermal_store';
+    case 'heat_pump_cylinder':    return 'heat_pump_cylinder';
+    case 'no_stored_hot_water':   return 'none';
+  }
+}
+
+/**
+ * Map a UiCurrentHeatSourceLabel to the nearest QuoteSystemFamily for backward-compat
+ * classification in the existing classifyQuoteJob function.
+ */
+export function heatSourceToFamily(
+  heatSource: UiCurrentHeatSourceLabel | UiProposedHeatSourceLabel,
+): QuoteSystemFamily {
+  switch (heatSource) {
+    case 'combi_boiler':    return 'combi';
+    case 'storage_combi':   return 'system_stored';
+    case 'system_boiler':   return 'system_stored';
+    case 'regular_boiler':  return 'regular_stored';
+    case 'heat_pump':       return 'heat_pump';
+    case 'other_approved':  return 'unknown';
+    default:                return 'unknown';
   }
 }

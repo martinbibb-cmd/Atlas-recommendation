@@ -11,7 +11,7 @@
  */
 
 import { InstallationSpecificationStepper } from './InstallationSpecificationStepper';
-import type { UiProposedSystemLabel } from './installationSpecificationUiTypes';
+import type { UiProposedHeatSourceLabel } from './installationSpecificationUiTypes';
 
 export interface InstallationSpecificationPageProps {
   /**
@@ -19,11 +19,11 @@ export interface InstallationSpecificationPageProps {
    */
   onBack: () => void;
   /**
-   * Optional proposed-system value seeded from the Atlas recommendation.
+   * Optional proposed heat-source value seeded from the Atlas recommendation.
    * When provided, ProposedSystemStep pre-selects this tile and shows the
    * "Atlas Pick" badge.
    */
-  seedProposedSystem?: UiProposedSystemLabel | null;
+  seedProposedSystem?: UiProposedHeatSourceLabel | null;
   /**
    * Optional floor-plan image URI from the scan session.
    * When provided, the Place Locations step shows the floor plan with an

@@ -1,84 +1,56 @@
 /**
  * CurrentSystemStep.tsx
  *
- * Step 1 of the Installation Specification: "What system do you have now?"
+ * Step 1 of the Installation Specification: "What is currently installed?"
  *
- * Renders a visual tile grid for all recognised system families.
- * "Unknown" is NOT shown as a normal tile — surveyors who cannot identify
- * the existing system must use the exception action at the bottom of the
- * step, which requires a note before the step can be advanced.
+ * Three-tile existence check:
+ *   - Existing wet heating system
+ *   - No existing wet heating system
+ *   - Partial / abandoned system
  *
- * Exception path: "Cannot confirm — needs technical review"
- *   - Requires a note before the step can be advanced.
- *   - Sets the internal system to 'unknown' and marks the specification
- *     confidence as needs_verification.
+ * "None / no wet heating" is a first-class visible tile — not hidden behind an
+ * exception path.  This handles first-install, blank-property, and
+ * electric-only setups.
+ *
+ * Surveyor exception path "Cannot confirm — needs technical review" is only
+ * available when the surveyor cannot identify any of the three states.
  */
 
 import { useState } from 'react';
 import { SpecificationSystemTile } from '../components/SpecificationSystemTile';
-import type { UiCurrentSystemLabel } from '../installationSpecificationUiTypes';
+import type { UiExistenceLabel } from '../installationSpecificationUiTypes';
 
-type KnownSystemLabel = Exclude<UiCurrentSystemLabel, 'unknown'>;
-
-interface SystemTileDefinition {
-  value: KnownSystemLabel;
+interface ExistenceTileDefinition {
+  value: UiExistenceLabel;
   title: string;
   subtitle: string;
-  imageSrc: string | null;
 }
 
-const CURRENT_SYSTEM_TILES: SystemTileDefinition[] = [
+const EXISTENCE_TILES: ExistenceTileDefinition[] = [
   {
-    value:    'combi',
-    title:    'Combination boiler',
-    subtitle: 'On-demand hot water',
-    imageSrc: '/images/systems/Combination.PNG',
+    value:    'has_wet_heating',
+    title:    'Existing wet heating system',
+    subtitle: 'Boiler, heat pump, or similar — connected to radiators or underfloor',
   },
   {
-    value:    'system_boiler',
-    title:    'System boiler + cylinder',
-    subtitle: 'Stored hot water, sealed primary',
-    imageSrc: '/images/systems/system-boiler.PNG',
+    value:    'no_wet_heating',
+    title:    'No existing wet heating system',
+    subtitle: 'First install, electric-only, or blank property — no wet circuit',
   },
   {
-    value:    'regular_open_vent',
-    title:    'Regular / open vent',
-    subtitle: 'Boiler, cylinder and tanks',
-    imageSrc: '/images/systems/open-vented-schematic.JPG',
-  },
-  {
-    value:    'storage_combi',
-    title:    'Storage combi',
-    subtitle: 'On-demand boiler with built-in store',
-    imageSrc: '/images/systems/Combination.PNG',
-  },
-  {
-    value:    'thermal_store',
-    title:    'Thermal store',
-    subtitle: 'Stored heat with mains hot water',
-    imageSrc: '/images/systems/System-components.JPG',
-  },
-  {
-    value:    'heat_pump',
-    title:    'Heat pump',
-    subtitle: 'Low-temperature heat source',
-    imageSrc: '/images/systems/ASHP.PNG',
-  },
-  {
-    value:    'warm_air',
-    title:    'Warm air',
-    subtitle: 'Ducted warm-air system',
-    imageSrc: null,
+    value:    'partial_abandoned',
+    title:    'Partial or abandoned system',
+    subtitle: 'Incomplete or decommissioned wet heating — scope requires clarification',
   },
 ];
 
 export interface CurrentSystemStepProps {
-  /** Currently selected tile value, or null when nothing is selected. */
-  selected: UiCurrentSystemLabel | null;
-  /** Note for the exception path — required when selected === 'unknown'. */
+  /** Currently selected existence tile value, or null when nothing is selected. */
+  selected: UiExistenceLabel | null;
+  /** Note for the exception path — required when exception is open. */
   exceptionNote: string;
-  /** Called when the surveyor selects a normal system tile. */
-  onSelect: (value: UiCurrentSystemLabel) => void;
+  /** Called when the surveyor selects an existence tile. */
+  onSelect: (value: UiExistenceLabel) => void;
   /** Called when the exception-path note changes. */
   onExceptionNoteChange: (note: string) => void;
   /** Called when the surveyor cancels the exception path. */
@@ -92,16 +64,16 @@ export function CurrentSystemStep({
   onExceptionNoteChange,
   onClearSelection,
 }: CurrentSystemStepProps) {
-  const [showException, setShowException] = useState(selected === 'unknown');
+  const [showException, setShowException] = useState(false);
 
-  function handleTileClick(value: KnownSystemLabel) {
+  function handleTileClick(value: UiExistenceLabel) {
     setShowException(false);
     onSelect(value);
   }
 
   function handleExceptionClick() {
     setShowException(true);
-    onSelect('unknown');
+    onClearSelection();
   }
 
   function handleExceptionCancel() {
@@ -111,25 +83,25 @@ export function CurrentSystemStep({
 
   return (
     <>
-      <h2 className="qp-step-heading">What system do you have now?</h2>
+      <h2 className="qp-step-heading">What is currently installed?</h2>
       <p className="qp-step-subheading">
-        Select the type that best describes the existing heating system.
+        Select the option that best describes the existing installation.
       </p>
       <div className="spec-sys-tile-grid">
-        {CURRENT_SYSTEM_TILES.map(({ value, title, subtitle, imageSrc }) => (
+        {EXISTENCE_TILES.map(({ value, title, subtitle }) => (
           <SpecificationSystemTile
             key={value}
             value={value}
             title={title}
             subtitle={subtitle}
-            imageSrc={imageSrc}
+            imageSrc={null}
             selected={selected === value}
             onClick={() => handleTileClick(value)}
           />
         ))}
       </div>
 
-      {/* Exception path — not a normal system tile */}
+      {/* Exception path — not a normal existence tile */}
       {!showException ? (
         <button
           type="button"
@@ -158,7 +130,7 @@ export function CurrentSystemStep({
           </p>
           <textarea
             className="spec-exception-panel__note"
-            placeholder="Describe why the system cannot be confirmed…"
+            placeholder="Describe why the installation cannot be confirmed…"
             value={exceptionNote}
             onChange={(e) => onExceptionNoteChange(e.target.value)}
             rows={3}
