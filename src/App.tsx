@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -105,7 +105,15 @@ import { ActiveUserProvider } from './features/userProfiles/ActiveUserProvider';
 import { useActiveUser } from './features/userProfiles/useActiveUser';
 import { useRolePermissions } from './features/userProfiles/useRolePermissions';
 import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
-import { InstallationSpecificationPage } from './features/installationSpecification/ui/InstallationSpecificationPage';
+import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
+
+// Lazy-load InstallationSpecificationPage so that any runtime crash during import
+// or render is caught by SpecificationErrorBoundary rather than blanking the app.
+const InstallationSpecificationPage = lazy(() =>
+  import('./features/installationSpecification/ui/InstallationSpecificationPage').then(
+    (m) => ({ default: m.InstallationSpecificationPage }),
+  ),
+);
 import './App.css';
 
 /**
@@ -1015,10 +1023,13 @@ function AppInner() {
 
   // /installation-specification or ?installation-specification=1 — render the Atlas Installation Specification stepper shell.
   if (INSTALLATION_SPECIFICATION_ENABLED) {
+    const handleBack = () => { window.history.back(); };
     return (
-      <InstallationSpecificationPage
-        onBack={() => { window.history.back(); }}
-      />
+      <SpecificationErrorBoundary onBack={handleBack}>
+        <Suspense fallback={null}>
+          <InstallationSpecificationPage onBack={handleBack} />
+        </Suspense>
+      </SpecificationErrorBoundary>
     );
   }
 
@@ -1452,9 +1463,13 @@ function AppInner() {
         )}
         {/* Installation Specification — opened from Visit Hub or QuoteCollectionStep */}
         {journey === 'installation-specification' && (
-          <InstallationSpecificationPage
-            onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
-          />
+          <SpecificationErrorBoundary onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}>
+            <Suspense fallback={null}>
+              <InstallationSpecificationPage
+                onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
+              />
+            </Suspense>
+          </SpecificationErrorBoundary>
         )}
         {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
         {journey === 'visit-handoff' && (
