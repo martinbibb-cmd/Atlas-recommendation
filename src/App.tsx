@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -974,6 +974,16 @@ function AppInner() {
     setJourney('visit');
   }
 
+  // Derive the canonical current-system summary once, before all early returns.
+  // Used by both the INSTALLATION_SPECIFICATION_ENABLED route and the
+  // journey === 'installation-specification' branch.
+  const canonicalCurrentSystem: CanonicalCurrentSystemSummary | null = useMemo(
+    () => labFullSurveyModel
+      ? buildCurrentInstallationSummaryFromCanonicalSurvey(labFullSurveyModel)
+      : null,
+    [labFullSurveyModel],
+  );
+
   // /workspace/:id — render a single workspace detail page.
   if (WORKSPACE_DETAIL_ID != null) {
     return (
@@ -1039,9 +1049,6 @@ function AppInner() {
   // /installation-specification or ?installation-specification=1 — render the Atlas Installation Specification stepper shell.
   if (INSTALLATION_SPECIFICATION_ENABLED) {
     const handleBack = () => { window.history.back(); };
-    const canonicalCurrentSystem: CanonicalCurrentSystemSummary | null = labFullSurveyModel
-      ? buildCurrentInstallationSummaryFromCanonicalSurvey(labFullSurveyModel)
-      : null;
     return (
       <SpecificationErrorBoundary onBack={handleBack}>
         <Suspense fallback={specificationLoadingFallback}>
@@ -1488,11 +1495,7 @@ function AppInner() {
             <Suspense fallback={specificationLoadingFallback}>
               <InstallationSpecificationPage
                 onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
-                canonicalCurrentSystem={
-                  labFullSurveyModel
-                    ? buildCurrentInstallationSummaryFromCanonicalSurvey(labFullSurveyModel)
-                    : null
-                }
+                canonicalCurrentSystem={canonicalCurrentSystem}
               />
             </Suspense>
           </SpecificationErrorBoundary>
