@@ -22,6 +22,10 @@
 
 import { useState } from 'react';
 import { SpecificationSystemTile } from '../components/SpecificationSystemTile';
+import {
+  GAS_BOILER_PROPOSED_VALUES,
+  isGasBoilerProposedValue,
+} from '../installationSpecificationUiTypes';
 import type { UiCurrentSystemLabel, UiProposedSystemLabel } from '../installationSpecificationUiTypes';
 
 interface SystemTileDefinition {
@@ -58,13 +62,6 @@ const ALL_PROPOSED_SYSTEM_TILES: SystemTileDefinition[] = [
     imageSrc: '/images/systems/ASHP.PNG',
   },
 ];
-
-/** Gas boiler families that are not valid normal choices when current is heat_pump. */
-const GAS_BOILER_VALUES = new Set<Exclude<UiProposedSystemLabel, 'unknown'>>([
-  'combi',
-  'system_boiler',
-  'regular_open_vent',
-]);
 
 /** Human-readable display label for a current-system tile value. */
 const CURRENT_SYSTEM_DISPLAY: Record<UiCurrentSystemLabel, string> = {
@@ -124,13 +121,15 @@ export function ProposedSystemStep({
   const isCurrentHeatPump = currentSystemLabel === 'heat_pump';
 
   // Exception-panel state for the ASHP → gas override.
+  // Pre-open the panel if the component is mounted with a gas system already
+  // selected (e.g. when the user navigated back after the exception was used).
   const [showAshpException, setShowAshpException] = useState(
-    isCurrentHeatPump && selected != null && GAS_BOILER_VALUES.has(selected as Exclude<UiProposedSystemLabel, 'unknown'>),
+    isCurrentHeatPump && selected != null && isGasBoilerProposedValue(selected),
   );
 
   // Tiles visible without the exception panel.
   const normalTiles = isCurrentHeatPump
-    ? ALL_PROPOSED_SYSTEM_TILES.filter((t) => !GAS_BOILER_VALUES.has(t.value))
+    ? ALL_PROPOSED_SYSTEM_TILES.filter((t) => !GAS_BOILER_PROPOSED_VALUES.has(t.value))
     : ALL_PROPOSED_SYSTEM_TILES;
 
   function handleAshpExceptionOpen() {
@@ -140,7 +139,7 @@ export function ProposedSystemStep({
   function handleAshpExceptionClose() {
     setShowAshpException(false);
     // If a gas system was selected via the exception, clear that selection.
-    if (selected != null && GAS_BOILER_VALUES.has(selected as Exclude<UiProposedSystemLabel, 'unknown'>)) {
+    if (selected != null && isGasBoilerProposedValue(selected)) {
       onSelect('heat_pump');
     }
     onAshpExceptionNoteChange?.('');
@@ -224,7 +223,7 @@ export function ProposedSystemStep({
           />
           {/* Gas system tiles are only shown inside the exception panel */}
           <div className="spec-sys-tile-grid spec-sys-tile-grid--exception">
-            {ALL_PROPOSED_SYSTEM_TILES.filter((t) => GAS_BOILER_VALUES.has(t.value)).map(
+            {ALL_PROPOSED_SYSTEM_TILES.filter((t) => GAS_BOILER_PROPOSED_VALUES.has(t.value)).map(
               ({ value, title, subtitle, imageSrc }) => (
                 <SpecificationSystemTile
                   key={value}

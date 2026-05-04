@@ -31,7 +31,7 @@ import { CondensateSpecificationStep } from './steps/CondensateSpecificationStep
 import { PipeworkPlanStep } from './steps/PipeworkPlanStep';
 import { GeneratedScopeStep } from './steps/GeneratedScopeStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
-import { uiLabelToFamily } from './installationSpecificationUiTypes';
+import { uiLabelToFamily, isGasBoilerProposedValue } from './installationSpecificationUiTypes';
 import type { UiCurrentSystemLabel, UiProposedSystemLabel } from './installationSpecificationUiTypes';
 import type { QuoteJobClassificationV1 } from '../calculators/quotePlannerTypes';
 import type {
@@ -197,12 +197,10 @@ export function InstallationSpecificationStepper({
 
   // Whether the current system is heat_pump and the surveyor has selected a gas system
   // via the ASHP exception flow — requires a non-empty exception note.
-  const isHeatPumpToGasException = ((): boolean => {
-    if (selectedCurrentSystem !== 'heat_pump') return false;
-    if (selectedProposedSystem == null) return false;
-    const gasValues: UiProposedSystemLabel[] = ['combi', 'system_boiler', 'regular_open_vent'];
-    return gasValues.includes(selectedProposedSystem);
-  })();
+  const isHeatPumpToGasException =
+    selectedCurrentSystem === 'heat_pump' &&
+    selectedProposedSystem != null &&
+    isGasBoilerProposedValue(selectedProposedSystem);
 
   // Next is disabled when the active step requires a selection and none is made.
   const canAdvance: boolean = (() => {
