@@ -30,6 +30,56 @@ import type {
   QuotePointScale,
   QuoteRoutePointV1,
 } from '../calculators/quotePlannerTypes';
+
+// ─── Condensate route ─────────────────────────────────────────────────────────
+
+/**
+ * The discharge method selected for the condensate pipe.
+ *
+ * internal_waste        — routed to an internal waste pipe (sink trap, soil stack, etc.).
+ * external_gully        — routed to an external gully at ground level.
+ * soakaway              — terminated at a soakaway (requires soil permeability check).
+ * condensate_pump       — lifted via a condensate pump to an internal discharge point.
+ * external_trace_heat   — external run with trace heating to prevent freezing.
+ */
+export type CondensateDischargeKind =
+  | 'internal_waste'
+  | 'external_gully'
+  | 'soakaway'
+  | 'condensate_pump'
+  | 'external_trace_heat';
+
+/**
+ * A condensate route in the installation plan.
+ *
+ * Separate from the generic pipework route list so the condensate step can
+ * show discharge-type tiles and freeze-risk notices without polluting the
+ * main pipework view.
+ *
+ * `pipeRunM` is the engineer-entered or estimated pipe length.
+ * When null, no fake length is introduced — the item remains
+ * 'needs_verification' confidence.
+ */
+export interface QuotePlanCondensateRouteV1 {
+  /** Discharge method selected by the engineer. */
+  dischargeKind: CondensateDischargeKind;
+  /**
+   * Whether the pipe run is (or includes) an external section.
+   * Drives the freeze-risk notice.
+   */
+  isExternal: boolean;
+  /**
+   * Approximate pipe run length in metres.
+   * Null when the engineer has not entered a length yet.
+   */
+  pipeRunM: number | null;
+  /**
+   * Whether the engineer has marked this route as needing on-site verification.
+   */
+  needsVerification: boolean;
+  /** Optional engineer-facing note. */
+  notes?: string;
+}
 import type { QuoteScopeItemV1 } from '../scope/buildQuoteScopeFromInstallationPlan';
 
 import type {
@@ -54,6 +104,7 @@ export type {
   QuotePipeworkCalculationV1,
 };
 export type { QuoteScopeItemV1 };
+export type { CondensateDischargeKind };
 
 // ─── Plan-layer location kind ─────────────────────────────────────────────────
 
@@ -283,6 +334,11 @@ export interface QuoteInstallationPlanV1 {
   flueRoutes: QuotePlanCandidateFlueRouteV1[];
   /** Engineer-drawn pipework routes in this plan. */
   pipeworkRoutes: QuotePlanPipeworkRouteV1[];
+  /**
+   * Condensate route selected and configured by the engineer.
+   * Absent until the engineer reaches the condensate step.
+   */
+  condensateRoute?: QuotePlanCondensateRouteV1;
   /** Classified job type derived from current and proposed systems. */
   jobClassification: QuoteJobClassificationV1;
   /**

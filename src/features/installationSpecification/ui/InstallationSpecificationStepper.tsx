@@ -23,6 +23,7 @@ import { ProposedSystemStep } from './steps/ProposedSystemStep';
 import { JobTypeStep } from './steps/JobTypeStep';
 import { PlaceLocationsStep } from './steps/PlaceLocationsStep';
 import { FluePlanStep } from './steps/FluePlanStep';
+import { CondensateSpecificationStep } from './steps/CondensateSpecificationStep';
 import { PipeworkPlanStep } from './steps/PipeworkPlanStep';
 import { GeneratedScopeStep } from './steps/GeneratedScopeStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
@@ -34,6 +35,7 @@ import type {
   QuotePlanLocationV1,
   QuotePlanCandidateFlueRouteV1,
   QuotePlanPipeworkRouteV1,
+  QuotePlanCondensateRouteV1,
   QuoteScopeItemV1,
 } from '../model/QuoteInstallationPlanV1';
 import './installationSpecificationStyles.css';
@@ -67,24 +69,6 @@ const STEP_LABELS: Record<StepId, string> = {
 };
 
 const STEP_LABEL_LIST = STEP_IDS.map((id) => STEP_LABELS[id]);
-
-// ─── Placeholder steps ────────────────────────────────────────────────────────
-
-interface PlaceholderStepProps {
-  icon: string;
-  label: string;
-}
-
-function PlaceholderStep({ icon, label }: PlaceholderStepProps) {
-  return (
-    <>
-      <div className="qp-placeholder">
-        <span className="qp-placeholder__icon" aria-hidden="true">{icon}</span>
-        <span className="qp-placeholder__label">{label}</span>
-      </div>
-    </>
-  );
-}
 
 // ─── Classification derivation ────────────────────────────────────────────────
 
@@ -134,6 +118,7 @@ export function InstallationSpecificationStepper({
   const [exceptionNote, setExceptionNote] = useState('');
   const [locations, setLocations] = useState<QuotePlanLocationV1[]>([]);
   const [flueRoute, setFlueRoute] = useState<QuotePlanCandidateFlueRouteV1 | null>(null);
+  const [condensateRoute, setCondensateRoute] = useState<QuotePlanCondensateRouteV1 | undefined>(undefined);
   const [pipeworkRoutes, setPipeworkRoutes] = useState<QuotePlanPipeworkRouteV1[]>([]);
 
   // Derive job classification whenever system selections change.
@@ -156,6 +141,7 @@ export function InstallationSpecificationStepper({
     locations,
     routes:          [],
     flueRoutes:      flueRoute ? [flueRoute] : [],
+    condensateRoute,
     pipeworkRoutes,
     jobClassification,
     generatedScope:  [],
@@ -164,6 +150,7 @@ export function InstallationSpecificationStepper({
     selectedProposedSystem,
     locations,
     flueRoute,
+    condensateRoute,
     pipeworkRoutes,
     jobClassification,
   ]);
@@ -273,10 +260,10 @@ export function InstallationSpecificationStepper({
 
       case 'condensate_plan':
         return (
-          <>
-            <h2 className="qp-step-heading">Condensate specification</h2>
-            <PlaceholderStep icon="🪣" label="Condensate route planning coming in the next release." />
-          </>
+          <CondensateSpecificationStep
+            condensateRoute={condensateRoute ?? null}
+            onCondensateRouteChange={(route) => setCondensateRoute(route)}
+          />
         );
 
       case 'pipework_plan':

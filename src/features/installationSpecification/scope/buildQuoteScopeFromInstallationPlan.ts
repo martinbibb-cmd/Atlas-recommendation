@@ -14,8 +14,9 @@
  *   - No duplicate scope items are emitted.
  */
 
-import type { QuoteInstallationPlanV1, QuotePlanLocationV1, QuotePlanPipeworkRouteV1 } from '../model/QuoteInstallationPlanV1';
+import type { QuoteInstallationPlanV1, QuotePlanLocationV1, QuotePlanPipeworkRouteV1, QuotePlanCondensateRouteV1 } from '../model/QuoteInstallationPlanV1';
 import type { QuotePlannerLocationConfidence, PipeworkRouteKind } from '../model/QuoteInstallationPlanV1';
+import { CONDENSATE_DISCHARGE_LABELS } from '../model/condensateActions';
 
 // ─── Scope item types ─────────────────────────────────────────────────────────
 
@@ -275,6 +276,46 @@ function makeFlueItem(
   });
 }
 
+// ─── Condensate route helpers ─────────────────────────────────────────────────
+
+/**
+ * Build a condensate scope item.
+ *
+ * Prefers the dedicated `condensateRoute` from the condensate specification step.
+ * Falls back to the generic pipework route with kind 'condensate' for backward
+ * compatibility with plans that used only the pipework step.
+ */
+function makeCondensateItem(
+  nextId: () => string,
+  plan: QuoteInstallationPlanV1,
+): QuoteScopeItemV1 {
+  const dedicated: QuotePlanCondensateRouteV1 | undefined = plan.condensateRoute;
+
+  if (dedicated != null) {
+    const conf: QuoteScopeItemConfidence = dedicated.needsVerification
+      ? 'needs_verification'
+      : dedicated.pipeRunM !== null
+        ? 'estimated'
+        : 'low';
+    const methodLabel = CONDENSATE_DISCHARGE_LABELS[dedicated.dischargeKind];
+    const routeType   = dedicated.isExternal ? 'external' : 'internal';
+    const lengthPart  = dedicated.pipeRunM !== null ? ` — ~${dedicated.pipeRunM.toFixed(1)} m` : '';
+    const freezePart  = dedicated.isExternal ? ' — freeze-risk: verify insulation' : '';
+    const details     = `${methodLabel} (${routeType})${lengthPart}${freezePart}`;
+    return makeItem(
+      nextId,
+      'routes',
+      'Condensate route',
+      conf,
+      dedicated.needsVerification,
+      { details, sourceStepId: 'condensate_plan' },
+    );
+  }
+
+  // Fallback: use pipework route with kind 'condensate'.
+  return makePipeworkRouteItem(nextId, plan, 'condensate', 'Condensate route');
+}
+
 // ─── Per-job-type scope builders ──────────────────────────────────────────────
 
 function buildLikeForLikeScope(
@@ -309,7 +350,7 @@ function buildLikeForLikeScope(
   items.push(makeFlueItem(nextId, plan, 'Flue route — reuse or replace terminal'));
 
   // 4. Condensate route.
-  items.push(makePipeworkRouteItem(nextId, plan, 'condensate', 'Condensate route'));
+  items.push(makeCondensateItem(nextId, plan));
 
   // 5. Gas supply route — always include (verification item when not drawn).
   items.push(makePipeworkRouteItem(
@@ -384,7 +425,7 @@ function buildRelocationScope(
   }
 
   // 7. Condensate route.
-  items.push(makePipeworkRouteItem(nextId, plan, 'condensate', 'Condensate route'));
+  items.push(makeCondensateItem(nextId, plan));
 
   // 8. Heating flow/return alterations.
   const flowRoutes  = findPipeworkRoutes(plan, 'heating_flow');
@@ -495,7 +536,7 @@ function buildConversionScope(
   items.push(makeFlueItem(nextId, plan, 'Flue route — new wall core or roof opening'));
 
   // 7. Condensate route.
-  items.push(makePipeworkRouteItem(nextId, plan, 'condensate', 'Condensate route'));
+  items.push(makeCondensateItem(nextId, plan));
 
   // 8. Gas supply route.
   items.push(makePipeworkRouteItem(nextId, plan, 'gas', 'Gas supply route'));
