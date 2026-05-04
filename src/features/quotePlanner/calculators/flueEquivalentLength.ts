@@ -216,13 +216,11 @@ export function calculateFlueEquivalentLengthForModel(
 
   // If the catalog entry provides a maxEquivalentLengthM and the route does
   // not already specify one, forward the catalog value into the route.
-  const effectiveMaxM =
-    flueRoute.maxEquivalentLengthM ??
-    resolution.matchedEntry?.maxEquivalentLengthM;
+  const catalogMaxM = resolution.matchedEntry?.maxEquivalentLengthM;
 
   const effectiveRoute: QuoteFlueRouteV1 =
-    effectiveMaxM !== undefined && effectiveMaxM !== flueRoute.maxEquivalentLengthM
-      ? { ...flueRoute, maxEquivalentLengthM: effectiveMaxM }
+    catalogMaxM !== undefined && flueRoute.maxEquivalentLengthM === undefined
+      ? { ...flueRoute, maxEquivalentLengthM: catalogMaxM }
       : flueRoute;
 
   const calculation = calculateFlueEquivalentLength(effectiveRoute, resolution.ruleSet);

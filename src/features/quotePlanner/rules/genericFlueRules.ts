@@ -39,6 +39,6 @@ export const GENERIC_FLUE_RULE_ENTRY: FlueRuleSetV1 = {
   },
   source: 'generic_estimate',
   notes:
-    'Industry generic estimates for planning use only. ' +
-    'Always verify against the boiler manufacturer\'s flue installation guide.',
+    `Industry generic estimates for planning use only. ` +
+    `Always verify against the boiler manufacturer's flue installation guide.`,
 };
