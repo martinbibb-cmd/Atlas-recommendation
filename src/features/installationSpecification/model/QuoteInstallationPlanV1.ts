@@ -88,6 +88,59 @@ export interface QuotePlanCondensateRouteV1 {
   /** Optional engineer-facing note. */
   notes?: string;
 }
+// ─── Layered system selection types ──────────────────────────────────────────
+
+export type ExistingWetHeatingKindV1 = 'yes' | 'no' | 'partial';
+
+export type HeatSourceKindV1 =
+  | 'none'
+  | 'combi_boiler'
+  | 'regular_boiler'
+  | 'system_boiler'
+  | 'storage_combi'
+  | 'heat_pump'
+  | 'warm_air'
+  | 'back_boiler'
+  | 'direct_electric'
+  | 'other';
+
+export type HotWaterKindV1 =
+  | 'none'
+  | 'instantaneous_from_combi'
+  | 'vented_cylinder'
+  | 'unvented_cylinder'
+  | 'thermal_store'
+  | 'mixergy_or_stratified'
+  | 'integrated_store'
+  | 'heat_pump_cylinder'
+  | 'existing_retained'
+  | 'other';
+
+export type PrimaryCircuitKindV1 =
+  | 'open_vented_primary'
+  | 'sealed_primary'
+  | 'not_applicable'
+  | 'needs_technical_review';
+
+export interface HeatSourceSelectionV1 {
+  kind: HeatSourceKindV1;
+}
+
+export interface HotWaterSelectionV1 {
+  kind: HotWaterKindV1;
+}
+
+export interface PrimaryCircuitSelectionV1 {
+  kind: PrimaryCircuitKindV1;
+}
+
+export interface InstallationSpecificationSystemV1 {
+  hasExistingWetHeating?: ExistingWetHeatingKindV1;
+  heatSource: HeatSourceSelectionV1;
+  hotWater: HotWaterSelectionV1;
+  primaryCircuit?: PrimaryCircuitSelectionV1;
+}
+
 import type { QuoteScopeItemV1 } from '../scope/buildQuoteScopeFromInstallationPlan';
 
 import type {
@@ -346,6 +399,10 @@ export interface QuoteInstallationPlanV1 {
    * Absent until the engineer reaches the condensate step.
    */
   condensateRoute?: QuotePlanCondensateRouteV1;
+  /** Layered current-system selection (new layered model — replaces flat currentSystem.family). */
+  currentSpec?: InstallationSpecificationSystemV1;
+  /** Layered proposed-system selection (new layered model — replaces flat proposedSystem.family). */
+  proposedSpec?: InstallationSpecificationSystemV1;
   /** Classified job type derived from current and proposed systems. */
   jobClassification: QuoteJobClassificationV1;
   /**

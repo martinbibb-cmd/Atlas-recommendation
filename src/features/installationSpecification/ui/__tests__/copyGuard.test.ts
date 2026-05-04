@@ -34,39 +34,66 @@ const BANNED_TERMS = [
   'Installer to confirm',
 ];
 
-// Known visible step labels from InstallationSpecificationStepper — gas boiler path
-const STEP_LABELS_GAS = [
+// Known step labels from InstallationSpecificationStepper — full step list
+const STEP_LABELS_ALL = [
   'Current system',
-  'Proposed system',
+  'Current heat source',
+  'Current hot water',
+  'Primary circuit',
+  'Proposed heat source',
+  'Proposed hot water',
   'Location change',
   'Key locations',
   'Flue specification',
   'Condensate specification',
   'Pipework specification',
-  'Generated scope',
-];
-
-// Known visible step labels from InstallationSpecificationStepper — ASHP path
-const STEP_LABELS_ASHP = [
-  'Current system',
-  'Proposed system',
-  'Location change',
-  'Key locations',
   'Outdoor unit siting',
   'Hydraulic route',
   'Electrical supply',
   'Generated scope',
 ];
 
-// Known system tile titles from CurrentSystemStep and ProposedSystemStep
-const SYSTEM_TILE_TITLES = [
+// Known existence tile titles from CurrentSystemStep
+const EXISTENCE_TILE_TITLES = [
+  'Existing wet heating system',
+  'No existing wet heating system',
+  'Partial or abandoned system',
+];
+
+// Known heat-source tile titles from CurrentHeatSourceStep and ProposedSystemStep
+const HEAT_SOURCE_TILE_TITLES = [
   'Combination boiler',
-  'System boiler + cylinder',
-  'Regular / open vent',
+  'Regular boiler',
+  'System boiler',
   'Storage combi',
-  'Thermal store',
   'Heat pump',
-  'Warm air',
+  'Warm air unit',
+  'Back boiler',
+  'Direct electric',
+  'Other heat source',
+  'None',
+];
+
+// Known hot-water tile titles from CurrentHotWaterStep and ProposedHotWaterStep
+const HOT_WATER_TILE_TITLES = [
+  'No cylinder',
+  'Vented cylinder',
+  'Unvented cylinder',
+  'Thermal store',
+  'Mixergy / stratified cylinder',
+  'Integrated store',
+  'Other arrangement',
+  'Retain existing cylinder',
+  'Replace with vented cylinder',
+  'Replace with unvented cylinder',
+  'Heat pump cylinder',
+  'No stored hot water',
+];
+
+// Known primary-circuit tile titles from CurrentPrimaryCircuitStep
+const PRIMARY_CIRCUIT_TILE_TITLES = [
+  'Open vented primary',
+  'Sealed primary',
 ];
 
 // Known page/card labels
@@ -77,9 +104,11 @@ const UI_LABELS = [
   'Installation specification progress',
   'Specification path',
   'Cannot confirm — needs technical review',
-  ...STEP_LABELS_GAS,
-  ...STEP_LABELS_ASHP,
-  ...SYSTEM_TILE_TITLES,
+  ...STEP_LABELS_ALL,
+  ...EXISTENCE_TILE_TITLES,
+  ...HEAT_SOURCE_TILE_TITLES,
+  ...HOT_WATER_TILE_TITLES,
+  ...PRIMARY_CIRCUIT_TILE_TITLES,
 ];
 
 describe('Installation specification copy guard', () => {

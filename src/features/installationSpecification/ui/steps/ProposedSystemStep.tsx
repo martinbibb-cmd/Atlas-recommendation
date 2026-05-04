@@ -1,136 +1,116 @@
 /**
  * ProposedSystemStep.tsx
  *
- * Step 2 of the Installation Specification: "What system are you proposing?"
+ * Step 5 of the Installation Specification: "What heat source are you proposing?"
  *
- * Shows the set of recommendable systems as large visual tiles.  When
- * `seedValue` is provided the matching tile is pre-selected and marked with
- * an "Atlas selected" badge, indicating the choice was seeded from the Atlas
- * recommendation.
+ * Shows proposed heat-source tiles. When `seedValue` is provided the matching
+ * tile is pre-selected and marked with an "Atlas selected" badge.
  *
- * The surveyor may override the pre-selection to record a specification
- * variant. This does NOT change the underlying recommendation decision.
+ * ASHP gate: when the current heat source is a heat pump, gas boiler families
+ * are hidden. Switching from heat pump back to gas requires a technical-review
+ * exception with a mandatory reason note.
  *
- * "Unknown" is not shown as a normal tile — it exists only as an internal
- * fallback state (e.g. when import hydration fails).
- *
- * ASHP rule: when the current system is a heat pump, gas boiler families are
- * not shown as normal proposed choices.  Changing an ASHP property back to gas
- * heating is not a normal specification variant; it requires a technical
- * review exception with a mandatory reason note.
+ * This step captures the proposed heat source only.
+ * Hot-water/cylinder arrangement is captured in ProposedHotWaterStep.
  */
 
 import { useState } from 'react';
 import { SpecificationSystemTile } from '../components/SpecificationSystemTile';
 import {
-  GAS_BOILER_PROPOSED_VALUES,
-  isGasBoilerProposedValue,
+  isGasBoilerProposedHeatSource,
 } from '../installationSpecificationUiTypes';
-import type { UiCurrentSystemLabel, UiProposedSystemLabel } from '../installationSpecificationUiTypes';
+import type { UiCurrentHeatSourceLabel, UiProposedHeatSourceLabel } from '../installationSpecificationUiTypes';
 
-interface SystemTileDefinition {
-  value: Exclude<UiProposedSystemLabel, 'unknown'>;
+interface HeatSourceTileDefinition {
+  value: Exclude<UiProposedHeatSourceLabel, 'other_approved'>;
   title: string;
   subtitle: string;
   imageSrc: string | null;
 }
 
-/** All normal proposed-system tiles. */
-const ALL_PROPOSED_SYSTEM_TILES: SystemTileDefinition[] = [
+// Uses isGasBoilerProposedHeatSource() from installationSpecificationUiTypes for ASHP gate.
+
+/** All normal proposed heat-source tiles. */
+const ALL_PROPOSED_TILES: HeatSourceTileDefinition[] = [
   {
-    value:    'combi',
+    value:    'combi_boiler',
     title:    'Combination boiler',
-    subtitle: 'On-demand hot water',
+    subtitle: 'On-demand hot water — no cylinder required',
     imageSrc: '/images/systems/Combination.PNG',
   },
   {
     value:    'system_boiler',
-    title:    'System boiler + cylinder',
-    subtitle: 'Stored hot water, sealed primary',
+    title:    'System boiler',
+    subtitle: 'Sealed primary — cylinder required',
     imageSrc: '/images/systems/system-boiler.PNG',
   },
   {
-    value:    'regular_open_vent',
-    title:    'Regular / open vent',
-    subtitle: 'Boiler, cylinder and tanks',
+    value:    'regular_boiler',
+    title:    'Regular boiler',
+    subtitle: 'Open-vented primary — cylinder and tanks required',
     imageSrc: '/images/systems/open-vented-schematic.JPG',
   },
   {
     value:    'heat_pump',
     title:    'Heat pump',
-    subtitle: 'Low-temperature heat source',
+    subtitle: 'Low-temperature heat source — cylinder required',
     imageSrc: '/images/systems/ASHP.PNG',
   },
 ];
 
-/** Human-readable display label for a current-system tile value. */
-const CURRENT_SYSTEM_DISPLAY: Record<UiCurrentSystemLabel, string> = {
-  combi:             'Combination boiler',
-  system_boiler:     'System boiler + cylinder',
-  regular_open_vent: 'Regular / open vent',
-  storage_combi:     'Storage combi',
-  thermal_store:     'Thermal store',
-  heat_pump:         'Heat pump',
-  warm_air:          'Warm air',
-  unknown:           'the existing system',
+/** Human-readable label for current heat source context hint. */
+const CURRENT_HEAT_SOURCE_DISPLAY: Record<UiCurrentHeatSourceLabel, string> = {
+  combi_boiler:     'Combination boiler',
+  regular_boiler:   'Regular boiler',
+  system_boiler:    'System boiler',
+  storage_combi:    'Storage combi',
+  heat_pump:        'Heat pump',
+  warm_air:         'Warm air unit',
+  back_boiler:      'Back boiler',
+  direct_electric:  'Direct electric heating',
+  other_heat_source: 'Other heat source',
+  none:             'no existing heat source',
 };
 
 export interface ProposedSystemStepProps {
-  /** Currently selected tile value, or null when nothing is selected. */
-  selected: UiProposedSystemLabel | null;
-  /**
-   * Tile value pre-seeded from the Atlas recommendation, if available.
-   * When set, the matching tile shows an "Atlas selected" badge on first render.
-   * Does not prevent the surveyor from selecting a different tile.
-   */
-  seedValue?: UiProposedSystemLabel | null;
-  /**
-   * The surveyor's current-system selection — used to show a context hint
-   * and to apply the ASHP system-family gate.
-   * Optional; hint is suppressed when absent.
-   */
-  currentSystemLabel?: UiCurrentSystemLabel | null;
+  /** Currently selected proposed heat-source tile, or null. */
+  selected: UiProposedHeatSourceLabel | null;
+  /** Tile value pre-seeded from the Atlas recommendation, if available. */
+  seedValue?: UiProposedHeatSourceLabel | null;
+  /** The surveyor's current heat-source selection — used for context hint and ASHP gate. */
+  currentHeatSource?: UiCurrentHeatSourceLabel | null;
   /** Called when the surveyor taps a tile. */
-  onSelect: (value: UiProposedSystemLabel) => void;
-  /**
-   * Note entered when the ASHP → gas technical-review exception is open.
-   * Managed by the parent so the stepper can gate the Next button.
-   */
+  onSelect: (value: UiProposedHeatSourceLabel) => void;
+  /** Note entered when the ASHP → gas technical-review exception is open. */
   ashpExceptionNote?: string;
-  /**
-   * Called when the surveyor types in the ASHP exception note field.
-   * Managed by the parent (stepper) so canAdvance logic can check it.
-   */
+  /** Called when the surveyor types in the ASHP exception note field. */
   onAshpExceptionNoteChange?: (note: string) => void;
 }
 
 export function ProposedSystemStep({
   selected,
   seedValue,
-  currentSystemLabel,
+  currentHeatSource,
   onSelect,
   ashpExceptionNote = '',
   onAshpExceptionNoteChange,
 }: ProposedSystemStepProps) {
   const contextLabel =
-    currentSystemLabel != null
-      ? CURRENT_SYSTEM_DISPLAY[currentSystemLabel]
+    currentHeatSource != null
+      ? CURRENT_HEAT_SOURCE_DISPLAY[currentHeatSource]
       : null;
 
-  // ASHP gate: when the current system is a heat pump, gas boiler families are hidden.
-  const isCurrentHeatPump = currentSystemLabel === 'heat_pump';
+  const isCurrentHeatPump = currentHeatSource === 'heat_pump';
 
-  // Exception-panel state for the ASHP → gas override.
-  // Pre-open the panel if the component is mounted with a gas system already
-  // selected (e.g. when the user navigated back after the exception was used).
   const [showAshpException, setShowAshpException] = useState(
-    isCurrentHeatPump && selected != null && isGasBoilerProposedValue(selected),
+    isCurrentHeatPump &&
+      selected != null &&
+      isGasBoilerProposedHeatSource(selected),
   );
 
-  // Tiles visible without the exception panel.
   const normalTiles = isCurrentHeatPump
-    ? ALL_PROPOSED_SYSTEM_TILES.filter((t) => !GAS_BOILER_PROPOSED_VALUES.has(t.value))
-    : ALL_PROPOSED_SYSTEM_TILES;
+    ? ALL_PROPOSED_TILES.filter((t) => !isGasBoilerProposedHeatSource(t.value))
+    : ALL_PROPOSED_TILES;
 
   function handleAshpExceptionOpen() {
     setShowAshpException(true);
@@ -138,8 +118,7 @@ export function ProposedSystemStep({
 
   function handleAshpExceptionClose() {
     setShowAshpException(false);
-    // If a gas system was selected via the exception, clear that selection.
-    if (selected != null && isGasBoilerProposedValue(selected)) {
+    if (selected != null && isGasBoilerProposedHeatSource(selected)) {
       onSelect('heat_pump');
     }
     onAshpExceptionNoteChange?.('');
@@ -147,14 +126,14 @@ export function ProposedSystemStep({
 
   return (
     <>
-      <h2 className="qp-step-heading">What system are you proposing?</h2>
+      <h2 className="qp-step-heading">What heat source are you proposing?</h2>
       <p className="qp-step-subheading">
-        Choose the replacement system for this job.
+        Choose the proposed heat source.
         {seedValue != null && ' Atlas has pre-selected its recommendation — you can override this.'}
       </p>
       {contextLabel != null && (
         <p className="qp-context-hint">
-          Because you chose <strong>{contextLabel}</strong>, Atlas needs the proposed system next.
+          Current heat source: <strong>{contextLabel}</strong>
         </p>
       )}
 
@@ -207,7 +186,7 @@ export function ProposedSystemStep({
             </button>
           </div>
           <p className="spec-exception-panel__body">
-            Changing an ASHP property back to a gas heat source is not a normal
+            Changing from a heat pump to a gas heat source is not a normal
             specification variant. Record the reason before continuing.
           </p>
           <p className="spec-exception-panel__hint">
@@ -221,9 +200,8 @@ export function ProposedSystemStep({
             rows={3}
             aria-label="ASHP to gas exception note"
           />
-          {/* Gas system tiles are only shown inside the exception panel */}
           <div className="spec-sys-tile-grid spec-sys-tile-grid--exception">
-            {ALL_PROPOSED_SYSTEM_TILES.filter((t) => GAS_BOILER_PROPOSED_VALUES.has(t.value)).map(
+            {ALL_PROPOSED_TILES.filter((t) => isGasBoilerProposedHeatSource(t.value)).map(
               ({ value, title, subtitle, imageSrc }) => (
                 <SpecificationSystemTile
                   key={value}

@@ -3,27 +3,37 @@
  *
  * Main stepper shell for the Atlas Installation Specification.
  *
- * Manages the draft state (current system, proposed system, derived job
- * classification) and renders the active step with Back / Next navigation.
+ * Manages draft state across the layered system selection steps and renders
+ * the active step with Back / Next navigation.
  *
- * The active step list is derived from the proposed system family:
- *   - Gas boiler families: current system → proposed system → job type →
- *     key locations → flue → condensate → pipework → scope
- *   - Heat pump:           current system → proposed system → job type →
- *     key locations → outdoor unit siting → hydraulic route →
- *     electrical supply → scope
- *
- * Design rules:
- *   - Does not alter any recommendation decision.
- *   - Does not add customer-facing output surfaces.
- *   - Classification is derived deterministically from the two system selections.
- *   - seedFamily (optional) pre-fills ProposedSystemStep from the recommendation.
+ * Step sequence (active steps derived from selections):
+ *   1.  current_system       — existence: has/no/partial wet heating
+ *   2.  current_heat_source  — heat-source appliance (skipped when no_wet_heating)
+ *   3.  current_hot_water    — cylinder/storage type (skipped for combi or no source)
+ *   4.  current_primary_circuit — primary circuit type (skipped for non-boiler sources)
+ *   5.  proposed_heat_source — proposed heat source (always)
+ *   6.  proposed_hot_water   — proposed hot-water arrangement (skipped for proposed combi)
+ *   7.  job_type             — derived classification (always)
+ *   8.  place_locations      — key locations (always)
+ *   [for gas boiler proposed]:
+ *   9.  flue_plan
+ *   10. condensate_plan
+ *   11. pipework_plan
+ *   [for heat pump proposed]:
+ *   9.  outdoor_unit_siting
+ *   10. hydraulic_route
+ *   11. electrical_supply
+ *   12. generated_scope      — always (last step)
  */
 
 import { useState, useMemo } from 'react';
 import { SpecificationProgress } from './SpecificationProgress';
 import { CurrentSystemStep } from './steps/CurrentSystemStep';
+import { CurrentHeatSourceStep } from './steps/CurrentHeatSourceStep';
+import { CurrentHotWaterStep } from './steps/CurrentHotWaterStep';
+import { CurrentPrimaryCircuitStep } from './steps/CurrentPrimaryCircuitStep';
 import { ProposedSystemStep } from './steps/ProposedSystemStep';
+import { ProposedHotWaterStep } from './steps/ProposedHotWaterStep';
 import { JobTypeStep } from './steps/JobTypeStep';
 import { PlaceLocationsStep } from './steps/PlaceLocationsStep';
 import { FluePlanStep } from './steps/FluePlanStep';
@@ -31,8 +41,21 @@ import { CondensateSpecificationStep } from './steps/CondensateSpecificationStep
 import { PipeworkPlanStep } from './steps/PipeworkPlanStep';
 import { GeneratedScopeStep } from './steps/GeneratedScopeStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
-import { uiLabelToFamily, isGasBoilerProposedValue } from './installationSpecificationUiTypes';
-import type { UiCurrentSystemLabel, UiProposedSystemLabel } from './installationSpecificationUiTypes';
+import {
+  heatSourceToFamily,
+  isCombiHeatSource,
+  isProposedCombi,
+  isBoilerHeatSource,
+  isGasBoilerProposedHeatSource,
+} from './installationSpecificationUiTypes';
+import type {
+  UiExistenceLabel,
+  UiCurrentHeatSourceLabel,
+  UiCurrentHotWaterLabel,
+  UiCurrentPrimaryCircuitLabel,
+  UiProposedHeatSourceLabel,
+  UiProposedHotWaterLabel,
+} from './installationSpecificationUiTypes';
 import type { QuoteJobClassificationV1 } from '../calculators/quotePlannerTypes';
 import type {
   QuoteInstallationPlanV1,
@@ -44,64 +67,133 @@ import type {
 } from '../model/QuoteInstallationPlanV1';
 import './installationSpecificationStyles.css';
 
-// ─── Step definitions ─────────────────────────────────────────────────────────
+// ─── Step ID types ────────────────────────────────────────────────────────────
 
-/** Steps used for gas boiler specification paths. */
-const GAS_BOILER_STEP_IDS = [
+const ALL_STEP_IDS = [
   'current_system',
-  'proposed_system',
+  'current_heat_source',
+  'current_hot_water',
+  'current_primary_circuit',
+  'proposed_heat_source',
+  'proposed_hot_water',
   'job_type',
   'place_locations',
   'flue_plan',
   'condensate_plan',
   'pipework_plan',
-  'generated_scope',
-] as const;
-
-/** Steps used for heat-pump specification paths. */
-const HEAT_PUMP_STEP_IDS = [
-  'current_system',
-  'proposed_system',
-  'job_type',
-  'place_locations',
   'outdoor_unit_siting',
   'hydraulic_route',
   'electrical_supply',
   'generated_scope',
 ] as const;
 
-type GasBoilerStepId = typeof GAS_BOILER_STEP_IDS[number];
-type HeatPumpStepId  = typeof HEAT_PUMP_STEP_IDS[number];
-type StepId = GasBoilerStepId | HeatPumpStepId;
+type StepId = typeof ALL_STEP_IDS[number];
 
 /** Short display labels shown in the progress pill strip. */
 const STEP_LABELS: Record<StepId, string> = {
-  current_system:      'Current system',
-  proposed_system:     'Proposed system',
-  job_type:            'Location change',
-  place_locations:     'Key locations',
-  flue_plan:           'Flue specification',
-  condensate_plan:     'Condensate specification',
-  pipework_plan:       'Pipework specification',
-  outdoor_unit_siting: 'Outdoor unit siting',
-  hydraulic_route:     'Hydraulic route',
-  electrical_supply:   'Electrical supply',
-  generated_scope:     'Generated scope',
+  current_system:           'Current system',
+  current_heat_source:      'Current heat source',
+  current_hot_water:        'Current hot water',
+  current_primary_circuit:  'Primary circuit',
+  proposed_heat_source:     'Proposed heat source',
+  proposed_hot_water:       'Proposed hot water',
+  job_type:                 'Location change',
+  place_locations:          'Key locations',
+  flue_plan:                'Flue specification',
+  condensate_plan:          'Condensate specification',
+  pipework_plan:            'Pipework specification',
+  outdoor_unit_siting:      'Outdoor unit siting',
+  hydraulic_route:          'Hydraulic route',
+  electrical_supply:        'Electrical supply',
+  generated_scope:          'Generated scope',
 };
 
-/** Returns the ordered step ID list for the given proposed system. */
-function getStepIds(proposedLabel: UiProposedSystemLabel | null): readonly StepId[] {
-  return proposedLabel === 'heat_pump' ? HEAT_PUMP_STEP_IDS : GAS_BOILER_STEP_IDS;
+// ─── Active step derivation ───────────────────────────────────────────────────
+
+/**
+ * Derive the ordered list of active step IDs from the current selection state.
+ *
+ * Steps are omitted (skipped) based on:
+ * - current_heat_source: skip when existence is 'no_wet_heating'
+ * - current_hot_water: skip when current heat source is combi/storage_combi/none/direct_electric/warm_air
+ * - current_primary_circuit: skip when current heat source is not a boiler type
+ * - proposed_hot_water: skip when proposed heat source is combi/storage_combi or not yet set
+ * - flue/condensate/pipework: only for gas boiler proposed
+ * - outdoor_unit/hydraulic/electrical: only for heat pump proposed
+ */
+function getActiveStepIds(
+  existenceLabel: UiExistenceLabel | null,
+  currentHeatSource: UiCurrentHeatSourceLabel | null,
+  proposedHeatSource: UiProposedHeatSourceLabel | null,
+): StepId[] {
+  const steps: StepId[] = ['current_system'];
+
+  // current_heat_source — skip when no wet heating
+  const hasWetHeating = existenceLabel === 'has_wet_heating' || existenceLabel === 'partial_abandoned';
+  if (hasWetHeating) {
+    steps.push('current_heat_source');
+  }
+
+  // current_hot_water — skip for combi, direct_electric, warm_air, none, or when no heat source
+  if (
+    hasWetHeating &&
+    currentHeatSource != null &&
+    !isCombiHeatSource(currentHeatSource) &&
+    currentHeatSource !== 'none' &&
+    currentHeatSource !== 'direct_electric' &&
+    currentHeatSource !== 'warm_air'
+  ) {
+    steps.push('current_hot_water');
+  }
+
+  // current_primary_circuit — only for boiler-type heat sources
+  if (
+    hasWetHeating &&
+    currentHeatSource != null &&
+    isBoilerHeatSource(currentHeatSource)
+  ) {
+    steps.push('current_primary_circuit');
+  }
+
+  // Proposed heat source — always
+  steps.push('proposed_heat_source');
+
+  // proposed_hot_water — skip when proposed is combi or storage_combi
+  if (
+    proposedHeatSource != null &&
+    !isProposedCombi(proposedHeatSource)
+  ) {
+    steps.push('proposed_hot_water');
+  }
+
+  // Job type — always
+  steps.push('job_type');
+
+  // Place locations — always
+  steps.push('place_locations');
+
+  // Route steps depend on proposed heat source
+  if (proposedHeatSource === 'heat_pump') {
+    steps.push('outdoor_unit_siting', 'hydraulic_route', 'electrical_supply');
+  } else {
+    // Gas boiler or other — show flue/condensate/pipework
+    steps.push('flue_plan', 'condensate_plan', 'pipework_plan');
+  }
+
+  // Generated scope — always
+  steps.push('generated_scope');
+
+  return steps;
 }
 
 // ─── Classification derivation ────────────────────────────────────────────────
 
 function deriveClassification(
-  currentLabel: UiCurrentSystemLabel | null,
-  proposedLabel: UiProposedSystemLabel | null,
+  currentHeatSource: UiCurrentHeatSourceLabel | null,
+  proposedHeatSource: UiProposedHeatSourceLabel | null,
 ): QuoteJobClassificationV1 {
-  const currentFamily = currentLabel != null ? uiLabelToFamily(currentLabel) : 'unknown';
-  const proposedFamily = proposedLabel != null ? uiLabelToFamily(proposedLabel) : 'unknown';
+  const currentFamily = currentHeatSource != null ? heatSourceToFamily(currentHeatSource) : 'unknown';
+  const proposedFamily = proposedHeatSource != null ? heatSourceToFamily(proposedHeatSource) : 'unknown';
   return classifyQuoteJob(
     { family: currentFamily },
     { family: proposedFamily },
@@ -111,16 +203,13 @@ function deriveClassification(
 // ─── InstallationSpecificationStepper ────────────────────────────────────────
 
 export interface InstallationSpecificationStepperProps {
-  /**
-   * Called when the engineer taps Back on the first step (exits the specification).
-   */
+  /** Called when the engineer taps Back on the first step (exits the specification). */
   onBack: () => void;
   /**
-   * Optional proposed-system value seeded from the Atlas recommendation.
-   * When provided, ProposedSystemStep pre-selects this tile and shows an
-   * "Atlas Pick" badge.  Does not change the recommendation decision.
+   * Optional proposed heat-source value seeded from the Atlas recommendation.
+   * When provided, ProposedSystemStep pre-selects this tile and shows an "Atlas Pick" badge.
    */
-  seedProposedSystem?: UiProposedSystemLabel | null;
+  seedProposedSystem?: UiProposedHeatSourceLabel | null;
   /**
    * Optional floor-plan image URI (from the scan session).
    * When provided, the Place Locations step shows the floor plan overlay.
@@ -134,57 +223,79 @@ export function InstallationSpecificationStepper({
   floorPlanUri,
 }: InstallationSpecificationStepperProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedCurrentSystem, setSelectedCurrentSystem] =
-    useState<UiCurrentSystemLabel | null>(null);
-  const [selectedProposedSystem, setSelectedProposedSystem] =
-    useState<UiProposedSystemLabel | null>(seedProposedSystem ?? null);
-  // Exception-path note — required when selectedCurrentSystem === 'unknown'.
-  const [exceptionNote, setExceptionNote] = useState('');
-  // ASHP-to-gas override note — required when current is heat_pump and surveyor
-  // selects a gas system via the technical review exception.
+
+  // Step 1: existence
+  const [existenceLabel, setExistenceLabel] = useState<UiExistenceLabel | null>(null);
+  const [existenceExceptionNote, setExistenceExceptionNote] = useState('');
+
+  // Step 2: current heat source
+  const [currentHeatSource, setCurrentHeatSource] = useState<UiCurrentHeatSourceLabel | null>(null);
+  const [heatSourceExceptionNote, setHeatSourceExceptionNote] = useState('');
+
+  // Step 3: current hot water
+  const [currentHotWater, setCurrentHotWater] = useState<UiCurrentHotWaterLabel | null>(null);
+
+  // Step 4: current primary circuit
+  const [currentPrimaryCircuit, setCurrentPrimaryCircuit] = useState<UiCurrentPrimaryCircuitLabel | null>(null);
+
+  // Step 5: proposed heat source
+  const [proposedHeatSource, setProposedHeatSource] = useState<UiProposedHeatSourceLabel | null>(
+    seedProposedSystem ?? null,
+  );
   const [ashpExceptionNote, setAshpExceptionNote] = useState('');
+
+  // Step 6: proposed hot water
+  const [proposedHotWater, setProposedHotWater] = useState<UiProposedHotWaterLabel | null>(null);
+
+  // Other plan state
   const [locations, setLocations] = useState<QuotePlanLocationV1[]>([]);
   const [flueRoute, setFlueRoute] = useState<QuotePlanCandidateFlueRouteV1 | null>(null);
   const [condensateRoute, setCondensateRoute] = useState<QuotePlanCondensateRouteV1 | undefined>(undefined);
   const [pipeworkRoutes, setPipeworkRoutes] = useState<QuotePlanPipeworkRouteV1[]>([]);
 
-  // Derive job classification whenever system selections change.
-  const jobClassification = useMemo(
-    () => deriveClassification(selectedCurrentSystem, selectedProposedSystem),
-    [selectedCurrentSystem, selectedProposedSystem],
+  // Derive active step list from current selections.
+  const stepIds = useMemo(
+    () => getActiveStepIds(existenceLabel, currentHeatSource, proposedHeatSource),
+    [existenceLabel, currentHeatSource, proposedHeatSource],
   );
 
-  // Active step list derived from proposed system family.
-  const stepIds = useMemo(
-    () => getStepIds(selectedProposedSystem),
-    [selectedProposedSystem],
-  );
   const stepLabelList = useMemo(
     () => stepIds.map((id) => STEP_LABELS[id]),
     [stepIds],
   );
 
-  // Build a minimal plan snapshot for scope generation.  Only the fields
-  // consumed by buildQuoteScopeFromInstallationPlan are populated here.
+  // Derive job classification.
+  const jobClassification = useMemo(
+    () => deriveClassification(currentHeatSource, proposedHeatSource),
+    [currentHeatSource, proposedHeatSource],
+  );
+
+  // Whether the current heat source is heat pump and proposed is gas — exception needed.
+  const isHeatPumpToGasException =
+    currentHeatSource === 'heat_pump' &&
+    proposedHeatSource != null &&
+    isGasBoilerProposedHeatSource(proposedHeatSource);
+
+  // Build plan snapshot for scope generation.
   const planSnapshot = useMemo<QuoteInstallationPlanV1>(() => ({
-    planId:          'stepper-snapshot',
-    createdAt:       '',
-    currentSystem:   {
-      family: selectedCurrentSystem != null ? uiLabelToFamily(selectedCurrentSystem) : 'unknown',
+    planId:         'stepper-snapshot',
+    createdAt:      '',
+    currentSystem:  {
+      family: currentHeatSource != null ? heatSourceToFamily(currentHeatSource) : 'unknown',
     },
-    proposedSystem:  {
-      family: selectedProposedSystem != null ? uiLabelToFamily(selectedProposedSystem) : 'unknown',
+    proposedSystem: {
+      family: proposedHeatSource != null ? heatSourceToFamily(proposedHeatSource) : 'unknown',
     },
     locations,
-    routes:          [],
-    flueRoutes:      flueRoute ? [flueRoute] : [],
+    routes:         [],
+    flueRoutes:     flueRoute ? [flueRoute] : [],
     condensateRoute,
     pipeworkRoutes,
     jobClassification,
-    generatedScope:  [],
+    generatedScope: [],
   }), [
-    selectedCurrentSystem,
-    selectedProposedSystem,
+    currentHeatSource,
+    proposedHeatSource,
     locations,
     flueRoute,
     condensateRoute,
@@ -195,27 +306,36 @@ export function InstallationSpecificationStepper({
   const totalSteps = stepIds.length;
   const stepId = stepIds[currentStep];
 
-  // Whether the current system is heat_pump and the surveyor has selected a gas system
-  // via the ASHP exception flow — requires a non-empty exception note.
-  const isHeatPumpToGasException =
-    selectedCurrentSystem === 'heat_pump' &&
-    selectedProposedSystem != null &&
-    isGasBoilerProposedValue(selectedProposedSystem);
-
-  // Next is disabled when the active step requires a selection and none is made.
+  // Whether the current step has been completed (enables Next button).
   const canAdvance: boolean = (() => {
-    if (stepId === 'current_system') {
-      if (selectedCurrentSystem === null) return false;
-      if (selectedCurrentSystem === 'unknown') return exceptionNote.trim().length > 0;
-      return true;
+    switch (stepId) {
+      case 'current_system': {
+        if (existenceLabel === null) {
+          // Exception path: engineer cannot determine existence state.
+          // The exception note is mandatory so the rationale is always recorded.
+          // Downstream state correctly uses 'unknown' system family.
+          return existenceExceptionNote.trim().length > 0;
+        }
+        return true;
+      }
+      case 'current_heat_source': {
+        if (currentHeatSource === null) return heatSourceExceptionNote.trim().length > 0;
+        return true;
+      }
+      case 'current_hot_water':
+        return currentHotWater !== null;
+      case 'current_primary_circuit':
+        return currentPrimaryCircuit !== null;
+      case 'proposed_heat_source': {
+        if (proposedHeatSource === null) return false;
+        if (isHeatPumpToGasException) return ashpExceptionNote.trim().length > 0;
+        return true;
+      }
+      case 'proposed_hot_water':
+        return proposedHotWater !== null;
+      default:
+        return true;
     }
-    if (stepId === 'proposed_system') {
-      if (selectedProposedSystem === null) return false;
-      // ASHP → gas requires the exception note.
-      if (isHeatPumpToGasException) return ashpExceptionNote.trim().length > 0;
-      return true;
-    }
-    return true;
   })();
 
   function handleBack() {
@@ -232,7 +352,6 @@ export function InstallationSpecificationStepper({
     }
   }
 
-  // Navigate back to the step identified by a source step ID from a scope item.
   function handleNavigateToStep(sourceStepId: NonNullable<QuoteScopeItemV1['sourceStepId']>) {
     const index = stepIds.indexOf(sourceStepId as StepId);
     if (index !== -1) {
@@ -247,36 +366,85 @@ export function InstallationSpecificationStepper({
       case 'current_system':
         return (
           <CurrentSystemStep
-            selected={selectedCurrentSystem}
-            exceptionNote={exceptionNote}
+            selected={existenceLabel}
+            exceptionNote={existenceExceptionNote}
             onSelect={(val) => {
-              setSelectedCurrentSystem(val);
-              // Clear stale proposed selection unless it was seeded from the recommendation.
-              if (seedProposedSystem == null) {
-                setSelectedProposedSystem(null);
-              }
-              // Clear the exception note when a real system tile is selected.
-              if (val !== 'unknown') {
-                setExceptionNote('');
+              setExistenceLabel(val);
+              setExistenceExceptionNote('');
+              // When no wet heating, clear dependent selections.
+              if (val === 'no_wet_heating') {
+                setCurrentHeatSource(null);
+                setCurrentHotWater(null);
+                setCurrentPrimaryCircuit(null);
               }
             }}
-            onExceptionNoteChange={setExceptionNote}
+            onExceptionNoteChange={setExistenceExceptionNote}
             onClearSelection={() => {
-              setSelectedCurrentSystem(null);
-              setExceptionNote('');
+              setExistenceLabel(null);
+              setExistenceExceptionNote('');
             }}
           />
         );
 
-      case 'proposed_system':
+      case 'current_heat_source':
+        return (
+          <CurrentHeatSourceStep
+            selected={currentHeatSource}
+            exceptionNote={heatSourceExceptionNote}
+            onSelect={(val) => {
+              setCurrentHeatSource(val);
+              setHeatSourceExceptionNote('');
+              // Clear downstream selections when heat source changes.
+              setCurrentHotWater(null);
+              setCurrentPrimaryCircuit(null);
+            }}
+            onExceptionNoteChange={setHeatSourceExceptionNote}
+            onClearSelection={() => {
+              setCurrentHeatSource(null);
+              setHeatSourceExceptionNote('');
+            }}
+          />
+        );
+
+      case 'current_hot_water':
+        return (
+          <CurrentHotWaterStep
+            selected={currentHotWater}
+            onSelect={setCurrentHotWater}
+          />
+        );
+
+      case 'current_primary_circuit':
+        return (
+          <CurrentPrimaryCircuitStep
+            selected={currentPrimaryCircuit}
+            onSelect={setCurrentPrimaryCircuit}
+          />
+        );
+
+      case 'proposed_heat_source':
         return (
           <ProposedSystemStep
-            selected={selectedProposedSystem}
+            selected={proposedHeatSource}
             seedValue={seedProposedSystem}
-            currentSystemLabel={selectedCurrentSystem}
-            onSelect={setSelectedProposedSystem}
+            currentHeatSource={currentHeatSource}
+            onSelect={(val) => {
+              setProposedHeatSource(val);
+              // Clear proposed hot water when proposed heat source changes.
+              setProposedHotWater(null);
+            }}
             ashpExceptionNote={ashpExceptionNote}
             onAshpExceptionNoteChange={setAshpExceptionNote}
+          />
+        );
+
+      case 'proposed_hot_water':
+        if (proposedHeatSource == null) return null;
+        return (
+          <ProposedHotWaterStep
+            proposedHeatSource={proposedHeatSource}
+            selected={proposedHotWater}
+            onSelect={setProposedHotWater}
           />
         );
 
@@ -284,8 +452,9 @@ export function InstallationSpecificationStepper({
         return (
           <JobTypeStep
             classification={jobClassification}
-            currentSystemLabel={selectedCurrentSystem}
-            proposedSystemLabel={selectedProposedSystem}
+            currentHeatSource={currentHeatSource}
+            proposedHeatSource={proposedHeatSource}
+            proposedHotWater={proposedHotWater}
           />
         );
 
@@ -397,4 +566,3 @@ export function InstallationSpecificationStepper({
     </div>
   );
 }
-
