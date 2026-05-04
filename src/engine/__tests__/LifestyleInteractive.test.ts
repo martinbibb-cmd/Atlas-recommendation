@@ -2,7 +2,12 @@
  * Tests for the LifestyleInteractive physics helpers.
  *
  * These helpers are exported from the component and drive the three
- * live curves: Boiler "Stepped", HP "Horizon", and Hot water reserve.
+ * live curves: Boiler "Stepped" and Hot water reserve.
+ *
+ * Note: hpHorizonCurve was removed (NO-THEATRE violation — invented normalisation
+ * factor and cold-dip heuristic).  ASHP room temperature is now sourced from
+ * LifestyleSimulationModule.hourlyData.ashpRoomTempC (physics-based dynamic room
+ * trace).  See LifestyleInteractiveHelpers.ts for the removal note.
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -10,7 +15,6 @@ import {
   nextState,
   mixergySoCByHour,
   boilerSteppedCurve,
-  hpHorizonCurve,
   normaliseDeliveryMode,
   isHotWaterDrawEvent,
   DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK,
@@ -138,57 +142,6 @@ describe('boilerSteppedCurve', () => {
     const withShower = boilerSteppedCurve(allDhw, true);
     const withoutShower = boilerSteppedCurve(allDhw, false);
     withShower.forEach((v, i) => expect(v).toBeLessThan(withoutShower[i]));
-  });
-});
-
-// ─── hpHorizonCurve ───────────────────────────────────────────────────────────
-
-const HIGH_TEMP_FLOW_TEMP_C = 50;
-
-describe('hpHorizonCurve', () => {
-  const allHome: HourState[] = Array(24).fill('home');
-  const allAway: HourState[] = Array(24).fill('away');
-
-  // Full Job: SPF 4.1, designFlowTemp 37 °C
-  const FULL_JOB_SPF = 4.1;
-  const FULL_JOB_FLOW = 37;
-  // Fast Fit: SPF 3.0, designFlowTemp 50 °C
-  const FAST_FIT_SPF = 3.0;
-  const FAST_FIT_FLOW = 50;
-
-  it('returns exactly 24 values', () => {
-    expect(hpHorizonCurve(allHome, FULL_JOB_SPF, FULL_JOB_FLOW)).toHaveLength(24);
-  });
-
-  it('Full Job is flatter on cold morning hours than Fast Fit', () => {
-    const fullJob = hpHorizonCurve(allHome, FULL_JOB_SPF, FULL_JOB_FLOW);
-    const fastFit = hpHorizonCurve(allHome, FAST_FIT_SPF, FAST_FIT_FLOW);
-    // Cold morning hours (0–6): Full Job should be warmer (flatter horizon)
-    for (let h = 0; h < 7; h++) {
-      expect(fullJob[h]).toBeGreaterThan(fastFit[h]);
-    }
-  });
-
-  it('Full Job home hours hold ≥ 19 °C (thick green zone)', () => {
-    const fullJob = hpHorizonCurve(allHome, FULL_JOB_SPF, FULL_JOB_FLOW);
-    fullJob.forEach(v => expect(v).toBeGreaterThanOrEqual(19));
-  });
-
-  it('away hours are lower than home hours', () => {
-    const homeResult = hpHorizonCurve(allHome, FULL_JOB_SPF, FULL_JOB_FLOW);
-    const awayResult = hpHorizonCurve(allAway, FULL_JOB_SPF, FULL_JOB_FLOW);
-    // Average home should be higher than average away
-    const avgHome = homeResult.reduce((s, v) => s + v, 0) / 24;
-    const avgAway = awayResult.reduce((s, v) => s + v, 0) / 24;
-    expect(avgHome).toBeGreaterThan(avgAway);
-  });
-
-  it('higher SPF produces higher temperatures for the same hours', () => {
-    const highSpf = hpHorizonCurve(allHome, 4.2, FULL_JOB_FLOW);
-    const lowSpf = hpHorizonCurve(allHome, 2.9, HIGH_TEMP_FLOW_TEMP_C);
-    const avgHigh = highSpf.reduce((s, v) => s + v, 0) / 24;
-    const avgLow = lowSpf.reduce((s, v) => s + v, 0) / 24;
-    expect(avgHigh).toBeGreaterThan(avgLow);
   });
 });
 
@@ -359,14 +312,15 @@ describe('no-double-counting invariant — per system archetype', () => {
     curve.forEach(v => expect(v).toBeGreaterThanOrEqual(17.5));
   });
 
-  it('ASHP: hpHorizonCurve has no deliveryMode parameter — DHW suppression cannot affect it', () => {
-    // hpHorizonCurve is structurally immune to electric-shower suppression:
-    // it does not accept a deliveryMode argument, so the same result is produced
-    // regardless of delivery context (no accidental DHW double-counting path exists).
-    const hours = defaultHours();
-    const result = hpHorizonCurve(hours, 3.8, 35);
-    expect(result).toHaveLength(24);
-    result.forEach(v => expect(typeof v).toBe('number'));
+  it('ASHP: ASHP room-temperature trace has no deliveryMode parameter — DHW suppression cannot affect it', () => {
+    // The ASHP room temperature is now sourced from
+    // LifestyleSimulationModule.hourlyData.ashpRoomTempC (buildDynamicRoomTrace).
+    // That function accepts no deliveryMode argument, so it is structurally immune
+    // to electric-shower suppression and cannot accidentally double-count DHW draws.
+    // This invariant is verified here via DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK:
+    // shower-peak suppression only affects 'dhw_demand' hour-state helpers that
+    // accept deliveryMode — not the physics room trace.
+    expect(DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK).toBe(true);
   });
 
   it('DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK invariant is true (documented contract)', () => {
