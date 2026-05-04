@@ -574,7 +574,7 @@ export function InsightLayerPage({
             type="button"
             onClick={onNext}
           >
-            Run Full Analysis →
+            Next →
           </button>
         </div>
       </div>

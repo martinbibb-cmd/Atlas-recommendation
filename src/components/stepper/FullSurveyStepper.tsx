@@ -27,7 +27,9 @@ import {
   type SurveyStepId,
   SURVEY_STEP_IDS,
   SURVEY_STEP_COUNT,
+  SURVEY_STEP_REGISTRY,
   progressLabel,
+  getStepMeta,
 } from '../../config/surveyStepRegistry';
 import { AcceptedSuggestionsReview } from '../../features/voiceNotes/AcceptedSuggestionsReview';
 
@@ -60,6 +62,12 @@ interface Props {
    * QuoteInput[] so the parent can open the Atlas Insight Pack.
    */
   onOpenInsightPack?: (engineInput: EngineInputV2_3, quotes: QuoteInput[]) => void;
+  /**
+   * When provided, called when the surveyor clicks "Open specification" on the
+   * Installation Specification step.  The parent is responsible for navigating
+   * to the InstallationSpecificationPage.
+   */
+  onOpenInstallationSpecification?: () => void;
 }
 
 // Step type and ordered sequence derived from the canonical registry.
@@ -106,7 +114,7 @@ const defaultInput: FullSurveyModelV1 = {
 /** Z-index reserved for any future full-screen overlays above the stepper. */
 // const OVERLAY_Z_INDEX = 1000;
 
-export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft, onOpenSimulator, onOpenInsightPack }: Props) {
+export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft, onOpenSimulator, onOpenInsightPack, onOpenInstallationSpecification }: Props) {
   const [currentStep, setCurrentStep] = useState<Step>('system_builder');
   const [input, setInput] = useState<FullSurveyModelV1>(() =>
     prefill ? { ...defaultInput, ...prefill } : defaultInput
@@ -321,6 +329,43 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
         <span className="step-label">{progressLabel(currentStep)}</span>
       </div>
 
+      {/* Step heading + skip-to-step navigator */}
+      <div className="stepper-step-nav" aria-label="Survey steps">
+        <p className="stepper-step-heading" data-testid="stepper-step-heading">
+          {getStepMeta(currentStep).heading}
+        </p>
+        <div className="stepper-step-dots" role="list">
+          {SURVEY_STEP_REGISTRY
+            .filter(step => !skipSolarStep || step.id !== 'solar_assessment')
+            .map(step => {
+              const isActive  = step.id === currentStep;
+              const isPast    = STEPS.indexOf(step.id) < stepIndex;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  role="listitem"
+                  className={[
+                    'stepper-step-dot',
+                    isActive  ? 'stepper-step-dot--active'  : '',
+                    isPast    ? 'stepper-step-dot--past'     : '',
+                  ].filter(Boolean).join(' ')}
+                  onClick={() => {
+                    if (onDraft) onDraft(buildDraft());
+                    setCurrentStep(step.id);
+                  }}
+                  aria-current={isActive ? 'step' : undefined}
+                  aria-label={`Go to step ${step.displayIndex}: ${step.shortLabel}`}
+                  title={`Step ${step.displayIndex}: ${step.heading}`}
+                  data-testid={`step-dot-${step.id}`}
+                >
+                  {step.displayIndex}
+                </button>
+              );
+            })}
+        </div>
+      </div>
+
       {currentStep === 'services' && (
         <ServicesStep
           state={waterQualityState}
@@ -440,6 +485,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           onOpenSpecification={() => {
             // Save draft before leaving the stepper to enter the specification.
             if (onDraft) onDraft(buildDraft());
+            if (onOpenInstallationSpecification) onOpenInstallationSpecification();
           }}
         />
       )}
