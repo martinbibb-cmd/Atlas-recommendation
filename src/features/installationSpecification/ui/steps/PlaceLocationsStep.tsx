@@ -90,7 +90,7 @@ export function PlaceLocationsStep({
   const suggestions: Array<{ pin: ObjectPinV2; kind: QuotePlanLocationKind }> =
     (scanObjectPins ?? []).flatMap((pin) => {
       const kind = objectPinTypeToLocationKind(pin.objectType);
-      if (kind == null) return [];
+      if (kind === null) return [];
       // Avoid suggesting a pin that was already added (by its pinId-derived locationId).
       const derivedId = `loc-scan-${pin.pinId}`;
       if (existingLocationIds.has(derivedId)) return [];
@@ -145,9 +145,6 @@ export function PlaceLocationsStep({
 }
 
 // ─── Scan suggestions panel ───────────────────────────────────────────────────
-
-import { LOCATION_KIND_LABELS } from '../../model/locationActions';
-import type { RequiredLocationSlot } from '../../model/locationActions';
 
 interface ScanSuggestionsPanelProps {
   suggestions: Array<{ pin: ObjectPinV2; kind: QuotePlanLocationKind }>;
