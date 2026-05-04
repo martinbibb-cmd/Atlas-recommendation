@@ -53,15 +53,23 @@ const PRIMARY_CIRCUIT_DISPLAY: Record<UiCurrentPrimaryCircuitLabel, string> = {
   open_vented_primary:  'Open vented primary',
   sealed_primary:       'Sealed primary',
   needs_technical_review: 'Needs technical review',
+  not_applicable:       'Not separately recorded',
 };
 
 // ─── Missing field notice ─────────────────────────────────────────────────────
 
-function MissingField({ label }: { label: string }) {
+function MissingField({ label, onCorrectSurvey }: { label: string; onCorrectSurvey?: () => void }) {
   return (
     <span className="spec-summary__missing" data-testid={`missing-${label}`}>
-      Missing from canonical survey —{' '}
-      <span className="spec-summary__missing-action">Add to survey</span>
+      Missing from canonical survey{' '}
+      <button
+        type="button"
+        className="spec-summary__missing-add-btn"
+        onClick={onCorrectSurvey}
+        aria-label={`Add ${label} to survey`}
+      >
+        Add to survey
+      </button>
     </span>
   );
 }
@@ -113,21 +121,21 @@ export function CurrentSystemSummaryStep({
           <div className="spec-summary__row">
             <dt className="spec-summary__label">Heat source</dt>
             <dd className="spec-summary__value" data-testid="summary-heat-source">
-              {heatSourceLabel ?? <MissingField label="heat-source" />}
+              {heatSourceLabel ?? <MissingField label="heat-source" onCorrectSurvey={onCorrectSurvey} />}
             </dd>
           </div>
 
           <div className="spec-summary__row">
             <dt className="spec-summary__label">Hot water</dt>
             <dd className="spec-summary__value" data-testid="summary-hot-water">
-              {hotWaterLabel ?? <MissingField label="hot-water" />}
+              {hotWaterLabel ?? <MissingField label="hot-water" onCorrectSurvey={onCorrectSurvey} />}
             </dd>
           </div>
 
           <div className="spec-summary__row">
             <dt className="spec-summary__label">Primary circuit</dt>
             <dd className="spec-summary__value" data-testid="summary-primary-circuit">
-              {primaryCircuitLabel ?? <MissingField label="primary-circuit" />}
+              {primaryCircuitLabel ?? <MissingField label="primary-circuit" onCorrectSurvey={onCorrectSurvey} />}
             </dd>
           </div>
 
