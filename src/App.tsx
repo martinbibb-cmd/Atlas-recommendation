@@ -105,7 +105,7 @@ import { ActiveUserProvider } from './features/userProfiles/ActiveUserProvider';
 import { useActiveUser } from './features/userProfiles/useActiveUser';
 import { useRolePermissions } from './features/userProfiles/useRolePermissions';
 import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
-import { QuotePlannerPage } from './features/quotePlanner/ui/QuotePlannerPage';
+import { InstallationSpecificationPage } from './features/installationSpecification/ui/InstallationSpecificationPage';
 import './App.css';
 
 /**
@@ -446,21 +446,21 @@ const RECEIVE_SCAN_HANDOFF_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/receive-scan';
 
 /**
- * Detect /quote-planner path or ?quote-planner=1 — renders the Atlas Quote
- * Planner visual stepper shell.
+ * Detect /installation-specification path or ?installation-specification=1 — renders the Atlas
+ * Installation Specification visual stepper shell.
  *
  * This is a lab/dev route for the initial PR; it establishes the stepper flow
  * only and does not alter the existing recommendation engine.
  *
  * Examples:
- *   /quote-planner               — path-based entry (e.g. from VisitHubPage)
- *   /?quote-planner=1            — query-param flag for quick dev access
+ *   /installation-specification               — path-based entry (e.g. from VisitHubPage)
+ *   /?installation-specification=1            — query-param flag for quick dev access
  */
-const QUOTE_PLANNER_ENABLED =
+const INSTALLATION_SPECIFICATION_ENABLED =
   typeof window !== 'undefined' &&
   (
-    window.location.pathname === '/quote-planner' ||
-    new URLSearchParams(window.location.search).get('quote-planner') === '1'
+    window.location.pathname === '/installation-specification' ||
+    new URLSearchParams(window.location.search).get('installation-specification') === '1'
   );
 
 function CanonicalPresentationRoute({
@@ -1013,10 +1013,10 @@ function AppInner() {
     );
   }
 
-  // /quote-planner or ?quote-planner=1 — render the Atlas Quote Planner stepper shell.
-  if (QUOTE_PLANNER_ENABLED) {
+  // /installation-specification or ?installation-specification=1 — render the Atlas Installation Specification stepper shell.
+  if (INSTALLATION_SPECIFICATION_ENABLED) {
     return (
-      <QuotePlannerPage
+      <InstallationSpecificationPage
         onBack={() => { window.history.back(); }}
       />
     );
