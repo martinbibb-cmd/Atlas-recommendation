@@ -15,9 +15,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildQuoteScopeFromInstallationPlan,
-  type QuoteScopeItemV1,
 } from '../buildQuoteScopeFromInstallationPlan';
-import type { QuoteInstallationPlanV1, QuotePlanLocationV1, QuotePlanPipeworkRouteV1 } from '../../model/QuoteInstallationPlanV1';
+import type {
+  QuoteInstallationPlanV1,
+  QuotePlanLocationV1,
+  QuotePlanPipeworkRouteV1,
+  InstallationSpecificationSystemV1,
+  HeatSourceKindV1,
+  HotWaterKindV1,
+  PrimaryCircuitKindV1,
+  ExistingWetHeatingKindV1,
+} from '../../model/QuoteInstallationPlanV1';
 import type { QuoteJobClassificationV1 } from '../../calculators/quotePlannerTypes';
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
@@ -369,5 +377,398 @@ describe('buildQuoteScopeFromInstallationPlan — item structure', () => {
     const items = buildQuoteScopeFromInstallationPlan(plan);
     const condensateItem = items.find((i) => i.label.toLowerCase().includes('condensate'));
     expect(condensateItem?.details).toBeUndefined();
+  });
+});
+
+// ─── Layered model (proposedSpec / currentSpec) scope generation ──────────────
+
+/**
+ * Helpers for the spec-based tests.
+ */
+function makeSpec(
+  heatSource: HeatSourceKindV1,
+  hotWater: HotWaterKindV1,
+  options?: {
+    primaryCircuit?: PrimaryCircuitKindV1;
+    hasExistingWetHeating?: ExistingWetHeatingKindV1;
+  },
+): InstallationSpecificationSystemV1 {
+  return {
+    hasExistingWetHeating: options?.hasExistingWetHeating,
+    heatSource: { kind: heatSource },
+    hotWater:   { kind: hotWater },
+    primaryCircuit: options?.primaryCircuit
+      ? { kind: options.primaryCircuit }
+      : undefined,
+  };
+}
+
+function makePlanWithSpec(
+  currentSpec: InstallationSpecificationSystemV1,
+  proposedSpec: InstallationSpecificationSystemV1,
+  overrides?: Partial<QuoteInstallationPlanV1>,
+): QuoteInstallationPlanV1 {
+  return {
+    planId:           'test-spec-plan',
+    createdAt:        '2026-05-04T00:00:00.000Z',
+    currentSystem:    { family: 'unknown' },
+    proposedSystem:   { family: 'unknown' },
+    locations:        [],
+    routes:           [],
+    flueRoutes:       [],
+    pipeworkRoutes:   [],
+    jobClassification: { jobType: 'needs_review', rationale: 'spec-based' },
+    generatedScope:   [],
+    currentSpec,
+    proposedSpec,
+    ...overrides,
+  };
+}
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 1', () => {
+  // regular_boiler + vented_cylinder → combi_boiler + instantaneous_from_combi
+  const plan = makePlanWithSpec(
+    makeSpec('regular_boiler', 'vented_cylinder'),
+    makeSpec('combi_boiler',   'instantaneous_from_combi'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('removes existing heat source', () => {
+    expect(labels.some((l) => l.includes('remove existing heat source'))).toBe(true);
+  });
+
+  it('includes cylinder removal or cap decision for vented cylinder', () => {
+    expect(labels.some((l) => l.includes('remove or cap existing vented cylinder'))).toBe(true);
+  });
+
+  it('fits new combi boiler', () => {
+    expect(labels.some((l) => l.includes('fit new combi boiler'))).toBe(true);
+  });
+
+  it('requires flue route', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(true);
+  });
+
+  it('requires condensate route', () => {
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(true);
+  });
+
+  it('requires gas route', () => {
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(true);
+  });
+
+  it('does NOT include unvented discharge scope', () => {
+    expect(labels.some((l) => l.includes('discharge') && !l.includes('cap off'))).toBe(false);
+  });
+
+  it('does NOT invent a cylinder location item (no new cylinder)', () => {
+    expect(labels.some((l) => l.includes('specify cylinder location'))).toBe(false);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 2', () => {
+  // regular_boiler + unvented_cylinder → combi_boiler + instantaneous_from_combi
+  const plan = makePlanWithSpec(
+    makeSpec('regular_boiler', 'unvented_cylinder'),
+    makeSpec('combi_boiler',   'instantaneous_from_combi'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('includes unvented cylinder removal', () => {
+    expect(labels.some((l) => l.includes('remove or cap existing unvented cylinder'))).toBe(true);
+  });
+
+  it('includes discharge pipe cap-off (unvented-specific)', () => {
+    expect(labels.some((l) => l.includes('cap off existing discharge pipe'))).toBe(true);
+  });
+
+  it('does NOT assume the cylinder was vented', () => {
+    // "remove or cap existing vented cylinder" must not appear — it was unvented.
+    expect(labels.some((l) => l.includes('remove or cap existing vented cylinder'))).toBe(false);
+  });
+
+  it('requires flue, condensate, and gas routes', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(true);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 3', () => {
+  // system_boiler + vented_cylinder → system_boiler + existing_retained
+  const plan = makePlanWithSpec(
+    makeSpec('system_boiler', 'vented_cylinder'),
+    makeSpec('system_boiler', 'existing_retained'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('includes boiler replacement scope', () => {
+    expect(labels.some((l) => l.includes('remove existing heat source'))).toBe(true);
+    expect(labels.some((l) => l.includes('fit new system boiler'))).toBe(true);
+  });
+
+  it('does NOT include cylinder install scope (retained)', () => {
+    expect(labels.some((l) => l.includes('fit new')  && l.includes('cylinder'))).toBe(false);
+  });
+
+  it('does NOT include cylinder location item', () => {
+    expect(labels.some((l) => l.includes('specify cylinder location'))).toBe(false);
+  });
+
+  it('does NOT invent unvented discharge scope', () => {
+    expect(labels.some((l) => l.includes('add discharge route'))).toBe(false);
+  });
+
+  it('does NOT generate cylinder removal (cylinder is being retained)', () => {
+    expect(labels.some((l) => l.includes('remove or cap existing'))).toBe(false);
+  });
+
+  it('requires flue, condensate, gas routes', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(true);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 4', () => {
+  // system_boiler + unvented_cylinder → system_boiler + existing_retained
+  const plan = makePlanWithSpec(
+    makeSpec('system_boiler', 'unvented_cylinder'),
+    makeSpec('system_boiler', 'existing_retained'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('includes boiler swap scope', () => {
+    expect(labels.some((l) => l.includes('remove existing heat source'))).toBe(true);
+    expect(labels.some((l) => l.includes('fit new system boiler'))).toBe(true);
+  });
+
+  it('does NOT generate cylinder removal (unvented cylinder retained)', () => {
+    expect(labels.some((l) => l.includes('remove or cap existing'))).toBe(false);
+  });
+
+  it('does NOT generate new discharge route (discharge exists, not replacing)', () => {
+    expect(labels.some((l) => l.includes('add discharge route'))).toBe(false);
+  });
+
+  it('requires flue, condensate, gas routes', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(true);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 5', () => {
+  // combi_boiler + instantaneous_from_combi → system_boiler + unvented_cylinder
+  const plan = makePlanWithSpec(
+    makeSpec('combi_boiler', 'instantaneous_from_combi'),
+    makeSpec('system_boiler', 'unvented_cylinder'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('removes existing heat source', () => {
+    expect(labels.some((l) => l.includes('remove existing heat source'))).toBe(true);
+  });
+
+  it('fits new system boiler', () => {
+    expect(labels.some((l) => l.includes('fit new system boiler'))).toBe(true);
+  });
+
+  it('fits new unvented cylinder (stored hot-water upgrade)', () => {
+    expect(labels.some((l) => l.includes('fit new unvented cylinder'))).toBe(true);
+  });
+
+  it('requires cylinder location to be specified', () => {
+    expect(labels.some((l) => l.includes('specify cylinder location'))).toBe(true);
+  });
+
+  it('includes hot and cold water connections', () => {
+    expect(labels.some((l) => l.includes('hot and cold water connections'))).toBe(true);
+  });
+
+  it('requires discharge route (unvented)', () => {
+    expect(labels.some((l) => l.includes('add discharge route'))).toBe(true);
+  });
+
+  it('requires flue, condensate, gas routes', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(true);
+  });
+
+  it('does NOT include cylinder removal (no previous cylinder)', () => {
+    expect(labels.some((l) => l.includes('remove or cap existing'))).toBe(false);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 6', () => {
+  // combi_boiler + instantaneous_from_combi → heat_pump + heat_pump_cylinder
+  const plan = makePlanWithSpec(
+    makeSpec('combi_boiler', 'instantaneous_from_combi'),
+    makeSpec('heat_pump',    'heat_pump_cylinder'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('includes outdoor unit scope', () => {
+    expect(labels.some((l) => l.includes('outdoor unit'))).toBe(true);
+  });
+
+  it('fits heat pump cylinder', () => {
+    expect(labels.some((l) => l.includes('fit new heat pump cylinder'))).toBe(true);
+  });
+
+  it('specifies cylinder location', () => {
+    expect(labels.some((l) => l.includes('specify cylinder location'))).toBe(true);
+  });
+
+  it('includes hydraulic and electrical routes', () => {
+    expect(labels.some((l) => l.includes('hydraulic connection route'))).toBe(true);
+    expect(labels.some((l) => l.includes('electrical supply route'))).toBe(true);
+  });
+
+  it('does NOT generate gas route', () => {
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(false);
+  });
+
+  it('does NOT generate flue route', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(false);
+  });
+
+  it('does NOT generate boiler condensate route', () => {
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(false);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 7', () => {
+  // no existing wet heating → heat_pump + heat_pump_cylinder
+  const plan = makePlanWithSpec(
+    makeSpec('none', 'none', { hasExistingWetHeating: 'no' }),
+    makeSpec('heat_pump', 'heat_pump_cylinder'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('does NOT generate any removal scope', () => {
+    expect(items.filter((i) => i.category === 'existing_removal')).toHaveLength(0);
+  });
+
+  it('includes outdoor unit scope', () => {
+    expect(labels.some((l) => l.includes('outdoor unit'))).toBe(true);
+  });
+
+  it('fits heat pump cylinder', () => {
+    expect(labels.some((l) => l.includes('fit new heat pump cylinder'))).toBe(true);
+  });
+
+  it('does NOT generate gas route', () => {
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(false);
+  });
+
+  it('does NOT generate flue route', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(false);
+  });
+
+  it('does NOT generate boiler condensate route', () => {
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(false);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 8', () => {
+  // heat_pump + heat_pump_cylinder → heat_pump + existing_retained
+  const plan = makePlanWithSpec(
+    makeSpec('heat_pump', 'heat_pump_cylinder'),
+    makeSpec('heat_pump', 'existing_retained'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('removes existing heat pump', () => {
+    expect(labels.some((l) => l.includes('remove existing heat source'))).toBe(true);
+  });
+
+  it('includes outdoor unit scope', () => {
+    expect(labels.some((l) => l.includes('outdoor unit'))).toBe(true);
+  });
+
+  it('does NOT fit a new cylinder (existing retained)', () => {
+    expect(labels.some((l) => l.includes('fit new') && l.includes('cylinder'))).toBe(false);
+  });
+
+  it('does NOT generate gas route', () => {
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(false);
+  });
+
+  it('does NOT generate flue route', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(false);
+  });
+
+  it('does NOT generate boiler condensate route', () => {
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(false);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 9', () => {
+  // heat_pump → gas boiler (exceptional path — technical review required)
+  const plan = makePlanWithSpec(
+    makeSpec('heat_pump',    'heat_pump_cylinder'),
+    makeSpec('combi_boiler', 'instantaneous_from_combi'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('generates a technical review item', () => {
+    expect(labels.some((l) => l.includes('technical review required'))).toBe(true);
+  });
+
+  it('requires a surveyor note', () => {
+    expect(labels.some((l) => l.includes('surveyor note required'))).toBe(true);
+  });
+
+  it('does NOT generate normal gas boiler scope', () => {
+    expect(labels.some((l) => l.includes('fit new'))).toBe(false);
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(false);
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(false);
+  });
+
+  it('returns only the technical review items (not a full scope list)', () => {
+    expect(items).toHaveLength(2);
+  });
+});
+
+describe('buildQuoteScopeFromInstallationPlan — layered model: test 10', () => {
+  // → system_boiler + mixergy_or_stratified
+  const plan = makePlanWithSpec(
+    makeSpec('combi_boiler', 'instantaneous_from_combi'),
+    makeSpec('system_boiler', 'mixergy_or_stratified'),
+  );
+  const items = buildQuoteScopeFromInstallationPlan(plan);
+  const labels = items.map((i) => i.label.toLowerCase());
+
+  it('labels the cylinder as Mixergy / stratified (not generic unvented)', () => {
+    expect(labels.some((l) => l.includes('mixergy') || l.includes('stratified'))).toBe(true);
+  });
+
+  it('does NOT label the cylinder as unvented cylinder', () => {
+    expect(labels.some((l) => l.includes('fit new unvented cylinder'))).toBe(false);
+  });
+
+  it('requires discharge route (Mixergy has pressure relief)', () => {
+    expect(labels.some((l) => l.includes('add discharge route'))).toBe(true);
+  });
+
+  it('specifies cylinder location', () => {
+    expect(labels.some((l) => l.includes('specify cylinder location'))).toBe(true);
+  });
+
+  it('requires flue, condensate, gas routes (system boiler is gas condensing)', () => {
+    expect(labels.some((l) => l.includes('flue route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('condensate route required'))).toBe(true);
+    expect(labels.some((l) => l.includes('gas route required'))).toBe(true);
   });
 });
