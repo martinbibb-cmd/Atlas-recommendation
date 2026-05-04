@@ -11,7 +11,7 @@
  *   5. Recovery card does NOT show a blank screen.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SpecificationErrorBoundary } from '../SpecificationErrorBoundary';
@@ -22,18 +22,17 @@ function Bomb(): never {
   throw new Error('Specification component exploded');
 }
 
-// Suppress console.error noise from intentional throws in tests.
-const originalConsoleError = console.error;
-beforeEach(() => {
-  console.error = () => {};
-});
-afterEach(() => {
-  console.error = originalConsoleError;
-});
-
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('SpecificationErrorBoundary', () => {
+  // Suppress console.error noise from intentional throws in tests.
+  const originalConsoleError = console.error;
+  beforeEach(() => {
+    console.error = () => {};
+  });
+  afterEach(() => {
+    console.error = originalConsoleError;
+  });
   it('renders children when no error is thrown', () => {
     render(
       <SpecificationErrorBoundary onBack={vi.fn()}>

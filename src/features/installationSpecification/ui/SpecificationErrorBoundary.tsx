@@ -32,8 +32,8 @@ export class SpecificationErrorBoundary extends Component<Props, State> {
     this.state = { hasError: false, retryKey: 0 };
   }
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true, retryKey: 0 };
+  static getDerivedStateFromError(): Partial<State> {
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
@@ -125,6 +125,6 @@ export class SpecificationErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return <>{this.props.children}</>;
+    return this.props.children;
   }
 }
