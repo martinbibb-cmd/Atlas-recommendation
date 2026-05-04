@@ -98,12 +98,20 @@ export function requiresBoilerCondensateSpecification(
 
 /**
  * Returns true when the proposed system requires a gas route.
- * Only gas boiler heat sources need a gas supply route.
+ * Explicitly checks for gas boiler heat sources only.
+ * Oil boilers (if added in future) must NOT be listed here — they do not need
+ * a gas supply route.
  */
 export function requiresGasRoute(
   proposedSystem: InstallationSpecificationSystemV1,
 ): boolean {
-  return isCondensingBoilerHeatSource(proposedSystem.heatSource.kind);
+  const hs = proposedSystem.heatSource.kind;
+  return (
+    hs === 'combi_boiler' ||
+    hs === 'system_boiler' ||
+    hs === 'regular_boiler' ||
+    hs === 'storage_combi'
+  );
 }
 
 /**
@@ -214,15 +222,22 @@ function cylinderTypeLabel(hw: HotWaterKindV1): string {
  * Detects the technically exceptional path: replacing a heat pump with a
  * gas boiler.  This requires a surveyor justification note and must not
  * silently produce a normal gas-boiler quote.
+ *
+ * Explicitly enumerates gas boiler types so that future non-gas condensing
+ * appliances (e.g. oil boilers) do not trigger this gate unnecessarily.
  */
 function isHeatPumpToGasBoiler(
   currentSystem: InstallationSpecificationSystemV1,
   proposedSystem: InstallationSpecificationSystemV1,
 ): boolean {
-  return (
-    currentSystem.heatSource.kind === 'heat_pump' &&
-    isCondensingBoilerHeatSource(proposedSystem.heatSource.kind)
+  const proposedHs = proposedSystem.heatSource.kind;
+  const proposedIsGasBoiler = (
+    proposedHs === 'combi_boiler' ||
+    proposedHs === 'system_boiler' ||
+    proposedHs === 'regular_boiler' ||
+    proposedHs === 'storage_combi'
   );
+  return currentSystem.heatSource.kind === 'heat_pump' && proposedIsGasBoiler;
 }
 
 // ─── Spec-based scope sections ────────────────────────────────────────────────
