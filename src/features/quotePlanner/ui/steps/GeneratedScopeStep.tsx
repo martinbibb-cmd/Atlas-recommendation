@@ -56,7 +56,7 @@ export function GeneratedScopeStep({ plan, onNavigateToStep }: GeneratedScopeSte
       <p className="qp-step-subheading">Included from your plan</p>
 
       {verificationCount > 0 && (
-        <div className="scope-verify-banner" role="alert" aria-live="polite">
+        <div className="scope-verify-banner" role="alert" aria-live="assertive">
           <span className="scope-verify-banner__icon" aria-hidden="true">⚠</span>
           <span className="scope-verify-banner__text">
             {verificationCount} item{verificationCount !== 1 ? 's' : ''} need

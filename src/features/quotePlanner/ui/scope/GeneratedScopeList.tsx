@@ -123,7 +123,7 @@ export function GeneratedScopeList({ items, onEditSource }: GeneratedScopeListPr
                     <button
                       type="button"
                       className="scope-item__edit-link"
-                      onClick={() => onEditSource(item.sourceStepId!)}
+                      onClick={() => item.sourceStepId && onEditSource(item.sourceStepId)}
                       aria-label={`Edit source data for "${item.label}" in ${SOURCE_STEP_LABELS[item.sourceStepId]} step`}
                     >
                       Edit source: {SOURCE_STEP_LABELS[item.sourceStepId]}

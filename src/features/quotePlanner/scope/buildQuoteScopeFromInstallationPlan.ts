@@ -186,9 +186,18 @@ function locationNeedsVerification(location: QuotePlanLocationV1 | undefined): b
 
 // ─── Item builder ─────────────────────────────────────────────────────────────
 
-let _nextId = 0;
+/**
+ * Create a counter closure that generates sequential IDs scoped to one
+ * buildQuoteScopeFromInstallationPlan call.  This keeps the function pure
+ * (no module-level mutable state) while maintaining deterministic IDs.
+ */
+function makeIdCounter() {
+  let next = 0;
+  return () => `scope-${next++}`;
+}
 
 function makeItem(
+  nextId: () => string,
   category: QuoteScopeItemCategory,
   label: string,
   confidence: QuoteScopeItemConfidence,
@@ -199,7 +208,7 @@ function makeItem(
   },
 ): QuoteScopeItemV1 {
   return {
-    itemId:           `scope-${_nextId++}`,
+    itemId:           nextId(),
     category,
     label,
     confidence,
@@ -216,6 +225,7 @@ function makeItem(
  * Falls back to 'needs_verification' confidence when no drawn route exists.
  */
 function makePipeworkRouteItem(
+  nextId: () => string,
   plan: QuoteInstallationPlanV1,
   kind: PipeworkRouteKind,
   label: string,
@@ -227,7 +237,7 @@ function makePipeworkRouteItem(
     : (baseConfidence ?? 'needs_verification');
   const needsVerif = pipeworkRoutesNeedVerification(routes);
   const details = routeLengthDetail(routes);
-  return makeItem('routes', label, routeConf, needsVerif, {
+  return makeItem(nextId, 'routes', label, routeConf, needsVerif, {
     details,
     sourceStepId: 'pipework_plan',
   });
@@ -236,7 +246,11 @@ function makePipeworkRouteItem(
 /**
  * Build flue route scope item from the first active flue route.
  */
-function makeFlueItem(plan: QuoteInstallationPlanV1, label: string): QuoteScopeItemV1 {
+function makeFlueItem(
+  nextId: () => string,
+  plan: QuoteInstallationPlanV1,
+  label: string,
+): QuoteScopeItemV1 {
   const flue = plan.flueRoutes[0];
   const conf: QuoteScopeItemConfidence = flue
     ? flue.confidence === 'measured'
@@ -249,7 +263,7 @@ function makeFlueItem(plan: QuoteInstallationPlanV1, label: string): QuoteScopeI
   const details = flue?.calculation
     ? `~${flue.calculation.physicalLengthM.toFixed(1)} m`
     : undefined;
-  return makeItem('routes', label, conf, needsVerif, {
+  return makeItem(nextId, 'routes', label, conf, needsVerif, {
     details,
     sourceStepId: 'flue_plan',
   });
@@ -257,13 +271,17 @@ function makeFlueItem(plan: QuoteInstallationPlanV1, label: string): QuoteScopeI
 
 // ─── Per-job-type scope builders ──────────────────────────────────────────────
 
-function buildLikeForLikeScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[] {
+function buildLikeForLikeScope(
+  nextId: () => string,
+  plan: QuoteInstallationPlanV1,
+): QuoteScopeItemV1[] {
   const items: QuoteScopeItemV1[] = [];
   const existingBoiler = findActiveLocation(plan, 'existing_boiler');
   const proposedBoiler = findActiveLocation(plan, 'proposed_boiler');
 
   // 1. Isolate and remove existing boiler.
   items.push(makeItem(
+    nextId,
     'existing_removal',
     'Isolate and remove existing boiler',
     locationConfidence(existingBoiler),
@@ -273,6 +291,7 @@ function buildLikeForLikeScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[
 
   // 2. Fit new boiler at same location.
   items.push(makeItem(
+    nextId,
     'new_installation',
     'Fit new boiler at existing location',
     locationConfidence(proposedBoiler ?? existingBoiler),
@@ -281,13 +300,14 @@ function buildLikeForLikeScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[
   ));
 
   // 3. Flue route / terminal.
-  items.push(makeFlueItem(plan, 'Flue route — reuse or replace terminal'));
+  items.push(makeFlueItem(nextId, plan, 'Flue route — reuse or replace terminal'));
 
   // 4. Condensate route.
-  items.push(makePipeworkRouteItem(plan, 'condensate', 'Condensate route'));
+  items.push(makePipeworkRouteItem(nextId, plan, 'condensate', 'Condensate route'));
 
   // 5. Gas supply route — always include (verification item when not drawn).
   items.push(makePipeworkRouteItem(
+    nextId,
     plan,
     'gas',
     'Gas supply route — confirm or verify existing',
@@ -295,12 +315,15 @@ function buildLikeForLikeScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[
   ));
 
   // 6. Commission and handover.
-  items.push(makeItem('commissioning', 'Commission, test, and hand over', 'confirmed', false));
+  items.push(makeItem(nextId, 'commissioning', 'Commission, test, and hand over', 'confirmed', false));
 
   return items;
 }
 
-function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[] {
+function buildRelocationScope(
+  nextId: () => string,
+  plan: QuoteInstallationPlanV1,
+): QuoteScopeItemV1[] {
   const items: QuoteScopeItemV1[] = [];
   const existingBoiler = findActiveLocation(plan, 'existing_boiler');
   const proposedBoiler = findActiveLocation(plan, 'proposed_boiler');
@@ -308,6 +331,7 @@ function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
 
   // 1. Remove existing boiler.
   items.push(makeItem(
+    nextId,
     'existing_removal',
     'Remove existing boiler',
     locationConfidence(existingBoiler),
@@ -317,6 +341,7 @@ function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
 
   // 2. Cap/rework redundant pipework at old location.
   items.push(makeItem(
+    nextId,
     'alterations',
     'Cap or rework redundant pipework at old boiler location',
     locationConfidence(existingBoiler),
@@ -326,6 +351,7 @@ function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
 
   // 3. Fit new boiler at proposed location.
   items.push(makeItem(
+    nextId,
     'new_installation',
     'Fit new boiler at proposed location',
     locationConfidence(proposedBoiler),
@@ -334,14 +360,15 @@ function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
   ));
 
   // 4. New/reworked gas supply route.
-  items.push(makePipeworkRouteItem(plan, 'gas', 'New or reworked gas supply route'));
+  items.push(makePipeworkRouteItem(nextId, plan, 'gas', 'New or reworked gas supply route'));
 
   // 5. New flue route with wall core / opening.
-  items.push(makeFlueItem(plan, 'New flue route — new wall core or roof opening required'));
+  items.push(makeFlueItem(nextId, plan, 'New flue route — new wall core or roof opening required'));
 
   // 6. Make good old flue opening if a previous terminal exists.
   if (existingTerminal) {
     items.push(makeItem(
+      nextId,
       'alterations',
       'Make good old flue opening at previous terminal position',
       locationConfidence(existingTerminal),
@@ -351,7 +378,7 @@ function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
   }
 
   // 7. Condensate route.
-  items.push(makePipeworkRouteItem(plan, 'condensate', 'Condensate route'));
+  items.push(makePipeworkRouteItem(nextId, plan, 'condensate', 'Condensate route'));
 
   // 8. Heating flow/return alterations.
   const flowRoutes  = findPipeworkRoutes(plan, 'heating_flow');
@@ -363,6 +390,7 @@ function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
   const heatNeedsVerif = pipeworkRoutesNeedVerification(allHeatRoutes);
   const heatDetails = routeLengthDetail(allHeatRoutes);
   items.push(makeItem(
+    nextId,
     'alterations',
     'Heating flow and return alterations to new boiler position',
     heatConf,
@@ -373,7 +401,10 @@ function buildRelocationScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
   return items;
 }
 
-function buildConversionScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[] {
+function buildConversionScope(
+  nextId: () => string,
+  plan: QuoteInstallationPlanV1,
+): QuoteScopeItemV1[] {
   const items: QuoteScopeItemV1[] = [];
   const existingBoiler = findActiveLocation(plan, 'existing_boiler');
   const existingCylinder = findActiveLocation(plan, 'cylinder');
@@ -381,6 +412,7 @@ function buildConversionScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
 
   // 1. Remove existing heat source.
   items.push(makeItem(
+    nextId,
     'existing_removal',
     'Remove existing heat source (boiler or back boiler)',
     locationConfidence(existingBoiler),
@@ -398,6 +430,7 @@ function buildConversionScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
       locationNeedsVerification(existingCylinder) ||
       locationNeedsVerification(existingBoiler);
     items.push(makeItem(
+      nextId,
       'existing_removal',
       'Remove or cap redundant cylinder and tank pipework',
       conf,
@@ -408,6 +441,7 @@ function buildConversionScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
 
   // 3. Fit combi at proposed location.
   items.push(makeItem(
+    nextId,
     'new_installation',
     'Fit new combi boiler at proposed location',
     locationConfidence(proposedBoiler),
@@ -424,6 +458,7 @@ function buildConversionScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
     const needsVerif = pipeworkRoutesNeedVerification(allRoutes);
     const details = routeLengthDetail(allRoutes);
     items.push(makeItem(
+      nextId,
       'routes',
       'New hot and cold water connections to combi',
       conf,
@@ -441,6 +476,7 @@ function buildConversionScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
     const needsVerif = pipeworkRoutesNeedVerification(allRoutes);
     const details = routeLengthDetail(allRoutes);
     items.push(makeItem(
+      nextId,
       'alterations',
       'Heating flow and return alterations',
       conf,
@@ -450,27 +486,31 @@ function buildConversionScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[]
   }
 
   // 6. Flue route.
-  items.push(makeFlueItem(plan, 'Flue route — new wall core or roof opening'));
+  items.push(makeFlueItem(nextId, plan, 'Flue route — new wall core or roof opening'));
 
   // 7. Condensate route.
-  items.push(makePipeworkRouteItem(plan, 'condensate', 'Condensate route'));
+  items.push(makePipeworkRouteItem(nextId, plan, 'condensate', 'Condensate route'));
 
   // 8. Gas supply route.
-  items.push(makePipeworkRouteItem(plan, 'gas', 'Gas supply route'));
+  items.push(makePipeworkRouteItem(nextId, plan, 'gas', 'Gas supply route'));
 
   // 9. Commission and handover.
-  items.push(makeItem('commissioning', 'Commission, test, and hand over', 'confirmed', false));
+  items.push(makeItem(nextId, 'commissioning', 'Commission, test, and hand over', 'confirmed', false));
 
   return items;
 }
 
-function buildStoredHotWaterUpgradeScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[] {
+function buildStoredHotWaterUpgradeScope(
+  nextId: () => string,
+  plan: QuoteInstallationPlanV1,
+): QuoteScopeItemV1[] {
   const items: QuoteScopeItemV1[] = [];
   const proposedBoiler  = findActiveLocation(plan, 'proposed_boiler');
   const cylinderLocation = findActiveLocation(plan, 'cylinder');
 
   // 1. Fit or retain heat source.
   items.push(makeItem(
+    nextId,
     'new_installation',
     'Fit or retain heat source (boiler) at selected location',
     locationConfidence(proposedBoiler),
@@ -480,6 +520,7 @@ function buildStoredHotWaterUpgradeScope(plan: QuoteInstallationPlanV1): QuoteSc
 
   // 2. Fit cylinder/store at proposed location.
   items.push(makeItem(
+    nextId,
     'new_installation',
     'Fit hot-water cylinder or store at proposed location',
     locationConfidence(cylinderLocation),
@@ -496,6 +537,7 @@ function buildStoredHotWaterUpgradeScope(plan: QuoteInstallationPlanV1): QuoteSc
     const needsVerif = pipeworkRoutesNeedVerification(allRoutes);
     const details = routeLengthDetail(allRoutes);
     items.push(makeItem(
+      nextId,
       'routes',
       'Hot and cold water route connections to cylinder',
       conf,
@@ -515,6 +557,7 @@ function buildStoredHotWaterUpgradeScope(plan: QuoteInstallationPlanV1): QuoteSc
       : true;
     const details = routeLengthDetail(dischargeRoutes);
     items.push(makeItem(
+      nextId,
       'routes',
       'Discharge route — verify termination point complies with regulations',
       conf,
@@ -532,6 +575,7 @@ function buildStoredHotWaterUpgradeScope(plan: QuoteInstallationPlanV1): QuoteSc
     const needsVerif = pipeworkRoutesNeedVerification(allRoutes);
     const details = routeLengthDetail(allRoutes);
     items.push(makeItem(
+      nextId,
       'routes',
       'Primary flow and return routes from boiler to cylinder',
       conf,
@@ -548,6 +592,7 @@ function buildStoredHotWaterUpgradeScope(plan: QuoteInstallationPlanV1): QuoteSc
       const needsVerif = pipeworkRoutesNeedVerification(controlsRoutes);
       const details = routeLengthDetail(controlsRoutes);
       items.push(makeItem(
+        nextId,
         'routes',
         'Controls wiring route',
         conf,
@@ -560,12 +605,16 @@ function buildStoredHotWaterUpgradeScope(plan: QuoteInstallationPlanV1): QuoteSc
   return items;
 }
 
-function buildHeatPumpPlaceholderScope(plan: QuoteInstallationPlanV1): QuoteScopeItemV1[] {
+function buildHeatPumpPlaceholderScope(
+  nextId: () => string,
+  plan: QuoteInstallationPlanV1,
+): QuoteScopeItemV1[] {
   const items: QuoteScopeItemV1[] = [];
 
   // Heat-pump scope is a basic placeholder — full module to follow.
   const outdoorUnit = findActiveLocation(plan, 'proposed_boiler'); // closest equivalent for now
   items.push(makeItem(
+    nextId,
     'new_installation',
     'Outdoor unit — candidate location to confirm',
     locationConfidence(outdoorUnit),
@@ -582,6 +631,7 @@ function buildHeatPumpPlaceholderScope(plan: QuoteInstallationPlanV1): QuoteScop
       ? pipeworkRoutesNeedVerification(hydraulicRoutes)
       : true;
     items.push(makeItem(
+      nextId,
       'routes',
       'Hydraulic connection route — outdoor unit to indoor unit',
       conf,
@@ -591,6 +641,7 @@ function buildHeatPumpPlaceholderScope(plan: QuoteInstallationPlanV1): QuoteScop
   }
 
   items.push(makeItem(
+    nextId,
     'routes',
     'Electrical supply route — outdoor unit',
     'needs_verification',
@@ -599,6 +650,7 @@ function buildHeatPumpPlaceholderScope(plan: QuoteInstallationPlanV1): QuoteScop
   ));
 
   items.push(makeItem(
+    nextId,
     'commissioning',
     'Full heat-pump scope — detailed module to follow',
     'needs_verification',
@@ -623,22 +675,22 @@ function buildHeatPumpPlaceholderScope(plan: QuoteInstallationPlanV1): QuoteScop
 export function buildQuoteScopeFromInstallationPlan(
   plan: QuoteInstallationPlanV1,
 ): QuoteScopeItemV1[] {
-  // Reset counter to keep IDs deterministic per-call.
-  _nextId = 0;
+  // Create a counter scoped to this call — keeps the function pure.
+  const nextId = makeIdCounter();
 
   const { jobType } = plan.jobClassification;
 
   switch (jobType) {
     case 'like_for_like':
-      return buildLikeForLikeScope(plan);
+      return buildLikeForLikeScope(nextId, plan);
     case 'relocation':
-      return buildRelocationScope(plan);
+      return buildRelocationScope(nextId, plan);
     case 'conversion':
-      return buildConversionScope(plan);
+      return buildConversionScope(nextId, plan);
     case 'stored_hot_water_upgrade':
-      return buildStoredHotWaterUpgradeScope(plan);
+      return buildStoredHotWaterUpgradeScope(nextId, plan);
     case 'low_carbon_conversion':
-      return buildHeatPumpPlaceholderScope(plan);
+      return buildHeatPumpPlaceholderScope(nextId, plan);
     case 'needs_review':
       return [];
   }
