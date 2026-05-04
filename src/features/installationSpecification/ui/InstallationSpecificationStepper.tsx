@@ -130,6 +130,8 @@ export function InstallationSpecificationStepper({
     useState<UiCurrentSystemLabel | null>(null);
   const [selectedProposedSystem, setSelectedProposedSystem] =
     useState<UiProposedSystemLabel | null>(seedProposedSystem ?? null);
+  // Exception-path note — required when selectedCurrentSystem === 'unknown'.
+  const [exceptionNote, setExceptionNote] = useState('');
   const [locations, setLocations] = useState<QuotePlanLocationV1[]>([]);
   const [flueRoute, setFlueRoute] = useState<QuotePlanCandidateFlueRouteV1 | null>(null);
   const [pipeworkRoutes, setPipeworkRoutes] = useState<QuotePlanPipeworkRouteV1[]>([]);
@@ -170,8 +172,13 @@ export function InstallationSpecificationStepper({
   const stepId = STEP_IDS[currentStep];
 
   // Next is disabled when the active step requires a selection and none is made.
+  // When the exception path is taken (unknown), a note must be provided.
   const canAdvance: boolean = (() => {
-    if (stepId === 'current_system') return selectedCurrentSystem !== null;
+    if (stepId === 'current_system') {
+      if (selectedCurrentSystem === null) return false;
+      if (selectedCurrentSystem === 'unknown') return exceptionNote.trim().length > 0;
+      return true;
+    }
     if (stepId === 'proposed_system') return selectedProposedSystem !== null;
     return true;
   })();
@@ -206,14 +213,22 @@ export function InstallationSpecificationStepper({
         return (
           <CurrentSystemStep
             selected={selectedCurrentSystem}
+            exceptionNote={exceptionNote}
             onSelect={(val) => {
               setSelectedCurrentSystem(val);
-              // When the engineer selects a system, clear any stale proposed
-              // selection that was based on a previous current-system choice —
-              // unless the proposed selection was seeded from the recommendation.
+              // Clear stale proposed selection unless it was seeded from the recommendation.
               if (seedProposedSystem == null) {
                 setSelectedProposedSystem(null);
               }
+              // Clear the exception note when a real system tile is selected.
+              if (val !== 'unknown') {
+                setExceptionNote('');
+              }
+            }}
+            onExceptionNoteChange={setExceptionNote}
+            onClearSelection={() => {
+              setSelectedCurrentSystem(null);
+              setExceptionNote('');
             }}
           />
         );
