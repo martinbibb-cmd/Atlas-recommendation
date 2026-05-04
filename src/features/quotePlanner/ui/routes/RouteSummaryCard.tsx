@@ -36,7 +36,7 @@ const STATUS_MODIFIERS: Record<PipeworkRouteStatus, string> = {
   assumed:         'rsc-badge--assumed',
 };
 
-const COMPLEXITY_LABELS: Record<QuoteRouteComplexity, string> = {
+export const COMPLEXITY_LABELS: Record<QuoteRouteComplexity, string> = {
   low:          'Low',
   medium:       'Medium',
   high:         'High',
@@ -50,7 +50,7 @@ const COMPLEXITY_MODIFIERS: Record<QuoteRouteComplexity, string> = {
   needs_review: 'rsc-complexity--review',
 };
 
-const CONFIDENCE_LABELS: Record<PipeworkLengthConfidence, string> = {
+export const CONFIDENCE_LABELS: Record<PipeworkLengthConfidence, string> = {
   measured_on_plan: 'Measured on plan',
   estimated:        'Estimated',
   manual:           'Manual override',

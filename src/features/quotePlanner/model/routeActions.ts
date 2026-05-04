@@ -36,8 +36,10 @@ let _pipeworkRouteIdCounter = 0;
 
 // ─── Complexity thresholds ────────────────────────────────────────────────────
 
+/** Lengths in metres used to band route complexity. */
 const SHORT_M = 3;
 const LONG_M = 10;
+/** Bend-count thresholds used to band route complexity. */
 const HIGH_BEND = 3;
 const MEDIUM_BEND = 1;
 

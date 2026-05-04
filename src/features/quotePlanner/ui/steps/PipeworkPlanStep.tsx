@@ -30,9 +30,9 @@
  */
 
 import { useState } from 'react';
-import { RouteTypePicker } from '../routes/RouteTypePicker';
+import { RouteTypePicker, PIPEWORK_ROUTE_KIND_LABELS } from '../routes/RouteTypePicker';
 import { RouteDrawingCanvas } from '../routes/RouteDrawingCanvas';
-import { RouteSummaryCard } from '../routes/RouteSummaryCard';
+import { RouteSummaryCard, CONFIDENCE_LABELS, COMPLEXITY_LABELS } from '../routes/RouteSummaryCard';
 import {
   buildPipeworkRouteDraft,
   addRoutePoint,
@@ -301,7 +301,7 @@ export function PipeworkPlanStep({
           data-testid="pipework-route-editor"
         >
           <h3 id="pw-editor-heading" className="pw-section-heading">
-            Editing: {editingRoute.routeKind.replace('_', ' ')}
+            Editing: {PIPEWORK_ROUTE_KIND_LABELS[editingRoute.routeKind] ?? editingRoute.routeKind}
           </h3>
 
           {/* Drawing canvas */}
@@ -539,7 +539,7 @@ export function PipeworkPlanStep({
                 </div>
                 <div className="pw-calc-row">
                   <dt>Confidence</dt>
-                  <dd>{calc.lengthConfidence.replace('_', ' ')}</dd>
+                  <dd>{CONFIDENCE_LABELS[calc.lengthConfidence]}</dd>
                 </div>
                 <div className="pw-calc-row">
                   <dt>Bends</dt>
@@ -556,7 +556,7 @@ export function PipeworkPlanStep({
                 <div className="pw-calc-row">
                   <dt>Complexity</dt>
                   <dd className={`pw-complexity pw-complexity--${calc.complexity}`}>
-                    {calc.complexity.replace('_', ' ')}
+                    {COMPLEXITY_LABELS[calc.complexity]}
                   </dd>
                 </div>
               </dl>
