@@ -190,7 +190,7 @@ describe('InstallationSpecificationStepper — selection', () => {
 
   it('only one tile is selected at a time', () => {
     renderStepper();
-    const combiBtns   = screen.getAllByRole('button', { name: /Combination boiler/i });
+    const combiBtns = screen.getAllByRole('button', { name: /Combination boiler/i });
     const heatPumpBtns = screen.getAllByRole('button', { name: /Heat pump/i });
     fireEvent.click(combiBtns[0]);
     fireEvent.click(heatPumpBtns[0]);

@@ -158,7 +158,7 @@ export function JobTypeStep({
   currentSystemLabel,
   proposedSystemLabel,
 }: JobTypeStepProps) {
-  const jobDisplay    = JOB_TYPE_DISPLAY[classification.jobType];
+  const jobDisplay = JOB_TYPE_DISPLAY[classification.jobType];
   const isNeedsReview = classification.jobType === 'needs_review';
 
   const currentDisplay =
