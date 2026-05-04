@@ -22,6 +22,13 @@ import type {
   QuoteRouteV1,
   QuoteFlueRouteV1,
   FlueFamily,
+  PipeworkRouteKind,
+  PipeworkRouteStatus,
+  PipeworkInstallMethod,
+  QuotePipeworkCalculationV1,
+  QuotePointCoordinateSpace,
+  QuotePointScale,
+  QuoteRoutePointV1,
 } from '../calculators/quotePlannerTypes';
 
 import type {
@@ -40,6 +47,10 @@ export type {
   QuotePlannerRouteType,
   QuotePlannerRouteConfidence,
   FlueFamily,
+  PipeworkRouteKind,
+  PipeworkRouteStatus,
+  PipeworkInstallMethod,
+  QuotePipeworkCalculationV1,
 };
 
 // ─── Plan-layer location kind ─────────────────────────────────────────────────
@@ -181,6 +192,54 @@ export interface QuotePlanCandidateFlueRouteV1 {
   notes?: string;
 }
 
+// ─── Plan pipework route ──────────────────────────────────────────────────────
+
+/**
+ * A pipework route drawn by the engineer on the floor plan.
+ *
+ * Design rules:
+ *   - `points` may be empty when status is 'reused_existing' and the exact
+ *     route is known but not yet drawn (valid without full geometry).
+ *   - `calculation` is always present and recalculated whenever points,
+ *     penetration counts, install method, or scale changes.
+ *   - When `coordinateSpace === 'pixels'` and no `scale` is supplied,
+ *     `calculation.lengthConfidence` is 'needs_scale' and
+ *     `calculation.lengthM` is null — no fake metres are introduced.
+ */
+export interface QuotePlanPipeworkRouteV1 {
+  /** Stable identifier within the plan. */
+  pipeworkRouteId: string;
+  /** Service type carried by this route. */
+  routeKind: PipeworkRouteKind;
+  /** Status assigned by the engineer. */
+  status: PipeworkRouteStatus;
+  /** How the pipe is or will be physically installed. */
+  installMethod: PipeworkInstallMethod;
+  /** Optional pipe diameter (free text, e.g. "22mm", "15mm"). */
+  diameter?: string;
+  /** Ordered waypoints defining the route polyline. */
+  points: QuoteRoutePointV1[];
+  /** Coordinate space of the point coordinates. */
+  coordinateSpace: QuotePointCoordinateSpace;
+  /**
+   * Scale factor — required when coordinateSpace is 'pixels'.
+   * Omit for metre-space routes.
+   */
+  scale?: QuotePointScale;
+  /** Location ID from the plan's `locations` array used as the start anchor. */
+  startAnchorId?: string;
+  /** Location ID from the plan's `locations` array used as the end anchor. */
+  endAnchorId?: string;
+  /** Number of wall penetrations along the route (set by the engineer). */
+  wallPenetrationCount: number;
+  /** Number of floor penetrations along the route (set by the engineer). */
+  floorPenetrationCount: number;
+  /** Optional engineer-facing note. */
+  notes?: string;
+  /** Current calculation result for this route. */
+  calculation: QuotePipeworkCalculationV1;
+}
+
 // ─── Top-level plan ───────────────────────────────────────────────────────────
 
 /**
@@ -220,6 +279,8 @@ export interface QuoteInstallationPlanV1 {
   routes: QuotePlanCandidateRouteV1[];
   /** Candidate flue routes in this plan. */
   flueRoutes: QuotePlanCandidateFlueRouteV1[];
+  /** Engineer-drawn pipework routes in this plan. */
+  pipeworkRoutes: QuotePlanPipeworkRouteV1[];
   /** Classified job type derived from current and proposed systems. */
   jobClassification: QuoteJobClassificationV1;
   /**

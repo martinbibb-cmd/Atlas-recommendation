@@ -272,6 +272,7 @@ export function buildQuoteInstallationPlanDraft(
     locations,
     routes,
     flueRoutes,
+    pipeworkRoutes: [],
     jobClassification,
     generatedScope: [],
   };
