@@ -866,6 +866,17 @@ function HubActions({
             🔗 External files
           </button>
         )}
+
+        {onOpenInstallationSpecification && (
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={onOpenInstallationSpecification}
+            aria-label="Open installation specification"
+            data-testid="open-installation-specification-btn"
+          >
+            🛠 Installation specification
+          </button>
+        )}
       </div>
     </div>
   );

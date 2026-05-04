@@ -1450,6 +1450,12 @@ function AppInner() {
             onClose={() => setJourney('visit-hub')}
           />
         )}
+        {/* Installation Specification — opened from Visit Hub or QuoteCollectionStep */}
+        {journey === 'installation-specification' && (
+          <InstallationSpecificationPage
+            onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
+          />
+        )}
         {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
         {journey === 'visit-handoff' && (
           <VisitHandoffReviewPage
@@ -1506,6 +1512,7 @@ function AppInner() {
               setJourney('floor-plan');
             }}
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
+            onOpenInstallationSpecification={() => setJourney('installation-specification')}
             floorplanOutput={floorplanOutput}
           />
         </GlobalMenuShell>

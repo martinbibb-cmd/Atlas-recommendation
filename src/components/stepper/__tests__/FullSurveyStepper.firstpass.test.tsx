@@ -8,8 +8,9 @@
  *      solar_assessment → priorities → insight.
  *
  *   2. onComplete is called with a clean EngineInputV2_3 when the user
- *      completes all survey steps (the insight page "Run Full Analysis" button)
- *      — this enables direct routing to the simulator.
+ *      completes all survey steps (the installation specification step
+ *      "Continue without specification" button) — this enables direct routing
+ *      to the simulator.
  *
  *   3. Legacy steps (location/pressure/hydraulic/hot_water/commercial/overlay)
  *      are no longer reachable via the active stepper flow.
@@ -142,13 +143,13 @@ describe('FullSurveyStepper — V2 active step structure', { timeout: 15000 }, (
     expect(document.querySelector('[data-testid="insight-layer-page"]')).not.toBeNull();
   });
 
-  it('insight page shows Run Full Analysis button as the final action', async () => {
+  it('insight page shows Next button as the final action', async () => {
     const user = userEvent.setup();
     render(<FullSurveyStepper onBack={() => {}} />);
 
     await advanceToStep(user, 7);
 
-    expect(screen.getByRole('button', { name: /Run Full Analysis/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Next →/i })).toBeTruthy();
   });
 });
 
@@ -156,12 +157,12 @@ describe('FullSurveyStepper — V2 active step structure', { timeout: 15000 }, (
 
 /**
  * Advance through all 9 V2 survey steps and trigger the final action button.
- * Steps 1–7 use "Next →"; step 8 (insight) uses "Run Full Analysis →";
- * step 9 (quotes) uses "Skip →" so the test completes without entering quote data.
+ * Steps 1–8 use "Next →"; step 9 (quotes) uses "Continue without specification"
+ * so the test completes without entering installation spec data.
  */
 async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
-  // Steps 1–7: click "Next →"
-  for (let i = 0; i < 7; i++) {
+  // Steps 1–8: click "Next →"
+  for (let i = 0; i < 8; i++) {
     // When on the System Architecture step, fill mandatory fields before advancing.
     if (document.querySelector('[data-testid="system-builder-step"]')) {
       await fillSystemBuilderMinimum(user);
@@ -169,9 +170,6 @@ async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
     const nextBtn = screen.getByRole('button', { name: /Next →/ });
     await user.click(nextBtn);
   }
-  // Step 8 (insight): click "Run Full Analysis →"
-  const insightBtn = screen.getByRole('button', { name: /Run Full Analysis/ });
-  await user.click(insightBtn);
   // Step 9 (installation specification): click "Continue without specification" to complete the survey
   const skipBtn = screen.getByRole('button', { name: /Continue without specification/ });
   await user.click(skipBtn);

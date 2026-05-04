@@ -28,7 +28,7 @@
  *  - Prioritize finishability over showing every builder control at once
  */
 
-import { type CSSProperties, useMemo } from 'react';
+import { type CSSProperties, useMemo, useRef } from 'react';
 import type { HeatLossState, ShellModel } from './heatLossTypes';
 import { INITIAL_HEAT_LOSS_STATE } from './heatLossTypes';
 import { getStepMeta } from '../../../config/surveyStepRegistry';
@@ -174,11 +174,19 @@ export function HeatLossStep({
   const canProceed = completionState === 'not_started' || completionState === 'result_ready';
   const gateReason = getGateReason(completionState);
 
+  // Track the latest shell in a ref so that handleHeatLossChange always reads
+  // the most recent geometry even when both callbacks (onShellChange and
+  // onHeatLossChange) fire in the same React commit phase.  Without this ref
+  // the heat-loss callback would read a stale state.shellModel (before the
+  // shell-change update has been applied), causing perimeterM to be undefined.
+  const latestShellRef = useRef<ShellModel | undefined>(state.shellModel);
+
   function handleHeatLossChange(totalKw: number | null) {
     // When a heat-loss result arrives, also capture the computed perimeter and
     // area from the active shell layer so they are stored in state (and
     // therefore flow through to the engine via sanitiseModelForEngine).
-    const shellModel = state.shellModel;
+    // Use the ref (not state.shellModel) to get the most recent geometry.
+    const shellModel = latestShellRef.current ?? state.shellModel;
     const activeLayerForMetrics = shellModel?.layers.find(
       l => l.id === shellModel.activeLayerId
     );
@@ -199,6 +207,7 @@ export function HeatLossStep({
   }
 
   function handleShellChange(shell: ShellModel) {
+    latestShellRef.current = shell;
     onChange({ ...state, shellModel: shell });
   }
 
