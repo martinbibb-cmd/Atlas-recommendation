@@ -137,6 +137,47 @@ export function updateMaxEquivalentLength(
   return recalculate(route, segments, maxEquivalentLengthM);
 }
 
+// ─── Tap-to-Flip elbow direction ──────────────────────────────────────────────
+
+/** The ordered cycle of elbow flip directions. */
+const FLIP_DIRECTION_CYCLE: Array<'right' | 'down' | 'left' | 'up'> = [
+  'right',
+  'down',
+  'left',
+  'up',
+];
+
+/**
+ * Cycles the `flipDirection` of an elbow segment at the given index.
+ *
+ * Direction cycles: right → down → left → up → right …
+ * Segments that are not elbow kinds (elbow_90 / elbow_45) are returned unchanged.
+ * Out-of-range indices are silently ignored.
+ *
+ * Returns a new route object — the original is not mutated.
+ */
+export function flipFlueSegment(
+  route: QuotePlanCandidateFlueRouteV1,
+  index: number,
+): QuotePlanCandidateFlueRouteV1 {
+  const existingSegments = route.geometry?.segments ?? [];
+  if (index < 0 || index >= existingSegments.length) return route;
+
+  const segment = existingSegments[index];
+  if (segment.kind !== 'elbow_90' && segment.kind !== 'elbow_45') return route;
+
+  const currentDirection = segment.flipDirection ?? 'right';
+  const currentIdx = FLIP_DIRECTION_CYCLE.indexOf(currentDirection);
+  const nextIdx = (currentIdx + 1) % FLIP_DIRECTION_CYCLE.length;
+  const nextDirection = FLIP_DIRECTION_CYCLE[nextIdx];
+
+  const updatedSegments = existingSegments.map((seg, i) =>
+    i === index ? { ...seg, flipDirection: nextDirection } : seg,
+  );
+
+  return recalculate(route, updatedSegments, route.geometry?.maxEquivalentLengthM);
+}
+
 // ─── Manual override ──────────────────────────────────────────────────────────
 
 /**

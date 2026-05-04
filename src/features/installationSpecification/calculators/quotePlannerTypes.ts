@@ -200,6 +200,22 @@ export interface QuoteFlueSegmentV1 {
    * When omitted, the generic rule set value for this kind is used.
    */
   equivalentLengthM?: number;
+  /**
+   * Tap-to-flip direction for elbow segments (elbow_90 and elbow_45).
+   *
+   * Controls the visual direction of the elbow in the flue route diagram.
+   * Flipping does not change the equivalent-length calculation — it is a
+   * geometric/visual property only (so the installer can show cupboard entry
+   * direction to a customer or on a print-out).
+   *
+   * Absent for non-elbow segment kinds.
+   *
+   *   right — elbow turns right (default for horizontal runs).
+   *   left  — elbow turns left.
+   *   up    — elbow turns up (for vertical rises).
+   *   down  — elbow turns down (for drops).
+   */
+  flipDirection?: 'right' | 'left' | 'up' | 'down';
 }
 
 /**

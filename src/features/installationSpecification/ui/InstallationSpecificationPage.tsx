@@ -14,6 +14,7 @@
 
 import { InstallationSpecificationStepper } from './InstallationSpecificationStepper';
 import type { UiProposedHeatSourceLabel, CanonicalCurrentSystemSummary } from './installationSpecificationUiTypes';
+import type { ObjectPinV2 } from '../../scanImport/contracts/sessionCaptureV2';
 
 export interface InstallationSpecificationPageProps {
   /**
@@ -43,6 +44,12 @@ export interface InstallationSpecificationPageProps {
    * interactive overlay.
    */
   floorPlanUri?: string;
+  /**
+   * Object pins captured during the scan session.
+   * When provided, pins with recognised types are surfaced as suggestions
+   * in the Place Locations step.
+   */
+  scanObjectPins?: ObjectPinV2[];
 }
 
 export function InstallationSpecificationPage({
@@ -51,6 +58,7 @@ export function InstallationSpecificationPage({
   canonicalCurrentSystem,
   seedProposedSystem,
   floorPlanUri,
+  scanObjectPins,
 }: InstallationSpecificationPageProps) {
   return (
     <InstallationSpecificationStepper
@@ -59,6 +67,7 @@ export function InstallationSpecificationPage({
       canonicalCurrentSystem={canonicalCurrentSystem}
       seedProposedSystem={seedProposedSystem}
       floorPlanUri={floorPlanUri}
+      scanObjectPins={scanObjectPins}
     />
   );
 }

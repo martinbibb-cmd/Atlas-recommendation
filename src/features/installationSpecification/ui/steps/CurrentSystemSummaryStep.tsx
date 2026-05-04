@@ -74,6 +74,15 @@ function MissingField({ label, onCorrectSurvey }: { label: string; onCorrectSurv
   );
 }
 
+// ─── Condition band display ───────────────────────────────────────────────────
+
+const CONDITION_BAND_DISPLAY: Record<'good' | 'moderate' | 'poor' | 'severe', string> = {
+  good:     'Good',
+  moderate: 'Moderate',
+  poor:     'Poor',
+  severe:   'Severe',
+};
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface CurrentSystemSummaryStepProps {
@@ -153,6 +162,24 @@ export function CurrentSystemSummaryStep({
               <dt className="spec-summary__label">Cylinder / store location</dt>
               <dd className="spec-summary__value" data-testid="summary-cylinder-location">
                 {summary.cylinderLocation}
+              </dd>
+            </div>
+          )}
+
+          {summary?.systemAgeYears != null && (
+            <div className="spec-summary__row">
+              <dt className="spec-summary__label">Approximate age</dt>
+              <dd className="spec-summary__value" data-testid="summary-system-age">
+                {summary.systemAgeYears} year{summary.systemAgeYears !== 1 ? 's' : ''}
+              </dd>
+            </div>
+          )}
+
+          {summary?.boilerConditionBand != null && (
+            <div className="spec-summary__row">
+              <dt className="spec-summary__label">Boiler condition</dt>
+              <dd className="spec-summary__value" data-testid="summary-boiler-condition">
+                {CONDITION_BAND_DISPLAY[summary.boilerConditionBand]}
               </dd>
             </div>
           )}

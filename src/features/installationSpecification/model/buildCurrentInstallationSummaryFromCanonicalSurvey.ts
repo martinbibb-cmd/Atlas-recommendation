@@ -25,6 +25,7 @@ import type {
   UiCurrentHeatSourceLabel,
   UiCurrentHotWaterLabel,
   UiCurrentPrimaryCircuitLabel,
+  UiProposedHeatSourceLabel,
 } from '../ui/installationSpecificationUiTypes';
 
 // ─── Input shape ─────────────────────────────────────────────────────────────
@@ -52,6 +53,18 @@ export interface CanonicalSurveyAdapterInput {
    * Flat legacy DHW storage type — used when systemBuilder is absent.
    */
   dhwStorageType?: 'none' | 'vented' | 'unvented' | 'mixergy' | 'thermal_store' | 'heat_pump_cylinder';
+
+  /**
+   * Inferred boiler condition band from sanitiseModelForEngine.
+   * Passed through verbatim to CanonicalCurrentSystemSummary.boilerConditionBand.
+   */
+  boilerConditionBand?: 'good' | 'moderate' | 'poor' | 'severe';
+
+  /**
+   * System age in years, typically from currentBoilerAgeYears.
+   * Passed through verbatim to CanonicalCurrentSystemSummary.systemAgeYears.
+   */
+  systemAgeYears?: number;
 
   /**
    * Structured current system — engine-normalised (from EngineInputV2_3).
@@ -346,5 +359,45 @@ export function buildCurrentInstallationSummaryFromCanonicalSurvey(
     hotWater,
     primaryCircuit,
     ...(cylinderLocation != null ? { cylinderLocation } : {}),
+    ...(input.boilerConditionBand != null ? { boilerConditionBand: input.boilerConditionBand } : {}),
+    ...(input.systemAgeYears != null ? { systemAgeYears: input.systemAgeYears } : {}),
   };
+}
+
+// ─── Recommendation bridge ────────────────────────────────────────────────────
+
+/**
+ * Maps an engine `recommendedScenarioId` to the nearest `UiProposedHeatSourceLabel`
+ * for use as the `seedProposedSystem` prop on the Installation Specification stepper.
+ *
+ * Known scenario IDs:
+ *   combi           → combi_boiler
+ *   system_unvented / stored_unvented → system_boiler
+ *   regular_vented  / stored_vented   → regular_boiler
+ *   ashp            → heat_pump
+ *
+ * Any unrecognised scenario ID returns null — the stepper will show the
+ * proposed-system step without a pre-selected tile.
+ *
+ * @param scenarioId  The `recommendedScenarioId` from `AtlasDecisionV1`.
+ * @returns           A `UiProposedHeatSourceLabel`, or null for unknown IDs.
+ */
+export function mapRecommendedScenarioIdToProposedHeatSource(
+  scenarioId: string | null | undefined,
+): UiProposedHeatSourceLabel | null {
+  if (scenarioId == null) return null;
+  switch (scenarioId) {
+    case 'combi':
+      return 'combi_boiler';
+    case 'system_unvented':
+    case 'stored_unvented':
+      return 'system_boiler';
+    case 'regular_vented':
+    case 'stored_vented':
+      return 'regular_boiler';
+    case 'ashp':
+      return 'heat_pump';
+    default:
+      return null;
+  }
 }
