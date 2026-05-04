@@ -24,14 +24,17 @@ import { JobTypeStep } from './steps/JobTypeStep';
 import { PlaceLocationsStep } from './steps/PlaceLocationsStep';
 import { FluePlanStep } from './steps/FluePlanStep';
 import { PipeworkPlanStep } from './steps/PipeworkPlanStep';
+import { GeneratedScopeStep } from './steps/GeneratedScopeStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
 import { uiLabelToFamily } from './quotePlannerUiTypes';
 import type { UiCurrentSystemLabel, UiProposedSystemLabel } from './quotePlannerUiTypes';
 import type { QuoteJobClassificationV1 } from '../calculators/quotePlannerTypes';
 import type {
+  QuoteInstallationPlanV1,
   QuotePlanLocationV1,
   QuotePlanCandidateFlueRouteV1,
   QuotePlanPipeworkRouteV1,
+  QuoteScopeItemV1,
 } from '../model/QuoteInstallationPlanV1';
 import './quotePlannerStyles.css';
 
@@ -137,6 +140,32 @@ export function QuotePlannerStepper({
     [selectedCurrentSystem, selectedProposedSystem],
   );
 
+  // Build a minimal plan snapshot for scope generation.  Only the fields
+  // consumed by buildQuoteScopeFromInstallationPlan are populated here.
+  const planSnapshot = useMemo<QuoteInstallationPlanV1>(() => ({
+    planId:          'stepper-snapshot',
+    createdAt:       '',
+    currentSystem:   {
+      family: selectedCurrentSystem != null ? uiLabelToFamily(selectedCurrentSystem) : 'unknown',
+    },
+    proposedSystem:  {
+      family: selectedProposedSystem != null ? uiLabelToFamily(selectedProposedSystem) : 'unknown',
+    },
+    locations,
+    routes:          [],
+    flueRoutes:      flueRoute ? [flueRoute] : [],
+    pipeworkRoutes,
+    jobClassification,
+    generatedScope:  [],
+  }), [
+    selectedCurrentSystem,
+    selectedProposedSystem,
+    locations,
+    flueRoute,
+    pipeworkRoutes,
+    jobClassification,
+  ]);
+
   const totalSteps = STEP_IDS.length;
   const stepId = STEP_IDS[currentStep];
 
@@ -158,6 +187,14 @@ export function QuotePlannerStepper({
   function handleNext() {
     if (currentStep < totalSteps - 1) {
       setCurrentStep((s) => s + 1);
+    }
+  }
+
+  // Navigate back to the step identified by a source step ID from a scope item.
+  function handleNavigateToStep(sourceStepId: NonNullable<QuoteScopeItemV1['sourceStepId']>) {
+    const index = STEP_IDS.indexOf(sourceStepId);
+    if (index !== -1) {
+      setCurrentStep(index);
     }
   }
 
@@ -238,10 +275,10 @@ export function QuotePlannerStepper({
 
       case 'generated_scope':
         return (
-          <>
-            <h2 className="qp-step-heading">Generated scope</h2>
-            <PlaceholderStep icon="📋" label="Scope generation coming in the next release." />
-          </>
+          <GeneratedScopeStep
+            plan={planSnapshot}
+            onNavigateToStep={handleNavigateToStep}
+          />
         );
     }
   }
