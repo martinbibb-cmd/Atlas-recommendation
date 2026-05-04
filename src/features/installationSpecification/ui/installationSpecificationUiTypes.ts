@@ -135,7 +135,15 @@ export type UiCurrentHotWaterLabel =
 export type UiCurrentPrimaryCircuitLabel =
   | 'open_vented_primary'
   | 'sealed_primary'
-  | 'needs_technical_review';
+  | 'needs_technical_review'
+  /**
+   * Used in the canonical current-system summary when the primary circuit
+   * was not separately recorded for this heat source type (e.g. a combi
+   * boiler where circuit type is not a separate survey field), or when
+   * there is genuinely no primary wet-heating circuit.
+   * Displayed as "Not separately recorded" rather than "Missing from survey".
+   */
+  | 'not_applicable';
 
 // ─── Proposed heat source tile labels ────────────────────────────────────────
 
