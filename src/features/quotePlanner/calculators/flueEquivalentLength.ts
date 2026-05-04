@@ -25,6 +25,7 @@ import {
   GENERIC_FLUE_RULES,
   GENERIC_FLUE_ASSUMPTION_90,
   GENERIC_FLUE_ASSUMPTION_45,
+  GENERIC_FLUE_ASSUMPTION_OFFSET,
   GENERIC_FLUE_ASSUMPTION_PLUME,
   GENERIC_FLUE_ASSUMPTION_TERMINAL,
 } from './genericFlueRules';
@@ -38,9 +39,13 @@ function genericAssumptionForKind(kind: FlueSegmentKind): string | null {
       return GENERIC_FLUE_ASSUMPTION_90;
     case 'elbow_45':
       return GENERIC_FLUE_ASSUMPTION_45;
+    case 'offset':
+      return GENERIC_FLUE_ASSUMPTION_OFFSET;
     case 'plume_kit':
       return GENERIC_FLUE_ASSUMPTION_PLUME;
     case 'terminal':
+    case 'vertical_terminal':
+    case 'horizontal_terminal':
       return GENERIC_FLUE_ASSUMPTION_TERMINAL;
     default:
       return null;
@@ -57,14 +62,20 @@ function lookupEquivalentLength(
       return ruleSet.elbow90EquivalentLengthM;
     case 'elbow_45':
       return ruleSet.elbow45EquivalentLengthM;
+    case 'offset':
+      // An offset is equivalent to two 45° elbows in generic estimation.
+      return ruleSet.elbow45EquivalentLengthM * 2;
     case 'plume_kit':
       return ruleSet.plumeKitEquivalentLengthM;
     case 'terminal':
+    case 'vertical_terminal':
+    case 'horizontal_terminal':
       return ruleSet.terminalEquivalentLengthM;
+    case 'roof_flashing':
     case 'straight':
     case 'other':
-      // Straight segments contribute only their physical length; no additional
-      // fitting resistance. 'other' segments with no explicit value default to 0.
+      // Straight segments and accessories with no resistance contribution
+      // default to 0 additional equivalent length.
       return 0;
   }
 }
