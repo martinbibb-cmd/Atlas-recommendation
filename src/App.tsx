@@ -108,6 +108,7 @@ import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
 import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
 import type { CanonicalCurrentSystemSummary } from './features/installationSpecification/ui/installationSpecificationUiTypes';
+import type { InstallationSpecificationOptionV1 } from './features/installationSpecification/model/QuoteInstallationPlanV1';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -620,6 +621,12 @@ function AppInner() {
    */
   const [labFullSurveyModel, setLabFullSurveyModel] = useState<FullSurveyModelV1 | undefined>();
   /**
+   * Specification options accumulated across the active visit.
+   * Passed to InstallationSpecificationPage as existingOptions and updated
+   * each time the surveyor taps Finish inside the stepper.
+   */
+  const [labInstallationSpecifications, setLabInstallationSpecifications] = useState<InstallationSpecificationOptionV1[]>([]);
+  /**
    * Heat-loss survey state captured from the most recent full survey draft.
    * Passed to the presentation layer so the Your House quadrant can show the
    * perimeter snapshot and roof orientation (PR8a/PR8b/PR8c).
@@ -1055,6 +1062,20 @@ function AppInner() {
           <InstallationSpecificationPage
             onBack={handleBack}
             canonicalCurrentSystem={canonicalCurrentSystem}
+            origin="direct"
+            existingOptions={labInstallationSpecifications.length > 0 ? labInstallationSpecifications : undefined}
+            onSave={(option) => {
+              setLabInstallationSpecifications((prev) => {
+                const idx = prev.findIndex((o) => o.id === option.id);
+                if (idx >= 0) {
+                  const updated = [...prev];
+                  updated[idx] = option;
+                  return updated;
+                }
+                return [...prev, option];
+              });
+            }}
+            onFinish={() => { handleBack(); }}
           />
         </Suspense>
       </SpecificationErrorBoundary>
@@ -1469,6 +1490,7 @@ function AppInner() {
             onImportScan={() => setJourney('receive-scan')}
             onOpenExternalFiles={() => setJourney('external-files')}
             onOpenInstallationSpecification={() => setJourney('installation-specification')}
+            installationSpecOptionCount={labInstallationSpecifications.length > 0 ? labInstallationSpecifications.length : undefined}
           />
         )}
         {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
@@ -1496,6 +1518,21 @@ function AppInner() {
               <InstallationSpecificationPage
                 onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
                 canonicalCurrentSystem={canonicalCurrentSystem}
+                visitId={activeVisitId ?? undefined}
+                origin="visit-hub"
+                existingOptions={labInstallationSpecifications.length > 0 ? labInstallationSpecifications : undefined}
+                onSave={(option) => {
+                  setLabInstallationSpecifications((prev) => {
+                    const idx = prev.findIndex((o) => o.id === option.id);
+                    if (idx >= 0) {
+                      const updated = [...prev];
+                      updated[idx] = option;
+                      return updated;
+                    }
+                    return [...prev, option];
+                  });
+                }}
+                onFinish={() => { setJourney(activeVisitId != null ? 'visit-hub' : 'landing'); }}
               />
             </Suspense>
           </SpecificationErrorBoundary>

@@ -71,6 +71,11 @@ interface Props {
   onOpenExternalFiles?: () => void;
   /** Open the Installation Specification for this visit. */
   onOpenInstallationSpecification?: () => void;
+  /**
+   * Number of specification options saved for this visit.
+   * When provided and > 0, the button label shows a count.
+   */
+  installationSpecOptionCount?: number;
 }
 
 // Delay (ms) between opening the print dialog and launching the email client,
@@ -399,6 +404,7 @@ function HubActions({
   onOpenInstallationSpecification,
   canMarkOutcome,
   visitId,
+  installationSpecOptionCount,
 }: {
   meta: VisitMeta;
   onResumeSurvey: () => void;
@@ -424,6 +430,8 @@ function HubActions({
   canMarkOutcome: boolean;
   /** Visit ID forwarded to VisitOutcomeActions for analytics attribution. */
   visitId: string;
+  /** Number of saved specification options for this visit. */
+  installationSpecOptionCount?: number;
 }) {
   const surveyDone = isSurveyComplete(meta);
   const visitDone = isVisitCompleted(meta);
@@ -554,6 +562,9 @@ function HubActions({
               data-testid="open-installation-specification-btn"
             >
               🛠 Installation Specification
+              {installationSpecOptionCount != null && installationSpecOptionCount > 0
+                ? ` · ${installationSpecOptionCount} option${installationSpecOptionCount !== 1 ? 's' : ''}`
+                : ''}
             </button>
           )}
 
@@ -734,6 +745,9 @@ function HubActions({
               data-testid="open-installation-specification-btn"
             >
               🛠 Installation Specification
+              {installationSpecOptionCount != null && installationSpecOptionCount > 0
+                ? ` · ${installationSpecOptionCount} option${installationSpecOptionCount !== 1 ? 's' : ''}`
+                : ''}
             </button>
           )}
 
@@ -874,7 +888,10 @@ function HubActions({
             aria-label="Open installation specification"
             data-testid="open-installation-specification-btn"
           >
-            🛠 Installation Specification
+            �� Installation Specification
+            {installationSpecOptionCount != null && installationSpecOptionCount > 0
+              ? ` · ${installationSpecOptionCount} option${installationSpecOptionCount !== 1 ? 's' : ''}`
+              : ''}
           </button>
         )}
       </div>
@@ -897,6 +914,7 @@ export default function VisitHubPage({
   onImportScan,
   onOpenExternalFiles,
   onOpenInstallationSpecification,
+  installationSpecOptionCount,
 }: Props) {
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1263,6 +1281,7 @@ export default function VisitHubPage({
           onImportScan={onImportScan}
           onOpenExternalFiles={onOpenExternalFiles}
           onOpenInstallationSpecification={onOpenInstallationSpecification}
+          installationSpecOptionCount={installationSpecOptionCount}
           canMarkOutcome={canMarkOutcome}
           visitId={visitId}
         />

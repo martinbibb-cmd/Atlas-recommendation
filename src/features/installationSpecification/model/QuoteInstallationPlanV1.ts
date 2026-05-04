@@ -419,3 +419,105 @@ export interface QuoteInstallationPlanV1 {
 export type InstallSpecificationV1 = QuoteInstallationPlanV1;
 /** @deprecated Use QuotePlanLocationV1 — alias for installation specification consumers. */
 export type InstallSpecLocationV1 = QuotePlanLocationV1;
+
+// ─── Multiple specification options ──────────────────────────────────────────
+
+/**
+ * Lifecycle status of a single specification option.
+ *
+ * draft            — created but not yet worked on.
+ * in_progress      — partially filled, scope not yet generated.
+ * complete         — all steps done, scope generated, no decisions outstanding.
+ * needs_decision   — scope generated but one or more items need on-site verification.
+ */
+export type InstallationSpecificationOptionStatusV1 =
+  | 'draft'
+  | 'in_progress'
+  | 'complete'
+  | 'needs_decision';
+
+/**
+ * How a specification option was created.
+ *
+ * atlas_recommendation — seeded automatically from the Atlas recommendation.
+ * surveyor_variant     — created by the surveyor as a new variant.
+ * duplicated_option    — deep-cloned from an existing option.
+ * manual               — created from scratch with no seed data.
+ */
+export type InstallationSpecificationOptionSourceV1 =
+  | 'atlas_recommendation'
+  | 'surveyor_variant'
+  | 'duplicated_option'
+  | 'manual';
+
+/**
+ * A single specification option within a visit.
+ *
+ * Each option represents one valid install route (e.g. "combi same location",
+ * "combi relocated", "system boiler + Mixergy", "ASHP with cylinder").
+ * All options share the canonical current system from the survey but have
+ * their own proposed system, route decisions, generated scope, and status.
+ *
+ * Design rules:
+ *   - `id` is stable for the lifetime of the option — never re-generate it.
+ *   - `specification` is the full QuoteInstallationPlanV1 snapshot.
+ *   - `generatedScope` is persisted per option at Finish time.
+ *   - `isSelectedForQuote` drives which option feeds engineer handoff output.
+ *   - Do not store customer-facing copy here.
+ */
+export interface InstallationSpecificationOptionV1 {
+  /** Stable identifier for this option. */
+  id: string;
+  /**
+   * Short human-readable label, e.g. "Option A", "Option B — copy of Option A".
+   * Editable by the surveyor.
+   */
+  label: string;
+  /** ISO-8601 timestamp when this option was first created. */
+  createdAt: string;
+  /** ISO-8601 timestamp when this option was last saved. */
+  updatedAt: string;
+  /** Current lifecycle status of this option. */
+  status: InstallationSpecificationOptionStatusV1;
+  /**
+   * When true, this option is the Atlas-recommended install route.
+   * At most one option per visit should carry this flag.
+   */
+  isRecommended?: boolean;
+  /**
+   * When true, this option has been selected to feed the engineer handoff
+   * and any downstream quote or output document.
+   * At most one option per visit should carry this flag.
+   */
+  isSelectedForQuote?: boolean;
+  /** How this option was originally created. */
+  source: InstallationSpecificationOptionSourceV1;
+  /**
+   * The full installation plan snapshot for this option.
+   * Contains proposed system, locations, flue/condensate/pipework routes, etc.
+   */
+  specification: QuoteInstallationPlanV1;
+  /**
+   * Generated scope items for this option.
+   * Populated when the surveyor reaches the Generated Scope step and taps Finish.
+   */
+  generatedScope: QuoteScopeItemV1[];
+  /** Optional surveyor-facing notes for this option. */
+  notes?: string;
+}
+
+/**
+ * Result returned by the Installation Specification stepper when the surveyor
+ * taps Finish.
+ *
+ * Callers use this to persist the option, navigate away, and update the
+ * Visit Hub option-count display.
+ */
+export interface InstallationSpecificationFinishResultV1 {
+  /** The completed (or in-progress) specification option. */
+  option: InstallationSpecificationOptionV1;
+  /** Generated scope items at the point of finishing. */
+  generatedScope: QuoteScopeItemV1[];
+  /** Derived lifecycle status at the point of finishing. */
+  status: InstallationSpecificationOptionStatusV1;
+}
