@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -106,6 +106,8 @@ import { useActiveUser } from './features/userProfiles/useActiveUser';
 import { useRolePermissions } from './features/userProfiles/useRolePermissions';
 import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
+import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
+import type { CanonicalCurrentSystemSummary } from './features/installationSpecification/ui/installationSpecificationUiTypes';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -612,6 +614,12 @@ function AppInner() {
   /** Completed engine input passed to the Simulator Dashboard and LabShell. */
   const [labEngineInput, setLabEngineInput] = useState<EngineInputV2_3 | undefined>();
   /**
+   * Full survey model captured from the most recent survey draft.
+   * Used to derive the canonical current-system summary for the
+   * Installation Specification stepper via buildCurrentInstallationSummaryFromCanonicalSurvey.
+   */
+  const [labFullSurveyModel, setLabFullSurveyModel] = useState<FullSurveyModelV1 | undefined>();
+  /**
    * Heat-loss survey state captured from the most recent full survey draft.
    * Passed to the presentation layer so the Your House quadrant can show the
    * perimeter snapshot and roof orientation (PR8a/PR8b/PR8c).
@@ -966,6 +974,16 @@ function AppInner() {
     setJourney('visit');
   }
 
+  // Derive the canonical current-system summary once, before all early returns.
+  // Used by both the INSTALLATION_SPECIFICATION_ENABLED route and the
+  // journey === 'installation-specification' branch.
+  const canonicalCurrentSystem: CanonicalCurrentSystemSummary | null = useMemo(
+    () => labFullSurveyModel
+      ? buildCurrentInstallationSummaryFromCanonicalSurvey(labFullSurveyModel)
+      : null,
+    [labFullSurveyModel],
+  );
+
   // /workspace/:id — render a single workspace detail page.
   if (WORKSPACE_DETAIL_ID != null) {
     return (
@@ -1034,7 +1052,10 @@ function AppInner() {
     return (
       <SpecificationErrorBoundary onBack={handleBack}>
         <Suspense fallback={specificationLoadingFallback}>
-          <InstallationSpecificationPage onBack={handleBack} />
+          <InstallationSpecificationPage
+            onBack={handleBack}
+            canonicalCurrentSystem={canonicalCurrentSystem}
+          />
         </Suspense>
       </SpecificationErrorBoundary>
     );
@@ -1474,6 +1495,7 @@ function AppInner() {
             <Suspense fallback={specificationLoadingFallback}>
               <InstallationSpecificationPage
                 onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
+                canonicalCurrentSystem={canonicalCurrentSystem}
               />
             </Suspense>
           </SpecificationErrorBoundary>
@@ -1505,6 +1527,9 @@ function AppInner() {
               if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
               if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
               if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
+              // Capture the full survey model so the Installation Specification
+              // stepper can display the canonical current-system summary.
+              setLabFullSurveyModel(draft);
             }}
             onComplete={(engineInput) => {
               // Survey is complete — store engine input for presentation/simulator use,
@@ -1554,6 +1579,9 @@ function AppInner() {
               if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
               if (draft.fullSurvey?.recommendation) setLabRecommendationState(draft.fullSurvey.recommendation);
               if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
+              // Capture the full survey model so the Installation Specification
+              // stepper can display the canonical current-system summary.
+              setLabFullSurveyModel(draft);
             }}
             onComplete={(engineInput) => {
               // Route directly to simulator — fit-map step removed.
