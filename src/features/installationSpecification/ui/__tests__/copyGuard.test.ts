@@ -1,7 +1,8 @@
 /**
  * copyGuard.test.ts
  *
- * Ensures visible UI copy does not contain deprecated "planner" terminology.
+ * Ensures visible UI copy does not contain deprecated "planner" or
+ * "contractor quotes" terminology anywhere in the known UI label constants.
  * Fails if any of the banned strings are found in the known UI label constants.
  */
 
@@ -13,6 +14,11 @@ const BANNED_TERMS = [
   'enter quote',
   'quotes you have received',
   'customer quote',
+  'Add quote',
+  'Quote A',
+  'View Insight Pack',
+  'Add at least one contractor quote',
+  'add quotes for full detail',
 ];
 
 // Known visible step labels from InstallationSpecificationStepper
