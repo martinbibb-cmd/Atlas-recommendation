@@ -41,7 +41,7 @@ export interface GeneratedScopeStepProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function GeneratedScopeStep({ plan, onNavigateToStep }: GeneratedScopeStepProps) {
-  // Derive scope items from the plan.  Memoised so it only recomputes when
+  // Derive scope items from the plan.  Memoized so it only recomputes when
   // plan reference changes.
   const scopeItems = useMemo(
     () => buildQuoteScopeFromInstallationPlan(plan),

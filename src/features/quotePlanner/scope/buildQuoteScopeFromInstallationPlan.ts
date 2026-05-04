@@ -122,6 +122,16 @@ function locationConfidenceToScope(
   }
 }
 
+function flueRouteConfidenceToScope(
+  c: 'measured' | 'drawn' | 'estimated',
+): QuoteScopeItemConfidence {
+  switch (c) {
+    case 'measured':  return 'confirmed';
+    case 'drawn':     return 'estimated';
+    case 'estimated': return 'low';
+  }
+}
+
 // ─── Pipework route helpers ───────────────────────────────────────────────────
 
 function findPipeworkRoutes(
@@ -253,11 +263,7 @@ function makeFlueItem(
 ): QuoteScopeItemV1 {
   const flue = plan.flueRoutes[0];
   const conf: QuoteScopeItemConfidence = flue
-    ? flue.confidence === 'measured'
-      ? 'confirmed'
-      : flue.confidence === 'drawn'
-        ? 'estimated'
-        : 'low'
+    ? flueRouteConfidenceToScope(flue.confidence)
     : 'needs_verification';
   const needsVerif = !flue;
   const details = flue?.calculation
