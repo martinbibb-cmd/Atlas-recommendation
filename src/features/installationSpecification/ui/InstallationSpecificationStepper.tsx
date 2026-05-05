@@ -8,19 +8,24 @@
  *
  * Step sequence (active steps derived from proposed system selection):
  *   1.  current_system_summary  — read-only current system from canonical survey
- *   2.  proposed_heat_source    — proposed heat source (always)
- *   3.  proposed_hot_water      — proposed hot-water arrangement (skipped for proposed combi)
- *   4.  job_type                — derived classification (always)
- *   5.  place_locations         — key locations (always)
+ *                                 (shows engine recommendation preamble when available)
+ *   2.  pack_showroom           — evidence-derived pack selection (always)
+ *   3.  proposed_heat_source    — proposed heat source (confirm or override)
+ *   4.  proposed_hot_water      — proposed hot-water arrangement (skipped for proposed combi)
+ *   5.  job_type                — derived classification (always)
+ *   6.  place_locations         — key locations (always)
  *   [for gas boiler proposed]:
- *   6.  flue_plan
- *   7.  condensate_plan
- *   8.  pipework_plan
+ *   7.  flue_plan
+ *   8.  condensate_plan
+ *   9.  pipework_plan
  *   [for heat pump proposed]:
- *   6.  outdoor_unit_siting
- *   7.  hydraulic_route
- *   8.  electrical_supply
- *   9.  generated_scope         — always (last step)
+ *   7.  outdoor_unit_siting
+ *   8.  hydraulic_route
+ *   9.  electrical_supply
+ *   10. controls               — controls selection (always)
+ *   11. services               — services and enabling works (always)
+ *   12. products_additionals   — products and optional upgrades (always)
+ *   13. generated_scope        — always (last step)
  *
  * Design rules:
  *   - Current system data comes exclusively from the canonicalCurrentSystem prop.
@@ -28,6 +33,8 @@
  *     the single source of truth.
  *   - "Correct canonical survey" navigates back to the survey flow via onCorrectSurvey.
  *   - Proposed specification is seeded from Atlas recommendation via seedProposedSystem.
+ *   - Pack showroom derives from evidence (survey + engine) — not a blank list.
+ *   - Selecting a pack pre-populates proposed system and hot-water selections.
  */
 
 import { useState, useMemo } from 'react';
@@ -41,8 +48,13 @@ import { FluePlanStep } from './steps/FluePlanStep';
 import { CondensateSpecificationStep } from './steps/CondensateSpecificationStep';
 import { PipeworkPlanStep } from './steps/PipeworkPlanStep';
 import { GeneratedScopeStep } from './steps/GeneratedScopeStep';
+import { PackShowroomStep } from './steps/PackShowroomStep';
+import { ControlsStep, getDefaultControlIds } from './steps/ControlsStep';
+import { ServicesStep, getDefaultServiceIds } from './steps/ServicesStep';
+import { ProductsAdditionalsStep, getDefaultProductIds } from './steps/ProductsAdditionalsStep';
 import { classifyQuoteJob } from '../calculators/jobClassification';
 import { buildQuoteScopeFromInstallationPlan } from '../scope/buildQuoteScopeFromInstallationPlan';
+import { buildDefaultQuotePacks } from '../model/buildDefaultQuotePacks';
 import {
   heatSourceToFamily,
   isProposedCombi,
@@ -72,6 +84,10 @@ import type {
   InstallationSpecificationFinishResultV1,
   InstallationSpecificationOptionStatusV1,
 } from '../model/QuoteInstallationPlanV1';
+import type { QuotePackKindV1 } from '../model/QuotePackV1';
+import type { ControlsSelection } from './steps/ControlsStep';
+import type { ServicesSelection } from './steps/ServicesStep';
+import type { ProductsSelection } from './steps/ProductsAdditionalsStep';
 import type { ObjectPinV2 } from '../../scanImport/contracts/sessionCaptureV2';
 import './installationSpecificationStyles.css';
 
@@ -89,6 +105,9 @@ type StepId =
   | 'outdoor_unit_siting'
   | 'hydraulic_route'
   | 'electrical_supply'
+  | 'controls'
+  | 'services'
+  | 'products_additionals'
   | 'generated_scope';
 
 /** Short display labels shown in the progress pill strip. */
@@ -104,6 +123,9 @@ const STEP_LABELS: Record<StepId, string> = {
   outdoor_unit_siting:     'Outdoor unit siting',
   hydraulic_route:         'Hydraulic route',
   electrical_supply:       'Electrical supply',
+  controls:                'Controls',
+  services:                'Services',
+  products_additionals:    'Products',
   generated_scope:         'Generated scope',
 };
 
@@ -116,6 +138,10 @@ const STEP_LABELS: Record<StepId, string> = {
  * - proposed_hot_water: skip when proposed heat source is combi/storage_combi or not yet set
  * - flue/condensate/pipework: only for gas boiler proposed
  * - outdoor_unit/hydraulic/electrical: only for heat pump proposed
+ * - controls/services/products: always present after route steps
+ *
+ * Note: The pack showroom is embedded in the current_system_summary step (step 0),
+ * not as a separate step, so step indices are unchanged from prior versions.
  */
 function getActiveStepIds(
   proposedHeatSource: UiProposedHeatSourceLabel | null,
@@ -143,6 +169,9 @@ function getActiveStepIds(
     // Gas boiler or other — show flue/condensate/pipework
     steps.push('flue_plan', 'condensate_plan', 'pipework_plan');
   }
+
+  // Controls, services, products — always present after route steps
+  steps.push('controls', 'services', 'products_additionals');
 
   // Generated scope — always
   steps.push('generated_scope');
@@ -237,8 +266,20 @@ export interface InstallationSpecificationStepperProps {
   /**
    * Optional proposed heat-source value seeded from the Atlas recommendation.
    * When provided, ProposedSystemStep pre-selects this tile and shows an "Atlas selected" badge.
+   * Also used to pre-select the "Best advice" pack in the pack showroom.
    */
   seedProposedSystem?: UiProposedHeatSourceLabel | null;
+  /**
+   * Primary reason for the Atlas engine recommendation.
+   * When provided, shown in the Current System Summary step as a preamble.
+   * Example: "Mains pressure is limited, so a stored hot-water solution is recommended."
+   */
+  engineRecommendationReason?: string | null;
+  /**
+   * Key site conditions to highlight in the current-system summary preamble.
+   * Example: ["Mains flow is limited", "Pipework access is partly buried"].
+   */
+  siteConditions?: string[];
   /**
    * Optional floor-plan image URI (from the scan session).
    * When provided, the Place Locations step shows the floor plan overlay.
@@ -293,6 +334,8 @@ export function InstallationSpecificationStepper({
   onCorrectSurvey,
   canonicalCurrentSystem,
   seedProposedSystem,
+  engineRecommendationReason,
+  siteConditions,
   floorPlanUri,
   scanObjectPins,
   optionId,
@@ -334,6 +377,24 @@ export function InstallationSpecificationStepper({
     restoredProposedHotWater,
   );
 
+  // Pack showroom state — selected pack kind
+  const [selectedPackKind, setSelectedPackKind] = useState<QuotePackKindV1 | null>(null);
+
+  // Controls selection
+  const [controlsSelection, setControlsSelection] = useState<ControlsSelection>(() => ({
+    selectedIds: getDefaultControlIds(restoredProposedHeatSource, restoredProposedHotWater),
+  }));
+
+  // Services selection
+  const [servicesSelection, setServicesSelection] = useState<ServicesSelection>(() => ({
+    selectedIds: getDefaultServiceIds(restoredProposedHeatSource, restoredProposedHotWater, canonicalCurrentSystem ?? null),
+  }));
+
+  // Products selection
+  const [productsSelection, setProductsSelection] = useState<ProductsSelection>(() => ({
+    selectedIds: getDefaultProductIds(restoredProposedHeatSource),
+  }));
+
   // Other plan state — restored from initialPlan when editing
   const [locations, setLocations] = useState<QuotePlanLocationV1[]>(
     initialPlan?.locations ?? [],
@@ -346,6 +407,17 @@ export function InstallationSpecificationStepper({
   );
   const [pipeworkRoutes, setPipeworkRoutes] = useState<QuotePlanPipeworkRouteV1[]>(
     initialPlan?.pipeworkRoutes ?? [],
+  );
+
+  // Build default packs for the pack showroom
+  const { packCards, showroomContext } = useMemo(
+    () => buildDefaultQuotePacks({
+      canonicalCurrentSystem: canonicalCurrentSystem ?? null,
+      seedProposedSystem: seedProposedSystem ?? null,
+      enginePrimaryReason: engineRecommendationReason ?? null,
+      siteConstraints: siteConditions,
+    }),
+    [canonicalCurrentSystem, seedProposedSystem, engineRecommendationReason, siteConditions],
   );
 
   // Derive active step list from proposed system selection.
@@ -504,10 +576,38 @@ export function InstallationSpecificationStepper({
     switch (stepId) {
       case 'current_system_summary':
         return (
-          <CurrentSystemSummaryStep
-            summary={canonicalCurrentSystem ?? null}
-            onCorrectSurvey={onCorrectSurvey}
-          />
+          <>
+            <CurrentSystemSummaryStep
+              summary={canonicalCurrentSystem ?? null}
+              onCorrectSurvey={onCorrectSurvey}
+              engineRecommendationReason={engineRecommendationReason}
+              recommendedPackLabel={
+                packCards.find((c) => c.isRecommended)
+                  ? packCards.find((c) => c.isRecommended)!.title
+                  : null
+              }
+              siteConditions={siteConditions}
+            />
+
+            {/* ── Pack showroom is embedded in step 0 ─────────────────────────
+                Selecting a pack pre-populates proposed heat source and hot water
+                for subsequent steps. No separate pack_showroom step is needed. */}
+            {packCards.length > 0 && (
+              <PackShowroomStep
+                showroomContext={showroomContext}
+                packCards={packCards}
+                selectedPackKind={selectedPackKind}
+                onSelectPack={(kind, heatSource, hotWater) => {
+                  setSelectedPackKind(kind);
+                  setProposedHeatSource(heatSource);
+                  setProposedHotWater(hotWater);
+                  setControlsSelection({ selectedIds: getDefaultControlIds(heatSource, hotWater) });
+                  setServicesSelection({ selectedIds: getDefaultServiceIds(heatSource, hotWater, canonicalCurrentSystem ?? null) });
+                  setProductsSelection({ selectedIds: getDefaultProductIds(heatSource) });
+                }}
+              />
+            )}
+          </>
         );
 
       case 'proposed_heat_source':
@@ -620,6 +720,37 @@ export function InstallationSpecificationStepper({
               Electrical supply route — not yet specified.
             </p>
           </div>
+        );
+
+      case 'controls':
+        return (
+          <ControlsStep
+            proposedHeatSource={proposedHeatSource}
+            proposedHotWater={proposedHotWater}
+            selection={controlsSelection}
+            onSelectionChange={setControlsSelection}
+          />
+        );
+
+      case 'services':
+        return (
+          <ServicesStep
+            proposedHeatSource={proposedHeatSource}
+            proposedHotWater={proposedHotWater}
+            canonicalCurrentSystem={canonicalCurrentSystem ?? null}
+            selection={servicesSelection}
+            onSelectionChange={setServicesSelection}
+          />
+        );
+
+      case 'products_additionals':
+        return (
+          <ProductsAdditionalsStep
+            proposedHeatSource={proposedHeatSource}
+            proposedHotWater={proposedHotWater}
+            selection={productsSelection}
+            onSelectionChange={setProductsSelection}
+          />
         );
 
       case 'generated_scope':

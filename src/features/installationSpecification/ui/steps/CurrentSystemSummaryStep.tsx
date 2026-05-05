@@ -5,8 +5,8 @@
  *
  * Read-only display of the existing installation, drawn from the canonical
  * survey.  No data is collected here.  The surveyor is shown what Atlas
- * already knows and offered a "Correct canonical survey" action to fix any
- * errors at source.
+ * already knows (existing system + site conditions + engine recommendation)
+ * and offered a "Correct canonical survey" action to fix any errors at source.
  *
  * Design rules:
  *   - No tiles, no user selection — always canAdvance = true in the stepper.
@@ -15,6 +15,7 @@
  *   - Missing fields show "Missing from canonical survey — Add to survey",
  *     never "Unknown".
  *   - Does not collect, ask about, or recollect current system data.
+ *   - Engine recommendation preamble is shown when available.
  */
 
 import type {
@@ -96,6 +97,22 @@ export interface CurrentSystemSummaryStepProps {
    * Should navigate back to the survey flow — must not edit spec data silently.
    */
   onCorrectSurvey?: () => void;
+  /**
+   * Primary reason for the Atlas engine recommendation.
+   * When provided, shown as a preamble before the current-system details.
+   * Example: "Mains pressure is limited, so a stored hot-water solution is recommended."
+   */
+  engineRecommendationReason?: string | null;
+  /**
+   * Short label for the Atlas-recommended pack (e.g. "System boiler + Mixergy cylinder").
+   * When provided, shown with the recommendation preamble.
+   */
+  recommendedPackLabel?: string | null;
+  /**
+   * Key site conditions to highlight in the preamble.
+   * Example: ["Mains flow is limited", "Pipework access is partly buried"].
+   */
+  siteConditions?: string[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -103,6 +120,9 @@ export interface CurrentSystemSummaryStepProps {
 export function CurrentSystemSummaryStep({
   summary,
   onCorrectSurvey,
+  engineRecommendationReason,
+  recommendedPackLabel,
+  siteConditions,
 }: CurrentSystemSummaryStepProps) {
   const heatSourceLabel = summary?.heatSource != null
     ? HEAT_SOURCE_DISPLAY[summary.heatSource]
@@ -116,6 +136,8 @@ export function CurrentSystemSummaryStep({
     ? PRIMARY_CIRCUIT_DISPLAY[summary.primaryCircuit]
     : null;
 
+  const showPreamble = engineRecommendationReason != null || recommendedPackLabel != null;
+
   return (
     <>
       <h2 className="qp-step-heading">Current system from canonical survey</h2>
@@ -124,6 +146,35 @@ export function CurrentSystemSummaryStep({
         This is read-only. To correct any errors, use the button below to return
         to the survey.
       </p>
+
+      {/* ── Recommendation preamble ───────────────────────────────────────── */}
+      {showPreamble && (
+        <div className="spec-summary__recommendation-preamble" data-testid="recommendation-preamble">
+          {siteConditions != null && siteConditions.length > 0 && (
+            <div className="spec-summary__site-conditions">
+              <strong>Site conditions found:</strong>
+              <ul className="spec-summary__conditions-list">
+                {siteConditions.map((condition, i) => (
+                  <li key={i}>{condition}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {engineRecommendationReason != null && (
+            <p className="spec-summary__recommendation-reason" data-testid="recommendation-reason">
+              {engineRecommendationReason}
+            </p>
+          )}
+
+          {recommendedPackLabel != null && (
+            <p className="spec-summary__recommended-pack" data-testid="recommended-pack-label">
+              <strong>Atlas recommends starting this quote from: </strong>
+              <span className="spec-summary__pack-name">{recommendedPackLabel}</span>
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="spec-summary-card" data-testid="canonical-summary-card">
         <dl className="spec-summary__list">
