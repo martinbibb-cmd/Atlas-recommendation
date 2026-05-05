@@ -53,6 +53,9 @@ export { ScanExternalAreaPanel } from './ScanExternalAreaPanel';
 export type { ScanPreinstallSignalsProps } from './ScanPreinstallSignals';
 export { ScanPreinstallSignals } from './ScanPreinstallSignals';
 
+export type { FlueEvidenceReadinessPanelProps } from './FlueEvidenceReadinessPanel';
+export { FlueEvidenceReadinessPanel } from './FlueEvidenceReadinessPanel';
+
 // ─── Badge components ─────────────────────────────────────────────────────────
 
 export type { ReviewStatusBadgeProps, ReviewStatus } from './ReviewStatusBadge';
@@ -82,6 +85,7 @@ export type {
   ExternalAreaScanV1,
   ExternalObjectPinV1,
   ExternalMeasurementLineV1,
+  FlueEvidenceReadiness,
 } from './scanEvidenceSelectors';
 
 export {
@@ -110,4 +114,8 @@ export {
   getExternalAreaScans,
   getFlueTerminalPins,
   getExternalMeasurementLines,
+  hasExternalFlueScan,
+  hasFlueTerminalPin,
+  hasExternalMeasurements,
+  getFlueEvidenceReadiness,
 } from './scanEvidenceSelectors';
