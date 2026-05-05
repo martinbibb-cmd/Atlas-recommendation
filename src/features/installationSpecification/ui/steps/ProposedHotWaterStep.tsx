@@ -17,6 +17,10 @@
 import { SpecificationSystemTile } from '../components/SpecificationSystemTile';
 import type { UiProposedHeatSourceLabel, UiProposedHotWaterLabel } from '../installationSpecificationUiTypes';
 
+// Heat pump cylinders are unvented (mains-pressure) appliances, so both
+// the standard unvented and the dedicated HP cylinder share the same image.
+const UNVENTED_CYLINDER_IMAGE = '/images/systems/unvented-cylinder.JPG';
+
 interface ProposedHotWaterTileDefinition {
   value: UiProposedHotWaterLabel;
   title: string;
@@ -47,7 +51,7 @@ const PROPOSED_HOT_WATER_TILES: ProposedHotWaterTileDefinition[] = [
     value:    'unvented_cylinder',
     title:    'Replace with unvented cylinder',
     subtitle: 'Mains-pressure stored hot water — G3 appliance',
-    imageSrc: '/images/systems/unvented-cylinder.JPG',
+    imageSrc: UNVENTED_CYLINDER_IMAGE,
     hideFor:  ['heat_pump'],
   },
   {
@@ -68,7 +72,7 @@ const PROPOSED_HOT_WATER_TILES: ProposedHotWaterTileDefinition[] = [
     value:    'heat_pump_cylinder',
     title:    'Heat pump cylinder',
     subtitle: 'Dedicated heat-pump-rated cylinder with coil and immersion',
-    imageSrc: '/images/systems/unvented-cylinder.JPG',
+    imageSrc: UNVENTED_CYLINDER_IMAGE,
     onlyFor:  ['heat_pump'],
   },
   {
