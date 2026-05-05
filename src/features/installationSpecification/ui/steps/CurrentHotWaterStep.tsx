@@ -20,6 +20,7 @@ interface HotWaterTileDefinition {
   value: UiCurrentHotWaterLabel;
   title: string;
   subtitle: string;
+  imageSrc: string | null;
 }
 
 const CURRENT_HOT_WATER_TILES: HotWaterTileDefinition[] = [
@@ -27,36 +28,43 @@ const CURRENT_HOT_WATER_TILES: HotWaterTileDefinition[] = [
     value:    'no_cylinder',
     title:    'No cylinder',
     subtitle: 'No stored hot water — heat source only',
+    imageSrc: null,
   },
   {
     value:    'vented_cylinder',
     title:    'Vented cylinder',
     subtitle: 'Open-vented hot-water storage — gravity-fed or pumped',
+    imageSrc: '/images/systems/vented-cylinder.PNG',
   },
   {
     value:    'unvented_cylinder',
     title:    'Unvented cylinder',
     subtitle: 'Mains-pressure stored hot water — G3 appliance',
+    imageSrc: '/images/systems/unvented-cylinder.JPG',
   },
   {
     value:    'thermal_store',
     title:    'Thermal store',
     subtitle: 'Stored heat with mains hot-water supply via heat exchanger',
+    imageSrc: null,
   },
   {
     value:    'mixergy_or_stratified',
     title:    'Mixergy / stratified cylinder',
     subtitle: 'Stratified storage cylinder with active zone control',
+    imageSrc: null,
   },
   {
     value:    'integrated_store',
     title:    'Integrated store',
     subtitle: 'Built-in storage — typically part of a storage combi appliance',
+    imageSrc: null,
   },
   {
     value:    'other_hot_water',
     title:    'Other arrangement',
     subtitle: 'Non-standard hot-water arrangement — describe in notes',
+    imageSrc: null,
   },
 ];
 
@@ -75,13 +83,13 @@ export function CurrentHotWaterStep({ selected, onSelect }: CurrentHotWaterStepP
         Select the cylinder or storage type. This is separate from the heat source.
       </p>
       <div className="spec-sys-tile-grid">
-        {CURRENT_HOT_WATER_TILES.map(({ value, title, subtitle }) => (
+        {CURRENT_HOT_WATER_TILES.map(({ value, title, subtitle, imageSrc }) => (
           <SpecificationSystemTile
             key={value}
             value={value}
             title={title}
             subtitle={subtitle}
-            imageSrc={null}
+            imageSrc={imageSrc}
             selected={selected === value}
             onClick={() => onSelect(value)}
           />

@@ -24,6 +24,7 @@ interface ExistenceTileDefinition {
   value: UiExistenceLabel;
   title: string;
   subtitle: string;
+  imageSrc: string | null;
 }
 
 const EXISTENCE_TILES: ExistenceTileDefinition[] = [
@@ -31,16 +32,19 @@ const EXISTENCE_TILES: ExistenceTileDefinition[] = [
     value:    'has_wet_heating',
     title:    'Existing wet heating system',
     subtitle: 'Boiler, heat pump, or similar — connected to radiators or underfloor',
+    imageSrc: '/images/systems/System-components.JPG',
   },
   {
     value:    'no_wet_heating',
     title:    'No existing wet heating system',
     subtitle: 'First install, electric-only, or blank property — no wet circuit',
+    imageSrc: null,
   },
   {
     value:    'partial_abandoned',
     title:    'Partial or abandoned system',
     subtitle: 'Incomplete or decommissioned wet heating — scope requires clarification',
+    imageSrc: null,
   },
 ];
 
@@ -88,13 +92,13 @@ export function CurrentSystemStep({
         Select the option that best describes the existing installation.
       </p>
       <div className="spec-sys-tile-grid">
-        {EXISTENCE_TILES.map(({ value, title, subtitle }) => (
+        {EXISTENCE_TILES.map(({ value, title, subtitle, imageSrc }) => (
           <SpecificationSystemTile
             key={value}
             value={value}
             title={title}
             subtitle={subtitle}
-            imageSrc={null}
+            imageSrc={imageSrc}
             selected={selected === value}
             onClick={() => handleTileClick(value)}
           />

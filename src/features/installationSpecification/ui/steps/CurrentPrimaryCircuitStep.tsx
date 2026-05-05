@@ -19,6 +19,7 @@ interface PrimaryCircuitTileDefinition {
   value: UiCurrentPrimaryCircuitLabel;
   title: string;
   subtitle: string;
+  imageSrc: string | null;
 }
 
 const PRIMARY_CIRCUIT_TILES: PrimaryCircuitTileDefinition[] = [
@@ -26,16 +27,19 @@ const PRIMARY_CIRCUIT_TILES: PrimaryCircuitTileDefinition[] = [
     value:    'open_vented_primary',
     title:    'Open vented primary',
     subtitle: 'Feed and expansion tank in loft — gravity-filled open-vented circuit',
+    imageSrc: '/images/systems/gravity.JPG',
   },
   {
     value:    'sealed_primary',
     title:    'Sealed primary',
     subtitle: 'Pressurised system with expansion vessel — no feed and expansion tank',
+    imageSrc: '/images/systems/s-plan.jpg',
   },
   {
     value:    'needs_technical_review',
     title:    'Cannot confirm — needs technical review',
     subtitle: 'Primary circuit type is unclear or mixed — requires engineer assessment',
+    imageSrc: null,
   },
 ];
 
@@ -54,13 +58,13 @@ export function CurrentPrimaryCircuitStep({ selected, onSelect }: CurrentPrimary
         Select the primary heating circuit type. This is independent of the cylinder type.
       </p>
       <div className="spec-sys-tile-grid">
-        {PRIMARY_CIRCUIT_TILES.map(({ value, title, subtitle }) => (
+        {PRIMARY_CIRCUIT_TILES.map(({ value, title, subtitle, imageSrc }) => (
           <SpecificationSystemTile
             key={value}
             value={value}
             title={title}
             subtitle={subtitle}
-            imageSrc={null}
+            imageSrc={imageSrc}
             selected={selected === value}
             onClick={() => onSelect(value)}
           />
