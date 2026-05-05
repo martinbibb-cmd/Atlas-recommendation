@@ -145,6 +145,25 @@
   line-height: 1;
 }
 
+.qp-tile__image-area {
+  width: 100%;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #f1f5f9;
+  margin-bottom: 0.25rem;
+}
+
+.qp-tile__image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
 .qp-tile__label {
   font-size: 0.875rem;
   font-weight: 600;
