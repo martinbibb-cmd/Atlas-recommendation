@@ -35,6 +35,7 @@ import { EngineerWarningsPanel } from './EngineerWarningsPanel';
 import { EngineerEvidencePanel } from './EngineerEvidencePanel';
 import { EngineerRoomScanPanel } from './EngineerRoomScanPanel';
 import { EngineerFlueClearancePanel } from './EngineerFlueClearancePanel';
+import { FlueClearanceReviewPanel } from './FlueClearanceReviewPanel';
 import { VisitReplayPanel } from '../visit/VisitReplayPanel';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -209,7 +210,10 @@ export default function EngineerPreinstallPage({ visitId, onBack }: Props) {
             <EngineerRoomScanPanel scans={displayModel.spatialEvidence3d} />
           )}
           {displayModel.externalClearanceScenes && displayModel.externalClearanceScenes.length > 0 && (
-            <EngineerFlueClearancePanel scenes={displayModel.externalClearanceScenes} />
+            <>
+              <EngineerFlueClearancePanel scenes={displayModel.externalClearanceScenes} />
+              <FlueClearanceReviewPanel scenes={displayModel.externalClearanceScenes} />
+            </>
           )}
         </>
       )}
