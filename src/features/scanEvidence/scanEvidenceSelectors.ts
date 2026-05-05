@@ -460,3 +460,75 @@ export function getExternalMeasurementLines(
   }
   return result;
 }
+
+// ─── Flue evidence readiness selectors ───────────────────────────────────────
+
+/**
+ * Readiness state for external flue evidence in the capture.
+ *
+ *   complete — external scan present, flue terminal marked, and at least one
+ *              measurement line recorded.
+ *   partial  — some flue evidence captured but not all three signals are
+ *              present.
+ *   missing  — no external area scans recorded at all.
+ *
+ * This is a display-only readiness signal for the engineer view.
+ * No pass/fail flue compliance is calculated here.
+ */
+export type FlueEvidenceReadiness = 'complete' | 'partial' | 'missing';
+
+/**
+ * Returns true when at least one external area scan is present in the capture.
+ *
+ * Engineer-internal only.
+ */
+export function hasExternalFlueScan(capture: SessionCaptureV2): boolean {
+  return getExternalAreaScans(capture).length > 0;
+}
+
+/**
+ * Returns true when at least one `flue_terminal` object pin is present across
+ * all external area scans.
+ *
+ * Engineer-internal only.
+ */
+export function hasFlueTerminalPin(capture: SessionCaptureV2): boolean {
+  return getFlueTerminalPins(capture).length > 0;
+}
+
+/**
+ * Returns true when at least one measurement line is present across all
+ * external area scans.
+ *
+ * Engineer-internal only.
+ */
+export function hasExternalMeasurements(capture: SessionCaptureV2): boolean {
+  return getExternalMeasurementLines(capture).length > 0;
+}
+
+/**
+ * Derives the flue evidence readiness state from the capture.
+ *
+ *   complete — all three signals present: external scan + flue terminal pin +
+ *              at least one measurement line.
+ *   partial  — some evidence present but not all three signals.
+ *   missing  — no external area scans recorded.
+ *
+ * No compliance or pass/fail logic is performed — this is evidence
+ * readiness only.
+ *
+ * Engineer-internal only — must not appear in customer portal, deck, or PDF
+ * outputs.
+ */
+export function getFlueEvidenceReadiness(
+  capture: SessionCaptureV2,
+): FlueEvidenceReadiness {
+  const hasScan = hasExternalFlueScan(capture);
+  if (!hasScan) return 'missing';
+
+  const hasTerminal = hasFlueTerminalPin(capture);
+  const hasMeasurements = hasExternalMeasurements(capture);
+
+  if (hasTerminal && hasMeasurements) return 'complete';
+  return 'partial';
+}
