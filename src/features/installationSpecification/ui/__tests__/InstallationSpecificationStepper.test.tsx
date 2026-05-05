@@ -383,6 +383,12 @@ describe('Acceptance 11 — stored hot-water proposed path includes cylinder and
     fireEvent.click(nextBtn());
     // Pipework plan
     fireEvent.click(nextBtn());
+    // Controls
+    fireEvent.click(nextBtn());
+    // Services
+    fireEvent.click(nextBtn());
+    // Products / additionals
+    fireEvent.click(nextBtn());
     // Generated scope
     expect(screen.getByRole('heading', { name: /Generated scope/i })).toBeTruthy();
     // Discharge route should be present as unvented cylinder requires it
@@ -403,6 +409,9 @@ describe('Acceptance 12 — generated scope shows partial items early', () => {
     fireEvent.click(nextBtn()); // → flue_plan
     fireEvent.click(nextBtn()); // → condensate_plan
     fireEvent.click(nextBtn()); // → pipework_plan
+    fireEvent.click(nextBtn()); // → controls
+    fireEvent.click(nextBtn()); // → services
+    fireEvent.click(nextBtn()); // → products_additionals
     fireEvent.click(nextBtn()); // → generated_scope
     // Scope items should be present even though no routes are specified
     expect(screen.getByRole('heading', { name: /Generated scope/i })).toBeTruthy();
@@ -421,6 +430,9 @@ describe('Acceptance 12 — generated scope shows partial items early', () => {
     fireEvent.click(nextBtn()); // → outdoor_unit_siting
     fireEvent.click(nextBtn()); // → hydraulic_route
     fireEvent.click(nextBtn()); // → electrical_supply
+    fireEvent.click(nextBtn()); // → controls
+    fireEvent.click(nextBtn()); // → services
+    fireEvent.click(nextBtn()); // → products_additionals
     fireEvent.click(nextBtn()); // → generated_scope
     expect(screen.getByRole('heading', { name: /Generated scope/i })).toBeTruthy();
     expect(screen.getByText(/Outdoor unit — location to confirm/i)).toBeTruthy();

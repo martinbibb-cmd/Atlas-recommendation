@@ -109,6 +109,10 @@ export function GeneratedScopeList({ items, onEditSource }: GeneratedScopeListPr
                     />
                   </div>
 
+                  {item.reason && (
+                    <p className="scope-item__reason">{item.reason}</p>
+                  )}
+
                   {item.details && (
                     <p className="scope-item__details">{item.details}</p>
                   )}

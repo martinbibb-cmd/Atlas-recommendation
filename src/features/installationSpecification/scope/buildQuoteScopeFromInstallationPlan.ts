@@ -73,6 +73,19 @@ export interface QuoteScopeItemV1 {
    * Absent when no quantitative data is available.
    */
   details?: string;
+  /**
+   * Why this item is included in the scope.
+   *
+   * Every scope item should carry a reason so the surveyor and customer can
+   * understand why work is needed.  Absent only for legacy items generated
+   * by the fallback path.
+   *
+   * Examples:
+   *   "A new boiler requires a compliant flue route."
+   *   "The current system uses an external circulation pump."
+   *   "A Mixergy cylinder requires a safe pressure-relief discharge route."
+   */
+  reason?: string;
   /** Lowest confidence of all source locations and routes for this item. */
   confidence: QuoteScopeItemConfidence;
   /**
