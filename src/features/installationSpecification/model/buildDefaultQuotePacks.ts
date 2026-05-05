@@ -302,7 +302,7 @@ function buildHotWaterPriorityPack(
 }
 
 function buildFutureReadyPack(
-  canonical: CanonicalCurrentSystemSummary | null,
+  _canonical: CanonicalCurrentSystemSummary | null,
   seedProposed: UiProposedHeatSourceLabel | null,
 ): QuotePackCardV1 {
   const proposed: UiProposedHeatSourceLabel = seedProposed ?? 'system_boiler';
@@ -392,7 +392,7 @@ function buildWarningsForPack(
     warnings.push('Electrical supply capacity for heat pump must be checked');
   }
 
-  if (canonical?.primaryCircuit === 'open_vented_primary' && proposed !== 'regular_open_vent') {
+  if (canonical?.primaryCircuit === 'open_vented_primary' && proposed !== 'regular_boiler') {
     warnings.push('Open-vented primary circuit will require conversion to sealed system');
   }
 
