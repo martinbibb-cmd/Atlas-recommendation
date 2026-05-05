@@ -23,6 +23,7 @@ import type {
   CustomerVisitSummary,
   EngineerVisitSummary,
 } from '../types/visitHandoffPack';
+import type { HardwarePatchV1, HardwarePatchEntryV1 } from '../../../contracts/hardware/HardwarePatchV1';
 
 // ─── Internal validators ──────────────────────────────────────────────────────
 
@@ -62,6 +63,38 @@ function isHandoffProposedEmitter(value: unknown): value is import('../types/vis
 function isHandoffAccessNote(value: unknown): value is import('../types/visitHandoffPack').HandoffAccessNote {
   if (!isObject(value)) return false;
   return typeof value['location'] === 'string' && typeof value['note'] === 'string';
+}
+
+function parseHardwarePatchEntry(raw: unknown): HardwarePatchEntryV1 | null {
+  if (!isObject(raw)) return null;
+  if (!isObject(raw['definition'])) return null;
+  const def = raw['definition'];
+  if (
+    typeof def['modelId'] !== 'string' ||
+    typeof def['brand'] !== 'string' ||
+    typeof def['brandName'] !== 'string' ||
+    typeof def['seriesId'] !== 'string' ||
+    typeof def['seriesName'] !== 'string' ||
+    typeof def['modelName'] !== 'string' ||
+    typeof def['outputKw'] !== 'number' ||
+    !isObject(def['dimensions']) ||
+    !isObject(def['clearanceRules'])
+  ) return null;
+  return raw as HardwarePatchEntryV1;
+}
+
+function parseHardwarePatch(raw: unknown): HardwarePatchV1 | undefined {
+  if (!isObject(raw)) return undefined;
+  if (raw['version'] !== '1') return undefined;
+  if (!isObject(raw['overrides'])) return undefined;
+  const overrides: Record<string, HardwarePatchEntryV1> = {};
+  for (const [key, val] of Object.entries(raw['overrides'])) {
+    const entry = parseHardwarePatchEntry(val);
+    if (entry != null) {
+      overrides[key] = entry;
+    }
+  }
+  return { version: '1', overrides };
 }
 
 function parseCustomerSummary(raw: unknown): CustomerVisitSummary | null {
@@ -136,6 +169,7 @@ export function safeParseVisitHandoffPack(input: unknown): VisitHandoffPack | nu
         typeof input['engineerName'] === 'string' ? input['engineerName'] : undefined,
       customerSummary,
       engineerSummary,
+      hardwarePatch: parseHardwarePatch(input['hardwarePatch']),
     };
   } catch {
     return null;

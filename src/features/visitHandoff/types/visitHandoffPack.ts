@@ -21,6 +21,8 @@
  *   in any user-facing copy.  Internal identifiers are not subject to this rule.
  */
 
+import type { HardwarePatchV1 } from '../../../contracts/hardware/HardwarePatchV1';
+
 // ─── Supporting types ─────────────────────────────────────────────────────────
 
 /**
@@ -233,4 +235,18 @@ export interface VisitHandoffPack {
 
   /** Engineer-facing visit summary. */
   engineerSummary: EngineerVisitSummary;
+
+  /**
+   * Custom or legacy appliance definitions for this visit.
+   *
+   * When present, the iOS app should merge these overrides on top of its
+   * local MasterRegistry before resolving any appliance for the Ghost Box.
+   * This allows Mind to push site-specific appliance specs (e.g. legacy
+   * boilers not in the standard catalogue) to the scanner without requiring
+   * a full contracts package update.
+   *
+   * Absent when all appliances used in the visit are present in the standard
+   * MasterRegistry and no overrides are needed.
+   */
+  hardwarePatch?: HardwarePatchV1;
 }
