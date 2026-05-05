@@ -44,25 +44,25 @@ export function imageForCurrentSystem(
   switch (heatSource) {
     case 'combi':
     case 'storage_combi':
-      return { src: `${BASE}/Combination.PNG`, alt: 'Combination boiler — real-world example' };
+      return { src: `${BASE}/combination.svg`, alt: 'Combination boiler diagram' };
 
     case 'system':
       if (dhwType === 'unvented') {
-        return { src: `${BASE}/unvented-cylinder.JPG`, alt: 'System boiler with unvented cylinder — real-world example' };
+        return { src: `${BASE}/unvented-cylinder.svg`, alt: 'System boiler with unvented cylinder diagram' };
       }
-      return { src: `${BASE}/system-boiler.PNG`, alt: 'System boiler — real-world example' };
+      return { src: `${BASE}/system-boiler.svg`, alt: 'System boiler diagram' };
 
     case 'regular':
       if (dhwType === 'unvented') {
-        return { src: `${BASE}/unvented-cylinder.JPG`, alt: 'Regular boiler with unvented cylinder — real-world example' };
+        return { src: `${BASE}/unvented-cylinder.svg`, alt: 'Regular boiler with unvented cylinder diagram' };
       }
       if (dhwType === 'open_vented') {
-        return { src: `${BASE}/open-vented-schematic.JPG`, alt: 'Open-vented cylinder system — real-world example' };
+        return { src: `${BASE}/open-vented-schematic.svg`, alt: 'Open-vented cylinder system diagram' };
       }
       // When no specific DHW type is known but heating circuit is open-vented
       // (gravity-fed with header tank), show the gravity circuit layout.
       if (heatingSystemType === 'open_vented') {
-        return { src: `${BASE}/gravity.JPG`, alt: 'Open-vented heating circuit — gravity-fed layout, real-world example' };
+        return { src: `${BASE}/gravity.svg`, alt: 'Open-vented heating circuit — gravity-fed layout diagram' };
       }
       // thermal_store, plate_hex, small_store, sealed circuit, or unknown: no confident mapping
       return null;
@@ -82,11 +82,11 @@ export function imageForCurrentSystem(
 export function imageForRecId(recId: string): SystemImageInfo | null {
   switch (recId) {
     case 'combi_upgrade':
-      return { src: `${BASE}/Combination.PNG`, alt: 'Combination boiler — real-world example' };
+      return { src: `${BASE}/combination.svg`, alt: 'Combination boiler diagram' };
     case 'system_unvented':
-      return { src: `${BASE}/unvented-cylinder.JPG`, alt: 'System boiler with unvented cylinder — real-world example' };
+      return { src: `${BASE}/unvented-cylinder.svg`, alt: 'System boiler with unvented cylinder diagram' };
     case 'heat_pump':
-      return { src: `${BASE}/ASHP.PNG`, alt: 'Air source heat pump — real-world example' };
+      return { src: `${BASE}/ashp.svg`, alt: 'Air source heat pump diagram' };
     default:
       return null;
   }
@@ -102,17 +102,17 @@ export function imageForRecId(recId: string): SystemImageInfo | null {
 export function imageForOptionId(optionId: string): SystemImageInfo | null {
   switch (optionId) {
     case 'combi':
-      return { src: `${BASE}/Combination.PNG`, alt: 'Combination boiler — real-world example' };
+      return { src: `${BASE}/combination.svg`, alt: 'Combination boiler diagram' };
     case 'stored_unvented':
     case 'system_unvented':
-      return { src: `${BASE}/unvented-cylinder.JPG`, alt: 'System boiler with unvented cylinder — real-world example' };
+      return { src: `${BASE}/unvented-cylinder.svg`, alt: 'System boiler with unvented cylinder diagram' };
     case 'stored_vented':
     case 'regular_vented':
-      return { src: `${BASE}/vented-cylinder.PNG`, alt: 'Regular boiler with open-vented cylinder — real-world example' };
+      return { src: `${BASE}/vented-cylinder.svg`, alt: 'Regular boiler with open-vented cylinder diagram' };
     case 'ashp':
-      return { src: `${BASE}/ASHP.PNG`, alt: 'Air source heat pump — real-world example' };
+      return { src: `${BASE}/ashp.svg`, alt: 'Air source heat pump diagram' };
     case 'gshp':
-      return { src: `${BASE}/GSHP.PNG`, alt: 'Ground source heat pump — real-world example' };
+      return { src: `${BASE}/gshp.svg`, alt: 'Ground source heat pump diagram' };
     default:
       return null;
   }
@@ -133,9 +133,9 @@ export function imageForControlFamily(
   switch (controlFamily) {
     case 's_plan':
     case 's_plan_plus':
-      return { src: `${BASE}/s-plan.jpg`, alt: 'S-plan control wiring schematic' };
+      return { src: `${BASE}/s-plan.svg`, alt: 'S-plan control wiring diagram' };
     case 'y_plan':
-      return { src: `${BASE}/y-plan.jpg`, alt: 'Y-plan control wiring schematic' };
+      return { src: `${BASE}/y-plan.svg`, alt: 'Y-plan control wiring diagram' };
     default:
       return null;
   }
@@ -156,7 +156,7 @@ export function imageForZoneLayout(
   switch (controlFamily) {
     case 's_plan':
     case 's_plan_plus':
-      return { src: `${BASE}/two-zone.jpg`, alt: 'Two-zone heating layout — S-plan system, real-world example' };
+      return { src: `${BASE}/two-zone.svg`, alt: 'Two-zone heating layout diagram' };
     default:
       return null;
   }
@@ -175,7 +175,7 @@ export function imageForPipeLayout(
 
   switch (layout) {
     case 'one_pipe':
-      return { src: `${BASE}/one-pipe.jpg`, alt: 'One-pipe heating circuit — real-world example' };
+      return { src: `${BASE}/one-pipe.svg`, alt: 'One-pipe heating circuit diagram' };
     default:
       return null;
   }
@@ -198,7 +198,7 @@ export function imageForBoilerDetail(
     case 'storage_combi':
     case 'system':
     case 'regular':
-      return { src: `${BASE}/Condensate-internal.JPG`, alt: 'Condensate drain inside boiler cupboard — real-world example' };
+      return { src: `${BASE}/condensate.svg`, alt: 'Condensate drain diagram' };
     default:
       return null;
   }
@@ -219,7 +219,7 @@ export function imageForSystemComponents(
   switch (heatSource) {
     case 'system':
     case 'regular':
-      return { src: `${BASE}/System-components.JPG`, alt: 'Heating system components overview — real-world example' };
+      return { src: `${BASE}/system-components.svg`, alt: 'Heating system components overview diagram' };
     default:
       return null;
   }

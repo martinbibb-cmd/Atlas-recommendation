@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" role="img" aria-label="Ground source heat pump with buried ground loop">
+  <rect width="200" height="160" fill="#f8fafc" rx="4"/>
+  <!-- Title -->
+  <text x="100" y="12" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#374151" font-weight="600">Ground Source Heat Pump</text>
+  <!-- Above ground area -->
+  <rect x="0" y="16" width="200" height="74" fill="#f0fdf4"/>
+  <!-- Ground -->
+  <rect x="0" y="90" width="200" height="70" rx="2" fill="#d1fae5" stroke="#6ee7b7" stroke-width="1"/>
+  <text x="100" y="105" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#065f46">Ground / Earth Loop</text>
+  <!-- Ground loop pipes (buried) -->
+  <path d="M30 92 C30 110 50 115 50 130 C50 145 30 148 30 148" stroke="#3b82f6" stroke-width="2.5" fill="none" stroke-dasharray="4,2"/>
+  <path d="M40 92 C40 108 60 113 60 128 C60 143 40 146 40 146" stroke="#ef4444" stroke-width="2.5" fill="none" stroke-dasharray="4,2"/>
+  <path d="M55 92 C55 112 75 117 75 132 C75 147 55 150 55 150" stroke="#3b82f6" stroke-width="2" fill="none" stroke-dasharray="3,2"/>
+  <path d="M65 92 C65 110 85 115 85 130 C85 145 65 148 65 148" stroke="#ef4444" stroke-width="2" fill="none" stroke-dasharray="3,2"/>
+  <!-- Heat pump indoor unit -->
+  <rect x="120" y="22" width="65" height="65" rx="5" fill="#1e40af" stroke="#1e3a8a" stroke-width="2"/>
+  <text x="152" y="52" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#eff6ff" font-weight="bold">HEAT</text>
+  <text x="152" y="64" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#eff6ff" font-weight="bold">PUMP</text>
+  <text x="152" y="76" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#bfdbfe">Ground Source</text>
+  <!-- Pipes from ground to heat pump -->
+  <line x1="90" y1="92" x2="120" y2="60" stroke="#3b82f6" stroke-width="2.5"/>
+  <line x1="100" y1="92" x2="120" y2="72" stroke="#ef4444" stroke-width="2.5"/>
+  <!-- Label -->
+  <text x="152" y="100" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#374151">Indoor Unit</text>
+</svg>

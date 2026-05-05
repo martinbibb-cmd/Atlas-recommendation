@@ -36,25 +36,25 @@ const ALL_PROPOSED_TILES: HeatSourceTileDefinition[] = [
     value:    'combi_boiler',
     title:    'Combination boiler',
     subtitle: 'On-demand hot water — no cylinder required',
-    imageSrc: '/images/systems/Combination.PNG',
+    imageSrc: '/images/systems/combination.svg',
   },
   {
     value:    'system_boiler',
     title:    'System boiler',
     subtitle: 'Sealed primary — cylinder required',
-    imageSrc: '/images/systems/system-boiler.PNG',
+    imageSrc: '/images/systems/system-boiler.svg',
   },
   {
     value:    'regular_boiler',
     title:    'Regular boiler',
     subtitle: 'Open-vented primary — cylinder and tanks required',
-    imageSrc: '/images/systems/open-vented-schematic.JPG',
+    imageSrc: '/images/systems/open-vented-schematic.svg',
   },
   {
     value:    'heat_pump',
     title:    'Heat pump',
     subtitle: 'Low-temperature heat source — cylinder required',
-    imageSrc: '/images/systems/ASHP.PNG',
+    imageSrc: '/images/systems/ashp.svg',
   },
 ];
 

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" role="img" aria-label="Condensate drain inside boiler cupboard">
+  <rect width="200" height="160" fill="#f8fafc" rx="4"/>
+  <!-- Title -->
+  <text x="100" y="12" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#374151" font-weight="600">Condensate Drain</text>
+  <!-- Boiler body -->
+  <rect x="55" y="22" width="90" height="80" rx="6" fill="#1e40af" stroke="#1e3a8a" stroke-width="2"/>
+  <!-- Boiler panel -->
+  <rect x="63" y="30" width="74" height="55" rx="3" fill="#eff6ff" stroke="#93c5fd" stroke-width="1"/>
+  <!-- Flue at top -->
+  <rect x="88" y="14" width="24" height="10" rx="2" fill="#6b7280" stroke="#4b5563" stroke-width="1.5"/>
+  <line x1="100" y1="14" x2="100" y2="22" stroke="#6b7280" stroke-width="3"/>
+  <text x="100" y="12" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#6b7280">Flue</text>
+  <!-- Condensate drain pipe (highlighted) -->
+  <line x1="75" y1="102" x2="75" y2="130" stroke="#0ea5e9" stroke-width="4"/>
+  <line x1="75" y1="130" x2="120" y2="130" stroke="#0ea5e9" stroke-width="4"/>
+  <line x1="120" y1="130" x2="120" y2="148" stroke="#0ea5e9" stroke-width="4"/>
+  <!-- Arrow on condensate pipe -->
+  <polygon points="72,140 75,148 78,140" fill="#0ea5e9"/>
+  <!-- Drain label -->
+  <text x="140" y="134" font-family="sans-serif" font-size="7" fill="#0369a1" font-weight="bold">Condensate</text>
+  <text x="140" y="144" font-family="sans-serif" font-size="7" fill="#0369a1" font-weight="bold">drain pipe</text>
+  <!-- Drain trap -->
+  <path d="M110,130 Q120,138 130,130" fill="none" stroke="#0ea5e9" stroke-width="2"/>
+  <!-- Drain / sump at bottom -->
+  <rect x="107" y="148" width="26" height="8" rx="2" fill="#0ea5e9" opacity="0.4" stroke="#0369a1" stroke-width="1"/>
+  <text x="120" y="156" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#0369a1">Drain</text>
+  <!-- Boiler label inside -->
+  <text x="100" y="60" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1e3a8a" font-weight="bold">CONDENSING</text>
+  <text x="100" y="72" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1e3a8a" font-weight="bold">BOILER</text>
+  <!-- Condensate label on boiler body -->
+  <text x="85" y="97" text-anchor="end" font-family="sans-serif" font-size="6" fill="#6b7280">← condensate</text>
+  <!-- Hot/cold pipes on right -->
+  <line x1="145" y1="50" x2="175" y2="50" stroke="#ef4444" stroke-width="3"/>
+  <line x1="145" y1="70" x2="175" y2="70" stroke="#3b82f6" stroke-width="3"/>
+  <text x="177" y="53" font-family="sans-serif" font-size="7" fill="#b91c1c">Flow</text>
+  <text x="177" y="73" font-family="sans-serif" font-size="7" fill="#1d4ed8">Return</text>
+</svg>

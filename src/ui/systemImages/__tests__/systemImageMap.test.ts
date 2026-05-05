@@ -29,53 +29,53 @@ import {
 // ─── imageForCurrentSystem ────────────────────────────────────────────────────
 
 describe('imageForCurrentSystem', () => {
-  it('returns Combination.PNG for combi boiler', () => {
+  it('returns combination.svg for combi boiler', () => {
     const result = imageForCurrentSystem('combi');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('Combination.PNG');
+    expect(result!.src).toContain('combination.svg');
     expect(result!.alt).toBeTruthy();
   });
 
-  it('returns Combination.PNG for storage_combi boiler', () => {
+  it('returns combination.svg for storage_combi boiler', () => {
     const result = imageForCurrentSystem('storage_combi');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('Combination.PNG');
+    expect(result!.src).toContain('combination.svg');
   });
 
-  it('returns system-boiler.PNG for system boiler with open_vented DHW', () => {
+  it('returns system-boiler.svg for system boiler with open_vented DHW', () => {
     const result = imageForCurrentSystem('system', 'open_vented');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('system-boiler.PNG');
+    expect(result!.src).toContain('system-boiler.svg');
   });
 
-  it('returns unvented-cylinder.JPG for system boiler with unvented DHW', () => {
+  it('returns unvented-cylinder.svg for system boiler with unvented DHW', () => {
     const result = imageForCurrentSystem('system', 'unvented');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('unvented-cylinder.JPG');
+    expect(result!.src).toContain('unvented-cylinder.svg');
   });
 
-  it('returns open-vented-schematic.JPG for regular boiler with open_vented DHW', () => {
+  it('returns open-vented-schematic.svg for regular boiler with open_vented DHW', () => {
     const result = imageForCurrentSystem('regular', 'open_vented');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('open-vented-schematic.JPG');
+    expect(result!.src).toContain('open-vented-schematic.svg');
   });
 
-  it('returns unvented-cylinder.JPG for regular boiler with unvented DHW', () => {
+  it('returns unvented-cylinder.svg for regular boiler with unvented DHW', () => {
     const result = imageForCurrentSystem('regular', 'unvented');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('unvented-cylinder.JPG');
+    expect(result!.src).toContain('unvented-cylinder.svg');
   });
 
-  it('returns gravity.JPG for regular boiler with open_vented heating circuit and no DHW type', () => {
+  it('returns gravity.svg for regular boiler with open_vented heating circuit and no DHW type', () => {
     const result = imageForCurrentSystem('regular', null, 'open_vented');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('gravity.JPG');
+    expect(result!.src).toContain('gravity.svg');
   });
 
   it('DHW type takes priority over heatingSystemType (open_vented DHW overrides open_vented heating)', () => {
     const result = imageForCurrentSystem('regular', 'open_vented', 'open_vented');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('open-vented-schematic.JPG');
+    expect(result!.src).toContain('open-vented-schematic.svg');
   });
 
   it('returns null for regular boiler with thermal_store (ambiguous)', () => {
@@ -107,22 +107,22 @@ describe('imageForCurrentSystem', () => {
 // ─── imageForRecId ────────────────────────────────────────────────────────────
 
 describe('imageForRecId', () => {
-  it('returns Combination.PNG for combi_upgrade', () => {
+  it('returns combination.svg for combi_upgrade', () => {
     const result = imageForRecId('combi_upgrade');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('Combination.PNG');
+    expect(result!.src).toContain('combination.svg');
   });
 
-  it('returns unvented-cylinder.JPG for system_unvented', () => {
+  it('returns unvented-cylinder.svg for system_unvented', () => {
     const result = imageForRecId('system_unvented');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('unvented-cylinder.JPG');
+    expect(result!.src).toContain('unvented-cylinder.svg');
   });
 
-  it('returns ASHP.PNG for heat_pump', () => {
+  it('returns ashp.svg for heat_pump', () => {
     const result = imageForRecId('heat_pump');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('ASHP.PNG');
+    expect(result!.src).toContain('ashp.svg');
   });
 
   it('returns null for an unknown recommendation ID', () => {
@@ -137,22 +137,22 @@ describe('imageForRecId', () => {
 // ─── imageForControlFamily ────────────────────────────────────────────────────
 
 describe('imageForControlFamily', () => {
-  it('returns s-plan.jpg for s_plan', () => {
+  it('returns s-plan.svg for s_plan', () => {
     const result = imageForControlFamily('s_plan');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('s-plan.jpg');
+    expect(result!.src).toContain('s-plan.svg');
   });
 
-  it('returns s-plan.jpg for s_plan_plus', () => {
+  it('returns s-plan.svg for s_plan_plus', () => {
     const result = imageForControlFamily('s_plan_plus');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('s-plan.jpg');
+    expect(result!.src).toContain('s-plan.svg');
   });
 
-  it('returns y-plan.jpg for y_plan', () => {
+  it('returns y-plan.svg for y_plan', () => {
     const result = imageForControlFamily('y_plan');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('y-plan.jpg');
+    expect(result!.src).toContain('y-plan.svg');
   });
 
   it('returns null for combi_integral (no schematic applicable)', () => {
@@ -171,17 +171,17 @@ describe('imageForControlFamily', () => {
 // ─── imageForZoneLayout ───────────────────────────────────────────────────────
 
 describe('imageForZoneLayout', () => {
-  it('returns two-zone.jpg for s_plan', () => {
+  it('returns two-zone.svg for s_plan', () => {
     const result = imageForZoneLayout('s_plan');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('two-zone.jpg');
+    expect(result!.src).toContain('two-zone.svg');
     expect(result!.alt).toBeTruthy();
   });
 
-  it('returns two-zone.jpg for s_plan_plus', () => {
+  it('returns two-zone.svg for s_plan_plus', () => {
     const result = imageForZoneLayout('s_plan_plus');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('two-zone.jpg');
+    expect(result!.src).toContain('two-zone.svg');
   });
 
   it('returns null for y_plan (single-zone)', () => {
@@ -200,10 +200,10 @@ describe('imageForZoneLayout', () => {
 // ─── imageForPipeLayout ───────────────────────────────────────────────────────
 
 describe('imageForPipeLayout', () => {
-  it('returns one-pipe.jpg for one_pipe layout', () => {
+  it('returns one-pipe.svg for one_pipe layout', () => {
     const result = imageForPipeLayout('one_pipe');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('one-pipe.jpg');
+    expect(result!.src).toContain('one-pipe.svg');
     expect(result!.alt).toBeTruthy();
   });
 
@@ -227,29 +227,29 @@ describe('imageForPipeLayout', () => {
 // ─── imageForBoilerDetail ─────────────────────────────────────────────────────
 
 describe('imageForBoilerDetail', () => {
-  it('returns Condensate-internal.JPG for combi boiler', () => {
+  it('returns condensate.svg for combi boiler', () => {
     const result = imageForBoilerDetail('combi');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('Condensate-internal.JPG');
+    expect(result!.src).toContain('condensate.svg');
     expect(result!.alt).toBeTruthy();
   });
 
-  it('returns Condensate-internal.JPG for storage_combi', () => {
+  it('returns condensate.svg for storage_combi', () => {
     const result = imageForBoilerDetail('storage_combi');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('Condensate-internal.JPG');
+    expect(result!.src).toContain('condensate.svg');
   });
 
-  it('returns Condensate-internal.JPG for system boiler', () => {
+  it('returns condensate.svg for system boiler', () => {
     const result = imageForBoilerDetail('system');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('Condensate-internal.JPG');
+    expect(result!.src).toContain('condensate.svg');
   });
 
-  it('returns Condensate-internal.JPG for regular boiler', () => {
+  it('returns condensate.svg for regular boiler', () => {
     const result = imageForBoilerDetail('regular');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('Condensate-internal.JPG');
+    expect(result!.src).toContain('condensate.svg');
   });
 
   it('returns null when heatSource is null', () => {
@@ -260,17 +260,17 @@ describe('imageForBoilerDetail', () => {
 // ─── imageForSystemComponents ─────────────────────────────────────────────────
 
 describe('imageForSystemComponents', () => {
-  it('returns System-components.JPG for system boiler', () => {
+  it('returns system-components.svg for system boiler', () => {
     const result = imageForSystemComponents('system');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('System-components.JPG');
+    expect(result!.src).toContain('system-components.svg');
     expect(result!.alt).toBeTruthy();
   });
 
-  it('returns System-components.JPG for regular boiler', () => {
+  it('returns system-components.svg for regular boiler', () => {
     const result = imageForSystemComponents('regular');
     expect(result).not.toBeNull();
-    expect(result!.src).toContain('System-components.JPG');
+    expect(result!.src).toContain('system-components.svg');
   });
 
   it('returns null for combi (on-demand, fewer components)', () => {

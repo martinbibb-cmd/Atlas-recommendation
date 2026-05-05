@@ -42,7 +42,7 @@ const DISCHARGE_CARDS: CondensateDischargeCardMeta[] = [
   {
     kind:      'internal_waste',
     icon:      '🪣',
-    imageSrc:  '/images/systems/Condensate-internal.JPG',
+    imageSrc:  '/images/systems/condensate.svg',
     label:     'Internal waste',
     hint:      'Routed to an internal sink trap, basin waste, or soil stack.',
     isExternal: false,
