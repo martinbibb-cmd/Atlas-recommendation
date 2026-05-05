@@ -15,7 +15,6 @@
  *   - Does not alter recommendation decisions.
  */
 
-import { useState } from 'react';
 import type { UiProposedHeatSourceLabel, UiProposedHotWaterLabel } from '../installationSpecificationUiTypes';
 
 // ─── Control item types ───────────────────────────────────────────────────────

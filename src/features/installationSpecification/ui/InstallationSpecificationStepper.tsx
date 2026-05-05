@@ -582,9 +582,7 @@ export function InstallationSpecificationStepper({
               onCorrectSurvey={onCorrectSurvey}
               engineRecommendationReason={engineRecommendationReason}
               recommendedPackLabel={
-                packCards.find((c) => c.isRecommended)
-                  ? packCards.find((c) => c.isRecommended)!.title
-                  : null
+                packCards.find((c) => c.isRecommended)?.title ?? null
               }
               siteConditions={siteConditions}
             />

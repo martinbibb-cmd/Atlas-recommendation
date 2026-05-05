@@ -191,20 +191,17 @@ const ALL_PRODUCTS: ProductItem[] = [
 
 /**
  * Returns the default selected products for a given proposed system.
+ * The proposedHeatSource parameter is reserved for topology-based
+ * future expansion (e.g. heat pump packs may default different products).
  */
 function getDefaultProductIds(
-  proposedHeatSource: UiProposedHeatSourceLabel | null,
+  _proposedHeatSource: UiProposedHeatSourceLabel | null,
 ): Set<ProductItemId> {
-  const ids = new Set<ProductItemId>([
+  return new Set<ProductItemId>([
     'magnetic_filter',
     'water_treatment_chemicals',
     'co_alarm',
   ]);
-  if (proposedHeatSource) {
-    // suppress unused warning
-    void proposedHeatSource;
-  }
-  return ids;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
