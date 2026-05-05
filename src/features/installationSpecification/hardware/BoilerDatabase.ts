@@ -1,18 +1,27 @@
 /**
  * BoilerDatabase.ts
  *
- * Static boiler model catalogue used by the Hardware Selection Drill-Down UI.
+ * Hardware Selection catalogue used by the Hardware Selection Drill-Down UI.
  *
  * Structure:
- *   Brand → Series → Models (with kW output and H×W×D dimensions in mm).
+ *   Brand → Series → Models (with kW output and W×D×H dimensions in mm).
+ *
+ * Data source:
+ *   All model data is now derived from the shared hardware contracts layer at
+ *   src/contracts/hardware/index.ts (backed by MasterRegistry.json).
+ *   When @atlas/contracts ships a hardware sub-path, that import becomes a
+ *   single-line re-export swap in src/contracts/hardware/index.ts.
  *
  * Design rules:
  *   - No engine calls, no mutations, no React dependencies.
  *   - Data is intentionally representative — actual manufacturer specs should
  *     be verified against the current product datasheet before use in quotes.
- *   - Dimensions are H×W×D in millimetres.
+ *   - Dimensions are W×D×H in millimetres (matching ApplianceDimensionsV1).
  *   - `outputKw` is the nominal maximum DHW / heating output.
  */
+
+import { MASTER_REGISTRY, MASTER_REGISTRY_BY_ID } from '../../../contracts/hardware';
+import type { ApplianceDefinitionV1 } from '../../../contracts/hardware';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,174 +68,83 @@ export interface BoilerBrandEntry {
   readonly series: readonly BoilerSeriesEntry[];
 }
 
+// ─── Registry → UI adapter ────────────────────────────────────────────────────
+
+/** Map an ApplianceDefinitionV1 to the flat BoilerModelEntry shape. */
+function toModelEntry(def: ApplianceDefinitionV1): BoilerModelEntry {
+  return {
+    modelId:   def.modelId,
+    modelName: def.modelName,
+    outputKw:  def.outputKw,
+    heightMm:  def.dimensions.heightMm,
+    widthMm:   def.dimensions.widthMm,
+    depthMm:   def.dimensions.depthMm,
+  };
+}
+
+/**
+ * Build the brand → series → model tree consumed by the Hardware Selection UI
+ * from the flat MASTER_REGISTRY.  Insertion order from the JSON is preserved
+ * so the brand grid and series lists appear in a predictable sequence.
+ */
+function buildBoilerModelsDB(): readonly BoilerBrandEntry[] {
+  const brandMap = new Map<string, {
+    brandId: string;
+    brandName: string;
+    logoPath: string | null;
+    seriesMap: Map<string, { seriesId: string; seriesName: string; seriesDescription: string; models: BoilerModelEntry[] }>;
+  }>();
+
+  for (const def of MASTER_REGISTRY) {
+    let brand = brandMap.get(def.brand);
+    if (brand == null) {
+      brand = {
+        brandId:   def.brand,
+        brandName: def.brandName,
+        logoPath:  def.logoPath ?? null,
+        seriesMap: new Map(),
+      };
+      brandMap.set(def.brand, brand);
+    }
+
+    let series = brand.seriesMap.get(def.seriesId);
+    if (series == null) {
+      series = {
+        seriesId:          def.seriesId,
+        seriesName:        def.seriesName,
+        seriesDescription: def.seriesDescription ?? '',
+        models:            [],
+      };
+      brand.seriesMap.set(def.seriesId, series);
+    }
+
+    series.models.push(toModelEntry(def));
+  }
+
+  return Array.from(brandMap.values()).map((b) => ({
+    brandId:   b.brandId,
+    brandName: b.brandName,
+    logoPath:  b.logoPath,
+    series: Array.from(b.seriesMap.values()).map((s) => ({
+      seriesId:          s.seriesId,
+      seriesName:        s.seriesName,
+      seriesDescription: s.seriesDescription,
+      models:            s.models,
+    })),
+  }));
+}
+
 // ─── Database ─────────────────────────────────────────────────────────────────
 
 /**
  * BOILER_MODELS_DB
  *
- * Representative catalogue of boiler brands, series, and models.
- *
- * Brands included (per problem statement):
- *   Worcester Bosch, Vaillant, Ideal, Glow-worm, Viessmann.
- *
- * Note: specifications are representative. Verify against current datasheets
- * before using in a formal quote.
+ * Brand → series → model catalogue derived from the shared MasterRegistry.
+ * Consumers that need physical dimensions or clearance rules should use the
+ * MASTER_REGISTRY / MASTER_REGISTRY_BY_ID exports from the contracts layer
+ * directly, which include the full ApplianceDefinitionV1 (with clearanceRules).
  */
-export const BOILER_MODELS_DB: readonly BoilerBrandEntry[] = [
-  // ── Worcester Bosch ─────────────────────────────────────────────────────────
-  {
-    brandId:   'worcester_bosch',
-    brandName: 'Worcester Bosch',
-    logoPath:  '/assets/logos/worcester-bosch.png',
-    series: [
-      {
-        seriesId:          'greenstar_4000',
-        seriesName:        'Greenstar 4000',
-        seriesDescription: 'Wall-hung combi and system boiler range',
-        models: [
-          { modelId: 'gs4000_25kw', modelName: 'Greenstar 4000 25kW',   outputKw: 25, heightMm: 740, widthMm: 390, depthMm: 338 },
-          { modelId: 'gs4000_30kw', modelName: 'Greenstar 4000 30kW',   outputKw: 30, heightMm: 740, widthMm: 390, depthMm: 338 },
-          { modelId: 'gs4000_35kw', modelName: 'Greenstar 4000 35kW',   outputKw: 35, heightMm: 740, widthMm: 390, depthMm: 338 },
-          { modelId: 'gs4000_40kw', modelName: 'Greenstar 4000 40kW',   outputKw: 40, heightMm: 740, widthMm: 390, depthMm: 338 },
-        ],
-      },
-      {
-        seriesId:          'greenstar_8000',
-        seriesName:        'Greenstar 8000',
-        seriesDescription: 'Premium wall-hung combi range with integrated controls',
-        models: [
-          { modelId: 'gs8000_30kw', modelName: 'Greenstar 8000 30kW',  outputKw: 30, heightMm: 800, widthMm: 440, depthMm: 360 },
-          { modelId: 'gs8000_35kw', modelName: 'Greenstar 8000 35kW',  outputKw: 35, heightMm: 800, widthMm: 440, depthMm: 360 },
-          { modelId: 'gs8000_40kw', modelName: 'Greenstar 8000 40kW',  outputKw: 40, heightMm: 800, widthMm: 440, depthMm: 360 },
-        ],
-      },
-      {
-        seriesId:          'greenstar_si',
-        seriesName:        'Greenstar Si',
-        seriesDescription: 'Compact wall-hung combi — ideal for small cupboards',
-        models: [
-          { modelId: 'gs_si_25kw',  modelName: 'Greenstar Si 25kW',    outputKw: 25, heightMm: 600, widthMm: 280, depthMm: 230 },
-          { modelId: 'gs_si_30kw',  modelName: 'Greenstar Si 30kW',    outputKw: 30, heightMm: 600, widthMm: 280, depthMm: 230 },
-        ],
-      },
-    ],
-  },
-
-  // ── Vaillant ─────────────────────────────────────────────────────────────────
-  {
-    brandId:   'vaillant',
-    brandName: 'Vaillant',
-    logoPath:  '/assets/logos/vaillant.png',
-    series: [
-      {
-        seriesId:          'ecofit_pure',
-        seriesName:        'ecoFIT pure',
-        seriesDescription: 'Entry-level wall-hung combi and system boiler',
-        models: [
-          { modelId: 'ecofit_pure_25', modelName: 'ecoFIT pure 25kW',   outputKw: 25, heightMm: 720, widthMm: 380, depthMm: 338 },
-          { modelId: 'ecofit_pure_30', modelName: 'ecoFIT pure 30kW',   outputKw: 30, heightMm: 720, widthMm: 380, depthMm: 338 },
-          { modelId: 'ecofit_pure_35', modelName: 'ecoFIT pure 35kW',   outputKw: 35, heightMm: 720, widthMm: 380, depthMm: 338 },
-        ],
-      },
-      {
-        seriesId:          'ecofit_sustain',
-        seriesName:        'ecoFIT sustain',
-        seriesDescription: 'Hydrogen-blend ready wall-hung combi and system boiler',
-        models: [
-          { modelId: 'ecofit_sustain_25', modelName: 'ecoFIT sustain 25kW', outputKw: 25, heightMm: 740, widthMm: 440, depthMm: 350 },
-          { modelId: 'ecofit_sustain_30', modelName: 'ecoFIT sustain 30kW', outputKw: 30, heightMm: 740, widthMm: 440, depthMm: 350 },
-          { modelId: 'ecofit_sustain_35', modelName: 'ecoFIT sustain 35kW', outputKw: 35, heightMm: 740, widthMm: 440, depthMm: 350 },
-        ],
-      },
-    ],
-  },
-
-  // ── Ideal ─────────────────────────────────────────────────────────────────────
-  {
-    brandId:   'ideal',
-    brandName: 'Ideal',
-    logoPath:  '/assets/logos/ideal.png',
-    series: [
-      {
-        seriesId:          'logic_plus',
-        seriesName:        'Logic+ Combi',
-        seriesDescription: 'Value wall-hung combi boiler range',
-        models: [
-          { modelId: 'logic_plus_24', modelName: 'Logic+ Combi 24kW', outputKw: 24, heightMm: 690, widthMm: 385, depthMm: 280 },
-          { modelId: 'logic_plus_30', modelName: 'Logic+ Combi 30kW', outputKw: 30, heightMm: 690, widthMm: 385, depthMm: 280 },
-          { modelId: 'logic_plus_35', modelName: 'Logic+ Combi 35kW', outputKw: 35, heightMm: 690, widthMm: 385, depthMm: 280 },
-        ],
-      },
-      {
-        seriesId:          'vogue_max',
-        seriesName:        'Vogue Max',
-        seriesDescription: 'Premium ErP wall-hung combi and system range',
-        models: [
-          { modelId: 'vogue_max_26', modelName: 'Vogue Max 26kW',     outputKw: 26, heightMm: 730, widthMm: 430, depthMm: 345 },
-          { modelId: 'vogue_max_32', modelName: 'Vogue Max 32kW',     outputKw: 32, heightMm: 730, widthMm: 430, depthMm: 345 },
-          { modelId: 'vogue_max_38', modelName: 'Vogue Max 38kW',     outputKw: 38, heightMm: 730, widthMm: 430, depthMm: 345 },
-        ],
-      },
-    ],
-  },
-
-  // ── Glow-worm ─────────────────────────────────────────────────────────────────
-  {
-    brandId:   'glow_worm',
-    brandName: 'Glow-worm',
-    logoPath:  '/assets/logos/glow-worm.png',
-    series: [
-      {
-        seriesId:          'energy_plus',
-        seriesName:        'Energy+ Combi',
-        seriesDescription: 'Wall-hung combi boiler range with 10-year warranty available',
-        models: [
-          { modelId: 'energy_plus_25', modelName: 'Energy+ 25kW',     outputKw: 25, heightMm: 700, widthMm: 380, depthMm: 295 },
-          { modelId: 'energy_plus_30', modelName: 'Energy+ 30kW',     outputKw: 30, heightMm: 700, widthMm: 380, depthMm: 295 },
-          { modelId: 'energy_plus_35', modelName: 'Energy+ 35kW',     outputKw: 35, heightMm: 700, widthMm: 380, depthMm: 295 },
-        ],
-      },
-      {
-        seriesId:          'ultimate3_combi',
-        seriesName:        'Ultimate3 Combi',
-        seriesDescription: 'Premium wall-hung combi with stainless steel heat exchanger',
-        models: [
-          { modelId: 'ult3_25', modelName: 'Ultimate3 25kW',          outputKw: 25, heightMm: 730, widthMm: 390, depthMm: 330 },
-          { modelId: 'ult3_30', modelName: 'Ultimate3 30kW',          outputKw: 30, heightMm: 730, widthMm: 390, depthMm: 330 },
-        ],
-      },
-    ],
-  },
-
-  // ── Viessmann ─────────────────────────────────────────────────────────────────
-  {
-    brandId:   'viessmann',
-    brandName: 'Viessmann',
-    logoPath:  '/assets/logos/viessmann.png',
-    series: [
-      {
-        seriesId:          'vitodens_050w',
-        seriesName:        'Vitodens 050-W',
-        seriesDescription: 'Entry wall-hung combi and system boiler with Lambda Pro combustion',
-        models: [
-          { modelId: 'vd050_24', modelName: 'Vitodens 050-W 24kW',    outputKw: 24, heightMm: 710, widthMm: 380, depthMm: 310 },
-          { modelId: 'vd050_30', modelName: 'Vitodens 050-W 30kW',    outputKw: 30, heightMm: 710, widthMm: 380, depthMm: 310 },
-          { modelId: 'vd050_35', modelName: 'Vitodens 050-W 35kW',    outputKw: 35, heightMm: 710, widthMm: 380, depthMm: 310 },
-        ],
-      },
-      {
-        seriesId:          'vitodens_100w',
-        seriesName:        'Vitodens 100-W',
-        seriesDescription: 'Wall-hung combi and system boiler with stainless-steel Inox-Radial heat exchanger',
-        models: [
-          { modelId: 'vd100_25', modelName: 'Vitodens 100-W 25kW',    outputKw: 25, heightMm: 760, widthMm: 420, depthMm: 340 },
-          { modelId: 'vd100_32', modelName: 'Vitodens 100-W 32kW',    outputKw: 32, heightMm: 760, widthMm: 420, depthMm: 340 },
-          { modelId: 'vd100_35', modelName: 'Vitodens 100-W 35kW',    outputKw: 35, heightMm: 760, widthMm: 420, depthMm: 340 },
-        ],
-      },
-    ],
-  },
-] as const;
+export const BOILER_MODELS_DB: readonly BoilerBrandEntry[] = buildBoilerModelsDB();
 
 // ─── Lookup helpers ───────────────────────────────────────────────────────────
 
@@ -266,3 +184,11 @@ export function findBoilerModel(
 ): BoilerModelEntry | undefined {
   return getModelsForSeries(brandId, seriesId).find((m) => m.modelId === modelId);
 }
+
+/**
+ * Looks up a full ApplianceDefinitionV1 by modelId.
+ * Includes clearanceRules and raw dimensions for use by BoilerSizingModule
+ * and any future Ghost Box integration.
+ * Returns undefined if the modelId is not in the registry.
+ */
+export { MASTER_REGISTRY_BY_ID as APPLIANCE_REGISTRY_BY_ID };

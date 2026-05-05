@@ -9,7 +9,14 @@
  *   ≤ 1.8  → mild_oversize
  *   ≤ 2.5  → oversized
  *   > 2.5  → aggressive
+ *
+ * Registry integration:
+ *   lookupNominalKwFromRegistry(modelId) resolves the outputKw for a known
+ *   appliance from the shared MasterRegistry so callers do not need to carry
+ *   the kW figure separately once a specific model has been selected.
  */
+
+import { MASTER_REGISTRY_BY_ID } from '../../contracts/hardware';
 
 /** Fallback nominal output (kW) by boiler type when nominalOutputKw is not provided. */
 export const NOMINAL_KW_FALLBACK: Record<string, number> = {
@@ -77,4 +84,24 @@ export function classifySizingBand(
   if (ratio <= 1.8)  return 'mild_oversize';
   if (ratio <= 2.5)  return 'oversized';
   return 'aggressive';
+}
+
+// ─── Registry-based lookup ────────────────────────────────────────────────────
+
+/**
+ * lookupNominalKwFromRegistry
+ *
+ * Resolves the nominal output (kW) for a specific appliance modelId from the
+ * shared MasterRegistry.  Use this when a specific model has already been
+ * selected in the Hardware Selection UI so the sizing calculation uses the
+ * exact rated output rather than a boiler-type fallback.
+ *
+ * Returns undefined when the modelId is not present in the registry (e.g.
+ * for a custom legacy appliance carried via HardwarePatchV1 that has not yet
+ * been merged into the local registry view).
+ *
+ * @param modelId  The ApplianceDefinitionV1 modelId (e.g. "gs4000_30kw").
+ */
+export function lookupNominalKwFromRegistry(modelId: string): number | undefined {
+  return MASTER_REGISTRY_BY_ID.get(modelId)?.outputKw;
 }

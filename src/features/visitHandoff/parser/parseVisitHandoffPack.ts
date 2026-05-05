@@ -23,6 +23,7 @@ import type {
   CustomerVisitSummary,
   EngineerVisitSummary,
 } from '../types/visitHandoffPack';
+import type { HardwarePatchV1, HardwarePatchEntryV1 } from '../../../contracts/hardware/HardwarePatchV1';
 
 // ─── Internal validators ──────────────────────────────────────────────────────
 
@@ -62,6 +63,59 @@ function isHandoffProposedEmitter(value: unknown): value is import('../types/vis
 function isHandoffAccessNote(value: unknown): value is import('../types/visitHandoffPack').HandoffAccessNote {
   if (!isObject(value)) return false;
   return typeof value['location'] === 'string' && typeof value['note'] === 'string';
+}
+
+function parseHardwarePatchEntry(raw: unknown): HardwarePatchEntryV1 | null {
+  if (!isObject(raw)) return null;
+  if (!isObject(raw['definition'])) return null;
+  const def = raw['definition'];
+  if (
+    typeof def['modelId'] !== 'string' ||
+    typeof def['brand'] !== 'string' ||
+    typeof def['brandName'] !== 'string' ||
+    typeof def['seriesId'] !== 'string' ||
+    typeof def['seriesName'] !== 'string' ||
+    typeof def['modelName'] !== 'string' ||
+    typeof def['outputKw'] !== 'number'
+  ) return null;
+
+  // Validate the required nested dimensions object
+  const dims = def['dimensions'];
+  if (
+    !isObject(dims) ||
+    typeof dims['widthMm'] !== 'number' ||
+    typeof dims['depthMm'] !== 'number' ||
+    typeof dims['heightMm'] !== 'number'
+  ) return null;
+
+  // Validate the required nested clearanceRules object
+  const rules = def['clearanceRules'];
+  if (
+    !isObject(rules) ||
+    typeof rules['frontMm'] !== 'number' ||
+    typeof rules['sideMm'] !== 'number' ||
+    typeof rules['topMm'] !== 'number' ||
+    typeof rules['bottomMm'] !== 'number'
+  ) return null;
+
+  return raw as HardwarePatchEntryV1;
+}
+
+function parseHardwarePatch(raw: unknown): HardwarePatchV1 | undefined {
+  if (!isObject(raw)) return undefined;
+  if (raw['version'] !== '1') return undefined;
+  if (!isObject(raw['overrides'])) return undefined;
+  const overrides: Record<string, HardwarePatchEntryV1> = {};
+  for (const [key, val] of Object.entries(raw['overrides'])) {
+    const entry = parseHardwarePatchEntry(val);
+    // Entries that fail structural validation are silently dropped so a single
+    // malformed override cannot invalidate the entire patch.  Consumers that
+    // need diagnostics should validate patch entries before embedding them.
+    if (entry != null) {
+      overrides[key] = entry;
+    }
+  }
+  return { version: '1', overrides };
 }
 
 function parseCustomerSummary(raw: unknown): CustomerVisitSummary | null {
@@ -136,6 +190,7 @@ export function safeParseVisitHandoffPack(input: unknown): VisitHandoffPack | nu
         typeof input['engineerName'] === 'string' ? input['engineerName'] : undefined,
       customerSummary,
       engineerSummary,
+      hardwarePatch: parseHardwarePatch(input['hardwarePatch']),
     };
   } catch {
     return null;
