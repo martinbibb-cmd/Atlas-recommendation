@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" role="img" aria-label="Two-zone heating layout with S-plan system">
+  <rect width="200" height="160" fill="#f8fafc" rx="4"/>
+  <!-- Title -->
+  <text x="100" y="12" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#374151" font-weight="600">Two-Zone Heating Layout</text>
+  <!-- House outline -->
+  <path d="M20 140 L20 65 L100 25 L180 65 L180 140 Z" fill="none" stroke="#94a3b8" stroke-width="2"/>
+  <!-- Roof -->
+  <path d="M20 65 L100 25 L180 65" fill="#e2e8f0" stroke="#94a3b8" stroke-width="2"/>
+  <!-- Floor divider between zones -->
+  <line x1="20" y1="100" x2="180" y2="100" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <!-- Zone 1 label (upper) -->
+  <text x="100" y="68" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1e40af" font-weight="bold">Zone 1</text>
+  <text x="100" y="79" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#3b82f6">Upstairs</text>
+  <!-- Zone 1 radiator -->
+  <rect x="50" y="70" width="30" height="18" rx="2" fill="#fee2e2" stroke="#f87171" stroke-width="1.5"/>
+  <line x1="56" y1="70" x2="56" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <line x1="62" y1="70" x2="62" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <line x1="68" y1="70" x2="68" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <line x1="74" y1="70" x2="74" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <rect x="120" y="70" width="30" height="18" rx="2" fill="#fee2e2" stroke="#f87171" stroke-width="1.5"/>
+  <line x1="126" y1="70" x2="126" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <line x1="132" y1="70" x2="132" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <line x1="138" y1="70" x2="138" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <line x1="144" y1="70" x2="144" y2="88" stroke="#f87171" stroke-width="0.8"/>
+  <!-- Zone 2 label (lower) -->
+  <text x="100" y="118" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#1e40af" font-weight="bold">Zone 2</text>
+  <text x="100" y="129" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#3b82f6">Downstairs</text>
+  <!-- Zone 2 radiators -->
+  <rect x="35" y="107" width="35" height="18" rx="2" fill="#fde68a" stroke="#f59e0b" stroke-width="1.5"/>
+  <line x1="42" y1="107" x2="42" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <line x1="49" y1="107" x2="49" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <line x1="56" y1="107" x2="56" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <line x1="63" y1="107" x2="63" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <rect x="130" y="107" width="35" height="18" rx="2" fill="#fde68a" stroke="#f59e0b" stroke-width="1.5"/>
+  <line x1="137" y1="107" x2="137" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <line x1="144" y1="107" x2="144" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <line x1="151" y1="107" x2="151" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <line x1="158" y1="107" x2="158" y2="125" stroke="#f59e0b" stroke-width="0.8"/>
+  <!-- Thermostat symbols -->
+  <circle cx="40" cy="82" r="5" fill="#fff" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="40" y="85" text-anchor="middle" font-family="sans-serif" font-size="5" fill="#1e40af">T</text>
+  <circle cx="160" cy="120" r="5" fill="#fff" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="160" y="123" text-anchor="middle" font-family="sans-serif" font-size="5" fill="#92400e">T</text>
+  <!-- ZV labels -->
+  <text x="40" y="92" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#6b7280">ZV1</text>
+  <text x="160" y="130" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#6b7280">ZV2</text>
+</svg>

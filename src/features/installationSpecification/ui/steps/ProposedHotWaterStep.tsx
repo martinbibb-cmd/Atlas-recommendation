@@ -19,7 +19,7 @@ import type { UiProposedHeatSourceLabel, UiProposedHotWaterLabel } from '../inst
 
 // Heat pump cylinders are unvented (mains-pressure) appliances, so both
 // the standard unvented and the dedicated HP cylinder share the same image.
-const UNVENTED_CYLINDER_IMAGE = '/images/systems/unvented-cylinder.JPG';
+const UNVENTED_CYLINDER_IMAGE = '/images/systems/unvented-cylinder.svg';
 
 interface ProposedHotWaterTileDefinition {
   value: UiProposedHotWaterLabel;
@@ -44,7 +44,7 @@ const PROPOSED_HOT_WATER_TILES: ProposedHotWaterTileDefinition[] = [
     value:    'vented_cylinder',
     title:    'Replace with vented cylinder',
     subtitle: 'Open-vented mains-fed storage — gravity or pumped',
-    imageSrc: '/images/systems/vented-cylinder.PNG',
+    imageSrc: '/images/systems/vented-cylinder.svg',
     hideFor:  ['heat_pump'],
   },
   {

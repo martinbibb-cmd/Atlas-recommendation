@@ -39,38 +39,38 @@ export type OverviewSystemVisualKey =
 
 const VISUAL_REGISTRY: Record<OverviewSystemVisualKey, VisualRegistryEntry> = {
   overview_system_combi: {
-    src: `${SYSTEMS_BASE}/Combination.PNG`,
-    alt: 'Combination boiler — real-world example',
+    src: `${SYSTEMS_BASE}/combination.svg`,
+    alt: 'Combination boiler diagram',
     bgColor: '#fef9f0',
   },
   overview_system_system: {
-    src: `${SYSTEMS_BASE}/system-boiler.PNG`,
-    alt: 'System boiler — real-world example',
+    src: `${SYSTEMS_BASE}/system-boiler.svg`,
+    alt: 'System boiler diagram',
     bgColor: '#f0f7fe',
   },
   overview_system_system_unvented: {
-    src: `${SYSTEMS_BASE}/unvented-cylinder.JPG`,
-    alt: 'System boiler with unvented cylinder — real-world example',
+    src: `${SYSTEMS_BASE}/unvented-cylinder.svg`,
+    alt: 'System boiler with unvented cylinder diagram',
     bgColor: '#f0f7fe',
   },
   overview_system_regular: {
-    src: `${SYSTEMS_BASE}/open-vented-schematic.JPG`,
-    alt: 'Regular boiler with open-vented cylinder — real-world example',
+    src: `${SYSTEMS_BASE}/open-vented-schematic.svg`,
+    alt: 'Regular boiler with open-vented cylinder diagram',
     bgColor: '#f0f7fe',
   },
   overview_system_regular_vented: {
-    src: `${SYSTEMS_BASE}/vented-cylinder.PNG`,
-    alt: 'Regular boiler with vented cylinder — real-world example',
+    src: `${SYSTEMS_BASE}/vented-cylinder.svg`,
+    alt: 'Regular boiler with vented cylinder diagram',
     bgColor: '#f0f7fe',
   },
   overview_system_heat_pump: {
-    src: `${SYSTEMS_BASE}/ASHP.PNG`,
-    alt: 'Air source heat pump — real-world example',
+    src: `${SYSTEMS_BASE}/ashp.svg`,
+    alt: 'Air source heat pump diagram',
     bgColor: '#f0faf4',
   },
   overview_system_gshp: {
-    src: `${SYSTEMS_BASE}/GSHP.PNG`,
-    alt: 'Ground source heat pump — real-world example',
+    src: `${SYSTEMS_BASE}/gshp.svg`,
+    alt: 'Ground source heat pump diagram',
     bgColor: '#f0faf4',
   },
 };

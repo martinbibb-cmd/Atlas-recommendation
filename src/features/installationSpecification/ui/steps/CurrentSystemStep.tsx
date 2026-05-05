@@ -32,7 +32,7 @@ const EXISTENCE_TILES: ExistenceTileDefinition[] = [
     value:    'has_wet_heating',
     title:    'Existing wet heating system',
     subtitle: 'Boiler, heat pump, or similar — connected to radiators or underfloor',
-    imageSrc: '/images/systems/System-components.JPG',
+    imageSrc: '/images/systems/system-components.svg',
   },
   {
     value:    'no_wet_heating',

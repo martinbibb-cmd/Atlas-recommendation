@@ -34,13 +34,13 @@ const CURRENT_HOT_WATER_TILES: HotWaterTileDefinition[] = [
     value:    'vented_cylinder',
     title:    'Vented cylinder',
     subtitle: 'Open-vented hot-water storage — gravity-fed or pumped',
-    imageSrc: '/images/systems/vented-cylinder.PNG',
+    imageSrc: '/images/systems/vented-cylinder.svg',
   },
   {
     value:    'unvented_cylinder',
     title:    'Unvented cylinder',
     subtitle: 'Mains-pressure stored hot water — G3 appliance',
-    imageSrc: '/images/systems/unvented-cylinder.JPG',
+    imageSrc: '/images/systems/unvented-cylinder.svg',
   },
   {
     value:    'thermal_store',

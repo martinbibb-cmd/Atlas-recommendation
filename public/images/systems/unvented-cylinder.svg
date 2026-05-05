@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" role="img" aria-label="Unvented mains-pressure hot water cylinder">
+  <rect width="200" height="160" fill="#f8fafc" rx="4"/>
+  <!-- Title -->
+  <text x="100" y="12" text-anchor="middle" font-family="sans-serif" font-size="9" fill="#374151" font-weight="600">Unvented Cylinder</text>
+  <!-- Cylinder body -->
+  <rect x="60" y="22" width="80" height="115" rx="12" fill="#fca5a5" stroke="#ef4444" stroke-width="2"/>
+  <!-- Cylinder inner (lagging) -->
+  <rect x="67" y="29" width="66" height="101" rx="9" fill="#fecaca" stroke="#f87171" stroke-width="1"/>
+  <!-- Labels -->
+  <text x="100" y="72" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#991b1b" font-weight="bold">HOT</text>
+  <text x="100" y="84" text-anchor="middle" font-family="sans-serif" font-size="8" fill="#991b1b" font-weight="bold">WATER</text>
+  <text x="100" y="97" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#b91c1c">Unvented</text>
+  <text x="100" y="108" text-anchor="middle" font-family="sans-serif" font-size="7" fill="#b91c1c">Mains pressure</text>
+  <!-- Pressure relief valve (PRV) at top -->
+  <rect x="130" y="18" width="14" height="10" rx="2" fill="#374151" stroke="#1f2937" stroke-width="1"/>
+  <line x1="137" y1="18" x2="137" y2="22" stroke="#374151" stroke-width="2"/>
+  <line x1="130" y1="22" x2="144" y2="22" stroke="#374151" stroke-width="1"/>
+  <text x="148" y="26" font-family="sans-serif" font-size="6" fill="#6b7280">PRV</text>
+  <!-- Expansion vessel -->
+  <ellipse cx="22" cy="55" rx="16" ry="20" fill="#6b7280" stroke="#4b5563" stroke-width="1.5"/>
+  <line x1="22" y1="55" x2="22" y2="35" stroke="#9ca3af" stroke-width="1"/>
+  <text x="22" y="84" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#4b5563">Exp.</text>
+  <text x="22" y="92" text-anchor="middle" font-family="sans-serif" font-size="6" fill="#4b5563">Vessel</text>
+  <!-- Pipe from expansion vessel to cylinder -->
+  <line x1="38" y1="45" x2="60" y2="38" stroke="#6b7280" stroke-width="2"/>
+  <!-- Mains cold in (bottom) -->
+  <line x1="10" y1="125" x2="60" y2="125" stroke="#3b82f6" stroke-width="3"/>
+  <polygon points="55,121 62,125 55,129" fill="#3b82f6"/>
+  <text x="6" y="122" font-family="sans-serif" font-size="7" fill="#1d4ed8">Mains</text>
+  <!-- Hot draw-off (top right) -->
+  <line x1="140" y1="32" x2="185" y2="32" stroke="#ef4444" stroke-width="3"/>
+  <polygon points="180,28 187,32 180,36" fill="#ef4444"/>
+  <text x="150" y="28" font-family="sans-serif" font-size="7" fill="#b91c1c">Hot out</text>
+  <!-- Primary coil -->
+  <path d="M67 90 C63 90 63 110 67 110 C71 110 71 90 75 90 C79 90 79 110 83 110" stroke="#f97316" stroke-width="2" fill="none"/>
+  <text x="110" y="130" font-family="sans-serif" font-size="6" fill="#c2410c">Heating coil</text>
+</svg>

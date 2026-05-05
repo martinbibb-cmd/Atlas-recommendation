@@ -27,13 +27,13 @@ const PRIMARY_CIRCUIT_TILES: PrimaryCircuitTileDefinition[] = [
     value:    'open_vented_primary',
     title:    'Open vented primary',
     subtitle: 'Feed and expansion tank in loft — gravity-filled open-vented circuit',
-    imageSrc: '/images/systems/gravity.JPG',
+    imageSrc: '/images/systems/gravity.svg',
   },
   {
     value:    'sealed_primary',
     title:    'Sealed primary',
     subtitle: 'Pressurised system with expansion vessel — no feed and expansion tank',
-    imageSrc: '/images/systems/s-plan.jpg',
+    imageSrc: '/images/systems/s-plan.svg',
   },
   {
     value:    'needs_technical_review',
