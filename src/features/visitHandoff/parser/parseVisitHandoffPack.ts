@@ -98,7 +98,7 @@ function parseHardwarePatchEntry(raw: unknown): HardwarePatchEntryV1 | null {
     typeof rules['bottomMm'] !== 'number'
   ) return null;
 
-  // Validate the required top-level updatedAt field
+  // Validate the required updatedAt field
   if (typeof raw['updatedAt'] !== 'string') return null;
 
   return raw as unknown as HardwarePatchEntryV1;
