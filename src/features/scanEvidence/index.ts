@@ -47,6 +47,9 @@ export { ScanFabricEvidencePanel } from './ScanFabricEvidencePanel';
 export type { ScanHazardObservationPanelProps } from './ScanHazardObservationPanel';
 export { ScanHazardObservationPanel } from './ScanHazardObservationPanel';
 
+export type { ScanExternalAreaPanelProps } from './ScanExternalAreaPanel';
+export { ScanExternalAreaPanel } from './ScanExternalAreaPanel';
+
 export type { ScanPreinstallSignalsProps } from './ScanPreinstallSignals';
 export { ScanPreinstallSignals } from './ScanPreinstallSignals';
 
@@ -76,6 +79,9 @@ export type {
   FabricBoundaryV1,
   HazardObservationCaptureV1,
   HazardSoftWarningEntry,
+  ExternalAreaScanV1,
+  ExternalObjectPinV1,
+  ExternalMeasurementLineV1,
 } from './scanEvidenceSelectors';
 
 export {
@@ -101,4 +107,7 @@ export {
   getHazardSoftWarnings,
   getHazardSoftWarningEntries,
   hasBlockingHazard,
+  getExternalAreaScans,
+  getFlueTerminalPins,
+  getExternalMeasurementLines,
 } from './scanEvidenceSelectors';

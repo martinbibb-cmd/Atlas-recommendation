@@ -228,3 +228,88 @@ describe('Criterion 4 — scanHandoffStore round-trips', () => {
     expect(SCAN_HANDOFF_STORAGE_KEY).toBe('atlas:scan-handoffs:v1');
   });
 });
+
+// ─── Criterion 5: Canonical handoff with externalAreaScans ────────────────────
+
+describe('Criterion 5 — canonical handoff with externalAreaScans is accepted', () => {
+  it('accepts a handoff with an externalAreaScans array', () => {
+    const result = receiveScanHandoff(
+      minimalHandoff({
+        externalAreaScans: [
+          {
+            scanId: 'ext-001',
+            label: 'Rear elevation',
+            capturedAt: '2026-04-01T10:00:00Z',
+            reviewStatus: 'pending',
+            photoIds: ['p-ext-001', 'p-ext-002'],
+            objectPins: [
+              { pinId: 'ep-001', objectType: 'flue_terminal', label: 'Rear flue exit' },
+              { pinId: 'ep-002', objectType: 'obstruction', label: 'Neighbour fence' },
+            ],
+            measurementLines: [
+              { lineId: 'ml-001', label: 'Flue to boundary', lengthM: 1.2 },
+            ],
+            pointCloudAssetId: 'pc-rear-001',
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('accepts a handoff without externalAreaScans (optional field)', () => {
+    const result = receiveScanHandoff(minimalHandoff());
+    expect(result.ok).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('returns the externalAreaScans on the capture when present', () => {
+    const result = receiveScanHandoff(
+      minimalHandoff({
+        externalAreaScans: [
+          {
+            scanId: 'ext-002',
+            capturedAt: '2026-04-01T10:00:00Z',
+            objectPins: [{ pinId: 'ep-100', objectType: 'flue_terminal' }],
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    const scans = Array.isArray(result.capture?.externalAreaScans)
+      ? result.capture?.externalAreaScans
+      : result.capture?.externalAreaScans
+        ? [result.capture.externalAreaScans]
+        : [];
+    expect(scans).toHaveLength(1);
+    expect(scans[0]?.scanId).toBe('ext-002');
+  });
+
+  it('returns ok:false for an externalAreaScans entry missing scanId', () => {
+    const badScan = {
+      capturedAt: '2026-04-01T10:00:00Z',
+    };
+    const result = receiveScanHandoff(
+      minimalHandoff({ externalAreaScans: [badScan] as unknown as typeof badScan[] }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('scanId'))).toBe(true);
+  });
+
+  it('returns ok:false for an externalAreaScans entry with invalid objectType', () => {
+    const result = receiveScanHandoff(
+      minimalHandoff({
+        externalAreaScans: [
+          {
+            scanId: 'ext-bad',
+            capturedAt: '2026-04-01T10:00:00Z',
+            objectPins: [{ pinId: 'ep-bad', objectType: 'invalid_type' }],
+          },
+        ],
+      }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('objectType'))).toBe(true);
+  });
+});

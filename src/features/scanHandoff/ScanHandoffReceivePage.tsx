@@ -30,7 +30,7 @@ import type { ReceiveScanHandoffResult } from './receiveScanHandoff';
 import type { AtlasVisitV1 } from './contracts/AtlasVisitV1';
 import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
 import { resolveBrandProfile } from '../branding/resolveBrandProfile';
-import { getFabricEvidenceSummary, getHazardEvidenceSummary } from '../scanEvidence/scanEvidenceSelectors';
+import { getFabricEvidenceSummary, getHazardEvidenceSummary, getExternalAreaScans } from '../scanEvidence/scanEvidenceSelectors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -197,12 +197,28 @@ export function ScanHandoffReceivePage({
 
   // ── Error ──
   if (state.name === 'error') {
+    // Detect a schema/kind version mismatch so we can show a friendlier message.
+    const hasVersionMismatch = state.errors.some(
+      (e) => e.includes('schemaVersion') || e.includes('kind:') || e.includes('version'),
+    );
+
     return (
       <div style={containerStyle}>
         <div style={headerStyle}>
           <button onClick={onCancel} style={{ fontSize: 13, padding: '4px 12px' }}>← Back</button>
           <h1 style={headingStyle}>Scan handoff failed</h1>
         </div>
+        {hasVersionMismatch && (
+          <div style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '16px 20px', marginBottom: 12 }}>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#92400e' }}>
+              Version mismatch
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#92400e' }}>
+              This handoff was produced by a version of Atlas Scan that is not compatible with
+              this version of Atlas Mind. Please update Atlas Scan and try again.
+            </p>
+          </div>
+        )}
         <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '16px 20px', marginBottom: 16 }}>
           <p style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: '#b91c1c' }}>
             The received payload could not be validated:
@@ -245,6 +261,7 @@ export function ScanHandoffReceivePage({
   }
   const fabricRoomCount = getFabricEvidenceSummary(capture).length;
   const hazardCount = getHazardEvidenceSummary(capture).length;
+  const externalScanCount = getExternalAreaScans(capture).length;
 
   return (
     <div style={containerStyle}>
@@ -315,6 +332,11 @@ export function ScanHandoffReceivePage({
           {hazardCount > 0 && (
             <li data-testid="receive-scan-hazard-count">
               <strong>{hazardCount}</strong> hazard {hazardCount === 1 ? 'observation' : 'observations'} (engineer)
+            </li>
+          )}
+          {externalScanCount > 0 && (
+            <li data-testid="receive-scan-external-count">
+              <strong>{externalScanCount}</strong> external / flue {externalScanCount === 1 ? 'scan' : 'scans'} (engineer)
             </li>
           )}
         </ul>

@@ -26,6 +26,9 @@ import type {
   FabricBoundaryV1,
   HazardObservationCaptureV1,
   HazardSeverityV1,
+  ExternalAreaScanV1,
+  ExternalObjectPinV1,
+  ExternalMeasurementLineV1,
 } from '../scanImport/contracts/sessionCaptureV2';
 
 // Re-export contract types so viewer components only need to import from here.
@@ -39,6 +42,9 @@ export type {
   FloorPlanFabricCaptureV1,
   FabricBoundaryV1,
   HazardObservationCaptureV1,
+  ExternalAreaScanV1,
+  ExternalObjectPinV1,
+  ExternalMeasurementLineV1,
 };
 
 // ─── Derived types ────────────────────────────────────────────────────────────
@@ -396,4 +402,61 @@ export function getHazardSoftWarningEntries(
   return hazards
     .filter((h) => h.reviewStatus !== 'rejected')
     .map((h) => ({ message: hazardMessage(h), severity: h.severity }));
+}
+
+// ─── External area scan selectors ─────────────────────────────────────────────
+
+/**
+ * Normalises the optional `externalAreaScans` field to an array.
+ * Returns an empty array when the field is absent.
+ *
+ * Engineer-internal only — never pass this to customer-facing components.
+ */
+export function getExternalAreaScans(
+  capture: SessionCaptureV2,
+): ExternalAreaScanV1[] {
+  if (capture.externalAreaScans === undefined) return [];
+  return Array.isArray(capture.externalAreaScans)
+    ? capture.externalAreaScans
+    : [capture.externalAreaScans];
+}
+
+/**
+ * Returns all `flue_terminal` object pins across all external area scans.
+ *
+ * Engineer-internal only — used by the flue evidence panel.
+ */
+export function getFlueTerminalPins(
+  capture: SessionCaptureV2,
+): ExternalObjectPinV1[] {
+  const scans = getExternalAreaScans(capture);
+  const result: ExternalObjectPinV1[] = [];
+  for (const scan of scans) {
+    if (scan.objectPins) {
+      for (const pin of scan.objectPins) {
+        if (pin.objectType === 'flue_terminal') result.push(pin);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Returns all measurement lines across all external area scans.
+ *
+ * Engineer-internal only — used by the flue evidence panel.
+ */
+export function getExternalMeasurementLines(
+  capture: SessionCaptureV2,
+): ExternalMeasurementLineV1[] {
+  const scans = getExternalAreaScans(capture);
+  const result: ExternalMeasurementLineV1[] = [];
+  for (const scan of scans) {
+    if (scan.measurementLines) {
+      for (const line of scan.measurementLines) {
+        result.push(line);
+      }
+    }
+  }
+  return result;
 }

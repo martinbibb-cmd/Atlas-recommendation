@@ -403,6 +403,81 @@ export interface QuotePlannerEvidenceV1 {
   candidateFlueRoutes: QuotePlannerCandidateFlueRouteV1[];
 }
 
+// ─── External area scan types (optional — introduced by Atlas Scan 2.x) ──────
+
+/** High-level category for an object pin in an external area scan. */
+export type ExternalObjectPinType =
+  | 'flue_terminal'
+  | 'opening'
+  | 'boundary'
+  | 'obstruction'
+  | 'other';
+
+/** Engineer review state for an external area scan. */
+export type ExternalScanReviewStatusV1 = 'confirmed' | 'pending' | 'rejected';
+
+/**
+ * An object pin captured within an external area scan.
+ *
+ * These pins record flue terminals, openings (e.g. air bricks, vents),
+ * boundary features, and obstructions observed on the external elevation.
+ */
+export interface ExternalObjectPinV1 {
+  /** Stable pin identifier within the external scan. */
+  pinId: string;
+  /** Object category. */
+  objectType: ExternalObjectPinType;
+  /** Optional display label (e.g. "Rear flue terminal"). */
+  label?: string;
+  /** Photo IDs linked to this pin. */
+  photoIds?: string[];
+}
+
+/**
+ * A measurement line captured within an external area scan.
+ *
+ * Used to record setback distances, clearance measurements, or flue heights
+ * from LiDAR or manual measurement during the external survey.
+ */
+export interface ExternalMeasurementLineV1 {
+  /** Stable line identifier within the external scan. */
+  lineId: string;
+  /** Short engineer-facing label (e.g. "Flue setback from opening"). */
+  label?: string;
+  /** Measured length in metres. */
+  lengthM?: number;
+  /** Optional engineer note about this measurement. */
+  notes?: string;
+}
+
+/**
+ * An external area scan capturing the external elevation of the property.
+ *
+ * Engineer-internal only — captures flue terminal evidence, clearance
+ * measurements, and obstruction data for flue siting assessment.
+ * Must not appear in customer portal, deck, or PDF outputs.
+ *
+ * No pass/fail flue calculation is performed here — this is evidence only.
+ */
+export interface ExternalAreaScanV1 {
+  /** Stable identifier for this external scan. */
+  scanId: string;
+  /** Human-readable label (e.g. "Rear elevation"). */
+  label?: string;
+  /** ISO-8601 timestamp when this external scan was captured. */
+  capturedAt: string;
+  /** Engineer review state. Absent means not yet reviewed (treat as pending). */
+  reviewStatus?: ExternalScanReviewStatusV1;
+  /** Photo IDs captured during this external scan. */
+  photoIds?: string[];
+  /** Object pins observed during this external scan. */
+  objectPins?: ExternalObjectPinV1[];
+  /** Measurement lines recorded during this external scan. */
+  measurementLines?: ExternalMeasurementLineV1[];
+  /** Asset store ID of the point cloud produced by this external scan, if available. */
+  pointCloudAssetId?: string;
+}
+
 // ─── Top-level contract ───────────────────────────────────────────────────────
 
 /**
@@ -488,6 +563,18 @@ export interface SessionCaptureV2 {
    * evidence until the engineer reviews them — do not auto-promote.
    */
   quotePlannerEvidence?: QuotePlannerEvidenceV1;
+  /**
+   * External area scans captured by Atlas Scan 2.x.
+   *
+   * Engineer-internal only — records flue terminal evidence, clearance
+   * measurements, and obstruction data for flue siting assessment.
+   * Must never appear in customer portal, deck, or PDF outputs.
+   * No pass/fail flue calculation is performed from these records.
+   *
+   * May be a single object or an array.
+   * Old payloads from Atlas Scan 1.x will not include this field.
+   */
+  externalAreaScans?: ExternalAreaScanV1 | ExternalAreaScanV1[];
 }
 
 /** Unvalidated incoming payload — used before structural validation. */
@@ -689,6 +776,66 @@ function validateHazardObservationCaptureV1(value: unknown, path: string): strin
   return errors;
 }
 
+// ─── External area scan validators ───────────────────────────────────────────
+
+const VALID_EXTERNAL_OBJECT_PIN_TYPES: ExternalObjectPinType[] = [
+  'flue_terminal', 'opening', 'boundary', 'obstruction', 'other',
+];
+const VALID_EXTERNAL_SCAN_REVIEW_STATUSES: ExternalScanReviewStatusV1[] = [
+  'confirmed', 'pending', 'rejected',
+];
+
+function validateExternalObjectPinV1(value: unknown, path: string): string[] {
+  if (!isObject(value)) return [`${path}: must be an object`];
+  const errors: string[] = [];
+  if (!isString(value['pinId'])) errors.push(`${path}.pinId: must be a string`);
+  if (!(VALID_EXTERNAL_OBJECT_PIN_TYPES as string[]).includes(value['objectType'] as string)) {
+    errors.push(
+      `${path}.objectType: must be one of ${VALID_EXTERNAL_OBJECT_PIN_TYPES.join(', ')}`,
+    );
+  }
+  return errors;
+}
+
+function validateExternalMeasurementLineV1(value: unknown, path: string): string[] {
+  if (!isObject(value)) return [`${path}: must be an object`];
+  const errors: string[] = [];
+  if (!isString(value['lineId'])) errors.push(`${path}.lineId: must be a string`);
+  return errors;
+}
+
+function validateExternalAreaScanV1(value: unknown, path: string): string[] {
+  if (!isObject(value)) return [`${path}: must be an object`];
+  const errors: string[] = [];
+  if (!isString(value['scanId'])) errors.push(`${path}.scanId: must be a string`);
+  if (!isString(value['capturedAt'])) errors.push(`${path}.capturedAt: must be a string`);
+  if (
+    value['reviewStatus'] !== undefined &&
+    !(VALID_EXTERNAL_SCAN_REVIEW_STATUSES as string[]).includes(value['reviewStatus'] as string)
+  ) {
+    errors.push(`${path}.reviewStatus: must be 'confirmed' | 'pending' | 'rejected'`);
+  }
+  if (value['objectPins'] !== undefined) {
+    if (isArray(value['objectPins'])) {
+      (value['objectPins'] as unknown[]).forEach((p, i) => {
+        errors.push(...validateExternalObjectPinV1(p, `${path}.objectPins[${i}]`));
+      });
+    } else {
+      errors.push(`${path}.objectPins: must be an array`);
+    }
+  }
+  if (value['measurementLines'] !== undefined) {
+    if (isArray(value['measurementLines'])) {
+      (value['measurementLines'] as unknown[]).forEach((l, i) => {
+        errors.push(...validateExternalMeasurementLineV1(l, `${path}.measurementLines[${i}]`));
+      });
+    } else {
+      errors.push(`${path}.measurementLines: must be an array`);
+    }
+  }
+  return errors;
+}
+
 function validateSessionCaptureV2Fields(raw: UnknownSessionCaptureV2): string[] {
   const errors: string[] = [];
 
@@ -766,6 +913,17 @@ function validateSessionCaptureV2Fields(raw: UnknownSessionCaptureV2): string[] 
       errors.push(
         ...validateHazardObservationCaptureV1(raw['hazardObservations'], 'hazardObservations'),
       );
+    }
+  }
+
+  // ── Optional: externalAreaScans ───────────────────────────────────────────
+  if (raw['externalAreaScans'] !== undefined) {
+    if (isArray(raw['externalAreaScans'])) {
+      (raw['externalAreaScans'] as unknown[]).forEach((s, i) => {
+        errors.push(...validateExternalAreaScanV1(s, `externalAreaScans[${i}]`));
+      });
+    } else {
+      errors.push(...validateExternalAreaScanV1(raw['externalAreaScans'], 'externalAreaScans'));
     }
   }
 
