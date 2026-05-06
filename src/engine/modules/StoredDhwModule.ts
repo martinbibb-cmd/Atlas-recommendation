@@ -225,7 +225,7 @@ export function runStoredDhwModuleV1(
       // Emit an informational note; the flow gate below determines adequacy.
       assumptions.push(
         `Unvented (mains-pressure) cylinder: dynamic pressure recorded as 0 bar (full-open test). ` +
-        `Maximum achievable mains flow rate is determined by the measured flow reading below.`
+        `Maximum achievable mains flow rate is determined by the measured flow value.`
       );
     } else if (dynamicPressureBar !== undefined && !mainsPressureAdequate) {
       flags.push({
