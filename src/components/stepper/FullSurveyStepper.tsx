@@ -376,20 +376,16 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
           showDebugOutput={true}
           nextLabel="Next →"
           staticPressureBar={input.staticMainsPressureBar}
-          dynamicPressureBar={input.dynamicMainsPressureBar}
-          dynamicFlowLpm={input.mainsDynamicFlowLpm}
-          onMeasurementsChange={(staticBar, dynamicBar, flowLpm) => {
+          flowReadings={input.mains?.flowReadings}
+          onMeasurementsChange={(staticBar, readings) => {
             setInput(prev => ({
               ...prev,
               staticMainsPressureBar: staticBar,
-              dynamicMainsPressureBar: dynamicBar,
-              dynamicMainsPressure: dynamicBar ?? prev.dynamicMainsPressure,
-              mainsDynamicFlowLpm: flowLpm,
-              mainsDynamicFlowLpmKnown: flowLpm !== undefined ? true : undefined,
-              // Mark pressure as explicitly recorded when a chip option is selected
-              // (including 0 bar full-open). When no chip is selected (undefined),
-              // clear the flag so the engine knows pressure was not taken.
-              mainsPressureRecorded: dynamicBar !== undefined ? true : undefined,
+              mains: {
+                ...prev.mains,
+                staticPressureBar: staticBar,
+                flowReadings: readings,
+              },
             }));
           }}
           availableSpace={input.availableSpace}

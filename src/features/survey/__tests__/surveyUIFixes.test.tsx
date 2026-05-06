@@ -5,11 +5,12 @@
  *   1. UsageStep renders "Step 2: Home & Household" (not "Step 6").
  *   2. ServicesStep hides hardness band buttons behind an override toggle
  *      when a lookup result is present.
- *   3. ServicesStep dynamic pressure input is empty when the prop is undefined.
+ *   3. ServicesStep mains supply block renders standing pressure input and
+ *      four flow-test inputs (one per standard test pressure).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { UsageStep } from '../usage/UsageStep';
@@ -123,45 +124,98 @@ describe('ServicesStep – hardness override toggle', () => {
   });
 });
 
-// ─── 3. Dynamic pressure chip selector ────────────────────────────────────────
+// ─── 3. Mains supply — standing pressure + flow-test inputs ──────────────────
 
-describe('ServicesStep – dynamic pressure chip selector', () => {
-  it('renders the chip group with no chip selected when dynamicPressureBar is undefined', () => {
+describe('ServicesStep – mains supply inputs', () => {
+  it('renders the standing pressure input with no pre-filled value', () => {
     render(
       <ServicesStep
         state={INITIAL_WATER_QUALITY_STATE}
         onChange={noop}
         onNext={noop}
         onPrev={noop}
-        dynamicPressureBar={undefined}
       />,
     );
 
-    // Chip container must be present
-    expect(screen.getByTestId('dynamic-pressure-chips')).toBeTruthy();
-
-    // All 5 standard chips must be rendered
-    expect(screen.getByTestId('dynamic-pressure-chip-2')).toBeTruthy();
-    expect(screen.getByTestId('dynamic-pressure-chip-1.5')).toBeTruthy();
-    expect(screen.getByTestId('dynamic-pressure-chip-1')).toBeTruthy();
-    expect(screen.getByTestId('dynamic-pressure-chip-0.5')).toBeTruthy();
-    expect(screen.getByTestId('dynamic-pressure-chip-0')).toBeTruthy();
+    const input = screen.getByTestId('static-pressure-input') as HTMLInputElement;
+    expect(input).toBeTruthy();
+    expect(input.value).toBe('');
   });
 
-  it('shows the selected chip when dynamicPressureBar matches a discrete option', () => {
+  it('pre-fills the standing pressure input when staticPressureBar is provided', () => {
     render(
       <ServicesStep
         state={INITIAL_WATER_QUALITY_STATE}
         onChange={noop}
         onNext={noop}
         onPrev={noop}
-        dynamicPressureBar={1}
+        staticPressureBar={3.5}
       />,
     );
 
-    // The 1 bar chip must carry the selected style (border colour check via aria or testid)
-    const chip1Bar = screen.getByTestId('dynamic-pressure-chip-1') as HTMLButtonElement;
-    // Selected chip has a distinct border applied via chipStyle() — browser renders hex as rgb.
-    expect(chip1Bar.style.border).toContain('rgb(49, 130, 206)');
+    const input = screen.getByTestId('static-pressure-input') as HTMLInputElement;
+    expect(input.value).toBe('3.5');
+  });
+
+  it('renders all four flow-test inputs in the flow readings block', () => {
+    render(
+      <ServicesStep
+        state={INITIAL_WATER_QUALITY_STATE}
+        onChange={noop}
+        onNext={noop}
+        onPrev={noop}
+      />,
+    );
+
+    // Flow readings container
+    expect(screen.getByTestId('flow-readings-block')).toBeTruthy();
+
+    // One input per standard test pressure
+    expect(screen.getByTestId('flow-at-2-bar')).toBeTruthy();
+    expect(screen.getByTestId('flow-at-1-bar')).toBeTruthy();
+    expect(screen.getByTestId('flow-at-0.5-bar')).toBeTruthy();
+    expect(screen.getByTestId('flow-at-0-bar')).toBeTruthy();
+  });
+
+  it('pre-fills flow inputs when flowReadings are provided', () => {
+    render(
+      <ServicesStep
+        state={INITIAL_WATER_QUALITY_STATE}
+        onChange={noop}
+        onNext={noop}
+        onPrev={noop}
+        flowReadings={{ at2BarLpm: 14, at1BarLpm: 10 }}
+      />,
+    );
+
+    const at2Bar = screen.getByTestId('flow-at-2-bar') as HTMLInputElement;
+    const at1Bar = screen.getByTestId('flow-at-1-bar') as HTMLInputElement;
+    const at0p5Bar = screen.getByTestId('flow-at-0.5-bar') as HTMLInputElement;
+
+    expect(at2Bar.value).toBe('14');
+    expect(at1Bar.value).toBe('10');
+    expect(at0p5Bar.value).toBe('');
+  });
+
+  it('calls onMeasurementsChange with updated flow readings when a flow input changes', () => {
+    const onChange = vi.fn();
+
+    render(
+      <ServicesStep
+        state={INITIAL_WATER_QUALITY_STATE}
+        onChange={noop}
+        onNext={noop}
+        onPrev={noop}
+        onMeasurementsChange={onChange}
+      />,
+    );
+
+    const at2Bar = screen.getByTestId('flow-at-2-bar') as HTMLInputElement;
+    fireEvent.change(at2Bar, { target: { value: '12' } });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const [staticBar, readings] = onChange.mock.calls[0];
+    expect(staticBar).toBeUndefined();
+    expect(readings).toMatchObject({ at2BarLpm: 12 });
   });
 });
