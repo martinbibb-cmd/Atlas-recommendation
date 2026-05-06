@@ -112,13 +112,13 @@
     font-size: 0.8rem;
   }
 
-  .ywg-triple__header-row {
-    background: #1e293b !important;
+  .ywg-triple .ywg-triple__header-row {
+    background: #1e293b;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .ywg-triple__cell {
+  .ywg-triple .ywg-triple__cell {
     padding: 0.5rem 0.75rem;
   }
 }

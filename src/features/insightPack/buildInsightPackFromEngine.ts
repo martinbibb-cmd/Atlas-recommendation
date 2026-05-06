@@ -1729,7 +1729,7 @@ function buildYouWeGet(
   if (occupancy != null && occupancy >= 3) {
     rows.push({
       youToldUs: `${occupancy} people live in your home.`,
-      wereDoing: 'Sizing the system to match your household\'s peak demand.',
+      wereDoing: "Sizing the system to match your household's peak demand.",
       soYouGet:  'Enough hot water and heating for the whole household, even during busy mornings.',
     });
   }
