@@ -19,6 +19,24 @@ import { INITIAL_WATER_QUALITY_STATE } from './waterQualityTypes';
 import { lookupWaterQuality } from './waterQualityLookup';
 import { normaliseWaterQuality } from './waterQualityNormalizer';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * Multi-point flow readings — flow rate (L/min) measured at each standard test
+ * pressure.  All fields are optional; the component and engine work with any
+ * subset (including none).
+ */
+export interface MainsFlowReadings {
+  /** Flow rate (L/min) when gauge reads 2 bar. */
+  at2BarLpm?: number;
+  /** Flow rate (L/min) when gauge reads 1 bar. */
+  at1BarLpm?: number;
+  /** Flow rate (L/min) when gauge reads 0.5 bar. */
+  at0p5BarLpm?: number;
+  /** Flow rate (L/min) at full-bore open tap (0 bar back-pressure). */
+  at0BarLpm?: number;
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface ServicesStepProps {
@@ -32,14 +50,19 @@ interface ServicesStepProps {
   showDebugOutput?: boolean;
   /** Label for the forward navigation button. Defaults to "Next →". */
   nextLabel?: string;
-  /** Mains static pressure (bar) — merged from former Mains Supply step. */
+  /** Mains standing/static pressure (bar) — measured with all taps closed. */
   staticPressureBar?: number;
-  /** Mains dynamic pressure (bar) under flow — merged from former Mains Supply step. */
-  dynamicPressureBar?: number;
-  /** Mains dynamic flow rate (L/min) — merged from former Mains Supply step. */
-  dynamicFlowLpm?: number;
-  /** Called when any of the pressure/flow measurements change. */
-  onMeasurementsChange?: (staticBar: number | undefined, dynamicBar: number | undefined, flowLpm: number | undefined) => void;
+  /**
+   * Multi-point flow readings — flow rate (L/min) at each standard test pressure.
+   * All fields are optional; the step works with all or none.
+   */
+  flowReadings?: MainsFlowReadings;
+  /**
+   * Called when any mains measurement changes.
+   * @param staticBar  Standing pressure (bar), or undefined if not recorded.
+   * @param readings   Flow rate at each test pressure (any may be undefined).
+   */
+  onMeasurementsChange?: (staticBar: number | undefined, readings: MainsFlowReadings) => void;
   /**
    * Indoor space for a hot water cylinder (airing cupboard / utility room).
    * Hard gate for stored water recommendations.
@@ -79,22 +102,14 @@ interface ServicesStepProps {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 /**
- * Discrete mains pressure options (bar) that the surveyor can select.
- *
- * These map to the standard UK test points:
- *   2 bar   — typical mains supply, well above combi minimum
- *   1.5 bar — good mains supply, above combi minimum
- *   1 bar   — minimum for combi maximum rated DHW flow
- *   0.5 bar — adequate for combi ignition; reduced flow (below rated max)
- *   0 bar   — full-bore open tap (no back-pressure): records the maximum
- *             achievable mains flow rate — used for unvented cylinder sizing
+ * Standard test-pressure points (bar) used in the flow test.
+ * The surveyor sets up the gauge at each pressure and records the measured flow.
  */
-const PRESSURE_OPTIONS: { value: number; label: string; hint: string }[] = [
-  { value: 2,   label: '2 bar',           hint: 'Typical supply' },
-  { value: 1.5, label: '1.5 bar',         hint: 'Good supply' },
-  { value: 1,   label: '1 bar',           hint: 'Combi min (full flow)' },
-  { value: 0.5, label: '0.5 bar',         hint: 'Combi OK (reduced flow)' },
-  { value: 0,   label: '0 bar (full open)', hint: 'Unvented max-flow test' },
+const FLOW_TEST_POINTS: { pressureBar: number; label: string; hint: string; field: keyof MainsFlowReadings }[] = [
+  { pressureBar: 2,   label: '2 bar',             hint: 'Typical supply',           field: 'at2BarLpm' },
+  { pressureBar: 1,   label: '1 bar',             hint: 'Combi min (full flow)',     field: 'at1BarLpm' },
+  { pressureBar: 0.5, label: '0.5 bar',           hint: 'Combi OK (reduced flow)',   field: 'at0p5BarLpm' },
+  { pressureBar: 0,   label: '0 bar (full open)', hint: 'Unvented max-flow test',    field: 'at0BarLpm' },
 ];
 
 const HARDNESS_BAND_OPTIONS: { value: HardnessBand; label: string; ppmHint: string }[] = [
@@ -189,8 +204,7 @@ export function ServicesStep({
   showDebugOutput = false,
   nextLabel = 'Next →',
   staticPressureBar,
-  dynamicPressureBar,
-  dynamicFlowLpm,
+  flowReadings = {},
   onMeasurementsChange,
   availableSpace,
   onAvailableSpaceChange,
@@ -259,105 +273,77 @@ export function ServicesStep({
       >
         <p style={{ ...sectionHeadingStyle, marginTop: 0 }}>Mains supply</p>
         <p style={{ fontSize: '0.8rem', color: '#4a5568', margin: '0 0 0.75rem' }}>
-          Select the standing and working pressure readings, and record the measured flow rate.
-          These determine suitability for on-demand (combi) and mains-fed (unvented) hot water.
+          Record the standing pressure, then run a flow test at each standard pressure and enter
+          the measured flow rate. All readings are optional — enter as many or as few as available.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Static pressure — chip selector */}
+
+          {/* Standing / static pressure — numeric input */}
           <div className="form-field">
             <label style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
-              Static pressure (bar) — no flow
+              Standing pressure (bar)
             </label>
             <span style={{ fontSize: '0.72rem', color: '#718096', display: 'block', margin: '0.2rem 0 0.4rem' }}>
-              Measured with all taps closed. Leave unselected if not taken.
+              Measured with all taps closed. Leave blank if not taken.
             </span>
-            <div
-              data-testid="static-pressure-chips"
-              style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}
-            >
-              {PRESSURE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  data-testid={`static-pressure-chip-${opt.value}`}
-                  style={chipStyle(staticPressureBar === opt.value)}
-                  onClick={() => {
-                    const newVal = staticPressureBar === opt.value ? undefined : opt.value;
-                    onMeasurementsChange?.(newVal, dynamicPressureBar, dynamicFlowLpm);
-                  }}
-                  title={opt.hint}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Dynamic pressure — chip selector */}
-          <div className="form-field">
-            <label style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
-              Dynamic pressure (bar) — under flow
-            </label>
-            <span style={{ fontSize: '0.72rem', color: '#718096', display: 'block', margin: '0.2rem 0 0.4rem' }}>
-              Measured with the cold tap running at full bore. Select <strong>0 bar (full open)</strong> for the unvented cylinder max-flow test.
-            </span>
-            <div
-              data-testid="dynamic-pressure-chips"
-              style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}
-            >
-              {PRESSURE_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  data-testid={`dynamic-pressure-chip-${opt.value}`}
-                  style={chipStyle(dynamicPressureBar === opt.value)}
-                  onClick={() => {
-                    const newVal = dynamicPressureBar === opt.value ? undefined : opt.value;
-                    onMeasurementsChange?.(staticPressureBar, newVal, dynamicFlowLpm);
-                  }}
-                  title={opt.hint}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            {dynamicPressureBar === 0 && (
-              <span style={{ fontSize: '0.72rem', color: '#2b6cb0', display: 'block', marginTop: '0.3rem' }}>
-                ℹ️ Full-open reading — the measured flow rate below is the maximum achievable mains supply (used for unvented cylinder sizing).
-              </span>
-            )}
-            {dynamicPressureBar !== undefined && dynamicPressureBar >= 0.5 && dynamicPressureBar <= 1 && (
-              <span style={{ fontSize: '0.72rem', color: '#744210', display: 'block', marginTop: '0.3rem' }}>
-                ⚠️ Combi boiler will fire at this pressure — flow may be reduced below rated maximum.
-              </span>
-            )}
-          </div>
-
-          {/* Dynamic flow — number input */}
-          <div className="form-field">
-            <label style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
-              Dynamic flow (L/min) — at pressure
-            </label>
             <input
-              data-testid="dynamic-flow-input"
+              data-testid="static-pressure-input"
               type="number"
-              min={0.5}
-              max={40}
-              step={0.5}
-              value={dynamicFlowLpm ?? ''}
-              placeholder="e.g. 12 — optional"
+              min={0}
+              max={10}
+              step={0.1}
+              value={staticPressureBar ?? ''}
+              placeholder="e.g. 3.5 — optional"
               onChange={e => {
-                const val = e.target.value ? +e.target.value : undefined;
-                onMeasurementsChange?.(staticPressureBar, dynamicPressureBar, val);
+                const val = e.target.value !== '' ? +e.target.value : undefined;
+                onMeasurementsChange?.(val, flowReadings);
               }}
-              style={{ marginTop: '0.3rem', padding: '0.4rem 0.6rem', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.85rem', width: '120px' }}
+              style={{ marginTop: '0.3rem', padding: '0.4rem 0.6rem', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.85rem', width: '140px' }}
             />
-            <span style={{ fontSize: '0.72rem', color: '#718096', display: 'block', marginTop: '0.2rem' }}>
-              {dynamicPressureBar === 0
-                ? 'Flow at full bore (0 bar) — this is the maximum achievable mains flow rate.'
-                : 'Measured simultaneously with dynamic pressure. Leave blank if not taken.'}
-            </span>
           </div>
+
+          {/* Flow test results — one input per test pressure */}
+          <div className="form-field">
+            <label style={{ fontWeight: 600, fontSize: '0.85rem', color: '#4a5568' }}>
+              Flow test results (L/min)
+            </label>
+            <span style={{ fontSize: '0.72rem', color: '#718096', display: 'block', margin: '0.2rem 0 0.5rem' }}>
+              Run the test at each pressure and record the measured flow rate. Leave any blank if not tested.
+            </span>
+            <div
+              data-testid="flow-readings-block"
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.6rem' }}
+            >
+              {FLOW_TEST_POINTS.map(pt => (
+                <div key={pt.field} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4a5568' }}>
+                    {pt.label}
+                    <span style={{ fontWeight: 400, color: '#718096', marginLeft: '0.3rem' }}>— {pt.hint}</span>
+                  </label>
+                  <input
+                    data-testid={`flow-at-${pt.pressureBar}-bar`}
+                    type="number"
+                    min={0.5}
+                    max={40}
+                    step={0.5}
+                    value={flowReadings[pt.field] ?? ''}
+                    placeholder="L/min"
+                    onChange={e => {
+                      const val = e.target.value !== '' ? +e.target.value : undefined;
+                      onMeasurementsChange?.(staticPressureBar, { ...flowReadings, [pt.field]: val });
+                    }}
+                    style={{ padding: '0.4rem 0.6rem', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.85rem', width: '100%' }}
+                  />
+                  {pt.field === 'at0BarLpm' && flowReadings.at0BarLpm !== undefined && (
+                    <span style={{ fontSize: '0.7rem', color: '#2b6cb0' }}>
+                      ℹ️ Full-bore (0 bar) — maximum achievable mains supply.
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
 

@@ -98,6 +98,29 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
       sanitised.mainsDynamicFlowLpm = sanitised.mains.flowRateLpm;
       sanitised.mainsDynamicFlowLpmKnown = true;
     }
+    // Derive the representative dynamic measurement from multi-point flow readings
+    // when the single-point fields are not already set.  Pick the highest-pressure
+    // reading that has a value (2 bar → 1 bar → 0.5 bar → 0 bar) so the engine's
+    // pressure analysis uses the most demanding measured point.
+    const fr = sanitised.mains.flowReadings;
+    if (fr && sanitised.mainsDynamicFlowLpm === undefined) {
+      const POINTS: { pressureBar: number; flow: number | undefined }[] = [
+        { pressureBar: 2,   flow: fr.at2BarLpm },
+        { pressureBar: 1,   flow: fr.at1BarLpm },
+        { pressureBar: 0.5, flow: fr.at0p5BarLpm },
+        { pressureBar: 0,   flow: fr.at0BarLpm },
+      ];
+      const best = POINTS.find(p => p.flow !== undefined);
+      if (best && best.flow !== undefined) {
+        sanitised.mainsDynamicFlowLpm = best.flow;
+        sanitised.mainsDynamicFlowLpmKnown = true;
+        sanitised.mainsPressureRecorded = true;
+        if (sanitised.dynamicMainsPressureBar === undefined) {
+          sanitised.dynamicMainsPressureBar = best.pressureBar;
+          sanitised.dynamicMainsPressure = best.pressureBar;
+        }
+      }
+    }
   }
 
   // ── Water quality user override ──────────────────────────────────────────

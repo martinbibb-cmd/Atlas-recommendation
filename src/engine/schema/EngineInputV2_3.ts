@@ -296,6 +296,21 @@ export interface EngineInputV2_3 {
     dynamicPressureBar?: number;
     /** Flow rate at dynamic pressure (L/min). */
     flowRateLpm?: number;
+    /**
+     * Multi-point flow readings — flow rate (L/min) measured at each
+     * standard test pressure.  All fields are optional; the app works
+     * with any subset (including none).
+     */
+    flowReadings?: {
+      /** Flow rate (L/min) measured when gauge reads 2 bar. */
+      at2BarLpm?: number;
+      /** Flow rate (L/min) measured when gauge reads 1 bar. */
+      at1BarLpm?: number;
+      /** Flow rate (L/min) measured when gauge reads 0.5 bar. */
+      at0p5BarLpm?: number;
+      /** Flow rate (L/min) at full-bore open tap (0 bar back-pressure). */
+      at0BarLpm?: number;
+    };
   };
   /**
    * Surveyor-confirmed water hardness category override.
