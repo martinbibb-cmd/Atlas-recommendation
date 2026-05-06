@@ -123,10 +123,10 @@ describe('ServicesStep – hardness override toggle', () => {
   });
 });
 
-// ─── 3. Dynamic pressure field ────────────────────────────────────────────────
+// ─── 3. Dynamic pressure chip selector ────────────────────────────────────────
 
-describe('ServicesStep – dynamic pressure input', () => {
-  it('renders an empty input when dynamicPressureBar is undefined', () => {
+describe('ServicesStep – dynamic pressure chip selector', () => {
+  it('renders the chip group with no chip selected when dynamicPressureBar is undefined', () => {
     render(
       <ServicesStep
         state={INITIAL_WATER_QUALITY_STATE}
@@ -137,22 +137,31 @@ describe('ServicesStep – dynamic pressure input', () => {
       />,
     );
 
-    const input = screen.getByTestId('dynamic-pressure-input') as HTMLInputElement;
-    expect(input.value).toBe('');
+    // Chip container must be present
+    expect(screen.getByTestId('dynamic-pressure-chips')).toBeTruthy();
+
+    // All 5 standard chips must be rendered
+    expect(screen.getByTestId('dynamic-pressure-chip-2')).toBeTruthy();
+    expect(screen.getByTestId('dynamic-pressure-chip-1.5')).toBeTruthy();
+    expect(screen.getByTestId('dynamic-pressure-chip-1')).toBeTruthy();
+    expect(screen.getByTestId('dynamic-pressure-chip-0.5')).toBeTruthy();
+    expect(screen.getByTestId('dynamic-pressure-chip-0')).toBeTruthy();
   });
 
-  it('shows the provided value when dynamicPressureBar is set', () => {
+  it('shows the selected chip when dynamicPressureBar matches a discrete option', () => {
     render(
       <ServicesStep
         state={INITIAL_WATER_QUALITY_STATE}
         onChange={noop}
         onNext={noop}
         onPrev={noop}
-        dynamicPressureBar={2.5}
+        dynamicPressureBar={1}
       />,
     );
 
-    const input = screen.getByTestId('dynamic-pressure-input') as HTMLInputElement;
-    expect(input.value).toBe('2.5');
+    // The 1 bar chip must carry the selected style (border colour check via aria or testid)
+    const chip1Bar = screen.getByTestId('dynamic-pressure-chip-1') as HTMLButtonElement;
+    // Selected chip has a distinct border applied via chipStyle() — browser renders hex as rgb.
+    expect(chip1Bar.style.border).toContain('rgb(49, 130, 206)');
   });
 });

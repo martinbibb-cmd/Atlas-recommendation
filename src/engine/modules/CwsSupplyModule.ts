@@ -9,6 +9,15 @@
  *
  * Hard rule: dynamic must not exceed static + 0.2 bar (INCONSISTENCY_TOLERANCE).
  *
+ * Discrete pressure test points (UK standard):
+ *   2 bar   — typical mains supply; combi at full rated flow
+ *   1.5 bar — good mains supply; combi at full rated flow
+ *   1 bar   — minimum for combi maximum rated DHW flow; unvented adequate
+ *   0.5 bar — combi fires but at reduced flow; unvented marginal
+ *   0 bar   — full-open / full-bore test (no back-pressure): the measured
+ *             L/min IS the maximum achievable mains flow rate, used for
+ *             unvented cylinder sizing
+ *
  * Unvented eligibility gate (operating-point evidence only):
  *   - flowLpm ≥ 10 AND dynamicBar ≥ 1.0   (10 L/min @ 1 bar)
  *   - OR rawFlowLpm ≥ 12 AND pressure is recorded (including 0 bar)  (12 L/min @ 0 bar)

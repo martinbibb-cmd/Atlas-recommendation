@@ -78,6 +78,49 @@ const DEFAULT_TAP_TARGET_TEMP_C = 40;
 const DEFAULT_COLD_WATER_TEMP_C = 10;
 
 /**
+ * Default representative draw flow rate (L/min) when no measurement is available.
+ *
+ * 9 L/min ≈ a standard UK shower peak draw at ≥ 1 bar mains pressure.
+ * Used as the fallback when the surveyor has not taken a flow measurement and
+ * no pressure-derived estimate can be computed.
+ */
+const DEFAULT_DRAW_FLOW_LPM = 9;
+
+/**
+ * Maximum combi DHW draw flow (L/min) used when capping measured mains flow
+ * for the phase model.
+ *
+ * A 30 kW combi at ΔT 25°C (cold 15°C → 40°C) can deliver at most:
+ *   Q = 30 kW / (4.186 kJ/(kg·K) × 25 K / 60 s·min⁻¹) ≈ 17.2 L/min
+ *
+ * 15 L/min is a practical upper-bound for a UK domestic combi in DHW mode.
+ */
+const COMBI_MAX_DRAW_FLOW_LPM = 15;
+
+/**
+ * Derive the effective combi DHW draw flow rate (L/min) from the measured
+ * mains dynamic pressure (bar), following the standard discrete UK test points.
+ *
+ * Mapping (per UK manufacturer specification data):
+ *   ≥ 1.0 bar  → DEFAULT_DRAW_FLOW_LPM (9 L/min) — full rated shower draw
+ *   0.5 bar    → 7 L/min              — reduced flow (below rated max)
+ *   0.3 bar    → 2.5 L/min            — near ignition threshold
+ *   < 0.3 bar  → 0 L/min              — below absolute operating minimum
+ *
+ * For 0 bar (full-open test), the measured `mainsDynamicFlowLpm` is used
+ * directly rather than this pressure-derived estimate — it IS the max-flow reading.
+ *
+ * @param pressureBar  Measured dynamic mains pressure (bar).
+ * @returns Estimated deliverable draw flow (L/min).
+ */
+export function derivePressureConstrainedCombiFlowLpm(pressureBar: number): number {
+  if (pressureBar >= 1.0) return DEFAULT_DRAW_FLOW_LPM;
+  if (pressureBar >= 0.5) return 7;
+  if (pressureBar >= 0.3) return 2.5;
+  return 0;
+}
+
+/**
  * Maximum occupancy count used when scaling the representative draw volume.
  *
  * Caps at 3 to represent the practical peak demand for a combi shower scenario:
@@ -266,9 +309,32 @@ export function adaptEngineInputToCombiPhase(input: EngineInputV2_3): CombiDhwPh
   const tapTargetTempC = input.tapTargetTempC ?? DEFAULT_TAP_TARGET_TEMP_C;
   const coldWaterTempC = input.coldWaterTempC ?? DEFAULT_COLD_WATER_TEMP_C;
 
-  // Representative peak draw: occupancy-weighted morning shower event.
-  // 9 L/min at 6 minutes duration = 54 L (standard UK shower peak draw).
-  const drawFlowLpm = 9;
+  // ── Derive representative draw flow rate ────────────────────────────────────
+  // Priority order:
+  //   1. Measured mains flow (mainsDynamicFlowLpm) when explicitly recorded.
+  //      Capped at COMBI_MAX_DRAW_FLOW_LPM — the combi cannot deliver more than
+  //      its heat exchanger can sustain at the target temperature rise.
+  //   2. Pressure-derived estimate when only a discrete pressure chip was selected.
+  //      0 bar (full-open test) is excluded from this path — the measured flow is
+  //      the max-flow reading and should always be used with it directly.
+  //   3. DEFAULT_DRAW_FLOW_LPM (9 L/min) when no measurement is available.
+  const resolvedDynamicBar =
+    input.mains?.dynamicPressureBar ?? input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+  const resolvedFlowLpm = input.mains?.flowRateLpm ?? input.mainsDynamicFlowLpm;
+  const flowIsKnown = !!(input.mainsDynamicFlowLpmKnown || input.mains?.flowRateLpm != null);
+
+  let drawFlowLpm: number;
+  if (flowIsKnown && resolvedFlowLpm != null) {
+    // Use measured flow, capped at the combi's thermal delivery ceiling.
+    drawFlowLpm = Math.min(resolvedFlowLpm, COMBI_MAX_DRAW_FLOW_LPM);
+  } else if (resolvedDynamicBar != null && resolvedDynamicBar > 0) {
+    // Derive from discrete pressure selection (excludes 0 bar full-open).
+    drawFlowLpm = derivePressureConstrainedCombiFlowLpm(resolvedDynamicBar);
+  } else {
+    // No measurement available — use the standard UK representative shower draw.
+    drawFlowLpm = DEFAULT_DRAW_FLOW_LPM;
+  }
+
   const occupancyCount = input.occupancyCount ?? 2;
   // Scale draw volume with occupancy: one shower per occupant up to a practical maximum.
   const showerDurationMinutes = 6;
