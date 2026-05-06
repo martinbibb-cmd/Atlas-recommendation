@@ -87,7 +87,7 @@ function SimpleQuoteForm({ quotes, onQuotesChange }: {
     const trimmed = label.trim();
     if (!trimmed) return;
     const newQuote: QuoteInput = {
-      id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: `quote_${crypto.randomUUID()}`,
       label: trimmed,
       systemType,
       includedUpgrades: [],

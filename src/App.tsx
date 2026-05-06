@@ -1605,8 +1605,12 @@ function AppInner() {
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
             onOpenInstallationSpecification={() => setJourney('installation-specification')}
             onReopenVisit={activeVisitId != null ? async () => {
-              await saveVisit(activeVisitId, { completed_at: null, completion_method: null });
-              setJourney('visit-hub');
+              try {
+                await saveVisit(activeVisitId, { completed_at: null, completion_method: null });
+                setJourney('visit-hub');
+              } catch (err) {
+                console.error('[Atlas] Could not reopen visit:', err);
+              }
             } : undefined}
             floorplanOutput={floorplanOutput}
           />
