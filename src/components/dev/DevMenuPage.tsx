@@ -586,7 +586,7 @@ function HardwarePatchEditorPanel() {
   }
 
   function handleDelete(modelId: string) {
-    const { [modelId]: _removed, ...rest } = patches.overrides;
+    const { [modelId]: _deletedEntry, ...rest } = patches.overrides;
     const updated: HardwarePatchV1 = { version: '1', overrides: rest };
     saveHardwarePatches(updated);
     setPatches(updated);
