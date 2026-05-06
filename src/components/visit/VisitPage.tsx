@@ -70,6 +70,11 @@ export interface Props {
    * Installation Specification step.
    */
   onOpenInstallationSpecification?: () => void;
+  /**
+   * When provided, the completed-visit locked panel shows a "Reopen visit"
+   * button that clears the completion and allows resuming the survey.
+   */
+  onReopenVisit?: () => void;
 }
 
 /** Debounce delay for autosave (ms). */
@@ -206,6 +211,7 @@ export default function VisitPage({
   onOpenFloorPlan,
   onOpenHandoffReview,
   onOpenInstallationSpecification,
+  onReopenVisit,
 }: Props) {
   // Derive initial error/ready state from visitId at mount — avoids calling
   // setState synchronously inside an effect (which triggers the
@@ -447,6 +453,15 @@ export default function VisitPage({
               data-testid="visit-locked-handoff-btn"
             >
               🤝 Review handoff
+            </button>
+          )}
+          {onReopenVisit && (
+            <button
+              className="visit-page__locked-reopen-btn"
+              onClick={onReopenVisit}
+              data-testid="visit-locked-reopen-btn"
+            >
+              🔓 Reopen visit
             </button>
           )}
           <button

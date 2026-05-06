@@ -140,7 +140,7 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
   const [recommendationState] = useState<RecommendationState>(
     () => prefill?.fullSurvey?.recommendation ?? INITIAL_RECOMMENDATION_STATE
   );
-  const [quotesState] = useState<QuoteInput[]>(
+  const [quotesState, setQuotesState] = useState<QuoteInput[]>(
     () => prefill?.fullSurvey?.quotes ?? []
   );
   const [results, setResults] = useState<FullEngineResult | null>(null);
@@ -487,6 +487,8 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
             if (onDraft) onDraft(buildDraft());
             if (onOpenInstallationSpecification) onOpenInstallationSpecification();
           }}
+          quotes={quotesState}
+          onQuotesChange={setQuotesState}
         />
       )}
 

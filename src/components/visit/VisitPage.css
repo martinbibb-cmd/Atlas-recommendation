@@ -261,6 +261,23 @@
   background: #276749;
 }
 
+.visit-page__locked-reopen-btn {
+  background: transparent;
+  border: 1px solid #c05621;
+  color: #c05621;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-top: 0.5rem;
+}
+
+.visit-page__locked-reopen-btn:hover {
+  background: #fff5eb;
+}
+
 .visit-page__locked-back-btn {
   background: transparent;
   border: 1px solid #cbd5e0;

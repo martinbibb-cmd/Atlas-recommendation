@@ -396,6 +396,8 @@ function HubActions({
   onCompleteVisit,
   isCompleting,
   completingError,
+  onReopenVisit,
+  isReopening,
   portalUrl,
   portalLoading,
   hasQuotes,
@@ -419,6 +421,9 @@ function HubActions({
   onCompleteVisit: () => void;
   isCompleting: boolean;
   completingError: string | null;
+  /** Called when the engineer reopens a completed visit. */
+  onReopenVisit?: () => void;
+  isReopening?: boolean;
   portalUrl?: string;
   portalLoading?: boolean;
   hasQuotes?: boolean;
@@ -635,6 +640,18 @@ function HubActions({
                 data-testid="open-handoff-review-btn"
               >
                 🤝 Review handoff
+              </button>
+            )}
+            {onReopenVisit && (
+              <button
+                className="visit-hub__action-btn visit-hub__action-btn--secondary"
+                onClick={onReopenVisit}
+                disabled={isReopening}
+                aria-disabled={isReopening}
+                data-testid="reopen-visit-btn"
+                aria-label="Reopen this completed visit"
+              >
+                {isReopening ? '⏳ Reopening…' : '🔓 Reopen visit'}
               </button>
             )}
           </div>
@@ -957,6 +974,7 @@ export default function VisitHubPage({
   const [completing, setCompleting] = useState(false);
   const [completingError, setCompletingError] = useState<string | null>(null);
   const completingRef = useRef(false);
+  const [reopening, setReopening] = useState(false);
   // Keep the working_payload so we can create a report (for portal) if none exists yet.
   const workingPayloadRef = useRef<Record<string, unknown> | null>(null);
   // Voice notes — loaded from working_payload and saved back on change.
@@ -1112,6 +1130,22 @@ export default function VisitHubPage({
     } finally {
       completingRef.current = false;
       setCompleting(false);
+    }
+  }
+
+  async function handleReopenVisit() {
+    if (!meta || reopening) return;
+    setReopening(true);
+    try {
+      await saveVisit(visitId, {
+        completed_at: null,
+        completion_method: null,
+      });
+      setMeta({ ...meta, completed_at: null, completion_method: null });
+    } catch (err) {
+      console.error('[Atlas] Could not reopen visit:', err);
+    } finally {
+      setReopening(false);
     }
   }
 
@@ -1306,6 +1340,8 @@ export default function VisitHubPage({
           onCompleteVisit={handleCompleteVisit}
           isCompleting={completing}
           completingError={completingError}
+          onReopenVisit={handleReopenVisit}
+          isReopening={reopening}
           portalUrl={portalUrl}
           portalLoading={portalLoading}
           hasQuotes={hasQuotes}
