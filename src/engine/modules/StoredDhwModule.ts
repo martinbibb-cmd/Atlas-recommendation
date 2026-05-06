@@ -199,15 +199,35 @@ export function runStoredDhwModuleV1(
   const mainsFlowAdequate =
     mainsFlowKnown && input.mainsDynamicFlowLpm! >= UNVENTED_MIN_ADEQUATE_LPM;
 
-  // Resolve dynamic pressure from preferred alias or legacy field
+  // Resolve dynamic pressure from preferred alias or legacy field.
+  // Note: 0 bar is a valid discrete reading that means "full open / maximum flow test".
+  // mainsPressureRecorded === false means pressure was not measured at all (e.g. flow-cup only).
   const dynamicPressureBar =
     input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+
+  // "Full open" reading: pressure measured as 0 bar with the tap at full bore.
+  // This is the standard UK unvented sizing test — the measured flow rate IS the
+  // maximum achievable supply. Pressure adequacy is assessed via the flow reading alone
+  // when 0 bar (full open) is the selected measurement point.
+  const isFullOpenReading =
+    dynamicPressureBar === 0 && input.mainsPressureRecorded !== false;
+
   const mainsPressureAdequate =
-    dynamicPressureBar !== undefined && dynamicPressureBar >= UNVENTED_MIN_ADEQUATE_PRESSURE_BAR;
+    (dynamicPressureBar !== undefined && dynamicPressureBar >= UNVENTED_MIN_ADEQUATE_PRESSURE_BAR) ||
+    // 0 bar full-open with adequate flow is equivalent to a confirmed adequate supply:
+    // the measured flow at full bore is the sizing value, not the pressure reading.
+    (isFullOpenReading && mainsFlowAdequate);
 
   if (isUnvented) {
     // ── B1: Mains dynamic pressure ──────────────────────────────────────────
-    if (dynamicPressureBar !== undefined && !mainsPressureAdequate) {
+    if (isFullOpenReading) {
+      // 0 bar full-open: pressure check is replaced by a flow-only assessment.
+      // Emit an informational note; the flow gate below determines adequacy.
+      assumptions.push(
+        `Unvented (mains-pressure) cylinder: dynamic pressure recorded as 0 bar (full-open test). ` +
+        `Maximum achievable mains flow rate is determined by the measured flow reading below.`
+      );
+    } else if (dynamicPressureBar !== undefined && !mainsPressureAdequate) {
       flags.push({
         id: 'stored-mains-limited',
         severity: 'warn',
@@ -219,7 +239,7 @@ export function runStoredDhwModuleV1(
           `during back-to-back draws. This is a mains-limited system: the governing constraint is ` +
           `the incoming mains supply, not the cylinder itself.`,
       });
-    } else if (mainsPressureAdequate) {
+    } else if (mainsPressureAdequate && !isFullOpenReading) {
       assumptions.push(
         `Unvented (mains-pressure) cylinder: dynamic pressure ` +
         `${dynamicPressureBar!.toFixed(2)} bar ≥ ${UNVENTED_MIN_ADEQUATE_PRESSURE_BAR} bar — adequate.`,
@@ -231,26 +251,36 @@ export function runStoredDhwModuleV1(
       flags.push({
         id: 'stored-unvented-low-flow',
         severity: 'warn',
-        title: 'Mains flow below optimal for unvented cylinder',
-        detail:
-          `Measured mains flow ${input.mainsDynamicFlowLpm} L/min is below the ` +
-          `~${UNVENTED_MIN_ADEQUATE_LPM} L/min recommended for an unvented cylinder. ` +
-          `The system will still work but simultaneous draws may disappoint — ` +
-          `shower experience may be weak when multiple outlets run together.`,
+        title: isFullOpenReading
+          ? 'Mains flow at full bore below optimal for unvented cylinder'
+          : 'Mains flow below optimal for unvented cylinder',
+        detail: isFullOpenReading
+          ? `Maximum mains flow (measured at 0 bar full open) is ${input.mainsDynamicFlowLpm} L/min — ` +
+            `below the ~${UNVENTED_MIN_ADEQUATE_LPM} L/min recommended for an unvented cylinder. ` +
+            `The system will still work but simultaneous draws may disappoint.`
+          : `Measured mains flow ${input.mainsDynamicFlowLpm} L/min is below the ` +
+            `~${UNVENTED_MIN_ADEQUATE_LPM} L/min recommended for an unvented cylinder. ` +
+            `The system will still work but simultaneous draws may disappoint — ` +
+            `shower experience may be weak when multiple outlets run together.`,
       });
     } else if (!mainsFlowKnown) {
       flags.push({
         id: 'stored-unvented-flow-unknown',
         severity: 'warn',
         title: 'Mains flow not confirmed for unvented cylinder',
-        detail:
-          `Unvented cylinder viability depends on adequate mains flow (≥${UNVENTED_MIN_ADEQUATE_LPM} L/min). ` +
-          `No measured reading has been provided — carry out a flow test before specifying an unvented cylinder.`,
+        detail: isFullOpenReading
+          ? `0 bar (full-open) pressure recorded. Carry out a flow test at full bore to confirm ` +
+            `maximum mains flow rate — this reading is required for unvented cylinder sizing.`
+          : `Unvented cylinder viability depends on adequate mains flow (≥${UNVENTED_MIN_ADEQUATE_LPM} L/min). ` +
+            `No measured reading has been provided — carry out a flow test before specifying an unvented cylinder.`,
       });
     } else {
       assumptions.push(
-        `Unvented (mains-pressure) cylinder: measured mains flow ` +
-        `${input.mainsDynamicFlowLpm} L/min ≥ ${UNVENTED_MIN_ADEQUATE_LPM} L/min — mains supply adequate.`,
+        isFullOpenReading
+          ? `Unvented (mains-pressure) cylinder: maximum mains flow (0 bar full-open test) ` +
+            `${input.mainsDynamicFlowLpm} L/min ≥ ${UNVENTED_MIN_ADEQUATE_LPM} L/min — mains supply adequate.`
+          : `Unvented (mains-pressure) cylinder: measured mains flow ` +
+            `${input.mainsDynamicFlowLpm} L/min ≥ ${UNVENTED_MIN_ADEQUATE_LPM} L/min — mains supply adequate.`,
       );
     }
   }

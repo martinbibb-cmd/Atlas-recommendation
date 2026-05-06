@@ -386,6 +386,10 @@ export default function FullSurveyStepper({ onBack, prefill, onComplete, onDraft
               dynamicMainsPressure: dynamicBar ?? prev.dynamicMainsPressure,
               mainsDynamicFlowLpm: flowLpm,
               mainsDynamicFlowLpmKnown: flowLpm !== undefined ? true : undefined,
+              // Mark pressure as explicitly recorded when a chip option is selected
+              // (including 0 bar full-open). When no chip is selected (undefined),
+              // clear the flag so the engine knows pressure was not taken.
+              mainsPressureRecorded: dynamicBar !== undefined ? true : undefined,
             }));
           }}
           availableSpace={input.availableSpace}
