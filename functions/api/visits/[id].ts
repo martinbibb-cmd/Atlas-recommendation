@@ -254,13 +254,21 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     setClauses.push("working_payload_json = ?");
     bindings.push(JSON.stringify(body.working_payload));
   }
+  // completed_at: set to a timestamp string, or clear with null to reopen the visit.
   if (typeof body.completed_at === "string" && body.completed_at.length > 0) {
     setClauses.push("completed_at = ?");
     bindings.push(body.completed_at);
+  } else if (body.completed_at === null) {
+    setClauses.push("completed_at = ?");
+    bindings.push(null);
   }
+  // completion_method: set to a string, or clear with null when reopening.
   if (typeof body.completion_method === "string" && body.completion_method.length > 0) {
     setClauses.push("completion_method = ?");
     bindings.push(body.completion_method);
+  } else if (body.completion_method === null) {
+    setClauses.push("completion_method = ?");
+    bindings.push(null);
   }
 
   bindings.push(id);

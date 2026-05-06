@@ -34,7 +34,7 @@ import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
-import { getVisit } from './lib/visits/visitApi';
+import { getVisit, saveVisit } from './lib/visits/visitApi';
 import { VisitProvider } from './features/visits/VisitProvider';
 import { createAtlasVisit } from './features/visits/createAtlasVisit';
 import type { AtlasVisit } from './features/visits/createAtlasVisit';
@@ -1587,8 +1587,15 @@ function AppInner() {
             onOpenInsightPack={(engineInput, quotes) => {
               setLabEngineInput(engineInput);
               setLabQuotes(quotes);
-              setInsightPackFromJourney('visit-hub');
-              setJourney('insight-pack');
+              if (quotes.length === 0) {
+                // No quotes collected — go directly to visit-hub where the
+                // engineer can formally complete the visit.  The visit status
+                // has already been saved as recommendation_ready by VisitPage.
+                setJourney('visit-hub');
+              } else {
+                setInsightPackFromJourney('visit-hub');
+                setJourney('insight-pack');
+              }
             }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -1597,6 +1604,10 @@ function AppInner() {
             }}
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
             onOpenInstallationSpecification={() => setJourney('installation-specification')}
+            onReopenVisit={activeVisitId != null ? async () => {
+              await saveVisit(activeVisitId, { completed_at: null, completion_method: null });
+              setJourney('visit-hub');
+            } : undefined}
             floorplanOutput={floorplanOutput}
           />
         </GlobalMenuShell>

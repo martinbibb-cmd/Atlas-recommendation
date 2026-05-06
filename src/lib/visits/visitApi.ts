@@ -212,10 +212,10 @@ export async function saveVisit(
     status?: string;
     visit_reference?: string;
     working_payload?: Record<string, unknown>;
-    /** ISO-8601 timestamp written when the engineer formally completes the visit. */
-    completed_at?: string;
-    /** Records how the visit was completed, e.g. 'manual_pwa'. */
-    completion_method?: string;
+    /** ISO-8601 timestamp written when the engineer formally completes the visit. Pass null to reopen a completed visit. */
+    completed_at?: string | null;
+    /** Records how the visit was completed, e.g. 'manual_pwa'. Pass null when reopening. */
+    completion_method?: string | null;
   }
 ): Promise<void> {
   const res = await fetch(`/api/visits/${encodeURIComponent(id)}`, {
