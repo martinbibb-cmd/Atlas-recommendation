@@ -41,6 +41,8 @@ import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 import AnalyticsPanel from './AnalyticsPanel';
 import { useActiveUser } from '../../features/userProfiles/useActiveUser';
 import { resetDemoData } from '../../dev/demoSeed';
+import type { ApplianceDefinitionV1 } from '../../contracts/hardware/ApplianceDefinitionV1';
+import type { HardwarePatchV1, HardwarePatchEntryV1 } from '../../contracts/hardware/HardwarePatchV1';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -122,13 +124,14 @@ interface Props {
 
 // ─── Top-level page mode ──────────────────────────────────────────────────────
 
-type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics';
+type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware';
 
 const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   inventory: '🗂 UI Inventory',
   visuals:   '🎨 Visuals Gallery',
   storage:   '💾 Storage',
   analytics: '📊 Analytics',
+  hardware:  '🔧 Hardware',
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -247,6 +250,27 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           </div>
         </header>
         <AnalyticsPanel />
+      </div>
+    );
+  }
+
+  if (pageMode === 'hardware') {
+    return (
+      <div style={STYLES.page}>
+        <header style={STYLES.header}>
+          <button className="back-btn" onClick={() => setPageMode('inventory')} style={{ marginBottom: '1rem' }}>
+            ← UI Inventory
+          </button>
+          <div style={STYLES.titleRow}>
+            <h1 style={STYLES.title}>🔧 Hardware</h1>
+            <span style={STYLES.devBadge}>DEV ONLY</span>
+          </div>
+          <p style={STYLES.subtitle}>
+            Define custom appliance definitions that are not in the standard MasterRegistry.
+            Patches are stored locally and can be dispatched to Atlas Scan via the Visit Hub.
+          </p>
+        </header>
+        <HardwarePatchEditorPanel />
       </div>
     );
   }
@@ -429,6 +453,338 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         >
           {cacheResetDone ? '✓ Cache cleared — reloading…' : '🗑 Reset local session cache'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Hardware patch store helpers ─────────────────────────────────────────────
+
+const HARDWARE_PATCHES_STORAGE_KEY = 'atlas_dev_hardware_patches';
+
+function loadHardwarePatches(): HardwarePatchV1 {
+  try {
+    const raw = localStorage.getItem(HARDWARE_PATCHES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (
+        parsed != null &&
+        typeof parsed === 'object' &&
+        'version' in parsed &&
+        (parsed as { version: unknown }).version === '1'
+      ) {
+        return parsed as HardwarePatchV1;
+      }
+    }
+  } catch {
+    // Ignore parse errors — return empty patch set.
+  }
+  return { version: '1', overrides: {} };
+}
+
+function saveHardwarePatches(patch: HardwarePatchV1): void {
+  localStorage.setItem(HARDWARE_PATCHES_STORAGE_KEY, JSON.stringify(patch));
+}
+
+// ─── Blank form state ─────────────────────────────────────────────────────────
+
+interface PatchFormState {
+  modelId: string;
+  brand: string;
+  brandName: string;
+  seriesId: string;
+  seriesName: string;
+  seriesDescription: string;
+  modelName: string;
+  outputKw: string;
+  widthMm: string;
+  depthMm: string;
+  heightMm: string;
+  frontMm: string;
+  sideMm: string;
+  topMm: string;
+  bottomMm: string;
+  notes: string;
+}
+
+const BLANK_PATCH_FORM: PatchFormState = {
+  modelId: '', brand: '', brandName: '', seriesId: '', seriesName: '',
+  seriesDescription: '', modelName: '', outputKw: '', widthMm: '', depthMm: '',
+  heightMm: '', frontMm: '', sideMm: '', topMm: '', bottomMm: '', notes: '',
+};
+
+function parsePatchForm(form: PatchFormState): ApplianceDefinitionV1 | null {
+  const outputKw = parseFloat(form.outputKw);
+  const widthMm = parseInt(form.widthMm, 10);
+  const depthMm = parseInt(form.depthMm, 10);
+  const heightMm = parseInt(form.heightMm, 10);
+  const frontMm = parseInt(form.frontMm, 10);
+  const sideMm = parseInt(form.sideMm, 10);
+  const topMm = parseInt(form.topMm, 10);
+  const bottomMm = parseInt(form.bottomMm, 10);
+
+  if (
+    !form.modelId.trim() || !form.brand.trim() || !form.brandName.trim() ||
+    !form.seriesId.trim() || !form.seriesName.trim() || !form.modelName.trim() ||
+    isNaN(outputKw) || isNaN(widthMm) || isNaN(depthMm) || isNaN(heightMm) ||
+    isNaN(frontMm) || isNaN(sideMm) || isNaN(topMm) || isNaN(bottomMm)
+  ) {
+    return null;
+  }
+
+  return {
+    modelId: form.modelId.trim(),
+    brand: form.brand.trim(),
+    brandName: form.brandName.trim(),
+    seriesId: form.seriesId.trim(),
+    seriesName: form.seriesName.trim(),
+    seriesDescription: form.seriesDescription.trim() || undefined,
+    modelName: form.modelName.trim(),
+    outputKw,
+    dimensions: { widthMm, depthMm, heightMm },
+    clearanceRules: { frontMm, sideMm, topMm, bottomMm },
+    logoPath: null,
+  };
+}
+
+// ─── Hardware Patch Editor Panel ──────────────────────────────────────────────
+
+function HardwarePatchEditorPanel() {
+  const [patches, setPatches] = useState<HardwarePatchV1>(() => loadHardwarePatches());
+  const [form, setForm] = useState<PatchFormState>(BLANK_PATCH_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [savedModelId, setSavedModelId] = useState<string | null>(null);
+
+  const overrideEntries = Object.entries(patches.overrides);
+
+  function handleField(key: keyof PatchFormState, value: string) {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setFormError(null);
+  }
+
+  function handleSave() {
+    const definition = parsePatchForm(form);
+    if (!definition) {
+      setFormError('Please fill in all required fields with valid values.');
+      return;
+    }
+    const entry: HardwarePatchEntryV1 = {
+      updatedAt: new Date().toISOString(),
+      definition,
+      ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
+    };
+    const updated: HardwarePatchV1 = {
+      version: '1',
+      overrides: { ...patches.overrides, [definition.modelId]: entry },
+    };
+    saveHardwarePatches(updated);
+    setPatches(updated);
+    setSavedModelId(definition.modelId);
+    setForm(BLANK_PATCH_FORM);
+    setFormError(null);
+    setTimeout(() => setSavedModelId(null), 3000);
+  }
+
+  function handleDelete(modelId: string) {
+    const { [modelId]: _deletedEntry, ...rest } = patches.overrides;
+    const updated: HardwarePatchV1 = { version: '1', overrides: rest };
+    saveHardwarePatches(updated);
+    setPatches(updated);
+  }
+
+  const fieldStyle: CSSProperties = {
+    width: '100%', padding: '0.4rem 0.5rem', border: '1px solid #cbd5e1',
+    borderRadius: '6px', fontSize: '0.875rem', background: '#fff', color: '#1e293b',
+    boxSizing: 'border-box',
+  };
+  const labelStyle: CSSProperties = {
+    display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#475569',
+    marginBottom: '0.2rem',
+  };
+  const gridStyle: CSSProperties = {
+    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+    gap: '0.75rem', marginBottom: '1rem',
+  };
+  const sectionStyle: CSSProperties = {
+    background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px',
+    padding: '1.25rem', marginBottom: '1.5rem',
+  };
+  const sectionHeadingStyle: CSSProperties = {
+    margin: '0 0 1rem', fontSize: '0.9375rem', fontWeight: 700, color: '#1e293b',
+  };
+
+  return (
+    <div>
+      {/* ── Add / edit form ───────────────────────────────────────────────── */}
+      <div style={sectionStyle}>
+        <h2 style={sectionHeadingStyle}>Add custom appliance</h2>
+
+        <p style={{ fontSize: '0.8125rem', color: '#64748b', marginBottom: '1rem' }}>
+          Define an appliance not in the standard MasterRegistry. All dimension
+          and clearance values must be in millimetres.
+        </p>
+
+        <div style={{ ...gridStyle, gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+          <div>
+            <label style={labelStyle} htmlFor="patch-modelId">Model ID *</label>
+            <input id="patch-modelId" style={fieldStyle} type="text" placeholder="e.g. custom_wb_30kw"
+              value={form.modelId} onChange={e => handleField('modelId', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-modelName">Model name *</label>
+            <input id="patch-modelName" style={fieldStyle} type="text" placeholder="e.g. Custom WB 30kW"
+              value={form.modelName} onChange={e => handleField('modelName', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-outputKw">Output (kW) *</label>
+            <input id="patch-outputKw" style={fieldStyle} type="number" min="0" step="0.1" placeholder="30"
+              value={form.outputKw} onChange={e => handleField('outputKw', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-brand">Brand slug *</label>
+            <input id="patch-brand" style={fieldStyle} type="text" placeholder="e.g. worcester_bosch"
+              value={form.brand} onChange={e => handleField('brand', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-brandName">Brand name *</label>
+            <input id="patch-brandName" style={fieldStyle} type="text" placeholder="e.g. Worcester Bosch"
+              value={form.brandName} onChange={e => handleField('brandName', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-seriesId">Series ID *</label>
+            <input id="patch-seriesId" style={fieldStyle} type="text" placeholder="e.g. greenstar_4000"
+              value={form.seriesId} onChange={e => handleField('seriesId', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-seriesName">Series name *</label>
+            <input id="patch-seriesName" style={fieldStyle} type="text" placeholder="e.g. Greenstar 4000"
+              value={form.seriesName} onChange={e => handleField('seriesName', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-seriesDescription">Series description</label>
+            <input id="patch-seriesDescription" style={fieldStyle} type="text" placeholder="e.g. Wall-hung combi range"
+              value={form.seriesDescription} onChange={e => handleField('seriesDescription', e.target.value)} />
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569', margin: '0 0 0.5rem' }}>
+          Dimensions (mm) *
+        </p>
+        <div style={gridStyle}>
+          <div>
+            <label style={labelStyle} htmlFor="patch-widthMm">Width (W)</label>
+            <input id="patch-widthMm" style={fieldStyle} type="number" min="0" placeholder="390"
+              value={form.widthMm} onChange={e => handleField('widthMm', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-depthMm">Depth (D)</label>
+            <input id="patch-depthMm" style={fieldStyle} type="number" min="0" placeholder="338"
+              value={form.depthMm} onChange={e => handleField('depthMm', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-heightMm">Height (H)</label>
+            <input id="patch-heightMm" style={fieldStyle} type="number" min="0" placeholder="740"
+              value={form.heightMm} onChange={e => handleField('heightMm', e.target.value)} />
+          </div>
+        </div>
+
+        <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569', margin: '0 0 0.5rem' }}>
+          Clearance offsets (mm) *
+        </p>
+        <div style={gridStyle}>
+          <div>
+            <label style={labelStyle} htmlFor="patch-frontMm">Front</label>
+            <input id="patch-frontMm" style={fieldStyle} type="number" min="0" placeholder="450"
+              value={form.frontMm} onChange={e => handleField('frontMm', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-sideMm">Side</label>
+            <input id="patch-sideMm" style={fieldStyle} type="number" min="0" placeholder="50"
+              value={form.sideMm} onChange={e => handleField('sideMm', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-topMm">Top</label>
+            <input id="patch-topMm" style={fieldStyle} type="number" min="0" placeholder="150"
+              value={form.topMm} onChange={e => handleField('topMm', e.target.value)} />
+          </div>
+          <div>
+            <label style={labelStyle} htmlFor="patch-bottomMm">Bottom</label>
+            <input id="patch-bottomMm" style={fieldStyle} type="number" min="0" placeholder="100"
+              value={form.bottomMm} onChange={e => handleField('bottomMm', e.target.value)} />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={labelStyle} htmlFor="patch-notes">Notes (optional)</label>
+          <input id="patch-notes" style={{ ...fieldStyle, maxWidth: '480px' }} type="text"
+            placeholder="e.g. Legacy boiler not in manufacturer's current range."
+            value={form.notes} onChange={e => handleField('notes', e.target.value)} />
+        </div>
+
+        {formError && (
+          <p role="alert" style={{ color: '#dc2626', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
+            ⚠ {formError}
+          </p>
+        )}
+
+        {savedModelId && (
+          <p role="status" style={{ color: '#16a34a', fontSize: '0.8125rem', marginBottom: '0.75rem' }}>
+            ✓ Saved custom appliance: <code>{savedModelId}</code>
+          </p>
+        )}
+
+        <button className="chip-btn" onClick={handleSave} style={{ fontWeight: 600 }}>
+          💾 Save custom appliance
+        </button>
+      </div>
+
+      {/* ── Saved patches list ────────────────────────────────────────────── */}
+      <div style={sectionStyle}>
+        <h2 style={sectionHeadingStyle}>
+          Saved custom appliances{overrideEntries.length > 0 ? ` (${overrideEntries.length})` : ''}
+        </h2>
+
+        {overrideEntries.length === 0 ? (
+          <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
+            No custom appliances defined yet.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {overrideEntries.map(([modelId, entry]) => (
+              <div key={modelId} style={{
+                border: '1px solid #e2e8f0', borderRadius: '8px', padding: '0.875rem',
+                background: '#f8fafc',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: '0.9rem', color: '#1e293b' }}>
+                      {entry.definition.modelName}
+                    </p>
+                    <p style={{ margin: '0.1rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                      <code>{modelId}</code> · {entry.definition.brandName} · {entry.definition.outputKw} kW
+                    </p>
+                    <p style={{ margin: '0.1rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                      {entry.definition.dimensions.widthMm} × {entry.definition.dimensions.depthMm} × {entry.definition.dimensions.heightMm} mm
+                    </p>
+                    {entry.notes && (
+                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                        {entry.notes}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    className="chip-btn"
+                    onClick={() => handleDelete(modelId)}
+                    aria-label={`Delete custom appliance ${modelId}`}
+                    style={{ flexShrink: 0, marginLeft: '0.75rem', color: '#dc2626', borderColor: '#dc2626' }}
+                  >
+                    🗑 Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

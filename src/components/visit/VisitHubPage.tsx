@@ -446,6 +446,10 @@ function HubActions({
     window.open(`mailto:?subject=${subject}&body=${body}`, '_self');
   }
 
+  function handleRecallInScanApp() {
+    window.location.href = `atlasscan://recall?visitId=${encodeURIComponent(visitId)}`;
+  }
+
   // ── Lifecycle status card ──────────────────────────────────────────────────
 
   const lifecycleKey = hubLifecycleKey(meta);
@@ -600,6 +604,15 @@ function HubActions({
               🔗 External files
             </button>
           )}
+
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={handleRecallInScanApp}
+            aria-label="Recall this visit in Atlas Scan app"
+            data-testid="recall-in-scan-app-btn"
+          >
+            📡 Recall in Scan App
+          </button>
         </div>
 
         {/* Job outcome — owner / admin / sales only */}
@@ -772,6 +785,15 @@ function HubActions({
               🔗 External files
             </button>
           )}
+
+          <button
+            className="visit-hub__action-btn visit-hub__action-btn--secondary"
+            onClick={handleRecallInScanApp}
+            aria-label="Recall this visit in Atlas Scan app"
+            data-testid="recall-in-scan-app-btn"
+          >
+            📡 Recall in Scan App
+          </button>
         </div>
       </div>
     );
@@ -888,12 +910,21 @@ function HubActions({
             aria-label="Open installation specification"
             data-testid="open-installation-specification-btn"
           >
-            �� Installation Specification
+            🛠 Installation Specification
             {installationSpecOptionCount != null && installationSpecOptionCount > 0
               ? ` · ${installationSpecOptionCount} option${installationSpecOptionCount !== 1 ? 's' : ''}`
               : ''}
           </button>
         )}
+
+        <button
+          className="visit-hub__action-btn visit-hub__action-btn--secondary"
+          onClick={handleRecallInScanApp}
+          aria-label="Recall this visit in Atlas Scan app"
+          data-testid="recall-in-scan-app-btn"
+        >
+          📡 Recall in Scan App
+        </button>
       </div>
     </div>
   );
