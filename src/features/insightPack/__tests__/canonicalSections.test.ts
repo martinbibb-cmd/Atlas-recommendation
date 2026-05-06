@@ -66,7 +66,7 @@ describe('SECTIONS_BY_MODE', () => {
     expect(technicalSorted).toEqual(inRoomSorted);
   });
 
-  it('in-room contains all 11 canonical sections', () => {
+  it('in-room contains all 12 canonical sections', () => {
     expect(SECTIONS_BY_MODE['in-room'].length).toBe(CANONICAL_SECTIONS.length);
   });
 
@@ -109,11 +109,11 @@ describe('sectionsForMode', () => {
     }
   });
 
-  it('customer-pack returns 6 sections', () => {
-    expect(sectionsForMode('customer-pack').length).toBe(6);
+  it('customer-pack returns 7 sections', () => {
+    expect(sectionsForMode('customer-pack').length).toBe(7);
   });
 
-  it('in-room returns 11 sections', () => {
-    expect(sectionsForMode('in-room').length).toBe(11);
+  it('in-room returns 12 sections', () => {
+    expect(sectionsForMode('in-room').length).toBe(12);
   });
 });

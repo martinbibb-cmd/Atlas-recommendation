@@ -20,6 +20,7 @@
 export type CanonicalSectionId =
   | 'cover'
   | 'what-we-know'
+  | 'you-we-get'
   | 'overview'
   | 'best-advice'
   | 'daily-use'
@@ -90,6 +91,7 @@ export interface CanonicalSection {
 export const CANONICAL_SECTIONS: readonly CanonicalSection[] = [
   { id: 'cover',         label: 'Your Home',         icon: '🏠', tier: 'recommendation' },
   { id: 'what-we-know',  label: 'What We Looked At', icon: '📋', tier: 'explanation'    },
+  { id: 'you-we-get',    label: 'Your Outcome',       icon: '💬', tier: 'recommendation' },
   { id: 'overview',      label: 'Options',            icon: '📄', tier: 'explanation'    },
   { id: 'best-advice',   label: 'Best Advice',        icon: '🎯', tier: 'recommendation' },
   { id: 'daily-use',     label: 'Day to Day',         icon: '☀️', tier: 'recommendation' },
@@ -116,6 +118,7 @@ export const SECTIONS_BY_MODE: Readonly<Record<PresentationMode, readonly Canoni
   'in-room': [
     'cover',
     'what-we-know',
+    'you-we-get',
     'overview',
     'best-advice',
     'daily-use',
@@ -129,6 +132,7 @@ export const SECTIONS_BY_MODE: Readonly<Record<PresentationMode, readonly Canoni
   'customer-pack': [
     'cover',
     'what-we-know',
+    'you-we-get',
     'best-advice',
     'daily-use',
     'ratings',
@@ -137,6 +141,7 @@ export const SECTIONS_BY_MODE: Readonly<Record<PresentationMode, readonly Canoni
   'technical-pack': [
     'cover',
     'what-we-know',
+    'you-we-get',
     'overview',
     'best-advice',
     'daily-use',

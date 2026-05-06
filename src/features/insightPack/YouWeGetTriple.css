@@ -1,0 +1,124 @@
+/**
+ * YouWeGetTriple.css
+ *
+ * Styles for the "You told us / We're doing / So you get" narrative component.
+ * Mobile-first, collapses to stacked cards on narrow viewports.
+ */
+
+.ywg-triple {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 0.9rem;
+}
+
+/* ── Header row ─────────────────────────────────────────────────────────── */
+
+.ywg-triple__header-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+.ywg-triple__header-cell {
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+}
+
+.ywg-triple__header-cell + .ywg-triple__header-cell {
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ywg-triple__header-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.ywg-triple__header-label {
+  white-space: nowrap;
+}
+
+/* ── Data rows ──────────────────────────────────────────────────────────── */
+
+.ywg-triple__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.ywg-triple__row--alt {
+  background: #f8fafc;
+}
+
+.ywg-triple__cell {
+  padding: 0.85rem 1rem;
+  color: #334155;
+  line-height: 1.55;
+  font-size: 0.875rem;
+}
+
+.ywg-triple__cell + .ywg-triple__cell {
+  border-left: 1px solid #e2e8f0;
+}
+
+/* Column-specific accent colours */
+.ywg-triple__cell--you {
+  color: #475569;
+}
+
+.ywg-triple__cell--doing {
+  color: #1e40af;
+}
+
+.ywg-triple__cell--get {
+  color: #166534;
+  font-weight: 500;
+}
+
+/* ── Narrow viewports: stack columns ────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .ywg-triple__header-row,
+  .ywg-triple__row {
+    grid-template-columns: 1fr;
+  }
+
+  .ywg-triple__header-cell + .ywg-triple__header-cell,
+  .ywg-triple__cell + .ywg-triple__cell {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .ywg-triple__cell + .ywg-triple__cell {
+    border-top: 1px solid #e2e8f0;
+  }
+}
+
+/* ── Print ──────────────────────────────────────────────────────────────── */
+
+@media print {
+  .ywg-triple {
+    break-inside: avoid;
+    font-size: 0.8rem;
+  }
+
+  .ywg-triple__header-row {
+    background: #1e293b !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .ywg-triple__cell {
+    padding: 0.5rem 0.75rem;
+  }
+}

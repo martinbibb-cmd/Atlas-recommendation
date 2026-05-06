@@ -42,6 +42,8 @@ import type {
   ReasonChainStep,
   NextSteps,
   CurrentSystemSummary,
+  YouWeGetTripleData,
+  YouWeGetRow,
 } from './insightPack.types';
 
 // ─── Survey context ───────────────────────────────────────────────────────────
@@ -1689,6 +1691,86 @@ function buildNextSteps(
   };
 }
 
+// ─── You / We / Get builder ────────────────────────────────────────────────────
+
+/**
+ * buildYouWeGet
+ *
+ * Derives the "You told us / We're doing / So you get" narrative rows from
+ * the survey context and best-advice recommendation.
+ *
+ * Each row maps a survey observation → Atlas action → customer outcome.
+ * Only rows backed by real survey data are emitted — no invented copy.
+ * Returns undefined when insufficient context is available.
+ *
+ * Rules:
+ *   - No engineering jargon (ΔT, L/min, 22mm, hydraulic, etc.).
+ *   - All strings follow docs/atlas-terminology.md.
+ *   - Minimum 1 row to emit a non-undefined result.
+ */
+function buildYouWeGet(
+  bestAdvice: BestAdvice,
+  ctx?: InsightPackSurveyContext,
+): YouWeGetTripleData | undefined {
+  const rows: YouWeGetRow[] = [];
+
+  // ── Row: current boiler age ──────────────────────────────────────────────────
+  const boilerAge = ctx?.currentBoiler?.ageYears;
+  if (boilerAge != null && boilerAge >= 10) {
+    rows.push({
+      youToldUs: `Your current boiler is ${boilerAge} year${boilerAge === 1 ? '' : 's'} old.`,
+      wereDoing: 'Replacing it with a high-efficiency condensing boiler.',
+      soYouGet:  'Lower energy bills and a more reliable heating system from day one.',
+    });
+  }
+
+  // ── Row: household size ──────────────────────────────────────────────────────
+  const occupancy = ctx?.occupancyCount;
+  if (occupancy != null && occupancy >= 3) {
+    rows.push({
+      youToldUs: `${occupancy} people live in your home.`,
+      wereDoing: 'Sizing the system to match your household\'s peak demand.',
+      soYouGet:  'Enough hot water and heating for the whole household, even during busy mornings.',
+    });
+  }
+
+  // ── Row: multi-bathroom / simultaneous demand ────────────────────────────────
+  const bathrooms = ctx?.bathroomCount;
+  if (bathrooms != null && bathrooms >= 2) {
+    rows.push({
+      youToldUs: `You have ${bathrooms} bathrooms.`,
+      wereDoing: 'Recommending stored hot water to handle multiple outlets at once.',
+      soYouGet:  'Two showers or taps can run together without noticeably affecting performance.',
+    });
+  }
+
+  // ── Row: system condition — sludge / cold radiators ─────────────────────────
+  const sludge = ctx?.systemCondition?.sludgeBleedObserved;
+  const coldRads = ctx?.systemCondition?.coldRadiatorsPresent;
+  if (sludge || coldRads) {
+    rows.push({
+      youToldUs: sludge
+        ? 'Sludge was found in your heating system.'
+        : 'Some radiators were not heating correctly.',
+      wereDoing: 'Including a system clean (power-flush) and a magnetic filter.',
+      soYouGet:  'A clean, balanced system that heats every room efficiently and protects the new boiler.',
+    });
+  }
+
+  // ── Row: recommendation outcome ──────────────────────────────────────────────
+  // Always add a row linking the recommendation to its primary outcome.
+  if (bestAdvice.because.length > 0) {
+    rows.push({
+      youToldUs: 'Your home survey is complete.',
+      wereDoing: bestAdvice.recommendation,
+      soYouGet:  bestAdvice.because[0],
+    });
+  }
+
+  if (rows.length === 0) return undefined;
+  return { rows };
+}
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -1813,6 +1895,7 @@ export function buildInsightPackFromEngine(
   const homeProfile = buildHomeProfile(engineOutput);
   const reasonChain = buildReasonChain(engineOutput, bestAdvice);
   const nextSteps = buildNextSteps(bestAdvice, quoteInsights, decision);
+  const youWeGet = buildYouWeGet(bestAdvice, surveyContext);
 
   return {
     quotes: quoteInsights,
@@ -1822,5 +1905,6 @@ export function buildInsightPackFromEngine(
     reasonChain,
     nextSteps,
     currentSystem,
+    youWeGet,
   };
 }
