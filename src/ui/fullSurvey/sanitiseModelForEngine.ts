@@ -104,20 +104,20 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     // pressure analysis uses the most demanding measured point.
     const fr = sanitised.mains.flowReadings;
     if (fr && sanitised.mainsDynamicFlowLpm === undefined) {
-      const POINTS: { pressureBar: number; flow: number | undefined }[] = [
+      const FLOW_TEST_PRESSURES: { pressureBar: number; flow: number | undefined }[] = [
         { pressureBar: 2,   flow: fr.at2BarLpm },
         { pressureBar: 1,   flow: fr.at1BarLpm },
         { pressureBar: 0.5, flow: fr.at0p5BarLpm },
         { pressureBar: 0,   flow: fr.at0BarLpm },
       ];
-      const best = POINTS.find(p => p.flow !== undefined);
-      if (best && best.flow !== undefined) {
-        sanitised.mainsDynamicFlowLpm = best.flow;
+      const firstAvailableReading = FLOW_TEST_PRESSURES.find(p => p.flow !== undefined);
+      if (firstAvailableReading && firstAvailableReading.flow !== undefined) {
+        sanitised.mainsDynamicFlowLpm = firstAvailableReading.flow;
         sanitised.mainsDynamicFlowLpmKnown = true;
         sanitised.mainsPressureRecorded = true;
         if (sanitised.dynamicMainsPressureBar === undefined) {
-          sanitised.dynamicMainsPressureBar = best.pressureBar;
-          sanitised.dynamicMainsPressure = best.pressureBar;
+          sanitised.dynamicMainsPressureBar = firstAvailableReading.pressureBar;
+          sanitised.dynamicMainsPressure = firstAvailableReading.pressureBar;
         }
       }
     }

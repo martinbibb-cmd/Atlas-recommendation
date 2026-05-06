@@ -104,6 +104,11 @@ interface ServicesStepProps {
 /**
  * Standard test-pressure points (bar) used in the flow test.
  * The surveyor sets up the gauge at each pressure and records the measured flow.
+ *
+ * Four points are used (2, 1, 0.5, 0 bar) — 1.5 bar is intentionally excluded
+ * because it offers no additional diagnostic value: 2 bar confirms adequate
+ * supply, 1 bar is the recognised combi minimum, 0.5 bar the reduced-flow
+ * threshold, and 0 bar (full open) gives the unvented cylinder sizing flow.
  */
 const FLOW_TEST_POINTS: { pressureBar: number; label: string; hint: string; field: keyof MainsFlowReadings }[] = [
   { pressureBar: 2,   label: '2 bar',             hint: 'Typical supply',           field: 'at2BarLpm' },
