@@ -59,8 +59,8 @@ export default function LimitationsPanel({ quotes, severeOnly = false }: Props) 
             {visibleLimitations.length === 0 ? (
               <p className="limitations__none">
                 {severeOnly
-                  ? '✅ No critical constraints identified.'
-                  : '✅ No material constraints identified based on current survey data.'}
+                  ? '✅ No critical constraints identified, though incoming water supply may still limit simultaneous high-demand hot-water use.'
+                  : '✅ No additional constraints identified from current survey data.'}
               </p>
             ) : (
               visibleLimitations

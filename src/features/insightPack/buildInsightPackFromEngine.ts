@@ -1740,7 +1740,7 @@ function buildYouWeGet(
     rows.push({
       youToldUs: `You have ${bathrooms} bathrooms.`,
       wereDoing: 'Recommending stored hot water to handle multiple outlets at once.',
-      soYouGet:  'Two showers or taps can run together without noticeably affecting performance.',
+      soYouGet:  'Stored hot water helps your home cope better when multiple outlets are used together.',
     });
   }
 
