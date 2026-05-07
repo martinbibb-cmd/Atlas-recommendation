@@ -26,16 +26,18 @@ import type {
   RejectedSystem,
   FlaggedSystem,
 } from './RecommendationVerdictV1';
+import { buildCustomerFacingRecommendationLabel } from './buildCustomerFacingRecommendationLabel';
 
-// ─── Family label map ─────────────────────────────────────────────────────────
+// ─── Family label helper ──────────────────────────────────────────────────────
 
-const FAMILY_LABELS: Record<ApplianceFamily, string> = {
-  combi:       'Gas combi boiler',
-  system:      'System boiler with unvented cylinder',
-  heat_pump:   'Air source heat pump',
-  regular:     'Regular boiler with vented cylinder',
-  open_vented: 'Open-vented (regular) boiler system',
-};
+/**
+ * Returns the customer-facing label for a family, using
+ * buildCustomerFacingRecommendationLabel as the single source of truth.
+ * No local label map is maintained here — all copies go through the resolver.
+ */
+function familyLabel(family: ApplianceFamily): string {
+  return buildCustomerFacingRecommendationLabel(family);
+}
 
 // ─── Hard-rejection map ───────────────────────────────────────────────────────
 
@@ -105,7 +107,7 @@ function deriveRejectedSystems(result: FullEngineResultWithoutVerdict, _input: E
     const alreadyRejected = rejected.some(r => r.family === decision.family);
     if (!alreadyRejected) {
       const primaryLimiter = decision.evidenceTrace.hardStopLimiters[0] ?? 'hard_stop';
-      const caveat = decision.caveats[0] ?? `${FAMILY_LABELS[decision.family]} is not advised for this home.`;
+      const caveat = decision.caveats[0] ?? `${familyLabel(decision.family)} is not advised for this home.`;
       rejected.push({
         family: decision.family,
         reasonId: primaryLimiter,
@@ -129,8 +131,12 @@ function deriveFlaggedSystems(result: FullEngineResultWithoutVerdict, _input: En
 
   // flagAshp without rejectAshp means: ASHP is possible but requires pipework upgrades.
   if (redFlags.flagAshp && !redFlags.rejectAshp) {
-    const workNote = redFlags.reasons.find(r => r.includes('ASHP Flagged') || r.includes('22mm')) ??
-      'ASHP requires primary pipework upgrade to ≥28mm to support low-ΔT flow rates.';
+    // Rewrite any technical reason text into customer-safe behavioural language.
+    // Technical details (pipe sizes, ΔT, L/min) belong in the engineer report only.
+    const rawReason = redFlags.reasons.find(r => r.includes('ASHP Flagged') || r.includes('22mm'));
+    const workNote = rawReason != null
+      ? 'A heat pump would require major pipework upgrades to perform properly here.'
+      : 'A heat pump would require major pipework upgrades to perform properly here.';
     flagged.push({
       family: 'heat_pump',
       flagId: 'ashp_pipework_flag',
@@ -215,15 +221,15 @@ export function buildRecommendationVerdict(
   // ── Primary reason (from evidence, not lifestyle) ─────────────────────────
   const winningDecision = allDecisions.find(d => d.family === recommendedFamily);
   const primaryReason = winningDecision != null && winningDecision.caveats.length === 0
-    ? `${FAMILY_LABELS[winningDecision.family]} scores highest across performance, reliability, and longevity for this home.`
+    ? `${familyLabel(winningDecision.family)} scores highest across performance, reliability, and longevity for this home.`
     : winningDecision != null
-    ? `${FAMILY_LABELS[winningDecision.family]} is the best-fit option — ${winningDecision.caveats[0] ?? 'see check items below'}.`
+    ? `${familyLabel(winningDecision.family)} is the best-fit option — ${winningDecision.caveats[0] ?? 'see check items below'}.`
     : null;
 
   // ── What this avoids ──────────────────────────────────────────────────────
   const whatThisAvoids: string[] = [];
   for (const rejected of rejectedSystems) {
-    whatThisAvoids.push(`${FAMILY_LABELS[rejected.family]}: ${rejected.reason}`);
+    whatThisAvoids.push(`${familyLabel(rejected.family)}: ${rejected.reason}`);
   }
 
   // ── Check items ───────────────────────────────────────────────────────────
@@ -235,13 +241,13 @@ export function buildRecommendationVerdict(
     .slice(0, 2)
     .map(d => ({
       family: d.family,
-      label: FAMILY_LABELS[d.family],
+      label: familyLabel(d.family),
       caveat: d.caveats[0] ?? `Suitable with score ${d.overallScore.toFixed(0)}.`,
     }));
 
   return {
     recommendedFamily,
-    recommendedLabel: recommendedFamily != null ? FAMILY_LABELS[recommendedFamily] : null,
+    recommendedLabel: recommendedFamily != null ? familyLabel(recommendedFamily) : null,
     primaryReason,
     whatThisAvoids,
     checkItems,
@@ -267,12 +273,12 @@ export function buildCustomerPresentation(
   const verdictHeadline = verdict.recommendedLabel ?? 'No suitable system identified';
 
   const futurePath = verdict.futurePath.map(f => ({
-    label: FAMILY_LABELS[f.family],
+    label: familyLabel(f.family),
     requiredWork: f.requiredWork,
   }));
 
   const ruledOut = verdict.rejectedSystems.map(r => ({
-    label: FAMILY_LABELS[r.family],
+    label: familyLabel(r.family),
     reason: r.reason,
   }));
 

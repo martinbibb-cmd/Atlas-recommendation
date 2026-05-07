@@ -34,6 +34,7 @@ import {
 } from './canonicalSections';
 import CoverHeroCard from './CoverHeroCard';
 import WhatWeKnowGrid from './WhatWeKnowGrid';
+import YouWeGetTriple from './YouWeGetTriple';
 import QuoteComparisonCard from './QuoteComparisonCard';
 import BestAdvicePanel from './BestAdvicePanel';
 import DailyUsePanel from './DailyUsePanel';
@@ -117,6 +118,10 @@ export default function InsightPackDeck({
         );
       case 'what-we-know':
         return <WhatWeKnowGrid tiles={pack.homeProfile} />;
+      case 'you-we-get':
+        return pack.youWeGet != null
+          ? <YouWeGetTriple data={pack.youWeGet} />
+          : <div className="insight-deck__empty-panel">No outcome summary available for this survey.</div>;
       case 'overview':
         return <QuoteComparisonCard quotes={pack.quotes} bestAdvice={pack.bestAdvice} />;
       case 'best-advice':

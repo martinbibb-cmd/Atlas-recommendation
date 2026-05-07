@@ -245,6 +245,37 @@ export interface CurrentSystemSummary {
   systemType?: 'combi' | 'system' | 'regular' | 'back_boiler' | 'unknown';
 }
 
+// ─── You / We / Get triple ────────────────────────────────────────────────────
+
+/**
+ * A single row in the "You told us / We're doing / So you get" narrative.
+ *
+ * Each row maps one survey observation to an Atlas action and a customer outcome.
+ * Rows must be derived from real survey data — never invented.
+ */
+export interface YouWeGetRow {
+  /** What the customer told us (or what the survey recorded). */
+  youToldUs: string;
+  /** What Atlas / the installer is doing as a result. */
+  wereDoing: string;
+  /** The tangible benefit the customer will experience. */
+  soYouGet: string;
+}
+
+/**
+ * The "You told us / We're doing / So you get" triple narrative.
+ *
+ * A reusable data structure that powers the YouWeGetTriple component.
+ * All rows must trace back to survey facts, engine outputs, or quote scope —
+ * never invented copy.
+ *
+ * Populated by buildInsightPackFromEngine() — not constructed manually.
+ */
+export interface YouWeGetTripleData {
+  /** Ordered rows, typically 3–5. Must contain at least one row. */
+  rows: YouWeGetRow[];
+}
+
 // ─── Insight Pack ─────────────────────────────────────────────────────────────
 
 /**
@@ -270,4 +301,10 @@ export interface InsightPack {
    * Absent when the current system was not captured during the survey.
    */
   currentSystem?: CurrentSystemSummary;
+  /**
+   * The "You told us / We're doing / So you get" narrative bridge.
+   * Shown between the home-profile overview and the recommendation sections.
+   * Absent when insufficient survey context is available to build the rows.
+   */
+  youWeGet?: YouWeGetTripleData;
 }
