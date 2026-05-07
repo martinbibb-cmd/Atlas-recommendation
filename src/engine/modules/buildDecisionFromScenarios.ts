@@ -345,7 +345,7 @@ function buildCompatibilityWarnings(scenario: ScenarioResult): string[] {
     );
   }
   if (flags.pressureConstraint) {
-    warnings.push('Retained pressure reduces during high simultaneous demand — stored hot water handles simultaneous demand more effectively than on-demand heating');
+    warnings.push('During high simultaneous demand, shower intensity may reduce slightly — stored hot water handles simultaneous demand more effectively than on-demand heating');
   }
 
   return warnings;

@@ -99,7 +99,7 @@ function operatingPointBullet(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1'], 
   const flow = cwsSupplyV1.dynamic?.flowLpm;
   if (flow !== undefined && flow > 0) {
     if (dynamicBar === 0) {
-      return `Maximum measured incoming supply: ${flow.toFixed(1)} L/min full-bore flow (0 retained pressure).`;
+      return `Maximum measured incoming supply flow: ${flow.toFixed(1)} L/min (full-bore test).`;
     }
     return `Measured supply: ${flow.toFixed(0)} L/min @ ${dynamicBar.toFixed(1)} bar (dynamic under load).`;
   }
@@ -694,7 +694,7 @@ export function buildOptionMatrixV1(
   const storedUnventedDhwBullets: string[] = [
     'Stored volume handles simultaneous draw from multiple outlets.',
     mainsPressure === 0
-      ? `Maximum measured incoming supply: ${(cwsSupplyV1.dynamic?.flowLpm ?? 0).toFixed(1)} L/min full-bore flow (0 retained pressure) — stored cylinder is well supported.`
+      ? `Maximum measured incoming supply flow: ${(cwsSupplyV1.dynamic?.flowLpm ?? 0).toFixed(1)} L/min (full-bore test) — stored cylinder is well supported.`
       : mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
       ? `Retained pressure: ${mainsPressure.toFixed(1)} bar — strong measured supply flow; stored delivery is well supported.`
       : mainsPressure < 1.5
@@ -1086,12 +1086,12 @@ export function buildOptionMatrixV1(
   // meetsUnventedRequirement: operating-point gate (10 L/min @ 1 bar or 12 L/min @ 0 bar).
   // When gate is met → viable.
   // When gate is not met but measurements exist: check supplyFlowLpm for a flow-only verdict.
-  // When no measurements: fall back to retained-pressure heuristic (caution below 1.5 bar).
+  // When no measurements: caution (insufficient evidence), not a pressure-only gate.
   const unventedStatus: OptionCardV1['status'] =
     noSpaceForCylinder ? 'caution'
     : (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement) ? 'viable'
     : (supplyFlowLpm !== undefined && supplyFlowLpm < MIN_STORED_FLOW_LPM) ? 'caution'
-    : pressure < 1.5 ? 'caution'
+    : !sysUnventedCws.hasMeasurements ? 'caution'
     : 'viable';
   const unventedWhy: string[] = [
     'Sealed system with unvented cylinder — mains-pressure hot water throughout.',
@@ -1155,7 +1155,7 @@ export function buildOptionMatrixV1(
         : unventedDhwIsLimited
         ? `Measured flow: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min — workable for stored hot water, but not strong for simultaneous high-demand draws.`
         : pressure === 0
-        ? `Maximum measured incoming supply: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(1)} L/min full-bore flow (0 retained pressure).`
+        ? `Maximum measured incoming supply flow: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(1)} L/min (full-bore test).`
         : `Retained mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' — multiple outlets running together may slightly reduce shower intensity during peak demand periods' : ' (adequate)'}.`,
       'Unvented cylinder: mains-pressure hot water throughout — no shower pump needed.',
       'G3 regulation: tundish and discharge pipe required by Building Regulations.',
@@ -1208,7 +1208,7 @@ export function buildOptionMatrixV1(
       : unventedStatus === 'viable'
       ? 'System boiler + unvented cylinder suits your supply and demand.'
       : unventedStatus === 'caution' && sysUnventedCws.hasMeasurements && !sysUnventedCws.meetsUnventedRequirement
-      ? 'Stored hot water is compatible with the measured supply — retained pressure reduces under peak flow; outlet balance and Mixergy recommended.'
+      ? 'Stored hot water is compatible with the measured supply — during peak simultaneous demand, shower intensity may reduce slightly; outlet balance and Mixergy recommended.'
       : 'System + unvented possible — confirm mains supply measurements before specifying.',
     why: unventedWhy,
     requirements: unventedRequirements,

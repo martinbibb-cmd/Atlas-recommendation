@@ -430,6 +430,19 @@ describe('runCwsSupplyModuleV1', () => {
     expect(result.waterConfidence).toBe('missing');
     expect(result.waterConfidenceReason).toBe('missing');
   });
+
+  it('stores storedComfortExpectation separately from storedTopologyViability', () => {
+    const result = runCwsSupplyModuleV1(
+      baseInput({
+        staticMainsPressureBar: 1.2,
+        dynamicMainsPressure: 1.0,
+        mainsDynamicFlowLpm: 14,
+        peakConcurrentOutlets: 2,
+      })
+    );
+    expect(result.waterSupplyProfile?.storedTopologyViability).toBe('preferred');
+    expect(result.waterSupplyProfile?.storedComfortExpectation).toBe('acceptable');
+  });
 });
 
 // ── Suspect flow integration: blocks unvented + suppresses raw bullet ─────────

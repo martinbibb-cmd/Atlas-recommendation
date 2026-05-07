@@ -202,11 +202,11 @@ describe('buildOptionMatrixV1', () => {
     expect(unvented.status).toBe('caution');
   });
 
-  it('system_unvented card is viable for adequate pressure (≥ 1.5 bar)', () => {
+  it('system_unvented card is caution when only pressure is available (no flow measurement)', () => {
     const result = runEngine(baseInput);
     const options = buildOptionMatrixV1(result, baseInput);
     const unvented = options.find(o => o.id === 'system_unvented')!;
-    expect(unvented.status).toBe('viable');
+    expect(unvented.status).toBe('caution');
   });
 
   it('system_unvented card is viable for strong operating point (30 L/min @ 1.0 bar) — not caution', () => {
