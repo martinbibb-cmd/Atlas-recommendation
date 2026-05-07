@@ -1077,10 +1077,16 @@ export function buildOptionMatrixV1(
   // A measured supply of 12 L/min at 0 bar proves sustainable refill capability for a stored cylinder.
   // Low retained pressure affects outlet comfort, not stored topology viability.
   const sysUnventedCws = core.cwsSupplyV1;
-  // Use fullBoreFlowLpm when available; otherwise fall back to measured dynamic flow.
+  // Use fullBoreFlowLpm when available (0-bar test = maximum achievable supply);
+  // otherwise fall back to measured dynamic flow.
   const supplyFlowLpm = sysUnventedCws.waterSupplyProfile?.fullBoreFlowLpm
     ?? sysUnventedCws.dynamic?.flowLpm;
-  const MIN_STORED_FLOW_LPM = 12; // minimum sustainable supply for a stored cylinder
+  // Minimum sustainable supply flow required for a stored cylinder to refill adequately.
+  const MIN_STORED_FLOW_LPM = 12;
+  // meetsUnventedRequirement: operating-point gate (10 L/min @ 1 bar or 12 L/min @ 0 bar).
+  // When gate is met → viable.
+  // When gate is not met but measurements exist: check supplyFlowLpm for a flow-only verdict.
+  // When no measurements: fall back to retained-pressure heuristic (caution below 1.5 bar).
   const unventedStatus: OptionCardV1['status'] =
     noSpaceForCylinder ? 'caution'
     : (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement) ? 'viable'

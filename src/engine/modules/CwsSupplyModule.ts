@@ -190,7 +190,7 @@ function buildWaterSupplyProfile(
   let combiTopologyViability: WaterSupplyProfileV2['combiTopologyViability'];
   if (dynamicPressureBar < 0.3) {
     combiTopologyViability = 'not_recommended';
-  } else if (retainedFlowAt1BarLpm !== undefined && retainedFlowAt1BarLpm < 10 || simultaneousBathrooms >= 2) {
+  } else if ((retainedFlowAt1BarLpm !== undefined && retainedFlowAt1BarLpm < 10) || simultaneousBathrooms >= 2) {
     combiTopologyViability = 'limited';
   } else if (!isFullBoreTest && dynamicPressureBar >= 1.0 && flowLpm >= 12) {
     combiTopologyViability = simultaneousBathrooms <= 1 ? 'preferred' : 'viable';
