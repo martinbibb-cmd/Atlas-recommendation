@@ -153,6 +153,15 @@ export interface WaterSupplyProfileV2 {
    */
   pressureComfortBand?: 'excellent' | 'good' | 'reduced' | 'poor';
   /**
+   * Stored comfort expectation — separates expected outlet feel from stored topology viability.
+   * A stored system can be fully viable even when outlet intensity is less than "luxury".
+   *   'luxury'      — strong premium shower feel expected.
+   *   'good'        — good outlet comfort for normal use.
+   *   'acceptable'  — usable comfort with some intensity trade-offs under peak demand.
+   *   'reduced'     — noticeable reduction in outlet intensity, especially at peaks.
+   */
+  storedComfortExpectation?: 'luxury' | 'good' | 'acceptable' | 'reduced';
+  /**
    * Stored topology viability — driven by full-bore sustainable flow.
    *   'preferred'         — fullBoreFlowLpm ≥ 14 and multi-bathroom.
    *   'viable'            — fullBoreFlowLpm ≥ 12.

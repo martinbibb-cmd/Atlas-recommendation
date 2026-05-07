@@ -143,7 +143,7 @@ export interface CwsSupplyV1Result {
  *   - When dynamicBar is 0, flowLpm IS the full-bore flow (maximum achievable supply).
  *   - storedTopologyViability depends on fullBoreFlowLpm (supply capacity), not pressure.
  *   - combiTopologyViability depends on retainedFlowAt1BarLpm and simultaneous demand.
- *   - pressureComfortBand is derived from standingPressureBar (customer experience only).
+ *   - pressureComfortBand / storedComfortExpectation are customer-experience signals only.
  */
 function buildWaterSupplyProfile(
   flowLpm: number,
@@ -168,6 +168,12 @@ function buildWaterSupplyProfile(
     sp >= 2 ? 'good' :
     sp >= 1 ? 'reduced' :
     'poor';
+  const storedComfortExpectation: WaterSupplyProfileV2['storedComfortExpectation'] =
+    sp === undefined ? undefined :
+    sp >= 3 ? 'luxury' :
+    sp >= 2 ? 'good' :
+    sp >= 1 ? 'acceptable' :
+    'reduced';
 
   // Stored topology viability — driven by full-bore sustainable flow.
   // 0 bar test = maximum achievable supply → use directly for cylinder sizing.
@@ -205,6 +211,7 @@ function buildWaterSupplyProfile(
     retainedFlowAt2BarLpm,
     retainedFlowAt05BarLpm,
     pressureComfortBand,
+    storedComfortExpectation,
     storedTopologyViability,
     combiTopologyViability,
   };
