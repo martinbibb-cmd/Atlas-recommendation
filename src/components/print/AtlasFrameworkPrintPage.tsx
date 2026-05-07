@@ -74,7 +74,7 @@ const PORTAL_SECTIONS = [
     heading: 'Physics-Based Ratings',
     source: 'Heating and hot-water option analysis',
     logic:
-      'Performance bands — Excellent, Good, Needs Right Setup — rather than arbitrary scores.',
+      'Performance bands — Excellent, Good, Installation-sensitive — rather than arbitrary scores.',
     outcome:
       'Each rating has a "Why?" drill-down that reveals the physics evidence behind it.',
   },

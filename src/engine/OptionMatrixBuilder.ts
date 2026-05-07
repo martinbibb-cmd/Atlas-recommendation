@@ -99,7 +99,7 @@ function operatingPointBullet(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1'], 
   const flow = cwsSupplyV1.dynamic?.flowLpm;
   if (flow !== undefined && flow > 0) {
     if (dynamicBar === 0) {
-      return `Maximum measured incoming supply flow: ${flow.toFixed(1)} L/min (full-bore test).`;
+      return 'Incoming water supply currently sets the home’s peak simultaneous hot-water demand.';
     }
     return `Measured supply: ${flow.toFixed(0)} L/min @ ${dynamicBar.toFixed(1)} bar (dynamic under load).`;
   }
@@ -694,7 +694,7 @@ export function buildOptionMatrixV1(
   const storedUnventedDhwBullets: string[] = [
     'Stored volume handles simultaneous draw from multiple outlets.',
     mainsPressure === 0
-      ? `Maximum measured incoming supply flow: ${(cwsSupplyV1.dynamic?.flowLpm ?? 0).toFixed(1)} L/min (full-bore test) — stored cylinder is well supported.`
+      ? 'Incoming water supply sets peak simultaneous demand, while stored hot water improves comfort compared with on-demand hot water.'
       : mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
       ? `Retained pressure: ${mainsPressure.toFixed(1)} bar — strong measured supply flow; stored delivery is well supported.`
       : mainsPressure < 1.5
@@ -1155,7 +1155,7 @@ export function buildOptionMatrixV1(
         : unventedDhwIsLimited
         ? `Measured flow: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min — workable for stored hot water, but not strong for simultaneous high-demand draws.`
         : pressure === 0
-        ? `Maximum measured incoming supply flow: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(1)} L/min (full-bore test).`
+        ? 'Incoming water supply sets peak simultaneous demand, while stored hot water improves comfort compared with on-demand hot water.'
         : `Retained mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' — multiple outlets running together may slightly reduce shower intensity during peak demand periods' : ' (adequate)'}.`,
       'Unvented cylinder: mains-pressure hot water throughout — no shower pump needed.',
       'G3 regulation: tundish and discharge pipe required by Building Regulations.',

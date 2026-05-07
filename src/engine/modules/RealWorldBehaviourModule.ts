@@ -294,7 +294,7 @@ function buildTwoShowersScenario(
   const summaries: Record<BehaviourOutcome, string> = {
     strong: 'Back-to-back showers work well — recovery is fast enough to avoid a cool second shower.',
     acceptable: 'Second shower may be slightly cooler or have less pressure, but generally workable.',
-    limited: 'Second shower likely noticeably weaker or cooler — recovery time is a factor.',
+    limited: 'Performance remains more stable than a combi during simultaneous use, though incoming water supply may still limit peak demand.',
     poor: 'System will not comfortably support two close showers — significant compromise expected.',
   };
 

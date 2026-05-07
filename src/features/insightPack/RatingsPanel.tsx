@@ -31,6 +31,10 @@ const BAND_ICONS: Record<RatingBand, string> = {
   'Less Suited':        '🚫',
 };
 
+function customerBandLabel(band: RatingBand): string {
+  return band === 'Needs Right Setup' ? 'Installation-sensitive' : band;
+}
+
 const DIMENSION_LABELS: Array<{
   key: keyof QuoteInsight['rating'];
   label: string;
@@ -69,7 +73,7 @@ function RatingChip({
       <div className="rating-chip__dimension">{dimension}</div>
       <div className="rating-chip__band">
         <span>{BAND_ICONS[explanation.rating]}</span>
-        <span>{explanation.rating}</span>
+        <span>{customerBandLabel(explanation.rating)}</span>
       </div>
       <div className="rating-chip__reason">{explanation.reason}</div>
       <button
