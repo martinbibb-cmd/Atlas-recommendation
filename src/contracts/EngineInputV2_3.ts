@@ -117,6 +117,60 @@ export interface DhwEventV1 {
 }
 
 /**
+ * Water supply profile — separates supply capacity from pressure comfort.
+ *
+ * Design principle:
+ *   - Supply capacity   = can the system fundamentally work?  (driven by fullBoreFlowLpm)
+ *   - Pressure comfort  = how strong will it feel?           (driven by retainedFlow points)
+ *   - storedTopologyViability depends mainly on full-bore sustainable flow + refill capability.
+ *   - combiTopologyViability depends on retained pressure + simultaneous draw degradation.
+ *
+ * "0 bar" is NOT a failure — it is a full-bore flow test result:
+ *   fullBoreFlowLpm at 0 retained pressure = maximum achievable incoming mains supply.
+ */
+export interface WaterSupplyProfileV2 {
+  /** Standing pressure (bar) — measured with no flow running. */
+  standingPressureBar?: number;
+  /** Retained flow (L/min) at 2 bar — combi maximum rated DHW flow. */
+  retainedFlowAt2BarLpm?: number;
+  /** Retained flow (L/min) at 1 bar — minimum for combi maximum rated flow. */
+  retainedFlowAt1BarLpm?: number;
+  /** Retained flow (L/min) at 0.5 bar — combi reduced-flow zone. */
+  retainedFlowAt05BarLpm?: number;
+  /**
+   * Full-bore flow (L/min) at 0 retained pressure.
+   * This IS the maximum achievable incoming mains supply, not a pressure failure.
+   * Use this as the primary supply capacity indicator for stored system viability.
+   */
+  fullBoreFlowLpm?: number;
+  /**
+   * Pressure comfort band — describes the customer shower/outlet experience.
+   * NOT a topology viability gate.
+   *   'excellent' — standing ≥ 3 bar; comfortable at all outlets.
+   *   'good'      — standing 2–3 bar; adequate for most configurations.
+   *   'reduced'   — standing 1–2 bar; showers may feel less powerful.
+   *   'poor'      — standing < 1 bar; outlet intensity noticeably reduced.
+   */
+  pressureComfortBand?: 'excellent' | 'good' | 'reduced' | 'poor';
+  /**
+   * Stored topology viability — driven by full-bore sustainable flow.
+   *   'preferred'         — fullBoreFlowLpm ≥ 14 and multi-bathroom.
+   *   'viable'            — fullBoreFlowLpm ≥ 12.
+   *   'limited'           — fullBoreFlowLpm < 12; refill may be slow.
+   *   'not_recommended'   — fullBoreFlowLpm < 8; tank-fed vented preferred.
+   */
+  storedTopologyViability?: 'preferred' | 'viable' | 'limited' | 'not_recommended';
+  /**
+   * Combi topology viability — driven by retained pressure and simultaneous draw.
+   *   'preferred'         — retainedFlowAt1BarLpm ≥ 12 and single bathroom.
+   *   'viable'            — retainedFlowAt1BarLpm ≥ 10 and peakConcurrentOutlets ≤ 1.
+   *   'limited'           — retainedFlowAt1BarLpm < 10 OR simultaneousBathrooms ≥ 2.
+   *   'not_recommended'   — pressure below minimum operating condition (< 0.3 bar dynamic).
+   */
+  combiTopologyViability?: 'preferred' | 'viable' | 'limited' | 'not_recommended';
+}
+
+/**
  * Hive-style single-day profile — the canonical Day Painter input.
  * This replaces the legacy heatIntent/dhwLpm/coldLpm arrays.
  */

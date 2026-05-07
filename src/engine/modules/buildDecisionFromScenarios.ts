@@ -345,7 +345,7 @@ function buildCompatibilityWarnings(scenario: ScenarioResult): string[] {
     );
   }
   if (flags.pressureConstraint) {
-    warnings.push('Mains pressure constraints may affect DHW performance — flow and pressure test recommended');
+    warnings.push('Retained pressure reduces during high simultaneous demand — stored hot water remains the best-performing solution for this home');
   }
 
   return warnings;

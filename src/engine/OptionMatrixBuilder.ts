@@ -91,13 +91,17 @@ const UNVENTED_SPECIFIC_FLAG_IDS: ReadonlySet<string> = new Set([
 
 /**
  * Returns a human-readable description of the measured CWS operating point.
+ * When pressure is 0 (full-bore flow test), reports as maximum achievable supply.
  * Prefers the full "X L/min @ Y bar" form when both flow and pressure are available.
  * Falls back to pressure-only when flow is absent.
  */
 function operatingPointBullet(cwsSupplyV1: FullEngineResultCore['cwsSupplyV1'], dynamicBar: number): string {
   const flow = cwsSupplyV1.dynamic?.flowLpm;
   if (flow !== undefined && flow > 0) {
-    return `Measured operating point: ${flow.toFixed(0)} L/min @ ${dynamicBar.toFixed(1)} bar (dynamic under load).`;
+    if (dynamicBar === 0) {
+      return `Maximum measured incoming supply: ${flow.toFixed(1)} L/min full-bore flow (0 retained pressure).`;
+    }
+    return `Measured supply: ${flow.toFixed(0)} L/min @ ${dynamicBar.toFixed(1)} bar (dynamic under load).`;
   }
   return `Dynamic mains pressure: ${dynamicBar.toFixed(1)} bar.`;
 }
@@ -463,7 +467,7 @@ export function buildOptionMatrixV1(
         : 'Combi possible but demand is borderline.'
       : combiRejectedByTopology
       ? 'Combi not suitable — topology barrier.'
-      : 'Combi not suitable — mains pressure below minimum operating condition.',
+      : 'Combi possible with caution — retained working pressure is below minimum operating condition; stored hot water is the better choice.',
     why: combiWhy,
     requirements: combiRequirements,
     evidenceIds: combiEvidenceIds,
@@ -689,9 +693,13 @@ export function buildOptionMatrixV1(
 
   const storedUnventedDhwBullets: string[] = [
     'Stored volume handles simultaneous draw from multiple outlets.',
-    mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
-      ? `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar dynamic — strong measured flow under load; stored delivery is well supported.`
-      : `Mains-pressure DHW: ${mainsPressure.toFixed(1)} bar${mainsPressure < 1.5 ? ' (borderline — min 1.5 bar recommended for a standard unvented cylinder)' : ' (adequate)'}.`,
+    mainsPressure === 0
+      ? `Maximum measured incoming supply: ${(cwsSupplyV1.dynamic?.flowLpm ?? 0).toFixed(1)} L/min full-bore flow (0 retained pressure) — stored cylinder is well supported.`
+      : mainsPressure < 1.5 && strongOperatingPoint(cwsSupplyV1)
+      ? `Retained pressure: ${mainsPressure.toFixed(1)} bar — strong measured supply flow; stored delivery is well supported.`
+      : mainsPressure < 1.5
+      ? `Retained pressure: ${mainsPressure.toFixed(1)} bar — multiple outlets running together may slightly reduce shower intensity during peak demand periods.`
+      : `Retained pressure: ${mainsPressure.toFixed(1)} bar (adequate for stored DHW delivery).`,
     `Recommended cylinder type: ${recType === 'mixergy' ? '💧 Mixergy (stratified — more tolerant of weak mains supply)' : 'standard indirect'}.`,
   ];
   if (limitedFlowOperatingPoint(cwsSupplyV1)) {
@@ -706,7 +714,7 @@ export function buildOptionMatrixV1(
   } else if (!cwsSupplyV1.hasMeasurements) {
     storedUnventedDhwBullets.push('Mains supply not fully characterised — measure L/min @ bar before specifying.');
   } else if (!cwsSupplyV1.meetsUnventedRequirement) {
-    storedUnventedDhwBullets.push('💧 Supply does not meet unvented requirement — consider a Mixergy or vented cylinder instead, as neither requires high mains pressure.');
+    storedUnventedDhwBullets.push('💧 Sustainable supply flow below stored hot water threshold — consider a Mixergy or tank-fed (vented) cylinder; neither requires high mains pressure.');
   }
   // Only include non-unvented-specific flags — unvented mains-flow flags are already
   // captured by the CWS supply bullets above and must not be repeated.
@@ -721,7 +729,7 @@ export function buildOptionMatrixV1(
       : !cwsSupplyV1.hasMeasurements
       ? 'DHW: mains supply not characterised — need L/min @ bar measurement.'
       : !cwsSupplyV1.meetsUnventedRequirement
-      ? '💧 DHW: mains supply below unvented requirement — Mixergy or vented cylinder recommended instead.'
+      ? '💧 DHW: mains supply flow below stored hot water requirement — Mixergy or tank-fed cylinder recommended.'
       : limitedFlowOperatingPoint(cwsSupplyV1)
       ? 'DHW: mains-pressure stored hot water — usable but limited for simultaneous multi-outlet demand.'
       : moderateFlowOperatingPoint(cwsSupplyV1)
@@ -755,7 +763,7 @@ export function buildOptionMatrixV1(
       'G3-qualified installer.',
       'Tundish and discharge pipe routed to external drain.',
       'Expansion vessel sized to cylinder volume (required for sealed unvented circuit).',
-      ...(mainsPressure < 1.0 ? ['⚠️ Mains pressure is very low — a Mixergy or vented cylinder is recommended instead.'] : []),
+      ...(mainsPressure < 1.0 ? ['💧 Retained pressure is very low — a Mixergy or tank-fed vented cylinder is recommended; stored hot water handles simultaneous demand more effectively at low retained pressure.'] : []),
       ...(!cwsSupplyV1.hasMeasurements ? ['Measure mains flow (L/min) and pressure (bar) before specifying.'] : []),
     ],
     likelyUpgrades: [
@@ -792,12 +800,12 @@ export function buildOptionMatrixV1(
         ? 'Unvented cylinder is a strong fit — mains-fed stored hot water suits high household demand.'
         : 'Unvented cylinder suits your mains pressure and demand.'
       : storedUnventedStatus === 'caution' && cwsSupplyV1.hasMeasurements && !cwsSupplyV1.meetsUnventedRequirement
-      ? '💧 Mains supply below unvented requirement — Mixergy or vented cylinder is the better choice here.'
+      ? '💧 Mains supply flow below stored hot water requirement — Mixergy or tank-fed cylinder is the better choice here.'
       : storedUnventedStatus === 'caution'
       ? isHighDemandHousehold
         ? 'Unvented cylinder suits your demand profile — confirm mains supply before proceeding.'
         : 'Unvented cylinder possible — confirm mains supply measurements.'
-      : 'Unvented cylinder not suitable — mains pressure too low.',
+      : 'Stored hot water remains preferred — buffered supply handles simultaneous demand better than on-demand heating.',
     why: storedUnventedWhy,
     requirements: storedUnventedRequirements,
     evidenceIds: storedEvidenceIds,
@@ -1064,17 +1072,19 @@ export function buildOptionMatrixV1(
     sensitivities: buildSensitivities('regular_vented', core, input, combiDhwResult),
   });
 
-  // System / unvented: needs adequate mains pressure AND cylinder space.
-  // Status mirrors stored_unvented: use the full CWS operating-point gate (hasMeasurements +
-  // meetsUnventedRequirement) when measurements are available, rather than dynamic pressure alone.
-  // A 30 L/min @ 1.0 bar operating point meets the gate and should not be flagged as 'caution'.
-  // When no cylinder space is confirmed (availableSpace === 'none'), the card is 'caution' —
-  // a system boiler requires a hot water cylinder and cannot be installed without one.
+  // System / unvented: needs adequate mains supply flow AND cylinder space.
+  // Status is driven by supply flow capacity (fullBoreFlowLpm or measured flow), NOT pressure alone.
+  // A measured supply of 12 L/min at 0 bar proves sustainable refill capability for a stored cylinder.
+  // Low retained pressure affects outlet comfort, not stored topology viability.
   const sysUnventedCws = core.cwsSupplyV1;
+  // Use fullBoreFlowLpm when available; otherwise fall back to measured dynamic flow.
+  const supplyFlowLpm = sysUnventedCws.waterSupplyProfile?.fullBoreFlowLpm
+    ?? sysUnventedCws.dynamic?.flowLpm;
+  const MIN_STORED_FLOW_LPM = 12; // minimum sustainable supply for a stored cylinder
   const unventedStatus: OptionCardV1['status'] =
     noSpaceForCylinder ? 'caution'
-    : pressure < 1.0 ? 'rejected'
     : (sysUnventedCws.hasMeasurements && sysUnventedCws.meetsUnventedRequirement) ? 'viable'
+    : (supplyFlowLpm !== undefined && supplyFlowLpm < MIN_STORED_FLOW_LPM) ? 'caution'
     : pressure < 1.5 ? 'caution'
     : 'viable';
   const unventedWhy: string[] = [
@@ -1125,7 +1135,7 @@ export function buildOptionMatrixV1(
   const unventedDhw: OptionPlane = {
     status: pressure < 1.0 ? 'caution' : (pressure < 1.5 && !unventedDhwIsStrong) ? 'caution' : 'ok',
     headline: pressure < 1.0
-      ? '💧 DHW: mains pressure too low for a standard unvented cylinder — Mixergy or vented cylinder recommended.'
+      ? 'Retained pressure is very low — stored hot water remains viable; Mixergy or tank-fed cylinder recommended.'
       : unventedDhwIsStrong
       ? 'DHW: mains-pressure stored hot water — strong measured flow supports delivery.'
       : pressure < 1.5
@@ -1135,10 +1145,12 @@ export function buildOptionMatrixV1(
       : 'DHW: mains-pressure hot water — adequate flow for stored delivery.',
     bullets: [
       unventedDhwIsStrong
-        ? `Measured operating point: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min @ ${pressure.toFixed(1)} bar — strong flow under load.`
+        ? `Measured supply: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min — strong flow under load; stored cylinder is well supported.`
         : unventedDhwIsLimited
         ? `Measured flow: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(0)} L/min — workable for stored hot water, but not strong for simultaneous high-demand draws.`
-        : `Mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' (borderline — min 1.5 bar recommended for standard unvented)' : ' (adequate)'}.`,
+        : pressure === 0
+        ? `Maximum measured incoming supply: ${(sysUnventedCws.dynamic?.flowLpm ?? 0).toFixed(1)} L/min full-bore flow (0 retained pressure).`
+        : `Retained mains pressure: ${pressure.toFixed(1)} bar${pressure < 1.5 ? ' — multiple outlets running together may slightly reduce shower intensity during peak demand periods' : ' (adequate)'}.`,
       'Unvented cylinder: mains-pressure hot water throughout — no shower pump needed.',
       'G3 regulation: tundish and discharge pipe required by Building Regulations.',
       ...(input.futureAddBathroom ? ['Adding a bathroom: confirm cylinder volume meets increased demand.'] : []),
@@ -1168,7 +1180,7 @@ export function buildOptionMatrixV1(
       'G3-qualified installer.',
       'Tundish and discharge pipe routed to external drain.',
       'Expansion vessel sized to cylinder volume (required for sealed unvented circuit).',
-      ...(pressure < 1.0 ? ['⚠️ Mains pressure is very low — a Mixergy or vented cylinder is recommended instead.'] : []),
+      ...(pressure < 1.0 ? ['💧 Retained pressure is very low — a Mixergy or tank-fed vented cylinder is recommended; stored hot water handles simultaneous demand more effectively than on-demand heating at low pressure.'] : []),
     ],
     likelyUpgrades: [
       ...(staticPressure !== undefined && staticPressure < 1.5 && !strongOperatingPoint(sysUnventedCws) ? ['💧 Consider a Mixergy cylinder — more tolerant of weak mains supply than a standard unvented; no minimum pressure gate in Atlas.'] : []),
@@ -1186,12 +1198,12 @@ export function buildOptionMatrixV1(
     headline: noSpaceForCylinder
       ? 'System boiler not feasible — no space confirmed for a hot water cylinder.'
       : unventedStatus === 'viable' && pressure < 1.5
-      ? 'System boiler + unvented cylinder suits your operating point — strong measured flow supports delivery.'
+      ? 'System boiler + unvented cylinder suits your supply — measured flow confirms adequate refill capability.'
       : unventedStatus === 'viable'
-      ? 'System boiler + unvented cylinder suits your pressure and demand.'
-      : unventedStatus === 'caution'
-      ? 'System + unvented possible but mains pressure is borderline.'
-      : 'Unvented cylinder not suitable — mains pressure too low.',
+      ? 'System boiler + unvented cylinder suits your supply and demand.'
+      : unventedStatus === 'caution' && sysUnventedCws.hasMeasurements && !sysUnventedCws.meetsUnventedRequirement
+      ? 'Stored hot water is compatible with the measured supply — retained pressure reduces under peak flow; outlet balance and Mixergy recommended.'
+      : 'System + unvented possible — confirm mains supply measurements before specifying.',
     why: unventedWhy,
     requirements: unventedRequirements,
     evidenceIds: [],

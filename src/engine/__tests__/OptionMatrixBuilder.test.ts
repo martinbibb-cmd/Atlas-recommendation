@@ -184,12 +184,14 @@ describe('buildOptionMatrixV1', () => {
     expect(regular.status).toBe('rejected');
   });
 
-  it('system_unvented card is rejected for very low pressure (< 1.0 bar)', () => {
+  it('system_unvented card is caution (not rejected) for very low pressure (< 1.0 bar) when no flow measured', () => {
+    // Pressure alone no longer causes rejection; stored topology viability is driven by
+    // sustainable supply flow (fullBoreFlowLpm), not retained pressure.
     const input = { ...baseInput, dynamicMainsPressure: 0.8 };
     const result = runEngine(input);
     const options = buildOptionMatrixV1(result, input);
     const unvented = options.find(o => o.id === 'system_unvented')!;
-    expect(unvented.status).toBe('rejected');
+    expect(unvented.status).toBe('caution');
   });
 
   it('system_unvented card is caution for borderline pressure (1.0–1.5 bar) when no flow measured', () => {
