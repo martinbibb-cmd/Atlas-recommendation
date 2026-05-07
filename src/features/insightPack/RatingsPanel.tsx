@@ -32,7 +32,7 @@ const BAND_ICONS: Record<RatingBand, string> = {
 };
 
 function customerBandLabel(band: RatingBand): string {
-  return band === 'Needs Right Setup' ? 'Installation-sensitive' : band;
+  return band === 'Needs Right Setup' ? 'Setup matters' : band;
 }
 
 const DIMENSION_LABELS: Array<{

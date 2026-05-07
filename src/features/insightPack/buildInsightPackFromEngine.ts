@@ -507,7 +507,7 @@ function rateSuitability(
   if (worstBand === 'Needs Right Setup') {
     return makeRating(
       'Needs Right Setup',
-      'Can work well — but specific conditions must be met for consistent performance.',
+      "This option can work well, but the installation needs to be matched to your home's water supply and usage pattern.",
       `Key constraint: ${allBands.includes('Needs Right Setup') ? allBands.filter(b => b === 'Needs Right Setup').length : 0} dimension(s) need right setup.`,
     );
   }
