@@ -35,6 +35,7 @@
  */
 
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
+import type { WaterSupplyProfileV2 } from '../../contracts/EngineInputV2_3';
 
 /** Tolerance (bar) for dynamic > static inconsistency check. */
 const INCONSISTENCY_TOLERANCE = 0.2;
@@ -126,6 +127,87 @@ export interface CwsSupplyV1Result {
    * a suspect instrument/units error.  Raw values are suppressed from the display.
    */
   hasSuspectFlow: boolean;
+  /**
+   * Structured supply profile separating supply capacity from pressure comfort.
+   * fullBoreFlowLpm (0 retained pressure) = maximum achievable incoming mains supply.
+   * storedTopologyViability is driven by fullBoreFlowLpm, not retained pressure.
+   * combiTopologyViability is driven by retained pressure and simultaneous draw.
+   */
+  waterSupplyProfile?: WaterSupplyProfileV2;
+}
+
+/**
+ * Build a WaterSupplyProfileV2 from a measured dynamic operating point.
+ *
+ * Key rules:
+ *   - When dynamicBar is 0, flowLpm IS the full-bore flow (maximum achievable supply).
+ *   - storedTopologyViability depends on fullBoreFlowLpm (supply capacity), not pressure.
+ *   - combiTopologyViability depends on retainedFlowAt1BarLpm and simultaneous demand.
+ *   - pressureComfortBand is derived from standingPressureBar (customer experience only).
+ */
+function buildWaterSupplyProfile(
+  flowLpm: number,
+  dynamicPressureBar: number,
+  standingPressureBar: number | undefined,
+  peakConcurrentOutlets: number | undefined,
+): WaterSupplyProfileV2 {
+  // Classify what we measured: if pressure is 0, this is a full-bore flow test.
+  const isFullBoreTest = dynamicPressureBar === 0;
+
+  const fullBoreFlowLpm = isFullBoreTest ? flowLpm : undefined;
+  const retainedFlowAt1BarLpm = !isFullBoreTest && dynamicPressureBar <= 1.0 ? flowLpm : undefined;
+  const retainedFlowAt2BarLpm = !isFullBoreTest && dynamicPressureBar <= 2.0 && dynamicPressureBar > 1.0 ? flowLpm : undefined;
+  const retainedFlowAt05BarLpm = !isFullBoreTest && dynamicPressureBar <= 0.5 ? flowLpm : undefined;
+
+  // Pressure comfort band — based on standing (static) pressure, not dynamic.
+  // Reflects customer shower/outlet experience, NOT topology viability.
+  const sp = standingPressureBar;
+  const pressureComfortBand: WaterSupplyProfileV2['pressureComfortBand'] =
+    sp === undefined ? undefined :
+    sp >= 3 ? 'excellent' :
+    sp >= 2 ? 'good' :
+    sp >= 1 ? 'reduced' :
+    'poor';
+
+  // Stored topology viability — driven by full-bore sustainable flow.
+  // 0 bar test = maximum achievable supply → use directly for cylinder sizing.
+  // Non-zero pressure test: the supply can sustain at least this flow under load.
+  const supplyFlowForStored = fullBoreFlowLpm ?? flowLpm;
+  const simultaneousBathrooms = peakConcurrentOutlets ?? 1;
+  let storedTopologyViability: WaterSupplyProfileV2['storedTopologyViability'];
+  if (supplyFlowForStored >= 14 && simultaneousBathrooms >= 2) {
+    storedTopologyViability = 'preferred';
+  } else if (supplyFlowForStored >= 12) {
+    storedTopologyViability = 'viable';
+  } else if (supplyFlowForStored >= 8) {
+    storedTopologyViability = 'limited';
+  } else {
+    storedTopologyViability = 'not_recommended';
+  }
+
+  // Combi topology viability — driven by retained pressure + simultaneous draw.
+  // fullBoreFlowLpm does not prove retained-pressure delivery; use dynamicPressureBar.
+  let combiTopologyViability: WaterSupplyProfileV2['combiTopologyViability'];
+  if (dynamicPressureBar < 0.3) {
+    combiTopologyViability = 'not_recommended';
+  } else if ((retainedFlowAt1BarLpm !== undefined && retainedFlowAt1BarLpm < 10) || simultaneousBathrooms >= 2) {
+    combiTopologyViability = 'limited';
+  } else if (!isFullBoreTest && dynamicPressureBar >= 1.0 && flowLpm >= 12) {
+    combiTopologyViability = simultaneousBathrooms <= 1 ? 'preferred' : 'viable';
+  } else {
+    combiTopologyViability = 'viable';
+  }
+
+  return {
+    standingPressureBar: sp,
+    fullBoreFlowLpm,
+    retainedFlowAt1BarLpm,
+    retainedFlowAt2BarLpm,
+    retainedFlowAt05BarLpm,
+    pressureComfortBand,
+    storedTopologyViability,
+    combiTopologyViability,
+  };
 }
 
 /**
@@ -295,6 +377,9 @@ export function runCwsSupplyModuleV1(input: EngineInputV2_3): CwsSupplyV1Result 
       waterConfidence,
       waterConfidenceReason,
       hasSuspectFlow,
+      waterSupplyProfile: !hasSuspectFlow && !inconsistent && dynamicPressureBar !== undefined
+        ? buildWaterSupplyProfile(flow, dynamicPressureBar, staticPressureBar, input.peakConcurrentOutlets)
+        : undefined,
     };
   }
 

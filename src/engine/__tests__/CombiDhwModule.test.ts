@@ -41,7 +41,7 @@ describe('runCombiDhwModuleV1', () => {
     const flag = result.flags.find(f => f.id === 'combi-pressure-constraint');
     expect(flag).toBeDefined();
     expect(flag!.severity).toBe('fail');
-    expect(flag!.title).toBe('🚫 Mains pressure too low for a combi boiler');
+    expect(flag!.title).toBe('🚫 Mains working pressure below combi minimum operating condition');
   });
 
   // ── High-flow override: 12 L/min @ any pressure ──────────────────────────

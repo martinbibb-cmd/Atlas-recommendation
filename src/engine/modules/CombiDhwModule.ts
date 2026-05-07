@@ -222,7 +222,7 @@ export function runCombiDhwModuleV1(input: EngineInputV2_3, dhwCapacityDeratePct
     flags.push({
       id: 'combi-pressure-constraint',
       severity: 'fail',
-      title: '🚫 Mains pressure too low for a combi boiler',
+      title: '🚫 Mains working pressure below combi minimum operating condition',
       detail:
         `Working pressure is ${dynamicBar.toFixed(2)} bar — below the ` +
         `${PRESSURE_MINIMUM_OPERATION_BAR.toFixed(1)} bar minimum needed for a combi to fire. ` +
