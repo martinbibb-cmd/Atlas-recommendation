@@ -10,7 +10,7 @@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type ReviewStatus = 'confirmed' | 'pending' | 'rejected';
+export type ReviewStatus = 'confirmed' | 'needs_review' | 'pending' | 'rejected';
 
 // ─── Badge config ─────────────────────────────────────────────────────────────
 
@@ -23,6 +23,12 @@ const CONFIG: Record<
     bg: '#f0fdf4',
     color: '#166534',
     border: '#86efac',
+  },
+  needs_review: {
+    label: 'Needs review',
+    bg: '#fff7ed',
+    color: '#9a3412',
+    border: '#fdba74',
   },
   pending: {
     label: 'Pending',

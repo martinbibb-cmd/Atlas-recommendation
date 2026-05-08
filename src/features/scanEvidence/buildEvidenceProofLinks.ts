@@ -441,6 +441,24 @@ function measurementLabel(count: number): string {
 // ─── buildEvidenceProofLinks ──────────────────────────────────────────────────
 
 /**
+ * Engineer review overlay — maps evidence item IDs to their review decision.
+ *
+ * Keyed by the stable identifier used in the evidence store (pinId, photoId,
+ * or capture-point ID for graph-sourced evidence).
+ *
+ *   confirmed    — engineer verified; isResolved is forced to true.
+ *   rejected     — engineer dismissed; the capture ref is excluded entirely.
+ *   needs_review — engineer flagged for further review; isResolved stays false.
+ *
+ * When an ID is absent from the overlay, the derived value from the graph is
+ * used unchanged.
+ */
+export type EvidenceReviewOverlay = Record<
+  string,
+  'confirmed' | 'rejected' | 'needs_review'
+>;
+
+/**
  * Derives evidence proof links from a raw spatial evidence graph.
  *
  * Returned links group capture-point references by proposal section
@@ -453,12 +471,19 @@ function measurementLabel(count: number): string {
  *   - Does not call the Atlas engine or alter any recommendation.
  *   - The `general` link is only emitted when there is measurement or
  *     ghost-appliance evidence not already assigned to a specific section.
+ *   - When `reviewOverlay` is provided, its decisions take precedence over the
+ *     graph's own `needsReview` flags:
+ *       confirmed  → isResolved: true (safe for customer output)
+ *       rejected   → capture ref excluded from output entirely
+ *       needs_review → isResolved: false (engineer-mode only)
  *
  * @param spatialEvidenceGraph - Raw graph from SessionCaptureV2 or any
  *   compatible shape (see CapturedEvidencePanel normalisation logic).
+ * @param reviewOverlay - Optional engineer review decisions keyed by item ID.
  */
 export function buildEvidenceProofLinks(
   spatialEvidenceGraph: unknown,
+  reviewOverlay?: EvidenceReviewOverlay,
 ): EvidenceProofLinkV1[] {
   const rooms = normaliseGraph(spatialEvidenceGraph);
   if (rooms.length === 0) return [];
@@ -472,6 +497,27 @@ export function buildEvidenceProofLinks(
   ]);
 
   const allSections: ProposalSection[] = ['boiler', 'cylinder', 'flue', 'radiators', 'general'];
+
+  /**
+   * Resolve the effective isResolved value for a capture ref, taking the
+   * review overlay into account.
+   *
+   * When the overlay has a decision for the capture point ID:
+   *   confirmed   → true
+   *   rejected    → null (caller should skip this ref)
+   *   needs_review → false
+   * Otherwise falls back to the graph-derived value.
+   */
+  function resolveIsResolved(
+    capturePointId: string,
+    graphResolved: boolean,
+  ): boolean | null {
+    const decision = reviewOverlay?.[capturePointId];
+    if (decision === 'confirmed') return true;
+    if (decision === 'rejected') return null; // exclude
+    if (decision === 'needs_review') return false;
+    return graphResolved;
+  }
 
   function push(section: ProposalSection, ref: EvidenceCaptureRef) {
     // De-duplicate by capturePointId + storyboardCardKey
@@ -487,7 +533,7 @@ export function buildEvidenceProofLinks(
 
   for (const room of rooms) {
     for (const cp of room.capturePoints) {
-      const resolved = !cp.needsReview;
+      const graphResolved = !cp.needsReview;
 
       // Object pins → classify by keyword
       if (cp.objectPins.length > 0) {
@@ -502,21 +548,26 @@ export function buildEvidenceProofLinks(
               ? pin.sections.includes(section)
               : section === 'general',
           );
+          const graphPinResolved = graphResolved && sectionPins.every((pin) => !pin.needsReview);
+          const effectiveResolved = resolveIsResolved(cp.id, graphPinResolved);
+          if (effectiveResolved === null) continue; // rejected — exclude
           push(section, {
             capturePointId: cp.id,
             storyboardCardKey: 'key-objects',
             label: sectionPins.map((p) => p.label).join(', '),
-            isResolved: resolved && sectionPins.every((pin) => !pin.needsReview),
+            isResolved: effectiveResolved,
           });
         }
         if (pinSections.size === 0) {
-          // Object pins exist but no specific section matched → general
-          push('general', {
-            capturePointId: cp.id,
-            storyboardCardKey: 'key-objects',
-            label: cp.objectPins.map((pin) => pin.label).join(', '),
-            isResolved: resolved,
-          });
+          const effectiveResolved = resolveIsResolved(cp.id, graphResolved);
+          if (effectiveResolved !== null) {
+            push('general', {
+              capturePointId: cp.id,
+              storyboardCardKey: 'key-objects',
+              label: cp.objectPins.map((pin) => pin.label).join(', '),
+              isResolved: effectiveResolved,
+            });
+          }
         }
       }
 
@@ -524,22 +575,27 @@ export function buildEvidenceProofLinks(
       if (cp.ghostAppliances.length > 0) {
         const ghostSections = new Set(cp.ghostAppliances.flatMap(sectionsForPin));
         for (const section of ghostSections) {
+          const effectiveResolved = resolveIsResolved(cp.id, graphResolved);
+          if (effectiveResolved === null) continue;
           push(section, {
             capturePointId: cp.id,
             storyboardCardKey: 'ghost-appliances',
             label: cp.ghostAppliances
               .filter((g) => sectionsForPin(g).includes(section))
               .join(', '),
-            isResolved: resolved,
+            isResolved: effectiveResolved,
           });
         }
         if (ghostSections.size === 0) {
-          push('general', {
-            capturePointId: cp.id,
-            storyboardCardKey: 'ghost-appliances',
-            label: cp.ghostAppliances.join(', '),
-            isResolved: resolved,
-          });
+          const effectiveResolved = resolveIsResolved(cp.id, graphResolved);
+          if (effectiveResolved !== null) {
+            push('general', {
+              capturePointId: cp.id,
+              storyboardCardKey: 'ghost-appliances',
+              label: cp.ghostAppliances.join(', '),
+              isResolved: effectiveResolved,
+            });
+          }
         }
       }
 
@@ -547,22 +603,25 @@ export function buildEvidenceProofLinks(
       if (cp.measurements.length > 0) {
         const mLabel = measurementLabel(cp.measurements.length);
         const surfaceSections = new Set(sectionsForSurface(cp.surfaceSemantic));
-        if (surfaceSections.size > 0) {
-          for (const section of surfaceSections) {
-            push(section, {
+        const effectiveResolved = resolveIsResolved(cp.id, graphResolved);
+        if (effectiveResolved !== null) {
+          if (surfaceSections.size > 0) {
+            for (const section of surfaceSections) {
+              push(section, {
+                capturePointId: cp.id,
+                storyboardCardKey: 'measurements',
+                label: mLabel,
+                isResolved: effectiveResolved,
+              });
+            }
+          } else {
+            push('general', {
               capturePointId: cp.id,
               storyboardCardKey: 'measurements',
               label: mLabel,
-              isResolved: resolved,
+              isResolved: effectiveResolved,
             });
           }
-        } else {
-          push('general', {
-            capturePointId: cp.id,
-            storyboardCardKey: 'measurements',
-            label: mLabel,
-            isResolved: resolved,
-          });
         }
       }
 
@@ -574,24 +633,30 @@ export function buildEvidenceProofLinks(
         cp.measurements.length === 0
       ) {
         const surfaceSections = new Set(sectionsForSurface(cp.surfaceSemantic));
-        for (const section of surfaceSections) {
-          push(section, {
-            capturePointId: cp.id,
-            storyboardCardKey: 'what-scanned',
-            label: cp.surfaceSemantic,
-            isResolved: resolved,
-          });
+        const effectiveResolved = resolveIsResolved(cp.id, graphResolved);
+        if (effectiveResolved !== null) {
+          for (const section of surfaceSections) {
+            push(section, {
+              capturePointId: cp.id,
+              storyboardCardKey: 'what-scanned',
+              label: cp.surfaceSemantic,
+              isResolved: effectiveResolved,
+            });
+          }
         }
       }
 
       // Capture points flagged for review → open-review card in general section
       if (cp.needsReview) {
-        push('general', {
-          capturePointId: cp.id,
-          storyboardCardKey: 'open-review',
-          label: 'Capture point needs review',
-          isResolved: false,
-        });
+        const effectiveResolved = resolveIsResolved(cp.id, false);
+        if (effectiveResolved !== null) {
+          push('general', {
+            capturePointId: cp.id,
+            storyboardCardKey: 'open-review',
+            label: 'Capture point needs review',
+            isResolved: effectiveResolved,
+          });
+        }
       }
     }
   }
