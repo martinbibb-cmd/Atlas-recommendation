@@ -245,11 +245,11 @@ export function buildRecommendationVerdict(
 
   // ── Primary reason (from evidence, not lifestyle) ─────────────────────────
   const winningDecision = allDecisions.find(d => d.family === recommendedFamily);
-  const recommendedSubtype = recommendedFamily != null ? deriveDhwSubtype(recommendedFamily, input) : undefined;
+  const dhwSubtypeContext = recommendedFamily != null ? deriveDhwSubtype(recommendedFamily, input) : undefined;
   const primaryReason = winningDecision != null && winningDecision.caveats.length === 0
-    ? `${familyLabel(winningDecision.family, recommendedSubtype)} scores highest across performance, reliability, and longevity for this home.`
+    ? `${familyLabel(winningDecision.family, dhwSubtypeContext)} scores highest across performance, reliability, and longevity for this home.`
     : winningDecision != null
-    ? `${familyLabel(winningDecision.family, recommendedSubtype)} is the best-fit option — ${winningDecision.caveats[0] ?? 'see check items below'}.`
+    ? `${familyLabel(winningDecision.family, dhwSubtypeContext)} is the best-fit option — ${winningDecision.caveats[0] ?? 'see check items below'}.`
     : null;
 
   // ── What this avoids ──────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export function buildRecommendationVerdict(
     // family and a rejected family share the same customer-facing label, skip it.
     const rejectedLabel = familyLabel(rejected.family);
     const recommendedLabelStr = recommendedFamily != null
-      ? familyLabel(recommendedFamily, recommendedSubtype)
+      ? familyLabel(recommendedFamily, dhwSubtypeContext)
       : null;
     if (rejectedLabel === recommendedLabelStr) continue;
     whatThisAvoids.push(`${rejectedLabel}: ${rejected.reason}`);
@@ -280,7 +280,7 @@ export function buildRecommendationVerdict(
 
   return {
     recommendedFamily,
-    recommendedLabel: recommendedFamily != null ? familyLabel(recommendedFamily, recommendedSubtype) : null,
+    recommendedLabel: recommendedFamily != null ? familyLabel(recommendedFamily, dhwSubtypeContext) : null,
     primaryReason,
     whatThisAvoids,
     checkItems,

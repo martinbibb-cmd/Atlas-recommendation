@@ -596,10 +596,14 @@ export function runStoredDhwModuleV1(
   //
   // Single signals such as bathroomCount >= 2 alone are NOT sufficient to recommend
   // Mixergy — this avoids leaking a Mixergy upsell into every two-bathroom home.
+  const hasSpaceConstraint = space === 'tight';
+  const hasSolarPv = input.pvStatus === 'existing' || input.pvStatus === 'planned';
+  const hasHighOccupancy = input.highOccupancy === true || occupancy >= 4;
+
   const mixergySignalCount = [
-    space === 'tight',                                                     // confirmed space constraint
-    input.pvStatus === 'existing' || input.pvStatus === 'planned',         // solar PV installed or committed
-    input.highOccupancy === true || occupancy >= 4,                        // high occupancy
+    hasSpaceConstraint,
+    hasSolarPv,
+    hasHighOccupancy,
   ].filter(Boolean).length;
 
   const recommendedType: StoredDhwV1Result['recommended']['type'] =

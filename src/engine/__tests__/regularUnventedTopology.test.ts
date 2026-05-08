@@ -44,11 +44,10 @@ const REGULAR_UNVENTED_FLAT_INPUT: EngineInputV2_3 = {
   dhwStorageType: 'unvented',
   coldWaterSource: 'mains_true',
   // ── Mains measurements (full-bore cup test + retained at 2 bar) ──────────
-  // Full-bore test: 8 L/min at near-zero back-pressure.
-  // The retained flow of 3 L/min at ~2 bar comes from a second reading;
-  // we model it here as the dynamic measurement for the engine.
+  // Full-bore test: 8 L/min measured with gauge at 0 bar (full-bore open-tap, no back-pressure).
+  // The retained flow of 3 L/min at ~2 bar comes from a second reading (separate test point).
   mainsDynamicFlowLpm: 8,
-  dynamicMainsPressure: 0,   // full-bore open-tap test (0 bar back-pressure)
+  dynamicMainsPressure: 0,   // full-bore dynamic pressure reading during open-tap flow test
   mainsPressureRecorded: true,
   mainsDynamicFlowLpmKnown: true,
   // ── Property ─────────────────────────────────────────────────────────────
