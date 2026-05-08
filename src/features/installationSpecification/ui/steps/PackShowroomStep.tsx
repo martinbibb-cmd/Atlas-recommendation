@@ -30,7 +30,7 @@ import type {
   UiProposedHotWaterLabel,
 } from '../installationSpecificationUiTypes';
 import type { EvidenceCaptureRef } from '../../../../features/scanEvidence/EvidenceProofLinkV1';
-import { EvidenceProofBlock } from '../../../../features/scanEvidence/EvidenceProofBlock';
+import { EvidenceExplainerCard } from '../../../../features/scanEvidence/EvidenceExplainerCard';
 
 // ─── Disruption level display ─────────────────────────────────────────────────
 
@@ -190,7 +190,7 @@ export function PackShowroomStep({
               )}
 
               {card.evidenceProofLinks && card.evidenceProofLinks.length > 0 && (
-                <EvidenceProofBlock
+                <EvidenceExplainerCard
                   links={card.evidenceProofLinks}
                   customerFacing={customerFacing}
                   onOpenCapturePoint={onOpenEvidenceCapture}
