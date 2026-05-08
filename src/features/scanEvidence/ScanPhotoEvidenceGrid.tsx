@@ -19,6 +19,13 @@ import type { PhotoV2 } from './scanEvidenceSelectors';
 import { EvidenceReviewControls } from './EvidenceReviewControls';
 import type { EvidenceReviewDecisionV1, EvidenceReviewStatus } from './EvidenceReviewDecisionV1';
 
+// ─── Rejected-item style tokens ──────────────────────────────────────────────
+
+const REJECTED_BG = '#fef2f2';
+const REJECTED_BORDER = '#fca5a5';
+const DEFAULT_BG = '#f8fafc';
+const DEFAULT_BORDER = '#e2e8f0';
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Extract a human-readable filename from a URI. */
@@ -71,8 +78,8 @@ function PhotoCard({
     <div
       data-testid={`scan-photo-card-${photo.photoId}`}
       style={{
-        background: decision?.status === 'rejected' ? '#fef2f2' : '#f8fafc',
-        border: `1px solid ${decision?.status === 'rejected' ? '#fca5a5' : '#e2e8f0'}`,
+        background: decision?.status === 'rejected' ? REJECTED_BG : DEFAULT_BG,
+        border: `1px solid ${decision?.status === 'rejected' ? REJECTED_BORDER : DEFAULT_BORDER}`,
         borderRadius: 6,
         padding: '0.6rem 0.8rem',
         display: 'flex',

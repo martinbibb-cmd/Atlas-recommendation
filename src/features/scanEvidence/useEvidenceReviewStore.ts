@@ -118,11 +118,12 @@ export function useEvidenceReviewStore(
       status: EvidenceReviewStatus,
       engineerNote?: string,
     ) => {
+      const trimmedNote = engineerNote?.trim();
       const decision: EvidenceReviewDecisionV1 = {
         itemId,
         kind,
         status,
-        engineerNote: engineerNote?.trim() || undefined,
+        engineerNote: trimmedNote || undefined,
         decidedAt: new Date().toISOString(),
       };
       setDecisionsState((prev) => {
