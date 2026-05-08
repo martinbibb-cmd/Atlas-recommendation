@@ -149,7 +149,7 @@ function PhotoCard({
           kind="photo"
           currentStatus={decision?.status}
           currentNote={decision?.engineerNote}
-          onDecide={onDecide}
+          onDecide={(itemId, _kind, status, note) => onDecide(itemId, 'photo', status, note)}
           onClear={onClear}
         />
       )}
