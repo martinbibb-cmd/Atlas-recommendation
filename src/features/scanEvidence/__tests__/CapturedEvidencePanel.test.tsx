@@ -45,7 +45,7 @@ describe('CapturedEvidencePanel', () => {
 
     expect(screen.getByTestId('captured-evidence-panel')).toBeTruthy();
     expect(screen.getByTestId('captured-evidence-room-kitchen')).toBeTruthy();
-    expect(screen.getByText(/capturePointId: cp-001/i)).toBeTruthy();
+    expect(screen.getByTestId('captured-evidence-capture-point-cp-001')).toBeTruthy();
     expect(screen.getByText(/Anchor confidence: 0.93/i)).toBeTruthy();
     expect(screen.getByText(/Surface: wall/i)).toBeTruthy();
     expect(screen.getByTestId('captured-evidence-needs-review-cp-001')).toBeTruthy();
@@ -72,4 +72,3 @@ describe('CapturedEvidencePanel', () => {
     expect(screen.queryByText(/capturePointId:/i)).toBeNull();
   });
 });
-

@@ -199,7 +199,7 @@ describe('VisitHubPage — completed state body (PR 16)', () => {
     render(<VisitHubPage {...BASE_PROPS} />);
     await screen.findByTestId('visit-hub-body-completed-hint');
     expect(screen.getByTestId('captured-evidence-panel')).toBeTruthy();
-    expect(screen.getByText(/capturePointId: cp-kitchen-1/i)).toBeTruthy();
+    expect(screen.getByTestId('captured-evidence-capture-point-cp-kitchen-1')).toBeTruthy();
     expect(screen.getByText(/Unresolved evidence/i)).toBeTruthy();
   });
 });
