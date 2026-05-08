@@ -1149,7 +1149,7 @@ function buildImprovements(
     improvements.push({
       title: 'Modern Heating Controls',
       impact: 'efficiency',
-      explanation: 'Modern controls will be configured for efficient operation and steady comfort, helping reduce wasted fuel over the heating season.',
+      explanation: 'Modern controls will be configured for efficient operation, keeping flow temperatures lower for longer periods so the boiler can spend more time in condensing mode.',
     });
   }
 
@@ -1496,8 +1496,8 @@ function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOut
     settings.push('Set the heat pump to its lowest flow temperature that keeps rooms comfortable — each 5 °C reduction in flow temperature improves COP by approximately 0.35.');
     settings.push('Run heat pump continuously at lower output on cold days rather than burst-cycling at high output.');
   } else {
-    settings.push('Set flow temperature to the minimum that keeps rooms comfortable for your home and emitters.');
-    settings.push('Modern controls will be configured for efficient operation.');
+    settings.push('Set flow temperature to the minimum that keeps rooms comfortable (typically around 55–60 °C for older radiators).');
+    settings.push('Modern controls will be configured for efficient operation to maintain lower flow temperatures on milder days and extend condensing runtime.');
   }
 
   const futureUpgrades: string[] = [];

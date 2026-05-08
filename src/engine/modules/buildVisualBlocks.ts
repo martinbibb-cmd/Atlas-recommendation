@@ -332,7 +332,7 @@ function buildProblemBlock(
   if (weaker.keyConstraints.length === 0) return null;
 
   const homeNeedLabels: Record<ScenarioResult['system']['type'], string> = {
-    combi:   'tank-fed hot water',
+    combi:   'on-demand hot water',
     system:  'mains-fed supply',
     regular: 'mains-fed supply',
     ashp:    'a conventional system',
