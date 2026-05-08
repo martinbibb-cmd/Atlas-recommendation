@@ -44,15 +44,17 @@ describe('runStoredDhwModuleV1', () => {
     expect(flag!.title).toBe('Space constraint');
   });
 
-  it('recommends mixergy when space is tight regardless of demand', () => {
+  it('recommends standard when only space is tight (single Mixergy signal — requires 2)', () => {
     const result = runStoredDhwModuleV1({ ...baseInput, availableSpace: 'tight', bathroomCount: 1 });
-    expect(result.recommended.type).toBe('mixergy');
+    expect(result.recommended.type).toBe('standard');
   });
 
-  it('returns warn + mixergy when space is tight and high demand (2 bathrooms)', () => {
+  it('returns warn when space is tight and high demand (2 bathrooms)', () => {
     const result = runStoredDhwModuleV1({ ...baseInput, availableSpace: 'tight', bathroomCount: 2 });
     expect(result.verdict.storedRisk).toBe('warn');
-    expect(result.recommended.type).toBe('mixergy');
+    // Two-bathroom + tight space: only tight space is a qualifying Mixergy signal;
+    // bathroomCount alone is not a qualifying signal.  Single signal → standard.
+    expect(result.recommended.type).toBe('standard');
     const spaceFlag = result.flags.find(f => f.id === 'stored-space-tight');
     expect(spaceFlag).toBeDefined();
     expect(spaceFlag!.detail).toContain('Mixergy');
@@ -126,11 +128,11 @@ describe('runStoredDhwModuleV1', () => {
     expect(result.recommended.volumeBand).toBe('large');
   });
 
-  // ── Mixergy recommended for high demand regardless of space being ok ───────
+  // ── Mixergy NOT recommended for bathroomCount alone ──────────────────────
 
-  it('recommends mixergy when high demand even with ok space', () => {
+  it('recommends standard when high demand but ok space (bathroomCount alone is not a Mixergy signal)', () => {
     const result = runStoredDhwModuleV1({ ...baseInput, availableSpace: 'ok', bathroomCount: 2 });
-    expect(result.recommended.type).toBe('mixergy');
+    expect(result.recommended.type).toBe('standard');
   });
 });
 

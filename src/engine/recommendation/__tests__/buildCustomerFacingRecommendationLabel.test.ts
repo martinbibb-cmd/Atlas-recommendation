@@ -106,6 +106,32 @@ describe('buildCustomerFacingRecommendationLabel — vented_fallback override', 
   });
 });
 
+// ─── Regular-unvented override ───────────────────────────────────────────────
+
+describe('buildCustomerFacingRecommendationLabel — regular_unvented override', () => {
+  it('resolves to "Regular boiler with unvented cylinder" for system family', () => {
+    const label = buildCustomerFacingRecommendationLabel('system', 'regular_unvented');
+    expect(label).toBe('Regular boiler with unvented cylinder');
+  });
+
+  it('regular_unvented label contains "Regular boiler" (not "System boiler")', () => {
+    const label = buildCustomerFacingRecommendationLabel('system', 'regular_unvented');
+    expect(label.toLowerCase()).toContain('regular boiler');
+    expect(label.toLowerCase()).not.toContain('system boiler');
+  });
+
+  it('regular_unvented label contains "unvented"', () => {
+    const label = buildCustomerFacingRecommendationLabel('system', 'regular_unvented');
+    expect(label.toLowerCase()).toContain('unvented');
+  });
+
+  it('regular_unvented label does not contain tank-fed or gravity-fed phrasing', () => {
+    const label = buildCustomerFacingRecommendationLabel('system', 'regular_unvented');
+    expect(label.toLowerCase()).not.toContain('tank-fed');
+    expect(label.toLowerCase()).not.toContain('gravity');
+  });
+});
+
 // ─── Priority check: undefined dhwSubtype falls through to base label ─────────
 
 describe('buildCustomerFacingRecommendationLabel — priority', () => {

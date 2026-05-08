@@ -310,11 +310,11 @@ describe('EngineOutputV1 shape', () => {
     expect(spaceFlag!.severity).toBe('warn');
   });
 
-  it('Mixergy explainer present when stored recommendation is mixergy', () => {
+  it('Mixergy explainer present when stored recommendation is mixergy (2 qualifying signals)', () => {
     const { engineOutput } = runEngine({
       ...baseInput,
-      availableSpace: 'ok',
-      bathroomCount: 2,
+      availableSpace: 'tight',  // signal 1: confirmed space constraint
+      pvStatus: 'planned',      // signal 2: solar PV committed
     });
     const explainer = engineOutput.explainers.find(e => e.id === 'stored-mixergy-suggested');
     expect(explainer).toBeDefined();
