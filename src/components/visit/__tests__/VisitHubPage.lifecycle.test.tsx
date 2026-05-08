@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import VisitHubPage from '../VisitHubPage';
 import type { VisitMeta } from '../../../lib/visits/visitApi';
+import type { SessionCaptureV2 } from '../../../features/scanImport/contracts/sessionCaptureV2';
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -81,6 +82,10 @@ vi.mock('../../../features/voiceNotes/applyAcceptedSuggestions', () => ({
   applyAcceptedSuggestions: vi.fn().mockReturnValue({ updates: {}, applied: [] }),
   mergeAppliedSuggestions: vi.fn().mockReturnValue([]),
   mergeFullSurveyUpdates: vi.fn().mockReturnValue({}),
+}));
+
+vi.mock('../../../features/scanHandoff', () => ({
+  useScanCaptureForVisit: vi.fn().mockReturnValue(null),
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -165,6 +170,38 @@ describe('VisitHubPage — completed state body (PR 16)', () => {
     render(<VisitHubPage {...BASE_PROPS} />);
     await screen.findByTestId('visit-hub-body-completed-hint');
     expect(screen.getByTestId('survey-record-collapse')).toBeTruthy();
+  });
+
+  it('renders captured evidence panel when scan handoff evidence graph exists', async () => {
+    const { getVisit } = await import('../../../lib/visits/visitApi');
+    const { useScanCaptureForVisit } = await import('../../../features/scanHandoff');
+    vi.mocked(getVisit).mockResolvedValue(
+      makeVisitResponse({
+        status: 'recommendation_ready',
+        completed_at: '2024-01-15T14:30:00.000Z',
+        completion_method: 'manual_pwa',
+      })
+    );
+    vi.mocked(useScanCaptureForVisit).mockReturnValue({
+      spatialEvidenceGraph: {
+        rooms: [
+          {
+            id: 'room-kitchen',
+            name: 'Kitchen',
+            capturePoints: [{ capturePointId: 'cp-kitchen-1', anchorConfidence: 0.8 }],
+          },
+        ],
+      },
+      unresolvedEvidence: [
+        { id: 'u1', type: 'pending-photo', capturePointId: 'cp-kitchen-1' },
+      ],
+    } as unknown as SessionCaptureV2);
+
+    render(<VisitHubPage {...BASE_PROPS} />);
+    await screen.findByTestId('visit-hub-body-completed-hint');
+    expect(screen.getByTestId('captured-evidence-panel')).toBeTruthy();
+    expect(screen.getByTestId('captured-evidence-capture-point-cp-kitchen-1')).toBeTruthy();
+    expect(screen.getByText(/Unresolved evidence/i)).toBeTruthy();
   });
 });
 
