@@ -28,37 +28,7 @@ import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import { isVerificationItem } from './buildQuoteScope';
-
-// ─── System label map ─────────────────────────────────────────────────────────
-
-const SYSTEM_LABEL: Record<ScenarioResult['system']['type'], string> = {
-  combi:   'Combi boiler',
-  system:  'System boiler',
-  regular: 'Regular (heat-only) boiler',
-  ashp:    'Air source heat pump',
-};
-
-/**
- * Subtype-aware system labels for stored hot water scenarios.
- *
- * For stored-water options, the system label must include the DHW arrangement
- * (unvented or vented cylinder) so the customer knows what is actually being
- * recommended — not just the heat source type.  Without this, "System boiler"
- * appears as the recommendation even when the constraint engine has identified
- * that the standard unvented cylinder is unsuitable (low pressure), creating
- * the "bipolar document" contradiction.
- *
- * The pairs (stored_unvented / system_unvented) and (stored_vented / regular_vented)
- * intentionally map to the same labels because both scenario IDs represent the
- * same DHW arrangement — they differ only in which boiler model the card describes.
- * The customer-facing label reflects the DHW subtype, not the boiler variant.
- */
-const STORED_SCENARIO_LABEL: Record<string, string> = {
-  stored_unvented: 'Stored hot water (unvented cylinder)',
-  system_unvented: 'Stored hot water (unvented cylinder)',
-  stored_vented:   'Stored hot water (vented cylinder)',
-  regular_vented:  'Stored hot water (vented cylinder)',
-};
+import { buildScenarioDisplayIdentity } from './buildScenarioDisplayIdentity';
 
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
@@ -146,7 +116,7 @@ export function buildCustomerSummary(
     recommendedScenarioId: decision.recommendedScenarioId,
 
     // Rules 4, 5, 6, 7
-    recommendedSystemLabel: STORED_SCENARIO_LABEL[selected.scenarioId] ?? SYSTEM_LABEL[selected.system.type],
+    recommendedSystemLabel: (selected.display ?? buildScenarioDisplayIdentity(selected)).atlasPickLabel,
     headline:               decision.headline,
     plainEnglishDecision:   decision.summary,
     whyThisWins:            [...decision.keyReasons],

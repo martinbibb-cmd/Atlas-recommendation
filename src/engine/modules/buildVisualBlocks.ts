@@ -292,8 +292,23 @@ function buildFactsBlock(
 
     // Water services
     const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
+    const fullBoreFlowLpm = input.mains?.flowReadings?.at0BarLpm;
+    const retainedFlowLpm =
+      input.mains?.flowReadings?.at1BarLpm
+      ?? input.mains?.flowReadings?.at2BarLpm
+      ?? input.mains?.flowReadings?.at0p5BarLpm;
+    const measuredFlowLpm = fullBoreFlowLpm ?? input.mainsDynamicFlowLpm ?? input.mains?.flowRateLpm;
+    if (measuredFlowLpm !== undefined) {
+      surveyFacts.push({ label: 'measuredFlowLpm', value: `${measuredFlowLpm} L/min` });
+    }
+    if (retainedFlowLpm !== undefined) {
+      surveyFacts.push({ label: 'retainedFlowLpm', value: `${retainedFlowLpm} L/min` });
+    }
+    if (fullBoreFlowLpm !== undefined) {
+      surveyFacts.push({ label: 'fullBoreFlowLpm', value: `${fullBoreFlowLpm} L/min` });
+    }
     if (dynamicBar !== undefined) {
-      surveyFacts.push({ label: 'Mains pressure', value: `${dynamicBar.toFixed(1)} bar` });
+      surveyFacts.push({ label: 'dynamicPressureBar', value: `${dynamicBar.toFixed(1)} bar` });
     }
 
     // Building fabric

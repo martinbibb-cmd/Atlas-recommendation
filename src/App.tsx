@@ -1547,7 +1547,7 @@ function AppInner() {
         >
           {cacheNotice === 'restored'
             ? 'Session restored'
-            : 'Cache version changed — started fresh'}
+            : 'Saved visit format changed — review recovered visit data before discarding'}
         </div>
       )}
       {visitRecoveryPrompt !== null && (
