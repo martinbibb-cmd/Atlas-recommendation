@@ -28,10 +28,16 @@ type UnknownRecord = Record<string, unknown>;
 interface NormalisedCapturePoint {
   id: string;
   needsReview: boolean;
-  objectPins: string[];
+  objectPins: NormalisedObjectPin[];
   ghostAppliances: string[];
   measurements: string[];
   surfaceSemantic: string | null;
+}
+
+interface NormalisedObjectPin {
+  label: string;
+  sections: ProposalSection[];
+  needsReview: boolean;
 }
 
 interface NormalisedRoom {
@@ -77,6 +83,34 @@ function readStringArray(value: unknown): string[] {
 
 function readNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Normalizes category/template strings into stable lowercase tokens.
+ * Converts spaces and slashes to underscores and strips punctuation.
+ *
+ * @param value - The raw category/template string to normalize.
+ * @returns The normalized lowercase token with underscores.
+ */
+function normaliseToken(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s/]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+}
+
+/**
+ * Converts machine-style identifiers (snake/kebab case) into plain words.
+ *
+ * @param value - The machine-style identifier to convert.
+ * @returns Human-readable text with spaces instead of underscores/hyphens.
+ */
+function humaniseToken(value: string): string {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normaliseMeasurements(value: unknown): string[] {
@@ -125,10 +159,16 @@ function normaliseCapturePoint(raw: unknown, index: number): NormalisedCapturePo
     reviewStatus === 'pending_review';
 
   const objectPins = [
-    ...readStringArray(obj?.['objectPins']),
-    ...readStringArray(obj?.['pins']),
-    ...readStringArray(evidence?.['objectPins']),
-  ].filter((v, i, arr) => v.length > 0 && arr.indexOf(v) === i);
+    ...normaliseObjectPins(obj?.['objectPins']),
+    ...normaliseObjectPins(obj?.['pins']),
+    ...normaliseObjectPins(evidence?.['objectPins']),
+  ].filter(
+    (pin, i, arr) =>
+      pin.label.length > 0 &&
+      arr.findIndex(
+        (p) => p.label === pin.label && p.sections.join('|') === pin.sections.join('|'),
+      ) === i,
+  );
 
   const ghostAppliances = [
     ...readStringArray(obj?.['ghostAppliances']),
@@ -147,7 +187,15 @@ function normaliseCapturePoint(raw: unknown, index: number): NormalisedCapturePo
         readString(asObject(obj['surface'])?.['semantic']))) ??
     null;
 
-  return { id, needsReview, objectPins, ghostAppliances, measurements, surfaceSemantic };
+  const pinNeedsReview = objectPins.some((pin) => pin.needsReview);
+  return {
+    id,
+    needsReview: needsReview || pinNeedsReview,
+    objectPins,
+    ghostAppliances,
+    measurements,
+    surfaceSemantic,
+  };
 }
 
 function normaliseGraph(graph: unknown): NormalisedRoom[] {
@@ -223,6 +271,144 @@ function sectionsForPin(pin: string): ProposalSection[] {
   if (containsKeyword(pin, FLUE_KEYWORDS)) sections.push('flue');
   if (containsKeyword(pin, RADIATOR_KEYWORDS)) sections.push('radiators');
   return sections;
+}
+
+/**
+ * Maps structured equipment categories/templates to proposal evidence sections.
+ */
+function sectionsForCategory(value: string | null): ProposalSection[] {
+  if (!value) return [];
+  const token = normaliseToken(value);
+  if (token.includes('heat_source') || token.includes('boiler')) return ['boiler'];
+  if (
+    token.includes('hot_water_storage') ||
+    token.includes('cylinder') ||
+    token.includes('thermal_store')
+  ) {
+    return ['cylinder'];
+  }
+  if (token.includes('flue') || token.includes('external')) return ['flue'];
+  if (token.includes('emitter') || token.includes('radiator') || token.includes('ufh')) {
+    return ['radiators'];
+  }
+  if (token.includes('heating_component') || token.includes('heating_components')) {
+    return ['general'];
+  }
+  return [];
+}
+
+/**
+ * Builds a human-readable manual equipment label using manufacturer/model and
+ * optional type/dimensions metadata.
+ *
+ * @param manualEntry - Manual equipment entry metadata.
+ * @returns A formatted equipment label string.
+ */
+function buildManualIdentityLabel(manualEntry: UnknownRecord): string {
+  const manufacturer =
+    readString(manualEntry['manufacturer']) ??
+    readString(manualEntry['make']) ??
+    readString(manualEntry['brand']);
+  const model = readString(manualEntry['model']);
+  const type =
+    readString(manualEntry['type']) ??
+    readString(manualEntry['applianceType']) ??
+    readString(manualEntry['productType']);
+  const dimensions =
+    readString(manualEntry['dimensions']) ??
+    readString(manualEntry['dimensionsMm']) ??
+    readString(manualEntry['dimensionsText']);
+
+  const parts = [manufacturer, model].filter((p): p is string => Boolean(p));
+  const detailParts: string[] = [];
+  if (type) detailParts.push(`type: ${type}`);
+  if (dimensions) detailParts.push(`dimensions: ${dimensions}`);
+  if (detailParts.length > 0) parts.push(`(${detailParts.join(', ')})`);
+  return parts.join(' ').trim();
+}
+
+/**
+ * Normalizes mixed pin payloads (string labels or structured objects) into a
+ * unified object-pin model with section mapping and review status.
+ *
+ * @param value - Mixed array of string labels or structured equipment pin objects.
+ * @returns Normalized object pins with labels, sections, and review status.
+ */
+function normaliseObjectPins(value: unknown): NormalisedObjectPin[] {
+  const result: NormalisedObjectPin[] = [];
+  for (const item of asArray(value)) {
+    if (typeof item === 'string' && item.trim().length > 0) {
+      const label = item.trim();
+      result.push({
+        label,
+        sections: sectionsForPin(label),
+        needsReview: false,
+      });
+      continue;
+    }
+
+    const obj = asObject(item);
+    if (!obj) continue;
+
+    const objectCategory = readString(obj['objectCategory']);
+    const selectedTemplateId = readString(obj['selectedTemplateId']);
+    const objectCategoryToken =
+      objectCategory != null ? normaliseToken(objectCategory) : null;
+    const selectedTemplateToken =
+      selectedTemplateId != null ? normaliseToken(selectedTemplateId) : null;
+    const locationContext = readString(obj['locationContext']);
+    const provenance = readString(obj['provenance']);
+    const reviewStatus = readString(obj['reviewStatus']);
+    const anchorConfidence = readNumber(obj['anchorConfidence']);
+    const manualEntry = asObject(obj['manualEntry']);
+
+    const manualIdentity = manualEntry ? buildManualIdentityLabel(manualEntry) : '';
+    const fallbackLabel =
+      readString(obj['label']) ??
+      readString(obj['name']) ??
+      readString(obj['title']) ??
+      selectedTemplateId ??
+      objectCategory ??
+      readString(obj['type']) ??
+      readString(obj['id']) ??
+      'Unknown equipment';
+
+    const label = [
+      manualIdentity.length > 0 ? manualIdentity : humaniseToken(fallbackLabel),
+      locationContext ? `(${humaniseToken(locationContext)})` : null,
+    ]
+      .filter((v): v is string => v != null && v.trim().length > 0)
+      .join(' ')
+      .trim();
+
+    const sections = [
+      ...sectionsForCategory(objectCategory),
+      ...sectionsForCategory(selectedTemplateId),
+      ...sectionsForPin(label),
+    ].filter((s, i, arr) => arr.indexOf(s) === i);
+
+    const isPlaceholder =
+      (selectedTemplateToken != null &&
+        (selectedTemplateToken.includes('unknown') ||
+          selectedTemplateToken.includes('placeholder') ||
+          selectedTemplateToken.includes('manual'))) ||
+      (objectCategoryToken != null &&
+        (objectCategoryToken.includes('unknown') ||
+          objectCategoryToken.includes('placeholder'))) ||
+      (manualEntry != null && manualIdentity.length === 0);
+
+    const needsReview =
+      reviewStatus === 'pending' ||
+      reviewStatus === 'unresolved' ||
+      reviewStatus === 'needs_review' ||
+      reviewStatus === 'pending_review' ||
+      provenance === 'unknown' ||
+      (anchorConfidence != null && anchorConfidence < 0.6) ||
+      isPlaceholder;
+
+    result.push({ label, sections, needsReview });
+  }
+  return result;
 }
 
 function sectionsForSurface(semantic: string | null): ProposalSection[] {
@@ -305,15 +491,22 @@ export function buildEvidenceProofLinks(
 
       // Object pins → classify by keyword
       if (cp.objectPins.length > 0) {
-        const pinSections = new Set(cp.objectPins.flatMap(sectionsForPin));
+        const pinSections = new Set<ProposalSection>(
+          cp.objectPins.flatMap((pin) =>
+            pin.sections.length > 0 ? pin.sections : (['general'] as ProposalSection[]),
+          ),
+        );
         for (const section of pinSections) {
+          const sectionPins = cp.objectPins.filter((pin) =>
+            pin.sections.length > 0
+              ? pin.sections.includes(section)
+              : section === 'general',
+          );
           push(section, {
             capturePointId: cp.id,
             storyboardCardKey: 'key-objects',
-            label: cp.objectPins
-              .filter((p) => sectionsForPin(p).includes(section))
-              .join(', '),
-            isResolved: resolved,
+            label: sectionPins.map((p) => p.label).join(', '),
+            isResolved: resolved && sectionPins.every((pin) => !pin.needsReview),
           });
         }
         if (pinSections.size === 0) {
@@ -321,7 +514,7 @@ export function buildEvidenceProofLinks(
           push('general', {
             capturePointId: cp.id,
             storyboardCardKey: 'key-objects',
-            label: cp.objectPins.join(', '),
+            label: cp.objectPins.map((pin) => pin.label).join(', '),
             isResolved: resolved,
           });
         }
