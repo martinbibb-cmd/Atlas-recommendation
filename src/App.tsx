@@ -1924,7 +1924,6 @@ function AppInner() {
           peakConcurrentOutlets: labEngineInput.peakConcurrentOutlets,
           mainsDynamicFlowLpm: labEngineInput.mainsDynamicFlowLpm,
           heatLossWatts: labEngineInput.heatLossWatts,
-          highDrawFrequency: (labEngineInput.peakConcurrentOutlets ?? 0) >= 2,
           solarPVPresent: labEngineInput.pvStatus === 'existing' || labEngineInput.pvStatus === 'planned',
         };
         const ipScenarios = buildScenariosFromEngineOutput(engineOutput);

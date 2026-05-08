@@ -1149,7 +1149,7 @@ function buildImprovements(
     improvements.push({
       title: 'Modern Heating Controls',
       impact: 'efficiency',
-      explanation: 'Modern controls will be configured for efficient operation, keeping flow temperatures lower for longer periods so the boiler can spend more time in condensing mode.',
+      explanation: 'Modern controls adjust flow temperature to match milder outdoor conditions, helping keep the boiler in condensing mode for longer and typically reducing gas use by around 5–10%.',
     });
   }
 
@@ -1227,7 +1227,7 @@ function buildImprovements(
       title: 'Upgrade Cylinder to Mixergy',
       impact: 'efficiency',
       explanation:
-        `${mixergySignals} demand signals were identified for this home. ` +
+        'A Mixergy cylinder is well suited to this home’s demand pattern. ' +
         'It mirrors demand, keeps usable hot water available at the top of the store, and reduces reheat cycling compared with standard cylinders.',
     });
   }
@@ -1479,14 +1479,14 @@ function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOut
     behaviour.push('Schedule cylinder heating overnight during off-peak tariff windows (e.g. Octopus Go) to minimise running costs.');
   } else if (systemType === 'system' || systemType === 'regular') {
     behaviour.push('Allow the cylinder to fully recover between large draws — avoid scheduling back-to-back high-demand periods without a recovery window.');
-    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles for smoother comfort and efficiency.');
+    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to keep radiator temperatures steadier and reduce unnecessary burner start-stop cycles.');
     if (bestQuote?.quote.cylinder?.type === 'mixergy') {
       behaviour.push('Mixergy draws from the top — even a partially charged cylinder can serve a full shower. Shorten reheat schedules to save energy without sacrificing comfort.');
     }
   } else {
     // Combi boiler
     behaviour.push('Avoid very short hot-water draws under 15 seconds — allow the heat exchanger to reach steady-state condensing temperature for maximum efficiency.');
-    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles for smoother comfort and efficiency.');
+    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to keep radiator temperatures steadier and reduce unnecessary burner start-stop cycles.');
   }
 
   // ── System-specific settings advice ──────────────────────────────────────
@@ -1497,7 +1497,7 @@ function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOut
     settings.push('Run heat pump continuously at lower output on cold days rather than burst-cycling at high output.');
   } else {
     settings.push('Set flow temperature to the minimum that keeps rooms comfortable (typically around 55–60 °C for older radiators).');
-    settings.push('Modern controls will be configured for efficient operation to maintain lower flow temperatures on milder days and extend condensing runtime.');
+    settings.push('Modern controls will be configured to reduce flow temperature on milder days and extend condensing runtime.');
   }
 
   const futureUpgrades: string[] = [];
