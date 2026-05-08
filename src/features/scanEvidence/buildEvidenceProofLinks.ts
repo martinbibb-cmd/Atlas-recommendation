@@ -88,6 +88,9 @@ function readNumber(value: unknown): number | null {
 /**
  * Normalises category/template strings into stable lowercase tokens.
  * Converts spaces and slashes to underscores and strips punctuation.
+ *
+ * @param value - The raw category/template string to normalize.
+ * @returns The normalized lowercase token with underscores.
  */
 function normaliseToken(value: string): string {
   return value
@@ -99,6 +102,9 @@ function normaliseToken(value: string): string {
 
 /**
  * Converts machine-style identifiers (snake/kebab case) into plain words.
+ *
+ * @param value - The machine-style identifier to convert.
+ * @returns Human-readable text with spaces instead of underscores/hyphens.
  */
 function humaniseToken(value: string): string {
   return value
@@ -294,6 +300,9 @@ function sectionsForCategory(value: string | null): ProposalSection[] {
 /**
  * Builds a human-readable manual equipment label using manufacturer/model and
  * optional type/dimensions metadata.
+ *
+ * @param manualEntry - Manual equipment entry metadata.
+ * @returns A formatted equipment label string.
  */
 function buildManualIdentityLabel(manualEntry: UnknownRecord): string {
   const manufacturer =
@@ -321,6 +330,9 @@ function buildManualIdentityLabel(manualEntry: UnknownRecord): string {
 /**
  * Normalises mixed pin payloads (string labels or structured objects) into a
  * unified object-pin model with section mapping and review status.
+ *
+ * @param value - Mixed array of string labels or structured equipment pin objects.
+ * @returns Normalized object pins with labels, sections, and review status.
  */
 function normaliseObjectPins(value: unknown): NormalisedObjectPin[] {
   const result: NormalisedObjectPin[] = [];
