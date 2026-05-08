@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -30,6 +30,22 @@ interface NormalizedUnresolvedEvidence {
   capturePointId: string | null;
   label: string;
   detail: string | null;
+}
+
+type EvidencePanelView = 'graph' | 'storyboard';
+
+interface StoryboardEntry {
+  id: string;
+  label: string;
+  capturePointIds: string[];
+}
+
+interface StoryboardCardDefinition {
+  key: string;
+  title: string;
+  emptyState: string;
+  tone: 'default' | 'priority' | 'review';
+  entries: StoryboardEntry[];
 }
 
 function asObject(value: unknown): UnknownRecord | null {
@@ -324,6 +340,158 @@ function normalizeUnresolvedEvidence(unresolved: unknown): NormalizedUnresolvedE
   });
 }
 
+function isResolvedGeometryStatus(status: string | null): boolean {
+  if (!status) return true;
+  return ['resolved', 'confirmed', 'complete'].includes(status.trim().toLowerCase());
+}
+
+function uniqueCapturePointIds(values: string[]): string[] {
+  return values.filter((value, index) => value.length > 0 && values.indexOf(value) === index);
+}
+
+function buildStoryboardCards(room: NormalizedRoom): StoryboardCardDefinition[] {
+  const roomCapturePointIds = uniqueCapturePointIds(room.capturePoints.map((capturePoint) => capturePoint.id));
+  const surfaceSemantics = uniqueStrings(
+    room.capturePoints.flatMap((capturePoint) =>
+      capturePoint.surfaceSemantic ? [capturePoint.surfaceSemantic] : [],
+    ),
+  );
+  const photoCount = room.capturePoints.reduce((sum, capturePoint) => sum + capturePoint.photos.length, 0);
+  const transcriptCount = room.capturePoints.reduce(
+    (sum, capturePoint) => sum + capturePoint.transcriptExcerpts.length,
+    0,
+  );
+  const whatScannedEntries: StoryboardEntry[] = [
+    {
+      id: `${room.id}-capture-points`,
+      label: `${room.capturePoints.length} capture point${room.capturePoints.length !== 1 ? 's' : ''} recorded`,
+      capturePointIds: roomCapturePointIds,
+    },
+    ...(room.geometryStatus
+      ? [{
+          id: `${room.id}-geometry-status`,
+          label: `Geometry status: ${room.geometryStatus}`,
+          capturePointIds: roomCapturePointIds,
+        }]
+      : []),
+    ...(room.area
+      ? [{
+          id: `${room.id}-area`,
+          label: `Area captured: ${room.area}`,
+          capturePointIds: roomCapturePointIds,
+        }]
+      : []),
+    ...(room.ceilingHeight
+      ? [{
+          id: `${room.id}-ceiling`,
+          label: `Ceiling height captured: ${room.ceilingHeight}`,
+          capturePointIds: roomCapturePointIds,
+        }]
+      : []),
+    ...(surfaceSemantics.length > 0
+      ? [{
+          id: `${room.id}-surfaces`,
+          label: `Surface tags: ${surfaceSemantics.join(', ')}`,
+          capturePointIds: roomCapturePointIds,
+        }]
+      : []),
+    ...(photoCount > 0
+      ? [{
+          id: `${room.id}-photos`,
+          label: `${photoCount} linked photo${photoCount !== 1 ? 's' : ''}`,
+          capturePointIds: roomCapturePointIds,
+        }]
+      : []),
+    ...(transcriptCount > 0
+      ? [{
+          id: `${room.id}-transcripts`,
+          label: `${transcriptCount} voice / transcript excerpt${transcriptCount !== 1 ? 's' : ''}`,
+          capturePointIds: roomCapturePointIds,
+        }]
+      : []),
+  ];
+  const objectEntries = room.capturePoints.flatMap((capturePoint) =>
+    capturePoint.objectPins.map((item, index) => ({
+      id: `${capturePoint.id}-object-${index}`,
+      label: item,
+      capturePointIds: [capturePoint.id],
+    })),
+  );
+  const measurementEntries = room.capturePoints.flatMap((capturePoint) =>
+    capturePoint.measurements.map((item, index) => ({
+      id: `${capturePoint.id}-measurement-${index}`,
+      label: item,
+      capturePointIds: [capturePoint.id],
+    })),
+  );
+  const ghostEntries = room.capturePoints.flatMap((capturePoint) =>
+    capturePoint.ghostAppliances.map((item, index) => ({
+      id: `${capturePoint.id}-ghost-${index}`,
+      label: item,
+      capturePointIds: [capturePoint.id],
+    })),
+  );
+  const openReviewEntries: StoryboardEntry[] = [
+    ...room.warnings.map((warning, index) => ({
+      id: `${room.id}-warning-${index}`,
+      label: warning,
+      capturePointIds: roomCapturePointIds,
+    })),
+    ...(!isResolvedGeometryStatus(room.geometryStatus) && room.geometryStatus
+      ? [{
+          id: `${room.id}-geometry-review`,
+          label: `Geometry status requires review: ${room.geometryStatus}`,
+          capturePointIds: roomCapturePointIds,
+        }]
+      : []),
+    ...room.capturePoints
+      .filter((capturePoint) => capturePoint.needsReview)
+      .map((capturePoint) => ({
+        id: `${capturePoint.id}-review`,
+        label: 'Capture point flagged for review',
+        capturePointIds: [capturePoint.id],
+      })),
+  ];
+
+  return [
+    {
+      key: 'what-scanned',
+      title: '1. What we scanned',
+      emptyState: 'No structured scan summary recorded for this room yet.',
+      tone: 'default',
+      entries: whatScannedEntries,
+    },
+    {
+      key: 'key-objects',
+      title: '2. Key objects found',
+      emptyState: 'No pinned objects recorded in this room.',
+      tone: 'default',
+      entries: objectEntries,
+    },
+    {
+      key: 'measurements',
+      title: '3. Measurements taken',
+      emptyState: 'No measurements recorded in this room.',
+      tone: 'priority',
+      entries: measurementEntries,
+    },
+    {
+      key: 'ghost-appliances',
+      title: '4. Ghost appliance checks',
+      emptyState: 'No ghost appliance checks recorded in this room.',
+      tone: 'priority',
+      entries: ghostEntries,
+    },
+    {
+      key: 'open-review',
+      title: '5. Open review items',
+      emptyState: 'No open review items recorded for this room.',
+      tone: 'review',
+      entries: openReviewEntries,
+    },
+  ];
+}
+
 function EvidenceList({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) return null;
   return (
@@ -340,11 +508,135 @@ function EvidenceList({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+function StoryboardCapturePointLinks({
+  capturePointIds,
+  onOpenCapturePoint,
+}: {
+  capturePointIds: string[];
+  onOpenCapturePoint: (capturePointId: string) => void;
+}) {
+  const uniqueIds = uniqueCapturePointIds(capturePointIds);
+  if (uniqueIds.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: '0.55rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
+        Evidence point
+      </span>
+      {uniqueIds.map((capturePointId) => (
+        <a
+          key={capturePointId}
+          href={`#captured-evidence-capture-point-${capturePointId}`}
+          onClick={(event) => {
+            event.preventDefault();
+            onOpenCapturePoint(capturePointId);
+          }}
+          style={{
+            fontSize: '0.76rem',
+            color: '#1d4ed8',
+            fontWeight: 600,
+            textDecoration: 'none',
+            border: '1px solid #bfdbfe',
+            background: '#eff6ff',
+            borderRadius: 999,
+            padding: '0.12rem 0.45rem',
+          }}
+        >
+          {capturePointId}
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function StoryboardCard({
+  roomId,
+  card,
+  customerFacing,
+  allowUnresolvedDetails,
+  onOpenCapturePoint,
+}: {
+  roomId: string;
+  card: StoryboardCardDefinition;
+  customerFacing: boolean;
+  allowUnresolvedDetails: boolean;
+  onOpenCapturePoint: (capturePointId: string) => void;
+}) {
+  const hideReviewDetails = card.key === 'open-review' && customerFacing && !allowUnresolvedDetails;
+  const capturePointIds = hideReviewDetails
+    ? []
+    : uniqueCapturePointIds(card.entries.flatMap((entry) => entry.capturePointIds));
+  const toneStyles =
+    card.tone === 'priority'
+      ? { border: '1px solid #c7d2fe', background: '#eef2ff' }
+      : card.tone === 'review'
+        ? { border: '1px solid #fde68a', background: '#fffbeb' }
+        : { border: '1px solid #dbeafe', background: '#ffffff' };
+
+  return (
+    <section
+      data-testid={`evidence-storyboard-card-${roomId}-${card.key}`}
+      style={{
+        ...toneStyles,
+        borderRadius: 8,
+        padding: '0.8rem 0.85rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.45rem',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.65rem', flexWrap: 'wrap' }}>
+        <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>
+          {card.title}
+        </p>
+        {card.tone === 'priority' && (
+          <span
+            style={{
+              fontSize: '0.66rem',
+              fontWeight: 700,
+              color: '#4338ca',
+              background: '#e0e7ff',
+              border: '1px solid #c7d2fe',
+              borderRadius: 999,
+              padding: '0.1rem 0.45rem',
+              textTransform: 'uppercase',
+            }}
+          >
+            Priority evidence
+          </span>
+        )}
+      </div>
+
+      {hideReviewDetails ? (
+        <p style={{ margin: 0, fontSize: '0.79rem', color: '#92400e' }}>
+          Review details are hidden in customer-safe mode.
+        </p>
+      ) : card.entries.length === 0 ? (
+        <p style={{ margin: 0, fontSize: '0.79rem', color: '#475569' }}>{card.emptyState}</p>
+      ) : (
+        <ul style={{ margin: 0, paddingLeft: '1rem', color: '#334155', fontSize: '0.8rem' }}>
+          {card.entries.map((entry) => (
+            <li key={entry.id}>{entry.label}</li>
+          ))}
+        </ul>
+      )}
+
+      {!hideReviewDetails && (
+        <StoryboardCapturePointLinks
+          capturePointIds={capturePointIds}
+          onOpenCapturePoint={onOpenCapturePoint}
+        />
+      )}
+    </section>
+  );
+}
+
 export interface CapturedEvidencePanelProps {
   spatialEvidenceGraph?: unknown;
   unresolvedEvidence?: unknown;
   customerFacing?: boolean;
   allowUnresolvedDetails?: boolean;
+  initialView?: EvidencePanelView;
 }
 
 export function CapturedEvidencePanel({
@@ -352,6 +644,7 @@ export function CapturedEvidencePanel({
   unresolvedEvidence,
   customerFacing = false,
   allowUnresolvedDetails = false,
+  initialView = 'graph',
 }: CapturedEvidencePanelProps) {
   const rooms = useMemo(
     () => normalizeSpatialEvidenceGraph(spatialEvidenceGraph),
@@ -361,10 +654,40 @@ export function CapturedEvidencePanel({
     () => normalizeUnresolvedEvidence(unresolvedEvidence),
     [unresolvedEvidence],
   );
+  const [activeView, setActiveView] = useState<EvidencePanelView>(initialView);
+  const [pendingCapturePointId, setPendingCapturePointId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveView(initialView);
+  }, [initialView]);
+
+  useEffect(() => {
+    if (
+      activeView !== 'graph' ||
+      !pendingCapturePointId ||
+      typeof document === 'undefined' ||
+      typeof window === 'undefined'
+    ) return;
+    const animationFrame = window.requestAnimationFrame(() => {
+      const element = document.getElementById(`captured-evidence-capture-point-${pendingCapturePointId}`);
+      if (element instanceof HTMLElement) {
+        element.focus();
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      setPendingCapturePointId(null);
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [activeView, pendingCapturePointId]);
 
   if (rooms.length === 0 && unresolved.length === 0) return null;
 
   const showUnresolvedDetails = !customerFacing || allowUnresolvedDetails;
+  const canShowTabs = rooms.length > 0;
+
+  function handleOpenCapturePoint(capturePointId: string) {
+    setPendingCapturePointId(capturePointId);
+    setActiveView('graph');
+  }
 
   return (
     <section
@@ -386,65 +709,167 @@ export function CapturedEvidencePanel({
         </span>
       </div>
 
-      {rooms.map((room) => (
-        <article
-          key={room.id}
-          data-testid={`captured-evidence-room-${room.id}`}
-          style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.75rem 0.8rem', background: '#f8fafc' }}
+      {canShowTabs && (
+        <div
+          role="tablist"
+          aria-label="Captured evidence views"
+          style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, fontWeight: 700, color: '#0f172a', fontSize: '0.86rem' }}>
-              {room.name}
-            </p>
-            <code style={{ color: '#64748b', fontSize: '0.72rem' }}>{room.id}</code>
-          </div>
-          <div style={{ marginTop: '0.35rem', display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
-            {room.geometryStatus && <span style={{ fontSize: '0.75rem', color: '#334155' }}>Geometry: {room.geometryStatus}</span>}
-            {room.area && <span style={{ fontSize: '0.75rem', color: '#334155' }}>Area: {room.area}</span>}
-            {room.ceilingHeight && <span style={{ fontSize: '0.75rem', color: '#334155' }}>Ceiling: {room.ceilingHeight}</span>}
-          </div>
-          {room.warnings.length > 0 && (
-            <ul style={{ margin: '0.4rem 0 0 1rem', color: '#92400e', fontSize: '0.78rem' }}>
-              {room.warnings.map((warning, idx) => (
-                <li key={`room-warning-${warning}-${idx}`}>{warning}</li>
-              ))}
-            </ul>
-          )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'storyboard'}
+            data-testid="captured-evidence-tab-storyboard"
+            onClick={() => setActiveView('storyboard')}
+            style={{
+              borderRadius: 999,
+              border: activeView === 'storyboard' ? '1px solid #1d4ed8' : '1px solid #cbd5e1',
+              background: activeView === 'storyboard' ? '#dbeafe' : '#ffffff',
+              color: activeView === 'storyboard' ? '#1e3a8a' : '#334155',
+              padding: '0.3rem 0.7rem',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Evidence Storyboard
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeView === 'graph'}
+            data-testid="captured-evidence-tab-graph"
+            onClick={() => setActiveView('graph')}
+            style={{
+              borderRadius: 999,
+              border: activeView === 'graph' ? '1px solid #1d4ed8' : '1px solid #cbd5e1',
+              background: activeView === 'graph' ? '#dbeafe' : '#ffffff',
+              color: activeView === 'graph' ? '#1e3a8a' : '#334155',
+              padding: '0.3rem 0.7rem',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Evidence Graph
+          </button>
+        </div>
+      )}
 
-          <div style={{ marginTop: '0.55rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {room.capturePoints.map((capturePoint) => (
-              <div
-                key={`${room.id}-${capturePoint.id}`}
-                data-testid={`captured-evidence-capture-point-${capturePoint.id}`}
-                style={{ border: '1px solid #dbeafe', background: '#ffffff', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+      {activeView === 'storyboard' && rooms.length > 0 && (
+        <div
+          role="tabpanel"
+          aria-label="Evidence Storyboard"
+          data-testid="captured-evidence-storyboard-panel"
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}
+        >
+          {rooms.map((room) => {
+            const storyboardCards = buildStoryboardCards(room);
+            return (
+              <article
+                key={room.id}
+                data-testid={`evidence-storyboard-room-${room.id}`}
+                style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.85rem 0.9rem', background: '#f8fafc' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', flexWrap: 'wrap' }}>
-                  <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: '#1e3a8a' }}>
-                    capturePointId: {capturePoint.id}
-                  </p>
-                  {capturePoint.needsReview && (
-                    <span
-                      data-testid={`captured-evidence-needs-review-${capturePoint.id}`}
-                      style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9a3412', background: '#ffedd5', border: '1px solid #fdba74', borderRadius: 999, padding: '0.12rem 0.45rem' }}
-                    >
-                      Needs review
-                    </span>
-                  )}
+                  <div>
+                    <p style={{ margin: 0, fontWeight: 700, color: '#0f172a', fontSize: '0.9rem' }}>
+                      {room.name}
+                    </p>
+                    <p style={{ margin: '0.2rem 0 0', fontSize: '0.76rem', color: '#475569' }}>
+                      Room-by-room evidence walkthrough
+                    </p>
+                  </div>
+                  <code style={{ color: '#64748b', fontSize: '0.72rem' }}>{room.id}</code>
                 </div>
-                <p style={{ margin: '0.2rem 0 0', fontSize: '0.77rem', color: '#475569' }}>
-                  Anchor confidence: {capturePoint.anchorConfidence}
-                  {capturePoint.surfaceSemantic ? ` · Surface: ${capturePoint.surfaceSemantic}` : ''}
+                <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {storyboardCards.map((card) => (
+                    <StoryboardCard
+                      key={`${room.id}-${card.key}`}
+                      roomId={room.id}
+                      card={card}
+                      customerFacing={customerFacing}
+                      allowUnresolvedDetails={allowUnresolvedDetails}
+                      onOpenCapturePoint={handleOpenCapturePoint}
+                    />
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {activeView === 'graph' && rooms.length > 0 && (
+        <div
+          role="tabpanel"
+          aria-label="Evidence Graph"
+          data-testid="captured-evidence-graph-panel"
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}
+        >
+          {rooms.map((room) => (
+            <article
+              key={room.id}
+              data-testid={`captured-evidence-room-${room.id}`}
+              style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.75rem 0.8rem', background: '#f8fafc' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <p style={{ margin: 0, fontWeight: 700, color: '#0f172a', fontSize: '0.86rem' }}>
+                  {room.name}
                 </p>
-                <EvidenceList title="Object pins" items={capturePoint.objectPins} />
-                <EvidenceList title="Photos" items={capturePoint.photos} />
-                <EvidenceList title="Voice / transcript excerpts" items={capturePoint.transcriptExcerpts} />
-                <EvidenceList title="Ghost appliances" items={capturePoint.ghostAppliances} />
-                <EvidenceList title="Measurements" items={capturePoint.measurements} />
+                <code style={{ color: '#64748b', fontSize: '0.72rem' }}>{room.id}</code>
               </div>
-            ))}
-          </div>
-        </article>
-      ))}
+              <div style={{ marginTop: '0.35rem', display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
+                {room.geometryStatus && <span style={{ fontSize: '0.75rem', color: '#334155' }}>Geometry: {room.geometryStatus}</span>}
+                {room.area && <span style={{ fontSize: '0.75rem', color: '#334155' }}>Area: {room.area}</span>}
+                {room.ceilingHeight && <span style={{ fontSize: '0.75rem', color: '#334155' }}>Ceiling: {room.ceilingHeight}</span>}
+              </div>
+              {room.warnings.length > 0 && (
+                <ul style={{ margin: '0.4rem 0 0 1rem', color: '#92400e', fontSize: '0.78rem' }}>
+                  {room.warnings.map((warning, idx) => (
+                    <li key={`room-warning-${warning}-${idx}`}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+
+              <div style={{ marginTop: '0.55rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {room.capturePoints.map((capturePoint) => (
+                  <div
+                    key={`${room.id}-${capturePoint.id}`}
+                    id={`captured-evidence-capture-point-${capturePoint.id}`}
+                    tabIndex={-1}
+                    data-testid={`captured-evidence-capture-point-${capturePoint.id}`}
+                    style={{ border: '1px solid #dbeafe', background: '#ffffff', borderRadius: 6, padding: '0.55rem 0.65rem' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.6rem', flexWrap: 'wrap' }}>
+                      <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, color: '#1e3a8a' }}>
+                        capturePointId: {capturePoint.id}
+                      </p>
+                      {capturePoint.needsReview && (
+                        <span
+                          data-testid={`captured-evidence-needs-review-${capturePoint.id}`}
+                          style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9a3412', background: '#ffedd5', border: '1px solid #fdba74', borderRadius: 999, padding: '0.12rem 0.45rem' }}
+                        >
+                          Needs review
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: '0.2rem 0 0', fontSize: '0.77rem', color: '#475569' }}>
+                      Anchor confidence: {capturePoint.anchorConfidence}
+                      {capturePoint.surfaceSemantic ? ` · Surface: ${capturePoint.surfaceSemantic}` : ''}
+                    </p>
+                    <EvidenceList title="Object pins" items={capturePoint.objectPins} />
+                    <EvidenceList title="Photos" items={capturePoint.photos} />
+                    <EvidenceList title="Voice / transcript excerpts" items={capturePoint.transcriptExcerpts} />
+                    <EvidenceList title="Ghost appliances" items={capturePoint.ghostAppliances} />
+                    <EvidenceList title="Measurements" items={capturePoint.measurements} />
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       {unresolved.length > 0 && (
         <article

@@ -1440,6 +1440,7 @@ export default function VisitHubPage({
         <CapturedEvidencePanel
           spatialEvidenceGraph={spatialEvidenceGraph}
           unresolvedEvidence={unresolvedEvidence}
+          initialView="storyboard"
         />
 
         {/* Engine section — last run timestamp, re-run, and JSON download */}
