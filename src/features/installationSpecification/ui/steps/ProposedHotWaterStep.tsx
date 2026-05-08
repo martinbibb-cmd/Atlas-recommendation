@@ -16,6 +16,8 @@
 
 import { SpecificationSystemTile } from '../components/SpecificationSystemTile';
 import type { UiProposedHeatSourceLabel, UiProposedHotWaterLabel } from '../installationSpecificationUiTypes';
+import type { EvidenceProofLinkV1, EvidenceCaptureRef } from '../../../../features/scanEvidence/EvidenceProofLinkV1';
+import { EvidenceProofBlock } from '../../../../features/scanEvidence/EvidenceProofBlock';
 
 // Heat pump cylinders are unvented (mains-pressure) appliances, so both
 // the standard unvented and the dedicated HP cylinder share the same image.
@@ -91,18 +93,35 @@ export interface ProposedHotWaterStepProps {
   selected: UiProposedHotWaterLabel | null;
   /** Called when the surveyor selects a tile. */
   onSelect: (value: UiProposedHotWaterLabel) => void;
+  /**
+   * Evidence proof links for the cylinder section, from buildEvidenceProofLinks().
+   * When provided, an "Evidence used" block is shown below the tile grid.
+   */
+  evidenceProofLinks?: EvidenceProofLinkV1[];
+  /**
+   * Called when the user clicks an evidence capture-point pill.
+   * Navigates to the evidence viewer at that point.
+   */
+  onOpenEvidenceCapture?: (
+    capturePointId: string,
+    storyboardCardKey: EvidenceCaptureRef['storyboardCardKey'],
+  ) => void;
 }
 
 export function ProposedHotWaterStep({
   proposedHeatSource,
   selected,
   onSelect,
+  evidenceProofLinks,
+  onOpenEvidenceCapture,
 }: ProposedHotWaterStepProps) {
   const visibleTiles = PROPOSED_HOT_WATER_TILES.filter((t) => {
     if (t.onlyFor && !t.onlyFor.includes(proposedHeatSource)) return false;
     if (t.hideFor && t.hideFor.includes(proposedHeatSource)) return false;
     return true;
   });
+
+  const cylinderLinks = evidenceProofLinks?.filter((l) => l.section === 'cylinder') ?? [];
 
   return (
     <>
@@ -124,6 +143,12 @@ export function ProposedHotWaterStep({
           />
         ))}
       </div>
+      {cylinderLinks.length > 0 && (
+        <EvidenceProofBlock
+          links={cylinderLinks}
+          onOpenCapturePoint={onOpenEvidenceCapture}
+        />
+      )}
     </>
   );
 }
