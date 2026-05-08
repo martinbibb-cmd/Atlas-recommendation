@@ -586,9 +586,28 @@ export function runStoredDhwModuleV1(
     flags.some(f => f.severity === 'warn') ? 'warn' : 'pass';
 
   // ── Recommend cylinder type ───────────────────────────────────────────────
-  // Mixergy when space is tight or when high demand (fast usable hot water advantage).
+  // Mixergy is recommended only when at least two qualifying signals are present,
+  // OR when the user has explicitly requested it (dhwTankType === 'mixergy').
+  //
+  // Qualifying signals (per Atlas physics rules):
+  //   1. Space is tight — Mixergy's stratified heating reduces effective footprint.
+  //   2. Solar PV installed or planned — Mixergy's smart immersion pairs well with diverters.
+  //   3. High occupancy (4+ occupants) — faster usable volume turnover.
+  //
+  // Single signals such as bathroomCount >= 2 alone are NOT sufficient to recommend
+  // Mixergy — this avoids leaking a Mixergy upsell into every two-bathroom home.
+  const hasSpaceConstraint = space === 'tight';
+  const hasSolarPv = input.pvStatus === 'existing' || input.pvStatus === 'planned';
+  const hasHighOccupancy = input.highOccupancy === true || occupancy >= 4;
+
+  const mixergySignalCount = [
+    hasSpaceConstraint,
+    hasSolarPv,
+    hasHighOccupancy,
+  ].filter(Boolean).length;
+
   const recommendedType: StoredDhwV1Result['recommended']['type'] =
-    space === 'tight' || isHighDemand ? 'mixergy' : 'standard';
+    mixergySignalCount >= 2 ? 'mixergy' : 'standard';
 
   // ── Recommend volume band ─────────────────────────────────────────────────
   let volumeBand: StoredDhwV1Result['recommended']['volumeBand'];

@@ -32,26 +32,40 @@ import { runCylinderSizingModule } from './modules/CylinderSizingModule';
 import { ENGINE_MODULE_REGISTRY } from './modules/EngineModuleRegistry';
 
 /**
- * Maps EngineInputV2_3.currentHeatSourceType to a HeatSourceBehaviourInput.systemType
- * for building the PR1 SystemTopology.
+ * Maps EngineInputV2_3.currentHeatSourceType (and optional dhwStorageType) to a
+ * HeatSourceBehaviourInput.systemType for building the PR1 SystemTopology.
  *
  * Mapping:
- *   'combi'   → 'combi'        → appliance.family: 'combi'
- *   'system'  → 'stored_water' → appliance.family: 'system'
- *   'regular' → 'open_vented'  → appliance.family: 'open_vented'
- *   'ashp'    → 'heat_pump'    → appliance.family: 'heat_pump'
- *   'other' / undefined → 'stored_water' (conservative default)
+ *   'combi'                              → 'combi'        → appliance.family: 'combi'
+ *   'system'                             → 'stored_water' → appliance.family: 'system'
+ *   'regular' + unvented/mixergy storage → 'stored_water' → appliance.family: 'system'
+ *   'regular' + vented/absent storage    → 'open_vented'  → appliance.family: 'open_vented'
+ *   'ashp'                               → 'heat_pump'    → appliance.family: 'heat_pump'
+ *   'other' / undefined                  → 'stored_water' (conservative default)
+ *
+ * IMPORTANT: A regular (heat-only) boiler can serve EITHER a vented (tank-fed,
+ * open primary circuit) OR an unvented (mains-pressure, sealed cylinder) hot-water
+ * arrangement.  Inferring open_vented from 'regular' alone is physically wrong.
+ * Use dhwStorageType to distinguish these two topologies.
  */
 function toHeatSourceSystemType(
   heatSourceType: EngineInputV2_3['currentHeatSourceType'],
+  dhwStorageType?: EngineInputV2_3['dhwStorageType'],
 ): HeatSourceBehaviourInput['systemType'] {
   switch (heatSourceType) {
-    case 'combi':   return 'combi';
-    case 'ashp':    return 'heat_pump';
-    case 'regular': return 'open_vented';
+    case 'combi':  return 'combi';
+    case 'ashp':   return 'heat_pump';
+    case 'regular':
+      // A regular boiler can serve either a vented (tank-fed) or unvented (mains-pressure)
+      // cylinder.  Only use the open_vented path when dhwStorageType explicitly says
+      // 'vented', or when dhwStorageType is absent/unknown (backwards-compatible default).
+      if (dhwStorageType === 'unvented' || dhwStorageType === 'mixergy') {
+        return 'stored_water'; // regular + unvented → sealed cylinder physics
+      }
+      return 'open_vented'; // regular + vented or unknown → tank-fed path
     case 'system':
     case 'other':
-    default:        return 'stored_water';
+    default:       return 'stored_water';
   }
 }
 
@@ -79,7 +93,7 @@ function selectRunner(
 
 export function runEngine(input: EngineInputV2_3): FullEngineResult {
   // ── Step 1: Build topology from input — determines which runner to delegate to ──
-  const systemType = toHeatSourceSystemType(input.currentHeatSourceType);
+  const systemType = toHeatSourceSystemType(input.currentHeatSourceType, input.dhwStorageType);
   const topology = buildSystemTopologyFromSpec({ systemType });
 
   // ── Step 2: Delegate to the topology-aware family runner ─────────────────

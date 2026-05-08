@@ -26,7 +26,7 @@ import type {
   RejectedSystem,
   FlaggedSystem,
 } from './RecommendationVerdictV1';
-import { buildCustomerFacingRecommendationLabel } from './buildCustomerFacingRecommendationLabel';
+import { buildCustomerFacingRecommendationLabel, type DhwSubtypeContext } from './buildCustomerFacingRecommendationLabel';
 
 // ─── Family label helper ──────────────────────────────────────────────────────
 
@@ -35,8 +35,33 @@ import { buildCustomerFacingRecommendationLabel } from './buildCustomerFacingRec
  * buildCustomerFacingRecommendationLabel as the single source of truth.
  * No local label map is maintained here — all copies go through the resolver.
  */
-function familyLabel(family: ApplianceFamily): string {
-  return buildCustomerFacingRecommendationLabel(family);
+function familyLabel(family: ApplianceFamily, dhwSubtype?: DhwSubtypeContext): string {
+  return buildCustomerFacingRecommendationLabel(family, dhwSubtype);
+}
+
+/**
+ * Derive the DHW subtype context for a recommended family from the engine input.
+ *
+ * When the recommended family is 'system' but the current heat source is a
+ * regular (heat-only) boiler with an unvented cylinder, the label must say
+ * "Regular boiler with unvented cylinder" rather than "System boiler…" —
+ * these are physically different appliances at different price points.
+ *
+ * The 'regular_unvented' subtype signals this like-for-like topology so that
+ * buildCustomerFacingRecommendationLabel emits the correct customer label.
+ */
+function deriveDhwSubtype(
+  family: ApplianceFamily,
+  input: EngineInputV2_3,
+): DhwSubtypeContext | undefined {
+  if (
+    family === 'system' &&
+    input.currentHeatSourceType === 'regular' &&
+    (input.dhwStorageType === 'unvented' || input.dhwStorageType === 'mixergy')
+  ) {
+    return 'regular_unvented';
+  }
+  return undefined;
 }
 
 // ─── Hard-rejection map ───────────────────────────────────────────────────────
@@ -220,16 +245,24 @@ export function buildRecommendationVerdict(
 
   // ── Primary reason (from evidence, not lifestyle) ─────────────────────────
   const winningDecision = allDecisions.find(d => d.family === recommendedFamily);
+  const dhwSubtypeContext = recommendedFamily != null ? deriveDhwSubtype(recommendedFamily, input) : undefined;
   const primaryReason = winningDecision != null && winningDecision.caveats.length === 0
-    ? `${familyLabel(winningDecision.family)} scores highest across performance, reliability, and longevity for this home.`
+    ? `${familyLabel(winningDecision.family, dhwSubtypeContext)} scores highest across performance, reliability, and longevity for this home.`
     : winningDecision != null
-    ? `${familyLabel(winningDecision.family)} is the best-fit option — ${winningDecision.caveats[0] ?? 'see check items below'}.`
+    ? `${familyLabel(winningDecision.family, dhwSubtypeContext)} is the best-fit option — ${winningDecision.caveats[0] ?? 'see check items below'}.`
     : null;
 
   // ── What this avoids ──────────────────────────────────────────────────────
   const whatThisAvoids: string[] = [];
   for (const rejected of rejectedSystems) {
-    whatThisAvoids.push(`${familyLabel(rejected.family)}: ${rejected.reason}`);
+    // Do not include the selected topology in the avoids list — if the recommended
+    // family and a rejected family share the same customer-facing label, skip it.
+    const rejectedLabel = familyLabel(rejected.family);
+    const recommendedLabelStr = recommendedFamily != null
+      ? familyLabel(recommendedFamily, dhwSubtypeContext)
+      : null;
+    if (rejectedLabel === recommendedLabelStr) continue;
+    whatThisAvoids.push(`${rejectedLabel}: ${rejected.reason}`);
   }
 
   // ── Check items ───────────────────────────────────────────────────────────
@@ -247,7 +280,7 @@ export function buildRecommendationVerdict(
 
   return {
     recommendedFamily,
-    recommendedLabel: recommendedFamily != null ? familyLabel(recommendedFamily) : null,
+    recommendedLabel: recommendedFamily != null ? familyLabel(recommendedFamily, dhwSubtypeContext) : null,
     primaryReason,
     whatThisAvoids,
     checkItems,
