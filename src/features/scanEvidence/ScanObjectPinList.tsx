@@ -156,7 +156,7 @@ function PinRow({
           kind="object_pin"
           currentStatus={decision?.status}
           currentNote={decision?.engineerNote}
-          onDecide={onDecide}
+          onDecide={(itemId, _kind, status, note) => onDecide(itemId, 'object_pin', status, note)}
           onClear={onClear}
         />
       )}
