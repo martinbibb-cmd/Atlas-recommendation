@@ -147,7 +147,7 @@ function minRatingBand(a: RatingBand, b: RatingBand): RatingBand {
   const aIndex = RATING_BAND_ORDER.indexOf(a);
   const bIndex = RATING_BAND_ORDER.indexOf(b);
   if (aIndex < 0 || bIndex < 0) {
-    throw new Error(`Invalid rating band: ${a} / ${b}`);
+    throw new Error(`Invalid rating band(s): a="${a}", b="${b}"`);
   }
   return RATING_BAND_ORDER[Math.max(aIndex, bIndex)];
 }
@@ -1227,7 +1227,7 @@ function buildImprovements(
       title: 'Upgrade Cylinder to Mixergy',
       impact: 'efficiency',
       explanation:
-        'Mixergy can be beneficial for this home because multiple demand signals were identified. ' +
+        `${mixergySignals} demand signals were identified for this home. ` +
         'It mirrors demand, keeps usable hot water available at the top of the store, and reduces reheat cycling compared with standard cylinders.',
     });
   }

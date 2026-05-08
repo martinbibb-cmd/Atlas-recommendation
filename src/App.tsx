@@ -806,7 +806,10 @@ function AppInner() {
     if (labEngineInput === undefined) {
       try {
         setLabEngineInput(toEngineInput(sanitiseModelForEngine(persisted.survey)));
-      } catch {
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[Atlas] Could not rebuild engine input from recovered visit survey', err);
+        }
         // Keep restored survey even if engine input conversion fails.
       }
     }
@@ -1568,7 +1571,7 @@ function AppInner() {
             Recovered previous visit
           </p>
           <p style={{ margin: '0.4rem 0 0', fontSize: '0.85rem', color: '#334155' }}>
-            Visit survey — saved {formatSavedAgo(visitRecoveryPrompt.updatedAt)}
+            Visit survey saved {formatSavedAgo(visitRecoveryPrompt.updatedAt)}
             {visitRecoveryPrompt.restoredFromTemp ? ' (recovered from incomplete save)' : ''}
           </p>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem' }}>
