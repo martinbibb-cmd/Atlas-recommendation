@@ -273,6 +273,14 @@ export function buildCustomerPackV1(
     );
   }
 
+  const heroRecommendation = resolveSystemLabel(recommended).trim().toLowerCase();
+  const recommendedScenarioLabel = (recommended.display?.label ?? resolveSystemLabel(recommended))
+    .trim()
+    .toLowerCase();
+  if (heroRecommendation !== recommendedScenarioLabel) {
+    throw new Error('Customer recommendation mismatch');
+  }
+
   // Future paths: union of decision futureUpgradePaths and quoteScope future items
   const futureSet = new Set<string>(decision.futureUpgradePaths);
   for (const item of decision.quoteScope) {

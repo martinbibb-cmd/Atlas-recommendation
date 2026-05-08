@@ -88,6 +88,10 @@ import { buildInsightPackFromEngine } from './features/insightPack/buildInsightP
 import type { InsightPackSurveyContext } from './features/insightPack/buildInsightPackFromEngine';
 import type { QuoteInput } from './features/insightPack/insightPack.types';
 import type { LifecycleBoilerType } from './contracts/LifecycleAssessment';
+import type { EngineOutputV1 } from './contracts/EngineOutputV1';
+import type { AtlasDecisionV1 } from './contracts/AtlasDecisionV1';
+import type { ScenarioResult } from './contracts/ScenarioResult';
+import type { CustomerSummaryV1 } from './contracts/CustomerSummaryV1';
 import {
   writeVersionedCache,
   readVersionedCache,
@@ -109,6 +113,12 @@ import { SpecificationErrorBoundary } from './features/installationSpecification
 import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
 import type { CanonicalCurrentSystemSummary } from './features/installationSpecification/ui/installationSpecificationUiTypes';
 import type { InstallationSpecificationOptionV1 } from './features/installationSpecification/model/QuoteInstallationPlanV1';
+import {
+  saveVisitAtomically,
+  readPersistedAtlasVisitV2,
+  clearPersistedAtlasVisitV2,
+  type PersistedAtlasVisitV2,
+} from './lib/storage/persistedAtlasVisitV2';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -138,6 +148,16 @@ function toLifecycleBoilerType(
     return value;
   }
   return 'regular';
+}
+
+function formatSavedAgo(updatedAt: string): string {
+  const savedMs = new Date(updatedAt).getTime();
+  if (!Number.isFinite(savedMs)) return 'just now';
+  const deltaMins = Math.max(0, Math.round((Date.now() - savedMs) / 60000));
+  if (deltaMins <= 1) return 'just now';
+  if (deltaMins < 60) return `${deltaMins} mins ago`;
+  const hours = Math.round(deltaMins / 60);
+  return `${hours}h ago`;
 }
 
 /** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
@@ -675,6 +695,12 @@ function AppInner() {
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>(
     ENGINEER_VISIT_ID ?? INITIAL_VISIT_ID_PARAM ?? _restoredVisit?.value?.visitId ?? undefined,
   );
+  const [visitRecoveryPrompt, setVisitRecoveryPrompt] = useState<{
+    visitId: string;
+    updatedAt: string;
+    restoredFromTemp: boolean;
+  } | null>(null);
+  const [hydratedPersistedVisitId, setHydratedPersistedVisitId] = useState<string | null>(null);
   /**
    * Active AtlasVisit — carries the visitId and attached brandId for the
    * current visit session.  Initialized from sessionStorage so that a
@@ -757,6 +783,82 @@ function AppInner() {
     const timer = setTimeout(() => setCacheNotice(null), 4000);
     return () => clearTimeout(timer);
   }, [cacheNotice]);
+
+  useEffect(() => {
+    if (!activeVisitId || ENGINEER_VISIT_ID != null) return;
+    if (hydratedPersistedVisitId === activeVisitId) return;
+
+    const restored = readPersistedAtlasVisitV2(activeVisitId);
+    if (restored.schemaMismatch) {
+      setCacheNotice('stale');
+    }
+    if (!restored.visit) {
+      setHydratedPersistedVisitId(activeVisitId);
+      return;
+    }
+
+    const persisted = restored.visit;
+    setLabFullSurveyModel(persisted.survey);
+    if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
+    if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
+    if (persisted.survey.fullSurvey?.quotes) setLabQuotes(persisted.survey.fullSurvey.quotes);
+
+    if (labEngineInput == null) {
+      try {
+        setLabEngineInput(toEngineInput(sanitiseModelForEngine(persisted.survey)));
+      } catch {
+        // Keep restored survey even if engine input conversion fails.
+      }
+    }
+
+    setVisitRecoveryPrompt({
+      visitId: persisted.visitId,
+      updatedAt: persisted.updatedAt,
+      restoredFromTemp: restored.restoredFromTemp,
+    });
+    setHydratedPersistedVisitId(activeVisitId);
+  }, [activeVisitId, hydratedPersistedVisitId, labEngineInput]);
+
+  useEffect(() => {
+    if (!activeVisitId || !labFullSurveyModel || ENGINEER_VISIT_ID != null) return;
+
+    let engineSnapshot: EngineOutputV1 | undefined;
+    let scenariosSnapshot: ScenarioResult[] | undefined;
+    let decisionSnapshot: AtlasDecisionV1 | undefined;
+    let customerSummarySnapshot: CustomerSummaryV1 | undefined;
+
+    try {
+      const sourceInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel));
+      const { engineOutput } = runEngine(sourceInput);
+      engineSnapshot = engineOutput;
+      scenariosSnapshot = buildScenariosFromEngineOutput(engineOutput);
+      if (scenariosSnapshot.length > 0) {
+        decisionSnapshot = buildDecisionFromScenarios({
+          scenarios: scenariosSnapshot,
+          boilerType: toLifecycleBoilerType(sourceInput.currentHeatSourceType),
+          ageYears: sourceInput.currentSystem?.boiler?.ageYears ?? 0,
+          occupancyCount: sourceInput.occupancyCount,
+          bathroomCount: sourceInput.bathroomCount,
+          showerCompatibilityNote: engineOutput.showerCompatibilityNote,
+        });
+        customerSummarySnapshot = buildCustomerSummary(decisionSnapshot, scenariosSnapshot);
+      }
+    } catch {
+      // Persist survey even when derived snapshots cannot be computed.
+    }
+
+    const persisted: PersistedAtlasVisitV2 = {
+      schemaVersion: 2,
+      visitId: activeVisitId,
+      updatedAt: new Date().toISOString(),
+      survey: labFullSurveyModel,
+      engine: engineSnapshot,
+      decision: decisionSnapshot,
+      scenarios: scenariosSnapshot,
+      customerSummary: customerSummarySnapshot,
+    };
+    saveVisitAtomically(persisted);
+  }, [activeVisitId, labFullSurveyModel, labEngineInput]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -1445,6 +1547,59 @@ function AppInner() {
             : 'Cache version changed — started fresh'}
         </div>
       )}
+      {visitRecoveryPrompt !== null && (
+        <div
+          role="dialog"
+          aria-label="Recovered previous visit"
+          style={{
+            position: 'fixed',
+            top: '1rem',
+            right: '1rem',
+            background: '#ffffff',
+            border: '1px solid #cbd5e1',
+            borderRadius: '0.75rem',
+            padding: '0.9rem',
+            width: 'min(22rem, calc(100vw - 2rem))',
+            zIndex: 10000,
+            boxShadow: '0 8px 24px rgba(15,23,42,0.18)',
+          }}
+        >
+          <p style={{ margin: 0, fontWeight: 700, color: '#0f172a' }}>
+            Recovered previous visit
+          </p>
+          <p style={{ margin: '0.4rem 0 0', fontSize: '0.85rem', color: '#334155' }}>
+            Visit survey — saved {formatSavedAgo(visitRecoveryPrompt.updatedAt)}
+            {visitRecoveryPrompt.restoredFromTemp ? ' (recovered from incomplete save)' : ''}
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.7rem' }}>
+            <button
+              type="button"
+              className="next-btn"
+              onClick={() => {
+                setJourney('visit');
+                setVisitRecoveryPrompt(null);
+              }}
+            >
+              Resume
+            </button>
+            <button
+              type="button"
+              className="back-btn"
+              onClick={() => {
+                clearPersistedAtlasVisitV2(visitRecoveryPrompt.visitId);
+                setLabFullSurveyModel(undefined);
+                setLabEngineInput(undefined);
+                setLabQuotes([]);
+                setLabHeatLossState(undefined);
+                setLabPrioritiesState(undefined);
+                setVisitRecoveryPrompt(null);
+              }}
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
       {/* /report/:id — render a saved report by ID */}
       {journey === 'report' && activeReportId != null && (
         <ReportPage
@@ -1766,6 +1921,8 @@ function AppInner() {
           peakConcurrentOutlets: labEngineInput.peakConcurrentOutlets,
           mainsDynamicFlowLpm: labEngineInput.mainsDynamicFlowLpm,
           heatLossWatts: labEngineInput.heatLossWatts,
+          highDrawFrequency: (labEngineInput.peakConcurrentOutlets ?? 0) >= 2,
+          solarPVPresent: labEngineInput.pvStatus === 'existing' || labEngineInput.pvStatus === 'planned',
         };
         const ipScenarios = buildScenariosFromEngineOutput(engineOutput);
         const ipDecision = ipScenarios.length > 0

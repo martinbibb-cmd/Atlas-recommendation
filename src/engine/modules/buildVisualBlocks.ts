@@ -175,11 +175,11 @@ function formatDwellingType(v: string): string {
 
 function formatDhwDeliveryMode(v: string): string {
   const map: Record<string, string> = {
-    gravity: 'Tank-fed (gravity)',
-    pumped_from_tank: 'Tank-fed (pumped)',
-    tank_pumped: 'Tank-fed (pumped)',
-    pumped: 'Tank-fed (pumped)',
-    mains_mixer: 'Mains-fed (mixer)',
+    gravity: 'Tank-fed supply',
+    pumped_from_tank: 'Tank-fed supply (pumped)',
+    tank_pumped: 'Tank-fed supply (pumped)',
+    pumped: 'Tank-fed supply (pumped)',
+    mains_mixer: 'Mains-fed supply',
     accumulator_supported: 'Accumulator-supported',
     break_tank_booster: 'Break-tank booster',
     electric_cold_only: 'Electric cold only',
@@ -332,7 +332,7 @@ function buildProblemBlock(
   if (weaker.keyConstraints.length === 0) return null;
 
   const homeNeedLabels: Record<ScenarioResult['system']['type'], string> = {
-    combi:   'stored hot water',
+    combi:   'tank-fed hot water',
     system:  'mains-fed supply',
     regular: 'mains-fed supply',
     ashp:    'a conventional system',
