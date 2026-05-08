@@ -967,9 +967,9 @@ export default function VisitHubPage({
   installationSpecOptionCount,
 }: Props) {
   const scanCapture = useScanCaptureForVisit(visitId);
-  const scanCaptureRecord = scanCapture as unknown as Record<string, unknown> | null;
-  const spatialEvidenceGraph = scanCaptureRecord?.['spatialEvidenceGraph'];
-  const unresolvedEvidence = scanCaptureRecord?.['unresolvedEvidence'];
+  const scanCaptureData = scanCapture as unknown as Record<string, unknown> | null;
+  const spatialEvidenceGraph = scanCaptureData?.['spatialEvidenceGraph'];
+  const unresolvedEvidence = scanCaptureData?.['unresolvedEvidence'];
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

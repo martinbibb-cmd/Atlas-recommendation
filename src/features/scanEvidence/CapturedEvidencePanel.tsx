@@ -120,6 +120,16 @@ function normalizeMeasurements(value: unknown): string[] {
   return out;
 }
 
+/**
+ * Normalizes a capture-point node from Scan handoff evidence.
+ *
+ * Supported source shapes:
+ * - Canonical keys: capturePointId, anchorConfidence, surfaceSemantic, needsReview
+ * - Alternate keys: id/confidence/semantic/reviewStatus
+ * - Nested evidence bucket: evidence.{objectPins,photos,voice,transcripts,ghostAppliances,measurements}
+ *
+ * Precedence is "direct field first, nested evidence fallback".
+ */
 function normalizeCapturePoint(raw: unknown, index: number): NormalizedCapturePoint {
   const obj = asObject(raw);
   const evidence = obj ? asObject(obj['evidence']) : null;
@@ -221,6 +231,17 @@ function normalizeRoom(raw: unknown, index: number): NormalizedRoom {
   };
 }
 
+/**
+ * Normalizes Scan's spatialEvidenceGraph into room -> capture-point groups.
+ *
+ * Supported graph shapes:
+ * - graph.rooms[] / graph.roomNodes[] (preferred structured room shape)
+ * - graph.capturePoints[] / graph.capture_points[] / graph.nodes[] (flat points)
+ * - graph as a flat array of capture points
+ *
+ * Flat points are grouped by roomId (fallback "room-unknown"), preserving
+ * capturePointId linkage for downstream engineer review.
+ */
 function normalizeSpatialEvidenceGraph(graph: unknown): NormalizedRoom[] {
   const graphObj = asObject(graph);
   const roomsRaw = graphObj
