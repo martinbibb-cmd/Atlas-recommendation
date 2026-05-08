@@ -125,6 +125,7 @@ export function FluePlanStep({
 
   const segments = localRoute.geometry?.segments ?? [];
   const calculation = localRoute.calculation;
+  const flueLinks = evidenceProofLinks?.filter((l) => l.section === 'flue') ?? [];
 
   return (
     <>
@@ -134,15 +135,12 @@ export function FluePlanStep({
         Build the flue route and check the equivalent length.
       </p>
 
-      {(() => {
-        const flueLinks = evidenceProofLinks?.filter((l) => l.section === 'flue') ?? [];
-        return flueLinks.length > 0 ? (
-          <EvidenceProofBlock
-            links={flueLinks}
-            onOpenCapturePoint={onOpenEvidenceCapture}
-          />
-        ) : null;
-      })()}
+      {flueLinks.length > 0 && (
+        <EvidenceProofBlock
+          links={flueLinks}
+          onOpenCapturePoint={onOpenEvidenceCapture}
+        />
+      )}
 
       {/* 1. Flue family */}
       <section className="flue-plan-section" aria-labelledby="flue-family-heading">

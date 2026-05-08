@@ -185,7 +185,15 @@ function normaliseGraph(graph: unknown): NormalisedRoom[] {
 
 // ─── Section classification ───────────────────────────────────────────────────
 
-/** Keywords in an object-pin label that map to a proposal section. */
+/**
+ * Keywords in an object-pin label that map to the 'boiler' proposal section.
+ *
+ * The 'boiler' section covers the proposed heat source regardless of technology
+ * type — gas boiler, back boiler, combi, or heat pump.  When the scan captures
+ * a heat pump unit pin, it belongs to the same "proposed heat source" proposal
+ * step that gas-boiler pins belong to.  Separate physics treatment of heat pump
+ * vs. gas happens in the engine, not here.
+ */
 const BOILER_KEYWORDS = [
   'boiler', 'heat_pump', 'heat pump', 'furnace', 'back boiler',
   'system boiler', 'combi', 'combination',
@@ -238,6 +246,10 @@ function aggregateStatus(
   if (refs.every((r) => r.isResolved)) return 'confirmed';
   if (refs.some((r) => r.isResolved)) return 'needs_review';
   return 'unresolved';
+}
+
+function measurementLabel(count: number): string {
+  return `${count} measurement${count !== 1 ? 's' : ''}`;
 }
 
 // ─── buildEvidenceProofLinks ──────────────────────────────────────────────────
@@ -340,13 +352,14 @@ export function buildEvidenceProofLinks(
 
       // Measurements → always relevant; classify by surface semantic if available
       if (cp.measurements.length > 0) {
+        const mLabel = measurementLabel(cp.measurements.length);
         const surfaceSections = new Set(sectionsForSurface(cp.surfaceSemantic));
         if (surfaceSections.size > 0) {
           for (const section of surfaceSections) {
             push(section, {
               capturePointId: cp.id,
               storyboardCardKey: 'measurements',
-              label: `${cp.measurements.length} measurement${cp.measurements.length !== 1 ? 's' : ''}`,
+              label: mLabel,
               isResolved: resolved,
             });
           }
@@ -354,7 +367,7 @@ export function buildEvidenceProofLinks(
           push('general', {
             capturePointId: cp.id,
             storyboardCardKey: 'measurements',
-            label: `${cp.measurements.length} measurement${cp.measurements.length !== 1 ? 's' : ''}`,
+            label: mLabel,
             isResolved: resolved,
           });
         }

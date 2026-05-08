@@ -438,6 +438,9 @@ export function InstallationSpecificationStepper({
     [spatialEvidenceGraph],
   );
 
+  // Convenience: non-empty proof links to pass to child components (undefined when empty).
+  const propsEvidenceLinks = evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined;
+
   // Build default packs for the pack showroom
   const { packCards, showroomContext } = useMemo(
     () => buildDefaultQuotePacks({
@@ -445,9 +448,9 @@ export function InstallationSpecificationStepper({
       seedProposedSystem: seedProposedSystem ?? null,
       enginePrimaryReason: engineRecommendationReason ?? null,
       siteConstraints: siteConditions,
-      evidenceProofLinks: evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined,
+      evidenceProofLinks: propsEvidenceLinks,
     }),
-    [canonicalCurrentSystem, seedProposedSystem, engineRecommendationReason, siteConditions, evidenceProofLinks],
+    [canonicalCurrentSystem, seedProposedSystem, engineRecommendationReason, siteConditions, propsEvidenceLinks],
   );
 
   // Derive active step list from proposed system selection.
@@ -652,7 +655,7 @@ export function InstallationSpecificationStepper({
             }}
             ashpExceptionNote={ashpExceptionNote}
             onAshpExceptionNoteChange={setAshpExceptionNote}
-            evidenceProofLinks={evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined}
+            evidenceProofLinks={propsEvidenceLinks}
             onOpenEvidenceCapture={onOpenEvidenceCapture}
           />
         );
@@ -664,7 +667,7 @@ export function InstallationSpecificationStepper({
             proposedHeatSource={proposedHeatSource}
             selected={proposedHotWater}
             onSelect={setProposedHotWater}
-            evidenceProofLinks={evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined}
+            evidenceProofLinks={propsEvidenceLinks}
             onOpenEvidenceCapture={onOpenEvidenceCapture}
           />
         );
@@ -696,7 +699,7 @@ export function InstallationSpecificationStepper({
             flueRoute={flueRoute}
             onFlueRouteChange={setFlueRoute}
             locations={locations}
-            evidenceProofLinks={evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined}
+            evidenceProofLinks={propsEvidenceLinks}
             onOpenEvidenceCapture={onOpenEvidenceCapture}
           />
         );

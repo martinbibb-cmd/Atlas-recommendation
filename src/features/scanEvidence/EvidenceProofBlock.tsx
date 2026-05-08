@@ -53,11 +53,11 @@ const CARD_KEY_LABELS: Record<EvidenceCaptureRef['storyboardCardKey'], string> =
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function CaptureRefPill({
-  ref: captureRef,
+  captureRef,
   customerFacing,
   onOpen,
 }: {
-  ref: EvidenceCaptureRef;
+  captureRef: EvidenceCaptureRef;
   customerFacing: boolean;
   onOpen?: EvidenceProofBlockProps['onOpenCapturePoint'];
 }) {
@@ -225,7 +225,7 @@ export function EvidenceProofBlock({
         {deduped.map((ref, idx) => (
           <CaptureRefPill
             key={`${ref.capturePointId}-${ref.storyboardCardKey}-${idx}`}
-            ref={ref}
+            captureRef={ref}
             customerFacing={customerFacing}
             onOpen={onOpenCapturePoint}
           />

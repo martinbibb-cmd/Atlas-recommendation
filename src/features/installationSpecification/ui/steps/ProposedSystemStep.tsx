@@ -129,6 +129,8 @@ export function ProposedSystemStep({
     ? ALL_PROPOSED_TILES.filter((t) => !isGasBoilerProposedHeatSource(t.value))
     : ALL_PROPOSED_TILES;
 
+  const boilerLinks = evidenceProofLinks?.filter((l) => l.section === 'boiler') ?? [];
+
   function handleAshpExceptionOpen() {
     setShowAshpException(true);
   }
@@ -175,15 +177,12 @@ export function ProposedSystemStep({
         })}
       </div>
 
-      {(() => {
-        const boilerLinks = evidenceProofLinks?.filter((l) => l.section === 'boiler') ?? [];
-        return boilerLinks.length > 0 ? (
-          <EvidenceProofBlock
-            links={boilerLinks}
-            onOpenCapturePoint={onOpenEvidenceCapture}
-          />
-        ) : null;
-      })()}
+      {boilerLinks.length > 0 && (
+        <EvidenceProofBlock
+          links={boilerLinks}
+          onOpenCapturePoint={onOpenEvidenceCapture}
+        />
+      )}
 
       {/* ASHP → gas exception path */}
       {isCurrentHeatPump && !showAshpException && (
