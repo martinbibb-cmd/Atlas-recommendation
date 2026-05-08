@@ -195,7 +195,7 @@ function normaliseGraph(graph: unknown): NormalisedRoom[] {
  * vs. gas happens in the engine, not here.
  */
 const BOILER_KEYWORDS = [
-  'boiler', 'heat_pump', 'heat pump', 'furnace', 'back boiler',
+  'boiler', 'heat_pump', 'heat pump', 'furnace',
   'system boiler', 'combi', 'combination',
 ];
 const CYLINDER_KEYWORDS = [
