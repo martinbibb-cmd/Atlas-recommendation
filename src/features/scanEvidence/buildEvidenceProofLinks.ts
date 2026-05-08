@@ -86,7 +86,7 @@ function readNumber(value: unknown): number | null {
 }
 
 /**
- * Normalises category/template strings into stable lowercase tokens.
+ * Normalizes category/template strings into stable lowercase tokens.
  * Converts spaces and slashes to underscores and strips punctuation.
  *
  * @param value - The raw category/template string to normalize.
@@ -328,7 +328,7 @@ function buildManualIdentityLabel(manualEntry: UnknownRecord): string {
 }
 
 /**
- * Normalises mixed pin payloads (string labels or structured objects) into a
+ * Normalizes mixed pin payloads (string labels or structured objects) into a
  * unified object-pin model with section mapping and review status.
  *
  * @param value - Mixed array of string labels or structured equipment pin objects.
@@ -352,6 +352,10 @@ function normaliseObjectPins(value: unknown): NormalisedObjectPin[] {
 
     const objectCategory = readString(obj['objectCategory']);
     const selectedTemplateId = readString(obj['selectedTemplateId']);
+    const objectCategoryToken =
+      objectCategory != null ? normaliseToken(objectCategory) : null;
+    const selectedTemplateToken =
+      selectedTemplateId != null ? normaliseToken(selectedTemplateId) : null;
     const locationContext = readString(obj['locationContext']);
     const provenance = readString(obj['provenance']);
     const reviewStatus = readString(obj['reviewStatus']);
@@ -384,13 +388,13 @@ function normaliseObjectPins(value: unknown): NormalisedObjectPin[] {
     ].filter((s, i, arr) => arr.indexOf(s) === i);
 
     const isPlaceholder =
-      (selectedTemplateId != null &&
-        (normaliseToken(selectedTemplateId).includes('unknown') ||
-          normaliseToken(selectedTemplateId).includes('placeholder') ||
-          normaliseToken(selectedTemplateId).includes('manual'))) ||
-      (objectCategory != null &&
-        (normaliseToken(objectCategory).includes('unknown') ||
-          normaliseToken(objectCategory).includes('placeholder'))) ||
+      (selectedTemplateToken != null &&
+        (selectedTemplateToken.includes('unknown') ||
+          selectedTemplateToken.includes('placeholder') ||
+          selectedTemplateToken.includes('manual'))) ||
+      (objectCategoryToken != null &&
+        (objectCategoryToken.includes('unknown') ||
+          objectCategoryToken.includes('placeholder'))) ||
       (manualEntry != null && manualIdentity.length === 0);
 
     const needsReview =
