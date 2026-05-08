@@ -251,6 +251,32 @@ describe('buildScenariosFromEngineOutput — Mixergy display propagation', () =>
     const combiScenario = scenarios.find(s => s.scenarioId === 'combi');
     expect(combiScenario?.display?.title).toBe('Combi boiler');
   });
+
+  it('caps stored hot-water performance below excellent when pressure constraint is present', () => {
+    const constrainedOutput: EngineOutputV1 = {
+      recommendation: { primary: 'Stored system' },
+      options: [
+        {
+          id: 'system_unvented',
+          label: 'Stored system',
+          status: 'viable',
+          headline: 'Stored hot water',
+          why: ['Stored system selected'],
+          requirements: [],
+          dhw: { status: 'ok', bullets: [] },
+          heat: { status: 'ok', bullets: [] },
+          sensitivities: [{ lever: 'mains_pressure', effect: 'downgrade', note: 'Peak draw pressure drops' }],
+        },
+      ],
+      confidence: { level: 'high', score: 0.9, reasons: [] },
+      limiterLedger: { limiters: [] },
+      version: '1.0',
+      explainers: [],
+    } as unknown as EngineOutputV1;
+
+    const scenarios = buildScenariosFromEngineOutput(constrainedOutput);
+    expect(scenarios[0]?.performance.hotWater).toBe('good');
+  });
 });
 
 // ─── Integration: buildDecisionFromScenarios headline ────────────────────────

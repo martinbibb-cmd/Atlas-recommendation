@@ -554,6 +554,23 @@ function InstallComplexityBadge({ decision }: { decision: AtlasDecisionV1 }) {
   );
 }
 
+function hasTwoMixergyQualifyingSignals(scenario: ScenarioResult | undefined): boolean {
+  if (!scenario) return false;
+  const {
+    pressureConstraint,
+    combiFlowRisk,
+    hydraulicLimit,
+    highTempRequired,
+  } = scenario.physicsFlags;
+  const count = [
+    pressureConstraint,
+    combiFlowRisk,
+    hydraulicLimit,
+    highTempRequired,
+  ].filter(Boolean).length;
+  return count >= 2;
+}
+
 /**
  * AI-Ready Context Block — structured text block for AI querying.
  * Placed in each page footer area (collapsed by default in screen view).
@@ -587,8 +604,11 @@ function AiContextBlock({
     recommendedScenario?.system.type === 'system' ||
     recommendedScenario?.system.type === 'regular';
   const mixeryBridge =
-    isStoredSystem && recommendedScenario?.physicsFlags.pressureConstraint && recommendedScenario?.dhwSubtype === 'mixergy'
-      ? 'Stored hot water cylinder selected because it operates from tank-fed supply pressures — mains-pressure ready for future improvement.'
+    isStoredSystem &&
+    recommendedScenario?.physicsFlags.pressureConstraint &&
+    recommendedScenario?.dhwSubtype === 'mixergy' &&
+    hasTwoMixergyQualifyingSignals(recommendedScenario)
+      ? 'Stored hot water is the right approach, but the incoming supply still limits peak performance.'
       : '';
 
   // Three-Year Roadmap context — triggered by at_risk condition on stored system
@@ -676,7 +696,12 @@ function MixeryBridgePanel({
   const isStoredSystem =
     recommendedScenario.system.type === 'system' ||
     recommendedScenario.system.type === 'regular';
-  if (!isStoredSystem || !recommendedScenario.physicsFlags.pressureConstraint || recommendedScenario.dhwSubtype !== 'mixergy') return null;
+  if (
+    !isStoredSystem ||
+    !recommendedScenario.physicsFlags.pressureConstraint ||
+    recommendedScenario.dhwSubtype !== 'mixergy' ||
+    !hasTwoMixergyQualifyingSignals(recommendedScenario)
+  ) return null;
 
   return (
     <section
@@ -686,9 +711,9 @@ function MixeryBridgePanel({
     >
       <p className="capp-mixery-bridge__heading">Why Mixergy?</p>
       <p className="capp-mixery-bridge__body">
-        Mixergy is selected because it operates efficiently from tank-fed supply pressures
-        upward — an immediate upgrade for your current setup. If your external mains supply
-        is ever improved, the system is already mains-pressure ready.
+        Stored hot water is the right approach, but the incoming supply still limits peak
+        performance. Mixergy remains a robust tank-fed supply choice and keeps a future
+        mains-fed upgrade path open.
       </p>
     </section>
   );

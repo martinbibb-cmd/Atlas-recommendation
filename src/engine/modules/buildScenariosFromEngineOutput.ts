@@ -49,9 +49,23 @@ function planeStatusToBand(status: string): ScenarioPerformance['hotWater'] {
   }
 }
 
-function derivePerformance(option: OptionCardV1): ScenarioPerformance {
+function derivePerformance(
+  option: OptionCardV1,
+  physicsFlags: ScenarioPhysicsFlags,
+): ScenarioPerformance {
+  const isStoredOption =
+    option.id === 'stored_unvented' ||
+    option.id === 'system_unvented' ||
+    option.id === 'stored_vented' ||
+    option.id === 'regular_vented';
+  const baseHotWaterBand = planeStatusToBand(option.dhw.status);
+  const cappedHotWaterBand =
+    isStoredOption && physicsFlags.pressureConstraint && baseHotWaterBand === 'excellent'
+      ? 'good'
+      : baseHotWaterBand;
+
   return {
-    hotWater:   planeStatusToBand(option.dhw.status),
+    hotWater:   cappedHotWaterBand,
     heating:    planeStatusToBand(option.heat.status),
     efficiency: option.status === 'viable' ? 'very_good' : option.status === 'caution' ? 'good' : 'poor',
     reliability: option.status === 'viable' ? 'very_good' : option.status === 'caution' ? 'needs_setup' : 'poor',
@@ -97,6 +111,7 @@ function deriveEfficiencyMetric(option: OptionCardV1): ScenarioResult['efficienc
 
 function adaptOption(option: OptionCardV1): ScenarioResult {
   const systemType = OPTION_ID_TO_SYSTEM_TYPE[option.id] ?? 'combi';
+  const physicsFlags = derivePhysicsFlags(option);
 
   // 'viable' options: why[] contains positive reasons → keyBenefits.
   // 'caution' options: why[] contains constraint/caution reasons → keyConstraints.
@@ -139,13 +154,13 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
   return {
     scenarioId:       option.id,
     system:           { type: systemType, summary: option.headline || option.label },
-    performance:      derivePerformance(option),
+    performance:      derivePerformance(option, physicsFlags),
     keyBenefits:      benefits,
     keyConstraints:   constraints,
     dayToDayOutcomes: [...option.dhw.bullets.slice(0, 2), ...option.heat.bullets.slice(0, 2)],
     requiredWorks:    option.typedRequirements?.mustHave ?? option.requirements.slice(0, 3),
     upgradePaths:     option.typedRequirements?.likelyUpgrades ?? [],
-    physicsFlags:     derivePhysicsFlags(option),
+    physicsFlags,
     efficiencyMetric: deriveEfficiencyMetric(option),
     ...(hardConstraints.length > 0    ? { hardConstraints }    : {}),
     ...(performancePenalties.length > 0 ? { performancePenalties } : {}),

@@ -96,6 +96,25 @@ describe('buildCustomerSummary', () => {
     expect(summary.recommendedSystemLabel).toBe('Air source heat pump');
   });
 
+  it('customer-facing label matches the recommended scenario display identity', () => {
+    const scenarios = [
+      makeScenario('system_unvented', 'system', {
+        display: {
+          title: 'System boiler with Mixergy cylinder',
+          shortTitle: 'Mixergy',
+          familyLabel: 'Stored hot water',
+          atlasPickLabel: 'System boiler with Mixergy cylinder',
+          headline: 'A system boiler with Mixergy cylinder is the right fit for this home.',
+        },
+      }),
+      makeScenario('combi', 'combi'),
+    ];
+    const decision = makeDecision('system_unvented');
+    const summary = buildCustomerSummary(decision, scenarios);
+    expect(summary.recommendedScenarioId).toBe('system_unvented');
+    expect(summary.recommendedSystemLabel).toBe('System boiler with Mixergy cylinder');
+  });
+
   it('combi current system does not become combi recommendation when ASHP is recommended', () => {
     // Current system is combi (in lifecycle), but recommendation is ASHP
     const scenarios = [

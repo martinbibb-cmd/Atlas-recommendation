@@ -98,17 +98,21 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
       sanitised.mainsDynamicFlowLpm = sanitised.mains.flowRateLpm;
       sanitised.mainsDynamicFlowLpmKnown = true;
     }
-    // Derive the representative dynamic measurement from multi-point flow readings
-    // when the single-point fields are not already set.  Pick the highest-pressure
-    // reading that has a value (2 bar → 1 bar → 0.5 bar → 0 bar) so the engine's
-    // pressure analysis uses the most demanding measured point.
+    // Derive the representative measured flow from multi-point readings when the
+    // single-point fields are not already set.
+    //
+    // Trust boundary:
+    //   - Prefer the 0-bar full-bore reading (maximum measured incoming supply).
+    //   - Fall back to retained-flow readings only when full-bore is unavailable.
+    //   - Never silently transform a full-bore measured value into a retained-flow
+    //     display value.
     const fr = sanitised.mains.flowReadings;
     if (fr && sanitised.mainsDynamicFlowLpm === undefined) {
       const FLOW_TEST_PRESSURES: { pressureBar: number; flow: number | undefined }[] = [
-        { pressureBar: 2,   flow: fr.at2BarLpm },
-        { pressureBar: 1,   flow: fr.at1BarLpm },
-        { pressureBar: 0.5, flow: fr.at0p5BarLpm },
         { pressureBar: 0,   flow: fr.at0BarLpm },
+        { pressureBar: 1,   flow: fr.at1BarLpm },
+        { pressureBar: 2,   flow: fr.at2BarLpm },
+        { pressureBar: 0.5, flow: fr.at0p5BarLpm },
       ];
       const firstAvailableReading = FLOW_TEST_PRESSURES.find(p => p.flow !== undefined);
       if (firstAvailableReading && firstAvailableReading.flow !== undefined) {

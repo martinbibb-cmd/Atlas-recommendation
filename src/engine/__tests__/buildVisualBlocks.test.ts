@@ -21,6 +21,7 @@ import { buildVisualBlocks } from '../modules/buildVisualBlocks';
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { VisualBlock, WarningBlock } from '../../contracts/VisualBlock';
+import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -161,6 +162,40 @@ describe('buildVisualBlocks — block ordering and presence', () => {
   it('problem block appears when a weaker scenario exists', () => {
     blocks = buildVisualBlocks(decision, scenarios);
     expect(blocks.some((b) => b.type === 'problem')).toBe(true);
+  });
+
+  it('facts block includes explicit mains flow context labels', () => {
+    const input: EngineInputV2_3 = {
+      postcode: 'SW1A 1AA',
+      dynamicMainsPressure: 2,
+      buildingMass: 'medium',
+      primaryPipeDiameter: 22,
+      heatLossWatts: 8000,
+      radiatorCount: 10,
+      hasLoftConversion: false,
+      returnWaterTemp: 45,
+      bathroomCount: 2,
+      occupancySignature: 'professional',
+      highOccupancy: false,
+      preferCombi: false,
+      mains: {
+        flowReadings: {
+          at2BarLpm: 3,
+          at1BarLpm: 5,
+          at0BarLpm: 8,
+        },
+      },
+    };
+
+    blocks = buildVisualBlocks(decision, scenarios, undefined, input);
+    const factsBlock = blocks.find((b) => b.type === 'facts');
+    expect(factsBlock).toBeTruthy();
+    if (!factsBlock || factsBlock.type !== 'facts') return;
+    const labels = factsBlock.facts.map((f) => f.label);
+    expect(labels).toContain('measuredFlowLpm');
+    expect(labels).toContain('retainedFlowLpm');
+    expect(labels).toContain('fullBoreFlowLpm');
+    expect(labels).toContain('dynamicPressureBar');
   });
 });
 

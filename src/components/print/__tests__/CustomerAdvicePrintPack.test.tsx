@@ -1029,20 +1029,25 @@ describe('CustomerAdvicePrintPack — InstallComplexityBadge at_risk cleaning no
 
 describe('CustomerAdvicePrintPack — MixeryBridgePanel', () => {
 
-  it('renders when stored system has pressureConstraint flag and dhwSubtype is mixergy', () => {
-    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
+  it('renders when Mixergy has at least two qualifying physics signals', () => {
+    const scenario = makeScenario({
+      dhwSubtype: 'mixergy',
+      physicsFlags: { pressureConstraint: true, combiFlowRisk: true },
+    });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     expect(screen.getByTestId('capp-mixery-bridge')).toBeTruthy();
   });
 
   it('does not render when pressureConstraint is true but dhwSubtype is not mixergy', () => {
-    const scenario = makeScenario({ physicsFlags: { pressureConstraint: true } });
+    const scenario = makeScenario({
+      physicsFlags: { pressureConstraint: true, combiFlowRisk: true },
+    });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     expect(screen.queryByTestId('capp-mixery-bridge')).toBeNull();
   });
 
-  it('does not render when pressureConstraint is false', () => {
-    const scenario = makeScenario({ physicsFlags: { pressureConstraint: false } });
+  it('does not render when fewer than two qualifying signals are present', () => {
+    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     expect(screen.queryByTestId('capp-mixery-bridge')).toBeNull();
   });
@@ -1059,12 +1064,26 @@ describe('CustomerAdvicePrintPack — MixeryBridgePanel', () => {
   });
 
   it('contains tank-fed terminology (not "low pressure system")', () => {
-    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
+    const scenario = makeScenario({
+      dhwSubtype: 'mixergy',
+      physicsFlags: { pressureConstraint: true, combiFlowRisk: true },
+    });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     const panel = screen.getByTestId('capp-mixery-bridge');
     expect(panel.textContent).toContain('tank-fed');
     expect(panel.textContent).not.toMatch(/low pressure system/i);
     expect(panel.textContent).not.toMatch(/gravity system/i);
+  });
+
+  it('uses customer-safe stored hot water supply wording', () => {
+    const scenario = makeScenario({
+      dhwSubtype: 'mixergy',
+      physicsFlags: { pressureConstraint: true, combiFlowRisk: true },
+    });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
+    expect(screen.getByTestId('capp-mixery-bridge').textContent).toContain(
+      'Stored hot water is the right approach, but the incoming supply still limits peak performance.',
+    );
   });
 });
 
@@ -1333,8 +1352,11 @@ describe('CustomerAdvicePrintPack — ThreeYearRoadmapSection', () => {
 
 describe('CustomerAdvicePrintPack — AiContextBlock new fields', () => {
 
-  it('contains "Mixergy Bridge" field when pressureConstraint flag is set and dhwSubtype is mixergy', () => {
-    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
+  it('contains "Mixergy Bridge" field when Mixergy has at least two qualifying signals', () => {
+    const scenario = makeScenario({
+      dhwSubtype: 'mixergy',
+      physicsFlags: { pressureConstraint: true, combiFlowRisk: true },
+    });
     render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     const contexts = screen.getAllByTestId('capp-ai-context');
     const hasField = contexts.some((el) => el.textContent?.includes('Mixergy Bridge'));
@@ -1357,8 +1379,9 @@ describe('CustomerAdvicePrintPack — AiContextBlock new fields', () => {
     expect(hasField).toBe(true);
   });
 
-  it('does not contain "Mixergy Bridge" field when no pressureConstraint', () => {
-    render(<CustomerAdvicePrintPack {...makeProps()} />);
+  it('does not contain "Mixergy Bridge" field when only one qualifying signal is present', () => {
+    const scenario = makeScenario({ dhwSubtype: 'mixergy', physicsFlags: { pressureConstraint: true } });
+    render(<CustomerAdvicePrintPack {...makeProps({ scenarios: [scenario] })} />);
     const contexts = screen.getAllByTestId('capp-ai-context');
     const hasField = contexts.some((el) => el.textContent?.includes('Mixergy Bridge'));
     expect(hasField).toBe(false);
@@ -1583,4 +1606,3 @@ describe('CustomerAdvicePrintPack — branding', () => {
     expect(comparison1).toBe(comparison2);
   });
 });
-

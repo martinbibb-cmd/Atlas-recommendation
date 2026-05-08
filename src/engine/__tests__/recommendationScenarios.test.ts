@@ -182,6 +182,20 @@ describe('Scenario 2: Stored-water system home', () => {
       expect(combiWhyNot.summary.length).toBeGreaterThan(0);
     }
   });
+
+  it('does not recommend combi for regular boiler home with 2 bathrooms and low measured flow', () => {
+    const lowFlowRegularHome: EngineInputV2_3 = {
+      ...STORED_WATER_HOME,
+      currentHeatSourceType: 'regular',
+      bathroomCount: 2,
+      mainsDynamicFlowLpm: 8,
+      peakConcurrentOutlets: 2,
+    };
+    const combi  = combiBundle(lowFlowRegularHome);
+    const system = systemBundle(lowFlowRegularHome);
+    const result = buildRecommendationsFromEvidence([combi, system]);
+    expect(result.bestOverall?.family).not.toBe('combi');
+  });
 });
 
 // ─── Scenario 3: ASHP-ready home ─────────────────────────────────────────────
