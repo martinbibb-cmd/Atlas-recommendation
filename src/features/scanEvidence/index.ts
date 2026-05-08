@@ -16,6 +16,18 @@
  *   import them directly from scanImport/contracts/sessionCaptureV2.
  */
 
+// ─── Evidence explainers ──────────────────────────────────────────────────────
+
+export type { EvidenceSectionExplainer } from './evidenceExplainers';
+export {
+  getExplainerForSection,
+  groupLinksBySection,
+  SECTION_HEADING_LABELS,
+} from './evidenceExplainers';
+
+export type { EvidenceExplainerCardProps } from './EvidenceExplainerCard';
+export { EvidenceExplainerCard } from './EvidenceExplainerCard';
+
 // ─── Top-level viewer ─────────────────────────────────────────────────────────
 
 export type { ScanEvidenceSummaryProps } from './ScanEvidenceSummary';
