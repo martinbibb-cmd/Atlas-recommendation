@@ -70,6 +70,20 @@ export interface InsightPackSurveyContext {
   mainsDynamicFlowLpm?: number;
   /** Peak heat loss (Watts) — from EngineInputV2_3.heatLossWatts. */
   heatLossWatts?: number;
+  /** Survey signal: high-frequency daily hot-water draw. */
+  highDrawFrequency?: boolean;
+  /** Survey signal: on-site solar PV present. */
+  solarPVPresent?: boolean;
+  /** Survey signal: plant-room/cupboard space constraints. */
+  spaceRestricted?: boolean;
+  /** Survey signal: existing cylinder confirmed undersized. */
+  cylinderUndersizedConfirmed?: boolean;
+  /** Survey signal: measured/customer-reported depletion complaints. */
+  measuredDepletionComplaints?: boolean;
+  /** Survey signal: time-of-use electricity tariff available. */
+  timeOfUseElectricity?: boolean;
+  /** Survey signal: customer intent for future heat-pump migration. */
+  futureHeatPumpIntent?: boolean;
   /**
    * System condition signals — from survey SystemBuilderState.
    * Used to ground powerflush / filter recommendations in actual site evidence.
@@ -121,6 +135,37 @@ function makeRating(
   return { rating, reason, physics };
 }
 
+const RATING_BAND_ORDER: RatingBand[] = [
+  'Excellent',
+  'Very Good',
+  'Good',
+  'Needs Right Setup',
+  'Less Suited',
+];
+
+function minRatingBand(a: RatingBand, b: RatingBand): RatingBand {
+  const aIndex = RATING_BAND_ORDER.indexOf(a);
+  const bIndex = RATING_BAND_ORDER.indexOf(b);
+  if (aIndex < 0 || bIndex < 0) {
+    throw new Error(`Invalid rating band(s): a="${a}", b="${b}"`);
+  }
+  return RATING_BAND_ORDER[Math.max(aIndex, bIndex)];
+}
+
+function deriveSupplyConstraintBand(ctx?: InsightPackSurveyContext): RatingBand {
+  if (!ctx) return 'Excellent';
+  if ((ctx.bathroomCount ?? 0) >= 2 || (ctx.peakConcurrentOutlets ?? 0) >= 2) {
+    return 'Needs Right Setup';
+  }
+  if ((ctx.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < 10) {
+    return 'Good';
+  }
+  if (ctx.occupancyCount === 3) {
+    return 'Good';
+  }
+  return 'Excellent';
+}
+
 // ─── Hot Water Performance rating ─────────────────────────────────────────────
 
 /**
@@ -136,6 +181,7 @@ function makeRating(
 function rateHotWaterPerformance(
   quote: QuoteInput,
   output: EngineOutputV1,
+  ctx?: InsightPackSurveyContext,
 ): RatingExplanation {
   const hasStoredCylinder = quote.systemType === 'system' ||
     quote.systemType === 'regular' ||
@@ -156,25 +202,33 @@ function rateHotWaterPerformance(
   );
 
   if (hasStoredCylinder) {
+    let storedBand: RatingBand = 'Excellent';
+    let storedReason =
+      'Stored hot water handles simultaneous demand — multiple taps and showers can run together.';
+    let storedPhysics =
+      'Cylinder volume decouples delivery from instantaneous heat-source output; no flow-starvation risk under simultaneous draw.';
+
     if (isMixergy) {
-      return makeRating(
-        'Excellent',
-        'Mixergy cylinder provides on-demand hot water from top of store — simultaneous demand handled well with reduced recovery cycling.',
-        'Mixergy top-down draw strategy maximises usable volume per heat cycle; demand mirroring reduces peak cycling penalty compared to standard combi.',
-      );
+      storedReason =
+        'Mixergy cylinder mirrors demand and maintains strong hot-water delivery while reducing unnecessary reheat cycling.';
+      storedPhysics =
+        'Mixergy top-down draw preserves usable hot water and mirrors draw profiles; cycling penalties are lower than a standard combi under repeat short demands.';
     }
     if (dhwHardFail) {
-      return makeRating(
-        'Needs Right Setup',
-        'Stored hot water system — performance depends on cylinder sizing and mains supply.',
-        'DHW plane flagged caution or worse by engine: volume or supply constraint identified.',
-      );
+      storedBand = 'Needs Right Setup';
+      storedReason = 'Stored hot water system — performance depends on cylinder sizing and incoming supply.';
+      storedPhysics = 'DHW plane flagged caution or worse by engine: volume or supply constraint identified.';
     }
-    return makeRating(
-      'Excellent',
-      'Stored hot water handles simultaneous demand — multiple taps and showers can run together.',
-      'Cylinder volume decouples delivery from instantaneous heat-source output; no flow-starvation risk under simultaneous draw.',
-    );
+
+    const supplyConstraintBand = deriveSupplyConstraintBand(ctx);
+    const finalHotWaterBand = minRatingBand(storedBand, supplyConstraintBand);
+    if (finalHotWaterBand !== storedBand) {
+      storedReason =
+        'Stored hot water capability is strong, but incoming supply limits mean setup details matter for peak simultaneous use.';
+      storedPhysics =
+        'Final hot-water band is capped by supply constraints (mains flow / concurrency) to avoid over-stating expected performance.';
+    }
+    return makeRating(finalHotWaterBand, storedReason, storedPhysics);
   }
 
   // Combi path
@@ -210,6 +264,20 @@ function rateHotWaterPerformance(
       'Needs Right Setup',
       'On-demand hot water works for single-outlet use — two taps at once will reduce flow.',
       'Combi throughput limited to one full-flow outlet; concurrent draws share available flow, reducing delivery per outlet.',
+    );
+  }
+  if ((ctx?.bathroomCount ?? 0) >= 2 || (ctx?.peakConcurrentOutlets ?? 0) >= 2) {
+    return makeRating(
+      'Less Suited',
+      'On-demand hot water is not suitable for simultaneous multi-outlet demand in this home.',
+      'Hard simultaneous-demand gate triggered by 2+ bathrooms or 2+ peak concurrent outlets.',
+    );
+  }
+  if ((ctx?.occupancyCount ?? 0) === 3) {
+    return makeRating(
+      'Good',
+      'On-demand hot water can work, but demand is borderline for this occupancy level.',
+      'Three-occupant profile is a warning threshold for simultaneous-demand risk on a combi.',
     );
   }
   return makeRating(
@@ -1035,6 +1103,21 @@ function buildPowerflushExplanation(
   return parts.join(' ');
 }
 
+function countMixergySignals(ctx?: InsightPackSurveyContext): number {
+  if (!ctx) return 0;
+  const signals = [
+    (ctx.occupancyCount ?? 0) >= 3,
+    ctx.highDrawFrequency === true || (ctx.peakConcurrentOutlets ?? 0) >= 2,
+    ctx.solarPVPresent === true,
+    ctx.spaceRestricted === true,
+    ctx.cylinderUndersizedConfirmed === true,
+    ctx.measuredDepletionComplaints === true,
+    ctx.timeOfUseElectricity === true,
+    ctx.futureHeatPumpIntent === true,
+  ];
+  return signals.filter(Boolean).length;
+}
+
 function buildImprovements(
   quote: QuoteInput,
   output: EngineOutputV1,
@@ -1064,9 +1147,9 @@ function buildImprovements(
 
   if (!upgrades.has('controls') && !upgrades.has('weather compensation') && quote.systemType !== 'ashp') {
     improvements.push({
-      title: 'Weather Compensation Controls',
+      title: 'Modern Heating Controls',
       impact: 'efficiency',
-      explanation: 'Automatically lowers flow temperature on mild days — keeps the boiler in its condensing window for more of the heating season. Typical seasonal efficiency improvement: 5–10% reduction in gas consumption.',
+      explanation: 'Modern controls adjust flow temperature to match milder outdoor conditions, helping keep the boiler in condensing mode for longer and typically reducing gas use by around 5–10%.',
     });
   }
 
@@ -1134,17 +1217,18 @@ function buildImprovements(
 
   // When the quote includes a standard cylinder, advise upgrading to Mixergy
   // for better hot-water efficiency and reduced reheat cycling.
+  const mixergySignals = countMixergySignals(ctx);
   if (
     (quote.systemType === 'system' || quote.systemType === 'regular' || quote.systemType === 'ashp') &&
-    quote.cylinder?.type === 'standard'
+    quote.cylinder?.type === 'standard' &&
+    mixergySignals >= 2
   ) {
     improvements.push({
       title: 'Upgrade Cylinder to Mixergy',
       impact: 'efficiency',
       explanation:
-        'A Mixergy cylinder draws from the top of the store, delivering full-temperature hot water even when partially charged. ' +
-        'This reduces unnecessary reheat cycles and cuts standby heat loss compared to a conventional bottom-draw cylinder. ' +
-        'Particularly beneficial when paired with a heat pump or solar PV tariff, where heating during off-peak windows can cover most daily demand.',
+        'A Mixergy cylinder is well suited to this home’s demand pattern. ' +
+        'It mirrors demand, keeps usable hot water available at the top of the store, and reduces reheat cycling compared with standard cylinders.',
     });
   }
 
@@ -1395,14 +1479,14 @@ function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOut
     behaviour.push('Schedule cylinder heating overnight during off-peak tariff windows (e.g. Octopus Go) to minimise running costs.');
   } else if (systemType === 'system' || systemType === 'regular') {
     behaviour.push('Allow the cylinder to fully recover between large draws — avoid scheduling back-to-back high-demand periods without a recovery window.');
-    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to make the most of the cylinder\'s thermal mass.');
+    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to keep radiator temperatures steadier and reduce unnecessary burner start-stop cycles.');
     if (bestQuote?.quote.cylinder?.type === 'mixergy') {
       behaviour.push('Mixergy draws from the top — even a partially charged cylinder can serve a full shower. Shorten reheat schedules to save energy without sacrificing comfort.');
     }
   } else {
     // Combi boiler
     behaviour.push('Avoid very short hot-water draws under 15 seconds — allow the heat exchanger to reach steady-state condensing temperature for maximum efficiency.');
-    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to make the most of thermal mass.');
+    behaviour.push('Use a steady heating schedule rather than sharp on/off cycles to keep radiator temperatures steadier and reduce unnecessary burner start-stop cycles.');
   }
 
   // ── System-specific settings advice ──────────────────────────────────────
@@ -1412,8 +1496,8 @@ function buildSavingsPlan(bestQuote: QuoteInsight | undefined, output: EngineOut
     settings.push('Set the heat pump to its lowest flow temperature that keeps rooms comfortable — each 5 °C reduction in flow temperature improves COP by approximately 0.35.');
     settings.push('Run heat pump continuously at lower output on cold days rather than burst-cycling at high output.');
   } else {
-    settings.push('Set flow temperature to the minimum that keeps rooms comfortable (55–60 °C for older radiators; lower with weather compensation).');
-    settings.push('Enable weather compensation if available — lowers flow temperature on mild days and extends condensing operation.');
+    settings.push('Set flow temperature to the minimum that keeps rooms comfortable (typically around 55–60 °C for older radiators).');
+    settings.push('Modern controls will be configured to reduce flow temperature on milder days and extend condensing runtime.');
   }
 
   const futureUpgrades: string[] = [];
@@ -1801,7 +1885,7 @@ export function buildInsightPackFromEngine(
   const currentSystem = buildCurrentSystemSummary(surveyContext);
 
   const quoteInsights: QuoteInsight[] = quotes.map(quote => {
-    const hwRating = rateHotWaterPerformance(quote, engineOutput);
+    const hwRating = rateHotWaterPerformance(quote, engineOutput, surveyContext);
     const heatRating = rateHeatingPerformance(quote, engineOutput);
     const effRating = rateEfficiency(quote, engineOutput);
     const reliabilityRating = rateReliability(quote, engineOutput);
