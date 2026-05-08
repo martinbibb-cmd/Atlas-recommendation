@@ -340,9 +340,9 @@ function normalizeUnresolvedEvidence(unresolved: unknown): NormalizedUnresolvedE
   });
 }
 
-function isResolvedGeometryStatus(status: string | null): boolean {
-  if (!status) return true;
-  return ['resolved', 'confirmed', 'complete'].includes(status.trim().toLowerCase());
+function requiresGeometryReview(status: string | null): boolean {
+  if (!status) return false;
+  return !['resolved', 'confirmed', 'complete'].includes(status.trim().toLowerCase());
 }
 
 function uniqueCapturePointIds(values: string[]): string[] {
@@ -437,7 +437,7 @@ function buildStoryboardCards(room: NormalizedRoom): StoryboardCardDefinition[] 
       label: warning,
       capturePointIds: roomCapturePointIds,
     })),
-    ...(!isResolvedGeometryStatus(room.geometryStatus) && room.geometryStatus
+    ...(requiresGeometryReview(room.geometryStatus) && room.geometryStatus
       ? [{
           id: `${room.id}-geometry-review`,
           label: `Geometry status requires review: ${room.geometryStatus}`,
@@ -668,15 +668,19 @@ export function CapturedEvidencePanel({
       typeof document === 'undefined' ||
       typeof window === 'undefined'
     ) return;
+    let cancelled = false;
     const animationFrame = window.requestAnimationFrame(() => {
       const element = document.getElementById(`captured-evidence-capture-point-${pendingCapturePointId}`);
       if (element instanceof HTMLElement) {
         element.focus();
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-      setPendingCapturePointId(null);
+      if (!cancelled) setPendingCapturePointId(null);
     });
-    return () => window.cancelAnimationFrame(animationFrame);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(animationFrame);
+    };
   }, [activeView, pendingCapturePointId]);
 
   if (rooms.length === 0 && unresolved.length === 0) return null;
