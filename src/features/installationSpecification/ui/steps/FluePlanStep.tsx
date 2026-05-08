@@ -38,6 +38,8 @@ import { LOCATION_KIND_LABELS } from '../../model/locationActions';
 import type { QuotePlanCandidateFlueRouteV1, FlueFamily } from '../../model/QuoteInstallationPlanV1';
 import type { QuotePlanLocationV1 } from '../../model/QuoteInstallationPlanV1';
 import type { QuoteFlueSegmentV1 } from '../../calculators/quotePlannerTypes';
+import type { EvidenceProofLinkV1, EvidenceCaptureRef } from '../../../../features/scanEvidence/EvidenceProofLinkV1';
+import { EvidenceProofBlock } from '../../../../features/scanEvidence/EvidenceProofBlock';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -51,6 +53,19 @@ export interface FluePlanStepProps {
   onFlueRouteChange: (route: QuotePlanCandidateFlueRouteV1) => void;
   /** Active (non-rejected) locations from the plan — used to pick boiler/terminal. */
   locations: QuotePlanLocationV1[];
+  /**
+   * Evidence proof links for the flue section, from buildEvidenceProofLinks().
+   * When provided, an "Evidence used" block is shown at the top of the step.
+   */
+  evidenceProofLinks?: EvidenceProofLinkV1[];
+  /**
+   * Called when the user clicks an evidence capture-point pill.
+   * Navigates to the evidence viewer at that point.
+   */
+  onOpenEvidenceCapture?: (
+    capturePointId: string,
+    storyboardCardKey: EvidenceCaptureRef['storyboardCardKey'],
+  ) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -59,6 +74,8 @@ export function FluePlanStep({
   flueRoute,
   onFlueRouteChange,
   locations,
+  evidenceProofLinks,
+  onOpenEvidenceCapture,
 }: FluePlanStepProps) {
   // Lazily initialise the route draft the first time the step renders.
   const [localRoute, setLocalRoute] = useState<QuotePlanCandidateFlueRouteV1>(
@@ -116,6 +133,16 @@ export function FluePlanStep({
       <p className="qp-step-subheading">
         Build the flue route and check the equivalent length.
       </p>
+
+      {(() => {
+        const flueLinks = evidenceProofLinks?.filter((l) => l.section === 'flue') ?? [];
+        return flueLinks.length > 0 ? (
+          <EvidenceProofBlock
+            links={flueLinks}
+            onOpenCapturePoint={onOpenEvidenceCapture}
+          />
+        ) : null;
+      })()}
 
       {/* 1. Flue family */}
       <section className="flue-plan-section" aria-labelledby="flue-family-heading">

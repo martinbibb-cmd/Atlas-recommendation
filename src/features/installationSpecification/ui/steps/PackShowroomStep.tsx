@@ -29,6 +29,8 @@ import type {
   UiProposedHeatSourceLabel,
   UiProposedHotWaterLabel,
 } from '../installationSpecificationUiTypes';
+import type { EvidenceCaptureRef } from '../../../../features/scanEvidence/EvidenceProofLinkV1';
+import { EvidenceProofBlock } from '../../../../features/scanEvidence/EvidenceProofBlock';
 
 // ─── Disruption level display ─────────────────────────────────────────────────
 
@@ -68,6 +70,25 @@ export interface PackShowroomStepProps {
     proposedHeatSource: UiProposedHeatSourceLabel,
     proposedHotWater: UiProposedHotWaterLabel | null,
   ) => void;
+
+  /**
+   * Called when the user clicks a capture-point evidence pill.
+   * Receives the capturePointId and storyboard card key so the caller can
+   * navigate to the evidence viewer at that specific point.
+   *
+   * When absent, evidence pills are still rendered but are not clickable links.
+   */
+  onOpenEvidenceCapture?: (
+    capturePointId: string,
+    storyboardCardKey: EvidenceCaptureRef['storyboardCardKey'],
+  ) => void;
+
+  /**
+   * When true, only confirmed (reviewed) evidence refs are shown in the
+   * proof block.  Unresolved evidence is hidden entirely.
+   * Defaults to false (engineer mode — all refs visible).
+   */
+  customerFacing?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -77,6 +98,8 @@ export function PackShowroomStep({
   packCards,
   selectedPackKind,
   onSelectPack,
+  onOpenEvidenceCapture,
+  customerFacing = false,
 }: PackShowroomStepProps) {
   return (
     <>
@@ -164,6 +187,14 @@ export function PackShowroomStep({
                     ))}
                   </ul>
                 </div>
+              )}
+
+              {card.evidenceProofLinks && card.evidenceProofLinks.length > 0 && (
+                <EvidenceProofBlock
+                  links={card.evidenceProofLinks}
+                  customerFacing={customerFacing}
+                  onOpenCapturePoint={onOpenEvidenceCapture}
+                />
               )}
 
               <div className="pack-card__footer">

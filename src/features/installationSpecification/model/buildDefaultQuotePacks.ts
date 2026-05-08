@@ -35,6 +35,7 @@ import type {
   QuotePackShowroomContextV1,
   QuotePackDisruptionLevel,
 } from './QuotePackV1';
+import type { EvidenceProofLinkV1, ProposalSection } from '../../../features/scanEvidence/EvidenceProofLinkV1';
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,17 @@ export interface BuildDefaultPacksInput {
    * For example: "Mains pressure limited", "Pipework access buried".
    */
   siteConstraints?: string[];
+
+  /**
+   * Evidence proof links from the scan session.
+   * When provided, each pack card is annotated with the subset of links
+   * relevant to its proposed system (boiler, cylinder, flue, radiators).
+   *
+   * Rules:
+   *   - Links only annotate; they never change which pack is recommended.
+   *   - Derived by buildEvidenceProofLinks() from the spatial evidence graph.
+   */
+  evidenceProofLinks?: EvidenceProofLinkV1[];
 }
 
 // ─── Output ───────────────────────────────────────────────────────────────────
@@ -193,12 +205,55 @@ function deriveDisruptionLevel(
   return 'medium';
 }
 
+// ─── Evidence link helpers ────────────────────────────────────────────────────
+
+/**
+ * Returns the proposal sections that are relevant for a given proposed
+ * heat source and hot-water arrangement.
+ *
+ * These sections are used to filter the evidence proof links that are
+ * attached to each pack card — only links matching one of these sections
+ * are included.
+ */
+function sectionsForPack(
+  proposed: UiProposedHeatSourceLabel,
+  hotWater: UiProposedHotWaterLabel | null,
+): ProposalSection[] {
+  const sections: ProposalSection[] = ['boiler', 'general'];
+  if (proposed !== 'combi_boiler' && proposed !== 'storage_combi' && hotWater != null) {
+    sections.push('cylinder');
+  }
+  // All gas boiler packs have a flue
+  if (proposed !== 'heat_pump') {
+    sections.push('flue');
+  }
+  // All packs with radiators (always for gas; often for heat pump too)
+  sections.push('radiators');
+  return sections;
+}
+
+/**
+ * Filters evidenceProofLinks to only those sections relevant for a given pack.
+ * Returns undefined when the input is absent or no links match.
+ */
+function filterEvidenceLinksForPack(
+  evidenceProofLinks: EvidenceProofLinkV1[] | undefined,
+  proposed: UiProposedHeatSourceLabel,
+  hotWater: UiProposedHotWaterLabel | null,
+): EvidenceProofLinkV1[] | undefined {
+  if (!evidenceProofLinks || evidenceProofLinks.length === 0) return undefined;
+  const relevantSections = new Set(sectionsForPack(proposed, hotWater));
+  const filtered = evidenceProofLinks.filter((link) => relevantSections.has(link.section));
+  return filtered.length > 0 ? filtered : undefined;
+}
+
 // ─── Pack card builders ───────────────────────────────────────────────────────
 
 function buildBestAdvicePack(
   canonical: CanonicalCurrentSystemSummary | null,
   seedProposed: UiProposedHeatSourceLabel,
   enginePrimaryReason: string | null,
+  evidenceProofLinks?: EvidenceProofLinkV1[],
 ): QuotePackCardV1 {
   const hotWater = resolveHotWaterForSeed(seedProposed, canonical);
 
@@ -216,11 +271,13 @@ function buildBestAdvicePack(
     warningsOrVerification: buildWarningsForPack(seedProposed, hotWater, canonical),
     disruptionLevel: deriveDisruptionLevel(seedProposed, canonical?.heatSource ?? null, 'best_advice'),
     isRecommended: true,
+    evidenceProofLinks: filterEvidenceLinksForPack(evidenceProofLinks, seedProposed, hotWater),
   };
 }
 
 function buildLikeForLikePack(
   canonical: CanonicalCurrentSystemSummary | null,
+  evidenceProofLinks?: EvidenceProofLinkV1[],
 ): QuotePackCardV1 {
   const proposed = likeForLikeHeatSource(canonical?.heatSource ?? null);
   const hotWater = likeForLikeHotWater(canonical?.heatSource ?? null, canonical?.hotWater ?? null);
@@ -236,11 +293,13 @@ function buildLikeForLikePack(
     includedHighlights: highlights,
     warningsOrVerification: buildWarningsForPack(proposed, hotWater, canonical),
     disruptionLevel: 'low',
+    evidenceProofLinks: filterEvidenceLinksForPack(evidenceProofLinks, proposed, hotWater),
   };
 }
 
 function buildLowDisruptionPack(
   canonical: CanonicalCurrentSystemSummary | null,
+  evidenceProofLinks?: EvidenceProofLinkV1[],
 ): QuotePackCardV1 {
   const proposed = likeForLikeHeatSource(canonical?.heatSource ?? null);
   const hotWater = likeForLikeHotWater(canonical?.heatSource ?? null, canonical?.hotWater ?? null);
@@ -263,12 +322,14 @@ function buildLowDisruptionPack(
       'Existing pipework condition must be confirmed on site',
     ],
     disruptionLevel: 'low',
+    evidenceProofLinks: filterEvidenceLinksForPack(evidenceProofLinks, proposed, hotWater),
   };
 }
 
 function buildHotWaterPriorityPack(
   canonical: CanonicalCurrentSystemSummary | null,
   seedProposed: UiProposedHeatSourceLabel | null,
+  evidenceProofLinks?: EvidenceProofLinkV1[],
 ): QuotePackCardV1 {
   // Hot water priority defaults to system boiler + Mixergy unless current is combi
   const proposed: UiProposedHeatSourceLabel =
@@ -298,12 +359,14 @@ function buildHotWaterPriorityPack(
       'Mains flow and pressure must support the chosen cylinder type',
     ],
     disruptionLevel: 'medium',
+    evidenceProofLinks: filterEvidenceLinksForPack(evidenceProofLinks, proposed, hotWater),
   };
 }
 
 function buildFutureReadyPack(
   _canonical: CanonicalCurrentSystemSummary | null,
   seedProposed: UiProposedHeatSourceLabel | null,
+  evidenceProofLinks?: EvidenceProofLinkV1[],
 ): QuotePackCardV1 {
   const proposed: UiProposedHeatSourceLabel = seedProposed ?? 'system_boiler';
   const hotWater: UiProposedHotWaterLabel | null =
@@ -329,6 +392,7 @@ function buildFutureReadyPack(
       'Future heat pump compatibility depends on property heat loss — further assessment required',
     ],
     disruptionLevel: 'medium',
+    evidenceProofLinks: filterEvidenceLinksForPack(evidenceProofLinks, proposed, hotWater),
   };
 }
 
@@ -437,7 +501,7 @@ function resolveHotWaterForSeed(
  * @returns     Pack cards and showroom context
  */
 export function buildDefaultQuotePacks(input: BuildDefaultPacksInput): BuildDefaultPacksResult {
-  const { canonicalCurrentSystem, seedProposedSystem, enginePrimaryReason, siteConstraints } = input;
+  const { canonicalCurrentSystem, seedProposedSystem, enginePrimaryReason, siteConstraints, evidenceProofLinks } = input;
 
   const existingSystemSummary = buildExistingSystemSummary(canonicalCurrentSystem);
 
@@ -446,26 +510,26 @@ export function buildDefaultQuotePacks(input: BuildDefaultPacksInput): BuildDefa
 
   // Best advice — only shown when we have an engine recommendation
   if (seedProposedSystem != null) {
-    packCards.push(buildBestAdvicePack(canonicalCurrentSystem, seedProposedSystem, enginePrimaryReason ?? null));
+    packCards.push(buildBestAdvicePack(canonicalCurrentSystem, seedProposedSystem, enginePrimaryReason ?? null, evidenceProofLinks));
     recommendedPackKind = 'best_advice';
   }
 
   // Like-for-like
-  packCards.push(buildLikeForLikePack(canonicalCurrentSystem));
+  packCards.push(buildLikeForLikePack(canonicalCurrentSystem, evidenceProofLinks));
 
   // Low disruption
-  packCards.push(buildLowDisruptionPack(canonicalCurrentSystem));
+  packCards.push(buildLowDisruptionPack(canonicalCurrentSystem, evidenceProofLinks));
 
   // Hot water priority (not shown when current system is combi with no engine upgrade rec)
   const currentIsCombiOnly =
     canonicalCurrentSystem?.heatSource === 'combi_boiler' &&
     (seedProposedSystem === 'combi_boiler' || seedProposedSystem === 'storage_combi');
   if (!currentIsCombiOnly) {
-    packCards.push(buildHotWaterPriorityPack(canonicalCurrentSystem, seedProposedSystem));
+    packCards.push(buildHotWaterPriorityPack(canonicalCurrentSystem, seedProposedSystem, evidenceProofLinks));
   }
 
   // Future ready
-  packCards.push(buildFutureReadyPack(canonicalCurrentSystem, seedProposedSystem));
+  packCards.push(buildFutureReadyPack(canonicalCurrentSystem, seedProposedSystem, evidenceProofLinks));
 
   const showroomContext: QuotePackShowroomContextV1 = {
     existingSystemSummary,

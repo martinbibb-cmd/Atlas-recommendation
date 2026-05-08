@@ -55,6 +55,8 @@ import { ProductsAdditionalsStep, getDefaultProductIds } from './steps/ProductsA
 import { classifyQuoteJob } from '../calculators/jobClassification';
 import { buildQuoteScopeFromInstallationPlan } from '../scope/buildQuoteScopeFromInstallationPlan';
 import { buildDefaultQuotePacks } from '../model/buildDefaultQuotePacks';
+import { buildEvidenceProofLinks } from '../../scanEvidence/buildEvidenceProofLinks';
+import type { EvidenceCaptureRef } from '../../scanEvidence/EvidenceProofLinkV1';
 import {
   heatSourceToFamily,
   isProposedCombi,
@@ -292,6 +294,25 @@ export interface InstallationSpecificationStepperProps {
    */
   scanObjectPins?: ObjectPinV2[];
   /**
+   * Raw spatial evidence graph from the scan session (SessionCaptureV2.spatialEvidenceGraph).
+   * When provided, evidence proof links are derived and shown alongside each
+   * proposal section (pack showroom, proposed system, flue plan, etc.).
+   *
+   * Evidence links only annotate the existing recommendation — they do not
+   * change it.
+   */
+  spatialEvidenceGraph?: unknown;
+  /**
+   * Called when the user clicks a capture-point evidence link in any proposal section.
+   * Allows the parent to navigate to the evidence viewer at that capture point.
+   *
+   * When absent, evidence pills are still rendered but are not clickable links.
+   */
+  onOpenEvidenceCapture?: (
+    capturePointId: string,
+    storyboardCardKey: EvidenceCaptureRef['storyboardCardKey'],
+  ) => void;
+  /**
    * Stable identifier of the specification option being edited.
    * When provided, Finish updates this option rather than creating a new one.
    */
@@ -338,6 +359,8 @@ export function InstallationSpecificationStepper({
   siteConditions,
   floorPlanUri,
   scanObjectPins,
+  spatialEvidenceGraph,
+  onOpenEvidenceCapture,
   optionId,
   optionLabel = 'Option',
   optionCreatedAt,
@@ -409,6 +432,12 @@ export function InstallationSpecificationStepper({
     initialPlan?.pipeworkRoutes ?? [],
   );
 
+  // Build evidence proof links from the spatial evidence graph when available.
+  const evidenceProofLinks = useMemo(
+    () => buildEvidenceProofLinks(spatialEvidenceGraph),
+    [spatialEvidenceGraph],
+  );
+
   // Build default packs for the pack showroom
   const { packCards, showroomContext } = useMemo(
     () => buildDefaultQuotePacks({
@@ -416,8 +445,9 @@ export function InstallationSpecificationStepper({
       seedProposedSystem: seedProposedSystem ?? null,
       enginePrimaryReason: engineRecommendationReason ?? null,
       siteConstraints: siteConditions,
+      evidenceProofLinks: evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined,
     }),
-    [canonicalCurrentSystem, seedProposedSystem, engineRecommendationReason, siteConditions],
+    [canonicalCurrentSystem, seedProposedSystem, engineRecommendationReason, siteConditions, evidenceProofLinks],
   );
 
   // Derive active step list from proposed system selection.
@@ -603,6 +633,7 @@ export function InstallationSpecificationStepper({
                   setServicesSelection({ selectedIds: getDefaultServiceIds(heatSource, hotWater, canonicalCurrentSystem ?? null) });
                   setProductsSelection({ selectedIds: getDefaultProductIds(heatSource) });
                 }}
+                onOpenEvidenceCapture={onOpenEvidenceCapture}
               />
             )}
           </>
@@ -621,6 +652,8 @@ export function InstallationSpecificationStepper({
             }}
             ashpExceptionNote={ashpExceptionNote}
             onAshpExceptionNoteChange={setAshpExceptionNote}
+            evidenceProofLinks={evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined}
+            onOpenEvidenceCapture={onOpenEvidenceCapture}
           />
         );
 
@@ -631,6 +664,8 @@ export function InstallationSpecificationStepper({
             proposedHeatSource={proposedHeatSource}
             selected={proposedHotWater}
             onSelect={setProposedHotWater}
+            evidenceProofLinks={evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined}
+            onOpenEvidenceCapture={onOpenEvidenceCapture}
           />
         );
 
@@ -661,6 +696,8 @@ export function InstallationSpecificationStepper({
             flueRoute={flueRoute}
             onFlueRouteChange={setFlueRoute}
             locations={locations}
+            evidenceProofLinks={evidenceProofLinks.length > 0 ? evidenceProofLinks : undefined}
+            onOpenEvidenceCapture={onOpenEvidenceCapture}
           />
         );
 

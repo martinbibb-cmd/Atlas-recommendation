@@ -20,6 +20,8 @@ import {
   isGasBoilerProposedHeatSource,
 } from '../installationSpecificationUiTypes';
 import type { UiCurrentHeatSourceLabel, UiProposedHeatSourceLabel } from '../installationSpecificationUiTypes';
+import type { EvidenceProofLinkV1, EvidenceCaptureRef } from '../../../../features/scanEvidence/EvidenceProofLinkV1';
+import { EvidenceProofBlock } from '../../../../features/scanEvidence/EvidenceProofBlock';
 
 interface HeatSourceTileDefinition {
   value: Exclude<UiProposedHeatSourceLabel, 'other_approved'>;
@@ -85,6 +87,19 @@ export interface ProposedSystemStepProps {
   ashpExceptionNote?: string;
   /** Called when the surveyor types in the ASHP exception note field. */
   onAshpExceptionNoteChange?: (note: string) => void;
+  /**
+   * Evidence proof links for the boiler section, from buildEvidenceProofLinks().
+   * When provided, an "Evidence used" block is shown below the tile grid.
+   */
+  evidenceProofLinks?: EvidenceProofLinkV1[];
+  /**
+   * Called when the user clicks an evidence capture-point pill.
+   * Navigates to the evidence viewer at that point.
+   */
+  onOpenEvidenceCapture?: (
+    capturePointId: string,
+    storyboardCardKey: EvidenceCaptureRef['storyboardCardKey'],
+  ) => void;
 }
 
 export function ProposedSystemStep({
@@ -94,6 +109,8 @@ export function ProposedSystemStep({
   onSelect,
   ashpExceptionNote = '',
   onAshpExceptionNoteChange,
+  evidenceProofLinks,
+  onOpenEvidenceCapture,
 }: ProposedSystemStepProps) {
   const contextLabel =
     currentHeatSource != null
@@ -157,6 +174,16 @@ export function ProposedSystemStep({
           );
         })}
       </div>
+
+      {(() => {
+        const boilerLinks = evidenceProofLinks?.filter((l) => l.section === 'boiler') ?? [];
+        return boilerLinks.length > 0 ? (
+          <EvidenceProofBlock
+            links={boilerLinks}
+            onOpenCapturePoint={onOpenEvidenceCapture}
+          />
+        ) : null;
+      })()}
 
       {/* ASHP → gas exception path */}
       {isCurrentHeatPump && !showAshpException && (

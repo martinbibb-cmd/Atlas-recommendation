@@ -17,6 +17,7 @@
  */
 
 import type { UiProposedHeatSourceLabel, UiProposedHotWaterLabel } from '../ui/installationSpecificationUiTypes';
+import type { EvidenceProofLinkV1 } from '../../../features/scanEvidence/EvidenceProofLinkV1';
 
 // ─── Pack kind ────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,18 @@ export interface QuotePackCardV1 {
    * At most one pack card per showroom should carry this flag.
    */
   isRecommended?: boolean;
+
+  /**
+   * Evidence proof links from the scan session that support this pack.
+   * Derived from the spatial evidence graph via buildEvidenceProofLinks().
+   * Absent when no scan evidence is available.
+   *
+   * Rules:
+   *   - Links are filtered to sections relevant to this pack's proposed system.
+   *   - Evidence supports the engine decision — it does not change it.
+   *   - Unresolved links must only be shown in engineer mode.
+   */
+  evidenceProofLinks?: EvidenceProofLinkV1[];
 }
 
 // ─── Showroom context ─────────────────────────────────────────────────────────
