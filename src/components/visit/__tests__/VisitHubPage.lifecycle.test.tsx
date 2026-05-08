@@ -83,6 +83,10 @@ vi.mock('../../../features/voiceNotes/applyAcceptedSuggestions', () => ({
   mergeFullSurveyUpdates: vi.fn().mockReturnValue({}),
 }));
 
+vi.mock('../../../features/scanHandoff', () => ({
+  useScanCaptureForVisit: vi.fn().mockReturnValue(null),
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeVisitResponse(overrides: Partial<VisitMeta & { working_payload: Record<string, unknown> }> = {}) {
@@ -165,6 +169,38 @@ describe('VisitHubPage — completed state body (PR 16)', () => {
     render(<VisitHubPage {...BASE_PROPS} />);
     await screen.findByTestId('visit-hub-body-completed-hint');
     expect(screen.getByTestId('survey-record-collapse')).toBeTruthy();
+  });
+
+  it('renders captured evidence panel when scan handoff evidence graph exists', async () => {
+    const { getVisit } = await import('../../../lib/visits/visitApi');
+    const { useScanCaptureForVisit } = await import('../../../features/scanHandoff');
+    vi.mocked(getVisit).mockResolvedValue(
+      makeVisitResponse({
+        status: 'recommendation_ready',
+        completed_at: '2024-01-15T14:30:00.000Z',
+        completion_method: 'manual_pwa',
+      })
+    );
+    vi.mocked(useScanCaptureForVisit).mockReturnValue({
+      spatialEvidenceGraph: {
+        rooms: [
+          {
+            id: 'room-kitchen',
+            name: 'Kitchen',
+            capturePoints: [{ capturePointId: 'cp-kitchen-1', anchorConfidence: 0.8 }],
+          },
+        ],
+      },
+      unresolvedEvidence: [
+        { id: 'u1', type: 'pending-photo', capturePointId: 'cp-kitchen-1' },
+      ],
+    } as unknown as import('../../../features/scanImport/contracts/sessionCaptureV2').SessionCaptureV2);
+
+    render(<VisitHubPage {...BASE_PROPS} />);
+    await screen.findByTestId('visit-hub-body-completed-hint');
+    expect(screen.getByTestId('captured-evidence-panel')).toBeTruthy();
+    expect(screen.getByText(/capturePointId: cp-kitchen-1/i)).toBeTruthy();
+    expect(screen.getByText(/Unresolved evidence/i)).toBeTruthy();
   });
 });
 

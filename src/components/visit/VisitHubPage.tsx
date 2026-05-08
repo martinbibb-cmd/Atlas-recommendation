@@ -40,6 +40,8 @@ import { VoiceNotesPanel } from '../../features/voiceNotes/VoiceNotesPanel';
 import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import { applyAcceptedSuggestions, mergeAppliedSuggestions, mergeFullSurveyUpdates } from '../../features/voiceNotes/applyAcceptedSuggestions';
 import { HEAT_SOURCE_OPTIONS, WATER_SOURCE_OPTIONS } from '../../features/survey/recommendation/recommendationTypes';
+import { useScanCaptureForVisit } from '../../features/scanHandoff';
+import { CapturedEvidencePanel } from '../../features/scanEvidence/CapturedEvidencePanel';
 import VisitReportsList from './VisitReportsList';
 import { VisitReplayPanel } from './VisitReplayPanel';
 import { VisitContext } from '../../features/visits/VisitProvider';
@@ -964,6 +966,10 @@ export default function VisitHubPage({
   onOpenInstallationSpecification,
   installationSpecOptionCount,
 }: Props) {
+  const scanCapture = useScanCaptureForVisit(visitId);
+  const scanCaptureRecord = scanCapture as unknown as Record<string, unknown> | null;
+  const spatialEvidenceGraph = scanCaptureRecord?.['spatialEvidenceGraph'];
+  const unresolvedEvidence = scanCaptureRecord?.['unresolvedEvidence'];
   const [meta, setMeta] = useState<VisitMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1430,6 +1436,11 @@ export default function VisitHubPage({
             />
           </>
         )}
+
+        <CapturedEvidencePanel
+          spatialEvidenceGraph={spatialEvidenceGraph}
+          unresolvedEvidence={unresolvedEvidence}
+        />
 
         {/* Engine section — last run timestamp, re-run, and JSON download */}
         <details className="visit-hub__engine-section" data-testid="engine-section">
