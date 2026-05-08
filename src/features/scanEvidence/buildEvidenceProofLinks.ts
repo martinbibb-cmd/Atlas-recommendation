@@ -85,6 +85,10 @@ function readNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * Normalises category/template strings into stable lowercase tokens.
+ * Converts spaces and slashes to underscores and strips punctuation.
+ */
 function normaliseToken(value: string): string {
   return value
     .trim()
@@ -93,6 +97,9 @@ function normaliseToken(value: string): string {
     .replace(/[^a-z0-9_]/g, '');
 }
 
+/**
+ * Converts machine-style identifiers (snake/kebab case) into plain words.
+ */
 function humaniseToken(value: string): string {
   return value
     .replace(/[_-]+/g, ' ')
@@ -260,6 +267,9 @@ function sectionsForPin(pin: string): ProposalSection[] {
   return sections;
 }
 
+/**
+ * Maps structured equipment categories/templates to proposal evidence sections.
+ */
 function sectionsForCategory(value: string | null): ProposalSection[] {
   if (!value) return [];
   const token = normaliseToken(value);
@@ -281,6 +291,10 @@ function sectionsForCategory(value: string | null): ProposalSection[] {
   return [];
 }
 
+/**
+ * Builds a human-readable manual equipment label using manufacturer/model and
+ * optional type/dimensions metadata.
+ */
 function buildManualIdentityLabel(manualEntry: UnknownRecord): string {
   const manufacturer =
     readString(manualEntry['manufacturer']) ??
@@ -304,6 +318,10 @@ function buildManualIdentityLabel(manualEntry: UnknownRecord): string {
   return parts.join(' ').trim();
 }
 
+/**
+ * Normalises mixed pin payloads (string labels or structured objects) into a
+ * unified object-pin model with section mapping and review status.
+ */
 function normaliseObjectPins(value: unknown): NormalisedObjectPin[] {
   const result: NormalisedObjectPin[] = [];
   for (const item of asArray(value)) {
