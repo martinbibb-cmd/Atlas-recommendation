@@ -457,9 +457,9 @@ export function buildEvidenceProofLinks(
 
       // Object pins → classify by keyword
       if (cp.objectPins.length > 0) {
-        const pinSections = new Set(
+        const pinSections = new Set<ProposalSection>(
           cp.objectPins.flatMap((pin) =>
-            pin.sections.length > 0 ? pin.sections : ['general'],
+            pin.sections.length > 0 ? pin.sections : (['general'] as ProposalSection[]),
           ),
         );
         for (const section of pinSections) {
