@@ -207,7 +207,7 @@ function rateHotWaterPerformance(
       storedReason =
         'Mixergy cylinder mirrors demand and maintains strong hot-water delivery while reducing unnecessary reheat cycling.';
       storedPhysics =
-        'Top-down draw preserves usable hot water and mirrors draw profiles; cycling penalties are lower than a standard combi under repeat short demands.';
+        'Mixergy top-down draw preserves usable hot water and mirrors draw profiles; cycling penalties are lower than a standard combi under repeat short demands.';
     }
     if (dhwHardFail) {
       storedBand = 'Needs Right Setup';

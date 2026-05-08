@@ -274,7 +274,7 @@ export function buildCustomerPackV1(
   }
 
   const heroRecommendation = resolveSystemLabel(recommended).trim().toLowerCase();
-  const recommendedScenarioLabel = (recommended.display?.label ?? resolveSystemLabel(recommended))
+  const recommendedScenarioLabel = (recommended.display?.atlasPickLabel ?? resolveSystemLabel(recommended))
     .trim()
     .toLowerCase();
   if (heroRecommendation !== recommendedScenarioLabel) {
