@@ -10,14 +10,14 @@ import {
   groupLinksBySection,
   SECTION_HEADING_LABELS,
 } from '../evidenceExplainers';
-import type { EvidenceProofLinkV1 } from '../EvidenceProofLinkV1';
+import type { EvidenceCaptureRef, EvidenceProofLinkV1 } from '../EvidenceProofLinkV1';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 function makeLink(
   section: EvidenceProofLinkV1['section'],
   resolved: boolean,
-  cardKey: 'key-objects' | 'measurements' | 'ghost-appliances' | 'what-scanned' | 'open-review' = 'key-objects',
+  cardKey: EvidenceCaptureRef['storyboardCardKey'] = 'key-objects',
 ): EvidenceProofLinkV1 {
   return {
     section,

@@ -138,9 +138,9 @@ export function groupLinksBySection(
 // ─── Section heading labels ───────────────────────────────────────────────────
 
 export const SECTION_HEADING_LABELS: Record<ProposalSection, string> = {
-  boiler:    'Heat source',
-  cylinder:  'Hot-water storage',
-  flue:      'Flue and ventilation',
+  boiler: 'Heat source',
+  cylinder: 'Hot-water storage',
+  flue: 'Flue and ventilation',
   radiators: 'Heat emitters',
-  general:   'General survey',
+  general: 'General survey',
 };

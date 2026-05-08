@@ -16,14 +16,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EvidenceExplainerCard } from '../EvidenceExplainerCard';
-import type { EvidenceProofLinkV1 } from '../EvidenceProofLinkV1';
+import type { EvidenceCaptureRef, EvidenceProofLinkV1 } from '../EvidenceProofLinkV1';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 function makeLink(
   section: EvidenceProofLinkV1['section'],
   resolved: boolean,
-  cardKey: 'key-objects' | 'measurements' | 'ghost-appliances' | 'what-scanned' | 'open-review' = 'key-objects',
+  cardKey: EvidenceCaptureRef['storyboardCardKey'] = 'key-objects',
 ): EvidenceProofLinkV1 {
   return {
     section,
