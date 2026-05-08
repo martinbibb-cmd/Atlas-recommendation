@@ -110,7 +110,8 @@ function normalizeMeasurements(value: unknown): string[] {
       readString(obj['unit']) ??
       (obj['valueM'] != null ? 'm' : null);
     if (numericValue != null) {
-      out.push(label ? `${label}: ${numericValue}${unit ? ` ${unit}` : ''}` : `${numericValue}${unit ? ` ${unit}` : ''}`);
+      const formattedValue = `${numericValue}${unit ? ` ${unit}` : ''}`;
+      out.push(label ? `${label}: ${formattedValue}` : formattedValue);
       continue;
     }
     const fallback = readString(obj['detail']) ?? readString(obj['text']) ?? readString(obj['id']);
@@ -311,7 +312,7 @@ function EvidenceList({ title, items }: { title: string; items: string[] }) {
       </p>
       <ul style={{ margin: '0.15rem 0 0 0.95rem', color: '#334155', fontSize: '0.8rem' }}>
         {items.map((item, idx) => (
-          <li key={`${title}-${idx}`}>{item}</li>
+          <li key={`${title}-${item}-${idx}`}>{item}</li>
         ))}
       </ul>
     </div>
@@ -384,7 +385,7 @@ export function CapturedEvidencePanel({
           {room.warnings.length > 0 && (
             <ul style={{ margin: '0.4rem 0 0 1rem', color: '#92400e', fontSize: '0.78rem' }}>
               {room.warnings.map((warning, idx) => (
-                <li key={`room-warning-${idx}`}>{warning}</li>
+                <li key={`room-warning-${warning}-${idx}`}>{warning}</li>
               ))}
             </ul>
           )}
@@ -453,4 +454,3 @@ export function CapturedEvidencePanel({
     </section>
   );
 }
-

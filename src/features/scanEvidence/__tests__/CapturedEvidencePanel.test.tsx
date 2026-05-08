@@ -69,6 +69,21 @@ describe('CapturedEvidencePanel', () => {
 
     expect(screen.getByText(/review pending/i)).toBeTruthy();
     expect(screen.getByText(/under review/i)).toBeTruthy();
+    expect(screen.queryByText(/pending-verification/i)).toBeNull();
     expect(screen.queryByText(/capturePointId:/i)).toBeNull();
+  });
+
+  it('shows unresolved technical details when explicitly allowed', () => {
+    render(
+      <CapturedEvidencePanel
+        spatialEvidenceGraph={{ rooms: [] }}
+        unresolvedEvidence={[{ id: 'un-3', type: 'pending-verification', capturePointId: 'cp-9' }]}
+        customerFacing
+        allowUnresolvedDetails
+      />,
+    );
+
+    expect(screen.getByText(/pending-verification/i)).toBeTruthy();
+    expect(screen.getByText(/capturePointId: cp-9/i)).toBeTruthy();
   });
 });

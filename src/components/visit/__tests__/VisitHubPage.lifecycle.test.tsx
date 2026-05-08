@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import VisitHubPage from '../VisitHubPage';
 import type { VisitMeta } from '../../../lib/visits/visitApi';
+import type { SessionCaptureV2 } from '../../../features/scanImport/contracts/sessionCaptureV2';
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ describe('VisitHubPage — completed state body (PR 16)', () => {
       unresolvedEvidence: [
         { id: 'u1', type: 'pending-photo', capturePointId: 'cp-kitchen-1' },
       ],
-    } as unknown as import('../../../features/scanImport/contracts/sessionCaptureV2').SessionCaptureV2);
+    } as unknown as SessionCaptureV2);
 
     render(<VisitHubPage {...BASE_PROPS} />);
     await screen.findByTestId('visit-hub-body-completed-hint');
