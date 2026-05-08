@@ -88,7 +88,7 @@ export function readPersistedAtlasVisitV2(visitId: string): PersistedAtlasVisitR
     };
   }
 
-  if (tmpRaw != null) {
+  if (tmpRaw !== null) {
     try {
       localStorage.removeItem(tmp);
     } catch {

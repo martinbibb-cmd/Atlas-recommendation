@@ -803,7 +803,7 @@ function AppInner() {
     if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
     if (persisted.survey.fullSurvey?.quotes) setLabQuotes(persisted.survey.fullSurvey.quotes);
 
-    if (labEngineInput == null) {
+    if (labEngineInput === undefined) {
       try {
         setLabEngineInput(toEngineInput(sanitiseModelForEngine(persisted.survey)));
       } catch {

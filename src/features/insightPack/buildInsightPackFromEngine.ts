@@ -144,7 +144,12 @@ const RATING_BAND_ORDER: RatingBand[] = [
 ];
 
 function minRatingBand(a: RatingBand, b: RatingBand): RatingBand {
-  return RATING_BAND_ORDER[Math.max(RATING_BAND_ORDER.indexOf(a), RATING_BAND_ORDER.indexOf(b))];
+  const aIndex = RATING_BAND_ORDER.indexOf(a);
+  const bIndex = RATING_BAND_ORDER.indexOf(b);
+  if (aIndex < 0 || bIndex < 0) {
+    throw new Error(`Invalid rating band: ${a} / ${b}`);
+  }
+  return RATING_BAND_ORDER[Math.max(aIndex, bIndex)];
 }
 
 function deriveSupplyConstraintBand(ctx?: InsightPackSurveyContext): RatingBand {
