@@ -200,7 +200,9 @@ describe('VisitHubPage — completed state body (PR 16)', () => {
     render(<VisitHubPage {...BASE_PROPS} />);
     await screen.findByTestId('visit-hub-body-completed-hint');
     expect(screen.getByTestId('captured-evidence-panel')).toBeTruthy();
-    expect(screen.getByTestId('captured-evidence-capture-point-cp-kitchen-1')).toBeTruthy();
+    expect(screen.getByTestId('captured-evidence-storyboard-panel')).toBeTruthy();
+    expect(screen.getByTestId('captured-evidence-tab-storyboard').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('evidence-storyboard-room-room-kitchen')).toBeTruthy();
     expect(screen.getByText(/Unresolved evidence/i)).toBeTruthy();
   });
 });
