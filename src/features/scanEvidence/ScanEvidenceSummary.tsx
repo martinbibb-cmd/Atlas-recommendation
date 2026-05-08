@@ -3,20 +3,26 @@
  *
  * Top-level engineer-facing viewer for a received SessionCaptureV2.
  *
- * Renders a structured, read-only view of all captured evidence:
+ * Renders a structured view of all captured evidence with inline review controls:
  *   1. Session identity — session ID, device, address, capture/export timestamps
  *   2. Evidence counts summary
  *   3. Rooms
- *   4. Photos
+ *   4. Photos (with engineer review controls when visitId is provided)
  *   5. Voice note transcripts
- *   6. Object pins
+ *   6. Object pins (with engineer review controls when visitId is provided)
  *   7. Pipe routes
  *   8. Point-cloud assets (floor-plan snapshots)
  *   9. QA flags
  *
+ * Review mode
+ * ───────────
+ * When `visitId` is provided, each photo and object pin row shows
+ * Confirm / Needs Review / Reject controls.  Decisions are persisted to
+ * localStorage via useEvidenceReviewStore and survive browser restarts.
+ * Confirmation does NOT alter engine recommendation logic.
+ *
  * Constraints
  * ───────────
- * - Viewer only: no engine calls, no physics, no mutations.
  * - Does not run recommendations or derive property attributes.
  * - Consumes raw SessionCaptureV2 — no upstream processing required.
  * - Rejected evidence is noted in the QA section but all items are shown
@@ -41,6 +47,8 @@ import { ScanPointCloudAssetList } from './ScanPointCloudAssetList';
 import { AnchorConfidenceBadge } from './AnchorConfidenceBadge';
 import { ScanFabricEvidencePanel } from './ScanFabricEvidencePanel';
 import { ScanHazardObservationPanel } from './ScanHazardObservationPanel';
+import { useEvidenceReviewStore } from './useEvidenceReviewStore';
+import type { EvidenceItemKind, EvidenceReviewStatus } from './EvidenceReviewDecisionV1';
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -141,9 +149,16 @@ const QA_SEVERITY_STYLE: Record<
 
 export interface ScanEvidenceSummaryProps {
   capture: SessionCaptureV2;
+  /**
+   * Visit identifier used to scope review decisions.
+   * When provided, each object pin and photo row shows engineer review controls
+   * (Confirm / Needs Review / Reject + optional note).
+   * When omitted the component renders in read-only viewer mode.
+   */
+  visitId?: string;
 }
 
-export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
+export function ScanEvidenceSummary({ capture, visitId }: ScanEvidenceSummaryProps) {
   const counts = selectEvidenceCounts(capture);
   const qaFlags = selectQaFlags(capture);
   const sessionConfidence = deriveSessionConfidence(capture);
@@ -152,6 +167,27 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
 
   // Collapsible photo section (can be large)
   const [photosExpanded, setPhotosExpanded] = useState(false);
+
+  // Review store — only active when visitId is provided.
+  // We call the hook unconditionally (rules of hooks) but only use its
+  // results when visitId is present.
+  const reviewStore = useEvidenceReviewStore(visitId ?? '');
+  const reviewEnabled = Boolean(visitId);
+
+  function handleDecide(
+    itemId: string,
+    kind: EvidenceItemKind,
+    status: EvidenceReviewStatus,
+    note?: string,
+  ) {
+    if (!reviewEnabled) return;
+    reviewStore.setDecision(itemId, kind, status, note);
+  }
+
+  function handleClear(itemId: string) {
+    if (!reviewEnabled) return;
+    reviewStore.clearDecision(itemId);
+  }
 
   return (
     <div
@@ -267,7 +303,12 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
             >
               Collapse photos
             </button>
-            <ScanPhotoEvidenceGrid capture={capture} />
+            <ScanPhotoEvidenceGrid
+              capture={capture}
+              reviewDecisions={reviewEnabled ? reviewStore.decisions : undefined}
+              onDecide={reviewEnabled ? (id, _kind, status, note) => handleDecide(id, 'photo', status, note) : undefined}
+              onClear={reviewEnabled ? handleClear : undefined}
+            />
           </>
         ) : (
           <button
@@ -294,7 +335,12 @@ export function ScanEvidenceSummary({ capture }: ScanEvidenceSummaryProps) {
 
       {/* ── 6. Object pins ────────────────────────────────────────────────── */}
       <Section title="Object pins" count={counts.objectPins}>
-        <ScanObjectPinList capture={capture} />
+        <ScanObjectPinList
+          capture={capture}
+          reviewDecisions={reviewEnabled ? reviewStore.decisions : undefined}
+          onDecide={reviewEnabled ? (id, _kind, status, note) => handleDecide(id, 'object_pin', status, note) : undefined}
+          onClear={reviewEnabled ? handleClear : undefined}
+        />
       </Section>
 
       {/* ── 7. Pipe routes ────────────────────────────────────────────────── */}

@@ -240,7 +240,7 @@ export default function EngineerPreinstallPage({ visitId, onBack }: Props) {
             </div>
           )}
           <ScanPreinstallSignals capture={scanCapture} />
-          <ScanEvidenceSummary capture={scanCapture} />
+          <ScanEvidenceSummary capture={scanCapture} visitId={visitId} />
         </>
       )}
 

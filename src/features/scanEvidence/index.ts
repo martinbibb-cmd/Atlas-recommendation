@@ -16,6 +16,21 @@
  *   import them directly from scanImport/contracts/sessionCaptureV2.
  */
 
+// ─── Evidence review ──────────────────────────────────────────────────────────
+
+export type {
+  EvidenceItemKind,
+  EvidenceReviewStatus,
+  EvidenceReviewDecisionV1,
+  EvidenceReviewMap,
+} from './EvidenceReviewDecisionV1';
+
+export type { UseEvidenceReviewStoreResult } from './useEvidenceReviewStore';
+export { useEvidenceReviewStore } from './useEvidenceReviewStore';
+
+export type { EvidenceReviewControlsProps } from './EvidenceReviewControls';
+export { EvidenceReviewControls } from './EvidenceReviewControls';
+
 // ─── Evidence explainers ──────────────────────────────────────────────────────
 
 export type { EvidenceSectionExplainer } from './evidenceExplainers';
@@ -131,3 +146,8 @@ export {
   hasExternalMeasurements,
   getFlueEvidenceReadiness,
 } from './scanEvidenceSelectors';
+
+// ─── Proof links ──────────────────────────────────────────────────────────────
+
+export type { EvidenceReviewOverlay } from './buildEvidenceProofLinks';
+export { buildEvidenceProofLinks } from './buildEvidenceProofLinks';

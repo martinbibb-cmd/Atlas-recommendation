@@ -8,12 +8,16 @@
  * src values in a web context.  The grid therefore shows metadata cards
  * with filename, scope, room association, tags, and capture timestamp.
  *
- * Viewer only — read-only, no mutations, no engine calls.
+ * When review callbacks are provided, each photo card shows inline
+ * Confirm / Needs Review / Reject controls so the engineer can classify
+ * photos before they appear in customer-facing proof output.
  */
 
 import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
 import { selectPhotos } from './scanEvidenceSelectors';
 import type { PhotoV2 } from './scanEvidenceSelectors';
+import { EvidenceReviewControls } from './EvidenceReviewControls';
+import type { EvidenceReviewDecisionV1, EvidenceReviewStatus } from './EvidenceReviewDecisionV1';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,13 +51,28 @@ const SCOPE_LABELS: Record<PhotoV2['scope'], string> = {
 
 // ─── Photo card ───────────────────────────────────────────────────────────────
 
-function PhotoCard({ photo }: { photo: PhotoV2 }) {
+function PhotoCard({
+  photo,
+  decision,
+  onDecide,
+  onClear,
+}: {
+  photo: PhotoV2;
+  decision?: EvidenceReviewDecisionV1;
+  onDecide?: (
+    itemId: string,
+    kind: 'photo',
+    status: EvidenceReviewStatus,
+    note?: string,
+  ) => void;
+  onClear?: (itemId: string) => void;
+}) {
   return (
     <div
       data-testid={`scan-photo-card-${photo.photoId}`}
       style={{
-        background: '#f8fafc',
-        border: '1px solid #e2e8f0',
+        background: decision?.status === 'rejected' ? '#fef2f2' : '#f8fafc',
+        border: `1px solid ${decision?.status === 'rejected' ? '#fca5a5' : '#e2e8f0'}`,
         borderRadius: 6,
         padding: '0.6rem 0.8rem',
         display: 'flex',
@@ -115,6 +134,18 @@ function PhotoCard({ photo }: { photo: PhotoV2 }) {
       <span style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '0.1rem' }}>
         {formatTime(photo.capturedAt)}
       </span>
+
+      {/* Review controls — shown only when review callbacks are provided */}
+      {onDecide && (
+        <EvidenceReviewControls
+          itemId={photo.photoId}
+          kind="photo"
+          currentStatus={decision?.status}
+          currentNote={decision?.engineerNote}
+          onDecide={onDecide}
+          onClear={onClear}
+        />
+      )}
     </div>
   );
 }
@@ -123,9 +154,28 @@ function PhotoCard({ photo }: { photo: PhotoV2 }) {
 
 export interface ScanPhotoEvidenceGridProps {
   capture: SessionCaptureV2;
+  /**
+   * Review decisions keyed by photoId.
+   * When provided alongside onDecide, each photo card shows review controls.
+   */
+  reviewDecisions?: Record<string, EvidenceReviewDecisionV1>;
+  /** Called when the engineer makes a review decision for a photo. */
+  onDecide?: (
+    itemId: string,
+    kind: 'photo',
+    status: EvidenceReviewStatus,
+    note?: string,
+  ) => void;
+  /** Called when the engineer clears a review decision. */
+  onClear?: (itemId: string) => void;
 }
 
-export function ScanPhotoEvidenceGrid({ capture }: ScanPhotoEvidenceGridProps) {
+export function ScanPhotoEvidenceGrid({
+  capture,
+  reviewDecisions,
+  onDecide,
+  onClear,
+}: ScanPhotoEvidenceGridProps) {
   const photos = selectPhotos(capture);
 
   if (photos.length === 0) {
@@ -146,7 +196,13 @@ export function ScanPhotoEvidenceGrid({ capture }: ScanPhotoEvidenceGridProps) {
       }}
     >
       {photos.map((photo) => (
-        <PhotoCard key={photo.photoId} photo={photo} />
+        <PhotoCard
+          key={photo.photoId}
+          photo={photo}
+          decision={reviewDecisions?.[photo.photoId]}
+          onDecide={onDecide}
+          onClear={onClear}
+        />
       ))}
     </div>
   );
