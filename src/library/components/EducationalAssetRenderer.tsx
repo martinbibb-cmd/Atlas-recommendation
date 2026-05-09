@@ -98,11 +98,12 @@ export default function EducationalAssetRenderer({
 
   // Guard: reduced-motion mode — block high/medium motion animations that
   // don't declare reduced-motion support.
-  if (
+  const isUnsafeForReducedMotion =
     mode === 'reduced_motion'
     && asset.motionIntensity !== 'none'
-    && !asset.supportsReducedMotion
-  ) {
+    && !asset.supportsReducedMotion;
+
+  if (isUnsafeForReducedMotion) {
     return <>{fallback ?? <ReducedMotionPlaceholder assetId={assetId} />}</>;
   }
 

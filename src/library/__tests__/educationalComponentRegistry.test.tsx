@@ -97,7 +97,7 @@ describe('EducationalAssetRenderer — reduced_motion mode', () => {
 
     render(<EducationalAssetRenderer assetId="BoilerCyclingAnimation" mode="digital" />);
     // Should render the cycling animation without errors.
-    expect(screen.getByLabelText(/Oversized boiler cycling pattern animation/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Oversized boiler cycling pattern animation/i)).toBeInTheDocument();
   });
 
   it('does not silently render unsafe animation — shows fallback for motion asset without reduced-motion support', () => {
@@ -126,7 +126,7 @@ describe('EducationalAssetRenderer — reduced_motion mode', () => {
         fallback={<div>Custom fallback</div>}
       />,
     );
-    expect(screen.getByText('Custom fallback')).toBeTruthy();
+    expect(screen.getByText('Custom fallback')).toBeInTheDocument();
   });
 });
 
@@ -136,22 +136,22 @@ describe('EducationalAssetRenderer — print mode', () => {
   it('shows print placeholder for animation-only assets without print equivalent', () => {
     // BoilerCyclingAnimation has hasPrintEquivalent: false and assetType: animation.
     render(<EducationalAssetRenderer assetId="BoilerCyclingAnimation" mode="print" />);
-    expect(screen.getByRole('note')).toBeTruthy();
-    expect(screen.getByText(/Interactive visual/i)).toBeTruthy();
+    expect(screen.getByRole('note')).toBeInTheDocument();
+    expect(screen.getByText(/Interactive visual/i)).toBeInTheDocument();
   });
 
   it('renders diagram assets in print mode without showing a placeholder', () => {
     // ControlsVisual has hasPrintEquivalent: true and assetType: diagram — should render.
     render(<EducationalAssetRenderer assetId="ControlsVisual" mode="print" />);
     expect(screen.queryByRole('note')).toBeNull();
-    expect(screen.getByLabelText(/Fixed higher flow vs lower steadier running/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Fixed higher flow vs lower steadier running/i)).toBeInTheDocument();
   });
 
   it('renders static diagram assets in print mode without showing a placeholder', () => {
     // PrimariesDiagram has motionIntensity: none and hasPrintEquivalent: true.
     render(<EducationalAssetRenderer assetId="PrimariesDiagram" mode="print" />);
     expect(screen.queryByRole('note')).toBeNull();
-    expect(screen.getByLabelText(/Primary pipework size comparison/i)).toBeTruthy();
+    expect(screen.getByLabelText(/Primary pipework size comparison/i)).toBeInTheDocument();
   });
 
   it('does not silently render animation-only assets in print mode', () => {
