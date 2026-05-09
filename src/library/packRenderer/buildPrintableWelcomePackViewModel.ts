@@ -79,6 +79,18 @@ const EMPTY_SECTION_ASSET_MAP: Record<PrintableWelcomePackSectionId, string[]> =
   next_steps: [],
 };
 
+const PLAN_MIRRORED_SECTION_IDS = [
+  'calm_summary',
+  'why_this_fits',
+  'living_with_the_system',
+  'relevant_explainers',
+  'optional_technical_appendix',
+  'next_steps',
+] as const;
+
+type PlanMirroredSectionId = (typeof PLAN_MIRRORED_SECTION_IDS)[number];
+const PLAN_MIRRORED_SECTION_SET = new Set<PlanMirroredSectionId>(PLAN_MIRRORED_SECTION_IDS);
+
 function uniqueInOrder(values: string[]): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
@@ -137,7 +149,7 @@ export function buildPrintableWelcomePackViewModel(
   };
 
   for (const section of plan.sections) {
-    if (section.id === 'calm_summary' || section.id === 'why_this_fits' || section.id === 'living_with_the_system' || section.id === 'relevant_explainers' || section.id === 'optional_technical_appendix' || section.id === 'next_steps') {
+    if (PLAN_MIRRORED_SECTION_SET.has(section.id)) {
       sectionAssetIds[section.id] = uniqueInOrder(
         section.includedAssetIds.filter((assetId) => selectedAssetIds.has(assetId)),
       );
@@ -158,7 +170,7 @@ export function buildPrintableWelcomePackViewModel(
     }),
   );
 
-  for (const sectionId of ['calm_summary', 'why_this_fits', 'living_with_the_system', 'relevant_explainers', 'optional_technical_appendix', 'next_steps'] as const) {
+  for (const sectionId of PLAN_MIRRORED_SECTION_IDS) {
     sectionAssetIds[sectionId] = sectionAssetIds[sectionId].filter((assetId) => !safetyAssetIds.includes(assetId));
   }
   sectionAssetIds.safety_and_compliance = safetyAssetIds;
