@@ -4,12 +4,15 @@ import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { EducationalDepth, EducationalLoad } from '../contracts/EducationalAssetV1';
 import type { EducationalPackSectionV1 } from '../contracts/EducationalPackV1';
 
+export type WelcomePackAccessibilityProfile = 'dyslexia' | 'adhd';
+
 export interface WelcomePackAccessibilityPreferencesV1 {
   prefersReducedMotion?: boolean;
   prefersPrint?: boolean;
   requestedDepth?: EducationalDepth;
   includeTechnicalAppendix?: boolean;
   maxPages?: number;
+  profiles?: WelcomePackAccessibilityProfile[];
 }
 
 export interface WelcomePackPlanV1 {
