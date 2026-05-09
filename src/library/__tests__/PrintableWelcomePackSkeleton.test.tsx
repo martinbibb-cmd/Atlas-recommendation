@@ -122,6 +122,7 @@ describe('PrintableWelcomePackSkeleton', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Safety and compliance' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'QR and deeper detail' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Next steps' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 2, name: 'Optional technical appendix' })).toBeNull();
   });
 
   it('renders static asset placeholders instead of animation components', () => {
