@@ -20,7 +20,7 @@ interface BuildSectionTemplate {
 const SECTION_TEMPLATES: BuildSectionTemplate[] = [
   {
     sectionId: 'calm_summary',
-    title: 'Calm summary',
+    title: 'What Atlas found',
     purpose: 'Open with a short, low-friction summary of the recommended outcome.',
     placeholderText: 'Content pending: calm summary copy will be authored from locked plan facts.',
     printPriority: 'must_print',
@@ -68,6 +68,8 @@ const SECTION_TEMPLATES: BuildSectionTemplate[] = [
     printPriority: 'must_print',
   },
 ];
+
+const QR_DEFERRED_REASON_FALLBACK = 'Deferred to QR detail. Content pending.';
 
 const EMPTY_SECTION_ASSET_MAP: Record<PrintableWelcomePackSectionId, string[]> = {
   calm_summary: [],
@@ -185,7 +187,7 @@ export function buildPrintableWelcomePackViewModel(
       deferredAssetIdSet.add(assetId);
       const asset = assetById.get(assetId);
       const reason = plan.omittedAssetIdsWithReason.find((omitted) => omitted.assetId === assetId)?.reason
-        ?? 'Deferred to QR detail. Content pending.';
+        ?? QR_DEFERRED_REASON_FALLBACK;
       const conceptIdsForAsset = (asset?.conceptIds ?? [])
         .filter((conceptId) => deferredConceptIds.has(conceptId) || selectedConceptIds.has(conceptId));
       return {

@@ -23,27 +23,6 @@ function renderAssetPlaceholders(assetIds: string[], sectionId: PrintableWelcome
   );
 }
 
-function renderSectionHeading(section: PrintableWelcomePackSectionV1): string {
-  switch (section.sectionId) {
-    case 'calm_summary':
-      return 'What Atlas found';
-    case 'why_this_fits':
-      return 'Why this fits';
-    case 'living_with_the_system':
-      return 'Living with your system';
-    case 'relevant_explainers':
-      return 'Relevant explainers';
-    case 'safety_and_compliance':
-      return 'Safety and compliance';
-    case 'optional_technical_appendix':
-      return 'Optional technical appendix';
-    case 'next_steps':
-      return 'Next steps';
-    default:
-      return section.title;
-  }
-}
-
 export function PrintableWelcomePackSkeleton({ viewModel }: PrintableWelcomePackSkeletonProps) {
   const sectionById = new Map(viewModel.sections.map((section) => [section.sectionId, section]));
   const orderedSections = [
@@ -98,7 +77,7 @@ export function PrintableWelcomePackSkeleton({ viewModel }: PrintableWelcomePack
         return (
           <section key={section.sectionId} className={`pwps-section pwps-section--${section.sectionId}`} aria-labelledby={`pwps-heading-${section.sectionId}`}>
             <h2 id={`pwps-heading-${section.sectionId}`} className="pwps-section-heading">
-              {renderSectionHeading(section)}
+              {section.title}
             </h2>
             <p className="pwps-purpose">{section.purpose}</p>
             <p className="pwps-placeholder">{section.placeholderText}</p>

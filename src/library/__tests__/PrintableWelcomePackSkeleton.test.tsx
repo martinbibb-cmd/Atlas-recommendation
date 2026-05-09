@@ -20,7 +20,7 @@ const viewModel: PrintableWelcomePackViewModelV1 = {
   sections: [
     {
       sectionId: 'calm_summary',
-      title: 'Calm summary',
+      title: 'What Atlas found',
       purpose: 'Open with a short, low-friction summary.',
       conceptIds: ['system_work_explainer'],
       assetIds: ['SystemWorkExplainerCards'],
