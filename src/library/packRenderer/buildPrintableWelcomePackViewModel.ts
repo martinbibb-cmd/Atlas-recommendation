@@ -114,7 +114,7 @@ function parseAssetIdFromDestination(destination: string): string | undefined {
   return destination.slice(marker.length).trim() || undefined;
 }
 
-function getCognitiveLoadEstimate(assetIds: string[], assetsById: Map<string, EducationalAssetV1>): 'low' | 'medium' | 'high' {
+function computeHighestCognitiveLoad(assetIds: string[], assetsById: Map<string, EducationalAssetV1>): 'low' | 'medium' | 'high' {
   const rank: Record<'low' | 'medium' | 'high', number> = {
     low: 1,
     medium: 2,
@@ -188,8 +188,7 @@ export function buildPrintableWelcomePackViewModel(
       }
       deferredAssetIdSet.add(assetId);
       const asset = assetById.get(assetId);
-      const reason = omittedReasonByAssetId.get(assetId)
-        ?? QR_DEFERRED_REASON_FALLBACK;
+      const reason = omittedReasonByAssetId.get(assetId) ?? QR_DEFERRED_REASON_FALLBACK;
       const conceptIdsForAsset = (asset?.conceptIds ?? [])
         .filter((conceptId) => deferredConceptIds.has(conceptId) || selectedConceptIds.has(conceptId));
       return {
@@ -216,7 +215,7 @@ export function buildPrintableWelcomePackViewModel(
       assetIds,
       placeholderText: template.placeholderText,
       printPriority: template.printPriority,
-      cognitiveLoadEstimate: getCognitiveLoadEstimate(assetIds, assetById),
+      cognitiveLoadEstimate: computeHighestCognitiveLoad(assetIds, assetById),
     };
   });
 
