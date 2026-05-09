@@ -48,6 +48,10 @@ export interface EducationalRoutingAccessibilityPreferencesV1 {
   profiles?: EducationalRoutingAccessibilityProfile[];
 }
 
+export interface EducationalRoutingTaxonomyValidationOptionsV1 {
+  enabled?: boolean;
+}
+
 export interface EducationalAssetSelectionV1 {
   selected: Array<{
     assetId: string;
@@ -70,6 +74,7 @@ export interface SelectEducationalAssetsForContextInputV1 {
   atlasDecision: AtlasDecisionV1;
   scenarios: ScenarioResult[];
   educationalAssets: import('../contracts/EducationalAssetV1').EducationalAssetV1[];
+  taxonomyValidation?: EducationalRoutingTaxonomyValidationOptionsV1;
   accessibilityPreferences?: EducationalRoutingAccessibilityPreferencesV1;
   userConcernTags?: string[];
   propertyConstraintTags?: string[];

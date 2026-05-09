@@ -7,6 +7,7 @@ import type {
   EducationalRoutingRuleV1,
   SelectEducationalAssetsForContextInputV1,
 } from './EducationalRoutingRuleV1';
+import { getConceptById } from '../taxonomy/conceptGraph';
 
 const COGNITIVE_WEIGHT: Record<EducationalLoad, number> = {
   low: 1,
@@ -165,6 +166,54 @@ function assetSupportsRule(
   return { supported: true, score };
 }
 
+function buildTaxonomyValidationWarnings(
+  selected: EducationalAssetSelectionV1['selected'],
+  omitted: EducationalAssetSelectionV1['omitted'],
+  educationalAssets: EducationalAssetV1[],
+): string[] {
+  const assetById = new Map(educationalAssets.map((asset) => [asset.id, asset]));
+  const selectedConceptIds = new Set(
+    selected.flatMap((item) => assetById.get(item.assetId)?.conceptIds ?? []),
+  );
+  const omittedConceptIds = new Set(
+    omitted.flatMap((item) => assetById.get(item.assetId)?.conceptIds ?? []),
+  );
+
+  const warningSet = new Set<string>();
+
+  for (const selectedAsset of selected) {
+    const asset = assetById.get(selectedAsset.assetId);
+    if (!asset) {
+      continue;
+    }
+
+    for (const conceptId of asset.conceptIds) {
+      const concept = getConceptById(conceptId);
+      if (!concept) {
+        warningSet.add(`Selected asset "${asset.id}" references unknown conceptId "${conceptId}".`);
+        continue;
+      }
+
+      for (const requiredPriorConceptId of concept.requiredPriorConceptIds) {
+        if (!getConceptById(requiredPriorConceptId)) {
+          warningSet.add(
+            `Concept "${conceptId}" depends on unknown prior concept "${requiredPriorConceptId}".`,
+          );
+          continue;
+        }
+
+        if (!selectedConceptIds.has(requiredPriorConceptId) && omittedConceptIds.has(requiredPriorConceptId)) {
+          warningSet.add(
+            `Concept "${conceptId}" depends on omitted prior concept "${requiredPriorConceptId}".`,
+          );
+        }
+      }
+    }
+  }
+
+  return [...warningSet.values()];
+}
+
 export function selectEducationalAssetsForContext(
   input: SelectEducationalAssetsForContextInputV1,
 ): EducationalAssetSelectionV1 {
@@ -251,6 +300,10 @@ export function selectEducationalAssetsForContext(
       };
     })
     .sort((a, b) => a.assetId.localeCompare(b.assetId));
+
+  if (input.taxonomyValidation?.enabled) {
+    warnings.push(...buildTaxonomyValidationWarnings(selected, omitted, input.educationalAssets));
+  }
 
   return {
     selected,

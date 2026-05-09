@@ -236,4 +236,53 @@ describe('selectEducationalAssetsForContext', () => {
 
     expect(second).toEqual(first);
   });
+
+  it('optionally warns when selected concepts depend on omitted prior concepts', () => {
+    const scenarioId = 'combi_case';
+
+    const selectedCandidate: EducationalAssetV1 = {
+      ...educationalAssetRegistry[0],
+      id: 'A_SelectedConcept',
+      title: 'Selected concept asset',
+      assetType: 'animation',
+      conceptIds: ['flow_restriction'],
+      requiredEngineFacts: ['hydraulic_constraint_present'],
+      triggerTags: ['flow'],
+      cognitiveLoad: 'low',
+      hasPrintEquivalent: false,
+      supportsReducedMotion: true,
+    };
+
+    const omittedPriorCandidate: EducationalAssetV1 = {
+      ...educationalAssetRegistry[1],
+      id: 'Z_OmittedPriorConcept',
+      title: 'Prior concept asset',
+      assetType: 'animation',
+      conceptIds: ['pipework_constraint'],
+      requiredEngineFacts: ['hydraulic_constraint_present'],
+      triggerTags: ['flow'],
+      cognitiveLoad: 'low',
+      hasPrintEquivalent: false,
+      supportsReducedMotion: true,
+    };
+
+    const selection = selectEducationalAssetsForContext({
+      customerSummary: buildCustomerSummary(scenarioId, 'Combination boiler'),
+      atlasDecision: buildAtlasDecision(scenarioId),
+      scenarios: buildScenarios(scenarioId, 'combi'),
+      educationalAssets: [selectedCandidate, omittedPriorCandidate],
+      userConcernTags: ['flow'],
+      propertyConstraintTags: ['flow'],
+      taxonomyValidation: {
+        enabled: true,
+      },
+      packMode: 'welcome',
+    });
+
+    expect(selection.selected.some((item) => item.assetId === 'A_SelectedConcept')).toBe(true);
+    expect(selection.selected.some((item) => item.assetId === 'Z_OmittedPriorConcept')).toBe(false);
+    expect(selection.warnings).toContain(
+      'Concept "flow_restriction" depends on omitted prior concept "pipework_constraint".',
+    );
+  });
 });
