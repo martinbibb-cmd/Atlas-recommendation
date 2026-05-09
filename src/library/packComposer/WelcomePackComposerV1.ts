@@ -18,14 +18,18 @@ export interface WelcomePackAccessibilityPreferencesV1 {
 export interface WelcomePackPlanV1 {
   packId: string;
   recommendedScenarioId: string;
+  archetypeId: string;
   sections: EducationalPackSectionV1[];
   selectedAssetIds: string[];
   selectedAssetReasons: Record<string, string[]>;
+  selectedConceptIds: string[];
+  deferredConceptIds: string[];
   omittedAssetIdsWithReason: Array<{
     assetId: string;
     reason: string;
   }>;
   printPageBudget: number;
+  pageBudgetUsed: number;
   cognitiveLoadBudget: EducationalLoad;
   qrDestinations: string[];
 }

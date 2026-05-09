@@ -1,30 +1,22 @@
 import type { EducationalAssetV1, EducationalLoad } from '../contracts/EducationalAssetV1';
 import type { EducationalPackSectionV1 } from '../contracts/EducationalPackV1';
-import { selectEducationalAssetsForContext } from '../routing/selectEducationalAssetsForContext';
+import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
 import type {
   EducationalAssetSelectionV1,
   EducationalRoutingAccessibilityProfile,
   EducationalRoutingSectionTarget,
 } from '../routing/EducationalRoutingRuleV1';
-import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
+import { selectEducationalAssetsForContext } from '../routing/selectEducationalAssetsForContext';
+import { getConceptById } from '../taxonomy/conceptGraph';
+import { educationalConceptTaxonomy } from '../taxonomy/educationalConceptTaxonomy';
+import { detectWelcomePackArchetype } from './archetypes/welcomePackArchetypes';
+import { applyWelcomePackBudget } from './budget/applyWelcomePackBudget';
 import type { WelcomePackComposerInputV1, WelcomePackPlanV1 } from './WelcomePackComposerV1';
-
-const DEFAULT_PRINT_PAGE_BUDGET = 4;
 
 const COGNITIVE_WEIGHT: Record<EducationalLoad, number> = {
   low: 1,
   medium: 2,
   high: 3,
-};
-
-const ASSET_PAGE_COST: Record<EducationalAssetV1['assetType'], number> = {
-  animation: 1,
-  diagram: 1,
-  explainer: 1,
-  print_sheet: 1,
-  analogy: 1,
-  topology: 1,
-  checklist: 1,
 };
 
 function toLoadLimit(load: EducationalLoad): number {
@@ -48,10 +40,7 @@ function toRoutingProfiles(input: WelcomePackComposerInputV1): EducationalRoutin
 }
 
 function toSectionId(target: EducationalRoutingSectionTarget): EducationalPackSectionV1['id'] {
-  if (target === 'technical_appendix') {
-    return 'optional_technical_appendix';
-  }
-  return target;
+  return target === 'technical_appendix' ? 'optional_technical_appendix' : target;
 }
 
 function buildSection(
@@ -66,25 +55,178 @@ function buildRoutingOmissionReason(reason: string, fallback: string): string {
   return reason.trim().length > 0 ? reason : fallback;
 }
 
-function scoreRoutedAsset(
-  selected: EducationalAssetSelectionV1['selected'][number],
-  asset: EducationalAssetV1 | undefined,
-  prefersPrint: boolean | undefined,
-  hasLowCognitiveProfile: boolean,
-): number {
-  const cognitiveWeight = asset ? COGNITIVE_WEIGHT[asset.cognitiveLoad] : 0;
-  const printBonus = prefersPrint && asset?.hasPrintEquivalent ? 40 : 0;
-  const staticBonus = hasLowCognitiveProfile && asset && (asset.hasStaticFallback || asset.motionIntensity === 'none')
-    ? 20
-    : 0;
-  const reducedMotionBonus = hasLowCognitiveProfile && asset && asset.supportsReducedMotion ? 20 : 0;
+function buildAvailableFactKeys(input: WelcomePackComposerInputV1): Set<string> {
+  const { customerSummary, atlasDecision } = input;
+  const facts = new Set<string>(['recommended_scenario_available']);
 
-  return selected.priority * 100
-    + selected.printWeight * 5
-    - cognitiveWeight
-    + printBonus
-    + staticBonus
-    + reducedMotionBonus;
+  if (customerSummary.includedNow.length > 0 || atlasDecision.includedItems.length > 0) {
+    facts.add('included_scope_present');
+  }
+  if (atlasDecision.dayToDayOutcomes.length > 0) {
+    facts.add('day_to_day_outcomes_present');
+  }
+  if (atlasDecision.compatibilityWarnings.length > 0 || customerSummary.requiredChecks.length > 0) {
+    facts.add('hydraulic_constraint_present');
+  }
+  if (
+    customerSummary.performancePenalties.length > 0
+    || (atlasDecision.performancePenalties?.length ?? 0) > 0
+    || customerSummary.whyThisWins.some((reason) => /cycle|oversiz/i.test(reason))
+  ) {
+    facts.add('cycling_risk_or_reason');
+  }
+  if (
+    customerSummary.requiredChecks.some((item) => /radiator|emitter|temperature/i.test(item))
+    || customerSummary.optionalUpgrades.some((item) => /radiator|emitter/i.test(item))
+  ) {
+    facts.add('emitter_upgrade_or_high_temp_note');
+  }
+  if (
+    customerSummary.whyThisWins.some((reason) => /control|weather compensation|setpoint/i.test(reason))
+    || customerSummary.includedNow.some((item) => /control/i.test(item))
+  ) {
+    facts.add('controls_guidance_present');
+  }
+
+  return facts;
+}
+
+function includesConcept(asset: EducationalAssetV1, conceptIds: string[]): boolean {
+  return asset.conceptIds.some((conceptId) => conceptIds.includes(conceptId));
+}
+
+function toArchetypeSectionTarget(
+  asset: EducationalAssetV1,
+  trustRecoveryConceptIds: string[],
+  livingWithSystemConceptIds: string[],
+): EducationalRoutingSectionTarget {
+  if (includesConcept(asset, trustRecoveryConceptIds)) {
+    return 'why_this_fits';
+  }
+  if (includesConcept(asset, livingWithSystemConceptIds)) {
+    return 'living_with_the_system';
+  }
+  if (asset.conceptIds.some((conceptId) => getConceptById(conceptId)?.category === 'safety')) {
+    return 'next_steps';
+  }
+  if (
+    asset.assetType === 'print_sheet'
+    || asset.conceptIds.includes('system_work_explainer')
+    || asset.conceptIds.includes('scope_clarity')
+  ) {
+    return 'next_steps';
+  }
+  return 'relevant_explainers';
+}
+
+function toArchetypePriority(
+  asset: EducationalAssetV1,
+  requiredConceptIds: string[],
+  recommendedConceptIds: string[],
+  optionalConceptIds: string[],
+): number {
+  const requiredMatches = requiredConceptIds.filter((conceptId) => asset.conceptIds.includes(conceptId)).length;
+  const recommendedMatches = recommendedConceptIds.filter((conceptId) => asset.conceptIds.includes(conceptId)).length;
+  const optionalMatches = optionalConceptIds.filter((conceptId) => asset.conceptIds.includes(conceptId)).length;
+
+  return requiredMatches * 90 + recommendedMatches * 60 + optionalMatches * 30;
+}
+
+function mergeWithArchetypeCandidates(
+  input: WelcomePackComposerInputV1,
+  routingSelection: EducationalAssetSelectionV1,
+): EducationalAssetSelectionV1 {
+  const archetype = detectWelcomePackArchetype(input);
+  const scenario = input.scenarios.find((item) => item.scenarioId === input.atlasDecision.recommendedScenarioId);
+  const systemType = scenario?.system.type;
+  const availableFacts = buildAvailableFactKeys(input);
+  const selectedById = new Map(routingSelection.selected.map((item) => [item.assetId, item]));
+  const warnings = [...routingSelection.warnings];
+  const conceptPool = [
+    ...archetype.requiredConceptIds,
+    ...archetype.recommendedConceptIds,
+    ...archetype.optionalConceptIds,
+    ...archetype.trustRecoveryConceptIds,
+    ...archetype.livingWithSystemConceptIds,
+  ];
+
+  for (const asset of educationalAssetRegistry) {
+    if (selectedById.has(asset.id)) {
+      continue;
+    }
+    if (asset.requiredEngineFacts.some((fact) => !availableFacts.has(fact))) {
+      continue;
+    }
+
+    const matchingConceptIds = asset.conceptIds.filter((conceptId) => conceptPool.includes(conceptId));
+    if (matchingConceptIds.length === 0) {
+      continue;
+    }
+
+    const applicableConcept = asset.conceptIds.some((conceptId) => {
+      const concept = getConceptById(conceptId);
+      return concept
+        ? concept.appliesToSystemTypes.includes('all')
+          || (systemType !== undefined && concept.appliesToSystemTypes.includes(systemType))
+        : true;
+    });
+    if (!applicableConcept) {
+      continue;
+    }
+
+    selectedById.set(asset.id, {
+      assetId: asset.id,
+      ruleId: `archetype:${archetype.archetypeId}`,
+      reason: `Selected for ${archetype.label} because it covers ${matchingConceptIds.join(', ')}.`,
+      sectionTarget: toArchetypeSectionTarget(
+        asset,
+        archetype.trustRecoveryConceptIds,
+        archetype.livingWithSystemConceptIds,
+      ),
+      priority: toArchetypePriority(
+        asset,
+        archetype.requiredConceptIds,
+        archetype.recommendedConceptIds,
+        archetype.optionalConceptIds,
+      ),
+      printWeight: archetype.preferredAssetTypes.includes(asset.assetType) ? 8 : 4,
+      cognitiveLoadImpact: asset.cognitiveLoad,
+    });
+  }
+
+  const selected = [...selectedById.values()]
+    .sort((a, b) => b.priority - a.priority || b.printWeight - a.printWeight || a.assetId.localeCompare(b.assetId));
+
+  const selectedIdSet = new Set(selected.map((item) => item.assetId));
+  const omitted = educationalAssetRegistry
+    .filter((asset) => !selectedIdSet.has(asset.id))
+    .map((asset) => ({
+      assetId: asset.id,
+      reason: routingSelection.omitted.find((item) => item.assetId === asset.id)?.reason
+        ?? 'No routing rule or archetype concept selected this asset for the current context.',
+    }))
+    .sort((a, b) => a.assetId.localeCompare(b.assetId));
+
+  if (!systemType) {
+    warnings.push('Archetype candidate routing could not confirm the recommended system type.');
+  }
+
+  return {
+    selected,
+    omitted,
+    warnings,
+  };
+}
+
+function toBudgetLoad(accessibilityPreferences: WelcomePackComposerInputV1['accessibilityPreferences']): EducationalLoad {
+  if (accessibilityPreferences?.profiles?.some((profile) => profile === 'dyslexia' || profile === 'adhd')) {
+    return 'low';
+  }
+  return accessibilityPreferences?.includeTechnicalAppendix ? 'high' : 'medium';
+}
+
+function uniqueValues(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): WelcomePackPlanV1 {
@@ -98,16 +240,11 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
   } = input;
 
   const recommendedScenarioId = atlasDecision.recommendedScenarioId;
-  const printPageBudget = Math.min(
-    accessibilityPreferences?.maxPages ?? DEFAULT_PRINT_PAGE_BUDGET,
-    DEFAULT_PRINT_PAGE_BUDGET,
-  );
-  const cognitiveLoadBudget: EducationalLoad = accessibilityPreferences?.includeTechnicalAppendix
-    ? 'high'
-    : 'medium';
+  const archetype = detectWelcomePackArchetype(input);
+  const cognitiveLoadBudget = toBudgetLoad(accessibilityPreferences);
   const maxCognitiveWeight = toLoadLimit(cognitiveLoadBudget);
 
-  const routingSelection = selectEducationalAssetsForContext({
+  const baseRoutingSelection = selectEducationalAssetsForContext({
     customerSummary,
     atlasDecision,
     scenarios,
@@ -122,99 +259,61 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
     propertyConstraintTags,
     packMode: accessibilityPreferences?.prefersPrint ? 'print' : 'welcome',
   });
-
-  const selectedAssetReasons: Record<string, string[]> = {};
-  const omittedByAssetId = new Map<string, string>();
-
-  for (const omitted of routingSelection.omitted) {
-    omittedByAssetId.set(omitted.assetId, omitted.reason);
-  }
-
+  const routingSelection = mergeWithArchetypeCandidates(input, baseRoutingSelection);
   const assetById = new Map(educationalAssetRegistry.map((asset) => [asset.id, asset]));
-  const selectedForPlan: EducationalAssetSelectionV1['selected'] = [];
+  const constrainedSelection: EducationalAssetSelectionV1 = {
+    ...routingSelection,
+    selected: routingSelection.selected.filter((item) => {
+      const asset = assetById.get(item.assetId);
+      if (!asset) {
+        return false;
+      }
 
-  const hasLowCognitiveProfile = Boolean(
-    accessibilityPreferences?.profiles?.includes('dyslexia')
-      || accessibilityPreferences?.profiles?.includes('adhd'),
-  );
+      if (COGNITIVE_WEIGHT[asset.cognitiveLoad] > maxCognitiveWeight) {
+        return false;
+      }
 
-  const rankedSelection = [...routingSelection.selected].sort((a, b) => {
-    const assetA = assetById.get(a.assetId);
-    const assetB = assetById.get(b.assetId);
+      if (
+        accessibilityPreferences?.prefersReducedMotion
+        && !asset.supportsReducedMotion
+        && asset.motionIntensity !== 'none'
+      ) {
+        return false;
+      }
 
-    const scoreA = scoreRoutedAsset(a, assetA, accessibilityPreferences?.prefersPrint, hasLowCognitiveProfile);
-    const scoreB = scoreRoutedAsset(b, assetB, accessibilityPreferences?.prefersPrint, hasLowCognitiveProfile);
-
-    return scoreB - scoreA || a.assetId.localeCompare(b.assetId);
+      return true;
+    }),
+    omitted: routingSelection.omitted,
+  };
+  const budgetResult = applyWelcomePackBudget({
+    routingSelection: constrainedSelection,
+    archetype,
+    assets: educationalAssetRegistry,
+    concepts: educationalConceptTaxonomy,
+    accessibilityPreferences,
   });
 
-  let usedPages = 0;
-
-  for (const selected of rankedSelection) {
-    const asset = assetById.get(selected.assetId);
-
-    if (!asset) {
-      omittedByAssetId.set(selected.assetId, 'Selected asset is not present in the registry.');
-      continue;
-    }
-
-    if (!accessibilityPreferences?.includeTechnicalAppendix && asset.cognitiveLoad === 'high') {
-      omittedByAssetId.set(
-        asset.id,
-        'High cognitive-load asset omitted because a technical appendix was not requested.',
-      );
-      continue;
-    }
-
-    if (COGNITIVE_WEIGHT[asset.cognitiveLoad] > maxCognitiveWeight) {
-      omittedByAssetId.set(asset.id, 'Asset exceeds configured cognitive-load budget.');
-      continue;
-    }
-
-    if (
-      accessibilityPreferences?.prefersReducedMotion
-      && !asset.supportsReducedMotion
-      && asset.motionIntensity !== 'none'
-    ) {
-      omittedByAssetId.set(asset.id, 'Asset omitted because reduced-motion support is required.');
-      continue;
-    }
-
-    const pageCost = ASSET_PAGE_COST[asset.assetType];
-    if (usedPages + pageCost > printPageBudget) {
-      omittedByAssetId.set(
-        asset.id,
-        `Adding this asset would exceed the ${printPageBudget}-page pack budget.`,
-      );
-      continue;
-    }
-
-    selectedForPlan.push(selected);
-    selectedAssetReasons[asset.id] = [selected.reason];
-    usedPages += pageCost;
-  }
-
-  const selectedAssetIds = selectedForPlan.map((item) => item.assetId);
+  const printedItems = [...budgetResult.selectedWithinBudget, ...budgetResult.movedToAppendix];
+  const selectedAssetIds = printedItems.map((item) => item.assetId);
+  const selectedAssetReasons: Record<string, string[]> = {};
   const selectedBySection = new Map<EducationalPackSectionV1['id'], string[]>();
-
-  for (const selected of selectedForPlan) {
-    const sectionId = toSectionId(selected.sectionTarget);
-    const current = selectedBySection.get(sectionId) ?? [];
-    current.push(selected.assetId);
-    selectedBySection.set(sectionId, current);
-  }
-
   const reasonNotesBySection = new Map<EducationalPackSectionV1['id'], string[]>();
-  for (const selected of selectedForPlan) {
+
+  for (const selected of printedItems) {
     const sectionId = toSectionId(selected.sectionTarget);
-    const current = reasonNotesBySection.get(sectionId) ?? [];
-    current.push(`${selected.assetId}: ${selected.reason}`);
-    reasonNotesBySection.set(sectionId, current);
+    selectedBySection.set(sectionId, [...(selectedBySection.get(sectionId) ?? []), selected.assetId]);
+    reasonNotesBySection.set(
+      sectionId,
+      [...(reasonNotesBySection.get(sectionId) ?? []), `${selected.assetId}: ${selected.reason}`],
+    );
+    selectedAssetReasons[selected.assetId] = [selected.reason];
   }
 
   const sections: EducationalPackSectionV1[] = [
     buildSection('calm_summary', selectedBySection.get('calm_summary') ?? [], [
+      `Archetype: ${archetype.label}.`,
       'Always include a calm summary in plain language.',
+      ...archetype.calmFramingNotes,
       ...(reasonNotesBySection.get('calm_summary') ?? []),
     ]),
     buildSection('why_this_fits', selectedBySection.get('why_this_fits') ?? [], [
@@ -230,7 +329,7 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
     ]),
   ];
 
-  if (accessibilityPreferences?.includeTechnicalAppendix) {
+  if (accessibilityPreferences?.includeTechnicalAppendix || selectedBySection.has('optional_technical_appendix')) {
     sections.push(
       buildSection('optional_technical_appendix', selectedBySection.get('optional_technical_appendix') ?? [], [
         'Optional technical appendix requested by user preference.',
@@ -244,36 +343,47 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
     ...(reasonNotesBySection.get('next_steps') ?? []),
   ]));
 
-  const qrDestinations = selectedAssetIds
-    .map((assetId) => assetById.get(assetId))
-    .filter((asset): asset is EducationalAssetV1 => Boolean(asset))
-    .filter((asset) => !asset.hasPrintEquivalent || asset.assetType === 'animation')
-    .map((asset) => `atlas://educational-library/${asset.id}`);
-
-  const selectedAssetIdSet = new Set(selectedAssetIds);
-  const omittedAssetIdsWithReason = educationalAssetRegistry
-    .filter((asset) => !selectedAssetIdSet.has(asset.id))
-    .map((asset) => ({
-      assetId: asset.id,
-      reason: buildRoutingOmissionReason(
-        omittedByAssetId.get(asset.id) ?? '',
-        'No matched concern tags or required engine facts.',
-      ),
-    }));
-
-  for (const warning of routingSelection.warnings) {
+  for (const warning of budgetResult.budgetWarnings) {
     sections[0].notes.push(`Warning: ${warning}`);
   }
+
+  const omittedAssetIdSet = new Set<string>();
+  const omittedAssetIdsWithReason = [
+    ...budgetResult.omittedWithReason,
+    ...budgetResult.deferredToQr.map((item) => ({
+      assetId: item.assetId,
+      conceptIds: item.conceptIds,
+      reason: item.reason,
+    })),
+  ]
+    .filter((item) => {
+      if (omittedAssetIdSet.has(item.assetId)) {
+        return false;
+      }
+      omittedAssetIdSet.add(item.assetId);
+      return true;
+    })
+    .map((item) => ({
+      assetId: item.assetId,
+      reason: buildRoutingOmissionReason(item.reason, 'No matched concern tags or required engine facts.'),
+    }));
 
   return {
     packId: `welcome-pack:${recommendedScenarioId}`,
     recommendedScenarioId,
+    archetypeId: archetype.archetypeId,
     sections,
     selectedAssetIds,
     selectedAssetReasons,
+    selectedConceptIds: uniqueValues(printedItems.flatMap((item) => item.conceptIds)),
+    deferredConceptIds: uniqueValues([
+      ...budgetResult.deferredToQr.flatMap((item) => item.conceptIds),
+      ...budgetResult.movedToAppendix.flatMap((item) => item.conceptIds),
+    ]),
     omittedAssetIdsWithReason,
-    printPageBudget,
+    printPageBudget: budgetResult.appliedBudget.maxPages,
+    pageBudgetUsed: budgetResult.pageBudgetUsed,
     cognitiveLoadBudget,
-    qrDestinations,
+    qrDestinations: budgetResult.deferredToQr.map((item) => item.qrDestination),
   };
 }
