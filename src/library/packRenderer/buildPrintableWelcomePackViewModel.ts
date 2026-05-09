@@ -145,6 +145,7 @@ export function buildPrintableWelcomePackViewModel(
   const deferredConceptIds = new Set(plan.deferredConceptIds);
   const conceptById = new Map(concepts.map((concept) => [concept.conceptId, concept]));
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
+  const omittedReasonByAssetId = new Map(plan.omittedAssetIdsWithReason.map((item) => [item.assetId, item.reason]));
 
   const sectionAssetIds: Record<PrintableWelcomePackSectionId, string[]> = {
     ...EMPTY_SECTION_ASSET_MAP,
@@ -171,9 +172,10 @@ export function buildPrintableWelcomePackViewModel(
       return Boolean(asset?.conceptIds.some((conceptId) => mustPrintSafetyConceptIds.has(conceptId)));
     }),
   );
+  const safetyAssetIdSet = new Set(safetyAssetIds);
 
   for (const sectionId of PLAN_MIRRORED_SECTION_IDS) {
-    sectionAssetIds[sectionId] = sectionAssetIds[sectionId].filter((assetId) => !safetyAssetIds.includes(assetId));
+    sectionAssetIds[sectionId] = sectionAssetIds[sectionId].filter((assetId) => !safetyAssetIdSet.has(assetId));
   }
   sectionAssetIds.safety_and_compliance = safetyAssetIds;
 
@@ -186,7 +188,7 @@ export function buildPrintableWelcomePackViewModel(
       }
       deferredAssetIdSet.add(assetId);
       const asset = assetById.get(assetId);
-      const reason = plan.omittedAssetIdsWithReason.find((omitted) => omitted.assetId === assetId)?.reason
+      const reason = omittedReasonByAssetId.get(assetId)
         ?? QR_DEFERRED_REASON_FALLBACK;
       const conceptIdsForAsset = (asset?.conceptIds ?? [])
         .filter((conceptId) => deferredConceptIds.has(conceptId) || selectedConceptIds.has(conceptId));
