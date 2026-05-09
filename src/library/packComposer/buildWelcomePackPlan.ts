@@ -219,12 +219,10 @@ function mergeWithArchetypeCandidates(
 }
 
 function toBudgetLoad(accessibilityPreferences: WelcomePackComposerInputV1['accessibilityPreferences']): EducationalLoad {
-  if (accessibilityPreferences?.includeTechnicalAppendix) {
-    return 'high';
+  if (accessibilityPreferences?.profiles?.some((profile) => profile === 'dyslexia' || profile === 'adhd')) {
+    return 'low';
   }
-  return accessibilityPreferences?.profiles?.some((profile) => profile === 'dyslexia' || profile === 'adhd')
-    ? 'low'
-    : 'medium';
+  return accessibilityPreferences?.includeTechnicalAppendix ? 'high' : 'medium';
 }
 
 function uniqueValues(values: string[]): string[] {

@@ -245,12 +245,20 @@ function getRecommendedScenario(input: WelcomePackComposerInputV1): ScenarioResu
 
 function chooseFallbackArchetype(systemType: ScenarioSystemType | undefined): WelcomePackArchetypeV1 {
   if (systemType === 'ashp') {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'heat_pump_install')!;
+    return getArchetypeById('heat_pump_install');
   }
   if (systemType === 'system' || systemType === 'regular') {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'regular_or_system_boiler_upgrade')!;
+    return getArchetypeById('regular_or_system_boiler_upgrade');
   }
-  return welcomePackArchetypes.find((item) => item.archetypeId === 'combi_replacement')!;
+  return getArchetypeById('combi_replacement');
+}
+
+function getArchetypeById(archetypeId: string): WelcomePackArchetypeV1 {
+  const archetype = welcomePackArchetypes.find((item) => item.archetypeId === archetypeId);
+  if (!archetype) {
+    throw new Error(`Unknown welcome-pack archetype "${archetypeId}".`);
+  }
+  return archetype;
 }
 
 export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): WelcomePackArchetypeV1 {
@@ -271,18 +279,18 @@ export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): W
     includesAny(constraintTags, ['pressure', 'flow', 'hydraulic'])
     || Boolean(scenario?.physicsFlags.hydraulicLimit || scenario?.physicsFlags.pressureConstraint)
   ) {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'water_supply_constraint')!;
+    return getArchetypeById('water_supply_constraint');
   }
 
   if (
     includesAny(concernTags, ['smart_tariff', 'tariff', 'time_of_use', 'storage'])
     && (systemType === 'system' || systemType === 'regular' || systemType === 'ashp')
   ) {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'smart_cylinder_tariff_ready')!;
+    return getArchetypeById('smart_cylinder_tariff_ready');
   }
 
   if (includesAny(concernTags, ['controls', 'weather_compensation', 'zoning', 'smart_controls'])) {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'controls_upgrade')!;
+    return getArchetypeById('controls_upgrade');
   }
 
   if (
@@ -290,12 +298,12 @@ export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): W
     || Boolean(scenario?.physicsFlags.highTempRequired)
   ) {
     return systemType === 'ashp'
-      ? welcomePackArchetypes.find((item) => item.archetypeId === 'heat_pump_install')!
-      : welcomePackArchetypes.find((item) => item.archetypeId === 'low_temperature_radiator_upgrade')!;
+      ? getArchetypeById('heat_pump_install')
+      : getArchetypeById('low_temperature_radiator_upgrade');
   }
 
   if (systemType === 'ashp') {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'heat_pump_install')!;
+    return getArchetypeById('heat_pump_install');
   }
 
   if (
@@ -305,18 +313,18 @@ export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): W
     || /stored hot water|cylinder|short draw|on-demand hot water option fails/.test(combinedSummaryText)
     )
   ) {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'combi_to_stored_hot_water')!;
+    return getArchetypeById('combi_to_stored_hot_water');
   }
 
   if (
     includesAny(concernTags, ['future_ready', 'heat_pump_ready'])
     || /heat pump/i.test(futureUpgradeText)
   ) {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'heat_pump_ready_boiler_install')!;
+    return getArchetypeById('heat_pump_ready_boiler_install');
   }
 
   if (includesAny(concernTags, ['cylinder_sizing', 'standing_losses', 'legionella'])) {
-    return welcomePackArchetypes.find((item) => item.archetypeId === 'cylinder_upgrade')!;
+    return getArchetypeById('cylinder_upgrade');
   }
 
   const exactScenarioMatch = welcomePackArchetypes.find(

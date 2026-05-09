@@ -189,6 +189,9 @@ export function applyWelcomePackBudget(
 
     const pageCost = ASSET_PAGE_COST[asset.assetType];
     const coreConceptCount = countConcepts(selectedWithinBudget);
+    const newCoreConceptCount = uniqueInOrder(asset.conceptIds)
+      .filter((conceptId) => !selectedWithinBudget.some((candidate) => candidate.conceptIds.includes(conceptId)))
+      .length;
     const mustPrintSafety = budget.mustPrintSafetyItems && isMustPrintSafetyAsset(asset, conceptById);
     const targetSection = selection.sectionTarget;
     const item: WelcomePackBudgetItemV1 = {
@@ -218,7 +221,7 @@ export function applyWelcomePackBudget(
 
     if (
       !mustPrintSafety
-      && coreConceptCount + uniqueInOrder(asset.conceptIds).filter((conceptId) => !selectedWithinBudget.some((candidate) => candidate.conceptIds.includes(conceptId))).length > budget.maxCoreConcepts
+      && coreConceptCount + newCoreConceptCount > budget.maxCoreConcepts
     ) {
       deferredToQr.push({
         ...item,
