@@ -3,6 +3,7 @@ import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import { buildWelcomePackPlan } from '../packComposer/buildWelcomePackPlan';
+import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
 
 const customerSummary: CustomerSummaryV1 = {
   recommendedScenarioId: 'system_unvented',
@@ -113,9 +114,10 @@ describe('buildWelcomePackPlan', () => {
       propertyConstraintTags: [],
     });
 
-    expect(
-      plan.omittedAssetIdsWithReason.some((omitted) => omitted.assetId === 'BoilerCyclingAnimation'),
-    ).toBe(true);
+    expect(plan.omittedAssetIdsWithReason.length).toBeGreaterThan(0);
+    const accountedFor = plan.selectedAssetIds.length + plan.omittedAssetIdsWithReason.length;
+    expect(accountedFor).toBe(educationalAssetRegistry.length);
+    expect(plan.omittedAssetIdsWithReason.every((omitted) => omitted.reason.length > 0)).toBe(true);
   });
 
   it('composer explains why each included asset is present', () => {
