@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import type { PrintableWelcomePackViewModelV1 } from '../packRenderer/PrintableWelcomePackViewModelV1';
 import { PrintableWelcomePackSkeleton } from '../packRenderer/PrintableWelcomePackSkeleton';
 
@@ -132,5 +132,28 @@ describe('PrintableWelcomePackSkeleton', () => {
     expect(screen.getByTestId('pwps-asset-placeholder-SystemWorkExplainerCards')).toBeInTheDocument();
     expect(screen.queryByLabelText(/oversized boiler cycling pattern animation/i)).toBeNull();
     expect(screen.queryByLabelText(/flow restriction animation/i)).toBeNull();
+  });
+
+  it('renders optional technical appendix when it has planned content', () => {
+    const withAppendix: PrintableWelcomePackViewModelV1 = {
+      ...viewModel,
+      sections: viewModel.sections.map((section) => (
+        section.sectionId === 'optional_technical_appendix'
+          ? {
+            ...section,
+            title: 'Optional technical appendix',
+            conceptIds: ['control_strategy'],
+            assetIds: ['ControlsVisual'],
+          }
+          : section
+      )),
+    };
+
+    render(<PrintableWelcomePackSkeleton viewModel={withAppendix} />);
+    const appendixHeading = screen.getByRole('heading', { level: 2, name: 'Optional technical appendix' });
+    expect(appendixHeading).toBeInTheDocument();
+    const appendixSection = appendixHeading.closest('section');
+    expect(appendixSection).not.toBeNull();
+    expect(within(appendixSection as HTMLElement).getByTestId('pwps-asset-placeholder-ControlsVisual')).toBeInTheDocument();
   });
 });

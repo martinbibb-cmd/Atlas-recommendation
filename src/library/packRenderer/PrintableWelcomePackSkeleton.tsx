@@ -5,6 +5,11 @@ export interface PrintableWelcomePackSkeletonProps {
   viewModel: PrintableWelcomePackViewModelV1;
 }
 
+const HIDE_WHEN_EMPTY = new Set<PrintableWelcomePackSectionV1['sectionId']>([
+  'safety_and_compliance',
+  'optional_technical_appendix',
+]);
+
 function renderAssetPlaceholders(assetIds: string[], sectionId: PrintableWelcomePackSectionV1['sectionId']) {
   if (assetIds.length === 0) {
     return <p className="pwps-placeholder-note">Content pending: no assets planned for this section yet.</p>;
@@ -66,11 +71,7 @@ export function PrintableWelcomePackSkeleton({ viewModel }: PrintableWelcomePack
           return null;
         }
 
-        if (sectionId === 'safety_and_compliance' && section.assetIds.length === 0 && section.conceptIds.length === 0) {
-          return null;
-        }
-
-        if (sectionId === 'optional_technical_appendix' && section.assetIds.length === 0 && section.conceptIds.length === 0) {
+        if (HIDE_WHEN_EMPTY.has(sectionId) && section.assetIds.length === 0 && section.conceptIds.length === 0) {
           return null;
         }
 
