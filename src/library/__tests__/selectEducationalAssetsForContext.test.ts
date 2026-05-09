@@ -259,7 +259,7 @@ describe('selectEducationalAssetsForContext', () => {
       title: 'Prior concept asset',
       assetType: 'animation',
       conceptIds: ['pipework_constraint'],
-      requiredEngineFacts: ['hydraulic_constraint_present'],
+      requiredEngineFacts: ['missing_fact'],
       triggerTags: ['flow'],
       cognitiveLoad: 'low',
       hasPrintEquivalent: false,
