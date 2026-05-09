@@ -110,6 +110,25 @@ describe('buildPrintableWelcomePackViewModel', () => {
     expect(vm.qrDestinations[0].conceptIds).toEqual(expect.arrayContaining(['flow_restriction', 'pipework_constraint']));
   });
 
+  it('ignores malformed QR destinations and trims valid destination asset IDs', () => {
+    const vm = buildPrintableWelcomePackViewModel(
+      {
+        ...plan,
+        qrDestinations: [
+          'atlas://educational-library/FlowRestrictionAnimation   ',
+          'atlas://educational-library/   ',
+          'atlas://other-library/FlowRestrictionAnimation',
+        ],
+      },
+      customerSummary,
+      educationalConceptTaxonomy,
+      educationalAssetRegistry,
+    );
+
+    expect(vm.qrDestinations).toHaveLength(1);
+    expect(vm.qrDestinations[0].assetId).toBe('FlowRestrictionAnimation');
+  });
+
   it('preserves omitted reasons and keeps recommendedScenarioId unchanged', () => {
     const vm = buildPrintableWelcomePackViewModel(
       plan,
@@ -125,5 +144,48 @@ describe('buildPrintableWelcomePackViewModel', () => {
     expect(deferred?.reason).toContain('Deferred to QR deep dive');
     expect(deferred?.deferredToQr).toBe(true);
     expect(vm.recommendedScenarioId).toBe(plan.recommendedScenarioId);
+  });
+
+  it('computes cognitive load estimates per section', () => {
+    const vm = buildPrintableWelcomePackViewModel(
+      plan,
+      customerSummary,
+      educationalConceptTaxonomy,
+      educationalAssetRegistry,
+    );
+
+    expect(vm.sections.find((section) => section.sectionId === 'calm_summary')?.cognitiveLoadEstimate).toBe('low');
+    expect(vm.sections.find((section) => section.sectionId === 'why_this_fits')?.cognitiveLoadEstimate).toBe('medium');
+    expect(vm.sections.find((section) => section.sectionId === 'living_with_the_system')?.cognitiveLoadEstimate).toBe('low');
+  });
+
+  it('returns high cognitive load when any section asset is high load', () => {
+    const controlsVisual = educationalAssetRegistry.find((asset) => asset.id === 'ControlsVisual');
+    expect(controlsVisual).toBeDefined();
+
+    const highLoadAsset = {
+      ...controlsVisual!,
+      id: 'HighLoadControlsVisual',
+      cognitiveLoad: 'high' as const,
+    };
+
+    const vm = buildPrintableWelcomePackViewModel(
+      {
+        ...plan,
+        sections: [
+          { id: 'calm_summary', includedAssetIds: ['SystemWorkExplainerCards'], notes: [] },
+          { id: 'why_this_fits', includedAssetIds: ['HighLoadControlsVisual'], notes: [] },
+          { id: 'living_with_the_system', includedAssetIds: [], notes: [] },
+          { id: 'relevant_explainers', includedAssetIds: [], notes: [] },
+          { id: 'next_steps', includedAssetIds: ['HpCylinderDiagram'], notes: [] },
+        ],
+        selectedAssetIds: ['SystemWorkExplainerCards', 'HighLoadControlsVisual', 'HpCylinderDiagram'],
+      },
+      customerSummary,
+      educationalConceptTaxonomy,
+      [...educationalAssetRegistry, highLoadAsset],
+    );
+
+    expect(vm.sections.find((section) => section.sectionId === 'why_this_fits')?.cognitiveLoadEstimate).toBe('high');
   });
 });
