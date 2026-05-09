@@ -114,7 +114,11 @@ export function PrintableWelcomePackSkeleton({ viewModel }: PrintableWelcomePack
         ) : (
           <ul className="pwps-qr-list">
             {viewModel.qrDestinations.map((item) => (
-              <li key={`${item.assetId}:${item.destination}`} className="pwps-qr-item">
+              <li
+                key={`${item.assetId}:${item.destination}`}
+                className="pwps-qr-item"
+                data-testid={`pwps-asset-placeholder-${item.assetId}`}
+              >
                 <p><strong>Asset:</strong> {item.assetId}</p>
                 <p><strong>Destination:</strong> {item.destination}</p>
                 <p><strong>Status:</strong> Content pending.</p>
