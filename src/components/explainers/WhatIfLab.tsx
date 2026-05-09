@@ -32,7 +32,7 @@ export const SCENARIOS = WHAT_IF_SCENARIOS;
 
 // ─── Static diagrams for scenarios without animated visuals ──────────────────
 
-function PrimariesDiagram() {
+export function PrimariesDiagram() {
   return (
     <div className="wil-diagram wil-diagram--primaries" aria-label="Primary pipework size comparison">
       <div className="wil-diagram__row">
@@ -47,7 +47,7 @@ function PrimariesDiagram() {
   );
 }
 
-function StorageDiagram() {
+export function StorageDiagram() {
   return (
     <div className="wil-diagram wil-diagram--storage" aria-label="Combi efficiency with frequent short DHW draws">
       <div className="wil-diagram__row wil-diagram__row--result">
@@ -62,7 +62,7 @@ function StorageDiagram() {
   );
 }
 
-function HpCylinderDiagram() {
+export function HpCylinderDiagram() {
   return (
     <div className="wil-diagram wil-diagram--hp-cylinder" aria-label="Heat-pump cylinder temperature and Legionella risk">
       <div className="wil-diagram__row wil-diagram__row--result">
@@ -77,7 +77,7 @@ function HpCylinderDiagram() {
   );
 }
 
-function OversizingDiagram() {
+export function OversizingDiagram() {
   return (
     <div className="wil-diagram wil-diagram--oversizing" aria-label="Cylinder volume and standing losses">
       <div className="wil-diagram__row wil-diagram__row--result">
@@ -92,7 +92,7 @@ function OversizingDiagram() {
   );
 }
 
-function VelocityDiagram() {
+export function VelocityDiagram() {
   return (
     <div className="wil-diagram wil-diagram--velocity" aria-label="Primary pipe bore and flow threshold">
       <div className="wil-diagram__row wil-diagram__row--result">

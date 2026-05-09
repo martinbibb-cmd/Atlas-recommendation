@@ -1,5 +1,10 @@
 import type { EducationalAnalogyFamily } from './EducationalAnalogyV1';
 
+export type AssetLifecycleStatus = 'existing' | 'needs_review' | 'library_ready' | 'deprecated';
+export type AssetMigrationStatus = 'registered_only' | 'wrapped' | 'moved';
+export type AssetAccessibilityAuditStatus = 'not_started' | 'partial' | 'passed' | 'failed';
+export type AssetPrintStatus = 'none' | 'needs_static_equivalent' | 'print_ready';
+
 export type EducationalAssetType =
   | 'animation'
   | 'diagram'
@@ -42,5 +47,9 @@ export interface EducationalAssetV1 {
   triggerTags: string[];
   currentComponentPath?: string;
   printComponentPath?: string;
+  lifecycleStatus?: AssetLifecycleStatus;
+  migrationStatus?: AssetMigrationStatus;
+  accessibilityAuditStatus?: AssetAccessibilityAuditStatus;
+  printStatus?: AssetPrintStatus;
   notes?: string;
 }
