@@ -299,8 +299,11 @@ export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): W
   }
 
   if (
+    systemType !== 'combi'
+    && (
     includesAny(concernTags, ['cylinder', 'stored', 'hot_water'])
     || /stored hot water|cylinder|short draw|on-demand hot water option fails/.test(combinedSummaryText)
+    )
   ) {
     return welcomePackArchetypes.find((item) => item.archetypeId === 'combi_to_stored_hot_water')!;
   }

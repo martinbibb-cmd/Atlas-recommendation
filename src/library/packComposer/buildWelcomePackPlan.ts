@@ -349,6 +349,27 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
     sections[0].notes.push(`Warning: ${warning}`);
   }
 
+  const omittedAssetIdSet = new Set<string>();
+  const omittedAssetIdsWithReason = [
+    ...budgetResult.omittedWithReason,
+    ...budgetResult.deferredToQr.map((item) => ({
+      assetId: item.assetId,
+      conceptIds: item.conceptIds,
+      reason: item.reason,
+    })),
+  ]
+    .filter((item) => {
+      if (omittedAssetIdSet.has(item.assetId)) {
+        return false;
+      }
+      omittedAssetIdSet.add(item.assetId);
+      return true;
+    })
+    .map((item) => ({
+      assetId: item.assetId,
+      reason: buildRoutingOmissionReason(item.reason, 'No matched concern tags or required engine facts.'),
+    }));
+
   return {
     packId: `welcome-pack:${recommendedScenarioId}`,
     recommendedScenarioId,
@@ -361,10 +382,7 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
       ...budgetResult.deferredToQr.flatMap((item) => item.conceptIds),
       ...budgetResult.movedToAppendix.flatMap((item) => item.conceptIds),
     ]),
-    omittedAssetIdsWithReason: budgetResult.omittedWithReason.map((item) => ({
-      assetId: item.assetId,
-      reason: buildRoutingOmissionReason(item.reason, 'No matched concern tags or required engine facts.'),
-    })),
+    omittedAssetIdsWithReason,
     printPageBudget: budgetResult.appliedBudget.maxPages,
     pageBudgetUsed: budgetResult.pageBudgetUsed,
     cognitiveLoadBudget,

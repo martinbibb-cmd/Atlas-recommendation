@@ -228,13 +228,17 @@ export function applyWelcomePackBudget(
       continue;
     }
 
-    if (isHighCognitiveLoad(asset) && highLoadCount >= budget.maxHighCognitiveLoadItems) {
-      if (budget.maxTechnicalAppendixItems > movedToAppendix.length) {
+    if (isHighCognitiveLoad(asset) && !mustPrintSafety) {
+      if (
+        budget.maxTechnicalAppendixItems > movedToAppendix.length
+        && highLoadCount < budget.maxHighCognitiveLoadItems
+      ) {
         movedToAppendix.push({
           ...item,
           reason: chooseAppendixReason(selection.reason),
           sectionTarget: 'technical_appendix',
         });
+        highLoadCount += 1;
         continue;
       }
 
@@ -272,9 +276,6 @@ export function applyWelcomePackBudget(
 
     if (targetSection === 'relevant_explainers') {
       relevantExplainers += 1;
-    }
-    if (isHighCognitiveLoad(asset)) {
-      highLoadCount += 1;
     }
     if (isMotionAsset(asset)) {
       motionAssetCount += 1;

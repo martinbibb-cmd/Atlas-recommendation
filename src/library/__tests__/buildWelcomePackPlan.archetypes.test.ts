@@ -97,8 +97,10 @@ describe('buildWelcomePackPlan archetypes', () => {
     });
 
     expect(plan.archetypeId).toBe('heat_pump_install');
-    expect(plan.selectedConceptIds).toContain('hp_cylinder_temperature');
-    expect(plan.selectedConceptIds).toEqual(expect.arrayContaining(['driving_style', 'operating_behaviour']));
+    expect([...plan.selectedConceptIds, ...plan.deferredConceptIds]).toContain('hp_cylinder_temperature');
+    expect([...plan.selectedConceptIds, ...plan.deferredConceptIds]).toEqual(
+      expect.arrayContaining(['driving_style', 'operating_behaviour']),
+    );
     expect(plan.recommendedScenarioId).toBe(atlasDecision.recommendedScenarioId);
   });
 
@@ -212,8 +214,11 @@ describe('buildWelcomePackPlan archetypes', () => {
     const second = buildWelcomePackPlan(input);
 
     expect(first.archetypeId).toBe('water_supply_constraint');
-    expect(first.selectedConceptIds).toEqual(expect.arrayContaining(['flow_restriction', 'pipework_constraint']));
-    expect(first.selectedAssetIds).toEqual(expect.arrayContaining(['FlowRestrictionAnimation', 'PrimariesDiagram']));
+    expect([...first.selectedConceptIds, ...first.deferredConceptIds]).toEqual(
+      expect.arrayContaining(['flow_restriction', 'pipework_constraint']),
+    );
+    expect(first.selectedAssetIds).toContain('PrimariesDiagram');
+    expect(first.qrDestinations.some((destination) => destination.includes('FlowRestrictionAnimation'))).toBe(true);
     expect(first.pageBudgetUsed).toBeLessThanOrEqual(first.printPageBudget);
     expect(first.omittedAssetIdsWithReason.every((item) => item.reason.length > 0)).toBe(true);
     expect(first).toEqual(second);

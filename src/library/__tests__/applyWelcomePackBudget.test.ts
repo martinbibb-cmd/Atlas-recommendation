@@ -174,9 +174,13 @@ describe('applyWelcomePackBudget', () => {
   });
 
   it('moves high cognitive-load content to the appendix or QR and keeps reasons', () => {
+    const appendixArchetype = {
+      ...archetype,
+      recommendedConceptIds: [...archetype.recommendedConceptIds, 'high_load_concept'],
+    };
     const appendixResult = applyWelcomePackBudget({
       routingSelection: buildRoutingSelection(),
-      archetype,
+      archetype: appendixArchetype,
       assets,
       concepts,
       accessibilityPreferences: {
@@ -185,7 +189,7 @@ describe('applyWelcomePackBudget', () => {
     });
     const qrResult = applyWelcomePackBudget({
       routingSelection: buildRoutingSelection(),
-      archetype,
+      archetype: appendixArchetype,
       assets,
       concepts,
       accessibilityPreferences: {
