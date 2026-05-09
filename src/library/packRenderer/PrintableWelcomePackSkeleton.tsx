@@ -119,5 +119,3 @@ export function PrintableWelcomePackSkeleton({ viewModel }: PrintableWelcomePack
     </article>
   );
 }
-
-export default PrintableWelcomePackSkeleton;
