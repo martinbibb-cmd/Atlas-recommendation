@@ -119,6 +119,7 @@ import {
   clearPersistedAtlasVisitV2,
   type PersistedAtlasVisitV2,
 } from './lib/storage/persistedAtlasVisitV2';
+import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -482,6 +483,13 @@ const WORKSPACE_AUTO_REVIEW =
  */
 const RECEIVE_SCAN_HANDOFF_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/receive-scan';
+
+/**
+ * Detect /dev/welcome-pack — renders the dev-only composed welcome-pack preview.
+ * This route exercises plan + content + printable skeleton composition with fixtures.
+ */
+const WELCOME_PACK_DEV_PREVIEW_PATH =
+  typeof window !== 'undefined' && window.location.pathname === '/dev/welcome-pack';
 
 /**
  * Detect /installation-specification path or ?installation-specification=1 — renders the Atlas
@@ -1155,6 +1163,20 @@ function AppInner() {
         }}
         onCancel={() => { window.location.href = window.location.origin; }}
       />
+    );
+  }
+
+  // /dev/welcome-pack — render development preview for composed welcome-pack output.
+  if (WELCOME_PACK_DEV_PREVIEW_PATH) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/'; }}>
+            ← Back
+          </button>
+        </div>
+        <WelcomePackDevPreview />
+      </div>
     );
   }
 

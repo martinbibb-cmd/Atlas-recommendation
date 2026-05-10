@@ -5,3 +5,4 @@ export * from './taxonomy';
 export * from './content';
 
 export * from './packRenderer';
+export * from './dev';

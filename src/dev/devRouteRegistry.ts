@@ -124,6 +124,13 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routeKind: 'path',
     access: 'production',
   },
+  {
+    codeName: 'WelcomePackDevPreview',
+    routePath: '/dev/welcome-pack',
+    fullRouteExample: '/dev/welcome-pack',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
 
   // ── Internal journey-state surfaces (no URL change) ──────────────────────
   {
