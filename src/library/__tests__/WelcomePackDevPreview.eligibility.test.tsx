@@ -1,0 +1,126 @@
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { WelcomePackDevPreview } from '../dev/WelcomePackDevPreview';
+
+describe('WelcomePackDevPreview eligibility panel', () => {
+  it('renders the Production eligibility section heading', () => {
+    render(<WelcomePackDevPreview />);
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Production eligibility' }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the Production eligibility fieldset', () => {
+    render(<WelcomePackDevPreview />);
+    expect(screen.getByRole('group', { name: /production eligibility/i })).toBeInTheDocument();
+  });
+
+  it('shows eligibility mode radio buttons', () => {
+    render(<WelcomePackDevPreview />);
+    expect(screen.getByRole('radio', { name: /off/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /warn/i })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /filter/i })).toBeInTheDocument();
+  });
+
+  it('defaults to off mode', () => {
+    render(<WelcomePackDevPreview />);
+    const offRadio = screen.getByRole('radio', { name: /off/i });
+    expect(offRadio).toBeChecked();
+    expect(screen.getByTestId('eligibility-mode-value').textContent).toBe('off');
+  });
+
+  it('shows the gate-off message when mode is off', () => {
+    render(<WelcomePackDevPreview />);
+    expect(screen.getByText(/eligibility gate is off/i)).toBeInTheDocument();
+  });
+
+  it('switching to warn mode renders the per-asset eligibility list', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    await user.click(screen.getByRole('radio', { name: /warn/i }));
+
+    expect(screen.getByTestId('selected-asset-eligibility-status')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: /per selected asset eligibility status/i })).toBeInTheDocument();
+  });
+
+  it('switching to warn mode updates the mode label', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    await user.click(screen.getByRole('radio', { name: /warn/i }));
+
+    expect(screen.getByTestId('eligibility-mode-value').textContent).toBe('warn');
+  });
+
+  it('switching to warn mode preserves recommendedScenarioId in metadata', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    // Capture scenario ID in off mode
+    const scenarioEl = screen.getAllByText(/heat_pump_install|system_unvented|combi_replacement/i);
+    const originalScenarioText = scenarioEl.length > 0 ? scenarioEl[0].textContent : '';
+
+    await user.click(screen.getByRole('radio', { name: /warn/i }));
+
+    // Scenario ID text should still be present after switching mode
+    if (originalScenarioText) {
+      expect(screen.getAllByText(new RegExp(originalScenarioText, 'i')).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('switching to filter mode renders the filtered assets section', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    await user.click(screen.getByRole('radio', { name: /filter/i }));
+
+    expect(screen.getByRole('heading', { level: 3, name: /assets removed from production customer pack/i })).toBeInTheDocument();
+    expect(screen.getByTestId('eligibility-filtered-assets')).toBeInTheDocument();
+  });
+
+  it('switching to filter mode updates the mode label', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    await user.click(screen.getByRole('radio', { name: /filter/i }));
+
+    expect(screen.getByTestId('eligibility-mode-value').textContent).toBe('filter');
+  });
+
+  it('filter mode shows eligible or blocked status items in the list', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    await user.click(screen.getByRole('radio', { name: /filter/i }));
+
+    const list = screen.getByTestId('eligibility-filtered-assets');
+    expect(list).toBeInTheDocument();
+    // list has at least one item (eligible or blocked message)
+    expect(list.children.length).toBeGreaterThan(0);
+  });
+
+  it('warn mode per-asset list shows eligible or blocked labels', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    await user.click(screen.getByRole('radio', { name: /warn/i }));
+
+    const list = screen.getByTestId('selected-asset-eligibility-status');
+    // Each item should contain "eligible" or "blocked"
+    const text = list.textContent ?? '';
+    expect(/eligible|blocked/i.test(text)).toBe(true);
+  });
+
+  it('switching back to off mode hides the eligibility list', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    await user.click(screen.getByRole('radio', { name: /warn/i }));
+    expect(screen.getByTestId('selected-asset-eligibility-status')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /off/i }));
+    expect(screen.queryByTestId('selected-asset-eligibility-status')).not.toBeInTheDocument();
+  });
+});

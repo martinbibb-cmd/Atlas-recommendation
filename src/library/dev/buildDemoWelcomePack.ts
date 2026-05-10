@@ -2,7 +2,7 @@ import type { EducationalContentV1 } from '../content/EducationalContentV1';
 import { educationalContentRegistry } from '../content/educationalContentRegistry';
 import { getContentForConcepts } from '../content/contentLookup';
 import { buildWelcomePackPlan } from '../packComposer/buildWelcomePackPlan';
-import type { WelcomePackAccessibilityPreferencesV1 } from '../packComposer/WelcomePackComposerV1';
+import type { WelcomePackAccessibilityPreferencesV1, WelcomePackEligibilityMode } from '../packComposer/WelcomePackComposerV1';
 import { buildPrintableWelcomePackViewModel } from '../packRenderer/buildPrintableWelcomePackViewModel';
 import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
 import { educationalConceptTaxonomy } from '../taxonomy/educationalConceptTaxonomy';
@@ -15,6 +15,7 @@ import {
 export interface BuildDemoWelcomePackInput {
   fixtureId: WelcomePackDemoFixtureId;
   accessibilityOverrides?: Partial<WelcomePackAccessibilityPreferencesV1>;
+  eligibilityMode?: WelcomePackEligibilityMode;
 }
 
 export interface BuildDemoWelcomePackResult {
@@ -74,6 +75,7 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
     accessibilityPreferences,
     userConcernTags: fixture.userConcernTags,
     propertyConstraintTags: fixture.propertyConstraintTags,
+    eligibilityMode: input.eligibilityMode,
   });
 
   const educationalContent = buildDemoEducationalContent(plan.selectedConceptIds);
