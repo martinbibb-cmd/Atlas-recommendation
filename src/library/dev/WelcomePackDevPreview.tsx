@@ -962,8 +962,8 @@ export function WelcomePackDevPreview() {
                     )}
                     {item.blockedReasons.length > 0 && (
                       <ul data-testid={`blocked-reasons-${item.assetId}`}>
-                        {item.blockedReasons.map((reason) => (
-                          <li key={`${item.assetId}:${reason}`}>{reason}</li>
+                        {item.blockedReasons.map((reason, index) => (
+                          <li key={`${item.assetId}:${index}:${reason}`}>{reason}</li>
                         ))}
                       </ul>
                     )}
@@ -1005,8 +1005,8 @@ export function WelcomePackDevPreview() {
                         {')'}
                         {finding.reasons.length > 0 && (
                           <ul data-testid={`eligibility-reasons-${finding.assetId}`}>
-                            {finding.reasons.map((reason) => (
-                              <li key={`${finding.assetId}:${reason}`}>{reason}</li>
+                            {finding.reasons.map((reason, index) => (
+                              <li key={`${finding.assetId}:${index}:${reason}`}>{reason}</li>
                             ))}
                           </ul>
                         )}
