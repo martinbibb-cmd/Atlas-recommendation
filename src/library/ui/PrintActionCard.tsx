@@ -3,6 +3,10 @@ import { StepSequence } from './layout/StepSequence';
 
 type HeadingLevel = 2 | 3 | 4 | 5 | 6;
 
+function getNestedHeadingLevel(level: HeadingLevel): HeadingLevel {
+  return Math.min(6, level + 1) as HeadingLevel;
+}
+
 export interface PrintActionCardProps {
   title: string;
   steps: readonly string[];
@@ -32,7 +36,7 @@ export function PrintActionCard({
             title="Follow these steps"
             label="Printable sequence"
             ariaLabel="Printable action sequence"
-            headingLevel={(headingLevel + 1) as HeadingLevel}
+            headingLevel={getNestedHeadingLevel(headingLevel)}
           />
           {note ? <p className="atlas-edu-step-sequence__note">{note}</p> : null}
         </>
