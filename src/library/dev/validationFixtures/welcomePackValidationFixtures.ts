@@ -337,7 +337,7 @@ const skepticalHeatPumpSummary: CustomerSummaryV1 = {
 
 const skepticalHeatPumpFixture: WelcomePackValidationFixture = {
   id: 'skeptical_heat_pump_customer',
-  label: 'Sceptical "heat pumps don\'t work" customer',
+  label: 'Skeptical "heat pumps don\'t work" customer',
   description:
     'Customer who has read negative articles about heat pumps and doubts they work in the UK climate. Challenge: trust recovery through physics evidence, not marketing.',
   customerConcerns: [
@@ -368,7 +368,7 @@ const skepticalHeatPumpFixture: WelcomePackValidationFixture = {
   knownMisconceptions: [
     'Customer believes heat pumps stop working below freezing.',
     'Customer conflates running cost with energy consumption (ignoring COP).',
-    'Customer believes early generation installatoin failures apply to current products.',
+    'Customer believes early generation installation failures apply to current products.',
   ],
   customerSummary: skepticalHeatPumpSummary,
   atlasDecision: buildDecision(skepticalHeatPumpSummary, {

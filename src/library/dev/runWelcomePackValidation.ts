@@ -260,7 +260,7 @@ function detectMissingPrintEquivalents(
       if (!asset.printEquivalentId) {
         return false;
       }
-      return !printEquivalentByAssetId.has(asset.printEquivalentId ?? asset.id);
+      return !printEquivalentByAssetId.has(asset.printEquivalentId);
     })
     .map((asset) => ({
       assetId: asset.id,
