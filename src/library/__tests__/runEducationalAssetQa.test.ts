@@ -18,23 +18,16 @@ describe('runEducationalAssetQa', () => {
     expect(getAssetQaErrors(findings)).toEqual([]);
   });
 
-  it('produces expected warnings for current registered assets (missing print equivalents)', () => {
+  it('does not report missing_print_equivalent warnings for core animation assets with static equivalents', () => {
     const findings = runEducationalAssetQa(
       educationalAssetRegistry,
       educationalComponentRegistry,
       educationalConceptTaxonomy,
     );
     const warnings = getAssetQaWarnings(findings);
-    // Four assets lack hasPrintEquivalent: WhatIfLab, BoilerCyclingAnimation, FlowRestrictionAnimation, RadiatorUpgradeAnimation
     const missingPrintWarnings = warnings.filter((w) => w.ruleId === 'missing_print_equivalent');
-    expect(missingPrintWarnings.length).toBe(4);
-    expect(missingPrintWarnings.map((w) => w.assetId)).toEqual(
-      expect.arrayContaining([
-        'WhatIfLab',
-        'BoilerCyclingAnimation',
-        'FlowRestrictionAnimation',
-        'RadiatorUpgradeAnimation',
-      ]),
+    expect(missingPrintWarnings.map((w) => w.assetId)).not.toEqual(
+      expect.arrayContaining(['WhatIfLab', 'BoilerCyclingAnimation', 'FlowRestrictionAnimation', 'RadiatorUpgradeAnimation']),
     );
   });
 

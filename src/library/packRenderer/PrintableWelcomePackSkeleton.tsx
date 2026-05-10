@@ -1,4 +1,5 @@
 import type { PrintableWelcomePackSectionV1, PrintableWelcomePackViewModelV1 } from './PrintableWelcomePackViewModelV1';
+import { getPrintEquivalentForAsset } from '../printEquivalents/getPrintEquivalentForAsset';
 import './printableWelcomePack.css';
 
 export interface PrintableWelcomePackSkeletonProps {
@@ -17,13 +18,48 @@ function renderAssetPlaceholders(assetIds: string[], sectionId: PrintableWelcome
 
   return (
     <ul className="pwps-asset-list" aria-label={`${sectionId} asset placeholders`}>
-      {assetIds.map((assetId) => (
-        <li key={assetId} className="pwps-asset-card" data-testid={`pwps-asset-placeholder-${assetId}`}>
-          <strong className="pwps-asset-card__title">Asset placeholder</strong>
-          <span className="pwps-asset-card__id">{assetId}</span>
-          <span className="pwps-asset-card__note">Content pending: static print treatment will replace interactive media.</span>
-        </li>
-      ))}
+      {assetIds.map((assetId) => {
+        const printEquivalent = getPrintEquivalentForAsset(assetId);
+        if (printEquivalent) {
+          return (
+            <li key={assetId} className="pwps-asset-card pwps-asset-card--print-equivalent" data-testid={`pwps-print-equivalent-${assetId}`}>
+              <strong className="pwps-asset-card__title">{printEquivalent.printTitle}</strong>
+              <span className="pwps-asset-card__id">{assetId}</span>
+              <p className="pwps-asset-card__summary">{printEquivalent.summary}</p>
+              <ol className="pwps-asset-card__steps">
+                {printEquivalent.steps.map((step) => (
+                  <li key={`${assetId}-${step}`}>{step}</li>
+                ))}
+              </ol>
+              <p className="pwps-asset-card__labels">
+                <strong>Labels:</strong>
+                {' '}
+                {printEquivalent.labels.join(', ')}
+              </p>
+              <p className="pwps-asset-card__a11y">
+                <strong>Accessibility:</strong>
+                {' '}
+                {printEquivalent.accessibilityNotes}
+              </p>
+              {printEquivalent.qrDeepDiveLabel ? (
+                <p className="pwps-asset-card__qr-label">
+                  <strong>Deep dive:</strong>
+                  {' '}
+                  {printEquivalent.qrDeepDiveLabel}
+                </p>
+              ) : null}
+            </li>
+          );
+        }
+
+        return (
+          <li key={assetId} className="pwps-asset-card" data-testid={`pwps-asset-placeholder-${assetId}`}>
+            <strong className="pwps-asset-card__title">Asset placeholder</strong>
+            <span className="pwps-asset-card__id">{assetId}</span>
+            <span className="pwps-asset-card__note">Content pending: static print treatment will replace interactive media.</span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

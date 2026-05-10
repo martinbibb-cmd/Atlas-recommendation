@@ -82,6 +82,18 @@
   display: block;
 }
 
+.pwps-asset-card__summary,
+.pwps-asset-card__labels,
+.pwps-asset-card__a11y,
+.pwps-asset-card__qr-label {
+  margin: 0.35rem 0;
+}
+
+.pwps-asset-card__steps {
+  margin: 0.35rem 0;
+  padding-left: 1.25rem;
+}
+
 .pwps-print-only-hidden {
   display: inline-block;
 }
