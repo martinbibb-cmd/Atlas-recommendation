@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { getAuditForAsset } from '../audits/auditLookup';
+import { getLibraryReadyAssets } from '../audits/getLibraryReadyAssets';
 import { PrintableWelcomePackSkeleton } from '../packRenderer/PrintableWelcomePackSkeleton';
 import { educationalContentRegistry } from '../content/educationalContentRegistry';
 import {
@@ -127,6 +129,29 @@ export function WelcomePackDevPreview() {
         status,
         errorCount,
         warningCount,
+      };
+    });
+  }, [plan.selectedConceptIds, assetQaFindings]);
+
+  const selectedAssetAuditStatus = useMemo(() => {
+    const assets = educationalAssetRegistry.filter((asset) =>
+      asset.conceptIds.some((conceptId) => plan.selectedConceptIds.includes(conceptId)),
+    );
+    const { blockedAssets } = getLibraryReadyAssets(
+      assets,
+      assetQaFindings,
+      educationalComponentRegistry as Record<string, unknown>,
+    );
+    const blockedById = new Map(blockedAssets.map((b) => [b.assetId, b]));
+    return assets.map((asset) => {
+      const audit = getAuditForAsset(asset.id);
+      const blocked = blockedById.get(asset.id);
+      return {
+        assetId: asset.id,
+        auditStatus: audit ? audit.status : 'no_audit',
+        approvedFor: audit ? audit.approvedFor : [],
+        blockedReasons: blocked ? blocked.blockedReasons : [],
+        ready: !blocked,
       };
     });
   }, [plan.selectedConceptIds, assetQaFindings]);
@@ -295,6 +320,41 @@ export function WelcomePackDevPreview() {
               <strong>{item.assetId}</strong> ({item.status}; errors: {item.errorCount}; warnings: {item.warningCount})
             </li>
           ))}
+        </ul>
+      </section>
+
+      <section aria-label="Asset accessibility audit" style={{ marginBottom: '1rem' }}>
+        <h2>Asset accessibility audit</h2>
+        <p>
+          Audit status is diagnostic only. An asset moves to{' '}
+          <code>library_ready</code> only when its audit status is{' '}
+          <code>passed</code> and all checks are satisfied.
+        </p>
+
+        <h3>Per selected asset audit status</h3>
+        <ul data-testid="selected-asset-audit-status">
+          {selectedAssetAuditStatus.length === 0 ? (
+            <li>None</li>
+          ) : (
+            selectedAssetAuditStatus.map((item) => (
+              <li key={`audit-${item.assetId}`}>
+                <strong>{item.assetId}</strong>
+                {' — audit: '}
+                <span data-testid={`audit-status-${item.assetId}`}>{item.auditStatus}</span>
+                {item.approvedFor.length > 0 && (
+                  <>{'; approved for: '}<span data-testid={`approved-for-${item.assetId}`}>{item.approvedFor.join(', ')}</span></>
+                )}
+                {item.blockedReasons.length > 0 && (
+                  <ul data-testid={`blocked-reasons-${item.assetId}`}>
+                    {item.blockedReasons.map((reason, idx) => (
+                      // eslint-disable-next-line react/no-array-index-key
+                      <li key={idx}>{reason}</li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))
+          )}
         </ul>
       </section>
 
