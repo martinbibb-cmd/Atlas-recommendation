@@ -437,6 +437,12 @@ export function WelcomePackDevPreview() {
     [assetById, plan.selectedAssetIds],
   );
 
+  const whyThisFitsCardCount = storyboardSequencedCards.filter((card) => card.sectionTitle === 'Why this fits').length;
+  const noticeCardCount = storyboardNoticeCards.length;
+  const printCardCount = storyboardPrintCards.length;
+  const safetyCardCount = storyboardSequencedCards.filter((card) => card.content?.safetyNotice).length;
+  const qrCardCount = calmViewModel.qrDestinations.length;
+
   const goldenJourneyFixtures = useMemo(
     () => welcomePackDemoFixtureList.filter((item) => GOLDEN_JOURNEY_FIXTURE_ID_SET.has(item.id)),
     [],
@@ -453,39 +459,40 @@ export function WelcomePackDevPreview() {
       id: 'what-changes',
       label: 'What changes',
       icon: getStoryboardIcon(fixture.customerSummary.recommendedSystemLabel),
-      description: `${storyboardSequencedCards.filter((card) => card.sectionTitle === 'Why this fits').length || 1} fit card${storyboardSequencedCards.filter((card) => card.sectionTitle === 'Why this fits').length === 1 ? '' : 's'}`,
+      description: `${whyThisFitsCardCount || 1} fit card${whyThisFitsCardCount === 1 ? '' : 's'}`,
     },
     {
       id: 'what-you-may-notice',
       label: 'What you may notice',
       icon: 'radiator',
-      description: `${storyboardNoticeCards.length} expectation card${storyboardNoticeCards.length === 1 ? '' : 's'}`,
+      description: `${noticeCardCount} expectation card${noticeCardCount === 1 ? '' : 's'}`,
     },
     {
       id: 'how-to-use-it',
       label: 'How to use it',
       icon: 'controls',
-      description: `${storyboardPrintCards.length} print sheet${storyboardPrintCards.length === 1 ? '' : 's'}`,
+      description: `${printCardCount} print sheet${printCardCount === 1 ? '' : 's'}`,
     },
     {
       id: 'what-to-keep-safe',
       label: 'What to keep safe',
       icon: 'safety',
-      description: `${storyboardSequencedCards.filter((card) => card.content?.safetyNotice).length} safety-led card${storyboardSequencedCards.filter((card) => card.content?.safetyNotice).length === 1 ? '' : 's'}`,
+      description: `${safetyCardCount} safety-led card${safetyCardCount === 1 ? '' : 's'}`,
     },
     {
       id: 'go-deeper',
       label: 'Go deeper',
       icon: 'qr',
-      description: `${calmViewModel.qrDestinations.length} QR deep dive${calmViewModel.qrDestinations.length === 1 ? '' : 's'}`,
+      description: `${qrCardCount} QR deep dive${qrCardCount === 1 ? '' : 's'}`,
     },
   ], [
-    calmViewModel.qrDestinations.length,
     fixture.customerSummary.plainEnglishDecision,
     fixture.customerSummary.recommendedSystemLabel,
-    storyboardNoticeCards.length,
-    storyboardPrintCards.length,
-    storyboardSequencedCards,
+    noticeCardCount,
+    printCardCount,
+    qrCardCount,
+    safetyCardCount,
+    whyThisFitsCardCount,
   ]);
 
   const storyboardPageStripItems = useMemo(() => [
@@ -510,20 +517,20 @@ export function WelcomePackDevPreview() {
     {
       id: 'print',
       label: 'Print sheets',
-      meta: `${storyboardPrintCards.length} cards`,
+      meta: `${printCardCount} cards`,
       icon: 'print' as const,
     },
     {
       id: 'qr',
       label: 'Go deeper',
-      meta: `${calmViewModel.qrDestinations.length} cards`,
+      meta: `${qrCardCount} cards`,
       icon: 'qr' as const,
     },
   ], [
-    calmViewModel.qrDestinations.length,
     fixture.customerSummary.recommendedSystemLabel,
     journeySteps.length,
-    storyboardPrintCards.length,
+    printCardCount,
+    qrCardCount,
     storyboardSequencedCards.length,
   ]);
 
@@ -963,7 +970,7 @@ export function WelcomePackDevPreview() {
                     {item.blockedReasons.length > 0 && (
                       <ul data-testid={`blocked-reasons-${item.assetId}`}>
                         {item.blockedReasons.map((reason, index) => (
-                          <li key={`${item.assetId}:${index}:${reason}`}>{reason}</li>
+                          <li key={`${item.assetId}:${index}`}>{reason}</li>
                         ))}
                       </ul>
                     )}
@@ -1006,7 +1013,7 @@ export function WelcomePackDevPreview() {
                         {finding.reasons.length > 0 && (
                           <ul data-testid={`eligibility-reasons-${finding.assetId}`}>
                             {finding.reasons.map((reason, index) => (
-                              <li key={`${finding.assetId}:${index}:${reason}`}>{reason}</li>
+                              <li key={`${finding.assetId}:${index}`}>{reason}</li>
                             ))}
                           </ul>
                         )}
