@@ -232,6 +232,123 @@ export const welcomePackArchetypes: WelcomePackArchetypeV1[] = [
     trustRecoveryConceptIds: ['future_ready_pathways', 'scope_clarity'],
     livingWithSystemConceptIds: ['STR-03', 'stored_hot_water_efficiency', 'operating_behaviour'],
   }),
+
+  // ─── Golden journey archetypes ─────────────────────────────────────────────
+  // These archetypes are promoted from authored golden-journey demonstrators.
+  // goldenJourneyId links to the demonstrator for preview/navigation only —
+  // it has no influence on recommendations or scoring.
+
+  createArchetype('open_vented_to_sealed_unvented', {
+    goldenJourneyId: 'open_vented_to_sealed_unvented',
+    label: 'Tank-fed to sealed + unvented upgrade',
+    description:
+      'Flagship premium-comfort upgrade from tank-fed hot water to a mains-fed sealed system with unvented cylinder. Covers pressure-source vs stored-capacity differences, misconception correction, trust recovery, and safety framing.',
+    appliesToScenarioTypes: ['system_unvented', 'regular_unvented'],
+    appliesToSystemTypes: ['system', 'regular'],
+    requiredConceptIds: ['system_fit_explanation', 'stored_hot_water_efficiency', 'short_draw_losses', 'system_work_explainer'],
+    recommendedConceptIds: ['cylinder_sizing', 'standing_losses', 'scope_clarity'],
+    optionalConceptIds: ['operating_behaviour', 'driving_style'],
+    excludedByDefaultConceptIds: ['hp_cylinder_temperature', 'boiler_cycling'],
+    defaultSections: DEFAULT_SECTIONS,
+    maxPrintPages: 5,
+    maxCoreConcepts: 8,
+    maxAppendixConcepts: 3,
+    cognitiveLoadBudget: 10,
+    preferredAssetTypes: ['diagram', 'print_sheet', 'explainer'],
+    printStrategy: 'balanced',
+    qrStrategy: 'standard',
+    calmFramingNotes: [
+      'Frame the conversion as a service-fit upgrade, not extra complexity.',
+      'Lead with pressure-source vs stored-capacity to defuse misconceptions early.',
+      'Keep safety framing calm and factual — unvented is standard, not alarming.',
+    ],
+    trustRecoveryConceptIds: ['system_fit_explanation', 'scope_clarity'],
+    livingWithSystemConceptIds: ['stored_hot_water_efficiency', 'operating_behaviour', 'driving_style'],
+  }),
+
+  createArchetype('regular_to_regular_unvented', {
+    goldenJourneyId: 'regular_to_regular_unvented',
+    label: 'Regular boiler + unvented cylinder upgrade',
+    description:
+      'Flagship smart-engineering path retaining the regular boiler architecture while upgrading to an unvented cylinder. Emphasises preserved system strength, realistic hot-water expectations, and low-disruption messaging.',
+    appliesToScenarioTypes: ['regular_unvented'],
+    appliesToSystemTypes: ['regular'],
+    requiredConceptIds: ['system_fit_explanation', 'system_work_explainer', 'stored_hot_water_efficiency'],
+    recommendedConceptIds: ['cylinder_sizing', 'scope_clarity', 'standing_losses'],
+    optionalConceptIds: ['operating_behaviour', 'driving_style'],
+    excludedByDefaultConceptIds: ['hp_cylinder_temperature', 'boiler_cycling'],
+    defaultSections: DEFAULT_SECTIONS,
+    maxPrintPages: 4,
+    maxCoreConcepts: 7,
+    maxAppendixConcepts: 2,
+    cognitiveLoadBudget: 9,
+    preferredAssetTypes: ['print_sheet', 'diagram', 'explainer'],
+    printStrategy: 'balanced',
+    qrStrategy: 'standard',
+    calmFramingNotes: [
+      'Keep the pack anchored to what stays the same — the familiar boiler architecture.',
+      'Frame the cylinder upgrade as a targeted improvement, not a whole-system change.',
+      'Set realistic hot-water expectations early to prevent day-one disappointment.',
+    ],
+    trustRecoveryConceptIds: ['system_fit_explanation', 'system_work_explainer'],
+    livingWithSystemConceptIds: ['stored_hot_water_efficiency', 'operating_behaviour', 'driving_style'],
+  }),
+
+  createArchetype('heat_pump_reality', {
+    goldenJourneyId: 'heat_pump_reality',
+    label: 'Heat pump reality — trust and expectation journey',
+    description:
+      'Flagship educational and trust path for heat pump installs. Covers warm-not-hot emitters, steady running behaviour, compensation controls, and trust recovery for customers with prior high-temperature expectations.',
+    appliesToScenarioTypes: ['ashp', 'ashp_standard'],
+    appliesToSystemTypes: ['ashp'],
+    requiredConceptIds: ['system_fit_explanation', 'emitter_sizing', 'flow_temperature'],
+    recommendedConceptIds: ['hp_cylinder_temperature', 'legionella_pasteurisation', 'weather_compensation'],
+    optionalConceptIds: ['driving_style', 'operating_behaviour', 'future_ready_pathways'],
+    excludedByDefaultConceptIds: ['boiler_cycling'],
+    defaultSections: DEFAULT_SECTIONS,
+    maxPrintPages: 5,
+    maxCoreConcepts: 8,
+    maxAppendixConcepts: 3,
+    cognitiveLoadBudget: 10,
+    preferredAssetTypes: ['diagram', 'print_sheet', 'checklist'],
+    printStrategy: 'balanced',
+    qrStrategy: 'standard',
+    calmFramingNotes: [
+      'Open with warm-not-hot framing before any technical detail.',
+      'Steady running is a feature, not a fault — establish this early.',
+      'Use QR for deeper compensation and legionella context rather than front-loading.',
+    ],
+    trustRecoveryConceptIds: ['system_fit_explanation', 'emitter_sizing'],
+    livingWithSystemConceptIds: ['emitter_sizing', 'flow_temperature', 'driving_style', 'operating_behaviour'],
+  }),
+
+  createArchetype('water_constraint_reality', {
+    goldenJourneyId: 'water_constraint_reality',
+    label: 'Water mains constraint — expectation management journey',
+    description:
+      'Flagship expectation-management path for homes where the water main limits performance, not the boiler. Covers supply boundaries, realistic simultaneous-use expectations, and calm constraint communication.',
+    appliesToScenarioTypes: ['combi', 'system_unvented', 'regular_unvented'],
+    appliesToSystemTypes: ['combi', 'system', 'regular'],
+    requiredConceptIds: ['pipework_constraint', 'flow_restriction', 'system_fit_explanation'],
+    recommendedConceptIds: ['hydraulic_constraint', 'pipe_bore_sizing', 'scope_clarity'],
+    optionalConceptIds: ['primary_pipework_sizing', 'flow_velocity'],
+    excludedByDefaultConceptIds: ['hp_cylinder_temperature'],
+    defaultSections: DEFAULT_SECTIONS,
+    maxPrintPages: 4,
+    maxCoreConcepts: 7,
+    maxAppendixConcepts: 2,
+    cognitiveLoadBudget: 8,
+    preferredAssetTypes: ['diagram', 'topology', 'animation'],
+    printStrategy: 'balanced',
+    qrStrategy: 'deep_dive',
+    calmFramingNotes: [
+      'Lead with "the mains sets the ceiling" — the boiler is not at fault.',
+      'Keep overlap-expectation framing concrete and practical.',
+      'QR is the right place for hydraulic deep-dives — keep the print pack calm.',
+    ],
+    trustRecoveryConceptIds: ['system_fit_explanation', 'hydraulic_constraint'],
+    livingWithSystemConceptIds: ['flow_restriction', 'pipework_constraint', 'operating_behaviour'],
+  }),
 ];
 
 function includesAny(source: string[], matches: string[]): boolean {
@@ -275,6 +392,31 @@ export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): W
     input.customerSummary.whatThisAvoids.join(' '),
   ].join(' ').toLowerCase();
 
+  // ─── Golden journey archetypes (checked before their generic counterparts) ──
+
+  // heat_pump_reality beats heat_pump_install when expectation/trust tags are present
+  if (
+    systemType === 'ashp'
+    && includesAny(concernTags, ['hot_radiator_expectation', 'heat_pump_trust', 'expectation_management'])
+  ) {
+    return getArchetypeById('heat_pump_reality');
+  }
+
+  // water_constraint_reality beats water_supply_constraint and combi_replacement when
+  // expectation-management tags are present alongside pressure/flow constraints or a combi scenario
+  if (
+    includesAny(concernTags, ['water_main_limit_not_boiler_limit', 'why_not_combi', 'pressure_vs_storage'])
+    && (
+      includesAny(constraintTags, ['pressure', 'flow', 'hydraulic'])
+      || systemType === 'combi'
+      || Boolean(scenario?.physicsFlags.hydraulicLimit || scenario?.physicsFlags.pressureConstraint)
+    )
+  ) {
+    return getArchetypeById('water_constraint_reality');
+  }
+
+  // ─── Standard hydraulic/pressure check ──────────────────────────────────────
+
   if (
     includesAny(constraintTags, ['pressure', 'flow', 'hydraulic'])
     || Boolean(scenario?.physicsFlags.hydraulicLimit || scenario?.physicsFlags.pressureConstraint)
@@ -291,6 +433,24 @@ export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): W
 
   if (includesAny(concernTags, ['controls', 'weather_compensation', 'zoning', 'smart_controls'])) {
     return getArchetypeById('controls_upgrade');
+  }
+
+  // open_vented_to_sealed_unvented beats cylinder_upgrade AND combi_to_stored_hot_water
+  // when open-vented/sealed conversion tags are present
+  if (
+    (systemType === 'system' || systemType === 'regular')
+    && includesAny(concernTags, ['open_vented', 'sealed_system_conversion', 'unvented_safety_reassurance'])
+  ) {
+    return getArchetypeById('open_vented_to_sealed_unvented');
+  }
+
+  // regular_to_regular_unvented beats regular_or_system_boiler_upgrade AND combi_to_stored_hot_water
+  // when preserved-system tags are present
+  if (
+    (systemType === 'system' || systemType === 'regular')
+    && includesAny(concernTags, ['preserved_system_strength', 'premium_hot_water_performance', 'regular_retained'])
+  ) {
+    return getArchetypeById('regular_to_regular_unvented');
   }
 
   if (

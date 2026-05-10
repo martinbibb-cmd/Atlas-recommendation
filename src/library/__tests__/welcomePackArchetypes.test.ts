@@ -100,6 +100,10 @@ describe('welcomePackArchetypes', () => {
       'water_supply_constraint',
       'low_temperature_radiator_upgrade',
       'smart_cylinder_tariff_ready',
+      'open_vented_to_sealed_unvented',
+      'regular_to_regular_unvented',
+      'heat_pump_reality',
+      'water_constraint_reality',
     ]);
   });
 

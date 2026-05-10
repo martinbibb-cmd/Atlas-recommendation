@@ -13,7 +13,11 @@ export type WelcomePackDemoFixtureId =
   | 'cylinder_upgrade'
   | 'controls_upgrade'
   | 'low_temperature_radiator_upgrade'
-  | 'smart_cylinder_tariff_ready';
+  | 'smart_cylinder_tariff_ready'
+  | 'open_vented_to_sealed_unvented'
+  | 'regular_to_regular_unvented'
+  | 'heat_pump_reality'
+  | 'water_constraint_reality';
 
 export interface WelcomePackDemoFixture {
   id: WelcomePackDemoFixtureId;
@@ -275,10 +279,120 @@ const smartCylinderTariffReadySummary: CustomerSummaryV1 = {
     'A smart-tariff-ready storage configuration shifts heat demand to off-peak periods, reducing running cost through stratified thermal scheduling.',
 };
 
+// ─── Golden journey summaries ─────────────────────────────────────────────────
+
+const openVentedToSealedUnventedSummary: CustomerSummaryV1 = {
+  recommendedScenarioId: 'system_unvented',
+  recommendedSystemLabel: 'Sealed system boiler with unvented cylinder',
+  headline: 'Upgrading from tank-fed hot water to a sealed system is the right fit for this home.',
+  plainEnglishDecision:
+    'Converting from a tank-fed open-vented system to a sealed system with an unvented cylinder removes the header tank, improves mains-pressure delivery, and eliminates the storage-capacity misconception.',
+  whyThisWins: [
+    'Mains-pressure delivery replaces low-head tank-fed supply.',
+    'Sealed system eliminates the loft header tank and associated frost risk.',
+    'Unvented cylinder stores pre-heated water at mains pressure for consistent performance.',
+  ],
+  whatThisAvoids: [
+    'Avoids continued low-pressure shower performance from the existing tank-fed supply.',
+    'Avoids the misconception that stored capacity is limited by boiler output rate.',
+  ],
+  includedNow: ['Sealed system boiler', 'Unvented hot-water cylinder', 'Expansion vessel and pressure relief'],
+  requiredChecks: [
+    'Confirm mains flow rate and static pressure meet unvented requirements',
+    'Check primary pipework sizing for sealed-system compatibility',
+  ],
+  optionalUpgrades: ['Solar thermal or PV diverter connection'],
+  futureReady: ['Future solar diverter or smart-tariff scheduling'],
+  confidenceNotes: ['Recommendation is based on surveyed mains pressure and tank-fed system condition.'],
+  hardConstraints: [],
+  performancePenalties: [],
+  fitNarrative:
+    'Converting to a sealed system with an unvented cylinder is recommended to deliver mains-pressure hot water and remove the header-tank limitations of the existing open-vented setup.',
+};
+
+const regularToRegularUnventedSummary: CustomerSummaryV1 = {
+  recommendedScenarioId: 'regular_unvented',
+  recommendedSystemLabel: 'Regular boiler with unvented cylinder',
+  headline: 'Keeping the regular boiler and upgrading to an unvented cylinder is the right fit for this home.',
+  plainEnglishDecision:
+    'The existing regular boiler architecture is preserved. Replacing the vented cylinder with an unvented unit delivers mains-pressure hot water without disrupting the proven heating distribution.',
+  whyThisWins: [
+    'Regular boiler architecture is retained — familiar controls and distribution strategy.',
+    'Unvented cylinder upgrades hot-water delivery to mains pressure with minimal disruption.',
+    'Separate heating and hot-water circuits remain independently controllable.',
+  ],
+  whatThisAvoids: [
+    'Avoids unnecessary disruption to a well-functioning heating distribution layout.',
+    'Avoids the higher cost and complexity of a full system conversion.',
+  ],
+  includedNow: ['Unvented hot-water cylinder', 'Pressure and temperature relief commissioning'],
+  requiredChecks: [
+    'Confirm mains flow rate and static pressure meet unvented requirements',
+    'Check cylinder location and primary connections',
+  ],
+  optionalUpgrades: ['Smart scheduling controls'],
+  futureReady: ['Future solar diverter or smart-tariff scheduling'],
+  confidenceNotes: ['Recommendation is based on surveyed boiler condition and available mains pressure.'],
+  hardConstraints: [],
+  performancePenalties: [],
+  fitNarrative:
+    'Retaining the regular boiler and upgrading only the cylinder is recommended to achieve mains-pressure hot-water delivery at low disruption and cost.',
+};
+
+const heatPumpRealitySummary: CustomerSummaryV1 = {
+  recommendedScenarioId: 'ashp',
+  recommendedSystemLabel: 'Air source heat pump with stored hot water',
+  headline: 'A heat pump is the right fit — and this pack explains what to expect day to day.',
+  plainEnglishDecision:
+    'A heat pump with stored hot water is recommended for this property. This pack focuses on setting accurate expectations: radiators will be warm rather than hot, the system runs steadily rather than cycling, and the compensation controller manages day-to-day comfort automatically.',
+  whyThisWins: [
+    'Low-temperature operation aligns with the surveyed fabric and emitter output.',
+    'Steady running delivers consistent comfort without the temperature spikes of high-temperature cycling.',
+    'Stored hot water provides reliable daily availability independent of heat-pump output rate.',
+  ],
+  whatThisAvoids: [
+    'Avoids repeated boiler replacement and the associated future disruption.',
+    'Avoids the comfort inconsistency of high-temperature short-cycling.',
+  ],
+  includedNow: ['Air source heat pump', 'Stored hot-water cylinder', 'Weather compensation controls'],
+  requiredChecks: ['Confirm emitter output at reduced flow temperature', 'Verify outdoor unit siting'],
+  optionalUpgrades: ['Future smart-tariff scheduling for cylinder charging'],
+  futureReady: ['Smart-tariff optimisation path'],
+  confidenceNotes: ['Recommendation is based on surveyed fabric, emitter condition, and mains supply.'],
+  hardConstraints: [],
+  performancePenalties: ['If flow temperature is set above the compensation curve, efficiency falls.'],
+  fitNarrative:
+    'A heat pump with stored hot water is recommended. This pack explains warm-not-hot emitters, steady running, and compensation controls to set accurate customer expectations.',
+};
+
+const waterConstraintRealitySummary: CustomerSummaryV1 = {
+  recommendedScenarioId: 'combi',
+  recommendedSystemLabel: 'Combi boiler — mains supply is the constraint, not the boiler',
+  headline: 'The boiler is not the limiting factor — this pack explains what is.',
+  plainEnglishDecision:
+    'The mains water supply limits simultaneous hot-water flow, not the boiler output. This pack explains where the real boundary sits, what it means for day-to-day use, and why a larger or different boiler would not resolve the underlying constraint.',
+  whyThisWins: [
+    'Accurate diagnosis prevents unnecessary replacement of a correctly performing boiler.',
+    'Understanding the supply boundary helps set realistic expectations for simultaneous use.',
+  ],
+  whatThisAvoids: [
+    'Avoids unnecessary boiler upgrade where the real constraint is the mains supply.',
+    'Avoids customer disappointment after replacing equipment that was not the limiting factor.',
+  ],
+  includedNow: ['Combi boiler service and commissioning check'],
+  requiredChecks: ['Measure static and dynamic mains pressure at the incoming supply'],
+  optionalUpgrades: ['Cold-water accumulator if mains flow is below threshold'],
+  futureReady: [],
+  confidenceNotes: ['Recommendation is based on measured mains pressure and flow rate.'],
+  hardConstraints: ['Mains supply limits simultaneous-use flow — this is a site boundary, not a boiler deficiency.'],
+  performancePenalties: ['Simultaneous draw from multiple outlets will be limited by available mains flow.'],
+  fitNarrative:
+    'The combi is not the limiting factor. This pack explains the mains supply boundary calmly and accurately, preventing unnecessary equipment replacement.',
+};
+
 // ─── Fixture registry ─────────────────────────────────────────────────────────
 
-export const welcomePackDemoFixtures: Record<WelcomePackDemoFixtureId, WelcomePackDemoFixture> = {
-  heat_pump_install: {
+export const welcomePackDemoFixtures: Record<WelcomePackDemoFixtureId, WelcomePackDemoFixture> = {  heat_pump_install: {
     id: 'heat_pump_install',
     label: 'Heat pump install',
     customerSummary: heatPumpInstallSummary,
@@ -863,6 +977,247 @@ export const welcomePackDemoFixtures: Record<WelcomePackDemoFixtureId, WelcomePa
     propertyConstraintTags: [],
     accessibilityPreferences: {
       prefersPrint: false,
+      includeTechnicalAppendix: false,
+      profiles: [],
+    },
+  },
+
+  // ─── Golden journey fixtures ───────────────────────────────────────────────
+
+  open_vented_to_sealed_unvented: {
+    id: 'open_vented_to_sealed_unvented',
+    label: 'Tank-fed to sealed + unvented upgrade',
+    customerSummary: openVentedToSealedUnventedSummary,
+    atlasDecision: buildAtlasDecision(openVentedToSealedUnventedSummary, {
+      dayToDayOutcomes: ['Mains-pressure hot water from every outlet', 'No loft header tank to maintain'],
+      requiredWorks: ['Install sealed system boiler and unvented cylinder', 'Commission expansion vessel and pressure relief'],
+      lifecycle: {
+        currentSystem: {
+          type: 'system',
+          ageYears: 20,
+          condition: 'worn',
+        },
+        expectedLifespan: {
+          typicalRangeYears: [10, 15],
+          adjustedRangeYears: [6, 10],
+        },
+        influencingFactors: {
+          waterQuality: 'hard',
+          scaleRisk: 'high',
+          usageIntensity: 'medium',
+          maintenanceLevel: 'poor',
+        },
+        riskIndicators: ['Open-vented system well past expected lifespan', 'Header tank condition unknown'],
+        summary: 'Existing open-vented system is aged and no longer suitable; full conversion is recommended.',
+      },
+    }),
+    scenarios: [
+      {
+        scenarioId: 'system_unvented',
+        system: {
+          type: 'system',
+          summary: 'Sealed system boiler with unvented cylinder',
+        },
+        performance: {
+          hotWater: 'very_good',
+          heating: 'very_good',
+          efficiency: 'very_good',
+          reliability: 'very_good',
+        },
+        keyBenefits: ['Mains-pressure hot water delivery', 'Sealed system eliminates header-tank losses'],
+        keyConstraints: ['Mains pressure survey required before sizing'],
+        dayToDayOutcomes: ['Mains-pressure hot water from every outlet'],
+        requiredWorks: ['Install sealed system boiler and unvented cylinder'],
+        upgradePaths: ['Solar diverter connection', 'Smart-tariff scheduling'],
+        physicsFlags: {},
+      },
+    ],
+    // 'sealed_system_conversion' and 'open_vented' trigger open_vented_to_sealed_unvented archetype
+    userConcernTags: ['open_vented', 'sealed_system_conversion', 'unvented_safety_reassurance', 'pressure_vs_storage'],
+    propertyConstraintTags: [],
+    accessibilityPreferences: {
+      prefersPrint: true,
+      includeTechnicalAppendix: false,
+      profiles: [],
+    },
+  },
+
+  regular_to_regular_unvented: {
+    id: 'regular_to_regular_unvented',
+    label: 'Regular boiler + unvented cylinder upgrade',
+    customerSummary: regularToRegularUnventedSummary,
+    atlasDecision: buildAtlasDecision(regularToRegularUnventedSummary, {
+      dayToDayOutcomes: ['Mains-pressure hot water from upgraded cylinder', 'Heating distribution unchanged'],
+      requiredWorks: ['Install unvented cylinder and commission pressure relief', 'Decommission existing vented cylinder'],
+      lifecycle: {
+        currentSystem: {
+          type: 'regular',
+          ageYears: 9,
+          condition: 'good',
+        },
+        expectedLifespan: {
+          typicalRangeYears: [10, 15],
+          adjustedRangeYears: [10, 15],
+        },
+        influencingFactors: {
+          waterQuality: 'unknown',
+          scaleRisk: 'medium',
+          usageIntensity: 'medium',
+          maintenanceLevel: 'good',
+        },
+        riskIndicators: [],
+        summary: 'Regular boiler is in good condition; cylinder upgrade only is appropriate.',
+      },
+    }),
+    scenarios: [
+      {
+        scenarioId: 'regular_unvented',
+        system: {
+          type: 'regular',
+          summary: 'Regular boiler with unvented cylinder',
+        },
+        performance: {
+          hotWater: 'very_good',
+          heating: 'very_good',
+          efficiency: 'very_good',
+          reliability: 'very_good',
+        },
+        keyBenefits: ['Mains-pressure hot water with minimal disruption', 'Boiler architecture preserved'],
+        keyConstraints: ['Mains pressure must meet unvented requirements'],
+        dayToDayOutcomes: ['Mains-pressure hot water from upgraded cylinder'],
+        requiredWorks: ['Install unvented cylinder'],
+        upgradePaths: ['Smart scheduling controls', 'Solar diverter connection'],
+        physicsFlags: {},
+      },
+    ],
+    // 'preserved_system_strength' triggers regular_to_regular_unvented archetype
+    userConcernTags: ['preserved_system_strength', 'premium_hot_water_performance', 'regular_retained'],
+    propertyConstraintTags: [],
+    accessibilityPreferences: {
+      prefersPrint: false,
+      includeTechnicalAppendix: false,
+      profiles: [],
+    },
+  },
+
+  heat_pump_reality: {
+    id: 'heat_pump_reality',
+    label: 'Heat pump reality — trust and expectation journey',
+    customerSummary: heatPumpRealitySummary,
+    atlasDecision: buildAtlasDecision(heatPumpRealitySummary, {
+      compatibilityWarnings: ['Emitter checks required at reduced flow temperature'],
+      dayToDayOutcomes: ['Steady warmth at lower flow temperature', 'Compensation controller manages comfort automatically'],
+      requiredWorks: ['Install heat pump and stored hot-water cylinder', 'Commission compensation controls'],
+      lifecycle: {
+        currentSystem: {
+          type: 'system',
+          ageYears: 18,
+          condition: 'worn',
+        },
+        expectedLifespan: {
+          typicalRangeYears: [10, 15],
+          adjustedRangeYears: [6, 10],
+        },
+        influencingFactors: {
+          waterQuality: 'hard',
+          scaleRisk: 'high',
+          usageIntensity: 'medium',
+          maintenanceLevel: 'unknown',
+        },
+        riskIndicators: ['System age exceeds expected range'],
+        summary: 'Existing system is worn; heat pump replacement is recommended.',
+      },
+    }),
+    scenarios: [
+      {
+        scenarioId: 'ashp',
+        system: {
+          type: 'ashp',
+          summary: 'Air source heat pump with stored hot water',
+        },
+        performance: {
+          hotWater: 'good',
+          heating: 'very_good',
+          efficiency: 'very_good',
+          reliability: 'good',
+        },
+        keyBenefits: ['Steady low-temperature comfort', 'Stored hot water ensures daily availability'],
+        keyConstraints: ['Emitter checks required'],
+        dayToDayOutcomes: ['Steady warmth at lower flow temperature'],
+        requiredWorks: ['Install heat pump and cylinder'],
+        upgradePaths: ['Future smart-tariff cylinder scheduling'],
+        physicsFlags: {
+          highTempRequired: false,
+        },
+      },
+    ],
+    // 'hot_radiator_expectation' triggers heat_pump_reality archetype (beats heat_pump_install)
+    userConcernTags: ['hot_radiator_expectation', 'heat_pump_trust', 'expectation_management'],
+    propertyConstraintTags: [],
+    accessibilityPreferences: {
+      prefersPrint: true,
+      includeTechnicalAppendix: false,
+      profiles: [],
+    },
+  },
+
+  water_constraint_reality: {
+    id: 'water_constraint_reality',
+    label: 'Water mains constraint — expectation management journey',
+    customerSummary: waterConstraintRealitySummary,
+    atlasDecision: buildAtlasDecision(waterConstraintRealitySummary, {
+      hardConstraints: [...waterConstraintRealitySummary.hardConstraints],
+      performancePenalties: [...waterConstraintRealitySummary.performancePenalties],
+      dayToDayOutcomes: ['On-demand hot water within the boundary of available mains flow'],
+      requiredWorks: ['Measure and document mains static and dynamic pressure'],
+      lifecycle: {
+        currentSystem: {
+          type: 'combi',
+          ageYears: 7,
+          condition: 'good',
+        },
+        expectedLifespan: {
+          typicalRangeYears: [10, 15],
+          adjustedRangeYears: [10, 15],
+        },
+        influencingFactors: {
+          waterQuality: 'unknown',
+          scaleRisk: 'low',
+          usageIntensity: 'high',
+          maintenanceLevel: 'good',
+        },
+        riskIndicators: ['Mains supply below simultaneous-use threshold'],
+        summary: 'Combi is in good condition; supply constraint is a site issue, not a boiler deficiency.',
+      },
+    }),
+    scenarios: [
+      {
+        scenarioId: 'combi',
+        system: {
+          type: 'combi',
+          summary: 'Combi boiler — mains supply is the constraint',
+        },
+        performance: {
+          hotWater: 'good',
+          heating: 'good',
+          efficiency: 'good',
+          reliability: 'good',
+        },
+        keyBenefits: ['Accurate diagnosis prevents unnecessary replacement'],
+        keyConstraints: ['Mains supply limits simultaneous-use flow'],
+        dayToDayOutcomes: ['On-demand hot water within available mains flow'],
+        requiredWorks: ['Document mains pressure and flow measurements'],
+        upgradePaths: ['Cold-water accumulator if mains flow is below threshold'],
+        physicsFlags: {
+          pressureConstraint: true,
+        },
+      },
+    ],
+    // 'why_not_combi' + 'water_main_limit_not_boiler_limit' trigger water_constraint_reality archetype
+    userConcernTags: ['water_main_limit_not_boiler_limit', 'why_not_combi', 'pressure_vs_storage'],
+    propertyConstraintTags: ['pressure', 'flow'],
+    accessibilityPreferences: {
+      prefersPrint: true,
       includeTechnicalAppendix: false,
       profiles: [],
     },

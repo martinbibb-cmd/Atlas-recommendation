@@ -20,6 +20,10 @@ const EXPECTED_ARCHETYPE_COVERAGE: Record<WelcomePackDemoFixtureId, string> = {
   controls_upgrade: 'controls_upgrade',
   low_temperature_radiator_upgrade: 'low_temperature_radiator_upgrade',
   smart_cylinder_tariff_ready: 'smart_cylinder_tariff_ready',
+  open_vented_to_sealed_unvented: 'open_vented_to_sealed_unvented',
+  regular_to_regular_unvented: 'regular_to_regular_unvented',
+  heat_pump_reality: 'heat_pump_reality',
+  water_constraint_reality: 'water_constraint_reality',
 };
 
 describe('welcomePackDemoFixtures coverage', () => {
@@ -132,8 +136,8 @@ describe('welcomePackDemoFixtures coverage', () => {
     }
   });
 
-  it('fixture list contains all 10 fixtures', () => {
-    expect(welcomePackDemoFixtureList).toHaveLength(10);
+  it('fixture list contains all 14 fixtures', () => {
+    expect(welcomePackDemoFixtureList).toHaveLength(14);
   });
 
   it('all fixture IDs in the registry are unique', () => {

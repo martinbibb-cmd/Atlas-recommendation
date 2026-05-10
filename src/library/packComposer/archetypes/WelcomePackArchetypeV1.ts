@@ -12,6 +12,8 @@ export type WelcomePackQrStrategyV1 = 'minimal' | 'standard' | 'deep_dive';
 
 export interface WelcomePackArchetypeV1 {
   archetypeId: string;
+  /** Optional link to an authored golden-journey demonstrator. Used only for preview/navigation metadata — no recommendation influence. */
+  goldenJourneyId?: string;
   label: string;
   description: string;
   appliesToScenarioTypes: string[];

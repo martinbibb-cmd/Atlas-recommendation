@@ -14,6 +14,14 @@ const EXPECTED_RULE_IDS = [
   'technophobia_print_first_preference',
   'dyslexia_adhd_low_cognitive_load_preference',
   'technical_appendix_requested',
+  'why_not_combi',
+  'preserved_system_strength',
+  'premium_hot_water_performance',
+  'pressure_vs_storage',
+  'sealed_system_conversion',
+  'unvented_safety_reassurance',
+  'hot_radiator_expectation',
+  'water_main_limit_not_boiler_limit',
 ] as const;
 
 describe('educationalRoutingRules', () => {
