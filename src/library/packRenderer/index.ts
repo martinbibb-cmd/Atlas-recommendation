@@ -6,3 +6,4 @@ export * from './buildCalmWelcomePackViewModel';
 export * from './buildBrandedCalmWelcomePackViewModel';
 export * from './buildCalmWelcomePackFromAtlasDecision';
 export * from './CalmWelcomePack';
+export * from './visualPreview';

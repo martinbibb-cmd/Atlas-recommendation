@@ -30,6 +30,7 @@ export interface BuildDemoWelcomePackResult {
   viewModel: ReturnType<typeof buildPrintableWelcomePackViewModel>;
   calmViewModel: ReturnType<typeof buildCalmWelcomePackViewModel>;
   brandedCalmViewModel: ReturnType<typeof buildBrandedCalmWelcomePackViewModel>;
+  educationalContent: EducationalContentV1[];
 }
 
 function mergeAccessibilityPreferences(
@@ -120,5 +121,6 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
     viewModel,
     calmViewModel,
     brandedCalmViewModel,
+    educationalContent,
   };
 }
