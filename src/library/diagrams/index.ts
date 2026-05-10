@@ -6,3 +6,4 @@ export * from './WarmVsHotRadiatorsDiagram';
 export * from './WaterMainLimitationDiagram';
 export * from './OpenVentedToUnventedDiagram';
 export * from './diagramExplanationRegistry';
+export * from './diagramLookup';

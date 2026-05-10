@@ -67,6 +67,18 @@ export interface CalmWelcomePackViewModelV1 {
     blockingReasons: string[];
   };
   /**
+   * Flat list of diagram IDs selected for this pack, derived from the plan's
+   * selected concept IDs. Internal and customer-facing renderers may use this
+   * to display or suppress educational diagrams.
+   */
+  diagramIds?: string[];
+  /**
+   * Diagram IDs grouped by the section they are most relevant to, keyed by
+   * section ID. A diagram may appear in more than one section if it covers
+   * concepts from multiple sections.
+   */
+  diagramsBySection?: Partial<Record<CalmWelcomePackSectionId, string[]>>;
+  /**
    * Internal-only sequencing metadata. Must never be rendered in customer-facing output.
    * Populated by the educational sequencing engine when sequencing is active.
    */
