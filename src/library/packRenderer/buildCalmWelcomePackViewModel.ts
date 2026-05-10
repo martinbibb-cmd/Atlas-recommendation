@@ -131,7 +131,6 @@ export function buildCalmWelcomePackViewModel(
 
   const contentByConceptId = new Map(educationalContent.map((entry) => [entry.conceptId, entry]));
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
-  const conceptById = new Map(taxonomy.map((concept) => [concept.conceptId, concept]));
   const selectedConceptSet = new Set(plan.selectedConceptIds);
   const deferredConceptSet = new Set(plan.deferredConceptIds);
   const sectionAssetMap = new Map<EducationalPackSectionId, string[]>(
