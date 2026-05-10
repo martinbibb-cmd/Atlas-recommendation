@@ -6,6 +6,7 @@ import { getContentForConcepts } from '../content/contentLookup';
 import { buildWelcomePackPlan } from '../packComposer/buildWelcomePackPlan';
 import type { WelcomePackAccessibilityPreferencesV1, WelcomePackPlanV1 } from '../packComposer/WelcomePackComposerV1';
 import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
+import type { SequencingContextTagsV1 } from '../sequencing/buildEducationalSequence';
 import { educationalConceptTaxonomy } from '../taxonomy/educationalConceptTaxonomy';
 import { buildBrandedCalmWelcomePackViewModel } from './buildBrandedCalmWelcomePackViewModel';
 import { buildCalmWelcomePackViewModel } from './buildCalmWelcomePackViewModel';
@@ -34,6 +35,9 @@ function stripCustomerDiagnostics(viewModel: CalmWelcomePackViewModelV1): CalmWe
   return {
     ...viewModel,
     internalOmissionLog: [],
+    sequencingMetadata: undefined,
+    deferredBySequencing: undefined,
+    pacingWarnings: undefined,
   };
 }
 
@@ -59,6 +63,14 @@ export function buildCalmWelcomePackFromAtlasDecision(
   });
 
   const educationalContent = getContentForConcepts(plan.selectedConceptIds);
+
+  // Derive sequencing context tags from the outer input's concern tags so the
+  // sequencing engine can use trust and emotional signals when pacing content.
+  const contextTags: SequencingContextTagsV1 | undefined =
+    (input.userConcernTags && input.userConcernTags.length > 0)
+      ? { emotionalTags: input.userConcernTags }
+      : undefined;
+
   const calmViewModel = stripCustomerDiagnostics(buildCalmWelcomePackViewModel({
     plan,
     customerSummary: input.customerSummary,
@@ -67,6 +79,9 @@ export function buildCalmWelcomePackFromAtlasDecision(
     educationalContent,
     eligibilityMode: 'filter',
     includeTechnicalAppendix,
+    archetypeId: plan.archetypeId,
+    accessibilityPreferences,
+    contextTags,
   }));
   const brandedViewModel = stripCustomerDiagnostics(buildBrandedCalmWelcomePackViewModel({
     calmViewModel,
