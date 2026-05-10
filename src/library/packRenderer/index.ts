@@ -4,4 +4,5 @@ export * from './PrintableWelcomePackSkeleton';
 export * from './CalmWelcomePackViewModelV1';
 export * from './buildCalmWelcomePackViewModel';
 export * from './buildBrandedCalmWelcomePackViewModel';
+export * from './buildCalmWelcomePackFromAtlasDecision';
 export * from './CalmWelcomePack';
