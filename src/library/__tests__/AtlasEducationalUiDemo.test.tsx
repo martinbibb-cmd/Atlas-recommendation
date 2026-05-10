@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { AtlasEducationalUiDemo } from '../ui/demo';
-import { getAtlasEducationalUiDemoParagraphs } from '../ui/demo/atlasEducationalUiDemoContent';
+import {
+  atlasEducationalUiDemoContent,
+  getAtlasEducationalUiDemoParagraphs,
+} from '../ui/demo/atlasEducationalUiDemoContent';
 import {
   EDUCATIONAL_MAX_PARAGRAPH_CHARACTERS,
   EDUCATIONAL_MAX_PARAGRAPH_SENTENCES,
@@ -34,13 +37,27 @@ describe('AtlasEducationalUiDemo', () => {
   it('supports explicit reduced-motion and print-safe hooks', () => {
     render(<AtlasEducationalUiDemo motionMode="off" />);
 
-    const showcase = screen.getByLabelText('Educational UI primitive showcase');
+    const showcase = screen.getByRole('region', { name: 'Educational UI primitive showcase' });
     expect(showcase).toHaveAttribute('data-motion', 'off');
     expect(screen.getByLabelText('Print-safe example panel')).toHaveAttribute('data-print-safe', 'true');
     expect(educationalUiCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(educationalUiCss).toContain(".atlas-edu-demo [data-motion='off'] *");
     expect(educationalUiCss).toContain('@media print');
     expect(educationalUiCss).toContain('.atlas-edu-print-safe');
+  });
+
+  it('omits the motion attribute in system mode and exposes reduce mode when requested', () => {
+    const { rerender } = render(<AtlasEducationalUiDemo />);
+
+    expect(
+      screen.getByRole('region', { name: 'Educational UI primitive showcase' }),
+    ).not.toHaveAttribute('data-motion');
+
+    rerender(<AtlasEducationalUiDemo motionMode="reduce" />);
+
+    expect(
+      screen.getByRole('region', { name: 'Educational UI primitive showcase' }),
+    ).toHaveAttribute('data-motion', 'reduce');
   });
 
   it('does not rely on colour alone to communicate meaning', () => {
@@ -57,6 +74,16 @@ describe('AtlasEducationalUiDemo', () => {
       expect(paragraph.length).toBeLessThanOrEqual(EDUCATIONAL_MAX_PARAGRAPH_CHARACTERS);
       expect(countSentences(paragraph)).toBeLessThanOrEqual(EDUCATIONAL_MAX_PARAGRAPH_SENTENCES);
     }
+  });
+
+  it('returns the full paragraph list in a stable order for copy checks', () => {
+    const paragraphs = getAtlasEducationalUiDemoParagraphs();
+
+    expect(paragraphs).toHaveLength(24);
+    expect(paragraphs[0]).toBe(atlasEducationalUiDemoContent.intro);
+    expect(paragraphs[6]).toBe(atlasEducationalUiDemoContent.analogy.analogy);
+    expect(paragraphs).toContain(atlasEducationalUiDemoContent.safety.fact);
+    expect(paragraphs.at(-1)).toBe(atlasEducationalUiDemoContent.trust.expectationBecause);
   });
 
   it('exposes aria labels on key educational regions', () => {
