@@ -11,7 +11,13 @@ import { getConceptById } from '../taxonomy/conceptGraph';
 import { educationalConceptTaxonomy } from '../taxonomy/educationalConceptTaxonomy';
 import { detectWelcomePackArchetype } from './archetypes/welcomePackArchetypes';
 import { applyWelcomePackBudget } from './budget/applyWelcomePackBudget';
+import { checkWelcomePackAssetEligibility } from './eligibility/checkWelcomePackAssetEligibility';
+import type { EligibilityDeliveryMode } from './eligibility/WelcomePackEligibilityV1';
 import type { WelcomePackComposerInputV1, WelcomePackPlanV1 } from './WelcomePackComposerV1';
+import { educationalAssetAccessibilityAudits } from '../audits/educationalAssetAccessibilityAudits';
+import { printEquivalentRegistry } from '../printEquivalents/printEquivalentRegistry';
+import { runEducationalAssetQa } from '../registry/qa/runEducationalAssetQa';
+import { educationalComponentRegistry } from '../registry/educationalComponentRegistry';
 
 const COGNITIVE_WEIGHT: Record<EducationalLoad, number> = {
   low: 1,
@@ -229,6 +235,19 @@ function uniqueValues(values: string[]): string[] {
   return [...new Set(values)];
 }
 
+function resolveDeliveryMode(input: WelcomePackComposerInputV1): EligibilityDeliveryMode {
+  if (input.accessibilityPreferences?.prefersPrint) {
+    return 'print';
+  }
+  if (input.accessibilityPreferences?.prefersReducedMotion) {
+    return 'reduced_motion';
+  }
+  if (input.accessibilityPreferences?.includeTechnicalAppendix) {
+    return 'technical_appendix';
+  }
+  return 'customer_pack';
+}
+
 export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): WelcomePackPlanV1 {
   const {
     customerSummary,
@@ -237,6 +256,7 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
     accessibilityPreferences,
     userConcernTags = [],
     propertyConstraintTags = [],
+    eligibilityMode = 'off',
   } = input;
 
   const recommendedScenarioId = atlasDecision.recommendedScenarioId;
@@ -368,22 +388,70 @@ export function buildWelcomePackPlan(input: WelcomePackComposerInputV1): Welcome
       reason: buildRoutingOmissionReason(item.reason, 'No matched concern tags or required engine facts.'),
     }));
 
+  // Eligibility gate – runs when eligibilityMode is 'warn' or 'filter'
+  let finalSelectedAssetIds = selectedAssetIds;
+  let finalOmittedAssetIdsWithReason = omittedAssetIdsWithReason;
+  let eligibilityFindings: ReturnType<typeof checkWelcomePackAssetEligibility> | undefined;
+
+  if (eligibilityMode !== 'off') {
+    const deliveryMode = resolveDeliveryMode(input);
+    const qaFindings = runEducationalAssetQa(
+      educationalAssetRegistry,
+      educationalComponentRegistry,
+      educationalConceptTaxonomy,
+    );
+
+    const findings = checkWelcomePackAssetEligibility({
+      selectedAssetIds,
+      deliveryMode,
+      assets: educationalAssetRegistry,
+      audits: educationalAssetAccessibilityAudits,
+      qaFindings,
+      printEquivalents: printEquivalentRegistry,
+      componentRegistry: educationalComponentRegistry as Record<string, unknown>,
+    });
+
+    eligibilityFindings = findings;
+
+    if (eligibilityMode === 'filter') {
+      const ineligibleIds = new Set(
+        findings.filter((f) => !f.eligible).map((f) => f.assetId),
+      );
+
+      finalSelectedAssetIds = selectedAssetIds.filter((id) => !ineligibleIds.has(id));
+
+      const eligibilityOmissions = findings
+        .filter((f) => !f.eligible)
+        .map((f) => ({
+          assetId: f.assetId,
+          reason: `Eligibility gate (${deliveryMode}): ${f.reasons.join(' ')}`,
+        }));
+
+      const eligibilityOmissionIdSet = new Set(eligibilityOmissions.map((e) => e.assetId));
+      finalOmittedAssetIdsWithReason = [
+        ...omittedAssetIdsWithReason.filter((item) => !eligibilityOmissionIdSet.has(item.assetId)),
+        ...eligibilityOmissions,
+      ];
+    }
+  }
+
   return {
     packId: `welcome-pack:${recommendedScenarioId}`,
     recommendedScenarioId,
     archetypeId: archetype.archetypeId,
     sections,
-    selectedAssetIds,
+    selectedAssetIds: finalSelectedAssetIds,
     selectedAssetReasons,
     selectedConceptIds: uniqueValues(printedItems.flatMap((item) => item.conceptIds)),
     deferredConceptIds: uniqueValues([
       ...budgetResult.deferredToQr.flatMap((item) => item.conceptIds),
       ...budgetResult.movedToAppendix.flatMap((item) => item.conceptIds),
     ]),
-    omittedAssetIdsWithReason,
+    omittedAssetIdsWithReason: finalOmittedAssetIdsWithReason,
     printPageBudget: budgetResult.appliedBudget.maxPages,
     pageBudgetUsed: budgetResult.pageBudgetUsed,
     cognitiveLoadBudget,
     qrDestinations: budgetResult.deferredToQr.map((item) => item.qrDestination),
+    eligibilityFindings,
   };
 }

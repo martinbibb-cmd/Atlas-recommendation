@@ -21,6 +21,7 @@ import {
   welcomePackDemoFixtureList,
   type WelcomePackDemoFixtureId,
 } from './welcomePackDemoFixtures';
+import type { WelcomePackEligibilityMode } from '../packComposer/WelcomePackComposerV1';
 
 function toAccessibilityProfiles(dyslexia: boolean, adhd: boolean): Array<'dyslexia' | 'adhd'> {
   const profiles: Array<'dyslexia' | 'adhd'> = [];
@@ -46,6 +47,7 @@ export function WelcomePackDevPreview() {
   const [technicalAppendix, setTechnicalAppendix] = useState(
     Boolean(selectedFixture.accessibilityPreferences.includeTechnicalAppendix),
   );
+  const [eligibilityMode, setEligibilityMode] = useState<WelcomePackEligibilityMode>('off');
 
   useEffect(() => {
     setPrintFirst(Boolean(selectedFixture.accessibilityPreferences.prefersPrint));
@@ -61,12 +63,14 @@ export function WelcomePackDevPreview() {
       includeTechnicalAppendix: technicalAppendix,
       profiles: toAccessibilityProfiles(dyslexia, adhd),
     },
+    eligibilityMode,
   }), [
     fixtureId,
     printFirst,
     dyslexia,
     adhd,
     technicalAppendix,
+    eligibilityMode,
   ]);
 
   const { contentQaFindings, contentQaErrors, contentQaWarnings } = useMemo(() => {
@@ -215,6 +219,43 @@ export function WelcomePackDevPreview() {
             technical appendix
           </label>
         </fieldset>
+
+        <fieldset style={{ marginTop: '1rem' }}>
+          <legend>Production eligibility</legend>
+          <label style={{ display: 'block' }}>
+            <input
+              type="radio"
+              name="eligibility-mode"
+              value="off"
+              checked={eligibilityMode === 'off'}
+              onChange={() => setEligibilityMode('off')}
+            />
+            {' '}
+            off (dev preview — show all assets)
+          </label>
+          <label style={{ display: 'block' }}>
+            <input
+              type="radio"
+              name="eligibility-mode"
+              value="warn"
+              checked={eligibilityMode === 'warn'}
+              onChange={() => setEligibilityMode('warn')}
+            />
+            {' '}
+            warn (show production eligibility, keep assets selected)
+          </label>
+          <label style={{ display: 'block' }}>
+            <input
+              type="radio"
+              name="eligibility-mode"
+              value="filter"
+              checked={eligibilityMode === 'filter'}
+              onChange={() => setEligibilityMode('filter')}
+            />
+            {' '}
+            filter (remove ineligible assets from production customer pack)
+          </label>
+        </fieldset>
       </section>
 
       <section aria-label="Plan metadata" style={{ marginBottom: '1rem' }}>
@@ -356,6 +397,75 @@ export function WelcomePackDevPreview() {
             ))
           )}
         </ul>
+      </section>
+
+      <section aria-label="Production eligibility" style={{ marginBottom: '1rem' }}>
+        <h2>Production eligibility</h2>
+        <p>
+          Eligibility gates output delivery readiness only. They do not alter recommendations,
+          scenario ranking, or engine truth. Dev preview can show unapproved assets; production
+          customer pack should use <code>filter</code> mode.
+        </p>
+        <p data-testid="eligibility-mode-label">
+          Mode: <strong data-testid="eligibility-mode-value">{eligibilityMode}</strong>
+        </p>
+
+        {eligibilityMode === 'off' ? (
+          <p>Eligibility gate is off. All routing-selected assets are shown without delivery-readiness checks.</p>
+        ) : (
+          <>
+            <h3>Per selected asset eligibility status</h3>
+            <ul data-testid="selected-asset-eligibility-status">
+              {(plan.eligibilityFindings ?? []).length === 0 ? (
+                <li>None</li>
+              ) : (
+                (plan.eligibilityFindings ?? []).map((finding) => (
+                  <li key={`eligibility-${finding.assetId}`} data-testid={`eligibility-${finding.assetId}`}>
+                    <strong>{finding.assetId}</strong>
+                    {' — '}
+                    <span data-testid={`eligibility-status-${finding.assetId}`}>
+                      {finding.eligible ? 'eligible' : 'blocked'}
+                    </span>
+                    {' (mode: '}
+                    {finding.mode}
+                    {')'}
+                    {finding.reasons.length > 0 && (
+                      <ul data-testid={`eligibility-reasons-${finding.assetId}`}>
+                        {finding.reasons.map((reason, idx) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={idx}>{reason}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {finding.replacementHint && (
+                      <p data-testid={`eligibility-hint-${finding.assetId}`}>
+                        Hint: {finding.replacementHint}
+                      </p>
+                    )}
+                  </li>
+                ))
+              )}
+            </ul>
+
+            {eligibilityMode === 'filter' && (
+              <>
+                <h3>Assets removed from production customer pack</h3>
+                <ul data-testid="eligibility-filtered-assets">
+                  {(plan.eligibilityFindings ?? []).filter((f) => !f.eligible).length === 0 ? (
+                    <li>None — all selected assets are eligible for this delivery mode.</li>
+                  ) : (
+                    (plan.eligibilityFindings ?? []).filter((f) => !f.eligible).map((finding) => (
+                      <li key={`filtered-${finding.assetId}`} data-testid={`filtered-${finding.assetId}`}>
+                        <strong>{finding.assetId}</strong>: {finding.reasons.join(' ')}
+                        {finding.replacementHint && <> — {finding.replacementHint}</>}
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </>
+            )}
+          </>
+        )}
       </section>
 
       <PrintableWelcomePackSkeleton viewModel={viewModel} />

@@ -3,6 +3,7 @@ import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { EducationalDepth, EducationalLoad } from '../contracts/EducationalAssetV1';
 import type { EducationalPackSectionV1 } from '../contracts/EducationalPackV1';
+import type { WelcomePackEligibilityV1 } from './eligibility/WelcomePackEligibilityV1';
 
 export type WelcomePackAccessibilityProfile = 'dyslexia' | 'adhd';
 
@@ -32,7 +33,10 @@ export interface WelcomePackPlanV1 {
   pageBudgetUsed: number;
   cognitiveLoadBudget: EducationalLoad;
   qrDestinations: string[];
+  eligibilityFindings?: WelcomePackEligibilityV1[];
 }
+
+export type WelcomePackEligibilityMode = 'off' | 'warn' | 'filter';
 
 export interface WelcomePackComposerInputV1 {
   customerSummary: CustomerSummaryV1;
@@ -41,6 +45,7 @@ export interface WelcomePackComposerInputV1 {
   accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
   userConcernTags?: string[];
   propertyConstraintTags?: string[];
+  eligibilityMode?: WelcomePackEligibilityMode;
 }
 
 export interface WelcomePackComposerV1 {
