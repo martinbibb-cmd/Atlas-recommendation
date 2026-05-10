@@ -1,7 +1,5 @@
 import type { AtlasDecisionV1 } from '../../../contracts/AtlasDecisionV1';
 import type { CustomerSummaryV1 } from '../../../contracts/CustomerSummaryV1';
-import type { ScenarioResult } from '../../../contracts/ScenarioResult';
-import type { WelcomePackAccessibilityPreferencesV1 } from '../../packComposer/WelcomePackComposerV1';
 import type {
   WelcomePackValidationFixture,
   WelcomePackValidationFixtureId,
@@ -10,7 +8,7 @@ import type {
 // ─── Shared lifecycle builder ─────────────────────────────────────────────────
 
 function buildLifecycle(
-  type: 'combi' | 'system' | 'regular' | 'ashp',
+  type: 'combi' | 'system' | 'regular',
   ageYears: number,
   condition: 'good' | 'average' | 'worn' | 'unknown',
   summary: string,

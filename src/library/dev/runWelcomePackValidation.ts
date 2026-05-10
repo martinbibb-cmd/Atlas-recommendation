@@ -118,7 +118,7 @@ function detectTrustRisks(
   const content = getContentForConcepts(selectedConceptIds);
   const coveredText = [
     ...content.map((entry) => entry.title),
-    ...content.map((entry) => entry.summary),
+    ...content.map((entry) => entry.plainEnglishSummary),
     ...content.flatMap((entry) => entry.analogyOptions),
     ...selectedConceptIds,
   ]
