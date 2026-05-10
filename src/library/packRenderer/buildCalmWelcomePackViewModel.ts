@@ -2,10 +2,15 @@ import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { EducationalContentV1 } from '../content/EducationalContentV1';
 import type { EducationalAssetV1 } from '../contracts/EducationalAssetV1';
 import type { EducationalPackSectionId } from '../contracts/EducationalPackV1';
-import type { WelcomePackEligibilityMode, WelcomePackPlanV1 } from '../packComposer/WelcomePackComposerV1';
+import type { WelcomePackEligibilityMode, WelcomePackPlanV1, WelcomePackAccessibilityPreferencesV1 } from '../packComposer/WelcomePackComposerV1';
+import type { EducationalRoutingAccessibilityPreferencesV1 } from '../routing/EducationalRoutingRuleV1';
+import { buildEducationalSequence } from '../sequencing/buildEducationalSequence';
+import type { SequencingContextTagsV1 } from '../sequencing/buildEducationalSequence';
+import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
 import type { EducationalConceptTaxonomyV1 } from '../taxonomy/EducationalConceptTaxonomyV1';
 import type {
   CalmWelcomePackCardV1,
+  CalmWelcomePackDeferredBySequencingV1,
   CalmWelcomePackQrDestinationV1,
   CalmWelcomePackSectionId,
   CalmWelcomePackViewModelV1,
@@ -42,6 +47,12 @@ export interface BuildCalmWelcomePackViewModelInputV1 {
   educationalContent: EducationalContentV1[];
   eligibilityMode: WelcomePackEligibilityMode;
   includeTechnicalAppendix?: boolean;
+  /** Archetype driving this pack — forwarded to the sequencing engine. */
+  archetypeId?: string;
+  /** Accessibility preferences passed through to the sequencing engine. */
+  accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
+  /** Emotional and trust context tags passed through to the sequencing engine. */
+  contextTags?: SequencingContextTagsV1;
 }
 
 function uniqueInOrder(values: string[]): string[] {
@@ -73,6 +84,42 @@ function estimateUsedPages(sectionCount: number, qrCount: number): number {
 
 function isDeferredReason(reason: string): boolean {
   return DEFERRED_REASON_PATTERN.test(reason);
+}
+
+/**
+ * Maps WelcomePackAccessibilityPreferencesV1 (a subset of routing preferences)
+ * to the EducationalRoutingAccessibilityPreferencesV1 type required by the
+ * sequencing engine, expanding boolean flags to profile entries.
+ */
+function toRoutingAccessibility(
+  prefs?: WelcomePackAccessibilityPreferencesV1,
+): EducationalRoutingAccessibilityPreferencesV1 {
+  if (!prefs) {
+    return {};
+  }
+
+  const profiles: EducationalRoutingAccessibilityPreferencesV1['profiles'] = [
+    ...(prefs.profiles ?? []),
+  ];
+
+  if (prefs.prefersReducedMotion && !profiles.includes('reduced_motion')) {
+    profiles.push('reduced_motion');
+  }
+
+  if (prefs.prefersPrint && !profiles.includes('print_first')) {
+    profiles.push('print_first');
+  }
+
+  if (prefs.includeTechnicalAppendix && !profiles.includes('technical_appendix_requested')) {
+    profiles.push('technical_appendix_requested');
+  }
+
+  return {
+    prefersReducedMotion: prefs.prefersReducedMotion,
+    prefersPrint: prefs.prefersPrint,
+    includeTechnicalAppendix: prefs.includeTechnicalAppendix,
+    profiles: profiles.length > 0 ? profiles : undefined,
+  };
 }
 
 function sectionCardsFromCustomerSummary(customerSummary: CustomerSummaryV1): CalmWelcomePackCardV1[] {
@@ -116,6 +163,9 @@ export function buildCalmWelcomePackViewModel(
     educationalContent,
     eligibilityMode,
     includeTechnicalAppendix = false,
+    archetypeId,
+    accessibilityPreferences,
+    contextTags,
   } = input;
 
   const internalOmissionLog: CalmWelcomePackViewModelV1['internalOmissionLog'] = [];
@@ -188,6 +238,40 @@ export function buildCalmWelcomePackViewModel(
     blockingReasons.push('No eligible low-load customer-pack assets remain after filtering.');
   }
 
+  // ── Educational sequencing ─────────────────────────────────────────────────
+  // Run the sequencing engine to determine concept order and detect deferred
+  // concepts. This produces a stable ordering driven by educational stage
+  // (reassurance → expectation → lived experience → misconception → deeper
+  // understanding → technical detail) rather than the raw selectedConceptIds order.
+  const routingAccessibility = toRoutingAccessibility(accessibilityPreferences);
+  const sequenceResult = buildEducationalSequence({
+    selectedConceptIds: plan.selectedConceptIds,
+    sequenceRules: educationalSequenceRules,
+    archetypeId: archetypeId ?? plan.archetypeId,
+    accessibilityPreferences: routingAccessibility,
+    contextTags,
+  });
+
+  // Position map: conceptId → sequence position (lower = earlier)
+  const conceptPositionMap = new Map<string, number>(
+    sequenceResult.orderedSequence.map((item) => [item.conceptId, item.position]),
+  );
+
+  // Concepts the engine deferred (missing prerequisites, suppressed, etc.)
+  const deferredBySequencingSet = new Set<string>(
+    sequenceResult.deferredConcepts.map((d) => d.conceptId),
+  );
+
+  // Log omissions for sequencing-deferred concepts (internal only)
+  for (const deferred of sequenceResult.deferredConcepts) {
+    internalOmissionLog.push({
+      conceptId: deferred.conceptId,
+      reason: `Deferred by educational sequencing (rule ${deferred.ruleId}): ${deferred.reason}`,
+    });
+  }
+
+  const appliedMaxSimultaneous = sequenceResult.appliedMaxSimultaneous;
+
   const safetyConceptIds = new Set(
     taxonomy
       .filter((concept) => concept.category === 'safety')
@@ -250,6 +334,11 @@ export function buildCalmWelcomePackViewModel(
       }
 
       for (const conceptId of conceptIds) {
+        // Skip concepts the sequencing engine deferred (already logged above)
+        if (deferredBySequencingSet.has(conceptId)) {
+          continue;
+        }
+
         const content = contentByConceptId.get(conceptId);
         if (!content) {
           internalOmissionLog.push({
@@ -302,6 +391,31 @@ export function buildCalmWelcomePackViewModel(
         });
         includedCardKeySet.add(cardKey);
         includedAssetIds.add(assetId);
+      }
+    }
+
+    // Sort cards within this section by their concept's sequence position so the
+    // educational rhythm (reassurance → expectation → lived experience → ...) is
+    // respected even when the plan places multiple concepts in the same section.
+    cards.sort((a, b) => {
+      const posA = a.conceptId !== undefined ? (conceptPositionMap.get(a.conceptId) ?? Infinity) : Infinity;
+      const posB = b.conceptId !== undefined ? (conceptPositionMap.get(b.conceptId) ?? Infinity) : Infinity;
+      return posA - posB;
+    });
+
+    // Enforce the concept-density cap imposed by accessibility profiles (e.g. ADHD
+    // allows at most 1 concept per section). Safety and calm-summary sections are
+    // exempt. Overflow cards are moved to the internal omission log.
+    const UNCAPPED_SECTIONS: CalmWelcomePackSectionId[] = ['safety_and_compliance', 'calm_summary'];
+    if (!UNCAPPED_SECTIONS.includes(sectionId) && cards.length > appliedMaxSimultaneous) {
+      const overflowCards = cards.splice(appliedMaxSimultaneous);
+      for (const card of overflowCards) {
+        internalOmissionLog.push({
+          sectionId,
+          assetId: card.assetId,
+          conceptId: card.conceptId,
+          reason: `Card deferred by concept-density cap (max ${appliedMaxSimultaneous} per section for active accessibility profile).`,
+        });
       }
     }
 
@@ -389,6 +503,12 @@ export function buildCalmWelcomePackViewModel(
     .map((sectionId) => customerFacingSections.find((section) => section.sectionId === sectionId))
     .filter((section): section is NonNullable<typeof section> => Boolean(section));
 
+  const deferredBySequencing: CalmWelcomePackDeferredBySequencingV1[] = sequenceResult.deferredConcepts.map((d) => ({
+    conceptId: d.conceptId,
+    ruleId: d.ruleId,
+    reason: d.reason,
+  }));
+
   return {
     packId: plan.packId,
     recommendedScenarioId: plan.recommendedScenarioId,
@@ -404,5 +524,14 @@ export function buildCalmWelcomePackViewModel(
       safeForCustomer: blockingReasons.length === 0,
       blockingReasons,
     },
+    sequencingMetadata: {
+      archetypeId: archetypeId ?? plan.archetypeId,
+      appliedMaxSimultaneous,
+      stagesPresent: [
+        ...new Set(sequenceResult.orderedSequence.map((c) => c.sequenceStage)),
+      ],
+    },
+    deferredBySequencing: deferredBySequencing.length > 0 ? deferredBySequencing : undefined,
+    pacingWarnings: sequenceResult.overloadWarnings.length > 0 ? sequenceResult.overloadWarnings : undefined,
   };
 }

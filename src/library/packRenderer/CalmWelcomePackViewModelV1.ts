@@ -1,3 +1,4 @@
+import type { SequenceStage } from '../sequencing/EducationalSequenceRuleV1';
 import type { EducationalPackSectionId } from '../contracts/EducationalPackV1';
 
 export type CalmWelcomePackSectionId = EducationalPackSectionId | 'safety_and_compliance';
@@ -30,6 +31,20 @@ export interface CalmWelcomePackOmissionItemV1 {
   reason: string;
 }
 
+/** Internal-only sequencing summary — never exposed to customer renderers. */
+export interface CalmWelcomePackSequencingMetadataV1 {
+  archetypeId: string;
+  appliedMaxSimultaneous: number;
+  stagesPresent: SequenceStage[];
+}
+
+/** A concept the sequencing engine excluded from the main sequence. Internal only. */
+export interface CalmWelcomePackDeferredBySequencingV1 {
+  conceptId: string;
+  ruleId: string;
+  reason: string;
+}
+
 export interface CalmWelcomePackViewModelV1 {
   packId: string;
   recommendedScenarioId: string;
@@ -51,4 +66,19 @@ export interface CalmWelcomePackViewModelV1 {
     safeForCustomer: boolean;
     blockingReasons: string[];
   };
+  /**
+   * Internal-only sequencing metadata. Must never be rendered in customer-facing output.
+   * Populated by the educational sequencing engine when sequencing is active.
+   */
+  sequencingMetadata?: CalmWelcomePackSequencingMetadataV1;
+  /**
+   * Concepts the sequencing engine deferred from the main sequence. Internal only.
+   * Each entry explains why the concept was excluded.
+   */
+  deferredBySequencing?: CalmWelcomePackDeferredBySequencingV1[];
+  /**
+   * Human-readable overload and pacing warnings from the sequencing engine.
+   * Internal only — never expose to customer renderers or customer-facing text.
+   */
+  pacingWarnings?: string[];
 }

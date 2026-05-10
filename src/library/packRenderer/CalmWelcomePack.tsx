@@ -5,23 +5,6 @@ export interface CalmWelcomePackProps {
   viewModel: CalmWelcomePackViewModelV1;
 }
 
-const SECTION_ORDER: CalmWelcomePackSectionV1['sectionId'][] = [
-  'calm_summary',
-  'why_this_fits',
-  'living_with_the_system',
-  'relevant_explainers',
-  'safety_and_compliance',
-  'optional_technical_appendix',
-  'next_steps',
-];
-
-function getSectionById(
-  sections: CalmWelcomePackViewModelV1['customerFacingSections'],
-  sectionId: CalmWelcomePackSectionV1['sectionId'],
-) {
-  return sections.find((section) => section.sectionId === sectionId);
-}
-
 function renderCards(section: CalmWelcomePackSectionV1) {
   return (
     <ul className="cwpr-card-list">
@@ -71,9 +54,8 @@ export function CalmWelcomePack({ viewModel }: CalmWelcomePackProps) {
         <h1 className="cwpr-title">{viewModel.title}</h1>
       </header>
 
-      {SECTION_ORDER.map((sectionId) => {
-        const section = getSectionById(viewModel.customerFacingSections, sectionId);
-        if (!section || section.cards.length === 0) {
+      {viewModel.customerFacingSections.map((section) => {
+        if (section.cards.length === 0) {
           return null;
         }
 
