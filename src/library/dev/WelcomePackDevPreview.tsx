@@ -59,12 +59,14 @@ export function WelcomePackDevPreview() {
     technicalAppendix,
   ]);
 
-  const contentQaFindings = useMemo(
-    () => runEducationalContentQa(educationalContentRegistry),
-    [],
-  );
-  const contentQaErrors = useMemo(() => getContentQaErrors(), [contentQaFindings]);
-  const contentQaWarnings = useMemo(() => getContentQaWarnings(), [contentQaFindings]);
+  const { contentQaFindings, contentQaErrors, contentQaWarnings } = useMemo(() => {
+    const findings = runEducationalContentQa(educationalContentRegistry);
+    return {
+      contentQaFindings: findings,
+      contentQaErrors: getContentQaErrors(),
+      contentQaWarnings: getContentQaWarnings(),
+    };
+  }, []);
   const selectedConceptContentStatus = useMemo(() => plan.selectedConceptIds.map((conceptId) => {
     const contentEntry = educationalContentRegistry.find((entry) => entry.conceptId === conceptId);
     if (!contentEntry) {
