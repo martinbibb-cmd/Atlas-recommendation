@@ -99,10 +99,10 @@ function getCardSummaryForSection(
 ): string {
   if (sectionId === 'optional_technical_appendix' && includeTechnicalAppendix) {
     return (content.technicalAppendixSummary ?? '').trim()
-      || content.printSummary.trim()
-      || content.customerExplanation.trim();
+      || (content.printSummary ?? '').trim()
+      || (content.customerExplanation ?? '').trim();
   }
-  return content.printSummary.trim() || content.customerExplanation.trim();
+  return (content.printSummary ?? '').trim() || (content.customerExplanation ?? '').trim();
 }
 
 export function buildCalmWelcomePackViewModel(
@@ -209,8 +209,8 @@ export function buildCalmWelcomePackViewModel(
   } else {
     internalOmissionLog.push({
       sectionId: 'calm_summary',
-      reason: 'Calm summary omitted because no customer summary text was available.',
-    });
+        reason: 'calm summary omitted because no customer summary text was available.',
+      });
   }
 
   for (const sectionId of SECTION_ORDER) {

@@ -214,6 +214,8 @@ describe('buildCalmWelcomePackViewModel', () => {
 
     const assetIds = vm.customerFacingSections.flatMap((section) => section.cards.map((card) => card.assetId).filter(Boolean));
     expect(assetIds).not.toContain('IneligibleAsset');
+    expect(vm.readiness.safeForCustomer).toBe(false);
+    expect(vm.readiness.blockingReasons.some((reason) => /eligibility filtering/i.test(reason))).toBe(true);
   });
 
   it('omits missing content without emitting content-pending text', () => {
@@ -248,6 +250,19 @@ describe('buildCalmWelcomePackViewModel', () => {
 
     expect(vm.readiness.safeForCustomer).toBe(false);
     expect(vm.readiness.blockingReasons.length).toBeGreaterThan(0);
+  });
+
+  it('adds a blocking reason when eligibilityMode is not filter even with valid findings', () => {
+    const vm = buildCalmWelcomePackViewModel({
+      plan,
+      customerSummary,
+      taxonomy,
+      assets,
+      educationalContent,
+      eligibilityMode: 'off',
+    });
+
+    expect(vm.readiness.blockingReasons.some((reason) => /eligibility filtering/i.test(reason))).toBe(true);
   });
 
   it('keeps recommendedScenarioId unchanged', () => {
