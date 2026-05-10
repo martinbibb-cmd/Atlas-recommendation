@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PrintableWelcomePackSkeleton } from '../packRenderer/PrintableWelcomePackSkeleton';
+import { educationalContentRegistry } from '../content/educationalContentRegistry';
+import {
+  getContentQaErrors,
+  getContentQaWarnings,
+  runEducationalContentQa,
+} from '../content/qa/runEducationalContentQa';
 import { buildDemoWelcomePack } from './buildDemoWelcomePack';
 import {
   welcomePackDemoFixtureList,
@@ -52,6 +58,39 @@ export function WelcomePackDevPreview() {
     adhd,
     technicalAppendix,
   ]);
+
+  const { contentQaFindings, contentQaErrors, contentQaWarnings } = useMemo(() => {
+    const findings = runEducationalContentQa(educationalContentRegistry);
+    return {
+      contentQaFindings: findings,
+      contentQaErrors: getContentQaErrors(findings),
+      contentQaWarnings: getContentQaWarnings(findings),
+    };
+  }, []);
+  const selectedConceptContentStatus = useMemo(() => plan.selectedConceptIds.map((conceptId) => {
+    const contentEntry = educationalContentRegistry.find((entry) => entry.conceptId === conceptId);
+    if (!contentEntry) {
+      return {
+        conceptId,
+        contentId: 'missing',
+        status: 'error' as const,
+        errorCount: 1,
+        warningCount: 0,
+      };
+    }
+
+    const findings = contentQaFindings.filter((finding) => finding.contentId === contentEntry.contentId);
+    const errorCount = findings.filter((finding) => finding.severity === 'error').length;
+    const warningCount = findings.filter((finding) => finding.severity === 'warning').length;
+    const status = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : 'pass';
+    return {
+      conceptId,
+      contentId: contentEntry.contentId,
+      status,
+      errorCount,
+      warningCount,
+    };
+  }), [plan.selectedConceptIds, contentQaFindings]);
 
   return (
     <main style={{ margin: '0 auto', maxWidth: 1200, padding: '1rem' }}>
@@ -153,6 +192,37 @@ export function WelcomePackDevPreview() {
           {viewModel.omittedSummary.omittedAssets.length === 0 ? <li>None</li> : viewModel.omittedSummary.omittedAssets.map((item) => (
             <li key={item.assetId}>
               <strong>{item.assetId}</strong>: {item.reason}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-label="Content QA" style={{ marginBottom: '1rem' }}>
+        <h2>Content QA</h2>
+
+        <h3>Content QA Errors</h3>
+        <ul data-testid="content-qa-errors">
+          {contentQaErrors.length === 0 ? <li>None</li> : contentQaErrors.map((finding) => (
+            <li key={`${finding.contentId}-${finding.ruleId}-${finding.field}`}>
+              <strong>{finding.contentId}</strong> [{finding.field}]: {finding.message}
+            </li>
+          ))}
+        </ul>
+
+        <h3>Content QA Warnings</h3>
+        <ul data-testid="content-qa-warnings">
+          {contentQaWarnings.length === 0 ? <li>None</li> : contentQaWarnings.map((finding) => (
+            <li key={`${finding.contentId}-${finding.ruleId}-${finding.field}`}>
+              <strong>{finding.contentId}</strong> [{finding.field}]: {finding.message}
+            </li>
+          ))}
+        </ul>
+
+        <h3>Per selected concept content status</h3>
+        <ul data-testid="selected-concept-content-status">
+          {selectedConceptContentStatus.map((item) => (
+            <li key={`${item.conceptId}-${item.contentId}`}>
+              <strong>{item.conceptId}</strong> → {item.contentId} ({item.status}; errors: {item.errorCount}; warnings: {item.warningCount})
             </li>
           ))}
         </ul>
