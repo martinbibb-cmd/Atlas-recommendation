@@ -201,8 +201,7 @@
   place-items: center;
   min-height: 7rem;
   border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(35, 74, 125, 0.08), rgba(35, 74, 125, 0.02));
+  background: var(--atlas-edu-accent-subtle);
   color: var(--atlas-edu-accent);
   font-weight: 600;
 }

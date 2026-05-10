@@ -1,4 +1,5 @@
 export const EDUCATIONAL_MAX_PARAGRAPH_CHARACTERS = 220;
+/** Keep paragraphs short enough to reduce cognitive load in calm explanatory surfaces. */
 export const EDUCATIONAL_MAX_PARAGRAPH_SENTENCES = 3;
 
 export const educationalTypographyTokens = {
