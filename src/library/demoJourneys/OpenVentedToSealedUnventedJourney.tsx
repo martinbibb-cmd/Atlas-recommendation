@@ -159,7 +159,7 @@ export function OpenVentedToSealedUnventedJourney({
         <CustomerConfusionChecklist
           journeyLabel="Open-vented to sealed + unvented"
           confusionRisks={[
-            'Pressure improvement means unlimited hot water.',
+            'Pressure improvement means stored capacity has no practical limit.',
             'Open vented and open-vented hot water describe the same thing as sealed heating.',
           ]}
           assumptions={[
