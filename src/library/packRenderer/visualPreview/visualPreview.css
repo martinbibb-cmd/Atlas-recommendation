@@ -1,0 +1,145 @@
+.atlas-storyboard-shell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.atlas-storyboard-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #d8e0eb;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+}
+
+.atlas-storyboard-panel__header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.atlas-storyboard-panel__eyebrow,
+.atlas-storyboard-cover__label,
+.atlas-storyboard-page-strip__meta,
+.atlas-storyboard-journey__description {
+  margin: 0;
+  color: #52657d;
+  font-size: 0.9rem;
+}
+
+.atlas-storyboard-panel__title,
+.atlas-storyboard-page-strip__label,
+.atlas-storyboard-journey__label,
+.atlas-storyboard-cover__value {
+  margin: 0;
+  color: #132238;
+}
+
+.atlas-storyboard-page-strip,
+.atlas-storyboard-card-grid,
+.atlas-storyboard-support-grid,
+.atlas-storyboard-journey,
+.atlas-storyboard-golden-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.atlas-storyboard-page-strip,
+.atlas-storyboard-support-grid,
+.atlas-storyboard-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.atlas-storyboard-page-strip__item,
+.atlas-storyboard-journey__step,
+.atlas-storyboard-golden-button {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid #d8e0eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.atlas-storyboard-page-strip__icon,
+.atlas-storyboard-journey__icon,
+.atlas-storyboard-cover__icon,
+.atlas-storyboard-qr__icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+}
+
+.atlas-storyboard-journey {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.atlas-storyboard-journey__badge {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: #eef4fb;
+  color: #234a7d;
+}
+
+.atlas-storyboard-cover__diagram,
+.atlas-storyboard-qr__diagram {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.atlas-storyboard-cover__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.atlas-storyboard-cover__pill {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: #eef4fb;
+  color: #234a7d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.atlas-storyboard-qr__code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: #f2f5fa;
+  color: #234a7d;
+}
+
+.atlas-storyboard-qr__note {
+  margin: 0;
+  color: #52657d;
+}
+
+.atlas-storyboard-golden-list {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.atlas-storyboard-golden-button {
+  width: 100%;
+  cursor: pointer;
+  text-align: left;
+}
+
+.atlas-storyboard-golden-button[data-active='true'] {
+  border-color: #234a7d;
+  box-shadow: 0 0 0 2px rgba(35, 74, 125, 0.12);
+}
+
+.atlas-storyboard-preview-note {
+  margin: 0;
+  color: #52657d;
+}
