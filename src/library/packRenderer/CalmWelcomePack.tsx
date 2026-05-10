@@ -52,6 +52,22 @@ export function CalmWelcomePack({ viewModel }: CalmWelcomePackProps) {
   return (
     <article className="cwpr-document cwpr-print-friendly" data-testid="cwpr-document">
       <header className="cwpr-header">
+        {(viewModel.brandName || viewModel.brandLogoUrl) ? (
+          <div className="cwpr-brand-header" data-testid="cwpr-brand-header">
+            {viewModel.brandLogoUrl ? (
+              <img
+                className="cwpr-brand-logo"
+                src={viewModel.brandLogoUrl}
+                alt={viewModel.brandName ? `${viewModel.brandName} logo` : 'Brand logo'}
+                loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : null}
+            {viewModel.brandName ? <p className="cwpr-brand-name">{viewModel.brandName}</p> : null}
+          </div>
+        ) : null}
         <h1 className="cwpr-title">{viewModel.title}</h1>
       </header>
 
@@ -88,7 +104,14 @@ export function CalmWelcomePack({ viewModel }: CalmWelcomePackProps) {
           </ul>
         )}
       </section>
+
+      {(viewModel.brandContactLabel || viewModel.generatedAt || viewModel.visitReference) ? (
+        <footer className="cwpr-footer" data-testid="cwpr-brand-footer">
+          {viewModel.brandContactLabel ? <p className="cwpr-footer-line">Contact: {viewModel.brandContactLabel}</p> : null}
+          {viewModel.visitReference ? <p className="cwpr-footer-line">Reference: {viewModel.visitReference}</p> : null}
+          {viewModel.generatedAt ? <p className="cwpr-footer-line">Generated: {viewModel.generatedAt}</p> : null}
+        </footer>
+      ) : null}
     </article>
   );
 }
-

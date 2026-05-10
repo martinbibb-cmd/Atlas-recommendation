@@ -12,6 +12,7 @@ describe('WelcomePackDevPreview', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'selectedConceptIds' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'deferredConceptIds' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Omitted assets and reasons' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /brand profile selector/i })).toBeInTheDocument();
   });
 
   it('shows omitted and deferred reason text in preview metadata', () => {
