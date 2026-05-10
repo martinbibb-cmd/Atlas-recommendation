@@ -18,6 +18,7 @@ import {
   getPrimaryAnalogy,
   getRequiredContent,
 } from './journeyHelpers';
+import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const pressureContent = getRequiredContent('HYD-02');
 const zoningContent = getRequiredContent('CON-02');
@@ -200,4 +201,23 @@ export function getWaterConstraintJourneyParagraphs(): string[] {
     'These deep dives help customers validate boundaries without feeling dismissed.',
     'Use this checklist before close-out to prevent expectation drift.',
   ];
+}
+
+/**
+ * Returns the sequencing plan for this journey.
+ * Shows how the engine orders concepts, which are deferred, and any pacing warnings.
+ */
+export function getWaterConstraintJourneySequencingPlan() {
+  return buildEducationalSequence({
+    selectedConceptIds: [
+      'system_fit_explanation',
+      'flow_restriction',
+      'pipework_constraint',
+      'operating_behaviour',
+      'load_matching',
+      'scope_clarity',
+    ],
+    sequenceRules: educationalSequenceRules,
+    archetypeId: 'water_constraint_reality',
+  });
 }

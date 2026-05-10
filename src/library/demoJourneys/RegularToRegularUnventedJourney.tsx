@@ -18,6 +18,7 @@ import {
   getPrimaryAnalogy,
   getRequiredContent,
 } from './journeyHelpers';
+import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const storageContent = getRequiredContent('STR-01');
 const pressureContent = getRequiredContent('HYD-02');
@@ -201,4 +202,23 @@ export function getRegularToRegularUnventedJourneyParagraphs(): string[] {
     'Offer targeted deep dives without forcing everyone through technical appendix material.',
     'Validate these assumptions during handover to preserve premium trust.',
   ];
+}
+
+/**
+ * Returns the sequencing plan for this journey.
+ * Shows how the engine orders concepts, which are deferred, and any pacing warnings.
+ */
+export function getRegularToRegularUnventedJourneySequencingPlan() {
+  return buildEducationalSequence({
+    selectedConceptIds: [
+      'system_fit_explanation',
+      'stored_hot_water_efficiency',
+      'operating_behaviour',
+      'driving_style',
+      'scope_clarity',
+      'load_matching',
+    ],
+    sequenceRules: educationalSequenceRules,
+    archetypeId: 'regular_to_regular_unvented',
+  });
 }

@@ -18,6 +18,7 @@ import {
   getPrimaryAnalogy,
   getRequiredContent,
 } from './journeyHelpers';
+import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const controlContent = getRequiredContent('CON-01');
 const pressureContent = getRequiredContent('HYD-02');
@@ -201,4 +202,24 @@ export function getOpenVentedToSealedUnventedJourneyParagraphs(): string[] {
     'Use these optional follow-ups when customers want more confidence without reading dense manuals.',
     'Use this checklist to catch unresolved assumptions before they become complaints.',
   ];
+}
+
+/**
+ * Returns the sequencing plan for this journey.
+ * Shows how the engine orders concepts, which are deferred, and any pacing warnings.
+ */
+export function getOpenVentedToSealedUnventedJourneySequencingPlan() {
+  return buildEducationalSequence({
+    selectedConceptIds: [
+      'system_fit_explanation',
+      'stored_hot_water_efficiency',
+      'operating_behaviour',
+      'driving_style',
+      'load_matching',
+      'flow_restriction',
+      'scope_clarity',
+    ],
+    sequenceRules: educationalSequenceRules,
+    archetypeId: 'open_vented_to_sealed_unvented',
+  });
 }

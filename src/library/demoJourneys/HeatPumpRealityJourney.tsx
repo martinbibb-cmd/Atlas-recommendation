@@ -18,6 +18,7 @@ import {
   getPrimaryAnalogy,
   getRequiredContent,
 } from './journeyHelpers';
+import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const controlContent = getRequiredContent('CON-01');
 const cyclingContent = getRequiredContent('SIZ-02');
@@ -201,4 +202,26 @@ export function getHeatPumpRealityJourneyParagraphs(): string[] {
     'Use these optional deep dives to support learning without overwhelming day-one handover.',
     'Check these assumptions before sign-off so expectation gaps do not become trust failures.',
   ];
+}
+
+/**
+ * Returns the sequencing plan for this journey.
+ * Shows how the engine orders concepts, which are deferred, and any pacing warnings.
+ */
+export function getHeatPumpRealityJourneySequencingPlan() {
+  return buildEducationalSequence({
+    selectedConceptIds: [
+      'system_fit_explanation',
+      'emitter_sizing',
+      'flow_temperature',
+      'operating_behaviour',
+      'driving_style',
+      'control_strategy',
+      'boiler_cycling',
+      'weather_compensation',
+      'hp_cylinder_temperature',
+    ],
+    sequenceRules: educationalSequenceRules,
+    archetypeId: 'heat_pump_reality',
+  });
 }
