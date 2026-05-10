@@ -6,6 +6,14 @@ import {
   getContentQaWarnings,
   runEducationalContentQa,
 } from '../content/qa/runEducationalContentQa';
+import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
+import { educationalComponentRegistry } from '../registry/educationalComponentRegistry';
+import {
+  getAssetQaErrors,
+  getAssetQaWarnings,
+  runEducationalAssetQa,
+} from '../registry/qa/runEducationalAssetQa';
+import { educationalConceptTaxonomy } from '../taxonomy/educationalConceptTaxonomy';
 import { buildDemoWelcomePack } from './buildDemoWelcomePack';
 import {
   welcomePackDemoFixtureList,
@@ -67,6 +75,19 @@ export function WelcomePackDevPreview() {
       contentQaWarnings: getContentQaWarnings(findings),
     };
   }, []);
+
+  const { assetQaFindings, assetQaErrors, assetQaWarnings } = useMemo(() => {
+    const findings = runEducationalAssetQa(
+      educationalAssetRegistry,
+      educationalComponentRegistry,
+      educationalConceptTaxonomy,
+    );
+    return {
+      assetQaFindings: findings,
+      assetQaErrors: getAssetQaErrors(findings),
+      assetQaWarnings: getAssetQaWarnings(findings),
+    };
+  }, []);
   const selectedConceptContentStatus = useMemo(() => plan.selectedConceptIds.map((conceptId) => {
     const contentEntry = educationalContentRegistry.find((entry) => entry.conceptId === conceptId);
     if (!contentEntry) {
@@ -91,6 +112,24 @@ export function WelcomePackDevPreview() {
       warningCount,
     };
   }), [plan.selectedConceptIds, contentQaFindings]);
+
+  const selectedAssetQaStatus = useMemo(() => {
+    const assets = educationalAssetRegistry.filter((asset) =>
+      asset.conceptIds.some((conceptId) => plan.selectedConceptIds.includes(conceptId)),
+    );
+    return assets.map((asset) => {
+      const findings = assetQaFindings.filter((finding) => finding.assetId === asset.id);
+      const errorCount = findings.filter((finding) => finding.severity === 'error').length;
+      const warningCount = findings.filter((finding) => finding.severity === 'warning').length;
+      const status = errorCount > 0 ? 'error' : warningCount > 0 ? 'warning' : 'pass';
+      return {
+        assetId: asset.id,
+        status,
+        errorCount,
+        warningCount,
+      };
+    });
+  }, [plan.selectedConceptIds, assetQaFindings]);
 
   return (
     <main style={{ margin: '0 auto', maxWidth: 1200, padding: '1rem' }}>
@@ -223,6 +262,37 @@ export function WelcomePackDevPreview() {
           {selectedConceptContentStatus.map((item) => (
             <li key={`${item.conceptId}-${item.contentId}`}>
               <strong>{item.conceptId}</strong> → {item.contentId} ({item.status}; errors: {item.errorCount}; warnings: {item.warningCount})
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-label="Asset QA" style={{ marginBottom: '1rem' }}>
+        <h2>Asset QA</h2>
+
+        <h3>Asset QA Errors</h3>
+        <ul data-testid="asset-qa-errors">
+          {assetQaErrors.length === 0 ? <li>None</li> : assetQaErrors.map((finding) => (
+            <li key={`${finding.assetId}-${finding.ruleId}-${finding.field}`}>
+              <strong>{finding.assetId}</strong> [{finding.field}]: {finding.message}
+            </li>
+          ))}
+        </ul>
+
+        <h3>Asset QA Warnings</h3>
+        <ul data-testid="asset-qa-warnings">
+          {assetQaWarnings.length === 0 ? <li>None</li> : assetQaWarnings.map((finding) => (
+            <li key={`${finding.assetId}-${finding.ruleId}-${finding.field}`}>
+              <strong>{finding.assetId}</strong> [{finding.field}]: {finding.message}
+            </li>
+          ))}
+        </ul>
+
+        <h3>Per selected asset QA status</h3>
+        <ul data-testid="selected-asset-qa-status">
+          {selectedAssetQaStatus.length === 0 ? <li>None</li> : selectedAssetQaStatus.map((item) => (
+            <li key={item.assetId}>
+              <strong>{item.assetId}</strong> ({item.status}; errors: {item.errorCount}; warnings: {item.warningCount})
             </li>
           ))}
         </ul>
