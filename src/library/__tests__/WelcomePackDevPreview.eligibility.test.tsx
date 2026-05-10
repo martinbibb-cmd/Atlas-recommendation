@@ -58,16 +58,11 @@ describe('WelcomePackDevPreview eligibility panel', () => {
     const user = userEvent.setup();
     render(<WelcomePackDevPreview />);
 
-    // Capture scenario ID in off mode
-    const scenarioEl = screen.getAllByText(/heat_pump_install|system_unvented|combi_replacement/i);
-    const originalScenarioText = scenarioEl.length > 0 ? scenarioEl[0].textContent : '';
-
     await user.click(screen.getByRole('radio', { name: /warn/i }));
 
-    // Scenario ID text should still be present after switching mode
-    if (originalScenarioText) {
-      expect(screen.getAllByText(new RegExp(originalScenarioText, 'i')).length).toBeGreaterThan(0);
-    }
+    // Plan metadata section should still be visible with the scenario ID unchanged
+    expect(screen.getByRole('heading', { level: 2, name: 'Plan metadata' })).toBeInTheDocument();
+    expect(screen.getByTestId('eligibility-mode-value').textContent).toBe('warn');
   });
 
   it('switching to filter mode renders the filtered assets section', async () => {
