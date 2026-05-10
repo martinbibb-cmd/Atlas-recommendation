@@ -9,7 +9,7 @@ export interface ComfortTimelineProps {
 export function ComfortTimeline({ label, phases, screenReaderSummary }: ComfortTimelineProps) {
   return (
     <div className="atlas-edu-diagram__wrapper" aria-label={label}>
-      <p className="atlas-edu-diagram__screen-reader-summary" aria-label="Screen reader summary">
+      <p className="atlas-edu-diagram__screen-reader-summary">
         {screenReaderSummary}
       </p>
       <p className="atlas-edu-diagram__label">{label}</p>

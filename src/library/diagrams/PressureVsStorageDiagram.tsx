@@ -22,7 +22,7 @@ export function PressureVsStorageDiagram({ printSafe = false }: PressureVsStorag
       aria-label="Pressure vs storage diagram"
       data-print-safe={printSafe ? 'true' : undefined}
     >
-      <p className="atlas-edu-diagram__screen-reader-summary" aria-label="Screen reader summary">
+      <p className="atlas-edu-diagram__screen-reader-summary">
         {SCREEN_READER_SUMMARY}
       </p>
 

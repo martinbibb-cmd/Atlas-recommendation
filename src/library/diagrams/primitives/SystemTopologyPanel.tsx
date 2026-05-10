@@ -13,7 +13,7 @@ export function SystemTopologyPanel({ label, children, screenReaderSummary }: Sy
       className="atlas-edu-diagram__wrapper"
       aria-label={label}
     >
-      <p className="atlas-edu-diagram__screen-reader-summary" aria-label="Screen reader summary">
+      <p className="atlas-edu-diagram__screen-reader-summary">
         {screenReaderSummary}
       </p>
       <p className="atlas-edu-diagram__label">{label}</p>

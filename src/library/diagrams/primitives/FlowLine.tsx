@@ -51,7 +51,6 @@ export function FlowLine({ label, direction = 'right', length = 80, strokeWidth 
         viewBox={`0 0 ${dims.width} ${dims.height}`}
         aria-hidden="true"
         focusable="false"
-        role="img"
       >
         <title>{label}</title>
         <line

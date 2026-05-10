@@ -33,7 +33,7 @@ export function WarmVsHotRadiatorsDiagram({ printSafe = false }: WarmVsHotRadiat
       aria-label="Warm vs hot radiators diagram"
       data-print-safe={printSafe ? 'true' : undefined}
     >
-      <p className="atlas-edu-diagram__screen-reader-summary" aria-label="Screen reader summary">
+      <p className="atlas-edu-diagram__screen-reader-summary">
         {SCREEN_READER_SUMMARY}
       </p>
 

@@ -21,7 +21,7 @@ export function WaterMainLimitationDiagram({ printSafe = false }: WaterMainLimit
       aria-label="Water main limitation diagram"
       data-print-safe={printSafe ? 'true' : undefined}
     >
-      <p className="atlas-edu-diagram__screen-reader-summary" aria-label="Screen reader summary">
+      <p className="atlas-edu-diagram__screen-reader-summary">
         {SCREEN_READER_SUMMARY}
       </p>
 

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import '../diagrams.css';
 
 export interface HeatGradientBarProps {
@@ -8,6 +9,7 @@ export interface HeatGradientBarProps {
 }
 
 export function HeatGradientBar({ label, lowLabel, highLabel, orientation = 'horizontal' }: HeatGradientBarProps) {
+  const gradientId = useId();
   const isVertical = orientation === 'vertical';
 
   return (
@@ -34,7 +36,7 @@ export function HeatGradientBar({ label, lowLabel, highLabel, orientation = 'hor
         >
           <defs>
             <linearGradient
-              id={`heat-gradient-${label.replace(/\s+/g, '-')}`}
+              id={gradientId}
               x1={isVertical ? '0' : '0%'}
               y1={isVertical ? '100%' : '0'}
               x2={isVertical ? '0' : '100%'}
@@ -50,7 +52,7 @@ export function HeatGradientBar({ label, lowLabel, highLabel, orientation = 'hor
             width={isVertical ? 24 : 120}
             height={isVertical ? 80 : 24}
             rx={4}
-            fill={`url(#heat-gradient-${label.replace(/\s+/g, '-')})`}
+            fill={`url(#${gradientId})`}
             stroke="#c5cfdb"
             strokeWidth={1}
           />

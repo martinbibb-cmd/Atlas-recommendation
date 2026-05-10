@@ -12,7 +12,7 @@ export interface BeforeAfterSplitProps {
 export function BeforeAfterSplit({ beforeLabel, afterLabel, before, after, screenReaderSummary }: BeforeAfterSplitProps) {
   return (
     <div className="atlas-edu-diagram__wrapper">
-      <p className="atlas-edu-diagram__screen-reader-summary" aria-label="Screen reader summary">
+      <p className="atlas-edu-diagram__screen-reader-summary">
         {screenReaderSummary}
       </p>
       <div className="atlas-edu-diagram__before-after">
