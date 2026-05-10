@@ -260,11 +260,11 @@ export const educationalRoutingRules: EducationalRoutingRuleV1[] = [
     label: 'Pressure vs storage — source versus capacity misconception',
     description:
       'Route assets that correct the common misconception that stored-water capacity is the same constraint as mains-supply pressure, clarifying pressure-source vs stored-capacity differences.',
-    triggerTags: ['pressure_vs_storage', 'pressure', 'storage', 'flow_rate', 'open_vented'],
+    triggerTags: ['pressure_vs_storage', 'storage', 'flow_rate', 'open_vented'],
     requiredConceptIds: ['flow_restriction', 'stored_hot_water_efficiency', 'pipework_constraint'],
     preferredAssetTypes: ['diagram', 'animation', 'topology'],
     requiredEngineFacts: ['hydraulic_constraint_present'],
-    appliesToUserConcernTags: ['pressure_vs_storage', 'open_vented', 'pressure'],
+    appliesToUserConcernTags: ['pressure_vs_storage', 'open_vented'],
     includeReason: 'Selected to correct the pressure-source vs stored-capacity misconception.',
     omitReason: 'No pressure/storage misconception evidence in this context.',
     priority: 93,
