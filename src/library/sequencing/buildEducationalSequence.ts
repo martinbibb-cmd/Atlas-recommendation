@@ -240,9 +240,10 @@ export function buildEducationalSequence(
       continue;
     }
 
-    const prev = placed[placed.length - 1];
-    const prevAvoided = avoid.has(prev!.conceptId);
-    const prevAvoidsCurrent = new Set(prev!.rule.avoidAdjacentConceptIds ?? []).has(candidate.conceptId);
+    const prev = placed[placed.length - 1]!;
+    const prevAvoided = avoid.has(prev.conceptId);
+    const prevAvoidsCurrentSet = new Set(prev.rule.avoidAdjacentConceptIds ?? []);
+    const prevAvoidsCurrent = prevAvoidsCurrentSet.has(candidate.conceptId);
 
     if (!prevAvoided && !prevAvoidsCurrent) {
       placed.push(candidate);
@@ -254,7 +255,7 @@ export function buildEducationalSequence(
     // Simplified: just append — the overload warning below will flag the issue.
     placed.push(candidate);
     overloadWarnings.push(
-      `Adjacency conflict: "${candidate.conceptId}" and "${prev!.conceptId}" are adjacent but should be separated.`,
+      `Adjacency conflict: "${candidate.conceptId}" and "${prev.conceptId}" are adjacent but should be separated.`,
     );
   }
 

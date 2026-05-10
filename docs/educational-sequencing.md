@@ -25,8 +25,8 @@ Without sequencing rules, a journey can be technically correct but humanly exhau
 
 ```
 Hydraulic explanation
-→ compensation explanation
-→ emitter explanation
+→ weather compensation explanation
+→ emitter sizing explanation
 → modulation explanation
 → flow-temperature explanation
 ```
