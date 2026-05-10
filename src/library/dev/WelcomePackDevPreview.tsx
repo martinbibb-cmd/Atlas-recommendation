@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAuditForAsset } from '../audits/auditLookup';
 import { getLibraryReadyAssets } from '../audits/getLibraryReadyAssets';
+import { CalmWelcomePack } from '../packRenderer/CalmWelcomePack';
 import { PrintableWelcomePackSkeleton } from '../packRenderer/PrintableWelcomePackSkeleton';
 import { educationalContentRegistry } from '../content/educationalContentRegistry';
 import {
@@ -47,6 +48,7 @@ export function WelcomePackDevPreview() {
   const [technicalAppendix, setTechnicalAppendix] = useState(
     Boolean(selectedFixture.accessibilityPreferences.includeTechnicalAppendix),
   );
+  const [previewCalmCustomerPack, setPreviewCalmCustomerPack] = useState(false);
   const [eligibilityMode, setEligibilityMode] = useState<WelcomePackEligibilityMode>('off');
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function WelcomePackDevPreview() {
     setTechnicalAppendix(Boolean(selectedFixture.accessibilityPreferences.includeTechnicalAppendix));
   }, [selectedFixture]);
 
-  const { plan, viewModel } = useMemo(() => buildDemoWelcomePack({
+  const { plan, viewModel, calmViewModel } = useMemo(() => buildDemoWelcomePack({
     fixtureId,
     accessibilityOverrides: {
       prefersPrint: printFirst,
@@ -217,6 +219,15 @@ export function WelcomePackDevPreview() {
             />
             {' '}
             technical appendix
+          </label>
+          <label style={{ display: 'block' }}>
+            <input
+              type="checkbox"
+              checked={previewCalmCustomerPack}
+              onChange={(event) => setPreviewCalmCustomerPack(event.target.checked)}
+            />
+            {' '}
+            Preview calm customer pack
           </label>
         </fieldset>
 
@@ -467,6 +478,13 @@ export function WelcomePackDevPreview() {
           </>
         )}
       </section>
+
+      {previewCalmCustomerPack && (
+        <section aria-label="Calm customer pack preview" style={{ marginBottom: '1rem' }}>
+          <h2>Calm customer pack preview</h2>
+          <CalmWelcomePack viewModel={calmViewModel} />
+        </section>
+      )}
 
       <PrintableWelcomePackSkeleton viewModel={viewModel} />
     </main>

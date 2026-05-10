@@ -34,4 +34,15 @@ describe('WelcomePackDevPreview', () => {
     await user.click(toggle);
     expect(visibility.textContent).toBe('hidden');
   });
+
+  it('renders calm customer pack preview below diagnostics when the toggle is enabled', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    const toggle = screen.getByRole('checkbox', { name: /preview calm customer pack/i });
+    await user.click(toggle);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Calm customer pack preview' })).toBeInTheDocument();
+    expect(screen.getByTestId('cwpr-blocking-panel')).toBeInTheDocument();
+  });
 });

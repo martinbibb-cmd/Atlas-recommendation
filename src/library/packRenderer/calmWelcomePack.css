@@ -1,0 +1,73 @@
+.cwpr-document,
+.cwpr-blocking-panel {
+  margin: 0 auto;
+  max-width: 210mm;
+  padding: 1.5rem;
+  background: #fff;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.cwpr-header,
+.cwpr-section {
+  margin-bottom: 1.5rem;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.cwpr-title {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.cwpr-section-heading {
+  margin: 0 0 0.75rem;
+  font-size: 1.4rem;
+}
+
+.cwpr-card-list,
+.cwpr-qr-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cwpr-card,
+.cwpr-qr-item {
+  border: 1px solid #c7c7c7;
+  padding: 0.85rem;
+  background: #fff;
+}
+
+.cwpr-card-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+}
+
+.cwpr-card-summary,
+.cwpr-card-safety,
+.cwpr-qr-note {
+  margin: 0 0 0.35rem;
+  max-width: 70ch;
+}
+
+.cwpr-card-safety {
+  font-weight: 600;
+}
+
+@media print {
+  .cwpr-document,
+  .cwpr-blocking-panel {
+    margin: 0;
+    max-width: none;
+    padding: 0;
+    color: #000;
+    background: #fff;
+  }
+}
+
