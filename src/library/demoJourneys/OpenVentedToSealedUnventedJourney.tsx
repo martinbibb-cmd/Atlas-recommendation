@@ -25,6 +25,12 @@ const pressureContent = getRequiredContent('HYD-02');
 const safetyContent = getRequiredContent('SAF-01');
 const storageContent = getRequiredContent('STR-01');
 
+// Golden journey authored content
+const sealedConversionContent = getRequiredContent('sealed_system_conversion');
+const unventedSafetyContent = getRequiredContent('unvented_safety_reassurance');
+const pressureVsStorageContent = getRequiredContent('pressure_vs_storage');
+const openVentedUpgradeContent = getRequiredContent('open_vented_to_unvented_upgrade');
+
 const storageAnalogy = getPrimaryAnalogy(storageContent);
 
 export interface OpenVentedToSealedUnventedJourneyProps {
@@ -80,10 +86,17 @@ export function OpenVentedToSealedUnventedJourney({
         headingLevel={3}
       >
         <WhatToExpectCard
-          title="What you may notice in week one"
-          notice="Showers feel steadier during overlap use, while hot-water behaviour feels less stop-start under family demand."
-          normalBecause="Stored volume and recovery provide thermal capacity before each tap event, so comfort does not depend on one immediate burner response."
-          ariaLabel="Open-vented what to expect"
+          title={openVentedUpgradeContent.title}
+          notice={extractNotice(openVentedUpgradeContent.customerExplanation)}
+          normalBecause={extractMeaning(openVentedUpgradeContent.customerExplanation)}
+          ariaLabel="Open-vented to unvented upgrade expectation"
+          headingLevel={4}
+        />
+        <WhatToExpectCard
+          title={pressureVsStorageContent.title}
+          notice={extractNotice(pressureVsStorageContent.customerExplanation)}
+          normalBecause={extractMeaning(pressureVsStorageContent.customerExplanation)}
+          ariaLabel="Pressure vs storage expectation"
           headingLevel={4}
         />
         <AnalogyCard
@@ -104,8 +117,8 @@ export function OpenVentedToSealedUnventedJourney({
         headingLevel={3}
       >
         <SafetyNoticeCard
-          title={safetyContent.title}
-          message={safetyContent.safetyNotice ?? safetyContent.printSummary}
+          title={unventedSafetyContent.title}
+          message={unventedSafetyContent.safetyNotice ?? unventedSafetyContent.printSummary}
           whatToDoNext="If discharge remains visible after a cycle settles, request a qualified safety check rather than ignoring it."
           ariaLabel="Open-vented safety card"
           headingLevel={4}
@@ -129,7 +142,7 @@ export function OpenVentedToSealedUnventedJourney({
       >
         <PrintSafePanel
           title="Handover action summary"
-          intro={pressureContent.printSummary}
+          intro={sealedConversionContent.printSummary}
           ariaLabel="Open-vented print-safe panel"
           headingLevel={4}
         >
@@ -141,9 +154,10 @@ export function OpenVentedToSealedUnventedJourney({
             headingLevel={5}
             footer={(
               <ul>
-                <li>{pressureContent.qrDeepDiveTitle}</li>
-                <li>{storageContent.qrDeepDiveTitle}</li>
-                <li>{controlContent.qrDeepDiveTitle}</li>
+                <li>{sealedConversionContent.qrDeepDiveTitle}</li>
+                <li>{unventedSafetyContent.qrDeepDiveTitle}</li>
+                <li>{pressureVsStorageContent.qrDeepDiveTitle}</li>
+                <li>{openVentedUpgradeContent.qrDeepDiveTitle}</li>
               </ul>
             )}
           />
@@ -183,23 +197,19 @@ export function getOpenVentedToSealedUnventedJourneyParagraphs(): string[] {
   return [
     'This flagship premium-comfort journey explains why a stored hot water upgrade can improve outcomes without forcing a combi swap narrative.',
     'Start with what changes in daily life, then separate pressure-source facts from storage-capacity facts.',
-    'The journey keeps proven heating strength, modernises the pressure side, and improves simultaneous demand resilience for family use.',
-    'Common misconception: a combi is always the only modern upgrade path.',
-    'Reality: stored hot water supplied at mains pressure can deliver strong overlap performance and stable comfort when correctly sized.',
-    extractNotice(storageContent.customerExplanation),
-    extractMeaning(storageContent.customerExplanation),
-    'Translate technical architecture into lived outcomes and stable daily habits.',
-    'Showers feel steadier during overlap use, while hot-water behaviour feels less stop-start under family demand.',
-    'Stored volume and recovery provide thermal capacity before each tap event, so comfort does not depend on one immediate burner response.',
-    'Name routine wobbles early so customers do not misread normal settling behaviour as system failure.',
-    safetyContent.safetyNotice ?? safetyContent.printSummary,
+    sealedConversionContent.plainEnglishSummary,
+    sealedConversionContent.commonMisunderstanding,
+    extractNotice(openVentedUpgradeContent.customerExplanation),
+    extractMeaning(openVentedUpgradeContent.customerExplanation),
+    extractNotice(pressureVsStorageContent.customerExplanation),
+    extractMeaning(pressureVsStorageContent.customerExplanation),
+    unventedSafetyContent.safetyNotice ?? unventedSafetyContent.printSummary,
     'If discharge remains visible after a cycle settles, request a qualified safety check rather than ignoring it.',
     'The first days can feel different if your previous tank-fed supply had lower outlet pressure.',
     'The system is now operating with a different pressure-source profile and may need minor user habit adjustment.',
     'Keep core settings stable and request one evidence-led review if comfort still feels off after a full day.',
-    'Keep practical handover actions printable while still offering deeper follow-up for curious customers.',
-    pressureContent.printSummary,
-    'Use these optional follow-ups when customers want more confidence without reading dense manuals.',
+    sealedConversionContent.printSummary,
+    openVentedUpgradeContent.printSummary,
     'Use this checklist to catch unresolved assumptions before they become complaints.',
   ];
 }
@@ -213,6 +223,10 @@ export function getOpenVentedToSealedUnventedJourneySequencingPlan() {
     selectedConceptIds: [
       'system_fit_explanation',
       'stored_hot_water_efficiency',
+      'sealed_system_conversion',
+      'unvented_safety_reassurance',
+      'pressure_vs_storage',
+      'open_vented_to_unvented_upgrade',
       'operating_behaviour',
       'driving_style',
       'load_matching',

@@ -25,6 +25,13 @@ const cyclingContent = getRequiredContent('SIZ-02');
 const hydraulicContent = getRequiredContent('HYD-01');
 const safetyContent = getRequiredContent('HYD-02');
 
+// Golden journey authored content
+const hotRadiatorContent = getRequiredContent('hot_radiator_expectation');
+const flowTempLivingContent = getRequiredContent('flow_temperature_living_with_it');
+const defrostContent = getRequiredContent('heat_pump_defrost_expectation');
+const outdoorUnitContent = getRequiredContent('outdoor_unit_winter_care');
+const radiatorClearanceContent = getRequiredContent('radiator_clearance_and_convection');
+
 const controlAnalogy = getPrimaryAnalogy(controlContent);
 
 export interface HeatPumpRealityJourneyProps {
@@ -55,19 +62,18 @@ export function HeatPumpRealityJourney({
         headingLevel={3}
       >
         <EducationalCard
-          title="Warm-not-hot emitters can still deliver comfort"
-          summary="Heat pumps usually run for longer, calmer periods with lower emitter temperatures, so comfort comes from steady delivery rather than short high peaks."
+          title={hotRadiatorContent.title}
+          summary={hotRadiatorContent.plainEnglishSummary}
           ariaLabel="Heat pump calm summary"
           eyebrow="Calm summary"
           headingLevel={4}
           misconceptionWarning={{
-            misconception: 'Common misconception: if radiators are not very hot, the system is failing.',
-            reality:
-              'Reality: stable low-temperature running can match heat loss and improve comfort consistency over the day.',
+            misconception: hotRadiatorContent.commonMisunderstanding,
+            reality: 'Reality: stable low-temperature running can match heat loss and improve comfort consistency over the day.',
           }}
           whatYouMayNotice={{
-            notice: extractNotice(controlContent.customerExplanation),
-            normalBecause: extractMeaning(controlContent.customerExplanation),
+            notice: extractNotice(hotRadiatorContent.customerExplanation),
+            normalBecause: extractMeaning(hotRadiatorContent.customerExplanation),
           }}
         />
       </CalmSection>
@@ -80,10 +86,17 @@ export function HeatPumpRealityJourney({
         headingLevel={3}
       >
         <WhatToExpectCard
-          title="What you may notice in daily operation"
-          notice="Outdoor unit sound can vary, short defrost phases can appear in colder conditions, and comfort can feel more even across rooms."
-          normalBecause="Compensation and steady modulation prioritise stable room conditions over dramatic temperature swings."
-          ariaLabel="Heat pump what to expect"
+          title={defrostContent.title}
+          notice={extractNotice(defrostContent.customerExplanation)}
+          normalBecause={extractMeaning(defrostContent.customerExplanation)}
+          ariaLabel="Heat pump defrost expectation"
+          headingLevel={4}
+        />
+        <WhatToExpectCard
+          title={flowTempLivingContent.title}
+          notice={extractNotice(flowTempLivingContent.customerExplanation)}
+          normalBecause={extractMeaning(flowTempLivingContent.customerExplanation)}
+          ariaLabel="Heat pump flow temperature living guidance"
           headingLevel={4}
         />
         <AnalogyCard
@@ -129,7 +142,7 @@ export function HeatPumpRealityJourney({
       >
         <PrintSafePanel
           title="Living-with-system summary"
-          intro={cyclingContent.printSummary}
+          intro={hotRadiatorContent.printSummary}
           ariaLabel="Heat pump print-safe"
           headingLevel={4}
         >
@@ -141,9 +154,11 @@ export function HeatPumpRealityJourney({
             headingLevel={5}
             footer={(
               <ul>
-                <li>{controlContent.qrDeepDiveTitle}</li>
-                <li>{cyclingContent.qrDeepDiveTitle}</li>
-                <li>{hydraulicContent.qrDeepDiveTitle}</li>
+                <li>{hotRadiatorContent.qrDeepDiveTitle}</li>
+                <li>{defrostContent.qrDeepDiveTitle}</li>
+                <li>{flowTempLivingContent.qrDeepDiveTitle}</li>
+                <li>{outdoorUnitContent.qrDeepDiveTitle}</li>
+                <li>{radiatorClearanceContent.qrDeepDiveTitle}</li>
               </ul>
             )}
           />
@@ -183,23 +198,19 @@ export function getHeatPumpRealityJourneyParagraphs(): string[] {
   return [
     'This journey builds trust by explaining how low-temperature comfort feels in daily life, including normal sounds, defrost periods, and steady control behaviour.',
     'Lead with comfort stability and daily feel before discussing technical detail.',
-    'Heat pumps usually run for longer, calmer periods with lower emitter temperatures, so comfort comes from steady delivery rather than short high peaks.',
-    'Common misconception: if radiators are not very hot, the system is failing.',
-    'Reality: stable low-temperature running can match heat loss and improve comfort consistency over the day.',
-    extractNotice(controlContent.customerExplanation),
-    extractMeaning(controlContent.customerExplanation),
-    'Explain continuous running, weather compensation, and why frequent manual tweaking can reduce performance.',
-    'Outdoor unit sound can vary, short defrost phases can appear in colder conditions, and comfort can feel more even across rooms.',
-    'Compensation and steady modulation prioritise stable room conditions over dramatic temperature swings.',
-    'Use trust-recovery copy to prevent normal commissioning behaviour being misread as failure.',
+    hotRadiatorContent.plainEnglishSummary,
+    hotRadiatorContent.commonMisunderstanding,
+    extractNotice(hotRadiatorContent.customerExplanation),
+    extractMeaning(hotRadiatorContent.customerExplanation),
+    extractNotice(defrostContent.customerExplanation),
+    extractMeaning(defrostContent.customerExplanation),
+    extractNotice(flowTempLivingContent.customerExplanation),
+    extractMeaning(flowTempLivingContent.customerExplanation),
     safetyContent.printSummary,
     'Avoid repeated manual pressure top-ups. If pressure loss repeats, request a system check.',
-    'A sudden weather shift can make yesterday’s indoor feel different while controls adapt.',
-    'The system is adjusting flow temperature to outdoor conditions, not ignoring your comfort target.',
-    'Hold settings steady for one full day, then request one small evidence-led control adjustment if needed.',
-    'Provide concise print actions first, then offer optional depth for customers who want to understand more.',
-    cyclingContent.printSummary,
-    'Use these optional deep dives to support learning without overwhelming day-one handover.',
+    hotRadiatorContent.printSummary,
+    defrostContent.printSummary,
+    outdoorUnitContent.printSummary,
     'Check these assumptions before sign-off so expectation gaps do not become trust failures.',
   ];
 }
@@ -212,6 +223,11 @@ export function getHeatPumpRealityJourneySequencingPlan() {
   return buildEducationalSequence({
     selectedConceptIds: [
       'system_fit_explanation',
+      'hot_radiator_expectation',
+      'heat_pump_defrost_expectation',
+      'flow_temperature_living_with_it',
+      'outdoor_unit_winter_care',
+      'radiator_clearance_and_convection',
       'emitter_sizing',
       'flow_temperature',
       'operating_behaviour',
