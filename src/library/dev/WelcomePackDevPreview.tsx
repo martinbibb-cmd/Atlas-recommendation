@@ -24,6 +24,12 @@ import {
   type WelcomePackDemoFixtureId,
 } from './welcomePackDemoFixtures';
 import type { WelcomePackEligibilityMode } from '../packComposer/WelcomePackComposerV1';
+import {
+  runWelcomePackValidation,
+  detectRepeatedOmissionPatterns,
+  collectTopMissingConcepts,
+} from './runWelcomePackValidation';
+import type { WelcomePackValidationReportV1 } from './WelcomePackValidationReportV1';
 
 function toAccessibilityProfiles(dyslexia: boolean, adhd: boolean): Array<'dyslexia' | 'adhd'> {
   const profiles: Array<'dyslexia' | 'adhd'> = [];
@@ -50,6 +56,7 @@ export function WelcomePackDevPreview() {
     Boolean(selectedFixture.accessibilityPreferences.includeTechnicalAppendix),
   );
   const [previewCalmCustomerPack, setPreviewCalmCustomerPack] = useState(false);
+  const [showValidationAudit, setShowValidationAudit] = useState(false);
   const [eligibilityMode, setEligibilityMode] = useState<WelcomePackEligibilityMode>('off');
   const [brandId, setBrandId] = useState(DEFAULT_BRAND_ID);
   const brandOptions = useMemo(
@@ -170,6 +177,23 @@ export function WelcomePackDevPreview() {
     });
   }, [plan.selectedConceptIds, assetQaFindings]);
 
+  const validationReports = useMemo<WelcomePackValidationReportV1[]>(() => {
+    if (!showValidationAudit) {
+      return [];
+    }
+    return runWelcomePackValidation('warn');
+  }, [showValidationAudit]);
+
+  const repeatedOmissions = useMemo(
+    () => detectRepeatedOmissionPatterns(validationReports, 3),
+    [validationReports],
+  );
+
+  const topMissingConcepts = useMemo(
+    () => collectTopMissingConcepts(validationReports),
+    [validationReports],
+  );
+
   return (
     <main style={{ margin: '0 auto', maxWidth: 1200, padding: '1rem' }}>
       <h1>Welcome pack development preview</h1>
@@ -236,6 +260,15 @@ export function WelcomePackDevPreview() {
             />
             {' '}
             Preview calm customer pack
+          </label>
+          <label style={{ display: 'block' }}>
+            <input
+              type="checkbox"
+              checked={showValidationAudit}
+              onChange={(event) => setShowValidationAudit(event.target.checked)}
+            />
+            {' '}
+            Run validation audit (all 12 real-world fixtures)
           </label>
         </fieldset>
 
@@ -505,6 +538,194 @@ export function WelcomePackDevPreview() {
         <section aria-label="Calm customer pack preview" style={{ marginBottom: '1rem' }}>
           <h2>Calm customer pack preview</h2>
           <CalmWelcomePack viewModel={brandedCalmViewModel} />
+        </section>
+      )}
+
+      {showValidationAudit && (
+        <section aria-label="Validation audit" style={{ marginBottom: '1rem' }}>
+          <h2>Real-world validation audit</h2>
+          <p>
+            Stress-testing the calm welcome-pack pipeline using 12 realistic customer journeys.
+            This audit does not change recommendations — it surfaces content, routing, accessibility, and trust gaps.
+          </p>
+
+          <h3>Top missing concepts (across all fixtures)</h3>
+          <ul data-testid="validation-top-missing-concepts">
+            {topMissingConcepts.length === 0 ? (
+              <li>None — all selected concepts have registered content.</li>
+            ) : (
+              topMissingConcepts.map((item) => (
+                <li key={item.conceptId}>
+                  <strong>{item.conceptId}</strong>: missing in {item.count} fixture(s) — {item.missingInFixtures.join(', ')}
+                </li>
+              ))
+            )}
+          </ul>
+
+          <h3>Repeated omission patterns (omitted in ≥ 3 fixtures)</h3>
+          <ul data-testid="validation-repeated-omissions">
+            {repeatedOmissions.length === 0 ? (
+              <li>None — no assets are repeatedly omitted across 3 or more fixtures.</li>
+            ) : (
+              repeatedOmissions.map((item) => (
+                <li key={item.assetId}>
+                  <strong>{item.assetId}</strong>: omitted in {item.count} fixture(s) — {item.omittedInFixtures.join(', ')}
+                </li>
+              ))
+            )}
+          </ul>
+
+          <h3>Fixture comparison table</h3>
+          <table data-testid="validation-fixture-table" style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.85rem' }}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Fixture</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Archetype</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Readiness</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Selected</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Pages</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Missing content</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Trust risks</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>A11y risks</th>
+                <th style={{ textAlign: 'left', padding: '4px 8px', borderBottom: '1px solid #ccc' }}>Print risks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {validationReports.map((report) => (
+                <tr key={report.fixtureId} data-testid={`validation-row-${report.fixtureId}`}>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.fixtureLabel}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.archetypeId}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>
+                    <span data-testid={`validation-readiness-${report.fixtureId}`}>{report.readiness}</span>
+                  </td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.selectedAssetIds.length}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.pageCount}/{report.printPageBudget}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.missingContent.length}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.trustRisks.length}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.accessibilityRisks.length}</td>
+                  <td style={{ padding: '4px 8px', borderBottom: '1px solid #eee' }}>{report.printRisks.length}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h3>Per-fixture gap details</h3>
+          {validationReports.map((report) => (
+            <details key={report.fixtureId} style={{ marginBottom: '0.5rem' }}>
+              <summary data-testid={`validation-summary-${report.fixtureId}`}>
+                <strong>{report.fixtureLabel}</strong>
+                {' — '}
+                {report.archetypeId}
+                {' — '}
+                readiness: {report.readiness}
+              </summary>
+              <dl style={{ paddingLeft: '1rem' }}>
+                {report.missingContent.length > 0 && (
+                  <>
+                    <dt>Missing content</dt>
+                    <dd>
+                      <ul>
+                        {report.missingContent.map((gap) => (
+                          <li key={gap.conceptId}>{gap.conceptId}: {gap.reason}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {report.missingAnalogies.length > 0 && (
+                  <>
+                    <dt>Missing analogies / misconception coverage</dt>
+                    <dd>
+                      <ul>
+                        {report.missingAnalogies.map((a, i) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={i}>{a}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {report.trustRisks.length > 0 && (
+                  <>
+                    <dt>Trust risks</dt>
+                    <dd>
+                      <ul>
+                        {report.trustRisks.map((r, i) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {report.accessibilityRisks.length > 0 && (
+                  <>
+                    <dt>Accessibility risks</dt>
+                    <dd>
+                      <ul>
+                        {report.accessibilityRisks.map((r, i) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {report.printRisks.length > 0 && (
+                  <>
+                    <dt>Print risks</dt>
+                    <dd>
+                      <ul>
+                        {report.printRisks.map((r, i) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {report.cognitiveOverloadWarnings.length > 0 && (
+                  <>
+                    <dt>Cognitive overload warnings</dt>
+                    <dd>
+                      <ul>
+                        {report.cognitiveOverloadWarnings.map((w, i) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {report.likelyCustomerConfusionPoints.length > 0 && (
+                  <>
+                    <dt>Likely customer confusion points</dt>
+                    <dd>
+                      <ul>
+                        {report.likelyCustomerConfusionPoints.map((p, i) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={i}>{p}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+                {report.recommendedNextContentAdditions.length > 0 && (
+                  <>
+                    <dt>Recommended next content additions</dt>
+                    <dd>
+                      <ul>
+                        {report.recommendedNextContentAdditions.map((a, i) => (
+                          // eslint-disable-next-line react/no-array-index-key
+                          <li key={i}>{a}</li>
+                        ))}
+                      </ul>
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </details>
+          ))}
         </section>
       )}
 
