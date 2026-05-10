@@ -7,8 +7,8 @@ describe('WelcomePackDevPreview content QA panel', () => {
     render(<WelcomePackDevPreview />);
 
     expect(screen.getByRole('heading', { level: 2, name: 'Content QA' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: 'content QA errors' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: 'content QA warnings' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Content QA Errors' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 3, name: 'Content QA Warnings' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Per selected concept content status' })).toBeInTheDocument();
     expect(screen.getByTestId('content-qa-errors')).toBeInTheDocument();
     expect(screen.getByTestId('content-qa-warnings')).toBeInTheDocument();

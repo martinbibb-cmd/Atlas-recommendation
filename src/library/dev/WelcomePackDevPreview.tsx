@@ -63,8 +63,8 @@ export function WelcomePackDevPreview() {
     const findings = runEducationalContentQa(educationalContentRegistry);
     return {
       contentQaFindings: findings,
-      contentQaErrors: getContentQaErrors(),
-      contentQaWarnings: getContentQaWarnings(),
+      contentQaErrors: getContentQaErrors(findings),
+      contentQaWarnings: getContentQaWarnings(findings),
     };
   }, []);
   const selectedConceptContentStatus = useMemo(() => plan.selectedConceptIds.map((conceptId) => {
@@ -200,7 +200,7 @@ export function WelcomePackDevPreview() {
       <section aria-label="Content QA" style={{ marginBottom: '1rem' }}>
         <h2>Content QA</h2>
 
-        <h3>content QA errors</h3>
+        <h3>Content QA Errors</h3>
         <ul data-testid="content-qa-errors">
           {contentQaErrors.length === 0 ? <li>None</li> : contentQaErrors.map((finding) => (
             <li key={`${finding.contentId}-${finding.ruleId}-${finding.field}`}>
@@ -209,7 +209,7 @@ export function WelcomePackDevPreview() {
           ))}
         </ul>
 
-        <h3>content QA warnings</h3>
+        <h3>Content QA Warnings</h3>
         <ul data-testid="content-qa-warnings">
           {contentQaWarnings.length === 0 ? <li>None</li> : contentQaWarnings.map((finding) => (
             <li key={`${finding.contentId}-${finding.ruleId}-${finding.field}`}>
