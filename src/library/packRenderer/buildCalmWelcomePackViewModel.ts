@@ -113,7 +113,8 @@ function toRoutingAccessibility(
   }
 
   const baseProfiles = prefs.profiles ?? [];
-  const allProfiles = [...baseProfiles, ...extraProfiles.filter((p) => !baseProfiles.includes(p))];
+  const baseProfileSet = new Set<string>(baseProfiles);
+  const allProfiles = [...baseProfiles, ...extraProfiles.filter((p) => !baseProfileSet.has(p))];
 
   return {
     prefersReducedMotion: prefs.prefersReducedMotion,
