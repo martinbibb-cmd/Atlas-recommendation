@@ -21,8 +21,6 @@ import {
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const controlContent = getRequiredContent('CON-01');
-const cyclingContent = getRequiredContent('SIZ-02');
-const hydraulicContent = getRequiredContent('HYD-01');
 const safetyContent = getRequiredContent('HYD-02');
 
 // Golden journey authored content

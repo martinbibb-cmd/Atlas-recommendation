@@ -21,9 +21,6 @@ import {
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const storageContent = getRequiredContent('STR-01');
-const pressureContent = getRequiredContent('HYD-02');
-const maintenanceContent = getRequiredContent('MNT-01');
-const safetyContent = getRequiredContent('SAF-01');
 
 // Golden journey authored content
 const preservedSystemContent = getRequiredContent('preserved_system_strength');

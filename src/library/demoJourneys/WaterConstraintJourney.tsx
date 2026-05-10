@@ -21,8 +21,6 @@ import {
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const pressureContent = getRequiredContent('HYD-02');
-const zoningContent = getRequiredContent('CON-02');
-const sizingContent = getRequiredContent('SIZ-01');
 
 // Golden journey authored content
 const whyNotCombiContent = getRequiredContent('why_not_combi');

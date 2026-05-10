@@ -20,9 +20,6 @@ import {
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
-const controlContent = getRequiredContent('CON-01');
-const pressureContent = getRequiredContent('HYD-02');
-const safetyContent = getRequiredContent('SAF-01');
 const storageContent = getRequiredContent('STR-01');
 
 // Golden journey authored content
