@@ -19,6 +19,7 @@ import {
   getRequiredContent,
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
+import { OpenVentedToUnventedDiagram, PressureVsStorageDiagram } from '../diagrams';
 
 const storageContent = getRequiredContent('STR-01');
 
@@ -161,6 +162,17 @@ export function OpenVentedToSealedUnventedJourney({
         </PrintSafePanel>
       </CalmSection>
 
+      <ConceptDivider label="Visual explanations" />
+
+      <CalmSection
+        title="Visual explanations"
+        intro="These diagrams show how pressure, storage, and system topology work together."
+        headingLevel={3}
+      >
+        <PressureVsStorageDiagram />
+        <OpenVentedToUnventedDiagram />
+      </CalmSection>
+
       <ConceptDivider label="Confusion risks and accessibility" />
 
       <CalmSection
@@ -207,6 +219,7 @@ export function getOpenVentedToSealedUnventedJourneyParagraphs(): string[] {
     'Keep core settings stable and request one evidence-led review if comfort still feels off after a full day.',
     sealedConversionContent.printSummary,
     openVentedUpgradeContent.printSummary,
+    'These diagrams show how pressure, storage, and system topology work together.',
     'Use this checklist to catch unresolved assumptions before they become complaints.',
   ];
 }

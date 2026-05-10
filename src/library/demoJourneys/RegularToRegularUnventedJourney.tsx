@@ -19,6 +19,7 @@ import {
   getRequiredContent,
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
+import { PressureVsStorageDiagram } from '../diagrams';
 
 const storageContent = getRequiredContent('STR-01');
 
@@ -160,6 +161,16 @@ export function RegularToRegularUnventedJourney({
         </PrintSafePanel>
       </CalmSection>
 
+      <ConceptDivider label="Visual explanations" />
+
+      <CalmSection
+        title="Visual explanations"
+        intro="This diagram shows how mains-fed storage preserves pressure to multiple outlets."
+        headingLevel={3}
+      >
+        <PressureVsStorageDiagram />
+      </CalmSection>
+
       <ConceptDivider label="Confusion risks and accessibility" />
 
       <CalmSection
@@ -206,6 +217,7 @@ export function getRegularToRegularUnventedJourneyParagraphs(): string[] {
     'The first week can include small comfort timing changes while controls and user habits settle.',
     regularRetainedContent.printSummary,
     preservedSystemContent.printSummary,
+    'This diagram shows how mains-fed storage preserves pressure to multiple outlets.',
     'Validate these assumptions during handover to preserve premium trust.',
   ];
 }
