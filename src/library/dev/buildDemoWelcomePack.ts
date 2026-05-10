@@ -1,8 +1,10 @@
+import type { BrandProfileV1 } from '../../features/branding/brandProfile';
 import type { EducationalContentV1 } from '../content/EducationalContentV1';
 import { educationalContentRegistry } from '../content/educationalContentRegistry';
 import { getContentForConcepts } from '../content/contentLookup';
 import { buildWelcomePackPlan } from '../packComposer/buildWelcomePackPlan';
 import type { WelcomePackAccessibilityPreferencesV1, WelcomePackEligibilityMode } from '../packComposer/WelcomePackComposerV1';
+import { buildBrandedCalmWelcomePackViewModel } from '../packRenderer/buildBrandedCalmWelcomePackViewModel';
 import { buildCalmWelcomePackViewModel } from '../packRenderer/buildCalmWelcomePackViewModel';
 import { buildPrintableWelcomePackViewModel } from '../packRenderer/buildPrintableWelcomePackViewModel';
 import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
@@ -17,6 +19,9 @@ export interface BuildDemoWelcomePackInput {
   fixtureId: WelcomePackDemoFixtureId;
   accessibilityOverrides?: Partial<WelcomePackAccessibilityPreferencesV1>;
   eligibilityMode?: WelcomePackEligibilityMode;
+  brandId?: string;
+  brandProfile?: BrandProfileV1;
+  visitReference?: string;
 }
 
 export interface BuildDemoWelcomePackResult {
@@ -24,6 +29,7 @@ export interface BuildDemoWelcomePackResult {
   plan: ReturnType<typeof buildWelcomePackPlan>;
   viewModel: ReturnType<typeof buildPrintableWelcomePackViewModel>;
   calmViewModel: ReturnType<typeof buildCalmWelcomePackViewModel>;
+  brandedCalmViewModel: ReturnType<typeof buildBrandedCalmWelcomePackViewModel>;
 }
 
 function mergeAccessibilityPreferences(
@@ -101,11 +107,18 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
     eligibilityMode,
     includeTechnicalAppendix: accessibilityPreferences.includeTechnicalAppendix,
   });
+  const brandedCalmViewModel = buildBrandedCalmWelcomePackViewModel({
+    calmViewModel,
+    brandId: input.brandId,
+    brandProfile: input.brandProfile,
+    visitReference: input.visitReference,
+  });
 
   return {
     fixture,
     plan,
     viewModel,
     calmViewModel,
+    brandedCalmViewModel,
   };
 }

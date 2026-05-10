@@ -9,6 +9,12 @@ const safeViewModel: CalmWelcomePackViewModelV1 = {
   packId: 'welcome-pack:customer-safe',
   recommendedScenarioId: 'ashp',
   title: 'Welcome pack — Air source heat pump with cylinder',
+  brandName: 'Atlas',
+  brandLogoUrl: 'https://example.com/atlas-logo.svg',
+  brandContactLabel: 'hello@atlas.example',
+  brandTone: 'technical',
+  generatedAt: '2026-05-10T00:00:00.000Z',
+  visitReference: 'VIS-123',
   customerFacingSections: [
     {
       sectionId: 'calm_summary',
@@ -137,6 +143,39 @@ describe('CalmWelcomePack', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'QR and deeper detail' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Next steps' })).toBeInTheDocument();
     expect(screen.getByText(/QR destination label:/i)).toBeInTheDocument();
+  });
+
+  it('renders optional brand metadata header and footer when present', () => {
+    render(<CalmWelcomePack viewModel={safeViewModel} />);
+
+    expect(screen.getByTestId('cwpr-brand-header')).toBeInTheDocument();
+    expect(screen.getByAltText('Atlas logo')).toBeInTheDocument();
+    expect(screen.getByText('Atlas')).toBeInTheDocument();
+
+    expect(screen.getByTestId('cwpr-brand-footer')).toBeInTheDocument();
+    expect(screen.getByText('Contact: hello@atlas.example')).toBeInTheDocument();
+    expect(screen.getByText('Reference: VIS-123')).toBeInTheDocument();
+    expect(screen.getByText('Generated: 2026-05-10T00:00:00.000Z')).toBeInTheDocument();
+  });
+
+  it('does not render branded customer content when the pack is blocked', () => {
+    render(
+      <CalmWelcomePack
+        viewModel={{
+          ...safeViewModel,
+          readiness: {
+            safeForCustomer: false,
+            blockingReasons: ['Eligibility filter missing.'],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('cwpr-blocking-panel')).toBeInTheDocument();
+    expect(screen.queryByTestId('cwpr-brand-header')).toBeNull();
+    expect(screen.queryByTestId('cwpr-brand-footer')).toBeNull();
+    expect(screen.queryByText('Atlas')).toBeNull();
+    expect(screen.queryByText('Reference: VIS-123')).toBeNull();
   });
 
   it('does not render internal omission log text, QA/audit/eligibility words, or content-pending placeholders', () => {

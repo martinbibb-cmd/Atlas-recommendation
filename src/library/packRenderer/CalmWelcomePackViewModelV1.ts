@@ -34,6 +34,12 @@ export interface CalmWelcomePackViewModelV1 {
   packId: string;
   recommendedScenarioId: string;
   title: string;
+  brandName?: string;
+  brandLogoUrl?: string;
+  brandContactLabel?: string;
+  brandTone?: 'formal' | 'friendly' | 'technical';
+  generatedAt?: string;
+  visitReference?: string;
   customerFacingSections: CalmWelcomePackSectionV1[];
   qrDestinations: CalmWelcomePackQrDestinationV1[];
   internalOmissionLog: CalmWelcomePackOmissionItemV1[];

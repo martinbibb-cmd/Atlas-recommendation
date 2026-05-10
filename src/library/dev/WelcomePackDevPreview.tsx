@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { BRAND_PROFILES, DEFAULT_BRAND_ID } from '../../features/branding/brandProfiles';
 import { getAuditForAsset } from '../audits/auditLookup';
 import { getLibraryReadyAssets } from '../audits/getLibraryReadyAssets';
 import { CalmWelcomePack } from '../packRenderer/CalmWelcomePack';
@@ -50,6 +51,11 @@ export function WelcomePackDevPreview() {
   );
   const [previewCalmCustomerPack, setPreviewCalmCustomerPack] = useState(false);
   const [eligibilityMode, setEligibilityMode] = useState<WelcomePackEligibilityMode>('off');
+  const [brandId, setBrandId] = useState(DEFAULT_BRAND_ID);
+  const brandOptions = useMemo(
+    () => Object.values(BRAND_PROFILES).map((profile) => ({ id: profile.brandId, label: profile.companyName })),
+    [],
+  );
 
   useEffect(() => {
     setPrintFirst(Boolean(selectedFixture.accessibilityPreferences.prefersPrint));
@@ -58,7 +64,7 @@ export function WelcomePackDevPreview() {
     setTechnicalAppendix(Boolean(selectedFixture.accessibilityPreferences.includeTechnicalAppendix));
   }, [selectedFixture]);
 
-  const { plan, viewModel, calmViewModel } = useMemo(() => buildDemoWelcomePack({
+  const { plan, viewModel, brandedCalmViewModel } = useMemo(() => buildDemoWelcomePack({
     fixtureId,
     accessibilityOverrides: {
       prefersPrint: printFirst,
@@ -66,6 +72,7 @@ export function WelcomePackDevPreview() {
       profiles: toAccessibilityProfiles(dyslexia, adhd),
     },
     eligibilityMode,
+    brandId,
   }), [
     fixtureId,
     printFirst,
@@ -73,6 +80,7 @@ export function WelcomePackDevPreview() {
     adhd,
     technicalAppendix,
     eligibilityMode,
+    brandId,
   ]);
 
   const { contentQaFindings, contentQaErrors, contentQaWarnings } = useMemo(() => {
@@ -267,6 +275,20 @@ export function WelcomePackDevPreview() {
             filter (remove ineligible assets from production customer pack)
           </label>
         </fieldset>
+
+        <label htmlFor="welcome-pack-brand-select" style={{ display: 'block', marginTop: '1rem', marginBottom: '0.5rem' }}>
+          Brand profile
+        </label>
+        <select
+          id="welcome-pack-brand-select"
+          aria-label="Brand profile selector"
+          value={brandId}
+          onChange={(event) => setBrandId(event.target.value)}
+        >
+          {brandOptions.map((brand) => (
+            <option key={brand.id} value={brand.id}>{brand.label}</option>
+          ))}
+        </select>
       </section>
 
       <section aria-label="Plan metadata" style={{ marginBottom: '1rem' }}>
@@ -482,7 +504,7 @@ export function WelcomePackDevPreview() {
       {previewCalmCustomerPack && (
         <section aria-label="Calm customer pack preview" style={{ marginBottom: '1rem' }}>
           <h2>Calm customer pack preview</h2>
-          <CalmWelcomePack viewModel={calmViewModel} />
+          <CalmWelcomePack viewModel={brandedCalmViewModel} />
         </section>
       )}
 

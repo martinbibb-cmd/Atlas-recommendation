@@ -17,6 +17,27 @@
   break-inside: avoid;
 }
 
+.cwpr-brand-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cwpr-brand-logo {
+  max-height: 40px;
+  max-width: 160px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.cwpr-brand-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .cwpr-title {
   margin: 0;
   font-size: 2rem;
@@ -60,6 +81,17 @@
   font-weight: 600;
 }
 
+.cwpr-footer {
+  margin-top: 2rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #c7c7c7;
+}
+
+.cwpr-footer-line {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+}
+
 @media print {
   .cwpr-document,
   .cwpr-blocking-panel {
@@ -70,4 +102,3 @@
     background: #fff;
   }
 }
-
