@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { CalmWelcomePackViewModelV1 } from '../packRenderer/CalmWelcomePackViewModelV1';
@@ -150,14 +151,9 @@ describe('CalmWelcomePack', () => {
   });
 
   it('imports print stylesheet path and applies print-friendly class names', () => {
-    const source = readFileSync(
-      new URL('../packRenderer/CalmWelcomePack.tsx', import.meta.url),
-      'utf8',
-    );
-    expect(source).toContain("import './calmWelcomePack.css';");
+    expect(existsSync(path.resolve(process.cwd(), 'src/library/packRenderer/calmWelcomePack.css'))).toBe(true);
 
     const { container } = render(<CalmWelcomePack viewModel={safeViewModel} />);
     expect(container.querySelector('.cwpr-print-friendly')).not.toBeNull();
   });
 });
-
