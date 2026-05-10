@@ -21,8 +21,11 @@ import {
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 
 const pressureContent = getRequiredContent('HYD-02');
-const zoningContent = getRequiredContent('CON-02');
-const sizingContent = getRequiredContent('SIZ-01');
+
+// Golden journey authored content
+const whyNotCombiContent = getRequiredContent('why_not_combi');
+const waterMainLimitContent = getRequiredContent('water_main_limit_not_boiler_limit');
+const microboreContent = getRequiredContent('microbore_flow_limits');
 
 const pressureAnalogy = getPrimaryAnalogy(pressureContent);
 
@@ -54,19 +57,18 @@ export function WaterConstraintJourney({
         headingLevel={3}
       >
         <EducationalCard
-          title="Atlas can optimise design, but cannot break supply limits"
-          summary="Pressure source, pipework restrictions, and simultaneous demand all shape outcomes, so clear limits protect trust and reduce blame."
+          title={whyNotCombiContent.title}
+          summary={whyNotCombiContent.plainEnglishSummary}
           ariaLabel="Water constraint calm summary"
           eyebrow="Calm summary"
           headingLevel={4}
           misconceptionWarning={{
-            misconception: 'Common misconception: any equipment upgrade can fully overcome weak incoming supply conditions.',
-            reality:
-              'Reality: improvements can help, but flow-limited and supply-limited constraints remain governing factors.',
+            misconception: whyNotCombiContent.commonMisunderstanding,
+            reality: 'Reality: improvements can help, but flow-limited and supply-limited constraints remain governing factors.',
           }}
           whatYouMayNotice={{
-            notice: extractNotice(pressureContent.customerExplanation),
-            normalBecause: extractMeaning(pressureContent.customerExplanation),
+            notice: extractNotice(whyNotCombiContent.customerExplanation),
+            normalBecause: extractMeaning(whyNotCombiContent.customerExplanation),
           }}
         />
       </CalmSection>
@@ -79,10 +81,17 @@ export function WaterConstraintJourney({
         headingLevel={3}
       >
         <WhatToExpectCard
-          title="What customers may notice under constraints"
-          notice="Outlet strength can drop when multiple points run together or when upstream restrictions reduce available flow."
-          normalBecause="Hydraulic constraints are shared across the property, so peak overlap can exceed practical available supply."
-          ariaLabel="Water constraint what to expect"
+          title={waterMainLimitContent.title}
+          notice={extractNotice(waterMainLimitContent.customerExplanation)}
+          normalBecause={extractMeaning(waterMainLimitContent.customerExplanation)}
+          ariaLabel="Water main limit expectation"
+          headingLevel={4}
+        />
+        <WhatToExpectCard
+          title={microboreContent.title}
+          notice={extractNotice(microboreContent.customerExplanation)}
+          normalBecause={extractMeaning(microboreContent.customerExplanation)}
+          ariaLabel="Microbore flow limit expectation"
           headingLevel={4}
         />
         <AnalogyCard
@@ -128,7 +137,7 @@ export function WaterConstraintJourney({
       >
         <PrintSafePanel
           title="Constraint communication summary"
-          intro={sizingContent.printSummary}
+          intro={waterMainLimitContent.printSummary}
           ariaLabel="Water constraint print-safe"
           headingLevel={4}
         >
@@ -140,9 +149,9 @@ export function WaterConstraintJourney({
             headingLevel={5}
             footer={(
               <ul>
-                <li>{pressureContent.qrDeepDiveTitle}</li>
-                <li>{zoningContent.qrDeepDiveTitle}</li>
-                <li>{sizingContent.qrDeepDiveTitle}</li>
+                <li>{whyNotCombiContent.qrDeepDiveTitle}</li>
+                <li>{waterMainLimitContent.qrDeepDiveTitle}</li>
+                <li>{microboreContent.qrDeepDiveTitle}</li>
               </ul>
             )}
           />
@@ -182,23 +191,18 @@ export function getWaterConstraintJourneyParagraphs(): string[] {
   return [
     'This expectation-management journey explains where mains limitations and flow constraints set hard boundaries that no installer promise can bypass.',
     'Separate what Atlas can optimise from what supply physics still limits.',
-    'Pressure source, pipework restrictions, and simultaneous demand all shape outcomes, so clear limits protect trust and reduce blame.',
-    'Common misconception: any equipment upgrade can fully overcome weak incoming supply conditions.',
-    'Reality: improvements can help, but flow-limited and supply-limited constraints remain governing factors.',
-    extractNotice(pressureContent.customerExplanation),
-    extractMeaning(pressureContent.customerExplanation),
-    'Set realistic expectations for overlap use and peak demand windows.',
-    'Outlet strength can drop when multiple points run together or when upstream restrictions reduce available flow.',
-    'Hydraulic constraints are shared across the property, so peak overlap can exceed practical available supply.',
-    'Use calm language that protects installer trust while still naming real limits.',
+    whyNotCombiContent.plainEnglishSummary,
+    whyNotCombiContent.commonMisunderstanding,
+    extractNotice(whyNotCombiContent.customerExplanation),
+    extractMeaning(whyNotCombiContent.customerExplanation),
+    extractNotice(waterMainLimitContent.customerExplanation),
+    extractMeaning(waterMainLimitContent.customerExplanation),
+    extractNotice(microboreContent.customerExplanation),
+    extractMeaning(microboreContent.customerExplanation),
     pressureContent.safetyNotice ?? pressureContent.printSummary,
     'Do not keep topping up pressure repeatedly. If loss repeats, request a fault check.',
-    'A customer may compare a single high-demand moment against a best-case expectation from sales language.',
-    'The observed drop can reflect supply boundary conditions, not installer error.',
-    'Revisit measured supply evidence, explain the limit calmly, and agree practical usage patterns for peak periods.',
-    'Give short, non-defensive wording that clarifies what can and cannot be solved.',
-    sizingContent.printSummary,
-    'These deep dives help customers validate boundaries without feeling dismissed.',
+    waterMainLimitContent.printSummary,
+    whyNotCombiContent.printSummary,
     'Use this checklist before close-out to prevent expectation drift.',
   ];
 }
@@ -211,6 +215,9 @@ export function getWaterConstraintJourneySequencingPlan() {
   return buildEducationalSequence({
     selectedConceptIds: [
       'system_fit_explanation',
+      'why_not_combi',
+      'water_main_limit_not_boiler_limit',
+      'microbore_flow_limits',
       'flow_restriction',
       'pipework_constraint',
       'operating_behaviour',

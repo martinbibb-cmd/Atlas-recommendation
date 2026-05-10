@@ -87,6 +87,7 @@ interface StoryboardSequencedCard {
   sectionTitle: string;
   conceptId?: string;
   content?: EducationalContentV1;
+  hasAuthoredContent: boolean;
 }
 
 interface StoryboardNoticeCard {
@@ -378,6 +379,7 @@ export function WelcomePackDevPreview() {
       .map((conceptId) => {
         const content = educationalContentByConceptId.get(conceptId);
         const asset = [...assetById.values()].find((item) => item.conceptIds.includes(conceptId));
+        const hasAuthoredContent = content !== undefined;
 
         return {
           title: content?.title ?? asset?.title ?? conceptId,
@@ -388,6 +390,7 @@ export function WelcomePackDevPreview() {
           sectionTitle: sectionTitleByConceptId.get(conceptId) ?? 'Relevant explainers',
           conceptId,
           content,
+          hasAuthoredContent,
         };
       })
       .map((card, index) => ({
@@ -442,6 +445,9 @@ export function WelcomePackDevPreview() {
   const printCardCount = storyboardPrintCards.length;
   const safetyCardCount = storyboardSequencedCards.filter((card) => card.content?.safetyNotice).length;
   const qrCardCount = calmViewModel.qrDestinations.length;
+
+  const contentReadyCount = storyboardSequencedCards.filter((card) => card.content !== undefined).length;
+  const contentMissingCount = storyboardSequencedCards.filter((card) => card.content === undefined).length;
 
   const goldenJourneyFixtures = useMemo(
     () => welcomePackDemoFixtureList.filter((item) => GOLDEN_JOURNEY_FIXTURE_ID_SET.has(item.id)),
@@ -620,6 +626,25 @@ export function WelcomePackDevPreview() {
             <div className="atlas-storyboard-panel__header">
               <p className="atlas-storyboard-panel__eyebrow">Golden journeys</p>
               <h2 className="atlas-storyboard-panel__title">Start the next 25 content entries from the journey anchors</h2>
+              <p
+                className="atlas-storyboard-panel__content-status"
+                data-testid="golden-journey-content-status"
+                style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}
+              >
+                <span
+                  style={{ color: contentMissingCount === 0 ? '#166534' : '#1d4ed8', fontWeight: 600 }}
+                  data-testid="content-ready-count"
+                >
+                  {contentReadyCount} concept{contentReadyCount !== 1 ? 's' : ''} with authored content
+                </span>
+                {' · '}
+                <span
+                  style={{ color: contentMissingCount > 0 ? '#b45309' : '#166534', fontWeight: 600 }}
+                  data-testid="content-missing-count"
+                >
+                  {contentMissingCount} missing
+                </span>
+              </p>
             </div>
             <div className="atlas-storyboard-golden-list" data-testid="golden-journey-list">
               {goldenJourneyFixtures.map((goldenFixture) => (
@@ -771,7 +796,10 @@ export function WelcomePackDevPreview() {
               </h2>
             </div>
             <div className="atlas-storyboard-card-grid" data-testid="storyboard-sequenced-cards">
-              {storyboardSequencedCards.map((card) => (
+              {(previewMode === 'golden_journeys'
+                ? storyboardSequencedCards.filter((card) => card.hasAuthoredContent)
+                : storyboardSequencedCards
+              ).map((card) => (
                 <SequencedConceptCardPreview
                   key={`${card.order}:${card.conceptId ?? card.title}`}
                   order={card.order}

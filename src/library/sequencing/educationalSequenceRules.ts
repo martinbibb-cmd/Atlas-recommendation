@@ -267,4 +267,152 @@ export const educationalSequenceRules: EducationalSequenceRuleV1[] = [
     idealCardTypes: ['EducationalCard'],
     suppressIfAlreadyExplained: true,
   },
+
+  // ─── Golden journey batch 2 sequencing rules ─────────────────────────────
+
+  {
+    ruleId: 'seq_why_not_combi_reassurance',
+    conceptId: 'why_not_combi',
+    sequenceStage: 'reassurance',
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'WhatToExpectCard'],
+    suppressIfAlreadyExplained: false,
+  },
+
+  {
+    ruleId: 'seq_preserved_system_strength_reassurance',
+    conceptId: 'preserved_system_strength',
+    sequenceStage: 'reassurance',
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'WhatToExpectCard'],
+    suppressIfAlreadyExplained: false,
+  },
+
+  {
+    ruleId: 'seq_unvented_safety_reassurance',
+    conceptId: 'unvented_safety_reassurance',
+    sequenceStage: 'reassurance',
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['SafetyNoticeCard', 'EducationalCard'],
+    suppressIfAlreadyExplained: false,
+  },
+
+  {
+    ruleId: 'seq_hot_radiator_expectation_reassurance',
+    conceptId: 'hot_radiator_expectation',
+    sequenceStage: 'reassurance',
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'WhatToExpectCard'],
+    suppressIfAlreadyExplained: false,
+  },
+
+  {
+    ruleId: 'seq_premium_hot_water_expectation',
+    conceptId: 'premium_hot_water_performance',
+    sequenceStage: 'expectation',
+    prerequisites: ['preserved_system_strength'],
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['WhatToExpectCard', 'EducationalCard'],
+  },
+
+  {
+    ruleId: 'seq_pressure_vs_storage_expectation',
+    conceptId: 'pressure_vs_storage',
+    sequenceStage: 'expectation',
+    emotionalWeight: 'neutral',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'AnalogyCard'],
+  },
+
+  {
+    ruleId: 'seq_sealed_system_conversion_expectation',
+    conceptId: 'sealed_system_conversion',
+    sequenceStage: 'expectation',
+    emotionalWeight: 'neutral',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'WhatToExpectCard'],
+  },
+
+  {
+    ruleId: 'seq_open_vented_to_unvented_expectation',
+    conceptId: 'open_vented_to_unvented_upgrade',
+    sequenceStage: 'expectation',
+    prerequisites: ['sealed_system_conversion'],
+    emotionalWeight: 'neutral',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'WhatToExpectCard'],
+  },
+
+  {
+    ruleId: 'seq_regular_retained_unvented_expectation',
+    conceptId: 'regular_retained_unvented_upgrade',
+    sequenceStage: 'expectation',
+    prerequisites: ['preserved_system_strength'],
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'WhatToExpectCard'],
+  },
+
+  {
+    ruleId: 'seq_heat_pump_defrost_expectation',
+    conceptId: 'heat_pump_defrost_expectation',
+    sequenceStage: 'expectation',
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['WhatToExpectCard', 'EducationalCard'],
+  },
+
+  {
+    ruleId: 'seq_microbore_flow_limits_expectation',
+    conceptId: 'microbore_flow_limits',
+    sequenceStage: 'expectation',
+    emotionalWeight: 'neutral',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard'],
+  },
+
+  {
+    ruleId: 'seq_flow_temperature_living_with_it_lived',
+    conceptId: 'flow_temperature_living_with_it',
+    sequenceStage: 'lived_experience',
+    prerequisites: ['hot_radiator_expectation'],
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 3,
+    idealCardTypes: ['WhatToExpectCard', 'AnalogyCard'],
+    suppressIfAlreadyExplained: true,
+  },
+
+  {
+    ruleId: 'seq_outdoor_unit_winter_care_lived',
+    conceptId: 'outdoor_unit_winter_care',
+    sequenceStage: 'lived_experience',
+    prerequisites: ['heat_pump_defrost_expectation'],
+    emotionalWeight: 'calming',
+    maxSimultaneousConcepts: 3,
+    idealCardTypes: ['WhatToExpectCard', 'EducationalCard'],
+  },
+
+  {
+    ruleId: 'seq_radiator_clearance_lived',
+    conceptId: 'radiator_clearance_and_convection',
+    sequenceStage: 'lived_experience',
+    emotionalWeight: 'neutral',
+    maxSimultaneousConcepts: 3,
+    idealCardTypes: ['EducationalCard'],
+  },
+
+  {
+    ruleId: 'seq_water_main_limit_misconception',
+    conceptId: 'water_main_limit_not_boiler_limit',
+    sequenceStage: 'misconception',
+    prerequisites: ['why_not_combi'],
+    emotionalWeight: 'neutral',
+    maxSimultaneousConcepts: 2,
+    idealCardTypes: ['EducationalCard', 'TrustRecoveryCard'],
+  },
 ];

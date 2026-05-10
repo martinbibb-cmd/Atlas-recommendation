@@ -737,4 +737,381 @@ export const educationalConceptTaxonomy: EducationalConceptTaxonomyV1[] = [
     printPriority: 'should_print',
     welcomePackPriority: 'situational',
   },
+
+  // ─── Golden journey concepts: batch 2 ────────────────────────────────────
+
+  {
+    conceptId: 'why_not_combi',
+    category: 'boiler',
+    title: 'Why not a combi — simultaneous-use limits',
+    plainEnglishDefinition:
+      'A combi cannot serve multiple outlets at once when mains supply or heat-exchanger output is limited.',
+    technicalDefinition:
+      'On-demand DHW throughput is bounded by heat-exchanger capacity and instantaneous mains flow. Concurrent draw events reduce per-outlet delivery.',
+    appliesToSystemTypes: ['combi', 'system'],
+    requiredPriorConceptIds: ['flow_restriction'],
+    relatedConceptIds: ['pipework_constraint', 'system_fit_explanation', 'water_main_limit_not_boiler_limit'],
+    commonMisunderstandings: [
+      'A bigger combi always resolves simultaneous-draw shortfalls.',
+    ],
+    dangerousOversimplifications: [
+      'Recommend a combi without measuring available mains flow and concurrent outlet demand.',
+    ],
+    confidenceLevel: 'best_practice',
+    preferredAssetTypes: ['diagram', 'explainer', 'animation'],
+    defaultAudience: 'all',
+    defaultDepth: 'plain',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'preserved_system_strength',
+    category: 'whole_system',
+    title: 'Preserved system strength — retained boiler architecture',
+    plainEnglishDefinition:
+      'When the existing heating circuit is in good condition, keeping it reduces disruption and avoids unnecessary replacement risk.',
+    technicalDefinition:
+      'Retained primary circuit topology preserves proven hydraulic and thermal performance characteristics while directing investment to where uplift is needed.',
+    appliesToSystemTypes: ['regular', 'system'],
+    requiredPriorConceptIds: ['system_fit_explanation'],
+    relatedConceptIds: ['system_work_explainer', 'scope_clarity', 'regular_retained_unvented_upgrade'],
+    commonMisunderstandings: [
+      'Keeping the existing boiler means no meaningful improvement was made.',
+    ],
+    dangerousOversimplifications: [
+      'Always replace the boiler regardless of its condition to appear thorough.',
+    ],
+    confidenceLevel: 'best_practice',
+    preferredAssetTypes: ['print_sheet', 'explainer'],
+    defaultAudience: 'customer',
+    defaultDepth: 'plain',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'premium_hot_water_performance',
+    category: 'hot_water',
+    title: 'Premium stored hot water — mains-pressure performance',
+    plainEnglishDefinition:
+      'Stored hot water supplied at mains pressure can serve multiple outlets simultaneously without a pump.',
+    technicalDefinition:
+      'Unvented cylinders draw on mains-fed supply, allowing simultaneous use at mains-equivalent pressure subject to inlet flow and cylinder sizing.',
+    appliesToSystemTypes: ['system', 'regular'],
+    requiredPriorConceptIds: ['stored_hot_water_efficiency'],
+    relatedConceptIds: ['cylinder_sizing', 'pressure_vs_storage', 'SAF-01'],
+    commonMisunderstandings: [
+      'Mains-pressure stored hot water is unlimited and instant.',
+    ],
+    dangerousOversimplifications: [
+      'Recommend an unvented cylinder without checking mains flow and inlet pressure.',
+    ],
+    confidenceLevel: 'best_practice',
+    preferredAssetTypes: ['diagram', 'explainer', 'print_sheet'],
+    defaultAudience: 'all',
+    defaultDepth: 'functional',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'pressure_vs_storage',
+    category: 'hot_water',
+    title: 'Pressure source versus stored volume — two separate dimensions',
+    plainEnglishDefinition:
+      'Mains pressure and stored hot water volume are independent. Improving pressure does not increase how much hot water is available.',
+    technicalDefinition:
+      'Pressure source determines outlet velocity and simultaneous-use performance. Storage volume determines draw-off capacity before recovery is needed.',
+    appliesToSystemTypes: ['system', 'regular', 'ashp'],
+    requiredPriorConceptIds: ['stored_hot_water_efficiency'],
+    relatedConceptIds: ['cylinder_sizing', 'premium_hot_water_performance', 'flow_restriction'],
+    commonMisunderstandings: [
+      'Higher water pressure means more hot water is available before recovery.',
+    ],
+    dangerousOversimplifications: [
+      'Fix simultaneous-draw complaints by boosting pressure alone, without checking cylinder volume.',
+    ],
+    confidenceLevel: 'physical_law',
+    preferredAssetTypes: ['diagram', 'animation', 'explainer'],
+    defaultAudience: 'all',
+    defaultDepth: 'visual',
+    printPriority: 'should_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'sealed_system_conversion',
+    category: 'installation',
+    title: 'Sealed system conversion — what changes and what is removed',
+    plainEnglishDefinition:
+      'Converting from an open-vented heating circuit to a sealed circuit removes the header tank and vent pipe, replacing them with an expansion vessel and filling loop.',
+    technicalDefinition:
+      'Sealed conversion changes the system from static-head pressure control to pressurised expansion vessel control, requiring inhibitor top-up and pressure monitoring.',
+    appliesToSystemTypes: ['system', 'regular'],
+    requiredPriorConceptIds: ['scope_clarity'],
+    relatedConceptIds: ['system_work_explainer', 'HYD-02', 'open_vented_to_unvented_upgrade'],
+    commonMisunderstandings: [
+      'A sealed conversion is just a valve change and requires no other adaptation.',
+    ],
+    dangerousOversimplifications: [
+      'Convert a system to sealed without checking expansion vessel sizing and inhibitor treatment.',
+    ],
+    confidenceLevel: 'standards_based',
+    preferredAssetTypes: ['diagram', 'print_sheet', 'explainer'],
+    defaultAudience: 'all',
+    defaultDepth: 'functional',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'unvented_safety_reassurance',
+    category: 'safety',
+    title: 'Unvented cylinder safety — calm factual framing',
+    plainEnglishDefinition:
+      'Unvented cylinders have dedicated safety devices as standard. Knowing what they do and where they are prevents misreading normal operation as a problem.',
+    technicalDefinition:
+      'Unvented systems require a temperature and pressure relief valve, expansion vessel, and correct discharge arrangement as mandated by installation standards.',
+    appliesToSystemTypes: ['system', 'regular', 'ashp'],
+    requiredPriorConceptIds: ['SAF-01'],
+    relatedConceptIds: ['HYD-02', 'SAF-01', 'premium_hot_water_performance'],
+    commonMisunderstandings: [
+      'Seeing a tundish or discharge pipe means the system is leaking or faulty.',
+    ],
+    dangerousOversimplifications: [
+      'Ignore visible tundish discharge because it looks minor.',
+    ],
+    confidenceLevel: 'standards_based',
+    preferredAssetTypes: ['print_sheet', 'explainer', 'checklist'],
+    defaultAudience: 'all',
+    defaultDepth: 'plain',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'hot_radiator_expectation',
+    category: 'heat_pump',
+    title: 'Warm-not-hot radiators with a heat pump — why this is correct',
+    plainEnglishDefinition:
+      'Heat pump radiators run warm rather than very hot. Comfort comes from longer, steadier periods of heat output, not from short bursts at high temperature.',
+    technicalDefinition:
+      'Heat pumps operate efficiently at lower flow temperatures and higher run fractions. Room temperature targets are met through sustained low-temperature delivery rather than high-peak cycling.',
+    appliesToSystemTypes: ['ashp'],
+    requiredPriorConceptIds: ['flow_temperature'],
+    relatedConceptIds: ['emitter_sizing', 'flow_temperature_living_with_it', 'radiator_clearance_and_convection'],
+    commonMisunderstandings: [
+      'If radiators are not very hot, the heat pump is undersized or failing.',
+    ],
+    dangerousOversimplifications: [
+      'Raise flow temperature to maximum to make radiators feel hotter.',
+    ],
+    confidenceLevel: 'best_practice',
+    preferredAssetTypes: ['diagram', 'print_sheet', 'explainer'],
+    defaultAudience: 'all',
+    defaultDepth: 'plain',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'water_main_limit_not_boiler_limit',
+    category: 'hydronics',
+    title: 'Water mains is the limit — not the boiler or appliance',
+    plainEnglishDefinition:
+      'When mains supply flow is the constraining factor, fitting a larger or higher-rated appliance cannot overcome the supply boundary.',
+    technicalDefinition:
+      'Mains inlet flow rate caps the maximum achievable DHW delivery regardless of appliance output rating. Increasing appliance capacity does not increase available mains flow.',
+    appliesToSystemTypes: ALL_SYSTEM_TYPES,
+    requiredPriorConceptIds: ['flow_restriction'],
+    relatedConceptIds: ['pipework_constraint', 'hydraulic_constraint', 'why_not_combi'],
+    commonMisunderstandings: [
+      'A higher-rated appliance will always solve simultaneous-draw shortfalls.',
+    ],
+    dangerousOversimplifications: [
+      'Upgrade the appliance rating without measuring available mains inlet flow.',
+    ],
+    confidenceLevel: 'physical_law',
+    preferredAssetTypes: ['diagram', 'animation', 'topology'],
+    defaultAudience: 'all',
+    defaultDepth: 'visual',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'open_vented_to_unvented_upgrade',
+    category: 'installation',
+    title: 'Open-vented to unvented hot water — the upgrade path',
+    plainEnglishDefinition:
+      'Replacing a tank-fed hot water cylinder with a mains-fed unvented cylinder upgrades pressure, overlap resilience, and modern safety compliance in one step.',
+    technicalDefinition:
+      'The upgrade removes the cold-water storage tank and gravity-fed cylinder, replaces them with a mains-fed unvented cylinder, and requires sealed primary heating circuit configuration.',
+    appliesToSystemTypes: ['system', 'regular'],
+    requiredPriorConceptIds: ['sealed_system_conversion'],
+    relatedConceptIds: ['pressure_vs_storage', 'premium_hot_water_performance', 'SAF-01'],
+    commonMisunderstandings: [
+      'The tank-fed and mains-fed systems differ only in where the water comes from.',
+    ],
+    dangerousOversimplifications: [
+      'Swap a vented cylinder for an unvented one without checking mains pressure, G3 compliance, and primary circuit state.',
+    ],
+    confidenceLevel: 'standards_based',
+    preferredAssetTypes: ['diagram', 'print_sheet'],
+    defaultAudience: 'all',
+    defaultDepth: 'functional',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'regular_retained_unvented_upgrade',
+    category: 'installation',
+    title: 'Regular boiler retained — unvented cylinder added',
+    plainEnglishDefinition:
+      'When the existing regular boiler is sound, adding an unvented cylinder targets the hot water side directly without disrupting the proven heating circuit.',
+    technicalDefinition:
+      'The regular boiler continues to serve the primary heating circuit while the unvented cylinder replaces a vented cylinder for mains-pressure DHW delivery.',
+    appliesToSystemTypes: ['regular'],
+    requiredPriorConceptIds: ['preserved_system_strength'],
+    relatedConceptIds: ['premium_hot_water_performance', 'unvented_safety_reassurance', 'scope_clarity'],
+    commonMisunderstandings: [
+      'A regular boiler paired with an unvented cylinder is an unusual or outdated combination.',
+    ],
+    dangerousOversimplifications: [
+      'Install a cylinder upgrade without verifying the primary circuit condition and pressure compatibility.',
+    ],
+    confidenceLevel: 'best_practice',
+    preferredAssetTypes: ['print_sheet', 'explainer', 'diagram'],
+    defaultAudience: 'all',
+    defaultDepth: 'functional',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'flow_temperature_living_with_it',
+    category: 'controls',
+    title: 'Living with lower flow temperatures — day-to-day heat pump comfort',
+    plainEnglishDefinition:
+      'Lower flow temperatures mean radiators stay warm throughout the day rather than getting very hot briefly. This is intentional and supports efficient comfort delivery.',
+    technicalDefinition:
+      'Heat pump efficiency increases at lower flow temperatures. Sustained lower-temperature operation meets heat loss when emitter sizing and insulation are adequate.',
+    appliesToSystemTypes: ['ashp'],
+    requiredPriorConceptIds: ['flow_temperature'],
+    relatedConceptIds: ['hot_radiator_expectation', 'emitter_sizing', 'weather_compensation'],
+    commonMisunderstandings: [
+      'Setting flow temperature higher on cold days always improves efficiency and comfort.',
+    ],
+    dangerousOversimplifications: [
+      'Raise flow temperature as a first response to any comfort complaint without checking room heat loss.',
+    ],
+    confidenceLevel: 'best_practice',
+    preferredAssetTypes: ['diagram', 'explainer', 'print_sheet'],
+    defaultAudience: 'all',
+    defaultDepth: 'plain',
+    printPriority: 'should_print',
+    welcomePackPriority: 'should_have',
+  },
+
+  {
+    conceptId: 'heat_pump_defrost_expectation',
+    category: 'heat_pump',
+    title: 'Defrost cycle — normal cold-weather operation',
+    plainEnglishDefinition:
+      'In cold or damp conditions, the outdoor unit periodically defrosts its coil. This is a normal, automatic event that lasts a few minutes and does not indicate a fault.',
+    technicalDefinition:
+      'When outdoor conditions cause frost formation on the heat exchanger coil, the heat pump briefly reverses operation to melt ice and restore heat-transfer efficiency.',
+    appliesToSystemTypes: ['ashp'],
+    requiredPriorConceptIds: [],
+    relatedConceptIds: ['outdoor_unit_winter_care', 'hot_radiator_expectation'],
+    commonMisunderstandings: [
+      'The heat pump producing cool air or steam from the outdoor unit in cold weather is a fault.',
+    ],
+    dangerousOversimplifications: [
+      'Call for service every time the outdoor unit goes quiet or emits mist in winter.',
+    ],
+    confidenceLevel: 'manufacturer_guidance',
+    preferredAssetTypes: ['explainer', 'print_sheet'],
+    defaultAudience: 'all',
+    defaultDepth: 'plain',
+    printPriority: 'must_print',
+    welcomePackPriority: 'must_have',
+  },
+
+  {
+    conceptId: 'outdoor_unit_winter_care',
+    category: 'heat_pump',
+    title: 'Outdoor unit care in winter — keeping performance steady',
+    plainEnglishDefinition:
+      'Keeping the outdoor unit clear of ice, compacted snow, and obstructions allows safe defrost cycles and steady heat collection through cold months.',
+    technicalDefinition:
+      'Restricted airflow around the outdoor heat exchanger reduces available heat-source capacity and may extend or interrupt defrost cycles.',
+    appliesToSystemTypes: ['ashp'],
+    requiredPriorConceptIds: ['heat_pump_defrost_expectation'],
+    relatedConceptIds: ['heat_pump_defrost_expectation', 'hot_radiator_expectation'],
+    commonMisunderstandings: [
+      'Snow around the outdoor unit is harmless and can be left to clear on its own.',
+    ],
+    dangerousOversimplifications: [
+      'Block airflow around the unit to protect it from wind or rain.',
+    ],
+    confidenceLevel: 'manufacturer_guidance',
+    preferredAssetTypes: ['checklist', 'print_sheet'],
+    defaultAudience: 'all',
+    defaultDepth: 'plain',
+    printPriority: 'must_print',
+    welcomePackPriority: 'should_have',
+  },
+
+  {
+    conceptId: 'microbore_flow_limits',
+    category: 'hydronics',
+    title: 'Microbore pipework — where flow limits apply',
+    plainEnglishDefinition:
+      'Small-bore pipes restrict how much water can flow through the circuit, which can limit heat delivery even when the boiler or pump output is adequate.',
+    technicalDefinition:
+      'Pipework of 10 mm internal diameter or below generates significantly higher resistance per metre, reducing circuit flow rate and increasing effective head loss on long runs.',
+    appliesToSystemTypes: ALL_SYSTEM_TYPES,
+    requiredPriorConceptIds: ['pipework_constraint'],
+    relatedConceptIds: ['flow_restriction', 'pipe_bore_sizing', 'hydraulic_constraint'],
+    commonMisunderstandings: [
+      'Installing a more powerful pump always overcomes microbore flow restrictions.',
+    ],
+    dangerousOversimplifications: [
+      'Assess emitter or DHW performance without checking pipe bore on long microbore runs.',
+    ],
+    confidenceLevel: 'physical_law',
+    preferredAssetTypes: ['diagram', 'topology'],
+    defaultAudience: 'all',
+    defaultDepth: 'functional',
+    printPriority: 'should_print',
+    welcomePackPriority: 'situational',
+  },
+
+  {
+    conceptId: 'radiator_clearance_and_convection',
+    category: 'emitters',
+    title: 'Radiator clearance and convection — why clear space matters',
+    plainEnglishDefinition:
+      'Radiators deliver heat mainly by convection. Furniture or curtains blocking air circulation reduce effective room heat output even when flow temperature is correct.',
+    technicalDefinition:
+      'Natural convection depends on unobstructed buoyancy-driven airflow across the emitter surface. Physical obstruction reduces the air exchange rate and lowers practical heat delivery.',
+    appliesToSystemTypes: ALL_SYSTEM_TYPES,
+    requiredPriorConceptIds: ['emitter_sizing'],
+    relatedConceptIds: ['hot_radiator_expectation', 'flow_temperature'],
+    commonMisunderstandings: [
+      'A radiator behind a sofa or under a shelf delivers the same heat as one with clear air around it.',
+    ],
+    dangerousOversimplifications: [
+      'Raise flow temperature to compensate for poor room heat output caused by obstructed emitters.',
+    ],
+    confidenceLevel: 'physical_law',
+    preferredAssetTypes: ['diagram', 'explainer'],
+    defaultAudience: 'all',
+    defaultDepth: 'visual',
+    printPriority: 'should_print',
+    welcomePackPriority: 'should_have',
+  },
 ];
