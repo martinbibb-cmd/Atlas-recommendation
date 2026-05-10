@@ -1,0 +1,21 @@
+export const educationalColourTokens = {
+  textPrimary: '#132238',
+  textMuted: '#45576d',
+  surface: '#ffffff',
+  surfaceSubtle: '#f6f8fb',
+  border: '#c5cfdb',
+  accent: '#234a7d',
+  accentSubtle: '#eaf2fb',
+  safetyText: '#5c3b00',
+  safetySurface: '#fff7e8',
+  safetyBorder: '#d9a955',
+  trustText: '#2c3550',
+  trustSurface: '#f3f5fa',
+  trustBorder: '#aab7cb',
+  lowInk: {
+    textPrimary: '#111111',
+    surface: '#ffffff',
+    border: '#666666',
+    accent: '#222222',
+  },
+} as const;
