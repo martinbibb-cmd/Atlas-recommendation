@@ -3,3 +3,4 @@ export * from './buildPrintableWelcomePackViewModel';
 export * from './PrintableWelcomePackSkeleton';
 export * from './CalmWelcomePackViewModelV1';
 export * from './buildCalmWelcomePackViewModel';
+export * from './CalmWelcomePack';

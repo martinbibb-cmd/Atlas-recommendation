@@ -3,6 +3,7 @@ import { educationalContentRegistry } from '../content/educationalContentRegistr
 import { getContentForConcepts } from '../content/contentLookup';
 import { buildWelcomePackPlan } from '../packComposer/buildWelcomePackPlan';
 import type { WelcomePackAccessibilityPreferencesV1, WelcomePackEligibilityMode } from '../packComposer/WelcomePackComposerV1';
+import { buildCalmWelcomePackViewModel } from '../packRenderer/buildCalmWelcomePackViewModel';
 import { buildPrintableWelcomePackViewModel } from '../packRenderer/buildPrintableWelcomePackViewModel';
 import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
 import { educationalConceptTaxonomy } from '../taxonomy/educationalConceptTaxonomy';
@@ -22,6 +23,7 @@ export interface BuildDemoWelcomePackResult {
   fixture: WelcomePackDemoFixture;
   plan: ReturnType<typeof buildWelcomePackPlan>;
   viewModel: ReturnType<typeof buildPrintableWelcomePackViewModel>;
+  calmViewModel: ReturnType<typeof buildCalmWelcomePackViewModel>;
 }
 
 function mergeAccessibilityPreferences(
@@ -63,6 +65,7 @@ function buildDemoEducationalContent(selectedConceptIds: string[]): EducationalC
 
 export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDemoWelcomePackResult {
   const fixture = getWelcomePackDemoFixture(input.fixtureId);
+  const eligibilityMode = input.eligibilityMode ?? 'off';
   const accessibilityPreferences = mergeAccessibilityPreferences(
     fixture.accessibilityPreferences,
     input.accessibilityOverrides,
@@ -75,7 +78,7 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
     accessibilityPreferences,
     userConcernTags: fixture.userConcernTags,
     propertyConstraintTags: fixture.propertyConstraintTags,
-    eligibilityMode: input.eligibilityMode,
+    eligibilityMode,
   });
 
   const educationalContent = buildDemoEducationalContent(plan.selectedConceptIds);
@@ -89,10 +92,20 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
       includeTechnicalAppendix: accessibilityPreferences.includeTechnicalAppendix,
     },
   );
+  const calmViewModel = buildCalmWelcomePackViewModel({
+    plan,
+    customerSummary: fixture.customerSummary,
+    taxonomy: educationalConceptTaxonomy,
+    assets: educationalAssetRegistry,
+    educationalContent,
+    eligibilityMode,
+    includeTechnicalAppendix: accessibilityPreferences.includeTechnicalAppendix,
+  });
 
   return {
     fixture,
     plan,
     viewModel,
+    calmViewModel,
   };
 }

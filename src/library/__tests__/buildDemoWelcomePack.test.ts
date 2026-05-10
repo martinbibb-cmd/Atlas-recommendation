@@ -17,6 +17,7 @@ describe('buildDemoWelcomePack', () => {
       const result = buildDemoWelcomePack({ fixtureId: fixture.id });
       expect(result.plan.recommendedScenarioId).toBe(fixture.atlasDecision.recommendedScenarioId);
       expect(result.viewModel.recommendedScenarioId).toBe(fixture.atlasDecision.recommendedScenarioId);
+      expect(result.calmViewModel.recommendedScenarioId).toBe(fixture.atlasDecision.recommendedScenarioId);
     }
   });
 
