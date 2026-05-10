@@ -12,7 +12,9 @@ export interface BuildBrandedCalmWelcomePackViewModelInputV1 {
 
 function buildBrandContactLabel(brandProfile: BrandProfileV1): string | undefined {
   const { contact } = brandProfile;
-  return contact.phone ?? contact.email ?? contact.website ?? contact.address;
+  return [contact.phone, contact.email, contact.website, contact.address]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value && value.length > 0));
 }
 
 export function buildBrandedCalmWelcomePackViewModel(
