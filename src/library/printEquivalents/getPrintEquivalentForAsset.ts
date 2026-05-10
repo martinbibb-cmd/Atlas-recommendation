@@ -17,7 +17,15 @@ export function getAssetsMissingRegisteredPrintEquivalent(assets: EducationalAss
     if (!asset.hasPrintEquivalent) {
       return false;
     }
-    const printEquivalentId = asset.printEquivalentId ?? asset.id;
-    return !printEquivalentByAssetId.has(printEquivalentId);
+
+    if (asset.printComponentPath) {
+      return false;
+    }
+
+    if (!asset.printEquivalentId) {
+      return false;
+    }
+
+    return !printEquivalentByAssetId.has(asset.printEquivalentId);
   });
 }
