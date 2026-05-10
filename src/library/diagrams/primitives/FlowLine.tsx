@@ -52,7 +52,6 @@ export function FlowLine({ label, direction = 'right', length = 80, strokeWidth 
         aria-hidden="true"
         focusable="false"
       >
-        <title>{label}</title>
         <line
           x1={points.line.x1}
           y1={points.line.y1}

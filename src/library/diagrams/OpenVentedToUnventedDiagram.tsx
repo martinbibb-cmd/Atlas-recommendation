@@ -4,6 +4,8 @@ import { ExplanationCallout } from './primitives/ExplanationCallout';
 import { SystemTopologyPanel } from './primitives/SystemTopologyPanel';
 import { WaterStoreTank } from './primitives/WaterStoreTank';
 
+const TANK_FED_PRESSURE_LABEL = 'Tank-fed supply';
+
 const SCREEN_READER_SUMMARY =
   'Side-by-side diagram. Left: open-vented system with cold water storage tank in loft and vented hot water cylinder. Right: sealed system with unvented cylinder fed directly by mains. Loft tanks are removed. Heating circuit remains unchanged.';
 
@@ -33,12 +35,12 @@ export function OpenVentedToUnventedDiagram({ printSafe = false }: OpenVentedToU
             <WaterStoreTank
               label="Cold water storage tank (loft)"
               capacityLabel="100–150 L"
-              pressureLabel="Tank-fed supply"
+              pressureLabel={TANK_FED_PRESSURE_LABEL}
             />
             <WaterStoreTank
               label="Vented hot water cylinder"
               capacityLabel="110–140 L"
-              pressureLabel="Tank-fed supply"
+              pressureLabel={TANK_FED_PRESSURE_LABEL}
             />
             <p className="atlas-edu-diagram__label">Heating circuit: unchanged</p>
           </SystemTopologyPanel>
