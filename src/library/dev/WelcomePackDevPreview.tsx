@@ -30,6 +30,7 @@ import {
   collectTopMissingConcepts,
 } from './runWelcomePackValidation';
 import type { WelcomePackValidationReportV1 } from './WelcomePackValidationReportV1';
+import { AtlasEducationalUiDemo } from '../ui/demo';
 
 function toAccessibilityProfiles(dyslexia: boolean, adhd: boolean): Array<'dyslexia' | 'adhd'> {
   const profiles: Array<'dyslexia' | 'adhd'> = [];
@@ -728,6 +729,8 @@ export function WelcomePackDevPreview() {
           ))}
         </section>
       )}
+
+      <AtlasEducationalUiDemo />
 
       <PrintableWelcomePackSkeleton viewModel={viewModel} />
     </main>

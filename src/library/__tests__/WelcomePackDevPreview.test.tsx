@@ -9,6 +9,7 @@ describe('WelcomePackDevPreview', () => {
 
     expect(screen.getByText('Development preview — not customer content.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Plan metadata' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Educational UI primitive showcase' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'selectedConceptIds' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'deferredConceptIds' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Omitted assets and reasons' })).toBeInTheDocument();
