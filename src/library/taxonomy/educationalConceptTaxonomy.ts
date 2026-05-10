@@ -1050,7 +1050,7 @@ export const educationalConceptTaxonomy: EducationalConceptTaxonomyV1[] = [
       'Restricted airflow around the outdoor heat exchanger reduces available heat-source capacity and may extend or interrupt defrost cycles.',
     appliesToSystemTypes: ['ashp'],
     requiredPriorConceptIds: ['heat_pump_defrost_expectation'],
-    relatedConceptIds: ['outdoor_unit_winter_care', 'hot_radiator_expectation'],
+    relatedConceptIds: ['heat_pump_defrost_expectation', 'hot_radiator_expectation'],
     commonMisunderstandings: [
       'Snow around the outdoor unit is harmless and can be left to clear on its own.',
     ],

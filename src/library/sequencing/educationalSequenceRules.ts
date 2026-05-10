@@ -377,7 +377,7 @@ export const educationalSequenceRules: EducationalSequenceRuleV1[] = [
   },
 
   {
-    ruleId: 'seq_flow_temperature_living_lived',
+    ruleId: 'seq_flow_temperature_living_with_it_lived',
     conceptId: 'flow_temperature_living_with_it',
     sequenceStage: 'lived_experience',
     prerequisites: ['hot_radiator_expectation'],
