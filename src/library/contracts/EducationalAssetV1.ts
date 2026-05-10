@@ -47,6 +47,7 @@ export interface EducationalAssetV1 {
   triggerTags: string[];
   currentComponentPath?: string;
   printComponentPath?: string;
+  printEquivalentId?: string;
   lifecycleStatus?: AssetLifecycleStatus;
   migrationStatus?: AssetMigrationStatus;
   accessibilityAuditStatus?: AssetAccessibilityAuditStatus;

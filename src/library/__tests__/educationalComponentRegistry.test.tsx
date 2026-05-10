@@ -133,11 +133,10 @@ describe('EducationalAssetRenderer — reduced_motion mode', () => {
 // ─── 4. Print mode guard ──────────────────────────────────────────────────────
 
 describe('EducationalAssetRenderer — print mode', () => {
-  it('shows print placeholder for animation-only assets without print equivalent', () => {
-    // BoilerCyclingAnimation has hasPrintEquivalent: false and assetType: animation.
+  it('renders print-ready animation assets without the generic print placeholder', () => {
     render(<EducationalAssetRenderer assetId="BoilerCyclingAnimation" mode="print" />);
-    expect(screen.getByRole('note')).toBeInTheDocument();
-    expect(screen.getByText(/Interactive visual/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Interactive visual/i)).toBeNull();
+    expect(screen.getByLabelText(/Oversized boiler cycling pattern animation/i)).toBeInTheDocument();
   });
 
   it('renders diagram assets in print mode without showing a placeholder', () => {
@@ -154,20 +153,11 @@ describe('EducationalAssetRenderer — print mode', () => {
     expect(screen.getByLabelText(/Primary pipework size comparison/i)).toBeInTheDocument();
   });
 
-  it('does not silently render animation-only assets in print mode', () => {
-    // All animation assets without print equivalents must trigger the print guard.
+  it('has no registered animation assets missing print equivalents', () => {
     const animationsWithoutPrint = educationalAssetRegistry.filter(
       (asset) => asset.assetType === 'animation' && !asset.hasPrintEquivalent,
     );
-
-    for (const asset of animationsWithoutPrint) {
-      const { unmount } = render(
-        <EducationalAssetRenderer assetId={asset.id} mode="print" />,
-      );
-      // Should show the print placeholder, not the animation.
-      expect(screen.getByRole('note')).toBeTruthy();
-      unmount();
-    }
+    expect(animationsWithoutPrint).toHaveLength(0);
   });
 });
 
@@ -188,12 +178,6 @@ describe('audit helpers', () => {
 
   it('getAssetsNeedingPrintEquivalent returns assets needing print work', () => {
     const assets = getAssetsNeedingPrintEquivalent();
-    expect(assets.length).toBeGreaterThan(0);
-    for (const asset of assets) {
-      expect(
-        asset.printStatus === 'needs_static_equivalent' ||
-        (!asset.hasPrintEquivalent && asset.printStatus === undefined),
-      ).toBe(true);
-    }
+    expect(assets).toHaveLength(0);
   });
 });

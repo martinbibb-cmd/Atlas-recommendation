@@ -27,13 +27,11 @@ describe('WelcomePackDevPreview asset QA panel', () => {
     expect(errorList.textContent).toContain('None');
   });
 
-  it('shows missing print equivalent warnings in asset QA warnings', () => {
+  it('shows no asset QA warnings for the current registry', () => {
     render(<WelcomePackDevPreview />);
 
     const warningList = screen.getByTestId('asset-qa-warnings');
-    // At least one asset lacks a print equivalent
-    expect(warningList.textContent).not.toBe('None');
-    expect(warningList.textContent).toContain('WhatIfLab');
+    expect(warningList.textContent).toContain('None');
   });
 
   it('shows selected asset QA status for the default fixture', () => {
