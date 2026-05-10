@@ -110,6 +110,9 @@ const safeViewModel: CalmWelcomePackViewModelV1 = {
     safeForCustomer: true,
     blockingReasons: [],
   },
+  diagramsBySection: {
+    why_this_fits: ['pressure_vs_storage'],
+  },
 };
 
 describe('CalmWelcomePack', () => {
@@ -194,5 +197,59 @@ describe('CalmWelcomePack', () => {
 
     const { container } = render(<CalmWelcomePack viewModel={safeViewModel} />);
     expect(container.querySelector('.cwpr-print-friendly')).not.toBeNull();
+  });
+
+  it('renders PressureVsStorageDiagram when diagram ID is present for a section', () => {
+    render(<CalmWelcomePack viewModel={safeViewModel} />);
+
+    expect(screen.getByTestId('cwpr-diagram-why_this_fits-pressure_vs_storage')).toBeInTheDocument();
+    expect(screen.getByTestId('diagram-renderer-pressure_vs_storage')).toBeInTheDocument();
+  });
+
+  it('renders WarmVsHotRadiatorsDiagram when warm-radiator concept diagram ID is present', () => {
+    render(
+      <CalmWelcomePack
+        viewModel={{
+          ...safeViewModel,
+          diagramsBySection: {
+            living_with_the_system: ['warm_vs_hot_radiators'],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('cwpr-diagram-living_with_the_system-warm_vs_hot_radiators')).toBeInTheDocument();
+    expect(screen.getByTestId('diagram-renderer-warm_vs_hot_radiators')).toBeInTheDocument();
+  });
+
+  it('renders no diagrams when pack is blocked', () => {
+    render(
+      <CalmWelcomePack
+        viewModel={{
+          ...safeViewModel,
+          readiness: {
+            safeForCustomer: false,
+            blockingReasons: ['Eligibility filter missing.'],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByTestId('diagram-renderer-pressure_vs_storage')).toBeNull();
+  });
+
+  it('does not crash when an unknown diagram ID is present', () => {
+    render(
+      <CalmWelcomePack
+        viewModel={{
+          ...safeViewModel,
+          diagramsBySection: {
+            why_this_fits: ['unknown_diagram_id'],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Why this fits' })).toBeInTheDocument();
   });
 });

@@ -156,4 +156,24 @@ describe('PrintableWelcomePackSkeleton', () => {
     expect(appendixSection).not.toBeNull();
     expect(within(appendixSection as HTMLElement).getByTestId('pwps-asset-placeholder-ControlsVisual')).toBeInTheDocument();
   });
+
+  it('renders print-safe diagrams when section concepts match diagram coverage', () => {
+    const withDiagramConcept: PrintableWelcomePackViewModelV1 = {
+      ...viewModel,
+      sections: viewModel.sections.map((section) => (
+        section.sectionId === 'why_this_fits'
+          ? {
+            ...section,
+            conceptIds: ['pressure_vs_storage'],
+          }
+          : section
+      )),
+    };
+
+    render(<PrintableWelcomePackSkeleton viewModel={withDiagramConcept} />);
+
+    const diagramCard = screen.getByTestId('pwps-diagram-why_this_fits-pressure_vs_storage');
+    expect(diagramCard).toBeInTheDocument();
+    expect(within(diagramCard).getByTestId('diagram-renderer-pressure_vs_storage')).toBeInTheDocument();
+  });
 });

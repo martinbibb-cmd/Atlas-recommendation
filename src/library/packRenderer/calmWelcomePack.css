@@ -65,6 +65,20 @@
   background: #fff;
 }
 
+.cwpr-diagram {
+  margin: 0.85rem 0 0;
+  padding: 0.85rem;
+  border: 1px solid #c7c7c7;
+  background: #fff;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cwpr-diagram-caption {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
 .cwpr-card-title {
   margin: 0 0 0.35rem;
   font-size: 1.15rem;

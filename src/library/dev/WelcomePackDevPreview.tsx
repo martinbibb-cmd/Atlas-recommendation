@@ -45,6 +45,11 @@ import type { WelcomePackValidationReportV1 } from './WelcomePackValidationRepor
 import { AtlasEducationalUiDemo, TrustRecoveryCard } from '../ui';
 import { printEquivalentByAssetId } from '../printEquivalents/printEquivalentRegistry';
 import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
+import { DiagramRenderer } from '../diagrams/DiagramRenderer';
+import {
+  getDiagramsForConcepts,
+  getMissingDiagramCoverageForConcepts,
+} from '../diagrams/diagramLookup';
 
 const GOLDEN_JOURNEY_FIXTURE_IDS: WelcomePackDemoFixtureId[] = [
   'open_vented_to_sealed_unvented',
@@ -95,6 +100,12 @@ interface StoryboardNoticeCard {
   title: string;
   notice: string;
   normalBecause: string;
+}
+
+interface StoryboardDiagramCard {
+  diagramId: string;
+  title: string;
+  whatThisMeans: string;
 }
 
 function toAccessibilityProfiles(dyslexia: boolean, adhd: boolean): Array<'dyslexia' | 'adhd'> {
@@ -440,9 +451,29 @@ export function WelcomePackDevPreview() {
     [assetById, plan.selectedAssetIds],
   );
 
+  const storyboardDiagramCards = useMemo<StoryboardDiagramCard[]>(
+    () => getDiagramsForConcepts(plan.selectedConceptIds).map((diagram) => ({
+      diagramId: diagram.diagramId,
+      title: diagram.title,
+      whatThisMeans: diagram.whatThisMeans,
+    })),
+    [plan.selectedConceptIds],
+  );
+
+  const missingDiagramCoverageConceptIds = useMemo(
+    () => getMissingDiagramCoverageForConcepts(plan.selectedConceptIds),
+    [plan.selectedConceptIds],
+  );
+
+  const deferredDiagramCoverageConceptIds = useMemo(() => {
+    const missingSet = new Set(missingDiagramCoverageConceptIds);
+    return plan.deferredConceptIds.filter((conceptId) => missingSet.has(conceptId));
+  }, [missingDiagramCoverageConceptIds, plan.deferredConceptIds]);
+
   const whyThisFitsCardCount = storyboardSequencedCards.filter((card) => card.sectionTitle === 'Why this fits').length;
   const noticeCardCount = storyboardNoticeCards.length;
   const printCardCount = storyboardPrintCards.length;
+  const storyboardDiagramCount = storyboardDiagramCards.length;
   const safetyCardCount = storyboardSequencedCards.filter((card) => card.content?.safetyNotice).length;
   const qrCardCount = calmViewModel.qrDestinations.length;
 
@@ -527,6 +558,12 @@ export function WelcomePackDevPreview() {
       icon: 'print' as const,
     },
     {
+      id: 'diagrams',
+      label: 'Diagrams',
+      meta: `${storyboardDiagramCount} cards`,
+      icon: 'controls' as const,
+    },
+    {
       id: 'qr',
       label: 'Go deeper',
       meta: `${qrCardCount} cards`,
@@ -537,6 +574,7 @@ export function WelcomePackDevPreview() {
     journeySteps.length,
     printCardCount,
     qrCardCount,
+    storyboardDiagramCount,
     storyboardSequencedCards.length,
   ]);
 
@@ -837,6 +875,29 @@ export function WelcomePackDevPreview() {
             </div>
           </section>
 
+          <section className="atlas-storyboard-panel" aria-labelledby="atlas-storyboard-diagrams-title">
+            <div className="atlas-storyboard-panel__header">
+              <p className="atlas-storyboard-panel__eyebrow">Educational diagrams</p>
+              <h2 id="atlas-storyboard-diagrams-title" className="atlas-storyboard-panel__title">
+                Diagram cards for matched concepts
+              </h2>
+              <p className="atlas-storyboard-panel__content-status" data-testid="storyboard-diagram-badge">
+                {storyboardDiagramCount}
+                {' '}
+                diagrams matched
+              </p>
+            </div>
+            <div className="atlas-storyboard-card-grid" data-testid="storyboard-diagram-cards">
+              {storyboardDiagramCards.map((diagram) => (
+                <article key={diagram.diagramId} className="atlas-storyboard-diagram-card">
+                  <h3 className="atlas-storyboard-diagram-card__title">{diagram.title}</h3>
+                  <DiagramRenderer diagramId={diagram.diagramId} reducedMotion={dyslexia || adhd} />
+                  <p className="atlas-storyboard-diagram-card__caption">{diagram.whatThisMeans}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
           <section className="atlas-storyboard-panel" aria-labelledby="atlas-storyboard-qr-title">
             <div className="atlas-storyboard-panel__header">
               <p className="atlas-storyboard-panel__eyebrow">Go deeper</p>
@@ -908,6 +969,33 @@ export function WelcomePackDevPreview() {
                 <li key={item.assetId}>
                   <strong>{item.assetId}</strong>: {item.reason}
                 </li>
+              ))}
+            </ul>
+          </section>
+
+          <section aria-label="Diagram coverage diagnostics" style={{ marginBottom: '1rem' }}>
+            <h2>Diagram coverage diagnostics</h2>
+            <p data-testid="diagnostics-diagram-count">
+              Matched diagrams:
+              {' '}
+              {storyboardDiagramCount}
+            </p>
+
+            <h3>Missing diagram coverage concepts</h3>
+            <ul data-testid="diagnostics-missing-diagram-coverage">
+              {missingDiagramCoverageConceptIds.length === 0 ? (
+                <li>None</li>
+              ) : missingDiagramCoverageConceptIds.map((conceptId) => (
+                <li key={`missing-diagram-${conceptId}`}>{conceptId}</li>
+              ))}
+            </ul>
+
+            <h3>Deferred concepts without diagram coverage</h3>
+            <ul data-testid="diagnostics-deferred-diagram-coverage">
+              {deferredDiagramCoverageConceptIds.length === 0 ? (
+                <li>None</li>
+              ) : deferredDiagramCoverageConceptIds.map((conceptId) => (
+                <li key={`deferred-missing-diagram-${conceptId}`}>{conceptId}</li>
               ))}
             </ul>
           </section>

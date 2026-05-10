@@ -36,6 +36,8 @@ describe('WelcomePackDevPreview', () => {
     render(<WelcomePackDevPreview />);
 
     expect(screen.getByTestId('storyboard-print-cards').children.length).toBeGreaterThan(0);
+    expect(screen.getByTestId('storyboard-diagram-cards').children.length).toBeGreaterThan(0);
+    expect(screen.getByTestId('storyboard-diagram-badge')).toHaveTextContent(/diagrams matched/i);
     expect(screen.getByTestId('storyboard-qr-cards').children.length).toBeGreaterThan(0);
   });
 
