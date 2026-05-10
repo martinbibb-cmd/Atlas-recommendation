@@ -15,7 +15,7 @@
  *   - isolated preview of each component on tap
  *   - "Copy routes" box at the bottom (plain text / markdown / JSON)
  *
- * NOT customer-facing. Accessible via ?devmenu=1 URL flag.
+ * NOT customer-facing. Accessible via /dev/devmenu (or legacy ?devmenu=1).
  */
 
 import { useState, useMemo, useCallback, type CSSProperties, type ReactNode } from 'react';
@@ -288,7 +288,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         <p style={STYLES.subtitle}>
           Atlas UI surface registry — {DEV_UI_REGISTRY.length} surfaces registered.
           Inspect every UI surface with route details, hierarchy, and access type.
-          Access via <code>?devmenu=1</code>.
+          Access via <code>/dev/devmenu</code> (or <code>?devmenu=1</code>).
         </p>
         {activeUser !== null && (
           <p style={{ margin: '0.25rem 0 0', fontSize: '0.8125rem', color: '#2563eb' }}>

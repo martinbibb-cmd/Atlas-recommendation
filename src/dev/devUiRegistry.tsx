@@ -7,7 +7,7 @@
  * Add entries intentionally and keep commonName, fileName and filePath in sync
  * with the actual source files.
  *
- * NOT customer-facing. Only accessible via the Dev Menu (?devmenu=1 URL flag).
+ * NOT customer-facing. Accessible via the Dev Menu (/dev/devmenu or legacy ?devmenu=1).
  */
 
 import type { ReactNode } from 'react';

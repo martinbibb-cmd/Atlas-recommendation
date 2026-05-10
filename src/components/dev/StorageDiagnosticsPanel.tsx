@@ -11,7 +11,7 @@
  *   - Per-collection clear (with confirmation prompt)
  *   - Copy local → active adapter section (disabled when D1 is not available in browser)
  *
- * NOT customer-facing.  Only accessible via the Dev Menu (?devmenu=1).
+ * NOT customer-facing.  Only accessible via the Dev Menu (/dev/devmenu or legacy ?devmenu=1).
  *
  * Design rules
  * ────────────

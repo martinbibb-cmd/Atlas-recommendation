@@ -161,10 +161,13 @@ function formatSavedAgo(updatedAt: string): string {
   return `${hours}h ago`;
 }
 
-/** Detect ?devmenu=1 — renders the developer component browser on the landing page. */
+/** Detect /dev/devmenu or ?devmenu=1 — renders the developer component browser. */
 const DEV_MENU_ENABLED =
   typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).get('devmenu') === '1';
+  (
+    window.location.pathname === '/dev/devmenu' ||
+    new URLSearchParams(window.location.search).get('devmenu') === '1'
+  );
 
 /** Detect ?lab=1 feature flag — renders Demo Lab directly for previewing. */
 const LAB_MODE_ENABLED =
@@ -1455,12 +1458,12 @@ function AppInner() {
     );
   }
 
-  // ?devmenu=1 feature flag — render Developer Component Browser directly.
+  // /dev/devmenu or ?devmenu=1 — render Developer Component Browser directly.
   if (DEV_MENU_ENABLED) {
     return (
       <DevMenuPage
-        onBack={() => { window.location.href = window.location.pathname; }}
-        onLoadDemoWorkspace={() => { window.location.href = window.location.pathname; }}
+        onBack={() => { window.location.href = '/'; }}
+        onLoadDemoWorkspace={() => { window.location.href = '/'; }}
       />
     );
   }
@@ -2318,7 +2321,7 @@ function AppInner() {
               <p>Dev preview — browse all registered explainer animations with controls and scripts.</p>
               <button className="cta-btn">Open Gallery →</button>
             </div>
-            {/* UI Inventory — component browser, only visible when ?devmenu=1 */}
+            {/* UI Inventory — component browser, only visible when dev menu route is enabled */}
             {DEV_MENU_ENABLED && (
               <div
                 className="journey-card"
