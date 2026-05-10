@@ -98,27 +98,28 @@ function toRoutingAccessibility(
     return {};
   }
 
-  const profiles: EducationalRoutingAccessibilityPreferencesV1['profiles'] = [
-    ...(prefs.profiles ?? []),
-  ];
+  const extraProfiles: EducationalRoutingAccessibilityPreferencesV1['profiles'] = [];
 
-  if (prefs.prefersReducedMotion && !profiles.includes('reduced_motion')) {
-    profiles.push('reduced_motion');
+  if (prefs.prefersReducedMotion) {
+    extraProfiles.push('reduced_motion');
   }
 
-  if (prefs.prefersPrint && !profiles.includes('print_first')) {
-    profiles.push('print_first');
+  if (prefs.prefersPrint) {
+    extraProfiles.push('print_first');
   }
 
-  if (prefs.includeTechnicalAppendix && !profiles.includes('technical_appendix_requested')) {
-    profiles.push('technical_appendix_requested');
+  if (prefs.includeTechnicalAppendix) {
+    extraProfiles.push('technical_appendix_requested');
   }
+
+  const baseProfiles = prefs.profiles ?? [];
+  const allProfiles = [...baseProfiles, ...extraProfiles.filter((p) => !baseProfiles.includes(p))];
 
   return {
     prefersReducedMotion: prefs.prefersReducedMotion,
     prefersPrint: prefs.prefersPrint,
     includeTechnicalAppendix: prefs.includeTechnicalAppendix,
-    profiles: profiles.length > 0 ? profiles : undefined,
+    profiles: allProfiles.length > 0 ? allProfiles : undefined,
   };
 }
 
@@ -398,8 +399,8 @@ export function buildCalmWelcomePackViewModel(
     // educational rhythm (reassurance → expectation → lived experience → ...) is
     // respected even when the plan places multiple concepts in the same section.
     cards.sort((a, b) => {
-      const posA = a.conceptId !== undefined ? (conceptPositionMap.get(a.conceptId) ?? Infinity) : Infinity;
-      const posB = b.conceptId !== undefined ? (conceptPositionMap.get(b.conceptId) ?? Infinity) : Infinity;
+      const posA = conceptPositionMap.get(a.conceptId ?? '') ?? Infinity;
+      const posB = conceptPositionMap.get(b.conceptId ?? '') ?? Infinity;
       return posA - posB;
     });
 
@@ -527,9 +528,7 @@ export function buildCalmWelcomePackViewModel(
     sequencingMetadata: {
       archetypeId: archetypeId ?? plan.archetypeId,
       appliedMaxSimultaneous,
-      stagesPresent: [
-        ...new Set(sequenceResult.orderedSequence.map((c) => c.sequenceStage)),
-      ],
+      stagesPresent: Array.from(new Set(sequenceResult.orderedSequence.map((c) => c.sequenceStage))),
     },
     deferredBySequencing: deferredBySequencing.length > 0 ? deferredBySequencing : undefined,
     pacingWarnings: sequenceResult.overloadWarnings.length > 0 ? sequenceResult.overloadWarnings : undefined,

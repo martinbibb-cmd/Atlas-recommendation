@@ -153,6 +153,8 @@ const CUSTOMER_SUMMARY: CustomerSummaryV1 = {
 const REASSURANCE_CONCEPT = 'system_fit_explanation';
 const LIVED_CONCEPT = 'operating_behaviour';
 const MISCONCEPTION_CONCEPT = 'boiler_cycling';
+// reassurance-stage hydraulic safety concept (used in pacing-warning tests)
+const HYDRO_SAFETY_CONCEPT = 'HYD-02';
 
 // ─── 1. Sequencing stage order ────────────────────────────────────────────────
 
@@ -219,12 +221,12 @@ describe('buildCalmWelcomePackViewModel — sequencing stage order', () => {
     });
 
     const explainers = vm.customerFacingSections.find((s) => s.sectionId === 'relevant_explainers');
-    if (!explainers) {
-      // The misconception concept may have been deferred; that's acceptable.
-      return;
-    }
 
-    const conceptIds = explainers.cards.map((c) => c.conceptId).filter(Boolean);
+    // All three concepts are present with their prerequisites satisfied, so at
+    // least some concept cards must appear in the relevant_explainers section.
+    expect(explainers).toBeDefined();
+
+    const conceptIds = explainers!.cards.map((c) => c.conceptId).filter(Boolean);
 
     // If all three are present, reassurance must come first.
     const reassurancePos = conceptIds.indexOf(REASSURANCE_CONCEPT);
@@ -457,11 +459,11 @@ describe('buildCalmWelcomePackViewModel — deferred concepts not silently lost'
 describe('buildCalmWelcomePackViewModel — pacing warnings are internal only', () => {
   it('pacing warnings do not appear in customerFacingSections or qrDestinations', () => {
     // Use two reassurance-stage concepts with ADHD active → expect overload warnings.
-    const selectedConceptIds = [REASSURANCE_CONCEPT, 'HYD-02'];
+    const selectedConceptIds = [REASSURANCE_CONCEPT, HYDRO_SAFETY_CONCEPT];
     const plan = buildPlan(selectedConceptIds, ['asset-reassurance', 'asset-hyd02']);
     const assets = [
       makeAsset('asset-reassurance', [REASSURANCE_CONCEPT]),
-      makeAsset('asset-hyd02', ['HYD-02']),
+      makeAsset('asset-hyd02', [HYDRO_SAFETY_CONCEPT]),
     ];
     const educationalContent = selectedConceptIds.map(makeContent);
     const taxonomy = selectedConceptIds.map((id) => makeTaxonomyConcept(id));
