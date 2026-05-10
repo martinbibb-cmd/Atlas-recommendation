@@ -5,6 +5,7 @@ import {
   EducationalCard,
   PrintSafePanel,
   SafetyNoticeCard,
+  SystemFactCard,
   TrustRecoveryCard,
   WhatToExpectCard,
   type EducationalMotionMode,
@@ -107,6 +108,78 @@ export function OpenVentedToSealedUnventedJourney({
         />
       </CalmSection>
 
+      <ConceptDivider label="Changes in your home" />
+
+      <CalmSection
+        title="What changes in your home"
+        intro="Name the physical and operational changes so nothing comes as a surprise on installation day."
+        headingLevel={3}
+      >
+        <SystemFactCard
+          title="Loft tanks are removed"
+          fact="Cold water storage tanks and the header tank in the loft are removed. The loft space clears and the frost risk from exposed tanks goes away."
+          ariaLabel="Loft tanks removed"
+          headingLevel={4}
+        />
+        <SystemFactCard
+          title="The heating circuit becomes a sealed loop"
+          fact="Heating water circulates in a closed pressurised circuit. Pressure is set at commissioning and checked occasionally at the filling loop."
+          ariaLabel="Sealed heating circuit"
+          headingLevel={4}
+        />
+        <SystemFactCard
+          title="Hot water runs at mains pressure"
+          fact="The unvented cylinder stores hot water at mains pressure rather than the limited head of a loft tank. All hot water outlets now match your cold supply pressure."
+          ariaLabel="Mains pressure hot water"
+          headingLevel={4}
+        />
+        <SystemFactCard
+          title="Shower overlap improves where mains supply allows"
+          fact="Simultaneous use from more than one hot water outlet depends on the available mains flow rate. Where mains flow is sufficient, overlap performance is noticeably better."
+          ariaLabel="Shower overlap improvement"
+          headingLevel={4}
+        />
+        <SystemFactCard
+          title="The safety discharge becomes visible"
+          fact="The tundish is a standard fitting that shows when relief valves have operated. Your installer will position it where it can be seen and checked."
+          ariaLabel="Safety discharge tundish"
+          headingLevel={4}
+        />
+      </CalmSection>
+
+      <ConceptDivider label="What stays familiar" />
+
+      <CalmSection
+        title="What stays familiar"
+        intro="Reassure customers that the heating side of the home is unchanged — only the hot water supply is upgraded."
+        headingLevel={3}
+      >
+        <SystemFactCard
+          title="Radiators still heat every room"
+          fact="Your radiators, pipework, and any zone valves are unchanged. The heating distribution works exactly as it did before."
+          ariaLabel="Radiators unchanged"
+          headingLevel={4}
+        />
+        <SystemFactCard
+          title="Your programmer or thermostat still controls heating"
+          fact="Existing scheduling and temperature controls carry over. No new heating control interface is introduced on the heating side."
+          ariaLabel="Programmer unchanged"
+          headingLevel={4}
+        />
+        <SystemFactCard
+          title="The boiler still heats your home"
+          fact="The boiler fires to heat radiators and to charge the stored cylinder, as a system boiler always has. Nothing changes in how the boiler heats your home."
+          ariaLabel="Boiler role unchanged"
+          headingLevel={4}
+        />
+        <SystemFactCard
+          title="Your installer will explain the pressure gauge"
+          fact="A pressure gauge and filling loop are standard fittings your installer will walk you through. Topping up pressure occasionally is a one-minute routine."
+          ariaLabel="Pressure gauge explained"
+          headingLevel={4}
+        />
+      </CalmSection>
+
       <ConceptDivider label="Safety and trust" />
 
       <CalmSection
@@ -127,6 +200,47 @@ export function OpenVentedToSealedUnventedJourney({
           whatItMeans="The system is now operating with a different pressure-source profile and may need minor user habit adjustment."
           whatToDoNext="Keep core settings stable and request one evidence-led review if comfort still feels off after a full day."
           ariaLabel="Open-vented trust recovery"
+          headingLevel={4}
+        />
+      </CalmSection>
+
+      <ConceptDivider label="What not to worry about" />
+
+      <CalmSection
+        title="What not to worry about"
+        intro="Address common concerns directly so customers do not misread normal system features as problems."
+        headingLevel={3}
+      >
+        <TrustRecoveryCard
+          title="The cylinder is not old-fashioned"
+          thisCanHappen="Some customers expect a modern upgrade to remove all storage in favour of on-demand flow."
+          whatItMeans="An unvented cylinder is modern sealed storage that delivers mains pressure without a pump."
+          whatToDoNext="No change is needed — the cylinder is correctly sized and specified for your home."
+          ariaLabel="Cylinder not old-fashioned"
+          headingLevel={4}
+        />
+        <TrustRecoveryCard
+          title="Unvented does not mean uncontrolled"
+          thisCanHappen="The term 'unvented' can suggest the cylinder lacks safety controls or proper venting."
+          whatItMeans="Unvented means sealed from the atmosphere, not unprotected. Multiple independent relief devices are fitted."
+          whatToDoNext="Your installer will confirm all pressure and temperature safety devices are commissioned before handover."
+          ariaLabel="Unvented not uncontrolled"
+          headingLevel={4}
+        />
+        <TrustRecoveryCard
+          title="The tundish is a safety indicator, not a fault"
+          thisCanHappen="A small occasional drip from the tundish during a heating cycle can look like a leak."
+          whatItMeans="The tundish shows that the pressure relief system operated correctly. An occasional discharge is normal."
+          whatToDoNext="If discharge continues after the system settles, request a qualified safety check rather than ignoring it."
+          ariaLabel="Tundish safety indicator"
+          headingLevel={4}
+        />
+        <TrustRecoveryCard
+          title="Pressure is managed automatically"
+          thisCanHappen="A pressure gauge and expansion vessel can feel unfamiliar on the first encounter."
+          whatItMeans="System pressure is managed by the expansion vessel and relief valves. Routine management is not required."
+          whatToDoNext="Check the gauge occasionally and top up at the filling loop only if pressure falls below the set range."
+          ariaLabel="Pressure managed automatically"
           headingLevel={4}
         />
       </CalmSection>
@@ -221,6 +335,33 @@ export function getOpenVentedToSealedUnventedJourneyParagraphs(): string[] {
     openVentedUpgradeContent.printSummary,
     'These diagrams show how pressure, storage, and system topology work together.',
     'Use this checklist to catch unresolved assumptions before they become complaints.',
+    // What changes in your home
+    'Name the physical and operational changes so nothing comes as a surprise on installation day.',
+    'Cold water storage tanks and the header tank in the loft are removed. The loft space clears and the frost risk from exposed tanks goes away.',
+    'Heating water circulates in a closed pressurised circuit. Pressure is set at commissioning and checked occasionally at the filling loop.',
+    'The unvented cylinder stores hot water at mains pressure rather than the limited head of a loft tank. All hot water outlets now match your cold supply pressure.',
+    'Simultaneous use from more than one hot water outlet depends on the available mains flow rate. Where mains flow is sufficient, overlap performance is noticeably better.',
+    'The tundish is a standard fitting that shows when relief valves have operated. Your installer will position it where it can be seen and checked.',
+    // What stays familiar
+    'Reassure customers that the heating side of the home is unchanged — only the hot water supply is upgraded.',
+    'Your radiators, pipework, and any zone valves are unchanged. The heating distribution works exactly as it did before.',
+    'Existing scheduling and temperature controls carry over. No new heating control interface is introduced on the heating side.',
+    'The boiler fires to heat radiators and to charge the stored cylinder, as a system boiler always has. Nothing changes in how the boiler heats your home.',
+    'A pressure gauge and filling loop are standard fittings your installer will walk you through. Topping up pressure occasionally is a one-minute routine.',
+    // What not to worry about
+    'Address common concerns directly so customers do not misread normal system features as problems.',
+    'Some customers expect a modern upgrade to remove all storage in favour of on-demand flow.',
+    'An unvented cylinder is modern sealed storage that delivers mains pressure without a pump.',
+    'No change is needed — the cylinder is correctly sized and specified for your home.',
+    "The term 'unvented' can suggest the cylinder lacks safety controls or proper venting.",
+    'Unvented means sealed from the atmosphere, not unprotected. Multiple independent relief devices are fitted.',
+    'Your installer will confirm all pressure and temperature safety devices are commissioned before handover.',
+    'A small occasional drip from the tundish during a heating cycle can look like a leak.',
+    'The tundish shows that the pressure relief system operated correctly. An occasional discharge is normal.',
+    'If discharge continues after the system settles, request a qualified safety check rather than ignoring it.',
+    'A pressure gauge and expansion vessel can feel unfamiliar on the first encounter.',
+    'System pressure is managed by the expansion vessel and relief valves. Routine management is not required.',
+    'Check the gauge occasionally and top up at the filling loop only if pressure falls below the set range.',
   ];
 }
 
