@@ -1152,7 +1152,7 @@ export const welcomePackDemoFixtures: Record<WelcomePackDemoFixtureId, WelcomePa
       },
     ],
     // 'hot_radiator_expectation' triggers heat_pump_reality archetype (beats heat_pump_install)
-    userConcernTags: ['hot_radiator_expectation', 'heat_pump_trust', 'expectation_management'],
+    userConcernTags: ['hot_radiator_expectation', 'heat_pump_trust', 'heat_pump_expectation_management'],
     propertyConstraintTags: [],
     accessibilityPreferences: {
       prefersPrint: true,

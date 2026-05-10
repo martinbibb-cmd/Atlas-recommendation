@@ -203,7 +203,7 @@ export const educationalRoutingRules: EducationalRoutingRuleV1[] = [
     label: 'Why not a combi — flow and simultaneous-use explanation',
     description:
       'Route targeted explainers for customers asking why a combi may not be the right fit due to flow or simultaneous-use limitations.',
-    triggerTags: ['why_not_combi', 'combi', 'simultaneous_use', 'flow_limitation'],
+    triggerTags: ['why_not_combi', 'combi_limitation', 'simultaneous_use', 'flow_limitation'],
     requiredConceptIds: ['flow_restriction', 'pipework_constraint', 'system_fit_explanation'],
     preferredAssetTypes: ['animation', 'diagram', 'explainer'],
     requiredEngineFacts: ['hydraulic_constraint_present'],
@@ -316,12 +316,12 @@ export const educationalRoutingRules: EducationalRoutingRuleV1[] = [
     label: 'Hot radiator expectation — warm-not-hot heat pump framing',
     description:
       'Route trust-recovery and expectation-setting assets for heat-pump journeys where customers may expect radiators to be as hot as from a gas boiler. Covers warm-not-hot operation, steady running, and compensation control behaviour.',
-    triggerTags: ['hot_radiator_expectation', 'radiator_temperature', 'heat_pump_trust', 'expectation_management'],
+    triggerTags: ['hot_radiator_expectation', 'radiator_temperature', 'heat_pump_trust', 'heat_pump_expectation_management'],
     requiredConceptIds: ['emitter_sizing', 'flow_temperature', 'system_fit_explanation'],
     preferredAssetTypes: ['diagram', 'print_sheet', 'checklist'],
     requiredEngineFacts: ['emitter_upgrade_or_high_temp_note'],
     appliesToScenarioTypes: ['ashp'],
-    appliesToUserConcernTags: ['hot_radiator_expectation', 'heat_pump_trust', 'expectation_management'],
+    appliesToUserConcernTags: ['hot_radiator_expectation', 'heat_pump_trust', 'heat_pump_expectation_management'],
     includeReason: 'Selected to set accurate warm-not-hot expectations and recover trust for heat-pump journeys.',
     omitReason: 'No evidence of hot-radiator expectation mismatch in this context.',
     priority: 99,

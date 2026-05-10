@@ -397,7 +397,7 @@ export function detectWelcomePackArchetype(input: WelcomePackComposerInputV1): W
   // heat_pump_reality beats heat_pump_install when expectation/trust tags are present
   if (
     systemType === 'ashp'
-    && includesAny(concernTags, ['hot_radiator_expectation', 'heat_pump_trust', 'expectation_management'])
+    && includesAny(concernTags, ['hot_radiator_expectation', 'heat_pump_trust', 'heat_pump_expectation_management'])
   ) {
     return getArchetypeById('heat_pump_reality');
   }
