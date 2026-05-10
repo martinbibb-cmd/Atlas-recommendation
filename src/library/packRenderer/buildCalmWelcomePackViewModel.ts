@@ -12,7 +12,7 @@ import type {
 } from './CalmWelcomePackViewModelV1';
 
 const MAX_CALM_PACK_PAGES = 4;
-const DEFERRED_REASON_PATTERN = /defer|deferred|qr|deep|appendix|detail|budget|cognitive load/i;
+const DEFERRED_REASON_PATTERN = /\bdefer(?:red)?\b|\bqr\b|\bdeep(?:er)?\b|\bappendix\b|\bdetail\b|\bbudget\b/i;
 
 const SECTION_ORDER: CalmWelcomePackSectionId[] = [
   'calm_summary',
@@ -92,7 +92,7 @@ function sectionCardsFromCustomerSummary(customerSummary: CustomerSummaryV1): Ca
   return cards;
 }
 
-function toCardSummary(
+function getCardSummaryForSection(
   content: EducationalContentV1,
   includeTechnicalAppendix: boolean,
   sectionId: CalmWelcomePackSectionId,
@@ -172,6 +172,7 @@ export function buildCalmWelcomePackViewModel(
       continue;
     }
 
+    // Calm packs are intentionally low-load for customer-first delivery.
     if (asset.cognitiveLoad !== 'low') {
       internalOmissionLog.push({
         assetId,
@@ -260,7 +261,7 @@ export function buildCalmWelcomePackViewModel(
           continue;
         }
 
-        const summary = toCardSummary(content, includeTechnicalAppendix, sectionId);
+        const summary = getCardSummaryForSection(content, includeTechnicalAppendix, sectionId);
         if (summary.length === 0) {
           internalOmissionLog.push({
             sectionId,
@@ -360,7 +361,10 @@ export function buildCalmWelcomePackViewModel(
     }
 
     const title = assetConceptIds
-      .map((conceptId) => contentByConceptId.get(conceptId)?.qrDeepDiveTitle || contentByConceptId.get(conceptId)?.title)
+      .map((conceptId) => {
+        const content = contentByConceptId.get(conceptId);
+        return content?.qrDeepDiveTitle || content?.title;
+      })
       .find((value): value is string => Boolean(value && value.trim().length > 0))
       ?? asset?.title
       ?? assetId;

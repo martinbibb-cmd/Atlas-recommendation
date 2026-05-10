@@ -60,7 +60,11 @@ const taxonomy: EducationalConceptTaxonomyV1[] = [
   },
 ];
 
-function makeAsset(id: string, conceptIds: string[], cognitiveLoad: EducationalAssetV1['cognitiveLoad'] = 'low'): EducationalAssetV1 {
+function createMockAsset(
+  id: string,
+  conceptIds: string[],
+  cognitiveLoad: EducationalAssetV1['cognitiveLoad'] = 'low',
+): EducationalAssetV1 {
   return {
     id,
     conceptIds,
@@ -83,11 +87,11 @@ function makeAsset(id: string, conceptIds: string[], cognitiveLoad: EducationalA
 }
 
 const assets: EducationalAssetV1[] = [
-  makeAsset('EligibleAsset', ['CON-01']),
-  makeAsset('IneligibleAsset', ['CON-01']),
-  makeAsset('MissingContentAsset', ['MISSING-01']),
-  makeAsset('SafetyAsset', ['SAF-01']),
-  makeAsset('MediumLoadAsset', ['CON-01'], 'medium'),
+  createMockAsset('EligibleAsset', ['CON-01']),
+  createMockAsset('IneligibleAsset', ['CON-01']),
+  createMockAsset('MissingContentAsset', ['MISSING-01']),
+  createMockAsset('SafetyAsset', ['SAF-01']),
+  createMockAsset('MediumLoadAsset', ['CON-01'], 'medium'),
 ];
 
 const educationalContent: EducationalContentV1[] = [
