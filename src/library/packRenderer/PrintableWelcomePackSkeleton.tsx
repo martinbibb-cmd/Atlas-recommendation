@@ -1,5 +1,7 @@
 import type { PrintableWelcomePackSectionV1, PrintableWelcomePackViewModelV1 } from './PrintableWelcomePackViewModelV1';
 import { getPrintEquivalentForAsset } from '../printEquivalents/getPrintEquivalentForAsset';
+import { DiagramRenderer } from '../diagrams/DiagramRenderer';
+import { getDiagramsForConcepts } from '../diagrams/diagramLookup';
 import './printableWelcomePack.css';
 
 export interface PrintableWelcomePackSkeletonProps {
@@ -64,6 +66,21 @@ function renderAssetPlaceholders(assetIds: string[], sectionId: PrintableWelcome
   );
 }
 
+function renderPrintSafeDiagram(conceptIds: string[], sectionId: PrintableWelcomePackSectionV1['sectionId']) {
+  const firstMatchingDiagram = getDiagramsForConcepts(conceptIds)[0];
+  if (!firstMatchingDiagram) {
+    return null;
+  }
+
+  return (
+    <figure className="pwps-asset-card pwps-asset-card--print-equivalent" data-testid={`pwps-diagram-${sectionId}-${firstMatchingDiagram.diagramId}`}>
+      <strong className="pwps-asset-card__title">{firstMatchingDiagram.title}</strong>
+      <DiagramRenderer diagramId={firstMatchingDiagram.diagramId} printSafe reducedMotion />
+      <figcaption className="pwps-asset-card__summary">{firstMatchingDiagram.whatThisMeans}</figcaption>
+    </figure>
+  );
+}
+
 export function PrintableWelcomePackSkeleton({ viewModel }: PrintableWelcomePackSkeletonProps) {
   const sectionById = new Map(viewModel.sections.map((section) => [section.sectionId, section]));
   const orderedSections = [
@@ -119,6 +136,7 @@ export function PrintableWelcomePackSkeleton({ viewModel }: PrintableWelcomePack
             <p className="pwps-purpose">{section.purpose}</p>
             <p className="pwps-placeholder">{section.placeholderText}</p>
             {renderAssetPlaceholders(section.assetIds, section.sectionId)}
+            {renderPrintSafeDiagram(section.conceptIds, section.sectionId)}
           </section>
         );
       })}

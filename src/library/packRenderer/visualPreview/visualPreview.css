@@ -34,6 +34,13 @@
   color: #132238;
 }
 
+.atlas-storyboard-panel__content-status {
+  margin: 0;
+  color: #234a7d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 .atlas-storyboard-page-strip,
 .atlas-storyboard-card-grid,
 .atlas-storyboard-support-grid,
@@ -142,4 +149,18 @@
 .atlas-storyboard-preview-note {
   margin: 0;
   color: #52657d;
+}
+
+.atlas-storyboard-diagram-card {
+  border: 1px solid #d8e0eb;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 0.9rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.atlas-storyboard-diagram-card__title,
+.atlas-storyboard-diagram-card__caption {
+  margin: 0;
 }

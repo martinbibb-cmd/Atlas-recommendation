@@ -1,8 +1,11 @@
 import type { CalmWelcomePackSectionV1, CalmWelcomePackViewModelV1 } from './CalmWelcomePackViewModelV1';
+import { DiagramRenderer } from '../diagrams/DiagramRenderer';
+import { getDiagramById } from '../diagrams/diagramExplanationRegistry';
 import './calmWelcomePack.css';
 
 export interface CalmWelcomePackProps {
   viewModel: CalmWelcomePackViewModelV1;
+  printSafe?: boolean;
 }
 
 function renderCards(section: CalmWelcomePackSectionV1) {
@@ -22,7 +25,7 @@ function renderCards(section: CalmWelcomePackSectionV1) {
   );
 }
 
-export function CalmWelcomePack({ viewModel }: CalmWelcomePackProps) {
+export function CalmWelcomePack({ viewModel, printSafe = false }: CalmWelcomePackProps) {
   if (!viewModel.readiness.safeForCustomer) {
     return (
       <section className="cwpr-blocking-panel cwpr-print-friendly" aria-labelledby="cwpr-blocking-title" data-testid="cwpr-blocking-panel">
@@ -59,6 +62,9 @@ export function CalmWelcomePack({ viewModel }: CalmWelcomePackProps) {
           return null;
         }
 
+        const sectionDiagramId = viewModel.diagramsBySection?.[section.sectionId]?.[0];
+        const sectionDiagramExplanation = sectionDiagramId ? getDiagramById(sectionDiagramId) : undefined;
+
         return (
           <section
             key={section.sectionId}
@@ -67,6 +73,19 @@ export function CalmWelcomePack({ viewModel }: CalmWelcomePackProps) {
           >
             <h2 id={`cwpr-heading-${section.sectionId}`} className="cwpr-section-heading">{section.title}</h2>
             {renderCards(section)}
+            {sectionDiagramId ? (
+              <figure
+                className="cwpr-diagram"
+                data-testid={`cwpr-diagram-${section.sectionId}-${sectionDiagramId}`}
+              >
+                <DiagramRenderer diagramId={sectionDiagramId} printSafe={printSafe} />
+                {sectionDiagramExplanation?.whatThisMeans ? (
+                  <figcaption className="cwpr-diagram-caption">
+                    {sectionDiagramExplanation.whatThisMeans}
+                  </figcaption>
+                ) : null}
+              </figure>
+            ) : null}
           </section>
         );
       })}
