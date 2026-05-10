@@ -6,7 +6,7 @@
  * Shows privacy-first aggregate statistics computed from the local analytics
  * store — no survey data, PII, or raw payloads are displayed.
  *
- * Accessible from the developer menu (?devmenu=1) only.
+ * Accessible from the developer menu (/dev/devmenu or legacy ?devmenu=1) only.
  *
  * Displays:
  *   - Total visits created

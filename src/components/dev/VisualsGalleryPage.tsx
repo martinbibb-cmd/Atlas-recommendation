@@ -9,7 +9,7 @@
  *   - Lego Builder Components: every entry in PALETTE_SECTIONS, shown as
  *     expandable category panels with per-item tiles.
  *
- * Accessible inside the Dev Menu (?devmenu=1) via the "Visuals Gallery" tab.
+ * Accessible inside the Dev Menu (/dev/devmenu or legacy ?devmenu=1) via the "Visuals Gallery" tab.
  * NOT customer-facing.
  */
 
