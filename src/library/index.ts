@@ -5,6 +5,7 @@ export * from './taxonomy';
 export * from './content';
 export * from './printEquivalents';
 export * from './ui';
+export * from './demoJourneys';
 
 export * from './packRenderer';
 export * from './dev';
