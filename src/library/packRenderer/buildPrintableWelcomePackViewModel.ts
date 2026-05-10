@@ -1,4 +1,5 @@
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
+import type { EducationalContentV1 } from '../content/EducationalContentV1';
 import type { EducationalAssetV1 } from '../contracts/EducationalAssetV1';
 import type { WelcomePackPlanV1 } from '../packComposer/WelcomePackComposerV1';
 import type { EducationalConceptTaxonomyV1 } from '../taxonomy/EducationalConceptTaxonomyV1';
@@ -93,6 +94,11 @@ const PLAN_MIRRORED_SECTION_IDS = [
 type PlanMirroredSectionId = (typeof PLAN_MIRRORED_SECTION_IDS)[number];
 const PLAN_MIRRORED_SECTION_SET = new Set<PlanMirroredSectionId>(PLAN_MIRRORED_SECTION_IDS);
 
+export interface BuildPrintableWelcomePackContentOptionsV1 {
+  educationalContent?: EducationalContentV1[];
+  includeTechnicalAppendix?: boolean;
+}
+
 function uniqueInOrder(values: string[]): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
@@ -134,17 +140,33 @@ function computeHighestCognitiveLoad(assetIds: string[], assetsById: Map<string,
   return highest;
 }
 
+function buildCoreSnippet(entry: EducationalContentV1): string {
+  const summary = entry.printSummary.trim() || entry.customerExplanation.trim();
+  return `${entry.title}: ${summary}`;
+}
+
+function buildSafetySnippet(entry: EducationalContentV1): string | undefined {
+  if (!entry.safetyNotice || entry.safetyNotice.trim().length === 0) {
+    return undefined;
+  }
+  return `${entry.title}: ${entry.safetyNotice.trim()}`;
+}
+
 export function buildPrintableWelcomePackViewModel(
   plan: WelcomePackPlanV1,
   customerSummary: CustomerSummaryV1,
   concepts: EducationalConceptTaxonomyV1[],
   assets: EducationalAssetV1[],
+  options?: BuildPrintableWelcomePackContentOptionsV1,
 ): PrintableWelcomePackViewModelV1 {
   const selectedAssetIds = new Set(plan.selectedAssetIds);
   const selectedConceptIds = new Set(plan.selectedConceptIds);
   const deferredConceptIds = new Set(plan.deferredConceptIds);
   const conceptById = new Map(concepts.map((concept) => [concept.conceptId, concept]));
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
+  const contentByConceptId = new Map(
+    (options?.educationalContent ?? []).map((entry) => [entry.conceptId, entry]),
+  );
   const omittedReasonByAssetId = new Map(plan.omittedAssetIdsWithReason.map((item) => [item.assetId, item.reason]));
 
   const sectionAssetIds: Record<PrintableWelcomePackSectionId, string[]> = {
@@ -207,13 +229,50 @@ export function buildPrintableWelcomePackViewModel(
         .filter((conceptId) => selectedConceptIds.has(conceptId)),
     );
 
+    const sectionContent = conceptIds
+      .map((conceptId) => contentByConceptId.get(conceptId))
+      .filter((entry): entry is EducationalContentV1 => Boolean(entry));
+
+    const coreSnippets = sectionContent.map(buildCoreSnippet);
+
+    const selectedContent = plan.selectedConceptIds
+      .map((conceptId) => contentByConceptId.get(conceptId))
+      .filter((entry): entry is EducationalContentV1 => Boolean(entry));
+
+    const safetySnippets = template.sectionId === 'safety_and_compliance'
+      ? uniqueInOrder(
+        selectedContent
+          .map(buildSafetySnippet)
+          .filter((snippet): snippet is string => Boolean(snippet)),
+      )
+      : [];
+
+    const appendixSnippets = template.sectionId === 'optional_technical_appendix' && options?.includeTechnicalAppendix
+      ? uniqueInOrder(
+        sectionContent
+          .map((entry) => {
+            if (!entry.technicalAppendixSummary || entry.technicalAppendixSummary.trim().length === 0) {
+              return undefined;
+            }
+            return `${entry.title}: ${entry.technicalAppendixSummary.trim()}`;
+          })
+          .filter((snippet): snippet is string => Boolean(snippet)),
+      )
+      : [];
+
+    const contentSnippets = template.sectionId === 'optional_technical_appendix'
+      ? appendixSnippets
+      : uniqueInOrder([...coreSnippets, ...safetySnippets]);
+
     return {
       sectionId: template.sectionId,
       title: template.title,
       purpose: template.purpose,
       conceptIds,
       assetIds,
-      placeholderText: template.placeholderText,
+      placeholderText: contentSnippets.length > 0
+        ? contentSnippets.join('\n\n')
+        : template.placeholderText,
       printPriority: template.printPriority,
       cognitiveLoadEstimate: computeHighestCognitiveLoad(assetIds, assetById),
     };
