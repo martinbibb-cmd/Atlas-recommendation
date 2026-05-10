@@ -8,6 +8,7 @@ import { buildEducationalSequence } from '../sequencing/buildEducationalSequence
 import type { SequencingContextTagsV1 } from '../sequencing/buildEducationalSequence';
 import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
 import type { EducationalConceptTaxonomyV1 } from '../taxonomy/EducationalConceptTaxonomyV1';
+import { getDiagramsForWelcomePackPlan } from '../diagrams/diagramLookup';
 import type {
   CalmWelcomePackCardV1,
   CalmWelcomePackDeferredBySequencingV1,
@@ -511,6 +512,33 @@ export function buildCalmWelcomePackViewModel(
     reason: d.reason,
   }));
 
+  // ── Diagram wiring ────────────────────────────────────────────────────────
+  // Derive which educational diagrams are relevant to this pack based on the
+  // plan's selected concept IDs, then group them by section so renderers can
+  // place diagrams alongside the section cards they support.
+  const relevantDiagrams = getDiagramsForWelcomePackPlan(plan);
+  const diagramIds = relevantDiagrams.length > 0
+    ? relevantDiagrams.map((d) => d.diagramId)
+    : undefined;
+
+  const diagramsBySection: Partial<Record<CalmWelcomePackSectionId, string[]>> = {};
+  for (const diagram of relevantDiagrams) {
+    // A diagram belongs to the section whose cards share at least one of the
+    // diagram's concept IDs. Walk the ordered sections to find matches.
+    for (const section of orderedSections) {
+      const sectionConceptIds = new Set(
+        section.cards.map((card) => card.conceptId).filter((id): id is string => Boolean(id)),
+      );
+      const matches = diagram.conceptIds.some((id) => sectionConceptIds.has(id));
+      if (matches) {
+        const existing = diagramsBySection[section.sectionId] ?? [];
+        if (!existing.includes(diagram.diagramId)) {
+          diagramsBySection[section.sectionId] = [...existing, diagram.diagramId];
+        }
+      }
+    }
+  }
+
   return {
     packId: plan.packId,
     recommendedScenarioId: plan.recommendedScenarioId,
@@ -526,6 +554,8 @@ export function buildCalmWelcomePackViewModel(
       safeForCustomer: blockingReasons.length === 0,
       blockingReasons,
     },
+    diagramIds,
+    diagramsBySection: Object.keys(diagramsBySection).length > 0 ? diagramsBySection : undefined,
     sequencingMetadata: {
       archetypeId: archetypeId ?? plan.archetypeId,
       appliedMaxSimultaneous,
