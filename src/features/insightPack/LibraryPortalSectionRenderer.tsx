@@ -30,11 +30,16 @@ const DIAGRAM_ID_ALIASES: Record<string, string> = {
   open_to_sealed: 'open_vented_to_unvented',
 };
 const MAX_PORTAL_CARDS = 4;
-const FALLBACK_DIAGRAMS: Record<'stored_hot_water' | 'low_temp_heat' | 'water_main_constraint', string> = {
+const FORCED_SMOKE_TEST_DIAGRAMS: Record<'stored_hot_water' | 'low_temp_heat' | 'water_main_constraint', string> = {
   stored_hot_water: 'pressure_vs_storage',
   low_temp_heat: 'warm_vs_hot_radiators',
   water_main_constraint: 'water_main_limitation',
 };
+const STORED_HOT_WATER_SCENARIO_PATTERN = /\b(system_unvented|regular_unvented|unvented)\b/i;
+const STORED_HOT_WATER_LABEL_PATTERN = /\b(stored hot water|unvented|system boiler)\b/i;
+const LOW_TEMP_SCENARIO_PATTERN = /\b(heat_pump|ashp)\b/i;
+const LOW_TEMP_TAG_PATTERN = /\b(heat_pump|low_temp|flow_temperature)\b/i;
+const WATER_CONSTRAINT_TAG_PATTERN = /\b(pressure|flow|hydraulic|mains)\b/i;
 
 function toRenderableDiagramId(diagramId: string): string | undefined {
   const normalized = diagramId
@@ -43,6 +48,16 @@ function toRenderableDiagramId(diagramId: string): string | undefined {
     .toLowerCase();
   const aliased = DIAGRAM_ID_ALIASES[normalized] ?? normalized;
   return getDiagramById(aliased) ? aliased : undefined;
+}
+
+function stableUnique(values: string[]): string[] {
+  const uniqueValues: string[] = [];
+  for (const value of values) {
+    if (!uniqueValues.includes(value)) {
+      uniqueValues.push(value);
+    }
+  }
+  return uniqueValues;
 }
 
 export function LibraryPortalSectionRenderer({
@@ -113,37 +128,30 @@ export function LibraryPortalSectionRenderer({
     () => [...new Set(matchedMvpEntries.flatMap((entry) => entry.suggestedAnimationIds))],
     [matchedMvpEntries],
   );
+  const composedScenarioId = composed?.brandedViewModel.recommendedScenarioId;
+  const recommendationMatches = Boolean(
+    composedScenarioId
+    && customerSummary.recommendedScenarioId
+    && composedScenarioId === customerSummary.recommendedScenarioId,
+  );
   const fallbackReason = useMemo(() => {
     if (!composed) return 'library_composition_failed';
     if (!composed.readiness.safeForCustomer) return 'library_output_not_safe_for_customer';
-    if (composed.brandedViewModel.recommendedScenarioId !== customerSummary.recommendedScenarioId) {
+    if (!recommendationMatches) {
       return 'library_recommendation_mismatch';
     }
     if (!section) return 'library_section_missing_living_with_the_system';
     if (authoredCards.length === 0) return 'library_content_missing_cards';
     return 'none';
-  }, [authoredCards.length, composed, customerSummary.recommendedScenarioId, section]);
+  }, [authoredCards.length, composed, recommendationMatches, section]);
   const isSafe = Boolean(
     composed?.readiness.safeForCustomer
-    && composed?.brandedViewModel.recommendedScenarioId === customerSummary.recommendedScenarioId
+    && recommendationMatches
     && section
     && authoredCards.length > 0,
   );
 
   const selectedConceptIds = composed?.plan.selectedConceptIds ?? [];
-  const recommendedScenarioId = composed?.brandedViewModel.recommendedScenarioId ?? customerSummary.recommendedScenarioId;
-  const hasStoredHotWaterPath = /system|unvented|stored/i.test(recommendedScenarioId)
-    || /stored hot water|unvented|system boiler/i.test(customerSummary.recommendedSystemLabel)
-    || selectedConceptIds.includes('pressure_vs_storage');
-  const hasLowTemperaturePath = /heat_pump|ashp/i.test(recommendedScenarioId)
-    || selectedConceptIds.includes('hot_radiator_expectation')
-    || selectedConceptIds.includes('flow_temperature_living_with_it')
-    || routingTriggerTags.some((tag) => /heat_pump|low_temp|flow_temperature/i.test(tag));
-  const hasWaterMainConstraintPath = selectedConceptIds.some((conceptId) => (
-    conceptId === 'water_main_limit_not_boiler_limit'
-    || conceptId === 'hydraulic_constraint'
-    || conceptId === 'flow_restriction'
-  )) || routingTriggerTags.some((tag) => /pressure|flow|hydraulic|mains/i.test(tag));
   const diagramsFromCards = useMemo(() => {
     const diagramIds = new Set<string>();
     for (const card of authoredCards) {
@@ -174,27 +182,44 @@ export function LibraryPortalSectionRenderer({
       </div>
     );
   }
+  const recommendedScenarioId = composed.brandedViewModel.recommendedScenarioId ?? '';
+  const recommendedSystemLabel = customerSummary.recommendedSystemLabel ?? '';
+  const hasStoredHotWaterPath = STORED_HOT_WATER_SCENARIO_PATTERN.test(recommendedScenarioId)
+    || STORED_HOT_WATER_LABEL_PATTERN.test(recommendedSystemLabel)
+    || selectedConceptIds.includes('pressure_vs_storage');
+  const hasLowTemperaturePath = LOW_TEMP_SCENARIO_PATTERN.test(recommendedScenarioId)
+    || selectedConceptIds.includes('hot_radiator_expectation')
+    || selectedConceptIds.includes('flow_temperature_living_with_it')
+    || routingTriggerTags.some((tag) => LOW_TEMP_TAG_PATTERN.test(tag));
+  const hasWaterMainConstraintPath = selectedConceptIds.some((conceptId) => (
+    conceptId === 'water_main_limit_not_boiler_limit'
+    || conceptId === 'hydraulic_constraint'
+    || conceptId === 'flow_restriction'
+  )) || routingTriggerTags.some((tag) => WATER_CONSTRAINT_TAG_PATTERN.test(tag));
   const fallbackDiagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId]
     ?.filter((diagramId) => getDiagramById(diagramId));
-  const forcedDiagrams = [
-    hasStoredHotWaterPath ? FALLBACK_DIAGRAMS.stored_hot_water : undefined,
-    hasLowTemperaturePath ? FALLBACK_DIAGRAMS.low_temp_heat : undefined,
-    hasWaterMainConstraintPath ? FALLBACK_DIAGRAMS.water_main_constraint : undefined,
-  ].filter((diagramId): diagramId is string => Boolean(diagramId && getDiagramById(diagramId)));
-  const diagrams = [...new Set([
-    ...forcedDiagrams,
+  const candidateSmokeTestDiagrams = [
+    hasStoredHotWaterPath ? FORCED_SMOKE_TEST_DIAGRAMS.stored_hot_water : undefined,
+    hasLowTemperaturePath ? FORCED_SMOKE_TEST_DIAGRAMS.low_temp_heat : undefined,
+    hasWaterMainConstraintPath ? FORCED_SMOKE_TEST_DIAGRAMS.water_main_constraint : undefined,
+  ].filter((diagramId): diagramId is string => diagramId !== undefined);
+  const forcedSmokeTestDiagrams = candidateSmokeTestDiagrams.filter((diagramId) => Boolean(getDiagramById(diagramId)));
+  // Precedence is intentional: forced smoke-test diagrams first, then authored-card matches,
+  // then section-level fallback diagrams, with duplicates removed for stable rendering.
+  const diagrams = stableUnique([
+    ...forcedSmokeTestDiagrams,
     ...diagramsFromCards,
     ...(fallbackDiagrams ?? []),
-  ])];
+  ]);
   const showTechnicalAppendix = Boolean(accessibilityPreferences?.includeTechnicalAppendix);
 
   return (
     <section
       className={`library-portal-section${accessibilityPreferences?.prefersReducedMotion ? ' library-portal-section--reduced-motion' : ''}`}
       data-testid="library-portal-section"
-      aria-labelledby="library-portal-day-to-day-heading"
+      aria-labelledby="library-portal-why-matters-heading"
     >
-      <h2 id="library-portal-day-to-day-heading" className="daily-use__heading">Why this matters day to day</h2>
+      <h2 id="library-portal-why-matters-heading" className="daily-use__heading">Why this matters day to day</h2>
       <p className="daily-use__sub">Here&apos;s what that means for you in everyday use.</p>
       {showDebug ? (
         <p className="library-portal-section__source-label" data-testid="library-portal-source-label">
