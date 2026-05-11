@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { SpecificationLineStatus, SpecificationLineV1 } from '../../specification/specLines';
 
 interface Props {
@@ -32,6 +32,10 @@ function Badge({ label, color }: { label: string; color: string }) {
 
 export default function SpecificationLineReviewPanel({ lines }: Props) {
   const [draftLines, setDraftLines] = useState<SpecificationLineV1[]>(() => lines.map((line) => ({ ...line })));
+
+  useEffect(() => {
+    setDraftLines(lines.map((line) => ({ ...line })));
+  }, [lines]);
 
   const grouped = useMemo(() => {
     return draftLines.reduce<Record<string, SpecificationLineV1[]>>((acc, line) => {

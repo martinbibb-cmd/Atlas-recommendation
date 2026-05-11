@@ -44,13 +44,17 @@ function confidenceFromComponent(component: SuggestedComponent): SpecificationLi
   return 'needs_survey';
 }
 
+function deduplicate(values: readonly string[]): string[] {
+  return Array.from(new Set(values));
+}
+
 function findValidationIdsBySubstringMatch(pack: SuggestedImplementationPackV1, text: string): string[] {
   const lower = text.toLowerCase();
   return pack.allRequiredValidations
     .filter((validation) => {
       const check = validation.check.toLowerCase();
       const reason = validation.reason.toLowerCase();
-      return check.includes(lower) || lower.includes(check) || reason.includes(lower) || lower.includes(reason);
+      return check.includes(lower) || reason.includes(lower);
     })
     .map((validation) => validation.id);
 }
@@ -119,8 +123,10 @@ export function buildSpecificationLinesFromImplementationPack(
       lineType: 'required_validation',
       confidence: 'needs_survey',
       reason: 'Atlas cannot confirm discharge route accessibility from survey data alone.',
-      linkedValidationIds: findValidationIdsBySubstringMatch(pack, 'discharge')
-        .concat(findValidationIdsBySubstringMatch(pack, 'tundish')),
+      linkedValidationIds: deduplicate(
+        findValidationIdsBySubstringMatch(pack, 'discharge')
+          .concat(findValidationIdsBySubstringMatch(pack, 'tundish')),
+      ),
     });
 
     seeds.push({
@@ -313,7 +319,7 @@ export function buildSpecificationLinesFromImplementationPack(
         engineerVisible: seed.engineerVisible ?? true,
         officeVisible: seed.officeVisible ?? true,
         linkedRiskIds: seed.linkedRiskIds ?? [],
-        linkedValidationIds: Array.from(new Set(seed.linkedValidationIds ?? [])),
+        linkedValidationIds: seed.linkedValidationIds ?? [],
         ...(seed.quantity !== undefined ? { quantity: seed.quantity } : {}),
         ...(seed.unit !== undefined ? { unit: seed.unit } : {}),
       } satisfies SpecificationLineV1;
