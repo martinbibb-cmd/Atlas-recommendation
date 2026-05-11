@@ -76,8 +76,17 @@ export function LibraryPortalSectionRenderer({
   }
 
   const diagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId] ?? [];
-  const reassuranceCards = section.cards.filter((card) => sequenceStageForConcept(card.conceptId) === 'reassurance');
-  const noticeCards = section.cards.filter((card) => sequenceStageForConcept(card.conceptId) === 'lived_experience');
+  const reassuranceCards: typeof section.cards = [];
+  const noticeCards: typeof section.cards = [];
+  for (const card of section.cards) {
+    const stage = sequenceStageForConcept(card.conceptId);
+    if (stage === 'reassurance') {
+      reassuranceCards.push(card);
+    }
+    if (stage === 'lived_experience') {
+      noticeCards.push(card);
+    }
+  }
 
   return (
     <section

@@ -42,6 +42,9 @@ import './CustomerPortalPage.css';
 interface Props { reference: string; token?: string; brandId?: string; }
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
+const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
+const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
+const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
 
 function buildPortalAccessibilityPreferences(): WelcomePackAccessibilityPreferencesV1 {
   const prefersReducedMotion = typeof window !== 'undefined'
@@ -63,10 +66,10 @@ function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): st
   if (input.bathroomCount >= 2) {
     tags.add('hot_water_storage');
   }
-  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < 1.5) {
+  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < MIN_DYNAMIC_MAINS_PRESSURE_BAR) {
     tags.add('pressure');
   }
-  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < 10) {
+  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_MAINS_DYNAMIC_FLOW_LPM) {
     tags.add('flow');
   }
   if (scenarioId?.includes('ashp')) {
@@ -81,13 +84,13 @@ function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): st
 
 function buildPortalPropertyConstraintTags(input: EngineInputV2_3): string[] {
   const tags = new Set<string>();
-  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < 1.5) {
+  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < MIN_DYNAMIC_MAINS_PRESSURE_BAR) {
     tags.add('pressure');
   }
-  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < 10) {
+  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_MAINS_DYNAMIC_FLOW_LPM) {
     tags.add('flow');
   }
-  if (input.primaryPipeDiameter <= 22) {
+  if (input.primaryPipeDiameter <= MIN_PRIMARY_PIPE_DIAMETER_MM) {
     tags.add('hydraulic');
   }
   return [...tags];
