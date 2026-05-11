@@ -171,9 +171,9 @@ describe('buildPortalJourneyPrintModel — no diagnostics', () => {
 // ─── Page budget ──────────────────────────────────────────────────────────────
 
 describe('buildPortalJourneyPrintModel — page budget', () => {
-  it('pageEstimate.maxPages is 6', () => {
+  it('pageEstimate.maxPages is 7', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
-    expect(model.pageEstimate.maxPages).toBe(6);
+    expect(model.pageEstimate.maxPages).toBe(7);
   });
 
   it('pageEstimate.usedPages does not exceed maxPages', () => {
@@ -209,10 +209,35 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
 
   it('model with empty selectedSectionIds still includes all core sections', () => {
     const model = buildPortalJourneyPrintModel({ ...BASE_INPUT, selectedSectionIds: [] });
-    const sectionIds = model.sections.map((s) => s.sectionId);
-    expect(sectionIds).toContain('what_changes');
-    expect(sectionIds).toContain('pressure_vs_storage');
-    expect(sectionIds).toContain('unvented_safety');
-    expect(sectionIds).toContain('living_with_your_system');
+    expect(model.sections.map((s) => s.sectionId)).toEqual([
+      'what_changes',
+      'pressure_vs_storage',
+      'what_stays_familiar',
+      'unvented_safety',
+      'living_with_your_system',
+    ]);
+  });
+});
+
+describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
+  it('uses customer-friendly section titles in stable order', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    expect(model.cover.title).toBe('Your recommendation');
+    expect(model.sections.map((s) => s.heading)).toEqual([
+      'What changes in your home',
+      'Why stored hot water helps',
+      'What stays familiar',
+      'How the cylinder keeps itself safe',
+      'Living with the system',
+    ]);
+  });
+
+  it('keeps page content density low', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    for (const section of model.sections) {
+      expect(section.items.length).toBeLessThanOrEqual(3);
+    }
+    expect(model.nextSteps.length).toBeLessThanOrEqual(3);
+    expect(model.qrDestinations.length).toBeLessThanOrEqual(3);
   });
 });

@@ -111,6 +111,10 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
         </ul>
       ) : null}
 
+      <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
+        <strong>Key takeaway:</strong> {section.keyTakeaway}
+      </p>
+
       {rendererDiagramId ? (
         <figure
           className="pjpp-section__diagram"
@@ -122,18 +126,26 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
             printSafe
             reducedMotion
           />
+          {section.diagramCaption ? (
+            <figcaption className="pjpp-section__diagram-caption">{section.diagramCaption}</figcaption>
+          ) : null}
         </figure>
       ) : null}
+
+      <aside className="pjpp-reassurance" data-testid={`pjpp-reassurance-${section.sectionId}`}>
+        {section.reassurance}
+      </aside>
     </section>
   );
 }
 
 interface PrintNextStepsProps {
   nextSteps: PortalJourneyPrintModelV1['nextSteps'];
+  qrDestinations: PortalJourneyPrintModelV1['qrDestinations'];
   pageNumber: number;
 }
 
-function PrintNextSteps({ nextSteps, pageNumber }: PrintNextStepsProps) {
+function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStepsProps) {
   return (
     <section
       className="pjpp-page pjpp-next-steps"
@@ -142,7 +154,7 @@ function PrintNextSteps({ nextSteps, pageNumber }: PrintNextStepsProps) {
       data-page={pageNumber}
     >
       <h2 id="pjpp-next-steps-heading" className="pjpp-section__heading">
-        Next steps
+        What happens next
       </h2>
 
       <ol className="pjpp-next-steps__list" data-testid="pjpp-next-steps-list">
@@ -153,29 +165,9 @@ function PrintNextSteps({ nextSteps, pageNumber }: PrintNextStepsProps) {
           </li>
         ))}
       </ol>
-    </section>
-  );
-}
-
-interface PrintQrDestinationsProps {
-  qrDestinations: PortalJourneyPrintModelV1['qrDestinations'];
-  pageNumber: number;
-}
-
-function PrintQrDestinations({ qrDestinations, pageNumber }: PrintQrDestinationsProps) {
-  return (
-    <section
-      className="pjpp-page pjpp-qr-destinations"
-      aria-labelledby="pjpp-qr-heading"
-      data-testid="pjpp-qr-destinations"
-      data-page={pageNumber}
-    >
-      <h2 id="pjpp-qr-heading" className="pjpp-section__heading">
-        Go deeper
-      </h2>
 
       <p className="pjpp-qr-destinations__intro">
-        Scan each QR code for a diagram-guided walkthrough on your device.
+        Deep dive links (optional): scan a QR code after your handover if you want more detail.
       </p>
 
       <ul className="pjpp-qr-destinations__list" data-testid="pjpp-qr-list">
@@ -211,7 +203,7 @@ export interface PortalJourneyPrintPackProps {
  *   - No interactive controls
  *   - No dev labels or raw engine identifiers
  *   - Diagrams in print-safe mode
- *   - Page budget respected (max 6 pages)
+ *   - Page budget respected (max 7 pages)
  */
 export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
   let pageCounter = 1;
@@ -233,11 +225,10 @@ export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
         />
       ))}
 
-      <PrintNextSteps nextSteps={model.nextSteps} pageNumber={pageCounter++} />
-
-      <PrintQrDestinations
+      <PrintNextSteps
+        nextSteps={model.nextSteps}
         qrDestinations={model.qrDestinations}
-        pageNumber={pageCounter}
+        pageNumber={pageCounter++}
       />
     </article>
   );

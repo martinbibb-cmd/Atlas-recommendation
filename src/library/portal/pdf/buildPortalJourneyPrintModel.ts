@@ -16,8 +16,8 @@
  * Output
  * ──────
  *   PortalJourneyPrintModelV1 — compact, flat model for PortalJourneyPrintPack
- *     cover summary · what changes · what stays familiar · pressure vs storage
- *     unvented safety · living with your system · next steps · QR deeper detail
+ *     cover summary · what changes · pressure vs storage · what stays familiar
+ *     unvented safety · living with your system · next steps (+ QR deeper detail)
  */
 
 import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegistry';
@@ -43,6 +43,9 @@ export interface PortalJourneyPrintSectionV1 {
     | 'living_with_your_system';
   heading: string;
   summary: string;
+  keyTakeaway: string;
+  reassurance: string;
+  diagramCaption?: string;
   /** Bullet-point items for the printed card */
   items: string[];
   /** Optional diagram to render in print-safe mode */
@@ -88,11 +91,9 @@ export interface BuildPortalJourneyPrintModelInputV1 {
 // ─── Living-with-your-system static content ───────────────────────────────────
 
 const LIVING_WITH_ITEMS = [
-  'Ready hot-water reserve before morning demand.',
-  'Multiple showers can overlap with steadier flow.',
-  'Bath filling from a stored reserve, not live production only.',
-  'Familiar heating behaviour with the same room controls.',
-  'Cylinder recovers in the background — no manual step needed.',
+  'Morning showers draw from stored hot water, so the first demand feels ready.',
+  'Back-to-back use is steadier because the cylinder stores a reserve.',
+  'Heating controls and day-to-day habits stay familiar.',
 ] as const;
 
 // ─── Builder ──────────────────────────────────────────────────────────────────
@@ -123,10 +124,11 @@ export function buildPortalJourneyPrintModel(
   }
 
   // ── Cover ──────────────────────────────────────────────────────────────────
+  const MAX_COVER_CUSTOMER_FACTS = 3;
   const cover: PortalJourneyPrintCoverV1 = {
-    title: 'Supporting Insight — your upgrade explained',
+    title: 'Your recommendation',
     summary: recommendationSummary,
-    customerFacts,
+    customerFacts: customerFacts.slice(0, MAX_COVER_CUSTOMER_FACTS),
     brandName: brandProfile?.name,
   };
 
@@ -134,30 +136,25 @@ export function buildPortalJourneyPrintModel(
   const sections: PortalJourneyPrintSectionV1[] = [];
 
   // CON_A01 — what changes / what stays familiar
+  // CON_A01 intentionally contributes two pages: "what changes" and "what stays familiar".
   if (selectedSet.has('CON_A01') || selectedSet.size === 0) {
     sections.push({
       contentId: 'CON_A01',
       sectionId: 'what_changes',
-      heading: 'What changes with this upgrade',
-      summary: conA01.oneLineSummary,
+      heading: 'What changes in your home',
+      summary:
+        'You move from tank-fed hot water to a sealed heating circuit with an unvented cylinder.',
+      keyTakeaway: 'The upgrade changes hardware, not your comfort goals.',
+      reassurance: 'Your installer walks you through every new visible part on handover day.',
       items: [
-        conA01.whatYouMayNotice,
-        conA01.customerWording,
-        conA01.whatNotToWorryAbout,
+        'The loft tank is no longer needed.',
+        'A pressure gauge and filling loop are added near the boiler.',
+        'Hot water is stored in a cylinder, ready for busy times.',
       ],
+      diagramCaption: 'Before and after: tank-fed layout to sealed + unvented layout.',
       diagramId: conA01.suggestedDiagramIds[0],
     });
 
-    sections.push({
-      contentId: 'CON_A01',
-      sectionId: 'what_stays_familiar',
-      heading: 'What stays familiar',
-      summary: conA01.whatStaysFamiliar,
-      items: [
-        conA01.whatNotToWorryAbout,
-        conA01.reality,
-      ],
-    });
   }
 
   // CON_C02 — pressure vs storage
@@ -165,14 +162,34 @@ export function buildPortalJourneyPrintModel(
     sections.push({
       contentId: 'CON_C02',
       sectionId: 'pressure_vs_storage',
-      heading: 'Pressure and stored hot water',
-      summary: conC02.oneLineSummary,
+      heading: 'Why stored hot water helps',
+      summary:
+        'Pressure affects spray strength, while stored volume decides how long hot water can keep up.',
+      keyTakeaway: 'Strong pressure and enough stored hot water are two separate needs.',
+      reassurance: 'If hot water dips after heavy use, recovery is normal and expected.',
       items: [
-        conC02.whatYouMayNotice,
-        conC02.whatNotToWorryAbout,
-        `${conC02.misconception} — Reality: ${conC02.reality}`,
+        'A good shower feel does not mean unlimited hot-water volume.',
+        'Stored hot water supports overlap use like two showers close together.',
+        'The cylinder reheats in the background after heavy demand.',
       ],
+      diagramCaption: 'Pressure (force) and storage (amount) shown as separate controls.',
       diagramId: conC02.suggestedDiagramIds[0],
+    });
+  }
+
+  if (selectedSet.has('CON_A01') || selectedSet.size === 0) {
+    sections.push({
+      contentId: 'CON_A01',
+      sectionId: 'what_stays_familiar',
+      heading: 'What stays familiar',
+      summary: 'Your daily heating routine and comfort targets stay familiar after the upgrade.',
+      keyTakeaway: 'New hardware, familiar day-to-day use.',
+      reassurance: 'You still control temperature and schedules in the same way.',
+      items: [
+        conA01.whatStaysFamiliar,
+        'Radiators and room comfort continue to behave as expected.',
+        'You do not need to relearn how to run your home.',
+      ],
     });
   }
 
@@ -181,13 +198,17 @@ export function buildPortalJourneyPrintModel(
     sections.push({
       contentId: 'CON_C01',
       sectionId: 'unvented_safety',
-      heading: 'Unvented cylinder safety',
-      summary: conC01.oneLineSummary,
+      heading: 'How the cylinder keeps itself safe',
+      summary:
+        'Unvented cylinders include built-in safety controls that are required and normal to see.',
+      keyTakeaway: 'Visible safety parts are expected in a compliant setup.',
+      reassurance: 'Seeing a tundish or discharge pipe does not mean something is wrong.',
       items: [
-        conC01.customerWording,
-        conC01.whatYouMayNotice,
-        conC01.whatNotToWorryAbout,
+        'The cylinder has pressure and temperature safety protection.',
+        'A visible tundish and discharge route is part of safe design.',
+        'Call your installer if you ever see repeated discharge.',
       ],
+      diagramCaption: 'Safety path from cylinder to discharge point.',
       diagramId: conC01.suggestedDiagramIds[0],
     });
   }
@@ -196,9 +217,11 @@ export function buildPortalJourneyPrintModel(
   sections.push({
     contentId: 'living_with_your_system',
     sectionId: 'living_with_your_system',
-    heading: 'Living with your system',
+    heading: 'Living with the system',
     summary:
-      'What everyday life can feel like after the upgrade — morning readiness, peak overlap, and quiet background recovery.',
+      'Day-to-day life should feel calm: ready mornings, steadier overlap use, and quiet background recovery.',
+    keyTakeaway: 'The system is designed to support peak family routines more smoothly.',
+    reassurance: 'Your installer remains your first point of contact for questions after handover.',
     items: [...LIVING_WITH_ITEMS],
   });
 
@@ -235,8 +258,8 @@ export function buildPortalJourneyPrintModel(
   ];
 
   // ── Page estimate ──────────────────────────────────────────────────────────
-  // Cover (1) + one page per section + next steps + QR = estimated pages
-  const usedPages = Math.min(1 + sections.length + 1, 6);
+  // Cover (1) + one page per section + next steps (with QR area) = estimated pages
+  const usedPages = Math.min(1 + sections.length + 1, 7);
 
   return {
     cover,
@@ -245,7 +268,7 @@ export function buildPortalJourneyPrintModel(
     qrDestinations,
     pageEstimate: {
       usedPages,
-      maxPages: 6,
+      maxPages: 7,
     },
   };
 }
