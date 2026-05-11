@@ -13,6 +13,7 @@
  *   <ImplementationPackReviewPanel pack={pack} />
  */
 
+import { useState } from 'react';
 import type { SuggestedImplementationPackV1 } from '../../specification/SuggestedImplementationPackV1';
 import type {
   SuggestedComponent,
@@ -182,16 +183,39 @@ function ValidationsList({ validations }: { validations: readonly RequiredValida
 function Section({
   title,
   badge,
+  sectionKey,
+  reviewStatus,
+  onReviewStatusChange,
   children,
 }: {
   title: string;
   badge?: string;
+  sectionKey?: SectionReviewKey;
+  reviewStatus?: ReviewStatus;
+  onReviewStatusChange?: (sectionKey: SectionReviewKey, reviewStatus: ReviewStatus) => void;
   children: React.ReactNode;
 }) {
   return (
     <div style={styles.section}>
       <div style={styles.sectionHeader}>
         <span style={styles.sectionTitle}>{title}</span>
+        {sectionKey && reviewStatus && onReviewStatusChange && (
+          <label style={styles.reviewStatusLabel}>
+            Review status
+            <select
+              value={reviewStatus}
+              onChange={(event) => onReviewStatusChange(sectionKey, event.target.value as ReviewStatus)}
+              style={styles.reviewStatusSelect}
+              data-testid={`implementation-pack-status-${sectionKey}`}
+            >
+              {REVIEW_STATUS_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {badge && (
           <span
             style={{
@@ -218,6 +242,37 @@ interface Props {
   pack: SuggestedImplementationPackV1;
 }
 
+type ReviewStatus = 'draft' | 'needs survey check' | 'ready for office review' | 'installer note';
+type SectionReviewKey =
+  | 'heat_source'
+  | 'hot_water'
+  | 'hydraulic_components'
+  | 'controls'
+  | 'water_quality'
+  | 'safety_compliance'
+  | 'pipework'
+  | 'commissioning'
+  | 'future_ready';
+
+const REVIEW_STATUS_OPTIONS: readonly ReviewStatus[] = [
+  'draft',
+  'needs survey check',
+  'ready for office review',
+  'installer note',
+];
+
+const DEFAULT_SECTION_REVIEW_STATUSES: Record<SectionReviewKey, ReviewStatus> = {
+  heat_source: 'draft',
+  hot_water: 'draft',
+  hydraulic_components: 'draft',
+  controls: 'draft',
+  water_quality: 'draft',
+  safety_compliance: 'draft',
+  pipework: 'draft',
+  commissioning: 'draft',
+  future_ready: 'draft',
+};
+
 /**
  * ImplementationPackReviewPanel
  *
@@ -225,6 +280,17 @@ interface Props {
  * NOT customer-facing.
  */
 export function ImplementationPackReviewPanel({ pack }: Props) {
+  const [sectionReviewStatuses, setSectionReviewStatuses] = useState<Record<SectionReviewKey, ReviewStatus>>(
+    DEFAULT_SECTION_REVIEW_STATUSES,
+  );
+
+  function handleReviewStatusChange(sectionKey: SectionReviewKey, reviewStatus: ReviewStatus) {
+    setSectionReviewStatuses((current) => ({
+      ...current,
+      [sectionKey]: reviewStatus,
+    }));
+  }
+
   return (
     <div style={styles.root}>
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -278,7 +344,12 @@ export function ImplementationPackReviewPanel({ pack }: Props) {
       </Section>
 
       {/* ── Section 1: Heat source ──────────────────────────────────────── */}
-      <Section title="1. Heat Source">
+      <Section
+        title="1. Heat Source"
+        sectionKey="heat_source"
+        reviewStatus={sectionReviewStatuses.heat_source}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         <div style={styles.fieldRow}>
           <span style={styles.fieldLabel}>Recommended family:</span>
           <strong>{pack.heatSource.label}</strong>
@@ -291,7 +362,12 @@ export function ImplementationPackReviewPanel({ pack }: Props) {
       </Section>
 
       {/* ── Section 2: Hot water ────────────────────────────────────────── */}
-      <Section title="2. Hot Water">
+      <Section
+        title="2. Hot Water"
+        sectionKey="hot_water"
+        reviewStatus={sectionReviewStatuses.hot_water}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         <div style={styles.fieldRow}>
           <span style={styles.fieldLabel}>DHW Strategy:</span>
           <strong>{pack.hotWater.strategy}</strong>
@@ -308,21 +384,36 @@ export function ImplementationPackReviewPanel({ pack }: Props) {
       </Section>
 
       {/* ── Section 3: Hydraulic components ────────────────────────────── */}
-      <Section title="3. Hydraulic Components">
+      <Section
+        title="3. Hydraulic Components"
+        sectionKey="hydraulic_components"
+        reviewStatus={sectionReviewStatuses.hydraulic_components}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         <ComponentsList components={pack.hydraulicComponents.suggestedComponents} />
         <NotesList notes={pack.hydraulicComponents.installNotes} label="Install Notes" />
         <RisksList risks={pack.hydraulicComponents.unresolvedRisks} />
       </Section>
 
       {/* ── Section 4: Controls ─────────────────────────────────────────── */}
-      <Section title="4. Controls">
+      <Section
+        title="4. Controls"
+        sectionKey="controls"
+        reviewStatus={sectionReviewStatuses.controls}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         <ComponentsList components={pack.controls.suggestedComponents} />
         <NotesList notes={pack.controls.installNotes} label="Install Notes" />
         <RisksList risks={pack.controls.unresolvedRisks} />
       </Section>
 
       {/* ── Section 5: Water quality ─────────────────────────────────────── */}
-      <Section title="5. Water Quality">
+      <Section
+        title="5. Water Quality"
+        sectionKey="water_quality"
+        reviewStatus={sectionReviewStatuses.water_quality}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         {pack.waterQuality.filterRecommendation && (
           <div style={styles.qualityItem}>
             <span style={styles.fieldLabel}>Filter:</span> {pack.waterQuality.filterRecommendation}
@@ -349,7 +440,12 @@ export function ImplementationPackReviewPanel({ pack }: Props) {
       </Section>
 
       {/* ── Section 6: Safety / compliance ──────────────────────────────── */}
-      <Section title="6. Safety &amp; Compliance">
+      <Section
+        title="6. Safety &amp; Compliance"
+        sectionKey="safety_compliance"
+        reviewStatus={sectionReviewStatuses.safety_compliance}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         <div style={styles.subLabel}>Required Qualifications</div>
         <QualificationsList qualifications={pack.safetyCompliance.requiredQualifications} />
         <div style={{ marginTop: 12, ...styles.subLabel }}>Required Compliance Items</div>
@@ -359,7 +455,12 @@ export function ImplementationPackReviewPanel({ pack }: Props) {
       </Section>
 
       {/* ── Section 7: Pipework ──────────────────────────────────────────── */}
-      <Section title="7. Pipework">
+      <Section
+        title="7. Pipework"
+        sectionKey="pipework"
+        reviewStatus={sectionReviewStatuses.pipework}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         <NotesList notes={pack.pipework.topologyNotes} label="Topology Notes" />
         <NotesList notes={pack.pipework.pipeSizingNotes} label="Pipe Sizing Notes" />
         <NotesList notes={pack.pipework.routingNotes} label="Routing Notes" />
@@ -368,14 +469,24 @@ export function ImplementationPackReviewPanel({ pack }: Props) {
       </Section>
 
       {/* ── Section 8: Commissioning ─────────────────────────────────────── */}
-      <Section title="8. Commissioning">
+      <Section
+        title="8. Commissioning"
+        sectionKey="commissioning"
+        reviewStatus={sectionReviewStatuses.commissioning}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         <NotesList notes={pack.commissioning.steps} label="Commissioning Steps" />
         <NotesList notes={pack.commissioning.requiredDocumentation} label="Required Documentation" />
         <RisksList risks={pack.commissioning.unresolvedRisks} />
       </Section>
 
       {/* ── Section 9: Future ready ──────────────────────────────────────── */}
-      <Section title="9. Future-Ready Options">
+      <Section
+        title="9. Future-Ready Options"
+        sectionKey="future_ready"
+        reviewStatus={sectionReviewStatuses.future_ready}
+        onReviewStatusChange={handleReviewStatusChange}
+      >
         {pack.futureReady.items.length === 0 && (
           <p style={styles.empty}>No future-ready items identified.</p>
         )}
@@ -468,6 +579,7 @@ const styles = {
     padding:       '8px 14px',
     display:       'flex',
     alignItems:    'center',
+    gap:           8,
   } as React.CSSProperties,
 
   sectionTitle: {
@@ -477,6 +589,24 @@ const styles = {
 
   sectionBody: {
     padding:       '10px 14px',
+  } as React.CSSProperties,
+
+  reviewStatusLabel: {
+    marginLeft:    'auto',
+    display:       'inline-flex',
+    alignItems:    'center',
+    gap:           6,
+    fontSize:      11,
+    color:         '#ecf0f1',
+  } as React.CSSProperties,
+
+  reviewStatusSelect: {
+    border:        '1px solid #546476',
+    borderRadius:  4,
+    padding:       '2px 6px',
+    fontSize:      11,
+    background:    '#1f2f3f',
+    color:         '#ecf0f1',
   } as React.CSSProperties,
 
   subLabel: {

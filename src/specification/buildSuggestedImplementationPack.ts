@@ -786,31 +786,25 @@ function buildPipeworkSection(
   });
 
   // Loft work for open-vented to sealed conversion
-  if (
-    scenarioId.includes('system') ||
-    scenarioId.includes('unvented') ||
-    scenarioId.includes('regular')
-  ) {
-    const coldWaterSource = surveyInput.services?.coldWaterSource;
-    if (coldWaterSource === 'loft_tank') {
-      topologyNotes.push(
-        'Open-vented to sealed circuit conversion — loft tank feeds must be capped and removed',
-        'Confirm all vent pipes and cold-feed connections are identified before sealing system',
-      );
-      components.push({
-        id: 'loft_pipework_capping',
-        description: 'Capping of loft vent and cold-feed pipework',
-        suggestedSpec: 'All existing open-vent and cold-feed connections capped and tested before first fill',
-        rationale: 'Sealed circuit conversion requires removal of all open-circuit connections',
-        confidence: 'required',
-      });
-      unresolvedRisks.push({
-        id: 'loft_pipe_routes_unconfirmed',
-        description: 'Loft vent and cold-feed pipe routes not confirmed from survey data',
-        resolution: 'Inspect loft to identify and confirm all vent/cold-feed connections before commencing sealed conversion',
-        severity: 'required',
-      });
-    }
+  const coldWaterSource = surveyInput.services?.coldWaterSource;
+  if (coldWaterSource === 'loft_tank') {
+    topologyNotes.push(
+      'Open-vented to sealed circuit conversion — loft tank feeds must be capped and removed',
+      'Confirm all vent pipes and cold-feed connections are identified before sealing system',
+    );
+    components.push({
+      id: 'loft_pipework_capping',
+      description: 'Capping of loft vent and cold-feed pipework',
+      suggestedSpec: 'All existing open-vent and cold-feed connections capped and tested before first fill',
+      rationale: 'Sealed circuit conversion requires removal of all open-circuit connections',
+      confidence: 'required',
+    });
+    unresolvedRisks.push({
+      id: 'loft_pipe_routes_unconfirmed',
+      description: 'Loft vent and cold-feed pipe routes not confirmed from survey data',
+      resolution: 'Inspect loft to identify and confirm all vent/cold-feed connections before commencing sealed conversion',
+      severity: 'required',
+    });
   }
 
   routingNotes.push(
