@@ -22,6 +22,7 @@ import CustomerPortalPage from '../components/portal/CustomerPortalPage';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
 import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
+import { assessSupportingPdfReadiness } from '../library/portal/pdf/supportingPdfReadiness';
 import { sectionsForMode } from '../features/insightPack/canonicalSections';
 import './devPortalFixture.css';
 
@@ -177,6 +178,7 @@ interface FixtureCardProps {
 
 const ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT = import.meta.env.DEV;
 const INSIGHT_PRINT_SECTIONS_PER_PAGE = 2;
+const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder — the right route for this home.';
 
 function isOpenVentedFixture(fixture: PortalFixture): boolean {
   return fixture.id === 'open_vented_to_sealed_unvented';
@@ -269,7 +271,7 @@ function buildOpenVentedSupportingPdfModel(fixture: PortalFixture) {
   const bathroomCount = fixture.engineInput.bathroomCount ?? 2;
   return buildPortalJourneyPrintModel({
     selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
-    recommendationSummary: 'Sealed system with unvented cylinder — the right route for this home.',
+    recommendationSummary: OPEN_VENTED_RECOMMENDATION_SUMMARY,
     customerFacts: [
       `${fixture.engineInput.occupancyCount ?? 4}-person household`,
       `${bathroomCount} bathroom${bathroomCount !== 1 ? 's' : ''}`,
@@ -322,6 +324,15 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       const currentInsightEstimatedPages = Math.ceil(
         sectionsForMode('in-room').length / INSIGHT_PRINT_SECTIONS_PER_PAGE,
       );
+      const readiness = assessSupportingPdfReadiness({
+        model: printModel,
+        expectedRecommendationSummary: OPEN_VENTED_RECOMMENDATION_SUMMARY,
+        maxCustomerPages: printModel.pageEstimate.maxPages,
+        requiredDiagramSectionIds: ['what_changes', 'pressure_vs_storage', 'unvented_safety'],
+        printSafeLayoutPass: true,
+        accessibilityBasicsPass: true,
+        insightFallbackAvailable: true,
+      });
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
           <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
@@ -418,6 +429,39 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                   </tr>
                 </tbody>
               </table>
+            </section>
+
+            <section
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
+              data-testid="dev-supporting-pdf-readiness-panel"
+            >
+              <h2 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Replacement readiness</h2>
+              <p style={{ margin: '0 0 0.5rem' }}>
+                Ready to replace:{' '}
+                <strong data-testid="dev-supporting-pdf-ready-value">{readiness.ready ? 'Yes' : 'No'}</strong>
+              </p>
+
+              <h3 style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>Blocking reasons</h3>
+              {readiness.blockingReasons.length > 0 ? (
+                <ul style={{ margin: '0 0 0.5rem', paddingLeft: '1.1rem' }} data-testid="dev-supporting-pdf-blocking-reasons">
+                  {readiness.blockingReasons.map((reason) => (
+                    <li key={reason}>{reason}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ margin: '0 0 0.5rem' }} data-testid="dev-supporting-pdf-blocking-reasons-none">None</p>
+              )}
+
+              <h3 style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>Warnings</h3>
+              {readiness.warnings.length > 0 ? (
+                <ul style={{ margin: 0, paddingLeft: '1.1rem' }} data-testid="dev-supporting-pdf-warnings">
+                  {readiness.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ margin: 0 }} data-testid="dev-supporting-pdf-warnings-none">None</p>
+              )}
             </section>
 
             {previewMode === 'current_insight_pdf' ? (
