@@ -22,6 +22,7 @@ import CustomerPortalPage from '../components/portal/CustomerPortalPage';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
 import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
+import { sectionsForMode } from '../features/insightPack/canonicalSections';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ export interface PortalFixture {
   engineInput: EngineInputV2_3;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const PORTAL_FIXTURES: PortalFixture[] = [
   {
     id: 'system_unvented_2bath',
@@ -170,13 +172,21 @@ export const PORTAL_FIXTURES: PortalFixture[] = [
 
 interface FixtureCardProps {
   fixture: PortalFixture;
-  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'supporting_pdf') => void;
+  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison') => void;
+}
+
+const ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT = import.meta.env.DEV;
+const INSIGHT_PRINT_SECTIONS_PER_PAGE = 2;
+
+function isOpenVentedFixture(fixture: PortalFixture): boolean {
+  return fixture.id === 'open_vented_to_sealed_unvented';
 }
 
 function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
   const [copied, setCopied] = useState(false);
 
-  const isOpenVented = fixture.id === 'open_vented_to_sealed_unvented';
+  const isOpenVented = isOpenVentedFixture(fixture);
+  const showSupportingPdfPreviewAction = ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT && isOpenVented;
 
   function handleCopyUrl() {
     const url = typeof window !== 'undefined'
@@ -219,14 +229,14 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
         >
           Open In-room presentation
         </button>
-        {isOpenVented ? (
+        {showSupportingPdfPreviewAction ? (
           <button
             type="button"
             className="dev-portal-fixture__btn"
-            onClick={() => onOpen(fixture, 'supporting_pdf')}
-            data-testid={`fixture-supporting-pdf-${fixture.id}`}
+            onClick={() => onOpen(fixture, 'pdf_comparison')}
+            data-testid={`fixture-pdf-comparison-${fixture.id}`}
           >
-            Open supporting PDF preview
+            Open PDF comparison
           </button>
         ) : null}
         <button
@@ -250,7 +260,22 @@ interface DevPortalFixturePageProps {
 
 interface ActiveFixture {
   fixture: PortalFixture;
-  initialView?: 'insight' | 'presentation' | 'supporting_pdf';
+  initialView?: 'insight' | 'presentation' | 'pdf_comparison';
+}
+
+type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
+
+function buildOpenVentedSupportingPdfModel(fixture: PortalFixture) {
+  const bathroomCount = fixture.engineInput.bathroomCount ?? 2;
+  return buildPortalJourneyPrintModel({
+    selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
+    recommendationSummary: 'Sealed system with unvented cylinder — the right route for this home.',
+    customerFacts: [
+      `${fixture.engineInput.occupancyCount ?? 4}-person household`,
+      `${bathroomCount} bathroom${bathroomCount !== 1 ? 's' : ''}`,
+      'Regular boiler, open-vented circuit',
+    ],
+  });
 }
 
 /**
@@ -261,8 +286,16 @@ interface ActiveFixture {
  */
 export default function DevPortalFixturePage({ onBack }: DevPortalFixturePageProps) {
   const [active, setActive] = useState<ActiveFixture | null>(null);
+  const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
 
-  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'supporting_pdf') {
+  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison') {
+    const shouldOpenComparisonShell =
+      ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
+      && isOpenVentedFixture(fixture)
+      && (initialView === 'insight' || initialView === 'pdf_comparison');
+    if (shouldOpenComparisonShell) {
+      setPreviewMode(initialView === 'pdf_comparison' ? 'library_supporting_pdf' : 'current_insight_pdf');
+    }
     setActive({ fixture, initialView });
   }
 
@@ -270,20 +303,25 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
     setActive(null);
   }
 
-  if (active !== null) {
-    // Supporting PDF preview — renders PortalJourneyPrintPack directly
-    if (active.initialView === 'supporting_pdf') {
-      const bathroomCount = active.fixture.engineInput.bathroomCount ?? 2;
-      const printModel = buildPortalJourneyPrintModel({
-        selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
-        recommendationSummary: 'Sealed system with unvented cylinder — the right route for this home.',
-        customerFacts: [
-          `${active.fixture.engineInput.occupancyCount ?? 4}-person household`,
-          `${bathroomCount} bathroom${bathroomCount !== 1 ? 's' : ''}`,
-          'Regular boiler, open-vented circuit',
-        ],
-      });
+  function handleLibraryPreviewPrint() {
+    if (typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    }
+  }
 
+  if (active !== null) {
+    const showInsightPdfComparison =
+      ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
+      && isOpenVentedFixture(active.fixture)
+      && (active.initialView === 'insight' || active.initialView === 'pdf_comparison');
+
+    // Supporting PDF preview — toggles between current Insight print path and
+    // the library-driven supporting PDF preview for safe dev comparison.
+    if (showInsightPdfComparison) {
+      const printModel = buildOpenVentedSupportingPdfModel(active.fixture);
+      const currentInsightEstimatedPages = Math.ceil(
+        sectionsForMode('in-room').length / INSIGHT_PRINT_SECTIONS_PER_PAGE,
+      );
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
           <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
@@ -300,14 +338,103 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               style={{ margin: 0 }}
               data-testid="dev-fixture-active-label"
             >
-              🔬 Supporting PDF preview — not customer data · {active.fixture.label}
+              🔬 Insight PDF dev comparison — not customer data · {active.fixture.label}
             </span>
           </div>
-          <div
-            style={{ padding: '2rem', background: '#e5e7eb' }}
-            data-testid="dev-supporting-pdf-preview"
-          >
-            <PortalJourneyPrintPack model={printModel} />
+
+          <div style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }}>
+            <section
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}
+              data-testid="dev-insight-pdf-toggle"
+            >
+              <button
+                type="button"
+                className="dev-portal-fixture__btn"
+                onClick={() => setPreviewMode('current_insight_pdf')}
+                aria-pressed={previewMode === 'current_insight_pdf'}
+                data-testid="dev-insight-pdf-toggle-current"
+              >
+                Current Insight PDF
+              </button>
+              <button
+                type="button"
+                className="dev-portal-fixture__btn"
+                onClick={() => setPreviewMode('library_supporting_pdf')}
+                aria-pressed={previewMode === 'library_supporting_pdf'}
+                data-testid="dev-insight-pdf-toggle-library"
+              >
+                Library Supporting PDF preview
+              </button>
+              {previewMode === 'library_supporting_pdf' ? (
+                <button
+                  type="button"
+                  className="dev-portal-fixture__btn dev-portal-fixture__btn--primary"
+                  onClick={handleLibraryPreviewPrint}
+                  data-testid="dev-supporting-pdf-print"
+                >
+                  Browser print preview
+                </button>
+              ) : null}
+            </section>
+
+            <section
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
+              data-testid="dev-insight-pdf-comparison-panel"
+            >
+              <h2 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Insight PDF comparison</h2>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '0.35rem' }}>Metric</th>
+                    <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '0.35rem' }}>Current Insight PDF</th>
+                    <th style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0', padding: '0.35rem' }}>Library Supporting PDF preview</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Page count (in-room print estimate)</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>{currentInsightEstimatedPages}</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>{printModel.pageEstimate.usedPages}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Raw engine text present</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Yes</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>No</td>
+                  </tr>
+                  <tr>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Diagrams present</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Yes</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Yes</td>
+                  </tr>
+                  <tr>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Content pending</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>No</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>No</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '0.35rem' }}>Customer readability notes</td>
+                    <td style={{ padding: '0.35rem' }}>Rich but dense; carries legacy Insight layout and terminology.</td>
+                    <td style={{ padding: '0.35rem' }}>Short pages, plain language, and consistent journey sequencing.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            {previewMode === 'current_insight_pdf' ? (
+              <CustomerPortalPage
+                reference="dev-fixture"
+                devFixtureInput={active.fixture.engineInput}
+                devInitialViewMode="insight"
+                showDevTraceLabelsOverride={true}
+              />
+            ) : (
+              <div
+                style={{ padding: '2rem', background: '#e5e7eb' }}
+                data-testid="dev-supporting-pdf-preview"
+              >
+                <PortalJourneyPrintPack model={printModel} />
+              </div>
+            )}
           </div>
         </div>
       );
