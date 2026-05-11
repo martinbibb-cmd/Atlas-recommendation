@@ -11,6 +11,13 @@ const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
   brandProfile: { name: 'Atlas Heating' },
 };
 
+const HEAT_PUMP_INPUT: BuildPortalJourneyPrintModelInputV1 = {
+  journeyType: 'heat_pump',
+  selectedSectionIds: ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'],
+  recommendationSummary: 'Heat pump with low-temperature radiators — a steady comfort fit for this home.',
+  customerFacts: ['3-person household', '2 bathrooms', 'Heat pump with low-temperature radiators'],
+};
+
 // ─── Content identity ─────────────────────────────────────────────────────────
 
 describe('buildPortalJourneyPrintModel — content identity', () => {
@@ -239,5 +246,42 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
     }
     expect(model.nextSteps.length).toBeLessThanOrEqual(3);
     expect(model.qrDestinations.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
+  it('builds heat-pump model pages in customer-facing order', () => {
+    const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
+    expect(model.cover.title).toBe('Your recommendation');
+    expect(model.sections.map((section) => section.heading)).toEqual([
+      'Why radiators may feel warm, not hot',
+      'How steady running works',
+      'What happens in winter',
+      'Living with the system',
+    ]);
+  });
+
+  it('uses expected concept IDs for heat-pump supporting pages', () => {
+    const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
+    expect(model.sections.map((section) => section.contentId)).toEqual([
+      'CON_E02',
+      'CON_H04',
+      'CON_H01',
+      'CON_I01_DAY_TO_DAY',
+    ]);
+  });
+
+  it('does not expose pending or raw concept ID text in heat-pump copy', () => {
+    const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
+    const customerFacingText = [
+      model.cover.title,
+      model.cover.summary,
+      ...model.cover.customerFacts,
+      ...model.sections.flatMap((section) => [section.heading, section.summary, section.keyTakeaway, section.reassurance, ...section.items]),
+      ...model.nextSteps.flatMap((step) => [step.label, step.body]),
+      ...model.qrDestinations.flatMap((dest) => [dest.heading, dest.note]),
+    ].join(' ');
+
+    expect(customerFacingText).not.toMatch(/content pending|debug|diagnostic|CON_[A-Z0-9_]+/i);
   });
 });

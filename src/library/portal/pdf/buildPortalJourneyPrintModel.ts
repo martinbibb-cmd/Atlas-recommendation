@@ -40,7 +40,10 @@ export interface PortalJourneyPrintSectionV1 {
     | 'what_stays_familiar'
     | 'pressure_vs_storage'
     | 'unvented_safety'
-    | 'living_with_your_system';
+    | 'living_with_your_system'
+    | 'warm_not_hot_radiators'
+    | 'steady_running'
+    | 'winter_behaviour';
   heading: string;
   summary: string;
   keyTakeaway: string;
@@ -50,6 +53,8 @@ export interface PortalJourneyPrintSectionV1 {
   items: string[];
   /** Optional diagram to render in print-safe mode */
   diagramId?: string;
+  /** DiagramRenderer ID to use when known for this section */
+  diagramRendererId?: string;
 }
 
 export interface PortalJourneyPrintNextStepV1 {
@@ -86,6 +91,8 @@ export interface BuildPortalJourneyPrintModelInputV1 {
   brandProfile?: {
     name?: string;
   };
+  /** Journey model to build. Defaults to open_vented for backward compatibility. */
+  journeyType?: 'open_vented' | 'heat_pump';
 }
 
 // ─── Living-with-your-system static content ───────────────────────────────────
@@ -96,23 +103,15 @@ const LIVING_WITH_ITEMS = [
   'Heating controls and day-to-day habits stay familiar.',
 ] as const;
 
-// ─── Builder ──────────────────────────────────────────────────────────────────
+const HEAT_PUMP_LIVING_ITEMS = [
+  'Keep settings steady for day-to-day comfort before making large manual changes.',
+  'Weather and load compensation can adjust flow temperature gradually through the day.',
+  'Warm radiators and steady running can be normal signs of correct operation.',
+] as const;
 
-/**
- * buildPortalJourneyPrintModel
- *
- * Produces a PortalJourneyPrintModelV1 for the open-vented → sealed + unvented
- * path.  All content is sourced from atlasMvpContentMapRegistry so the PDF
- * stays in sync with the portal journey sections.
- */
-export function buildPortalJourneyPrintModel(
-  input: BuildPortalJourneyPrintModelInputV1,
-): PortalJourneyPrintModelV1 {
-  const { selectedSectionIds, recommendationSummary, customerFacts, brandProfile } = input;
-
-  const selectedSet = new Set(selectedSectionIds);
-
-  // ── Fetch registry entries ─────────────────────────────────────────────────
+function buildOpenVentedSectionsAndNextSteps(
+  selectedSet: Set<string>,
+): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
   const conA01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_A01');
   const conC01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_C01');
   const conC02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_C02');
@@ -123,20 +122,7 @@ export function buildPortalJourneyPrintModel(
     );
   }
 
-  // ── Cover ──────────────────────────────────────────────────────────────────
-  const MAX_COVER_CUSTOMER_FACTS = 3;
-  const cover: PortalJourneyPrintCoverV1 = {
-    title: 'Your recommendation',
-    summary: recommendationSummary,
-    customerFacts: customerFacts.slice(0, MAX_COVER_CUSTOMER_FACTS),
-    brandName: brandProfile?.name,
-  };
-
-  // ── Sections ───────────────────────────────────────────────────────────────
   const sections: PortalJourneyPrintSectionV1[] = [];
-
-  // CON_A01 — what changes / what stays familiar
-  // CON_A01 intentionally contributes two pages: "what changes" and "what stays familiar".
   if (selectedSet.has('CON_A01') || selectedSet.size === 0) {
     sections.push({
       contentId: 'CON_A01',
@@ -153,11 +139,10 @@ export function buildPortalJourneyPrintModel(
       ],
       diagramCaption: 'Before and after: tank-fed layout to sealed + unvented layout.',
       diagramId: conA01.suggestedDiagramIds[0],
+      diagramRendererId: 'open_vented_to_unvented',
     });
-
   }
 
-  // CON_C02 — pressure vs storage
   if (selectedSet.has('CON_C02') || selectedSet.size === 0) {
     sections.push({
       contentId: 'CON_C02',
@@ -174,6 +159,7 @@ export function buildPortalJourneyPrintModel(
       ],
       diagramCaption: 'Pressure (force) and storage (amount) shown as separate controls.',
       diagramId: conC02.suggestedDiagramIds[0],
+      diagramRendererId: 'pressure_vs_storage',
     });
   }
 
@@ -193,7 +179,6 @@ export function buildPortalJourneyPrintModel(
     });
   }
 
-  // CON_C01 — unvented safety
   if (selectedSet.has('CON_C01') || selectedSet.size === 0) {
     sections.push({
       contentId: 'CON_C01',
@@ -210,10 +195,10 @@ export function buildPortalJourneyPrintModel(
       ],
       diagramCaption: 'Safety path from cylinder to discharge point.',
       diagramId: conC01.suggestedDiagramIds[0],
+      diagramRendererId: 'open_vented_to_unvented',
     });
   }
 
-  // Living with your system — always included
   sections.push({
     contentId: 'living_with_your_system',
     sectionId: 'living_with_your_system',
@@ -225,7 +210,6 @@ export function buildPortalJourneyPrintModel(
     items: [...LIVING_WITH_ITEMS],
   });
 
-  // ── Next steps ─────────────────────────────────────────────────────────────
   const nextSteps: PortalJourneyPrintNextStepV1[] = [
     {
       label: 'Your appointment',
@@ -241,7 +225,6 @@ export function buildPortalJourneyPrintModel(
     },
   ];
 
-  // ── QR destinations ────────────────────────────────────────────────────────
   const qrDestinations: PortalJourneyPrintQrDestinationV1[] = [
     {
       heading: 'Pressure and stored hot water — deeper detail',
@@ -256,6 +239,159 @@ export function buildPortalJourneyPrintModel(
       note: 'What each safety device does and when to contact your installer.',
     },
   ];
+
+  return { sections, nextSteps, qrDestinations };
+}
+
+function buildHeatPumpSectionsAndNextSteps(
+  selectedSet: Set<string>,
+): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
+  const conE02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_E02');
+  const conH01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_H01');
+  const conH04 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_H04');
+  const conG01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_G01');
+  const conI01DayToDay = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_I01_DAY_TO_DAY');
+
+  if (!conE02 || !conH01 || !conH04 || !conG01 || !conI01DayToDay) {
+    throw new Error(
+      'buildPortalJourneyPrintModel: required content entries CON_E02, CON_H01, CON_H04, CON_G01, CON_I01_DAY_TO_DAY missing from registry',
+    );
+  }
+
+  const sections: PortalJourneyPrintSectionV1[] = [];
+
+  if (selectedSet.has('CON_E02') || selectedSet.size === 0) {
+    sections.push({
+      contentId: 'CON_E02',
+      sectionId: 'warm_not_hot_radiators',
+      heading: 'Why radiators may feel warm, not hot',
+      summary: conE02.oneLineSummary,
+      keyTakeaway: 'Warm radiators can still deliver full comfort when the system is tuned correctly.',
+      reassurance: conE02.whatNotToWorryAbout,
+      items: [
+        conE02.whatYouMayNotice,
+        `Reality: ${conE02.reality}`,
+        'Comfort is measured by room temperature, not only radiator surface feel.',
+      ],
+      diagramCaption: 'Warm-for-longer operation compared with shorter hotter bursts.',
+      diagramId: conE02.suggestedDiagramIds[0],
+      diagramRendererId: 'warm_vs_hot_radiators',
+    });
+  }
+
+  if (selectedSet.has('CON_H04') || selectedSet.has('CON_G01') || selectedSet.size === 0) {
+    sections.push({
+      contentId: 'CON_H04',
+      sectionId: 'steady_running',
+      heading: 'How steady running works',
+      summary: conH04.oneLineSummary,
+      keyTakeaway: 'Steady low-temperature running and compensation are designed to reduce abrupt swings.',
+      reassurance: conG01.whatNotToWorryAbout,
+      items: [
+        conH04.customerWording,
+        conG01.whatYouMayNotice,
+        conG01.whatStaysFamiliar,
+      ],
+      diagramId: conG01.suggestedDiagramIds[0],
+    });
+  }
+
+  if (selectedSet.has('CON_H01') || selectedSet.size === 0) {
+    sections.push({
+      contentId: 'CON_H01',
+      sectionId: 'winter_behaviour',
+      heading: 'What happens in winter',
+      summary: conH01.oneLineSummary,
+      keyTakeaway: 'Short defrost cycles can be normal winter behaviour and should recover automatically.',
+      reassurance: conH01.whatNotToWorryAbout,
+      items: [
+        conH01.whatYouMayNotice,
+        `Reality: ${conH01.reality}`,
+        'Brief mist around the outdoor unit can be expected in cold damp conditions.',
+      ],
+      diagramId: conH01.suggestedDiagramIds[0],
+      diagramRendererId: 'heat_pump_defrost',
+    });
+  }
+
+  sections.push({
+    contentId: 'CON_I01_DAY_TO_DAY',
+    sectionId: 'living_with_your_system',
+    heading: 'Living with the system',
+    summary: conI01DayToDay.oneLineSummary,
+    keyTakeaway: 'Small, evidence-led adjustments usually work better than repeated manual overrides.',
+    reassurance: conI01DayToDay.whatNotToWorryAbout,
+    items: [...HEAT_PUMP_LIVING_ITEMS],
+  });
+
+  const nextSteps: PortalJourneyPrintNextStepV1[] = [
+    {
+      label: 'Your recommendation',
+      body: 'Your installer will confirm controls, compensation setup, and expected heat-pump running pattern at handover.',
+    },
+    {
+      label: 'First winter checks',
+      body: 'Short defrost periods and warm radiators can be normal. Contact your installer if comfort does not recover.',
+    },
+    {
+      label: 'Questions',
+      body: 'Use the QR links below if you want deeper guidance on warm radiators, winter behaviour, and controls.',
+    },
+  ];
+
+  const qrDestinations: PortalJourneyPrintQrDestinationV1[] = [
+    {
+      heading: 'Warm radiators in low-temperature systems',
+      note: 'Why warm-not-hot operation can still deliver full room comfort.',
+    },
+    {
+      heading: 'Heat pump defrost in winter',
+      note: 'How normal defrost cycles look and when to ask for a review.',
+    },
+    {
+      heading: 'Compensation and steady running',
+      note: 'How weather and load compensation supports stable day-to-day comfort.',
+    },
+  ];
+
+  return { sections, nextSteps, qrDestinations };
+}
+
+// ─── Builder ──────────────────────────────────────────────────────────────────
+
+/**
+ * buildPortalJourneyPrintModel
+ *
+ * Produces a PortalJourneyPrintModelV1 for the open-vented → sealed + unvented
+ * path.  All content is sourced from atlasMvpContentMapRegistry so the PDF
+ * stays in sync with the portal journey sections.
+ */
+export function buildPortalJourneyPrintModel(
+  input: BuildPortalJourneyPrintModelInputV1,
+): PortalJourneyPrintModelV1 {
+  const {
+    selectedSectionIds,
+    recommendationSummary,
+    customerFacts,
+    brandProfile,
+    journeyType = 'open_vented',
+  } = input;
+
+  const selectedSet = new Set(selectedSectionIds);
+
+  // ── Cover ──────────────────────────────────────────────────────────────────
+  const MAX_COVER_CUSTOMER_FACTS = 3;
+  const cover: PortalJourneyPrintCoverV1 = {
+    title: 'Your recommendation',
+    summary: recommendationSummary,
+    customerFacts: customerFacts.slice(0, MAX_COVER_CUSTOMER_FACTS),
+    brandName: brandProfile?.name,
+  };
+
+  const { sections, nextSteps, qrDestinations } =
+    journeyType === 'heat_pump'
+      ? buildHeatPumpSectionsAndNextSteps(selectedSet)
+      : buildOpenVentedSectionsAndNextSteps(selectedSet);
 
   // ── Page estimate ──────────────────────────────────────────────────────────
   // Cover (1) + one page per section + next steps (with QR area) = estimated pages

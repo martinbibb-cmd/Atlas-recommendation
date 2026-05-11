@@ -46,6 +46,7 @@ import WhyAtlasSuggestedThis from './WhyAtlasSuggestedThis';
 import NextStepsCard from './NextStepsCard';
 import { PressureVsStoragePortalSection } from '../../library/portal/sections/PressureVsStoragePortalSection';
 import { OpenVentedInsightSection } from '../../library/portal/sections/OpenVentedInsightSection';
+import { HeatPumpLivingJourneyPortalSection } from '../../library/portal/sections/HeatPumpLivingJourneyPortalSection';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
@@ -85,6 +86,7 @@ const PRINT_RENDER_DELAY_MS = 100;
 const STORED_HOT_WATER_SCENARIO_PATTERN = /\b(system_unvented|regular_unvented|unvented)\b/i;
 const STORED_HOT_WATER_LABEL_PATTERN = /\b(stored hot water|unvented|system boiler|regular boiler)\b/i;
 const REGULAR_OR_SYSTEM_UNVENTED_PATTERN = /\b(system_unvented|regular_unvented)\b/i;
+const HEAT_PUMP_SCENARIO_PATTERN = /\b(ashp|heat_pump)\b/i;
 
 export default function InsightPackDeck({
   pack,
@@ -144,14 +146,24 @@ export default function InsightPackDeck({
   const recommendedScenarioId = librarySectionData?.customerSummary.recommendedScenarioId ?? '';
   const appliesRegularOrSystemUnventedPath =
     REGULAR_OR_SYSTEM_UNVENTED_PATTERN.test(recommendedScenarioId);
+  const appliesHeatPumpPath =
+    HEAT_PUMP_SCENARIO_PATTERN.test(recommendedScenarioId)
+    || Boolean(
+      librarySectionData?.userConcernTags?.includes('heat_pump')
+      || librarySectionData?.userConcernTags?.includes('low_flow_temperature'),
+    );
   const useOpenVentedInsightSection =
     appliesStoredHotWater
     && bathroomCount >= 2
     && appliesOpenVentedPath
     && appliesRegularOrSystemUnventedPath;
+  const useHeatPumpInsightSection =
+    appliesHeatPumpPath
+    && !useOpenVentedInsightSection;
 
   function resolveDailyUseRendererName(): string {
     if (useOpenVentedInsightSection) return 'OpenVentedInsightSection';
+    if (useHeatPumpInsightSection) return 'HeatPumpLivingJourneyPortalSection';
     if (usePressureVsStorageSection) return 'PressureVsStoragePortalSection';
     return 'DailyUsePanel';
   }
@@ -185,6 +197,9 @@ export default function InsightPackDeck({
               bathroomCount={bathroomCount}
             />
           );
+        }
+        if (librarySectionData && useHeatPumpInsightSection) {
+          return <HeatPumpLivingJourneyPortalSection />;
         }
         if (librarySectionData && usePressureVsStorageSection) {
           return (

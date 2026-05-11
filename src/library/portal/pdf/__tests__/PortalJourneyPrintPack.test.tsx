@@ -10,6 +10,13 @@ const BASE_MODEL = buildPortalJourneyPrintModel({
   brandProfile: { name: 'Atlas Heating' },
 });
 
+const HEAT_PUMP_MODEL = buildPortalJourneyPrintModel({
+  journeyType: 'heat_pump',
+  selectedSectionIds: ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'],
+  recommendationSummary: 'Heat pump with low-temperature radiators — a steady comfort fit for this home.',
+  customerFacts: ['3-person household', '2 bathrooms', 'Heat pump with low-temperature radiators'],
+});
+
 // ─── Document structure ───────────────────────────────────────────────────────
 
 describe('PortalJourneyPrintPack — document structure', () => {
@@ -265,5 +272,21 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
     expect(screen.queryByText(/content pending/i)).toBeNull();
     expect(screen.getByText(/The loft tank is no longer needed\./i)).toBeInTheDocument();
     expect(screen.getByText(/Visible safety parts are expected in a compliant setup\./i)).toBeInTheDocument();
+  });
+});
+
+describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
+  it('renders expected heat-pump section headings', () => {
+    render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
+    expect(screen.getByRole('heading', { name: 'Why radiators may feel warm, not hot' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How steady running works' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'What happens in winter' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Living with the system' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'What happens next' })).toBeInTheDocument();
+  });
+
+  it('keeps customer copy free of pending/debug/raw IDs', () => {
+    const { container } = render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
+    expect(container.textContent).not.toMatch(/content pending|debug|CON_[A-Z0-9_]+/i);
   });
 });

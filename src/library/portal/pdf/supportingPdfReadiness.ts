@@ -5,6 +5,8 @@ export interface SupportingPdfReadinessInput {
   expectedRecommendationSummary: string;
   maxCustomerPages?: number;
   requiredDiagramSectionIds?: PortalJourneyPrintSectionV1['sectionId'][];
+  requiredDiagramRendererIds?: string[];
+  availableDiagramRendererIds?: string[];
   printSafeLayoutPass: boolean;
   accessibilityBasicsPass: boolean;
   insightFallbackAvailable: boolean;
@@ -123,6 +125,8 @@ export function assessSupportingPdfReadiness(
     expectedRecommendationSummary,
     maxCustomerPages = model.pageEstimate.maxPages,
     requiredDiagramSectionIds = [],
+    requiredDiagramRendererIds = [],
+    availableDiagramRendererIds,
     printSafeLayoutPass,
     accessibilityBasicsPass,
     insightFallbackAvailable,
@@ -162,6 +166,26 @@ export function assessSupportingPdfReadiness(
     blockingReasons.push(
       `Required diagrams are missing for: ${missingRequiredDiagrams.join(', ')}.`,
     );
+  }
+
+  const diagramRendererIdSet = new Set(
+    model.sections
+      .map((section) => section.diagramRendererId)
+      .filter((diagramRendererId): diagramRendererId is string =>
+        typeof diagramRendererId === 'string' && diagramRendererId.trim().length > 0),
+  );
+
+  for (const requiredDiagramRendererId of requiredDiagramRendererIds) {
+    const isAvailable =
+      availableDiagramRendererIds == null
+      || availableDiagramRendererIds.includes(requiredDiagramRendererId);
+    if (!isAvailable) {
+      warnings.push(`Required diagram is not currently available in renderer: ${requiredDiagramRendererId}.`);
+      continue;
+    }
+    if (!diagramRendererIdSet.has(requiredDiagramRendererId)) {
+      blockingReasons.push(`Required diagram is missing: ${requiredDiagramRendererId}.`);
+    }
   }
 
   if (!printSafeLayoutPass) {
