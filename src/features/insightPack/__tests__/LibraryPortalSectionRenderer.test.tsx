@@ -302,6 +302,7 @@ describe('LibraryPortalSectionRenderer', () => {
     );
 
     expect(screen.getByTestId('diagram-pressure_vs_storage')).toBeTruthy();
+    expect(screen.queryByTestId('diagram-warm_vs_hot_radiators')).toBeNull();
   });
 
   it('hides debug strip in production mode', () => {
