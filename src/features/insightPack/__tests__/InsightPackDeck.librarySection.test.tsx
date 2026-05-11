@@ -162,4 +162,26 @@ describe('InsightPackDeck library section integration', () => {
     expect(screen.queryAllByTestId('open-vented-insight-section')).toHaveLength(0);
     expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0);
   });
+
+  it('shows OpenVentedInsightSection for regular_unvented stored-hot-water path', () => {
+    render(
+      <InsightPackDeck
+        pack={pack}
+        librarySectionData={{
+          customerSummary: {
+            ...customerSummary,
+            recommendedScenarioId: 'regular_unvented',
+          },
+          atlasDecision,
+          scenarios,
+          bathroomCount: 2,
+          userConcernTags: ['open_vented'],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+    expect(screen.getAllByTestId('open-vented-insight-section').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('lwspj-section').length).toBeGreaterThan(0);
+  });
 });
