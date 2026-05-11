@@ -119,6 +119,7 @@ describe('DevPortalFixturePage — Insight opens real InsightPackDeck', () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-insight-open_vented_to_sealed_unvented'));
     await waitFor(() => expect(screen.getByTestId('dev-insight-pdf-toggle')).toBeTruthy());
+    expect(screen.getByTestId('dev-insight-pdf-toggle-current')).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('insight-pack-deck')).toBeTruthy();
   });
 });

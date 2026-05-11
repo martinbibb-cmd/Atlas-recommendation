@@ -292,11 +292,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
       && isOpenVentedFixture(fixture)
       && (initialView === 'insight' || initialView === 'supporting_pdf');
-    setPreviewMode(
-      shouldOpenComparisonShell && initialView === 'supporting_pdf'
-        ? 'library_supporting_pdf'
-        : 'current_insight_pdf',
-    );
+    if (shouldOpenComparisonShell) {
+      setPreviewMode(initialView === 'supporting_pdf' ? 'library_supporting_pdf' : 'current_insight_pdf');
+    }
     setActive({ fixture, initialView });
   }
 
@@ -320,6 +318,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
     // the library-driven supporting PDF preview for safe dev comparison.
     if (showInsightPdfComparison) {
       const printModel = buildOpenVentedSupportingPdfModel(active.fixture);
+      const currentInsightEstimatedPages = Math.ceil(sectionsForMode('in-room').length / 2);
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
           <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
@@ -391,7 +390,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 <tbody>
                   <tr>
                     <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Page count</td>
-                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>{sectionsForMode('in-room').length}</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>{currentInsightEstimatedPages}</td>
                     <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>{printModel.pageEstimate.usedPages}</td>
                   </tr>
                   <tr>
