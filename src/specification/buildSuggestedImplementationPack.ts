@@ -225,25 +225,23 @@ function buildHotWaterSection(
   let expansionManagement: string[] | undefined;
   let dischargeRequirements: string[] | undefined;
 
-  const occupancyCount = (surveyInput as unknown as { occupancyCount?: number }).occupancyCount;
+  const peakConcurrentOutlets = surveyInput.occupancy.peakConcurrentOutlets;
 
-  // Cylinder sizing guidance
+  // Cylinder sizing guidance — use peakConcurrentOutlets as a proxy for household demand
   if (strategy === 'stored_unvented' || strategy === 'stored_mixergy' || strategy === 'heat_pump_cylinder') {
     let minVolumeL = 150;
     let specNote = '150–180 L';
 
-    if (typeof occupancyCount === 'number') {
-      if (occupancyCount >= 4) {
+    if (peakConcurrentOutlets >= 3) {
         minVolumeL = 210;
-        specNote = '210–250 L for 4+ occupants';
-      } else if (occupancyCount === 3) {
+        specNote = '210–250 L (3+ peak concurrent outlets)';
+      } else if (peakConcurrentOutlets === 2) {
         minVolumeL = 180;
-        specNote = '180–210 L for 3 occupants';
+        specNote = '180–210 L (2 peak concurrent outlets)';
       } else {
         minVolumeL = 150;
-        specNote = '150–180 L for 1–2 occupants';
+        specNote = '150–180 L (1 peak concurrent outlet)';
       }
-    }
 
     if (strategy === 'stored_mixergy') {
       components.push({
@@ -395,16 +393,14 @@ function buildHydraulicComponentsSection(
     confidence: 'required',
   });
 
-  // Filling loop (sealed system)
-  if (scenarioId !== 'combi' || scenarioId.includes('system') || scenarioId.includes('regular')) {
-    components.push({
-      id: 'filling_loop',
-      description: 'Sealed system filling loop (temporary double check valve type)',
-      suggestedSpec: 'Disconnectable type to Water Regulations requirements',
-      rationale: 'Sealed central heating circuit requires filling loop for initial fill and pressure top-up',
-      confidence: 'required',
-    });
-  }
+  // Filling loop — required for all sealed heating circuits
+  components.push({
+    id: 'filling_loop',
+    description: 'Sealed system filling loop (temporary double check valve type)',
+    suggestedSpec: 'Disconnectable type to Water Regulations requirements',
+    rationale: 'Sealed central heating circuit requires filling loop for initial fill and pressure top-up',
+    confidence: 'required',
+  });
 
   // Buffer / low-loss header for ASHP
   if (scenarioId.includes('ashp') || scenarioId.includes('heat_pump')) {
