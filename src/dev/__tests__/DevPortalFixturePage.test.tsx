@@ -144,6 +144,24 @@ describe('DevPortalFixturePage — library supporting PDF preview', () => {
     fireEvent.click(screen.getByTestId('dev-supporting-pdf-print'));
     expect(printSpy).toHaveBeenCalledOnce();
   });
+
+  it('shows readiness panel and reports ready to replace', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented'));
+
+    await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-readiness-panel')).toBeTruthy());
+    expect(screen.getByTestId('dev-supporting-pdf-ready-value')).toHaveTextContent('Yes');
+    expect(screen.getByTestId('dev-supporting-pdf-blocking-reasons-none')).toHaveTextContent('None');
+  });
+
+  it('keeps current Insight fallback available in comparison mode', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented'));
+    await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-preview')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-insight-pdf-toggle-current'));
+    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+  });
 });
 
 describe('DevPortalFixturePage — stored/unvented fixture shows PressureVsStoragePortalSection', () => {
