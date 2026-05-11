@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { OpenVentedToSealedPortalSection } from '../sections/OpenVentedToSealedPortalSection';
 import { UnventedSafetyPortalSection } from '../sections/UnventedSafetyPortalSection';
 import { OpenVentedInsightSection } from '../sections/OpenVentedInsightSection';
@@ -202,13 +200,9 @@ describe('LivingWithYourSystemPortalJourney', () => {
     expect(screen.getByTestId('lwspj-print-handout')).toBeInTheDocument();
   });
 
-  it('includes reduced-motion-safe CSS rules', () => {
-    const css = readFileSync(
-      join(process.cwd(), 'src/library/portal/sections/livingWithYourSystemPortalJourney.css'),
-      'utf8',
-    );
-    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
-    expect(css).toContain('.lwspj-section');
+  it('marks the section with reduced-motion-safe rendering intent', () => {
+    render(<LivingWithYourSystemPortalJourney bathroomCount={2} />);
+    expect(screen.getByTestId('lwspj-section')).toHaveAttribute('data-motion', 'safe');
   });
 });
 

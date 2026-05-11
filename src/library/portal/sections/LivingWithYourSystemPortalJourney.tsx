@@ -30,6 +30,8 @@ const TIMELINE_STEPS = [
 export function LivingWithYourSystemPortalJourney({
   bathroomCount = 2,
 }: LivingWithYourSystemPortalJourneyProps) {
+  const displayBathroomCount = bathroomCount >= 2 ? bathroomCount : 2;
+
   return (
     <section
       className="lwspj-section"
@@ -74,7 +76,7 @@ export function LivingWithYourSystemPortalJourney({
         <article className="lwspj-card" data-testid="lwspj-multiple-showers">
           <h3>Multiple showers</h3>
           <p>
-            In a {bathroomCount}-bathroom home, overlap is common. Stored hot
+            In a {displayBathroomCount}-bathroom home, overlap is common. Stored hot
             water helps both showers run together with steadier flow.
           </p>
           <div className="lwspj-visual lwspj-visual--showers" aria-label="Two showers overlap visual" data-testid="lwspj-showers-visual">
