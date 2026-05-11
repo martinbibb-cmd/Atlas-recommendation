@@ -22,6 +22,7 @@ export interface BuildDemoWelcomePackInput {
   brandId?: string;
   brandProfile?: BrandProfileV1;
   visitReference?: string;
+  concernTagsOverride?: string[];
 }
 
 export interface BuildDemoWelcomePackResult {
@@ -77,6 +78,7 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
     fixture.accessibilityPreferences,
     input.accessibilityOverrides,
   );
+  const concernTags = input.concernTagsOverride ?? fixture.userConcernTags;
 
   const plan = buildWelcomePackPlan({
     customerSummary: fixture.customerSummary,
@@ -107,7 +109,7 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
     educationalContent,
     eligibilityMode,
     includeTechnicalAppendix: accessibilityPreferences.includeTechnicalAppendix,
-    concernTags: fixture.userConcernTags,
+    concernTags,
   });
   const brandedCalmViewModel = buildBrandedCalmWelcomePackViewModel({
     calmViewModel,

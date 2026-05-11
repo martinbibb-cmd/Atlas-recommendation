@@ -50,6 +50,14 @@ import {
   getDiagramsForConcepts,
   getMissingDiagramCoverageForConcepts,
 } from '../diagrams/diagramLookup';
+import type { SequenceStage } from '../sequencing/EducationalSequenceRuleV1';
+import {
+  AnxietyPatternBadge,
+  CustomerConcernPanel,
+  ReassurancePacingStrip,
+  TrustResponseCard,
+  customerAnxietyPatterns,
+} from '../emotionalRouting';
 
 const GOLDEN_JOURNEY_FIXTURE_IDS: WelcomePackDemoFixtureId[] = [
   'open_vented_to_sealed_unvented',
@@ -74,15 +82,6 @@ const STORYBOARD_EMOTIONAL_PRIORITY = new Map([
   ['neutral', 1],
   ['cautionary', 2],
 ]);
-const STORYBOARD_SECTION_TITLES = {
-  calm_summary: 'What Atlas found',
-  why_this_fits: 'Why this fits',
-  living_with_the_system: 'Living with your system',
-  relevant_explainers: 'Relevant explainers',
-  optional_technical_appendix: 'Optional technical appendix',
-  next_steps: 'Next steps',
-} as const;
-
 type PreviewMode = 'visual_storyboard' | 'calm_customer_pack' | 'diagnostics' | 'golden_journeys' | 'ui_primitives';
 
 interface StoryboardSequencedCard {
@@ -90,6 +89,7 @@ interface StoryboardSequencedCard {
   title: string;
   summary: string;
   sectionTitle: string;
+  sequenceStage: SequenceStage;
   conceptId?: string;
   content?: EducationalContentV1;
   hasAuthoredContent: boolean;
@@ -107,6 +107,63 @@ interface StoryboardDiagramCard {
   title: string;
   whatThisMeans: string;
 }
+
+interface ConcernToggleOption {
+  id: string;
+  label: string;
+  concernTag: string;
+}
+
+interface ConcernStoryCopy {
+  shownFirst: string;
+  deferred: string;
+}
+
+const CONCERN_TOGGLE_OPTIONS: ConcernToggleOption[] = [
+  { id: 'worried_about_disruption', label: 'worried about disruption', concernTag: 'disruption' },
+  { id: 'skeptical_of_sales', label: 'skeptical of sales', concernTag: 'sales' },
+  { id: 'worried_about_safety', label: 'worried about safety', concernTag: 'safety' },
+  { id: 'worried_about_running_costs', label: 'worried about running costs', concernTag: 'running_cost' },
+  { id: 'worried_about_complex_controls', label: 'worried about controls', concernTag: 'controls' },
+  { id: 'worried_about_pressure_changes', label: 'worried about pressure', concernTag: 'pressure' },
+  { id: 'worried_about_hot_water', label: 'worried about hot water', concernTag: 'hot_water' },
+  { id: 'worried_about_heat_pumps', label: 'worried about heat pumps', concernTag: 'heat_pump' },
+];
+
+const CONCERN_STORY_COPY: Record<string, ConcernStoryCopy> = {
+  worried_about_disruption: {
+    shownFirst: 'familiar controls, radiators, installer handover',
+    deferred: 'technical safety detail',
+  },
+  skeptical_of_sales: {
+    shownFirst: 'evidence-led fit summary and plain language checks',
+    deferred: 'promotional framing',
+  },
+  worried_about_safety: {
+    shownFirst: 'safety basics and everyday safe use',
+    deferred: 'deeper standards references',
+  },
+  worried_about_running_costs: {
+    shownFirst: 'day-to-day usage guidance and realistic savings framing',
+    deferred: 'extended technical efficiency detail',
+  },
+  worried_about_complex_controls: {
+    shownFirst: 'simple default controls and first-day actions',
+    deferred: 'advanced control options',
+  },
+  worried_about_pressure_changes: {
+    shownFirst: 'mains-fed supply expectations and stability guidance',
+    deferred: 'pipework edge-case detail',
+  },
+  worried_about_hot_water: {
+    shownFirst: 'on-demand hot water expectations and daily usage rhythm',
+    deferred: 'recovery edge-case detail',
+  },
+  worried_about_heat_pumps: {
+    shownFirst: 'comfort expectations and what stays familiar',
+    deferred: 'appendix-level technical detail',
+  },
+};
 
 function toAccessibilityProfiles(dyslexia: boolean, adhd: boolean): Array<'dyslexia' | 'adhd'> {
   const profiles: Array<'dyslexia' | 'adhd'> = [];
@@ -178,6 +235,28 @@ function sortConceptIdsForStoryboard(selectedConceptIds: readonly string[]) {
   });
 }
 
+function getStoryboardLabelForCard(sequenceStage: SequenceStage, hasSafetyNotice: boolean): string {
+  if (hasSafetyNotice) {
+    return 'Safety';
+  }
+
+  switch (sequenceStage) {
+    case 'reassurance':
+      return 'Reassurance';
+    case 'expectation':
+    case 'lived_experience':
+      return 'What you may notice';
+    case 'misconception':
+      return 'Misconception';
+    case 'deeper_understanding':
+    case 'technical_detail':
+    case 'appendix_only':
+      return 'Deeper detail';
+    default:
+      return 'Reassurance';
+  }
+}
+
 export function WelcomePackDevPreview() {
   const [previewMode, setPreviewMode] = useState<PreviewMode>('visual_storyboard');
   const [fixtureId, setFixtureId] = useState<WelcomePackDemoFixtureId>('open_vented_to_sealed_unvented');
@@ -188,6 +267,7 @@ export function WelcomePackDevPreview() {
   const [showValidationAudit, setShowValidationAudit] = useState(false);
   const [eligibilityMode, setEligibilityMode] = useState<WelcomePackEligibilityMode>('off');
   const [brandId, setBrandId] = useState(DEFAULT_BRAND_ID);
+  const [selectedConcernIds, setSelectedConcernIds] = useState<string[]>([]);
 
   const fixtureOptions = useMemo(
     () => previewMode === 'golden_journeys'
@@ -220,6 +300,7 @@ export function WelcomePackDevPreview() {
     setDyslexia(nextFixture.accessibilityPreferences.profiles?.includes('dyslexia') ?? false);
     setAdhd(nextFixture.accessibilityPreferences.profiles?.includes('adhd') ?? false);
     setTechnicalAppendix(Boolean(nextFixture.accessibilityPreferences.includeTechnicalAppendix));
+    setSelectedConcernIds([]);
   }
 
   function handlePreviewModeChange(nextMode: PreviewMode) {
@@ -227,6 +308,15 @@ export function WelcomePackDevPreview() {
     if (nextMode === 'golden_journeys' && !GOLDEN_JOURNEY_FIXTURE_ID_SET.has(fixtureId)) {
       applyFixtureSelection(GOLDEN_JOURNEY_FIXTURE_IDS[0]);
     }
+  }
+
+  function toggleConcern(concernId: string, checked: boolean) {
+    setSelectedConcernIds((current) => {
+      if (checked) {
+        return current.includes(concernId) ? current : [...current, concernId];
+      }
+      return current.filter((id) => id !== concernId);
+    });
   }
 
   const {
@@ -245,12 +335,16 @@ export function WelcomePackDevPreview() {
     },
     eligibilityMode,
     brandId,
+    concernTagsOverride: CONCERN_TOGGLE_OPTIONS
+      .filter((option) => selectedConcernIds.includes(option.id))
+      .map((option) => option.concernTag),
   }), [
     brandId,
     dyslexia,
     eligibilityMode,
     printFirst,
     selectedFixture.id,
+    selectedConcernIds,
     technicalAppendix,
     adhd,
   ]);
@@ -372,25 +466,51 @@ export function WelcomePackDevPreview() {
 
   const storyboardSequencedCards = useMemo<StoryboardSequencedCard[]>(() => {
     const sectionTitleByConceptId = new Map<string, string>();
+    const sequencePositionByConceptId = new Map<string, number>();
+    const sequenceStageByConceptId = new Map<string, SequenceStage>();
+    let sequencePosition = 0;
 
-    for (const section of plan.sections) {
-      for (const assetId of section.includedAssetIds) {
-        const asset = assetById.get(assetId);
-        for (const conceptId of asset?.conceptIds ?? []) {
-          if (!sectionTitleByConceptId.has(conceptId)) {
-            sectionTitleByConceptId.set(conceptId, STORYBOARD_SECTION_TITLES[section.id]);
-          }
+    for (const section of calmViewModel.customerFacingSections) {
+      for (const card of section.cards) {
+        const conceptId = card.conceptId;
+        if (!conceptId) {
+          continue;
+        }
+
+        if (!sectionTitleByConceptId.has(conceptId)) {
+          sectionTitleByConceptId.set(conceptId, section.title);
+        }
+        if (!sequencePositionByConceptId.has(conceptId)) {
+          sequencePositionByConceptId.set(conceptId, sequencePosition++);
+        }
+        if (!sequenceStageByConceptId.has(conceptId)) {
+          const stage = educationalSequenceRules.find((rule) => rule.conceptId === conceptId)?.sequenceStage ?? 'technical_detail';
+          sequenceStageByConceptId.set(conceptId, stage);
         }
       }
     }
 
-    const orderedConceptIds = sortConceptIdsForStoryboard(plan.selectedConceptIds);
+    const orderedConceptIds = [...plan.selectedConceptIds].sort((left, right) => {
+      const leftPosition = sequencePositionByConceptId.get(left);
+      const rightPosition = sequencePositionByConceptId.get(right);
+      if (leftPosition !== undefined && rightPosition !== undefined && leftPosition !== rightPosition) {
+        return leftPosition - rightPosition;
+      }
+      if (leftPosition !== undefined) {
+        return -1;
+      }
+      if (rightPosition !== undefined) {
+        return 1;
+      }
+      return sortConceptIdsForStoryboard([left, right])[0] === left ? -1 : 1;
+    });
 
     return orderedConceptIds
       .map((conceptId) => {
         const content = educationalContentByConceptId.get(conceptId);
         const asset = [...assetById.values()].find((item) => item.conceptIds.includes(conceptId));
         const hasAuthoredContent = content !== undefined;
+        const sequenceStage = sequenceStageByConceptId.get(conceptId) ?? 'technical_detail';
 
         return {
           title: content?.title ?? asset?.title ?? conceptId,
@@ -399,6 +519,7 @@ export function WelcomePackDevPreview() {
             || content?.plainEnglishSummary
             || `This storyboard beat is currently carried by ${asset?.title ?? 'a linked asset'}.`,
           sectionTitle: sectionTitleByConceptId.get(conceptId) ?? 'Relevant explainers',
+          sequenceStage,
           conceptId,
           content,
           hasAuthoredContent,
@@ -408,7 +529,7 @@ export function WelcomePackDevPreview() {
         ...card,
         order: index + 1,
       }));
-  }, [assetById, educationalContentByConceptId, plan]);
+  }, [assetById, calmViewModel.customerFacingSections, educationalContentByConceptId, plan.selectedConceptIds]);
 
   const storyboardNoticeCards = useMemo(
     () => storyboardSequencedCards
@@ -477,8 +598,33 @@ export function WelcomePackDevPreview() {
   const safetyCardCount = storyboardSequencedCards.filter((card) => card.content?.safetyNotice).length;
   const qrCardCount = calmViewModel.qrDestinations.length;
   const activeAnxietyPatternIds = calmViewModel.sequencingMetadata?.activeAnxietyPatternIds ?? [];
+  const activePatternSet = new Set(activeAnxietyPatternIds);
+  const activeAnxietyPatterns = customerAnxietyPatterns.filter((pattern) => activePatternSet.has(pattern.anxietyId));
+  const activePatternLabels = activeAnxietyPatterns.map((pattern) => {
+    const option = CONCERN_TOGGLE_OPTIONS.find((item) => item.id === pattern.anxietyId);
+    return option?.label ?? pattern.anxietyId.replaceAll('_', ' ');
+  });
+  const activeConcernHeadline = activePatternLabels[0] ?? 'No highlighted concern';
+  const activeConcernCopy = activeAnxietyPatterns[0]
+    ? CONCERN_STORY_COPY[activeAnxietyPatterns[0].anxietyId]
+    : undefined;
+  const concernShownFirst = activeConcernCopy?.shownFirst ?? 'current recommendation summary and familiar system guidance';
+  const concernDeferredText = activeConcernCopy?.deferred ?? 'deeper technical detail';
+  const concernResponseSummary = activeAnxietyPatterns[0]
+    ? `Lead with ${concernShownFirst}, then explain what changes.`
+    : 'Follow the default calm sequence and add detail only when it helps.';
+  const atlasResponseCards = activeAnxietyPatterns.map((pattern) => ({
+    id: pattern.anxietyId,
+    label: CONCERN_TOGGLE_OPTIONS.find((item) => item.id === pattern.anxietyId)?.label ?? pattern.anxietyId,
+    response: `${pattern.reassuranceStrategies[0] ?? 'Front-load reassurance'}; defer deep technical detail until trust is established.`,
+  }));
+  const whatChangesSummary = fixture.customerSummary.plainEnglishDecision;
+  const whatStaysFamiliarSummary = activeAnxietyPatterns.some((pattern) => pattern.sequencingBias.boostWhatStaysFamiliar)
+    ? 'Atlas leads with familiar controls, radiator behaviour, and installer handover cues before deeper detail.'
+    : 'Atlas keeps familiar home-use guidance in the first pass and layers detail only when helpful.';
   const reassuranceConceptCount = calmViewModel.sequencingMetadata?.reassuranceConceptCount ?? 0;
   const hasSelectedConcepts = plan.selectedConceptIds.length > 0;
+  const storyboardDeferredCount = calmViewModel.deferredBySequencing?.length ?? 0;
   const reassuranceConceptPercent = Math.max(
     0,
     Math.min(
@@ -598,64 +744,58 @@ export function WelcomePackDevPreview() {
       <p><strong>Development preview — not customer content.</strong></p>
 
       <section aria-label="Fixture and preview controls" style={{ marginBottom: '1rem' }}>
-        <fieldset>
-          <legend>Display mode</legend>
-          <label style={{ display: 'block' }}>
-            <input
-              type="radio"
-              name="preview-mode"
-              value="visual_storyboard"
-              checked={previewMode === 'visual_storyboard'}
-              onChange={() => handlePreviewModeChange('visual_storyboard')}
-            />
-            {' '}
-            Visual storyboard
-          </label>
-          <label style={{ display: 'block' }}>
-            <input
-              type="radio"
-              name="preview-mode"
-              value="calm_customer_pack"
-              checked={previewMode === 'calm_customer_pack'}
-              onChange={() => handlePreviewModeChange('calm_customer_pack')}
-            />
-            {' '}
-            Calm customer pack
-          </label>
-          <label style={{ display: 'block' }}>
-            <input
-              type="radio"
-              name="preview-mode"
-              value="diagnostics"
-              checked={previewMode === 'diagnostics'}
-              onChange={() => handlePreviewModeChange('diagnostics')}
-            />
-            {' '}
+        <div role="tablist" aria-label="Preview tabs" className="atlas-storyboard-tab-list">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={previewMode === 'visual_storyboard'}
+            className="atlas-storyboard-tab-button"
+            data-active={previewMode === 'visual_storyboard'}
+            onClick={() => handlePreviewModeChange('visual_storyboard')}
+          >
+            Visual Preview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={previewMode === 'calm_customer_pack'}
+            className="atlas-storyboard-tab-button"
+            data-active={previewMode === 'calm_customer_pack'}
+            onClick={() => handlePreviewModeChange('calm_customer_pack')}
+          >
+            Calm Pack
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={previewMode === 'golden_journeys'}
+            className="atlas-storyboard-tab-button"
+            data-active={previewMode === 'golden_journeys'}
+            onClick={() => handlePreviewModeChange('golden_journeys')}
+          >
+            Golden Journeys
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={previewMode === 'diagnostics'}
+            className="atlas-storyboard-tab-button"
+            data-active={previewMode === 'diagnostics'}
+            onClick={() => handlePreviewModeChange('diagnostics')}
+          >
             Diagnostics
-          </label>
-          <label style={{ display: 'block' }}>
-            <input
-              type="radio"
-              name="preview-mode"
-              value="golden_journeys"
-              checked={previewMode === 'golden_journeys'}
-              onChange={() => handlePreviewModeChange('golden_journeys')}
-            />
-            {' '}
-            Golden journeys
-          </label>
-          <label style={{ display: 'block' }}>
-            <input
-              type="radio"
-              name="preview-mode"
-              value="ui_primitives"
-              checked={previewMode === 'ui_primitives'}
-              onChange={() => handlePreviewModeChange('ui_primitives')}
-            />
-            {' '}
-            UI primitives
-          </label>
-        </fieldset>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={previewMode === 'ui_primitives'}
+            className="atlas-storyboard-tab-button"
+            data-active={previewMode === 'ui_primitives'}
+            onClick={() => handlePreviewModeChange('ui_primitives')}
+          >
+            UI Primitives
+          </button>
+        </div>
 
         <label htmlFor="welcome-pack-fixture-select" style={{ display: 'block', marginTop: '1rem', marginBottom: '0.5rem' }}>
           {previewMode === 'golden_journeys' ? 'Golden journey' : 'Fixture'}
@@ -826,6 +966,23 @@ export function WelcomePackDevPreview() {
 
       {(previewMode === 'visual_storyboard' || previewMode === 'golden_journeys') && (
         <section className="atlas-storyboard-shell" aria-label="Visual storyboard" data-testid="visual-storyboard">
+          <h2 data-testid="visual-preview-heading">Visual Preview — customer-facing pack shape</h2>
+
+          <fieldset style={{ marginTop: '0.5rem' }} aria-label="Concern toggles">
+            <legend>Customer concern toggles (dev only)</legend>
+            {CONCERN_TOGGLE_OPTIONS.map((concernOption) => (
+              <label key={concernOption.id} style={{ display: 'block' }}>
+                <input
+                  type="checkbox"
+                  checked={selectedConcernIds.includes(concernOption.id)}
+                  onChange={(event) => toggleConcern(concernOption.id, event.target.checked)}
+                />
+                {' '}
+                {concernOption.label}
+              </label>
+            ))}
+          </fieldset>
+
           <WelcomePackCoverPreview
             title={`Welcome pack — ${fixture.customerSummary.recommendedSystemLabel}`}
             summary={fixture.customerSummary.headline}
@@ -833,6 +990,50 @@ export function WelcomePackDevPreview() {
             pageCountLabel={`${viewModel.pageEstimate.usedPages} of ${viewModel.pageEstimate.maxPages} pages in scope`}
             iconName={getStoryboardIcon(fixture.customerSummary.recommendedSystemLabel)}
           />
+
+          <section className="atlas-storyboard-panel" aria-label="What changes and what stays familiar" data-testid="storyboard-what-changes-panel">
+            <div className="atlas-storyboard-panel__header">
+              <p className="atlas-storyboard-panel__eyebrow">Pack framing</p>
+              <h2 className="atlas-storyboard-panel__title">What changes and what stays familiar</h2>
+            </div>
+            <div className="atlas-storyboard-card-grid">
+              <article className="atlas-trust-response-card">
+                <p className="atlas-trust-response-card__eyebrow">What changes</p>
+                <p className="atlas-trust-response-card__body">{whatChangesSummary}</p>
+              </article>
+              <article className="atlas-trust-response-card">
+                <p className="atlas-trust-response-card__eyebrow">What stays familiar</p>
+                <p className="atlas-trust-response-card__body">{whatStaysFamiliarSummary}</p>
+              </article>
+            </div>
+          </section>
+
+          <CustomerConcernPanel
+            concern={activeConcernHeadline}
+            atlasResponse={concernResponseSummary}
+            shownFirst={concernShownFirst}
+            deferred={`${concernDeferredText} (${storyboardDeferredCount} deferred concept${storyboardDeferredCount === 1 ? '' : 's'})`}
+          />
+
+          <section className="atlas-storyboard-panel" aria-label="Anxiety routing signals">
+            <div className="atlas-storyboard-panel__header">
+              <p className="atlas-storyboard-panel__eyebrow">Anxiety-aware routing</p>
+              <h2 className="atlas-storyboard-panel__title">Visible reassurance pacing</h2>
+            </div>
+            <div className="atlas-anxiety-badge-row" data-testid="storyboard-active-pattern-badges">
+              {activePatternLabels.length === 0 ? (
+                <AnxietyPatternBadge label="no active concern" />
+              ) : activePatternLabels.map((label) => (
+                <AnxietyPatternBadge key={label} label={label} />
+              ))}
+            </div>
+            <ReassurancePacingStrip
+              percent={reassuranceConceptPercent}
+              summary={hasSelectedConcepts
+                ? `${reassuranceConceptCount} reassurance concept(s) across ${plan.selectedConceptIds.length} selected concept(s)`
+                : 'No selected concepts to pace.'}
+            />
+          </section>
 
           <PackPageStrip items={storyboardPageStripItems} />
           <SystemJourneyMap steps={journeySteps} />
@@ -857,6 +1058,7 @@ export function WelcomePackDevPreview() {
                   summary={card.summary}
                   content={card.content}
                   sectionTitle={card.sectionTitle}
+                  storyboardLabel={getStoryboardLabelForCard(card.sequenceStage, Boolean(card.content?.safetyNotice))}
                 />
               ))}
             </div>
@@ -873,7 +1075,7 @@ export function WelcomePackDevPreview() {
               <TrustRecoveryCard
                 title="Some detail stays off the first page"
                 thisCanHappen="The first-view pack stays short on purpose."
-                whatItMeans={`${plan.deferredConceptIds.length} deferred concept(s) and ${viewModel.omittedSummary.omittedAssets.length} omitted asset(s) stay out of the first pass.`}
+                whatItMeans={`${storyboardDeferredCount} deferred concept(s) and ${viewModel.omittedSummary.omittedAssets.length} omitted asset(s) stay out of the first pass.`}
                 whatToDoNext={calmViewModel.qrDestinations.length > 0
                   ? 'Use the QR deep dives when someone wants more detail.'
                   : 'Use Diagnostics mode if you need the full omission trail.'}
@@ -925,6 +1127,26 @@ export function WelcomePackDevPreview() {
                   title={item.title}
                   reason={item.reason}
                   destination={item.destination}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="atlas-storyboard-panel" aria-labelledby="atlas-storyboard-response-title">
+            <div className="atlas-storyboard-panel__header">
+              <p className="atlas-storyboard-panel__eyebrow">Atlas response</p>
+              <h2 id="atlas-storyboard-response-title" className="atlas-storyboard-panel__title">
+                How the pack adapted
+              </h2>
+            </div>
+            <div className="atlas-storyboard-card-grid" data-testid="storyboard-atlas-response-cards">
+              {atlasResponseCards.length === 0 ? (
+                <TrustResponseCard title="Default calm sequence" response="No active concern is selected, so the storyboard follows the standard reassurance-first rhythm." />
+              ) : atlasResponseCards.map((card) => (
+                <TrustResponseCard
+                  key={card.id}
+                  title={card.label}
+                  response={card.response}
                 />
               ))}
             </div>

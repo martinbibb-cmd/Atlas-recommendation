@@ -7,6 +7,7 @@ export interface SequencedConceptCardPreviewProps {
   summary: string;
   content?: EducationalContentV1;
   sectionTitle: string;
+  storyboardLabel?: string;
 }
 
 function getSequenceLabel(order: number, sectionTitle: string) {
@@ -19,6 +20,7 @@ export function SequencedConceptCardPreview({
   summary,
   content,
   sectionTitle,
+  storyboardLabel,
 }: SequencedConceptCardPreviewProps) {
   const analogy = content?.analogyOptions.find((option) => option.family !== 'none') ?? content?.analogyOptions[0];
   const sequenceLabel = getSequenceLabel(order, sectionTitle);
@@ -26,6 +28,7 @@ export function SequencedConceptCardPreview({
   if (content?.safetyNotice) {
     return (
       <div data-testid={`storyboard-sequenced-card-${order}`} data-sequence-order={order}>
+        {storyboardLabel && <p className="atlas-storyboard-card-label">{storyboardLabel}</p>}
         <SafetyNoticeCard
           title={title}
           message={summary}
@@ -39,6 +42,7 @@ export function SequencedConceptCardPreview({
   if (analogy) {
     return (
       <div data-testid={`storyboard-sequenced-card-${order}`} data-sequence-order={order}>
+        {storyboardLabel && <p className="atlas-storyboard-card-label">{storyboardLabel}</p>}
         <AnalogyCard
           title={title}
           analogy={analogy.explanation}
@@ -53,6 +57,7 @@ export function SequencedConceptCardPreview({
   if (content?.commonMisunderstanding || content?.livingWithSystemGuidance) {
     return (
       <div data-testid={`storyboard-sequenced-card-${order}`} data-sequence-order={order}>
+        {storyboardLabel && <p className="atlas-storyboard-card-label">{storyboardLabel}</p>}
         <TrustRecoveryCard
           title={title}
           thisCanHappen={content.commonMisunderstanding || summary}
@@ -66,6 +71,7 @@ export function SequencedConceptCardPreview({
 
   return (
     <div data-testid={`storyboard-sequenced-card-${order}`} data-sequence-order={order}>
+      {storyboardLabel && <p className="atlas-storyboard-card-label">{storyboardLabel}</p>}
       <EducationalCard
         title={title}
         summary={summary}
