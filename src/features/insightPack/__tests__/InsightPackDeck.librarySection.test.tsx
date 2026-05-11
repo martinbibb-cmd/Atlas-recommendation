@@ -1,14 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import InsightPackDeck from '../InsightPackDeck';
 import type { InsightPack } from '../insightPack.types';
 import type { CustomerSummaryV1 } from '../../../contracts/CustomerSummaryV1';
 import type { AtlasDecisionV1 } from '../../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../../contracts/ScenarioResult';
-
-vi.mock('../LibraryPortalSectionRenderer', () => ({
-  LibraryPortalSectionRenderer: () => <div data-testid="library-portal-section">Library section</div>,
-}));
 
 const pack: InsightPack = {
   quotes: [{
@@ -83,15 +79,28 @@ const scenarios: ScenarioResult[] = [{
 }];
 
 describe('InsightPackDeck library section integration', () => {
-  it('renders the library-composed day-to-day section in the live insight deck', () => {
+  it('renders the CON_C02 pressure-vs-storage section in live daily-use when stored hot water is recommended', () => {
     render(
       <InsightPackDeck
         pack={pack}
-        librarySectionData={{ customerSummary, atlasDecision, scenarios }}
+        librarySectionData={{ customerSummary, atlasDecision, scenarios, bathroomCount: 2 }}
       />,
     );
 
     fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
-    expect(screen.getAllByTestId('library-portal-section').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('pvsp-section')).toBeTruthy();
+  });
+
+  it('falls back to legacy daily-use copy when CON_C02 does not apply', () => {
+    render(
+      <InsightPackDeck
+        pack={pack}
+        librarySectionData={{ customerSummary, atlasDecision, scenarios, bathroomCount: 1 }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+    expect(screen.queryByTestId('pvsp-section')).toBeNull();
+    expect(screen.getByText('Daily-use fallback')).toBeTruthy();
   });
 });

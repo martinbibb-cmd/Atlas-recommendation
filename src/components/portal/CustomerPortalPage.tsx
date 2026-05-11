@@ -172,6 +172,7 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
       customerSummary: lockedSummary,
       atlasDecision: portalData.decision,
       scenarios: portalData.scenarios,
+      bathroomCount: portalData.engineInput.bathroomCount,
       accessibilityPreferences: buildPortalAccessibilityPreferences(),
       userConcernTags: buildPortalConcernTags(portalData.engineInput, lockedSummary.recommendedScenarioId),
       propertyConstraintTags: buildPortalPropertyConstraintTags(portalData.engineInput),
