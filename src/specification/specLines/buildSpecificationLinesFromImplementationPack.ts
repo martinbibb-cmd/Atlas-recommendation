@@ -56,8 +56,8 @@ function findValidationIdsByText(pack: SuggestedImplementationPackV1, text: stri
 }
 
 function buildRiskValidationLink(pack: SuggestedImplementationPackV1, risk: UnresolvedRisk): string[] {
-  const validationById = pack.allRequiredValidations.find((validation) => validation.id === `validation_${risk.id}`);
-  if (validationById) return [validationById.id];
+  const validationForRisk = pack.allRequiredValidations.find((validation) => validation.id === `validation_${risk.id}`);
+  if (validationForRisk) return [validationForRisk.id];
   return findValidationIdsByText(pack, risk.description);
 }
 
@@ -101,7 +101,7 @@ export function buildSpecificationLinesFromImplementationPack(
     });
   }
 
-  const tundishComponent = pack.hotWater.suggestedComponents.find((component) => component.id === 'unvented_cylinder' || component.id === 'mixergy_cylinder');
+  const cylinderComponentForTundish = pack.hotWater.suggestedComponents.find((component) => component.id === 'unvented_cylinder' || component.id === 'mixergy_cylinder');
   const tundishNote = pack.hotWater.dischargeRequirements?.find((line) => line.toLowerCase().includes('tundish'));
   if (tundishNote) {
     seeds.push({
@@ -122,7 +122,7 @@ export function buildSpecificationLinesFromImplementationPack(
       label: 'Tundish and discharge materials',
       description: 'Include tundish and compliant discharge pipe sizing/fittings to suit final route.',
       lineType: 'material_suggestion',
-      confidence: tundishComponent ? confidenceFromComponent(tundishComponent) : 'inferred',
+      confidence: cylinderComponentForTundish ? confidenceFromComponent(cylinderComponentForTundish) : 'inferred',
       reason: 'Unvented discharge safeguards require compliant tundish and discharge pipework.',
       customerVisible: false,
     });
