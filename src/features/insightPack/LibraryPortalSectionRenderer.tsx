@@ -21,6 +21,7 @@ interface Props {
   accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
   userConcernTags?: string[];
   propertyConstraintTags?: string[];
+  showDebugDiagnostics?: boolean;
 }
 
 const DIAGRAM_ID_ALIASES: Record<string, string> = {
@@ -29,6 +30,11 @@ const DIAGRAM_ID_ALIASES: Record<string, string> = {
   open_to_sealed: 'open_vented_to_unvented',
 };
 const MAX_PORTAL_CARDS = 4;
+const FALLBACK_DIAGRAMS: Record<'stored_hot_water' | 'low_temp_heat' | 'water_main_constraint', string> = {
+  stored_hot_water: 'pressure_vs_storage',
+  low_temp_heat: 'warm_vs_hot_radiators',
+  water_main_constraint: 'water_main_limitation',
+};
 
 function toRenderableDiagramId(diagramId: string): string | undefined {
   const normalized = diagramId
@@ -48,7 +54,9 @@ export function LibraryPortalSectionRenderer({
   accessibilityPreferences,
   userConcernTags,
   propertyConstraintTags,
+  showDebugDiagnostics,
 }: Props) {
+  const showDebug = showDebugDiagnostics ?? !import.meta.env.PROD;
   const composed = useMemo(() => {
     try {
       return buildCalmWelcomePackFromAtlasDecision({
@@ -86,6 +94,35 @@ export function LibraryPortalSectionRenderer({
     }).slice(0, MAX_PORTAL_CARDS) : []),
     [composed, routingTriggerTags],
   );
+  const matchedMvpContentIds = useMemo(() => {
+    const matched = new Set<string>();
+    for (const card of authoredCards) {
+      for (const entry of atlasMvpContentMapRegistry) {
+        if (entry.title === card.title) {
+          matched.add(entry.id);
+        }
+      }
+    }
+    return [...matched];
+  }, [authoredCards]);
+  const matchedMvpEntries = useMemo(
+    () => atlasMvpContentMapRegistry.filter((entry) => matchedMvpContentIds.includes(entry.id)),
+    [matchedMvpContentIds],
+  );
+  const matchedAnimationIds = useMemo(
+    () => [...new Set(matchedMvpEntries.flatMap((entry) => entry.suggestedAnimationIds))],
+    [matchedMvpEntries],
+  );
+  const fallbackReason = useMemo(() => {
+    if (!composed) return 'library_composition_failed';
+    if (!composed.readiness.safeForCustomer) return 'library_output_not_safe_for_customer';
+    if (composed.brandedViewModel.recommendedScenarioId !== customerSummary.recommendedScenarioId) {
+      return 'library_recommendation_mismatch';
+    }
+    if (!section) return 'library_section_missing_living_with_the_system';
+    if (authoredCards.length === 0) return 'library_content_missing_cards';
+    return 'none';
+  }, [authoredCards.length, composed, customerSummary.recommendedScenarioId, section]);
   const isSafe = Boolean(
     composed?.readiness.safeForCustomer
     && composed?.brandedViewModel.recommendedScenarioId === customerSummary.recommendedScenarioId
@@ -93,14 +130,20 @@ export function LibraryPortalSectionRenderer({
     && authoredCards.length > 0,
   );
 
-  if (!isSafe || !section || !composed) {
-    return (
-      <div data-testid="library-portal-section-fallback">
-        <DailyUsePanel quotes={fallbackQuotes} recommendedQuoteId={recommendedQuoteId} />
-      </div>
-    );
-  }
-
+  const selectedConceptIds = composed?.plan.selectedConceptIds ?? [];
+  const recommendedScenarioId = composed?.brandedViewModel.recommendedScenarioId ?? customerSummary.recommendedScenarioId;
+  const hasStoredHotWaterPath = /system|unvented|stored/i.test(recommendedScenarioId)
+    || /stored hot water|unvented|system boiler/i.test(customerSummary.recommendedSystemLabel)
+    || selectedConceptIds.includes('pressure_vs_storage');
+  const hasLowTemperaturePath = /heat_pump|ashp/i.test(recommendedScenarioId)
+    || selectedConceptIds.includes('hot_radiator_expectation')
+    || selectedConceptIds.includes('flow_temperature_living_with_it')
+    || routingTriggerTags.some((tag) => /heat_pump|low_temp|flow_temperature/i.test(tag));
+  const hasWaterMainConstraintPath = selectedConceptIds.some((conceptId) => (
+    conceptId === 'water_main_limit_not_boiler_limit'
+    || conceptId === 'hydraulic_constraint'
+    || conceptId === 'flow_restriction'
+  )) || routingTriggerTags.some((tag) => /pressure|flow|hydraulic|mains/i.test(tag));
   const diagramsFromCards = useMemo(() => {
     const diagramIds = new Set<string>();
     for (const card of authoredCards) {
@@ -113,9 +156,36 @@ export function LibraryPortalSectionRenderer({
     }
     return [...diagramIds];
   }, [authoredCards]);
+
+  if (!isSafe || !section || !composed) {
+    return (
+      <div data-testid="library-portal-section-fallback">
+        {showDebug ? (
+          <aside className="library-portal-section__debug" data-testid="library-portal-debug-strip">
+            <p>libraryRendererUsed: false</p>
+            <p data-testid="library-portal-debug-fallback-reason">fallbackReason: {fallbackReason}</p>
+            <p>selectedConceptIds: {selectedConceptIds.join(', ') || 'none'}</p>
+            <p>matchedMvpContentIds: {matchedMvpContentIds.join(', ') || 'none'}</p>
+            <p>matchedDiagramIds: none</p>
+            <p>matchedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}{matchedAnimationIds.length > 0 ? ' (animation planned)' : ''}</p>
+          </aside>
+        ) : null}
+        <DailyUsePanel quotes={fallbackQuotes} recommendedQuoteId={recommendedQuoteId} />
+      </div>
+    );
+  }
   const fallbackDiagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId]
     ?.filter((diagramId) => getDiagramById(diagramId));
-  const diagrams = diagramsFromCards.length > 0 ? diagramsFromCards : (fallbackDiagrams ?? []);
+  const forcedDiagrams = [
+    hasStoredHotWaterPath ? FALLBACK_DIAGRAMS.stored_hot_water : undefined,
+    hasLowTemperaturePath ? FALLBACK_DIAGRAMS.low_temp_heat : undefined,
+    hasWaterMainConstraintPath ? FALLBACK_DIAGRAMS.water_main_constraint : undefined,
+  ].filter((diagramId): diagramId is string => Boolean(diagramId && getDiagramById(diagramId)));
+  const diagrams = [...new Set([
+    ...forcedDiagrams,
+    ...diagramsFromCards,
+    ...(fallbackDiagrams ?? []),
+  ])];
   const showTechnicalAppendix = Boolean(accessibilityPreferences?.includeTechnicalAppendix);
 
   return (
@@ -124,12 +194,22 @@ export function LibraryPortalSectionRenderer({
       data-testid="library-portal-section"
       aria-labelledby="library-portal-day-to-day-heading"
     >
-      <h2 id="library-portal-day-to-day-heading" className="daily-use__heading">What that means day-to-day</h2>
+      <h2 id="library-portal-day-to-day-heading" className="daily-use__heading">Why this matters day to day</h2>
       <p className="daily-use__sub">Here&apos;s what that means for you in everyday use.</p>
-      {!import.meta.env.PROD ? (
+      {showDebug ? (
         <p className="library-portal-section__source-label" data-testid="library-portal-source-label">
           Insight from Atlas Library
         </p>
+      ) : null}
+      {showDebug ? (
+        <aside className="library-portal-section__debug" data-testid="library-portal-debug-strip">
+          <p>libraryRendererUsed: true</p>
+          <p data-testid="library-portal-debug-fallback-reason">fallbackReason: {fallbackReason}</p>
+          <p>selectedConceptIds: {selectedConceptIds.join(', ') || 'none'}</p>
+          <p>matchedMvpContentIds: {matchedMvpContentIds.join(', ') || 'none'}</p>
+          <p>matchedDiagramIds: {diagrams.join(', ') || 'none'}</p>
+          <p>matchedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}{matchedAnimationIds.length > 0 ? ' (animation planned)' : ''}</p>
+        </aside>
       ) : null}
 
       <div className="library-portal-section__cards" data-testid="library-portal-sequenced-cards">
@@ -173,6 +253,8 @@ export function LibraryPortalSectionRenderer({
             </figure>
           ))}
         </div>
+      ) : showDebug ? (
+        <p data-testid="library-portal-no-diagram">No matching diagram found</p>
       ) : null}
 
       {composed.brandedViewModel.qrDestinations.length > 0 ? (

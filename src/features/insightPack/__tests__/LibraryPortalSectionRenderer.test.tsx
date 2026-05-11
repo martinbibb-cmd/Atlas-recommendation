@@ -128,6 +128,8 @@ describe('LibraryPortalSectionRenderer', () => {
     expect(screen.getByTestId('library-portal-qr')).toBeTruthy();
     expect(screen.queryByText('Pressure is a source boundary; volume is a storage boundary.')).toBeNull();
     expect(screen.getByTestId('library-portal-source-label')).toBeTruthy();
+    expect(screen.getByTestId('library-portal-debug-strip')).toBeTruthy();
+    expect(screen.getByText(/libraryRendererUsed:\s*true/i)).toBeTruthy();
   });
 
   it('falls back to the hardcoded daily-use panel when library output is unsafe', () => {
@@ -149,6 +151,7 @@ describe('LibraryPortalSectionRenderer', () => {
 
     expect(screen.getByTestId('library-portal-section-fallback')).toBeTruthy();
     expect(screen.getByText('Fallback daily-use statement')).toBeTruthy();
+    expect(screen.getByTestId('library-portal-debug-fallback-reason').textContent).toContain('library_output_not_safe_for_customer');
   });
 
   it('falls back when authored library cards are missing for selected concepts and tags', () => {
@@ -269,5 +272,64 @@ describe('LibraryPortalSectionRenderer', () => {
       accessibilityPreferences: expect.objectContaining({ prefersReducedMotion: true }),
     }));
     expect(screen.getByTestId('library-portal-section').className).toContain('library-portal-section--reduced-motion');
+  });
+
+  it('forces pressure-vs-storage diagram for stored-hot-water path when authored cards have no renderable diagram ids', () => {
+    mockedBuilder.mockReturnValue({
+      plan: { selectedConceptIds: ['MNT-01'] } as never,
+      calmViewModel: {} as never,
+      brandedViewModel: {
+        recommendedScenarioId: 'system_unvented',
+        customerFacingSections: [{
+          sectionId: 'living_with_the_system',
+          title: 'Living with your system',
+          cards: [{ title: 'Card', summary: 'Summary' }],
+        }],
+        diagramsBySection: { living_with_the_system: [] },
+        qrDestinations: [],
+      } as never,
+      readiness: { safeForCustomer: true, blockingReasons: [] },
+    });
+
+    render(
+      <LibraryPortalSectionRenderer
+        fallbackQuotes={fallbackQuotes}
+        customerSummary={customerSummary}
+        atlasDecision={atlasDecision}
+        scenarios={scenarios}
+        userConcernTags={['hydraulic']}
+      />,
+    );
+
+    expect(screen.getByTestId('diagram-pressure_vs_storage')).toBeTruthy();
+  });
+
+  it('hides debug strip in production mode', () => {
+    mockedBuilder.mockReturnValue({
+      plan: { selectedConceptIds: ['pressure_vs_storage'] } as never,
+      calmViewModel: {} as never,
+      brandedViewModel: {
+        recommendedScenarioId: 'system_unvented',
+        customerFacingSections: [{
+          sectionId: 'living_with_the_system',
+          title: 'Living with your system',
+          cards: [{ title: 'Card', summary: 'Summary' }],
+        }],
+        qrDestinations: [],
+      } as never,
+      readiness: { safeForCustomer: true, blockingReasons: [] },
+    });
+
+    render(
+      <LibraryPortalSectionRenderer
+        fallbackQuotes={fallbackQuotes}
+        customerSummary={customerSummary}
+        atlasDecision={atlasDecision}
+        scenarios={scenarios}
+        showDebugDiagnostics={false}
+      />,
+    );
+
+    expect(screen.queryByTestId('library-portal-debug-strip')).toBeNull();
   });
 });
