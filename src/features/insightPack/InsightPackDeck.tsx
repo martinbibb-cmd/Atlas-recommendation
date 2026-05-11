@@ -141,11 +141,10 @@ export default function InsightPackDeck({
   const appliesOpenVentedPath = Boolean(
     librarySectionData?.userConcernTags?.includes('open_vented'),
   );
+  const recommendedScenarioId = librarySectionData?.customerSummary.recommendedScenarioId ?? '';
   const appliesRegularOrSystemUnventedPath = Boolean(
-    librarySectionData
-    && REGULAR_OR_SYSTEM_UNVENTED_PATTERN.test(
-      librarySectionData.customerSummary.recommendedScenarioId,
-    ),
+    recommendedScenarioId
+    && REGULAR_OR_SYSTEM_UNVENTED_PATTERN.test(recommendedScenarioId),
   );
   const useOpenVentedInsightSection =
     appliesStoredHotWater
