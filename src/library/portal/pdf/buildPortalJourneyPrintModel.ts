@@ -154,7 +154,7 @@ export function buildPortalJourneyPrintModel(
       heading: 'What stays familiar',
       summary: conA01.whatStaysFamiliar,
       items: [
-        conA01.whatStaysFamiliar,
+        conA01.whatNotToWorryAbout,
         conA01.reality,
       ],
     });
@@ -235,9 +235,8 @@ export function buildPortalJourneyPrintModel(
   ];
 
   // ── Page estimate ──────────────────────────────────────────────────────────
-  // Cover (1) + content sections + next steps + QR = estimated pages
-  const contentPageCount = Math.ceil(sections.length / 2);
-  const usedPages = Math.min(1 + contentPageCount + 1, 6);
+  // Cover (1) + one page per section + next steps + QR = estimated pages
+  const usedPages = Math.min(1 + sections.length + 1, 6);
 
   return {
     cover,

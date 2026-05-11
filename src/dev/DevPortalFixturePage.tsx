@@ -273,12 +273,13 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   if (active !== null) {
     // Supporting PDF preview — renders PortalJourneyPrintPack directly
     if (active.initialView === 'supporting_pdf') {
+      const bathroomCount = active.fixture.engineInput.bathroomCount ?? 2;
       const printModel = buildPortalJourneyPrintModel({
         selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
         recommendationSummary: 'Sealed system with unvented cylinder — the right route for this home.',
         customerFacts: [
           `${active.fixture.engineInput.occupancyCount ?? 4}-person household`,
-          `${active.fixture.engineInput.bathroomCount ?? 2} bathroom${(active.fixture.engineInput.bathroomCount ?? 2) !== 1 ? 's' : ''}`,
+          `${bathroomCount} bathroom${bathroomCount !== 1 ? 's' : ''}`,
           'Regular boiler, open-vented circuit',
         ],
       });
