@@ -8,3 +8,4 @@ export * from './PrintActionCard';
 export * from './layout';
 export * from './tokens';
 export * from './demo';
+export * from './hierarchy';

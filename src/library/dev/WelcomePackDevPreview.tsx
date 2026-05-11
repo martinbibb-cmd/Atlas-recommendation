@@ -42,7 +42,13 @@ import {
   collectTopMissingConcepts,
 } from './runWelcomePackValidation';
 import type { WelcomePackValidationReportV1 } from './WelcomePackValidationReportV1';
-import { AtlasEducationalUiDemo, TrustRecoveryCard } from '../ui';
+import {
+  AtlasEducationalUiDemo,
+  TrustRecoveryCard,
+  runVisualNoiseAudit,
+  makeSectionSummary,
+  priorityFromSequenceStage,
+} from '../ui';
 import { printEquivalentByAssetId } from '../printEquivalents/printEquivalentRegistry';
 import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
 import { DiagramRenderer } from '../diagrams/DiagramRenderer';
@@ -614,6 +620,32 @@ export function WelcomePackDevPreview() {
     return plan.deferredConceptIds.filter((conceptId) => missingSet.has(conceptId));
   }, [missingDiagramCoverageConceptIds, plan.deferredConceptIds]);
 
+  const visualNoiseAuditReport = useMemo(() => {
+    const sectionSummaries = calmViewModel.customerFacingSections
+      .filter((section) => section.cards.length > 0)
+      .map((section) => {
+        const diagramCount = calmViewModel.diagramsBySection?.[section.sectionId]?.length ?? 0;
+        const priorityCounts = { primary: 0, supporting: 0, optional: 0, deferred: 0 };
+        for (const card of section.cards) {
+          // Use 'lived_experience' as fallback so cards with no matching rule
+          // remain 'supporting' (visible) rather than silently becoming deferred.
+          const rule = educationalSequenceRules.find((r) => r.conceptId === card.conceptId);
+          const level = priorityFromSequenceStage(rule?.sequenceStage ?? 'lived_experience');
+          priorityCounts[level] += 1;
+        }
+        // CalmWelcomePackCardV1 only carries safetyNotice as a callout field.
+        // Additional callout types (analogy, misconception, what-you-may-notice)
+        // live in EducationalContentV1 and are not yet surfaced on the card model,
+        // so calloutCount is a lower-bound approximation here.
+        return makeSectionSummary(section.sectionId, {
+          ...priorityCounts,
+          diagramCount,
+          calloutCount: section.cards.filter((card) => card.safetyNotice).length,
+        });
+      });
+    return runVisualNoiseAudit({ sections: sectionSummaries });
+  }, [calmViewModel]);
+
   const whyThisFitsCardCount = storyboardSequencedCards.filter((card) => card.sectionTitle === 'Why this fits').length;
   const noticeCardCount = storyboardNoticeCards.length;
   const printCardCount = storyboardPrintCards.length;
@@ -1170,6 +1202,46 @@ export function WelcomePackDevPreview() {
                 />
               ))}
             </div>
+          </section>
+
+          <section className="atlas-storyboard-panel" aria-labelledby="atlas-storyboard-noise-audit-title" data-testid="storyboard-visual-noise-audit">
+            <div className="atlas-storyboard-panel__header">
+              <p className="atlas-storyboard-panel__eyebrow">Visual hierarchy</p>
+              <h2 id="atlas-storyboard-noise-audit-title" className="atlas-storyboard-panel__title">
+                Visual noise audit
+              </h2>
+              <p
+                className="atlas-storyboard-panel__content-status"
+                data-testid="visual-noise-audit-summary"
+                style={{ color: visualNoiseAuditReport.passed ? '#166534' : '#b45309', fontWeight: 600, fontSize: '0.85rem', marginTop: '0.5rem' }}
+              >
+                {visualNoiseAuditReport.summary}
+              </p>
+            </div>
+            {visualNoiseAuditReport.flags.length === 0 ? (
+              <p style={{ fontSize: '0.85rem', color: '#166534' }}>No visual density violations detected.</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }} data-testid="visual-noise-audit-flags">
+                {visualNoiseAuditReport.flags.map((flag, index) => (
+                  <li
+                    key={`${flag.kind}:${flag.sectionId ?? ''}:${index}`}
+                    style={{
+                      padding: '0.5rem 0.75rem',
+                      marginBottom: '0.5rem',
+                      borderLeft: `3px solid ${flag.severity === 'error' ? '#b91c1c' : '#b45309'}`,
+                      background: flag.severity === 'error' ? '#fef2f2' : '#fffbeb',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <strong style={{ color: flag.severity === 'error' ? '#b91c1c' : '#b45309' }}>
+                      [{flag.severity.toUpperCase()}]
+                    </strong>
+                    {flag.sectionId ? ` ${flag.sectionId}: ` : ' '}
+                    {flag.detail}
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </section>
       )}
