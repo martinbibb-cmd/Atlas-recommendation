@@ -51,6 +51,10 @@ export default function SpecificationLineReviewPanel({ lines }: Props) {
     );
   }
 
+  function statusAfterTextEdit(current: SpecificationLineStatus): SpecificationLineStatus {
+    return current === 'suggested' || current === 'accepted' ? 'edited' : current;
+  }
+
   return (
     <div style={{ display: 'grid', gap: '0.75rem' }} data-testid="specification-line-review-panel">
       {Object.keys(SECTION_LABELS).map((sectionKey) => {
@@ -89,7 +93,10 @@ export default function SpecificationLineReviewPanel({ lines }: Props) {
                       <span style={{ fontSize: 11, color: '#334155' }}>Label</span>
                       <input
                         value={line.label}
-                        onChange={(event) => updateLine(line.lineId, { label: event.target.value, status: 'edited' })}
+                        onChange={(event) => updateLine(line.lineId, {
+                          label: event.target.value,
+                          status: statusAfterTextEdit(line.status),
+                        })}
                         data-testid={`spec-line-label-${line.lineId}`}
                         style={{ fontSize: 13, padding: '0.35rem' }}
                       />
@@ -99,7 +106,10 @@ export default function SpecificationLineReviewPanel({ lines }: Props) {
                       <span style={{ fontSize: 11, color: '#334155' }}>Description</span>
                       <textarea
                         value={line.description}
-                        onChange={(event) => updateLine(line.lineId, { description: event.target.value, status: 'edited' })}
+                        onChange={(event) => updateLine(line.lineId, {
+                          description: event.target.value,
+                          status: statusAfterTextEdit(line.status),
+                        })}
                         data-testid={`spec-line-description-${line.lineId}`}
                         style={{ fontSize: 12, minHeight: 58, padding: '0.35rem' }}
                       />

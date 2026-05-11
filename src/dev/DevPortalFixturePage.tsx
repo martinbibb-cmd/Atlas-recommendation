@@ -303,6 +303,8 @@ interface ActiveFixture {
   initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack';
 }
 
+type ImplementationPackTabKey = 'pack_summary' | 'specification_lines';
+
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
 
 function buildSupportingPdfModel(fixture: PortalFixture) {
@@ -457,7 +459,7 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
 export default function DevPortalFixturePage({ onBack }: DevPortalFixturePageProps) {
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
-  const [implementationPackTab, setImplementationPackTab] = useState<'pack_summary' | 'specification_lines'>('pack_summary');
+  const [implementationPackTab, setImplementationPackTab] = useState<ImplementationPackTabKey>('pack_summary');
 
   function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') {
     const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);

@@ -44,7 +44,7 @@ function confidenceFromComponent(component: SuggestedComponent): SpecificationLi
   return 'needs_survey';
 }
 
-function findValidationIdsByText(pack: SuggestedImplementationPackV1, text: string): string[] {
+function findValidationIdsBySubstringMatch(pack: SuggestedImplementationPackV1, text: string): string[] {
   const lower = text.toLowerCase();
   return pack.allRequiredValidations
     .filter((validation) => {
@@ -58,7 +58,14 @@ function findValidationIdsByText(pack: SuggestedImplementationPackV1, text: stri
 function buildRiskValidationLink(pack: SuggestedImplementationPackV1, risk: UnresolvedRisk): string[] {
   const validationForRisk = pack.allRequiredValidations.find((validation) => validation.id === `validation_${risk.id}`);
   if (validationForRisk) return [validationForRisk.id];
-  return findValidationIdsByText(pack, risk.description);
+  return findValidationIdsBySubstringMatch(pack, risk.description);
+}
+
+function findNoteByKeywords(notes: readonly string[], keywords: readonly string[]): string | undefined {
+  return notes.find((note) => {
+    const lower = note.toLowerCase();
+    return keywords.every((keyword) => lower.includes(keyword.toLowerCase()));
+  });
 }
 
 export function buildSpecificationLinesFromImplementationPack(
@@ -101,7 +108,7 @@ export function buildSpecificationLinesFromImplementationPack(
     });
   }
 
-  const cylinderComponentForTundish = pack.hotWater.suggestedComponents.find((component) => component.id === 'unvented_cylinder' || component.id === 'mixergy_cylinder');
+  const unventedCylinderComponent = pack.hotWater.suggestedComponents.find((component) => component.id === 'unvented_cylinder' || component.id === 'mixergy_cylinder');
   const tundishNote = pack.hotWater.dischargeRequirements?.find((line) => line.toLowerCase().includes('tundish'));
   if (tundishNote) {
     seeds.push({
@@ -112,8 +119,8 @@ export function buildSpecificationLinesFromImplementationPack(
       lineType: 'required_validation',
       confidence: 'needs_survey',
       reason: 'Atlas cannot confirm discharge route accessibility from survey data alone.',
-      linkedValidationIds: findValidationIdsByText(pack, 'discharge')
-        .concat(findValidationIdsByText(pack, 'tundish')),
+      linkedValidationIds: findValidationIdsBySubstringMatch(pack, 'discharge')
+        .concat(findValidationIdsBySubstringMatch(pack, 'tundish')),
     });
 
     seeds.push({
@@ -122,7 +129,7 @@ export function buildSpecificationLinesFromImplementationPack(
       label: 'Tundish and discharge materials',
       description: 'Include tundish and compliant discharge pipe sizing/fittings to suit final route.',
       lineType: 'material_suggestion',
-      confidence: cylinderComponentForTundish ? confidenceFromComponent(cylinderComponentForTundish) : 'inferred',
+      confidence: unventedCylinderComponent ? confidenceFromComponent(unventedCylinderComponent) : 'inferred',
       reason: 'Unvented discharge safeguards require compliant tundish and discharge pipework.',
       customerVisible: false,
     });
@@ -185,10 +192,9 @@ export function buildSpecificationLinesFromImplementationPack(
       linkedValidationIds: loftRisk ? buildRiskValidationLink(pack, loftRisk) : [],
     });
   }
-  const loftRemovalNote = pack.pipework.topologyNotes.find((note) => {
-    const lower = note.toLowerCase();
-    return lower.includes('loft tank') || (lower.includes('capped') && lower.includes('removed'));
-  });
+  const loftRemovalNote =
+    findNoteByKeywords(pack.pipework.topologyNotes, ['loft', 'tank', 'capped'])
+    ?? findNoteByKeywords(pack.pipework.topologyNotes, ['loft', 'tank', 'removed']);
   if (loftRemovalNote) {
     seeds.push({
       sectionKey: 'pipework',
