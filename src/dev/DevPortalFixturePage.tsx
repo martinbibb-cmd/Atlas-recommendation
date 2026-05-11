@@ -20,6 +20,8 @@
 import { useState } from 'react';
 import CustomerPortalPage from '../components/portal/CustomerPortalPage';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
+import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -168,11 +170,13 @@ export const PORTAL_FIXTURES: PortalFixture[] = [
 
 interface FixtureCardProps {
   fixture: PortalFixture;
-  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation') => void;
+  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'supporting_pdf') => void;
 }
 
 function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
   const [copied, setCopied] = useState(false);
+
+  const isOpenVented = fixture.id === 'open_vented_to_sealed_unvented';
 
   function handleCopyUrl() {
     const url = typeof window !== 'undefined'
@@ -215,6 +219,16 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
         >
           Open In-room presentation
         </button>
+        {isOpenVented ? (
+          <button
+            type="button"
+            className="dev-portal-fixture__btn"
+            onClick={() => onOpen(fixture, 'supporting_pdf')}
+            data-testid={`fixture-supporting-pdf-${fixture.id}`}
+          >
+            Open supporting PDF preview
+          </button>
+        ) : null}
         <button
           type="button"
           className="dev-portal-fixture__btn dev-portal-fixture__btn--copy"
@@ -236,7 +250,7 @@ interface DevPortalFixturePageProps {
 
 interface ActiveFixture {
   fixture: PortalFixture;
-  initialView?: 'insight' | 'presentation';
+  initialView?: 'insight' | 'presentation' | 'supporting_pdf';
 }
 
 /**
@@ -248,7 +262,7 @@ interface ActiveFixture {
 export default function DevPortalFixturePage({ onBack }: DevPortalFixturePageProps) {
   const [active, setActive] = useState<ActiveFixture | null>(null);
 
-  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation') {
+  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'supporting_pdf') {
     setActive({ fixture, initialView });
   }
 
@@ -257,6 +271,47 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   }
 
   if (active !== null) {
+    // Supporting PDF preview — renders PortalJourneyPrintPack directly
+    if (active.initialView === 'supporting_pdf') {
+      const printModel = buildPortalJourneyPrintModel({
+        selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
+        recommendationSummary: 'Sealed system with unvented cylinder — the right route for this home.',
+        customerFacts: [
+          `${active.fixture.engineInput.occupancyCount ?? 4}-person household`,
+          `${active.fixture.engineInput.bathroomCount ?? 2} bathroom${(active.fixture.engineInput.bathroomCount ?? 2) !== 1 ? 's' : ''}`,
+          'Regular boiler, open-vented circuit',
+        ],
+      });
+
+      return (
+        <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+          <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+            <button
+              type="button"
+              className="back-btn"
+              onClick={handleBackToLauncher}
+              data-testid="dev-fixture-back"
+            >
+              ← Back to fixtures
+            </button>
+            <span
+              className="atlas-dev-notice"
+              style={{ margin: 0 }}
+              data-testid="dev-fixture-active-label"
+            >
+              🔬 Supporting PDF preview — not customer data · {active.fixture.label}
+            </span>
+          </div>
+          <div
+            style={{ padding: '2rem', background: '#e5e7eb' }}
+            data-testid="dev-supporting-pdf-preview"
+          >
+            <PortalJourneyPrintPack model={printModel} />
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
@@ -279,7 +334,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         <CustomerPortalPage
           reference="dev-fixture"
           devFixtureInput={active.fixture.engineInput}
-          devInitialViewMode={active.initialView}
+          devInitialViewMode={active.initialView as 'insight' | 'presentation' | undefined}
           showDevTraceLabelsOverride={true}
         />
       </div>
