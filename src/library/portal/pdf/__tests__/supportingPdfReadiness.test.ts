@@ -105,4 +105,35 @@ describe('assessSupportingPdfReadiness', () => {
     expect(result.ready).toBe(false);
     expect(result.blockingReasons.join(' ')).toMatch(/recommendation identity/i);
   });
+
+  it('blocks readiness when a required diagram renderer ID is available but missing', () => {
+    const input = makeReadinessInput();
+    const result = assessSupportingPdfReadiness({
+      ...input,
+      requiredDiagramRendererIds: ['pressure_vs_storage'],
+      availableDiagramRendererIds: ['pressure_vs_storage', 'warm_vs_hot_radiators'],
+      model: {
+        ...input.model,
+        sections: input.model.sections.map((section) =>
+          section.sectionId === 'pressure_vs_storage'
+            ? { ...section, diagramRendererId: undefined }
+            : section),
+      },
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.blockingReasons.join(' ')).toMatch(/required diagram is missing/i);
+  });
+
+  it('warns without blocking when required diagram renderer ID is not available', () => {
+    const input = makeReadinessInput();
+    const result = assessSupportingPdfReadiness({
+      ...input,
+      requiredDiagramRendererIds: ['heat_pump_defrost'],
+      availableDiagramRendererIds: ['pressure_vs_storage', 'warm_vs_hot_radiators'],
+    });
+
+    expect(result.ready).toBe(true);
+    expect(result.warnings.join(' ')).toMatch(/not currently available/i);
+  });
 });

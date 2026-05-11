@@ -9,12 +9,19 @@ export interface DiagramRendererProps {
   reducedMotion?: boolean;
 }
 
-const DIAGRAM_COMPONENTS = {
+export const DIAGRAM_COMPONENTS = {
   pressure_vs_storage: PressureVsStorageDiagram,
   warm_vs_hot_radiators: WarmVsHotRadiatorsDiagram,
   water_main_limitation: WaterMainLimitationDiagram,
   open_vented_to_unvented: OpenVentedToUnventedDiagram,
 } as const;
+
+export type SupportedDiagramRendererId = keyof typeof DIAGRAM_COMPONENTS;
+export const SUPPORTED_DIAGRAM_RENDERER_IDS = Object.keys(DIAGRAM_COMPONENTS) as SupportedDiagramRendererId[];
+
+export function isDiagramRendererIdSupported(diagramId: string): diagramId is SupportedDiagramRendererId {
+  return diagramId in DIAGRAM_COMPONENTS;
+}
 
 export function DiagramRenderer({
   diagramId,

@@ -4,6 +4,7 @@ import { OpenVentedToSealedPortalSection } from '../sections/OpenVentedToSealedP
 import { UnventedSafetyPortalSection } from '../sections/UnventedSafetyPortalSection';
 import { OpenVentedInsightSection } from '../sections/OpenVentedInsightSection';
 import { LivingWithYourSystemPortalJourney } from '../sections/LivingWithYourSystemPortalJourney';
+import { HeatPumpLivingJourneyPortalSection } from '../sections/HeatPumpLivingJourneyPortalSection';
 
 // ─── OpenVentedToSealedPortalSection (CON_A01) ────────────────────────────────
 
@@ -254,5 +255,22 @@ describe('OpenVentedInsightSection', () => {
     expect(screen.queryByText(/CON_C01/)).toBeNull();
     expect(screen.queryByText(/CON_C02/)).toBeNull();
     expect(screen.queryByText(/open_vented_to_sealed/)).toBeNull();
+  });
+});
+
+describe('HeatPumpLivingJourneyPortalSection', () => {
+  it('renders heat-pump journey section with warm-radiator diagram and reassurance cards', () => {
+    render(<HeatPumpLivingJourneyPortalSection />);
+    expect(screen.getByTestId('hplj-section')).toBeInTheDocument();
+    expect(screen.getByTestId('hplj-warm-diagram')).toBeInTheDocument();
+    expect(screen.getByTestId('hplj-reassurance')).toBeInTheDocument();
+    expect(screen.getByTestId('hplj-what-not-to-worry')).toBeInTheDocument();
+  });
+
+  it('does not render content-pending/debug/raw concept identifiers', () => {
+    render(<HeatPumpLivingJourneyPortalSection />);
+    expect(screen.queryByText(/content pending/i)).toBeNull();
+    expect(screen.queryByText(/\bdebug\b/i)).toBeNull();
+    expect(screen.queryByText(/CON_E02|CON_H01|CON_H04|CON_G01|CON_I01_DAY_TO_DAY/)).toBeNull();
   });
 });

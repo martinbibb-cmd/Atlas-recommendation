@@ -23,6 +23,7 @@ import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
 import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
 import { assessSupportingPdfReadiness } from '../library/portal/pdf/supportingPdfReadiness';
+import { SUPPORTED_DIAGRAM_RENDERER_IDS } from '../library/diagrams/DiagramRenderer';
 import { sectionsForMode } from '../features/insightPack/canonicalSections';
 import './devPortalFixture.css';
 
@@ -179,16 +180,32 @@ interface FixtureCardProps {
 const ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT = import.meta.env.DEV;
 const INSIGHT_PRINT_SECTIONS_PER_PAGE = 2;
 const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder — the right route for this home.';
+const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
+const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
+const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
 
 function isOpenVentedFixture(fixture: PortalFixture): boolean {
   return fixture.id === 'open_vented_to_sealed_unvented';
 }
 
+function isHeatPumpFixture(fixture: PortalFixture): boolean {
+  return fixture.id === 'heat_pump_low_temp';
+}
+
+type SupportingPdfJourneyType = 'open_vented' | 'heat_pump';
+
+function getSupportingPdfJourneyType(fixture: PortalFixture): SupportingPdfJourneyType | null {
+  if (isOpenVentedFixture(fixture)) return 'open_vented';
+  if (isHeatPumpFixture(fixture)) return 'heat_pump';
+  return null;
+}
+
 function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
   const [copied, setCopied] = useState(false);
 
-  const isOpenVented = isOpenVentedFixture(fixture);
-  const showSupportingPdfPreviewAction = ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT && isOpenVented;
+  const showSupportingPdfPreviewAction =
+    ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
+    && getSupportingPdfJourneyType(fixture) != null;
 
   function handleCopyUrl() {
     const url = typeof window !== 'undefined'
@@ -267,13 +284,32 @@ interface ActiveFixture {
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
 
-function buildOpenVentedSupportingPdfModel(fixture: PortalFixture) {
+function buildSupportingPdfModel(fixture: PortalFixture) {
+  const journeyType = getSupportingPdfJourneyType(fixture);
+  if (journeyType == null) {
+    throw new Error(`No supporting PDF journey configured for fixture: ${fixture.id}`);
+  }
   const bathroomCount = fixture.engineInput.bathroomCount ?? 2;
+  const occupancyCount = fixture.engineInput.occupancyCount ?? 3;
+  if (journeyType === 'heat_pump') {
+    return buildPortalJourneyPrintModel({
+      journeyType: 'heat_pump',
+      selectedSectionIds: [...HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS],
+      recommendationSummary: HEAT_PUMP_RECOMMENDATION_SUMMARY,
+      customerFacts: [
+        `${occupancyCount}-person household`,
+        `${bathroomCount} bathroom${bathroomCount !== 1 ? 's' : ''}`,
+        'Heat pump with low-temperature radiators',
+      ],
+    });
+  }
+
   return buildPortalJourneyPrintModel({
-    selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
+    journeyType: 'open_vented',
+    selectedSectionIds: [...OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS],
     recommendationSummary: OPEN_VENTED_RECOMMENDATION_SUMMARY,
     customerFacts: [
-      `${fixture.engineInput.occupancyCount ?? 4}-person household`,
+      `${occupancyCount}-person household`,
       `${bathroomCount} bathroom${bathroomCount !== 1 ? 's' : ''}`,
       'Regular boiler, open-vented circuit',
     ],
@@ -291,9 +327,10 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
 
   function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison') {
+    const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);
     const shouldOpenComparisonShell =
       ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
-      && isOpenVentedFixture(fixture)
+      && supportingPdfJourneyType != null
       && (initialView === 'insight' || initialView === 'pdf_comparison');
     if (shouldOpenComparisonShell) {
       setPreviewMode(initialView === 'pdf_comparison' ? 'library_supporting_pdf' : 'current_insight_pdf');
@@ -312,23 +349,36 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   }
 
   if (active !== null) {
+    const supportingPdfJourneyType = getSupportingPdfJourneyType(active.fixture);
     const showInsightPdfComparison =
       ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
-      && isOpenVentedFixture(active.fixture)
+      && supportingPdfJourneyType != null
       && (active.initialView === 'insight' || active.initialView === 'pdf_comparison');
 
     // Supporting PDF preview — toggles between current Insight print path and
     // the library-driven supporting PDF preview for safe dev comparison.
     if (showInsightPdfComparison) {
-      const printModel = buildOpenVentedSupportingPdfModel(active.fixture);
+      const printModel = buildSupportingPdfModel(active.fixture);
+      const expectedRecommendationSummary =
+        supportingPdfJourneyType === 'heat_pump'
+          ? HEAT_PUMP_RECOMMENDATION_SUMMARY
+          : OPEN_VENTED_RECOMMENDATION_SUMMARY;
       const currentInsightEstimatedPages = Math.ceil(
         sectionsForMode('in-room').length / INSIGHT_PRINT_SECTIONS_PER_PAGE,
       );
       const readiness = assessSupportingPdfReadiness({
         model: printModel,
-        expectedRecommendationSummary: OPEN_VENTED_RECOMMENDATION_SUMMARY,
+        expectedRecommendationSummary,
         maxCustomerPages: printModel.pageEstimate.maxPages,
-        requiredDiagramSectionIds: ['what_changes', 'pressure_vs_storage', 'unvented_safety'],
+        requiredDiagramSectionIds:
+          supportingPdfJourneyType === 'heat_pump'
+            ? ['warm_not_hot_radiators']
+            : ['what_changes', 'pressure_vs_storage', 'unvented_safety'],
+        requiredDiagramRendererIds:
+          supportingPdfJourneyType === 'heat_pump'
+            ? ['warm_vs_hot_radiators', 'heat_pump_defrost']
+            : [],
+        availableDiagramRendererIds: SUPPORTED_DIAGRAM_RENDERER_IDS,
         printSafeLayoutPass: true,
         accessibilityBasicsPass: true,
         insightFallbackAvailable: true,

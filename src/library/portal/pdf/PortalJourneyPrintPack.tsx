@@ -15,7 +15,7 @@
  */
 
 import type { PortalJourneyPrintModelV1, PortalJourneyPrintSectionV1 } from './buildPortalJourneyPrintModel';
-import { DiagramRenderer } from '../../diagrams/DiagramRenderer';
+import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import './portalJourneyPrintPack.css';
 
 // ─── Diagram ID mapping ───────────────────────────────────────────────────────
@@ -27,9 +27,16 @@ const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
   'diagram-unvented-safety': 'open_vented_to_unvented',
 };
 
-function resolveRendererDiagramId(registryId: string | undefined): string | null {
-  if (!registryId) return null;
-  return REGISTRY_DIAGRAM_ID_MAP[registryId] ?? null;
+function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string | null {
+  // Prefer explicit section.diagramRendererId for new journeys, but keep
+  // legacy registry-id mapping so existing models continue to render.
+  if (section.diagramRendererId && isDiagramRendererIdSupported(section.diagramRendererId)) {
+    return section.diagramRendererId;
+  }
+  if (!section.diagramId) return null;
+  const mappedId = REGISTRY_DIAGRAM_ID_MAP[section.diagramId];
+  if (!mappedId) return null;
+  return isDiagramRendererIdSupported(mappedId) ? mappedId : null;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -83,7 +90,7 @@ interface PrintSectionProps {
 }
 
 function PrintSection({ section, pageNumber }: PrintSectionProps) {
-  const rendererDiagramId = resolveRendererDiagramId(section.diagramId);
+  const rendererDiagramId = resolveRendererDiagramId(section);
 
   return (
     <section

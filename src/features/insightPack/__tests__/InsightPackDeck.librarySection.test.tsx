@@ -184,4 +184,27 @@ describe('InsightPackDeck library section integration', () => {
     expect(screen.getAllByTestId('open-vented-insight-section').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('lwspj-section').length).toBeGreaterThan(0);
   });
+
+  it('renders heat-pump living journey section for heat-pump recommendation paths', () => {
+    render(
+      <InsightPackDeck
+        pack={pack}
+        librarySectionData={{
+          customerSummary: {
+            ...customerSummary,
+            recommendedScenarioId: 'ashp_cylinder',
+            recommendedSystemLabel: 'Air source heat pump with cylinder',
+          },
+          atlasDecision,
+          scenarios,
+          bathroomCount: 2,
+          userConcernTags: ['heat_pump', 'low_flow_temperature'],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+    expect(screen.getAllByTestId('hplj-section').length).toBeGreaterThan(0);
+    expect(screen.queryAllByTestId('pvsp-section')).toHaveLength(0);
+  });
 });

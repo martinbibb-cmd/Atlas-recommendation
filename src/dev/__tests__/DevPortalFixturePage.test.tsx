@@ -45,12 +45,12 @@ describe('DevPortalFixturePage — fixture launcher', () => {
     }
   });
 
-  it('shows "Open PDF comparison" only for the open-vented fixture', () => {
+  it('shows "Open PDF comparison" for open-vented and heat-pump fixtures only', () => {
     render(<DevPortalFixturePage />);
     expect(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented')).toBeTruthy();
+    expect(screen.getByTestId('fixture-pdf-comparison-heat_pump_low_temp')).toBeTruthy();
     expect(screen.queryByTestId('fixture-pdf-comparison-combi_1bath')).toBeNull();
     expect(screen.queryByTestId('fixture-pdf-comparison-system_unvented_2bath')).toBeNull();
-    expect(screen.queryByTestId('fixture-pdf-comparison-heat_pump_low_temp')).toBeNull();
     expect(screen.queryByTestId('fixture-pdf-comparison-water_pressure_constraint')).toBeNull();
   });
 
@@ -157,6 +157,15 @@ describe('DevPortalFixturePage — library supporting PDF preview', () => {
   it('keeps current Insight fallback available in comparison mode', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented'));
+    await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-preview')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-insight-pdf-toggle-current'));
+    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+  });
+
+  it('keeps current Insight fallback available in heat-pump comparison mode', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-pdf-comparison-heat_pump_low_temp'));
     await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-preview')).toBeTruthy());
 
     fireEvent.click(screen.getByTestId('dev-insight-pdf-toggle-current'));
