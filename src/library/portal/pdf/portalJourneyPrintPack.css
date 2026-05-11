@@ -1,0 +1,263 @@
+/**
+ * portalJourneyPrintPack.css
+ *
+ * A4-friendly print-safe styles for PortalJourneyPrintPack.
+ *
+ * Screen: renders as a clean document preview.
+ * Print:  each .pjpp-page breaks to a new A4 page.
+ */
+
+/* ─── Document container ──────────────────────────────────────────────────── */
+
+.pjpp-document {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #1a1a1a;
+  background: #fff;
+  max-width: 21cm;
+  margin: 0 auto;
+}
+
+/* ─── Page breaks ─────────────────────────────────────────────────────────── */
+
+.pjpp-page {
+  padding: 2.5cm 2cm;
+  min-height: 26cm;
+  border-bottom: 1px solid #e2e8f0;
+  page-break-after: always;
+}
+
+.pjpp-page:last-child {
+  border-bottom: none;
+  page-break-after: avoid;
+}
+
+/* ─── Cover page ──────────────────────────────────────────────────────────── */
+
+.pjpp-page--cover {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.pjpp-cover-header {
+  border-bottom: 3px solid #1e40af;
+  padding-bottom: 1.5rem;
+}
+
+.pjpp-cover-brand {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+.pjpp-cover-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #1e3a5f;
+  margin: 0 0 0.75rem;
+}
+
+.pjpp-cover-summary {
+  font-size: 1rem;
+  color: #374151;
+  margin: 0;
+}
+
+.pjpp-cover-facts {
+  background: #f0f7ff;
+  border-left: 4px solid #2563eb;
+  padding: 1rem 1.25rem;
+  border-radius: 4px;
+}
+
+.pjpp-cover-facts__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin: 0 0 0.5rem;
+}
+
+.pjpp-cover-facts__list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.pjpp-cover-facts__item {
+  margin-bottom: 0.25rem;
+  color: #1f2937;
+}
+
+/* ─── Section pages ───────────────────────────────────────────────────────── */
+
+.pjpp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pjpp-section__heading {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin: 0;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+}
+
+.pjpp-section__summary {
+  font-size: 0.95rem;
+  color: #374151;
+  margin: 0;
+}
+
+.pjpp-section__items {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pjpp-section__item {
+  color: #1f2937;
+  font-size: 0.9rem;
+}
+
+.pjpp-section__diagram {
+  margin: 0.5rem 0 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 1rem;
+  background: #fafafa;
+}
+
+/* ─── Next steps page ─────────────────────────────────────────────────────── */
+
+.pjpp-next-steps__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: next-steps-counter;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pjpp-next-steps__item {
+  counter-increment: next-steps-counter;
+  position: relative;
+  padding-left: 2.25rem;
+}
+
+.pjpp-next-steps__item::before {
+  content: counter(next-steps-counter);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: #1e40af;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.pjpp-next-steps__label {
+  display: block;
+  font-size: 0.95rem;
+  color: #1e3a5f;
+  margin-bottom: 0.2rem;
+}
+
+.pjpp-next-steps__body {
+  font-size: 0.9rem;
+  color: #374151;
+  margin: 0;
+}
+
+/* ─── QR destinations page ────────────────────────────────────────────────── */
+
+.pjpp-qr-destinations__intro {
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin: 0 0 1rem;
+}
+
+.pjpp-qr-destinations__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.pjpp-qr-destination {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.pjpp-qr-destination__placeholder {
+  flex-shrink: 0;
+  width: 5rem;
+  height: 5rem;
+  background: #f3f4f6;
+  border: 1px dashed #9ca3af;
+  border-radius: 4px;
+}
+
+.pjpp-qr-destination__text {
+  flex: 1;
+}
+
+.pjpp-qr-destination__heading {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin: 0 0 0.25rem;
+}
+
+.pjpp-qr-destination__note {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ─── Print media overrides ───────────────────────────────────────────────── */
+
+@media print {
+  .pjpp-document {
+    max-width: none;
+  }
+
+  .pjpp-page {
+    padding: 2cm 1.8cm;
+    min-height: auto;
+    border-bottom: none;
+  }
+
+  .pjpp-page--cover {
+    page-break-after: always;
+  }
+
+  .pjpp-cover-title {
+    font-size: 2rem;
+  }
+
+  .pjpp-next-steps__item::before {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
