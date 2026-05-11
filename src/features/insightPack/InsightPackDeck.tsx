@@ -143,8 +143,7 @@ export default function InsightPackDeck({
   );
   const recommendedScenarioId = librarySectionData?.customerSummary.recommendedScenarioId ?? '';
   const appliesRegularOrSystemUnventedPath =
-    recommendedScenarioId.length > 0
-    && REGULAR_OR_SYSTEM_UNVENTED_PATTERN.test(recommendedScenarioId);
+    REGULAR_OR_SYSTEM_UNVENTED_PATTERN.test(recommendedScenarioId);
   const useOpenVentedInsightSection =
     appliesStoredHotWater
     && bathroomCount >= 2
