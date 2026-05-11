@@ -124,6 +124,7 @@ describe('InsightPackDeck library section integration', () => {
     expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('ovsp-section').length).toBeGreaterThan(0);
     expect(screen.getAllByTestId('uvsp-section').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('lwspj-section').length).toBeGreaterThan(0);
   });
 
   it('does NOT show OpenVentedInsightSection when open_vented tag is absent', () => {
@@ -138,5 +139,49 @@ describe('InsightPackDeck library section integration', () => {
     expect(screen.queryAllByTestId('open-vented-insight-section')).toHaveLength(0);
     // Still shows standard pressure-vs-storage section
     expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0);
+  });
+
+  it('does NOT show OpenVentedInsightSection on non-regular/system stored-hot-water paths', () => {
+    render(
+      <InsightPackDeck
+        pack={pack}
+        librarySectionData={{
+          customerSummary: {
+            ...customerSummary,
+            recommendedScenarioId: 'heat_pump_unvented',
+          },
+          atlasDecision,
+          scenarios,
+          bathroomCount: 2,
+          userConcernTags: ['open_vented'],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+    expect(screen.queryAllByTestId('open-vented-insight-section')).toHaveLength(0);
+    expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0);
+  });
+
+  it('shows OpenVentedInsightSection for regular_unvented stored-hot-water path', () => {
+    render(
+      <InsightPackDeck
+        pack={pack}
+        librarySectionData={{
+          customerSummary: {
+            ...customerSummary,
+            recommendedScenarioId: 'regular_unvented',
+          },
+          atlasDecision,
+          scenarios,
+          bathroomCount: 2,
+          userConcernTags: ['open_vented'],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+    expect(screen.getAllByTestId('open-vented-insight-section').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('lwspj-section').length).toBeGreaterThan(0);
   });
 });
