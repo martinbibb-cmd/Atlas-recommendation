@@ -171,8 +171,7 @@ export function assessSupportingPdfReadiness(
   const diagramRendererIdSet = new Set(
     model.sections
       .map((section) => section.diagramRendererId)
-      .filter((diagramRendererId): diagramRendererId is string =>
-        typeof diagramRendererId === 'string' && diagramRendererId.trim().length > 0),
+      .filter((diagramRendererId): diagramRendererId is string => Boolean(diagramRendererId)),
   );
 
   for (const requiredDiagramRendererId of requiredDiagramRendererIds) {

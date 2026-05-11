@@ -292,6 +292,7 @@ function buildHeatPumpSectionsAndNextSteps(
         conG01.whatYouMayNotice,
         conG01.whatStaysFamiliar,
       ],
+      // No renderer-specific diagram exists for compensation curve yet.
       diagramId: conG01.suggestedDiagramIds[0],
     });
   }
