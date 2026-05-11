@@ -45,6 +45,7 @@ import SavingsPanel from './SavingsPanel';
 import WhyAtlasSuggestedThis from './WhyAtlasSuggestedThis';
 import NextStepsCard from './NextStepsCard';
 import { PressureVsStoragePortalSection } from '../../library/portal/sections/PressureVsStoragePortalSection';
+import { OpenVentedInsightSection } from '../../library/portal/sections/OpenVentedInsightSection';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
@@ -136,9 +137,15 @@ export default function InsightPackDeck({
   );
   const bathroomCount = librarySectionData?.bathroomCount ?? 1;
   const usePressureVsStorageSection = appliesStoredHotWater && bathroomCount >= 2;
-  const dailyUseRendererComponent = usePressureVsStorageSection
-    ? 'PressureVsStoragePortalSection'
-    : 'DailyUsePanel';
+  const appliesOpenVentedPath = Boolean(
+    librarySectionData?.userConcernTags?.includes('open_vented'),
+  );
+  const useOpenVentedInsightSection = appliesStoredHotWater && bathroomCount >= 2 && appliesOpenVentedPath;
+  const dailyUseRendererComponent = useOpenVentedInsightSection
+    ? 'OpenVentedInsightSection'
+    : usePressureVsStorageSection
+      ? 'PressureVsStoragePortalSection'
+      : 'DailyUsePanel';
 
   function renderPanel(id: CanonicalSectionId) {
     switch (id) {
@@ -162,6 +169,13 @@ export default function InsightPackDeck({
       case 'best-advice':
         return <BestAdvicePanel bestAdvice={pack.bestAdvice} />;
       case 'daily-use':
+        if (librarySectionData && useOpenVentedInsightSection) {
+          return (
+            <OpenVentedInsightSection
+              bathroomCount={bathroomCount}
+            />
+          );
+        }
         if (librarySectionData && usePressureVsStorageSection) {
           return (
             <PressureVsStoragePortalSection
@@ -241,7 +255,7 @@ export default function InsightPackDeck({
           <aside data-testid="insight-route-trace-labels">
             <p>insightRendererComponent: InsightPackDeck</p>
             <p>dailyUseRendererComponent: {dailyUseRendererComponent}</p>
-            {usePressureVsStorageSection ? (
+            {usePressureVsStorageSection || useOpenVentedInsightSection ? (
               <p>Real Insight route using library section</p>
             ) : null}
           </aside>

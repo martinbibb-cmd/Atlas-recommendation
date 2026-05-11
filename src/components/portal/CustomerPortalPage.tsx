@@ -96,6 +96,19 @@ function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): st
   if (input.pvStatus === 'existing' || input.pvStatus === 'planned') {
     tags.add('solar');
   }
+  if (
+    input.currentSystem?.heatingSystemType === 'open_vented'
+    || input.dhwStorageType === 'vented'
+  ) {
+    tags.add('open_vented');
+    tags.add('sealed_system_conversion');
+  }
+  if (
+    scenarioId != null
+    && /\b(system_unvented|regular_unvented|unvented)\b/i.test(scenarioId)
+  ) {
+    tags.add('unvented_safety_reassurance');
+  }
   return [...tags];
 }
 

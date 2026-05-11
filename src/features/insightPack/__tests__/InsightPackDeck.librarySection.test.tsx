@@ -103,4 +103,40 @@ describe('InsightPackDeck library section integration', () => {
     expect(screen.queryAllByTestId('pvsp-section')).toHaveLength(0);
     expect(screen.getAllByText('Daily-use fallback').length).toBeGreaterThan(0);
   });
+
+  it('renders the composite OpenVentedInsightSection (all 3 concepts) when open_vented tag is present', () => {
+    render(
+      <InsightPackDeck
+        pack={pack}
+        librarySectionData={{
+          customerSummary,
+          atlasDecision,
+          scenarios,
+          bathroomCount: 2,
+          userConcernTags: ['open_vented', 'sealed_system_conversion'],
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+    expect(screen.getAllByTestId('open-vented-insight-section').length).toBeGreaterThan(0);
+    // All three section test IDs must be present
+    expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('ovsp-section').length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId('uvsp-section').length).toBeGreaterThan(0);
+  });
+
+  it('does NOT show OpenVentedInsightSection when open_vented tag is absent', () => {
+    render(
+      <InsightPackDeck
+        pack={pack}
+        librarySectionData={{ customerSummary, atlasDecision, scenarios, bathroomCount: 2 }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+    expect(screen.queryAllByTestId('open-vented-insight-section')).toHaveLength(0);
+    // Still shows standard pressure-vs-storage section
+    expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0);
+  });
 });
