@@ -45,6 +45,17 @@ interface Props {
   brandId?: string;
   /** Override for tests to force-hide/show development route labels. */
   showDevTraceLabelsOverride?: boolean;
+  /**
+   * Dev-only: when provided, bypasses the API/token fetch and runs the engine
+   * directly with this input. Used exclusively by DevPortalFixturePage.
+   * Must never be set on customer-facing portal routes.
+   */
+  devFixtureInput?: EngineInputV2_3;
+  /**
+   * Dev-only: when set, skips the choice screen and opens the portal directly
+   * in the given view mode. Only respected when devFixtureInput is also set.
+   */
+  devInitialViewMode?: 'insight' | 'presentation';
 }
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
@@ -108,6 +119,8 @@ function CustomerPortalContent({
   reference,
   token,
   showDevTraceLabelsOverride,
+  devFixtureInput,
+  devInitialViewMode,
 }: Omit<Props, 'brandId'>) {
   const brand = useBrandProfile();
   const ctaCopy = getBrandCtaCopy(brand);
@@ -122,7 +135,7 @@ function CustomerPortalContent({
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   const [showSimulator, setShowSimulator] = useState(false);
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
-  const [viewMode, setViewMode] = useState<PortalViewMode>(null);
+  const [viewMode, setViewMode] = useState<PortalViewMode>(devInitialViewMode ?? null);
   // Launch context received from the deck CTA — drives the initial tab of the portal.
   const [portalLaunchContext, setPortalLaunchContext] = useState<PortalLaunchContext | null>(null);
   const showDevTraceLabels = showDevTraceLabelsOverride ?? !import.meta.env.PROD;
@@ -209,6 +222,17 @@ function CustomerPortalContent({
   );
 
   useEffect(() => {
+    // Dev fixture bypass: skip API and token validation when devFixtureInput is provided.
+    // This path is exclusive to DevPortalFixturePage and must never be triggered
+    // on real customer portal routes.
+    if (devFixtureInput) {
+      const result = runEngine(devFixtureInput);
+      setEngineInput(devFixtureInput);
+      setEngineResult(result);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     async function loadPortal() {
       if (!token) {
@@ -249,7 +273,7 @@ function CustomerPortalContent({
     }
     void loadPortal();
     return () => { cancelled = true; };
-  }, [reference, token]);
+  }, [reference, token, devFixtureInput]);
 
   if (loading) {
     return <div className="portal-page__loading" role="status" aria-live="polite">Loading your recommendation…</div>;

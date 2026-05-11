@@ -132,6 +132,13 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routeKind: 'path',
     access: 'dev_only',
   },
+  {
+    codeName: 'DevPortalFixturePage',
+    routePath: '/dev/portal-fixtures',
+    fullRouteExample: '/dev/portal-fixtures',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
 
   // ── Internal journey-state surfaces (no URL change) ──────────────────────
   {

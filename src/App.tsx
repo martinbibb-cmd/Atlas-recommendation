@@ -120,6 +120,7 @@ import {
   type PersistedAtlasVisitV2,
 } from './lib/storage/persistedAtlasVisitV2';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
+import DevPortalFixturePage from './dev/DevPortalFixturePage';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -493,6 +494,13 @@ const RECEIVE_SCAN_HANDOFF_PATH =
  */
 const WELCOME_PACK_DEV_PREVIEW_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/dev/welcome-pack';
+
+/**
+ * Detect /dev/portal-fixtures — renders the dev-only portal fixture launcher.
+ * Allows the customer portal to be tested without a live visit record or signed token.
+ */
+const PORTAL_FIXTURE_DEV_PATH =
+  typeof window !== 'undefined' && window.location.pathname === '/dev/portal-fixtures';
 
 /**
  * Detect /installation-specification path or ?installation-specification=1 — renders the Atlas
@@ -1180,6 +1188,17 @@ function AppInner() {
         </div>
         <WelcomePackDevPreview />
       </div>
+    );
+  }
+
+  // /dev/portal-fixtures — render dev-only portal fixture launcher.
+  // Allows the customer portal to be tested without a live visit or signed token.
+  // Not reachable from any customer-facing route.
+  if (PORTAL_FIXTURE_DEV_PATH) {
+    return (
+      <DevPortalFixturePage
+        onBack={() => { window.location.href = '/'; }}
+      />
     );
   }
 
