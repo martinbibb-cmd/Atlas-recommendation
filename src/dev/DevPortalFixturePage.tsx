@@ -20,11 +20,18 @@
 import { useState } from 'react';
 import CustomerPortalPage from '../components/portal/CustomerPortalPage';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import type { EngineInputV2_3Contract } from '../contracts/EngineInputV2_3';
+import { runEngine } from '../engine/Engine';
+import { buildScenariosFromEngineOutput } from '../engine/modules/buildScenariosFromEngineOutput';
+import { buildDecisionFromScenarios } from '../engine/modules/buildDecisionFromScenarios';
+import { buildCustomerSummary } from '../engine/modules/buildCustomerSummary';
 import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
 import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
 import { assessSupportingPdfReadiness } from '../library/portal/pdf/supportingPdfReadiness';
 import { SUPPORTED_DIAGRAM_RENDERER_IDS } from '../library/diagrams/DiagramRenderer';
 import { sectionsForMode } from '../features/insightPack/canonicalSections';
+import { buildSuggestedImplementationPack } from '../specification/buildSuggestedImplementationPack';
+import ImplementationPackReviewPanel from '../components/dev/ImplementationPackReviewPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -174,7 +181,7 @@ export const PORTAL_FIXTURES: PortalFixture[] = [
 
 interface FixtureCardProps {
   fixture: PortalFixture;
-  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison') => void;
+  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') => void;
 }
 
 const ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT = import.meta.env.DEV;
@@ -183,6 +190,10 @@ const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder
 const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
 const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
 const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
+// Contract pipe diameters are normalized to standard primary sizes.
+const PIPE_SIZE_THRESHOLD_35MM = 35;
+const PIPE_SIZE_THRESHOLD_28MM = 28;
+const PIPE_SIZE_THRESHOLD_22MM = 22;
 
 function isOpenVentedFixture(fixture: PortalFixture): boolean {
   return fixture.id === 'open_vented_to_sealed_unvented';
@@ -248,6 +259,14 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
         >
           Open In-room presentation
         </button>
+        <button
+          type="button"
+          className="dev-portal-fixture__btn"
+          onClick={() => onOpen(fixture, 'implementation_pack')}
+          data-testid={`fixture-implementation-${fixture.id}`}
+        >
+          Open implementation pack
+        </button>
         {showSupportingPdfPreviewAction ? (
           <button
             type="button"
@@ -279,7 +298,7 @@ interface DevPortalFixturePageProps {
 
 interface ActiveFixture {
   fixture: PortalFixture;
-  initialView?: 'insight' | 'presentation' | 'pdf_comparison';
+  initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack';
 }
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
@@ -316,6 +335,117 @@ function buildSupportingPdfModel(fixture: PortalFixture) {
   });
 }
 
+function inferColdWaterSource(input: EngineInputV2_3): NonNullable<EngineInputV2_3Contract['services']>['coldWaterSource'] {
+  if (input.currentSystem?.heatingSystemType === 'open_vented' || input.dhwStorageType === 'vented') {
+    return 'loft_tank';
+  }
+  return 'mains_true';
+}
+
+function mapEngineInputToContract(input: EngineInputV2_3): EngineInputV2_3Contract {
+  let primaryPipeSizeMm: EngineInputV2_3Contract['infrastructure']['primaryPipeSizeMm'] = 15;
+  if (input.primaryPipeDiameter >= PIPE_SIZE_THRESHOLD_35MM) {
+    primaryPipeSizeMm = 35;
+  } else if (input.primaryPipeDiameter >= PIPE_SIZE_THRESHOLD_28MM) {
+    primaryPipeSizeMm = 28;
+  } else if (input.primaryPipeDiameter >= PIPE_SIZE_THRESHOLD_22MM) {
+    primaryPipeSizeMm = 22;
+  }
+
+  let occupancySignature: EngineInputV2_3Contract['occupancy']['signature'] = 'professional';
+  if (input.occupancySignature === 'steady_home' || input.occupancySignature === 'steady') {
+    occupancySignature = 'steady';
+  } else if (input.occupancySignature === 'shift_worker' || input.occupancySignature === 'shift') {
+    occupancySignature = 'shift';
+  }
+
+  const coldWaterSource: NonNullable<EngineInputV2_3Contract['services']>['coldWaterSource'] =
+    input.coldWaterSource ?? inferColdWaterSource(input);
+
+  let architecture: EngineInputV2_3Contract['dhw']['architecture'] = 'unknown';
+  if (input.dhwStorageType === 'mixergy') {
+    architecture = 'stored_mixergy';
+  } else if (input.dhwStorageType === 'none' || input.currentHeatSourceType === 'combi') {
+    architecture = 'on_demand';
+  } else if (
+    input.dhwStorageType === 'unvented'
+    || input.dhwStorageType === 'vented'
+    || input.dhwStorageType === 'heat_pump_cylinder'
+  ) {
+    architecture = 'stored_standard';
+  }
+
+  return {
+    infrastructure: {
+      primaryPipeSizeMm,
+    },
+    property: {
+      peakHeatLossKw: Math.max(0, Math.round((input.heatLossWatts / 1000) * 10) / 10),
+    },
+    occupancy: {
+      signature: occupancySignature,
+      peakConcurrentOutlets: input.peakConcurrentOutlets ?? 1,
+    },
+    dhw: {
+      architecture,
+    },
+    services: {
+      mainsDynamicPressureBar: input.dynamicMainsPressureBar ?? input.dynamicMainsPressure,
+      mainsDynamicFlowLpm: input.mainsDynamicFlowLpm,
+      coldWaterSource,
+    },
+    currentSystem: {
+      boiler: {
+        type:
+          input.currentSystem?.boiler?.type
+          ?? (input.currentHeatSourceType === 'combi'
+            ? 'combi'
+            : input.currentHeatSourceType === 'system'
+              ? 'system'
+              : input.currentHeatSourceType === 'regular'
+                ? 'regular'
+                : 'unknown'),
+        ageYears: input.currentSystem?.boiler?.ageYears,
+      },
+    },
+  };
+}
+
+function buildImplementationPackForFixture(fixture: PortalFixture) {
+  const engineResult = runEngine(fixture.engineInput);
+  const scenarios = buildScenariosFromEngineOutput(engineResult.engineOutput);
+  if (scenarios.length === 0) {
+    throw new Error(`No scenarios available for fixture: ${fixture.id}`);
+  }
+
+  const rawType = fixture.engineInput.currentHeatSourceType;
+  const boilerType: 'combi' | 'system' | 'regular' =
+    rawType === 'system' || rawType === 'regular' ? rawType : 'combi';
+
+  const decision = buildDecisionFromScenarios({
+    scenarios,
+    boilerType,
+    ageYears: fixture.engineInput.currentSystem?.boiler?.ageYears ?? 0,
+    occupancyCount: fixture.engineInput.occupancyCount,
+    bathroomCount: fixture.engineInput.bathroomCount,
+    showerCompatibilityNote: engineResult.engineOutput.showerCompatibilityNote,
+  });
+
+  const customerSummary = buildCustomerSummary(decision, scenarios);
+  const surveyInput = mapEngineInputToContract(fixture.engineInput);
+  const pack = buildSuggestedImplementationPack({
+    atlasDecision: decision,
+    customerSummary,
+    engineOutput: engineResult.engineOutput,
+    surveyInput,
+  });
+
+  return {
+    pack,
+    recommendedScenarioId: decision.recommendedScenarioId,
+  };
+}
+
 /**
  * DevPortalFixturePage
  *
@@ -326,7 +456,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
 
-  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison') {
+  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') {
     const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);
     const shouldOpenComparisonShell =
       ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
@@ -529,6 +659,79 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 <PortalJourneyPrintPack model={printModel} />
               </div>
             )}
+          </div>
+        </div>
+      );
+    }
+
+    if (active.initialView === 'implementation_pack') {
+      const implementationPack = buildImplementationPackForFixture(active.fixture);
+      const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
+      const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
+        ? buildSupportingPdfModel(active.fixture)
+        : null;
+
+      return (
+        <div style={{ background: '#f8fafc', minHeight: '100vh' }} data-testid="dev-implementation-pack-shell">
+          <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
+            <button
+              type="button"
+              className="back-btn"
+              onClick={handleBackToLauncher}
+              data-testid="dev-fixture-back"
+            >
+              ← Back to fixtures
+            </button>
+            <span
+              className="atlas-dev-notice"
+              style={{ margin: 0 }}
+              data-testid="dev-fixture-active-label"
+            >
+              🔬 Implementation pack review — not customer data · {active.fixture.label}
+            </span>
+          </div>
+
+          <div style={{ padding: '1rem', display: 'grid', gap: '1rem' }}>
+            <section
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
+              data-testid="dev-implementation-pack-summary"
+            >
+              <strong>Recommendation scenario:</strong>{' '}
+              <span data-testid="dev-implementation-pack-recommendation">{implementationPack.recommendedScenarioId}</span>
+            </section>
+
+            <section
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
+              data-testid="dev-implementation-pack-customer-insight"
+            >
+              <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Customer Insight</h2>
+              <CustomerPortalPage
+                reference="dev-fixture"
+                devFixtureInput={active.fixture.engineInput}
+                devInitialViewMode="insight"
+                showDevTraceLabelsOverride={true}
+              />
+            </section>
+
+            <section
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
+              data-testid="dev-implementation-pack-supporting-pdf"
+            >
+              <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Supporting PDF</h2>
+              {supportingPdfModel ? (
+                <PortalJourneyPrintPack model={supportingPdfModel} />
+              ) : (
+                <p style={{ margin: 0 }}>Supporting PDF preview is not configured for this fixture.</p>
+              )}
+            </section>
+
+            <section
+              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
+              data-testid="dev-implementation-pack-panel"
+            >
+              <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Implementation Pack</h2>
+              <ImplementationPackReviewPanel pack={implementationPack.pack} />
+            </section>
           </div>
         </div>
       );

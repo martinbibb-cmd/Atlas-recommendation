@@ -15,6 +15,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import DevPortalFixturePage, { PORTAL_FIXTURES } from '../DevPortalFixturePage';
 import { DEV_ROUTE_REGISTRY } from '../devRouteRegistry';
+import { runEngine } from '../../engine/Engine';
+import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
+import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -35,12 +38,13 @@ describe('DevPortalFixturePage — fixture launcher', () => {
     expect(cards.length).toBe(5);
   });
 
-  it('renders "Open portal", "Open Insight", "Open In-room presentation", and "Copy portal URL" for each fixture', () => {
+  it('renders "Open portal", "Open Insight", "Open In-room presentation", "Open implementation pack", and "Copy portal URL" for each fixture', () => {
     render(<DevPortalFixturePage />);
     for (const fixture of PORTAL_FIXTURES) {
       expect(screen.getByTestId(`fixture-open-${fixture.id}`)).toBeTruthy();
       expect(screen.getByTestId(`fixture-insight-${fixture.id}`)).toBeTruthy();
       expect(screen.getByTestId(`fixture-presentation-${fixture.id}`)).toBeTruthy();
+      expect(screen.getByTestId(`fixture-implementation-${fixture.id}`)).toBeTruthy();
       expect(screen.getByTestId(`fixture-copy-url-${fixture.id}`)).toBeTruthy();
     }
   });
@@ -205,5 +209,71 @@ describe('DevPortalFixturePage — production route safety', () => {
     // would be treated as a customer portal and would silently fail.
     const match = '/dev/portal-fixtures'.match(/^\/portal\/([^/]+)$/);
     expect(match).toBeNull();
+  });
+});
+
+describe('DevPortalFixturePage — implementation pack', () => {
+  function getExpectedRecommendedScenarioId(fixtureId: string): string {
+    const fixture = PORTAL_FIXTURES.find((candidate) => candidate.id === fixtureId);
+    if (!fixture) throw new Error(`Fixture not found: ${fixtureId}`);
+    const engineResult = runEngine(fixture.engineInput);
+    const scenarios = buildScenariosFromEngineOutput(engineResult.engineOutput);
+    const rawType = fixture.engineInput.currentHeatSourceType;
+    const boilerType: 'combi' | 'system' | 'regular' =
+      rawType === 'system' || rawType === 'regular' ? rawType : 'combi';
+    const decision = buildDecisionFromScenarios({
+      scenarios,
+      boilerType,
+      ageYears: fixture.engineInput.currentSystem?.boiler?.ageYears ?? 0,
+      occupancyCount: fixture.engineInput.occupancyCount,
+      bathroomCount: fixture.engineInput.bathroomCount,
+      showerCompatibilityNote: engineResult.engineOutput.showerCompatibilityNote,
+    });
+    return decision.recommendedScenarioId;
+  }
+
+  it('fixture opens implementation pack', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-shell')).toBeTruthy());
+    expect(screen.getByTestId('dev-implementation-pack-panel')).toBeTruthy();
+  });
+
+  it('stored/unvented shows G3 qualification', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    const panel = await screen.findByTestId('dev-implementation-pack-panel');
+    expect(within(panel).getAllByText(/G3 Unvented Hot Water Installer/i).length).toBeGreaterThan(0);
+  });
+
+  it('heat pump shows MCS and emitter review', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-heat_pump_low_temp'));
+    const panel = await screen.findByTestId('dev-implementation-pack-panel');
+    expect(within(panel).getAllByText(/MCS-Certified Heat Pump Installer/i).length).toBeGreaterThan(0);
+    expect(within(panel).getAllByText(/Emitter suitability for heat pump flow temperatures has not been confirmed/i).length).toBeGreaterThan(0);
+  });
+
+  it('open-vented shows loft capping and filling loop', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-open_vented_to_sealed_unvented'));
+    const panel = await screen.findByTestId('dev-implementation-pack-panel');
+    expect(within(panel).getByText(/Capping of loft vent and cold-feed pipework/i)).toBeTruthy();
+    expect(within(panel).getByText(/Sealed system filling loop/i)).toBeTruthy();
+  });
+
+  it('customer copy does not appear in implementation pack', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-combi_1bath'));
+    const panel = await screen.findByTestId('dev-implementation-pack-panel');
+    expect(within(panel).queryByText(/Choose how you would like to explore your results/i)).toBeNull();
+  });
+
+  it('recommendation remains unchanged between fixture engine output and implementation pack', async () => {
+    render(<DevPortalFixturePage />);
+    const expectedScenarioId = getExpectedRecommendedScenarioId('system_unvented_2bath');
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    const scenario = await screen.findByTestId('dev-implementation-pack-recommendation');
+    expect(scenario.textContent).toBe(expectedScenarioId);
   });
 });
