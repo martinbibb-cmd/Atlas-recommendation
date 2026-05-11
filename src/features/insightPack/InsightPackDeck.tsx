@@ -44,6 +44,11 @@ import ImprovementsPanel from './ImprovementsPanel';
 import SavingsPanel from './SavingsPanel';
 import WhyAtlasSuggestedThis from './WhyAtlasSuggestedThis';
 import NextStepsCard from './NextStepsCard';
+import { LibraryPortalSectionRenderer } from './LibraryPortalSectionRenderer';
+import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
+import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
+import type { ScenarioResult } from '../../contracts/ScenarioResult';
+import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import './InsightPackDeck.css';
 import './InsightPackPrint.css';
 
@@ -61,6 +66,14 @@ interface Props {
    *   'technical-pack'— Full 11-section deck with full engineering detail.
    */
   presentationMode?: PresentationMode;
+  librarySectionData?: {
+    customerSummary: CustomerSummaryV1;
+    atlasDecision: AtlasDecisionV1;
+    scenarios: ScenarioResult[];
+    accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
+    userConcernTags?: string[];
+    propertyConstraintTags?: string[];
+  };
 }
 
 /** Delay (ms) before triggering window.print() to allow React to re-render all panels. */
@@ -71,6 +84,7 @@ export default function InsightPackDeck({
   propertyTitle,
   onClose,
   presentationMode = 'in-room',
+  librarySectionData,
 }: Props) {
   // Derive the ordered slide list from the canonical sections for this mode.
   const slides = sectionsForMode(presentationMode);
@@ -127,7 +141,18 @@ export default function InsightPackDeck({
       case 'best-advice':
         return <BestAdvicePanel bestAdvice={pack.bestAdvice} />;
       case 'daily-use':
-        return (
+        return librarySectionData ? (
+          <LibraryPortalSectionRenderer
+            fallbackQuotes={pack.quotes}
+            recommendedQuoteId={isCustomerPack ? pack.bestAdvice.recommendedQuoteId : undefined}
+            customerSummary={librarySectionData.customerSummary}
+            atlasDecision={librarySectionData.atlasDecision}
+            scenarios={librarySectionData.scenarios}
+            accessibilityPreferences={librarySectionData.accessibilityPreferences}
+            userConcernTags={librarySectionData.userConcernTags}
+            propertyConstraintTags={librarySectionData.propertyConstraintTags}
+          />
+        ) : (
           <DailyUsePanel
             quotes={pack.quotes}
             recommendedQuoteId={isCustomerPack ? pack.bestAdvice.recommendedQuoteId : undefined}
@@ -266,4 +291,3 @@ export default function InsightPackDeck({
     </div>
   );
 }
-
