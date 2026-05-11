@@ -39,7 +39,13 @@ import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import './CustomerPortalPage.css';
 
-interface Props { reference: string; token?: string; brandId?: string; }
+interface Props {
+  reference: string;
+  token?: string;
+  brandId?: string;
+  /** Override for tests to force-hide/show development route labels. */
+  showDevTraceLabelsOverride?: boolean;
+}
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
 const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
@@ -98,7 +104,11 @@ function buildPortalPropertyConstraintTags(input: EngineInputV2_3): string[] {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
+function CustomerPortalContent({
+  reference,
+  token,
+  showDevTraceLabelsOverride,
+}: Omit<Props, 'brandId'>) {
   const brand = useBrandProfile();
   const ctaCopy = getBrandCtaCopy(brand);
   const [loading, setLoading] = useState(true);
@@ -115,6 +125,7 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
   const [viewMode, setViewMode] = useState<PortalViewMode>(null);
   // Launch context received from the deck CTA — drives the initial tab of the portal.
   const [portalLaunchContext, setPortalLaunchContext] = useState<PortalLaunchContext | null>(null);
+  const showDevTraceLabels = showDevTraceLabelsOverride ?? !import.meta.env.PROD;
 
   // ── Portal data: decision + scenarios (memoised — built once) ────────────
   // Computed before portalViewModel and aiSummaryText to avoid duplicating
@@ -275,10 +286,33 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
     setViewMode('portal');
   }
 
+  const currentPortalRoute =
+    typeof window !== 'undefined'
+      ? `${window.location.pathname}${window.location.search}`
+      : `/portal/${reference}`;
+  const selectedPortalMode = viewMode ?? 'choice';
+  const activeRendererComponent =
+    viewMode === null
+      ? 'PortalChoiceScreen'
+      : viewMode === 'insight'
+        ? 'InsightPackDeck'
+        : viewMode === 'portal'
+          ? 'PortalPage'
+          : showSimulator
+            ? 'UnifiedSimulatorView'
+            : 'CanonicalPresentationPage';
+
   // ── Welcome page — choose a view ──────────────────────────────────────────
   if (viewMode === null) {
     return (
       <div className="portal-page" data-testid="customer-portal">
+        {showDevTraceLabels ? (
+          <aside data-testid="portal-route-trace-labels">
+            <p>currentPortalRoute: {currentPortalRoute}</p>
+            <p>selectedPortalMode: {selectedPortalMode}</p>
+            <p>activeRendererComponent: {activeRendererComponent}</p>
+          </aside>
+        ) : null}
         <header className="portal-page__hero" data-testid="portal-hero">
           <BrandedHeader />
           <div className="portal-hero__brand-row">
@@ -352,6 +386,13 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
 
     return (
       <div className="portal-page portal-page--full-width" data-testid="customer-portal">
+        {showDevTraceLabels ? (
+          <aside data-testid="portal-route-trace-labels">
+            <p>currentPortalRoute: {currentPortalRoute}</p>
+            <p>selectedPortalMode: {selectedPortalMode}</p>
+            <p>activeRendererComponent: {activeRendererComponent}</p>
+          </aside>
+        ) : null}
         <div className="portal-back-row">
           <button
             type="button"
@@ -366,6 +407,7 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
           propertyTitle={postcode ?? undefined}
           onClose={() => setViewMode(null)}
           librarySectionData={libraryPortalIntegration ?? undefined}
+          showDevTraceLabels={showDevTraceLabels}
         />
         <BrandedFooter footerNote={ctaCopy.printFooterNote} />
       </div>
@@ -376,6 +418,13 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
   if (viewMode === 'portal') {
     return (
       <div className="portal-page portal-page--full-width" data-testid="customer-portal">
+        {showDevTraceLabels ? (
+          <aside data-testid="portal-route-trace-labels">
+            <p>currentPortalRoute: {currentPortalRoute}</p>
+            <p>selectedPortalMode: {selectedPortalMode}</p>
+            <p>activeRendererComponent: {activeRendererComponent}</p>
+          </aside>
+        ) : null}
         <div className="portal-back-row">
           <button
             type="button"
@@ -408,6 +457,13 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
   // ── Presentation view (deck) ──────────────────────────────────────────────
   return (
     <div className="portal-page" data-testid="customer-portal">
+      {showDevTraceLabels ? (
+        <aside data-testid="portal-route-trace-labels">
+          <p>currentPortalRoute: {currentPortalRoute}</p>
+          <p>selectedPortalMode: {selectedPortalMode}</p>
+          <p>activeRendererComponent: {activeRendererComponent}</p>
+        </aside>
+      ) : null}
 
       {/* ── Minimal portal header (brand + postcode only) ─────────────────── */}
       <header className="portal-page__hero" data-testid="portal-hero">

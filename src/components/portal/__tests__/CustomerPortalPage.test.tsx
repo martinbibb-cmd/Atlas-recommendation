@@ -48,6 +48,23 @@ const STUB_REPORT: ReportDetail = {
   },
 };
 
+const STORED_HOT_WATER_INPUT: EngineInputV2_3 = {
+  ...STUB_ENGINE_INPUT,
+  bathroomCount: 2,
+  occupancyCount: 4,
+  peakConcurrentOutlets: 2,
+};
+
+const STORED_HOT_WATER_REPORT: ReportDetail = {
+  ...STUB_REPORT,
+  id: 'test-report-stored-hot-water',
+  payload: {
+    ...STUB_REPORT.payload,
+    surveyData: STORED_HOT_WATER_INPUT as unknown as ReportDetail['payload']['surveyData'],
+    engineInput: STORED_HOT_WATER_INPUT,
+  },
+};
+
 function mockFetchSuccess(report: ReportDetail) {
   global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, report }) } as unknown as Response);
 }
@@ -85,6 +102,36 @@ describe('CustomerPortalPage', () => {
     // Portal header with postcode shown on welcome page too
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
     expect(screen.getAllByText('SW1A 1AA').length).toBeGreaterThan(0);
+    expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
+    expect(screen.getByText(/selectedPortalMode: choice/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: PortalChoiceScreen/i)).toBeTruthy();
+  });
+
+  it('clicking Insight reaches the real Insight renderer and shows route trace labels', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('portal-welcome-insight'));
+
+    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+    expect(screen.getByText(/selectedPortalMode: insight/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: InsightPackDeck/i)).toBeTruthy();
+    expect(screen.getByText(/insightRendererComponent: InsightPackDeck/i)).toBeTruthy();
+  });
+
+  it('real Insight renderer mounts CON_C02 section for stored hot water with two bathrooms', async () => {
+    mockFetchSuccess(STORED_HOT_WATER_REPORT);
+    render(<CustomerPortalPage reference="test-report-stored-hot-water" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('portal-welcome-insight'));
+    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
+
+    await waitFor(() => expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0));
+    expect(screen.getByText('Real Insight route using library section')).toBeTruthy();
+    expect(screen.getByText(/dailyUseRendererComponent: PressureVsStoragePortalSection/i)).toBeTruthy();
   });
 
   it('renders the canonical presentation deck — same pages as the in-room presentation', async () => {
@@ -111,6 +158,58 @@ describe('CustomerPortalPage', () => {
     for (const btn of backBtns) {
       expect(btn.closest('[data-testid="customer-portal"]')).toBeTruthy();
     }
+    expect(screen.getByText(/selectedPortalMode: presentation/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: CanonicalPresentationPage/i)).toBeTruthy();
+    expect(screen.queryByText(/insightRendererComponent:/i)).toBeNull();
+    expect(screen.queryByText('Real Insight route using library section')).toBeNull();
+  });
+
+  it('hides route trace labels when dev labels are disabled', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(
+      <CustomerPortalPage
+        reference="test-report-1"
+        token="valid-token"
+        showDevTraceLabelsOverride={false}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    expect(screen.queryByTestId('portal-route-trace-labels')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('portal-welcome-insight'));
+    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+    expect(screen.queryByTestId('insight-route-trace-labels')).toBeNull();
+  });
+
+  it('keeps recommendation output unchanged when route trace labels are toggled', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    const { unmount } = render(
+      <CustomerPortalPage
+        reference="test-report-1"
+        token="valid-token"
+        showDevTraceLabelsOverride
+      />,
+    );
+    await openPresentationView();
+    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const labelsWithTrace = Array.from(nav.querySelectorAll('button[aria-label^="Go to page:"]'))
+      .map((btn) => btn.getAttribute('aria-label'));
+    unmount();
+
+    mockFetchSuccess(STUB_REPORT);
+    render(
+      <CustomerPortalPage
+        reference="test-report-1"
+        token="valid-token"
+        showDevTraceLabelsOverride={false}
+      />,
+    );
+    await openPresentationView();
+    const navWithoutTrace = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const labelsWithoutTrace = Array.from(navWithoutTrace.querySelectorAll('button[aria-label^="Go to page:"]'))
+      .map((btn) => btn.getAttribute('aria-label'));
+
+    expect(labelsWithTrace).toEqual(labelsWithoutTrace);
   });
 
   it('navigates to the simulator page and opens the live simulator', async () => {
