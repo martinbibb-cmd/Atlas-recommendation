@@ -79,7 +79,7 @@ export function toEducationalContentFromAtlasMvp(entry: AtlasMvpContentEntryV1):
         whereItBreaks: entry.whereItBreaks,
       },
       {
-        analogyId: `${entry.id}-factual`,
+        analogyId: `${entry.id}-no-analogy`,
         family: 'none',
         title: 'No analogy: direct reading',
         explanation: entry.reality,
