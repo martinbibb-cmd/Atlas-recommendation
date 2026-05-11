@@ -44,7 +44,7 @@ import ImprovementsPanel from './ImprovementsPanel';
 import SavingsPanel from './SavingsPanel';
 import WhyAtlasSuggestedThis from './WhyAtlasSuggestedThis';
 import NextStepsCard from './NextStepsCard';
-import { LibraryPortalSectionRenderer } from './LibraryPortalSectionRenderer';
+import { DailyUsePortalSection } from '../../library/portal/sections/DailyUsePortalSection';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
@@ -68,16 +68,19 @@ interface Props {
   presentationMode?: PresentationMode;
   librarySectionData?: {
     customerSummary: CustomerSummaryV1;
-    atlasDecision: AtlasDecisionV1;
-    scenarios: ScenarioResult[];
-    accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
-    userConcernTags?: string[];
-    propertyConstraintTags?: string[];
-  };
+     atlasDecision: AtlasDecisionV1;
+     scenarios: ScenarioResult[];
+     bathroomCount?: number;
+     accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
+     userConcernTags?: string[];
+     propertyConstraintTags?: string[];
+   };
 }
 
 /** Delay (ms) before triggering window.print() to allow React to re-render all panels. */
 const PRINT_RENDER_DELAY_MS = 100;
+const STORED_HOT_WATER_SCENARIO_PATTERN = /\b(system_unvented|regular_unvented|unvented)\b/i;
+const STORED_HOT_WATER_LABEL_PATTERN = /\b(stored hot water|unvented|system boiler|regular boiler)\b/i;
 
 export default function InsightPackDeck({
   pack,
@@ -141,18 +144,26 @@ export default function InsightPackDeck({
       case 'best-advice':
         return <BestAdvicePanel bestAdvice={pack.bestAdvice} />;
       case 'daily-use':
-        return librarySectionData ? (
-          <LibraryPortalSectionRenderer
-            fallbackQuotes={pack.quotes}
-            recommendedQuoteId={isCustomerPack ? pack.bestAdvice.recommendedQuoteId : undefined}
-            customerSummary={librarySectionData.customerSummary}
-            atlasDecision={librarySectionData.atlasDecision}
-            scenarios={librarySectionData.scenarios}
-            accessibilityPreferences={librarySectionData.accessibilityPreferences}
-            userConcernTags={librarySectionData.userConcernTags}
-            propertyConstraintTags={librarySectionData.propertyConstraintTags}
-          />
-        ) : (
+        if (librarySectionData) {
+          const appliesStoredHotWater = STORED_HOT_WATER_SCENARIO_PATTERN.test(
+            librarySectionData.customerSummary.recommendedScenarioId,
+          ) || STORED_HOT_WATER_LABEL_PATTERN.test(
+            librarySectionData.customerSummary.recommendedSystemLabel ?? '',
+          );
+          const bathroomCount = librarySectionData.bathroomCount ?? 1;
+          return appliesStoredHotWater && bathroomCount >= 2 ? (
+            <DailyUsePortalSection
+              appliesStoredHotWater
+              bathroomCount={bathroomCount}
+            />
+          ) : (
+            <DailyUsePanel
+              quotes={pack.quotes}
+              recommendedQuoteId={isCustomerPack ? pack.bestAdvice.recommendedQuoteId : undefined}
+            />
+          );
+        }
+        return (
           <DailyUsePanel
             quotes={pack.quotes}
             recommendedQuoteId={isCustomerPack ? pack.bestAdvice.recommendedQuoteId : undefined}
