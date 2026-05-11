@@ -181,6 +181,8 @@ const ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT = import.meta.env.DEV;
 const INSIGHT_PRINT_SECTIONS_PER_PAGE = 2;
 const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder — the right route for this home.';
 const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
+const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
+const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
 
 function isOpenVentedFixture(fixture: PortalFixture): boolean {
   return fixture.id === 'open_vented_to_sealed_unvented';
@@ -292,7 +294,7 @@ function buildSupportingPdfModel(fixture: PortalFixture) {
   if (journeyType === 'heat_pump') {
     return buildPortalJourneyPrintModel({
       journeyType: 'heat_pump',
-      selectedSectionIds: ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'],
+      selectedSectionIds: [...HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS],
       recommendationSummary: HEAT_PUMP_RECOMMENDATION_SUMMARY,
       customerFacts: [
         `${occupancyCount}-person household`,
@@ -304,7 +306,7 @@ function buildSupportingPdfModel(fixture: PortalFixture) {
 
   return buildPortalJourneyPrintModel({
     journeyType: 'open_vented',
-    selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
+    selectedSectionIds: [...OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS],
     recommendationSummary: OPEN_VENTED_RECOMMENDATION_SUMMARY,
     customerFacts: [
       `${occupancyCount}-person household`,

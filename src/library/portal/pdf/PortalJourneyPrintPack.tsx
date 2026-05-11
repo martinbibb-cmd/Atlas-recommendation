@@ -28,6 +28,8 @@ const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
 };
 
 function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string | null {
+  // Prefer explicit section.diagramRendererId for new journeys, but keep
+  // legacy registry-id mapping so existing models continue to render.
   if (section.diagramRendererId && isDiagramRendererIdSupported(section.diagramRendererId)) {
     return section.diagramRendererId;
   }
