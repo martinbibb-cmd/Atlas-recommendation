@@ -75,4 +75,23 @@ describe('getPortalEducationalContent', () => {
     expect(cards[0]?.customerWording).toBe('fallback explanation.');
     expect(cards[0]?.misconception).toBe('Fallback misunderstanding.');
   });
+
+  it('resolves storage, filling-loop, flushing, and warm-radiator triggers from routing tags', () => {
+    const cards = getPortalEducationalContent({
+      selectedConceptIds: [],
+      routingTriggerTags: ['storage', 'pressure', 'hydraulic', 'hot_radiator_expectation'],
+      atlasMvpContentMapRegistry: [
+        { ...mvpEntry, id: 'CON_STORAGE', routingTriggerTags: ['storage'] },
+        { ...mvpEntry, id: 'CON_FILLING', title: 'System pressure and filling loop', routingTriggerTags: ['pressure', 'flow'] },
+        { ...mvpEntry, id: 'CON_FLUSH', title: 'Powerflush vs chemical flush', routingTriggerTags: ['hydraulic'] },
+        { ...mvpEntry, id: 'CON_WARM', title: 'Warm radiators', routingTriggerTags: ['hot_radiator_expectation'] },
+      ],
+      educationalContentRegistry: [],
+    });
+
+    expect(cards.map((card) => card.title)).toContain('Pressure vs storage');
+    expect(cards.map((card) => card.title)).toContain('System pressure and filling loop');
+    expect(cards.map((card) => card.title)).toContain('Powerflush vs chemical flush');
+    expect(cards.map((card) => card.title)).toContain('Warm radiators');
+  });
 });

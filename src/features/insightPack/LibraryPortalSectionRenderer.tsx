@@ -25,12 +25,10 @@ interface Props {
 
 const DIAGRAM_ID_ALIASES: Record<string, string> = {
   pressure_window: 'pressure_vs_storage',
-  pressure_vs_storage: 'pressure_vs_storage',
   warm_radiator_pattern: 'warm_vs_hot_radiators',
-  warm_radiators: 'warm_vs_hot_radiators',
   open_to_sealed: 'open_vented_to_unvented',
-  open_vented_to_unvented: 'open_vented_to_unvented',
 };
+const MAX_PORTAL_CARDS = 4;
 
 function toRenderableDiagramId(diagramId: string): string | undefined {
   const normalized = diagramId
@@ -85,7 +83,7 @@ export function LibraryPortalSectionRenderer({
       routingTriggerTags,
       atlasMvpContentMapRegistry,
       educationalContentRegistry,
-    }).slice(0, 4) : []),
+    }).slice(0, MAX_PORTAL_CARDS) : []),
     [composed, routingTriggerTags],
   );
   const isSafe = Boolean(
