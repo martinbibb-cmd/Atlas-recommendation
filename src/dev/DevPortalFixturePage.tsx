@@ -392,7 +392,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 </thead>
                 <tbody>
                   <tr>
-                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Page count</td>
+                    <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>Page count (in-room print estimate)</td>
                     <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>{currentInsightEstimatedPages}</td>
                     <td style={{ borderBottom: '1px solid #f1f5f9', padding: '0.35rem' }}>{printModel.pageEstimate.usedPages}</td>
                   </tr>
