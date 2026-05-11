@@ -88,7 +88,7 @@ describe('InsightPackDeck library section integration', () => {
     );
 
     fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
-    expect(screen.getByTestId('pvsp-section')).toBeTruthy();
+    expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0);
   });
 
   it('falls back to legacy daily-use copy when CON_C02 does not apply', () => {
@@ -100,7 +100,7 @@ describe('InsightPackDeck library section integration', () => {
     );
 
     fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
-    expect(screen.queryByTestId('pvsp-section')).toBeNull();
-    expect(screen.getByText('Daily-use fallback')).toBeTruthy();
+    expect(screen.queryAllByTestId('pvsp-section')).toHaveLength(0);
+    expect(screen.getAllByText('Daily-use fallback').length).toBeGreaterThan(0);
   });
 });
