@@ -84,6 +84,7 @@ interface Props {
 const PRINT_RENDER_DELAY_MS = 100;
 const STORED_HOT_WATER_SCENARIO_PATTERN = /\b(system_unvented|regular_unvented|unvented)\b/i;
 const STORED_HOT_WATER_LABEL_PATTERN = /\b(stored hot water|unvented|system boiler|regular boiler)\b/i;
+const REGULAR_OR_SYSTEM_UNVENTED_PATTERN = /\b(system_unvented|regular_unvented)\b/i;
 
 export default function InsightPackDeck({
   pack,
@@ -140,7 +141,17 @@ export default function InsightPackDeck({
   const appliesOpenVentedPath = Boolean(
     librarySectionData?.userConcernTags?.includes('open_vented'),
   );
-  const useOpenVentedInsightSection = appliesStoredHotWater && bathroomCount >= 2 && appliesOpenVentedPath;
+  const appliesRegularOrSystemUnventedPath = Boolean(
+    librarySectionData
+    && REGULAR_OR_SYSTEM_UNVENTED_PATTERN.test(
+      librarySectionData.customerSummary.recommendedScenarioId,
+    ),
+  );
+  const useOpenVentedInsightSection =
+    appliesStoredHotWater
+    && bathroomCount >= 2
+    && appliesOpenVentedPath
+    && appliesRegularOrSystemUnventedPath;
 
   function resolveDailyUseRendererName(): string {
     if (useOpenVentedInsightSection) return 'OpenVentedInsightSection';

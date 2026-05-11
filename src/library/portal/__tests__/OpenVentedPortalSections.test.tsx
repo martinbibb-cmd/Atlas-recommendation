@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
 import { OpenVentedToSealedPortalSection } from '../sections/OpenVentedToSealedPortalSection';
 import { UnventedSafetyPortalSection } from '../sections/UnventedSafetyPortalSection';
 import { OpenVentedInsightSection } from '../sections/OpenVentedInsightSection';
+import { LivingWithYourSystemPortalJourney } from '../sections/LivingWithYourSystemPortalJourney';
 
 // ─── OpenVentedToSealedPortalSection (CON_A01) ────────────────────────────────
 
@@ -167,6 +169,48 @@ describe('UnventedSafetyPortalSection', () => {
   });
 });
 
+describe('LivingWithYourSystemPortalJourney', () => {
+  it('renders timeline cards in morning-to-recovery order', () => {
+    render(<LivingWithYourSystemPortalJourney bathroomCount={2} />);
+    expect(screen.getByTestId('lwspj-timeline-morning')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-timeline-evening')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-timeline-peak-use')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-timeline-recovery')).toBeInTheDocument();
+  });
+
+  it('renders everyday-use visuals and mobile-safe card structure', () => {
+    render(<LivingWithYourSystemPortalJourney bathroomCount={3} />);
+    expect(screen.getByTestId('lwspj-showers-visual')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-bath-visual')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-reserve-visual')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-pressure-visual')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-subsections')).toBeInTheDocument();
+  });
+
+  it('uses calm copy without emotional overload or technical jargon leakage', () => {
+    render(<LivingWithYourSystemPortalJourney bathroomCount={2} />);
+    expect(screen.queryByText(/panic|urgent|emergency|catastrophic/i)).toBeNull();
+    expect(screen.queryByText(/L\/min|bar\b|plate heat exchanger|delta-?t/i)).toBeNull();
+  });
+
+  it('includes print-safe outputs for sheet and compact handout', () => {
+    const { container } = render(<LivingWithYourSystemPortalJourney bathroomCount={2} />);
+    const printSafeNodes = container.querySelectorAll('[data-print-safe=\"true\"]');
+    expect(printSafeNodes.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByTestId('lwspj-print-sheet')).toBeInTheDocument();
+    expect(screen.getByTestId('lwspj-print-handout')).toBeInTheDocument();
+  });
+
+  it('includes reduced-motion-safe CSS rules', () => {
+    const css = readFileSync(
+      new URL('../sections/livingWithYourSystemPortalJourney.css', import.meta.url),
+      'utf8',
+    );
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+    expect(css).toContain('.lwspj-section');
+  });
+});
+
 // ─── OpenVentedInsightSection (composite) ────────────────────────────────────
 
 describe('OpenVentedInsightSection', () => {
@@ -188,6 +232,11 @@ describe('OpenVentedInsightSection', () => {
   it('renders CON_C01 — unvented safety section', () => {
     render(<OpenVentedInsightSection />);
     expect(screen.getByTestId('uvsp-section')).toBeInTheDocument();
+  });
+
+  it('renders living-with-your-system journey section', () => {
+    render(<OpenVentedInsightSection />);
+    expect(screen.getByTestId('lwspj-section')).toBeInTheDocument();
   });
 
   it('passes bathroomCount to PressureVsStoragePortalSection', () => {

@@ -1,6 +1,7 @@
 import { PressureVsStoragePortalSection } from './PressureVsStoragePortalSection';
 import { OpenVentedToSealedPortalSection } from './OpenVentedToSealedPortalSection';
 import { UnventedSafetyPortalSection } from './UnventedSafetyPortalSection';
+import { LivingWithYourSystemPortalJourney } from './LivingWithYourSystemPortalJourney';
 import './openVentedInsightSection.css';
 
 export interface OpenVentedInsightSectionProps {
@@ -23,6 +24,7 @@ export function OpenVentedInsightSection({
       <PressureVsStoragePortalSection bathroomCount={bathroomCount} />
       <OpenVentedToSealedPortalSection />
       <UnventedSafetyPortalSection />
+      <LivingWithYourSystemPortalJourney bathroomCount={bathroomCount} />
     </div>
   );
 }
