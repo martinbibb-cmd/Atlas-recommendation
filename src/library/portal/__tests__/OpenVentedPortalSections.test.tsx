@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { OpenVentedToSealedPortalSection } from '../sections/OpenVentedToSealedPortalSection';
 import { UnventedSafetyPortalSection } from '../sections/UnventedSafetyPortalSection';
 import { OpenVentedInsightSection } from '../sections/OpenVentedInsightSection';
@@ -195,7 +196,7 @@ describe('LivingWithYourSystemPortalJourney', () => {
 
   it('includes print-safe outputs for sheet and compact handout', () => {
     const { container } = render(<LivingWithYourSystemPortalJourney bathroomCount={2} />);
-    const printSafeNodes = container.querySelectorAll('[data-print-safe=\"true\"]');
+    const printSafeNodes = container.querySelectorAll('[data-print-safe="true"]');
     expect(printSafeNodes.length).toBeGreaterThanOrEqual(2);
     expect(screen.getByTestId('lwspj-print-sheet')).toBeInTheDocument();
     expect(screen.getByTestId('lwspj-print-handout')).toBeInTheDocument();
@@ -203,7 +204,7 @@ describe('LivingWithYourSystemPortalJourney', () => {
 
   it('includes reduced-motion-safe CSS rules', () => {
     const css = readFileSync(
-      new URL('../sections/livingWithYourSystemPortalJourney.css', import.meta.url),
+      join(process.cwd(), 'src/library/portal/sections/livingWithYourSystemPortalJourney.css'),
       'utf8',
     );
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
