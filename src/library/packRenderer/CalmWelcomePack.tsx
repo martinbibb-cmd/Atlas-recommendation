@@ -1,6 +1,8 @@
 import type { CalmWelcomePackSectionV1, CalmWelcomePackViewModelV1 } from './CalmWelcomePackViewModelV1';
 import { DiagramRenderer } from '../diagrams/DiagramRenderer';
 import { getDiagramById } from '../diagrams/diagramExplanationRegistry';
+import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
+import { cardPriorityClass, cardPriorityAriaLabel, priorityFromSequenceStage } from '../ui/hierarchy';
 import './calmWelcomePack.css';
 
 export interface CalmWelcomePackProps {
@@ -11,16 +13,23 @@ export interface CalmWelcomePackProps {
 function renderCards(section: CalmWelcomePackSectionV1) {
   return (
     <ul className="cwpr-card-list">
-      {section.cards.map((card) => (
-        <li
-          key={`${section.sectionId}:${card.assetId ?? 'no-asset'}:${card.conceptId ?? card.title}`}
-          className="cwpr-card"
-        >
-          <h3 className="cwpr-card-title">{card.title}</h3>
-          <p className="cwpr-card-summary">{card.summary}</p>
-          {card.safetyNotice ? <p className="cwpr-card-safety">{card.safetyNotice}</p> : null}
-        </li>
-      ))}
+      {section.cards.map((card) => {
+        const rule = educationalSequenceRules.find((r) => r.conceptId === card.conceptId);
+        const priority = priorityFromSequenceStage(rule?.sequenceStage ?? 'technical_detail');
+        const priorityCls = cardPriorityClass(priority);
+        const ariaLabel = cardPriorityAriaLabel(card.title, priority);
+        return (
+          <li
+            key={`${section.sectionId}:${card.assetId ?? 'no-asset'}:${card.conceptId ?? card.title}`}
+            className={`cwpr-card ${priorityCls}`}
+            data-priority={priority}
+          >
+            <h3 className="cwpr-card-title" aria-label={ariaLabel}>{card.title}</h3>
+            <p className="cwpr-card-summary">{card.summary}</p>
+            {card.safetyNotice ? <p className="cwpr-card-safety">{card.safetyNotice}</p> : null}
+          </li>
+        );
+      })}
     </ul>
   );
 }

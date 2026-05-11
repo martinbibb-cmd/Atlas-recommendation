@@ -65,6 +65,55 @@
   background: #fff;
 }
 
+/* ── Visual priority hierarchy ───────────────────────────────────────────── */
+
+/* Primary: full width, stronger visual weight */
+.cwpr-card.atlas-edu-card--priority-primary {
+  grid-column: 1 / -1;
+  border: 2px solid #234a7d;
+  background: #eaf2fb;
+}
+
+.cwpr-card.atlas-edu-card--priority-primary .cwpr-card-title {
+  font-size: 1.25rem;
+  color: #132238;
+}
+
+/* Supporting: standard weight, grouped */
+.cwpr-card.atlas-edu-card--priority-supporting {
+  border: 1px solid #c5cfdb;
+  background: #fff;
+}
+
+/* Optional: visually subdued */
+.cwpr-card.atlas-edu-card--priority-optional {
+  border: 1px solid #e0e6ef;
+  background: #f6f8fb;
+  color: #45576d;
+}
+
+.cwpr-card.atlas-edu-card--priority-optional .cwpr-card-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #45576d;
+}
+
+/* Deferred: visually quiet — content is in QR; this class should rarely appear inline */
+.cwpr-card.atlas-edu-card--priority-deferred {
+  border: 1px dashed #c5cfdb;
+  background: #f9fafb;
+  color: #8899aa;
+  font-size: 0.9rem;
+}
+
+.cwpr-card.atlas-edu-card--priority-deferred .cwpr-card-title {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #8899aa;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+
 .cwpr-diagram {
   margin: 0.85rem 0 0;
   padding: 0.85rem;
