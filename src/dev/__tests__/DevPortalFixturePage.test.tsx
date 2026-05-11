@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import DevPortalFixturePage, { PORTAL_FIXTURES } from '../DevPortalFixturePage';
 import { DEV_ROUTE_REGISTRY } from '../devRouteRegistry';
 
@@ -43,6 +43,15 @@ describe('DevPortalFixturePage — fixture launcher', () => {
       expect(screen.getByTestId(`fixture-presentation-${fixture.id}`)).toBeTruthy();
       expect(screen.getByTestId(`fixture-copy-url-${fixture.id}`)).toBeTruthy();
     }
+  });
+
+  it('shows "Open supporting PDF preview" only for the open-vented fixture', () => {
+    render(<DevPortalFixturePage />);
+    expect(screen.getByTestId('fixture-supporting-pdf-open_vented_to_sealed_unvented')).toBeTruthy();
+    expect(screen.queryByTestId('fixture-supporting-pdf-combi_1bath')).toBeNull();
+    expect(screen.queryByTestId('fixture-supporting-pdf-system_unvented_2bath')).toBeNull();
+    expect(screen.queryByTestId('fixture-supporting-pdf-heat_pump_low_temp')).toBeNull();
+    expect(screen.queryByTestId('fixture-supporting-pdf-water_pressure_constraint')).toBeNull();
   });
 
   it('renders a Back button when onBack is provided', () => {
@@ -104,6 +113,35 @@ describe('DevPortalFixturePage — Insight opens real InsightPackDeck', () => {
 
     await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
     expect(screen.getByText(/activeRendererComponent: CanonicalPresentationPage/i)).toBeTruthy();
+  });
+
+  it('open-vented Insight shows dev PDF toggle and defaults to current Insight PDF path', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-insight-open_vented_to_sealed_unvented'));
+    await waitFor(() => expect(screen.getByTestId('dev-insight-pdf-toggle')).toBeTruthy());
+    expect(screen.getByTestId('insight-pack-deck')).toBeTruthy();
+  });
+});
+
+describe('DevPortalFixturePage — library supporting PDF preview', () => {
+  it('renders library preview without debug text in preview container', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-supporting-pdf-open_vented_to_sealed_unvented'));
+    const preview = await screen.findByTestId('dev-supporting-pdf-preview');
+    expect(within(preview).queryByText(/🔬/)).toBeNull();
+    expect(within(preview).queryByText(/not customer data/i)).toBeNull();
+    expect(within(preview).queryByText(/content pending/i)).toBeNull();
+  });
+
+  it('browser print preview button calls window.print safely', async () => {
+    const printSpy = vi.fn();
+    vi.stubGlobal('print', printSpy);
+
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-supporting-pdf-open_vented_to_sealed_unvented'));
+    await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-print')).toBeTruthy());
+    fireEvent.click(screen.getByTestId('dev-supporting-pdf-print'));
+    expect(printSpy).toHaveBeenCalledOnce();
   });
 });
 
