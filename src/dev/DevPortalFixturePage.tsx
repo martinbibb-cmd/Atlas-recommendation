@@ -32,6 +32,8 @@ import { SUPPORTED_DIAGRAM_RENDERER_IDS } from '../library/diagrams/DiagramRende
 import { sectionsForMode } from '../features/insightPack/canonicalSections';
 import { buildSuggestedImplementationPack } from '../specification/buildSuggestedImplementationPack';
 import ImplementationPackReviewPanel from '../components/dev/ImplementationPackReviewPanel';
+import { buildSpecificationLinesFromImplementationPack } from '../specification/specLines';
+import SpecificationLineReviewPanel from '../components/dev/SpecificationLineReviewPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -455,6 +457,7 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
 export default function DevPortalFixturePage({ onBack }: DevPortalFixturePageProps) {
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
+  const [implementationPackTab, setImplementationPackTab] = useState<'pack_summary' | 'specification_lines'>('pack_summary');
 
   function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') {
     const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);
@@ -464,6 +467,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       && (initialView === 'insight' || initialView === 'pdf_comparison');
     if (shouldOpenComparisonShell) {
       setPreviewMode(initialView === 'pdf_comparison' ? 'library_supporting_pdf' : 'current_insight_pdf');
+    }
+    if (initialView === 'implementation_pack') {
+      setImplementationPackTab('pack_summary');
     }
     setActive({ fixture, initialView });
   }
@@ -666,6 +672,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
 
     if (active.initialView === 'implementation_pack') {
       const implementationPack = buildImplementationPackForFixture(active.fixture);
+      const specificationLines = buildSpecificationLinesFromImplementationPack(implementationPack.pack);
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -730,7 +737,38 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               data-testid="dev-implementation-pack-panel"
             >
               <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Implementation Pack</h2>
-              <ImplementationPackReviewPanel pack={implementationPack.pack} />
+              <div
+                style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}
+                role="tablist"
+                aria-label="Implementation pack tabs"
+                data-testid="dev-implementation-pack-tabs"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={implementationPackTab === 'pack_summary'}
+                  onClick={() => setImplementationPackTab('pack_summary')}
+                  className="dev-portal-fixture__btn"
+                  data-testid="dev-implementation-pack-tab-pack-summary"
+                >
+                  Pack summary
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={implementationPackTab === 'specification_lines'}
+                  onClick={() => setImplementationPackTab('specification_lines')}
+                  className="dev-portal-fixture__btn"
+                  data-testid="dev-implementation-pack-tab-specification-lines"
+                >
+                  Specification lines
+                </button>
+              </div>
+              {implementationPackTab === 'pack_summary' ? (
+                <ImplementationPackReviewPanel pack={implementationPack.pack} />
+              ) : (
+                <SpecificationLineReviewPanel lines={specificationLines} />
+              )}
             </section>
           </div>
         </div>
