@@ -3,11 +3,20 @@ import { PressureVsStorageDiagram } from '../../diagrams/PressureVsStorageDiagra
 import { PreviewIcon } from '../../packRenderer/visualPreview/PreviewIcon';
 import './pressureVsStoragePortalSection.css';
 
-const CON_C02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_C02');
+const _con_c02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_C02');
 
-if (!CON_C02) {
+if (!_con_c02) {
   throw new Error('CON_C02 entry missing from atlasMvpContentMapRegistry');
 }
+
+// TypeScript does not narrow module-level variables through a throw guard when
+// they are accessed inside a function body, so we extract the fields we need
+// into typed string constants here at module scope.
+const CON_C02_ONE_LINE_SUMMARY: string = _con_c02.oneLineSummary;
+const CON_C02_WHAT_YOU_MAY_NOTICE: string = _con_c02.whatYouMayNotice;
+const CON_C02_WHAT_NOT_TO_WORRY: string = _con_c02.whatNotToWorryAbout;
+const CON_C02_MISCONCEPTION: string = _con_c02.misconception;
+const CON_C02_REALITY: string = _con_c02.reality;
 
 export interface PressureVsStoragePortalSectionProps {
   bathroomCount?: number;
@@ -31,7 +40,7 @@ export function PressureVsStoragePortalSection({
         Why stored hot water suits this home
       </h2>
 
-      <p className="pvsp-summary">{CON_C02.oneLineSummary}</p>
+      <p className="pvsp-summary">{CON_C02_ONE_LINE_SUMMARY}</p>
 
       <figure
         className="pvsp-diagram-panel"
@@ -103,12 +112,12 @@ export function PressureVsStoragePortalSection({
       <div className="pvsp-notice-grid" data-testid="pvsp-notice-grid">
         <div className="pvsp-notice-card" data-testid="pvsp-what-you-may-notice">
           <p className="pvsp-notice-card__label">What you may notice</p>
-          <p className="pvsp-notice-card__body">{CON_C02.whatYouMayNotice}</p>
+          <p className="pvsp-notice-card__body">{CON_C02_WHAT_YOU_MAY_NOTICE}</p>
         </div>
 
         <div className="pvsp-notice-card" data-testid="pvsp-what-not-to-worry">
           <p className="pvsp-notice-card__label">What not to worry about</p>
-          <p className="pvsp-notice-card__body">{CON_C02.whatNotToWorryAbout}</p>
+          <p className="pvsp-notice-card__body">{CON_C02_WHAT_NOT_TO_WORRY}</p>
         </div>
       </div>
 
@@ -118,9 +127,9 @@ export function PressureVsStoragePortalSection({
         aria-label="Common misconception"
       >
         <p className="pvsp-misconception__label">Common misconception</p>
-        <p className="pvsp-misconception__text">{CON_C02.misconception}</p>
+        <p className="pvsp-misconception__text">{CON_C02_MISCONCEPTION}</p>
         <p className="pvsp-misconception__text pvsp-misconception__text--reality">
-          Reality: {CON_C02.reality}
+          Reality: {CON_C02_REALITY}
         </p>
       </div>
 
