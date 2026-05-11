@@ -116,6 +116,7 @@ export function LibraryPortalSectionRenderer({
   const fallbackDiagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId]
     ?.filter((diagramId) => getDiagramById(diagramId));
   const diagrams = diagramsFromCards.length > 0 ? diagramsFromCards : (fallbackDiagrams ?? []);
+  const showTechnicalAppendix = Boolean(accessibilityPreferences?.includeTechnicalAppendix);
 
   return (
     <section
@@ -156,6 +157,9 @@ export function LibraryPortalSectionRenderer({
                 {' '}
                 <strong>Reality:</strong> {card.reality}
               </p>
+            ) : null}
+            {showTechnicalAppendix && card.technicalAppendixSummary ? (
+              <p><strong>Technical appendix:</strong> {card.technicalAppendixSummary}</p>
             ) : null}
           </article>
         ))}

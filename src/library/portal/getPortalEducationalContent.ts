@@ -11,6 +11,7 @@ export interface PortalEducationalCardV1 {
   whatNotToWorryAbout: string;
   misconception?: string;
   reality?: string;
+  technicalAppendixSummary?: string;
   suggestedDiagramIds: string[];
   suggestedAnimationIds: string[];
   suggestedPrintCardIds: string[];
@@ -61,6 +62,7 @@ function toPortalCardFromMvp(entry: AtlasMvpContentEntryV1): PortalEducationalCa
     whatNotToWorryAbout: entry.whatNotToWorryAbout,
     misconception: entry.misconception?.trim() ? entry.misconception : undefined,
     reality: entry.reality?.trim() ? entry.reality : undefined,
+    technicalAppendixSummary: entry.technicalAppendixSummary?.trim() ? entry.technicalAppendixSummary : undefined,
     suggestedDiagramIds: entry.suggestedDiagramIds,
     suggestedAnimationIds: entry.suggestedAnimationIds,
     suggestedPrintCardIds: entry.suggestedPrintCardIds,
@@ -77,6 +79,7 @@ function toPortalCardFromEducational(entry: EducationalContentV1): PortalEducati
     whatStaysFamiliar: entry.livingWithSystemGuidance ?? '',
     whatNotToWorryAbout: entry.safetyNotice ?? '',
     misconception: entry.commonMisunderstanding?.trim() ? entry.commonMisunderstanding : undefined,
+    technicalAppendixSummary: entry.technicalAppendixSummary?.trim() ? entry.technicalAppendixSummary : undefined,
     suggestedDiagramIds: getDiagramsByConceptId(entry.conceptId).map((diagram) => diagram.diagramId),
     suggestedAnimationIds: [],
     suggestedPrintCardIds: [],

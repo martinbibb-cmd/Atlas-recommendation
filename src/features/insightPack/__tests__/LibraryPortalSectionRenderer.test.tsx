@@ -118,7 +118,7 @@ describe('LibraryPortalSectionRenderer', () => {
 
     expect(screen.getByTestId('library-portal-section')).toBeTruthy();
     expect(screen.getByTestId('library-portal-sequenced-cards')).toBeTruthy();
-    expect(screen.getAllByTestId('library-portal-authored-card').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByTestId('library-portal-authored-card').length).toBe(4);
     expect(screen.getByText('Pressure vs storage')).toBeTruthy();
     expect(screen.getByText('System pressure and filling loop')).toBeTruthy();
     expect(screen.getByText('Warm radiators')).toBeTruthy();
