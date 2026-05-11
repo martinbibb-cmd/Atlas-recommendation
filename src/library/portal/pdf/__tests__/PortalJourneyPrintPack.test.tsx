@@ -223,8 +223,10 @@ describe('PortalJourneyPrintPack — next steps and QR', () => {
 
 describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => {
   it('renders customer page titles in order', () => {
-    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
-    const titles = screen.getAllByRole('heading').map((el) => el.textContent?.trim());
+    const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    const titles = Array.from(container.querySelectorAll('.pjpp-page h1, .pjpp-page h2')).map((el) =>
+      el.textContent?.trim(),
+    );
     expect(titles).toEqual([
       'Your recommendation',
       'What changes in your home',
@@ -261,5 +263,7 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
     expect(screen.queryByText(/🔬/)).toBeNull();
     expect(screen.queryByText(/not customer data/i)).toBeNull();
     expect(screen.queryByText(/content pending/i)).toBeNull();
+    expect(screen.getByText(/The loft tank is no longer needed\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Visible safety parts are expected in a compliant setup\./i)).toBeInTheDocument();
   });
 });

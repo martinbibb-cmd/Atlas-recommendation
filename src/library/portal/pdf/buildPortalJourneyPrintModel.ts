@@ -124,10 +124,11 @@ export function buildPortalJourneyPrintModel(
   }
 
   // ── Cover ──────────────────────────────────────────────────────────────────
+  const MAX_COVER_CUSTOMER_FACTS = 3;
   const cover: PortalJourneyPrintCoverV1 = {
     title: 'Your recommendation',
     summary: recommendationSummary,
-    customerFacts: customerFacts.slice(0, 3),
+    customerFacts: customerFacts.slice(0, MAX_COVER_CUSTOMER_FACTS),
     brandName: brandProfile?.name,
   };
 
@@ -135,6 +136,7 @@ export function buildPortalJourneyPrintModel(
   const sections: PortalJourneyPrintSectionV1[] = [];
 
   // CON_A01 — what changes / what stays familiar
+  // CON_A01 intentionally contributes two pages: "what changes" and "what stays familiar".
   if (selectedSet.has('CON_A01') || selectedSet.size === 0) {
     sections.push({
       contentId: 'CON_A01',
