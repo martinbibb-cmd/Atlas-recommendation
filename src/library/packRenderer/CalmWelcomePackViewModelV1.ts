@@ -36,6 +36,8 @@ export interface CalmWelcomePackSequencingMetadataV1 {
   archetypeId: string;
   appliedMaxSimultaneous: number;
   stagesPresent: SequenceStage[];
+  activeAnxietyPatternIds?: string[];
+  reassuranceConceptCount?: number;
 }
 
 /** A concept the sequencing engine excluded from the main sequence. Internal only. */

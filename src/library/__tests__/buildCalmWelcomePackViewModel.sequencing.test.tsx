@@ -620,4 +620,26 @@ describe('buildCalmWelcomePackViewModel — sequencing does not alter recommenda
       expect(conceptCard.title).toBe(content.title);
     }
   });
+
+  it('anxiety routing does not alter recommendedScenarioId', () => {
+    const selectedConceptIds = [REASSURANCE_CONCEPT, LIVED_CONCEPT];
+    const plan = buildPlan(selectedConceptIds, ['asset-reassurance', 'asset-lived']);
+    const assets = selectedConceptIds.map((id) => makeAsset(`asset-${id}`, [id]));
+    const educationalContent = selectedConceptIds.map(makeContent);
+    const taxonomy = selectedConceptIds.map((id) => makeTaxonomyConcept(id));
+
+    const vm = buildCalmWelcomePackViewModel({
+      plan,
+      customerSummary: CUSTOMER_SUMMARY,
+      taxonomy,
+      assets,
+      educationalContent,
+      eligibilityMode: 'filter',
+      concernTags: ['heat_pump', 'sales'],
+      accessibilityPreferences: { profiles: ['adhd'] },
+    });
+
+    expect(vm.recommendedScenarioId).toBe(plan.recommendedScenarioId);
+    expect(vm.recommendedScenarioId).toBe(CUSTOMER_SUMMARY.recommendedScenarioId);
+  });
 });

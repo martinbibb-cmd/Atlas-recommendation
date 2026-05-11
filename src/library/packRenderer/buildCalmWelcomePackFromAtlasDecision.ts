@@ -82,6 +82,7 @@ export function buildCalmWelcomePackFromAtlasDecision(
     archetypeId: plan.archetypeId,
     accessibilityPreferences,
     contextTags,
+    concernTags: input.userConcernTags,
   }));
   const brandedViewModel = stripCustomerDiagnostics(buildBrandedCalmWelcomePackViewModel({
     calmViewModel,

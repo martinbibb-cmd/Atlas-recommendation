@@ -4,6 +4,10 @@ import type { EducationalAssetV1 } from '../contracts/EducationalAssetV1';
 import type { EducationalPackSectionId } from '../contracts/EducationalPackV1';
 import type { WelcomePackEligibilityMode, WelcomePackPlanV1, WelcomePackAccessibilityPreferencesV1 } from '../packComposer/WelcomePackComposerV1';
 import type { EducationalRoutingAccessibilityPreferencesV1 } from '../routing/EducationalRoutingRuleV1';
+import {
+  resolveCustomerAnxietyPatterns,
+  type ResolveCustomerAnxietyPatternsInputV1,
+} from '../emotionalRouting';
 import { buildEducationalSequence } from '../sequencing/buildEducationalSequence';
 import type { SequencingContextTagsV1 } from '../sequencing/buildEducationalSequence';
 import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
@@ -54,6 +58,12 @@ export interface BuildCalmWelcomePackViewModelInputV1 {
   accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
   /** Emotional and trust context tags passed through to the sequencing engine. */
   contextTags?: SequencingContextTagsV1;
+  /** Optional concern tags used to resolve customer anxiety patterns. */
+  concernTags?: string[];
+  /** Optional survey notes for future/manual anxiety matching. */
+  surveyNotes?: string;
+  /** Optional manual anxiety pattern overrides. */
+  anxietyManualOverrides?: ResolveCustomerAnxietyPatternsInputV1['manualOverrides'];
 }
 
 function uniqueInOrder(values: string[]): string[] {
@@ -169,6 +179,9 @@ export function buildCalmWelcomePackViewModel(
     archetypeId,
     accessibilityPreferences,
     contextTags,
+    concernTags,
+    surveyNotes,
+    anxietyManualOverrides,
   } = input;
 
   const internalOmissionLog: CalmWelcomePackViewModelV1['internalOmissionLog'] = [];
@@ -247,12 +260,20 @@ export function buildCalmWelcomePackViewModel(
   // (reassurance → expectation → lived experience → misconception → deeper
   // understanding → technical detail) rather than the raw selectedConceptIds order.
   const routingAccessibility = toRoutingAccessibility(accessibilityPreferences);
+  const resolvedAnxietyPatterns = resolveCustomerAnxietyPatterns({
+    concernTags: concernTags ?? contextTags?.emotionalTags ?? [],
+    accessibilityProfiles: routingAccessibility.profiles,
+    archetypeId: archetypeId ?? plan.archetypeId,
+    surveyNotes,
+    manualOverrides: anxietyManualOverrides,
+  });
   const sequenceResult = buildEducationalSequence({
     selectedConceptIds: plan.selectedConceptIds,
     sequenceRules: educationalSequenceRules,
     archetypeId: archetypeId ?? plan.archetypeId,
     accessibilityPreferences: routingAccessibility,
     contextTags,
+    anxietyRouting: resolvedAnxietyPatterns,
   });
 
   // Position map: conceptId → sequence position (lower = earlier)
@@ -560,6 +581,10 @@ export function buildCalmWelcomePackViewModel(
       archetypeId: archetypeId ?? plan.archetypeId,
       appliedMaxSimultaneous,
       stagesPresent: Array.from(new Set(sequenceResult.orderedSequence.map((c) => c.sequenceStage))),
+      activeAnxietyPatternIds: sequenceResult.activeAnxietyPatternIds.length > 0
+        ? sequenceResult.activeAnxietyPatternIds
+        : undefined,
+      reassuranceConceptCount: sequenceResult.orderedSequence.filter((c) => c.sequenceStage === 'reassurance').length,
     },
     deferredBySequencing: deferredBySequencing.length > 0 ? deferredBySequencing : undefined,
     pacingWarnings: sequenceResult.overloadWarnings.length > 0 ? sequenceResult.overloadWarnings : undefined,

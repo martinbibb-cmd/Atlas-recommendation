@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildEducationalSequence } from '../sequencing/buildEducationalSequence';
 import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
 import type { EducationalSequenceRuleV1 } from '../sequencing/EducationalSequenceRuleV1';
+import { resolveCustomerAnxietyPatterns } from '../emotionalRouting';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,81 @@ describe('buildEducationalSequence — accessibility profiles', () => {
     });
 
     expect(appliedMaxSimultaneous).toBe(4);
+  });
+});
+
+describe('buildEducationalSequence — customer anxiety routing', () => {
+  it('heat-pump anxiety increases reassurance-stage concepts', () => {
+    const selectedConceptIds = [
+      'system_fit_explanation',
+      'flow_temperature_living_with_it',
+      'hot_radiator_expectation',
+    ];
+
+    const withoutAnxiety = buildInput(selectedConceptIds);
+    const withAnxiety = buildInput(selectedConceptIds, {
+      anxietyRouting: resolveCustomerAnxietyPatterns({
+        concernTags: ['heat_pump'],
+      }),
+    });
+
+    const reassuranceWithout = withoutAnxiety.orderedSequence.filter((item) => item.sequenceStage === 'reassurance').length;
+    const reassuranceWith = withAnxiety.orderedSequence.filter((item) => item.sequenceStage === 'reassurance').length;
+    expect(reassuranceWith).toBeGreaterThan(reassuranceWithout);
+  });
+
+  it('skeptical-of-sales suppresses marketing-style concept placement', () => {
+    const withAnxiety = buildInput(
+      ['system_fit_explanation', 'premium_hot_water_performance'],
+      {
+        anxietyRouting: resolveCustomerAnxietyPatterns({
+          concernTags: ['sales'],
+        }),
+      },
+    );
+
+    expect(withAnxiety.orderedSequence.some((item) => item.conceptId === 'premium_hot_water_performance')).toBe(false);
+    expect(withAnxiety.deferredConcepts.some((item) => item.conceptId === 'premium_hot_water_performance')).toBe(true);
+  });
+
+  it('disruption anxiety boosts what-stays-familiar concepts', () => {
+    const selectedConceptIds = ['HYD-02', 'system_fit_explanation'];
+
+    const withoutAnxiety = buildInput(selectedConceptIds);
+    const withAnxiety = buildInput(selectedConceptIds, {
+      anxietyRouting: resolveCustomerAnxietyPatterns({
+        concernTags: ['disruption'],
+      }),
+    });
+
+    const withoutPosition = withoutAnxiety.orderedSequence.findIndex((item) => item.conceptId === 'system_fit_explanation');
+    const withPosition = withAnxiety.orderedSequence.findIndex((item) => item.conceptId === 'system_fit_explanation');
+    expect(withPosition).toBeLessThan(withoutPosition);
+  });
+
+  it('ADHD + anxiety reduces concept density further', () => {
+    const selectedConceptIds = [
+      'system_fit_explanation',
+      'emitter_sizing',
+      'operating_behaviour',
+      'boiler_cycling',
+      'SIZ-01',
+      'SIZ-02',
+    ];
+
+    const adhdOnly = buildInput(selectedConceptIds, {
+      accessibilityPreferences: { profiles: ['adhd'] },
+    });
+
+    const adhdWithAnxiety = buildInput(selectedConceptIds, {
+      accessibilityPreferences: { profiles: ['adhd'] },
+      anxietyRouting: resolveCustomerAnxietyPatterns({
+        concernTags: ['heat_pump'],
+        accessibilityProfiles: ['adhd'],
+      }),
+    });
+
+    expect(adhdWithAnxiety.orderedSequence.length).toBeLessThan(adhdOnly.orderedSequence.length);
   });
 });
 
