@@ -220,7 +220,7 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
           onClick={handleCopyUrl}
           data-testid={`fixture-copy-url-${fixture.id}`}
         >
-          {copied ? 'Copied!' : 'Copy fixture portal URL'}
+          {copied ? 'Copied!' : 'Copy portal URL'}
         </button>
       </div>
     </div>

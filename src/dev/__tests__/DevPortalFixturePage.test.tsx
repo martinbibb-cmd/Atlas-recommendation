@@ -35,7 +35,7 @@ describe('DevPortalFixturePage — fixture launcher', () => {
     expect(cards.length).toBe(5);
   });
 
-  it('renders "Open portal", "Open Insight", "Open In-room presentation", and "Copy fixture portal URL" for each fixture', () => {
+  it('renders "Open portal", "Open Insight", "Open In-room presentation", and "Copy portal URL" for each fixture', () => {
     render(<DevPortalFixturePage />);
     for (const fixture of PORTAL_FIXTURES) {
       expect(screen.getByTestId(`fixture-open-${fixture.id}`)).toBeTruthy();

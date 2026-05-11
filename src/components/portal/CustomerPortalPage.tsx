@@ -226,10 +226,15 @@ function CustomerPortalContent({
     // This path is exclusive to DevPortalFixturePage and must never be triggered
     // on real customer portal routes.
     if (devFixtureInput) {
-      const result = runEngine(devFixtureInput);
-      setEngineInput(devFixtureInput);
-      setEngineResult(result);
-      setLoading(false);
+      try {
+        const result = runEngine(devFixtureInput);
+        setEngineInput(devFixtureInput);
+        setEngineResult(result);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
