@@ -3,9 +3,11 @@ import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import { DiagramRenderer } from '../../library/diagrams/DiagramRenderer';
+import { getDiagramById } from '../../library/diagrams/diagramExplanationRegistry';
+import { atlasMvpContentMapRegistry, educationalContentRegistry } from '../../library/content';
+import { getPortalEducationalContent } from '../../library/portal/getPortalEducationalContent';
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import { buildCalmWelcomePackFromAtlasDecision } from '../../library/packRenderer/buildCalmWelcomePackFromAtlasDecision';
-import { educationalSequenceRules } from '../../library/sequencing/educationalSequenceRules';
 import type { QuoteInsight } from './insightPack.types';
 import DailyUsePanel from './DailyUsePanel';
 import './LibraryPortalSectionRenderer.css';
@@ -21,9 +23,20 @@ interface Props {
   propertyConstraintTags?: string[];
 }
 
-function sequenceStageForConcept(conceptId?: string): string | undefined {
-  if (!conceptId) return undefined;
-  return educationalSequenceRules.find((rule) => rule.conceptId === conceptId)?.sequenceStage;
+const DIAGRAM_ID_ALIASES: Record<string, string> = {
+  pressure_window: 'pressure_vs_storage',
+  warm_radiator_pattern: 'warm_vs_hot_radiators',
+  open_to_sealed: 'open_vented_to_unvented',
+};
+const MAX_PORTAL_CARDS = 4;
+
+function toRenderableDiagramId(diagramId: string): string | undefined {
+  const normalized = diagramId
+    .replace(/^diagram[-_]/i, '')
+    .replace(/-/g, '_')
+    .toLowerCase();
+  const aliased = DIAGRAM_ID_ALIASES[normalized] ?? normalized;
+  return getDiagramById(aliased) ? aliased : undefined;
 }
 
 export function LibraryPortalSectionRenderer({
@@ -58,13 +71,26 @@ export function LibraryPortalSectionRenderer({
     propertyConstraintTags,
   ]);
 
+  const routingTriggerTags = useMemo(
+    () => [...(userConcernTags ?? []), ...(propertyConstraintTags ?? [])],
+    [userConcernTags, propertyConstraintTags],
+  );
   const section = composed?.brandedViewModel.customerFacingSections
     .find((entry) => entry.sectionId === 'living_with_the_system');
+  const authoredCards = useMemo(
+    () => (composed ? getPortalEducationalContent({
+      selectedConceptIds: composed.plan.selectedConceptIds,
+      routingTriggerTags,
+      atlasMvpContentMapRegistry,
+      educationalContentRegistry,
+    }).slice(0, MAX_PORTAL_CARDS) : []),
+    [composed, routingTriggerTags],
+  );
   const isSafe = Boolean(
     composed?.readiness.safeForCustomer
     && composed?.brandedViewModel.recommendedScenarioId === customerSummary.recommendedScenarioId
     && section
-    && section.cards.length > 0,
+    && authoredCards.length > 0,
   );
 
   if (!isSafe || !section || !composed) {
@@ -75,18 +101,22 @@ export function LibraryPortalSectionRenderer({
     );
   }
 
-  const diagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId] ?? [];
-  const reassuranceCards: typeof section.cards = [];
-  const noticeCards: typeof section.cards = [];
-  for (const card of section.cards) {
-    const stage = sequenceStageForConcept(card.conceptId);
-    if (stage === 'reassurance') {
-      reassuranceCards.push(card);
+  const diagramsFromCards = useMemo(() => {
+    const diagramIds = new Set<string>();
+    for (const card of authoredCards) {
+      for (const suggestedDiagramId of card.suggestedDiagramIds) {
+        const renderableDiagramId = toRenderableDiagramId(suggestedDiagramId);
+        if (renderableDiagramId) {
+          diagramIds.add(renderableDiagramId);
+        }
+      }
     }
-    if (stage === 'lived_experience') {
-      noticeCards.push(card);
-    }
-  }
+    return [...diagramIds];
+  }, [authoredCards]);
+  const fallbackDiagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId]
+    ?.filter((diagramId) => getDiagramById(diagramId));
+  const diagrams = diagramsFromCards.length > 0 ? diagramsFromCards : (fallbackDiagrams ?? []);
+  const showTechnicalAppendix = Boolean(accessibilityPreferences?.includeTechnicalAppendix);
 
   return (
     <section
@@ -96,41 +126,44 @@ export function LibraryPortalSectionRenderer({
     >
       <h2 id="library-portal-day-to-day-heading" className="daily-use__heading">What that means day-to-day</h2>
       <p className="daily-use__sub">Here&apos;s what that means for you in everyday use.</p>
-
-      {reassuranceCards.length > 0 ? (
-        <div className="library-portal-section__reassurance" data-testid="library-portal-reassurance">
-          {reassuranceCards.map((card) => (
-            <p key={`reassure-${card.assetId ?? card.title}`} className="library-portal-section__reassurance-item">
-              {card.summary}
-            </p>
-          ))}
-        </div>
+      {!import.meta.env.PROD ? (
+        <p className="library-portal-section__source-label" data-testid="library-portal-source-label">
+          Insight from Atlas Library
+        </p>
       ) : null}
 
       <div className="library-portal-section__cards" data-testid="library-portal-sequenced-cards">
-        {section.cards.map((card, index) => (
-          <details
-            key={`${card.assetId ?? 'asset'}:${card.title}:${index}`}
+        {authoredCards.map((card, index) => (
+          <article
+            key={`${card.title}:${index}`}
             className="library-portal-section__card"
-            open={index === 0}
+            data-testid="library-portal-authored-card"
           >
-            <summary>{card.title}</summary>
-            <p>{card.summary}</p>
-            {card.safetyNotice ? <p className="library-portal-section__safety">{card.safetyNotice}</p> : null}
-          </details>
+            <h3 className="library-portal-section__card-title">{card.title}</h3>
+            <p>{card.oneLineSummary}</p>
+            {card.customerWording ? <p>{card.customerWording}</p> : null}
+            {card.whatYouMayNotice ? (
+              <p><strong>What you may notice:</strong> {card.whatYouMayNotice}</p>
+            ) : null}
+            {card.whatStaysFamiliar ? (
+              <p><strong>What stays familiar:</strong> {card.whatStaysFamiliar}</p>
+            ) : null}
+            {card.whatNotToWorryAbout ? (
+              <p className="library-portal-section__safety"><strong>What not to worry about:</strong> {card.whatNotToWorryAbout}</p>
+            ) : null}
+            {card.misconception && card.reality ? (
+              <p>
+                <strong>Common misunderstanding:</strong> {card.misconception}
+                {' '}
+                <strong>Reality:</strong> {card.reality}
+              </p>
+            ) : null}
+            {showTechnicalAppendix && card.technicalAppendixSummary ? (
+              <p><strong>Technical appendix:</strong> {card.technicalAppendixSummary}</p>
+            ) : null}
+          </article>
         ))}
       </div>
-
-      {noticeCards.length > 0 ? (
-        <div className="library-portal-section__notice" data-testid="library-portal-notice">
-          <h3>What you may notice</h3>
-          <ul>
-            {noticeCards.map((card) => (
-              <li key={`notice-${card.assetId ?? card.title}`}>{card.summary}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       {diagrams.length > 0 ? (
         <div className="library-portal-section__diagrams" data-testid="library-portal-diagrams">

@@ -87,19 +87,18 @@ describe('LibraryPortalSectionRenderer', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the library-composed day-to-day section with cards, diagrams, and QR deep dives', () => {
+  it('renders authored MVP daily-use cards and keeps technical appendix text hidden by default', () => {
     mockedBuilder.mockReturnValue({
-      plan: {} as never,
+      plan: {
+        selectedConceptIds: ['pressure_vs_storage', 'HYD-02', 'hot_radiator_expectation', 'MNT-01'],
+      } as never,
       calmViewModel: {} as never,
       brandedViewModel: {
         recommendedScenarioId: 'system_unvented',
         customerFacingSections: [{
           sectionId: 'living_with_the_system',
           title: 'Living with your system',
-          cards: [
-            { assetId: 'a1', conceptId: 'system_fit_explanation', title: 'What changes', summary: 'Your day becomes steadier.' },
-            { assetId: 'a2', conceptId: 'flow_temperature', title: 'What you may notice', summary: 'Radiators may feel warm, not hot.' },
-          ],
+          cards: [{ assetId: 'a1', conceptId: 'system_fit_explanation', title: 'What changes', summary: 'Your day becomes steadier.' }],
         }],
         diagramsBySection: { living_with_the_system: ['pressure_vs_storage'] },
         qrDestinations: [{ assetId: 'a2', destination: 'atlas://educational-library/a2', title: 'Flow temperature deep dive', reason: 'detail' }],
@@ -113,19 +112,27 @@ describe('LibraryPortalSectionRenderer', () => {
         customerSummary={customerSummary}
         atlasDecision={atlasDecision}
         scenarios={scenarios}
+        userConcernTags={['pressure', 'pressure_vs_storage', 'hot_radiator_expectation', 'hydraulic']}
       />,
     );
 
     expect(screen.getByTestId('library-portal-section')).toBeTruthy();
     expect(screen.getByTestId('library-portal-sequenced-cards')).toBeTruthy();
+    expect(screen.getAllByTestId('library-portal-authored-card').length).toBe(4);
+    expect(screen.getByText('Pressure vs storage')).toBeTruthy();
+    expect(screen.getByText('System pressure and filling loop')).toBeTruthy();
+    expect(screen.getByText('Warm radiators')).toBeTruthy();
+    expect(screen.getAllByText(/powerflush|flushing/i).length).toBeGreaterThan(0);
     expect(screen.getByTestId('library-portal-diagrams')).toBeTruthy();
     expect(screen.getByTestId('diagram-pressure_vs_storage')).toBeTruthy();
     expect(screen.getByTestId('library-portal-qr')).toBeTruthy();
+    expect(screen.queryByText('Pressure is a source boundary; volume is a storage boundary.')).toBeNull();
+    expect(screen.getByTestId('library-portal-source-label')).toBeTruthy();
   });
 
   it('falls back to the hardcoded daily-use panel when library output is unsafe', () => {
     mockedBuilder.mockReturnValue({
-      plan: {} as never,
+      plan: { selectedConceptIds: ['pressure_vs_storage'] } as never,
       calmViewModel: {} as never,
       brandedViewModel: { recommendedScenarioId: 'system_unvented', customerFacingSections: [], qrDestinations: [] } as never,
       readiness: { safeForCustomer: false, blockingReasons: ['unsafe'] },
@@ -144,9 +151,38 @@ describe('LibraryPortalSectionRenderer', () => {
     expect(screen.getByText('Fallback daily-use statement')).toBeTruthy();
   });
 
+  it('falls back when authored library cards are missing for selected concepts and tags', () => {
+    mockedBuilder.mockReturnValue({
+      plan: { selectedConceptIds: ['UNKNOWN-CONCEPT'] } as never,
+      calmViewModel: {} as never,
+      brandedViewModel: {
+        recommendedScenarioId: 'system_unvented',
+        customerFacingSections: [{
+          sectionId: 'living_with_the_system',
+          title: 'Living with your system',
+          cards: [{ title: 'Sparse', summary: 'Sparse content' }],
+        }],
+        qrDestinations: [],
+      } as never,
+      readiness: { safeForCustomer: true, blockingReasons: [] },
+    });
+
+    render(
+      <LibraryPortalSectionRenderer
+        fallbackQuotes={fallbackQuotes}
+        customerSummary={customerSummary}
+        atlasDecision={atlasDecision}
+        scenarios={scenarios}
+      />,
+    );
+
+    expect(screen.getByTestId('library-portal-section-fallback')).toBeTruthy();
+    expect(screen.getByText('Fallback daily-use statement')).toBeTruthy();
+  });
+
   it('falls back when composed recommendation identity does not match the locked recommendation', () => {
     mockedBuilder.mockReturnValue({
-      plan: {} as never,
+      plan: { selectedConceptIds: ['pressure_vs_storage'] } as never,
       calmViewModel: {} as never,
       brandedViewModel: {
         recommendedScenarioId: 'combi',
@@ -173,9 +209,39 @@ describe('LibraryPortalSectionRenderer', () => {
     expect(screen.queryByTestId('library-portal-section')).toBeNull();
   });
 
+  it('does not leak section debug/internal strings into customer-facing cards', () => {
+    mockedBuilder.mockReturnValue({
+      plan: { selectedConceptIds: ['pressure_vs_storage'] } as never,
+      calmViewModel: {} as never,
+      brandedViewModel: {
+        recommendedScenarioId: 'system_unvented',
+        customerFacingSections: [{
+          sectionId: 'living_with_the_system',
+          title: 'Living with your system',
+          cards: [{ title: '[debug] internal-only', summary: 'DEBUG:raw-engine-string' }],
+        }],
+        qrDestinations: [],
+      } as never,
+      readiness: { safeForCustomer: true, blockingReasons: [] },
+    });
+
+    render(
+      <LibraryPortalSectionRenderer
+        fallbackQuotes={fallbackQuotes}
+        customerSummary={customerSummary}
+        atlasDecision={atlasDecision}
+        scenarios={scenarios}
+      />,
+    );
+
+    expect(screen.queryByText('[debug] internal-only')).toBeNull();
+    expect(screen.queryByText('DEBUG:raw-engine-string')).toBeNull();
+    expect(screen.getByText('Pressure vs storage')).toBeTruthy();
+  });
+
   it('passes accessibility preferences into library composition and applies reduced-motion rendering', () => {
     mockedBuilder.mockReturnValue({
-      plan: {} as never,
+      plan: { selectedConceptIds: ['pressure_vs_storage'] } as never,
       calmViewModel: {} as never,
       brandedViewModel: {
         recommendedScenarioId: 'system_unvented',
