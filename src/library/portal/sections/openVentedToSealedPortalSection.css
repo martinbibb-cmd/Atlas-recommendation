@@ -1,0 +1,15 @@
+.ovsp-section {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  background: #f6f8fb;
+  border-radius: 20px;
+  border: 1px solid #c5cfdb;
+}
+
+@media (max-width: 600px) {
+  .ovsp-section {
+    padding: 1rem;
+    border-radius: 14px;
+  }
+}
