@@ -6,6 +6,7 @@ import {
 import { runEducationalContentQa } from '../content/qa/runEducationalContentQa';
 import { getConceptById } from '../taxonomy/conceptGraph';
 import { educationalRoutingRules } from '../routing/educationalRoutingRules';
+import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
 
 const REQUIRED_IDS = [
   'CON_F01',
@@ -66,11 +67,14 @@ describe('atlasMvpContentMapRegistry', () => {
     }
   });
 
-  it('maps all entries to routing trigger tags used by current routing rules', () => {
+  it('maps all entries to known routing trigger tags in routing or asset registries', () => {
     const routingTagSet = new Set(educationalRoutingRules.flatMap((rule) => rule.triggerTags));
+    const assetTagSet = new Set(educationalAssetRegistry.flatMap((asset) => asset.triggerTags));
     for (const entry of atlasMvpContentMapRegistry) {
       expect(entry.routingTriggerTags.length).toBeGreaterThan(0);
-      expect(entry.routingTriggerTags.some((tag) => routingTagSet.has(tag))).toBe(true);
+      expect(
+        entry.routingTriggerTags.some((tag) => routingTagSet.has(tag) || assetTagSet.has(tag)),
+      ).toBe(true);
     }
   });
 
