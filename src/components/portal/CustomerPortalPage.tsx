@@ -62,6 +62,8 @@ type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
 const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
 const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
 const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
+/** Scenario IDs that indicate a stored hot water / unvented system recommendation. */
+const UNVENTED_SCENARIO_PATTERN = /\b(system_unvented|regular_unvented|unvented)\b/i;
 
 function buildPortalAccessibilityPreferences(): WelcomePackAccessibilityPreferencesV1 {
   const prefersReducedMotion = typeof window !== 'undefined'
@@ -105,7 +107,7 @@ function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): st
   }
   if (
     scenarioId != null
-    && /\b(system_unvented|regular_unvented|unvented)\b/i.test(scenarioId)
+    && UNVENTED_SCENARIO_PATTERN.test(scenarioId)
   ) {
     tags.add('unvented_safety_reassurance');
   }

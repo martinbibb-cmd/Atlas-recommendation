@@ -141,11 +141,13 @@ export default function InsightPackDeck({
     librarySectionData?.userConcernTags?.includes('open_vented'),
   );
   const useOpenVentedInsightSection = appliesStoredHotWater && bathroomCount >= 2 && appliesOpenVentedPath;
-  const dailyUseRendererComponent = useOpenVentedInsightSection
-    ? 'OpenVentedInsightSection'
-    : usePressureVsStorageSection
-      ? 'PressureVsStoragePortalSection'
-      : 'DailyUsePanel';
+
+  function resolveDailyUseRendererName(): string {
+    if (useOpenVentedInsightSection) return 'OpenVentedInsightSection';
+    if (usePressureVsStorageSection) return 'PressureVsStoragePortalSection';
+    return 'DailyUsePanel';
+  }
+  const dailyUseRendererComponent = resolveDailyUseRendererName();
 
   function renderPanel(id: CanonicalSectionId) {
     switch (id) {
