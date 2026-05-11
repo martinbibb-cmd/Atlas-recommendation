@@ -107,6 +107,7 @@ export function buildDemoWelcomePack(input: BuildDemoWelcomePackInput): BuildDem
     educationalContent,
     eligibilityMode,
     includeTechnicalAppendix: accessibilityPreferences.includeTechnicalAppendix,
+    concernTags: fixture.userConcernTags,
   });
   const brandedCalmViewModel = buildBrandedCalmWelcomePackViewModel({
     calmViewModel,

@@ -1,4 +1,9 @@
 import type { EducationalRoutingAccessibilityPreferencesV1 } from '../routing/EducationalRoutingRuleV1';
+import type {
+  ResolveCustomerAnxietyPatternsInputV1,
+  ResolveCustomerAnxietyPatternsOutputV1,
+} from '../emotionalRouting/resolveCustomerAnxietyPatterns';
+import { resolveCustomerAnxietyPatterns } from '../emotionalRouting/resolveCustomerAnxietyPatterns';
 import type { EmotionalWeight, EducationalSequenceRuleV1, SequenceStage } from './EducationalSequenceRuleV1';
 
 // ─── Stage ordering ────────────────────────────────────────────────────────
@@ -27,6 +32,12 @@ const ACCESSIBILITY_MAX_SIMULTANEOUS: Record<string, number> = {
   default: 4,
 };
 
+const WHAT_STAYS_FAMILIAR_CONCEPT_IDS = new Set([
+  'preserved_system_strength',
+  'system_fit_explanation',
+  'regular_retained_unvented_upgrade',
+]);
+
 // ─── Input / Output types ──────────────────────────────────────────────────
 
 export type ArchetypeId = string;
@@ -50,6 +61,17 @@ export interface BuildEducationalSequenceInputV1 {
   accessibilityPreferences?: EducationalRoutingAccessibilityPreferencesV1;
   /** Emotional and trust context tags. */
   contextTags?: SequencingContextTagsV1;
+  /** Concern tags used for anxiety resolution when no pre-resolved policy is provided. */
+  concernTags?: readonly string[];
+  /** Optional survey notes used for anxiety trigger matching. */
+  surveyNotes?: string;
+  /** Optional manual anxiety include/exclude overrides. */
+  anxietyManualOverrides?: ResolveCustomerAnxietyPatternsInputV1['manualOverrides'];
+  /**
+   * Optional resolved anxiety routing output. If omitted, the engine resolves
+   * anxiety patterns from context tags and accessibility profiles.
+   */
+  anxietyRouting?: ResolveCustomerAnxietyPatternsOutputV1;
   /**
    * Set of conceptIds already explained earlier in the session or pack.
    * Used to suppress repeated explanations.
@@ -94,6 +116,8 @@ export interface BuildEducationalSequenceOutputV1 {
   pacingMetadata: StagePacingMetadataV1[];
   /** The effective max-simultaneous-concepts cap applied. */
   appliedMaxSimultaneous: number;
+  /** Anxiety pattern IDs active during sequencing (internal diagnostics only). */
+  activeAnxietyPatternIds: string[];
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -148,15 +172,35 @@ export function buildEducationalSequence(
   const {
     selectedConceptIds,
     sequenceRules,
-    archetypeId: _archetypeId,
+    archetypeId,
     accessibilityPreferences,
+    contextTags,
+    concernTags,
+    surveyNotes,
+    anxietyManualOverrides,
+    anxietyRouting,
     alreadyExplainedConceptIds = [],
   } = input;
 
   const deferred: DeferredConceptV1[] = [];
   const overloadWarnings: string[] = [];
+  // `contextTags.emotionalTags` is the legacy source used by existing callers.
+  // `concernTags` is the explicit anxiety-routing term for new callers.
+  const resolvedConcernTags = concernTags ?? contextTags?.emotionalTags ?? [];
 
-  const appliedMaxSimultaneous = resolveMaxSimultaneous(accessibilityPreferences);
+  const resolvedAnxietyRouting = anxietyRouting ?? resolveCustomerAnxietyPatterns({
+    concernTags: resolvedConcernTags,
+    accessibilityProfiles: accessibilityPreferences?.profiles,
+    archetypeId,
+    surveyNotes,
+    manualOverrides: anxietyManualOverrides,
+  });
+  const anxietyPolicy = resolvedAnxietyRouting.sequencingPolicy;
+  const hasAdhdAccessibilityProfile = accessibilityPreferences?.profiles?.includes('adhd') ?? false;
+  const appliedMaxSimultaneous = Math.max(
+    1,
+    resolveMaxSimultaneous(accessibilityPreferences) - anxietyPolicy.simultaneousConceptReduction,
+  );
   const selectedSet = new Set(selectedConceptIds);
   const explainedSet = new Set(alreadyExplainedConceptIds);
 
@@ -182,6 +226,15 @@ export function buildEducationalSequence(
           emotionalWeight: 'neutral',
           maxSimultaneousConcepts: appliedMaxSimultaneous,
         },
+      });
+      continue;
+    }
+
+    if (anxietyPolicy.avoidConcepts.includes(conceptId)) {
+      deferred.push({
+        conceptId,
+        ruleId: rule.ruleId,
+        reason: 'Suppressed by active customer anxiety pattern to avoid low-trust framing.',
       });
       continue;
     }
@@ -220,9 +273,43 @@ export function buildEducationalSequence(
     cautionary: 2,
   };
 
+  function getEffectiveStage(rule: EducationalSequenceRuleV1): SequenceStage {
+    if (
+      anxietyPolicy.suppressTechnicalContent
+      && rule.sequenceStage === 'technical_detail'
+    ) {
+      return 'appendix_only';
+    }
+
+    if (
+      anxietyPolicy.preferWhatToExpectCard
+      && (rule.sequenceStage === 'expectation' || rule.sequenceStage === 'lived_experience')
+      && (rule.idealCardTypes ?? []).includes('WhatToExpectCard')
+    ) {
+      return 'reassurance';
+    }
+
+    if (
+      anxietyPolicy.boostWhatStaysFamiliar
+      && WHAT_STAYS_FAMILIAR_CONCEPT_IDS.has(rule.conceptId)
+    ) {
+      return 'reassurance';
+    }
+
+    return rule.sequenceStage;
+  }
+
   candidates.sort((a, b) => {
-    const stageDiff = stageIndex(a.rule.sequenceStage) - stageIndex(b.rule.sequenceStage);
+    const stageDiff = stageIndex(getEffectiveStage(a.rule)) - stageIndex(getEffectiveStage(b.rule));
     if (stageDiff !== 0) return stageDiff;
+
+    if (
+      anxietyPolicy.boostWhatStaysFamiliar
+      && WHAT_STAYS_FAMILIAR_CONCEPT_IDS.has(a.conceptId) !== WHAT_STAYS_FAMILIAR_CONCEPT_IDS.has(b.conceptId)
+    ) {
+      return WHAT_STAYS_FAMILIAR_CONCEPT_IDS.has(a.conceptId) ? -1 : 1;
+    }
+
     return EMOTIONAL_PRIORITY[a.rule.emotionalWeight] - EMOTIONAL_PRIORITY[b.rule.emotionalWeight];
   });
 
@@ -259,13 +346,50 @@ export function buildEducationalSequence(
     );
   }
 
+  if (hasAdhdAccessibilityProfile && resolvedAnxietyRouting.activePatternIds.length > 0) {
+    const RESERVED_NON_REASSURANCE_CONCEPT_COUNT = 1;
+    const maxNonReassurance = Math.max(
+      0,
+      appliedMaxSimultaneous - RESERVED_NON_REASSURANCE_CONCEPT_COUNT,
+    );
+    let keptNonReassurance = 0;
+    const compacted: Candidate[] = [];
+    const deferredByDensity: DeferredConceptV1[] = [];
+
+    for (const candidate of placed) {
+      const effectiveStage = getEffectiveStage(candidate.rule);
+      if (effectiveStage === 'reassurance') {
+        compacted.push(candidate);
+        continue;
+      }
+
+      if (keptNonReassurance < maxNonReassurance) {
+        compacted.push(candidate);
+        keptNonReassurance++;
+        continue;
+      }
+
+      deferredByDensity.push({
+        conceptId: candidate.conceptId,
+        ruleId: candidate.rule.ruleId,
+        reason: 'Deferred to reduce concept density for ADHD + anxiety reassurance pacing.',
+      });
+    }
+
+    if (deferredByDensity.length > 0) {
+      deferred.push(...deferredByDensity);
+      placed.splice(0, placed.length, ...compacted);
+    }
+  }
+
   // ── Step 6: max-simultaneous-concepts enforcement per stage ───────────────
   // Count concepts per stage and warn when a stage exceeds the cap.
   const stageCounts = new Map<SequenceStage, number>();
 
   for (const { rule } of placed) {
-    const count = (stageCounts.get(rule.sequenceStage) ?? 0) + 1;
-    stageCounts.set(rule.sequenceStage, count);
+    const effectiveStage = getEffectiveStage(rule);
+    const count = (stageCounts.get(effectiveStage) ?? 0) + 1;
+    stageCounts.set(effectiveStage, count);
   }
 
   for (const [stage, count] of stageCounts.entries()) {
@@ -314,10 +438,15 @@ export function buildEducationalSequence(
   // ── Step 8: build final output ────────────────────────────────────────────
   const orderedSequence: SequencedConceptV1[] = placed.map(({ conceptId, rule }, index) => ({
     conceptId,
-    sequenceStage: rule.sequenceStage,
+    sequenceStage: getEffectiveStage(rule),
     emotionalWeight: rule.emotionalWeight,
     ruleId: rule.ruleId,
-    idealCardTypes: rule.idealCardTypes ?? [],
+    idealCardTypes: anxietyPolicy.preferWhatToExpectCard
+      ? (() => {
+        const ordered = ['WhatToExpectCard', ...(rule.idealCardTypes ?? [])];
+        return [...new Set(ordered)];
+      })()
+      : (rule.idealCardTypes ?? []),
     position: index,
   }));
 
@@ -352,5 +481,6 @@ export function buildEducationalSequence(
     overloadWarnings,
     pacingMetadata,
     appliedMaxSimultaneous,
+    activeAnxietyPatternIds: resolvedAnxietyRouting.activePatternIds,
   };
 }

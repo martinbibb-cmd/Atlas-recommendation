@@ -54,6 +54,15 @@ export interface BuildCalmWelcomePackViewModelInputV1 {
   accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
   /** Emotional and trust context tags passed through to the sequencing engine. */
   contextTags?: SequencingContextTagsV1;
+  /** Optional concern tags used to resolve customer anxiety patterns. */
+  concernTags?: string[];
+  /** Optional survey notes for future/manual anxiety matching. */
+  surveyNotes?: string;
+  /** Optional manual anxiety pattern overrides. */
+  anxietyManualOverrides?: {
+    includeAnxietyIds?: readonly string[];
+    excludeAnxietyIds?: readonly string[];
+  };
 }
 
 function uniqueInOrder(values: string[]): string[] {
@@ -169,6 +178,9 @@ export function buildCalmWelcomePackViewModel(
     archetypeId,
     accessibilityPreferences,
     contextTags,
+    concernTags,
+    surveyNotes,
+    anxietyManualOverrides,
   } = input;
 
   const internalOmissionLog: CalmWelcomePackViewModelV1['internalOmissionLog'] = [];
@@ -253,6 +265,9 @@ export function buildCalmWelcomePackViewModel(
     archetypeId: archetypeId ?? plan.archetypeId,
     accessibilityPreferences: routingAccessibility,
     contextTags,
+    concernTags,
+    surveyNotes,
+    anxietyManualOverrides,
   });
 
   // Position map: conceptId → sequence position (lower = earlier)
@@ -560,6 +575,10 @@ export function buildCalmWelcomePackViewModel(
       archetypeId: archetypeId ?? plan.archetypeId,
       appliedMaxSimultaneous,
       stagesPresent: Array.from(new Set(sequenceResult.orderedSequence.map((c) => c.sequenceStage))),
+      activeAnxietyPatternIds: sequenceResult.activeAnxietyPatternIds.length > 0
+        ? sequenceResult.activeAnxietyPatternIds
+        : undefined,
+      reassuranceConceptCount: sequenceResult.orderedSequence.filter((c) => c.sequenceStage === 'reassurance').length,
     },
     deferredBySequencing: deferredBySequencing.length > 0 ? deferredBySequencing : undefined,
     pacingWarnings: sequenceResult.overloadWarnings.length > 0 ? sequenceResult.overloadWarnings : undefined,

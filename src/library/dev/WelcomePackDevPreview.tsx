@@ -476,6 +476,18 @@ export function WelcomePackDevPreview() {
   const storyboardDiagramCount = storyboardDiagramCards.length;
   const safetyCardCount = storyboardSequencedCards.filter((card) => card.content?.safetyNotice).length;
   const qrCardCount = calmViewModel.qrDestinations.length;
+  const activeAnxietyPatternIds = calmViewModel.sequencingMetadata?.activeAnxietyPatternIds ?? [];
+  const reassuranceConceptCount = calmViewModel.sequencingMetadata?.reassuranceConceptCount ?? 0;
+  const hasSelectedConcepts = plan.selectedConceptIds.length > 0;
+  const reassuranceConceptPercent = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        (reassuranceConceptCount / Math.max(1, plan.selectedConceptIds.length)) * 100,
+      ),
+    ),
+  );
 
   const contentReadyCount = storyboardSequencedCards.filter((card) => card.content !== undefined).length;
   const contentMissingCount = storyboardSequencedCards.filter((card) => card.content === undefined).length;
@@ -971,6 +983,53 @@ export function WelcomePackDevPreview() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section aria-label="Customer anxiety diagnostics" style={{ marginBottom: '1rem' }}>
+            <h2>Customer anxiety diagnostics</h2>
+
+            <h3>Active reassurance patterns</h3>
+            <ul data-testid="diagnostics-active-anxiety-patterns">
+              {activeAnxietyPatternIds.length === 0 ? <li>None</li> : activeAnxietyPatternIds.map((patternId) => (
+                <li key={`anxiety-pattern-${patternId}`}>{patternId}</li>
+              ))}
+            </ul>
+
+            <h3>Reassurance pacing</h3>
+            <p data-testid="diagnostics-reassurance-pacing-text">
+              {hasSelectedConcepts ? (
+                <>
+                  {reassuranceConceptCount}
+                  {' '}
+                  reassurance concept(s) out of
+                  {' '}
+                  {plan.selectedConceptIds.length}
+                  {' '}
+                  selected concept(s)
+                </>
+              ) : 'N/A — no selected concepts to pace.'}
+            </p>
+            <div
+              aria-label="Reassurance pacing visual"
+              data-testid="diagnostics-reassurance-pacing-visual"
+              style={{
+                width: '100%',
+                maxWidth: 360,
+                height: 12,
+                borderRadius: 6,
+                border: '1px solid #cbd5e1',
+                background: '#f8fafc',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${reassuranceConceptPercent}%`,
+                  height: '100%',
+                  background: '#0f766e',
+                }}
+              />
+            </div>
           </section>
 
           <section aria-label="Diagram coverage diagnostics" style={{ marginBottom: '1rem' }}>

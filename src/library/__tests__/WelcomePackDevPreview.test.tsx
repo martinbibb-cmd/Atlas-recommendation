@@ -49,4 +49,17 @@ describe('WelcomePackDevPreview', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Calm customer pack preview' })).toBeInTheDocument();
     expect(screen.getByTestId('cwpr-blocking-panel')).toBeInTheDocument();
   });
+
+  it('shows anxiety pattern and reassurance pacing diagnostics only in diagnostics mode', async () => {
+    const user = userEvent.setup();
+    render(<WelcomePackDevPreview />);
+
+    expect(screen.queryByTestId('diagnostics-active-anxiety-patterns')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: /diagnostics/i }));
+
+    expect(screen.getByTestId('diagnostics-active-anxiety-patterns')).toBeInTheDocument();
+    expect(screen.getByTestId('diagnostics-reassurance-pacing-text')).toBeInTheDocument();
+    expect(screen.getByTestId('diagnostics-reassurance-pacing-visual')).toBeInTheDocument();
+  });
 });
