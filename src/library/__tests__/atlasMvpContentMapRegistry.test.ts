@@ -28,6 +28,7 @@ const REQUIRED_IDS = [
   'CON_E02',
   'CON_G01',
   'CON_H01',
+  'CON_H04',
   'CON_C03',
   'CON_I01_DAY_TO_DAY',
 ] as const;
@@ -45,12 +46,12 @@ const RAW_ENGINE_TERMS = [
 const SCARE_WORDS = ['dangerous', 'catastrophic', 'fatal'];
 
 describe('atlasMvpContentMapRegistry', () => {
-  it('contains the exact 21 requested MVP content IDs', () => {
+  it('contains the exact 22 requested MVP content IDs', () => {
     const ids = atlasMvpContentMapRegistry.map((entry) => entry.id);
     expect(ids).toEqual(REQUIRED_IDS);
   });
 
-  it('all 21 entries pass content QA as transformed EducationalContentV1 entries', () => {
+  it('all 22 entries pass content QA as transformed EducationalContentV1 entries', () => {
     const findings = runEducationalContentQa(
       atlasMvpContentMapRegistry.map((entry) => toEducationalContentFromAtlasMvp(entry)),
     );
