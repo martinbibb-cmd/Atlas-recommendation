@@ -180,7 +180,7 @@ function sortConceptIdsForStoryboard(selectedConceptIds: readonly string[]) {
 
 export function WelcomePackDevPreview() {
   const [previewMode, setPreviewMode] = useState<PreviewMode>('visual_storyboard');
-  const [fixtureId, setFixtureId] = useState<WelcomePackDemoFixtureId>('heat_pump_install');
+  const [fixtureId, setFixtureId] = useState<WelcomePackDemoFixtureId>('open_vented_to_sealed_unvented');
   const [printFirst, setPrintFirst] = useState(false);
   const [dyslexia, setDyslexia] = useState(false);
   const [adhd, setAdhd] = useState(false);
