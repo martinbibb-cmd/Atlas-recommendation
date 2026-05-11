@@ -43,7 +43,7 @@ function collectCustomerFacingText(model: PortalJourneyPrintModelV1): string[] {
     section.summary,
     section.keyTakeaway,
     section.reassurance,
-    section.diagramCaption ?? '',
+    ...(section.diagramCaption ? [section.diagramCaption] : []),
     ...section.items,
   ]);
 
@@ -55,7 +55,46 @@ function collectCustomerFacingText(model: PortalJourneyPrintModelV1): string[] {
 
 function hasPendingContent(lines: string[]): boolean {
   return lines.some((line) =>
-    line.length === 0 || PENDING_CONTENT_PATTERNS.some((pattern) => pattern.test(line)));
+    PENDING_CONTENT_PATTERNS.some((pattern) => pattern.test(line)));
+}
+
+function hasMissingRequiredContent(model: PortalJourneyPrintModelV1): boolean {
+  if (
+    model.cover.title.trim().length === 0
+    || model.cover.summary.trim().length === 0
+  ) {
+    return true;
+  }
+
+  for (const section of model.sections) {
+    if (
+      section.heading.trim().length === 0
+      || section.summary.trim().length === 0
+      || section.keyTakeaway.trim().length === 0
+      || section.reassurance.trim().length === 0
+      || section.items.length === 0
+    ) {
+      return true;
+    }
+
+    if (section.items.some((item) => item.trim().length === 0)) {
+      return true;
+    }
+  }
+
+  if (model.nextSteps.length === 0 || model.qrDestinations.length === 0) {
+    return true;
+  }
+
+  if (model.nextSteps.some((step) => step.label.trim().length === 0 || step.body.trim().length === 0)) {
+    return true;
+  }
+
+  if (model.qrDestinations.some((dest) => dest.heading.trim().length === 0 || dest.note.trim().length === 0)) {
+    return true;
+  }
+
+  return false;
 }
 
 function hasRawEngineOrDebugText(lines: string[]): boolean {
@@ -93,7 +132,7 @@ export function assessSupportingPdfReadiness(
   const warnings: string[] = [];
   const allCustomerText = collectCustomerFacingText(model);
 
-  if (hasPendingContent(allCustomerText)) {
+  if (hasPendingContent(allCustomerText) || hasMissingRequiredContent(model)) {
     blockingReasons.push('Content is still pending or incomplete.');
   }
 
