@@ -7,7 +7,7 @@ describe('WelcomePackDevPreview eligibility panel', () => {
   async function renderDiagnostics() {
     const user = userEvent.setup();
     render(<WelcomePackDevPreview />);
-    await user.click(screen.getByRole('radio', { name: /diagnostics/i }));
+    await user.click(screen.getByRole('tab', { name: /diagnostics/i }));
     return user;
   }
 

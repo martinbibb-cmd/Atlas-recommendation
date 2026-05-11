@@ -8,7 +8,7 @@ describe('WelcomePackDevPreview content QA panel', () => {
     const user = userEvent.setup();
     render(<WelcomePackDevPreview />);
 
-    await user.click(screen.getByRole('radio', { name: /diagnostics/i }));
+    await user.click(screen.getByRole('tab', { name: /diagnostics/i }));
 
     expect(screen.getByRole('heading', { level: 2, name: 'Content QA' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Content QA Errors' })).toBeInTheDocument();

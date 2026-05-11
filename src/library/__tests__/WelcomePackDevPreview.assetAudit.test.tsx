@@ -7,7 +7,7 @@ describe('WelcomePackDevPreview asset audit panel', () => {
   async function renderDiagnostics() {
     const user = userEvent.setup();
     render(<WelcomePackDevPreview />);
-    await user.click(screen.getByRole('radio', { name: /diagnostics/i }));
+    await user.click(screen.getByRole('tab', { name: /diagnostics/i }));
   }
 
   it('renders the Asset accessibility audit section heading', async () => {

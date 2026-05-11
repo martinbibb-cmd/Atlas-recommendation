@@ -7,7 +7,7 @@ describe('WelcomePackDevPreview asset QA panel', () => {
   async function renderDiagnostics() {
     const user = userEvent.setup();
     render(<WelcomePackDevPreview />);
-    await user.click(screen.getByRole('radio', { name: /diagnostics/i }));
+    await user.click(screen.getByRole('tab', { name: /diagnostics/i }));
   }
 
   it('renders asset QA headings, errors, warnings, and per-selected-asset status', async () => {

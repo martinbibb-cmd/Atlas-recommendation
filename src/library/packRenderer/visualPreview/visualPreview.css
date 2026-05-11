@@ -3,6 +3,27 @@
   gap: 1.5rem;
 }
 
+.atlas-storyboard-tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.atlas-storyboard-tab-button {
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #d8e0eb;
+  background: #ffffff;
+  color: #234a7d;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.atlas-storyboard-tab-button[data-active='true'] {
+  border-color: #234a7d;
+  background: #eef4fb;
+}
+
 .atlas-storyboard-panel {
   display: grid;
   gap: 1rem;
@@ -162,5 +183,110 @@
 
 .atlas-storyboard-diagram-card__title,
 .atlas-storyboard-diagram-card__caption {
+  margin: 0;
+}
+
+.atlas-anxiety-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.atlas-anxiety-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #234a7d;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: lowercase;
+}
+
+.atlas-anxiety-strip {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.atlas-anxiety-strip__summary {
+  margin: 0;
+  color: #234a7d;
+  font-size: 0.9rem;
+}
+
+.atlas-anxiety-strip__track {
+  width: 100%;
+  max-width: 360px;
+  height: 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.atlas-anxiety-strip__fill {
+  height: 100%;
+  background: #0f766e;
+}
+
+.atlas-concern-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #d8e0eb;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.atlas-concern-panel__title {
+  margin: 0;
+  color: #132238;
+}
+
+.atlas-concern-panel__list {
+  margin: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.atlas-concern-panel__list dt {
+  margin: 0;
+  color: #52657d;
+  font-size: 0.85rem;
+}
+
+.atlas-concern-panel__list dd {
+  margin: 0.25rem 0 0;
+  color: #132238;
+}
+
+.atlas-storyboard-card-label {
+  margin: 0 0 0.5rem;
+  color: #52657d;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.atlas-trust-response-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.9rem;
+  border: 1px solid #d8e0eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.atlas-trust-response-card__eyebrow {
+  margin: 0;
+  color: #52657d;
+  font-size: 0.8rem;
+}
+
+.atlas-trust-response-card__title,
+.atlas-trust-response-card__body {
   margin: 0;
 }
