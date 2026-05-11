@@ -196,7 +196,7 @@ export function buildEducationalSequence(
     manualOverrides: anxietyManualOverrides,
   });
   const anxietyPolicy = resolvedAnxietyRouting.sequencingPolicy;
-  const hasAdhdProfile = accessibilityPreferences?.profiles?.includes('adhd') ?? false;
+  const hasAdhdAccessibilityProfile = accessibilityPreferences?.profiles?.includes('adhd') ?? false;
   const appliedMaxSimultaneous = Math.max(
     1,
     resolveMaxSimultaneous(accessibilityPreferences) - anxietyPolicy.simultaneousConceptReduction,
@@ -346,9 +346,12 @@ export function buildEducationalSequence(
     );
   }
 
-  if (hasAdhdProfile && resolvedAnxietyRouting.activePatternIds.length > 0) {
-    const NON_REASSURANCE_SLOT_RESERVE = 1;
-    const maxNonReassurance = Math.max(0, appliedMaxSimultaneous - NON_REASSURANCE_SLOT_RESERVE);
+  if (hasAdhdAccessibilityProfile && resolvedAnxietyRouting.activePatternIds.length > 0) {
+    const RESERVED_NON_REASSURANCE_CONCEPT_COUNT = 1;
+    const maxNonReassurance = Math.max(
+      0,
+      appliedMaxSimultaneous - RESERVED_NON_REASSURANCE_CONCEPT_COUNT,
+    );
     let keptNonReassurance = 0;
     const compacted: Candidate[] = [];
     const deferredByDensity: DeferredConceptV1[] = [];

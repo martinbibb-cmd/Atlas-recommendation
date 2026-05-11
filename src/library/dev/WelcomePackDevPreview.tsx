@@ -479,7 +479,7 @@ export function WelcomePackDevPreview() {
   const activeAnxietyPatternIds = calmViewModel.sequencingMetadata?.activeAnxietyPatternIds ?? [];
   const reassuranceConceptCount = calmViewModel.sequencingMetadata?.reassuranceConceptCount ?? 0;
   const hasSelectedConcepts = plan.selectedConceptIds.length > 0;
-  const reassurancePacingPercent = Math.max(
+  const reassuranceConceptPercent = Math.max(
     0,
     Math.min(
       100,
@@ -1024,7 +1024,7 @@ export function WelcomePackDevPreview() {
             >
               <div
                 style={{
-                  width: `${reassurancePacingPercent}%`,
+                  width: `${reassuranceConceptPercent}%`,
                   height: '100%',
                   background: '#0f766e',
                 }}
