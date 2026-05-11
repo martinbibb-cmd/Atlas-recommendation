@@ -36,11 +36,65 @@ import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenar
 import { buildLockedAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
 import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
+import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import './CustomerPortalPage.css';
 
 interface Props { reference: string; token?: string; brandId?: string; }
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
+const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
+const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
+const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
+
+function buildPortalAccessibilityPreferences(): WelcomePackAccessibilityPreferencesV1 {
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return {
+    prefersReducedMotion,
+    prefersPrint: false,
+    includeTechnicalAppendix: false,
+    profiles: [],
+  };
+}
+
+function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): string[] {
+  const tags = new Set<string>();
+  if ((input.occupancyCount ?? 0) >= 3 || (input.peakConcurrentOutlets ?? 0) >= 2) {
+    tags.add('simultaneous_use');
+  }
+  if (input.bathroomCount >= 2) {
+    tags.add('hot_water_storage');
+  }
+  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < MIN_DYNAMIC_MAINS_PRESSURE_BAR) {
+    tags.add('pressure');
+  }
+  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_MAINS_DYNAMIC_FLOW_LPM) {
+    tags.add('flow');
+  }
+  if (scenarioId?.includes('ashp')) {
+    tags.add('heat_pump');
+    tags.add('low_flow_temperature');
+  }
+  if (input.pvStatus === 'existing' || input.pvStatus === 'planned') {
+    tags.add('solar');
+  }
+  return [...tags];
+}
+
+function buildPortalPropertyConstraintTags(input: EngineInputV2_3): string[] {
+  const tags = new Set<string>();
+  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < MIN_DYNAMIC_MAINS_PRESSURE_BAR) {
+    tags.add('pressure');
+  }
+  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_MAINS_DYNAMIC_FLOW_LPM) {
+    tags.add('flow');
+  }
+  if (input.primaryPipeDiameter <= MIN_PRIMARY_PIPE_DIAMETER_MM) {
+    tags.add('hydraulic');
+  }
+  return [...tags];
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -111,6 +165,18 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
       return undefined;
     }
   }, [portalData]);
+
+  const libraryPortalIntegration = useMemo(() => {
+    if (!lockedSummary || !portalData) return null;
+    return {
+      customerSummary: lockedSummary,
+      atlasDecision: portalData.decision,
+      scenarios: portalData.scenarios,
+      accessibilityPreferences: buildPortalAccessibilityPreferences(),
+      userConcernTags: buildPortalConcernTags(portalData.engineInput, lockedSummary.recommendedScenarioId),
+      propertyConstraintTags: buildPortalPropertyConstraintTags(portalData.engineInput),
+    };
+  }, [lockedSummary, portalData]);
 
   // ── AI summary text (memoised — derived from locked summary) ─────────────
   // Must use buildLockedAiHandoffText(lockedSummary) — never buildAiHandoffText
@@ -298,6 +364,7 @@ function CustomerPortalContent({ reference, token }: Omit<Props, 'brandId'>) {
           pack={pack}
           propertyTitle={postcode ?? undefined}
           onClose={() => setViewMode(null)}
+          librarySectionData={libraryPortalIntegration ?? undefined}
         />
         <BrandedFooter footerNote={ctaCopy.printFooterNote} />
       </div>
