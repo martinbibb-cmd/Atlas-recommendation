@@ -45,13 +45,13 @@ describe('DevPortalFixturePage — fixture launcher', () => {
     }
   });
 
-  it('shows "Open supporting PDF preview" only for the open-vented fixture', () => {
+  it('shows "Open PDF comparison" only for the open-vented fixture', () => {
     render(<DevPortalFixturePage />);
-    expect(screen.getByTestId('fixture-supporting-pdf-open_vented_to_sealed_unvented')).toBeTruthy();
-    expect(screen.queryByTestId('fixture-supporting-pdf-combi_1bath')).toBeNull();
-    expect(screen.queryByTestId('fixture-supporting-pdf-system_unvented_2bath')).toBeNull();
-    expect(screen.queryByTestId('fixture-supporting-pdf-heat_pump_low_temp')).toBeNull();
-    expect(screen.queryByTestId('fixture-supporting-pdf-water_pressure_constraint')).toBeNull();
+    expect(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented')).toBeTruthy();
+    expect(screen.queryByTestId('fixture-pdf-comparison-combi_1bath')).toBeNull();
+    expect(screen.queryByTestId('fixture-pdf-comparison-system_unvented_2bath')).toBeNull();
+    expect(screen.queryByTestId('fixture-pdf-comparison-heat_pump_low_temp')).toBeNull();
+    expect(screen.queryByTestId('fixture-pdf-comparison-water_pressure_constraint')).toBeNull();
   });
 
   it('renders a Back button when onBack is provided', () => {
@@ -127,7 +127,7 @@ describe('DevPortalFixturePage — Insight opens real InsightPackDeck', () => {
 describe('DevPortalFixturePage — library supporting PDF preview', () => {
   it('renders library preview without debug text in preview container', async () => {
     render(<DevPortalFixturePage />);
-    fireEvent.click(screen.getByTestId('fixture-supporting-pdf-open_vented_to_sealed_unvented'));
+    fireEvent.click(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented'));
     const preview = await screen.findByTestId('dev-supporting-pdf-preview');
     expect(within(preview).queryByText(/🔬/)).toBeNull();
     expect(within(preview).queryByText(/not customer data/i)).toBeNull();
@@ -139,7 +139,7 @@ describe('DevPortalFixturePage — library supporting PDF preview', () => {
     vi.stubGlobal('print', printSpy);
 
     render(<DevPortalFixturePage />);
-    fireEvent.click(screen.getByTestId('fixture-supporting-pdf-open_vented_to_sealed_unvented'));
+    fireEvent.click(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented'));
     await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-print')).toBeTruthy());
     fireEvent.click(screen.getByTestId('dev-supporting-pdf-print'));
     expect(printSpy).toHaveBeenCalledOnce();

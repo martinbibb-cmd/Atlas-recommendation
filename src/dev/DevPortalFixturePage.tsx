@@ -172,10 +172,11 @@ export const PORTAL_FIXTURES: PortalFixture[] = [
 
 interface FixtureCardProps {
   fixture: PortalFixture;
-  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'supporting_pdf') => void;
+  onOpen: (fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison') => void;
 }
 
 const ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT = import.meta.env.DEV;
+const INSIGHT_PRINT_SECTIONS_PER_PAGE = 2;
 
 function isOpenVentedFixture(fixture: PortalFixture): boolean {
   return fixture.id === 'open_vented_to_sealed_unvented';
@@ -232,10 +233,10 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
           <button
             type="button"
             className="dev-portal-fixture__btn"
-            onClick={() => onOpen(fixture, 'supporting_pdf')}
-            data-testid={`fixture-supporting-pdf-${fixture.id}`}
+            onClick={() => onOpen(fixture, 'pdf_comparison')}
+            data-testid={`fixture-pdf-comparison-${fixture.id}`}
           >
-            Open supporting PDF preview
+            Open PDF comparison
           </button>
         ) : null}
         <button
@@ -259,7 +260,7 @@ interface DevPortalFixturePageProps {
 
 interface ActiveFixture {
   fixture: PortalFixture;
-  initialView?: 'insight' | 'presentation' | 'supporting_pdf';
+  initialView?: 'insight' | 'presentation' | 'pdf_comparison';
 }
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
@@ -287,13 +288,13 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
 
-  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'supporting_pdf') {
+  function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison') {
     const shouldOpenComparisonShell =
       ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
       && isOpenVentedFixture(fixture)
-      && (initialView === 'insight' || initialView === 'supporting_pdf');
+      && (initialView === 'insight' || initialView === 'pdf_comparison');
     if (shouldOpenComparisonShell) {
-      setPreviewMode(initialView === 'supporting_pdf' ? 'library_supporting_pdf' : 'current_insight_pdf');
+      setPreviewMode(initialView === 'pdf_comparison' ? 'library_supporting_pdf' : 'current_insight_pdf');
     }
     setActive({ fixture, initialView });
   }
@@ -312,13 +313,15 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
     const showInsightPdfComparison =
       ENABLE_LIBRARY_SUPPORTING_PDF_DEV_REPLACEMENT
       && isOpenVentedFixture(active.fixture)
-      && (active.initialView === 'insight' || active.initialView === 'supporting_pdf');
+      && (active.initialView === 'insight' || active.initialView === 'pdf_comparison');
 
     // Supporting PDF preview — toggles between current Insight print path and
     // the library-driven supporting PDF preview for safe dev comparison.
     if (showInsightPdfComparison) {
       const printModel = buildOpenVentedSupportingPdfModel(active.fixture);
-      const currentInsightEstimatedPages = Math.ceil(sectionsForMode('in-room').length / 2);
+      const currentInsightEstimatedPages = Math.ceil(
+        sectionsForMode('in-room').length / INSIGHT_PRINT_SECTIONS_PER_PAGE,
+      );
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
           <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
