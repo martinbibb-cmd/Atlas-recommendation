@@ -20,6 +20,7 @@
 import { useState } from 'react';
 import CustomerPortalPage from '../components/portal/CustomerPortalPage';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
 

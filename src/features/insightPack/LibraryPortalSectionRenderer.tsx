@@ -8,6 +8,15 @@ import { atlasMvpContentMapRegistry, educationalContentRegistry } from '../../li
 import { getPortalEducationalContent } from '../../library/portal/getPortalEducationalContent';
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import { buildCalmWelcomePackFromAtlasDecision } from '../../library/packRenderer/buildCalmWelcomePackFromAtlasDecision';
+import {
+  EducationalInfoCard,
+  PortalDiagramFrame,
+  PortalMisconceptionBlock,
+  QRDeepDiveCard,
+  ReassurancePanel,
+  SectionDivider,
+  WhatYouMayNoticePanel,
+} from '../../library/portal/ui/PortalPrimitives';
 import type { QuoteInsight } from './insightPack.types';
 import DailyUsePanel from './DailyUsePanel';
 import './LibraryPortalSectionRenderer.css';
@@ -240,58 +249,74 @@ export function LibraryPortalSectionRenderer({
 
       <div className="library-portal-section__cards" data-testid="library-portal-sequenced-cards">
         {authoredCards.map((card, index) => (
-          <article
+          <EducationalInfoCard
             key={`${card.title}:${index}`}
-            className="library-portal-section__card"
+            heading={card.title}
+            body={card.oneLineSummary}
+            tone={index === 0 ? 'primary' : 'default'}
             data-testid="library-portal-authored-card"
           >
-            <h3 className="library-portal-section__card-title">{card.title}</h3>
-            <p>{card.oneLineSummary}</p>
-            {card.customerWording ? <p>{card.customerWording}</p> : null}
-            {card.whatYouMayNotice ? (
-              <p><strong>What you may notice:</strong> {card.whatYouMayNotice}</p>
+            {card.customerWording ? (
+              <p className="portal-info-card__body">{card.customerWording}</p>
             ) : null}
-            {card.whatStaysFamiliar ? (
-              <p><strong>What stays familiar:</strong> {card.whatStaysFamiliar}</p>
+            {(card.whatYouMayNotice || card.whatStaysFamiliar) ? (
+              <WhatYouMayNoticePanel
+                blocks={[
+                  ...(card.whatYouMayNotice ? [{ label: 'What you may notice', body: card.whatYouMayNotice }] : []),
+                  ...(card.whatStaysFamiliar ? [{ label: 'What stays familiar', body: card.whatStaysFamiliar }] : []),
+                ]}
+              />
             ) : null}
             {card.whatNotToWorryAbout ? (
-              <p className="library-portal-section__safety"><strong>What not to worry about:</strong> {card.whatNotToWorryAbout}</p>
+              <ReassurancePanel
+                eyebrow="What not to worry about"
+                heading="No need to worry"
+                body={card.whatNotToWorryAbout}
+              />
             ) : null}
             {card.misconception && card.reality ? (
-              <p>
-                <strong>Common misunderstanding:</strong> {card.misconception}
-                {' '}
-                <strong>Reality:</strong> {card.reality}
-              </p>
+              <PortalMisconceptionBlock
+                label="Common misunderstanding"
+                misconception={card.misconception}
+                reality={card.reality}
+              />
             ) : null}
             {showTechnicalAppendix && card.technicalAppendixSummary ? (
-              <p><strong>Technical appendix:</strong> {card.technicalAppendixSummary}</p>
+              <p className="library-portal-section__tech-appendix">
+                <strong>Technical appendix:</strong> {card.technicalAppendixSummary}
+              </p>
             ) : null}
-          </article>
+          </EducationalInfoCard>
         ))}
       </div>
 
       {diagrams.length > 0 ? (
-        <div className="library-portal-section__diagrams" data-testid="library-portal-diagrams">
-          {diagrams.map((diagramId) => (
-            <figure key={`portal-diagram-${diagramId}`} className="library-portal-section__diagram">
-              <DiagramRenderer diagramId={diagramId} printSafe={false} />
-            </figure>
-          ))}
-        </div>
+        <>
+          <SectionDivider label="System diagram" />
+          <div className="library-portal-section__diagrams" data-testid="library-portal-diagrams">
+            {diagrams.map((diagramId) => (
+              <PortalDiagramFrame
+                key={`portal-diagram-${diagramId}`}
+                data-testid="library-portal-diagram-frame"
+              >
+                <DiagramRenderer diagramId={diagramId} printSafe={false} />
+              </PortalDiagramFrame>
+            ))}
+          </div>
+        </>
       ) : showDebug ? (
         <p data-testid="library-portal-no-diagram">No matching diagram found</p>
       ) : null}
 
       {composed.brandedViewModel.qrDestinations.length > 0 ? (
-        <div className="library-portal-section__qr" data-testid="library-portal-qr">
-          <h3>Go deeper</h3>
-          <ul>
-            {composed.brandedViewModel.qrDestinations.map((destination) => (
-              <li key={`${destination.assetId}:${destination.destination}`}>{destination.title}</li>
-            ))}
-          </ul>
-        </div>
+        <QRDeepDiveCard
+          data-testid="library-portal-qr"
+          note="Scan to explore in detail — diagram-guided walkthrough available."
+          destinations={composed.brandedViewModel.qrDestinations.map((dest) => ({
+            title: dest.title,
+            assetId: dest.assetId,
+          }))}
+        />
       ) : null}
     </section>
   );
