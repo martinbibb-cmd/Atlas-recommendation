@@ -44,7 +44,7 @@ import ImprovementsPanel from './ImprovementsPanel';
 import SavingsPanel from './SavingsPanel';
 import WhyAtlasSuggestedThis from './WhyAtlasSuggestedThis';
 import NextStepsCard from './NextStepsCard';
-import { DailyUsePortalSection } from '../../library/portal/sections/DailyUsePortalSection';
+import { PressureVsStoragePortalSection } from '../../library/portal/sections/PressureVsStoragePortalSection';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
@@ -74,7 +74,9 @@ interface Props {
      accessibilityPreferences?: WelcomePackAccessibilityPreferencesV1;
      userConcernTags?: string[];
      propertyConstraintTags?: string[];
-   };
+    };
+  /** Enables route-trace labels for development diagnostics. */
+  showDevTraceLabels?: boolean;
 }
 
 /** Delay (ms) before triggering window.print() to allow React to re-render all panels. */
@@ -88,6 +90,7 @@ export default function InsightPackDeck({
   onClose,
   presentationMode = 'in-room',
   librarySectionData,
+  showDevTraceLabels = !import.meta.env.PROD,
 }: Props) {
   // Derive the ordered slide list from the canonical sections for this mode.
   const slides = sectionsForMode(presentationMode);
@@ -121,6 +124,21 @@ export default function InsightPackDeck({
   // Panels render differently based on mode — customer-pack uses simplified/
   // severeOnly variants to reduce visual weight.
   const isCustomerPack = presentationMode === 'customer-pack';
+  const appliesStoredHotWater = Boolean(
+    librarySectionData && (
+      STORED_HOT_WATER_SCENARIO_PATTERN.test(
+        librarySectionData.customerSummary.recommendedScenarioId,
+      )
+      || STORED_HOT_WATER_LABEL_PATTERN.test(
+        librarySectionData.customerSummary.recommendedSystemLabel ?? '',
+      )
+    ),
+  );
+  const bathroomCount = librarySectionData?.bathroomCount ?? 1;
+  const usePressureVsStorageSection = appliesStoredHotWater && bathroomCount >= 2;
+  const dailyUseRendererComponent = usePressureVsStorageSection
+    ? 'PressureVsStoragePortalSection'
+    : 'DailyUsePanel';
 
   function renderPanel(id: CanonicalSectionId) {
     switch (id) {
@@ -144,22 +162,10 @@ export default function InsightPackDeck({
       case 'best-advice':
         return <BestAdvicePanel bestAdvice={pack.bestAdvice} />;
       case 'daily-use':
-        if (librarySectionData) {
-          const appliesStoredHotWater = STORED_HOT_WATER_SCENARIO_PATTERN.test(
-            librarySectionData.customerSummary.recommendedScenarioId,
-          ) || STORED_HOT_WATER_LABEL_PATTERN.test(
-            librarySectionData.customerSummary.recommendedSystemLabel ?? '',
-          );
-          const bathroomCount = librarySectionData.bathroomCount ?? 1;
-          return appliesStoredHotWater && bathroomCount >= 2 ? (
-            <DailyUsePortalSection
-              appliesStoredHotWater
+        if (librarySectionData && usePressureVsStorageSection) {
+          return (
+            <PressureVsStoragePortalSection
               bathroomCount={bathroomCount}
-            />
-          ) : (
-            <DailyUsePanel
-              quotes={pack.quotes}
-              recommendedQuoteId={isCustomerPack ? pack.bestAdvice.recommendedQuoteId : undefined}
             />
           );
         }
@@ -231,6 +237,15 @@ export default function InsightPackDeck({
 
       {/* Active panel (screen view) */}
       <div className="insight-deck__panel" role="tabpanel">
+        {showDevTraceLabels ? (
+          <aside data-testid="insight-route-trace-labels">
+            <p>insightRendererComponent: InsightPackDeck</p>
+            <p>dailyUseRendererComponent: {dailyUseRendererComponent}</p>
+            {usePressureVsStorageSection ? (
+              <p>Real Insight route using library section</p>
+            ) : null}
+          </aside>
+        ) : null}
         {renderPanel(activeSlide)}
       </div>
 
