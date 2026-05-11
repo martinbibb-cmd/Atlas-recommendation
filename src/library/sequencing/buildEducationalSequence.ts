@@ -1,5 +1,8 @@
 import type { EducationalRoutingAccessibilityPreferencesV1 } from '../routing/EducationalRoutingRuleV1';
-import type { ResolveCustomerAnxietyPatternsOutputV1 } from '../emotionalRouting/resolveCustomerAnxietyPatterns';
+import type {
+  ResolveCustomerAnxietyPatternsInputV1,
+  ResolveCustomerAnxietyPatternsOutputV1,
+} from '../emotionalRouting/resolveCustomerAnxietyPatterns';
 import { resolveCustomerAnxietyPatterns } from '../emotionalRouting/resolveCustomerAnxietyPatterns';
 import type { EmotionalWeight, EducationalSequenceRuleV1, SequenceStage } from './EducationalSequenceRuleV1';
 
@@ -58,6 +61,12 @@ export interface BuildEducationalSequenceInputV1 {
   accessibilityPreferences?: EducationalRoutingAccessibilityPreferencesV1;
   /** Emotional and trust context tags. */
   contextTags?: SequencingContextTagsV1;
+  /** Concern tags used for anxiety resolution when no pre-resolved policy is provided. */
+  concernTags?: readonly string[];
+  /** Optional survey notes used for anxiety trigger matching. */
+  surveyNotes?: string;
+  /** Optional manual anxiety include/exclude overrides. */
+  anxietyManualOverrides?: ResolveCustomerAnxietyPatternsInputV1['manualOverrides'];
   /**
    * Optional resolved anxiety routing output. If omitted, the engine resolves
    * anxiety patterns from context tags and accessibility profiles.
@@ -166,6 +175,9 @@ export function buildEducationalSequence(
     archetypeId,
     accessibilityPreferences,
     contextTags,
+    concernTags,
+    surveyNotes,
+    anxietyManualOverrides,
     anxietyRouting,
     alreadyExplainedConceptIds = [],
   } = input;
@@ -174,9 +186,11 @@ export function buildEducationalSequence(
   const overloadWarnings: string[] = [];
 
   const resolvedAnxietyRouting = anxietyRouting ?? resolveCustomerAnxietyPatterns({
-    concernTags: contextTags?.emotionalTags ?? [],
+    concernTags: concernTags ?? contextTags?.emotionalTags ?? [],
     accessibilityProfiles: accessibilityPreferences?.profiles,
     archetypeId,
+    surveyNotes,
+    manualOverrides: anxietyManualOverrides,
   });
   const anxietyPolicy = resolvedAnxietyRouting.sequencingPolicy;
   const hasAdhdProfile = accessibilityPreferences?.profiles?.includes('adhd') ?? false;
@@ -330,7 +344,8 @@ export function buildEducationalSequence(
   }
 
   if (hasAdhdProfile && resolvedAnxietyRouting.activePatternIds.length > 0) {
-    const maxNonReassurance = Math.max(0, appliedMaxSimultaneous - 1);
+    const NON_REASSURANCE_SLOT_RESERVE = 1;
+    const maxNonReassurance = Math.max(0, appliedMaxSimultaneous - NON_REASSURANCE_SLOT_RESERVE);
     let keptNonReassurance = 0;
     const compacted: Candidate[] = [];
     const deferredByDensity: DeferredConceptV1[] = [];

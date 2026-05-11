@@ -40,6 +40,7 @@ const QR_DEPTH_PRIORITY: Record<CustomerAnxietyQrDepthPreferenceV1, number> = {
   standard: 1,
   deep: 2,
 };
+const COMPLEX_CONTROLS_ANXIETY_ID = 'worried_about_complex_controls';
 
 function hasTriggerMatch(
   pattern: CustomerAnxietyPatternV1,
@@ -75,7 +76,7 @@ export function resolveCustomerAnxietyPatterns(
     && active.length > 0
     && !active.some((pattern) => pattern.category === 'competence')
   ) {
-    const competencePattern = customerAnxietyPatterns.find((pattern) => pattern.anxietyId === 'worried_about_complex_controls');
+    const competencePattern = customerAnxietyPatterns.find((pattern) => pattern.anxietyId === COMPLEX_CONTROLS_ANXIETY_ID);
     if (competencePattern) {
       active.push(competencePattern);
     }

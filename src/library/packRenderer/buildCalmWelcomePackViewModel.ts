@@ -4,10 +4,6 @@ import type { EducationalAssetV1 } from '../contracts/EducationalAssetV1';
 import type { EducationalPackSectionId } from '../contracts/EducationalPackV1';
 import type { WelcomePackEligibilityMode, WelcomePackPlanV1, WelcomePackAccessibilityPreferencesV1 } from '../packComposer/WelcomePackComposerV1';
 import type { EducationalRoutingAccessibilityPreferencesV1 } from '../routing/EducationalRoutingRuleV1';
-import {
-  resolveCustomerAnxietyPatterns,
-  type ResolveCustomerAnxietyPatternsInputV1,
-} from '../emotionalRouting';
 import { buildEducationalSequence } from '../sequencing/buildEducationalSequence';
 import type { SequencingContextTagsV1 } from '../sequencing/buildEducationalSequence';
 import { educationalSequenceRules } from '../sequencing/educationalSequenceRules';
@@ -63,7 +59,10 @@ export interface BuildCalmWelcomePackViewModelInputV1 {
   /** Optional survey notes for future/manual anxiety matching. */
   surveyNotes?: string;
   /** Optional manual anxiety pattern overrides. */
-  anxietyManualOverrides?: ResolveCustomerAnxietyPatternsInputV1['manualOverrides'];
+  anxietyManualOverrides?: {
+    includeAnxietyIds?: readonly string[];
+    excludeAnxietyIds?: readonly string[];
+  };
 }
 
 function uniqueInOrder(values: string[]): string[] {
@@ -260,20 +259,15 @@ export function buildCalmWelcomePackViewModel(
   // (reassurance → expectation → lived experience → misconception → deeper
   // understanding → technical detail) rather than the raw selectedConceptIds order.
   const routingAccessibility = toRoutingAccessibility(accessibilityPreferences);
-  const resolvedAnxietyPatterns = resolveCustomerAnxietyPatterns({
-    concernTags: concernTags ?? contextTags?.emotionalTags ?? [],
-    accessibilityProfiles: routingAccessibility.profiles,
-    archetypeId: archetypeId ?? plan.archetypeId,
-    surveyNotes,
-    manualOverrides: anxietyManualOverrides,
-  });
   const sequenceResult = buildEducationalSequence({
     selectedConceptIds: plan.selectedConceptIds,
     sequenceRules: educationalSequenceRules,
     archetypeId: archetypeId ?? plan.archetypeId,
     accessibilityPreferences: routingAccessibility,
     contextTags,
-    anxietyRouting: resolvedAnxietyPatterns,
+    concernTags,
+    surveyNotes,
+    anxietyManualOverrides,
   });
 
   // Position map: conceptId → sequence position (lower = earlier)

@@ -114,7 +114,7 @@ export const customerAnxietyPatterns: CustomerAnxietyPatternV1[] = [
     anxietyId: 'worried_about_noise',
     category: 'comfort',
     triggers: ['noise', 'loud', 'sound', 'vibration', 'outdoor_unit'],
-    reassuranceStrategies: ['Set audible-behavior expectations', 'Normalise short-term variance'],
+    reassuranceStrategies: ['Set audible-behavior expectations', 'Normalize short-term variance'],
     preferredCardTypes: ['WhatToExpectCard'],
     avoidConcepts: [],
     sequencingBias: {
