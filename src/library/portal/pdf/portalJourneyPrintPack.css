@@ -129,12 +129,37 @@
   font-size: 0.9rem;
 }
 
+.pjpp-section__takeaway {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid #1e40af;
+  background: #eff6ff;
+  color: #1e3a5f;
+  font-size: 0.9rem;
+}
+
 .pjpp-section__diagram {
   margin: 0.5rem 0 0;
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 1rem;
   background: #fafafa;
+}
+
+.pjpp-section__diagram-caption {
+  margin-top: 0.5rem;
+  color: #4b5563;
+  font-size: 0.82rem;
+}
+
+.pjpp-reassurance {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 0.85rem;
 }
 
 /* ─── Next steps page ─────────────────────────────────────────────────────── */
@@ -191,7 +216,7 @@
 .pjpp-qr-destinations__intro {
   font-size: 0.9rem;
   color: #6b7280;
-  margin: 0 0 1rem;
+  margin: 1rem 0 1rem;
 }
 
 .pjpp-qr-destinations__list {
