@@ -103,11 +103,18 @@ export function LibraryPortalSectionRenderer({
     );
   }
 
-  const diagramsFromCards = [...new Set(
-    authoredCards.flatMap((card) => card.suggestedDiagramIds)
-      .map((diagramId) => toRenderableDiagramId(diagramId))
-      .filter((diagramId): diagramId is string => diagramId !== undefined),
-  )];
+  const diagramsFromCards = useMemo(() => {
+    const diagramIds = new Set<string>();
+    for (const card of authoredCards) {
+      for (const suggestedDiagramId of card.suggestedDiagramIds) {
+        const renderableDiagramId = toRenderableDiagramId(suggestedDiagramId);
+        if (renderableDiagramId) {
+          diagramIds.add(renderableDiagramId);
+        }
+      }
+    }
+    return [...diagramIds];
+  }, [authoredCards]);
   const fallbackDiagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId]
     ?.filter((diagramId) => getDiagramById(diagramId));
   const diagrams = diagramsFromCards.length > 0 ? diagramsFromCards : (fallbackDiagrams ?? []);
