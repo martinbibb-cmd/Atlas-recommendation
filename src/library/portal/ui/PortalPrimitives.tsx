@@ -129,7 +129,7 @@ export function ComparisonTriptych({ cards }: ComparisonTriptychProps) {
     <div className="portal-comparison-triptych" data-testid="portal-comparison-triptych">
       {cards.map((card, i) => (
         <article
-          key={i}
+          key={`${card.heading}-${i}`}
           className={`portal-comparison-triptych__card${card.highlight ? ' portal-comparison-triptych__card--highlight' : ''}`}
           aria-label={card.ariaLabel ?? card.heading}
           data-testid={card.testId}
@@ -211,7 +211,7 @@ export function WhatYouMayNoticePanel({ blocks }: WhatYouMayNoticePanelProps) {
     <div className="portal-what-you-may-notice" data-testid="portal-what-you-may-notice">
       {blocks.map((block, i) => (
         <div
-          key={i}
+          key={`${block.label}-${i}`}
           className="portal-what-you-may-notice__block"
           data-testid={block.testId}
         >
@@ -319,7 +319,7 @@ export function StickyBottomNav({ label, actions, 'data-testid': testId }: Stick
       <div className="portal-sticky-bottom-nav__actions">
         {actions.map((action, i) => (
           <button
-            key={i}
+            key={`${action.label}-${i}`}
             type="button"
             className={`portal-sticky-bottom-nav__btn${action.variant === 'secondary' ? ' portal-sticky-bottom-nav__btn--secondary' : ''}`}
             onClick={action.onClick}

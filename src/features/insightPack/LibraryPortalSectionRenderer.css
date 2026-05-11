@@ -37,41 +37,6 @@
   gap: 0.8rem;
 }
 
-/* Misconception block inside authored cards */
-.library-portal-section__misconception {
-  display: grid;
-  gap: 0.35rem;
-  padding: 0.65rem 0.8rem;
-  background: #f8fbff;
-  border-left: 3px solid #234a7d;
-  border-radius: 0 8px 8px 0;
-  margin-top: 0.25rem;
-}
-
-.library-portal-section__misconception-label {
-  margin: 0;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #234a7d;
-}
-
-.library-portal-section__misconception-text {
-  margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  color: #3d506a;
-}
-
-.library-portal-section__misconception-reality {
-  margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  color: #132238;
-  font-weight: 600;
-}
-
 .library-portal-section__tech-appendix {
   margin: 0.4rem 0 0;
   font-size: 0.82rem;

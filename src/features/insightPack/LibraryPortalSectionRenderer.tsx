@@ -11,6 +11,7 @@ import { buildCalmWelcomePackFromAtlasDecision } from '../../library/packRendere
 import {
   EducationalInfoCard,
   PortalDiagramFrame,
+  PortalMisconceptionBlock,
   QRDeepDiveCard,
   ReassurancePanel,
   SectionDivider,
@@ -274,11 +275,11 @@ export function LibraryPortalSectionRenderer({
               />
             ) : null}
             {card.misconception && card.reality ? (
-              <div className="library-portal-section__misconception">
-                <p className="library-portal-section__misconception-label">Common misunderstanding</p>
-                <p className="library-portal-section__misconception-text">{card.misconception}</p>
-                <p className="library-portal-section__misconception-reality">Reality: {card.reality}</p>
-              </div>
+              <PortalMisconceptionBlock
+                label="Common misunderstanding"
+                misconception={card.misconception}
+                reality={card.reality}
+              />
             ) : null}
             {showTechnicalAppendix && card.technicalAppendixSummary ? (
               <p className="library-portal-section__tech-appendix">
