@@ -184,9 +184,12 @@ export function buildEducationalSequence(
 
   const deferred: DeferredConceptV1[] = [];
   const overloadWarnings: string[] = [];
+  // `contextTags.emotionalTags` is the legacy source used by existing callers.
+  // `concernTags` is the explicit anxiety-routing term for new callers.
+  const resolvedConcernTags = concernTags ?? contextTags?.emotionalTags ?? [];
 
   const resolvedAnxietyRouting = anxietyRouting ?? resolveCustomerAnxietyPatterns({
-    concernTags: concernTags ?? contextTags?.emotionalTags ?? [],
+    concernTags: resolvedConcernTags,
     accessibilityProfiles: accessibilityPreferences?.profiles,
     archetypeId,
     surveyNotes,
@@ -436,7 +439,10 @@ export function buildEducationalSequence(
     emotionalWeight: rule.emotionalWeight,
     ruleId: rule.ruleId,
     idealCardTypes: anxietyPolicy.preferWhatToExpectCard
-      ? ['WhatToExpectCard', ...(rule.idealCardTypes ?? []).filter((cardType) => cardType !== 'WhatToExpectCard')]
+      ? (() => {
+        const ordered = ['WhatToExpectCard', ...(rule.idealCardTypes ?? [])];
+        return [...new Set(ordered)];
+      })()
       : (rule.idealCardTypes ?? []),
     position: index,
   }));

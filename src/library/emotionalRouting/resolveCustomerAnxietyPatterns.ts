@@ -92,6 +92,7 @@ export function resolveCustomerAnxietyPatterns(
   };
 
   const preferredCardTypeSet = new Set<string>();
+  const avoidConceptSet = new Set<string>();
   let maxQrPreference: CustomerAnxietyQrDepthPreferenceV1 = 'brief';
   let printPreferenceWeight = 0;
 
@@ -114,7 +115,7 @@ export function resolveCustomerAnxietyPatterns(
       sequencingPolicy.boostWhatStaysFamiliar || Boolean(bias.boostWhatStaysFamiliar);
 
     for (const conceptId of pattern.avoidConcepts) {
-      sequencingPolicy.avoidConcepts.push(conceptId);
+      avoidConceptSet.add(conceptId);
     }
 
     for (const cardType of pattern.preferredCardTypes) {
@@ -128,7 +129,7 @@ export function resolveCustomerAnxietyPatterns(
     printPreferenceWeight += pattern.printPreferenceWeight;
   }
 
-  sequencingPolicy.avoidConcepts = [...new Set(sequencingPolicy.avoidConcepts)];
+  sequencingPolicy.avoidConcepts = [...avoidConceptSet];
 
   return {
     activePatterns: active,

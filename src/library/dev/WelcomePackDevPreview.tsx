@@ -478,6 +478,7 @@ export function WelcomePackDevPreview() {
   const qrCardCount = calmViewModel.qrDestinations.length;
   const activeAnxietyPatternIds = calmViewModel.sequencingMetadata?.activeAnxietyPatternIds ?? [];
   const reassuranceConceptCount = calmViewModel.sequencingMetadata?.reassuranceConceptCount ?? 0;
+  const hasSelectedConcepts = plan.selectedConceptIds.length > 0;
   const reassurancePacingPercent = Math.max(
     0,
     Math.min(
@@ -996,13 +997,17 @@ export function WelcomePackDevPreview() {
 
             <h3>Reassurance pacing</h3>
             <p data-testid="diagnostics-reassurance-pacing-text">
-              {reassuranceConceptCount}
-              {' '}
-              reassurance concept(s) out of
-              {' '}
-              {plan.selectedConceptIds.length}
-              {' '}
-              selected concept(s)
+              {hasSelectedConcepts ? (
+                <>
+                  {reassuranceConceptCount}
+                  {' '}
+                  reassurance concept(s) out of
+                  {' '}
+                  {plan.selectedConceptIds.length}
+                  {' '}
+                  selected concept(s)
+                </>
+              ) : 'N/A — no selected concepts to pace.'}
             </p>
             <div
               aria-label="Reassurance pacing visual"
