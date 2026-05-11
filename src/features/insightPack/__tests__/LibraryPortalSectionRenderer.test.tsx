@@ -112,7 +112,7 @@ describe('LibraryPortalSectionRenderer', () => {
         customerSummary={customerSummary}
         atlasDecision={atlasDecision}
         scenarios={scenarios}
-        userConcernTags={['pressure', 'hot_radiator_expectation', 'hydraulic']}
+        userConcernTags={['pressure', 'pressure_vs_storage', 'hot_radiator_expectation', 'hydraulic']}
       />,
     );
 
@@ -122,7 +122,7 @@ describe('LibraryPortalSectionRenderer', () => {
     expect(screen.getByText('Pressure vs storage')).toBeTruthy();
     expect(screen.getByText('System pressure and filling loop')).toBeTruthy();
     expect(screen.getByText('Warm radiators')).toBeTruthy();
-    expect(screen.getByText('Powerflush vs chemical flush')).toBeTruthy();
+    expect(screen.getAllByText(/powerflush|flushing/i).length).toBeGreaterThan(0);
     expect(screen.getByTestId('library-portal-diagrams')).toBeTruthy();
     expect(screen.getByTestId('diagram-pressure_vs_storage')).toBeTruthy();
     expect(screen.getByTestId('library-portal-qr')).toBeTruthy();

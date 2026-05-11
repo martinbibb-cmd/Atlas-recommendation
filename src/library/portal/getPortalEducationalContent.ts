@@ -88,7 +88,7 @@ export function getPortalEducationalContent({
       const triggerMatches = entry.routingTriggerTags
         .filter((tag) => routingTagSet.has(normalizeToken(tag)))
         .length;
-      const score = (conceptMatches * 4) + (triggerMatches * 2);
+      const score = (conceptMatches * 10) + triggerMatches;
       return { entry, score };
     })
     .filter((item) => item.score > 0)
@@ -104,7 +104,7 @@ export function getPortalEducationalContent({
       const evidenceMatches = entry.requiredEvidenceFacts
         .filter((fact) => selectedConceptSet.has(fact) || routingTagSet.has(normalizeToken(fact)))
         .length;
-      const score = (conceptMatches * 4) + (evidenceMatches * 2);
+      const score = (conceptMatches * 10) + evidenceMatches;
       return { entry, score };
     })
     .filter((item) => item.score > 0)
