@@ -67,6 +67,7 @@ const GOLDEN_JOURNEY_FIXTURE_IDS: WelcomePackDemoFixtureId[] = [
 ];
 
 const GOLDEN_JOURNEY_FIXTURE_ID_SET = new Set<WelcomePackDemoFixtureId>(GOLDEN_JOURNEY_FIXTURE_IDS);
+const DEFAULT_SEQUENCE_STAGE: SequenceStage = 'technical_detail';
 const STORYBOARD_STAGE_ORDER = [
   'reassurance',
   'expectation',
@@ -129,6 +130,17 @@ const CONCERN_TOGGLE_OPTIONS: ConcernToggleOption[] = [
   { id: 'worried_about_hot_water', label: 'worried about hot water', concernTag: 'hot_water' },
   { id: 'worried_about_heat_pumps', label: 'worried about heat pumps', concernTag: 'heat_pump' },
 ];
+
+function formatConcernLabelFallback(anxietyId: string): string {
+  return anxietyId.replaceAll('_', ' ');
+}
+
+const CONCERN_LABEL_BY_ID = new Map(
+  customerAnxietyPatterns.map((pattern) => [pattern.anxietyId, formatConcernLabelFallback(pattern.anxietyId)]),
+);
+for (const option of CONCERN_TOGGLE_OPTIONS) {
+  CONCERN_LABEL_BY_ID.set(option.id, option.label);
+}
 
 const CONCERN_STORY_COPY: Record<string, ConcernStoryCopy> = {
   worried_about_disruption: {
@@ -253,8 +265,12 @@ function getStoryboardLabelForCard(sequenceStage: SequenceStage, hasSafetyNotice
     case 'appendix_only':
       return 'Deeper detail';
     default:
-      return 'Reassurance';
+      throw new Error(`Unhandled sequence stage: ${sequenceStage}`);
   }
+}
+
+function buildAtlasResponseSummary(reassuranceStrategies: readonly string[]): string {
+  return `${reassuranceStrategies[0] ?? 'Front-load reassurance'}; defer deep technical detail until trust is established.`;
 }
 
 export function WelcomePackDevPreview() {
@@ -468,6 +484,8 @@ export function WelcomePackDevPreview() {
     const sectionTitleByConceptId = new Map<string, string>();
     const sequencePositionByConceptId = new Map<string, number>();
     const sequenceStageByConceptId = new Map<string, SequenceStage>();
+    const fallbackStoryboardOrder = sortConceptIdsForStoryboard(plan.selectedConceptIds);
+    const fallbackStoryboardRank = new Map(fallbackStoryboardOrder.map((conceptId, index) => [conceptId, index]));
     let sequencePosition = 0;
 
     for (const section of calmViewModel.customerFacingSections) {
@@ -484,7 +502,7 @@ export function WelcomePackDevPreview() {
           sequencePositionByConceptId.set(conceptId, sequencePosition++);
         }
         if (!sequenceStageByConceptId.has(conceptId)) {
-          const stage = educationalSequenceRules.find((rule) => rule.conceptId === conceptId)?.sequenceStage ?? 'technical_detail';
+          const stage = educationalSequenceRules.find((rule) => rule.conceptId === conceptId)?.sequenceStage ?? DEFAULT_SEQUENCE_STAGE;
           sequenceStageByConceptId.set(conceptId, stage);
         }
       }
@@ -502,7 +520,12 @@ export function WelcomePackDevPreview() {
       if (rightPosition !== undefined) {
         return 1;
       }
-      return sortConceptIdsForStoryboard([left, right])[0] === left ? -1 : 1;
+      const leftFallbackRank = fallbackStoryboardRank.get(left) ?? Number.POSITIVE_INFINITY;
+      const rightFallbackRank = fallbackStoryboardRank.get(right) ?? Number.POSITIVE_INFINITY;
+      if (leftFallbackRank === rightFallbackRank) {
+        return left.localeCompare(right);
+      }
+      return leftFallbackRank - rightFallbackRank;
     });
 
     return orderedConceptIds
@@ -510,7 +533,7 @@ export function WelcomePackDevPreview() {
         const content = educationalContentByConceptId.get(conceptId);
         const asset = [...assetById.values()].find((item) => item.conceptIds.includes(conceptId));
         const hasAuthoredContent = content !== undefined;
-        const sequenceStage = sequenceStageByConceptId.get(conceptId) ?? 'technical_detail';
+        const sequenceStage = sequenceStageByConceptId.get(conceptId) ?? DEFAULT_SEQUENCE_STAGE;
 
         return {
           title: content?.title ?? asset?.title ?? conceptId,
@@ -600,10 +623,7 @@ export function WelcomePackDevPreview() {
   const activeAnxietyPatternIds = calmViewModel.sequencingMetadata?.activeAnxietyPatternIds ?? [];
   const activePatternSet = new Set(activeAnxietyPatternIds);
   const activeAnxietyPatterns = customerAnxietyPatterns.filter((pattern) => activePatternSet.has(pattern.anxietyId));
-  const activePatternLabels = activeAnxietyPatterns.map((pattern) => {
-    const option = CONCERN_TOGGLE_OPTIONS.find((item) => item.id === pattern.anxietyId);
-    return option?.label ?? pattern.anxietyId.replaceAll('_', ' ');
-  });
+  const activePatternLabels = activeAnxietyPatterns.map((pattern) => CONCERN_LABEL_BY_ID.get(pattern.anxietyId) ?? pattern.anxietyId);
   const activeConcernHeadline = activePatternLabels[0] ?? 'No highlighted concern';
   const activeConcernCopy = activeAnxietyPatterns[0]
     ? CONCERN_STORY_COPY[activeAnxietyPatterns[0].anxietyId]
@@ -615,8 +635,8 @@ export function WelcomePackDevPreview() {
     : 'Follow the default calm sequence and add detail only when it helps.';
   const atlasResponseCards = activeAnxietyPatterns.map((pattern) => ({
     id: pattern.anxietyId,
-    label: CONCERN_TOGGLE_OPTIONS.find((item) => item.id === pattern.anxietyId)?.label ?? pattern.anxietyId,
-    response: `${pattern.reassuranceStrategies[0] ?? 'Front-load reassurance'}; defer deep technical detail until trust is established.`,
+    label: CONCERN_LABEL_BY_ID.get(pattern.anxietyId) ?? pattern.anxietyId,
+    response: buildAtlasResponseSummary(pattern.reassuranceStrategies),
   }));
   const whatChangesSummary = fixture.customerSummary.plainEnglishDecision;
   const whatStaysFamiliarSummary = activeAnxietyPatterns.some((pattern) => pattern.sequencingBias.boostWhatStaysFamiliar)
@@ -1075,7 +1095,7 @@ export function WelcomePackDevPreview() {
               <TrustRecoveryCard
                 title="Some detail stays off the first page"
                 thisCanHappen="The first-view pack stays short on purpose."
-                whatItMeans={`${storyboardDeferredCount} deferred concept(s) and ${viewModel.omittedSummary.omittedAssets.length} omitted asset(s) stay out of the first pass.`}
+                whatItMeans={`${storyboardDeferredCount} deferred concept${storyboardDeferredCount === 1 ? '' : 's'} and ${viewModel.omittedSummary.omittedAssets.length} omitted asset${viewModel.omittedSummary.omittedAssets.length === 1 ? '' : 's'} stay out of the first pass.`}
                 whatToDoNext={calmViewModel.qrDestinations.length > 0
                   ? 'Use the QR deep dives when someone wants more detail.'
                   : 'Use Diagnostics mode if you need the full omission trail.'}

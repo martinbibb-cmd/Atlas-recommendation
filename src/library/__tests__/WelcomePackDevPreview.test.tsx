@@ -25,7 +25,9 @@ describe('WelcomePackDevPreview', () => {
     const user = userEvent.setup();
     render(<WelcomePackDevPreview />);
 
-    await user.selectOptions(screen.getByRole('combobox', { name: /fixture selector/i }), 'open_vented_to_sealed_unvented');
+    const fixtureSelector = screen.getByRole('combobox', { name: /fixture selector/i });
+    await user.selectOptions(fixtureSelector, 'open_vented_to_sealed_unvented');
+    expect((fixtureSelector as HTMLSelectElement).value).toBe('open_vented_to_sealed_unvented');
 
     expect(screen.getByTestId('storyboard-diagram-badge')).toHaveTextContent(/\d+\s+diagrams matched/i);
     expect(screen.getByRole('heading', { level: 2, name: /home now/i })).toBeInTheDocument();
