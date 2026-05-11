@@ -787,7 +787,14 @@ function buildPipeworkSection(
 
   // Loft work for open-vented to sealed conversion
   const coldWaterSource = surveyInput.services?.coldWaterSource;
-  if (coldWaterSource === 'loft_tank') {
+  const isStoredOrRegularScenario =
+    scenarioId.includes('system')
+    || scenarioId.includes('unvented')
+    || scenarioId.includes('regular');
+  const hasOpenVentedConversionBoiler =
+    surveyInput.currentSystem?.boiler?.type === 'regular'
+    || surveyInput.currentSystem?.boiler?.type === 'system';
+  if (coldWaterSource === 'loft_tank' && (isStoredOrRegularScenario || hasOpenVentedConversionBoiler)) {
     topologyNotes.push(
       'Open-vented to sealed circuit conversion — loft tank feeds must be capped and removed',
       'Confirm all vent pipes and cold-feed connections are identified before sealing system',

@@ -190,6 +190,10 @@ const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder
 const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
 const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
 const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
+// Contract pipe diameters are normalized to standard primary sizes.
+const PIPE_SIZE_THRESHOLD_35MM = 35;
+const PIPE_SIZE_THRESHOLD_28MM = 28;
+const PIPE_SIZE_THRESHOLD_22MM = 22;
 
 function isOpenVentedFixture(fixture: PortalFixture): boolean {
   return fixture.id === 'open_vented_to_sealed_unvented';
@@ -331,29 +335,45 @@ function buildSupportingPdfModel(fixture: PortalFixture) {
   });
 }
 
-function mapSurveyInputToImplementationPackContract(input: EngineInputV2_3): EngineInputV2_3Contract {
-  const primaryPipeSizeMm: EngineInputV2_3Contract['infrastructure']['primaryPipeSizeMm'] =
-    input.primaryPipeDiameter >= 35 ? 35 : input.primaryPipeDiameter >= 28 ? 28 : input.primaryPipeDiameter >= 22 ? 22 : 15;
+function inferColdWaterSource(input: EngineInputV2_3): NonNullable<EngineInputV2_3Contract['services']>['coldWaterSource'] {
+  if (input.currentSystem?.heatingSystemType === 'open_vented' || input.dhwStorageType === 'vented') {
+    return 'loft_tank';
+  }
+  return 'mains_true';
+}
 
-  const occupancySignature: EngineInputV2_3Contract['occupancy']['signature'] =
-    input.occupancySignature === 'steady_home' ? 'steady'
-      : input.occupancySignature === 'shift_worker' ? 'shift'
-        : input.occupancySignature === 'steady' || input.occupancySignature === 'shift'
-          ? input.occupancySignature
-          : 'professional';
+function mapEngineInputToContract(input: EngineInputV2_3): EngineInputV2_3Contract {
+  let primaryPipeSizeMm: EngineInputV2_3Contract['infrastructure']['primaryPipeSizeMm'] = 15;
+  if (input.primaryPipeDiameter >= PIPE_SIZE_THRESHOLD_35MM) {
+    primaryPipeSizeMm = 35;
+  } else if (input.primaryPipeDiameter >= PIPE_SIZE_THRESHOLD_28MM) {
+    primaryPipeSizeMm = 28;
+  } else if (input.primaryPipeDiameter >= PIPE_SIZE_THRESHOLD_22MM) {
+    primaryPipeSizeMm = 22;
+  }
+
+  let occupancySignature: EngineInputV2_3Contract['occupancy']['signature'] = 'professional';
+  if (input.occupancySignature === 'steady_home' || input.occupancySignature === 'steady') {
+    occupancySignature = 'steady';
+  } else if (input.occupancySignature === 'shift_worker' || input.occupancySignature === 'shift') {
+    occupancySignature = 'shift';
+  }
 
   const coldWaterSource: NonNullable<EngineInputV2_3Contract['services']>['coldWaterSource'] =
-    input.coldWaterSource
-    ?? (input.currentSystem?.heatingSystemType === 'open_vented' || input.dhwStorageType === 'vented'
-      ? 'loft_tank'
-      : 'mains_true');
+    input.coldWaterSource ?? inferColdWaterSource(input);
 
-  const architecture: EngineInputV2_3Contract['dhw']['architecture'] =
-    input.dhwStorageType === 'mixergy' ? 'stored_mixergy'
-      : input.dhwStorageType === 'none' || input.currentHeatSourceType === 'combi' ? 'on_demand'
-        : input.dhwStorageType === 'unvented' || input.dhwStorageType === 'vented' || input.dhwStorageType === 'heat_pump_cylinder'
-          ? 'stored_standard'
-          : 'unknown';
+  let architecture: EngineInputV2_3Contract['dhw']['architecture'] = 'unknown';
+  if (input.dhwStorageType === 'mixergy') {
+    architecture = 'stored_mixergy';
+  } else if (input.dhwStorageType === 'none' || input.currentHeatSourceType === 'combi') {
+    architecture = 'on_demand';
+  } else if (
+    input.dhwStorageType === 'unvented'
+    || input.dhwStorageType === 'vented'
+    || input.dhwStorageType === 'heat_pump_cylinder'
+  ) {
+    architecture = 'stored_standard';
+  }
 
   return {
     infrastructure: {
@@ -412,7 +432,7 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
   });
 
   const customerSummary = buildCustomerSummary(decision, scenarios);
-  const surveyInput = mapSurveyInputToImplementationPackContract(fixture.engineInput);
+  const surveyInput = mapEngineInputToContract(fixture.engineInput);
   const pack = buildSuggestedImplementationPack({
     atlasDecision: decision,
     customerSummary,
