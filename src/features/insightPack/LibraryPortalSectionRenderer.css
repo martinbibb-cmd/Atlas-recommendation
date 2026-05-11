@@ -13,6 +13,25 @@
   text-transform: uppercase;
 }
 
+.library-portal-section__debug {
+  margin: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px dashed #93c5fd;
+  background: #eff6ff;
+}
+
+.library-portal-section__debug > p {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #1e3a8a;
+}
+
+.library-portal-section__debug > p + p {
+  margin-top: 0.2rem;
+}
+
 .library-portal-section__cards {
   display: grid;
   gap: 0.65rem;
