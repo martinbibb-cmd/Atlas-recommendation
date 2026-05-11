@@ -28,16 +28,26 @@ function normalizeToken(value: string): string {
 }
 
 function parseEducationalExplanation(customerExplanation: string): { whatYouMayNotice: string; customerWording: string } {
-  const match = customerExplanation.match(/what you may notice:\s*(.*?)\s*what this means:\s*(.*)$/i);
-  if (!match) {
+  const source = customerExplanation.trim();
+  const lowerSource = source.toLowerCase();
+  const noticeMarker = 'what you may notice:';
+  const meaningMarker = 'what this means:';
+  const noticeStart = lowerSource.indexOf(noticeMarker);
+  const meaningStart = lowerSource.indexOf(meaningMarker);
+
+  if (noticeStart === -1 || meaningStart === -1 || meaningStart <= noticeStart) {
     return {
-      whatYouMayNotice: customerExplanation.trim(),
-      customerWording: customerExplanation.trim(),
+      whatYouMayNotice: source,
+      customerWording: source,
     };
   }
+
+  const noticeText = source.slice(noticeStart + noticeMarker.length, meaningStart).trim();
+  const meaningText = source.slice(meaningStart + meaningMarker.length).trim();
+
   return {
-    whatYouMayNotice: match[1]?.trim() ?? '',
-    customerWording: match[2]?.trim() ?? '',
+    whatYouMayNotice: noticeText,
+    customerWording: meaningText,
   };
 }
 
