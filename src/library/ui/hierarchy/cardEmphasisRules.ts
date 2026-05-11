@@ -59,13 +59,22 @@ export function cardPriorityAriaLabel(
 /**
  * When true, cards at this priority level should be wrapped in a shared
  * visual group (e.g. a bordered cluster) rather than rendered individually.
+ *
+ * Convention: `true` means the renderer *should* group these cards together;
+ * it does not mean they currently *are* grouped — that is up to the renderer.
  */
-export const CARD_PRIORITY_GROUPED: Record<VisualPriorityLevel, boolean> = {
+export const CARD_PRIORITY_SHOULD_BE_GROUPED: Record<VisualPriorityLevel, boolean> = {
   primary: false,
   supporting: true,
   optional: false,
   deferred: false,
 } as const;
+
+/**
+ * @deprecated Use CARD_PRIORITY_SHOULD_BE_GROUPED instead.
+ * @see CARD_PRIORITY_SHOULD_BE_GROUPED
+ */
+export const CARD_PRIORITY_GROUPED = CARD_PRIORITY_SHOULD_BE_GROUPED;
 
 // ─── Prose description (for docs / audit reports) ─────────────────────────
 

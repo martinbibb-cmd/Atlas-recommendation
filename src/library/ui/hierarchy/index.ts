@@ -26,6 +26,7 @@ export {
 export {
   cardPriorityClass,
   cardPriorityAriaLabel,
+  CARD_PRIORITY_SHOULD_BE_GROUPED,
   CARD_PRIORITY_GROUPED,
   CARD_EMPHASIS_DESCRIPTIONS,
 } from './cardEmphasisRules';

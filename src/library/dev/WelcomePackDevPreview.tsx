@@ -627,10 +627,16 @@ export function WelcomePackDevPreview() {
         const diagramCount = calmViewModel.diagramsBySection?.[section.sectionId]?.length ?? 0;
         const priorityCounts = { primary: 0, supporting: 0, optional: 0, deferred: 0 };
         for (const card of section.cards) {
+          // Use 'lived_experience' as fallback so cards with no matching rule
+          // remain 'supporting' (visible) rather than silently becoming deferred.
           const rule = educationalSequenceRules.find((r) => r.conceptId === card.conceptId);
-          const level = priorityFromSequenceStage(rule?.sequenceStage ?? 'technical_detail');
+          const level = priorityFromSequenceStage(rule?.sequenceStage ?? 'lived_experience');
           priorityCounts[level] += 1;
         }
+        // CalmWelcomePackCardV1 only carries safetyNotice as a callout field.
+        // Additional callout types (analogy, misconception, what-you-may-notice)
+        // live in EducationalContentV1 and are not yet surfaced on the card model,
+        // so calloutCount is a lower-bound approximation here.
         return makeSectionSummary(section.sectionId, {
           ...priorityCounts,
           diagramCount,

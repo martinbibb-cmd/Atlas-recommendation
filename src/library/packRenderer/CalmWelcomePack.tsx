@@ -15,7 +15,10 @@ function renderCards(section: CalmWelcomePackSectionV1) {
     <ul className="cwpr-card-list">
       {section.cards.map((card) => {
         const rule = educationalSequenceRules.find((r) => r.conceptId === card.conceptId);
-        const priority = priorityFromSequenceStage(rule?.sequenceStage ?? 'technical_detail');
+        // Fall back to 'supporting' (visible, standard weight) so cards whose
+        // conceptId has no matching sequence rule remain in the pack rather than
+        // being silently treated as deferred/QR-only content.
+        const priority = priorityFromSequenceStage(rule?.sequenceStage ?? 'lived_experience');
         const priorityCls = cardPriorityClass(priority);
         const ariaLabel = cardPriorityAriaLabel(card.title, priority);
         return (
