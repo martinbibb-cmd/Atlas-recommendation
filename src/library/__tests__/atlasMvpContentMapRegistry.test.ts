@@ -47,7 +47,6 @@ const SCARE_WORDS = ['dangerous', 'catastrophic', 'fatal'];
 describe('atlasMvpContentMapRegistry', () => {
   it('contains the exact 21 requested MVP content IDs', () => {
     const ids = atlasMvpContentMapRegistry.map((entry) => entry.id);
-    expect(ids).toHaveLength(21);
     expect(ids).toEqual(REQUIRED_IDS);
   });
 
