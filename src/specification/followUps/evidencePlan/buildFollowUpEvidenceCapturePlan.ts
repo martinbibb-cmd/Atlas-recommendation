@@ -47,6 +47,15 @@ function sortStrings(values: readonly string[]): string[] {
   return [...values].sort((a, b) => a.localeCompare(b));
 }
 
+function hashString(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
 function collectLocationById(engineerJobPack: EngineerJobPackV1): Map<string, string> {
   type EngineerSectionKey = Exclude<keyof EngineerJobPackV1, 'jobPackVersion' | 'surveyData' | 'scanData'>;
   const sectionKeys: readonly EngineerSectionKey[] = [
@@ -116,7 +125,7 @@ function buildTaskEvidenceDrafts(
   const targetLocation = primaryLocationId ? locationById.get(primaryLocationId) : undefined;
   const drafts: EvidenceDraft[] = [];
 
-  if (task.source === 'missing_qualification' || /\bg3\b|mcs|qualification|certificate|certification/.test(text)) {
+  if (task.source === 'missing_qualification' || /(^|[^a-z0-9])g3([^a-z0-9]|$)|mcs|qualification|certificate|certification/.test(text)) {
     drafts.push(makeDraft(
       task,
       'qualification_check',
@@ -343,9 +352,9 @@ export function buildFollowUpEvidenceCapturePlan(
       .flatMap((item) => item.taskIds),
   );
 
-  const taskSeed = sortedTasks.map((task) => task.taskId).join('_');
+  const taskSeed = sortedTasks.map((task) => task.taskId).join('|');
   return {
-    planId: `follow_up_evidence_plan_v1${taskSeed ? `_${taskSeed}` : ''}`,
+    planId: `follow_up_evidence_plan_v1_${hashString(taskSeed)}`,
     tasks: sortedTasks,
     requiredEvidence,
     optionalEvidence,

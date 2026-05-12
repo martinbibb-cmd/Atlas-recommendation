@@ -103,13 +103,16 @@ export default function FollowUpEvidencePlanPanel({ plan, engineerJobPack }: Pro
                 {item.taskIds.length > 0 ? (
                   <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
                     <strong>Task → evidence required:</strong>{' '}
-                    {item.taskIds.map((taskId, index) => (
-                      <span key={taskId}>
-                        {index > 0 ? ', ' : ''}
-                        {taskId}
-                        {taskById.get(taskId) ? ` (${taskById.get(taskId)!.title})` : ''}
-                      </span>
-                    ))}
+                    {item.taskIds.map((taskId, index) => {
+                      const linkedTask = taskById.get(taskId);
+                      return (
+                        <span key={taskId}>
+                          {index > 0 ? ', ' : ''}
+                          {taskId}
+                          {linkedTask ? ` (${linkedTask.title})` : ''}
+                        </span>
+                      );
+                    })}
                   </p>
                 ) : null}
 
