@@ -239,6 +239,19 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(screen.getByTestId('dev-implementation-pack-panel')).toBeTruthy();
   });
 
+  it('implementation pack view exposes Pack summary and Specification lines tabs', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tabs')).toBeTruthy());
+
+    expect(screen.getByTestId('dev-implementation-pack-tab-pack-summary')).toBeTruthy();
+    const specTab = screen.getByTestId('dev-implementation-pack-tab-specification-lines');
+    expect(specTab).toBeTruthy();
+
+    fireEvent.click(specTab);
+    await waitFor(() => expect(screen.getByTestId('specification-line-review-panel')).toBeTruthy());
+  });
+
   it('stored/unvented shows G3 qualification', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
