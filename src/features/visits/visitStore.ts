@@ -59,7 +59,11 @@ export function retrieveActiveVisit(): AtlasVisit | null {
     typeof visit.visitId !== 'string' ||
     visit.visitId.trim().length === 0 ||
     typeof visit.brandId !== 'string' ||
-    visit.brandId.trim().length === 0
+    visit.brandId.trim().length === 0 ||
+    (visit.atlasUserId !== undefined &&
+      (typeof visit.atlasUserId !== 'string' || visit.atlasUserId.trim().length === 0)) ||
+    (visit.workspaceId !== undefined &&
+      (typeof visit.workspaceId !== 'string' || visit.workspaceId.trim().length === 0))
   ) {
     return null;
   }
@@ -73,4 +77,3 @@ export function retrieveActiveVisit(): AtlasVisit | null {
 export function clearActiveVisit(): void {
   localAdapter.deleteSync('visits', ACTIVE_VISIT_ID);
 }
-

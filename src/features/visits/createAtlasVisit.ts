@@ -42,6 +42,12 @@ export interface AtlasVisit {
    * Never exposed to analytics without explicit opt-in.
    */
   createdByUserId?: string;
+
+  /** Authenticated Atlas user identity for this visit (Mind source of truth). */
+  atlasUserId?: string;
+
+  /** Workspace owning this visit (Mind source of truth). */
+  workspaceId?: string;
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
@@ -54,11 +60,18 @@ export interface AtlasVisit {
  * @param createdByUserId   - Optional userId of the engineer creating the visit.
  * @returns                 A fully-populated AtlasVisit ready for context / storage.
  */
-export function createAtlasVisit(visitId: string, brandId?: string, createdByUserId?: string): AtlasVisit {
+export function createAtlasVisit(
+  visitId: string,
+  brandId?: string,
+  createdByUserId?: string,
+  identity?: { atlasUserId?: string; workspaceId?: string },
+): AtlasVisit {
   return {
     visitId,
     brandId: brandId ?? DEFAULT_BRAND_ID,
     createdAt: new Date().toISOString(),
     ...(createdByUserId !== undefined ? { createdByUserId } : {}),
+    ...(identity?.atlasUserId !== undefined ? { atlasUserId: identity.atlasUserId } : {}),
+    ...(identity?.workspaceId !== undefined ? { workspaceId: identity.workspaceId } : {}),
   };
 }

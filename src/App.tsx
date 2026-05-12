@@ -109,6 +109,10 @@ import { ActiveUserProvider } from './features/userProfiles/ActiveUserProvider';
 import { useActiveUser } from './features/userProfiles/useActiveUser';
 import { useRolePermissions } from './features/userProfiles/useRolePermissions';
 import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
+import { AtlasAuthProvider } from './auth/AtlasAuthProvider';
+import { RequireAuth } from './auth/RequireAuth';
+import { useAtlasAuth } from './auth/useAtlasAuth';
+import { upsertVisitIdentity } from './visits/visitIdentityStore';
 import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
 import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
 import type { CanonicalCurrentSystemSummary } from './features/installationSpecification/ui/installationSpecificationUiTypes';
@@ -754,6 +758,7 @@ function AppInner() {
 
   /** Active user profile — used for workspace defaults and visit attribution. */
   const { activeUser } = useActiveUser();
+  const { userProfile: atlasUserProfile, currentWorkspace } = useAtlasAuth();
 
   /** Role-based UI permission flags derived from the active user's role. */
   const {
@@ -840,6 +845,12 @@ function AppInner() {
     });
     setHydratedPersistedVisitId(activeVisitId);
   }, [activeVisitId, hydratedPersistedVisitId, labEngineInput]);
+
+  useEffect(() => {
+    if (!activeAtlasVisit?.visitId) return;
+    if (!activeAtlasVisit.workspaceId || !activeAtlasVisit.atlasUserId) return;
+    upsertVisitIdentity(activeAtlasVisit.visitId, activeAtlasVisit.workspaceId, activeAtlasVisit.atlasUserId);
+  }, [activeAtlasVisit]);
 
   useEffect(() => {
     if (!activeVisitId || !labFullSurveyModel || ENGINEER_VISIT_ID != null) return;
@@ -1163,12 +1174,28 @@ function AppInner() {
         onVisitReady={(visit) => {
           // Persist the AtlasVisit (including brandId) so the App restores
           // the correct brand when navigating to the visit hub.
-          const atlasVisit = createAtlasVisit(visit.visitId, visit.brandId ?? DEFAULT_BRAND_ID);
+          const atlasVisit = createAtlasVisit(
+            visit.visitId,
+            visit.brandId ?? DEFAULT_BRAND_ID,
+            activeUser?.userId,
+            {
+              atlasUserId: atlasUserProfile?.atlasUserId,
+              workspaceId: currentWorkspace?.workspaceId,
+            },
+          );
           storeActiveVisit(atlasVisit);
           window.location.href = `/?visitId=${encodeURIComponent(visit.visitId)}`;
         }}
         onOpenEngineerEvidence={(visit) => {
-          const atlasVisit = createAtlasVisit(visit.visitId, visit.brandId ?? DEFAULT_BRAND_ID);
+          const atlasVisit = createAtlasVisit(
+            visit.visitId,
+            visit.brandId ?? DEFAULT_BRAND_ID,
+            activeUser?.userId,
+            {
+              atlasUserId: atlasUserProfile?.atlasUserId,
+              workspaceId: currentWorkspace?.workspaceId,
+            },
+          );
           storeActiveVisit(atlasVisit);
           window.location.href = `/visit/${encodeURIComponent(visit.visitId)}/engineer`;
         }}
@@ -2408,8 +2435,12 @@ function AppInner() {
 
 export default function App() {
   return (
-    <ActiveUserProvider>
-      <AppInner />
-    </ActiveUserProvider>
+    <AtlasAuthProvider>
+      <ActiveUserProvider>
+        <RequireAuth>
+          <AppInner />
+        </RequireAuth>
+      </ActiveUserProvider>
+    </AtlasAuthProvider>
   );
 }
