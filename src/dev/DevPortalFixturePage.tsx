@@ -34,6 +34,8 @@ import { buildSuggestedImplementationPack } from '../specification/buildSuggeste
 import ImplementationPackReviewPanel from '../components/dev/ImplementationPackReviewPanel';
 import { buildSpecificationLinesFromImplementationPack } from '../specification/specLines';
 import SpecificationLineReviewPanel from '../components/dev/SpecificationLineReviewPanel';
+import { buildInstallationScopePacks } from '../specification/scopePacks';
+import InstallationScopePackReviewPanel from '../components/dev/InstallationScopePackReviewPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -303,7 +305,7 @@ interface ActiveFixture {
   initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack';
 }
 
-type ImplementationPackTabKey = 'pack_summary' | 'specification_lines';
+type ImplementationPackTabKey = 'pack_summary' | 'scope_packs' | 'specification_lines';
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
 
@@ -675,6 +677,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
     if (active.initialView === 'implementation_pack') {
       const implementationPack = buildImplementationPackForFixture(active.fixture);
       const specificationLines = buildSpecificationLinesFromImplementationPack(implementationPack.pack);
+      const scopePacks = buildInstallationScopePacks(specificationLines, implementationPack.pack);
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -758,6 +761,16 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 <button
                   type="button"
                   role="tab"
+                  aria-selected={implementationPackTab === 'scope_packs'}
+                  onClick={() => setImplementationPackTab('scope_packs')}
+                  className="dev-portal-fixture__btn"
+                  data-testid="dev-implementation-pack-tab-scope-packs"
+                >
+                  Scope packs
+                </button>
+                <button
+                  type="button"
+                  role="tab"
                   aria-selected={implementationPackTab === 'specification_lines'}
                   onClick={() => setImplementationPackTab('specification_lines')}
                   className="dev-portal-fixture__btn"
@@ -768,6 +781,8 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               </div>
               {implementationPackTab === 'pack_summary' ? (
                 <ImplementationPackReviewPanel pack={implementationPack.pack} />
+              ) : implementationPackTab === 'scope_packs' ? (
+                <InstallationScopePackReviewPanel packs={scopePacks} lines={specificationLines} />
               ) : (
                 <SpecificationLineReviewPanel lines={specificationLines} />
               )}
