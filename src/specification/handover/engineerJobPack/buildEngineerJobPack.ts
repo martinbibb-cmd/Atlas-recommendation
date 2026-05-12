@@ -5,8 +5,10 @@ import type {
   UnresolvedRisk,
 } from '../../SuggestedImplementationPackV1';
 import type { ScanDataInput } from '../../buildSuggestedImplementationPack';
+import type { SpecificationLineV1 } from '../../specLines/SpecificationLineV1';
 import type { ScopePackHandoverV1 } from '../ScopePackHandoverV1';
 import type { EngineerJobPackItemV1, EngineerJobPackV1 } from './EngineerJobPackV1';
+import { resolveEngineerJobLocation } from './locationResolver';
 
 const MAX_BULLETS_PER_SECTION = 7;
 const MAX_BULLET_TEXT_LENGTH = 140;
@@ -53,18 +55,6 @@ function deriveRelatedRiskIdFromValidation(validationId: string): string | undef
   return validationId.startsWith('validation_') ? validationId.slice('validation_'.length) : undefined;
 }
 
-function inferLocation(text: string): string | undefined {
-  const lower = text.toLowerCase();
-  if (lower.includes('loft')) return 'Loft';
-  if (lower.includes('airing cupboard') || lower.includes('cylinder')) return 'Cylinder cupboard';
-  if (lower.includes('boiler') || lower.includes('flue')) return 'Boiler location';
-  if (lower.includes('tundish') || lower.includes('discharge')) return 'Discharge route';
-  if (lower.includes('outdoor') || lower.includes('external')) return 'External wall/outdoor area';
-  if (lower.includes('pipe') || lower.includes('flow') || lower.includes('return')) return 'Pipe runs';
-  if (lower.includes('controls') || lower.includes('thermostat')) return 'Controls location';
-  return undefined;
-}
-
 function stableDeduplicate(items: readonly EngineerJobPackItemV1[]): EngineerJobPackItemV1[] {
   const seen = new Set<string>();
   const deduped: EngineerJobPackItemV1[] = [];
@@ -94,7 +84,7 @@ function finalizeSection(items: readonly EngineerJobPackItemV1[]): EngineerJobPa
     .map((item) => ({
       ...item,
       text: clipText(item.text),
-      location: item.location ? clipText(item.location) : undefined,
+      location: item.location ? { ...item.location, label: clipText(item.location.label) } : undefined,
     }))
     .filter((item) => item.text.length > 0);
   return stableDeduplicate(sortUnresolvedNearTop(sanitized)).slice(0, MAX_BULLETS_PER_SECTION);
@@ -111,7 +101,7 @@ function toItem(
     text: normalized,
     confidence: options.confidence ?? 'inferred',
     sourceLineId: options.sourceLineId,
-    location: options.location ?? inferLocation(normalized),
+    location: options.location,
     relatedRiskId: options.relatedRiskId,
     mustConfirmOnSite: options.mustConfirmOnSite,
   };
@@ -144,6 +134,7 @@ export function buildEngineerJobPack(
   implementationPack: SuggestedImplementationPackV1,
   surveyData?: EngineInputV2_3Contract,
   scanData?: ScanDataInput,
+  specificationLines: readonly SpecificationLineV1[] = [],
 ): EngineerJobPackV1 {
   const engineerLines = handover.engineerInstallNotes.packs.flatMap((pack) => pack.lines);
   const customerLines = handover.customerScopeSummary.packs.flatMap((pack) => pack.lines);
@@ -151,7 +142,20 @@ export function buildEngineerJobPack(
   const dischargeRequirementItems = (implementationPack.hotWater.dischargeRequirements ?? []).map((requirement) =>
     toItem(requirement, { confidence: 'needs_survey', mustConfirmOnSite: true }));
 
-  const jobSummary = finalizeSection([
+  const resolveLocations = (items: readonly EngineerJobPackItemV1[]): EngineerJobPackItemV1[] =>
+    items.map((item) => ({
+      ...item,
+      location: resolveEngineerJobLocation({
+        text: item.text,
+        sourceLineId: item.sourceLineId,
+        surveyData,
+        scanData,
+        implementationPack,
+        specificationLines,
+      }),
+    }));
+
+  const jobSummary = finalizeSection(resolveLocations([
     toItem(`Scenario: ${implementationPack.recommendedScenarioId}`, { confidence: 'confirmed' }),
     toItem(`Heat source: ${implementationPack.heatSource.label}`, { confidence: 'confirmed' }),
     toItem(
@@ -161,9 +165,9 @@ export function buildEngineerJobPack(
     ...(surveyData?.occupancy?.peakConcurrentOutlets != null
       ? [toItem(`Peak concurrent outlets: ${surveyData.occupancy.peakConcurrentOutlets}`, { confidence: 'confirmed' })]
       : []),
-  ]);
+  ]));
 
-  const fitThis = finalizeSection([
+  const fitThis = finalizeSection(resolveLocations([
     ...engineerLines
       .filter((line) => line.lineType === 'included_scope' || line.lineType === 'material_suggestion')
       .map((line) =>
@@ -175,9 +179,9 @@ export function buildEngineerJobPack(
       toItem(`${component.description}${component.suggestedSpec ? ` — ${component.suggestedSpec}` : ''}`, {
         confidence: component.confidence === 'required' ? 'confirmed' : component.confidence === 'suggested' ? 'inferred' : 'needs_survey',
       })),
-  ]);
+  ]));
 
-  const removeThis = finalizeSection([
+  const removeThis = finalizeSection(resolveLocations([
     ...engineerLines
       .filter((line) =>
         REMOVE_ACTION_REGEX.test(`${line.label} ${line.description}`))
@@ -189,9 +193,9 @@ export function buildEngineerJobPack(
     ...implementationPack.pipework.topologyNotes
       .filter((note) => REMOVE_ACTION_REGEX.test(note))
       .map((note) => toItem(note, { confidence: 'inferred' })),
-  ]);
+  ]));
 
-  const checkThis = finalizeSection([
+  const checkThis = finalizeSection(resolveLocations([
     ...implementationPack.safetyCompliance.requiredQualifications
       .filter((qualification) => qualification.id === 'g3_unvented')
       .map((qualification) =>
@@ -210,9 +214,9 @@ export function buildEngineerJobPack(
     ...dischargeRequirementItems,
     ...(implementationPack.hotWater.expansionManagement ?? []).map((management) =>
       toItem(management, { confidence: 'needs_survey', mustConfirmOnSite: true })),
-  ]);
+  ]));
 
-  const discussWithCustomer = finalizeSection([
+  const discussWithCustomer = finalizeSection(resolveLocations([
     ...customerLines.map((line) =>
       toItem(`Confirm with customer: ${toActionLine(line.label, line.description)}`, {
         sourceLineId: line.lineId,
@@ -226,9 +230,9 @@ export function buildEngineerJobPack(
           relatedRiskId: risk.id,
           mustConfirmOnSite: true,
         })),
-  ]);
+  ]));
 
-  const locationsAndRoutes = finalizeSection([
+  const locationsAndRoutes = finalizeSection(resolveLocations([
     ...implementationPack.pipework.routingNotes.map((note) =>
       toItem(note, { confidence: 'needs_survey', mustConfirmOnSite: true })),
     ...engineerLines
@@ -242,9 +246,9 @@ export function buildEngineerJobPack(
     ...(scanData?.engineerNotes
       ? [toItem(`Engineer note: ${scanData.engineerNotes}`, { confidence: 'inferred', mustConfirmOnSite: true })]
       : []),
-  ]);
+  ]));
 
-  const commissioning = finalizeSection([
+  const commissioning = finalizeSection(resolveLocations([
     ...implementationPack.commissioning.steps.map((step) => {
       const requiresSiteCheck = CHECK_ON_SITE_REGEX.test(step);
       return toItem(step, {
@@ -257,9 +261,9 @@ export function buildEngineerJobPack(
     ...implementationPack.safetyCompliance.requiredComplianceItems
       .filter((item) => COMMISSIONING_G3_REGEX.test(`${item.id} ${item.description}`))
       .map((item) => toItem(`${item.description}${item.regulatoryRef ? ` — ${item.regulatoryRef}` : ''}`, { confidence: 'confirmed' })),
-  ]);
+  ]));
 
-  const unresolvedBeforeInstall = finalizeSection([
+  const unresolvedBeforeInstall = finalizeSection(resolveLocations([
     ...implementationPack.allUnresolvedRisks.map(fromRisk),
     ...unresolvedChecks.map((check) =>
       toItem(`${check.label} — ${check.detail}`, {
@@ -267,9 +271,9 @@ export function buildEngineerJobPack(
         sourceLineId: check.sourceType === 'line' ? check.sourceId : undefined,
         mustConfirmOnSite: true,
       })),
-  ]);
+  ]));
 
-  const doNotMiss = finalizeSection([
+  const doNotMiss = finalizeSection(resolveLocations([
     ...implementationPack.safetyCompliance.requiredQualifications.map((qualification) =>
       toItem(`${qualification.label} — ${qualification.triggeredBy}`, { confidence: 'confirmed' })),
     ...implementationPack.safetyCompliance.requiredComplianceItems
@@ -278,7 +282,18 @@ export function buildEngineerJobPack(
     ...implementationPack.allUnresolvedRisks
       .filter((risk) => risk.severity === 'required')
       .map(fromRisk),
-  ]);
+  ]));
+
+  const locationsToConfirm = finalizeSection([
+    ...fitThis,
+    ...removeThis,
+    ...checkThis,
+    ...discussWithCustomer,
+    ...locationsAndRoutes,
+    ...commissioning,
+    ...unresolvedBeforeInstall,
+    ...doNotMiss,
+  ].filter((item) => item.location?.confidence === 'needs_survey'));
 
   return {
     jobPackVersion: 'v1',
@@ -291,6 +306,7 @@ export function buildEngineerJobPack(
     commissioning,
     unresolvedBeforeInstall,
     doNotMiss,
+    locationsToConfirm,
     surveyData,
     scanData,
   };

@@ -1,5 +1,6 @@
 import type { EngineInputV2_3Contract } from '../../../contracts/EngineInputV2_3';
 import type { ScanDataInput } from '../../buildSuggestedImplementationPack';
+import type { EngineerJobLocationV1 } from './locationResolver';
 
 export type EngineerJobPackItemConfidence = 'confirmed' | 'inferred' | 'needs_survey';
 
@@ -7,7 +8,7 @@ export interface EngineerJobPackItemV1 {
   readonly text: string;
   readonly sourceLineId?: string;
   readonly confidence: EngineerJobPackItemConfidence;
-  readonly location?: string;
+  readonly location?: EngineerJobLocationV1;
   readonly relatedRiskId?: string;
   readonly mustConfirmOnSite?: boolean;
 }
@@ -23,6 +24,7 @@ export interface EngineerJobPackV1 {
   readonly commissioning: readonly EngineerJobPackItemV1[];
   readonly unresolvedBeforeInstall: readonly EngineerJobPackItemV1[];
   readonly doNotMiss: readonly EngineerJobPackItemV1[];
+  readonly locationsToConfirm: readonly EngineerJobPackItemV1[];
   readonly surveyData?: EngineInputV2_3Contract;
   readonly scanData?: ScanDataInput;
 }
