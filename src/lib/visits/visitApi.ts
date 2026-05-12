@@ -132,6 +132,8 @@ export async function createVisit(opts: {
   address_line_1?: string;
   postcode?: string;
   visit_reference?: string;
+  workspace_id?: string;
+  atlas_user_id?: string;
 } = {}): Promise<{ ok: true; id: string }> {
   const res = await fetch("/api/visits", {
     method: "POST",

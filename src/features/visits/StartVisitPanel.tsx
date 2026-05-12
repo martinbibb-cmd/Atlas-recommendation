@@ -17,7 +17,7 @@
  * - Workspace selection drives brandId via resolveActiveTenant().
  */
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { createVisit } from '../../lib/visits/visitApi';
 import { createAtlasVisit } from './createAtlasVisit';
 import type { AtlasVisit } from './createAtlasVisit';
@@ -25,6 +25,7 @@ import { WorkspaceSelector } from '../tenants/WorkspaceSelector';
 import { resolveActiveTenant } from '../tenants/activeTenant';
 import { trackVisitCreated } from '../analytics/analyticsTracker';
 import { useActiveUser } from '../userProfiles/useActiveUser';
+import { AtlasAuthContext } from '../../auth/AtlasAuthContext';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,9 @@ interface StartVisitPanelProps {
  */
 export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCreateWorkspace }: StartVisitPanelProps) {
   const { activeUser } = useActiveUser();
+  const authContext = useContext(AtlasAuthContext);
+  const userProfile = authContext?.userProfile ?? null;
+  const currentWorkspace = authContext?.currentWorkspace ?? null;
 
   // Workspace default priority: explicit prop (host workspace) > active user default > 'atlas'
   const resolvedDefaultSlug = defaultWorkspaceSlug ?? activeUser?.defaultWorkspaceSlug ?? 'atlas';
@@ -82,10 +86,17 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
     setCreating(true);
     setError(null);
     try {
-      const opts = reference.trim().length > 0 ? { visit_reference: reference.trim() } : {};
+      const opts = {
+        ...(reference.trim().length > 0 ? { visit_reference: reference.trim() } : {}),
+        ...(currentWorkspace?.workspaceId !== undefined ? { workspace_id: currentWorkspace.workspaceId } : {}),
+        ...(userProfile?.atlasUserId !== undefined ? { atlas_user_id: userProfile.atlasUserId } : {}),
+      };
       const { id } = await createVisit(opts);
       const tenant = resolveActiveTenant({ workspaceSlug });
-      const visit = createAtlasVisit(id, tenant.brandId, activeUser?.userId);
+      const visit = createAtlasVisit(id, tenant.brandId, activeUser?.userId, {
+        atlasUserId: userProfile?.atlasUserId,
+        workspaceId: currentWorkspace?.workspaceId,
+      });
       trackVisitCreated(visit, tenant.tenantId);
       onStart(visit);
     } catch (err) {

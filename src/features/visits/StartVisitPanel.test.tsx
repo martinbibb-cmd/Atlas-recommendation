@@ -20,6 +20,7 @@ import { StartVisitPanel } from './StartVisitPanel';
 import type { AtlasVisit } from './createAtlasVisit';
 import * as visitApi from '../../lib/visits/visitApi';
 import { ActiveUserProvider } from '../userProfiles/ActiveUserProvider';
+import { AtlasAuthProvider } from '../../auth/AtlasAuthProvider';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +31,11 @@ vi.mock('../../lib/visits/visitApi', () => ({
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return <ActiveUserProvider>{children}</ActiveUserProvider>;
+  return (
+    <AtlasAuthProvider>
+      <ActiveUserProvider>{children}</ActiveUserProvider>
+    </AtlasAuthProvider>
+  );
 }
 
 function renderPanel(overrides?: { onStart?: (visit: AtlasVisit) => void; onCancel?: () => void }) {
