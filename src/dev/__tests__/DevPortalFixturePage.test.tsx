@@ -237,6 +237,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
     await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-shell')).toBeTruthy());
     expect(screen.getByTestId('dev-implementation-pack-panel')).toBeTruthy();
+    expect(screen.getByTestId('specification-readiness-panel')).toBeTruthy();
   });
 
   it('implementation pack view exposes Pack summary, Scope packs, Specification lines, Engineer job pack, Materials schedule, and Handover preview tabs', async () => {
