@@ -10,3 +10,9 @@ export type {
 } from './locationResolver';
 export { resolveEngineerJobLocation } from './locationResolver';
 export { buildEngineerJobPack } from './buildEngineerJobPack';
+export type {
+  EngineerJobWalkthroughConfidenceSummary,
+  EngineerJobWalkthroughSectionV1,
+  EngineerJobWalkthroughV1,
+} from './EngineerJobWalkthroughV1';
+export { buildEngineerJobWalkthrough } from './buildEngineerJobWalkthrough';

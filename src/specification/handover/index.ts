@@ -18,5 +18,8 @@ export type {
   EngineerJobLocationV1,
   EngineerJobPackItemV1,
   EngineerJobPackV1,
+  EngineerJobWalkthroughConfidenceSummary,
+  EngineerJobWalkthroughSectionV1,
+  EngineerJobWalkthroughV1,
 } from './engineerJobPack';
-export { buildEngineerJobPack } from './engineerJobPack';
+export { buildEngineerJobPack, buildEngineerJobWalkthrough } from './engineerJobPack';
