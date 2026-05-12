@@ -10,13 +10,6 @@ import type {
   SurveyFollowUpTaskV1,
 } from './SurveyFollowUpTaskV1';
 
-interface BuildSurveyFollowUpTasksInput {
-  readiness: SpecificationReadinessV1;
-  specificationLines: readonly SpecificationLineV1[];
-  materialsSchedule: readonly SuggestedMaterialLineV1[];
-  engineerJobPack: EngineerJobPackV1;
-}
-
 interface TaskSeed {
   readonly title: string;
   readonly description: string;
@@ -199,9 +192,8 @@ function matchRelatedLocationIds(text: string, engineerItems: readonly EngineerI
 }
 
 function mergeSeeds(existing: TaskSeed, incoming: TaskSeed): TaskSeed {
-  const source = SOURCE_SPECIFICITY[incoming.source] < SOURCE_SPECIFICITY[existing.source]
-    ? incoming.source
-    : existing.source;
+  const incomingSourceIsMoreSpecific = SOURCE_SPECIFICITY[incoming.source] < SOURCE_SPECIFICITY[existing.source];
+  const source = incomingSourceIsMoreSpecific ? incoming.source : existing.source;
   const priority = PRIORITY_ORDER[incoming.priority] < PRIORITY_ORDER[existing.priority]
     ? incoming.priority
     : existing.priority;
@@ -216,7 +208,7 @@ function mergeSeeds(existing: TaskSeed, incoming: TaskSeed): TaskSeed {
       : incoming.description,
     source,
     priority,
-    assignedRole: existing.assignedRole,
+    assignedRole: incomingSourceIsMoreSpecific ? incoming.assignedRole : existing.assignedRole,
     relatedSectionKey: existing.relatedSectionKey ?? incoming.relatedSectionKey,
     relatedLineIds: stableUnique([...existing.relatedLineIds, ...incoming.relatedLineIds]),
     relatedMaterialIds: stableUnique([...existing.relatedMaterialIds, ...incoming.relatedMaterialIds]),
@@ -247,7 +239,7 @@ export function buildSurveyFollowUpTasks(
   const seedsByKey = new Map<string, TaskSeed>();
 
   const addSeed = (seed: TaskSeed) => {
-    const key = `${normalizeText(seed.title)}|${seed.assignedRole}`;
+    const key = normalizeText(seed.title);
     const existing = seedsByKey.get(key);
     if (!existing) {
       seedsByKey.set(key, {
