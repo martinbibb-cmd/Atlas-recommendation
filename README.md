@@ -74,6 +74,16 @@ This project is deployed to **Cloudflare Pages** (not GitHub Pages).
 1. Go to **Workers & Pages** → your project → **Deployments**.
 2. Click **Retry deployment** on the latest deployment, **or** push a new commit to trigger a fresh build.
 
+#### Firebase client variables (Cloudflare Pages)
+
+Set Firebase values in **Settings → Variables and Secrets** for your Pages project.
+
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_APP_ID`
+- Optional others used by your Firebase project (`VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_MEASUREMENT_ID`)
+- API key can be provided as either `VITE_FIREBASE_API_KEY` or `firebase_api_key`
+
 #### 5. Apply D1 migrations
 
 After the project is deployed, apply the database schema:
