@@ -46,6 +46,8 @@ import type { SuggestedMaterialLineV1 } from '../specification/materials';
 import MaterialsScheduleReviewPanel from '../components/dev/MaterialsScheduleReviewPanel';
 import SpecificationReadinessPanel from '../components/dev/SpecificationReadinessPanel';
 import { assessSpecificationReadiness } from '../specification/readiness';
+import { buildSurveyFollowUpTasks } from '../specification/followUps';
+import SurveyFollowUpTaskPanel from '../components/dev/SurveyFollowUpTaskPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -738,6 +740,12 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         engineerJobPack,
         materialsSchedule,
       });
+      const surveyFollowUpTasks = buildSurveyFollowUpTasks(
+        specificationReadiness,
+        specificationLines,
+        materialsSchedule,
+        engineerJobPack,
+      );
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -804,6 +812,14 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Implementation Pack</h2>
               <div style={{ marginBottom: '0.75rem' }}>
                 <SpecificationReadinessPanel readiness={specificationReadiness} />
+              </div>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <SurveyFollowUpTaskPanel
+                  tasks={surveyFollowUpTasks}
+                  lines={specificationLines}
+                  materials={materialsSchedule}
+                  engineerJobPack={engineerJobPack}
+                />
               </div>
               <div
                 style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}
