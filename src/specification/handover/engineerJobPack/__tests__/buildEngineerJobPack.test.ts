@@ -131,7 +131,7 @@ function allSections(pack: ReturnType<typeof buildEngineerJobPack>) {
 describe('buildEngineerJobPack', () => {
   it('output contains no educational copy', () => {
     const { implementationPack, handover, surveyInput, scanData, specificationLines } = buildFixture();
-    const pack = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
+    const pack = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
     const text = JSON.stringify(pack).toLowerCase();
     expect(text).not.toContain('why this wins');
     expect(text).not.toContain('plain english');
@@ -141,7 +141,7 @@ describe('buildEngineerJobPack', () => {
 
   it('contains no paragraph-length items', () => {
     const { implementationPack, handover, surveyInput, scanData, specificationLines } = buildFixture();
-    const pack = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
+    const pack = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
     for (const section of allSections(pack)) {
       for (const item of section) {
         expect(item.text.length).toBeLessThanOrEqual(140);
@@ -151,7 +151,7 @@ describe('buildEngineerJobPack', () => {
 
   it('expansion vessel appears only in fit/check, not customer discussion', () => {
     const { implementationPack, handover, surveyInput, scanData, specificationLines } = buildFixture();
-    const pack = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
+    const pack = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
     const fitAndCheckText = JSON.stringify([...pack.fitThis, ...pack.checkThis]).toLowerCase();
     const discussText = JSON.stringify(pack.discussWithCustomer).toLowerCase();
     expect(fitAndCheckText).toContain('expansion vessel');
@@ -160,7 +160,7 @@ describe('buildEngineerJobPack', () => {
 
   it('G3 and tundish appear under check/commissioning sections', () => {
     const { implementationPack, handover, surveyInput, scanData, specificationLines } = buildFixture();
-    const pack = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
+    const pack = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
     const checkAndCommissioningText = JSON.stringify([
       ...pack.checkThis,
       ...pack.commissioning,
@@ -171,7 +171,7 @@ describe('buildEngineerJobPack', () => {
 
   it('unresolved risks are marked for on-site confirmation', () => {
     const { implementationPack, handover, surveyInput, scanData, specificationLines } = buildFixture();
-    const pack = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
+    const pack = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
     expect(pack.unresolvedBeforeInstall.length).toBeGreaterThan(0);
     expect(pack.unresolvedBeforeInstall[0]?.mustConfirmOnSite).toBe(true);
     for (const item of pack.unresolvedBeforeInstall) {
@@ -204,9 +204,9 @@ describe('buildEngineerJobPack', () => {
     const pack = buildEngineerJobPack(
       handover,
       inflatedImplementationPack,
+      specificationLines,
       surveyInput,
       scanData,
-      specificationLines,
     );
     for (const section of allSections(pack)) {
       expect(section.length).toBeLessThanOrEqual(7);
@@ -215,14 +215,14 @@ describe('buildEngineerJobPack', () => {
 
   it('is deterministic for the same inputs', () => {
     const { implementationPack, handover, surveyInput, scanData, specificationLines } = buildFixture();
-    const first = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
-    const second = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
+    const first = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
+    const second = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
   });
 
   it('maps tundish to cylinder/discharge route', () => {
     const { implementationPack, handover, surveyInput, scanData, specificationLines } = buildFixture();
-    const pack = buildEngineerJobPack(handover, implementationPack, surveyInput, scanData, specificationLines);
+    const pack = buildEngineerJobPack(handover, implementationPack, specificationLines, surveyInput, scanData);
     const tundishItem = allSections(pack)
       .flat()
       .find((item) => item.text.toLowerCase().includes('tundish'));
@@ -239,9 +239,9 @@ describe('buildEngineerJobPack', () => {
     const pack = buildEngineerJobPack(
       handover,
       implementationPack,
+      specificationLines,
       surveyInput,
       { pipeworkInspected: true, engineerNotes: 'Room by room emitter checks captured.' },
-      specificationLines,
     );
     const emitterItem = allSections(pack)
       .flat()
@@ -278,9 +278,9 @@ describe('buildEngineerJobPack', () => {
     const pack = buildEngineerJobPack(
       augmentedHandover,
       implementationPack,
+      specificationLines,
       surveyInput,
       scanData,
-      specificationLines,
     );
     const unknown = allSections(pack)
       .flat()

@@ -717,9 +717,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       const engineerJobPack = buildEngineerJobPack(
         scopePackHandover,
         implementationPack.pack,
+        specificationLines,
         mapEngineInputToContract(active.fixture.engineInput),
         undefined,
-        specificationLines,
       );
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null

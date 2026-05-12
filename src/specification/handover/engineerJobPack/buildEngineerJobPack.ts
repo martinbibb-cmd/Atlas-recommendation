@@ -132,9 +132,9 @@ function toActionLine(label: string, description: string): string {
 export function buildEngineerJobPack(
   handover: ScopePackHandoverV1,
   implementationPack: SuggestedImplementationPackV1,
+  specificationLines: readonly SpecificationLineV1[],
   surveyData?: EngineInputV2_3Contract,
   scanData?: ScanDataInput,
-  specificationLines: readonly SpecificationLineV1[],
 ): EngineerJobPackV1 {
   const engineerLines = handover.engineerInstallNotes.packs.flatMap((pack) => pack.lines);
   const customerLines = handover.customerScopeSummary.packs.flatMap((pack) => pack.lines);
