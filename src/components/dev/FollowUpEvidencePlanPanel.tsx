@@ -79,6 +79,7 @@ export default function FollowUpEvidencePlanPanel({ plan, engineerJobPack }: Pro
         <div style={{ display: 'grid', gap: '0.5rem' }}>
           {allEvidence.map((item) => {
             const firstTask = taskById.get(item.taskIds[0] ?? '');
+            const heading = firstTask ? `Evidence for: ${firstTask.title}` : `Evidence: ${item.evidenceId}`;
             const locationEvidence = firstTask?.relatedLocationIds
               .map((locationId) => locationById.get(locationId))
               .find(Boolean);
@@ -92,7 +93,7 @@ export default function FollowUpEvidencePlanPanel({ plan, engineerJobPack }: Pro
                 data-testid={`follow-up-evidence-card-${item.evidenceId}`}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                  <strong style={{ fontSize: 13 }}>{item.prompt}</strong>
+                  <strong style={{ fontSize: 13 }}>{heading}</strong>
                   <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                     {badge(item.required ? 'required' : 'optional', item.required ? '#fee2e2' : '#e2e8f0')}
                     {badge(item.evidenceType, '#dbeafe', '#1e3a8a')}
