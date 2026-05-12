@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { SpecificationLineStatus, SpecificationLineV1 } from '../../specification/specLines';
 
 interface Props {
   lines: readonly SpecificationLineV1[];
+  onLinesChange?: (lines: SpecificationLineV1[]) => void;
 }
 
 const SECTION_LABELS: Record<SpecificationLineV1['sectionKey'], string> = {
@@ -30,25 +31,19 @@ function Badge({ label, color }: { label: string; color: string }) {
   );
 }
 
-export default function SpecificationLineReviewPanel({ lines }: Props) {
-  const [draftLines, setDraftLines] = useState<SpecificationLineV1[]>(() => lines.map((line) => ({ ...line })));
-
-  useEffect(() => {
-    setDraftLines(lines.map((line) => ({ ...line })));
-  }, [lines]);
-
+export default function SpecificationLineReviewPanel({ lines, onLinesChange }: Props) {
   const grouped = useMemo(() => {
-    return draftLines.reduce<Record<string, SpecificationLineV1[]>>((acc, line) => {
+    return lines.reduce<Record<string, SpecificationLineV1[]>>((acc, line) => {
       const key = line.sectionKey;
       if (!acc[key]) acc[key] = [];
       acc[key].push(line);
       return acc;
     }, {});
-  }, [draftLines]);
+  }, [lines]);
 
   function updateLine(lineId: string, patch: Partial<SpecificationLineV1>) {
-    setDraftLines((current) =>
-      current.map((line) => {
+    onLinesChange?.(
+      lines.map((line) => {
         if (line.lineId !== lineId) return line;
         return { ...line, ...patch };
       }),

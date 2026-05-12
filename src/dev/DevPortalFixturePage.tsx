@@ -33,9 +33,13 @@ import { sectionsForMode } from '../features/insightPack/canonicalSections';
 import { buildSuggestedImplementationPack } from '../specification/buildSuggestedImplementationPack';
 import ImplementationPackReviewPanel from '../components/dev/ImplementationPackReviewPanel';
 import { buildSpecificationLinesFromImplementationPack } from '../specification/specLines';
+import type { SpecificationLineV1 } from '../specification/specLines';
 import SpecificationLineReviewPanel from '../components/dev/SpecificationLineReviewPanel';
 import { buildInstallationScopePacks } from '../specification/scopePacks';
+import type { InstallationScopePackV1 } from '../specification/scopePacks';
 import InstallationScopePackReviewPanel from '../components/dev/InstallationScopePackReviewPanel';
+import { buildScopePackHandover } from '../specification/handover';
+import ScopePackHandoverPreviewPanel from '../components/dev/ScopePackHandoverPreviewPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -303,9 +307,18 @@ interface DevPortalFixturePageProps {
 interface ActiveFixture {
   fixture: PortalFixture;
   initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack';
+  implementationReview?: {
+    implementationPack: ReturnType<typeof buildImplementationPackForFixture>;
+    specificationLines: SpecificationLineV1[];
+    scopePacks: InstallationScopePackV1[];
+  };
 }
 
-type ImplementationPackTabKey = 'pack_summary' | 'scope_packs' | 'specification_lines';
+type ImplementationPackTabKey =
+  | 'pack_summary'
+  | 'scope_packs'
+  | 'specification_lines'
+  | 'handover_preview';
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
 
@@ -473,7 +486,20 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       setPreviewMode(initialView === 'pdf_comparison' ? 'library_supporting_pdf' : 'current_insight_pdf');
     }
     if (initialView === 'implementation_pack') {
+      const implementationPack = buildImplementationPackForFixture(fixture);
+      const specificationLines = buildSpecificationLinesFromImplementationPack(implementationPack.pack);
+      const scopePacks = buildInstallationScopePacks(specificationLines, implementationPack.pack);
       setImplementationPackTab('pack_summary');
+      setActive({
+        fixture,
+        initialView,
+        implementationReview: {
+          implementationPack,
+          specificationLines,
+          scopePacks,
+        },
+      });
+      return;
     }
     setActive({ fixture, initialView });
   }
@@ -675,9 +701,17 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
     }
 
     if (active.initialView === 'implementation_pack') {
-      const implementationPack = buildImplementationPackForFixture(active.fixture);
-      const specificationLines = buildSpecificationLinesFromImplementationPack(implementationPack.pack);
-      const scopePacks = buildInstallationScopePacks(specificationLines, implementationPack.pack);
+      const reviewState = active.implementationReview;
+      if (!reviewState) {
+        throw new Error(`Missing implementation review state for fixture: ${active.fixture.id}`);
+      }
+
+      const { implementationPack, specificationLines, scopePacks } = reviewState;
+      const scopePackHandover = buildScopePackHandover(
+        scopePacks,
+        specificationLines,
+        implementationPack.pack,
+      );
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -778,13 +812,52 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 >
                   Specification lines
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={implementationPackTab === 'handover_preview'}
+                  onClick={() => setImplementationPackTab('handover_preview')}
+                  className="dev-portal-fixture__btn"
+                  data-testid="dev-implementation-pack-tab-handover-preview"
+                >
+                  Handover preview
+                </button>
               </div>
               {implementationPackTab === 'pack_summary' ? (
                 <ImplementationPackReviewPanel pack={implementationPack.pack} />
               ) : implementationPackTab === 'scope_packs' ? (
-                <InstallationScopePackReviewPanel packs={scopePacks} lines={specificationLines} />
+                <InstallationScopePackReviewPanel
+                  packs={scopePacks}
+                  lines={specificationLines}
+                  onPacksChange={(nextScopePacks) =>
+                    setActive((current) => {
+                      if (current?.implementationReview == null) return current;
+                      return {
+                        ...current,
+                        implementationReview: {
+                          ...current.implementationReview,
+                          scopePacks: nextScopePacks,
+                        },
+                      };
+                    })}
+                />
+              ) : implementationPackTab === 'specification_lines' ? (
+                <SpecificationLineReviewPanel
+                  lines={specificationLines}
+                  onLinesChange={(nextLines) =>
+                    setActive((current) => {
+                      if (current?.implementationReview == null) return current;
+                      return {
+                        ...current,
+                        implementationReview: {
+                          ...current.implementationReview,
+                          specificationLines: nextLines,
+                        },
+                      };
+                    })}
+                />
               ) : (
-                <SpecificationLineReviewPanel lines={specificationLines} />
+                <ScopePackHandoverPreviewPanel handover={scopePackHandover} />
               )}
             </section>
           </div>

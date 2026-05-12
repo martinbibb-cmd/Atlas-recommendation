@@ -13,13 +13,13 @@
  *   <InstallationScopePackReviewPanel packs={scopePacks} lines={specLines} />
  */
 
-import { useEffect, useState } from 'react';
 import type { InstallationScopePackV1, ScopePackReviewStatus } from '../../specification/scopePacks';
 import type { SpecificationLineV1 } from '../../specification/specLines';
 
 interface Props {
   packs: readonly InstallationScopePackV1[];
   lines: readonly SpecificationLineV1[];
+  onPacksChange?: (packs: InstallationScopePackV1[]) => void;
 }
 
 const STATUS_COLORS: Record<ScopePackReviewStatus, string> = {
@@ -97,24 +97,16 @@ function LineChip({ line }: { line: SpecificationLineV1 }) {
   );
 }
 
-export default function InstallationScopePackReviewPanel({ packs, lines }: Props) {
-  const [draftPacks, setDraftPacks] = useState<InstallationScopePackV1[]>(() =>
-    packs.map((p) => ({ ...p })),
-  );
-
-  useEffect(() => {
-    setDraftPacks(packs.map((p) => ({ ...p })));
-  }, [packs]);
-
+export default function InstallationScopePackReviewPanel({ packs, lines, onPacksChange }: Props) {
   const lineById = new Map(lines.map((l) => [l.lineId, l]));
 
   function updateStatus(packId: string, status: ScopePackReviewStatus) {
-    setDraftPacks((current) =>
-      current.map((p) => (p.packId === packId ? { ...p, reviewStatus: status } : p)),
+    onPacksChange?.(
+      packs.map((pack) => (pack.packId === packId ? { ...pack, reviewStatus: status } : pack)),
     );
   }
 
-  if (draftPacks.length === 0) {
+  if (packs.length === 0) {
     return (
       <p
         style={{ margin: 0, color: '#6b7280', fontSize: 13 }}
@@ -130,7 +122,7 @@ export default function InstallationScopePackReviewPanel({ packs, lines }: Props
       style={{ display: 'grid', gap: '1rem' }}
       data-testid="scope-pack-review-panel"
     >
-      {draftPacks.map((pack) => {
+      {packs.map((pack) => {
         const includedLines = pack.defaultIncludedLineIds
           .map((id) => lineById.get(id))
           .filter((l): l is SpecificationLineV1 => l !== undefined);
