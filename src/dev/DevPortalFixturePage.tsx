@@ -44,6 +44,8 @@ import EngineerJobPackPreviewPanel from '../components/dev/EngineerJobPackPrevie
 import { buildSuggestedMaterialsSchedule } from '../specification/materials';
 import type { SuggestedMaterialLineV1 } from '../specification/materials';
 import MaterialsScheduleReviewPanel from '../components/dev/MaterialsScheduleReviewPanel';
+import SpecificationReadinessPanel from '../components/dev/SpecificationReadinessPanel';
+import { assessSpecificationReadiness } from '../specification/readiness';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -728,6 +730,14 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         mapEngineInputToContract(active.fixture.engineInput),
         undefined,
       );
+      const specificationReadiness = assessSpecificationReadiness({
+        implementationPack: implementationPack.pack,
+        specificationLines,
+        scopePacks,
+        handover: scopePackHandover,
+        engineerJobPack,
+        materialsSchedule,
+      });
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -792,6 +802,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               data-testid="dev-implementation-pack-panel"
             >
               <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Implementation Pack</h2>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <SpecificationReadinessPanel readiness={specificationReadiness} />
+              </div>
               <div
                 style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}
                 role="tablist"
