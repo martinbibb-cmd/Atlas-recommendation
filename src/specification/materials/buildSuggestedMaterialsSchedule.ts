@@ -81,13 +81,6 @@ function idsOf(lines: readonly SpecificationLineV1[]): string[] {
   return lines.map((l) => l.lineId);
 }
 
-function hasLine(
-  lines: readonly SpecificationLineV1[],
-  predicate: (line: SpecificationLineV1) => boolean,
-): boolean {
-  return lines.some(predicate);
-}
-
 // ─── Mapping rules ────────────────────────────────────────────────────────────
 
 /**
