@@ -49,11 +49,13 @@ import { assessSpecificationReadiness } from '../specification/readiness';
 import {
   buildFollowUpEvidenceCapturePlan,
   buildFollowUpScanHandoff,
+  buildScanHandoffEnvelopePreview,
   buildSurveyFollowUpTasks,
 } from '../specification/followUps';
 import SurveyFollowUpTaskPanel from '../components/dev/SurveyFollowUpTaskPanel';
 import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPanel';
 import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel';
+import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -759,6 +761,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         materialsSchedule,
       );
       const followUpScanHandoff = buildFollowUpScanHandoff(followUpEvidencePlan);
+      const scanHandoffEnvelopePreview = buildScanHandoffEnvelopePreview(followUpScanHandoff);
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -842,6 +845,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               </div>
               <div style={{ marginBottom: '0.75rem' }}>
                 <FollowUpScanHandoffPanel handoff={followUpScanHandoff} />
+              </div>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <ScanHandoffEnvelopePreviewPanel envelope={scanHandoffEnvelopePreview} />
               </div>
               <div
                 style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}
