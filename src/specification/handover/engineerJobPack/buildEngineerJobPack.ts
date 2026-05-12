@@ -10,6 +10,29 @@ import type { EngineerJobPackItemV1, EngineerJobPackV1 } from './EngineerJobPack
 
 const MAX_BULLETS_PER_SECTION = 7;
 const MAX_BULLET_TEXT_LENGTH = 140;
+const REMOVE_ACTION_REGEX = /remove|disconnect|decommission|cap|capping/i;
+const LOCATION_ROUTE_REGEX = /route|routing|location|loft|discharge|pipe/i;
+const CHECK_ON_SITE_REGEX = /confirm|validate|check|test/i;
+const COMMISSIONING_G3_REGEX = /commission|certificate|g3/i;
+const CUSTOMER_BENEFIT_TERMS = [
+  'why this wins',
+  'plain english',
+  'save',
+  'savings',
+  'educational',
+  'analogy',
+  'comfort',
+  'peace of mind',
+];
+
+const HOT_WATER_STRATEGY_LABELS: Readonly<Record<SuggestedImplementationPackV1['hotWater']['strategy'], string>> = {
+  on_demand: 'on-demand hot water',
+  stored_unvented: 'Stored unvented',
+  stored_vented: 'Stored vented',
+  stored_mixergy: 'Stored Mixergy',
+  heat_pump_cylinder: 'Heat pump cylinder',
+  unknown: 'Unknown',
+};
 
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -22,16 +45,8 @@ function clipText(text: string): string {
 }
 
 function isCustomerBenefitLanguage(text: string): boolean {
-  return [
-    'why this wins',
-    'plain english',
-    'save',
-    'savings',
-    'educational',
-    'analogy',
-    'comfort',
-    'peace of mind',
-  ].some((term) => text.toLowerCase().includes(term));
+  const lowerText = text.toLowerCase();
+  return CUSTOMER_BENEFIT_TERMS.some((term) => lowerText.includes(term));
 }
 
 function deriveRelatedRiskIdFromValidation(validationId: string): string | undefined {
@@ -67,18 +82,21 @@ function sortUnresolvedNearTop(items: readonly EngineerJobPackItemV1[]): Enginee
     const aRank = a.mustConfirmOnSite ? 0 : 1;
     const bRank = b.mustConfirmOnSite ? 0 : 1;
     if (aRank !== bRank) return aRank - bRank;
-    return a.text.localeCompare(b.text);
+    if (a.text < b.text) return -1;
+    if (a.text > b.text) return 1;
+    return 0;
   });
 }
 
 function finalizeSection(items: readonly EngineerJobPackItemV1[]): EngineerJobPackItemV1[] {
-  const sanitized = items
+  const filtered = items.filter((item) => !isCustomerBenefitLanguage(item.text));
+  const sanitized = filtered
     .map((item) => ({
       ...item,
       text: clipText(item.text),
       location: item.location ? clipText(item.location) : undefined,
     }))
-    .filter((item) => item.text.length > 0 && !isCustomerBenefitLanguage(item.text));
+    .filter((item) => item.text.length > 0);
   return stableDeduplicate(sortUnresolvedNearTop(sanitized)).slice(0, MAX_BULLETS_PER_SECTION);
 }
 
@@ -130,11 +148,16 @@ export function buildEngineerJobPack(
   const engineerLines = handover.engineerInstallNotes.packs.flatMap((pack) => pack.lines);
   const customerLines = handover.customerScopeSummary.packs.flatMap((pack) => pack.lines);
   const unresolvedChecks = handover.engineerInstallNotes.unresolvedChecks;
+  const dischargeRequirementItems = (implementationPack.hotWater.dischargeRequirements ?? []).map((requirement) =>
+    toItem(requirement, { confidence: 'needs_survey', mustConfirmOnSite: true }));
 
   const jobSummary = finalizeSection([
     toItem(`Scenario: ${implementationPack.recommendedScenarioId}`, { confidence: 'confirmed' }),
     toItem(`Heat source: ${implementationPack.heatSource.label}`, { confidence: 'confirmed' }),
-    toItem(`Hot water strategy: ${implementationPack.hotWater.strategy.replaceAll('_', ' ')}`, { confidence: 'confirmed' }),
+    toItem(
+      `Hot water strategy: ${HOT_WATER_STRATEGY_LABELS[implementationPack.hotWater.strategy] ?? 'Unknown'}`,
+      { confidence: 'confirmed' },
+    ),
     ...(surveyData?.occupancy?.peakConcurrentOutlets != null
       ? [toItem(`Peak concurrent outlets: ${surveyData.occupancy.peakConcurrentOutlets}`, { confidence: 'confirmed' })]
       : []),
@@ -157,18 +180,25 @@ export function buildEngineerJobPack(
   const removeThis = finalizeSection([
     ...engineerLines
       .filter((line) =>
-        /remove|disconnect|decommission|cap|capping/i.test(`${line.label} ${line.description}`))
+        REMOVE_ACTION_REGEX.test(`${line.label} ${line.description}`))
       .map((line) =>
         toItem(toActionLine(line.label, line.description), {
           sourceLineId: line.lineId,
           confidence: 'inferred',
         })),
     ...implementationPack.pipework.topologyNotes
-      .filter((note) => /remove|disconnect|decommission|cap|capping/i.test(note))
+      .filter((note) => REMOVE_ACTION_REGEX.test(note))
       .map((note) => toItem(note, { confidence: 'inferred' })),
   ]);
 
   const checkThis = finalizeSection([
+    ...implementationPack.safetyCompliance.requiredQualifications
+      .filter((qualification) => qualification.id === 'g3_unvented')
+      .map((qualification) =>
+        toItem(`Confirm ${qualification.label} qualification cover before unvented commissioning`, {
+          confidence: 'confirmed',
+          mustConfirmOnSite: true,
+        })),
     ...implementationPack.allRequiredValidations.map(fromValidation),
     ...implementationPack.allUnresolvedRisks.map(fromRisk),
     ...unresolvedChecks.map((check) =>
@@ -177,8 +207,7 @@ export function buildEngineerJobPack(
         sourceLineId: check.sourceType === 'line' ? check.sourceId : undefined,
         mustConfirmOnSite: true,
       })),
-    ...(implementationPack.hotWater.dischargeRequirements ?? []).map((requirement) =>
-      toItem(requirement, { confidence: 'needs_survey', mustConfirmOnSite: true })),
+    ...dischargeRequirementItems,
     ...(implementationPack.hotWater.expansionManagement ?? []).map((management) =>
       toItem(management, { confidence: 'needs_survey', mustConfirmOnSite: true })),
   ]);
@@ -202,23 +231,31 @@ export function buildEngineerJobPack(
   const locationsAndRoutes = finalizeSection([
     ...implementationPack.pipework.routingNotes.map((note) =>
       toItem(note, { confidence: 'needs_survey', mustConfirmOnSite: true })),
-    ...(implementationPack.hotWater.dischargeRequirements ?? []).map((note) =>
-      toItem(note, { confidence: 'needs_survey', mustConfirmOnSite: true })),
+    ...engineerLines
+      .filter((line) => LOCATION_ROUTE_REGEX.test(`${line.label} ${line.description}`))
+      .map((line) =>
+        toItem(toActionLine(line.label, line.description), {
+          sourceLineId: line.lineId,
+          confidence: 'inferred',
+          mustConfirmOnSite: true,
+        })),
     ...(scanData?.engineerNotes
       ? [toItem(`Engineer note: ${scanData.engineerNotes}`, { confidence: 'inferred', mustConfirmOnSite: true })]
       : []),
   ]);
 
   const commissioning = finalizeSection([
-    ...implementationPack.commissioning.steps.map((step) =>
-      toItem(step, {
-        confidence: /confirm|validate|check|test/i.test(step) ? 'needs_survey' : 'confirmed',
-        mustConfirmOnSite: /confirm|validate|check|test/i.test(step),
-      })),
+    ...implementationPack.commissioning.steps.map((step) => {
+      const requiresSiteCheck = CHECK_ON_SITE_REGEX.test(step);
+      return toItem(step, {
+        confidence: requiresSiteCheck ? 'needs_survey' : 'confirmed',
+        mustConfirmOnSite: requiresSiteCheck,
+      });
+    }),
     ...implementationPack.commissioning.requiredDocumentation.map((doc) =>
       toItem(`Issue/record: ${doc}`, { confidence: 'confirmed' })),
     ...implementationPack.safetyCompliance.requiredComplianceItems
-      .filter((item) => /commission|certificate|g3/i.test(`${item.id} ${item.description}`))
+      .filter((item) => COMMISSIONING_G3_REGEX.test(`${item.id} ${item.description}`))
       .map((item) => toItem(`${item.description}${item.regulatoryRef ? ` — ${item.regulatoryRef}` : ''}`, { confidence: 'confirmed' })),
   ]);
 
@@ -238,16 +275,9 @@ export function buildEngineerJobPack(
     ...implementationPack.safetyCompliance.requiredComplianceItems
       .filter((item) => item.timing === 'during' || item.timing === 'after')
       .map((item) => toItem(item.description, { confidence: 'confirmed' })),
-    ...checkThis
-      .filter((item) => item.mustConfirmOnSite)
-      .slice(0, MAX_BULLETS_PER_SECTION)
-      .map((item) =>
-        toItem(item.text, {
-          confidence: item.confidence,
-          location: item.location,
-          relatedRiskId: item.relatedRiskId,
-          mustConfirmOnSite: true,
-        })),
+    ...implementationPack.allUnresolvedRisks
+      .filter((risk) => risk.severity === 'required')
+      .map(fromRisk),
   ]);
 
   return {
