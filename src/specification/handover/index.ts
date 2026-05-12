@@ -11,3 +11,9 @@ export type {
   ScopePackHandoverValidationChecklistItemV1,
 } from './ScopePackHandoverV1';
 export { buildScopePackHandover } from './buildScopePackHandover';
+export type {
+  EngineerJobPackItemConfidence,
+  EngineerJobPackItemV1,
+  EngineerJobPackV1,
+} from './engineerJobPack';
+export { buildEngineerJobPack } from './engineerJobPack';

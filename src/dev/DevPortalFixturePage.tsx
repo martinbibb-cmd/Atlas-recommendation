@@ -38,8 +38,9 @@ import SpecificationLineReviewPanel from '../components/dev/SpecificationLineRev
 import { buildInstallationScopePacks } from '../specification/scopePacks';
 import type { InstallationScopePackV1 } from '../specification/scopePacks';
 import InstallationScopePackReviewPanel from '../components/dev/InstallationScopePackReviewPanel';
-import { buildScopePackHandover } from '../specification/handover';
+import { buildEngineerJobPack, buildScopePackHandover } from '../specification/handover';
 import ScopePackHandoverPreviewPanel from '../components/dev/ScopePackHandoverPreviewPanel';
+import EngineerJobPackPreviewPanel from '../components/dev/EngineerJobPackPreviewPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -318,6 +319,7 @@ type ImplementationPackTabKey =
   | 'pack_summary'
   | 'scope_packs'
   | 'specification_lines'
+  | 'engineer_job_pack'
   | 'handover_preview';
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
@@ -712,6 +714,10 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         specificationLines,
         implementationPack.pack,
       );
+      const engineerJobPack = buildEngineerJobPack(
+        scopePackHandover,
+        implementationPack.pack,
+      );
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -815,6 +821,16 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 <button
                   type="button"
                   role="tab"
+                  aria-selected={implementationPackTab === 'engineer_job_pack'}
+                  onClick={() => setImplementationPackTab('engineer_job_pack')}
+                  className="dev-portal-fixture__btn"
+                  data-testid="dev-implementation-pack-tab-engineer-job-pack"
+                >
+                  Engineer job pack
+                </button>
+                <button
+                  type="button"
+                  role="tab"
                   aria-selected={implementationPackTab === 'handover_preview'}
                   onClick={() => setImplementationPackTab('handover_preview')}
                   className="dev-portal-fixture__btn"
@@ -856,6 +872,8 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                       };
                     })}
                 />
+              ) : implementationPackTab === 'engineer_job_pack' ? (
+                <EngineerJobPackPreviewPanel jobPack={engineerJobPack} />
               ) : (
                 <ScopePackHandoverPreviewPanel handover={scopePackHandover} />
               )}
