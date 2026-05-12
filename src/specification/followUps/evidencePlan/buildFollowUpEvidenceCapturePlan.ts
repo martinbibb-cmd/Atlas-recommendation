@@ -48,7 +48,8 @@ function sortStrings(values: readonly string[]): string[] {
 }
 
 function collectLocationById(engineerJobPack: EngineerJobPackV1): Map<string, string> {
-  const sectionKeys: Array<keyof EngineerJobPackV1> = [
+  type EngineerSectionKey = Exclude<keyof EngineerJobPackV1, 'jobPackVersion' | 'surveyData' | 'scanData'>;
+  const sectionKeys: readonly EngineerSectionKey[] = [
     'jobSummary',
     'fitThis',
     'removeThis',
