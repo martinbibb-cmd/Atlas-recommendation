@@ -13,6 +13,9 @@ export type {
 export { buildScopePackHandover } from './buildScopePackHandover';
 export type {
   EngineerJobPackItemConfidence,
+  EngineerJobLocationConfidence,
+  EngineerJobLocationType,
+  EngineerJobLocationV1,
   EngineerJobPackItemV1,
   EngineerJobPackV1,
 } from './engineerJobPack';
