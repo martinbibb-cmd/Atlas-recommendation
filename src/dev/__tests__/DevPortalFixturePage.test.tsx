@@ -239,7 +239,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(screen.getByTestId('dev-implementation-pack-panel')).toBeTruthy();
   });
 
-  it('implementation pack view exposes Pack summary, Scope packs, Specification lines, Engineer job pack, and Handover preview tabs', async () => {
+  it('implementation pack view exposes Pack summary, Scope packs, Specification lines, Engineer job pack, Materials schedule, and Handover preview tabs', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
     await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tabs')).toBeTruthy());
@@ -250,6 +250,8 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(specTab).toBeTruthy();
     const engineerJobPackTab = screen.getByTestId('dev-implementation-pack-tab-engineer-job-pack');
     expect(engineerJobPackTab).toBeTruthy();
+    const materialsTab = screen.getByTestId('dev-implementation-pack-tab-materials-schedule');
+    expect(materialsTab).toBeTruthy();
     const handoverTab = screen.getByTestId('dev-implementation-pack-tab-handover-preview');
     expect(handoverTab).toBeTruthy();
 
@@ -258,6 +260,9 @@ describe('DevPortalFixturePage — implementation pack', () => {
 
     fireEvent.click(engineerJobPackTab);
     await waitFor(() => expect(screen.getByTestId('engineer-job-pack-preview-panel')).toBeTruthy());
+
+    fireEvent.click(materialsTab);
+    await waitFor(() => expect(screen.getByTestId('materials-schedule-panel')).toBeTruthy());
 
     fireEvent.click(handoverTab);
     await waitFor(() => expect(screen.getByTestId('scope-pack-handover-preview-panel')).toBeTruthy());
