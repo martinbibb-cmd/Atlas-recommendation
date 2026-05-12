@@ -41,6 +41,9 @@ import InstallationScopePackReviewPanel from '../components/dev/InstallationScop
 import { buildEngineerJobPack, buildScopePackHandover } from '../specification/handover';
 import ScopePackHandoverPreviewPanel from '../components/dev/ScopePackHandoverPreviewPanel';
 import EngineerJobPackPreviewPanel from '../components/dev/EngineerJobPackPreviewPanel';
+import { buildSuggestedMaterialsSchedule } from '../specification/materials';
+import type { SuggestedMaterialLineV1 } from '../specification/materials';
+import MaterialsScheduleReviewPanel from '../components/dev/MaterialsScheduleReviewPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -312,6 +315,7 @@ interface ActiveFixture {
     implementationPack: ReturnType<typeof buildImplementationPackForFixture>;
     specificationLines: SpecificationLineV1[];
     scopePacks: InstallationScopePackV1[];
+    materialsSchedule: SuggestedMaterialLineV1[];
   };
 }
 
@@ -320,6 +324,7 @@ type ImplementationPackTabKey =
   | 'scope_packs'
   | 'specification_lines'
   | 'engineer_job_pack'
+  | 'materials_schedule'
   | 'handover_preview';
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
@@ -491,6 +496,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       const implementationPack = buildImplementationPackForFixture(fixture);
       const specificationLines = buildSpecificationLinesFromImplementationPack(implementationPack.pack);
       const scopePacks = buildInstallationScopePacks(specificationLines, implementationPack.pack);
+      const materialsSchedule = buildSuggestedMaterialsSchedule(scopePacks, specificationLines, implementationPack.pack);
       setImplementationPackTab('pack_summary');
       setActive({
         fixture,
@@ -499,6 +505,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           implementationPack,
           specificationLines,
           scopePacks,
+          materialsSchedule,
         },
       });
       return;
@@ -708,7 +715,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         throw new Error(`Missing implementation review state for fixture: ${active.fixture.id}`);
       }
 
-      const { implementationPack, specificationLines, scopePacks } = reviewState;
+      const { implementationPack, specificationLines, scopePacks, materialsSchedule } = reviewState;
       const scopePackHandover = buildScopePackHandover(
         scopePacks,
         specificationLines,
@@ -834,6 +841,16 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 <button
                   type="button"
                   role="tab"
+                  aria-selected={implementationPackTab === 'materials_schedule'}
+                  onClick={() => setImplementationPackTab('materials_schedule')}
+                  className="dev-portal-fixture__btn"
+                  data-testid="dev-implementation-pack-tab-materials-schedule"
+                >
+                  Materials schedule
+                </button>
+                <button
+                  type="button"
+                  role="tab"
                   aria-selected={implementationPackTab === 'handover_preview'}
                   onClick={() => setImplementationPackTab('handover_preview')}
                   className="dev-portal-fixture__btn"
@@ -877,6 +894,11 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 />
               ) : implementationPackTab === 'engineer_job_pack' ? (
                 <EngineerJobPackPreviewPanel jobPack={engineerJobPack} />
+              ) : implementationPackTab === 'materials_schedule' ? (
+                <MaterialsScheduleReviewPanel
+                  materials={materialsSchedule}
+                  lines={specificationLines}
+                />
               ) : (
                 <ScopePackHandoverPreviewPanel handover={scopePackHandover} />
               )}
