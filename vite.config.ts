@@ -36,6 +36,9 @@ const cloudflarePlugin = isCapacitor
 export default defineConfig({
   plugins: [react(), ...cloudflarePlugin],
   define: {
+    // Firebase web API keys are intentionally client-visible (public identifier).
+    // This maps existing Cloudflare Pages `firebase_api_key` config into a
+    // single explicit client fallback without exposing additional env names.
     'import.meta.env.FIREBASE_API_KEY_FALLBACK': JSON.stringify(process.env.firebase_api_key ?? ''),
   },
   resolve: {
