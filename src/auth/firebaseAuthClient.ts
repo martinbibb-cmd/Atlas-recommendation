@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -17,6 +18,7 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 export const isFirebaseConfigured =
@@ -27,6 +29,14 @@ export const isFirebaseConfigured =
 
 let cachedApp: FirebaseApp | null = null;
 let cachedAuth: Auth | null = null;
+let cachedAnalytics: Analytics | null = null;
+
+function getFirebaseApp(): FirebaseApp {
+  if (!cachedApp) {
+    cachedApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  }
+  return cachedApp;
+}
 
 function getFirebaseAuth(): Auth {
   if (!isFirebaseConfigured) {
@@ -35,9 +45,16 @@ function getFirebaseAuth(): Auth {
     );
   }
   if (cachedAuth) return cachedAuth;
-  cachedApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  cachedAuth = getAuth(cachedApp);
+  cachedAuth = getAuth(getFirebaseApp());
   return cachedAuth;
+}
+
+export async function initializeFirebaseAnalytics(): Promise<Analytics | null> {
+  if (!isFirebaseConfigured || cachedAnalytics) return cachedAnalytics;
+  if (typeof window === 'undefined') return null;
+  if (!(await isSupported())) return null;
+  cachedAnalytics = getAnalytics(getFirebaseApp());
+  return cachedAnalytics;
 }
 
 export async function firebaseSignInWithGoogle(): Promise<User> {

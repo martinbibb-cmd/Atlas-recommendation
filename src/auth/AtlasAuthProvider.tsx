@@ -6,6 +6,7 @@ import { AtlasAuthContext } from './AtlasAuthContext';
 import {
   firebaseSignInWithGoogle,
   firebaseSignOut,
+  initializeFirebaseAnalytics,
   isFirebaseConfigured,
   subscribeToFirebaseAuthState,
 } from './firebaseAuthClient';
@@ -214,6 +215,7 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
     if (!isFirebaseConfigured) {
       return;
     }
+    void initializeFirebaseAnalytics();
 
     const unsubscribe = subscribeToFirebaseAuthState((firebaseUser) => {
       if (!firebaseUser) {
