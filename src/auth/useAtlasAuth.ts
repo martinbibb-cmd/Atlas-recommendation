@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { AtlasAuthContext } from './AtlasAuthProvider';
+import { AtlasAuthContext } from './AtlasAuthContext';
 import type { AtlasAuthContextValue } from './authTypes';
 
 export function useAtlasAuth(): AtlasAuthContextValue {

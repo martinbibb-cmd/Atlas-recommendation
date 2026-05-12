@@ -1,6 +1,8 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { User } from 'firebase/auth';
 import type { AtlasAuthContextValue, AtlasUserProfileV1, AtlasWorkspaceV1 } from './authTypes';
+import { AtlasAuthContext } from './AtlasAuthContext';
 import {
   firebaseSignInWithGoogle,
   firebaseSignOut,
@@ -84,15 +86,16 @@ function removeKey(key: string): void {
 
 function buildProfileFromFirebaseUser(user: User): AtlasUserProfileV1 {
   const existing = readJson<AtlasUserProfileV1 | null>(USER_PROFILE_STORE_KEY, null);
+  const isExistingForCurrentFirebaseUser = existing !== null && existing.firebaseUid === user.uid;
   const now = new Date().toISOString();
   return {
     version: '1.0',
-    atlasUserId: existing?.firebaseUid === user.uid ? existing.atlasUserId : `atlas_${user.uid}`,
+    atlasUserId: isExistingForCurrentFirebaseUser ? existing.atlasUserId : `atlas_${user.uid}`,
     firebaseUid: user.uid,
     displayName: user.displayName?.trim() || user.email?.trim() || 'Atlas User',
     email: user.email ?? undefined,
     photoURL: user.photoURL ?? undefined,
-    createdAt: existing?.firebaseUid === user.uid ? existing.createdAt : now,
+    createdAt: isExistingForCurrentFirebaseUser ? existing.createdAt : now,
     updatedAt: now,
   };
 }
@@ -112,10 +115,14 @@ function buildMockProfile(): AtlasUserProfileV1 {
   };
 }
 
-function ensureDefaultWorkspace(profile: AtlasUserProfileV1): { workspaces: AtlasWorkspaceV1[]; currentWorkspaceId: string } {
+function ensureDefaultWorkspace(
+  profile: AtlasUserProfileV1,
+  options?: { persist?: boolean },
+): { workspaces: AtlasWorkspaceV1[]; currentWorkspaceId: string } {
   const existing = readJson<AtlasWorkspaceV1[]>(WORKSPACES_STORE_KEY, []);
   const now = new Date().toISOString();
   const defaultWorkspaceId = `workspace_${profile.atlasUserId}`;
+  const shouldPersist = options?.persist !== false;
 
   let workspaces = existing.filter((workspace) => workspace.ownerAtlasUserId === profile.atlasUserId);
   if (workspaces.length === 0) {
@@ -135,8 +142,10 @@ function ensureDefaultWorkspace(profile: AtlasUserProfileV1): { workspaces: Atla
   const hasPersisted = persistedCurrentWorkspaceId != null && workspaces.some((workspace) => workspace.workspaceId === persistedCurrentWorkspaceId);
   const currentWorkspaceId = hasPersisted ? persistedCurrentWorkspaceId : workspaces[0].workspaceId;
 
-  writeJson(WORKSPACES_STORE_KEY, workspaces);
-  writeString(CURRENT_WORKSPACE_STORE_KEY, currentWorkspaceId);
+  if (shouldPersist) {
+    writeJson(WORKSPACES_STORE_KEY, workspaces);
+    writeString(CURRENT_WORKSPACE_STORE_KEY, currentWorkspaceId);
+  }
 
   return { workspaces, currentWorkspaceId };
 }
@@ -151,17 +160,38 @@ function clearAuthenticatedState() {
   removeKey(CURRENT_WORKSPACE_STORE_KEY);
 }
 
-export const AtlasAuthContext = createContext<AtlasAuthContextValue | null>(null);
-
 interface AtlasAuthProviderProps {
   children: ReactNode;
 }
 
+interface MockBootstrapState {
+  userProfile: AtlasUserProfileV1;
+  workspaces: AtlasWorkspaceV1[];
+  currentWorkspaceId: string;
+}
+
+function getMockBootstrapState(): MockBootstrapState {
+  const userProfile = buildMockProfile();
+  const { workspaces, currentWorkspaceId } = ensureDefaultWorkspace(userProfile, { persist: false });
+  return { userProfile, workspaces, currentWorkspaceId };
+}
+
 export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
-  const [status, setStatus] = useState<AtlasAuthContextValue['status']>('loading');
-  const [userProfile, setUserProfile] = useState<AtlasUserProfileV1 | null>(null);
-  const [workspaces, setWorkspaces] = useState<AtlasWorkspaceV1[]>([]);
-  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
+  const [mockBootstrapState] = useState<MockBootstrapState | null>(() =>
+    DEV_MOCK_AUTH_ENABLED ? getMockBootstrapState() : null,
+  );
+  const [status, setStatus] = useState<AtlasAuthContextValue['status']>(() =>
+    mockBootstrapState ? 'authenticated' : (isFirebaseConfigured ? 'loading' : 'unauthenticated'),
+  );
+  const [userProfile, setUserProfile] = useState<AtlasUserProfileV1 | null>(
+    () => mockBootstrapState?.userProfile ?? null,
+  );
+  const [workspaces, setWorkspaces] = useState<AtlasWorkspaceV1[]>(
+    () => mockBootstrapState?.workspaces ?? [],
+  );
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(
+    () => mockBootstrapState?.currentWorkspaceId ?? null,
+  );
 
   const hydrateAuthenticatedState = useCallback((profile: AtlasUserProfileV1) => {
     const { workspaces: nextWorkspaces, currentWorkspaceId: nextWorkspaceId } = persistAuthenticatedState(profile);
@@ -173,15 +203,13 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
 
   useEffect(() => {
     if (DEV_MOCK_AUTH_ENABLED) {
-      hydrateAuthenticatedState(buildMockProfile());
+      if (mockBootstrapState) {
+        persistAuthenticatedState(mockBootstrapState.userProfile);
+      }
       return;
     }
 
     if (!isFirebaseConfigured) {
-      setStatus('unauthenticated');
-      setUserProfile(null);
-      setWorkspaces([]);
-      setCurrentWorkspaceId(null);
       return;
     }
 
@@ -198,7 +226,7 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
     });
 
     return () => unsubscribe();
-  }, [hydrateAuthenticatedState]);
+  }, [hydrateAuthenticatedState, mockBootstrapState]);
 
   const continueWithGoogle = useCallback(async () => {
     if (DEV_MOCK_AUTH_ENABLED) {
