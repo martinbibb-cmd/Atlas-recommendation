@@ -84,6 +84,11 @@ Set Firebase values in **Settings → Variables and Secrets** for your Pages pro
 - Optional others used by your Firebase project (`VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_MEASUREMENT_ID`)
 - API key can be provided as either `VITE_FIREBASE_API_KEY` or `firebase_api_key`
 
+Notes:
+- Firebase web API keys are client-side values and will be visible in the built frontend bundle.
+- Prefer `VITE_FIREBASE_API_KEY` for standard Vite configuration.
+- `firebase_api_key` is supported as a Cloudflare Pages compatibility fallback for existing deployments that already use that key name.
+
 #### 5. Apply D1 migrations
 
 After the project is deployed, apply the database schema:
