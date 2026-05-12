@@ -16,7 +16,7 @@ const CURRENT_WORKSPACE_STORE_KEY = 'atlas:auth:current-workspace:v1';
 
 const DEV_MOCK_AUTH_ENABLED =
   import.meta.env.DEV &&
-  (import.meta.env.VITE_ATLAS_DEV_MOCK_AUTH === '1' || import.meta.env.VITE_ATLAS_DEV_AUTH_MODE === 'mock');
+  import.meta.env.VITE_ATLAS_DEV_MOCK_AUTH === '1';
 
 function getStorage(): Storage | null {
   try {
@@ -139,8 +139,10 @@ function ensureDefaultWorkspace(
   }
 
   const persistedCurrentWorkspaceId = readString(CURRENT_WORKSPACE_STORE_KEY);
-  const hasPersisted = persistedCurrentWorkspaceId != null && workspaces.some((workspace) => workspace.workspaceId === persistedCurrentWorkspaceId);
-  const currentWorkspaceId = hasPersisted ? persistedCurrentWorkspaceId : workspaces[0].workspaceId;
+  const persistedWorkspaceExists =
+    persistedCurrentWorkspaceId != null &&
+    workspaces.some((workspace) => workspace.workspaceId === persistedCurrentWorkspaceId);
+  const currentWorkspaceId = persistedWorkspaceExists ? persistedCurrentWorkspaceId : workspaces[0].workspaceId;
 
   if (shouldPersist) {
     writeJson(WORKSPACES_STORE_KEY, workspaces);

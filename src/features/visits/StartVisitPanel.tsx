@@ -93,7 +93,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
       const tenant = resolveActiveTenant({ workspaceSlug });
       const visit = createAtlasVisit(id, tenant.brandId, activeUser?.userId, {
         atlasUserId: userProfile?.atlasUserId,
-        workspaceId: currentWorkspace?.workspaceId ?? workspaceSlug,
+        workspaceId: currentWorkspace?.workspaceId,
       });
       trackVisitCreated(visit, tenant.tenantId);
       onStart(visit);

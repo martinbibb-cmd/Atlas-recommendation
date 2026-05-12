@@ -55,15 +55,18 @@ export function storeActiveVisit(visit: AtlasVisit): void {
 export function retrieveActiveVisit(): AtlasVisit | null {
   const visit = localAdapter.getSync('visits', ACTIVE_VISIT_ID);
   if (!visit) return null;
+
+  function hasInvalidOptionalStringField(value: unknown): boolean {
+    return value !== undefined && (typeof value !== 'string' || value.trim().length === 0);
+  }
+
   if (
     typeof visit.visitId !== 'string' ||
     visit.visitId.trim().length === 0 ||
     typeof visit.brandId !== 'string' ||
     visit.brandId.trim().length === 0 ||
-    (visit.atlasUserId !== undefined &&
-      (typeof visit.atlasUserId !== 'string' || visit.atlasUserId.trim().length === 0)) ||
-    (visit.workspaceId !== undefined &&
-      (typeof visit.workspaceId !== 'string' || visit.workspaceId.trim().length === 0))
+    hasInvalidOptionalStringField(visit.atlasUserId) ||
+    hasInvalidOptionalStringField(visit.workspaceId)
   ) {
     return null;
   }
