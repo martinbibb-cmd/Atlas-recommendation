@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? import.meta.env.firebase_api_key,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? import.meta.env.FIREBASE_API_KEY_FALLBACK,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,

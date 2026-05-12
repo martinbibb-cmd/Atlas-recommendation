@@ -35,7 +35,9 @@ const cloudflarePlugin = isCapacitor
 
 export default defineConfig({
   plugins: [react(), ...cloudflarePlugin],
-  envPrefix: ['VITE_', 'firebase_'],
+  define: {
+    'import.meta.env.FIREBASE_API_KEY_FALLBACK': JSON.stringify(process.env.firebase_api_key ?? ''),
+  },
   resolve: {
     alias: {
       '@atlas/contracts': path.resolve(
