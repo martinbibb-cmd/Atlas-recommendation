@@ -850,7 +850,7 @@ function AppInner() {
     if (!activeAtlasVisit?.visitId) return;
     if (!activeAtlasVisit.workspaceId || !activeAtlasVisit.atlasUserId) return;
     upsertVisitIdentity(activeAtlasVisit.visitId, activeAtlasVisit.workspaceId, activeAtlasVisit.atlasUserId);
-  }, [activeAtlasVisit]);
+  }, [activeAtlasVisit?.visitId, activeAtlasVisit?.workspaceId, activeAtlasVisit?.atlasUserId]);
 
   useEffect(() => {
     if (!activeVisitId || !labFullSurveyModel || ENGINEER_VISIT_ID != null) return;

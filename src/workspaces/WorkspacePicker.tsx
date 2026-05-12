@@ -21,7 +21,7 @@ export function WorkspacePicker({ workspaces, currentWorkspaceId, onSelectWorksp
         Workspace
       </span>
       <select
-        value={currentWorkspaceId ?? workspaces[0].workspaceId}
+        value={currentWorkspaceId ?? (workspaces[0]?.workspaceId ?? '')}
         onChange={(event) => onSelectWorkspace(event.target.value)}
         style={{
           width: '100%',
