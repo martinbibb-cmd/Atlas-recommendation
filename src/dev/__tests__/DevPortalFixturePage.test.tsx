@@ -240,6 +240,19 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(screen.getByTestId('specification-readiness-panel')).toBeTruthy();
     expect(screen.getByTestId('survey-follow-up-task-panel')).toBeTruthy();
     expect(screen.getByTestId('follow-up-evidence-plan-panel')).toBeTruthy();
+    expect(screen.getByTestId('follow-up-scan-handoff-panel')).toBeTruthy();
+  });
+
+  it('mounts the scan handoff preview below the evidence plan with no send action yet', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+
+    const evidencePanel = await screen.findByTestId('follow-up-evidence-plan-panel');
+    const handoffPanel = await screen.findByTestId('follow-up-scan-handoff-panel');
+
+    expect(evidencePanel.compareDocumentPosition(handoffPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(handoffPanel).getByText(/Send to Scan/i)).toBeTruthy();
+    expect(within(handoffPanel).queryByRole('button', { name: /Send to Scan/i })).toBeNull();
   });
 
   it('implementation pack view exposes Pack summary, Scope packs, Specification lines, Engineer job pack, Materials schedule, and Handover preview tabs', async () => {
