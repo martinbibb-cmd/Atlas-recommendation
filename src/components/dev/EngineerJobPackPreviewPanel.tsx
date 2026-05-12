@@ -69,7 +69,7 @@ function renderItem(item: EngineerJobPackItemV1, index: number, sectionKey: stri
               padding: '0.15rem 0.45rem',
             }}
           >
-            {item.location.label}
+            {item.location?.label}
           </span>
         ) : null}
         {item.mustConfirmOnSite ? (
@@ -91,7 +91,7 @@ function renderItem(item: EngineerJobPackItemV1, index: number, sectionKey: stri
 }
 
 export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
-  const [locationFilter, setLocationFilter] = useState<'all' | 'needs_survey' | string>('all');
+  const [locationFilter, setLocationFilter] = useState<'all' | 'needs_survey' | `location:${string}`>('all');
   const locationChips = useMemo(() => {
     const allItems = SECTION_DEFINITIONS.flatMap((section) => {
       const items = jobPack[section.key];
@@ -114,7 +114,9 @@ export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
   const matchesFilter = (item: EngineerJobPackItemV1): boolean => {
     if (locationFilter === 'all') return true;
     if (locationFilter === 'needs_survey') return item.location?.confidence === 'needs_survey';
-    return item.location?.locationId === locationFilter;
+    return locationFilter.startsWith('location:')
+      ? item.location?.locationId === locationFilter.slice('location:'.length)
+      : false;
   };
 
   return (
@@ -139,13 +141,13 @@ export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
           <button
             key={chip.locationId}
             type="button"
-            onClick={() => setLocationFilter(chip.locationId)}
+            onClick={() => setLocationFilter(`location:${chip.locationId}`)}
             style={{
               border: '1px solid #cbd5e1',
               borderRadius: 999,
               padding: '0.2rem 0.5rem',
-              background: locationFilter === chip.locationId ? '#0f172a' : '#f8fafc',
-              color: locationFilter === chip.locationId ? '#fff' : '#0f172a',
+              background: locationFilter === `location:${chip.locationId}` ? '#0f172a' : '#f8fafc',
+              color: locationFilter === `location:${chip.locationId}` ? '#fff' : '#0f172a',
               fontSize: 12,
               cursor: 'pointer',
             }}

@@ -94,6 +94,7 @@ function hasAnyScanEvidence(scanData: ScanDataInput | undefined): boolean {
 
 export function resolveEngineerJobLocation(input: ResolveEngineerJobLocationInput): EngineerJobLocationV1 {
   const text = input.text.toLowerCase();
+  const normalizedSpacingText = text.replace(/-/g, ' ');
   const evidenceRefs = buildEvidenceRefs(input);
   const hasScan = hasAnyScanEvidence(input.scanData);
   const isStoredCylinder =
@@ -110,7 +111,7 @@ export function resolveEngineerJobLocation(input: ResolveEngineerJobLocationInpu
     return makeLocation('room', 'Airing cupboard', 'inferred', evidenceRefs);
   }
 
-  if (text.includes('loft') && (text.includes('tank') || text.includes('cold-feed') || text.includes('vent'))) {
+  if (text.includes('loft') && (text.includes('tank') || normalizedSpacingText.includes('cold feed') || text.includes('vent'))) {
     return makeLocation('loft', 'Loft', input.scanData?.loftInspected ? 'confirmed' : 'inferred', [
       ...evidenceRefs,
       'pack:pipework.topologyNotes',

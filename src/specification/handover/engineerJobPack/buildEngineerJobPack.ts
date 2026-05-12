@@ -134,7 +134,7 @@ export function buildEngineerJobPack(
   implementationPack: SuggestedImplementationPackV1,
   surveyData?: EngineInputV2_3Contract,
   scanData?: ScanDataInput,
-  specificationLines: readonly SpecificationLineV1[] = [],
+  specificationLines: readonly SpecificationLineV1[],
 ): EngineerJobPackV1 {
   const engineerLines = handover.engineerInstallNotes.packs.flatMap((pack) => pack.lines);
   const customerLines = handover.customerScopeSummary.packs.flatMap((pack) => pack.lines);
@@ -284,16 +284,24 @@ export function buildEngineerJobPack(
       .map(fromRisk),
   ]));
 
-  const locationsToConfirm = finalizeSection([
-    ...fitThis,
-    ...removeThis,
-    ...checkThis,
-    ...discussWithCustomer,
-    ...locationsAndRoutes,
-    ...commissioning,
-    ...unresolvedBeforeInstall,
-    ...doNotMiss,
-  ].filter((item) => item.location?.confidence === 'needs_survey'));
+  const locationsToConfirmCandidates: EngineerJobPackItemV1[] = [];
+  for (const section of [
+    fitThis,
+    removeThis,
+    checkThis,
+    discussWithCustomer,
+    locationsAndRoutes,
+    commissioning,
+    unresolvedBeforeInstall,
+    doNotMiss,
+  ]) {
+    for (const item of section) {
+      if (item.location?.confidence === 'needs_survey') {
+        locationsToConfirmCandidates.push(item);
+      }
+    }
+  }
+  const locationsToConfirm = finalizeSection(locationsToConfirmCandidates);
 
   return {
     jobPackVersion: 'v1',
