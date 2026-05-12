@@ -239,6 +239,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(screen.getByTestId('dev-implementation-pack-panel')).toBeTruthy();
     expect(screen.getByTestId('specification-readiness-panel')).toBeTruthy();
     expect(screen.getByTestId('survey-follow-up-task-panel')).toBeTruthy();
+    expect(screen.getByTestId('follow-up-evidence-plan-panel')).toBeTruthy();
   });
 
   it('implementation pack view exposes Pack summary, Scope packs, Specification lines, Engineer job pack, Materials schedule, and Handover preview tabs', async () => {
