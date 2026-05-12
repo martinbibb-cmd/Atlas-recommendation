@@ -1,9 +1,7 @@
 import type {
   RequiredComplianceItem,
   RequiredQualification,
-  RequiredValidation,
   SuggestedImplementationPackV1,
-  UnresolvedRisk,
 } from '../SuggestedImplementationPackV1';
 import type { SpecificationLineV1 } from '../specLines/SpecificationLineV1';
 import type { InstallationScopePackV1 } from '../scopePacks';
@@ -47,6 +45,10 @@ function filterQualificationsForScope(
   qualifications: readonly RequiredQualification[],
   relevantComplianceLabels: ReadonlySet<string>,
 ): RequiredQualification[] {
+  if (relevantComplianceLabels.size === 0) {
+    return [...qualifications];
+  }
+
   return qualifications.filter((qualification) =>
     relevantComplianceLabels.has(qualification.label),
   );
@@ -119,6 +121,7 @@ export function buildScopePackHandover(
     const optionalLines = pack.defaultExcludedLineIds
       .map((lineId) => lineById.get(lineId))
       .filter((line): line is SpecificationLineV1 => line !== undefined);
+    const scopedLines = [...includedLines, ...optionalLines];
 
     for (const line of optionalLines) {
       excludedOrDeferredItems.push({
@@ -158,7 +161,7 @@ export function buildScopePackHandover(
       ...activeLines.filter((line) => line.officeVisible),
     );
 
-    for (const line of activeLines.filter((candidate) => candidate.status === 'needs_check')) {
+    for (const line of scopedLines.filter((candidate) => candidate.status === 'needs_check')) {
       unresolvedChecks.push({
         sourceType: 'line',
         sourceId: line.lineId,
