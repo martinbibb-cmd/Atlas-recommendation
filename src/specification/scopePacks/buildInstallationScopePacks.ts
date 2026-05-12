@@ -203,7 +203,18 @@ const PACK_TEMPLATES: readonly ScopePackTemplate[] = [
     description:
       'Boiler replacement scope including primary circuit water-quality treatment: '
       + 'magnetic filtration, flush strategy, and inhibitor dosing.',
-    appliesToScenarioTypes: [],
+    // Applies to all gas/oil boiler replacement scenarios.
+    // Intentionally excludes heat pump scenarios where water quality requirements
+    // are handled through the dedicated heat pump hydraulic review pack.
+    appliesToScenarioTypes: [
+      'combi',
+      'system_unvented',
+      'regular_unvented',
+      'stored_unvented',
+      'stored_vented',
+      'regular_vented',
+      'mixergy',
+    ],
     requiredLineTypes: ['material_suggestion', 'included_scope'],
     optionalLineTypes: ['included_scope'],
     customerSummary:
@@ -344,6 +355,9 @@ const PACK_TEMPLATES: readonly ScopePackTemplate[] = [
     description:
       'Supply, installation, and commissioning of smart heating controls, '
       + 'including wireless room thermostat, programmer, and TRV upgrade.',
+    // Intentionally empty: smart controls are applicable for any system type
+    // (gas boiler, oil boiler, or heat pump) and are gated at runtime by the
+    // presence of controls-section spec lines rather than scenario type.
     appliesToScenarioTypes: [],
     requiredLineTypes: ['material_suggestion', 'included_scope'],
     optionalLineTypes: ['installer_note'],
@@ -390,6 +404,9 @@ const PACK_TEMPLATES: readonly ScopePackTemplate[] = [
       'Provisional scope items to keep future upgrade pathways open, including '
       + 'heat pump pipework sizing, PV-ready wiring allowances, and smart-grid '
       + 'readiness.',
+    // Intentionally empty: future-ready allowances can accompany any system type.
+    // Applicability is gated at runtime by the presence of futureReady items
+    // in the implementation pack rather than scenario type.
     appliesToScenarioTypes: [],
     requiredLineTypes: ['provisional_allowance'],
     optionalLineTypes: ['installer_note'],
