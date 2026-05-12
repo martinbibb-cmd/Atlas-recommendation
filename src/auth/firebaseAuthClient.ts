@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { getAnalytics, isSupported, type Analytics } from 'firebase/analytics';
 import {
   getAuth,
   GoogleAuthProvider,
@@ -10,13 +11,25 @@ import {
   type Unsubscribe,
 } from 'firebase/auth';
 
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyB29wTr9xSZ005Xmj1aXagEJ7KSQwFkVWI',
+  authDomain: 'atlas-phm.firebaseapp.com',
+  projectId: 'atlas-phm',
+  storageBucket: 'atlas-phm.firebasestorage.app',
+  messagingSenderId: '521348423908',
+  appId: '1:521348423908:web:4fec107fb333eee64c0cf1',
+  measurementId: 'G-8BS0TSF9Z8',
+} as const;
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || DEFAULT_FIREBASE_CONFIG.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || DEFAULT_FIREBASE_CONFIG.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || DEFAULT_FIREBASE_CONFIG.projectId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || DEFAULT_FIREBASE_CONFIG.appId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || DEFAULT_FIREBASE_CONFIG.storageBucket,
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || DEFAULT_FIREBASE_CONFIG.messagingSenderId,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || DEFAULT_FIREBASE_CONFIG.measurementId,
 };
 
 export const isFirebaseConfigured =
@@ -27,6 +40,14 @@ export const isFirebaseConfigured =
 
 let cachedApp: FirebaseApp | null = null;
 let cachedAuth: Auth | null = null;
+let cachedAnalytics: Analytics | null = null;
+
+function getFirebaseApp(): FirebaseApp {
+  if (!cachedApp) {
+    cachedApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  }
+  return cachedApp;
+}
 
 function getFirebaseAuth(): Auth {
   if (!isFirebaseConfigured) {
@@ -35,9 +56,16 @@ function getFirebaseAuth(): Auth {
     );
   }
   if (cachedAuth) return cachedAuth;
-  cachedApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  cachedAuth = getAuth(cachedApp);
+  cachedAuth = getAuth(getFirebaseApp());
   return cachedAuth;
+}
+
+export async function initializeFirebaseAnalytics(): Promise<Analytics | null> {
+  if (!isFirebaseConfigured || cachedAnalytics) return cachedAnalytics;
+  if (typeof window === 'undefined') return null;
+  if (!(await isSupported())) return null;
+  cachedAnalytics = getAnalytics(getFirebaseApp());
+  return cachedAnalytics;
 }
 
 export async function firebaseSignInWithGoogle(): Promise<User> {
