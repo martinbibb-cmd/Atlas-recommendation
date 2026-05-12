@@ -56,7 +56,7 @@ export function retrieveActiveVisit(): AtlasVisit | null {
   const visit = localAdapter.getSync('visits', ACTIVE_VISIT_ID);
   if (!visit) return null;
 
-  function isInvalidOptionalString(value: unknown): boolean {
+  function isDefinedButInvalidString(value: unknown): boolean {
     return value !== undefined && (typeof value !== 'string' || value.trim().length === 0);
   }
 
@@ -65,8 +65,8 @@ export function retrieveActiveVisit(): AtlasVisit | null {
     visit.visitId.trim().length === 0 ||
     typeof visit.brandId !== 'string' ||
     visit.brandId.trim().length === 0 ||
-    isInvalidOptionalString(visit.atlasUserId) ||
-    isInvalidOptionalString(visit.workspaceId)
+    isDefinedButInvalidString(visit.atlasUserId) ||
+    isDefinedButInvalidString(visit.workspaceId)
   ) {
     return null;
   }

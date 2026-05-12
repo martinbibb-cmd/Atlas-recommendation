@@ -17,7 +17,7 @@
  * - Workspace selection drives brandId via resolveActiveTenant().
  */
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { createVisit } from '../../lib/visits/visitApi';
 import { createAtlasVisit } from './createAtlasVisit';
 import type { AtlasVisit } from './createAtlasVisit';
@@ -25,7 +25,7 @@ import { WorkspaceSelector } from '../tenants/WorkspaceSelector';
 import { resolveActiveTenant } from '../tenants/activeTenant';
 import { trackVisitCreated } from '../analytics/analyticsTracker';
 import { useActiveUser } from '../userProfiles/useActiveUser';
-import { useAtlasAuth } from '../../auth/useAtlasAuth';
+import { AtlasAuthContext } from '../../auth/AtlasAuthContext';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -68,7 +68,9 @@ interface StartVisitPanelProps {
  */
 export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCreateWorkspace }: StartVisitPanelProps) {
   const { activeUser } = useActiveUser();
-  const { userProfile, currentWorkspace } = useAtlasAuth();
+  const authContext = useContext(AtlasAuthContext);
+  const userProfile = authContext?.userProfile ?? null;
+  const currentWorkspace = authContext?.currentWorkspace ?? null;
 
   // Workspace default priority: explicit prop (host workspace) > active user default > 'atlas'
   const resolvedDefaultSlug = defaultWorkspaceSlug ?? activeUser?.defaultWorkspaceSlug ?? 'atlas';

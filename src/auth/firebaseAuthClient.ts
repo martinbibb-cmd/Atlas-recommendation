@@ -30,7 +30,9 @@ let cachedAuth: Auth | null = null;
 
 function getFirebaseAuth(): Auth {
   if (!isFirebaseConfigured) {
-    throw new Error('Firebase auth is not configured. Set VITE_FIREBASE_* environment variables.');
+    throw new Error(
+      'Firebase auth is not configured. Set VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, and VITE_FIREBASE_APP_ID.',
+    );
   }
   if (cachedAuth) return cachedAuth;
   cachedApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
