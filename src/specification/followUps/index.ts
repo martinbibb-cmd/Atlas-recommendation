@@ -6,3 +6,9 @@ export type {
   SurveyFollowUpTaskV1,
 } from './SurveyFollowUpTaskV1';
 export { buildSurveyFollowUpTasks } from './buildSurveyFollowUpTasks';
+export type {
+  FollowUpEvidenceCaptureItemV1,
+  FollowUpEvidenceCapturePlanV1,
+  FollowUpEvidenceCaptureType,
+} from './evidencePlan';
+export { buildFollowUpEvidenceCapturePlan } from './evidencePlan';

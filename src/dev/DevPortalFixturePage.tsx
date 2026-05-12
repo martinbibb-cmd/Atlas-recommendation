@@ -46,8 +46,9 @@ import type { SuggestedMaterialLineV1 } from '../specification/materials';
 import MaterialsScheduleReviewPanel from '../components/dev/MaterialsScheduleReviewPanel';
 import SpecificationReadinessPanel from '../components/dev/SpecificationReadinessPanel';
 import { assessSpecificationReadiness } from '../specification/readiness';
-import { buildSurveyFollowUpTasks } from '../specification/followUps';
+import { buildFollowUpEvidenceCapturePlan, buildSurveyFollowUpTasks } from '../specification/followUps';
 import SurveyFollowUpTaskPanel from '../components/dev/SurveyFollowUpTaskPanel';
+import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPanel';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -746,6 +747,12 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         materialsSchedule,
         engineerJobPack,
       );
+      const followUpEvidencePlan = buildFollowUpEvidenceCapturePlan(
+        surveyFollowUpTasks,
+        engineerJobPack,
+        specificationLines,
+        materialsSchedule,
+      );
       const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
       const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
         ? buildSupportingPdfModel(active.fixture)
@@ -818,6 +825,12 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                   tasks={surveyFollowUpTasks}
                   lines={specificationLines}
                   materials={materialsSchedule}
+                  engineerJobPack={engineerJobPack}
+                />
+              </div>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <FollowUpEvidencePlanPanel
+                  plan={followUpEvidencePlan}
                   engineerJobPack={engineerJobPack}
                 />
               </div>
