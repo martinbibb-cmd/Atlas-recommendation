@@ -15,8 +15,13 @@ export { buildFollowUpEvidenceCapturePlan } from './evidencePlan';
 export type {
   FollowUpScanCaptureItemV1,
   FollowUpScanCaptureMode,
+  ScanHandoffEnvelopePreviewV1,
   FollowUpScanHandoffPriority,
   FollowUpScanHandoffV1,
   FollowUpScanUnresolvedDependencyV1,
 } from './scanHandoff';
-export { buildFollowUpScanHandoff } from './scanHandoff';
+export {
+  buildFollowUpScanHandoff,
+  buildScanHandoffEnvelopePreview,
+  type BuildScanHandoffEnvelopePreviewOptions,
+} from './scanHandoff';

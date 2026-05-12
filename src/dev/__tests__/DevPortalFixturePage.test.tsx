@@ -241,6 +241,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(screen.getByTestId('survey-follow-up-task-panel')).toBeTruthy();
     expect(screen.getByTestId('follow-up-evidence-plan-panel')).toBeTruthy();
     expect(screen.getByTestId('follow-up-scan-handoff-panel')).toBeTruthy();
+    expect(screen.getByTestId('scan-handoff-envelope-preview-panel')).toBeTruthy();
   });
 
   it('mounts the scan handoff preview below the evidence plan with no send action yet', async () => {
@@ -253,6 +254,21 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(evidencePanel.compareDocumentPosition(handoffPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(handoffPanel).getByText(/Send to Scan/i)).toBeTruthy();
     expect(within(handoffPanel).queryByRole('button', { name: /Send to Scan/i })).toBeNull();
+  });
+
+  it('mounts the scan handoff envelope preview below scan handoff with no native send action', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+
+    const handoffPanel = await screen.findByTestId('follow-up-scan-handoff-panel');
+    const envelopePanel = await screen.findByTestId('scan-handoff-envelope-preview-panel');
+
+    expect(handoffPanel.compareDocumentPosition(envelopePanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(envelopePanel).getByTestId('scan-handoff-envelope-deep-link')).toBeTruthy();
+    expect(within(envelopePanel).getByTestId('scan-handoff-envelope-payload-length')).toBeTruthy();
+    expect(within(envelopePanel).getByTestId('scan-handoff-envelope-copy-payload')).toBeTruthy();
+    expect(within(envelopePanel).queryByRole('button', { name: /send/i })).toBeNull();
+    expect(within(envelopePanel).queryByRole('button', { name: /open atlas scan/i })).toBeNull();
   });
 
   it('implementation pack view exposes Pack summary, Scope packs, Specification lines, Engineer job pack, Materials schedule, and Handover preview tabs', async () => {
