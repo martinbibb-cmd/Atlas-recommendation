@@ -239,17 +239,61 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(screen.getByTestId('dev-implementation-pack-panel')).toBeTruthy();
   });
 
-  it('implementation pack view exposes Pack summary and Specification lines tabs', async () => {
+  it('implementation pack view exposes Pack summary, Scope packs, and Specification lines tabs', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
     await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tabs')).toBeTruthy());
 
     expect(screen.getByTestId('dev-implementation-pack-tab-pack-summary')).toBeTruthy();
+    expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy();
     const specTab = screen.getByTestId('dev-implementation-pack-tab-specification-lines');
     expect(specTab).toBeTruthy();
 
     fireEvent.click(specTab);
     await waitFor(() => expect(screen.getByTestId('specification-line-review-panel')).toBeTruthy());
+  });
+
+  it('Scope packs tab shows the scope pack review panel for unvented fixture', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    await waitFor(() => expect(screen.getByTestId('scope-pack-review-panel')).toBeTruthy());
+  });
+
+  it('Scope packs tab shows standard_unvented_cylinder_install card for unvented fixture', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    await waitFor(() =>
+      expect(screen.getByTestId('scope-pack-card-standard_unvented_cylinder_install')).toBeTruthy(),
+    );
+  });
+
+  it('Scope packs tab shows open_vented_to_sealed_conversion card for open-vented fixture', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-open_vented_to_sealed_unvented'));
+    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    await waitFor(() =>
+      expect(screen.getByTestId('scope-pack-card-open_vented_to_sealed_conversion')).toBeTruthy(),
+    );
+  });
+
+  it('Scope packs tab shows heat pump packs for heat pump fixture', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-heat_pump_low_temp'));
+    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    await waitFor(() =>
+      expect(screen.getByTestId('scope-pack-card-heat_pump_emitter_review')).toBeTruthy(),
+    );
+    expect(screen.getByTestId('scope-pack-card-heat_pump_hydraulic_review')).toBeTruthy();
   });
 
   it('stored/unvented shows G3 qualification', async () => {
