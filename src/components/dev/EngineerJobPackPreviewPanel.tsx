@@ -38,6 +38,18 @@ const WALKTHROUGH_SECTION_KEYS: ReadonlyArray<keyof EngineerJobWalkthroughV1> = 
   'customerHandover',
 ];
 
+function deduplicateItems(items: readonly EngineerJobPackItemV1[]): EngineerJobPackItemV1[] {
+  return items.filter(
+    (item, index, arr) =>
+      arr.findIndex(
+        (other) =>
+          other.text === item.text
+          && (other.sourceLineId ?? '') === (item.sourceLineId ?? '')
+          && (other.relatedRiskId ?? '') === (item.relatedRiskId ?? ''),
+      ) === index,
+  );
+}
+
 function confidenceBadgeColor(confidence: EngineerJobPackItemV1['confidence']): string {
   if (confidence === 'confirmed') return '#0f766e';
   if (confidence === 'inferred') return '#475569';
@@ -276,16 +288,7 @@ export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
             const locationItems = allItems.filter(
               (item) => item.location?.locationId === chip.locationId && matchesFilter(item),
             );
-            const deduped = locationItems.filter(
-              (item, index, arr) =>
-                arr.findIndex(
-                  (other) =>
-                    other.text === item.text
-                    && (other.sourceLineId ?? '') === (item.sourceLineId ?? '')
-                    && (other.relatedRiskId ?? '') === (item.relatedRiskId ?? ''),
-                ) === index,
-            );
-            return renderSectionCard(`loc_${chip.locationId}`, chip.label, deduped);
+            return renderSectionCard(`loc_${chip.locationId}`, chip.label, deduplicateItems(locationItems));
           })}
           {(locationFilter === 'all' || locationFilter === 'needs_survey') && (() => {
             const allItems = SECTION_DEFINITIONS.flatMap((section) => {
@@ -293,15 +296,7 @@ export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
               return Array.isArray(items) ? items : [];
             });
             const unlocated = allItems.filter((item) => !item.location && matchesFilter(item));
-            const deduped = unlocated.filter(
-              (item, index, arr) =>
-                arr.findIndex(
-                  (other) =>
-                    other.text === item.text
-                    && (other.sourceLineId ?? '') === (item.sourceLineId ?? '')
-                    && (other.relatedRiskId ?? '') === (item.relatedRiskId ?? ''),
-                ) === index,
-            );
+            const deduped = deduplicateItems(unlocated);
             return deduped.length > 0 ? renderSectionCard('loc_unlocated', 'No location', deduped) : null;
           })()}
         </div>

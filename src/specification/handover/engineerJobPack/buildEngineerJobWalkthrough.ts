@@ -6,7 +6,7 @@ import type {
   EngineerJobWalkthroughV1,
 } from './EngineerJobWalkthroughV1';
 
-const REMOVE_CAP_REGEX = /\b(remove|cap|capping|disconnect|decommission)\b/i;
+export const REMOVE_CAP_REGEX = /\b(remove|cap|capping|disconnect|decommission)\b/i;
 
 const LOFT_TYPES = new Set<EngineerJobLocationType>(['loft']);
 const CYLINDER_TYPES = new Set<EngineerJobLocationType>(['cylinder_location', 'discharge_route']);

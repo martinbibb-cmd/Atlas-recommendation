@@ -9,7 +9,7 @@ import { buildSpecificationLinesFromImplementationPack } from '../../../specLine
 import { buildInstallationScopePacks } from '../../../scopePacks/buildInstallationScopePacks';
 import { buildScopePackHandover } from '../../buildScopePackHandover';
 import { buildEngineerJobPack } from '../buildEngineerJobPack';
-import { buildEngineerJobWalkthrough } from '../buildEngineerJobWalkthrough';
+import { buildEngineerJobWalkthrough, REMOVE_CAP_REGEX } from '../buildEngineerJobWalkthrough';
 
 const FIXED_NOW = '2026-05-12T00:00:00.000Z';
 
@@ -239,11 +239,10 @@ describe('buildEngineerJobWalkthrough', () => {
       walkthrough.externalWorks,
     ];
     for (const section of allSections) {
-      const removeRegex = /\b(remove|cap|capping|disconnect|decommission)\b/i;
       let seenNonRemove = false;
       for (const item of section.items) {
         if (item.mustConfirmOnSite) continue;
-        if (removeRegex.test(item.text)) {
+        if (REMOVE_CAP_REGEX.test(item.text)) {
           expect(seenNonRemove).toBe(false);
         } else {
           seenNonRemove = true;
