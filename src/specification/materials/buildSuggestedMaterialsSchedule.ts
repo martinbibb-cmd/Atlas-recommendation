@@ -173,10 +173,10 @@ function mapUnventedCylinderMaterials(
         && l.lineType === 'installer_note'
         && /expansion.vessel/i.test(l.label),
     );
-    const sizingConfirmed = expansionNoteLines.length === 0;
+    const sizingConfirmed = expansionNoteLines.length > 0;
     const expansionConfidence: SuggestedMaterialConfidence = sizingConfirmed
-      ? 'inferred'
-      : 'needs_survey';
+      ? 'needs_survey'
+      : 'inferred';
     const unresolvedChecks = expansionConfidence === 'needs_survey'
       ? ['Expansion vessel size must be confirmed to manufacturer sizing before ordering.']
       : [];
@@ -480,7 +480,3 @@ export function buildSuggestedMaterialsSchedule(
 
   return lines;
 }
-
-// ─── Re-export for convenience ────────────────────────────────────────────────
-
-export { hasLine };
