@@ -242,7 +242,7 @@ export function buildScopePackHandover(
         id: item.id,
         category: 'compliance' as const,
         label: item.description,
-        detail: item.regulatoryRef ?? item.timing,
+        detail: item.regulatoryRef ?? `Timing: ${item.timing}`,
       })),
     ],
     validationChecklist: validations.map((validation) => ({
