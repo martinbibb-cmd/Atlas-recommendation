@@ -298,6 +298,7 @@ export function validateWorkspaceSettingsExportPackage(
 
   return {
     ok: true,
+    // Safe after explicit schema/version/root/files/manifest validation above.
     pkg: rawPackage as unknown as WorkspaceSettingsExportPackageV1,
     preview: {
       persistedSettings,

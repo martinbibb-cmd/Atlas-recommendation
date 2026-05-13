@@ -261,7 +261,7 @@ export default function WorkspaceSettingsExportPanel({
             style={{ margin: '0 0 0.45rem', paddingLeft: '1.1rem', fontSize: 12, color: '#334155' }}
           >
             {Object.keys(previewState.pkg.files)
-              .sort((left, right) => left.localeCompare(right))
+              .sort((fileNameA, fileNameB) => fileNameA.localeCompare(fileNameB))
               .map((name) => (
                 <li key={name}>{name}</li>
               ))}
