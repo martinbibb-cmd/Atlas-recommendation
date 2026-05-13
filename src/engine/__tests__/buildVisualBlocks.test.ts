@@ -370,12 +370,12 @@ describe('buildVisualBlocks — problem block physics flags', () => {
     expect(problem?.title).toBe('Why your home needs a conventional system');
   });
 
-  it('problem block title uses "stored hot water" for combi system type', () => {
+  it('problem block title uses "on-demand hot water" for combi system type', () => {
     const decision  = makeDecision();
     const scenarios = [makeRecommendedScenario(), makeWeakerCombiScenario()];
     const blocks    = buildVisualBlocks(decision, scenarios);
     const problem   = blocks.find((b) => b.type === 'problem');
-    expect(problem?.title).toBe('Why your home needs stored hot water');
+    expect(problem?.title).toBe('Why your home needs on-demand hot water');
   });
 });
 

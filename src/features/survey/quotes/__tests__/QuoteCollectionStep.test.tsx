@@ -49,9 +49,11 @@ describe('QuoteCollectionStep — Installation Specification entry card', () => 
     expect(screen.getByTestId('continue-without-specification-btn')).toBeTruthy();
   });
 
-  it('does NOT render "Contractor Quotes"', () => {
+  it('does NOT render "Contractor Quotes" as a section heading', () => {
     render(<QuoteCollectionStep {...BASE_PROPS} />);
-    expect(screen.queryByText(/Contractor Quotes/i)).toBeNull();
+    // The old UI had a "Contractor Quotes" section heading; it is now gone.
+    // Body copy that mentions "contractor quotes" in a descriptive sentence is fine.
+    expect(screen.queryByRole('heading', { name: /Contractor Quotes/i })).toBeNull();
   });
 
   it('does NOT render "+ Add quote"', () => {
