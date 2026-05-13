@@ -110,7 +110,7 @@ function SessionBanner({ sessionStatus }: { sessionStatus: WorkspaceSessionStatu
           marginBottom: '1rem',
         }}
       >
-        Demo/session mode — workspace settings are shown read-only until you sign in.
+        Demo/session mode - workspace settings are shown read-only until you sign in.
       </div>
     );
   }
@@ -278,7 +278,7 @@ function WorkspaceSettingsContent({
           <div>
             <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Workspace settings</h1>
             <p style={{ margin: '0.2rem 0 0', fontSize: 13, color: '#64748b' }}>
-              Onboarding and policy controls are draft-only in this release.
+              Onboarding and policy controls are draft-only. Changes are not persisted yet.
             </p>
           </div>
         </div>

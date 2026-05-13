@@ -354,14 +354,6 @@ const INTERNAL_PRINT_ENABLED =
   new URLSearchParams(window.location.search).get('internal') === '1';
 
 /**
- * Detect ?brand-settings=1 — renders the Workspace Branding settings page.
- * Allows an installer/workspace admin to edit their Atlas brand locally.
- */
-const BRAND_SETTINGS_ENABLED =
-  typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).get('brand-settings') === '1';
-
-/**
  * Detect ?create-workspace=1 — renders the Workspace Onboarding page.
  * Allows a product customer to create a new Atlas workspace from the UI.
  */
@@ -1236,7 +1228,7 @@ function AppInner() {
     [labFullSurveyModel],
   );
 
-  if (WORKSPACE_SETTINGS_HOME || BRAND_SETTINGS_ENABLED) {
+  if (WORKSPACE_SETTINGS_HOME) {
     return (
       <WorkspaceSettingsPage
         workspace={workspaceSettingsWorkspace}

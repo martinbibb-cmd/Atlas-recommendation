@@ -47,11 +47,8 @@ export interface TenantOnboardingPageProps {
    * panel.  Receives the new workspaceSlug.
    */
   onStartVisit?: (workspaceSlug: string) => void;
-  /**
-   * Called when "Open workspace settings" is clicked from the success panel.
-   * Receives the new workspaceSlug.
-   */
-  onOpenWorkspaceSettings?: (workspaceSlug: string) => void;
+  /** Called when "Open workspace settings" is clicked from the success panel. */
+  onOpenWorkspaceSettings?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -187,7 +184,7 @@ export function TenantOnboardingPage({
             {onOpenWorkspaceSettings && (
               <button
                 data-testid="success-edit-branding-btn"
-                onClick={() => onOpenWorkspaceSettings(result.tenant.workspaceSlug)}
+                onClick={() => onOpenWorkspaceSettings()}
                 style={{
                   padding: '0.625rem 1.25rem',
                   background: 'transparent',

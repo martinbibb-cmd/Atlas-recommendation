@@ -200,7 +200,7 @@ describe('TenantOnboardingPage — creation', () => {
     fillForm({ displayName: 'Acme Heating', slug: 'acme-heating', primaryColor: '#FF0000' });
     submitForm();
     fireEvent.click(screen.getByTestId('success-edit-branding-btn'));
-    expect(onOpenWorkspaceSettings).toHaveBeenCalledWith('acme-heating');
+    expect(onOpenWorkspaceSettings).toHaveBeenCalledOnce();
   });
 
   it('calls onCreated with the new workspaceSlug on success', () => {
