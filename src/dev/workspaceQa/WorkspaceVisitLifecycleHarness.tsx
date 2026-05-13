@@ -12,10 +12,18 @@ import {
   type WorkspaceLifecycleReleaseReportV1,
   type WorkspaceLifecycleReleaseStatusV1,
 } from './buildWorkspaceLifecycleReleaseReport';
+import {
+  buildTrialReadinessActions,
+  type TrialReadinessLintStatusV1,
+} from '../trialReadiness';
 
 interface WorkspaceVisitLifecycleHarnessProps {
   readonly onBack?: () => void;
 }
+
+const TRIAL_READINESS_LINT_STATUS: TrialReadinessLintStatusV1 = {
+  hasFailures: true,
+};
 
 function StatusPill({
   ok,
@@ -159,6 +167,22 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     const link = document.createElement('a');
     link.href = url;
     link.download = 'release-gate-report.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  const trialReadinessActions = useMemo(
+    () => (releaseReport ? buildTrialReadinessActions(releaseReport, TRIAL_READINESS_LINT_STATUS, []) : []),
+    [releaseReport],
+  );
+
+  function handleExportTrialReadinessActions() {
+    if (!releaseReport) return;
+    const blob = new Blob([JSON.stringify(trialReadinessActions, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'trial-readiness-actions.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -460,6 +484,58 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
               </div>
             </div>
           </>
+        )}
+      </section>
+
+      <section
+        style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'grid', gap: 12 }}
+        data-testid="workspace-qa-trial-readiness-actions"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <h2 style={{ margin: '0 0 4px', fontSize: 14 }}>Trial Readiness Checklist</h2>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+              Ordered hardening actions from release gate results and known trial gaps.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportTrialReadinessActions}
+            disabled={releaseReport === null}
+            style={{ fontSize: 12, padding: '4px 12px' }}
+            data-testid="workspace-qa-trial-readiness-export-json"
+          >
+            Export JSON
+          </button>
+        </div>
+
+        {releaseReport === null ? (
+          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Building trial readiness checklist…</p>
+        ) : trialReadinessActions.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>No trial readiness actions open.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }} data-testid="workspace-qa-trial-readiness-table">
+            <thead>
+              <tr style={{ textAlign: 'left', fontSize: 11, color: '#64748b' }}>
+                <th style={{ padding: '4px 8px' }}>Priority</th>
+                <th style={{ padding: '4px 8px' }}>Area</th>
+                <th style={{ padding: '4px 8px' }}>Source</th>
+                <th style={{ padding: '4px 8px' }}>Status</th>
+                <th style={{ padding: '4px 8px' }}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trialReadinessActions.map((action) => (
+                <tr key={action.actionId}>
+                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.priority}</td>
+                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.area.replace(/_/g, ' ')}</td>
+                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.source.replace(/_/g, ' ')}</td>
+                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.status.replace(/_/g, ' ')}</td>
+                  <td style={{ padding: '4px 8px', fontSize: 12, color: '#475569' }}>{action.title}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </section>
     </div>
