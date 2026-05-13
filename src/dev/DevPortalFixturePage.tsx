@@ -56,6 +56,8 @@ import SurveyFollowUpTaskPanel from '../components/dev/SurveyFollowUpTaskPanel';
 import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPanel';
 import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel';
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
+import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
+import { WORKFLOW_SCHEMA_VERSION, type PersistedImplementationWorkflowV1 } from '../storage/workflow';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -943,6 +945,37 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               ? 'Confirm qualification/customer dependencies'
               : 'Ready for office review';
 
+      // ─── Persisted workflow snapshot (passed to storage selector) ──────────
+      const now = new Date().toISOString();
+      const visitReference = `fixture:${active.fixture.id}`;
+      const persistedWorkflowSnapshot: PersistedImplementationWorkflowV1 = {
+        schemaVersion: WORKFLOW_SCHEMA_VERSION,
+        visitReference,
+        createdAt: now,
+        updatedAt: now,
+        packSnapshot: {
+          recommendedScenarioId: implementationPack.recommendedScenarioId,
+          fixtureId: active.fixture.id,
+        },
+        resolutionSimulation: {
+          resolvedTaskIds: [...resolutionSimulation.resolvedTaskIds],
+          capturedEvidenceIds: [...resolutionSimulation.capturedEvidenceIds],
+          resolvedDependencyIds: [...resolutionSimulation.resolvedDependencyIds],
+          changeLog: [],
+        },
+        scopePackStatuses: Object.fromEntries(
+          scopePacks.map((p) => [p.packId, p.reviewStatus]),
+        ),
+        specLineStatuses: Object.fromEntries(
+          specificationLines.map((l) => [l.lineId, l.status]),
+        ),
+        materialsReviewState: {
+          confirmedIds: [],
+          rejectedIds: [],
+          flaggedIds: [],
+        },
+      };
+
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }} data-testid="dev-implementation-pack-shell">
           <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
@@ -1054,6 +1087,11 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
             >
               {nextActionMessage}
             </div>
+
+            {/* ── Storage mode ─────────────────────────────────────────────── */}
+            <WorkflowStorageModeSelector
+              workflowState={persistedWorkflowSnapshot}
+            />
 
             {/* ── Step 1: Readiness ────────────────────────────────────────── */}
             <WorkflowStep
