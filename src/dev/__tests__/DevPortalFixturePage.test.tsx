@@ -558,3 +558,112 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent).toBe(initialFollowUps);
   }, 30000);
 });
+
+// ─── Storage mode selector ────────────────────────────────────────────────────
+
+describe('DevPortalFixturePage — storage mode selector', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('scrollTo', vi.fn());
+  });
+
+  it('mounts the storage mode selector in the implementation pack workflow', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+  });
+
+  it('defaults to "Not saved" mode (disabled adapter)', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    const disabledBtn = screen.getByTestId('workflow-storage-mode-disabled');
+    expect(disabledBtn.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('shows all three mode chips', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    expect(screen.getByTestId('workflow-storage-mode-disabled')).toBeTruthy();
+    expect(screen.getByTestId('workflow-storage-mode-local_only')).toBeTruthy();
+    expect(screen.getByTestId('workflow-storage-mode-google_drive')).toBeTruthy();
+  });
+
+  it('does not show save/load controls when in "Not saved" mode', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    expect(screen.queryByTestId('workflow-storage-save-btn')).toBeNull();
+    expect(screen.queryByTestId('workflow-storage-load-btn')).toBeNull();
+  });
+
+  it('shows save/load/export/import controls when "Local device" mode is selected', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('workflow-storage-mode-local_only'));
+
+    expect(screen.getByTestId('workflow-storage-save-btn')).toBeTruthy();
+    expect(screen.getByTestId('workflow-storage-load-btn')).toBeTruthy();
+    expect(screen.getByTestId('workflow-storage-export-btn')).toBeTruthy();
+    expect(screen.getByTestId('workflow-storage-import-label')).toBeTruthy();
+  });
+
+  it('shows Google Drive unavailable notice when Google Drive mode is selected', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('workflow-storage-mode-google_drive'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('workflow-storage-gdrive-notice')).toBeTruthy(),
+    );
+    expect(screen.getByTestId('workflow-storage-gdrive-notice').textContent).toMatch(/not configured/i);
+  });
+
+  it('local save shows success status banner', async () => {
+    const mockStorage: Record<string, string> = {};
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => mockStorage[key] ?? null,
+      setItem: (key: string, value: string) => { mockStorage[key] = value; },
+      removeItem: (key: string) => { delete mockStorage[key]; },
+      clear: () => Object.keys(mockStorage).forEach((k) => delete mockStorage[k]),
+      get length() { return Object.keys(mockStorage).length; },
+      key: (i: number) => Object.keys(mockStorage)[i] ?? null,
+    });
+
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('workflow-storage-mode-local_only'));
+    fireEvent.click(screen.getByTestId('workflow-storage-save-btn'));
+
+    await waitFor(() => {
+      const banner = screen.getByTestId('workflow-storage-status-banner');
+      expect(banner.textContent).toMatch(/saved at/i);
+    });
+  }, 30000);
+
+  it('storage mode selector resets to "Not saved" when workflow is reopened', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('workflow-storage-mode-local_only'));
+    expect(screen.getByTestId('workflow-storage-mode-local_only').getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByTestId('dev-fixture-back'));
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('workflow-storage-mode-selector')).toBeTruthy());
+
+    expect(screen.getByTestId('workflow-storage-mode-disabled').getAttribute('aria-pressed')).toBe('true');
+  }, 30000);
+});
+
