@@ -214,6 +214,12 @@ const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder
 const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
 const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
 const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
+const INSTALLER_BLOCKING_REASON_PATTERNS: readonly RegExp[] = [
+  /^Safety\/compliance check unresolved:/i,
+  /^Installer validation unresolved:/i,
+  /^Heat pump emitter review unresolved:/i,
+  /^Unknown location in /i,
+];
 // Contract pipe diameters are normalized to standard primary sizes.
 const PIPE_SIZE_THRESHOLD_35MM = 35;
 const PIPE_SIZE_THRESHOLD_28MM = 28;
@@ -862,7 +868,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         }
       }
 
-      const isTaskResolved = (taskId: string): boolean => {
+      const isTaskCompletelyResolved = (taskId: string): boolean => {
         if (resolvedTaskSet.has(taskId)) return true;
         const requiredEvidenceIds = requiredEvidenceByTask.get(taskId) ?? [];
         if (requiredEvidenceIds.length === 0) return false;
@@ -874,7 +880,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
 
       const simulatedTasks = surveyFollowUpTasks.map((task) => ({
         ...task,
-        resolved: isTaskResolved(task.taskId),
+        resolved: isTaskCompletelyResolved(task.taskId),
       }));
 
       const blockerTaskIdsByReason = new Map<string, string[]>();
@@ -889,7 +895,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       const simulatedBlockingReasons = specificationReadiness.blockingReasons.filter((reason) => {
         const linkedTaskIds = blockerTaskIdsByReason.get(reason);
         if (!linkedTaskIds || linkedTaskIds.length === 0) return true;
-        return linkedTaskIds.some((taskId) => !isTaskResolved(taskId));
+        return linkedTaskIds.some((taskId) => !isTaskCompletelyResolved(taskId));
       });
 
       const simulatedUnresolvedDependencies = followUpScanHandoff.unresolvedDependencies.filter(
@@ -899,11 +905,8 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       const simulatedReadiness = {
         ...specificationReadiness,
         readyForOfficeReview: simulatedBlockingReasons.length === 0,
-        readyForInstallerHandover: !simulatedBlockingReasons.some((reason) =>
-          /^Safety\/compliance check unresolved:/i.test(reason)
-          || /^Installer validation unresolved:/i.test(reason)
-          || /^Heat pump emitter review unresolved:/i.test(reason)
-          || /^Unknown location in /i.test(reason),
+        readyForInstallerHandover: !simulatedBlockingReasons.some((reason) => INSTALLER_BLOCKING_REASON_PATTERNS
+          .some((pattern) => pattern.test(reason)),
         ),
         readyForMaterialsOrdering: !simulatedBlockingReasons.some((reason) =>
           /^Material needs survey confirmation:/i.test(reason),

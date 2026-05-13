@@ -104,7 +104,9 @@ export default function SurveyFollowUpTaskPanel({
       ? tasks
       : tasks.filter((task) => task.assignedRole === roleFilter);
     return [...filtered].sort((a, b) => {
-      if (a.resolved !== b.resolved) return Number(a.resolved) - Number(b.resolved);
+      if (a.resolved !== b.resolved) {
+        return a.resolved && !b.resolved ? 1 : -1;
+      }
       const priorityDelta = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
       if (priorityDelta !== 0) return priorityDelta;
       return a.title.localeCompare(b.title);
