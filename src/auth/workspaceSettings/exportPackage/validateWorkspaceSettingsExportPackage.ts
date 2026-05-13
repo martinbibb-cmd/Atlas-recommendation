@@ -292,13 +292,13 @@ export function validateWorkspaceSettingsExportPackage(
 
   if (storagePreference === 'google_drive' && options.googleDriveConnectorAvailable === false) {
     warnings.push(
-      'Google Drive connector is unavailable. Settings can be imported, but Google Drive synchronization is unavailable.',
+      'Google Drive connector is unavailable. Settings can be imported, but synchronization will not be available.',
     );
   }
 
   return {
     ok: true,
-    // Safe after explicit schema/version/root/files/manifest validation above.
+    // This cast is intentionally limited to preserve original package contents for preview after root/schema and required file validations.
     pkg: rawPackage as unknown as WorkspaceSettingsExportPackageV1,
     preview: {
       persistedSettings,

@@ -4,6 +4,7 @@ import {
   exportWorkspaceSettingsPackageAsJsonBlob,
   importWorkspaceSettingsPackageFromJsonBlob,
   validateWorkspaceSettingsExportPackage,
+  WORKSPACE_SETTINGS_EXPORT_REQUIRED_FILES,
   type WorkspaceSettingsExportPackageV1,
   type WorkspaceSettingsImportPreviewV1,
 } from '../../auth/workspaceSettings/exportPackage';
@@ -260,11 +261,9 @@ export default function WorkspaceSettingsExportPanel({
             data-testid="workspace-settings-package-preview-files"
             style={{ margin: '0 0 0.45rem', paddingLeft: '1.1rem', fontSize: 12, color: '#334155' }}
           >
-            {Object.keys(previewState.pkg.files)
-              .sort((fileNameA, fileNameB) => fileNameA.localeCompare(fileNameB))
-              .map((name) => (
-                <li key={name}>{name}</li>
-              ))}
+            {WORKSPACE_SETTINGS_EXPORT_REQUIRED_FILES.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
           </ul>
 
           {previewState.preview.warnings.length > 0 && (
