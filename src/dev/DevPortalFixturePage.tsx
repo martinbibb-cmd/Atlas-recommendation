@@ -57,7 +57,11 @@ import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPan
 import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel';
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
-import { WORKFLOW_SCHEMA_VERSION, type PersistedImplementationWorkflowV1 } from '../storage/workflow';
+import {
+  WORKFLOW_SCHEMA_VERSION,
+  buildWorkflowExportPackage,
+  type PersistedImplementationWorkflowV1,
+} from '../storage/workflow';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -558,6 +562,7 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
   return {
     pack,
     recommendedScenarioId: decision.recommendedScenarioId,
+    customerSummary,
   };
 }
 
@@ -975,6 +980,23 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           flaggedIds: [],
         },
       };
+      const workflowExportPackage = buildWorkflowExportPackage({
+        payload: {
+          workflowState: persistedWorkflowSnapshot,
+          implementationPack: implementationPack.pack,
+          specificationLines,
+          scopePacks,
+          materialsSchedule,
+          engineerJobPack,
+          followUpTasks: simulatedTasks,
+          scanHandoffPreview: scanHandoffEnvelopePreview,
+          customerSummary: implementationPack.customerSummary,
+        },
+        source: {
+          target: 'local_only',
+          surface: `dev_portal_fixture:${active.fixture.id}`,
+        },
+      });
 
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }} data-testid="dev-implementation-pack-shell">
@@ -1091,6 +1113,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
             {/* ── Storage mode ─────────────────────────────────────────────── */}
             <WorkflowStorageModeSelector
               workflowState={persistedWorkflowSnapshot}
+              workflowExportPackage={workflowExportPackage}
             />
 
             {/* ── Step 1: Readiness ────────────────────────────────────────── */}
