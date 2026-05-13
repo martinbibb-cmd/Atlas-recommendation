@@ -18,11 +18,12 @@
 
 import { useState } from 'react';
 import type { WorkflowStorageTarget, WorkflowStorageAdapterV1 } from '../../storage/workflow';
-import type { PersistedImplementationWorkflowV1 } from '../../storage/workflow';
+import type { PersistedImplementationWorkflowV1, WorkflowExportPackageV1 } from '../../storage/workflow';
 import {
   LocalWorkflowStorageAdapter,
   GoogleDriveWorkflowStorageAdapterStub,
   DisabledWorkflowStorageAdapter,
+  exportPackageAsJsonBlob,
 } from '../../storage/workflow';
 
 // ─── Adapters ─────────────────────────────────────────────────────────────────
@@ -89,6 +90,8 @@ interface Props {
    * scopePackStatuses, specLineStatuses, and materialsReviewState.
    */
   workflowState: PersistedImplementationWorkflowV1;
+  /** Optional portable export package payload for workflow folder export. */
+  workflowExportPackage?: WorkflowExportPackageV1;
   /**
    * Called when a successful load returns a persisted state so the parent can
    * merge it into the active review state.
@@ -98,7 +101,7 @@ interface Props {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function WorkflowStorageModeSelector({ workflowState, onLoad }: Props) {
+export default function WorkflowStorageModeSelector({ workflowState, workflowExportPackage, onLoad }: Props) {
   const [target, setTarget] = useState<WorkflowStorageTarget>('disabled');
   const [status, setStatus] = useState<StatusMessage>({ kind: 'idle', text: '' });
   const [savedList, setSavedList] = useState<readonly { visitReference: string; updatedAt: string; label: string }[]>([]);
@@ -164,6 +167,21 @@ export default function WorkflowStorageModeSelector({ workflowState, onLoad }: P
     }
     // Reset so the same file can be re-imported if needed.
     e.target.value = '';
+  }
+
+  function handleExportWorkflowPackage() {
+    if (!workflowExportPackage) {
+      setStatus({ kind: 'error', text: 'Workflow package export is not available in this view.' });
+      return;
+    }
+    const blob = exportPackageAsJsonBlob(workflowExportPackage);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${workflowExportPackage.folderName}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus({ kind: 'success', text: 'Workflow package downloaded.' });
   }
 
   async function handleShowList() {
@@ -318,6 +336,23 @@ export default function WorkflowStorageModeSelector({ workflowState, onLoad }: P
             }}
           >
             List saved
+          </button>
+          <button
+            type="button"
+            onClick={handleExportWorkflowPackage}
+            disabled={isGoogleDrive || workflowExportPackage == null}
+            data-testid="workflow-storage-export-package-btn"
+            style={{
+              fontSize: 12,
+              padding: '0.25rem 0.6rem',
+              borderRadius: 6,
+              border: '1px solid #cbd5e1',
+              background: '#f8fafc',
+              color: isGoogleDrive || workflowExportPackage == null ? '#94a3b8' : '#334155',
+              cursor: isGoogleDrive || workflowExportPackage == null ? 'not-allowed' : 'pointer',
+            }}
+          >
+            Export workflow package
           </button>
         </div>
       )}

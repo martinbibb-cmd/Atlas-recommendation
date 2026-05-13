@@ -612,6 +612,7 @@ describe('DevPortalFixturePage — storage mode selector', () => {
     expect(screen.getByTestId('workflow-storage-load-btn')).toBeTruthy();
     expect(screen.getByTestId('workflow-storage-export-btn')).toBeTruthy();
     expect(screen.getByTestId('workflow-storage-import-label')).toBeTruthy();
+    expect(screen.getByTestId('workflow-storage-export-package-btn')).toBeTruthy();
   });
 
   it('shows Google Drive unavailable notice when Google Drive mode is selected', async () => {
@@ -666,4 +667,3 @@ describe('DevPortalFixturePage — storage mode selector', () => {
     expect(screen.getByTestId('workflow-storage-mode-disabled').getAttribute('aria-pressed')).toBe('true');
   }, 30000);
 });
-

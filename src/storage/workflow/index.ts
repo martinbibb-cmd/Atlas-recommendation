@@ -28,3 +28,16 @@ export type {
 export { LocalWorkflowStorageAdapter } from './LocalWorkflowStorageAdapter';
 export { GoogleDriveWorkflowStorageAdapterStub } from './GoogleDriveWorkflowStorageAdapterStub';
 export { DisabledWorkflowStorageAdapter } from './DisabledWorkflowStorageAdapter';
+export {
+  WORKFLOW_EXPORT_PACKAGE_SCHEMA,
+  WORKFLOW_EXPORT_PACKAGE_VERSION,
+  WORKFLOW_EXPORT_REQUIRED_FILES,
+  type WorkflowExportRequiredFileName,
+  type WorkflowExportPackageManifestV1,
+  type WorkflowExportPackagePayloadV1,
+  type WorkflowExportPackageV1,
+  buildWorkflowExportPackage,
+  buildWorkflowExportFolderName,
+  exportPackageAsJsonBlob,
+  importPackageFromJsonBlob,
+} from './exportPackage';
