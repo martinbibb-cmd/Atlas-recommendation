@@ -18,7 +18,11 @@
 
 import { useState } from 'react';
 import type { WorkflowStorageTarget, WorkflowStorageAdapterV1 } from '../../storage/workflow';
-import type { PersistedImplementationWorkflowV1, WorkflowExportPackageV1 } from '../../storage/workflow';
+import type {
+  PersistedImplementationWorkflowV1,
+  WorkflowExportPackageManifestV1,
+  WorkflowExportPackageV1,
+} from '../../storage/workflow';
 import {
   LocalWorkflowStorageAdapter,
   GoogleDriveWorkflowStorageAdapterStub,
@@ -110,9 +114,8 @@ export default function WorkflowStorageModeSelector({ workflowState, workflowExp
   const [showList, setShowList] = useState(false);
 
   const adapter = ADAPTERS[target];
-  const manifestOwnership = workflowExportPackage != null
-    ? (workflowExportPackage.files['manifest.json'] as { ownership?: unknown }).ownership
-    : undefined;
+  const manifest = workflowExportPackage?.files['manifest.json'] as WorkflowExportPackageManifestV1 | undefined;
+  const manifestOwnership = manifest?.ownership;
 
   async function handleSave() {
     setStatus({ kind: 'busy', text: 'Saving…' });
