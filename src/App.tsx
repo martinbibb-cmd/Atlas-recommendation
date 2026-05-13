@@ -112,6 +112,7 @@ import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import { AtlasAuthProvider } from './auth/AtlasAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 import { useAtlasAuth } from './auth/useAtlasAuth';
+import { WorkspaceSessionProvider, useWorkspaceSession, WorkspaceSessionGuard } from './auth/profile';
 import { upsertVisitIdentity } from './visits/visitIdentityStore';
 import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
 import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
@@ -759,6 +760,7 @@ function AppInner() {
   /** Active user profile — used for workspace defaults and visit attribution. */
   const { activeUser } = useActiveUser();
   const { userProfile: atlasUserProfile, currentWorkspace } = useAtlasAuth();
+  const workspaceSession = useWorkspaceSession();
 
   /** Role-based UI permission flags derived from the active user's role. */
   const {
@@ -903,6 +905,7 @@ function AppInner() {
    * Brand selection and visit creation are handled by StartVisitPanel.
    */
   function handleStartNewVisit() {
+    if (workspaceSession.status === 'authenticated_no_workspace') return;
     setShowNewVisitDialog(true);
   }
 
@@ -1181,6 +1184,7 @@ function AppInner() {
             {
               atlasUserId: atlasUserProfile?.atlasUserId,
               workspaceId: currentWorkspace?.workspaceId,
+              storageTarget: workspaceSession.storageTarget,
             },
           );
           storeActiveVisit(atlasVisit);
@@ -1194,6 +1198,7 @@ function AppInner() {
             {
               atlasUserId: atlasUserProfile?.atlasUserId,
               workspaceId: currentWorkspace?.workspaceId,
+              storageTarget: workspaceSession.storageTarget,
             },
           );
           storeActiveVisit(atlasVisit);
@@ -2161,6 +2166,7 @@ function AppInner() {
               )}
             </div>
           )}
+          <WorkspaceSessionGuard showWorkspaceActiveState />
           <div className="hero">
             <div style={{ marginBottom: '0.5rem' }}>
               <button
@@ -2185,6 +2191,7 @@ function AppInner() {
                 className="cta-btn cta-btn--visit"
                 onClick={handleStartNewVisit}
                 aria-haspopup="dialog"
+                disabled={workspaceSession.status === 'authenticated_no_workspace'}
               >
                 ＋ New Visit
               </button>
@@ -2203,6 +2210,7 @@ function AppInner() {
           {/* Visits panel — revealed when "Open Visit" is toggled */}
           {showVisitsPanel && (
             <div id="visits-panel">
+              <WorkspaceSessionGuard />
               <RecentVisitsList onOpenVisit={handleOpenVisit} />
             </div>
           )}
@@ -2408,6 +2416,7 @@ function AppInner() {
           }}
         >
           <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxWidth: 520, width: '100%', margin: '0 1rem' }}>
+            <WorkspaceSessionGuard />
             <StartVisitPanel
               onStart={(visit) => {
                 setActiveAtlasVisit(visit);
@@ -2437,9 +2446,11 @@ export default function App() {
   return (
     <AtlasAuthProvider>
       <ActiveUserProvider>
-        <RequireAuth>
-          <AppInner />
-        </RequireAuth>
+        <WorkspaceSessionProvider>
+          <RequireAuth>
+            <AppInner />
+          </RequireAuth>
+        </WorkspaceSessionProvider>
       </ActiveUserProvider>
     </AtlasAuthProvider>
   );

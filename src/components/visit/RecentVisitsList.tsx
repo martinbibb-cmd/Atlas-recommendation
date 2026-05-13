@@ -41,6 +41,8 @@ import {
   cardSubline,
   buildListSummary,
 } from './recentVisitsHelpers';
+import { getVisitIdentity } from '../../visits/visitIdentityStore';
+import { useWorkspaceSession } from '../../auth/profile';
 import './RecentVisitsList.css';
 
 interface Props {
@@ -113,6 +115,7 @@ function VisitCard({ v, onOpen }: { v: VisitMeta; onOpen: () => void }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function RecentVisitsList({ onOpenVisit }: Props) {
+  const workspaceSession = useWorkspaceSession();
   const [visits, setVisits] = useState<VisitMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,17 +162,48 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
     [visits, search, dateFilter, filter],
   );
 
+  const {
+    workspaceOwnedVisits,
+    legacyUnownedVisits,
+  } = useMemo(() => {
+    if (workspaceSession.status !== 'workspace_active' || workspaceSession.activeWorkspace === null) {
+      return {
+        workspaceOwnedVisits: filtered,
+        legacyUnownedVisits: [] as VisitMeta[],
+      };
+    }
+
+    const owned: VisitMeta[] = [];
+    const unowned: VisitMeta[] = [];
+    for (const visit of filtered) {
+      const identity = getVisitIdentity(visit.id);
+      if (identity == null) {
+        unowned.push(visit);
+        continue;
+      }
+      if (identity.workspaceId === workspaceSession.activeWorkspace.workspaceId) {
+        owned.push(visit);
+      }
+    }
+    return {
+      workspaceOwnedVisits: owned,
+      legacyUnownedVisits: unowned,
+    };
+  }, [filtered, workspaceSession.activeWorkspace, workspaceSession.status]);
+
   // When any active filter narrows the list, always show all matching results.
   // The cap only applies to the default "show recent" state.
   const isFiltering = isAnyFilterActive(search, dateFilter, filter);
-  const visibleItems = showAll || isFiltering ? filtered : filtered.slice(0, DEFAULT_LIST_LIMIT);
-  const hasMore = !isFiltering && !showAll && filtered.length > DEFAULT_LIST_LIMIT;
+  const visibleItems = showAll || isFiltering
+    ? workspaceOwnedVisits
+    : workspaceOwnedVisits.slice(0, DEFAULT_LIST_LIMIT);
+  const hasMore = !isFiltering && !showAll && workspaceOwnedVisits.length > DEFAULT_LIST_LIMIT;
 
   const listSummary = buildListSummary({
     isFiltering,
     showAll,
     visibleCount: visibleItems.length,
-    totalFilteredCount: filtered.length,
+    totalFilteredCount: workspaceOwnedVisits.length,
   });
 
   if (loading) {
@@ -284,8 +318,18 @@ export default function RecentVisitsList({ onOpenVisit }: Props) {
                 type="button"
                 onClick={() => setShowAll(true)}
               >
-                Show all {filtered.length} visits
+                Show all {workspaceOwnedVisits.length} visits
               </button>
+            </div>
+          )}
+          {legacyUnownedVisits.length > 0 && (
+            <div className="rv-legacy-warning" data-testid="recent-visits-legacy-warning">
+              <strong>Legacy unowned visits</strong> are hidden from this workspace view.
+              {legacyUnownedVisits.slice(0, 3).map((visit) => (
+                <div key={visit.id} className="rv-legacy-warning__item">
+                  ⚠ {visitDisplayLabel(visit)}
+                </div>
+              ))}
             </div>
           )}
         </>

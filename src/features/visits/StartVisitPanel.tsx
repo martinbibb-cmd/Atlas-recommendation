@@ -26,6 +26,7 @@ import { resolveActiveTenant } from '../tenants/activeTenant';
 import { trackVisitCreated } from '../analytics/analyticsTracker';
 import { useActiveUser } from '../userProfiles/useActiveUser';
 import { AtlasAuthContext } from '../../auth/AtlasAuthContext';
+import { useWorkspaceSession } from '../../auth/profile';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
   const authContext = useContext(AtlasAuthContext);
   const userProfile = authContext?.userProfile ?? null;
   const currentWorkspace = authContext?.currentWorkspace ?? null;
+  const workspaceSession = useWorkspaceSession();
 
   // Workspace default priority: explicit prop (host workspace) > active user default > 'atlas'
   const resolvedDefaultSlug = defaultWorkspaceSlug ?? activeUser?.defaultWorkspaceSlug ?? 'atlas';
@@ -83,19 +85,25 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (creating) return;
+    if (workspaceSession.status === 'authenticated_no_workspace') return;
     setCreating(true);
     setError(null);
     try {
       const opts = {
         ...(reference.trim().length > 0 ? { visit_reference: reference.trim() } : {}),
-        ...(currentWorkspace?.workspaceId !== undefined ? { workspace_id: currentWorkspace.workspaceId } : {}),
-        ...(userProfile?.atlasUserId !== undefined ? { atlas_user_id: userProfile.atlasUserId } : {}),
+        ...(workspaceSession.status === 'workspace_active' && currentWorkspace?.workspaceId !== undefined
+          ? { workspace_id: currentWorkspace.workspaceId }
+          : {}),
+        ...(workspaceSession.status === 'workspace_active' && userProfile?.atlasUserId !== undefined
+          ? { atlas_user_id: userProfile.atlasUserId }
+          : {}),
       };
       const { id } = await createVisit(opts);
       const tenant = resolveActiveTenant({ workspaceSlug });
       const visit = createAtlasVisit(id, tenant.brandId, activeUser?.userId, {
-        atlasUserId: userProfile?.atlasUserId,
-        workspaceId: currentWorkspace?.workspaceId,
+        atlasUserId: workspaceSession.status === 'workspace_active' ? userProfile?.atlasUserId : undefined,
+        workspaceId: workspaceSession.status === 'workspace_active' ? currentWorkspace?.workspaceId : undefined,
+        storageTarget: workspaceSession.storageTarget,
       });
       trackVisitCreated(visit, tenant.tenantId);
       onStart(visit);
@@ -178,6 +186,14 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
         </div>
 
         {/* Inline error */}
+        {workspaceSession.status === 'authenticated_no_workspace' && (
+          <p
+            role="status"
+            style={{ color: '#92400e', marginBottom: '1rem', fontSize: '0.875rem' }}
+          >
+            Create or join workspace before creating customer visits.
+          </p>
+        )}
         {error !== null && (
           <p
             role="alert"
@@ -191,7 +207,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button
             type="submit"
-            disabled={creating}
+            disabled={creating || workspaceSession.status === 'authenticated_no_workspace'}
             style={{
               flex: 1,
               padding: '0.625rem 1.25rem',
@@ -200,8 +216,8 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
               border: 'none',
               borderRadius: 6,
               fontSize: '1rem',
-              cursor: creating ? 'not-allowed' : 'pointer',
-              opacity: creating ? 0.6 : 1,
+              cursor: creating || workspaceSession.status === 'authenticated_no_workspace' ? 'not-allowed' : 'pointer',
+              opacity: creating || workspaceSession.status === 'authenticated_no_workspace' ? 0.6 : 1,
             }}
           >
             {creating ? 'Starting…' : 'Start Visit'}

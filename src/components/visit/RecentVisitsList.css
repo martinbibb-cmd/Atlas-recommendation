@@ -367,3 +367,17 @@
   background: #ebf8ff;
   border-color: #bee3f8;
 }
+
+.rv-legacy-warning {
+  margin-top: 0.8rem;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.rv-legacy-warning__item {
+  margin-top: 0.25rem;
+}
