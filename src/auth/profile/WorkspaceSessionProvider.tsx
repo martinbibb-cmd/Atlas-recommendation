@@ -113,13 +113,14 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
   );
 
   const [workspaceState, setWorkspaceState] = useState<{
+    workspaceId: string | null;
     workspace: AtlasWorkspaceV1 | null;
     source: 'local_applied' | 'fallback' | 'none';
-  }>({ workspace: fallbackWorkspace, source: fallbackWorkspace === null ? 'none' : 'fallback' });
+  }>({ workspaceId: null, workspace: null, source: 'none' });
 
   const refreshActiveWorkspace = useCallback(async () => {
     if (fallbackWorkspace === null) {
-      setWorkspaceState({ workspace: null, source: 'none' });
+      setWorkspaceState({ workspaceId: null, workspace: null, source: 'none' });
       return;
     }
 
@@ -130,24 +131,41 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
     });
 
     setWorkspaceState({
+      workspaceId: fallbackWorkspace.workspaceId,
       workspace: loaded.workspace,
       source: loaded.source,
     });
   }, [fallbackWorkspace]);
 
   useEffect(() => {
-    setWorkspaceState({
-      workspace: fallbackWorkspace,
-      source: fallbackWorkspace === null ? 'none' : 'fallback',
-    });
-    void refreshActiveWorkspace();
-  }, [fallbackWorkspace, refreshActiveWorkspace]);
+    const refreshTimer = window.setTimeout(() => {
+      void refreshActiveWorkspace();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+    };
+  }, [refreshActiveWorkspace]);
+
+  const resolvedWorkspace =
+    fallbackWorkspace === null
+      ? null
+      : workspaceState.workspaceId === fallbackWorkspace.workspaceId
+        ? workspaceState.workspace
+        : fallbackWorkspace;
+
+  const resolvedSource =
+    fallbackWorkspace === null
+      ? 'none'
+      : workspaceState.workspaceId === fallbackWorkspace.workspaceId
+        ? workspaceState.source
+        : 'fallback';
 
   const value = useMemo<WorkspaceSessionValue>(() => {
     const status: WorkspaceSessionStatus =
       !isAuthenticated || userProfile === null
         ? 'unauthenticated_demo'
-        : workspaceState.workspace === null
+        : resolvedWorkspace === null
           ? 'authenticated_no_workspace'
           : 'workspace_active';
 
@@ -155,13 +173,20 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
       status,
       authUserId,
       atlasUserProfile: userProfile,
-      activeWorkspace: workspaceState.workspace,
-      activeMembership: resolveActiveMembership(workspaceState.workspace, authUserId),
-      storageTarget: resolveWorkspaceStorageTarget(status, workspaceState.workspace),
-      workspaceSource: workspaceState.source,
+      activeWorkspace: resolvedWorkspace,
+      activeMembership: resolveActiveMembership(resolvedWorkspace, authUserId),
+      storageTarget: resolveWorkspaceStorageTarget(status, resolvedWorkspace),
+      workspaceSource: resolvedSource,
       refreshActiveWorkspace,
     };
-  }, [authUserId, isAuthenticated, refreshActiveWorkspace, userProfile, workspaceState]);
+  }, [
+    authUserId,
+    isAuthenticated,
+    refreshActiveWorkspace,
+    resolvedSource,
+    resolvedWorkspace,
+    userProfile,
+  ]);
 
   return (
     <WorkspaceSessionContext.Provider value={value}>

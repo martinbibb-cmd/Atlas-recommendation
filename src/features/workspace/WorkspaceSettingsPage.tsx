@@ -15,9 +15,7 @@ import {
   buildWorkspaceSettingsChangeSet,
   type WorkspaceIdentityDraftV1,
   type WorkspaceSettingsDraftV1,
-  DisabledWorkspaceSettingsStorageAdapter,
   LocalWorkspaceSettingsStorageAdapter,
-  GoogleDriveWorkspaceSettingsStorageAdapterStub,
   type WorkspaceSettingsStorageAdapterV1,
 } from '../../auth/workspaceSettings';
 import WorkspaceOnboardingAdminPanel, {
@@ -321,10 +319,8 @@ function WorkspaceSettingsContent({
   );
 
   const workspaceSettingsStorageAdapter = useMemo<WorkspaceSettingsStorageAdapterV1>(() => {
-    if (storageDraft === 'local_only') return new LocalWorkspaceSettingsStorageAdapter();
-    if (storageDraft === 'google_drive') return new GoogleDriveWorkspaceSettingsStorageAdapterStub();
-    return new DisabledWorkspaceSettingsStorageAdapter();
-  }, [storageDraft]);
+    return new LocalWorkspaceSettingsStorageAdapter();
+  }, []);
 
   return (
     <div data-testid="workspace-settings-page" style={PAGE_STYLE}>

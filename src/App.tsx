@@ -835,6 +835,38 @@ function AppInner() {
     };
   }, [activeUser?.userId, atlasUserProfile, workspaceSession.activeWorkspace, workspaceSettingsRole]);
 
+  const workspaceSettingsWorkspace = useMemo(() => {
+    if (workspaceSession.activeWorkspace === null) {
+      return null;
+    }
+
+    const workspace =
+      hostResolution.workspaceSlug === undefined
+        ? workspaceSession.activeWorkspace
+        : {
+            ...workspaceSession.activeWorkspace,
+            slug: hostResolution.workspaceSlug,
+          };
+
+    if (
+      workspaceSession.workspaceSource === 'local_applied' ||
+      workspaceSettingsMembership === null ||
+      workspace.members.some((member) => member.userId === workspaceSettingsMembership.userId)
+    ) {
+      return workspace;
+    }
+
+    return {
+      ...workspace,
+      members: [...workspace.members, workspaceSettingsMembership],
+    };
+  }, [
+    hostResolution.workspaceSlug,
+    workspaceSession.activeWorkspace,
+    workspaceSession.workspaceSource,
+    workspaceSettingsMembership,
+  ]);
+
   // ── Session persistence: write journey + visitId to versioned cache ────────
   // These effects run whenever journey or activeVisitId changes, keeping the
   // cache up-to-date so a mobile reload can restore the user's last position.
@@ -1197,7 +1229,7 @@ function AppInner() {
   if (WORKSPACE_SETTINGS_HOME) {
     return (
       <WorkspaceSettingsPage
-        workspace={workspaceSession.activeWorkspace}
+        workspace={workspaceSettingsWorkspace}
         actingMembership={workspaceSettingsMembership}
         activeBrandSummary={{
           activeBrandId: workspaceBrandSession.activeBrandId,
