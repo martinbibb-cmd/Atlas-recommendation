@@ -1,23 +1,27 @@
 /**
  * src/auth/brand/index.ts
  *
- * Public API for the workspace brand resolution session.
+ * Public API for the workspace brand resolution session module.
+ *
+ * Consumers should import from this barrel rather than from individual files
+ * to keep the public API stable as internals evolve.
  */
 
-// ─── Resolver ─────────────────────────────────────────────────────────────────
+// ─── Pure resolver ────────────────────────────────────────────────────────────
 
 export { resolveBrandForWorkspace } from './resolveBrandForWorkspace';
 export type {
   BrandResolutionSource,
+  ResolvableWorkspace,
+  ResolvableUserProfile,
   ResolveBrandForWorkspaceInput,
   ResolveBrandForWorkspaceResult,
 } from './resolveBrandForWorkspace';
 
-// ─── Provider + hook ──────────────────────────────────────────────────────────
+// ─── React provider and hooks ─────────────────────────────────────────────────
 
 export {
   WorkspaceBrandSessionProvider,
-  WorkspaceBrandSessionContext,
   useWorkspaceBrandSession,
   useOptionalWorkspaceBrandSession,
 } from './WorkspaceBrandSessionProvider';

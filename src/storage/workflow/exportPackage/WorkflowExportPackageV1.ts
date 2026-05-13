@@ -29,6 +29,22 @@ export const WORKFLOW_EXPORT_REQUIRED_FILES = [
 
 export type WorkflowExportRequiredFileName = typeof WORKFLOW_EXPORT_REQUIRED_FILES[number];
 
+/**
+ * Brand context captured at workflow export time.
+ * Travels with the export package so downstream processing (e.g. PDF generation,
+ * re-import) knows which brand was active and how it was selected.
+ */
+export interface WorkflowExportBrandContextV1 {
+  /** The resolved brand identifier active at export time. */
+  readonly brandId: string;
+  /** How the brand was selected (e.g. workspace_default, user_preference). */
+  readonly resolutionSource: BrandResolutionSource;
+  /** Workspace that resolved the brand, when available. */
+  readonly workspaceId?: string;
+  /** Human-readable workspace name for display / debugging. */
+  readonly workspaceName?: string;
+}
+
 export interface WorkflowExportPackageManifestV1 {
   readonly schema: typeof WORKFLOW_EXPORT_PACKAGE_SCHEMA;
   readonly version: typeof WORKFLOW_EXPORT_PACKAGE_VERSION;
@@ -44,17 +60,13 @@ export interface WorkflowExportPackageManifestV1 {
    * Absent for unowned / session-only visits.
    */
   readonly ownership?: AtlasVisitOwnershipV1;
-
   /**
-   * Resolved brand session metadata at export time.
-   * Carries the active brand ID and how it was resolved so that downstream
-   * consumers (PDF, portal, workflow replay) can restore the correct brand.
-   * Absent when the visit was created in demo / unauthenticated mode.
+   * Brand context resolved at export time.
+   * Carries the active brandId, how it was selected, and workspace identity
+   * so the package can be re-branded or attributed on import.
+   * Absent when no brand session was available at export time.
    */
-  readonly brandSession?: {
-    readonly activeBrandId: string;
-    readonly resolutionSource: BrandResolutionSource;
-  };
+  readonly brandContext?: WorkflowExportBrandContextV1;
 }
 
 export interface WorkflowExportPackagePayloadV1 {

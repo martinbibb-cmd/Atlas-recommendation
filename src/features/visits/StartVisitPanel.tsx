@@ -15,8 +15,6 @@
  * - No direct sessionStorage writes here — caller owns persistence via
  *   VisitProvider / visitStore.
  * - Workspace selection drives brandId via resolveActiveTenant().
- * - When WorkspaceBrandSessionProvider is present, the resolved activeBrandId
- *   is used directly as the visit brand so the session and visit are consistent.
  */
 
 import { useContext, useState } from 'react';
@@ -28,8 +26,7 @@ import { resolveActiveTenant } from '../tenants/activeTenant';
 import { trackVisitCreated } from '../analytics/analyticsTracker';
 import { useActiveUser } from '../userProfiles/useActiveUser';
 import { AtlasAuthContext } from '../../auth/AtlasAuthContext';
-import { useWorkspaceSession } from '../../auth/profile';
-import { useOptionalWorkspaceBrandSession } from '../../auth/brand/WorkspaceBrandSessionProvider';
+import { useWorkspaceSession, useOptionalWorkspaceBrandSession } from '../../auth/profile';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -76,7 +73,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
   const userProfile = authContext?.userProfile ?? null;
   const currentWorkspace = authContext?.currentWorkspace ?? null;
   const workspaceSession = useWorkspaceSession();
-  const brandSession = useOptionalWorkspaceBrandSession();
+  const workspaceBrandSession = useOptionalWorkspaceBrandSession();
 
   // Workspace default priority: explicit prop (host workspace) > active user default > 'atlas'
   const resolvedDefaultSlug = defaultWorkspaceSlug ?? activeUser?.defaultWorkspaceSlug ?? 'atlas';
@@ -85,6 +82,23 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
   const [workspaceSlug, setWorkspaceSlug] = useState(resolvedDefaultSlug);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Resolve the brandId for the new visit.
+   * Priority: workspace brand session (resolved from policy/preference/route)
+   *           → legacy tenant resolver (from workspace slug selector).
+   *
+   * The legacy fallback is reached when this component renders without a
+   * WorkspaceBrandSessionProvider ancestor (e.g. isolated test environments).
+   * In normal app usage AppWithHostBrand always provides the session, so
+   * workspaceBrandSession will never be null at runtime.
+   */
+  function resolveVisitBrandId(): string {
+    if (workspaceBrandSession !== null) {
+      return workspaceBrandSession.activeBrandId;
+    }
+    return resolveActiveTenant({ workspaceSlug }).brandId;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,9 +118,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
       };
       const { id } = await createVisit(opts);
       const tenant = resolveActiveTenant({ workspaceSlug });
-      // Use the session-resolved brand when available; fall back to tenant brand.
-      const resolvedBrandId = brandSession?.activeBrandId ?? tenant.brandId;
-      const visit = createAtlasVisit(id, resolvedBrandId, activeUser?.userId, {
+      const visit = createAtlasVisit(id, resolveVisitBrandId(), activeUser?.userId, {
         atlasUserId: workspaceSession.status === 'workspace_active' ? userProfile?.atlasUserId : undefined,
         workspaceId: workspaceSession.status === 'workspace_active' ? currentWorkspace?.workspaceId : undefined,
         storageTarget: workspaceSession.storageTarget,
@@ -190,6 +202,36 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
             </button>
           )}
         </div>
+
+        {/* Workspace brand session — resolved brand and source */}
+        {workspaceBrandSession !== null && (
+          <div
+            data-testid="start-visit-brand-session"
+            style={{
+              marginBottom: '1.25rem',
+              padding: '0.5rem 0.75rem',
+              background: '#f0fdf4',
+              border: '1px solid #86efac',
+              borderRadius: 6,
+              fontSize: '0.8125rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.125rem',
+            }}
+          >
+            {workspaceBrandSession.activeWorkspace !== null && (
+              <span style={{ color: '#166534' }}>
+                <strong>Workspace:</strong> {workspaceBrandSession.activeWorkspace.name}
+              </span>
+            )}
+            <span style={{ color: '#166534' }}>
+              <strong>Brand:</strong> {workspaceBrandSession.activeBrandProfile.companyName}
+            </span>
+            <span style={{ color: '#64748b' }}>
+              <strong>Resolution:</strong> {workspaceBrandSession.resolutionSource.replace(/_/g, ' ')}
+            </span>
+          </div>
+        )}
 
         {/* Inline error */}
         {workspaceSession.status === 'authenticated_no_workspace' && (

@@ -57,8 +57,7 @@ import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPan
 import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel';
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
-import { WorkspaceSessionGuard, useWorkspaceSession } from '../auth/profile';
-import { useWorkspaceBrandSession } from '../auth/brand';
+import { WorkspaceSessionGuard, useWorkspaceSession, useOptionalWorkspaceBrandSession } from '../auth/profile';
 import {
   WORKFLOW_SCHEMA_VERSION,
   buildWorkflowExportPackage,
@@ -588,7 +587,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
   const workspaceSession = useWorkspaceSession();
-  const brandSession = useWorkspaceBrandSession();
+  const workspaceBrandSession = useOptionalWorkspaceBrandSession();
 
   function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') {
     const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);
@@ -979,13 +978,6 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               storageTarget: workspaceSession.storageTarget,
             }
           : undefined;
-      const workflowBrandSession =
-        brandSession.resolutionSource !== 'atlas_default'
-          ? {
-              activeBrandId: brandSession.activeBrandId,
-              resolutionSource: brandSession.resolutionSource,
-            }
-          : undefined;
       const persistedWorkflowSnapshot: PersistedImplementationWorkflowV1 = {
         schemaVersion: WORKFLOW_SCHEMA_VERSION,
         visitReference,
@@ -1031,7 +1023,20 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           surface: `dev_portal_fixture:${active.fixture.id}`,
         },
         ...(workflowOwnership !== undefined ? { ownership: workflowOwnership } : {}),
-        ...(workflowBrandSession !== undefined ? { brandSession: workflowBrandSession } : {}),
+        ...(workspaceBrandSession !== null
+          ? {
+              brandContext: {
+                brandId: workspaceBrandSession.activeBrandId,
+                resolutionSource: workspaceBrandSession.resolutionSource,
+                ...(workspaceBrandSession.activeWorkspace !== null
+                  ? {
+                      workspaceId: workspaceBrandSession.activeWorkspace.workspaceId,
+                      workspaceName: workspaceBrandSession.activeWorkspace.name,
+                    }
+                  : {}),
+              },
+            }
+          : {}),
       });
 
       return (
@@ -1056,6 +1061,34 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
 
           <div style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }} data-testid="dev-implementation-pack-panel">
             <WorkspaceSessionGuard showWorkspaceActiveState />
+            {/* ── Workspace brand session ───────────────────────────────────── */}
+            {workspaceBrandSession !== null && (
+              <section
+                style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '0.75rem', padding: '0.75rem' }}
+                data-testid="dev-workspace-brand-session"
+              >
+                <strong style={{ fontSize: '0.85rem', color: '#166534' }}>Workspace Brand Session</strong>
+                <div style={{ marginTop: '0.375rem', fontSize: '0.8125rem', display: 'grid', gap: '0.125rem' }}>
+                  {workspaceBrandSession.activeWorkspace !== null && (
+                    <span><strong>Workspace:</strong> {workspaceBrandSession.activeWorkspace.name}</span>
+                  )}
+                  <span><strong>Brand:</strong> {workspaceBrandSession.activeBrandProfile.companyName} <code style={{ fontSize: '0.75rem', background: '#dcfce7', padding: '1px 4px', borderRadius: 3 }}>{workspaceBrandSession.activeBrandId}</code></span>
+                  <span><strong>Resolution:</strong> {workspaceBrandSession.resolutionSource.replace(/_/g, ' ')}</span>
+                  {workspaceBrandSession.warnings.length > 0 && (
+                    <details>
+                      <summary style={{ cursor: 'pointer', color: '#92400e', fontWeight: 600 }}>
+                        ⚠ {workspaceBrandSession.warnings.length} warning{workspaceBrandSession.warnings.length !== 1 ? 's' : ''}
+                      </summary>
+                      <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.25rem', fontSize: '0.8rem', color: '#92400e' }}>
+                        {workspaceBrandSession.warnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              </section>
+            )}
             {/* ── Workflow summary ─────────────────────────────────────────── */}
             <section
               style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}

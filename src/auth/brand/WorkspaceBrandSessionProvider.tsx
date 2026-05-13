@@ -2,48 +2,85 @@
 /**
  * src/auth/brand/WorkspaceBrandSessionProvider.tsx
  *
- * Provides the resolved active brand for the current workspace session.
+ * Resolves the single authoritative active brand for the current workspace
+ * session and exposes it via React context.
  *
- * Reads the active workspace and user profile from AtlasAuthContext, resolves
- * the authoritative brand via resolveBrandForWorkspace(), and exposes the
- * result through WorkspaceBrandSessionContext.
+ * Resolution chain (delegated to resolveBrandForWorkspace):
+ *   locked policy           → workspace default only
+ *   route_override          → routeBrandId when in allowedBrandIds
+ *   user_preference         → stored user preference when in allowedBrandIds
+ *   workspace_default       → workspace's own defaultBrandId
+ *   no workspace            → atlas-default
  *
- * Also manages per-workspace brand preferences in localStorage so that
- * setPreferredBrandForWorkspace() is immediately reactive.
+ * Exposed via context:
+ *   activeBrandId           — the resolved brand identifier
+ *   activeBrandProfile      — full BrandProfileV1 for the active brand
+ *   resolutionSource        — how the brand was selected
+ *   warnings                — non-fatal resolution warnings (empty in happy path)
+ *   activeWorkspace         — the current workspace (null when not authenticated)
+ *   setPreferredBrandForWorkspace(workspaceId, brandId) — persist a user pref
  *
- * Storage key:  atlas:brand-session:preferred-brands:v1
+ * Design rules
+ * ────────────
+ * - Brand preferences are stored under BRAND_PREFS_STORE_KEY in localStorage.
+ * - Re-reads the brand registry on each render via listStoredBrandProfiles() so
+ *   newly stored custom profiles are always picked up without a page reload.
+ * - No circular dependency with BrandProvider — consumers import separately.
  */
 
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useAtlasAuth } from '../useAtlasAuth';
-import { listStoredBrandProfiles } from '../../features/branding/brandProfileStore';
-import { resolveBrandForWorkspace } from './resolveBrandForWorkspace';
-import type {
-  BrandResolutionSource,
-  ResolveBrandForWorkspaceResult,
-} from './resolveBrandForWorkspace';
 import type { BrandProfileV1 } from '../../features/branding/brandProfile';
-import type { AtlasWorkspaceV1 } from '../authTypes';
-import { DEFAULT_BRAND_ID } from '../../features/branding/brandProfiles';
+import { listStoredBrandProfiles } from '../../features/branding/brandProfileStore';
+import {
+  resolveBrandForWorkspace,
+  type BrandResolutionSource,
+  type ResolvableWorkspace,
+} from './resolveBrandForWorkspace';
+import { useAtlasAuth } from '../useAtlasAuth';
 
-// ─── Storage ─────────────────────────────────────────────────────────────────
+// ─── Storage key for user brand preferences ───────────────────────────────────
 
-const PREFERRED_BRANDS_KEY = 'atlas:brand-session:preferred-brands:v1';
+const BRAND_PREFS_STORE_KEY = 'atlas:brand-session:preferences:v1';
 
-function readPreferredBrands(): Record<string, string> {
+function readPreferences(): Record<string, string> {
+  // Prefer localStorage (primary persistence); fall through to sessionStorage
+  // only in environments where localStorage is unavailable or empty.
+  // Note: writePreferences always targets localStorage first, so sessionStorage
+  // will only contain data when localStorage was previously unavailable.
   try {
-    const raw = localStorage.getItem(PREFERRED_BRANDS_KEY);
-    if (!raw) return {};
-    return JSON.parse(raw) as Record<string, string>;
+    const raw =
+      typeof localStorage !== 'undefined' ? localStorage.getItem(BRAND_PREFS_STORE_KEY) : null;
+    if (raw) return JSON.parse(raw) as Record<string, string>;
   } catch {
-    return {};
+    // localStorage unavailable or parse error — fall through
   }
+  try {
+    const raw =
+      typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem(BRAND_PREFS_STORE_KEY)
+        : null;
+    if (raw) return JSON.parse(raw) as Record<string, string>;
+  } catch {
+    // sessionStorage unavailable or parse error
+  }
+  return {};
 }
 
-function writePreferredBrands(map: Record<string, string>): void {
+function writePreferences(prefs: Record<string, string>): void {
+  const value = JSON.stringify(prefs);
   try {
-    localStorage.setItem(PREFERRED_BRANDS_KEY, JSON.stringify(map));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(BRAND_PREFS_STORE_KEY, value);
+      return;
+    }
+  } catch {
+    // fall through
+  }
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(BRAND_PREFS_STORE_KEY, value);
+    }
   } catch {
     // best effort
   }
@@ -52,126 +89,112 @@ function writePreferredBrands(map: Record<string, string>): void {
 // ─── Context value ────────────────────────────────────────────────────────────
 
 export interface WorkspaceBrandSessionValue {
-  /** The workspace currently active in the auth session, or null. */
-  readonly activeWorkspace: AtlasWorkspaceV1 | null;
-
-  /** The resolved active brand profile for this session. */
-  readonly activeBrand: BrandProfileV1;
-
-  /** The resolved active brand ID for this session. */
+  /** The resolved brand identifier for the current session. */
   readonly activeBrandId: string;
 
-  /** How the active brand was resolved. */
+  /** The full BrandProfileV1 for the active brand. */
+  readonly activeBrandProfile: BrandProfileV1;
+
+  /** How activeBrandId was selected. */
   readonly resolutionSource: BrandResolutionSource;
 
   /**
-   * Non-fatal warnings from the resolution pass.
-   * E.g. a locked workspace ignored a route override.
+   * Non-fatal warnings collected during resolution.
+   * Typically empty; populated when overrides are rejected or schema issues found.
    */
   readonly warnings: readonly string[];
 
   /**
-   * True when this value comes from the default context (i.e. no
-   * WorkspaceBrandSessionProvider is present in the tree).
-   * Used by useOptionalWorkspaceBrandSession() to distinguish "no provider"
-   * from a real session with atlas_default resolution.
+   * The currently active workspace.
+   * Null when the user is unauthenticated or has no workspace.
    */
-  readonly isDefaultValue?: boolean;
+  readonly activeWorkspace: ResolvableWorkspace | null;
 
   /**
-   * Persist a brand preference for the given workspace.
-   * Immediately updates the resolved brand if the preference is allowed.
-   *
-   * @param workspaceId  The workspace to set the preference for.
-   * @param brandId      The preferred brand ID.
+   * Store a brand preference for the given workspace.
+   * Only takes effect when the workspace policy is user_selectable.
+   * Persists to localStorage so it survives page reloads.
    */
-  setPreferredBrandForWorkspace(workspaceId: string, brandId: string): void;
+  setPreferredBrandForWorkspace: (workspaceId: string, brandId: string) => void;
 }
-
-// ─── Defaults ─────────────────────────────────────────────────────────────────
-
-const DEFAULT_BRAND_PROFILE: BrandProfileV1 = listStoredBrandProfiles()[DEFAULT_BRAND_ID] ?? {
-  version: '1.0',
-  brandId: DEFAULT_BRAND_ID,
-  companyName: 'Atlas',
-  theme: { primaryColor: '#2563EB' },
-  contact: {},
-  outputSettings: { showPricing: true, showCarbon: true, showInstallerContact: false, tone: 'technical' },
-};
-
-const DEFAULT_SESSION_VALUE: WorkspaceBrandSessionValue = {
-  activeWorkspace: null,
-  activeBrand: DEFAULT_BRAND_PROFILE,
-  activeBrandId: DEFAULT_BRAND_ID,
-  resolutionSource: 'atlas_default',
-  warnings: [],
-  isDefaultValue: true,
-  setPreferredBrandForWorkspace: () => undefined,
-};
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
-export const WorkspaceBrandSessionContext =
-  createContext<WorkspaceBrandSessionValue>(DEFAULT_SESSION_VALUE);
+const WorkspaceBrandSessionContext = createContext<WorkspaceBrandSessionValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 interface WorkspaceBrandSessionProviderProps {
-  children: ReactNode;
+  readonly children: ReactNode;
   /**
-   * Optional route-level brand override (e.g. from URL params).
-   * Respected when the workspace brand policy is not 'locked'.
+   * Brand identifier from the current route or host resolution.
+   * Passed through to resolveBrandForWorkspace as routeBrandId.
+   * When present and valid, wins over user preferences (but not locked policy).
    */
-  routeBrandId?: string | null;
+  readonly routeBrandId?: string | null;
 }
 
 export function WorkspaceBrandSessionProvider({
   children,
   routeBrandId,
 }: WorkspaceBrandSessionProviderProps) {
-  const { userProfile, currentWorkspace } = useAtlasAuth();
+  const { currentWorkspace, userProfile } = useAtlasAuth();
 
-  // Per-workspace preferred brand IDs, keyed by workspaceId.
-  // Initialised from localStorage and kept in sync via setPreferredBrandForWorkspace.
-  const [preferredBrandsMap, setPreferredBrandsMap] = useState<Record<string, string>>(
-    readPreferredBrands,
+  // ── Persisted user preferences ────────────────────────────────────────────
+
+  const [preferences, setPreferences] = useState<Record<string, string>>(() =>
+    readPreferences(),
   );
 
   const setPreferredBrandForWorkspace = useCallback(
     (workspaceId: string, brandId: string) => {
-      setPreferredBrandsMap((prev) => {
+      setPreferences((prev) => {
         const next = { ...prev, [workspaceId]: brandId };
-        writePreferredBrands(next);
+        writePreferences(next);
         return next;
       });
     },
     [],
   );
 
-  const resolved = useMemo<ResolveBrandForWorkspaceResult>(() => {
-    const storedBrandId = currentWorkspace
-      ? (preferredBrandsMap[currentWorkspace.workspaceId] ?? null)
+  // ── Resolution ────────────────────────────────────────────────────────────
+
+  const value = useMemo<WorkspaceBrandSessionValue>(() => {
+    const workspace = currentWorkspace
+      ? ({
+          workspaceId: currentWorkspace.workspaceId,
+          name: currentWorkspace.name,
+          defaultBrandId: currentWorkspace.defaultBrandId,
+          allowedBrandIds: currentWorkspace.allowedBrandIds,
+          brandPolicy: currentWorkspace.brandPolicy,
+        } satisfies ResolvableWorkspace)
       : null;
-    return resolveBrandForWorkspace({
-      workspace: currentWorkspace,
-      userProfile,
+
+    const storedBrandId =
+      workspace ? (preferences[workspace.workspaceId] ?? null) : null;
+
+    const brandRegistry = listStoredBrandProfiles();
+
+    const resolved = resolveBrandForWorkspace({
+      workspace,
+      userProfile: userProfile ?? null,
       routeBrandId: routeBrandId ?? null,
       storedBrandId,
-      brandRegistry: listStoredBrandProfiles(),
+      brandRegistry,
     });
-  }, [currentWorkspace, userProfile, routeBrandId, preferredBrandsMap]);
 
-  const value = useMemo<WorkspaceBrandSessionValue>(
-    () => ({
-      activeWorkspace: currentWorkspace,
-      activeBrand: resolved.activeBrandProfile,
-      activeBrandId: resolved.activeBrandId,
-      resolutionSource: resolved.resolutionSource,
-      warnings: resolved.warnings,
+    return {
+      ...resolved,
+      activeWorkspace: workspace,
       setPreferredBrandForWorkspace,
-    }),
-    [currentWorkspace, resolved, setPreferredBrandForWorkspace],
-  );
+    };
+  }, [
+    currentWorkspace,
+    preferences,
+    routeBrandId,
+    setPreferredBrandForWorkspace,
+    userProfile,
+  ]);
 
   return (
     <WorkspaceBrandSessionContext.Provider value={value}>
@@ -180,24 +203,30 @@ export function WorkspaceBrandSessionProvider({
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// ─── Hooks ────────────────────────────────────────────────────────────────────
 
 /**
- * Returns the current workspace brand session value.
- * Must be used inside a <WorkspaceBrandSessionProvider>.
+ * Returns the current WorkspaceBrandSessionValue.
+ *
+ * @throws Error when called outside a <WorkspaceBrandSessionProvider>.
  */
 export function useWorkspaceBrandSession(): WorkspaceBrandSessionValue {
-  return useContext(WorkspaceBrandSessionContext);
+  const ctx = useContext(WorkspaceBrandSessionContext);
+  if (ctx === null) {
+    throw new Error(
+      'useWorkspaceBrandSession must be called inside a <WorkspaceBrandSessionProvider>. ' +
+        'Wrap the component tree (or its ancestor) with <WorkspaceBrandSessionProvider>.',
+    );
+  }
+  return ctx;
 }
 
 /**
- * Returns the workspace brand session value, or null when used outside a
- * <WorkspaceBrandSessionProvider>.  Never throws.
+ * Returns the current WorkspaceBrandSessionValue, or null when used outside a
+ * <WorkspaceBrandSessionProvider>.
+ *
+ * Safe to call in components that may render in both branded and unbranded contexts.
  */
 export function useOptionalWorkspaceBrandSession(): WorkspaceBrandSessionValue | null {
-  const value = useContext(WorkspaceBrandSessionContext);
-  // isDefaultValue is set to true on the default context object, which is
-  // returned when no WorkspaceBrandSessionProvider is present in the tree.
-  if (value.isDefaultValue === true) return null;
-  return value;
+  return useContext(WorkspaceBrandSessionContext);
 }

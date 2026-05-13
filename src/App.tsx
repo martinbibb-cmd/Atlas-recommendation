@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -112,8 +113,7 @@ import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import { AtlasAuthProvider } from './auth/AtlasAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 import { useAtlasAuth } from './auth/useAtlasAuth';
-import { WorkspaceSessionProvider, useWorkspaceSession, WorkspaceSessionGuard } from './auth/profile';
-import { WorkspaceBrandSessionProvider } from './auth/brand';
+import { WorkspaceSessionProvider, useWorkspaceSession, WorkspaceSessionGuard, WorkspaceBrandSessionProvider, useWorkspaceBrandSession } from './auth/profile';
 import { upsertVisitIdentity } from './visits/visitIdentityStore';
 import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
 import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
@@ -762,6 +762,13 @@ function AppInner() {
   const { activeUser } = useActiveUser();
   const { userProfile: atlasUserProfile, currentWorkspace } = useAtlasAuth();
   const workspaceSession = useWorkspaceSession();
+
+  /**
+   * Workspace brand session — resolves the active brand from workspace policy,
+   * user preferences, and the host-derived route brand.
+   * Priority: locked → workspace default; route_override > user_preference > workspace_default.
+   */
+  const workspaceBrandSession = useWorkspaceBrandSession();
 
   /** Role-based UI permission flags derived from the active user's role. */
   const {
@@ -1701,11 +1708,11 @@ function AppInner() {
       )}
       {journey === 'fast' && <FastChoiceStepper onBack={() => setJourney('landing')} onEscalate={handleEscalate} onOpenLab={handleOpenLab} />}
       {/* Visit journey area — wrapped with BrandProvider driven by:
-           1. activeAtlasVisit.brandId (highest priority — active visit brand)
-           2. hostResolution.brandId   (host workspace brand — e.g. branded subdomain)
-           3. atlas-default            (BrandProvider's built-in fallback)
+           1. activeAtlasVisit.brandId (highest priority — brand set at visit creation time)
+           2. workspaceBrandSession.activeBrandId (workspace policy / user pref / route override)
+           3. atlas-default (BrandProvider's built-in fallback)
            And VisitProvider to carry visit identity through the journey. */}
-      <BrandProvider brandId={activeAtlasVisit?.brandId ?? hostResolution.brandId}>
+      <BrandProvider brandId={activeAtlasVisit?.brandId ?? workspaceBrandSession.activeBrandId}>
       <VisitProvider initialVisit={activeAtlasVisit}>
         {/* Visit Hub — shown when opening an existing visit */}
         {journey === 'visit-hub' && activeVisitId != null && (
@@ -2443,16 +2450,29 @@ function AppInner() {
   );
 }
 
+/**
+ * Bridges host-workspace resolution into WorkspaceBrandSessionProvider.
+ * Reads the host-resolved brandId once at mount and passes it as routeBrandId.
+ */
+function AppWithHostBrand({ children }: { children: ReactNode }) {
+  const hostResolution = useWorkspaceFromHost();
+  return (
+    <WorkspaceBrandSessionProvider routeBrandId={hostResolution.brandId}>
+      {children}
+    </WorkspaceBrandSessionProvider>
+  );
+}
+
 export default function App() {
   return (
     <AtlasAuthProvider>
       <ActiveUserProvider>
         <WorkspaceSessionProvider>
-          <WorkspaceBrandSessionProvider>
+          <AppWithHostBrand>
             <RequireAuth>
               <AppInner />
             </RequireAuth>
-          </WorkspaceBrandSessionProvider>
+          </AppWithHostBrand>
         </WorkspaceSessionProvider>
       </ActiveUserProvider>
     </AtlasAuthProvider>

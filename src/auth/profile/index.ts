@@ -31,3 +31,20 @@ export { resolveActiveWorkspace } from './resolveActiveWorkspace';
 export { WorkspaceSessionGuard } from './WorkspaceSessionGuard';
 export type { WorkspaceSessionStatus, WorkspaceSessionValue } from './WorkspaceSessionProvider';
 export { WorkspaceSessionProvider, useWorkspaceSession } from './WorkspaceSessionProvider';
+
+// ─── Workspace brand session ──────────────────────────────────────────────────
+
+export {
+  WorkspaceBrandSessionProvider,
+  useWorkspaceBrandSession,
+  useOptionalWorkspaceBrandSession,
+  resolveBrandForWorkspace,
+} from '../brand';
+export type {
+  BrandResolutionSource,
+  ResolvableWorkspace,
+  ResolvableUserProfile,
+  ResolveBrandForWorkspaceInput,
+  ResolveBrandForWorkspaceResult,
+  WorkspaceBrandSessionValue,
+} from '../brand';

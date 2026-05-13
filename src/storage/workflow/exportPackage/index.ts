@@ -6,6 +6,7 @@ export {
   type WorkflowExportPackageManifestV1,
   type WorkflowExportPackagePayloadV1,
   type WorkflowExportPackageV1,
+  type WorkflowExportBrandContextV1,
 } from './WorkflowExportPackageV1';
 export { buildWorkflowExportPackage, buildWorkflowExportFolderName } from './buildWorkflowExportPackage';
 export { exportPackageAsJsonBlob, importPackageFromJsonBlob } from './jsonBlob';

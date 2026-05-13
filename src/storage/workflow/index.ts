@@ -36,6 +36,7 @@ export {
   type WorkflowExportPackageManifestV1,
   type WorkflowExportPackagePayloadV1,
   type WorkflowExportPackageV1,
+  type WorkflowExportBrandContextV1,
   buildWorkflowExportPackage,
   buildWorkflowExportFolderName,
   exportPackageAsJsonBlob,

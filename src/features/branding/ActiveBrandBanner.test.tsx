@@ -60,9 +60,9 @@ describe('ActiveBrandBanner — inside provider', () => {
     expect(screen.getByTestId('active-brand-banner-name').textContent).toBe('Demo Heating Co');
   });
 
-  it('shows "Atlas workspace" label', () => {
+  it('shows "workspace" label', () => {
     renderWithBrand();
-    expect(screen.getByTestId('active-brand-banner-label').textContent).toBe('Atlas workspace');
+    expect(screen.getByTestId('active-brand-banner-label').textContent).toBe('workspace');
   });
 
   it('sets data-brand-id to the active brandId', () => {

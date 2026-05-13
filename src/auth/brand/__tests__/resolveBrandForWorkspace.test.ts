@@ -4,33 +4,29 @@
  * Unit tests for resolveBrandForWorkspace.
  *
  * Coverage:
- *   1. locked workspace ignores route and user overrides (with warnings)
- *   2. allowed user preference resolves as 'user_preference'
- *   3. disallowed user preference falls back to workspace_default (with warning)
- *   4. allowed route override resolves as 'route_override'
- *   5. disallowed route override falls back (with warning)
- *   6. route_override wins over user_preference for non-locked workspace
- *   7. no workspace → atlas_default
- *   8. null userProfile → workspace_default (no preference to read)
- *   9. storedBrandId wins over profile preference
- *  10. disallowed storedBrandId falls back (with warning)
- *  11. defaultBrandId always treated as allowed even when absent from allowedBrandIds
- *  12. visit inherits resolved brand (smoke test: brand flows consistently)
- *  13. exports contain resolved brand metadata (smoke test)
+ *   - no workspace → atlas_default
+ *   - locked policy: workspace default only; route and user overrides ignored
+ *   - workspace_default policy: route override accepted; user pref ignored
+ *   - user_selectable policy: route > user pref > workspace default
+ *   - disallowed route brand → warning + workspace default fallback
+ *   - disallowed user pref → warning + workspace default fallback
+ *   - schema inconsistency: defaultBrandId not in allowedBrandIds → warning
+ *   - storedBrandId param takes priority over profile-derived pref
+ *   - visit inherits resolved brand (resolved brand ID is usable for createAtlasVisit)
+ *   - no workspace → activeBrandId is 'atlas-default'
  */
 
 import { describe, it, expect } from 'vitest';
-import { resolveBrandForWorkspace } from '../resolveBrandForWorkspace';
-import type { ResolveBrandForWorkspaceInput } from '../resolveBrandForWorkspace';
-import type { AtlasWorkspaceV1 } from '../../authTypes';
-import type { AtlasUserProfileV1 } from '../../authTypes';
+import {
+  resolveBrandForWorkspace,
+  type ResolvableWorkspace,
+  type ResolveBrandForWorkspaceInput,
+} from '../resolveBrandForWorkspace';
 import type { BrandProfileV1 } from '../../../features/branding/brandProfile';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const FIXED_NOW = '2026-05-13T10:00:00.000Z';
-
-const ATLAS_DEFAULT_PROFILE: BrandProfileV1 = {
+const ATLAS_PROFILE: BrandProfileV1 = {
   version: '1.0',
   brandId: 'atlas-default',
   companyName: 'Atlas',
@@ -39,7 +35,7 @@ const ATLAS_DEFAULT_PROFILE: BrandProfileV1 = {
   outputSettings: { showPricing: true, showCarbon: true, showInstallerContact: false, tone: 'technical' },
 };
 
-const INSTALLER_DEMO_PROFILE: BrandProfileV1 = {
+const DEMO_PROFILE: BrandProfileV1 = {
   version: '1.0',
   brandId: 'installer-demo',
   companyName: 'Demo Heating Co',
@@ -48,342 +44,286 @@ const INSTALLER_DEMO_PROFILE: BrandProfileV1 = {
   outputSettings: { showPricing: true, showCarbon: true, showInstallerContact: true, tone: 'friendly' },
 };
 
-const SECONDARY_BRAND_PROFILE: BrandProfileV1 = {
+const EXTRA_PROFILE: BrandProfileV1 = {
   version: '1.0',
-  brandId: 'secondary-brand',
-  companyName: 'Secondary Co',
-  theme: { primaryColor: '#DC2626' },
+  brandId: 'extra-brand',
+  companyName: 'Extra Brand',
+  theme: { primaryColor: '#9333EA' },
   contact: {},
-  outputSettings: { showPricing: false, showCarbon: false, showInstallerContact: false, tone: 'formal' },
+  outputSettings: { showPricing: false, showCarbon: false, showInstallerContact: true, tone: 'formal' },
 };
 
-const TEST_REGISTRY: Readonly<Record<string, BrandProfileV1>> = {
-  'atlas-default': ATLAS_DEFAULT_PROFILE,
-  'installer-demo': INSTALLER_DEMO_PROFILE,
-  'secondary-brand': SECONDARY_BRAND_PROFILE,
+const REGISTRY = {
+  'atlas-default': ATLAS_PROFILE,
+  'installer-demo': DEMO_PROFILE,
+  'extra-brand': EXTRA_PROFILE,
 };
 
-function makeWorkspace(
-  overrides: Partial<AtlasWorkspaceV1> = {},
-): AtlasWorkspaceV1 {
-  return {
-    version: '1.0',
-    workspaceId: 'ws_test',
-    name: 'Test Workspace',
-    ownerAtlasUserId: 'atlas_user_001',
-    defaultBrandId: 'installer-demo',
-    allowedBrandIds: ['installer-demo', 'secondary-brand'],
-    brandPolicy: 'workspace_default',
-    createdAt: FIXED_NOW,
-    updatedAt: FIXED_NOW,
-    ...overrides,
-  };
-}
+const LOCKED_WORKSPACE: ResolvableWorkspace = {
+  workspaceId: 'ws_locked',
+  name: 'Locked Workspace',
+  defaultBrandId: 'atlas-default',
+  allowedBrandIds: ['atlas-default'],
+  brandPolicy: 'locked',
+};
 
-function makeUserProfile(
-  overrides: Partial<AtlasUserProfileV1> = {},
-): AtlasUserProfileV1 {
-  return {
-    version: '1.0',
-    atlasUserId: 'atlas_user_001',
-    firebaseUid: 'firebase_uid_001',
-    displayName: 'Alice Engineer',
-    email: 'alice@example.com',
-    createdAt: FIXED_NOW,
-    updatedAt: FIXED_NOW,
-    ...overrides,
-  };
-}
+const DEFAULT_WORKSPACE: ResolvableWorkspace = {
+  workspaceId: 'ws_default',
+  name: 'Default Policy Workspace',
+  defaultBrandId: 'atlas-default',
+  allowedBrandIds: ['atlas-default', 'installer-demo'],
+  brandPolicy: 'workspace_default',
+};
+
+const SELECTABLE_WORKSPACE: ResolvableWorkspace = {
+  workspaceId: 'ws_selectable',
+  name: 'User Selectable Workspace',
+  defaultBrandId: 'atlas-default',
+  allowedBrandIds: ['atlas-default', 'installer-demo', 'extra-brand'],
+  brandPolicy: 'user_selectable',
+};
 
 function makeInput(
-  overrides: Partial<ResolveBrandForWorkspaceInput> = {},
+  overrides: Partial<ResolveBrandForWorkspaceInput> & { workspace?: ResolvableWorkspace | null },
 ): ResolveBrandForWorkspaceInput {
   return {
-    workspace: makeWorkspace(),
-    userProfile: makeUserProfile(),
-    brandRegistry: TEST_REGISTRY,
+    workspace: DEFAULT_WORKSPACE,
+    brandRegistry: REGISTRY,
     ...overrides,
   };
 }
 
-// ─── 1. Locked workspace ignores overrides ────────────────────────────────────
+// ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('1 — locked workspace ignores route and user overrides', () => {
-  it('returns workspace_default and ignores routeBrandId', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({
-        workspace: makeWorkspace({ brandPolicy: 'locked' }),
-        routeBrandId: 'secondary-brand',
-      }),
-    );
-    expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.activeBrandId).toBe('installer-demo');
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toMatch(/locked.*route override.*ignored/i);
-  });
+describe('resolveBrandForWorkspace', () => {
+  // ── No workspace ──────────────────────────────────────────────────────────
 
-  it('returns workspace_default and ignores storedBrandId', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({
-        workspace: makeWorkspace({ brandPolicy: 'locked' }),
-        storedBrandId: 'secondary-brand',
-      }),
-    );
-    expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.activeBrandId).toBe('installer-demo');
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toMatch(/locked.*stored preference.*ignored/i);
-  });
-
-  it('returns workspace_default and ignores profile preference for locked workspace', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({
-        workspace: makeWorkspace({ brandPolicy: 'locked' }),
-        userProfile: makeUserProfile({
-          preferredBrandIdByWorkspace: { ws_test: 'secondary-brand' },
-        }),
-      }),
-    );
-    expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.activeBrandId).toBe('installer-demo');
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toMatch(/locked.*profile preference.*ignored/i);
-  });
-
-  it('produces no warnings when locked workspace has no override inputs', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({ workspace: makeWorkspace({ brandPolicy: 'locked' }) }),
-    );
-    expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.warnings).toHaveLength(0);
-  });
-});
-
-// ─── 2. Allowed user preference resolves ─────────────────────────────────────
-
-describe('2 — allowed user preference resolves as user_preference', () => {
-  it('uses storedBrandId when it is in allowedBrandIds', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({ storedBrandId: 'secondary-brand' }),
-    );
-    expect(result.resolutionSource).toBe('user_preference');
-    expect(result.activeBrandId).toBe('secondary-brand');
+  it('returns atlas-default when workspace is null', () => {
+    const result = resolveBrandForWorkspace(makeInput({ workspace: null }));
+    expect(result.activeBrandId).toBe('atlas-default');
+    expect(result.resolutionSource).toBe('atlas_default');
     expect(result.warnings).toHaveLength(0);
   });
 
-  it('uses profile preference when storedBrandId is absent', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({
-        userProfile: makeUserProfile({
-          preferredBrandIdByWorkspace: { ws_test: 'secondary-brand' },
-        }),
-      }),
-    );
-    expect(result.resolutionSource).toBe('user_preference');
-    expect(result.activeBrandId).toBe('secondary-brand');
-    expect(result.warnings).toHaveLength(0);
+  it('returns atlas-default profile when workspace is null', () => {
+    const result = resolveBrandForWorkspace(makeInput({ workspace: null }));
+    expect(result.activeBrandProfile.brandId).toBe('atlas-default');
   });
 
-  it('storedBrandId takes priority over profile preference', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({
-        storedBrandId: 'secondary-brand',
-        userProfile: makeUserProfile({
-          preferredBrandIdByWorkspace: { ws_test: 'atlas-default' },
-        }),
-      }),
-    );
-    expect(result.resolutionSource).toBe('user_preference');
-    expect(result.activeBrandId).toBe('secondary-brand');
-  });
-});
+  // ── locked policy ─────────────────────────────────────────────────────────
 
-// ─── 3. Disallowed user preference falls back ─────────────────────────────────
-
-describe('3 — disallowed user preference falls back to workspace_default', () => {
-  it('warns and falls back when storedBrandId is not in allowedBrandIds', () => {
+  it('locked: returns workspace default even when routeBrandId is provided', () => {
     const result = resolveBrandForWorkspace(
-      makeInput({ storedBrandId: 'atlas-default' }),
+      makeInput({ workspace: LOCKED_WORKSPACE, routeBrandId: 'installer-demo' }),
     );
-    // 'atlas-default' is NOT in allowedBrandIds ['installer-demo', 'secondary-brand']
+    expect(result.activeBrandId).toBe('atlas-default');
     expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.activeBrandId).toBe('installer-demo');
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toMatch(/not in allowedBrandIds/i);
   });
 
-  it('warns and falls back when profile preference is disallowed', () => {
+  it('locked: adds warning when route override is ignored', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({ workspace: LOCKED_WORKSPACE, routeBrandId: 'installer-demo' }),
+    );
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings[0]).toMatch(/ignored.*locked/i);
+  });
+
+  it('locked: ignores user preference from storedBrandId', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({ workspace: LOCKED_WORKSPACE, storedBrandId: 'installer-demo' }),
+    );
+    expect(result.activeBrandId).toBe('atlas-default');
+    expect(result.resolutionSource).toBe('workspace_default');
+  });
+
+  it('locked: adds warning when stored user preference is ignored', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({ workspace: LOCKED_WORKSPACE, storedBrandId: 'installer-demo' }),
+    );
+    expect(result.warnings.some((w) => /ignored.*locked/i.test(w))).toBe(true);
+  });
+
+  it('locked: ignores user preference from userProfile', () => {
     const result = resolveBrandForWorkspace(
       makeInput({
-        userProfile: makeUserProfile({
-          preferredBrandIdByWorkspace: { ws_test: 'unknown-brand' },
-        }),
+        workspace: LOCKED_WORKSPACE,
+        userProfile: {
+          preferredBrandIdByWorkspace: { ws_locked: 'installer-demo' },
+        },
       }),
     );
+    expect(result.activeBrandId).toBe('atlas-default');
     expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.activeBrandId).toBe('installer-demo');
-    expect(result.warnings).toHaveLength(1);
   });
-});
 
-// ─── 4. Allowed route override resolves ───────────────────────────────────────
-
-describe('4 — allowed route override resolves as route_override', () => {
-  it('uses routeBrandId when it is in allowedBrandIds', () => {
+  it('locked: no warning when routeBrandId matches defaultBrandId', () => {
     const result = resolveBrandForWorkspace(
-      makeInput({ routeBrandId: 'secondary-brand' }),
+      makeInput({ workspace: LOCKED_WORKSPACE, routeBrandId: 'atlas-default' }),
     );
+    expect(result.warnings.filter((w) => /ignored.*locked/i.test(w))).toHaveLength(0);
+  });
+
+  // ── workspace_default policy ──────────────────────────────────────────────
+
+  it('workspace_default: returns workspace default when no overrides', () => {
+    const result = resolveBrandForWorkspace(makeInput({ workspace: DEFAULT_WORKSPACE }));
+    expect(result.activeBrandId).toBe('atlas-default');
+    expect(result.resolutionSource).toBe('workspace_default');
+  });
+
+  it('workspace_default: accepts route override when brand is in allowedBrandIds', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({ workspace: DEFAULT_WORKSPACE, routeBrandId: 'installer-demo' }),
+    );
+    expect(result.activeBrandId).toBe('installer-demo');
     expect(result.resolutionSource).toBe('route_override');
-    expect(result.activeBrandId).toBe('secondary-brand');
-    expect(result.warnings).toHaveLength(0);
   });
-});
 
-// ─── 5. Disallowed route override falls back ──────────────────────────────────
-
-describe('5 — disallowed route override falls back', () => {
-  it('warns and falls back when routeBrandId is not in allowedBrandIds', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({ routeBrandId: 'atlas-default' }),
-    );
-    // 'atlas-default' is not in ['installer-demo', 'secondary-brand']
-    expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.activeBrandId).toBe('installer-demo');
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toMatch(/not in allowedBrandIds/i);
-  });
-});
-
-// ─── 6. route_override wins over user_preference ─────────────────────────────
-
-describe('6 — route_override wins over user_preference for non-locked workspace', () => {
-  it('prefers routeBrandId over storedBrandId', () => {
+  it('workspace_default: ignores user preference (policy is not user_selectable)', () => {
     const result = resolveBrandForWorkspace(
       makeInput({
-        routeBrandId: 'secondary-brand',
+        workspace: DEFAULT_WORKSPACE,
         storedBrandId: 'installer-demo',
       }),
     );
-    expect(result.resolutionSource).toBe('route_override');
-    expect(result.activeBrandId).toBe('secondary-brand');
-  });
-});
-
-// ─── 7. No workspace → atlas_default ─────────────────────────────────────────
-
-describe('7 — no workspace → atlas_default', () => {
-  it('returns atlas_default when workspace is null', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({ workspace: null }),
-    );
-    expect(result.resolutionSource).toBe('atlas_default');
     expect(result.activeBrandId).toBe('atlas-default');
-    expect(result.warnings).toHaveLength(0);
-  });
-
-  it('returns atlas_default profile with companyName Atlas', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({ workspace: null }),
-    );
-    expect(result.activeBrandProfile.companyName).toBe('Atlas');
-  });
-});
-
-// ─── 8. Null userProfile → workspace_default ──────────────────────────────────
-
-describe('8 — null userProfile → workspace_default (no preference to read)', () => {
-  it('falls through to workspace_default when userProfile is null', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({ userProfile: null }),
-    );
     expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.activeBrandId).toBe('installer-demo');
-    expect(result.warnings).toHaveLength(0);
   });
-});
 
-// ─── 9. storedBrandId vs profile preference priority ─────────────────────────
+  it('workspace_default: route override rejected when brand not in allowedBrandIds', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({ workspace: DEFAULT_WORKSPACE, routeBrandId: 'extra-brand' }),
+    );
+    expect(result.activeBrandId).toBe('atlas-default');
+    expect(result.resolutionSource).toBe('workspace_default');
+    expect(result.warnings.some((w) => /not in allowedBrandIds/i.test(w))).toBe(true);
+  });
 
-describe('9 — storedBrandId wins over profile preference', () => {
-  it('returns storedBrandId when both storedBrandId and profile preference are set', () => {
+  // ── user_selectable policy ────────────────────────────────────────────────
+
+  it('user_selectable: resolves allowed user preference', () => {
     const result = resolveBrandForWorkspace(
       makeInput({
-        storedBrandId: 'secondary-brand',
-        userProfile: makeUserProfile({
-          preferredBrandIdByWorkspace: { ws_test: 'atlas-default' },
-        }),
+        workspace: SELECTABLE_WORKSPACE,
+        storedBrandId: 'installer-demo',
       }),
     );
-    // secondary-brand is allowed, atlas-default is not, so storedBrandId wins
+    expect(result.activeBrandId).toBe('installer-demo');
     expect(result.resolutionSource).toBe('user_preference');
-    expect(result.activeBrandId).toBe('secondary-brand');
   });
-});
 
-// ─── 10. Disallowed storedBrandId falls back ──────────────────────────────────
-
-describe('10 — disallowed storedBrandId falls back', () => {
-  it('warns and falls back to workspace_default when storedBrandId is disallowed', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({ storedBrandId: 'not-registered-brand' }),
-    );
-    expect(result.resolutionSource).toBe('workspace_default');
-    expect(result.warnings).toHaveLength(1);
-  });
-});
-
-// ─── 11. defaultBrandId always treated as allowed ────────────────────────────
-
-describe('11 — defaultBrandId always treated as allowed', () => {
-  it('falls back to defaultBrandId even if it is missing from allowedBrandIds array', () => {
+  it('user_selectable: route override wins over user preference', () => {
     const result = resolveBrandForWorkspace(
       makeInput({
-        workspace: makeWorkspace({
-          defaultBrandId: 'installer-demo',
-          allowedBrandIds: [], // empty — but defaultBrandId should still be treated as allowed
-        }),
+        workspace: SELECTABLE_WORKSPACE,
+        routeBrandId: 'extra-brand',
+        storedBrandId: 'installer-demo',
       }),
     );
+    expect(result.activeBrandId).toBe('extra-brand');
+    expect(result.resolutionSource).toBe('route_override');
+  });
+
+  it('user_selectable: disallowed user preference falls back to workspace default', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({
+        workspace: SELECTABLE_WORKSPACE,
+        storedBrandId: 'not-a-real-brand',
+      }),
+    );
+    expect(result.activeBrandId).toBe('atlas-default');
     expect(result.resolutionSource).toBe('workspace_default');
+    expect(result.warnings.some((w) => /not in allowedBrandIds/i.test(w))).toBe(true);
+  });
+
+  it('user_selectable: resolves preference from userProfile when storedBrandId absent', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({
+        workspace: SELECTABLE_WORKSPACE,
+        userProfile: {
+          preferredBrandIdByWorkspace: { ws_selectable: 'installer-demo' },
+        },
+      }),
+    );
     expect(result.activeBrandId).toBe('installer-demo');
-  });
-});
-
-// ─── 12. Visit inherits resolved brand (integration smoke test) ───────────────
-
-describe('12 — visit inherits resolved brand', () => {
-  it('resolved brand flows consistently: activeBrandId matches activeBrandProfile.brandId', () => {
-    const result = resolveBrandForWorkspace(makeInput({ storedBrandId: 'secondary-brand' }));
-    expect(result.activeBrandId).toBe(result.activeBrandProfile.brandId);
+    expect(result.resolutionSource).toBe('user_preference');
   });
 
-  it('workspace_default brand flows consistently', () => {
-    const result = resolveBrandForWorkspace(makeInput());
-    expect(result.activeBrandId).toBe(result.activeBrandProfile.brandId);
+  it('user_selectable: explicit storedBrandId takes priority over userProfile preference', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({
+        workspace: SELECTABLE_WORKSPACE,
+        storedBrandId: 'extra-brand',
+        userProfile: {
+          preferredBrandIdByWorkspace: { ws_selectable: 'installer-demo' },
+        },
+      }),
+    );
+    expect(result.activeBrandId).toBe('extra-brand');
+    expect(result.resolutionSource).toBe('user_preference');
   });
-});
 
-// ─── 13. Exports contain resolved brand metadata ─────────────────────────────
+  it('user_selectable: falls back to workspace default when no preference is set', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({ workspace: SELECTABLE_WORKSPACE }),
+    );
+    expect(result.activeBrandId).toBe('atlas-default');
+    expect(result.resolutionSource).toBe('workspace_default');
+  });
 
-describe('13 — exports contain resolved brand metadata', () => {
-  it('resolved result carries all required fields for export embedding', () => {
-    const result = resolveBrandForWorkspace(makeInput({ storedBrandId: 'installer-demo' }));
-    expect(result).toHaveProperty('activeBrandId');
-    expect(result).toHaveProperty('activeBrandProfile');
-    expect(result).toHaveProperty('resolutionSource');
-    expect(result).toHaveProperty('warnings');
+  // ── Schema inconsistency ──────────────────────────────────────────────────
+
+  it('emits warning when defaultBrandId is not in allowedBrandIds', () => {
+    const inconsistentWorkspace: ResolvableWorkspace = {
+      workspaceId: 'ws_inconsistent',
+      name: 'Inconsistent',
+      defaultBrandId: 'installer-demo',
+      allowedBrandIds: ['atlas-default'], // missing defaultBrandId
+      brandPolicy: 'workspace_default',
+    };
+    const result = resolveBrandForWorkspace(
+      makeInput({ workspace: inconsistentWorkspace }),
+    );
+    expect(result.warnings.some((w) => /schema inconsistency/i.test(w))).toBe(true);
+  });
+
+  // ── Brand profile resolution ───────────────────────────────────────────────
+
+  it('returns the correct BrandProfileV1 for the resolved brandId', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({
+        workspace: SELECTABLE_WORKSPACE,
+        storedBrandId: 'installer-demo',
+      }),
+    );
+    expect(result.activeBrandProfile.brandId).toBe('installer-demo');
+    expect(result.activeBrandProfile.companyName).toBe('Demo Heating Co');
+  });
+
+  it('returns atlas-default profile when resolved brandId is not in registry', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({
+        workspace: {
+          ...DEFAULT_WORKSPACE,
+          defaultBrandId: 'ghost-brand',
+          allowedBrandIds: ['ghost-brand'],
+        },
+      }),
+    );
+    expect(result.activeBrandProfile.brandId).toBe('atlas-default');
+  });
+
+  // ── Visit brand inheritance ────────────────────────────────────────────────
+
+  it('resolved activeBrandId can be passed directly to createAtlasVisit (string)', () => {
+    const result = resolveBrandForWorkspace(
+      makeInput({
+        workspace: SELECTABLE_WORKSPACE,
+        storedBrandId: 'installer-demo',
+      }),
+    );
+    // activeBrandId is always a string — safe to pass to createAtlasVisit(id, activeBrandId)
     expect(typeof result.activeBrandId).toBe('string');
-    expect(result.activeBrandId.length).toBeGreaterThan(0);
-  });
-
-  it('user_selectable workspace preserves user preference for export', () => {
-    const result = resolveBrandForWorkspace(
-      makeInput({
-        workspace: makeWorkspace({ brandPolicy: 'user_selectable' }),
-        storedBrandId: 'secondary-brand',
-      }),
-    );
-    expect(result.resolutionSource).toBe('user_preference');
-    expect(result.activeBrandId).toBe('secondary-brand');
+    expect(result.activeBrandId.trim().length).toBeGreaterThan(0);
   });
 });
