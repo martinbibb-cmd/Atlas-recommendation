@@ -19,7 +19,7 @@ function downloadChangeSet(changeSet: WorkspaceSettingsChangeSetV1): void {
   a.href = url;
   a.download = 'workspace-settings-change-set.json';
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  URL.revokeObjectURL(url);
 }
 
 export default function WorkspaceSettingsReviewPanel({ changeSet }: Props) {

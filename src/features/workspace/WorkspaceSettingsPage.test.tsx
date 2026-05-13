@@ -162,22 +162,26 @@ describe('WorkspaceSettingsPage', () => {
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
     const clickMock = vi.fn();
     const originalCreateElement = document.createElement.bind(document);
-    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-      const element = originalCreateElement(tagName);
-      if (tagName.toLowerCase() === 'a') {
-        Object.defineProperty(element, 'click', { value: clickMock });
-      }
-      return element;
-    });
+    const createElementSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tagName: string) => {
+        const element = originalCreateElement(tagName);
+        if (tagName.toLowerCase() === 'a') {
+          Object.defineProperty(element, 'click', { value: clickMock });
+        }
+        return element;
+      });
 
-    renderPage();
-    fireEvent.click(screen.getByTestId('workspace-settings-export-change-set-json'));
+    try {
+      renderPage();
+      fireEvent.click(screen.getByTestId('workspace-settings-export-change-set-json'));
 
-    expect(createObjectURL).toHaveBeenCalledTimes(1);
-    expect(clickMock).toHaveBeenCalledTimes(1);
-
-    createElementSpy.mockRestore();
-    createObjectURL.mockRestore();
-    revokeObjectURL.mockRestore();
+      expect(createObjectURL).toHaveBeenCalledTimes(1);
+      expect(clickMock).toHaveBeenCalledTimes(1);
+    } finally {
+      createElementSpy.mockRestore();
+      createObjectURL.mockRestore();
+      revokeObjectURL.mockRestore();
+    }
   });
 });

@@ -233,6 +233,7 @@ function WorkspaceSettingsContent({
   });
 
   const brandRegistry = useMemo(() => listStoredBrandProfiles(), []);
+
   const brandOptions = useMemo(() => {
     const ids = new Set<string>(Object.keys(brandRegistry));
     ids.add(workspace.defaultBrandId);
