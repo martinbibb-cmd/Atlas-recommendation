@@ -7,7 +7,7 @@ export interface AtlasUserProfileV1 {
   displayName: string;
   email?: string;
   photoURL?: string;
-  preferredBrandIdByWorkspace?: Record<string, string>;
+  preferredBrandIdByWorkspace?: Readonly<Record<string, string>>;
   createdAt: string;
   updatedAt: string;
 }
@@ -19,7 +19,7 @@ export interface AtlasWorkspaceV1 {
   ownerAtlasUserId: string;
   storagePreference?: 'local_only' | 'google_drive' | 'disabled';
   defaultBrandId: string;
-  allowedBrandIds: string[];
+  allowedBrandIds: readonly string[];
   brandPolicy: WorkspaceBrandPolicy;
   createdAt: string;
   updatedAt: string;

@@ -18,7 +18,6 @@
  */
 
 import type { WorkspaceMembershipV1 } from './WorkspaceMembershipV1';
-export type { WorkspaceBrandPolicy } from '../workspaceBrandPolicy';
 import type { WorkspaceBrandPolicy } from '../workspaceBrandPolicy';
 
 // ─── Storage preference ───────────────────────────────────────────────────────

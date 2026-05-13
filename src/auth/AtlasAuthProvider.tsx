@@ -14,6 +14,7 @@ import {
 const USER_PROFILE_STORE_KEY = 'atlas:auth:user-profile:v1';
 const WORKSPACES_STORE_KEY = 'atlas:auth:workspaces:v1';
 const CURRENT_WORKSPACE_STORE_KEY = 'atlas:auth:current-workspace:v1';
+const DEFAULT_WORKSPACE_BRAND_ID = 'atlas-default';
 
 const DEV_MOCK_AUTH_ENABLED =
   import.meta.env.DEV &&
@@ -121,9 +122,9 @@ function buildMockProfile(): AtlasUserProfileV1 {
 }
 
 function normalizeWorkspaceBranding(workspace: AtlasWorkspaceV1): AtlasWorkspaceV1 {
-  const defaultBrandId = workspace.defaultBrandId ?? 'atlas-default';
+  const defaultBrandId = workspace.defaultBrandId ?? DEFAULT_WORKSPACE_BRAND_ID;
   const baseAllowedBrandIds =
-    Array.isArray(workspace.allowedBrandIds) && workspace.allowedBrandIds.length > 0
+    workspace.allowedBrandIds.length > 0
       ? workspace.allowedBrandIds
       : [defaultBrandId];
   const allowedBrandIds = Array.from(new Set([...baseAllowedBrandIds, defaultBrandId]));
@@ -154,8 +155,8 @@ function ensureDefaultWorkspace(
         workspaceId: defaultWorkspaceId,
         name: 'Default Workspace',
         ownerAtlasUserId: profile.atlasUserId,
-        defaultBrandId: 'atlas-default',
-        allowedBrandIds: ['atlas-default'],
+        defaultBrandId: DEFAULT_WORKSPACE_BRAND_ID,
+        allowedBrandIds: [DEFAULT_WORKSPACE_BRAND_ID],
         brandPolicy: 'workspace_default',
         createdAt: now,
         updatedAt: now,
