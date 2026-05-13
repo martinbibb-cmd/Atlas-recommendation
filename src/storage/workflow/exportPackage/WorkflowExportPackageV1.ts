@@ -7,6 +7,7 @@ import type { InstallationScopePackV1 } from '../../../specification/scopePacks'
 import type { SpecificationLineV1 } from '../../../specification/specLines';
 import type { PersistedImplementationWorkflowV1 } from '../PersistedImplementationWorkflowV1';
 import type { WorkflowStorageTarget } from '../WorkflowStorageAdapterV1';
+import type { AtlasVisitOwnershipV1 } from '../../../auth/profile/AtlasVisitOwnershipV1';
 
 export const WORKFLOW_EXPORT_PACKAGE_SCHEMA = 'atlas.workflow-export-package' as const;
 export const WORKFLOW_EXPORT_PACKAGE_VERSION = '1.0' as const;
@@ -37,6 +38,11 @@ export interface WorkflowExportPackageManifestV1 {
   };
   readonly visitReference: string;
   readonly folderName: string;
+  /**
+   * Ownership and workspace context resolved at export time.
+   * Absent for unowned / session-only visits.
+   */
+  readonly ownership?: AtlasVisitOwnershipV1;
 }
 
 export interface WorkflowExportPackagePayloadV1 {

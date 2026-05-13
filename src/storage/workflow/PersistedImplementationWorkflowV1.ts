@@ -19,6 +19,7 @@
 
 import type { ScopePackReviewStatus } from '../../specification/scopePacks/InstallationScopePackV1';
 import type { SpecificationLineStatus } from '../../specification/specLines/SpecificationLineV1';
+import type { AtlasVisitOwnershipV1 } from '../../auth/profile/AtlasVisitOwnershipV1';
 
 // ─── Schema version ───────────────────────────────────────────────────────────
 
@@ -153,4 +154,12 @@ export interface PersistedImplementationWorkflowV1 {
 
   /** Reviewer-driven materials confirmation state. */
   readonly materialsReviewState: MaterialsReviewState;
+
+  /**
+   * Workspace ownership context at the time this workflow was saved.
+   * Absent for unowned / session-only visits (demo mode).
+   * When present, the workspaceId and createdByUserId constrain which
+   * workspace members can load, modify, or export this record.
+   */
+  readonly ownership?: AtlasVisitOwnershipV1;
 }
