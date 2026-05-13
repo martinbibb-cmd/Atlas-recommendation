@@ -5,9 +5,12 @@ export interface AtlasUserProfileV1 {
   displayName: string;
   email?: string;
   photoURL?: string;
+  preferredBrandIdByWorkspace?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
+
+export type WorkspaceBrandPolicy = 'workspace_default' | 'user_selectable' | 'locked';
 
 export interface AtlasWorkspaceV1 {
   version: '1.0';
@@ -15,6 +18,9 @@ export interface AtlasWorkspaceV1 {
   name: string;
   ownerAtlasUserId: string;
   storagePreference?: 'local_only' | 'google_drive' | 'disabled';
+  defaultBrandId: string;
+  allowedBrandIds: string[];
+  brandPolicy: WorkspaceBrandPolicy;
   createdAt: string;
   updatedAt: string;
 }

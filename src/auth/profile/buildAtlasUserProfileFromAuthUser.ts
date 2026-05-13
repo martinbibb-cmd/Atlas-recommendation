@@ -75,6 +75,9 @@ export function buildAtlasUserProfileFromAuthUser(
     workspaceMemberships: isExistingForSameProvider
       ? existing.workspaceMemberships
       : [],
+    preferredBrandIdByWorkspace: isExistingForSameProvider
+      ? existing.preferredBrandIdByWorkspace
+      : undefined,
     createdAt: isExistingForSameProvider ? existing.createdAt : now,
     updatedAt: now,
   };

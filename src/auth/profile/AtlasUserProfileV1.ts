@@ -66,6 +66,12 @@ export interface AtlasUserProfileV1 {
    */
   readonly workspaceMemberships: readonly WorkspaceMembershipV1[];
 
+  /**
+   * Optional per-workspace brand override keyed by workspaceId.
+   * Used when a workspace brand policy allows user selection.
+   */
+  readonly preferredBrandIdByWorkspace?: Readonly<Record<string, string>>;
+
   /** ISO 8601 timestamp of profile creation. */
   readonly createdAt: string;
 

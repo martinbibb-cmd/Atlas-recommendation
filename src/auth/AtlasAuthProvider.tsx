@@ -96,6 +96,9 @@ function buildProfileFromFirebaseUser(user: User): AtlasUserProfileV1 {
     displayName: user.displayName?.trim() || user.email?.trim() || 'Atlas User',
     email: user.email ?? undefined,
     photoURL: user.photoURL ?? undefined,
+    preferredBrandIdByWorkspace: isExistingForCurrentFirebaseUser
+      ? existing.preferredBrandIdByWorkspace
+      : undefined,
     createdAt: isExistingForCurrentFirebaseUser ? existing.createdAt : now,
     updatedAt: now,
   };
@@ -111,8 +114,26 @@ function buildMockProfile(): AtlasUserProfileV1 {
     displayName: existing?.displayName ?? 'Atlas Dev User',
     email: existing?.email ?? 'dev@atlas.local',
     photoURL: existing?.photoURL,
+    preferredBrandIdByWorkspace: existing?.preferredBrandIdByWorkspace,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
+  };
+}
+
+function normalizeWorkspaceBranding(workspace: AtlasWorkspaceV1): AtlasWorkspaceV1 {
+  const defaultBrandId = workspace.defaultBrandId ?? 'atlas-default';
+  const allowedBrandIds = Array.from(
+    new Set(
+      ((workspace.allowedBrandIds?.length ?? 0) > 0
+        ? workspace.allowedBrandIds
+        : [defaultBrandId]).concat(defaultBrandId),
+    ),
+  );
+  return {
+    ...workspace,
+    defaultBrandId,
+    allowedBrandIds,
+    brandPolicy: workspace.brandPolicy ?? 'workspace_default',
   };
 }
 
@@ -125,7 +146,9 @@ function ensureDefaultWorkspace(
   const defaultWorkspaceId = `workspace_${profile.atlasUserId}`;
   const shouldPersist = options?.persist !== false;
 
-  let workspaces = existing.filter((workspace) => workspace.ownerAtlasUserId === profile.atlasUserId);
+  let workspaces = existing
+    .filter((workspace) => workspace.ownerAtlasUserId === profile.atlasUserId)
+    .map(normalizeWorkspaceBranding);
   if (workspaces.length === 0) {
     workspaces = [
       {
@@ -133,6 +156,9 @@ function ensureDefaultWorkspace(
         workspaceId: defaultWorkspaceId,
         name: 'Default Workspace',
         ownerAtlasUserId: profile.atlasUserId,
+        defaultBrandId: 'atlas-default',
+        allowedBrandIds: ['atlas-default'],
+        brandPolicy: 'workspace_default',
         createdAt: now,
         updatedAt: now,
       },

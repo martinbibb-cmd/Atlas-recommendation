@@ -7,6 +7,7 @@
 export type { AtlasUserProfileV1 } from './AtlasUserProfileV1';
 export type {
   AtlasWorkspaceV1,
+  WorkspaceBrandPolicy,
   WorkspaceStoragePreference,
 } from './AtlasWorkspaceV1';
 export type {
