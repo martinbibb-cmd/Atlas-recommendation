@@ -8,6 +8,7 @@ import type { SpecificationLineV1 } from '../../../specification/specLines';
 import type { PersistedImplementationWorkflowV1 } from '../PersistedImplementationWorkflowV1';
 import type { WorkflowStorageTarget } from '../WorkflowStorageAdapterV1';
 import type { AtlasVisitOwnershipV1 } from '../../../auth/profile/AtlasVisitOwnershipV1';
+import type { BrandResolutionSource } from '../../../auth/brand/resolveBrandForWorkspace';
 
 export const WORKFLOW_EXPORT_PACKAGE_SCHEMA = 'atlas.workflow-export-package' as const;
 export const WORKFLOW_EXPORT_PACKAGE_VERSION = '1.0' as const;
@@ -43,6 +44,17 @@ export interface WorkflowExportPackageManifestV1 {
    * Absent for unowned / session-only visits.
    */
   readonly ownership?: AtlasVisitOwnershipV1;
+
+  /**
+   * Resolved brand session metadata at export time.
+   * Carries the active brand ID and how it was resolved so that downstream
+   * consumers (PDF, portal, workflow replay) can restore the correct brand.
+   * Absent when the visit was created in demo / unauthenticated mode.
+   */
+  readonly brandSession?: {
+    readonly activeBrandId: string;
+    readonly resolutionSource: BrandResolutionSource;
+  };
 }
 
 export interface WorkflowExportPackagePayloadV1 {

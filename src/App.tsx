@@ -113,6 +113,7 @@ import { AtlasAuthProvider } from './auth/AtlasAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 import { useAtlasAuth } from './auth/useAtlasAuth';
 import { WorkspaceSessionProvider, useWorkspaceSession, WorkspaceSessionGuard } from './auth/profile';
+import { WorkspaceBrandSessionProvider } from './auth/brand';
 import { upsertVisitIdentity } from './visits/visitIdentityStore';
 import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
 import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
@@ -2447,9 +2448,11 @@ export default function App() {
     <AtlasAuthProvider>
       <ActiveUserProvider>
         <WorkspaceSessionProvider>
-          <RequireAuth>
-            <AppInner />
-          </RequireAuth>
+          <WorkspaceBrandSessionProvider>
+            <RequireAuth>
+              <AppInner />
+            </RequireAuth>
+          </WorkspaceBrandSessionProvider>
         </WorkspaceSessionProvider>
       </ActiveUserProvider>
     </AtlasAuthProvider>

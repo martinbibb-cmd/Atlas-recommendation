@@ -58,6 +58,7 @@ import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
 import { WorkspaceSessionGuard, useWorkspaceSession } from '../auth/profile';
+import { useWorkspaceBrandSession } from '../auth/brand';
 import {
   WORKFLOW_SCHEMA_VERSION,
   buildWorkflowExportPackage,
@@ -587,6 +588,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
   const workspaceSession = useWorkspaceSession();
+  const brandSession = useWorkspaceBrandSession();
 
   function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') {
     const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);
@@ -977,6 +979,13 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               storageTarget: workspaceSession.storageTarget,
             }
           : undefined;
+      const workflowBrandSession =
+        brandSession.resolutionSource !== 'atlas_default'
+          ? {
+              activeBrandId: brandSession.activeBrandId,
+              resolutionSource: brandSession.resolutionSource,
+            }
+          : undefined;
       const persistedWorkflowSnapshot: PersistedImplementationWorkflowV1 = {
         schemaVersion: WORKFLOW_SCHEMA_VERSION,
         visitReference,
@@ -1022,6 +1031,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           surface: `dev_portal_fixture:${active.fixture.id}`,
         },
         ...(workflowOwnership !== undefined ? { ownership: workflowOwnership } : {}),
+        ...(workflowBrandSession !== undefined ? { brandSession: workflowBrandSession } : {}),
       });
 
       return (
