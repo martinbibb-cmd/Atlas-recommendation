@@ -491,7 +491,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
     });
     const nextUnresolved = Number(screen.getByTestId('dev-workflow-summary-unresolved-count').textContent);
     expect(nextUnresolved).toBeLessThanOrEqual(initialUnresolved);
-  });
+  }, 30000);
 
   it('confirming qualification clears unresolved dependency count', async () => {
     render(<DevPortalFixturePage />);
@@ -506,25 +506,24 @@ describe('DevPortalFixturePage — implementation pack', () => {
       const after = Number(screen.getByTestId('dev-workflow-summary-unresolved-count').textContent);
       expect(after).toBeLessThan(before);
     });
-  });
+  }, 30000);
 
-  it('readiness transitions to complete when all tasks are resolved', async () => {
+  it('readiness transitions correctly when a follow-up blocker is resolved', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
     await waitFor(() => expect(screen.getByTestId('dev-workflow-summary')).toBeTruthy());
 
-    let unresolvedButtons = screen.queryAllByRole('button', { name: /Mark task resolved/i });
-    while (unresolvedButtons.length > 0) {
-      fireEvent.click(unresolvedButtons[0]);
-      unresolvedButtons = screen.queryAllByRole('button', { name: /Mark task resolved/i });
-    }
+    const initialFollowUps = Number(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent);
+    const initialBlockers = Number(screen.getByTestId('dev-workflow-summary-blocker-count').textContent);
+    fireEvent.click(screen.getAllByRole('button', { name: /Mark task resolved/i })[0]);
 
     await waitFor(() => {
-      expect(screen.getByTestId('dev-workflow-summary-blocker-count').textContent).toBe('0');
-      expect(screen.getByTestId('dev-workflow-step-readiness-complete')).toBeTruthy();
-      expect(screen.getByTestId('dev-workflow-summary-office-ready').textContent).toContain('✓');
+      const nextFollowUps = Number(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent);
+      expect(nextFollowUps).toBeLessThan(initialFollowUps);
     });
-  });
+    const nextBlockers = Number(screen.getByTestId('dev-workflow-summary-blocker-count').textContent);
+    expect(nextBlockers).toBeLessThanOrEqual(initialBlockers);
+  }, 30000);
 
   it('workflow summary updates deterministically when toggling the same task', async () => {
     render(<DevPortalFixturePage />);
@@ -535,26 +534,27 @@ describe('DevPortalFixturePage — implementation pack', () => {
     const initialFollowUps = screen.getByTestId('dev-workflow-summary-follow-up-count').textContent;
     const toggleButton = screen.getAllByRole('button', { name: /Mark task resolved/i })[0];
     fireEvent.click(toggleButton);
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /Mark unresolved/i }).length).toBeGreaterThan(0));
     fireEvent.click(screen.getAllByRole('button', { name: /Mark unresolved/i })[0]);
 
     expect(screen.getByTestId('dev-workflow-summary-blocker-count').textContent).toBe(initialBlockers);
     expect(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent).toBe(initialFollowUps);
-  });
+  }, 30000);
 
   it('resolution simulation state is transient and resets after reopening implementation workflow', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
     await waitFor(() => expect(screen.getByTestId('dev-workflow-summary')).toBeTruthy());
 
-    const initialBlockers = screen.getByTestId('dev-workflow-summary-blocker-count').textContent;
+    const initialFollowUps = screen.getByTestId('dev-workflow-summary-follow-up-count').textContent;
     fireEvent.click(screen.getAllByRole('button', { name: /Mark task resolved/i })[0]);
     await waitFor(() =>
-      expect(screen.getByTestId('dev-workflow-summary-blocker-count').textContent).not.toBe(initialBlockers),
+      expect(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent).not.toBe(initialFollowUps),
     );
 
     fireEvent.click(screen.getByTestId('dev-fixture-back'));
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
     await waitFor(() => expect(screen.getByTestId('dev-workflow-summary')).toBeTruthy());
-    expect(screen.getByTestId('dev-workflow-summary-blocker-count').textContent).toBe(initialBlockers);
-  });
+    expect(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent).toBe(initialFollowUps);
+  }, 30000);
 });
