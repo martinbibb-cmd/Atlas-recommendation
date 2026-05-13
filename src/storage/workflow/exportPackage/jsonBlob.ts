@@ -59,7 +59,7 @@ function validateWorkflowExportPackage(raw: unknown): WorkflowExportImportResult
     return { ok: false, reason: 'Import failed: manifest missing source.' };
   }
 
-  return { ok: true, pkg: raw as WorkflowExportPackageV1 };
+  return { ok: true, pkg: raw as unknown as WorkflowExportPackageV1 };
 }
 
 export function exportPackageAsJsonBlob(pkg: WorkflowExportPackageV1): Blob {
