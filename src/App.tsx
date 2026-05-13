@@ -43,7 +43,6 @@ import { retrieveActiveVisit, storeActiveVisit } from './features/visits/visitSt
 import { BrandProvider } from './features/branding/BrandProvider';
 import { StartVisitPanel } from './features/visits/StartVisitPanel';
 import { DEFAULT_BRAND_ID } from './features/branding/brandProfiles';
-import { TenantSettingsPage } from './features/tenants/TenantSettingsPage';
 import { TenantOnboardingPage } from './features/tenants/TenantOnboardingPage';
 import { useWorkspaceFromHost } from './features/tenants/useWorkspaceFromHost';
 import { listReportsForVisit, saveReport } from './lib/reports/reportApi';
@@ -77,6 +76,7 @@ import { resetDemoData, DEMO_VISIT_IDS } from './dev/demoSeed';
 import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
 import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
 import WorkspaceDashboard from './features/workspace/WorkspaceDashboard';
+import WorkspaceSettingsPage from './features/workspace/WorkspaceSettingsPage';
 import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
 import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
@@ -113,7 +113,17 @@ import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import { AtlasAuthProvider } from './auth/AtlasAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 import { useAtlasAuth } from './auth/useAtlasAuth';
-import { WorkspaceSessionProvider, useWorkspaceSession, WorkspaceSessionGuard, WorkspaceBrandSessionProvider, useWorkspaceBrandSession } from './auth/profile';
+import {
+  DEFAULT_PERMISSIONS_BY_ROLE,
+  type AtlasWorkspaceV1 as ProfileAtlasWorkspaceV1,
+  type WorkspaceMemberRole,
+  type WorkspaceMembershipV1,
+  WorkspaceSessionProvider,
+  useWorkspaceSession,
+  WorkspaceSessionGuard,
+  WorkspaceBrandSessionProvider,
+  useWorkspaceBrandSession,
+} from './auth/profile';
 import { upsertVisitIdentity } from './visits/visitIdentityStore';
 import { SpecificationErrorBoundary } from './features/installationSpecification/ui/SpecificationErrorBoundary';
 import { buildCurrentInstallationSummaryFromCanonicalSurvey } from './features/installationSpecification/model/buildCurrentInstallationSummaryFromCanonicalSurvey';
@@ -465,6 +475,14 @@ const EXPLORER_ENABLED =
 const WORKSPACE_HOME =
   typeof window !== 'undefined' && window.location.pathname === '/workspace';
 
+/** Detect /workspace/settings (and dev alias) — renders workspace admin controls. */
+const WORKSPACE_SETTINGS_HOME =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/workspace/settings' ||
+    window.location.pathname === '/dev/workspace-settings'
+  );
+
 /** Detect /analytics — renders the tenant-level KPI dashboard. */
 const ANALYTICS_HOME =
   typeof window !== 'undefined' && window.location.pathname === '/analytics';
@@ -776,7 +794,88 @@ function AppInner() {
     canManageWorkspace,
     canViewAnalytics,
     canEditBranding,
+    effectiveRole,
   } = useRolePermissions();
+
+  const workspaceSettingsRole = useMemo<WorkspaceMemberRole>(() => {
+    switch (effectiveRole) {
+      case 'owner':
+      case 'admin':
+      case 'engineer':
+      case 'viewer':
+        return effectiveRole;
+      case 'sales':
+        return 'office';
+      default:
+        if (
+          currentWorkspace !== null &&
+          atlasUserProfile !== null &&
+          currentWorkspace.ownerAtlasUserId === atlasUserProfile.atlasUserId
+        ) {
+          return 'owner';
+        }
+        return 'viewer';
+    }
+  }, [atlasUserProfile, currentWorkspace, effectiveRole]);
+
+  const workspaceSettingsMembership = useMemo<WorkspaceMembershipV1 | null>(() => {
+    if (currentWorkspace === null) {
+      return null;
+    }
+
+    return {
+      workspaceId: currentWorkspace.workspaceId,
+      userId:
+        activeUser?.userId ??
+        atlasUserProfile?.atlasUserId ??
+        currentWorkspace.ownerAtlasUserId,
+      role: workspaceSettingsRole,
+      permissions: DEFAULT_PERMISSIONS_BY_ROLE[workspaceSettingsRole],
+    };
+  }, [activeUser?.userId, atlasUserProfile, currentWorkspace, workspaceSettingsRole]);
+
+  const workspaceSettingsWorkspace = useMemo<ProfileAtlasWorkspaceV1 | null>(() => {
+    if (currentWorkspace === null) {
+      return null;
+    }
+
+    const slug =
+      hostResolution.workspaceSlug ??
+      (
+        currentWorkspace.name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'workspace'
+      );
+
+    const ownerMembership: WorkspaceMembershipV1 = {
+      workspaceId: currentWorkspace.workspaceId,
+      userId: currentWorkspace.ownerAtlasUserId,
+      role: 'owner',
+      permissions: DEFAULT_PERMISSIONS_BY_ROLE.owner,
+    };
+
+    const members =
+      workspaceSettingsMembership === null ||
+      workspaceSettingsMembership.userId === ownerMembership.userId
+        ? [ownerMembership]
+        : [ownerMembership, workspaceSettingsMembership];
+
+    return {
+      workspaceId: currentWorkspace.workspaceId,
+      name: currentWorkspace.name,
+      slug,
+      ownerUserId: currentWorkspace.ownerAtlasUserId,
+      members,
+      storagePreference: currentWorkspace.storagePreference ?? 'disabled',
+      defaultBrandId: currentWorkspace.defaultBrandId,
+      allowedBrandIds: currentWorkspace.allowedBrandIds,
+      brandPolicy: currentWorkspace.brandPolicy,
+      createdAt: currentWorkspace.createdAt,
+      updatedAt: currentWorkspace.updatedAt,
+    };
+  }, [currentWorkspace, hostResolution.workspaceSlug, workspaceSettingsMembership]);
 
   // ── Session persistence: write journey + visitId to versioned cache ────────
   // These effects run whenever journey or activeVisitId changes, keeping the
@@ -1136,6 +1235,24 @@ function AppInner() {
       : null,
     [labFullSurveyModel],
   );
+
+  if (WORKSPACE_SETTINGS_HOME || BRAND_SETTINGS_ENABLED) {
+    return (
+      <WorkspaceSettingsPage
+        workspace={workspaceSettingsWorkspace}
+        actingMembership={workspaceSettingsMembership}
+        activeBrandSummary={{
+          activeBrandId: workspaceBrandSession.activeBrandId,
+          companyName: workspaceBrandSession.activeBrandProfile.companyName,
+          resolutionSource: workspaceBrandSession.resolutionSource,
+        }}
+        sessionStatus={workspaceSession.status}
+        onBack={() => {
+          window.location.href = WORKSPACE_SETTINGS_HOME ? '/' : window.location.pathname;
+        }}
+      />
+    );
+  }
 
   // /workspace/:id — render a single workspace detail page.
   if (WORKSPACE_DETAIL_ID != null) {
@@ -1527,18 +1644,6 @@ function AppInner() {
     );
   }
 
-  // ?brand-settings=1 — render Workspace Branding settings page.
-  if (BRAND_SETTINGS_ENABLED) {
-    return (
-      <TenantSettingsPage
-        onBack={() => { window.location.href = window.location.pathname; }}
-        onCreateWorkspace={() => {
-          window.location.href = `${window.location.pathname}?create-workspace=1`;
-        }}
-      />
-    );
-  }
-
   // ?create-workspace=1 — render Workspace Onboarding page.
   if (CREATE_WORKSPACE_ENABLED) {
     return (
@@ -1548,8 +1653,8 @@ function AppInner() {
         onStartVisit={(slug) => {
           window.location.href = `${window.location.pathname}?start-visit=1&workspace=${encodeURIComponent(slug)}`;
         }}
-        onEditBranding={(slug) => {
-          window.location.href = `${window.location.pathname}?brand-settings=1&workspace=${encodeURIComponent(slug)}`;
+        onEditBranding={() => {
+          window.location.href = '/workspace/settings';
         }}
       />
     );
@@ -2120,8 +2225,8 @@ function AppInner() {
           onOpenVisit={handleOpenVisit}
           onOpenAllVisits={() => { setJourney('landing'); setShowVisitsPanel(true); }}
           onOpenAnalytics={() => { window.location.href = '/analytics'; }}
-          onOpenBranding={() => { window.location.href = `${window.location.pathname}?brand-settings=1`; }}
-          onOpenWorkspaceSettings={() => { window.location.href = `${window.location.pathname}?create-workspace=1`; }}
+          onOpenBranding={() => { window.location.href = '/workspace/settings'; }}
+          onOpenWorkspaceSettings={() => { window.location.href = '/workspace/settings'; }}
           onOpenUserProfile={() => setJourney('user-profile')}
           onOpenAllTools={() => setJourney('landing')}
           onOpenDemoExternalFiles={() => {
@@ -2296,7 +2401,7 @@ function AppInner() {
             <div
               id="workspace-branding-card"
               className="journey-card"
-              onClick={() => { window.location.href = `${window.location.pathname}?brand-settings=1`; }}
+              onClick={() => { window.location.href = '/workspace/settings'; }}
             >
               <div className="card-icon">🎨</div>
               <h2>Workspace Branding</h2>
@@ -2305,17 +2410,17 @@ function AppInner() {
             </div>
             )}
 
-            {/* Create Workspace — self-serve workspace onboarding */}
+            {/* Workspace settings — onboarding and admin controls */}
             {canManageWorkspace && (
             <div
               id="create-workspace-card"
               className="journey-card"
-              onClick={() => { window.location.href = `${window.location.pathname}?create-workspace=1`; }}
+              onClick={() => { window.location.href = '/workspace/settings'; }}
             >
               <div className="card-icon">🏢</div>
-              <h2>Create workspace</h2>
-              <p>Set up a new Atlas workspace with your branding, contact details, and slug. Saved locally.</p>
-              <button className="cta-btn">Create workspace →</button>
+              <h2>Workspace settings</h2>
+              <p>Review workspace members, join requests, brand policy, and storage mode in one place.</p>
+              <button className="cta-btn">Open settings →</button>
             </div>
             )}
 
