@@ -21,6 +21,7 @@
  */
 
 import { useOptionalBrandProfile } from './useBrandProfile';
+import { useOptionalWorkspaceBrandSession } from '../../auth/brand';
 import { BrandLogo } from './BrandLogo';
 import './brandTheme.css';
 
@@ -51,10 +52,15 @@ interface ActiveBrandBannerProps {
  */
 export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBannerProps = {}) {
   const profile = useOptionalBrandProfile();
+  const brandSession = useOptionalWorkspaceBrandSession();
 
   if (profile === null) {
     return null;
   }
+
+  const resolvedWorkspaceName =
+    brandSession?.activeWorkspace?.name ?? undefined;
+  const resolvedSource = brandSession?.resolutionSource ?? undefined;
 
   return (
     <div
@@ -72,6 +78,15 @@ export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBann
       }}
     >
       <BrandLogo />
+      {resolvedWorkspaceName !== undefined && (
+        <span
+          className="active-brand-banner__workspace-name"
+          data-testid="active-brand-banner-workspace-name"
+          style={{ color: '#64748b' }}
+        >
+          {resolvedWorkspaceName}
+        </span>
+      )}
       <span
         className="active-brand-banner__name"
         data-testid="active-brand-banner-name"
@@ -79,13 +94,24 @@ export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBann
       >
         {profile.companyName}
       </span>
-      <span
-        className="active-brand-banner__label"
-        data-testid="active-brand-banner-label"
-        style={{ color: '#64748b', marginLeft: '0.25rem' }}
-      >
-        Atlas workspace
-      </span>
+      {resolvedSource !== undefined && (
+        <span
+          className="active-brand-banner__resolution"
+          data-testid="active-brand-banner-resolution"
+          style={{ color: '#64748b', marginLeft: '0.25rem' }}
+        >
+          {resolvedSource.replace(/_/g, ' ')}
+        </span>
+      )}
+      {resolvedSource === undefined && (
+        <span
+          className="active-brand-banner__label"
+          data-testid="active-brand-banner-label"
+          style={{ color: '#64748b', marginLeft: '0.25rem' }}
+        >
+          Atlas workspace
+        </span>
+      )}
       {workspaceSlug !== undefined && (
         <span
           className="active-brand-banner__workspace"
@@ -119,6 +145,7 @@ export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBann
         >
           {profile.brandId}
           {hostSource !== undefined && ` · src:${hostSource}`}
+          {resolvedSource !== undefined && ` · res:${resolvedSource}`}
         </span>
       )}
     </div>

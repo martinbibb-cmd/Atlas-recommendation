@@ -8,6 +8,7 @@ import type { SpecificationLineV1 } from '../../../specification/specLines';
 import type { PersistedImplementationWorkflowV1 } from '../PersistedImplementationWorkflowV1';
 import type { WorkflowStorageTarget } from '../WorkflowStorageAdapterV1';
 import type { AtlasVisitOwnershipV1 } from '../../../auth/profile/AtlasVisitOwnershipV1';
+import type { BrandResolutionSource } from '../../../auth/brand/resolveBrandForWorkspace';
 
 export const WORKFLOW_EXPORT_PACKAGE_SCHEMA = 'atlas.workflow-export-package' as const;
 export const WORKFLOW_EXPORT_PACKAGE_VERSION = '1.0' as const;
@@ -28,6 +29,22 @@ export const WORKFLOW_EXPORT_REQUIRED_FILES = [
 
 export type WorkflowExportRequiredFileName = typeof WORKFLOW_EXPORT_REQUIRED_FILES[number];
 
+/**
+ * Brand context captured at workflow export time.
+ * Travels with the export package so downstream processing (e.g. PDF generation,
+ * re-import) knows which brand was active and how it was selected.
+ */
+export interface WorkflowExportBrandContextV1 {
+  /** The resolved brand identifier active at export time. */
+  readonly brandId: string;
+  /** How the brand was selected (e.g. workspace_default, user_preference). */
+  readonly resolutionSource: BrandResolutionSource;
+  /** Workspace that resolved the brand, when available. */
+  readonly workspaceId?: string;
+  /** Human-readable workspace name for display / debugging. */
+  readonly workspaceName?: string;
+}
+
 export interface WorkflowExportPackageManifestV1 {
   readonly schema: typeof WORKFLOW_EXPORT_PACKAGE_SCHEMA;
   readonly version: typeof WORKFLOW_EXPORT_PACKAGE_VERSION;
@@ -43,6 +60,13 @@ export interface WorkflowExportPackageManifestV1 {
    * Absent for unowned / session-only visits.
    */
   readonly ownership?: AtlasVisitOwnershipV1;
+  /**
+   * Brand context resolved at export time.
+   * Carries the active brandId, how it was selected, and workspace identity
+   * so the package can be re-branded or attributed on import.
+   * Absent when no brand session was available at export time.
+   */
+  readonly brandContext?: WorkflowExportBrandContextV1;
 }
 
 export interface WorkflowExportPackagePayloadV1 {

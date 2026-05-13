@@ -4,6 +4,7 @@ import {
   type WorkflowExportPackageManifestV1,
   type WorkflowExportPackagePayloadV1,
   type WorkflowExportPackageV1,
+  type WorkflowExportBrandContextV1,
 } from './WorkflowExportPackageV1';
 import type { WorkflowStorageTarget } from '../WorkflowStorageAdapterV1';
 import type { AtlasVisitOwnershipV1 } from '../../../auth/profile/AtlasVisitOwnershipV1';
@@ -22,6 +23,13 @@ interface BuildWorkflowExportPackageInput {
    * travels with the package.  Absent for unowned / demo-mode visits.
    */
   readonly ownership?: AtlasVisitOwnershipV1;
+  /**
+   * Brand context resolved at export time.
+   * When provided, carries the active brandId, resolution source, and workspace
+   * identity so the package can be attributed correctly on import or PDF generation.
+   * Absent when no workspace brand session was available at export time.
+   */
+  readonly brandContext?: WorkflowExportBrandContextV1;
 }
 
 function dateStamp(iso: string): string {
@@ -66,6 +74,7 @@ export function buildWorkflowExportPackage({
   exportedAt = new Date().toISOString(),
   folderName = buildWorkflowExportFolderName(payload.workflowState.visitReference, exportedAt),
   ownership,
+  brandContext,
 }: BuildWorkflowExportPackageInput): WorkflowExportPackageV1 {
   const manifest: WorkflowExportPackageManifestV1 = {
     schema: WORKFLOW_EXPORT_PACKAGE_SCHEMA,
@@ -78,6 +87,7 @@ export function buildWorkflowExportPackage({
     visitReference: payload.workflowState.visitReference,
     folderName,
     ...(ownership !== undefined ? { ownership } : {}),
+    ...(brandContext !== undefined ? { brandContext } : {}),
   };
 
   return {
