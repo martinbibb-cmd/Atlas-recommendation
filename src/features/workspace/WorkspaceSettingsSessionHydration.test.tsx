@@ -14,6 +14,7 @@ import {
 import {
   LocalWorkspaceSettingsStorageAdapter,
   WORKSPACE_SETTINGS_SCHEMA_VERSION,
+  buildWorkspaceSettingsExportPackage,
   loadAppliedWorkspaceSettings,
 } from '../../auth/workspaceSettings';
 import { ActiveUserContext } from '../../features/userProfiles/ActiveUserProvider';
@@ -278,6 +279,49 @@ describe('workspace settings session hydration', () => {
     await waitFor(() =>
       expect(screen.getByTestId('workspace-session-storage-target')).toHaveTextContent(
         'disabled',
+      ),
+    );
+  });
+
+
+
+  it('session hydrates after importing a workspace settings package', async () => {
+    renderHarness();
+
+    expect(screen.getByTestId('workspace-settings-active-workspace-name')).toHaveTextContent(
+      'Atlas Demo Workspace',
+    );
+
+    const importedPackage = buildWorkspaceSettingsExportPackage({
+      persistedSettings: {
+        schemaVersion: WORKSPACE_SETTINGS_SCHEMA_VERSION,
+        workspaceId: 'ws_demo',
+        savedAt: '2026-03-01T00:00:00.000Z',
+        workspace: makeProfileWorkspace({
+          name: 'Imported Workspace',
+          slug: 'imported-workspace',
+          updatedAt: '2026-03-01T00:00:00.000Z',
+        }),
+        invites: [],
+        joinRequestDecisions: [],
+      },
+      exportedAt: '2026-03-01T00:00:00.000Z',
+    });
+
+    const file = new File([JSON.stringify(importedPackage)], 'workspace-settings-package.json', {
+      type: 'application/json',
+    });
+
+    const input = screen.getByTestId('workspace-settings-import-package-input');
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => expect(screen.getByTestId('workspace-settings-package-preview')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('workspace-settings-apply-import-package'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('workspace-settings-active-workspace-name')).toHaveTextContent(
+        'Imported Workspace',
       ),
     );
   });

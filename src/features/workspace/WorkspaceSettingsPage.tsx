@@ -22,6 +22,7 @@ import WorkspaceOnboardingAdminPanel, {
   type WorkspaceOnboardingDraftSnapshot,
 } from '../../components/dev/WorkspaceOnboardingAdminPanel';
 import WorkspaceSettingsReviewPanel from '../../components/dev/WorkspaceSettingsReviewPanel';
+import WorkspaceSettingsExportPanel from '../../components/dev/WorkspaceSettingsExportPanel';
 import { listStoredBrandProfiles } from '../branding/brandProfileStore';
 
 export interface WorkspaceSettingsPageBrandSummary {
@@ -557,6 +558,20 @@ function WorkspaceSettingsContent({
             currentWorkspace={workspace}
             currentJoinRequests={onboardingDraft.pendingJoinRequests}
             onLocalApplySuccess={async () => {
+              await onLocalApplySuccess();
+            }}
+          />
+        </div>
+
+        <div style={{ marginTop: '1rem' }}>
+          <WorkspaceSettingsExportPanel
+            workspaceId={workspace.workspaceId}
+            storageAdapter={workspaceSettingsStorageAdapter}
+            canAdminConfirmWorkspaceReplacement={
+              resolvedMembership.role === 'owner' || resolvedMembership.role === 'admin'
+            }
+            googleDriveConnectorAvailable={false}
+            onImportApplied={async () => {
               await onLocalApplySuccess();
             }}
           />
