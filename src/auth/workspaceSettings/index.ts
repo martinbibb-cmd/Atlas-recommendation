@@ -14,3 +14,23 @@ export type {
   BuildWorkspaceSettingsChangeSetCurrentV1,
 } from './buildWorkspaceSettingsChangeSet';
 export { buildWorkspaceSettingsChangeSet } from './buildWorkspaceSettingsChangeSet';
+
+export { WORKSPACE_SETTINGS_SCHEMA_VERSION } from './storage';
+export type {
+  WorkspaceSettingsSchemaVersion,
+  PersistedWorkspaceInviteV1,
+  PersistedJoinRequestDecisionV1,
+  PersistedWorkspaceSettingsV1,
+  WorkspaceSettingsStorageTarget,
+  WorkspaceSettingsApplyContextV1,
+  WorkspaceSettingsApplyResult,
+  WorkspaceSettingsLoadResult,
+  WorkspaceSettingsExportResult,
+  WorkspaceSettingsImportResult,
+  WorkspaceSettingsStorageAdapterV1,
+} from './storage';
+export {
+  DisabledWorkspaceSettingsStorageAdapter,
+  LocalWorkspaceSettingsStorageAdapter,
+  GoogleDriveWorkspaceSettingsStorageAdapterStub,
+} from './storage';
