@@ -48,10 +48,10 @@ export interface TenantOnboardingPageProps {
    */
   onStartVisit?: (workspaceSlug: string) => void;
   /**
-   * Called when "Edit branding" is clicked from the success panel.
+   * Called when "Open workspace settings" is clicked from the success panel.
    * Receives the new workspaceSlug.
    */
-  onEditBranding?: (workspaceSlug: string) => void;
+  onOpenWorkspaceSettings?: (workspaceSlug: string) => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ export function TenantOnboardingPage({
   onCancel,
   onCreated,
   onStartVisit,
-  onEditBranding,
+  onOpenWorkspaceSettings,
 }: TenantOnboardingPageProps) {
   // ── Form state ──────────────────────────────────────────────────────────
   const [displayName, setDisplayName] = useState('');
@@ -184,10 +184,10 @@ export function TenantOnboardingPage({
                 Start visit in this workspace
               </button>
             )}
-            {onEditBranding && (
+            {onOpenWorkspaceSettings && (
               <button
                 data-testid="success-edit-branding-btn"
-                onClick={() => onEditBranding(result.tenant.workspaceSlug)}
+                onClick={() => onOpenWorkspaceSettings(result.tenant.workspaceSlug)}
                 style={{
                   padding: '0.625rem 1.25rem',
                   background: 'transparent',
@@ -199,7 +199,7 @@ export function TenantOnboardingPage({
                   textAlign: 'center',
                 }}
               >
-                Edit branding
+                Open workspace settings
               </button>
             )}
           </div>

@@ -1653,7 +1653,7 @@ function AppInner() {
         onStartVisit={(slug) => {
           window.location.href = `${window.location.pathname}?start-visit=1&workspace=${encodeURIComponent(slug)}`;
         }}
-        onEditBranding={() => {
+        onOpenWorkspaceSettings={() => {
           window.location.href = '/workspace/settings';
         }}
       />
@@ -2419,7 +2419,7 @@ function AppInner() {
             >
               <div className="card-icon">🏢</div>
               <h2>Workspace settings</h2>
-              <p>Review workspace members, join requests, brand policy, and storage mode in one place.</p>
+              <p>Adjust workspace policy, storage mode, and onboarding drafts in one place.</p>
               <button className="cta-btn">Open settings →</button>
             </div>
             )}

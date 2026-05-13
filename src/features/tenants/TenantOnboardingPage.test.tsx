@@ -15,12 +15,12 @@
  *   - valid workspace creates tenant + brand (success panel shown)
  *   - success panel shows workspace name, slug, company name
  *   - success panel "Start visit" button calls onStartVisit
- *   - success panel "Edit branding" button calls onEditBranding
+ *   - success panel "Open workspace settings" button calls onOpenWorkspaceSettings
  *   - cancel button calls onCancel
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { TenantOnboardingPage } from './TenantOnboardingPage';
 import { TENANT_STORE_KEY } from './tenantStore';
 import { BRAND_PROFILE_STORE_KEY } from '../branding/brandProfileStore';
@@ -194,13 +194,13 @@ describe('TenantOnboardingPage — creation', () => {
     expect(onStartVisit).toHaveBeenCalledWith('acme-heating');
   });
 
-  it('success panel "Edit branding" calls onEditBranding', () => {
-    const onEditBranding = vi.fn();
-    render(<TenantOnboardingPage onEditBranding={onEditBranding} />);
+  it('success panel "Open workspace settings" calls onOpenWorkspaceSettings', () => {
+    const onOpenWorkspaceSettings = vi.fn();
+    render(<TenantOnboardingPage onOpenWorkspaceSettings={onOpenWorkspaceSettings} />);
     fillForm({ displayName: 'Acme Heating', slug: 'acme-heating', primaryColor: '#FF0000' });
     submitForm();
     fireEvent.click(screen.getByTestId('success-edit-branding-btn'));
-    expect(onEditBranding).toHaveBeenCalledWith('acme-heating');
+    expect(onOpenWorkspaceSettings).toHaveBeenCalledWith('acme-heating');
   });
 
   it('calls onCreated with the new workspaceSlug on success', () => {
