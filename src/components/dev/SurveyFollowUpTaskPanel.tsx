@@ -9,6 +9,7 @@ interface Props {
   lines: readonly SpecificationLineV1[];
   materials: readonly SuggestedMaterialLineV1[];
   engineerJobPack: EngineerJobPackV1;
+  onToggleResolved?: (taskId: string) => void;
 }
 
 const PRIORITY_ORDER: Readonly<Record<SurveyFollowUpTaskV1['priority'], number>> = {
@@ -57,7 +58,13 @@ function badge(text: string, background: string, color = '#fff') {
   );
 }
 
-export default function SurveyFollowUpTaskPanel({ tasks, lines, materials, engineerJobPack }: Props) {
+export default function SurveyFollowUpTaskPanel({
+  tasks,
+  lines,
+  materials,
+  engineerJobPack,
+  onToggleResolved,
+}: Props) {
   const [roleFilter, setRoleFilter] = useState<'all' | SurveyFollowUpTaskAssignedRole>('all');
 
   const lineById = useMemo(() => new Map(lines.map((line) => [line.lineId, line])), [lines]);
@@ -97,6 +104,7 @@ export default function SurveyFollowUpTaskPanel({ tasks, lines, materials, engin
       ? tasks
       : tasks.filter((task) => task.assignedRole === roleFilter);
     return [...filtered].sort((a, b) => {
+      if (a.resolved !== b.resolved) return Number(a.resolved) - Number(b.resolved);
       const priorityDelta = PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
       if (priorityDelta !== 0) return priorityDelta;
       return a.title.localeCompare(b.title);
@@ -142,7 +150,14 @@ export default function SurveyFollowUpTaskPanel({ tasks, lines, materials, engin
           {visibleTasks.map((task) => (
             <article
               key={task.taskId}
-              style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.6rem', background: '#f8fafc' }}
+              style={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                padding: '0.6rem',
+                background: '#f8fafc',
+                opacity: task.resolved ? 0.6 : 1,
+                transition: 'opacity 180ms ease, transform 180ms ease',
+              }}
               data-testid={`survey-follow-up-task-card-${task.taskId}`}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
@@ -150,54 +165,84 @@ export default function SurveyFollowUpTaskPanel({ tasks, lines, materials, engin
                 <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                   {badge(task.priority, PRIORITY_COLORS[task.priority])}
                   {badge(task.assignedRole, '#0f172a')}
+                  {task.resolved ? badge('resolved', '#dcfce7', '#166534') : null}
                 </div>
               </div>
 
-              <p style={{ margin: '0 0 0.4rem', fontSize: 12, color: '#334155' }}>{task.description}</p>
-
-              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-                {badge(SOURCE_LABELS[task.source], '#e2e8f0', '#0f172a')}
-                {badge(EVIDENCE_LABELS[task.suggestedEvidenceType], '#dbeafe', '#1e3a8a')}
-              </div>
-
-              {task.relatedLineIds.length > 0 ? (
-                <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
-                  <strong>Lines:</strong>{' '}
-                  {task.relatedLineIds.map((lineId, index) => (
-                    <span key={lineId}>
-                      {index > 0 ? ', ' : ''}
-                      {lineId}
-                      {lineById.get(lineId) ? ` (${lineById.get(lineId)!.label})` : ''}
-                    </span>
-                  ))}
-                </p>
+              {onToggleResolved ? (
+                <div style={{ marginBottom: '0.4rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleResolved(task.taskId)}
+                    style={{
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 999,
+                      padding: '0.2rem 0.55rem',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                      background: task.resolved ? '#f8fafc' : '#ecfeff',
+                      color: task.resolved ? '#334155' : '#155e75',
+                    }}
+                    data-testid={`survey-follow-up-task-resolve-${task.taskId}`}
+                  >
+                    {task.resolved ? 'Mark unresolved' : 'Mark task resolved'}
+                  </button>
+                </div>
               ) : null}
 
-              {task.relatedMaterialIds.length > 0 ? (
-                <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
-                  <strong>Materials:</strong>{' '}
-                  {task.relatedMaterialIds.map((materialId, index) => (
-                    <span key={materialId}>
-                      {index > 0 ? ', ' : ''}
-                      {materialId}
-                      {materialById.get(materialId) ? ` (${materialById.get(materialId)!.label})` : ''}
-                    </span>
-                  ))}
-                </p>
-              ) : null}
+              {!task.resolved ? (
+                <>
+                  <p style={{ margin: '0 0 0.4rem', fontSize: 12, color: '#334155' }}>{task.description}</p>
 
-              {task.relatedLocationIds.length > 0 ? (
-                <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>
-                  <strong>Locations:</strong>{' '}
-                  {task.relatedLocationIds.map((locationId, index) => (
-                    <span key={locationId}>
-                      {index > 0 ? ', ' : ''}
-                      {locationId}
-                      {locationById.get(locationId) ? ` (${locationById.get(locationId)})` : ''}
-                    </span>
-                  ))}
+                  <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+                    {badge(SOURCE_LABELS[task.source], '#e2e8f0', '#0f172a')}
+                    {badge(EVIDENCE_LABELS[task.suggestedEvidenceType], '#dbeafe', '#1e3a8a')}
+                  </div>
+
+                  {task.relatedLineIds.length > 0 ? (
+                    <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
+                      <strong>Lines:</strong>{' '}
+                      {task.relatedLineIds.map((lineId, index) => (
+                        <span key={lineId}>
+                          {index > 0 ? ', ' : ''}
+                          {lineId}
+                          {lineById.get(lineId) ? ` (${lineById.get(lineId)!.label})` : ''}
+                        </span>
+                      ))}
+                    </p>
+                  ) : null}
+
+                  {task.relatedMaterialIds.length > 0 ? (
+                    <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
+                      <strong>Materials:</strong>{' '}
+                      {task.relatedMaterialIds.map((materialId, index) => (
+                        <span key={materialId}>
+                          {index > 0 ? ', ' : ''}
+                          {materialId}
+                          {materialById.get(materialId) ? ` (${materialById.get(materialId)!.label})` : ''}
+                        </span>
+                      ))}
+                    </p>
+                  ) : null}
+
+                  {task.relatedLocationIds.length > 0 ? (
+                    <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>
+                      <strong>Locations:</strong>{' '}
+                      {task.relatedLocationIds.map((locationId, index) => (
+                        <span key={locationId}>
+                          {index > 0 ? ', ' : ''}
+                          {locationId}
+                          {locationById.get(locationId) ? ` (${locationById.get(locationId)})` : ''}
+                        </span>
+                      ))}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p style={{ margin: 0, fontSize: 11, color: '#166534' }}>
+                  Task collapsed after simulated resolution.
                 </p>
-              ) : null}
+              )}
             </article>
           ))}
         </div>
