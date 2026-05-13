@@ -292,7 +292,7 @@ export function validateWorkspaceSettingsExportPackage(
 
   if (storagePreference === 'google_drive' && options.googleDriveConnectorAvailable === false) {
     warnings.push(
-      'Google Drive connector is unavailable. Changes can be reviewed but not committed yet.',
+      'Google Drive connector is unavailable. Settings can be imported, but Google Drive synchronization is unavailable.',
     );
   }
 

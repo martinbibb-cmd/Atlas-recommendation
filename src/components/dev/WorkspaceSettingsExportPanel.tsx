@@ -272,8 +272,8 @@ export default function WorkspaceSettingsExportPanel({
               data-testid="workspace-settings-package-warnings"
               style={{ margin: '0 0 0.45rem', paddingLeft: '1.1rem', fontSize: 12, color: '#b45309' }}
             >
-              {previewState.preview.warnings.map((warning, index) => (
-                <li key={`${index}-${warning}`}>{warning}</li>
+              {previewState.preview.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
               ))}
             </ul>
           )}
@@ -283,8 +283,8 @@ export default function WorkspaceSettingsExportPanel({
               data-testid="workspace-settings-package-blockers"
               style={{ margin: '0 0 0.45rem', paddingLeft: '1.1rem', fontSize: 12, color: '#b91c1c' }}
             >
-              {previewState.preview.blockingReasons.map((reason, index) => (
-                <li key={`${index}-${reason}`}>{reason}</li>
+              {previewState.preview.blockingReasons.map((reason) => (
+                <li key={reason}>{reason}</li>
               ))}
             </ul>
           )}
