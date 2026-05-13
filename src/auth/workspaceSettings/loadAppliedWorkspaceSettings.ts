@@ -49,14 +49,22 @@ export async function loadAppliedWorkspaceSettings({
   fallbackWorkspace,
   fallbackJoinRequests,
 }: LoadAppliedWorkspaceSettingsInput): Promise<LoadAppliedWorkspaceSettingsResult> {
-  void fallbackJoinRequests;
-
   const result = await adapter.loadWorkspaceSettings(workspaceId);
   if (!result.ok) {
     return {
       workspace: fallbackWorkspace,
       invites: [],
-      joinRequestDecisions: [],
+      joinRequestDecisions:
+        fallbackJoinRequests
+          ?.filter(
+            (request) => request.status === 'approved' || request.status === 'rejected',
+          )
+          .map((request) => ({
+            requestId: request.requestId,
+            decision: request.status === 'approved' ? 'approved' : 'rejected',
+            role: request.requestedRole,
+            decidedAt: request.reviewedAt ?? request.requestedAt,
+          })) ?? [],
       source: 'fallback',
     };
   }

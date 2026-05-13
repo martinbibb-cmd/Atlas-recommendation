@@ -318,9 +318,9 @@ function WorkspaceSettingsContent({
     [onboardingDraft.pendingJoinRequests, workspace, workspaceSettingsDraft],
   );
 
-  const workspaceSettingsStorageAdapter = useMemo<WorkspaceSettingsStorageAdapterV1>(() => {
-    return new LocalWorkspaceSettingsStorageAdapter();
-  }, []);
+  const [workspaceSettingsStorageAdapter] = useState<WorkspaceSettingsStorageAdapterV1>(
+    () => new LocalWorkspaceSettingsStorageAdapter(),
+  );
 
   return (
     <div data-testid="workspace-settings-page" style={PAGE_STYLE}>

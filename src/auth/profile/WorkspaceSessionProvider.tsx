@@ -138,13 +138,9 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
   }, [fallbackWorkspace]);
 
   useEffect(() => {
-    const refreshTimer = window.setTimeout(() => {
-      void refreshActiveWorkspace();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(refreshTimer);
-    };
+    void (async () => {
+      await refreshActiveWorkspace();
+    })();
   }, [refreshActiveWorkspace]);
 
   const resolvedWorkspace =
