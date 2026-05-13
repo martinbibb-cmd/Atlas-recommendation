@@ -38,7 +38,7 @@ function StatusPill({
 }
 
 function LifecycleRow({ entry }: { entry: WorkspaceVisitLifecycleProgressEntryV1 }) {
-  const colourByState: Record<WorkspaceVisitLifecycleProgressEntryV1['state'], string> = {
+  const colorByState: Record<WorkspaceVisitLifecycleProgressEntryV1['state'], string> = {
     pending: '#64748b',
     active: '#1d4ed8',
     done: '#166534',
@@ -47,14 +47,14 @@ function LifecycleRow({ entry }: { entry: WorkspaceVisitLifecycleProgressEntryV1
   return (
     <tr>
       <td style={{ padding: '4px 8px', fontSize: 12 }}>{entry.stage}</td>
-      <td style={{ padding: '4px 8px', fontSize: 12, color: colourByState[entry.state], fontWeight: 700 }}>{entry.state}</td>
+      <td style={{ padding: '4px 8px', fontSize: 12, color: colorByState[entry.state], fontWeight: 700 }}>{entry.state}</td>
       <td style={{ padding: '4px 8px', fontSize: 12, color: '#475569' }}>{entry.note ?? '—'}</td>
     </tr>
   );
 }
 
 function ReadinessRow({ entry }: { entry: WorkspaceVisitReadinessProgressEntryV1 }) {
-  const colourByState: Record<WorkspaceVisitReadinessProgressEntryV1['state'], string> = {
+  const colorByState: Record<WorkspaceVisitReadinessProgressEntryV1['state'], string> = {
     blocked: '#991b1b',
     ready: '#1d4ed8',
     complete: '#166534',
@@ -62,7 +62,7 @@ function ReadinessRow({ entry }: { entry: WorkspaceVisitReadinessProgressEntryV1
   return (
     <tr>
       <td style={{ padding: '4px 8px', fontSize: 12 }}>{entry.key.replace(/_/g, ' ')}</td>
-      <td style={{ padding: '4px 8px', fontSize: 12, color: colourByState[entry.state], fontWeight: 700 }}>{entry.state}</td>
+      <td style={{ padding: '4px 8px', fontSize: 12, color: colorByState[entry.state], fontWeight: 700 }}>{entry.state}</td>
       <td style={{ padding: '4px 8px', fontSize: 12, color: '#475569' }}>{entry.note}</td>
     </tr>
   );
