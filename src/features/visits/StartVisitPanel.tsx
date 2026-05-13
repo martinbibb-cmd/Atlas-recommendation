@@ -86,7 +86,12 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
   /**
    * Resolve the brandId for the new visit.
    * Priority: workspace brand session (resolved from policy/preference/route)
-   *           → legacy tenant resolver (from workspace slug selector)
+   *           → legacy tenant resolver (from workspace slug selector).
+   *
+   * The legacy fallback is reached when this component renders without a
+   * WorkspaceBrandSessionProvider ancestor (e.g. isolated test environments).
+   * In normal app usage AppWithHostBrand always provides the session, so
+   * workspaceBrandSession will never be null at runtime.
    */
   function resolveVisitBrandId(): string {
     if (workspaceBrandSession !== null) {

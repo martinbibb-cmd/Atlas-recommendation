@@ -44,15 +44,27 @@ import { useAtlasAuth } from '../useAtlasAuth';
 const BRAND_PREFS_STORE_KEY = 'atlas:brand-session:preferences:v1';
 
 function readPreferences(): Record<string, string> {
+  // Prefer localStorage (primary persistence); fall through to sessionStorage
+  // only in environments where localStorage is unavailable or empty.
+  // Note: writePreferences always targets localStorage first, so sessionStorage
+  // will only contain data when localStorage was previously unavailable.
   try {
     const raw =
-      (typeof localStorage !== 'undefined' && localStorage.getItem(BRAND_PREFS_STORE_KEY)) ||
-      (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(BRAND_PREFS_STORE_KEY));
-    if (!raw) return {};
-    return JSON.parse(raw) as Record<string, string>;
+      typeof localStorage !== 'undefined' ? localStorage.getItem(BRAND_PREFS_STORE_KEY) : null;
+    if (raw) return JSON.parse(raw) as Record<string, string>;
   } catch {
-    return {};
+    // localStorage unavailable or parse error — fall through
   }
+  try {
+    const raw =
+      typeof sessionStorage !== 'undefined'
+        ? sessionStorage.getItem(BRAND_PREFS_STORE_KEY)
+        : null;
+    if (raw) return JSON.parse(raw) as Record<string, string>;
+  } catch {
+    // sessionStorage unavailable or parse error
+  }
+  return {};
 }
 
 function writePreferences(prefs: Record<string, string>): void {

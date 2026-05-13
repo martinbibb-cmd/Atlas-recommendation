@@ -109,7 +109,7 @@ export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBann
           data-testid="active-brand-banner-label"
           style={{ color: '#64748b', marginLeft: '0.25rem' }}
         >
-          Atlas workspace
+          workspace
         </span>
       )}
       {workspaceSlug !== undefined && (
