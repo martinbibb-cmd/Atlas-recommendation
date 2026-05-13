@@ -1248,7 +1248,7 @@ function AppInner() {
         }}
         sessionStatus={workspaceSession.status}
         onBack={() => {
-          window.location.href = WORKSPACE_SETTINGS_HOME ? '/' : window.location.pathname;
+          window.location.href = '/';
         }}
       />
     );
