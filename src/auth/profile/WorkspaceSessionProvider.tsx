@@ -138,7 +138,7 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
   }, [fallbackWorkspace]);
 
   useEffect(() => {
-    void (async () => {
+    (async () => {
       await refreshActiveWorkspace();
     })();
   }, [refreshActiveWorkspace]);
