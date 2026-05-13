@@ -271,72 +271,160 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(within(envelopePanel).queryByRole('button', { name: /open atlas scan/i })).toBeNull();
   });
 
-  it('implementation pack view exposes Pack summary, Scope packs, Specification lines, Engineer job pack, Materials schedule, and Handover preview tabs', async () => {
+  it('implementation pack workflow renders all 8 steps in order', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
-    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tabs')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-summary')).toBeTruthy());
 
-    expect(screen.getByTestId('dev-implementation-pack-tab-pack-summary')).toBeTruthy();
-    expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy();
-    const specTab = screen.getByTestId('dev-implementation-pack-tab-specification-lines');
-    expect(specTab).toBeTruthy();
-    const engineerJobPackTab = screen.getByTestId('dev-implementation-pack-tab-engineer-job-pack');
-    expect(engineerJobPackTab).toBeTruthy();
-    const materialsTab = screen.getByTestId('dev-implementation-pack-tab-materials-schedule');
-    expect(materialsTab).toBeTruthy();
-    const handoverTab = screen.getByTestId('dev-implementation-pack-tab-handover-preview');
-    expect(handoverTab).toBeTruthy();
+    // All 8 workflow steps are present
+    const steps = [
+      'dev-workflow-step-readiness',
+      'dev-workflow-step-follow-up-tasks',
+      'dev-workflow-step-scan-evidence',
+      'dev-workflow-step-scope-packs',
+      'dev-workflow-step-specification-lines',
+      'dev-workflow-step-materials-schedule',
+      'dev-workflow-step-engineer-job-pack',
+      'dev-workflow-step-handover-preview',
+    ];
+    for (const id of steps) {
+      expect(screen.getByTestId(id)).toBeTruthy();
+    }
 
-    fireEvent.click(specTab);
+    // Steps 1-3 are expanded by default (content visible)
+    expect(screen.getByTestId('specification-readiness-panel')).toBeTruthy();
+    expect(screen.getByTestId('survey-follow-up-task-panel')).toBeTruthy();
+    expect(screen.getByTestId('follow-up-evidence-plan-panel')).toBeTruthy();
+
+    // Expand step 5 and verify spec lines panel appears
+    fireEvent.click(screen.getByTestId('dev-workflow-step-specification-lines-toggle'));
     await waitFor(() => expect(screen.getByTestId('specification-line-review-panel')).toBeTruthy());
 
-    fireEvent.click(engineerJobPackTab);
+    // Expand step 7 and verify engineer job pack panel appears
+    fireEvent.click(screen.getByTestId('dev-workflow-step-engineer-job-pack-toggle'));
     await waitFor(() => expect(screen.getByTestId('engineer-job-pack-preview-panel')).toBeTruthy());
 
-    fireEvent.click(materialsTab);
+    // Expand step 6 and verify materials schedule panel appears
+    fireEvent.click(screen.getByTestId('dev-workflow-step-materials-schedule-toggle'));
     await waitFor(() => expect(screen.getByTestId('materials-schedule-panel')).toBeTruthy());
 
-    fireEvent.click(handoverTab);
+    // Expand step 8 and verify handover preview panel appears
+    fireEvent.click(screen.getByTestId('dev-workflow-step-handover-preview-toggle'));
     await waitFor(() => expect(screen.getByTestId('scope-pack-handover-preview-panel')).toBeTruthy());
   });
 
-  it('Scope packs tab shows the scope pack review panel for unvented fixture', async () => {
+  it('workflow steps render in document order 1 → 8', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
-    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-step-readiness')).toBeTruthy());
 
-    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    const stepIds = [
+      'dev-workflow-step-readiness',
+      'dev-workflow-step-follow-up-tasks',
+      'dev-workflow-step-scan-evidence',
+      'dev-workflow-step-scope-packs',
+      'dev-workflow-step-specification-lines',
+      'dev-workflow-step-materials-schedule',
+      'dev-workflow-step-engineer-job-pack',
+      'dev-workflow-step-handover-preview',
+    ];
+    const elements = stepIds.map((id) => screen.getByTestId(id));
+    for (let i = 0; i < elements.length - 1; i++) {
+      // Each step must appear after the previous one in the DOM
+      expect(
+        elements[i].compareDocumentPosition(elements[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
+  it('workflow summary shows next action banner with a valid workflow message', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    const banner = await screen.findByTestId('dev-workflow-next-action');
+    const validMessages = [
+      'Complete follow-up tasks first',
+      'Capture missing evidence',
+      'Ready for office review',
+    ];
+    expect(validMessages.some((msg) => banner.textContent?.includes(msg))).toBe(true);
+  });
+
+  it('next action banner shows "Ready for office review" when no blockers or scan items exist', async () => {
+    // combi_1bath is the simplest fixture — single household, 1 bathroom
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-combi_1bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-summary')).toBeTruthy());
+
+    const blockerEl = screen.getByTestId('dev-workflow-summary-blocker-count');
+    const scanEl = screen.getByTestId('dev-workflow-summary-scan-capture-count');
+    const blockers = Number(blockerEl.textContent);
+    const scanItems = Number(scanEl.textContent);
+
+    const banner = screen.getByTestId('dev-workflow-next-action');
+    if (blockers > 0) {
+      expect(banner.textContent).toContain('Complete follow-up tasks first');
+    } else if (scanItems > 0) {
+      expect(banner.textContent).toContain('Capture missing evidence');
+    } else {
+      expect(banner.textContent).toContain('Ready for office review');
+    }
+  });
+
+  it('workflow summary counts are non-negative numbers and follow-ups > 0 for complex fixture', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-summary')).toBeTruthy());
+
+    const blockerCount = Number(screen.getByTestId('dev-workflow-summary-blocker-count').textContent);
+    const followUpCount = Number(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent);
+    const scanCount = Number(screen.getByTestId('dev-workflow-summary-scan-capture-count').textContent);
+    const unresolvedCount = Number(screen.getByTestId('dev-workflow-summary-unresolved-count').textContent);
+
+    expect(blockerCount).toBeGreaterThanOrEqual(0);
+    expect(followUpCount).toBeGreaterThanOrEqual(0);
+    expect(scanCount).toBeGreaterThanOrEqual(0);
+    expect(unresolvedCount).toBeGreaterThanOrEqual(0);
+    // The system+unvented, 4-person, 2-bathroom fixture has survey follow-up tasks
+    expect(followUpCount).toBeGreaterThan(0);
+  });
+
+  it('Scope packs step shows the scope pack review panel for unvented fixture', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-step-scope-packs')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-workflow-step-scope-packs-toggle'));
     await waitFor(() => expect(screen.getByTestId('scope-pack-review-panel')).toBeTruthy());
   });
 
-  it('Scope packs tab shows standard_unvented_cylinder_install card for unvented fixture', async () => {
+  it('Scope packs step shows standard_unvented_cylinder_install card for unvented fixture', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
-    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-step-scope-packs')).toBeTruthy());
 
-    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    fireEvent.click(screen.getByTestId('dev-workflow-step-scope-packs-toggle'));
     await waitFor(() =>
       expect(screen.getByTestId('scope-pack-card-standard_unvented_cylinder_install')).toBeTruthy(),
     );
   });
 
-  it('Scope packs tab shows open_vented_to_sealed_conversion card for open-vented fixture', async () => {
+  it('Scope packs step shows open_vented_to_sealed_conversion card for open-vented fixture', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-open_vented_to_sealed_unvented'));
-    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-step-scope-packs')).toBeTruthy());
 
-    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    fireEvent.click(screen.getByTestId('dev-workflow-step-scope-packs-toggle'));
     await waitFor(() =>
       expect(screen.getByTestId('scope-pack-card-open_vented_to_sealed_conversion')).toBeTruthy(),
     );
   });
 
-  it('Scope packs tab shows heat pump packs for heat pump fixture', async () => {
+  it('Scope packs step shows heat pump packs for heat pump fixture', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-heat_pump_low_temp'));
-    await waitFor(() => expect(screen.getByTestId('dev-implementation-pack-tab-scope-packs')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-step-scope-packs')).toBeTruthy());
 
-    fireEvent.click(screen.getByTestId('dev-implementation-pack-tab-scope-packs'));
+    fireEvent.click(screen.getByTestId('dev-workflow-step-scope-packs-toggle'));
     await waitFor(() =>
       expect(screen.getByTestId('scope-pack-card-heat_pump_emitter_review')).toBeTruthy(),
     );
@@ -358,15 +446,19 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(within(panel).getAllByText(/Emitter suitability for heat pump flow temperatures has not been confirmed/i).length).toBeGreaterThan(0);
   });
 
-  it('open-vented shows loft capping and filling loop', async () => {
+  it('open-vented shows loft capping and filling loop in handover preview step', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-open_vented_to_sealed_unvented'));
-    const panel = await screen.findByTestId('dev-implementation-pack-panel');
-    expect(within(panel).getByText(/Capping of loft vent and cold-feed pipework/i)).toBeTruthy();
-    expect(within(panel).getByText(/Sealed system filling loop/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-step-handover-preview-toggle')).toBeTruthy());
+
+    fireEvent.click(screen.getByTestId('dev-workflow-step-handover-preview-toggle'));
+
+    const step = await screen.findByTestId('dev-workflow-step-handover-preview');
+    expect(within(step).getAllByText(/Capping of loft vent and cold-feed pipework/i).length).toBeGreaterThan(0);
+    expect(within(step).getAllByText(/Sealed system filling loop/i).length).toBeGreaterThan(0);
   });
 
-  it('customer copy does not appear in implementation pack', async () => {
+  it('no customer-facing copy appears in implementation workflow', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-combi_1bath'));
     const panel = await screen.findByTestId('dev-implementation-pack-panel');
