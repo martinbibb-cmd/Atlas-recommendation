@@ -9,15 +9,15 @@
  * Resolution order:
  *   1. `profile` prop — raw profile, bypasses all other resolution (tests/Storybook)
  *   2. `brandId` prop — resolved via resolveBrandProfile()
- *   3. WorkspaceBrandSessionContext — authoritative workspace session brand
+ *   3. WorkspaceBrandSession — authoritative workspace session brand
  *   4. atlas-default — built-in fallback
  */
 
-import { createContext, useContext } from 'react';
+import { createContext } from 'react';
 import type { ReactNode, CSSProperties } from 'react';
 import type { BrandProfileV1 } from './brandProfile';
 import { resolveBrandProfile } from './resolveBrandProfile';
-import { WorkspaceBrandSessionContext } from '../../auth/brand/WorkspaceBrandSessionProvider';
+import { useOptionalWorkspaceBrandSession } from '../../auth/brand';
 import './brandTheme.css';
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -56,19 +56,18 @@ interface BrandProviderProps {
  *
  *   // When no brandId or profile are supplied, falls back to the workspace brand
  *   // session resolved by WorkspaceBrandSessionProvider (if present in the tree).
+ *   // Falls back to atlas-default if no session is available.
  */
 export function BrandProvider({ brandId, profile: profileProp, children }: BrandProviderProps) {
-  // useContext always returns a value — either from the nearest provider or from
-  // DEFAULT_SESSION_VALUE (which has activeBrand set to the atlas-default profile).
-  // It never returns null, so accessing .activeBrand is safe.
-  const workspaceBrandSession = useContext(WorkspaceBrandSessionContext);
+  const workspaceBrandSession = useOptionalWorkspaceBrandSession();
 
   // Resolution order: explicit profile > explicit brandId > workspace session > atlas-default.
-  const sessionProfile = workspaceBrandSession.activeBrand;
+  const sessionProfile = workspaceBrandSession?.activeBrandProfile ?? null;
   const profile =
     profileProp ??
     (brandId !== undefined ? resolveBrandProfile(brandId) : null) ??
-    sessionProfile;
+    sessionProfile ??
+    resolveBrandProfile(undefined);
 
   const inlineVars: CSSProperties = {
     ['--atlas-brand-primary' as string]: profile.theme.primaryColor,
