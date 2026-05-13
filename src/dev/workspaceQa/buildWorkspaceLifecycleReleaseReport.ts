@@ -108,6 +108,12 @@ function formatScenarioIssue(label: string, issue: string): string {
   return `${label}: ${issue}`;
 }
 
+function makePassTrialReadiness(): MutableTrialReadiness {
+  return Object.fromEntries(
+    TRIAL_READINESS_KEYS.map((key) => [key, 'pass']),
+  ) as MutableTrialReadiness;
+}
+
 function isNoWorkspaceBlockBehavingCorrectly(
   scenario: WorkspaceVisitLifecycleScenarioV1,
   evaluation: WorkspaceVisitLifecycleEvaluationV1,
@@ -241,13 +247,7 @@ export function buildWorkspaceLifecycleReleaseReport(
       }, 'pass');
       return acc;
     },
-    {
-      customerPortal: 'pass',
-      implementationWorkflow: 'pass',
-      workspaceOwnership: 'pass',
-      storageExport: 'pass',
-      scanFollowUp: 'pass',
-    },
+    makePassTrialReadiness(),
   );
 
   const blockingIssues = unique(
