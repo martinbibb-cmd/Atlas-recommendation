@@ -57,7 +57,20 @@ function permissionsEqual(
 }
 
 function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const value = email.trim();
+  if (!value || /\s/.test(value)) return false;
+  const atIndex = value.indexOf('@');
+  if (atIndex <= 0 || atIndex !== value.lastIndexOf('@')) return false;
+
+  const localPart = value.slice(0, atIndex);
+  const domainPart = value.slice(atIndex + 1);
+  if (!localPart || !domainPart) return false;
+  if (localPart.length > 64 || domainPart.length > 255) return false;
+  if (!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(localPart)) return false;
+
+  const labels = domainPart.split('.');
+  if (labels.length < 2) return false;
+  return labels.every((label) => /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(label));
 }
 
 function canManageWorkspace(member: WorkspaceMembershipV1): boolean {

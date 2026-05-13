@@ -13,6 +13,7 @@ import {
 } from '../../auth/workspaceOnboarding';
 import {
   buildWorkspaceSettingsChangeSet,
+  type WorkspaceIdentityDraftV1,
   type WorkspaceSettingsDraftV1,
 } from '../../auth/workspaceSettings';
 import WorkspaceOnboardingAdminPanel, {
@@ -39,11 +40,6 @@ interface BrandPolicyDraft {
   readonly policy: WorkspaceBrandPolicy;
   readonly allowedBrandIds: readonly string[];
   readonly defaultBrandId: string;
-}
-
-interface WorkspaceIdentityDraft {
-  readonly name: string;
-  readonly slug: string;
 }
 
 const PAGE_STYLE: CSSProperties = {
@@ -222,7 +218,7 @@ function WorkspaceSettingsContent({
   const [storageDraft, setStorageDraft] = useState<WorkspaceStoragePreference>(
     workspace.storagePreference,
   );
-  const [workspaceIdentityDraft, setWorkspaceIdentityDraft] = useState<WorkspaceIdentityDraft>({
+  const [workspaceIdentityDraft, setWorkspaceIdentityDraft] = useState<WorkspaceIdentityDraftV1>({
     name: workspace.name,
     slug: workspace.slug,
   });
