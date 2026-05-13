@@ -18,6 +18,8 @@
  */
 
 import type { WorkspaceMembershipV1 } from './WorkspaceMembershipV1';
+export type { WorkspaceBrandPolicy } from '../workspaceBrandPolicy';
+import type { WorkspaceBrandPolicy } from '../workspaceBrandPolicy';
 
 // ─── Storage preference ───────────────────────────────────────────────────────
 
@@ -29,7 +31,6 @@ import type { WorkspaceMembershipV1 } from './WorkspaceMembershipV1';
  * disabled     — no persistence; session-only / demo mode.
  */
 export type WorkspaceStoragePreference = 'local_only' | 'google_drive' | 'disabled';
-export type WorkspaceBrandPolicy = 'workspace_default' | 'user_selectable' | 'locked';
 
 // ─── Workspace model ──────────────────────────────────────────────────────────
 

@@ -1,3 +1,5 @@
+import type { WorkspaceBrandPolicy } from './workspaceBrandPolicy';
+
 export interface AtlasUserProfileV1 {
   version: '1.0';
   atlasUserId: string;
@@ -9,8 +11,6 @@ export interface AtlasUserProfileV1 {
   createdAt: string;
   updatedAt: string;
 }
-
-export type WorkspaceBrandPolicy = 'workspace_default' | 'user_selectable' | 'locked';
 
 export interface AtlasWorkspaceV1 {
   version: '1.0';

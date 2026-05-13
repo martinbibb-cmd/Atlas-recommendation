@@ -122,13 +122,11 @@ function buildMockProfile(): AtlasUserProfileV1 {
 
 function normalizeWorkspaceBranding(workspace: AtlasWorkspaceV1): AtlasWorkspaceV1 {
   const defaultBrandId = workspace.defaultBrandId ?? 'atlas-default';
-  const allowedBrandIds = Array.from(
-    new Set(
-      ((workspace.allowedBrandIds?.length ?? 0) > 0
-        ? workspace.allowedBrandIds
-        : [defaultBrandId]).concat(defaultBrandId),
-    ),
-  );
+  const baseAllowedBrandIds =
+    Array.isArray(workspace.allowedBrandIds) && workspace.allowedBrandIds.length > 0
+      ? workspace.allowedBrandIds
+      : [defaultBrandId];
+  const allowedBrandIds = Array.from(new Set([...baseAllowedBrandIds, defaultBrandId]));
   return {
     ...workspace,
     defaultBrandId,
