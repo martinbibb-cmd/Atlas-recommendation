@@ -314,6 +314,55 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
   );
 }
 
+// ─── Workflow step collapsible ────────────────────────────────────────────────
+
+interface WorkflowStepProps {
+  stepNumber: number;
+  title: string;
+  testId: string;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+}
+
+function WorkflowStep({ stepNumber, title, testId, children, defaultExpanded = true }: WorkflowStepProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  return (
+    <div
+      style={{ border: '1px solid #e2e8f0', borderRadius: '0.75rem', background: '#fff', overflow: 'hidden' }}
+      data-testid={testId}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        data-testid={`${testId}-toggle`}
+        style={{
+          width: '100%',
+          textAlign: 'left',
+          padding: '0.65rem 0.75rem',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+        }}
+      >
+        <span style={{ color: '#64748b', fontSize: '0.8rem', minWidth: '1.4rem' }}>{stepNumber}.</span>
+        <span style={{ flex: 1 }}>{title}</span>
+        <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded ? (
+        <div style={{ padding: '0 0.75rem 0.75rem' }}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface DevPortalFixturePageProps {
@@ -330,14 +379,6 @@ interface ActiveFixture {
     materialsSchedule: SuggestedMaterialLineV1[];
   };
 }
-
-type ImplementationPackTabKey =
-  | 'pack_summary'
-  | 'scope_packs'
-  | 'specification_lines'
-  | 'engineer_job_pack'
-  | 'materials_schedule'
-  | 'handover_preview';
 
 type SupportingPdfPreviewMode = 'current_insight_pdf' | 'library_supporting_pdf';
 
@@ -493,7 +534,6 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
 export default function DevPortalFixturePage({ onBack }: DevPortalFixturePageProps) {
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
-  const [implementationPackTab, setImplementationPackTab] = useState<ImplementationPackTabKey>('pack_summary');
 
   function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') {
     const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);
@@ -509,7 +549,6 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       const specificationLines = buildSpecificationLinesFromImplementationPack(implementationPack.pack);
       const scopePacks = buildInstallationScopePacks(specificationLines, implementationPack.pack);
       const materialsSchedule = buildSuggestedMaterialsSchedule(scopePacks, specificationLines, implementationPack.pack);
-      setImplementationPackTab('pack_summary');
       setActive({
         fixture,
         initialView,
@@ -762,10 +801,15 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       );
       const followUpScanHandoff = buildFollowUpScanHandoff(followUpEvidencePlan);
       const scanHandoffEnvelopePreview = buildScanHandoffEnvelopePreview(followUpScanHandoff);
-      const supportingPdfJourneyTypeForFixture = getSupportingPdfJourneyType(active.fixture);
-      const supportingPdfModel = supportingPdfJourneyTypeForFixture != null
-        ? buildSupportingPdfModel(active.fixture)
-        : null;
+
+      const blockerCount = specificationReadiness.blockingReasons.length;
+      const scanCount = followUpEvidencePlan.requiredEvidence.length;
+      const nextActionMessage =
+        blockerCount > 0
+          ? 'Complete follow-up tasks first'
+          : scanCount > 0
+            ? 'Capture missing evidence'
+            : 'Ready for office review';
 
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }} data-testid="dev-implementation-pack-shell">
@@ -787,179 +831,173 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
             </span>
           </div>
 
-          <div style={{ padding: '1rem', display: 'grid', gap: '1rem' }}>
+          <div style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }} data-testid="dev-implementation-pack-panel">
+            {/* ── Workflow summary ─────────────────────────────────────────── */}
             <section
               style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
-              data-testid="dev-implementation-pack-summary"
+              data-testid="dev-workflow-summary"
             >
-              <strong>Recommendation scenario:</strong>{' '}
-              <span data-testid="dev-implementation-pack-recommendation">{implementationPack.recommendedScenarioId}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+                <strong style={{ fontSize: '0.9rem' }}>Recommendation:</strong>
+                <code
+                  style={{ fontSize: '0.82rem', background: '#f1f5f9', borderRadius: 4, padding: '0.1rem 0.35rem' }}
+                  data-testid="dev-implementation-pack-recommendation"
+                >
+                  {implementationPack.recommendedScenarioId}
+                </code>
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', fontSize: '0.8rem' }}>
+                <span
+                  style={{
+                    borderRadius: 999,
+                    padding: '0.15rem 0.55rem',
+                    fontWeight: 600,
+                    background: specificationReadiness.readyForOfficeReview ? '#dcfce7' : '#fee2e2',
+                    color: specificationReadiness.readyForOfficeReview ? '#166534' : '#991b1b',
+                  }}
+                  data-testid="dev-workflow-summary-office-ready"
+                >
+                  Office {specificationReadiness.readyForOfficeReview ? '✓' : '✗'}
+                </span>
+                <span
+                  style={{
+                    borderRadius: 999,
+                    padding: '0.15rem 0.55rem',
+                    fontWeight: 600,
+                    background: specificationReadiness.readyForInstallerHandover ? '#dcfce7' : '#fee2e2',
+                    color: specificationReadiness.readyForInstallerHandover ? '#166534' : '#991b1b',
+                  }}
+                  data-testid="dev-workflow-summary-installer-ready"
+                >
+                  Installer {specificationReadiness.readyForInstallerHandover ? '✓' : '✗'}
+                </span>
+                <span
+                  style={{
+                    borderRadius: 999,
+                    padding: '0.15rem 0.55rem',
+                    fontWeight: 600,
+                    background: specificationReadiness.readyForMaterialsOrdering ? '#dcfce7' : '#fee2e2',
+                    color: specificationReadiness.readyForMaterialsOrdering ? '#166534' : '#991b1b',
+                  }}
+                  data-testid="dev-workflow-summary-materials-ready"
+                >
+                  Materials {specificationReadiness.readyForMaterialsOrdering ? '✓' : '✗'}
+                </span>
+                <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
+                  Blockers: <strong data-testid="dev-workflow-summary-blocker-count">{specificationReadiness.blockingReasons.length}</strong>
+                </span>
+                <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
+                  Follow-ups: <strong data-testid="dev-workflow-summary-follow-up-count">{surveyFollowUpTasks.length}</strong>
+                </span>
+                <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
+                  Scan items: <strong data-testid="dev-workflow-summary-scan-capture-count">{followUpEvidencePlan.requiredEvidence.length}</strong>
+                </span>
+                <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
+                  Unresolved: <strong data-testid="dev-workflow-summary-unresolved-count">{followUpEvidencePlan.unresolvedAfterCapture.length}</strong>
+                </span>
+              </div>
             </section>
 
-            <section
-              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
-              data-testid="dev-implementation-pack-customer-insight"
+            {/* ── Next action banner ───────────────────────────────────────── */}
+            <div
+              style={{
+                borderRadius: '0.75rem',
+                padding: '0.65rem 0.75rem',
+                fontWeight: 600,
+                fontSize: '0.88rem',
+                background: blockerCount > 0 ? '#fef2f2' : scanCount > 0 ? '#fffbeb' : '#f0fdf4',
+                color: blockerCount > 0 ? '#991b1b' : scanCount > 0 ? '#92400e' : '#166534',
+                border: `1px solid ${blockerCount > 0 ? '#fecaca' : scanCount > 0 ? '#fde68a' : '#bbf7d0'}`,
+              }}
+              data-testid="dev-workflow-next-action"
             >
-              <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Customer Insight</h2>
-              <CustomerPortalPage
-                reference="dev-fixture"
-                devFixtureInput={active.fixture.engineInput}
-                devInitialViewMode="insight"
-                showDevTraceLabelsOverride={true}
+              {nextActionMessage}
+            </div>
+
+            {/* ── Step 1: Readiness ────────────────────────────────────────── */}
+            <WorkflowStep stepNumber={1} title="Readiness" testId="dev-workflow-step-readiness">
+              <SpecificationReadinessPanel readiness={specificationReadiness} />
+            </WorkflowStep>
+
+            {/* ── Step 2: Follow-up tasks ──────────────────────────────────── */}
+            <WorkflowStep stepNumber={2} title="Follow-up tasks" testId="dev-workflow-step-follow-up-tasks">
+              <SurveyFollowUpTaskPanel
+                tasks={surveyFollowUpTasks}
+                lines={specificationLines}
+                materials={materialsSchedule}
+                engineerJobPack={engineerJobPack}
               />
-            </section>
+            </WorkflowStep>
 
-            <section
-              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
-              data-testid="dev-implementation-pack-supporting-pdf"
-            >
-              <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Supporting PDF</h2>
-              {supportingPdfModel ? (
-                <PortalJourneyPrintPack model={supportingPdfModel} />
-              ) : (
-                <p style={{ margin: 0 }}>Supporting PDF preview is not configured for this fixture.</p>
-              )}
-            </section>
-
-            <section
-              style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
-              data-testid="dev-implementation-pack-panel"
-            >
-              <h2 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Implementation Pack</h2>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <SpecificationReadinessPanel readiness={specificationReadiness} />
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <SurveyFollowUpTaskPanel
-                  tasks={surveyFollowUpTasks}
-                  lines={specificationLines}
-                  materials={materialsSchedule}
-                  engineerJobPack={engineerJobPack}
-                />
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
+            {/* ── Step 3: Scan evidence plan ───────────────────────────────── */}
+            <WorkflowStep stepNumber={3} title="Scan evidence plan" testId="dev-workflow-step-scan-evidence">
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
                 <FollowUpEvidencePlanPanel
                   plan={followUpEvidencePlan}
                   engineerJobPack={engineerJobPack}
                 />
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
                 <FollowUpScanHandoffPanel handoff={followUpScanHandoff} />
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
                 <ScanHandoffEnvelopePreviewPanel envelope={scanHandoffEnvelopePreview} />
               </div>
-              <div
-                style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}
-                role="tablist"
-                aria-label="Implementation pack tabs"
-                data-testid="dev-implementation-pack-tabs"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={implementationPackTab === 'pack_summary'}
-                  onClick={() => setImplementationPackTab('pack_summary')}
-                  className="dev-portal-fixture__btn"
-                  data-testid="dev-implementation-pack-tab-pack-summary"
-                >
-                  Pack summary
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={implementationPackTab === 'scope_packs'}
-                  onClick={() => setImplementationPackTab('scope_packs')}
-                  className="dev-portal-fixture__btn"
-                  data-testid="dev-implementation-pack-tab-scope-packs"
-                >
-                  Scope packs
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={implementationPackTab === 'specification_lines'}
-                  onClick={() => setImplementationPackTab('specification_lines')}
-                  className="dev-portal-fixture__btn"
-                  data-testid="dev-implementation-pack-tab-specification-lines"
-                >
-                  Specification lines
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={implementationPackTab === 'engineer_job_pack'}
-                  onClick={() => setImplementationPackTab('engineer_job_pack')}
-                  className="dev-portal-fixture__btn"
-                  data-testid="dev-implementation-pack-tab-engineer-job-pack"
-                >
-                  Engineer job pack
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={implementationPackTab === 'materials_schedule'}
-                  onClick={() => setImplementationPackTab('materials_schedule')}
-                  className="dev-portal-fixture__btn"
-                  data-testid="dev-implementation-pack-tab-materials-schedule"
-                >
-                  Materials schedule
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={implementationPackTab === 'handover_preview'}
-                  onClick={() => setImplementationPackTab('handover_preview')}
-                  className="dev-portal-fixture__btn"
-                  data-testid="dev-implementation-pack-tab-handover-preview"
-                >
-                  Handover preview
-                </button>
-              </div>
-              {implementationPackTab === 'pack_summary' ? (
+            </WorkflowStep>
+
+            {/* ── Step 4: Scope packs (collapsed) ─────────────────────────── */}
+            <WorkflowStep stepNumber={4} title="Scope packs" testId="dev-workflow-step-scope-packs" defaultExpanded={false}>
+              <InstallationScopePackReviewPanel
+                packs={scopePacks}
+                lines={specificationLines}
+                onPacksChange={(nextScopePacks) =>
+                  setActive((current) => {
+                    if (current?.implementationReview == null) return current;
+                    return {
+                      ...current,
+                      implementationReview: {
+                        ...current.implementationReview,
+                        scopePacks: nextScopePacks,
+                      },
+                    };
+                  })}
+              />
+            </WorkflowStep>
+
+            {/* ── Step 5: Specification lines (collapsed) ──────────────────── */}
+            <WorkflowStep stepNumber={5} title="Specification lines" testId="dev-workflow-step-specification-lines" defaultExpanded={false}>
+              <SpecificationLineReviewPanel
+                lines={specificationLines}
+                onLinesChange={(nextLines) =>
+                  setActive((current) => {
+                    if (current?.implementationReview == null) return current;
+                    return {
+                      ...current,
+                      implementationReview: {
+                        ...current.implementationReview,
+                        specificationLines: nextLines,
+                      },
+                    };
+                  })}
+              />
+            </WorkflowStep>
+
+            {/* ── Step 6: Materials schedule (collapsed) ───────────────────── */}
+            <WorkflowStep stepNumber={6} title="Materials schedule" testId="dev-workflow-step-materials-schedule" defaultExpanded={false}>
+              <MaterialsScheduleReviewPanel
+                materials={materialsSchedule}
+                lines={specificationLines}
+              />
+            </WorkflowStep>
+
+            {/* ── Step 7: Engineer job pack (collapsed) ────────────────────── */}
+            <WorkflowStep stepNumber={7} title="Engineer job pack" testId="dev-workflow-step-engineer-job-pack" defaultExpanded={false}>
+              <EngineerJobPackPreviewPanel jobPack={engineerJobPack} />
+            </WorkflowStep>
+
+            {/* ── Step 8: Handover preview (collapsed) ─────────────────────── */}
+            <WorkflowStep stepNumber={8} title="Handover preview" testId="dev-workflow-step-handover-preview" defaultExpanded={false}>
+              <div style={{ display: 'grid', gap: '0.5rem' }}>
                 <ImplementationPackReviewPanel pack={implementationPack.pack} />
-              ) : implementationPackTab === 'scope_packs' ? (
-                <InstallationScopePackReviewPanel
-                  packs={scopePacks}
-                  lines={specificationLines}
-                  onPacksChange={(nextScopePacks) =>
-                    setActive((current) => {
-                      if (current?.implementationReview == null) return current;
-                      return {
-                        ...current,
-                        implementationReview: {
-                          ...current.implementationReview,
-                          scopePacks: nextScopePacks,
-                        },
-                      };
-                    })}
-                />
-              ) : implementationPackTab === 'specification_lines' ? (
-                <SpecificationLineReviewPanel
-                  lines={specificationLines}
-                  onLinesChange={(nextLines) =>
-                    setActive((current) => {
-                      if (current?.implementationReview == null) return current;
-                      return {
-                        ...current,
-                        implementationReview: {
-                          ...current.implementationReview,
-                          specificationLines: nextLines,
-                        },
-                      };
-                    })}
-                />
-              ) : implementationPackTab === 'engineer_job_pack' ? (
-                <EngineerJobPackPreviewPanel jobPack={engineerJobPack} />
-              ) : implementationPackTab === 'materials_schedule' ? (
-                <MaterialsScheduleReviewPanel
-                  materials={materialsSchedule}
-                  lines={specificationLines}
-                />
-              ) : (
                 <ScopePackHandoverPreviewPanel handover={scopePackHandover} />
-              )}
-            </section>
+              </div>
+            </WorkflowStep>
           </div>
         </div>
       );
