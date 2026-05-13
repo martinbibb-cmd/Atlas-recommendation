@@ -76,8 +76,6 @@ const ACTION_BUTTON: React.CSSProperties = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-import React from 'react';
-
 export function WorkspaceSessionGuard({
   isAuthenticated,
   hasWorkspace,
