@@ -155,6 +155,17 @@ describe('WorkspaceSettingsPage', () => {
     expect(screen.getByTestId('workspace-settings-apply-changes')).toHaveProperty('disabled', true);
   });
 
+
+
+  it('renders workspace settings package export/import panel', () => {
+    renderPage();
+
+    expect(screen.getByTestId('workspace-settings-export-panel')).toBeTruthy();
+    expect(screen.getByTestId('workspace-settings-export-package-btn')).toBeTruthy();
+    expect(screen.getByTestId('workspace-settings-import-package-input')).toBeTruthy();
+    expect(screen.getByTestId('workspace-settings-apply-import-package')).toHaveProperty('disabled', true);
+  });
+
   it('export JSON works from review panel', () => {
     const createObjectURL = vi
       .spyOn(URL, 'createObjectURL')

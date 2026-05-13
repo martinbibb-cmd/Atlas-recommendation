@@ -39,3 +39,26 @@ export type {
   LoadAppliedWorkspaceSettingsResult,
 } from './loadAppliedWorkspaceSettings';
 export { loadAppliedWorkspaceSettings } from './loadAppliedWorkspaceSettings';
+
+export {
+  WORKSPACE_SETTINGS_EXPORT_PACKAGE_SCHEMA,
+  WORKSPACE_SETTINGS_EXPORT_PACKAGE_VERSION,
+  WORKSPACE_SETTINGS_EXPORT_REQUIRED_FILES,
+  buildWorkspaceSettingsExportPackage,
+  validateWorkspaceSettingsExportPackage,
+  exportWorkspaceSettingsPackageAsJsonBlob,
+  importWorkspaceSettingsPackageFromJsonBlob,
+} from './exportPackage';
+
+export type {
+  WorkspaceSettingsExportRequiredFileName,
+  WorkspaceSettingsExportPackageManifestV1,
+  WorkspaceSettingsExportWorkspaceRecordV1,
+  WorkspaceSettingsExportBrandPolicyRecordV1,
+  WorkspaceSettingsExportStoragePreferenceRecordV1,
+  WorkspaceSettingsExportPackageFilesV1,
+  WorkspaceSettingsExportPackageV1,
+  WorkspaceSettingsImportPreviewV1,
+  WorkspaceSettingsExportValidationOptions,
+  WorkspaceSettingsExportValidationResult,
+} from './exportPackage';
