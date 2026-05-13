@@ -13,6 +13,7 @@ import {
 } from '../../auth/profile';
 import {
   LocalWorkspaceSettingsStorageAdapter,
+  WORKSPACE_SETTINGS_SCHEMA_VERSION,
   loadAppliedWorkspaceSettings,
 } from '../../auth/workspaceSettings';
 import { ActiveUserContext } from '../../features/userProfiles/ActiveUserProvider';
@@ -146,6 +147,28 @@ function WorkspaceSettingsHarness() {
   );
 }
 
+function WorkspaceSessionRefreshHarness() {
+  const workspaceSession = useWorkspaceSession();
+
+  return (
+    <>
+      <div data-testid="workspace-session-active-name">
+        {workspaceSession.activeWorkspace?.name ?? 'none'}
+      </div>
+      <div data-testid="workspace-session-source">{workspaceSession.workspaceSource}</div>
+      <button
+        type="button"
+        data-testid="workspace-session-refresh"
+        onClick={() => {
+          void workspaceSession.refreshActiveWorkspace();
+        }}
+      >
+        Refresh
+      </button>
+    </>
+  );
+}
+
 function renderHarness(workspace: AuthAtlasWorkspaceV1 = makeAuthWorkspace()) {
   render(
     <AtlasAuthContext.Provider value={makeAuthContextValue(workspace)}>
@@ -272,5 +295,110 @@ describe('workspace settings session hydration', () => {
     expect(result.workspace).toEqual(fallbackWorkspace);
     expect(result.invites).toEqual([]);
     expect(result.joinRequestDecisions).toEqual([]);
+  });
+
+  it('keeps the newest workspace hydration when refreshes resolve out of order', async () => {
+    let resolveDelayedLoad:
+      | ((value: Awaited<ReturnType<LocalWorkspaceSettingsStorageAdapter['loadWorkspaceSettings']>>) => void)
+      | undefined;
+
+    const loadWorkspaceSettingsSpy = vi
+      .spyOn(LocalWorkspaceSettingsStorageAdapter.prototype, 'loadWorkspaceSettings')
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveDelayedLoad = resolve;
+          }),
+      )
+      .mockResolvedValue({
+        ok: true,
+        snapshot: {
+          schemaVersion: WORKSPACE_SETTINGS_SCHEMA_VERSION,
+          workspaceId: 'ws_demo',
+          savedAt: '2026-02-01T00:00:00.000Z',
+          workspace: makeProfileWorkspace({
+            name: 'Hydrated Workspace',
+            updatedAt: '2026-02-01T00:00:00.000Z',
+          }),
+          invites: [],
+          joinRequestDecisions: [],
+        },
+      });
+
+    try {
+      render(
+        <AtlasAuthContext.Provider value={makeAuthContextValue(makeAuthWorkspace())}>
+          <ActiveUserContext.Provider
+            value={{
+              activeUser: { userId: 'user_admin' } as never,
+              setActiveUser: vi.fn(),
+              clearActiveUser: vi.fn(),
+            }}
+          >
+            <WorkspaceSessionProvider>
+              <WorkspaceSessionRefreshHarness />
+            </WorkspaceSessionProvider>
+          </ActiveUserContext.Provider>
+        </AtlasAuthContext.Provider>,
+      );
+
+      fireEvent.click(screen.getByTestId('workspace-session-refresh'));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('workspace-session-active-name')).toHaveTextContent(
+          'Hydrated Workspace',
+        ),
+      );
+      expect(screen.getByTestId('workspace-session-source')).toHaveTextContent('local_applied');
+
+      resolveDelayedLoad?.({ ok: false, notFound: true });
+
+      await waitFor(() => expect(loadWorkspaceSettingsSpy).toHaveBeenCalledTimes(2));
+      expect(screen.getByTestId('workspace-session-active-name')).toHaveTextContent(
+        'Hydrated Workspace',
+      );
+      expect(screen.getByTestId('workspace-session-source')).toHaveTextContent('local_applied');
+    } finally {
+      loadWorkspaceSettingsSpy.mockRestore();
+    }
+  });
+
+  it('falls back cleanly when refreshing the workspace session throws', async () => {
+    const loadWorkspaceSettingsSpy = vi
+      .spyOn(LocalWorkspaceSettingsStorageAdapter.prototype, 'loadWorkspaceSettings')
+      .mockRejectedValue(new Error('storage read failed'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    try {
+      render(
+        <AtlasAuthContext.Provider value={makeAuthContextValue(makeAuthWorkspace())}>
+          <ActiveUserContext.Provider
+            value={{
+              activeUser: { userId: 'user_admin' } as never,
+              setActiveUser: vi.fn(),
+              clearActiveUser: vi.fn(),
+            }}
+          >
+            <WorkspaceSessionProvider>
+              <WorkspaceSessionRefreshHarness />
+            </WorkspaceSessionProvider>
+          </ActiveUserContext.Provider>
+        </AtlasAuthContext.Provider>,
+      );
+
+      await waitFor(() =>
+        expect(screen.getByTestId('workspace-session-active-name')).toHaveTextContent(
+          'Atlas Demo Workspace',
+        ),
+      );
+      expect(screen.getByTestId('workspace-session-source')).toHaveTextContent('fallback');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to load applied workspace settings.',
+        expect.any(Error),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+      loadWorkspaceSettingsSpy.mockRestore();
+    }
   });
 });

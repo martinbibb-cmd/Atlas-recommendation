@@ -1,5 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
 import { useAtlasAuth } from '../useAtlasAuth';
 import { useActiveUser } from '../../features/userProfiles/useActiveUser';
@@ -111,6 +119,8 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
     () => (currentWorkspace === null ? null : buildFallbackWorkspace(currentWorkspace)),
     [currentWorkspace],
   );
+  const [workspaceSettingsAdapter] = useState(() => new LocalWorkspaceSettingsStorageAdapter());
+  const refreshRequestIdRef = useRef(0);
 
   const [workspaceState, setWorkspaceState] = useState<{
     workspaceId: string | null;
@@ -119,23 +129,45 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
   }>({ workspaceId: null, workspace: null, source: 'none' });
 
   const refreshActiveWorkspace = useCallback(async () => {
+    const requestId = ++refreshRequestIdRef.current;
+
     if (fallbackWorkspace === null) {
-      setWorkspaceState({ workspaceId: null, workspace: null, source: 'none' });
+      if (requestId === refreshRequestIdRef.current) {
+        setWorkspaceState({ workspaceId: null, workspace: null, source: 'none' });
+      }
       return;
     }
 
-    const loaded = await loadAppliedWorkspaceSettings({
-      workspaceId: fallbackWorkspace.workspaceId,
-      adapter: new LocalWorkspaceSettingsStorageAdapter(),
-      fallbackWorkspace,
-    });
+    try {
+      const loaded = await loadAppliedWorkspaceSettings({
+        workspaceId: fallbackWorkspace.workspaceId,
+        adapter: workspaceSettingsAdapter,
+        fallbackWorkspace,
+      });
 
-    setWorkspaceState({
-      workspaceId: fallbackWorkspace.workspaceId,
-      workspace: loaded.workspace,
-      source: loaded.source,
-    });
-  }, [fallbackWorkspace]);
+      if (requestId !== refreshRequestIdRef.current) {
+        return;
+      }
+
+      setWorkspaceState({
+        workspaceId: fallbackWorkspace.workspaceId,
+        workspace: loaded.workspace,
+        source: loaded.source,
+      });
+    } catch (error) {
+      if (requestId !== refreshRequestIdRef.current) {
+        return;
+      }
+
+      console.error('Failed to load applied workspace settings.', error);
+
+      setWorkspaceState({
+        workspaceId: fallbackWorkspace.workspaceId,
+        workspace: fallbackWorkspace,
+        source: 'fallback',
+      });
+    }
+  }, [fallbackWorkspace, workspaceSettingsAdapter]);
 
   useEffect(() => {
     (async () => {
