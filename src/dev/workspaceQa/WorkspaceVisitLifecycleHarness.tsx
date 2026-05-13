@@ -13,8 +13,14 @@ import {
   type WorkspaceLifecycleReleaseStatusV1,
 } from './buildWorkspaceLifecycleReleaseReport';
 import {
+  addTrialReadinessActionNote,
   buildTrialReadinessActions,
+  mergeGeneratedActionsWithReviewState,
+  updateTrialReadinessActionStatus,
+  type TrialReadinessActionV1,
+  type TrialReadinessActionReviewStateV1,
   type TrialReadinessLintStatusV1,
+  type TrialReadinessStatusV1,
 } from '../trialReadiness';
 
 interface WorkspaceVisitLifecycleHarnessProps {
@@ -24,6 +30,13 @@ interface WorkspaceVisitLifecycleHarnessProps {
 const TRIAL_READINESS_LINT_STATUS: TrialReadinessLintStatusV1 = {
   hasFailures: true,
 };
+
+const TRIAL_READINESS_STATUS_OPTIONS: readonly TrialReadinessStatusV1[] = [
+  'open',
+  'in_progress',
+  'done',
+  'accepted_risk',
+];
 
 function StatusPill({
   ok,
@@ -117,6 +130,7 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     readonly value: WorkspaceVisitLifecycleEvaluationV1;
   } | null>(null);
   const [releaseReport, setReleaseReport] = useState<WorkspaceLifecycleReleaseReportV1 | null>(null);
+  const [trialReadinessReviewState, setTrialReadinessReviewState] = useState<readonly TrialReadinessActionReviewStateV1[]>([]);
   const evaluation = evaluationState?.scenarioId === activeScenario?.id ? evaluationState.value : null;
 
   useEffect(() => {
@@ -171,18 +185,57 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  const trialReadinessActions = useMemo(
+  const trialReadinessGeneratedActions = useMemo(
     () => (releaseReport ? buildTrialReadinessActions(releaseReport, TRIAL_READINESS_LINT_STATUS, []) : []),
     [releaseReport],
   );
+  const trialReadinessActions = useMemo(
+    () => mergeGeneratedActionsWithReviewState(trialReadinessGeneratedActions, trialReadinessReviewState),
+    [trialReadinessGeneratedActions, trialReadinessReviewState],
+  );
+  const trialReadinessReviewStateByActionId = useMemo(
+    () => new Map(trialReadinessReviewState.map((entry) => [entry.actionId, entry])),
+    [trialReadinessReviewState],
+  );
+  const openTrialReadinessActions = useMemo(
+    () => trialReadinessActions.filter((action) => action.status !== 'done'),
+    [trialReadinessActions],
+  );
+  const doneTrialReadinessActions = useMemo(
+    () => trialReadinessActions.filter((action) => action.status === 'done'),
+    [trialReadinessActions],
+  );
+  const liveBlockerCount = useMemo(
+    () =>
+      trialReadinessActions.filter(
+        (action) => action.priority === 'blocker' && action.status !== 'done' && action.status !== 'accepted_risk',
+      ).length,
+    [trialReadinessActions],
+  );
+
+  function handleTrialReadinessStatusChange(actionId: string, status: TrialReadinessStatusV1) {
+    setTrialReadinessReviewState((current) =>
+      updateTrialReadinessActionStatus(current, actionId, status, new Date().toISOString()),
+    );
+  }
+
+  function handleTrialReadinessNoteChange(actionId: string, reviewerNote: string) {
+    setTrialReadinessReviewState((current) =>
+      addTrialReadinessActionNote(current, actionId, reviewerNote, new Date().toISOString()),
+    );
+  }
 
   function handleExportTrialReadinessActions() {
     if (!releaseReport) return;
-    const blob = new Blob([JSON.stringify(trialReadinessActions, null, 2)], { type: 'application/json' });
+    const reviewPayload = trialReadinessGeneratedActions.map((action) => ({
+      action,
+      reviewState: trialReadinessReviewStateByActionId.get(action.actionId) ?? null,
+    }));
+    const blob = new Blob([JSON.stringify(reviewPayload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'trial-readiness-actions.json';
+    link.download = 'trial-readiness-review.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -497,6 +550,9 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
             <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
               Ordered hardening actions from release gate results and known trial gaps.
             </p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#334155' }} data-testid="workspace-qa-trial-readiness-blocker-count">
+              Live blockers open: {liveBlockerCount}
+            </p>
           </div>
           <button
             type="button"
@@ -511,31 +567,138 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
 
         {releaseReport === null ? (
           <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Building trial readiness checklist…</p>
-        ) : trialReadinessActions.length === 0 ? (
+        ) : trialReadinessGeneratedActions.length === 0 ? (
           <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>No trial readiness actions open.</p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }} data-testid="workspace-qa-trial-readiness-table">
-            <thead>
-              <tr style={{ textAlign: 'left', fontSize: 11, color: '#64748b' }}>
-                <th style={{ padding: '4px 8px' }}>Priority</th>
-                <th style={{ padding: '4px 8px' }}>Area</th>
-                <th style={{ padding: '4px 8px' }}>Source</th>
-                <th style={{ padding: '4px 8px' }}>Status</th>
-                <th style={{ padding: '4px 8px' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {trialReadinessActions.map((action) => (
-                <tr key={action.actionId}>
-                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.priority}</td>
-                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.area.replace(/_/g, ' ')}</td>
-                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.source.replace(/_/g, ' ')}</td>
-                  <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.status.replace(/_/g, ' ')}</td>
-                  <td style={{ padding: '4px 8px', fontSize: 12, color: '#475569' }}>{action.title}</td>
+          <>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }} data-testid="workspace-qa-trial-readiness-table">
+              <thead>
+                <tr style={{ textAlign: 'left', fontSize: 11, color: '#64748b' }}>
+                  <th style={{ padding: '4px 8px' }}>Priority</th>
+                  <th style={{ padding: '4px 8px' }}>Area</th>
+                  <th style={{ padding: '4px 8px' }}>Source</th>
+                  <th style={{ padding: '4px 8px' }}>Status</th>
+                  <th style={{ padding: '4px 8px' }}>Action</th>
+                  <th style={{ padding: '4px 8px' }}>Reviewer note</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {openTrialReadinessActions.map((action: TrialReadinessActionV1) => (
+                  <tr key={action.actionId} data-testid={`workspace-qa-trial-readiness-row-${action.actionId}`}>
+                    <td style={{ padding: '4px 8px', fontSize: 12 }} data-testid={`workspace-qa-trial-readiness-priority-${action.actionId}`}>
+                      {action.priority}
+                    </td>
+                    <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.area.replace(/_/g, ' ')}</td>
+                    <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.source.replace(/_/g, ' ')}</td>
+                    <td style={{ padding: '4px 8px', fontSize: 12 }}>
+                      <select
+                        value={action.status}
+                        onChange={(event) =>
+                          handleTrialReadinessStatusChange(action.actionId, event.target.value as TrialReadinessStatusV1)
+                        }
+                        style={{ fontFamily: 'monospace', fontSize: 12, padding: '2px 6px' }}
+                        data-testid={`workspace-qa-trial-readiness-status-${action.actionId}`}
+                      >
+                        {TRIAL_READINESS_STATUS_OPTIONS.map((status) => (
+                          <option key={status} value={status}>
+                            {status.replace(/_/g, ' ')}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td style={{ padding: '4px 8px', fontSize: 12, color: '#475569' }}>
+                      <span>{action.title}</span>
+                      {action.status === 'accepted_risk' ? (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            display: 'inline-block',
+                            padding: '1px 8px',
+                            borderRadius: 999,
+                            fontSize: 10,
+                            fontWeight: 700,
+                            background: '#fef3c7',
+                            color: '#92400e',
+                          }}
+                          data-testid={`workspace-qa-trial-readiness-accepted-risk-${action.actionId}`}
+                        >
+                          Accepted risk
+                        </span>
+                      ) : null}
+                    </td>
+                    <td style={{ padding: '4px 8px', fontSize: 12 }}>
+                      <input
+                        type="text"
+                        value={trialReadinessReviewStateByActionId.get(action.actionId)?.reviewerNote ?? ''}
+                        onChange={(event) => handleTrialReadinessNoteChange(action.actionId, event.target.value)}
+                        placeholder="Add reviewer note"
+                        style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, padding: '2px 6px' }}
+                        data-testid={`workspace-qa-trial-readiness-note-${action.actionId}`}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <details data-testid="workspace-qa-trial-readiness-done-section">
+              <summary style={{ cursor: 'pointer', fontSize: 12, color: '#334155' }}>
+                Done ({doneTrialReadinessActions.length})
+              </summary>
+              {doneTrialReadinessActions.length === 0 ? (
+                <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748b' }}>No completed actions.</p>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }} data-testid="workspace-qa-trial-readiness-done-table">
+                  <thead>
+                    <tr style={{ textAlign: 'left', fontSize: 11, color: '#64748b' }}>
+                      <th style={{ padding: '4px 8px' }}>Priority</th>
+                      <th style={{ padding: '4px 8px' }}>Area</th>
+                      <th style={{ padding: '4px 8px' }}>Source</th>
+                      <th style={{ padding: '4px 8px' }}>Status</th>
+                      <th style={{ padding: '4px 8px' }}>Action</th>
+                      <th style={{ padding: '4px 8px' }}>Reviewer note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doneTrialReadinessActions.map((action) => (
+                      <tr key={action.actionId} data-testid={`workspace-qa-trial-readiness-done-row-${action.actionId}`}>
+                        <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.priority}</td>
+                        <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.area.replace(/_/g, ' ')}</td>
+                        <td style={{ padding: '4px 8px', fontSize: 12 }}>{action.source.replace(/_/g, ' ')}</td>
+                        <td style={{ padding: '4px 8px', fontSize: 12 }}>
+                          <select
+                            value={action.status}
+                            onChange={(event) =>
+                              handleTrialReadinessStatusChange(action.actionId, event.target.value as TrialReadinessStatusV1)
+                            }
+                            style={{ fontFamily: 'monospace', fontSize: 12, padding: '2px 6px' }}
+                            data-testid={`workspace-qa-trial-readiness-status-${action.actionId}`}
+                          >
+                            {TRIAL_READINESS_STATUS_OPTIONS.map((status) => (
+                              <option key={status} value={status}>
+                                {status.replace(/_/g, ' ')}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={{ padding: '4px 8px', fontSize: 12, color: '#475569' }}>{action.title}</td>
+                        <td style={{ padding: '4px 8px', fontSize: 12 }}>
+                          <input
+                            type="text"
+                            value={trialReadinessReviewStateByActionId.get(action.actionId)?.reviewerNote ?? ''}
+                            onChange={(event) => handleTrialReadinessNoteChange(action.actionId, event.target.value)}
+                            placeholder="Add reviewer note"
+                            style={{ width: '100%', fontFamily: 'monospace', fontSize: 12, padding: '2px 6px' }}
+                            data-testid={`workspace-qa-trial-readiness-note-${action.actionId}`}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </details>
+          </>
         )}
       </section>
     </div>
