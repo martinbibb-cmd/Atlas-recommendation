@@ -27,6 +27,7 @@ import AtlasExplorerPage from '../components/explorer/AtlasExplorerPage';
 import CanonicalPresentationPage from '../components/presentation/CanonicalPresentationPage';
 import { runEngine } from '../engine/Engine';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import { WorkspaceVisitLifecycleHarness } from './workspaceQa';
 
 // ─── Demo input ───────────────────────────────────────────────────────────────
 
@@ -416,6 +417,22 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     access: 'dev_only',
     includeInCopyBox: true,
     render: () => <PresentationAuditPage />,
+  },
+  {
+    id: 'workspace-visit-lifecycle-harness',
+    commonName: 'Workspace Visit Lifecycle QA Harness',
+    codeName: 'WorkspaceVisitLifecycleHarness',
+    fileName: 'WorkspaceVisitLifecycleHarness.tsx',
+    filePath: 'src/dev/workspaceQa/WorkspaceVisitLifecycleHarness.tsx',
+    category: 'audit',
+    status: 'experimental',
+    notes:
+      'Deterministic QA surface for workspace-scoped visit lifecycle, ownership, branding, storage and export/import checks.',
+    routeKind: 'query_flag',
+    queryFlags: ['workspace-lifecycle-qa=1'],
+    fullRouteExample: '/?workspace-lifecycle-qa=1',
+    access: 'dev_only',
+    render: () => <WorkspaceVisitLifecycleHarness />,
   },
 
   // ── Visit Workspaces ────────────────────────────────────────────────────────
