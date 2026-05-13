@@ -154,10 +154,12 @@ export function WorkspaceSessionProvider({ children }: WorkspaceSessionProviderP
         workspace: loaded.workspace,
         source: loaded.source,
       });
-    } catch {
+    } catch (error) {
       if (requestId !== refreshRequestIdRef.current) {
         return;
       }
+
+      console.error('Failed to load applied workspace settings.', error);
 
       setWorkspaceState({
         workspaceId: fallbackWorkspace.workspaceId,

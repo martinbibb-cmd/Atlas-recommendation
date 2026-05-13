@@ -298,7 +298,7 @@ describe('workspace settings session hydration', () => {
   });
 
   it('keeps the newest workspace hydration when refreshes resolve out of order', async () => {
-    let resolveFirstLoad:
+    let resolveDelayedLoad:
       | ((value: Awaited<ReturnType<LocalWorkspaceSettingsStorageAdapter['loadWorkspaceSettings']>>) => void)
       | undefined;
 
@@ -307,7 +307,7 @@ describe('workspace settings session hydration', () => {
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
-            resolveFirstLoad = resolve;
+            resolveDelayedLoad = resolve;
           }),
       )
       .mockResolvedValue({
@@ -351,7 +351,7 @@ describe('workspace settings session hydration', () => {
       );
       expect(screen.getByTestId('workspace-session-source')).toHaveTextContent('local_applied');
 
-      resolveFirstLoad?.({ ok: false, notFound: true });
+      resolveDelayedLoad?.({ ok: false, notFound: true });
 
       await waitFor(() => expect(loadWorkspaceSettingsSpy).toHaveBeenCalledTimes(2));
       expect(screen.getByTestId('workspace-session-active-name')).toHaveTextContent(
@@ -367,6 +367,7 @@ describe('workspace settings session hydration', () => {
     const loadWorkspaceSettingsSpy = vi
       .spyOn(LocalWorkspaceSettingsStorageAdapter.prototype, 'loadWorkspaceSettings')
       .mockRejectedValue(new Error('storage read failed'));
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     try {
       render(
@@ -391,7 +392,12 @@ describe('workspace settings session hydration', () => {
         ),
       );
       expect(screen.getByTestId('workspace-session-source')).toHaveTextContent('fallback');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Failed to load applied workspace settings.',
+        expect.any(Error),
+      );
     } finally {
+      consoleErrorSpy.mockRestore();
       loadWorkspaceSettingsSpy.mockRestore();
     }
   });
