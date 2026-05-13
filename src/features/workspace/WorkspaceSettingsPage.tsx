@@ -57,14 +57,16 @@ const LABEL_STYLE: CSSProperties = {
   marginBottom: 4,
 };
 
-function formatLabel(value: string): string {
+const DEMO_VIEWER_USER_ID = 'demo_viewer';
+
+function formatEnumValue(value: string): string {
   return value.replace(/_/g, ' ');
 }
 
 function createReadOnlyMembership(workspaceId: string): WorkspaceMembershipV1 {
   return {
     workspaceId,
-    userId: 'demo_viewer',
+    userId: DEMO_VIEWER_USER_ID,
     role: 'viewer',
     permissions: DEFAULT_PERMISSIONS_BY_ROLE.viewer,
   };
@@ -232,6 +234,7 @@ function WorkspaceSettingsContent({
     if (!canEditBrandPolicy) return;
 
     const isEnabled = brandPolicyDraft.allowedBrandIds.includes(brandId);
+    // Keep at least one allowed brand available so the default-brand selector stays valid.
     if (isEnabled && brandPolicyDraft.allowedBrandIds.length === 1) return;
 
     const allowedBrandIds = isEnabled
@@ -317,7 +320,7 @@ function WorkspaceSettingsContent({
               <div>
                 <dt style={LABEL_STYLE}>Resolution source</dt>
                 <dd data-testid="workspace-settings-active-brand-source" style={{ margin: 0 }}>
-                  {formatLabel(activeBrandSummary?.resolutionSource ?? 'workspace_default')}
+                  {formatEnumValue(activeBrandSummary?.resolutionSource ?? 'workspace_default')}
                 </dd>
               </div>
             </dl>
@@ -356,7 +359,7 @@ function WorkspaceSettingsContent({
               style={{ marginBottom: '0.85rem', padding: '0.7rem', borderRadius: 10, background: '#f8fafc', border: '1px solid #e2e8f0' }}
             >
               <div style={{ fontSize: 12, color: '#475569', marginBottom: 6 }}>
-                Policy: <strong>{formatLabel(brandPolicyDraft.policy)}</strong>
+                Policy: <strong>{formatEnumValue(brandPolicyDraft.policy)}</strong>
               </div>
               <div style={{ fontSize: 12, color: '#475569', marginBottom: 6 }}>
                 Default brand: <strong>{brandPolicyDraft.defaultBrandId}</strong>
@@ -379,7 +382,7 @@ function WorkspaceSettingsContent({
                     disabled={!canEditBrandPolicy}
                     data-testid={`workspace-settings-brand-policy-${policy}`}
                   />
-                  {formatLabel(policy)}
+                  {formatEnumValue(policy)}
                 </label>
               ))}
             </fieldset>
