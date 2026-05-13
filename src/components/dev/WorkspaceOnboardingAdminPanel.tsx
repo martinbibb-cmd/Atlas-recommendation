@@ -113,12 +113,6 @@ const BTN_DANGER: React.CSSProperties = {
   borderColor: '#fecaca',
 };
 
-const BTN_DEFAULT: React.CSSProperties = {
-  ...BTN_BASE,
-  background: '#f8fafc',
-  color: '#334155',
-};
-
 function chip(active: boolean): React.CSSProperties {
   return {
     borderRadius: 999,
