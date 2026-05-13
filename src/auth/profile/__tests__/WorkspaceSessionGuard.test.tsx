@@ -45,8 +45,9 @@ describe('WorkspaceSessionGuard', () => {
       storageTarget: 'local_only',
     });
     render(<WorkspaceSessionGuard showWorkspaceActiveState />);
-    expect(screen.getByText(/Workspace active:/i)).toBeTruthy();
-    expect(screen.getByText(/Workspace A/i)).toBeTruthy();
-    expect(screen.getByText(/local_only/i)).toBeTruthy();
+    const banner = screen.getByRole('status', { name: /workspace active banner/i });
+    expect(banner.textContent).toMatch(/Workspace active:/i);
+    expect(banner.textContent).toMatch(/Workspace A/i);
+    expect(banner.textContent).toMatch(/local_only/i);
   });
 });
