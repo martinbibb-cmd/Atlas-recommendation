@@ -6,6 +6,10 @@ export {
   getWorkspaceVisitLifecycleScenarioV1,
   getWorkspaceVisitLifecycleScenariosV1,
 } from './WorkspaceVisitLifecycleScenarioV1';
+export {
+  buildWorkspaceLifecycleReleaseReport,
+  buildWorkspaceLifecycleReleaseScenarioCheckFromLifecycleScenario,
+} from './buildWorkspaceLifecycleReleaseReport';
 export type {
   WorkspaceVisitLifecycleEvaluationV1,
   WorkspaceVisitLifecycleProgressEntryV1,
@@ -13,3 +17,10 @@ export type {
   WorkspaceVisitLifecycleStage,
   WorkspaceVisitReadinessProgressEntryV1,
 } from './WorkspaceVisitLifecycleScenarioV1';
+export type {
+  WorkspaceLifecycleReleaseReportV1,
+  WorkspaceLifecycleReleaseScenarioCheckV1,
+  WorkspaceLifecycleReleaseScenarioResultV1,
+  WorkspaceLifecycleReleaseStatusV1,
+  WorkspaceLifecycleTrialReadinessV1,
+} from './buildWorkspaceLifecycleReleaseReport';

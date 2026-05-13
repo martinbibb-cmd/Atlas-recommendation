@@ -6,6 +6,12 @@ import {
   type WorkspaceVisitLifecycleProgressEntryV1,
   type WorkspaceVisitReadinessProgressEntryV1,
 } from './WorkspaceVisitLifecycleScenarioV1';
+import {
+  buildWorkspaceLifecycleReleaseReport,
+  buildWorkspaceLifecycleReleaseScenarioCheckFromLifecycleScenario,
+  type WorkspaceLifecycleReleaseReportV1,
+  type WorkspaceLifecycleReleaseStatusV1,
+} from './buildWorkspaceLifecycleReleaseReport';
 
 interface WorkspaceVisitLifecycleHarnessProps {
   readonly onBack?: () => void;
@@ -33,6 +39,29 @@ function StatusPill({
       }}
     >
       {ok ? passLabel : failLabel}
+    </span>
+  );
+}
+
+function ReleaseStatusPill({ status }: { status: WorkspaceLifecycleReleaseStatusV1 }) {
+  const palette: Record<WorkspaceLifecycleReleaseStatusV1, { background: string; color: string }> = {
+    pass: { background: '#dcfce7', color: '#166534' },
+    warn: { background: '#fef3c7', color: '#92400e' },
+    fail: { background: '#fee2e2', color: '#991b1b' },
+  };
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '2px 8px',
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        background: palette[status].background,
+        color: palette[status].color,
+      }}
+    >
+      {status}
     </span>
   );
 }
@@ -75,25 +104,74 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     () => scenarios.find((scenario) => scenario.id === scenarioId) ?? scenarios[0],
     [scenarioId, scenarios],
   );
-  const [evaluation, setEvaluation] = useState<WorkspaceVisitLifecycleEvaluationV1 | null>(null);
+  const [evaluationState, setEvaluationState] = useState<{
+    readonly scenarioId: string;
+    readonly value: WorkspaceVisitLifecycleEvaluationV1;
+  } | null>(null);
+  const [releaseReport, setReleaseReport] = useState<WorkspaceLifecycleReleaseReportV1 | null>(null);
+  const evaluation = evaluationState?.scenarioId === activeScenario?.id ? evaluationState.value : null;
 
   useEffect(() => {
     let active = true;
-    if (!activeScenario) {
-      setEvaluation(null);
-      return () => {
-        active = false;
-      };
-    }
-    setEvaluation(null);
+    if (!activeScenario) return () => {
+      active = false;
+    };
     (async () => {
       const next = await evaluateWorkspaceVisitLifecycleScenario(activeScenario);
-      if (active) setEvaluation(next);
+      if (active) {
+        setEvaluationState({
+          scenarioId: activeScenario.id,
+          value: next,
+        });
+      }
     })();
     return () => {
       active = false;
     };
   }, [activeScenario]);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all(
+      scenarios.map(async (scenario) => ({
+        scenario,
+        evaluation: await evaluateWorkspaceVisitLifecycleScenario(scenario),
+      })),
+    ).then((results) => {
+      if (!active) return;
+      setReleaseReport(
+        buildWorkspaceLifecycleReleaseReport(
+          results.map(({ scenario, evaluation: nextEvaluation }) =>
+            buildWorkspaceLifecycleReleaseScenarioCheckFromLifecycleScenario(scenario, nextEvaluation),
+          ),
+        ),
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, [scenarios]);
+
+  function handleExportReleaseGateReport() {
+    if (!releaseReport) return;
+    const blob = new Blob([JSON.stringify(releaseReport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'release-gate-report.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  const releaseReadinessRows: readonly [string, WorkspaceLifecycleReleaseStatusV1][] = releaseReport
+    ? [
+        ['customer portal', releaseReport.trialReadiness.customerPortal],
+        ['implementation workflow', releaseReport.trialReadiness.implementationWorkflow],
+        ['workspace ownership', releaseReport.trialReadiness.workspaceOwnership],
+        ['storage export', releaseReport.trialReadiness.storageExport],
+        ['scan follow-up', releaseReport.trialReadiness.scanFollowUp],
+      ]
+    : [];
 
   if (!activeScenario) {
     return (
@@ -259,6 +337,129 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
               <StatusPill ok={evaluation.lifecyclePassed} passLabel="pass" failLabel="fail" />
             </div>
           </div>
+        )}
+      </section>
+
+      <section
+        style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'grid', gap: 12 }}
+        data-testid="workspace-qa-release-gate-report"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <h2 style={{ margin: '0 0 4px', fontSize: 14 }}>Release Gate Report</h2>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Trial-readiness summary for the full workspace lifecycle harness.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportReleaseGateReport}
+            disabled={releaseReport === null}
+            style={{ fontSize: 12, padding: '4px 12px' }}
+            data-testid="workspace-qa-release-gate-export-json"
+          >
+            Export JSON
+          </button>
+        </div>
+
+        {releaseReport === null ? (
+          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Building release gate report…</p>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gap: 4, fontSize: 12 }}>
+              <div data-testid="workspace-qa-release-gate-overall-status">
+                <strong>Overall status:</strong> <ReleaseStatusPill status={releaseReport.overallStatus} />
+              </div>
+              <div><strong>Generated:</strong> {releaseReport.generatedAt}</div>
+            </div>
+
+            <div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Scenario results</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }} data-testid="workspace-qa-release-gate-scenarios">
+                <thead>
+                  <tr style={{ textAlign: 'left', fontSize: 11, color: '#64748b' }}>
+                    <th style={{ padding: '4px 8px' }}>Scenario</th>
+                    <th style={{ padding: '4px 8px' }}>Status</th>
+                    <th style={{ padding: '4px 8px' }}>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {releaseReport.scenarioResults.map((result) => (
+                    <tr key={result.scenarioId}>
+                      <td style={{ padding: '4px 8px', fontSize: 12 }}>{result.label}</td>
+                      <td style={{ padding: '4px 8px', fontSize: 12 }}>
+                        <ReleaseStatusPill status={result.status} />
+                      </td>
+                      <td style={{ padding: '4px 8px', fontSize: 12, color: '#475569' }}>
+                        {[...result.blockingIssues, ...result.warnings].join(' ') || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Trial readiness checklist</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }} data-testid="workspace-qa-release-gate-readiness">
+                <thead>
+                  <tr style={{ textAlign: 'left', fontSize: 11, color: '#64748b' }}>
+                    <th style={{ padding: '4px 8px' }}>Capability</th>
+                    <th style={{ padding: '4px 8px' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {releaseReadinessRows.map(([label, status]) => (
+                    <tr key={label}>
+                      <td style={{ padding: '4px 8px', fontSize: 12 }}>{label}</td>
+                      <td style={{ padding: '4px 8px', fontSize: 12 }}>
+                        <ReleaseStatusPill status={status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div>
+                <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Blocking issues</h3>
+                {releaseReport.blockingIssues.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>No blocking issues.</p>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 12 }}>
+                    {releaseReport.blockingIssues.map((issue) => (
+                      <li key={issue}>{issue}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Warnings</h3>
+                {releaseReport.warnings.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>No warnings.</p>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 12 }}>
+                    {releaseReport.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <h3 style={{ margin: '0 0 8px', fontSize: 13 }}>Next actions</h3>
+                {releaseReport.recommendedNextActions.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>No follow-up actions required.</p>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 12 }}>
+                    {releaseReport.recommendedNextActions.map((action) => (
+                      <li key={action}>{action}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </>
         )}
       </section>
     </div>
