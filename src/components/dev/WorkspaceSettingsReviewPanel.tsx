@@ -14,6 +14,9 @@ interface Props {
   readonly draft: WorkspaceSettingsDraftV1;
   readonly currentWorkspace: AtlasWorkspaceV1;
   readonly currentJoinRequests: readonly WorkspaceJoinRequestV1[];
+  readonly onLocalApplySuccess?: (
+    result: Extract<WorkspaceSettingsApplyResult, { readonly ok: true }>,
+  ) => Promise<void> | void;
 }
 
 const CARD_STYLE: CSSProperties = {
@@ -39,6 +42,7 @@ export default function WorkspaceSettingsReviewPanel({
   draft,
   currentWorkspace,
   currentJoinRequests,
+  onLocalApplySuccess,
 }: Props) {
   const [applyResult, setApplyResult] = useState<WorkspaceSettingsApplyResult | null>(null);
   const [applying, setApplying] = useState(false);
@@ -57,6 +61,9 @@ export default function WorkspaceSettingsReviewPanel({
         currentJoinRequests,
       });
       setApplyResult(result);
+      if (result.ok) {
+        await onLocalApplySuccess?.(result);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setApplyResult({ ok: false, reason: `Unexpected error: ${message}` });

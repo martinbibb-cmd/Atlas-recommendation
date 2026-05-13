@@ -38,6 +38,7 @@ export interface WorkspaceSettingsPageProps {
   readonly activeBrandSummary: WorkspaceSettingsPageBrandSummary | null;
   readonly sessionStatus: WorkspaceSessionStatus;
   readonly onBack?: () => void;
+  readonly onLocalApplySuccess?: () => Promise<void> | void;
 }
 
 interface BrandPolicyDraft {
@@ -154,7 +155,10 @@ export default function WorkspaceSettingsPage({
   activeBrandSummary,
   sessionStatus,
   onBack,
+  onLocalApplySuccess,
 }: WorkspaceSettingsPageProps) {
+  const [applyStatusMessage, setApplyStatusMessage] = useState<string | null>(null);
+
   const resolvedMembership = useMemo(
     () =>
       workspace === null
@@ -195,9 +199,14 @@ export default function WorkspaceSettingsPage({
       activeBrandSummary={activeBrandSummary}
       sessionStatus={sessionStatus}
       onBack={onBack}
+      applyStatusMessage={applyStatusMessage}
       resolvedMembership={resolvedMembership ?? createReadOnlyMembership(workspace.workspaceId)}
       canEditWorkspace={canEditWorkspace}
       canEditBrandPolicy={canEditBrandPolicy}
+      onLocalApplySuccess={async () => {
+        await onLocalApplySuccess?.();
+        setApplyStatusMessage('Local workspace settings applied');
+      }}
     />
   );
 }
@@ -208,16 +217,20 @@ function WorkspaceSettingsContent({
   activeBrandSummary,
   sessionStatus,
   onBack,
+  applyStatusMessage,
   canEditWorkspace,
   canEditBrandPolicy,
+  onLocalApplySuccess,
 }: {
   workspace: AtlasWorkspaceV1;
   resolvedMembership: WorkspaceMembershipV1;
   activeBrandSummary: WorkspaceSettingsPageBrandSummary | null;
   sessionStatus: WorkspaceSessionStatus;
   onBack?: () => void;
+  applyStatusMessage: string | null;
   canEditWorkspace: boolean;
   canEditBrandPolicy: boolean;
+  onLocalApplySuccess: () => Promise<void>;
 }) {
   const [storageDraft, setStorageDraft] = useState<WorkspaceStoragePreference>(
     workspace.storagePreference,
@@ -281,7 +294,7 @@ function WorkspaceSettingsContent({
 
   const activeBrandCompanyName =
     activeBrandSummary?.companyName ??
-    brandRegistry[brandPolicyDraft.defaultBrandId]?.companyName ??
+    brandRegistry[workspace.defaultBrandId]?.companyName ??
     workspace.defaultBrandId;
 
   const workspaceSettingsDraft = useMemo<WorkspaceSettingsDraftV1>(
@@ -336,6 +349,21 @@ function WorkspaceSettingsContent({
         </div>
 
         <SessionBanner sessionStatus={sessionStatus} />
+        {applyStatusMessage !== null && (
+          <div
+            role="status"
+            data-testid="workspace-settings-apply-banner"
+            style={{
+              ...CARD_STYLE,
+              background: '#f0fdf4',
+              borderColor: '#bbf7d0',
+              color: '#166534',
+              marginBottom: '1rem',
+            }}
+          >
+            {applyStatusMessage}
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
           <section data-testid="workspace-settings-workspace-summary" style={CARD_STYLE}>
@@ -348,7 +376,7 @@ function WorkspaceSettingsContent({
                     data-testid="workspace-settings-active-workspace-name"
                     style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}
                   >
-                    {workspaceIdentityDraft.name}
+                    {workspace.name}
                   </div>
                   <input
                     type="text"
@@ -369,7 +397,7 @@ function WorkspaceSettingsContent({
                     data-testid="workspace-settings-active-workspace-slug"
                     style={{ fontSize: 12, color: '#64748b', marginBottom: 4, fontFamily: 'monospace' }}
                   >
-                    {workspaceIdentityDraft.slug}
+                    {workspace.slug}
                   </div>
                   <input
                     type="text"
@@ -532,6 +560,9 @@ function WorkspaceSettingsContent({
             draft={workspaceSettingsDraft}
             currentWorkspace={workspace}
             currentJoinRequests={onboardingDraft.pendingJoinRequests}
+            onLocalApplySuccess={async () => {
+              await onLocalApplySuccess();
+            }}
           />
         </div>
       </div>

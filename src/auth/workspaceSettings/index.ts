@@ -34,3 +34,8 @@ export {
   LocalWorkspaceSettingsStorageAdapter,
   GoogleDriveWorkspaceSettingsStorageAdapterStub,
 } from './storage';
+export type {
+  LoadAppliedWorkspaceSettingsInput,
+  LoadAppliedWorkspaceSettingsResult,
+} from './loadAppliedWorkspaceSettings';
+export { loadAppliedWorkspaceSettings } from './loadAppliedWorkspaceSettings';

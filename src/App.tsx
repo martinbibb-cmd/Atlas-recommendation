@@ -115,7 +115,6 @@ import { RequireAuth } from './auth/RequireAuth';
 import { useAtlasAuth } from './auth/useAtlasAuth';
 import {
   DEFAULT_PERMISSIONS_BY_ROLE,
-  type AtlasWorkspaceV1 as ProfileAtlasWorkspaceV1,
   type WorkspaceMemberRole,
   type WorkspaceMembershipV1,
   WorkspaceSessionProvider,
@@ -811,63 +810,30 @@ function AppInner() {
   }, [atlasUserProfile, currentWorkspace, effectiveRole]);
 
   const workspaceSettingsMembership = useMemo<WorkspaceMembershipV1 | null>(() => {
-    if (currentWorkspace === null) {
+    if (workspaceSession.activeWorkspace === null) {
       return null;
     }
 
+    const sessionMemberUserId =
+      activeUser?.userId ??
+      atlasUserProfile?.atlasUserId ??
+      workspaceSession.activeWorkspace.ownerUserId;
+    const sessionMembership =
+      workspaceSession.activeWorkspace.members.find(
+        (member) => member.userId === sessionMemberUserId,
+      ) ?? null;
+
+    if (sessionMembership !== null) {
+      return sessionMembership;
+    }
+
     return {
-      workspaceId: currentWorkspace.workspaceId,
-      userId:
-        activeUser?.userId ??
-        atlasUserProfile?.atlasUserId ??
-        currentWorkspace.ownerAtlasUserId,
+      workspaceId: workspaceSession.activeWorkspace.workspaceId,
+      userId: sessionMemberUserId,
       role: workspaceSettingsRole,
       permissions: DEFAULT_PERMISSIONS_BY_ROLE[workspaceSettingsRole],
     };
-  }, [activeUser?.userId, atlasUserProfile, currentWorkspace, workspaceSettingsRole]);
-
-  const workspaceSettingsWorkspace = useMemo<ProfileAtlasWorkspaceV1 | null>(() => {
-    if (currentWorkspace === null) {
-      return null;
-    }
-
-    const slug =
-      hostResolution.workspaceSlug ??
-      (
-        currentWorkspace.name
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '') || 'workspace'
-      );
-
-    const ownerMembership: WorkspaceMembershipV1 = {
-      workspaceId: currentWorkspace.workspaceId,
-      userId: currentWorkspace.ownerAtlasUserId,
-      role: 'owner',
-      permissions: DEFAULT_PERMISSIONS_BY_ROLE.owner,
-    };
-
-    const members =
-      workspaceSettingsMembership === null ||
-      workspaceSettingsMembership.userId === ownerMembership.userId
-        ? [ownerMembership]
-        : [ownerMembership, workspaceSettingsMembership];
-
-    return {
-      workspaceId: currentWorkspace.workspaceId,
-      name: currentWorkspace.name,
-      slug,
-      ownerUserId: currentWorkspace.ownerAtlasUserId,
-      members,
-      storagePreference: currentWorkspace.storagePreference ?? 'disabled',
-      defaultBrandId: currentWorkspace.defaultBrandId,
-      allowedBrandIds: currentWorkspace.allowedBrandIds,
-      brandPolicy: currentWorkspace.brandPolicy,
-      createdAt: currentWorkspace.createdAt,
-      updatedAt: currentWorkspace.updatedAt,
-    };
-  }, [currentWorkspace, hostResolution.workspaceSlug, workspaceSettingsMembership]);
+  }, [activeUser?.userId, atlasUserProfile, workspaceSession.activeWorkspace, workspaceSettingsRole]);
 
   // ── Session persistence: write journey + visitId to versioned cache ────────
   // These effects run whenever journey or activeVisitId changes, keeping the
@@ -1231,7 +1197,7 @@ function AppInner() {
   if (WORKSPACE_SETTINGS_HOME) {
     return (
       <WorkspaceSettingsPage
-        workspace={workspaceSettingsWorkspace}
+        workspace={workspaceSession.activeWorkspace}
         actingMembership={workspaceSettingsMembership}
         activeBrandSummary={{
           activeBrandId: workspaceBrandSession.activeBrandId,
@@ -1239,6 +1205,7 @@ function AppInner() {
           resolutionSource: workspaceBrandSession.resolutionSource,
         }}
         sessionStatus={workspaceSession.status}
+        onLocalApplySuccess={workspaceSession.refreshActiveWorkspace}
         onBack={() => {
           window.location.href = '/';
         }}
