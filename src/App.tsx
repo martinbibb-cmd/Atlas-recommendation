@@ -136,6 +136,7 @@ import {
 } from './lib/storage/persistedAtlasVisitV2';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
+import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -256,6 +257,15 @@ const ATLAS_CAPTURE_ENABLED =
 const SCAN_IMPORT_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('scan-import') === '1';
+
+/**
+ * Detect ?workspace-lifecycle-qa=1 — renders the workspace visit lifecycle
+ * QA harness for deterministic ownership/branding/export/follow-up validation.
+ * Dev-only surface; not customer-facing.
+ */
+const WORKSPACE_LIFECYCLE_QA_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('workspace-lifecycle-qa') === '1';
 
 /**
  * Detect ?scan-package=1 — renders the Atlas Scan package import flow.
@@ -1479,6 +1489,11 @@ function AppInner() {
   // ?scan-import=1 — render Scan Import Dev Harness for testing scan bundle ingestion.
   if (SCAN_IMPORT_ENABLED) {
     return <ScanImportHarness onBack={() => { window.location.href = window.location.pathname; }} />;
+  }
+
+  // ?workspace-lifecycle-qa=1 — deterministic workspace visit lifecycle QA harness.
+  if (WORKSPACE_LIFECYCLE_QA_ENABLED) {
+    return <WorkspaceVisitLifecycleHarness onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
   // ?handoff=1 — render canonical AtlasPropertyV1 handoff arrival page.

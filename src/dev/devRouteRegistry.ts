@@ -68,6 +68,13 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'WorkspaceVisitLifecycleHarness',
+    queryFlags: ['workspace-lifecycle-qa=1'],
+    fullRouteExample: '/?workspace-lifecycle-qa=1',
+    routeKind: 'query_flag',
+    access: 'dev_only',
+  },
+  {
     codeName: 'AtlasExplorerPage',
     queryFlags: ['explorer=1'],
     fullRouteExample: '/?explorer=1',
