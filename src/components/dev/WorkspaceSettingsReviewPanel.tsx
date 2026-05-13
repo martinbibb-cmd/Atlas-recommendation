@@ -57,6 +57,9 @@ export default function WorkspaceSettingsReviewPanel({
         currentJoinRequests,
       });
       setApplyResult(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setApplyResult({ ok: false, reason: `Unexpected error: ${message}` });
     } finally {
       setApplying(false);
     }

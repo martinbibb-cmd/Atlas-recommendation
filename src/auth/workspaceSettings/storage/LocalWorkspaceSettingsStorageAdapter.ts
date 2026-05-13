@@ -19,7 +19,7 @@
  *   grow beyond localStorage limits.  The adapter interface stays the same.
  */
 
-import type { WorkspaceMembershipV1 } from '../../profile';
+import type { AtlasWorkspaceV1, WorkspaceMembershipV1 } from '../../profile';
 import type { WorkspaceSettingsChangeSetV1 } from '../buildWorkspaceSettingsChangeSet';
 import {
   WORKSPACE_SETTINGS_SCHEMA_VERSION,
@@ -97,7 +97,9 @@ function buildUpdatedSnapshot(
   );
 
   // ── Build updated workspace record ───────────────────────────────────────
-  const updatedWorkspace = {
+  // Spread currentWorkspace to preserve identity fields (workspaceId, ownerUserId,
+  // createdAt) that are not part of the draft, then override the settable fields.
+  const updatedWorkspace: AtlasWorkspaceV1 = {
     ...currentWorkspace,
     name: draft.workspace.name.trim(),
     slug: draft.workspace.slug.trim(),
