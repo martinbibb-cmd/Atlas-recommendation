@@ -18,6 +18,8 @@
  * can be composed anywhere without layout side-effects.
  */
 
+import React from 'react';
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface WorkspaceSessionGuardProps {
