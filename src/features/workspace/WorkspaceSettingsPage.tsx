@@ -11,7 +11,14 @@ import {
   canManageBranding,
   canManageWorkspace,
 } from '../../auth/workspaceOnboarding';
-import WorkspaceOnboardingAdminPanel from '../../components/dev/WorkspaceOnboardingAdminPanel';
+import {
+  buildWorkspaceSettingsChangeSet,
+  type WorkspaceSettingsDraftV1,
+} from '../../auth/workspaceSettings';
+import WorkspaceOnboardingAdminPanel, {
+  type WorkspaceOnboardingDraftSnapshot,
+} from '../../components/dev/WorkspaceOnboardingAdminPanel';
+import WorkspaceSettingsReviewPanel from '../../components/dev/WorkspaceSettingsReviewPanel';
 import { listStoredBrandProfiles } from '../branding/brandProfileStore';
 
 export interface WorkspaceSettingsPageBrandSummary {
@@ -32,6 +39,11 @@ interface BrandPolicyDraft {
   readonly policy: WorkspaceBrandPolicy;
   readonly allowedBrandIds: readonly string[];
   readonly defaultBrandId: string;
+}
+
+interface WorkspaceIdentityDraft {
+  readonly name: string;
+  readonly slug: string;
 }
 
 const PAGE_STYLE: CSSProperties = {
@@ -210,9 +222,19 @@ function WorkspaceSettingsContent({
   const [storageDraft, setStorageDraft] = useState<WorkspaceStoragePreference>(
     workspace.storagePreference,
   );
+  const [workspaceIdentityDraft, setWorkspaceIdentityDraft] = useState<WorkspaceIdentityDraft>({
+    name: workspace.name,
+    slug: workspace.slug,
+  });
   const [brandPolicyDraft, setBrandPolicyDraft] = useState<BrandPolicyDraft>(() =>
     buildBrandPolicyDraft(workspace, activeBrandSummary),
   );
+  const [onboardingDraft, setOnboardingDraft] = useState<WorkspaceOnboardingDraftSnapshot>({
+    memberPermissionEdits: [],
+    inviteDrafts: [],
+    joinRequestDecisions: [],
+    pendingJoinRequests: [],
+  });
 
   const brandRegistry = useMemo(() => listStoredBrandProfiles(), []);
   const brandOptions = useMemo(() => {
@@ -261,6 +283,29 @@ function WorkspaceSettingsContent({
     brandRegistry[brandPolicyDraft.defaultBrandId]?.companyName ??
     workspace.defaultBrandId;
 
+  const workspaceSettingsDraft = useMemo<WorkspaceSettingsDraftV1>(
+    () => ({
+      workspaceId: workspace.workspaceId,
+      workspace: workspaceIdentityDraft,
+      brand: brandPolicyDraft,
+      storagePreference: storageDraft,
+      memberPermissionEdits: onboardingDraft.memberPermissionEdits,
+      inviteDrafts: onboardingDraft.inviteDrafts,
+      joinRequestDecisions: onboardingDraft.joinRequestDecisions,
+    }),
+    [brandPolicyDraft, onboardingDraft, storageDraft, workspace.workspaceId, workspaceIdentityDraft],
+  );
+
+  const workspaceSettingsChangeSet = useMemo(
+    () =>
+      buildWorkspaceSettingsChangeSet(workspaceSettingsDraft, {
+        workspace,
+        joinRequests: onboardingDraft.pendingJoinRequests,
+        googleDriveConnectorAvailable: false,
+      }),
+    [onboardingDraft.pendingJoinRequests, workspace, workspaceSettingsDraft],
+  );
+
   return (
     <div data-testid="workspace-settings-page" style={PAGE_STYLE}>
       <div style={{ maxWidth: 1120, margin: '0 auto' }}>
@@ -291,11 +336,45 @@ function WorkspaceSettingsContent({
             <dl style={{ margin: 0, display: 'grid', gap: '0.55rem' }}>
               <div>
                 <dt style={LABEL_STYLE}>Name</dt>
-                <dd data-testid="workspace-settings-active-workspace-name" style={{ margin: 0 }}>{workspace.name}</dd>
+                <dd style={{ margin: 0 }}>
+                  <div
+                    data-testid="workspace-settings-active-workspace-name"
+                    style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}
+                  >
+                    {workspaceIdentityDraft.name}
+                  </div>
+                  <input
+                    type="text"
+                    value={workspaceIdentityDraft.name}
+                    disabled={!canEditWorkspace}
+                    onChange={(event) =>
+                      setWorkspaceIdentityDraft((prev) => ({ ...prev, name: event.target.value }))
+                    }
+                    data-testid="workspace-settings-name-input"
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: 8, background: '#fff' }}
+                  />
+                </dd>
               </div>
               <div>
                 <dt style={LABEL_STYLE}>Slug</dt>
-                <dd data-testid="workspace-settings-active-workspace-slug" style={{ margin: 0, fontFamily: 'monospace' }}>{workspace.slug}</dd>
+                <dd style={{ margin: 0 }}>
+                  <div
+                    data-testid="workspace-settings-active-workspace-slug"
+                    style={{ fontSize: 12, color: '#64748b', marginBottom: 4, fontFamily: 'monospace' }}
+                  >
+                    {workspaceIdentityDraft.slug}
+                  </div>
+                  <input
+                    type="text"
+                    value={workspaceIdentityDraft.slug}
+                    disabled={!canEditWorkspace}
+                    onChange={(event) =>
+                      setWorkspaceIdentityDraft((prev) => ({ ...prev, slug: event.target.value }))
+                    }
+                    data-testid="workspace-settings-slug-input"
+                    style={{ width: '100%', padding: '0.45rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: 8, background: '#fff', fontFamily: 'monospace' }}
+                  />
+                </dd>
               </div>
               <div>
                 <dt style={LABEL_STYLE}>Members</dt>
@@ -437,7 +516,11 @@ function WorkspaceSettingsContent({
         <WorkspaceOnboardingAdminPanel
           actingMembership={resolvedMembership}
           workspace={workspace}
+          onDraftStateChange={setOnboardingDraft}
         />
+        <div style={{ marginTop: '1rem' }}>
+          <WorkspaceSettingsReviewPanel changeSet={workspaceSettingsChangeSet} />
+        </div>
       </div>
     </div>
   );

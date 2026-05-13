@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type {
   AtlasWorkspaceV1,
   WorkspaceMembershipV1,
@@ -125,7 +125,7 @@ describe('WorkspaceSettingsPage', () => {
   it('active workspace and brand are shown', () => {
     renderPage();
 
-    expect(screen.getByTestId('workspace-settings-active-workspace-name').textContent).toBe('Atlas Demo Workspace');
+    expect(screen.getByTestId('workspace-settings-name-input')).toHaveValue('Atlas Demo Workspace');
     expect(screen.getByTestId('workspace-settings-active-brand-name').textContent).toBe('Atlas');
   });
 
@@ -141,5 +141,43 @@ describe('WorkspaceSettingsPage', () => {
     expect(screen.getByTestId('workspace-settings-storage-select')).toHaveProperty('disabled', false);
     expect(screen.getByTestId('workspace-settings-brand-policy-locked')).toHaveProperty('disabled', false);
     expect(screen.getByTestId('send-invite-btn')).toBeTruthy();
+  });
+
+  it('approved join request without role is shown as blocker in review panel', () => {
+    renderPage();
+
+    fireEvent.click(screen.getByTestId('approve-request-req_002'));
+
+    expect(screen.getByText('Blockers (1)')).toBeTruthy();
+    expect(
+      screen.getByText('Cannot approve join request req_002 without assigning a role.'),
+    ).toBeTruthy();
+    expect(screen.getByTestId('workspace-settings-apply-changes')).toHaveProperty('disabled', true);
+  });
+
+  it('export JSON works from review panel', () => {
+    const createObjectURL = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:workspace-settings-change-set');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const clickMock = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const element = originalCreateElement(tagName);
+      if (tagName.toLowerCase() === 'a') {
+        Object.defineProperty(element, 'click', { value: clickMock });
+      }
+      return element;
+    });
+
+    renderPage();
+    fireEvent.click(screen.getByTestId('workspace-settings-export-change-set-json'));
+
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(clickMock).toHaveBeenCalledTimes(1);
+
+    createElementSpy.mockRestore();
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
   });
 });

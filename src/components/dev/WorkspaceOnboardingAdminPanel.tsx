@@ -17,7 +17,7 @@
  *   - No email sending, no real backend.
  */
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { WorkspaceJoinRequestV1 } from '../../auth/workspaceOnboarding/WorkspaceJoinRequestV1';
 import type { WorkspaceInviteV1 } from '../../auth/workspaceOnboarding/WorkspaceInviteV1';
 import type { WorkspaceMemberPermissionDraftV1 } from '../../auth/workspaceOnboarding/WorkspaceMemberPermissionDraftV1';
@@ -138,6 +138,28 @@ interface Props {
 
   /** Workspace metadata (used for display and as context for guard helpers). */
   workspace: AtlasWorkspaceV1;
+
+  /** Optional callback used by workspace settings to review unsaved draft changes. */
+  onDraftStateChange?: (snapshot: WorkspaceOnboardingDraftSnapshot) => void;
+}
+
+export interface WorkspaceOnboardingDraftSnapshot {
+  readonly memberPermissionEdits: readonly {
+    readonly userId: string;
+    readonly role: WorkspaceMemberRole;
+    readonly permissions: readonly WorkspaceMemberPermission[];
+  }[];
+  readonly inviteDrafts: readonly {
+    readonly email: string;
+    readonly role: WorkspaceMemberRole;
+    readonly permissions: readonly WorkspaceMemberPermission[];
+  }[];
+  readonly joinRequestDecisions: readonly {
+    readonly requestId: string;
+    readonly decision: 'approved' | 'rejected';
+    readonly role?: WorkspaceMemberRole;
+  }[];
+  readonly pendingJoinRequests: readonly WorkspaceJoinRequestV1[];
 }
 
 // ─── Seed data ────────────────────────────────────────────────────────────────
@@ -192,7 +214,11 @@ function PermissionCheckboxGrid({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function WorkspaceOnboardingAdminPanel({ actingMembership, workspace }: Props) {
+export default function WorkspaceOnboardingAdminPanel({
+  actingMembership,
+  workspace,
+  onDraftStateChange,
+}: Props) {
   // ── Join requests ────────────────────────────────────────────────────────────
   const [requests, setRequests] = useState<WorkspaceJoinRequestV1[]>(SEED_REQUESTS);
   const [requestNotes, setRequestNotes] = useState<Record<string, string>>({});
@@ -294,8 +320,41 @@ export default function WorkspaceOnboardingAdminPanel({ actingMembership, worksp
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
-  const pendingRequests = requests.filter((r) => r.status === 'pending');
-  const reviewedRequests = requests.filter((r) => r.status !== 'pending');
+  const pendingRequests = useMemo(
+    () => requests.filter((request) => request.status === 'pending'),
+    [requests],
+  );
+  const reviewedRequests = useMemo(
+    () => requests.filter((request) => request.status !== 'pending'),
+    [requests],
+  );
+
+  useEffect(() => {
+    if (!onDraftStateChange) return;
+
+    onDraftStateChange({
+      memberPermissionEdits: Object.entries(memberDrafts).map(([userId, memberDraft]) => ({
+        userId,
+        role: memberDraft.role,
+        permissions: extractPermissionsFromDraft(memberDraft),
+      })),
+      inviteDrafts: invites
+        .filter((invite) => invite.status === 'pending')
+        .map((invite) => ({
+          email: invite.email,
+          role: invite.role,
+          permissions: invite.permissions,
+        })),
+      joinRequestDecisions: requests
+        .filter((request) => request.status === 'approved' || request.status === 'rejected')
+        .map((request) => ({
+          requestId: request.requestId,
+          decision: request.status === 'approved' ? 'approved' : 'rejected',
+          role: request.requestedRole,
+        })),
+      pendingJoinRequests: pendingRequests,
+    });
+  }, [invites, memberDrafts, onDraftStateChange, pendingRequests, requests]);
 
   return (
     <section data-testid="workspace-onboarding-admin-panel">
