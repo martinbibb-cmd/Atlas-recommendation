@@ -15,6 +15,8 @@
  * - No direct sessionStorage writes here — caller owns persistence via
  *   VisitProvider / visitStore.
  * - Workspace selection drives brandId via resolveActiveTenant().
+ * - When WorkspaceBrandSessionProvider is present, the resolved activeBrandId
+ *   is used directly as the visit brand so the session and visit are consistent.
  */
 
 import { useContext, useState } from 'react';
@@ -27,6 +29,7 @@ import { trackVisitCreated } from '../analytics/analyticsTracker';
 import { useActiveUser } from '../userProfiles/useActiveUser';
 import { AtlasAuthContext } from '../../auth/AtlasAuthContext';
 import { useWorkspaceSession } from '../../auth/profile';
+import { useOptionalWorkspaceBrandSession } from '../../auth/brand/WorkspaceBrandSessionProvider';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +76,7 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
   const userProfile = authContext?.userProfile ?? null;
   const currentWorkspace = authContext?.currentWorkspace ?? null;
   const workspaceSession = useWorkspaceSession();
+  const brandSession = useOptionalWorkspaceBrandSession();
 
   // Workspace default priority: explicit prop (host workspace) > active user default > 'atlas'
   const resolvedDefaultSlug = defaultWorkspaceSlug ?? activeUser?.defaultWorkspaceSlug ?? 'atlas';
@@ -100,7 +104,9 @@ export function StartVisitPanel({ onStart, onCancel, defaultWorkspaceSlug, onCre
       };
       const { id } = await createVisit(opts);
       const tenant = resolveActiveTenant({ workspaceSlug });
-      const visit = createAtlasVisit(id, tenant.brandId, activeUser?.userId, {
+      // Use the session-resolved brand when available; fall back to tenant brand.
+      const resolvedBrandId = brandSession?.activeBrandId ?? tenant.brandId;
+      const visit = createAtlasVisit(id, resolvedBrandId, activeUser?.userId, {
         atlasUserId: workspaceSession.status === 'workspace_active' ? userProfile?.atlasUserId : undefined,
         workspaceId: workspaceSession.status === 'workspace_active' ? currentWorkspace?.workspaceId : undefined,
         storageTarget: workspaceSession.storageTarget,

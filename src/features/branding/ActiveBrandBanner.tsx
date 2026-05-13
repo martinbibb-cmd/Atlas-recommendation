@@ -7,6 +7,8 @@
  *   - Brand logo (when logoUrl is present on the profile)
  *   - Company name
  *   - "Atlas workspace" sub-label
+ *   - Workspace name (when workspace brand session is available)
+ *   - Resolution source badge (workspace default / user preference / route override)
  *   - brandId (developer mode only — import.meta.env.DEV)
  *
  * Uses useOptionalBrandProfile() so it renders nothing when placed outside a
@@ -22,7 +24,17 @@
 
 import { useOptionalBrandProfile } from './useBrandProfile';
 import { BrandLogo } from './BrandLogo';
+import { useOptionalWorkspaceBrandSession } from '../../auth/brand/WorkspaceBrandSessionProvider';
 import './brandTheme.css';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const RESOLUTION_SOURCE_LABELS: Record<string, string> = {
+  workspace_default: 'workspace default',
+  user_preference: 'user preference',
+  route_override: 'route override',
+  atlas_default: 'Atlas default',
+};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -51,10 +63,15 @@ interface ActiveBrandBannerProps {
  */
 export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBannerProps = {}) {
   const profile = useOptionalBrandProfile();
+  const brandSession = useOptionalWorkspaceBrandSession();
 
   if (profile === null) {
     return null;
   }
+
+  const workspaceName = brandSession?.activeWorkspace?.name;
+  const resolutionSource = brandSession?.resolutionSource;
+  const resolutionLabel = resolutionSource ? RESOLUTION_SOURCE_LABELS[resolutionSource] : undefined;
 
   return (
     <div
@@ -72,6 +89,15 @@ export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBann
       }}
     >
       <BrandLogo />
+      {workspaceName !== undefined && (
+        <span
+          className="active-brand-banner__workspace-name"
+          data-testid="active-brand-banner-workspace-name"
+          style={{ color: '#64748b' }}
+        >
+          {workspaceName}:
+        </span>
+      )}
       <span
         className="active-brand-banner__name"
         data-testid="active-brand-banner-name"
@@ -103,6 +129,23 @@ export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBann
           {workspaceSlug}
         </span>
       )}
+      {resolutionLabel !== undefined && (
+        <span
+          className="active-brand-banner__resolution-source"
+          data-testid="active-brand-banner-resolution-source"
+          style={{
+            marginLeft: '0.25rem',
+            fontFamily: 'monospace',
+            fontSize: '0.6875rem',
+            color: '#1e40af',
+            background: '#dbeafe',
+            padding: '1px 6px',
+            borderRadius: 4,
+          }}
+        >
+          {resolutionLabel}
+        </span>
+      )}
       {import.meta.env.DEV && (
         <span
           className="active-brand-banner__dev-id"
@@ -124,3 +167,4 @@ export function ActiveBrandBanner({ workspaceSlug, hostSource }: ActiveBrandBann
     </div>
   );
 }
+

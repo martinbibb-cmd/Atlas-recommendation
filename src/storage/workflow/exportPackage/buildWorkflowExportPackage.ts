@@ -7,6 +7,7 @@ import {
 } from './WorkflowExportPackageV1';
 import type { WorkflowStorageTarget } from '../WorkflowStorageAdapterV1';
 import type { AtlasVisitOwnershipV1 } from '../../../auth/profile/AtlasVisitOwnershipV1';
+import type { BrandResolutionSource } from '../../../auth/brand/resolveBrandForWorkspace';
 
 interface BuildWorkflowExportPackageInput {
   readonly payload: WorkflowExportPackagePayloadV1;
@@ -22,6 +23,16 @@ interface BuildWorkflowExportPackageInput {
    * travels with the package.  Absent for unowned / demo-mode visits.
    */
   readonly ownership?: AtlasVisitOwnershipV1;
+  /**
+   * Resolved brand session context at export time.
+   * When provided, the active brand ID and resolution source are embedded in
+   * the manifest so PDF/portal/workflow replay can restore the correct brand.
+   * Absent for demo-mode / unauthenticated visits.
+   */
+  readonly brandSession?: {
+    readonly activeBrandId: string;
+    readonly resolutionSource: BrandResolutionSource;
+  };
 }
 
 function dateStamp(iso: string): string {
@@ -66,6 +77,7 @@ export function buildWorkflowExportPackage({
   exportedAt = new Date().toISOString(),
   folderName = buildWorkflowExportFolderName(payload.workflowState.visitReference, exportedAt),
   ownership,
+  brandSession,
 }: BuildWorkflowExportPackageInput): WorkflowExportPackageV1 {
   const manifest: WorkflowExportPackageManifestV1 = {
     schema: WORKFLOW_EXPORT_PACKAGE_SCHEMA,
@@ -78,6 +90,7 @@ export function buildWorkflowExportPackage({
     visitReference: payload.workflowState.visitReference,
     folderName,
     ...(ownership !== undefined ? { ownership } : {}),
+    ...(brandSession !== undefined ? { brandSession } : {}),
   };
 
   return {
