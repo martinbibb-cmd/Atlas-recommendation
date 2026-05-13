@@ -7,6 +7,12 @@ export interface TrialReadinessActionReviewStateV1 {
   readonly updatedAt: string;
 }
 
+function normalizeReviewerNote(reviewerNote: string | undefined): string | undefined {
+  if (!reviewerNote) return undefined;
+  const normalized = reviewerNote.trim();
+  return normalized.length === 0 ? undefined : normalized;
+}
+
 export function updateTrialReadinessActionStatus(
   reviewState: readonly TrialReadinessActionReviewStateV1[],
   actionId: string,
@@ -17,7 +23,7 @@ export function updateTrialReadinessActionStatus(
   const nextEntry: TrialReadinessActionReviewStateV1 = {
     actionId,
     status,
-    reviewerNote: existing?.reviewerNote,
+    reviewerNote: normalizeReviewerNote(existing?.reviewerNote),
     updatedAt,
   };
 
@@ -35,11 +41,10 @@ export function addTrialReadinessActionNote(
   updatedAt: string,
 ): readonly TrialReadinessActionReviewStateV1[] {
   const existing = reviewState.find((entry) => entry.actionId === actionId);
-  const normalizedNote = reviewerNote.trim();
   const nextEntry: TrialReadinessActionReviewStateV1 = {
     actionId,
     status: existing?.status ?? 'open',
-    reviewerNote: normalizedNote.length === 0 ? undefined : normalizedNote,
+    reviewerNote: normalizeReviewerNote(reviewerNote),
     updatedAt,
   };
 
