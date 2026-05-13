@@ -139,7 +139,7 @@ export default function WorkflowStorageModeSelector({ workflowState, onLoad }: P
       a.href = url;
       a.download = `atlas-workflow-${workflowState.visitReference}.json`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
       setStatus({ kind: 'success', text: 'Export downloaded.' });
     } else {
       setStatus({ kind: 'error', text: `Export failed: ${result.reason}` });
