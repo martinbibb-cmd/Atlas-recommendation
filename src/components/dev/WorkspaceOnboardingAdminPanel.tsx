@@ -41,6 +41,10 @@ import type { AtlasWorkspaceV1 } from '../../auth/profile/AtlasWorkspaceV1';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const MS_PER_HOUR = 3_600_000;
+const INVITE_EXPIRY_DAYS = 7;
+const INVITE_EXPIRY_MS = INVITE_EXPIRY_DAYS * 24 * MS_PER_HOUR;
+
 const ALL_ROLES: readonly WorkspaceMemberRole[] = [
   'owner',
   'admin',
@@ -243,7 +247,7 @@ export default function WorkspaceOnboardingAdminPanel({ actingMembership, worksp
   function handleSendInvite() {
     if (!inviteEmail.trim()) return;
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 7 * 24 * 3_600_000).toISOString();
+    const expiresAt = new Date(now.getTime() + INVITE_EXPIRY_MS).toISOString();
     const invite: WorkspaceInviteV1 = {
       inviteId: `inv_${Date.now()}`,
       workspaceId: workspace.workspaceId,
@@ -288,7 +292,8 @@ export default function WorkspaceOnboardingAdminPanel({ actingMembership, worksp
 
   function handleMemberPermToggle(userId: string, p: WorkspaceMemberPermission) {
     setMemberDrafts((prev) => {
-      const current = prev[userId] ?? applyRolePresetToDraft(userId, workspace.workspaceId, workspace.members.find((m) => m.userId === userId)?.role ?? 'viewer');
+      const existingRole = workspace.members.find((m) => m.userId === userId)?.role ?? 'viewer';
+      const current = prev[userId] ?? applyRolePresetToDraft(userId, workspace.workspaceId, existingRole);
       return { ...prev, [userId]: togglePermissionInDraft(current, p) };
     });
   }
