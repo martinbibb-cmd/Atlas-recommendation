@@ -39,7 +39,7 @@ export function addTrialReadinessActionNote(
   const nextEntry: TrialReadinessActionReviewStateV1 = {
     actionId,
     status: existing?.status ?? 'open',
-    reviewerNote: normalizedNote.length === 0 ? undefined : reviewerNote,
+    reviewerNote: normalizedNote.length === 0 ? undefined : normalizedNote,
     updatedAt,
   };
 
