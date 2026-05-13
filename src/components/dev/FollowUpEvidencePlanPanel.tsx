@@ -5,6 +5,8 @@ import type { FollowUpEvidenceCapturePlanV1 } from '../../specification/followUp
 interface Props {
   plan: FollowUpEvidenceCapturePlanV1;
   engineerJobPack: EngineerJobPackV1;
+  capturedEvidenceIds?: readonly string[];
+  onToggleCaptured?: (evidenceId: string) => void;
 }
 
 function badge(text: string, background: string, color = '#0f172a') {
@@ -24,7 +26,13 @@ function badge(text: string, background: string, color = '#0f172a') {
   );
 }
 
-export default function FollowUpEvidencePlanPanel({ plan, engineerJobPack }: Props) {
+export default function FollowUpEvidencePlanPanel({
+  plan,
+  engineerJobPack,
+  capturedEvidenceIds = [],
+  onToggleCaptured,
+}: Props) {
+  const capturedSet = useMemo(() => new Set(capturedEvidenceIds), [capturedEvidenceIds]);
   const taskById = useMemo(
     () => new Map(plan.tasks.map((task) => [task.taskId, task])),
     [plan.tasks],
@@ -78,6 +86,7 @@ export default function FollowUpEvidencePlanPanel({ plan, engineerJobPack }: Pro
       ) : (
         <div style={{ display: 'grid', gap: '0.5rem' }}>
           {allEvidence.map((item) => {
+            const captured = capturedSet.has(item.evidenceId);
             const firstTask = taskById.get(item.taskIds[0] ?? '');
             const heading = firstTask ? `Evidence for: ${firstTask.title}` : `Evidence: ${item.evidenceId}`;
             const locationEvidence = firstTask?.relatedLocationIds
@@ -89,7 +98,14 @@ export default function FollowUpEvidencePlanPanel({ plan, engineerJobPack }: Pro
             return (
               <article
                 key={item.evidenceId}
-                style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.6rem', background: '#f8fafc' }}
+                style={{
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 8,
+                  padding: '0.6rem',
+                  background: '#f8fafc',
+                  opacity: captured ? 0.6 : 1,
+                  transition: 'opacity 180ms ease, transform 180ms ease',
+                }}
                 data-testid={`follow-up-evidence-card-${item.evidenceId}`}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
@@ -97,48 +113,78 @@ export default function FollowUpEvidencePlanPanel({ plan, engineerJobPack }: Pro
                   <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                     {badge(item.required ? 'required' : 'optional', item.required ? '#fee2e2' : '#e2e8f0')}
                     {badge(item.evidenceType, '#dbeafe', '#1e3a8a')}
+                    {captured ? badge('captured', '#dcfce7', '#166534') : null}
                   </div>
                 </div>
 
-                {item.taskIds.length > 0 ? (
-                  <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
-                    <strong>Task → evidence required:</strong>{' '}
-                    {item.taskIds.map((taskId, index) => {
-                      const linkedTask = taskById.get(taskId);
-                      return (
-                        <span key={taskId}>
-                          {index > 0 ? ', ' : ''}
-                          {taskId}
-                          {linkedTask ? ` (${linkedTask.title})` : ''}
-                        </span>
-                      );
-                    })}
-                  </p>
-                ) : null}
-
-                {item.acceptanceCriteria.length > 0 ? (
-                  <div style={{ marginBottom: '0.25rem' }}>
-                    <p style={{ margin: '0 0 0.1rem', fontSize: 11, color: '#334155' }}>
-                      <strong>Acceptance criteria:</strong>
-                    </p>
-                    <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: 11, color: '#475569' }}>
-                      {item.acceptanceCriteria.map((criterion) => (
-                        <li key={criterion}>{criterion}</li>
-                      ))}
-                    </ul>
+                {onToggleCaptured ? (
+                  <div style={{ marginBottom: '0.35rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => onToggleCaptured(item.evidenceId)}
+                      style={{
+                        border: '1px solid #cbd5e1',
+                        borderRadius: 999,
+                        padding: '0.2rem 0.55rem',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                        background: captured ? '#f8fafc' : '#ecfeff',
+                        color: captured ? '#334155' : '#155e75',
+                      }}
+                      data-testid={`follow-up-evidence-capture-toggle-${item.evidenceId}`}
+                    >
+                      {captured ? 'Mark uncaptured' : 'Mark evidence captured'}
+                    </button>
                   </div>
                 ) : null}
 
-                {locationLabel ? (
-                  <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
-                    <strong>Location/confidence:</strong> {locationLabel}
-                    {locationConfidence ? ` (${locationConfidence})` : ''}
-                  </p>
-                ) : null}
+                {!captured ? (
+                  <>
+                    {item.taskIds.length > 0 ? (
+                      <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
+                        <strong>Task → evidence required:</strong>{' '}
+                        {item.taskIds.map((taskId, index) => {
+                          const linkedTask = taskById.get(taskId);
+                          return (
+                            <span key={taskId}>
+                              {index > 0 ? ', ' : ''}
+                              {taskId}
+                              {linkedTask ? ` (${linkedTask.title})` : ''}
+                            </span>
+                          );
+                        })}
+                      </p>
+                    ) : null}
 
-                <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>
-                  <strong>Atlas Scan prompt:</strong> {item.prompt}
-                </p>
+                    {item.acceptanceCriteria.length > 0 ? (
+                      <div style={{ marginBottom: '0.25rem' }}>
+                        <p style={{ margin: '0 0 0.1rem', fontSize: 11, color: '#334155' }}>
+                          <strong>Acceptance criteria:</strong>
+                        </p>
+                        <ul style={{ margin: 0, paddingLeft: '1rem', fontSize: 11, color: '#475569' }}>
+                          {item.acceptanceCriteria.map((criterion) => (
+                            <li key={criterion}>{criterion}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+
+                    {locationLabel ? (
+                      <p style={{ margin: '0 0 0.25rem', fontSize: 11, color: '#475569' }}>
+                        <strong>Location/confidence:</strong> {locationLabel}
+                        {locationConfidence ? ` (${locationConfidence})` : ''}
+                      </p>
+                    ) : null}
+
+                    <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>
+                      <strong>Atlas Scan prompt:</strong> {item.prompt}
+                    </p>
+                  </>
+                ) : (
+                  <p style={{ margin: 0, fontSize: 11, color: '#166534' }}>
+                    Evidence item collapsed after simulated capture.
+                  </p>
+                )}
               </article>
             );
           })}

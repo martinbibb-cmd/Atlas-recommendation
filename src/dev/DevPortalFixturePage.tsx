@@ -214,6 +214,12 @@ const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder
 const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
 const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
 const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
+const INSTALLER_BLOCKING_REASON_PATTERNS: readonly RegExp[] = [
+  /^Safety\/compliance check unresolved:/i,
+  /^Installer validation unresolved:/i,
+  /^Heat pump emitter review unresolved:/i,
+  /^Unknown location in /i,
+];
 // Contract pipe diameters are normalized to standard primary sizes.
 const PIPE_SIZE_THRESHOLD_35MM = 35;
 const PIPE_SIZE_THRESHOLD_28MM = 28;
@@ -322,9 +328,17 @@ interface WorkflowStepProps {
   testId: string;
   children: React.ReactNode;
   defaultExpanded?: boolean;
+  complete?: boolean;
 }
 
-function WorkflowStep({ stepNumber, title, testId, children, defaultExpanded = true }: WorkflowStepProps) {
+function WorkflowStep({
+  stepNumber,
+  title,
+  testId,
+  children,
+  defaultExpanded = true,
+  complete = false,
+}: WorkflowStepProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   return (
     <div
@@ -352,6 +366,21 @@ function WorkflowStep({ stepNumber, title, testId, children, defaultExpanded = t
       >
         <span style={{ color: '#64748b', fontSize: '0.8rem', minWidth: '1.4rem' }}>{stepNumber}.</span>
         <span style={{ flex: 1 }}>{title}</span>
+        {complete ? (
+          <span
+            style={{
+              borderRadius: 999,
+              padding: '0.1rem 0.45rem',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              background: '#dcfce7',
+              color: '#166534',
+            }}
+            data-testid={`${testId}-complete`}
+          >
+            Complete ✓
+          </span>
+        ) : null}
         <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{expanded ? '▲' : '▼'}</span>
       </button>
       {expanded ? (
@@ -377,6 +406,11 @@ interface ActiveFixture {
     specificationLines: SpecificationLineV1[];
     scopePacks: InstallationScopePackV1[];
     materialsSchedule: SuggestedMaterialLineV1[];
+    resolutionSimulation: {
+      resolvedTaskIds: string[];
+      capturedEvidenceIds: string[];
+      resolvedDependencyIds: string[];
+    };
   };
 }
 
@@ -557,6 +591,11 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           specificationLines,
           scopePacks,
           materialsSchedule,
+          resolutionSimulation: {
+            resolvedTaskIds: [],
+            capturedEvidenceIds: [],
+            resolvedDependencyIds: [],
+          },
         },
       });
       return;
@@ -766,7 +805,13 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         throw new Error(`Missing implementation review state for fixture: ${active.fixture.id}`);
       }
 
-      const { implementationPack, specificationLines, scopePacks, materialsSchedule } = reviewState;
+      const {
+        implementationPack,
+        specificationLines,
+        scopePacks,
+        materialsSchedule,
+        resolutionSimulation,
+      } = reviewState;
       const scopePackHandover = buildScopePackHandover(
         scopePacks,
         specificationLines,
@@ -801,15 +846,102 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       );
       const followUpScanHandoff = buildFollowUpScanHandoff(followUpEvidencePlan);
       const scanHandoffEnvelopePreview = buildScanHandoffEnvelopePreview(followUpScanHandoff);
+      const resolvedTaskSet = new Set(resolutionSimulation.resolvedTaskIds);
+      const capturedEvidenceSet = new Set(resolutionSimulation.capturedEvidenceIds);
+      const resolvedDependencySet = new Set(resolutionSimulation.resolvedDependencyIds);
 
-      const blockerCount = specificationReadiness.blockingReasons.length;
-      const scanCount = followUpEvidencePlan.requiredEvidence.length;
+      const requiredEvidenceByTask = new Map<string, string[]>();
+      for (const evidenceItem of followUpEvidencePlan.requiredEvidence) {
+        for (const taskId of evidenceItem.taskIds) {
+          const existing = requiredEvidenceByTask.get(taskId) ?? [];
+          existing.push(evidenceItem.evidenceId);
+          requiredEvidenceByTask.set(taskId, existing);
+        }
+      }
+
+      const dependencyByTask = new Map<string, string[]>();
+      for (const dependency of followUpScanHandoff.unresolvedDependencies) {
+        for (const taskId of dependency.linkedTaskIds) {
+          const existing = dependencyByTask.get(taskId) ?? [];
+          existing.push(dependency.dependencyId);
+          dependencyByTask.set(taskId, existing);
+        }
+      }
+
+      const isTaskCompletelyResolved = (taskId: string): boolean => {
+        if (resolvedTaskSet.has(taskId)) return true;
+        const requiredEvidenceIds = requiredEvidenceByTask.get(taskId) ?? [];
+        if (requiredEvidenceIds.length === 0) return false;
+        const hasAllRequiredEvidence = requiredEvidenceIds.every((evidenceId) => capturedEvidenceSet.has(evidenceId));
+        if (!hasAllRequiredEvidence) return false;
+        const dependencyIds = dependencyByTask.get(taskId) ?? [];
+        return dependencyIds.every((dependencyId) => resolvedDependencySet.has(dependencyId));
+      };
+
+      const simulatedTasks = surveyFollowUpTasks.map((task) => ({
+        ...task,
+        resolved: isTaskCompletelyResolved(task.taskId),
+      }));
+
+      const blockerTaskIdsByReason = new Map<string, string[]>();
+      for (const task of surveyFollowUpTasks) {
+        if (!task.description.startsWith('Readiness blocker: ')) continue;
+        const reason = task.description.replace(/^Readiness blocker:\s*/, '');
+        const existing = blockerTaskIdsByReason.get(reason) ?? [];
+        existing.push(task.taskId);
+        blockerTaskIdsByReason.set(reason, existing);
+      }
+
+      const simulatedBlockingReasons = specificationReadiness.blockingReasons.filter((reason) => {
+        const linkedTaskIds = blockerTaskIdsByReason.get(reason);
+        if (!linkedTaskIds || linkedTaskIds.length === 0) return true;
+        return linkedTaskIds.some((taskId) => !isTaskCompletelyResolved(taskId));
+      });
+
+      const simulatedUnresolvedDependencies = followUpScanHandoff.unresolvedDependencies.filter(
+        (dependency) => !resolvedDependencySet.has(dependency.dependencyId),
+      );
+
+      const simulatedReadiness = {
+        ...specificationReadiness,
+        readyForOfficeReview: simulatedBlockingReasons.length === 0,
+        readyForInstallerHandover: !simulatedBlockingReasons.some((reason) => INSTALLER_BLOCKING_REASON_PATTERNS
+          .some((pattern) => pattern.test(reason)),
+        ),
+        readyForMaterialsOrdering: !simulatedBlockingReasons.some((reason) =>
+          /^Material needs survey confirmation:/i.test(reason),
+        ),
+        blockingReasons: simulatedBlockingReasons,
+      };
+
+      const simulatedEvidencePlan = {
+        ...followUpEvidencePlan,
+        tasks: simulatedTasks,
+        unresolvedAfterCapture: simulatedUnresolvedDependencies.flatMap((dependency) => dependency.linkedTaskIds),
+      };
+      const unresolvedTaskCount = simulatedTasks.filter((task) => !task.resolved).length;
+      const requiredEvidenceTotal = followUpEvidencePlan.requiredEvidence.length;
+      const capturedRequiredEvidenceCount = followUpEvidencePlan.requiredEvidence
+        .filter((evidence) => capturedEvidenceSet.has(evidence.evidenceId)).length;
+      const blockerResolvedCount = specificationReadiness.blockingReasons.length - simulatedBlockingReasons.length;
+      const baseReadyGateCount = Number(specificationReadiness.readyForOfficeReview)
+        + Number(specificationReadiness.readyForInstallerHandover)
+        + Number(specificationReadiness.readyForMaterialsOrdering);
+      const simulatedReadyGateCount = Number(simulatedReadiness.readyForOfficeReview)
+        + Number(simulatedReadiness.readyForInstallerHandover)
+        + Number(simulatedReadiness.readyForMaterialsOrdering);
+
+      const blockerCount = simulatedReadiness.blockingReasons.length;
+      const scanCount = requiredEvidenceTotal - capturedRequiredEvidenceCount;
+      const unresolvedDependencyCount = simulatedUnresolvedDependencies.length;
       const nextActionMessage =
         blockerCount > 0
           ? 'Complete follow-up tasks first'
           : scanCount > 0
             ? 'Capture missing evidence'
-            : 'Ready for office review';
+            : unresolvedDependencyCount > 0
+              ? 'Confirm qualification/customer dependencies'
+              : 'Ready for office review';
 
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }} data-testid="dev-implementation-pack-shell">
@@ -852,48 +984,57 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                     borderRadius: 999,
                     padding: '0.15rem 0.55rem',
                     fontWeight: 600,
-                    background: specificationReadiness.readyForOfficeReview ? '#dcfce7' : '#fee2e2',
-                    color: specificationReadiness.readyForOfficeReview ? '#166534' : '#991b1b',
+                    background: simulatedReadiness.readyForOfficeReview ? '#dcfce7' : '#fee2e2',
+                    color: simulatedReadiness.readyForOfficeReview ? '#166534' : '#991b1b',
                   }}
                   data-testid="dev-workflow-summary-office-ready"
                 >
-                  Office {specificationReadiness.readyForOfficeReview ? '✓' : '✗'}
+                  Office {simulatedReadiness.readyForOfficeReview ? '✓' : '✗'}
                 </span>
                 <span
                   style={{
                     borderRadius: 999,
                     padding: '0.15rem 0.55rem',
                     fontWeight: 600,
-                    background: specificationReadiness.readyForInstallerHandover ? '#dcfce7' : '#fee2e2',
-                    color: specificationReadiness.readyForInstallerHandover ? '#166534' : '#991b1b',
+                    background: simulatedReadiness.readyForInstallerHandover ? '#dcfce7' : '#fee2e2',
+                    color: simulatedReadiness.readyForInstallerHandover ? '#166534' : '#991b1b',
                   }}
                   data-testid="dev-workflow-summary-installer-ready"
                 >
-                  Installer {specificationReadiness.readyForInstallerHandover ? '✓' : '✗'}
+                  Installer {simulatedReadiness.readyForInstallerHandover ? '✓' : '✗'}
                 </span>
                 <span
                   style={{
                     borderRadius: 999,
                     padding: '0.15rem 0.55rem',
                     fontWeight: 600,
-                    background: specificationReadiness.readyForMaterialsOrdering ? '#dcfce7' : '#fee2e2',
-                    color: specificationReadiness.readyForMaterialsOrdering ? '#166534' : '#991b1b',
+                    background: simulatedReadiness.readyForMaterialsOrdering ? '#dcfce7' : '#fee2e2',
+                    color: simulatedReadiness.readyForMaterialsOrdering ? '#166534' : '#991b1b',
                   }}
                   data-testid="dev-workflow-summary-materials-ready"
                 >
-                  Materials {specificationReadiness.readyForMaterialsOrdering ? '✓' : '✗'}
+                  Materials {simulatedReadiness.readyForMaterialsOrdering ? '✓' : '✗'}
                 </span>
                 <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
-                  Blockers: <strong data-testid="dev-workflow-summary-blocker-count">{specificationReadiness.blockingReasons.length}</strong>
+                  Blockers: <strong data-testid="dev-workflow-summary-blocker-count">{simulatedReadiness.blockingReasons.length}</strong>
                 </span>
                 <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
-                  Follow-ups: <strong data-testid="dev-workflow-summary-follow-up-count">{surveyFollowUpTasks.length}</strong>
+                  Follow-ups: <strong data-testid="dev-workflow-summary-follow-up-count">{unresolvedTaskCount}</strong>
                 </span>
                 <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
-                  Scan items: <strong data-testid="dev-workflow-summary-scan-capture-count">{followUpEvidencePlan.requiredEvidence.length}</strong>
+                  Scan items: <strong data-testid="dev-workflow-summary-scan-capture-count">{scanCount}</strong>
                 </span>
                 <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
-                  Unresolved: <strong data-testid="dev-workflow-summary-unresolved-count">{followUpEvidencePlan.unresolvedAfterCapture.length}</strong>
+                  Unresolved: <strong data-testid="dev-workflow-summary-unresolved-count">{simulatedUnresolvedDependencies.length}</strong>
+                </span>
+                <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
+                  Blockers resolved: <strong data-testid="dev-workflow-summary-blockers-resolved">{blockerResolvedCount}/{specificationReadiness.blockingReasons.length}</strong>
+                </span>
+                <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
+                  Evidence captured: <strong data-testid="dev-workflow-summary-evidence-captured">{capturedRequiredEvidenceCount}/{requiredEvidenceTotal}</strong>
+                </span>
+                <span style={{ background: '#f1f5f9', borderRadius: 999, padding: '0.15rem 0.55rem' }}>
+                  Readiness gates: <strong data-testid="dev-workflow-summary-readiness-progression">{baseReadyGateCount}/3 → {simulatedReadyGateCount}/3</strong>
                 </span>
               </div>
             </section>
@@ -905,9 +1046,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 padding: '0.65rem 0.75rem',
                 fontWeight: 600,
                 fontSize: '0.88rem',
-                background: blockerCount > 0 ? '#fef2f2' : scanCount > 0 ? '#fffbeb' : '#f0fdf4',
-                color: blockerCount > 0 ? '#991b1b' : scanCount > 0 ? '#92400e' : '#166534',
-                border: `1px solid ${blockerCount > 0 ? '#fecaca' : scanCount > 0 ? '#fde68a' : '#bbf7d0'}`,
+                background: blockerCount > 0 ? '#fef2f2' : scanCount > 0 || unresolvedDependencyCount > 0 ? '#fffbeb' : '#f0fdf4',
+                color: blockerCount > 0 ? '#991b1b' : scanCount > 0 || unresolvedDependencyCount > 0 ? '#92400e' : '#166534',
+                border: `1px solid ${blockerCount > 0 ? '#fecaca' : scanCount > 0 || unresolvedDependencyCount > 0 ? '#fde68a' : '#bbf7d0'}`,
               }}
               data-testid="dev-workflow-next-action"
             >
@@ -915,28 +1056,101 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
             </div>
 
             {/* ── Step 1: Readiness ────────────────────────────────────────── */}
-            <WorkflowStep stepNumber={1} title="Readiness" testId="dev-workflow-step-readiness">
-              <SpecificationReadinessPanel readiness={specificationReadiness} />
+            <WorkflowStep
+              stepNumber={1}
+              title="Readiness"
+              testId="dev-workflow-step-readiness"
+              complete={simulatedReadiness.blockingReasons.length === 0}
+            >
+              <SpecificationReadinessPanel readiness={simulatedReadiness} />
             </WorkflowStep>
 
             {/* ── Step 2: Follow-up tasks ──────────────────────────────────── */}
-            <WorkflowStep stepNumber={2} title="Follow-up tasks" testId="dev-workflow-step-follow-up-tasks">
+            <WorkflowStep
+              stepNumber={2}
+              title="Follow-up tasks"
+              testId="dev-workflow-step-follow-up-tasks"
+              complete={unresolvedTaskCount === 0}
+            >
               <SurveyFollowUpTaskPanel
-                tasks={surveyFollowUpTasks}
+                tasks={simulatedTasks}
                 lines={specificationLines}
                 materials={materialsSchedule}
                 engineerJobPack={engineerJobPack}
+                onToggleResolved={(taskId) =>
+                  setActive((current) => {
+                    if (current?.implementationReview == null) return current;
+                    const ids = current.implementationReview.resolutionSimulation.resolvedTaskIds;
+                    const nextIds = ids.includes(taskId)
+                      ? ids.filter((id) => id !== taskId)
+                      : [...ids, taskId];
+                    return {
+                      ...current,
+                      implementationReview: {
+                        ...current.implementationReview,
+                        resolutionSimulation: {
+                          ...current.implementationReview.resolutionSimulation,
+                          resolvedTaskIds: nextIds,
+                        },
+                      },
+                    };
+                  })}
               />
             </WorkflowStep>
 
             {/* ── Step 3: Scan evidence plan ───────────────────────────────── */}
-            <WorkflowStep stepNumber={3} title="Scan evidence plan" testId="dev-workflow-step-scan-evidence">
+            <WorkflowStep
+              stepNumber={3}
+              title="Scan evidence plan"
+              testId="dev-workflow-step-scan-evidence"
+              complete={scanCount === 0 && unresolvedDependencyCount === 0}
+            >
               <div style={{ display: 'grid', gap: '0.5rem' }}>
                 <FollowUpEvidencePlanPanel
-                  plan={followUpEvidencePlan}
+                  plan={simulatedEvidencePlan}
                   engineerJobPack={engineerJobPack}
+                  capturedEvidenceIds={resolutionSimulation.capturedEvidenceIds}
+                  onToggleCaptured={(evidenceId) =>
+                    setActive((current) => {
+                      if (current?.implementationReview == null) return current;
+                      const ids = current.implementationReview.resolutionSimulation.capturedEvidenceIds;
+                      const nextIds = ids.includes(evidenceId)
+                        ? ids.filter((id) => id !== evidenceId)
+                        : [...ids, evidenceId];
+                      return {
+                        ...current,
+                        implementationReview: {
+                          ...current.implementationReview,
+                          resolutionSimulation: {
+                            ...current.implementationReview.resolutionSimulation,
+                            capturedEvidenceIds: nextIds,
+                          },
+                        },
+                      };
+                    })}
                 />
-                <FollowUpScanHandoffPanel handoff={followUpScanHandoff} />
+                <FollowUpScanHandoffPanel
+                  handoff={followUpScanHandoff}
+                  resolvedDependencyIds={resolutionSimulation.resolvedDependencyIds}
+                  onToggleDependencyResolved={(dependencyId) =>
+                    setActive((current) => {
+                      if (current?.implementationReview == null) return current;
+                      const ids = current.implementationReview.resolutionSimulation.resolvedDependencyIds;
+                      const nextIds = ids.includes(dependencyId)
+                        ? ids.filter((id) => id !== dependencyId)
+                        : [...ids, dependencyId];
+                      return {
+                        ...current,
+                        implementationReview: {
+                          ...current.implementationReview,
+                          resolutionSimulation: {
+                            ...current.implementationReview.resolutionSimulation,
+                            resolvedDependencyIds: nextIds,
+                          },
+                        },
+                      };
+                    })}
+                />
                 <ScanHandoffEnvelopePreviewPanel envelope={scanHandoffEnvelopePreview} />
               </div>
             </WorkflowStep>

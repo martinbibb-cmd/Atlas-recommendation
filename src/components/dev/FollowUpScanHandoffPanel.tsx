@@ -2,6 +2,8 @@ import type { FollowUpScanHandoffV1 } from '../../specification/followUps';
 
 interface Props {
   handoff: FollowUpScanHandoffV1;
+  resolvedDependencyIds?: readonly string[];
+  onToggleDependencyResolved?: (dependencyId: string) => void;
 }
 
 function badge(text: string, background: string, color = '#0f172a') {
@@ -27,7 +29,12 @@ const PRIORITY_COLORS: Readonly<Record<'blocker' | 'important' | 'optional', str
   optional: '#e2e8f0',
 };
 
-export default function FollowUpScanHandoffPanel({ handoff }: Props) {
+export default function FollowUpScanHandoffPanel({
+  handoff,
+  resolvedDependencyIds = [],
+  onToggleDependencyResolved,
+}: Props) {
+  const resolvedSet = new Set(resolvedDependencyIds);
   return (
     <section
       style={{ border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem', background: '#fff' }}
@@ -91,10 +98,22 @@ export default function FollowUpScanHandoffPanel({ handoff }: Props) {
             </p>
           ) : (
             <div style={{ display: 'grid', gap: '0.5rem' }}>
-              {handoff.unresolvedDependencies.map((item) => (
+              {handoff.unresolvedDependencies.map((item) => {
+                const resolved = resolvedSet.has(item.dependencyId);
+                const resolveLabel = item.dependencyType === 'qualification_check'
+                  ? 'Mark qualification confirmed'
+                  : 'Mark customer confirmation complete';
+                return (
                 <article
                   key={item.dependencyId}
-                  style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.6rem', background: '#f8fafc' }}
+                  style={{
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    padding: '0.6rem',
+                    background: '#f8fafc',
+                    opacity: resolved ? 0.6 : 1,
+                    transition: 'opacity 180ms ease, transform 180ms ease',
+                  }}
                   data-testid={`follow-up-scan-dependency-card-${item.dependencyId}`}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
@@ -102,10 +121,32 @@ export default function FollowUpScanHandoffPanel({ handoff }: Props) {
                     <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                       {badge(item.priority, PRIORITY_COLORS[item.priority])}
                       {badge(item.dependencyType, '#ede9fe', '#5b21b6')}
+                      {resolved ? badge('resolved', '#dcfce7', '#166534') : null}
                     </div>
                   </div>
+                  {onToggleDependencyResolved ? (
+                    <div style={{ marginTop: '0.4rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => onToggleDependencyResolved(item.dependencyId)}
+                        style={{
+                          border: '1px solid #cbd5e1',
+                          borderRadius: 999,
+                          padding: '0.2rem 0.55rem',
+                          fontSize: 11,
+                          cursor: 'pointer',
+                          background: resolved ? '#f8fafc' : '#ecfeff',
+                          color: resolved ? '#334155' : '#155e75',
+                        }}
+                        data-testid={`follow-up-scan-dependency-resolve-${item.dependencyId}`}
+                      >
+                        {resolved ? 'Mark unresolved' : resolveLabel}
+                      </button>
+                    </div>
+                  ) : null}
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
