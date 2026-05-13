@@ -14,6 +14,7 @@ export interface AtlasWorkspaceV1 {
   workspaceId: string;
   name: string;
   ownerAtlasUserId: string;
+  storagePreference?: 'local_only' | 'google_drive' | 'disabled';
   createdAt: string;
   updatedAt: string;
 }

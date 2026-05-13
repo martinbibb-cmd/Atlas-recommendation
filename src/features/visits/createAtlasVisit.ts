@@ -15,6 +15,7 @@
  */
 
 import { DEFAULT_BRAND_ID } from '../branding';
+import type { VisitStorageTarget } from '../../auth/profile/AtlasVisitOwnershipV1';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,9 @@ export interface AtlasVisit {
 
   /** Workspace owning this visit (Mind source of truth). */
   workspaceId?: string;
+
+  /** Visit-level storage target resolved from workspace/session context. */
+  storageTarget?: VisitStorageTarget;
 }
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
@@ -64,7 +68,7 @@ export function createAtlasVisit(
   visitId: string,
   brandId?: string,
   createdByUserId?: string,
-  identity?: { atlasUserId?: string; workspaceId?: string },
+  identity?: { atlasUserId?: string; workspaceId?: string; storageTarget?: VisitStorageTarget },
 ): AtlasVisit {
   return {
     visitId,
@@ -73,5 +77,6 @@ export function createAtlasVisit(
     ...(createdByUserId !== undefined ? { createdByUserId } : {}),
     ...(identity?.atlasUserId !== undefined ? { atlasUserId: identity.atlasUserId } : {}),
     ...(identity?.workspaceId !== undefined ? { workspaceId: identity.workspaceId } : {}),
+    ...(identity?.storageTarget !== undefined ? { storageTarget: identity.storageTarget } : {}),
   };
 }

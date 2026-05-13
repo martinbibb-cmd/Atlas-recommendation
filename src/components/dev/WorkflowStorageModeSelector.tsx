@@ -18,13 +18,18 @@
 
 import { useState } from 'react';
 import type { WorkflowStorageTarget, WorkflowStorageAdapterV1 } from '../../storage/workflow';
-import type { PersistedImplementationWorkflowV1, WorkflowExportPackageV1 } from '../../storage/workflow';
+import type {
+  PersistedImplementationWorkflowV1,
+  WorkflowExportPackageManifestV1,
+  WorkflowExportPackageV1,
+} from '../../storage/workflow';
 import {
   LocalWorkflowStorageAdapter,
   GoogleDriveWorkflowStorageAdapterStub,
   DisabledWorkflowStorageAdapter,
   exportPackageAsJsonBlob,
 } from '../../storage/workflow';
+import { WorkspaceSessionGuard, useWorkspaceSession } from '../../auth/profile';
 
 // ─── Adapters ─────────────────────────────────────────────────────────────────
 
@@ -102,12 +107,15 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function WorkflowStorageModeSelector({ workflowState, workflowExportPackage, onLoad }: Props) {
+  const workspaceSession = useWorkspaceSession();
   const [target, setTarget] = useState<WorkflowStorageTarget>('disabled');
   const [status, setStatus] = useState<StatusMessage>({ kind: 'idle', text: '' });
   const [savedList, setSavedList] = useState<readonly { visitReference: string; updatedAt: string; label: string }[]>([]);
   const [showList, setShowList] = useState(false);
 
   const adapter = ADAPTERS[target];
+  const manifest = workflowExportPackage?.files['manifest.json'] as WorkflowExportPackageManifestV1 | undefined;
+  const manifestOwnership = manifest?.ownership;
 
   async function handleSave() {
     setStatus({ kind: 'busy', text: 'Saving…' });
@@ -174,6 +182,10 @@ export default function WorkflowStorageModeSelector({ workflowState, workflowExp
       setStatus({ kind: 'error', text: 'Workflow package export is not available in this view.' });
       return;
     }
+    if (workspaceSession.status === 'workspace_active' && workflowState.ownership === undefined) {
+      setStatus({ kind: 'error', text: 'Ownership is required before exporting in an active workspace.' });
+      return;
+    }
     const blob = exportPackageAsJsonBlob(workflowExportPackage);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -212,6 +224,20 @@ export default function WorkflowStorageModeSelector({ workflowState, workflowExp
       <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
         Storage mode
       </h3>
+      <WorkspaceSessionGuard showWorkspaceActiveState />
+      {workspaceSession.status !== 'workspace_active' && (
+        <p style={{ margin: '0 0 0.6rem', fontSize: 12, color: '#92400e' }}>
+          Demo/session mode export — package will be labelled unowned.
+        </p>
+      )}
+      {workflowExportPackage != null && (
+        <p
+          style={{ margin: '0 0 0.6rem', fontSize: 12, color: manifestOwnership ? '#166534' : '#92400e' }}
+          data-testid="workflow-storage-ownership-state"
+        >
+          {manifestOwnership ? 'Owned export package' : 'Unowned export package'}
+        </p>
+      )}
 
       {/* ── Mode chips ───────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>

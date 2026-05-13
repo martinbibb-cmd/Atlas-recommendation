@@ -57,11 +57,13 @@ import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPan
 import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel';
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
+import { WorkspaceSessionGuard, useWorkspaceSession } from '../auth/profile';
 import {
   WORKFLOW_SCHEMA_VERSION,
   buildWorkflowExportPackage,
   type PersistedImplementationWorkflowV1,
 } from '../storage/workflow';
+import type { AtlasVisitOwnershipV1 } from '../auth/profile';
 import './devPortalFixture.css';
 
 // ─── Fixture definitions ──────────────────────────────────────────────────────
@@ -79,6 +81,15 @@ export interface PortalFixture {
   description: string;
   engineInput: EngineInputV2_3;
 }
+
+const WORKFLOW_VISIBLE_ROLES: AtlasVisitOwnershipV1['visibleToRoles'] = [
+  'owner',
+  'admin',
+  'surveyor',
+  'engineer',
+  'office',
+  'viewer',
+];
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const PORTAL_FIXTURES: PortalFixture[] = [
@@ -575,6 +586,7 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
 export default function DevPortalFixturePage({ onBack }: DevPortalFixturePageProps) {
   const [active, setActive] = useState<ActiveFixture | null>(null);
   const [previewMode, setPreviewMode] = useState<SupportingPdfPreviewMode>('current_insight_pdf');
+  const workspaceSession = useWorkspaceSession();
 
   function handleOpen(fixture: PortalFixture, initialView?: 'insight' | 'presentation' | 'pdf_comparison' | 'implementation_pack') {
     const supportingPdfJourneyType = getSupportingPdfJourneyType(fixture);
@@ -953,6 +965,18 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       // ─── Persisted workflow snapshot (passed to storage selector) ──────────
       const now = new Date().toISOString();
       const visitReference = `fixture:${active.fixture.id}`;
+      const workflowOwnership: AtlasVisitOwnershipV1 | undefined =
+        workspaceSession.status === 'workspace_active'
+          && workspaceSession.activeWorkspace !== null
+          && workspaceSession.atlasUserProfile !== null
+          ? {
+              visitReference,
+              workspaceId: workspaceSession.activeWorkspace.workspaceId,
+              createdByUserId: workspaceSession.atlasUserProfile.atlasUserId,
+              visibleToRoles: WORKFLOW_VISIBLE_ROLES,
+              storageTarget: workspaceSession.storageTarget,
+            }
+          : undefined;
       const persistedWorkflowSnapshot: PersistedImplementationWorkflowV1 = {
         schemaVersion: WORKFLOW_SCHEMA_VERSION,
         visitReference,
@@ -979,6 +1003,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           rejectedIds: [],
           flaggedIds: [],
         },
+        ...(workflowOwnership !== undefined ? { ownership: workflowOwnership } : {}),
       };
       const workflowExportPackage = buildWorkflowExportPackage({
         payload: {
@@ -996,6 +1021,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           target: 'local_only',
           surface: `dev_portal_fixture:${active.fixture.id}`,
         },
+        ...(workflowOwnership !== undefined ? { ownership: workflowOwnership } : {}),
       });
 
       return (
@@ -1019,6 +1045,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           </div>
 
           <div style={{ padding: '1rem', display: 'grid', gap: '0.75rem' }} data-testid="dev-implementation-pack-panel">
+            <WorkspaceSessionGuard showWorkspaceActiveState />
             {/* ── Workflow summary ─────────────────────────────────────────── */}
             <section
               style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}

@@ -18,10 +18,22 @@ import { DEV_ROUTE_REGISTRY } from '../devRouteRegistry';
 import { runEngine } from '../../engine/Engine';
 import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
+import * as workspaceProfile from '../../auth/profile';
 
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.stubGlobal('scrollTo', vi.fn());
+  vi.spyOn(workspaceProfile, 'useWorkspaceSession').mockReturnValue({
+    status: 'workspace_active',
+    authUserId: 'user-1',
+    atlasUserProfile: { atlasUserId: 'atlas-user-1' } as never,
+    activeWorkspace: {
+      workspaceId: 'workspace_a',
+      name: 'Workspace A',
+      storagePreference: 'local_only',
+    } as never,
+    storageTarget: 'local_only',
+  });
 });
 
 describe('DevPortalFixturePage — fixture launcher', () => {
@@ -613,6 +625,7 @@ describe('DevPortalFixturePage — storage mode selector', () => {
     expect(screen.getByTestId('workflow-storage-export-btn')).toBeTruthy();
     expect(screen.getByTestId('workflow-storage-import-label')).toBeTruthy();
     expect(screen.getByTestId('workflow-storage-export-package-btn')).toBeTruthy();
+    expect(screen.getByTestId('workflow-storage-ownership-state').textContent).toMatch(/owned export package/i);
   });
 
   it('shows Google Drive unavailable notice when Google Drive mode is selected', async () => {

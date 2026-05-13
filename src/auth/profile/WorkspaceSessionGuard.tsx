@@ -19,24 +19,13 @@
  */
 
 import React from 'react';
+import { useWorkspaceSession } from './WorkspaceSessionProvider';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface WorkspaceSessionGuardProps {
-  /** Whether the user currently has an authenticated session. */
-  readonly isAuthenticated: boolean;
-
-  /**
-   * Whether the authenticated user is a member of at least one workspace.
-   * Ignored when isAuthenticated is false.
-   */
-  readonly hasWorkspace: boolean;
-
-  /**
-   * Optional callback for the "Create workspace" action.
-   * When provided, a button is rendered that invokes it.
-   */
-  readonly onCreateWorkspace?: () => void;
+  /** Show workspace details banner for active workspace sessions. */
+  readonly showWorkspaceActiveState?: boolean;
 }
 
 // ─── Banner styles (inline to avoid CSS dependency) ──────────────────────────
@@ -63,50 +52,40 @@ const NO_WORKSPACE_BANNER: React.CSSProperties = {
   color: '#92400e',
 };
 
-const ACTION_BUTTON: React.CSSProperties = {
-  marginTop: '0.5rem',
-  padding: '0.4rem 0.9rem',
-  background: '#0f172a',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 6,
-  fontSize: '0.85rem',
-  cursor: 'pointer',
+const ACTIVE_WORKSPACE_BANNER: React.CSSProperties = {
+  ...BANNER_BASE,
+  background: '#eff6ff',
+  border: '1px solid #bfdbfe',
+  color: '#1e3a8a',
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function WorkspaceSessionGuard({
-  isAuthenticated,
-  hasWorkspace,
-  onCreateWorkspace,
+  showWorkspaceActiveState = false,
 }: WorkspaceSessionGuardProps): React.ReactElement | null {
-  if (!isAuthenticated) {
+  const session = useWorkspaceSession();
+  if (session.status === 'unauthenticated_demo') {
     return (
       <div style={UNAUTHENTICATED_BANNER} role="status" aria-label="Demo mode banner">
-        <strong>Demo / session mode</strong> — visits are not linked to an
-        account. Sign in to save visits, export workflow packages, and
-        collaborate with your team.
+        Demo/session mode — visits are not linked to an account.
       </div>
     );
   }
 
-  if (!hasWorkspace) {
+  if (session.status === 'authenticated_no_workspace') {
     return (
       <div style={NO_WORKSPACE_BANNER} role="status" aria-label="No workspace banner">
-        <strong>No workspace found.</strong> You need to create or join a
-        workspace before you can save visits or export workflows.
-        {onCreateWorkspace && (
-          <div>
-            <button
-              style={ACTION_BUTTON}
-              type="button"
-              onClick={onCreateWorkspace}
-            >
-              Create or join workspace
-            </button>
-          </div>
-        )}
+        Create or join workspace before creating customer visits.
+      </div>
+    );
+  }
+
+  if (showWorkspaceActiveState && session.activeWorkspace !== null) {
+    return (
+      <div style={ACTIVE_WORKSPACE_BANNER} role="status" aria-label="Workspace active banner">
+        Workspace active: <strong>{session.activeWorkspace.name}</strong> · storage preference:{' '}
+        <strong>{session.storageTarget}</strong>
       </div>
     );
   }

@@ -21,12 +21,27 @@ import type { AtlasVisit } from './createAtlasVisit';
 import * as visitApi from '../../lib/visits/visitApi';
 import { ActiveUserProvider } from '../userProfiles/ActiveUserProvider';
 import { AtlasAuthProvider } from '../../auth/AtlasAuthProvider';
+import { useWorkspaceSession } from '../../auth/profile';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 vi.mock('../../lib/visits/visitApi', () => ({
   createVisit: vi.fn(),
 }));
+
+vi.mock('../../auth/profile', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../auth/profile')>();
+  return {
+    ...actual,
+    useWorkspaceSession: vi.fn(() => ({
+      status: 'workspace_active',
+      authUserId: 'user-1',
+      atlasUserProfile: { atlasUserId: 'atlas_dev_mock_user' },
+      activeWorkspace: { workspaceId: 'workspace_atlas_dev_mock_user', name: 'Default Workspace' },
+      storageTarget: 'local_only',
+    })),
+  };
+});
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +64,16 @@ function renderPanel(overrides?: { onStart?: (visit: AtlasVisit) => void; onCanc
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(useWorkspaceSession).mockReturnValue({
+    status: 'workspace_active',
+    authUserId: 'user-1',
+    atlasUserProfile: { atlasUserId: 'atlas_dev_mock_user' } as never,
+    activeWorkspace: {
+      workspaceId: 'workspace_atlas_dev_mock_user',
+      name: 'Default Workspace',
+    } as never,
+    storageTarget: 'local_only',
+  });
 });
 
 describe('StartVisitPanel — rendering', () => {
@@ -73,6 +98,48 @@ describe('StartVisitPanel — rendering', () => {
 });
 
 describe('StartVisitPanel — visit creation', () => {
+  it('blocks visit creation when signed in but no workspace is active', async () => {
+    vi.mocked(useWorkspaceSession).mockReturnValue({
+      status: 'authenticated_no_workspace',
+      authUserId: 'user-1',
+      atlasUserProfile: { atlasUserId: 'atlas_dev_mock_user' } as never,
+      activeWorkspace: null,
+      storageTarget: 'disabled',
+    });
+    const mockCreateVisit = vi.mocked(visitApi.createVisit);
+
+    renderPanel();
+    const button = screen.getByText('Start Visit') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(mockCreateVisit).not.toHaveBeenCalled();
+    });
+  });
+
+  it('allows visit creation when workspace is active', async () => {
+    vi.mocked(useWorkspaceSession).mockReturnValue({
+      status: 'workspace_active',
+      authUserId: 'user-1',
+      atlasUserProfile: { atlasUserId: 'atlas_dev_mock_user' } as never,
+      activeWorkspace: {
+        workspaceId: 'workspace_atlas_dev_mock_user',
+        name: 'Default Workspace',
+      } as never,
+      storageTarget: 'local_only',
+    });
+    const mockCreateVisit = vi.mocked(visitApi.createVisit);
+    mockCreateVisit.mockResolvedValueOnce({ id: 'visit_workspace_active' } as Awaited<ReturnType<typeof visitApi.createVisit>>);
+
+    const { onStart } = renderPanel();
+    fireEvent.click(screen.getByText('Start Visit'));
+
+    await waitFor(() => {
+      expect(onStart).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('calls onStart with atlas-default brandId when atlas workspace is selected', async () => {
     const mockCreateVisit = vi.mocked(visitApi.createVisit);
     mockCreateVisit.mockResolvedValueOnce({ id: 'visit_aaa', created_at: '2026-01-01T00:00:00Z' } as Awaited<ReturnType<typeof visitApi.createVisit>>);

@@ -28,3 +28,5 @@ export type {
 } from './resolveActiveWorkspace';
 export { resolveActiveWorkspace } from './resolveActiveWorkspace';
 export { WorkspaceSessionGuard } from './WorkspaceSessionGuard';
+export type { WorkspaceSessionStatus, WorkspaceSessionValue } from './WorkspaceSessionProvider';
+export { WorkspaceSessionProvider, useWorkspaceSession } from './WorkspaceSessionProvider';
