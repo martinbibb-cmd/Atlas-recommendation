@@ -58,6 +58,9 @@ function makeWorkspace(overrides: Partial<AtlasWorkspaceV1> = {}): AtlasWorkspac
     ownerUserId: 'atlas_firebase_uid_abc',
     members: [makeMembership()],
     storagePreference: 'local_only',
+    defaultBrandId: 'atlas-default',
+    allowedBrandIds: ['atlas-default'],
+    brandPolicy: 'workspace_default',
     createdAt: FIXED_NOW,
     updatedAt: FIXED_NOW,
     ...overrides,
@@ -140,12 +143,14 @@ describe('1 — buildAtlasUserProfileFromAuthUser', () => {
       email: 'alice@example.com',
       displayName: 'Alice',
       workspaceMemberships: [makeMembership()],
+      preferredBrandIdByWorkspace: { ws_001: 'installer-demo' },
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
     const profile = buildAtlasUserProfileFromAuthUser(makeAuthUser(), existing, FIXED_NOW);
     expect(profile.userId).toBe('atlas_firebase_uid_abc');
     expect(profile.workspaceMemberships).toHaveLength(1);
+    expect(profile.preferredBrandIdByWorkspace).toEqual({ ws_001: 'installer-demo' });
     expect(profile.createdAt).toBe('2026-01-01T00:00:00.000Z');
     expect(profile.updatedAt).toBe(FIXED_NOW);
   });

@@ -9,6 +9,7 @@ export type {
   AtlasWorkspaceV1,
   WorkspaceStoragePreference,
 } from './AtlasWorkspaceV1';
+export type { WorkspaceBrandPolicy } from '../workspaceBrandPolicy';
 export type {
   WorkspaceMembershipV1,
   WorkspaceMemberRole,

@@ -1,3 +1,5 @@
+import type { WorkspaceBrandPolicy } from './workspaceBrandPolicy';
+
 export interface AtlasUserProfileV1 {
   version: '1.0';
   atlasUserId: string;
@@ -5,6 +7,7 @@ export interface AtlasUserProfileV1 {
   displayName: string;
   email?: string;
   photoURL?: string;
+  preferredBrandIdByWorkspace?: Readonly<Record<string, string>>;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,6 +18,9 @@ export interface AtlasWorkspaceV1 {
   name: string;
   ownerAtlasUserId: string;
   storagePreference?: 'local_only' | 'google_drive' | 'disabled';
+  defaultBrandId: string;
+  allowedBrandIds: readonly string[];
+  brandPolicy: WorkspaceBrandPolicy;
   createdAt: string;
   updatedAt: string;
 }

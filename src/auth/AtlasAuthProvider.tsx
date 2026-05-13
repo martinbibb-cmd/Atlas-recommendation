@@ -14,6 +14,7 @@ import {
 const USER_PROFILE_STORE_KEY = 'atlas:auth:user-profile:v1';
 const WORKSPACES_STORE_KEY = 'atlas:auth:workspaces:v1';
 const CURRENT_WORKSPACE_STORE_KEY = 'atlas:auth:current-workspace:v1';
+const DEFAULT_WORKSPACE_BRAND_ID = 'atlas-default';
 
 const DEV_MOCK_AUTH_ENABLED =
   import.meta.env.DEV &&
@@ -96,6 +97,9 @@ function buildProfileFromFirebaseUser(user: User): AtlasUserProfileV1 {
     displayName: user.displayName?.trim() || user.email?.trim() || 'Atlas User',
     email: user.email ?? undefined,
     photoURL: user.photoURL ?? undefined,
+    preferredBrandIdByWorkspace: isExistingForCurrentFirebaseUser
+      ? existing.preferredBrandIdByWorkspace
+      : undefined,
     createdAt: isExistingForCurrentFirebaseUser ? existing.createdAt : now,
     updatedAt: now,
   };
@@ -111,8 +115,25 @@ function buildMockProfile(): AtlasUserProfileV1 {
     displayName: existing?.displayName ?? 'Atlas Dev User',
     email: existing?.email ?? 'dev@atlas.local',
     photoURL: existing?.photoURL,
+    preferredBrandIdByWorkspace: existing?.preferredBrandIdByWorkspace,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
+  };
+}
+
+function normalizeWorkspaceBranding(workspace: AtlasWorkspaceV1): AtlasWorkspaceV1 {
+  const defaultBrandId = workspace.defaultBrandId ?? DEFAULT_WORKSPACE_BRAND_ID;
+  const candidateAllowedBrandIds = workspace.allowedBrandIds ?? [];
+  const baseAllowedBrandIds =
+    candidateAllowedBrandIds.length > 0
+      ? candidateAllowedBrandIds
+      : [defaultBrandId];
+  const allowedBrandIds = Array.from(new Set([...baseAllowedBrandIds, defaultBrandId]));
+  return {
+    ...workspace,
+    defaultBrandId,
+    allowedBrandIds,
+    brandPolicy: workspace.brandPolicy ?? 'workspace_default',
   };
 }
 
@@ -125,7 +146,9 @@ function ensureDefaultWorkspace(
   const defaultWorkspaceId = `workspace_${profile.atlasUserId}`;
   const shouldPersist = options?.persist !== false;
 
-  let workspaces = existing.filter((workspace) => workspace.ownerAtlasUserId === profile.atlasUserId);
+  let workspaces = existing
+    .filter((workspace) => workspace.ownerAtlasUserId === profile.atlasUserId)
+    .map(normalizeWorkspaceBranding);
   if (workspaces.length === 0) {
     workspaces = [
       {
@@ -133,6 +156,9 @@ function ensureDefaultWorkspace(
         workspaceId: defaultWorkspaceId,
         name: 'Default Workspace',
         ownerAtlasUserId: profile.atlasUserId,
+        defaultBrandId: DEFAULT_WORKSPACE_BRAND_ID,
+        allowedBrandIds: [DEFAULT_WORKSPACE_BRAND_ID],
+        brandPolicy: 'workspace_default',
         createdAt: now,
         updatedAt: now,
       },

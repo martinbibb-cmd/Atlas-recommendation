@@ -18,6 +18,7 @@
  */
 
 import type { WorkspaceMembershipV1 } from './WorkspaceMembershipV1';
+import type { WorkspaceBrandPolicy } from '../workspaceBrandPolicy';
 
 // ─── Storage preference ───────────────────────────────────────────────────────
 
@@ -67,6 +68,15 @@ export interface AtlasWorkspaceV1 {
    * Defaults to 'disabled' until the owner configures a target.
    */
   readonly storagePreference: WorkspaceStoragePreference;
+
+  /** Workspace brand used by default for visits, exports, and portals. */
+  readonly defaultBrandId: string;
+
+  /** Brand IDs this workspace permits for user/session-level brand selection. */
+  readonly allowedBrandIds: readonly string[];
+
+  /** Whether brand is fixed to workspace default or user-selectable. */
+  readonly brandPolicy: WorkspaceBrandPolicy;
 
   /** ISO 8601 timestamp of workspace creation. */
   readonly createdAt: string;
