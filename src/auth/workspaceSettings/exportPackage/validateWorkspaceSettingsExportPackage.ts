@@ -298,7 +298,7 @@ export function validateWorkspaceSettingsExportPackage(
 
   return {
     ok: true,
-    pkg: rawPackage as WorkspaceSettingsExportPackageV1,
+    pkg: rawPackage as unknown as WorkspaceSettingsExportPackageV1,
     preview: {
       persistedSettings,
       blockingReasons,
