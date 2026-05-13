@@ -58,6 +58,9 @@ interface BrandProviderProps {
  *   // session resolved by WorkspaceBrandSessionProvider (if present in the tree).
  */
 export function BrandProvider({ brandId, profile: profileProp, children }: BrandProviderProps) {
+  // useContext always returns a value — either from the nearest provider or from
+  // DEFAULT_SESSION_VALUE (which has activeBrand set to the atlas-default profile).
+  // It never returns null, so accessing .activeBrand is safe.
   const workspaceBrandSession = useContext(WorkspaceBrandSessionContext);
 
   // Resolution order: explicit profile > explicit brandId > workspace session > atlas-default.

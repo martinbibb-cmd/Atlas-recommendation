@@ -24,12 +24,13 @@
 
 import { useOptionalBrandProfile } from './useBrandProfile';
 import { BrandLogo } from './BrandLogo';
+import type { BrandResolutionSource } from '../../auth/brand/resolveBrandForWorkspace';
 import { useOptionalWorkspaceBrandSession } from '../../auth/brand/WorkspaceBrandSessionProvider';
 import './brandTheme.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const RESOLUTION_SOURCE_LABELS: Record<string, string> = {
+const RESOLUTION_SOURCE_LABELS: Record<BrandResolutionSource, string> = {
   workspace_default: 'workspace default',
   user_preference: 'user preference',
   route_override: 'route override',

@@ -71,6 +71,14 @@ export interface WorkspaceBrandSessionValue {
   readonly warnings: readonly string[];
 
   /**
+   * True when this value comes from the default context (i.e. no
+   * WorkspaceBrandSessionProvider is present in the tree).
+   * Used by useOptionalWorkspaceBrandSession() to distinguish "no provider"
+   * from a real session with atlas_default resolution.
+   */
+  readonly isDefaultValue?: boolean;
+
+  /**
    * Persist a brand preference for the given workspace.
    * Immediately updates the resolved brand if the preference is allowed.
    *
@@ -97,6 +105,7 @@ const DEFAULT_SESSION_VALUE: WorkspaceBrandSessionValue = {
   activeBrandId: DEFAULT_BRAND_ID,
   resolutionSource: 'atlas_default',
   warnings: [],
+  isDefaultValue: true,
   setPreferredBrandForWorkspace: () => undefined,
 };
 
@@ -187,8 +196,8 @@ export function useWorkspaceBrandSession(): WorkspaceBrandSessionValue {
  */
 export function useOptionalWorkspaceBrandSession(): WorkspaceBrandSessionValue | null {
   const value = useContext(WorkspaceBrandSessionContext);
-  // Distinguish from default by checking if setPreferredBrandForWorkspace is
-  // the no-op from DEFAULT_SESSION_VALUE — safe because it's a stable reference.
-  if (value === DEFAULT_SESSION_VALUE) return null;
+  // isDefaultValue is set to true on the default context object, which is
+  // returned when no WorkspaceBrandSessionProvider is present in the tree.
+  if (value.isDefaultValue === true) return null;
   return value;
 }
