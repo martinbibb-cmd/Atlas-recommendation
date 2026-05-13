@@ -37,7 +37,7 @@ import {
   type BrandResolutionSource,
   type ResolvableWorkspace,
 } from './resolveBrandForWorkspace';
-import { useAtlasAuth } from '../useAtlasAuth';
+import { useWorkspaceSession } from '../profile/WorkspaceSessionProvider';
 
 // ─── Storage key for user brand preferences ───────────────────────────────────
 
@@ -138,7 +138,7 @@ export function WorkspaceBrandSessionProvider({
   children,
   routeBrandId,
 }: WorkspaceBrandSessionProviderProps) {
-  const { currentWorkspace, userProfile } = useAtlasAuth();
+  const { activeWorkspace, atlasUserProfile } = useWorkspaceSession();
 
   // ── Persisted user preferences ────────────────────────────────────────────
 
@@ -160,13 +160,13 @@ export function WorkspaceBrandSessionProvider({
   // ── Resolution ────────────────────────────────────────────────────────────
 
   const value = useMemo<WorkspaceBrandSessionValue>(() => {
-    const workspace = currentWorkspace
+    const workspace = activeWorkspace
       ? ({
-          workspaceId: currentWorkspace.workspaceId,
-          name: currentWorkspace.name,
-          defaultBrandId: currentWorkspace.defaultBrandId,
-          allowedBrandIds: currentWorkspace.allowedBrandIds,
-          brandPolicy: currentWorkspace.brandPolicy,
+          workspaceId: activeWorkspace.workspaceId,
+          name: activeWorkspace.name,
+          defaultBrandId: activeWorkspace.defaultBrandId,
+          allowedBrandIds: activeWorkspace.allowedBrandIds,
+          brandPolicy: activeWorkspace.brandPolicy,
         } satisfies ResolvableWorkspace)
       : null;
 
@@ -177,7 +177,7 @@ export function WorkspaceBrandSessionProvider({
 
     const resolved = resolveBrandForWorkspace({
       workspace,
-      userProfile: userProfile ?? null,
+      userProfile: atlasUserProfile ?? null,
       routeBrandId: routeBrandId ?? null,
       storedBrandId,
       brandRegistry,
@@ -189,11 +189,11 @@ export function WorkspaceBrandSessionProvider({
       setPreferredBrandForWorkspace,
     };
   }, [
-    currentWorkspace,
+    activeWorkspace,
+    atlasUserProfile,
     preferences,
     routeBrandId,
     setPreferredBrandForWorkspace,
-    userProfile,
   ]);
 
   return (
