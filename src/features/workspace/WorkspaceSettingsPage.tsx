@@ -15,6 +15,10 @@ import {
   buildWorkspaceSettingsChangeSet,
   type WorkspaceIdentityDraftV1,
   type WorkspaceSettingsDraftV1,
+  DisabledWorkspaceSettingsStorageAdapter,
+  LocalWorkspaceSettingsStorageAdapter,
+  GoogleDriveWorkspaceSettingsStorageAdapterStub,
+  type WorkspaceSettingsStorageAdapterV1,
 } from '../../auth/workspaceSettings';
 import WorkspaceOnboardingAdminPanel, {
   type WorkspaceOnboardingDraftSnapshot,
@@ -303,6 +307,12 @@ function WorkspaceSettingsContent({
     [onboardingDraft.pendingJoinRequests, workspace, workspaceSettingsDraft],
   );
 
+  const workspaceSettingsStorageAdapter = useMemo<WorkspaceSettingsStorageAdapterV1>(() => {
+    if (storageDraft === 'local_only') return new LocalWorkspaceSettingsStorageAdapter();
+    if (storageDraft === 'google_drive') return new GoogleDriveWorkspaceSettingsStorageAdapterStub();
+    return new DisabledWorkspaceSettingsStorageAdapter();
+  }, [storageDraft]);
+
   return (
     <div data-testid="workspace-settings-page" style={PAGE_STYLE}>
       <div style={{ maxWidth: 1120, margin: '0 auto' }}>
@@ -516,7 +526,13 @@ function WorkspaceSettingsContent({
           onDraftStateChange={setOnboardingDraft}
         />
         <div style={{ marginTop: '1rem' }}>
-          <WorkspaceSettingsReviewPanel changeSet={workspaceSettingsChangeSet} />
+          <WorkspaceSettingsReviewPanel
+            changeSet={workspaceSettingsChangeSet}
+            storageAdapter={workspaceSettingsStorageAdapter}
+            draft={workspaceSettingsDraft}
+            currentWorkspace={workspace}
+            currentJoinRequests={onboardingDraft.pendingJoinRequests}
+          />
         </div>
       </div>
     </div>

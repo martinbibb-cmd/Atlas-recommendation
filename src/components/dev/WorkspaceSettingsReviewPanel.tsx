@@ -1,8 +1,19 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import type { AtlasWorkspaceV1 } from '../../auth/profile';
+import type { WorkspaceJoinRequestV1 } from '../../auth/workspaceOnboarding';
 import type { WorkspaceSettingsChangeSetV1 } from '../../auth/workspaceSettings';
+import type { WorkspaceSettingsDraftV1 } from '../../auth/workspaceSettings/WorkspaceSettingsDraftV1';
+import type {
+  WorkspaceSettingsStorageAdapterV1,
+  WorkspaceSettingsApplyResult,
+} from '../../auth/workspaceSettings/storage/WorkspaceSettingsStorageAdapterV1';
 
 interface Props {
   readonly changeSet: WorkspaceSettingsChangeSetV1;
+  readonly storageAdapter: WorkspaceSettingsStorageAdapterV1;
+  readonly draft: WorkspaceSettingsDraftV1;
+  readonly currentWorkspace: AtlasWorkspaceV1;
+  readonly currentJoinRequests: readonly WorkspaceJoinRequestV1[];
 }
 
 const CARD_STYLE: CSSProperties = {
@@ -22,7 +33,35 @@ function downloadChangeSet(changeSet: WorkspaceSettingsChangeSetV1): void {
   URL.revokeObjectURL(url);
 }
 
-export default function WorkspaceSettingsReviewPanel({ changeSet }: Props) {
+export default function WorkspaceSettingsReviewPanel({
+  changeSet,
+  storageAdapter,
+  draft,
+  currentWorkspace,
+  currentJoinRequests,
+}: Props) {
+  const [applyResult, setApplyResult] = useState<WorkspaceSettingsApplyResult | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  const canApplyLocally =
+    changeSet.canCommit && storageAdapter.target === 'local_only' && !applying;
+
+  async function handleApplyLocally() {
+    if (!canApplyLocally) return;
+    setApplying(true);
+    setApplyResult(null);
+    try {
+      const result = await storageAdapter.applyChangeSet(changeSet, {
+        draft,
+        currentWorkspace,
+        currentJoinRequests,
+      });
+      setApplyResult(result);
+    } finally {
+      setApplying(false);
+    }
+  }
+
   return (
     <section data-testid="workspace-settings-review-panel" style={CARD_STYLE}>
       <h2 style={{ margin: '0 0 0.65rem', fontSize: 16 }}>Save plan review</h2>
@@ -68,23 +107,63 @@ export default function WorkspaceSettingsReviewPanel({ changeSet }: Props) {
         )}
       </div>
 
+      {applyResult !== null && (
+        <div
+          data-testid="workspace-settings-apply-result"
+          style={{
+            marginBottom: '0.85rem',
+            padding: '0.6rem 0.75rem',
+            borderRadius: 8,
+            fontSize: 12,
+            background: applyResult.ok ? '#f0fdf4' : '#fef2f2',
+            border: `1px solid ${applyResult.ok ? '#bbf7d0' : '#fecaca'}`,
+            color: applyResult.ok ? '#166534' : '#991b1b',
+          }}
+        >
+          {applyResult.ok
+            ? `Changes applied locally. Saved at: ${applyResult.savedAt}`
+            : `Apply failed: ${applyResult.reason}`}
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap' }}>
         <button
           type="button"
-          disabled
+          disabled={!canApplyLocally}
+          onClick={handleApplyLocally}
           data-testid="workspace-settings-apply-changes"
           style={{
             fontSize: 12,
             padding: '0.25rem 0.6rem',
             borderRadius: 6,
             border: '1px solid #cbd5e1',
-            background: '#f1f5f9',
-            color: '#94a3b8',
-            cursor: 'not-allowed',
+            background: canApplyLocally ? '#f8fafc' : '#f1f5f9',
+            color: canApplyLocally ? '#334155' : '#94a3b8',
+            cursor: canApplyLocally ? 'pointer' : 'not-allowed',
           }}
         >
-          Apply changes (coming soon)
+          {applying ? 'Applying…' : 'Apply changes locally'}
         </button>
+
+        {storageAdapter.target === 'google_drive' && (
+          <button
+            type="button"
+            disabled
+            data-testid="workspace-settings-apply-google-drive"
+            style={{
+              fontSize: 12,
+              padding: '0.25rem 0.6rem',
+              borderRadius: 6,
+              border: '1px solid #cbd5e1',
+              background: '#f1f5f9',
+              color: '#94a3b8',
+              cursor: 'not-allowed',
+            }}
+          >
+            Apply via Google Drive (unavailable)
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => downloadChangeSet(changeSet)}
