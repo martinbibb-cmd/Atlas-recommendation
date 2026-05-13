@@ -89,7 +89,7 @@ describe('getDiagramsForArchetype', () => {
 });
 
 describe('getDiagramsForWelcomePackPlan', () => {
-  it('returns diagrams matching the plan's selected concept IDs', () => {
+  it("returns diagrams matching the plan's selected concept IDs", () => {
     const plan = makePlan(['pressure_vs_storage', 'water_main_limit_not_boiler_limit']);
     const results = getDiagramsForWelcomePackPlan(plan);
     const ids = results.map((d) => d.diagramId);
