@@ -126,7 +126,9 @@ function collectLocationStateById(engineerJobPack: EngineerJobPackV1): Map<strin
 
 function pickWorstLocationState(states: readonly OperationalLocationStateV1[]): OperationalLocationStateV1 {
   if (states.length === 0) return 'unresolved';
-  return states.slice().sort((a, b) => LOCATION_STATE_ORDER[b] - LOCATION_STATE_ORDER[a])[0];
+  return states.reduce<OperationalLocationStateV1>((worst, state) => (
+    LOCATION_STATE_ORDER[state] > LOCATION_STATE_ORDER[worst] ? state : worst
+  ), states[0]);
 }
 
 function buildDraftFromTask(task: SurveyFollowUpTaskV1, locationStateById: Map<string, OperationalLocationStateV1>): DigestDraft {
@@ -213,7 +215,10 @@ function attachUnresolvedDependencies(
     ...readiness.blockingReasons,
     ...readiness.unresolvedChecks,
   ]);
-  for (const draft of new Set(draftsByTaskId.values())) {
+  const seenDrafts = new Set<DigestDraft>();
+  for (const draft of draftsByTaskId.values()) {
+    if (seenDrafts.has(draft)) continue;
+    seenDrafts.add(draft);
     const taskKey = normalize(`${draft.title} ${draft.summary}`);
     const matched = readinessSignals.filter((signal) => {
       const normalizedSignal = normalize(signal);
@@ -270,8 +275,7 @@ export function buildOperationalDigest(input: BuildOperationalDigestInput): Oper
   attachEvidence(draftsByTaskId, evidencePlan);
   attachUnresolvedDependencies(draftsByTaskId, readiness, scanHandoff);
 
-  const items = [...draftsByIntent.values()]
-    .map(toDigestGroup)
+  const items = Array.from(draftsByIntent.values(), toDigestGroup)
     .sort((a, b) => {
       const severityDelta = PRIORITY_ORDER[a.severity] - PRIORITY_ORDER[b.severity];
       if (severityDelta !== 0) return severityDelta;

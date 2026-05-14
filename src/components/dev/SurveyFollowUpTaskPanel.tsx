@@ -248,14 +248,14 @@ export default function SurveyFollowUpTaskPanel({
                   {task.relatedLocationIds.length > 0 ? (
                     <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>
                       <strong>Locations:</strong>{' '}
-                       {task.relatedLocationIds.map((locationId, index) => (
-                         <span key={locationId}>
-                           {index > 0 ? ', ' : ''}
-                           {locationId}
-                            {` (${formatLocationText(locationId)})`}
-                         </span>
-                       ))}
-                     </p>
+                      {task.relatedLocationIds.map((locationId, index) => (
+                        <span key={locationId}>
+                          {index > 0 ? ', ' : ''}
+                          {locationId}
+                          {` (${formatLocationText(locationId)})`}
+                        </span>
+                      ))}
+                    </p>
                   ) : null}
                 </>
               ) : (
