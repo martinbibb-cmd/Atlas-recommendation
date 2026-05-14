@@ -19,9 +19,12 @@ import {
   buildTrialReadinessSummary,
   buildTrialReadinessActions,
   LocalTrialReadinessReviewStorageAdapter,
+  LocalTrialFeedbackStorageAdapter,
   mergeGeneratedActionsWithReviewState,
   updateTrialReadinessActionStatus,
   type PersistedTrialReadinessReviewV1,
+  type PersistedTrialFeedbackV1,
+  type TrialFeedbackEntryV1,
   type TrialReadinessActionV1,
   type TrialReadinessActionReviewStateV1,
   type TrialReadinessLintStatusV1,
@@ -29,6 +32,10 @@ import {
   type TrialReadinessStatusV1,
   type LimitedTrialPlanV1,
 } from '../trialReadiness';
+import {
+  TrialFeedbackPanel,
+} from '../trialReadiness/feedback/TrialFeedbackPanel';
+import { buildTrialFeedbackSnapshot } from '../trialReadiness/feedback/trialFeedbackHelpers';
 
 interface WorkspaceVisitLifecycleHarnessProps {
   readonly onBack?: () => void;
@@ -144,6 +151,12 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
   const [trialReadinessReviewState, setTrialReadinessReviewState] = useState<readonly TrialReadinessActionReviewStateV1[]>([]);
   const evaluation = evaluationState?.scenarioId === activeScenario?.id ? evaluationState.value : null;
 
+  // ── Trial feedback state ───────────────────────────────────────────────────
+  const feedbackStorageAdapter = useMemo(() => new LocalTrialFeedbackStorageAdapter(), []);
+  const [feedbackEntries, setFeedbackEntries] = useState<readonly TrialFeedbackEntryV1[]>([]);
+  const [feedbackSnapshot, setFeedbackSnapshot] = useState<PersistedTrialFeedbackV1 | null>(null);
+  const feedbackLoadedRef = useRef(false);
+
   // ── Trial readiness review persistence ────────────────────────────────────
   const reviewStorageAdapter = useMemo(() => new LocalTrialReadinessReviewStorageAdapter(), []);
   /** ISO 8601 timestamp when this review session was opened. */
@@ -184,6 +197,32 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     };
     void reviewStorageAdapter.saveReviewState(snapshot);
   }, [trialReadinessReviewState, reviewStorageAdapter]);
+
+  // Load saved feedback on mount
+  useEffect(() => {
+    let active = true;
+    void feedbackStorageAdapter.load().then((result) => {
+      if (!active) return;
+      feedbackLoadedRef.current = true;
+      if (result.ok) {
+        setFeedbackSnapshot(result.snapshot);
+        setFeedbackEntries(result.snapshot.entries);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [feedbackStorageAdapter]);
+
+  // Auto-save feedback whenever entries change (after initial load)
+  useEffect(() => {
+    if (!feedbackLoadedRef.current) return;
+    const next = buildTrialFeedbackSnapshot(feedbackEntries, feedbackSnapshot);
+    setFeedbackSnapshot(next);
+    void feedbackStorageAdapter.save(next);
+    // feedbackSnapshot intentionally omitted from deps to avoid a cycle
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedbackEntries, feedbackStorageAdapter]);
 
   useEffect(() => {
     let active = true;
@@ -390,6 +429,44 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     link.download = 'limited-trial-plan.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function handleExportFeedbackJson() {
+    const snapshot = buildTrialFeedbackSnapshot(feedbackEntries, feedbackSnapshot);
+    await feedbackStorageAdapter.save(snapshot);
+    const exportResult = await feedbackStorageAdapter.exportJson();
+    if (!exportResult.ok) return;
+    const blob = new Blob([exportResult.json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'trial-feedback.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function handleImportFeedbackJson(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const json = reader.result as string;
+      void feedbackStorageAdapter.importJson(json).then((result) => {
+        if (!result.ok) return;
+        setFeedbackSnapshot(result.snapshot);
+        setFeedbackEntries(result.snapshot.entries);
+      });
+    };
+    event.target.value = '';
+    reader.readAsText(file);
+  }
+
+  function handleClearFeedback() {
+    void feedbackStorageAdapter.clear().then(() => {
+      setFeedbackSnapshot(null);
+      setFeedbackEntries([]);
+      feedbackLoadedRef.current = true;
+    });
   }
 
   const releaseReadinessRows: readonly [string, WorkspaceLifecycleReleaseStatusV1][] = releaseReport
@@ -960,6 +1037,17 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
           </div>
         )}
       </section>
+
+      <TrialFeedbackPanel
+        entries={feedbackEntries}
+        limitedTrialPlan={limitedTrialPlan}
+        scenarios={scenarios}
+        activeScenarioId={activeScenario.id}
+        onEntriesChange={setFeedbackEntries}
+        onExport={() => { void handleExportFeedbackJson(); }}
+        onImport={handleImportFeedbackJson}
+        onClear={handleClearFeedback}
+      />
     </div>
   );
 }
