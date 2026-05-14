@@ -939,7 +939,7 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     contentId: 'EC-SWE-01',
     conceptId: 'system_work_explainer',
     title: 'What the installation includes — and what it will do',
-    plainEnglishSummary: 'Included work is defined and agreed. Each item in scope has a specific purpose. Parts of the plant room not in scope will remain unchanged.',
+    plainEnglishSummary: 'Included work is defined and agreed. Each item within scope serves a specific purpose. Parts of the plant room not in scope will remain unchanged.',
     customerExplanation: 'What you may notice: the installation covers specific items and may not touch other parts of the plant room. What this means: included scope is defined — adjacent items are not changed unless separately agreed.',
     analogyOptions: [
       {
