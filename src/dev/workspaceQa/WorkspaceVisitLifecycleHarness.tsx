@@ -43,6 +43,10 @@ const TRIAL_READINESS_STATUS_OPTIONS: readonly TrialReadinessStatusV1[] = [
   'accepted_risk',
 ];
 
+function formatEnumLabel(value: string): string {
+  return value.replace(/_/g, ' ');
+}
+
 function StatusPill({
   ok,
   passLabel = 'pass',
@@ -872,7 +876,7 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
         ) : (
           <div style={{ display: 'grid', gap: 8, fontSize: 12 }}>
             <div data-testid="workspace-qa-trial-decision-recommendation">
-              <strong>Overall recommendation:</strong> {trialDecisionSummary.overallRecommendation.replace(/_/g, ' ')}
+              <strong>Overall recommendation:</strong> {formatEnumLabel(trialDecisionSummary.overallRecommendation)}
             </div>
             <div>
               <strong>Summary:</strong> {trialDecisionSummary.plainEnglishSummary}

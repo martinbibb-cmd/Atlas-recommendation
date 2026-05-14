@@ -27,7 +27,6 @@ const EVIDENCE_LINKS: readonly string[] = [
   'trial-readiness-actions.json',
   'trial-readiness-review.json',
   'known-gaps.json',
-  'trial-readiness-summary.json',
 ];
 
 function unique(values: readonly string[]): string[] {
