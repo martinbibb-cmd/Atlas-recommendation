@@ -1,4 +1,5 @@
 import type { SurveyFollowUpTaskV1 } from '../SurveyFollowUpTaskV1';
+import type { WorkflowVisibility } from '../../../workflow/visibility/WorkflowVisibilityV1';
 
 export type FollowUpEvidenceCaptureType =
   | 'photo'
@@ -18,6 +19,7 @@ export interface FollowUpEvidenceCaptureItemV1 {
   readonly acceptanceCriteria: readonly string[];
   readonly linkedLineIds: readonly string[];
   readonly linkedMaterialIds: readonly string[];
+  readonly visibility: readonly WorkflowVisibility[];
 }
 
 export interface FollowUpEvidenceCapturePlanV1 {

@@ -13,6 +13,8 @@ import type {
   OperationalIntentGroupV1,
   OperationalLocationStateV1,
 } from './OperationalDigestV1';
+import { classifyWorkflowVisibility } from '../visibility/classifyWorkflowVisibility';
+import type { WorkflowVisibility } from '../visibility/WorkflowVisibilityV1';
 
 interface BuildOperationalDigestInput {
   readonly tasks: readonly SurveyFollowUpTaskV1[];
@@ -36,6 +38,7 @@ interface DigestDraft {
   evidenceRequired: EvidenceRequirementV1[];
   unresolvedDependencies: string[];
   locationStates: OperationalLocationStateV1[];
+  visibility: WorkflowVisibility[];
 }
 
 const PRIORITY_ORDER: Readonly<Record<SurveyFollowUpTaskPriority, number>> = {
@@ -147,6 +150,7 @@ function buildDraftFromTask(task: SurveyFollowUpTaskV1, locationStateById: Map<s
     evidenceRequired: [],
     unresolvedDependencies: [],
     locationStates: stateCandidates.length > 0 ? stateCandidates : ['unresolved'],
+    visibility: [...task.visibility],
   };
 }
 
@@ -165,6 +169,7 @@ function mergeDraftTask(existing: DigestDraft, task: SurveyFollowUpTaskV1, locat
   if (existing.summary.length < summarizedDescription.length) {
     existing.summary = summarizedDescription;
   }
+  existing.visibility = stableUnique([...existing.visibility, ...task.visibility]) as WorkflowVisibility[];
 }
 
 function attachEvidence(
@@ -182,6 +187,10 @@ function attachEvidence(
       acceptanceCriteria: item.acceptanceCriteria,
       linkedLineIds: item.linkedLineIds,
       linkedMaterialIds: item.linkedMaterialIds,
+      visibility: stableUnique([
+        ...item.visibility,
+        ...classifyWorkflowVisibility({ text: item.prompt }),
+      ]) as WorkflowVisibility[],
     };
     evidenceById.set(item.evidenceId, requirement);
   }
@@ -244,6 +253,7 @@ function toDigestGroup(draft: DigestDraft): OperationalIntentGroupV1 {
     evidenceRequired: [...draft.evidenceRequired].sort((a, b) => a.prompt.localeCompare(b.prompt)),
     unresolvedDependencies: stableUnique(draft.unresolvedDependencies),
     locationState: pickWorstLocationState(draft.locationStates),
+    visibility: stableUnique(draft.visibility) as WorkflowVisibility[],
   };
 }
 

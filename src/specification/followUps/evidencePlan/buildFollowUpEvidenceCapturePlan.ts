@@ -2,6 +2,8 @@ import type { EngineerJobPackV1 } from '../../handover';
 import type { SuggestedMaterialLineV1 } from '../../materials';
 import type { SpecificationLineV1 } from '../../specLines';
 import type { SurveyFollowUpTaskV1 } from '../SurveyFollowUpTaskV1';
+import { classifyWorkflowVisibility } from '../../../workflow/visibility/classifyWorkflowVisibility';
+import type { WorkflowVisibility } from '../../../workflow/visibility/WorkflowVisibilityV1';
 import type {
   FollowUpEvidenceCaptureItemV1,
   FollowUpEvidenceCapturePlanV1,
@@ -17,6 +19,7 @@ interface EvidenceDraft {
   readonly acceptanceCriteria: readonly string[];
   readonly linkedLineIds: readonly string[];
   readonly linkedMaterialIds: readonly string[];
+  readonly visibility: readonly WorkflowVisibility[];
 }
 
 const EVIDENCE_ORDER: Readonly<Record<FollowUpEvidenceCaptureType, number>> = {
@@ -104,6 +107,10 @@ function makeDraft(
   required: boolean,
   targetLocation?: string,
 ): EvidenceDraft {
+  const inferredVisibility = classifyWorkflowVisibility({
+    text: `${task.title} ${task.description} ${prompt}`,
+    preferCustomerSummary: evidenceType === 'customer_confirmation',
+  });
   return {
     taskIds: [task.taskId],
     evidenceType,
@@ -113,6 +120,7 @@ function makeDraft(
     acceptanceCriteria: stableUnique(acceptanceCriteria),
     linkedLineIds: stableUnique(task.relatedLineIds),
     linkedMaterialIds: stableUnique(task.relatedMaterialIds),
+    visibility: stableUnique([...task.visibility, ...inferredVisibility]) as WorkflowVisibility[],
   };
 }
 
@@ -342,6 +350,7 @@ export function buildFollowUpEvidenceCapturePlan(
     acceptanceCriteria: draft.acceptanceCriteria,
     linkedLineIds: draft.linkedLineIds,
     linkedMaterialIds: draft.linkedMaterialIds,
+    visibility: draft.visibility,
   }));
 
   const requiredEvidence = withIds.filter((item) => item.required);

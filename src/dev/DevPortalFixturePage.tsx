@@ -58,6 +58,11 @@ import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
 import { buildOperationalDigest, OperationalDigestPanel } from '../workflow/operationalDigest';
+import {
+  buildChecklistLinesFromReadinessChecks,
+  buildInstallerWorkflowProjection,
+  buildReadinessChecksFromSpecificationReadiness,
+} from '../workflow/visibility/buildWorkflowProjections';
 import { WorkspaceSessionGuard, useWorkspaceSession, useOptionalWorkspaceBrandSession } from '../auth/profile';
 import {
   WORKFLOW_SCHEMA_VERSION,
@@ -952,6 +957,30 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         scanHandoff: simulatedScanHandoff,
         engineerJobPack,
       });
+      const readinessChecks = buildReadinessChecksFromSpecificationReadiness(simulatedReadiness);
+      const checklistLines = buildChecklistLinesFromReadinessChecks(readinessChecks);
+      const installerWorkflowProjection = buildInstallerWorkflowProjection({
+        followUpTasks: simulatedTasks,
+        readinessChecks,
+        evidenceRequirements: [
+          ...simulatedEvidencePlan.requiredEvidence,
+          ...simulatedEvidencePlan.optionalEvidence,
+        ],
+        operationalDigest,
+        checklistLines,
+      });
+      const projectedReadiness = {
+        ...simulatedReadiness,
+        blockingReasons: installerWorkflowProjection.readinessChecks
+          .filter((check) => check.severity === 'blocker')
+          .map((check) => check.text),
+        warnings: installerWorkflowProjection.readinessChecks
+          .filter((check) => check.severity === 'warning')
+          .map((check) => check.text),
+        unresolvedChecks: installerWorkflowProjection.readinessChecks
+          .filter((check) => check.severity === 'info')
+          .map((check) => check.text),
+      };
       const unresolvedTaskCount = simulatedTasks.filter((task) => !task.resolved).length;
       const requiredEvidenceTotal = followUpEvidencePlan.requiredEvidence.length;
       const capturedRequiredEvidenceCount = followUpEvidencePlan.requiredEvidence
@@ -1206,7 +1235,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               testId="dev-workflow-step-readiness"
               complete={simulatedReadiness.blockingReasons.length === 0}
             >
-              <SpecificationReadinessPanel readiness={simulatedReadiness} />
+              <SpecificationReadinessPanel readiness={projectedReadiness} />
             </WorkflowStep>
 
             {/* ── Step 2: Follow-up tasks ──────────────────────────────────── */}
@@ -1217,10 +1246,10 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               complete={unresolvedTaskCount === 0}
             >
               <div style={{ marginBottom: '0.65rem' }}>
-                <OperationalDigestPanel digest={operationalDigest} />
+                <OperationalDigestPanel digest={installerWorkflowProjection.operationalDigest} />
               </div>
               <SurveyFollowUpTaskPanel
-                tasks={simulatedTasks}
+                tasks={installerWorkflowProjection.followUpTasks}
                 lines={specificationLines}
                 materials={materialsSchedule}
                 engineerJobPack={engineerJobPack}

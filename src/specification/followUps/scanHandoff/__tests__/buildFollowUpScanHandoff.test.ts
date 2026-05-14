@@ -14,6 +14,7 @@ function makeTask(overrides: Partial<SurveyFollowUpTaskV1>): SurveyFollowUpTaskV
     relatedMaterialIds: [],
     relatedLocationIds: [],
     suggestedEvidenceType: 'note',
+    visibility: ['installer_only'],
     resolved: false,
     ...overrides,
   };
@@ -60,6 +61,7 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         acceptanceCriteria: ['Tundish is visible in at least one image.'],
         linkedLineIds: ['line_tundish'],
         linkedMaterialIds: [],
+        visibility: ['installer_only'],
       },
       {
         evidenceId: 'evidence_unknown_location',
@@ -71,6 +73,7 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         acceptanceCriteria: ['Scan pin is placed at the exact install/check location.'],
         linkedLineIds: [],
         linkedMaterialIds: [],
+        visibility: ['installer_only'],
       },
       {
         evidenceId: 'evidence_qualification',
@@ -81,6 +84,7 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         acceptanceCriteria: ['Qualification evidence is attached or verified against records.'],
         linkedLineIds: [],
         linkedMaterialIds: [],
+        visibility: ['office_only', 'compliance_audit'],
       },
     ],
     optionalEvidence: [
@@ -94,6 +98,7 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         acceptanceCriteria: ['Survey note clearly resolves what remains unknown.'],
         linkedLineIds: [],
         linkedMaterialIds: [],
+        visibility: ['installer_only'],
       },
     ],
     unresolvedAfterCapture: ['follow_up_003'],

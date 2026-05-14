@@ -1,3 +1,5 @@
+import type { WorkflowVisibility } from '../../workflow/visibility/WorkflowVisibilityV1';
+
 export type SurveyFollowUpTaskSource =
   | 'readiness_blocker'
   | 'unresolved_check'
@@ -29,5 +31,6 @@ export interface SurveyFollowUpTaskV1 {
   readonly relatedMaterialIds: readonly string[];
   readonly relatedLocationIds: readonly string[];
   readonly suggestedEvidenceType: SurveyFollowUpTaskEvidenceType;
+  readonly visibility: readonly WorkflowVisibility[];
   readonly resolved: boolean;
 }

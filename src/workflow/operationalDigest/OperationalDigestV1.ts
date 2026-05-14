@@ -3,6 +3,7 @@ import type {
   SurveyFollowUpTaskAssignedRole,
   SurveyFollowUpTaskPriority,
 } from '../../specification/followUps';
+import type { WorkflowVisibility } from '../visibility/WorkflowVisibilityV1';
 
 export type OperationalDigestInstallPhaseV1 = 'survey' | 'coordination' | 'installation';
 
@@ -21,6 +22,7 @@ export interface EvidenceRequirementV1 {
   readonly acceptanceCriteria: readonly string[];
   readonly linkedLineIds: readonly string[];
   readonly linkedMaterialIds: readonly string[];
+  readonly visibility: readonly WorkflowVisibility[];
 }
 
 export interface OperationalIntentGroupV1 {
@@ -34,6 +36,7 @@ export interface OperationalIntentGroupV1 {
   readonly evidenceRequired: readonly EvidenceRequirementV1[];
   readonly unresolvedDependencies: readonly string[];
   readonly locationState: OperationalLocationStateV1;
+  readonly visibility: readonly WorkflowVisibility[];
 }
 
 export interface OperationalDigestV1 {

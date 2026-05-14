@@ -50,6 +50,7 @@ describe('buildOperationalDigest', () => {
         relatedMaterialIds: ['material_1'],
         relatedLocationIds: ['unknown:plant_location'],
         suggestedEvidenceType: 'scan_pin',
+        visibility: ['installer_only'],
         resolved: false,
       },
       {
@@ -63,6 +64,7 @@ describe('buildOperationalDigest', () => {
         relatedMaterialIds: [],
         relatedLocationIds: ['unknown:plant_location'],
         suggestedEvidenceType: 'customer_confirmation',
+        visibility: ['customer_action_required'],
         resolved: false,
       },
     ];
@@ -95,6 +97,7 @@ describe('buildOperationalDigest', () => {
           acceptanceCriteria: ['Pin label clearly identifies what was located.'],
           linkedLineIds: ['line_1'],
           linkedMaterialIds: ['material_1'],
+          visibility: ['installer_only'],
         },
       ],
       optionalEvidence: [],

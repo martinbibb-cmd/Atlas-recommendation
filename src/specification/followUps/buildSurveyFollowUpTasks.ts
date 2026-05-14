@@ -2,6 +2,7 @@ import type { EngineerJobPackItemV1, EngineerJobPackV1 } from '../handover';
 import type { SuggestedMaterialLineV1 } from '../materials';
 import type { SpecificationReadinessV1 } from '../readiness';
 import type { SpecificationLineV1 } from '../specLines';
+import { classifyWorkflowVisibility } from '../../workflow/visibility/classifyWorkflowVisibility';
 import type {
   SurveyFollowUpTaskAssignedRole,
   SurveyFollowUpTaskEvidenceType,
@@ -9,6 +10,7 @@ import type {
   SurveyFollowUpTaskSource,
   SurveyFollowUpTaskV1,
 } from './SurveyFollowUpTaskV1';
+import type { WorkflowVisibility } from '../../workflow/visibility/WorkflowVisibilityV1';
 
 interface TaskSeed {
   readonly title: string;
@@ -21,6 +23,7 @@ interface TaskSeed {
   readonly relatedMaterialIds: readonly string[];
   readonly relatedLocationIds: readonly string[];
   readonly suggestedEvidenceType: SurveyFollowUpTaskEvidenceType;
+  readonly visibility: readonly WorkflowVisibility[];
 }
 
 type EngineerSectionKey = Exclude<keyof EngineerJobPackV1, 'jobPackVersion' | 'surveyData' | 'scanData'>;
@@ -214,6 +217,7 @@ function mergeSeeds(existing: TaskSeed, incoming: TaskSeed): TaskSeed {
     relatedMaterialIds: stableUnique([...existing.relatedMaterialIds, ...incoming.relatedMaterialIds]),
     relatedLocationIds: stableUnique([...existing.relatedLocationIds, ...incoming.relatedLocationIds]),
     suggestedEvidenceType,
+    visibility: stableUnique([...existing.visibility, ...incoming.visibility]) as WorkflowVisibility[],
   };
 }
 
@@ -279,6 +283,7 @@ export function buildSurveyFollowUpTasks(
       relatedMaterialIds,
       relatedLocationIds,
       suggestedEvidenceType: inferEvidenceType(blocker),
+      visibility: classifyWorkflowVisibility({ text: blocker }),
     });
   }
 
@@ -299,6 +304,7 @@ export function buildSurveyFollowUpTasks(
       relatedMaterialIds,
       relatedLocationIds,
       suggestedEvidenceType: inferEvidenceType(check),
+      visibility: classifyWorkflowVisibility({ text: check, preferCustomerSummary: true }),
     });
   }
 
@@ -322,6 +328,7 @@ export function buildSurveyFollowUpTasks(
       relatedMaterialIds: [material.materialId],
       relatedLocationIds: [],
       suggestedEvidenceType: inferEvidenceType(seedText),
+      visibility: classifyWorkflowVisibility({ text: seedText }),
     });
   }
 
@@ -345,6 +352,7 @@ export function buildSurveyFollowUpTasks(
       relatedMaterialIds: [],
       relatedLocationIds: [locationId],
       suggestedEvidenceType: 'scan_pin',
+      visibility: classifyWorkflowVisibility({ text: itemText, preferCustomerSummary: true }),
     });
   }
 
@@ -361,6 +369,7 @@ export function buildSurveyFollowUpTasks(
     relatedMaterialIds: seed.relatedMaterialIds,
     relatedLocationIds: seed.relatedLocationIds,
     suggestedEvidenceType: seed.suggestedEvidenceType,
+    visibility: seed.visibility,
     resolved: false,
   }));
 }

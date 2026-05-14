@@ -17,6 +17,7 @@ function makeTask(overrides: Partial<SurveyFollowUpTaskV1>): SurveyFollowUpTaskV
     relatedMaterialIds: [],
     relatedLocationIds: [],
     suggestedEvidenceType: 'note',
+    visibility: ['installer_only'],
     resolved: false,
     ...overrides,
   };
