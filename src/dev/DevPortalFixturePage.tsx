@@ -237,6 +237,7 @@ const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder
 const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
 const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
 const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
+const FOLLOW_UP_DIGEST_MARGIN_BOTTOM = '0.65rem';
 const INSTALLER_BLOCKING_REASON_PATTERNS: readonly RegExp[] = [
   /^Safety\/compliance check unresolved:/i,
   /^Installer validation unresolved:/i,
@@ -1245,7 +1246,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               testId="dev-workflow-step-follow-up-tasks"
               complete={unresolvedTaskCount === 0}
             >
-              <div style={{ marginBottom: '0.65rem' }}>
+              <div style={{ marginBottom: FOLLOW_UP_DIGEST_MARGIN_BOTTOM }}>
                 <OperationalDigestPanel digest={installerWorkflowProjection.operationalDigest} />
               </div>
               <SurveyFollowUpTaskPanel
