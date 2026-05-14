@@ -59,5 +59,5 @@ export function validateTrialReadinessPack(raw: unknown): TrialReadinessPackVali
     return { ok: false, reason: 'Import failed: workspace lifecycle scenarios include customer visit payloads.' };
   }
 
-  return { ok: true, pack: raw as TrialReadinessPackV1 };
+  return { ok: true, pack: raw as unknown as TrialReadinessPackV1 };
 }
