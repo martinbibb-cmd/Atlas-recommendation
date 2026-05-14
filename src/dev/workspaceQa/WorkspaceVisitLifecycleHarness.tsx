@@ -19,6 +19,7 @@ import {
   buildTrialReadinessPack,
   buildTrialReadinessSummary,
   buildTrialReadinessActions,
+  buildFirstTesterSessionScript,
   LocalTrialReadinessReviewStorageAdapter,
   LocalTrialFeedbackStorageAdapter,
   mergeGeneratedActionsWithReviewState,
@@ -33,11 +34,13 @@ import {
   type TrialReadinessStatusV1,
   type LimitedTrialPlanV1,
   type TrialFeedbackSummaryV1,
+  type FirstTesterSessionScriptV1,
 } from '../trialReadiness';
 import {
   TrialFeedbackPanel,
 } from '../trialReadiness/feedback/TrialFeedbackPanel';
 import { buildTrialFeedbackSnapshot } from '../trialReadiness/feedback/trialFeedbackHelpers';
+import { FirstTesterSessionScriptPanel } from '../trialReadiness/firstTesterSession/FirstTesterSessionScriptPanel';
 
 interface WorkspaceVisitLifecycleHarnessProps {
   readonly onBack?: () => void;
@@ -393,6 +396,25 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     trialDecisionSummary,
     trialFeedbackSummary,
   ]);
+
+  const firstTesterSessionScript = useMemo<FirstTesterSessionScriptV1 | null>(
+    () =>
+      limitedTrialPlan && trialDecisionSummary
+        ? buildFirstTesterSessionScript(limitedTrialPlan, trialDecisionSummary)
+        : null,
+    [limitedTrialPlan, trialDecisionSummary],
+  );
+
+  function handleExportFirstTesterSessionScript() {
+    if (!firstTesterSessionScript) return;
+    const blob = new Blob([JSON.stringify(firstTesterSessionScript, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'first-tester-session-script.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   function handleTrialReadinessStatusChange(actionId: string, status: TrialReadinessStatusV1) {
     setTrialReadinessReviewState((current) =>
@@ -1126,6 +1148,11 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
         onExport={() => { void handleExportFeedbackJson(); }}
         onImport={handleImportFeedbackJson}
         onClear={handleClearFeedback}
+      />
+
+      <FirstTesterSessionScriptPanel
+        sessionScript={firstTesterSessionScript}
+        onExport={handleExportFirstTesterSessionScript}
       />
     </div>
   );
