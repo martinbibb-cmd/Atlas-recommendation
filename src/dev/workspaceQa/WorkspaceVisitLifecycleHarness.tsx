@@ -14,6 +14,7 @@ import {
 } from './buildWorkspaceLifecycleReleaseReport';
 import {
   addTrialReadinessActionNote,
+  buildLimitedTrialPlan,
   buildTrialReadinessPack,
   buildTrialReadinessSummary,
   buildTrialReadinessActions,
@@ -26,6 +27,7 @@ import {
   type TrialReadinessLintStatusV1,
   type TrialReadinessSummaryV1,
   type TrialReadinessStatusV1,
+  type LimitedTrialPlanV1,
 } from '../trialReadiness';
 
 interface WorkspaceVisitLifecycleHarnessProps {
@@ -266,6 +268,18 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     () => (releaseReport ? buildTrialReadinessSummary({ releaseGateReport: releaseReport, trialReadinessActions }) : null),
     [releaseReport, trialReadinessActions],
   );
+  const limitedTrialPlan = useMemo<LimitedTrialPlanV1 | null>(
+    () =>
+      releaseReport && trialDecisionSummary
+        ? buildLimitedTrialPlan({
+            releaseGateReport: releaseReport,
+            trialReadinessSummary: trialDecisionSummary,
+            trialReadinessActions,
+            workspaceLifecycleScenarios: scenarios,
+          })
+        : null,
+    [releaseReport, scenarios, trialDecisionSummary, trialReadinessActions],
+  );
 
   function handleTrialReadinessStatusChange(actionId: string, status: TrialReadinessStatusV1) {
     setTrialReadinessReviewState((current) =>
@@ -363,6 +377,17 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     const link = document.createElement('a');
     link.href = url;
     link.download = 'trial-readiness-summary.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function handleExportLimitedTrialPlan() {
+    if (!limitedTrialPlan) return;
+    const blob = new Blob([JSON.stringify(limitedTrialPlan, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'limited-trial-plan.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -886,6 +911,51 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
             </div>
             <div>
               <strong>Accepted risks:</strong> {trialDecisionSummary.acceptedRisks.length}
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section
+        style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'grid', gap: 10 }}
+        data-testid="workspace-qa-limited-trial-plan"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <h2 style={{ margin: '0 0 4px', fontSize: 14 }}>Limited trial plan</h2>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+              Controlled first-tester plan generated from trial readiness and scenario gates.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportLimitedTrialPlan}
+            disabled={limitedTrialPlan === null}
+            style={{ fontSize: 12, padding: '4px 12px' }}
+            data-testid="workspace-qa-limited-trial-plan-export-json"
+          >
+            Export JSON
+          </button>
+        </div>
+
+        {limitedTrialPlan === null ? (
+          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Building limited trial plan…</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8, fontSize: 12 }}>
+            <div data-testid="workspace-qa-limited-trial-plan-recommendation">
+              <strong>Trial recommendation:</strong> {formatEnumLabel(limitedTrialPlan.trialRecommendation)}
+            </div>
+            <div data-testid="workspace-qa-limited-trial-plan-tester-count">
+              <strong>Suggested tester count:</strong> {limitedTrialPlan.suggestedTesterCount}
+            </div>
+            <div>
+              <strong>Eligible scenarios:</strong> {limitedTrialPlan.eligibleScenarios.length}
+            </div>
+            <div>
+              <strong>Excluded scenarios:</strong> {limitedTrialPlan.excludedScenarios.length}
+            </div>
+            <div>
+              <strong>Stop criteria:</strong> {limitedTrialPlan.stopCriteria.length}
             </div>
           </div>
         )}

@@ -99,4 +99,12 @@ describe('trial readiness pack export', () => {
     expect(summaryJson.includes('"workflowState"')).toBe(false);
     expect(summaryJson.includes('"customerPayload"')).toBe(false);
   });
+
+  it('limited trial plan file does not include customer payload keys', () => {
+    const pack = makePack();
+    const planJson = JSON.stringify(pack.files['limited-trial-plan.json']);
+    expect(planJson.includes('"visit"')).toBe(false);
+    expect(planJson.includes('"workflowState"')).toBe(false);
+    expect(planJson.includes('"customerPayload"')).toBe(false);
+  });
 });

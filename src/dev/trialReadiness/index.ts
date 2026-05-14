@@ -1,5 +1,6 @@
 export { buildTrialReadinessActions } from './buildTrialReadinessActions';
 export { buildTrialReadinessSummary } from './buildTrialReadinessSummary';
+export { buildLimitedTrialPlan } from './buildLimitedTrialPlan';
 export {
   addTrialReadinessActionNote,
   mergeGeneratedActionsWithReviewState,
@@ -15,6 +16,7 @@ export type {
 } from './TrialReadinessActionV1';
 export type { TrialReadinessActionReviewStateV1 } from './trialReadinessReviewState';
 export type { TrialReadinessOverallRecommendationV1, TrialReadinessSummaryV1 } from './buildTrialReadinessSummary';
+export type { LimitedTrialPlanV1, LimitedTrialSuggestedTesterCountV1, LimitedTrialReadinessSignalV1 } from './buildLimitedTrialPlan';
 
 export {
   TRIAL_READINESS_REVIEW_SCHEMA_VERSION,
