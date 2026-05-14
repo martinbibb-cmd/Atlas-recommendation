@@ -3,6 +3,7 @@ import type { TrialReadinessActionReviewStateV1 } from '../trialReadinessReviewS
 import type { WorkspaceLifecycleReleaseReportV1 } from '../../workspaceQa/buildWorkspaceLifecycleReleaseReport';
 import type { WorkspaceVisitLifecycleScenarioV1 } from '../../workspaceQa/WorkspaceVisitLifecycleScenarioV1';
 import { buildTrialReadinessSummary } from '../buildTrialReadinessSummary';
+import { buildLimitedTrialPlan } from '../buildLimitedTrialPlan';
 import {
   TRIAL_READINESS_PACK_SCHEMA,
   TRIAL_READINESS_PACK_VERSION,
@@ -45,6 +46,7 @@ function buildReadme(folderName: string): string {
     '- workspace-lifecycle-scenarios.json',
     '- known-gaps.json',
     '- trial-readiness-summary.json',
+    '- limited-trial-plan.json',
   ].join('\n');
 }
 
@@ -83,6 +85,13 @@ export function buildTrialReadinessPack({
   exportedAt = new Date().toISOString(),
   folderName = buildFolderName(exportedAt),
 }: BuildTrialReadinessPackInput): TrialReadinessPackV1 {
+  const trialReadinessSummary = buildTrialReadinessSummary({ releaseGateReport, trialReadinessActions });
+  const limitedTrialPlan = buildLimitedTrialPlan({
+    releaseGateReport,
+    trialReadinessSummary,
+    trialReadinessActions,
+    workspaceLifecycleScenarios,
+  });
   const manifest = {
     schema: TRIAL_READINESS_PACK_SCHEMA,
     version: TRIAL_READINESS_PACK_VERSION,
@@ -101,7 +110,8 @@ export function buildTrialReadinessPack({
       'trial-readiness-review.json': toReviewEntries(trialReadinessActions, trialReadinessReviewState),
       'workspace-lifecycle-scenarios.json': toScenarioExportEntries(workspaceLifecycleScenarios),
       'known-gaps.json': toKnownGaps(trialReadinessActions),
-      'trial-readiness-summary.json': buildTrialReadinessSummary({ releaseGateReport, trialReadinessActions }),
+      'trial-readiness-summary.json': trialReadinessSummary,
+      'limited-trial-plan.json': limitedTrialPlan,
       'README.md': buildReadme(folderName),
     },
   };

@@ -7,6 +7,7 @@ import type {
   WorkspaceVisitLifecycleScenarioV1,
 } from '../../workspaceQa/WorkspaceVisitLifecycleScenarioV1';
 import type { TrialReadinessSummaryV1 } from '../buildTrialReadinessSummary';
+import type { LimitedTrialPlanV1 } from '../buildLimitedTrialPlan';
 
 export const TRIAL_READINESS_PACK_SCHEMA = 'atlas.trial-readiness-pack' as const;
 export const TRIAL_READINESS_PACK_VERSION = '1.0' as const;
@@ -19,6 +20,7 @@ export const TRIAL_READINESS_PACK_REQUIRED_FILES = [
   'workspace-lifecycle-scenarios.json',
   'known-gaps.json',
   'trial-readiness-summary.json',
+  'limited-trial-plan.json',
   'README.md',
 ] as const;
 
@@ -54,6 +56,7 @@ export interface TrialReadinessPackFilesV1 {
   readonly 'workspace-lifecycle-scenarios.json': readonly TrialReadinessWorkspaceLifecycleScenarioV1[];
   readonly 'known-gaps.json': readonly TrialReadinessKnownGapV1[];
   readonly 'trial-readiness-summary.json': TrialReadinessSummaryV1;
+  readonly 'limited-trial-plan.json': LimitedTrialPlanV1;
   readonly 'README.md': string;
 }
 
