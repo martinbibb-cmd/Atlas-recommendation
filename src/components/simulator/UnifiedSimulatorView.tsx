@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -232,9 +232,15 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
+  const saveStateRef = useRef<SaveState>('idle');
+
+  const setSaveStateSynced = useCallback((next: SaveState) => {
+    saveStateRef.current = next;
+    setSaveState(next);
+  }, []);
 
   const persistReport = useCallback(async () => {
-    if (advice == null) { setSaveState('failed'); return; }
+    if (advice == null) { setSaveStateSynced('failed'); return; }
     try {
       const engineInput = toEngineInput(surveyData);
       const recommendedOptionId =
@@ -260,15 +266,15 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
         postcode: surveyData.postcode ?? null,
         payload,
       });
-      setSavedReportId(res.id); setSaveState('saved');
-    } catch { setSaveState('failed'); }
-  }, [advice, engineOutput, surveyData]);
+      setSavedReportId(res.id); setSaveStateSynced('saved');
+    } catch { setSaveStateSynced('failed'); }
+  }, [advice, engineOutput, setSaveStateSynced, surveyData]);
 
   const handleSaveReport = useCallback(() => {
-    if (saveState === 'saving') return;
-    setSaveState('saving');
+    if (saveStateRef.current === 'saving') return;
+    setSaveStateSynced('saving');
     persistReport();
-  }, [persistReport, saveState]);
+  }, [persistReport, setSaveStateSynced]);
 
   // Navigate to a dedicated print-preview component that renders
   // PrintableRecommendationPage before triggering window.print() — this ensures
