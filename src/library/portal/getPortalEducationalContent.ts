@@ -2,6 +2,7 @@ import { getDiagramsByConceptId } from '../diagrams/diagramExplanationRegistry';
 import type { AtlasMvpContentEntryV1 } from '../content/atlasMvpContentMapRegistry';
 import type { EducationalContentV1 } from '../content/EducationalContentV1';
 import type { LibraryContentProjectionV1 } from '../projections/LibraryContentProjectionV1';
+import type { LibraryProjectionSafetyV1 } from '../projections/qa/LibraryProjectionSafetyV1';
 
 export interface PortalEducationalCardV1 {
   title: string;
@@ -30,6 +31,13 @@ export interface GetPortalEducationalContentInputV1 {
    * given audience.
    */
   audienceProjection?: LibraryContentProjectionV1;
+  /**
+   * Optional customer projection safety result from assessLibraryProjectionSafety.
+   * When present and safeForCustomer is false, an empty card list is returned
+   * so the portal library section falls back to a safe state rather than
+   * displaying potentially unsafe content.
+   */
+  customerProjectionSafety?: LibraryProjectionSafetyV1;
 }
 
 function normalizeToken(value: string): string {
@@ -100,7 +108,15 @@ export function getPortalEducationalContent({
   atlasMvpContentMapRegistry,
   educationalContentRegistry,
   audienceProjection,
+  customerProjectionSafety,
 }: GetPortalEducationalContentInputV1): PortalEducationalCardV1[] {
+  // When the customer projection safety gate is present and has failed, return
+  // an empty list so the portal library section falls back safely rather than
+  // displaying content that contains installer/compliance leakage.
+  if (customerProjectionSafety != null && !customerProjectionSafety.safeForCustomer) {
+    return [];
+  }
+
   // When an audience projection is provided, restrict concept selection to
   // concepts that have been approved for the given audience.
   const effectiveConceptIds =

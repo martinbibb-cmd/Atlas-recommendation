@@ -1,4 +1,5 @@
 import type { PortalJourneyPrintModelV1, PortalJourneyPrintSectionV1 } from './buildPortalJourneyPrintModel';
+import type { LibraryProjectionSafetyV1 } from '../../projections/qa/LibraryProjectionSafetyV1';
 
 export interface SupportingPdfReadinessInput {
   model: PortalJourneyPrintModelV1;
@@ -10,6 +11,12 @@ export interface SupportingPdfReadinessInput {
   printSafeLayoutPass: boolean;
   accessibilityBasicsPass: boolean;
   insightFallbackAvailable: boolean;
+  /**
+   * Optional customer projection safety result from assessLibraryProjectionSafety.
+   * When present and safeForCustomer is false, the PDF is blocked with the
+   * exact leakage reasons from the projection assessment.
+   */
+  customerProjectionSafety?: LibraryProjectionSafetyV1;
 }
 
 export interface SupportingPdfReadinessResult {
@@ -130,10 +137,18 @@ export function assessSupportingPdfReadiness(
     printSafeLayoutPass,
     accessibilityBasicsPass,
     insightFallbackAvailable,
+    customerProjectionSafety,
   } = input;
 
   const blockingReasons: string[] = [];
   const warnings: string[] = [];
+
+  // ── Projection safety gate ─────────────────────────────────────────────────
+  if (customerProjectionSafety != null && !customerProjectionSafety.safeForCustomer) {
+    for (const reason of customerProjectionSafety.blockingReasons) {
+      blockingReasons.push(`Projection safety: ${reason}`);
+    }
+  }
   const allCustomerText = collectCustomerFacingText(model);
 
   if (hasPendingContent(allCustomerText) || hasMissingRequiredContent(model)) {
