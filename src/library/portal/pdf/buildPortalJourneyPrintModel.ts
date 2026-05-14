@@ -410,10 +410,10 @@ export function buildPortalJourneyPrintModel(
   // contentId is not in visibleConcepts.  Static-content sections (e.g.
   // 'living_with_your_system') that do not correspond to a registry concept
   // are always retained.
+  const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
   const sections = audienceProjection != null
     ? rawSections.filter((section) => {
-        const isRegistryConcept = atlasMvpContentMapRegistry.some((e) => e.id === section.contentId);
-        if (!isRegistryConcept) return true;
+        if (!registryConceptIdSet.has(section.contentId)) return true;
         return audienceProjection.visibleConcepts.includes(section.contentId);
       })
     : rawSections;

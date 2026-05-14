@@ -57,7 +57,7 @@ function normalizeForSearch(value: string): string {
   return value.toLowerCase().trim();
 }
 
-function stableCardId(card: CalmWelcomePackCardV1): string {
+function deriveCardId(card: CalmWelcomePackCardV1): string {
   return card.assetId ?? card.conceptId ?? normalizeForSearch(card.title).replace(/\W+/g, '_');
 }
 
@@ -97,7 +97,9 @@ function buildProjectedDiagrams(visibleConceptIds: ReadonlySet<string>): Diagram
 
 function digestItemToCard(item: OperationalIntentGroupV1): CalmWelcomePackCardV1 {
   return {
-    conceptId: item.id,
+    // Use assetId to carry the digest item ID so that conceptId is not
+    // conflated with an educational concept identifier.
+    assetId: item.id,
     title: item.title,
     summary: item.summary,
   };
@@ -125,7 +127,7 @@ function classifyViewModelCards(
   const auditTrace: LibraryAuditTraceEntryV1[] = [];
 
   for (const card of cards) {
-    const contentId = stableCardId(card);
+    const contentId = deriveCardId(card);
     const linkedConceptIds = card.conceptId ? [card.conceptId] : [];
 
     if (suppressForCustomer) {

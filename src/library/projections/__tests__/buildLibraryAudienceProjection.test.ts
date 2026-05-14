@@ -175,7 +175,7 @@ describe('buildLibraryAudienceProjection', () => {
       audience: 'customer',
     });
 
-    const cardIds = projection.visibleCards.map((c) => c.conceptId);
+    const cardIds = projection.visibleCards.map((c) => c.assetId ?? c.conceptId);
     expect(cardIds).not.toContain('survey_task_001');
     expect(cardIds).not.toContain('install_task_001');
   });
