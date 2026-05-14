@@ -65,7 +65,7 @@ import {
   customerAnxietyPatterns,
 } from '../emotionalRouting';
 import { LibraryProjectionQaPanel } from '../projections/dev/LibraryProjectionQaPanel';
-import { LibraryCoverageAuditPanel } from '../coverage';
+import { LibraryAuthoringBacklogPanel, LibraryCoverageAuditPanel } from '../coverage';
 import type { OperationalDigestV1 } from '../../workflow/operationalDigest/OperationalDigestV1';
 
 // A minimal empty operational digest stub used when no real digest is available
@@ -1745,6 +1745,9 @@ export function WelcomePackDevPreview() {
           <section aria-label="Library content coverage audit" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
             <h2>Library Content Coverage Audit</h2>
             <LibraryCoverageAuditPanel />
+            <div style={{ marginTop: '0.75rem' }}>
+              <LibraryAuthoringBacklogPanel />
+            </div>
           </section>
         </>
       )}
