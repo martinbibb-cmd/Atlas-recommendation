@@ -9,6 +9,7 @@ import type { PersistedImplementationWorkflowV1 } from '../PersistedImplementati
 import type { WorkflowStorageTarget } from '../WorkflowStorageAdapterV1';
 import type { AtlasVisitOwnershipV1 } from '../../../auth/profile/AtlasVisitOwnershipV1';
 import type { BrandResolutionSource } from '../../../auth/brand/resolveBrandForWorkspace';
+import type { PortalVisitContextV1 } from '../../../contracts/PortalVisitContextV1';
 
 export const WORKFLOW_EXPORT_PACKAGE_SCHEMA = 'atlas.workflow-export-package' as const;
 export const WORKFLOW_EXPORT_PACKAGE_VERSION = '1.0' as const;
@@ -24,6 +25,7 @@ export const WORKFLOW_EXPORT_REQUIRED_FILES = [
   'follow-up-tasks.json',
   'scan-handoff-preview.json',
   'customer-summary.json',
+  'portal-visit-context.json',
   'README.md',
 ] as const;
 
@@ -79,6 +81,7 @@ export interface WorkflowExportPackagePayloadV1 {
   readonly followUpTasks: readonly SurveyFollowUpTaskV1[];
   readonly scanHandoffPreview: ScanHandoffEnvelopePreviewV1;
   readonly customerSummary: CustomerSummaryV1;
+  readonly portalVisitContext: PortalVisitContextV1;
 }
 
 export interface WorkflowExportPackageV1 {

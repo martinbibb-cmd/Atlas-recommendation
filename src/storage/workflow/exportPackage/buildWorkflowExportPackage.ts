@@ -8,6 +8,7 @@ import {
 } from './WorkflowExportPackageV1';
 import type { WorkflowStorageTarget } from '../WorkflowStorageAdapterV1';
 import type { AtlasVisitOwnershipV1 } from '../../../auth/profile/AtlasVisitOwnershipV1';
+import { sanitizePortalVisitContextForExport } from '../../../lib/portal/portalVisitContext';
 
 interface BuildWorkflowExportPackageInput {
   readonly payload: WorkflowExportPackagePayloadV1;
@@ -65,6 +66,7 @@ function buildReadme(folderName: string): string {
     '- follow-up-tasks.json',
     '- scan-handoff-preview.json',
     '- customer-summary.json',
+    '- portal-visit-context.json',
   ].join('\n');
 }
 
@@ -76,6 +78,7 @@ export function buildWorkflowExportPackage({
   ownership,
   brandContext,
 }: BuildWorkflowExportPackageInput): WorkflowExportPackageV1 {
+  const portalVisitContext = sanitizePortalVisitContextForExport(payload.portalVisitContext);
   const manifest: WorkflowExportPackageManifestV1 = {
     schema: WORKFLOW_EXPORT_PACKAGE_SCHEMA,
     version: WORKFLOW_EXPORT_PACKAGE_VERSION,
@@ -103,9 +106,10 @@ export function buildWorkflowExportPackage({
       'materials-schedule.json': payload.materialsSchedule,
       'engineer-job-pack.json': payload.engineerJobPack,
       'follow-up-tasks.json': payload.followUpTasks,
-      'scan-handoff-preview.json': payload.scanHandoffPreview,
-      'customer-summary.json': payload.customerSummary,
-      'README.md': buildReadme(folderName),
-    },
+        'scan-handoff-preview.json': payload.scanHandoffPreview,
+        'customer-summary.json': payload.customerSummary,
+        'portal-visit-context.json': portalVisitContext,
+        'README.md': buildReadme(folderName),
+      },
   };
 }

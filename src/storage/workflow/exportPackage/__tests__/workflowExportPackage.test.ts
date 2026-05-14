@@ -48,6 +48,20 @@ function makePackage(exportedAt = '2026-05-13T10:00:00.000Z') {
     followUpTasks: [{ taskId: 'task-1', title: 'Task 1', resolved: false }] as never,
     scanHandoffPreview: { envelopeId: 'env-1' } as never,
     customerSummary: { recommendedScenarioId: 'system_unvented_cylinder', headline: 'Summary' } as never,
+    portalVisitContext: {
+      portalReference: 'portal-ref',
+      workspaceId: 'workspace-1',
+      brandId: 'atlas-default',
+      visitReference: 'visit-1',
+      customerDisplayLabel: 'The Smith household',
+      addressSummary: '3-bed semi in Portsmouth',
+      propertyFacts: ['2 bathrooms'],
+      usageFacts: ['3-person household'],
+      recommendationSummary: 'Summary',
+      selectedScenarioId: 'system_unvented_cylinder',
+      accessMode: 'workspace_preview',
+      personalDataMode: 'full_customer_record',
+    },
   };
   return buildWorkflowExportPackage({
     payload,
@@ -79,6 +93,15 @@ describe('workflow export package', () => {
     });
   });
 
+  it('exports a personal-data-light portal visit context by default', () => {
+    const pkg = makePackage();
+    const portalVisitContext = pkg.files['portal-visit-context.json'] as Record<string, unknown>;
+
+    expect(portalVisitContext['personalDataMode']).toBe('address_summary');
+    expect(portalVisitContext['customerDisplayLabel']).toBe('The Smith household');
+    expect(portalVisitContext['addressSummary']).toBe('3-bed semi in Portsmouth');
+  });
+
   it('import validates schema', async () => {
     const pkg = makePackage();
     const badBlob = new Blob([JSON.stringify({ ...pkg, schema: 'wrong.schema' })], { type: 'application/json' });
@@ -104,6 +127,18 @@ describe('workflow export package', () => {
         followUpTasks: [{ taskId: 'task-1', title: 'Task 1', resolved: false }] as never,
         scanHandoffPreview: { envelopeId: 'env-1' } as never,
         customerSummary: { recommendedScenarioId: 'system_unvented_cylinder', headline: 'Summary' } as never,
+        portalVisitContext: {
+          portalReference: 'portal-ref',
+          workspaceId: 'workspace-1',
+          brandId: 'atlas-default',
+          visitReference: 'visit-1',
+          propertyFacts: ['2 bathrooms'],
+          usageFacts: ['3-person household'],
+          recommendationSummary: 'Summary',
+          selectedScenarioId: 'system_unvented_cylinder',
+          accessMode: 'workspace_preview',
+          personalDataMode: 'none',
+        },
       },
       source: { target: 'google_drive', surface: 'workspace_google_drive' },
       exportedAt: '2026-05-13T11:00:00.000Z',

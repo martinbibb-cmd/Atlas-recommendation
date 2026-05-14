@@ -99,9 +99,9 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
     expect(screen.getByTestId('portal-welcome-insight')).toBeTruthy();
     expect(screen.getByTestId('portal-welcome-presentation')).toBeTruthy();
-    // Portal header with postcode shown on welcome page too
+    // Portal header uses safe visit-scoped copy
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
-    expect(screen.getAllByText('SW1A 1AA').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Your home').length).toBeGreaterThan(0);
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode: choice/i)).toBeTruthy();
     expect(screen.getByText(/activeRendererComponent: PortalChoiceScreen/i)).toBeTruthy();
@@ -141,9 +141,9 @@ describe('CustomerPortalPage', () => {
 
     expect(screen.getByTestId('customer-portal')).toBeTruthy();
 
-    // Portal header with postcode
+    // Portal header uses safe visit-scoped copy
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
-    expect(screen.getAllByText('SW1A 1AA').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Your home').length).toBeGreaterThan(0);
 
     // Canonical presentation deck — identical to the in-room view
     expect(screen.getByTestId('presentation-deck')).toBeTruthy();
@@ -179,6 +179,31 @@ describe('CustomerPortalPage', () => {
     fireEvent.click(screen.getByTestId('portal-welcome-insight'));
     await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
     expect(screen.queryByTestId('insight-route-trace-labels')).toBeNull();
+  });
+
+  it('renders without customer name or address data', async () => {
+    mockFetchSuccess({ ...STUB_REPORT, postcode: null, customer_name: null });
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    expect(screen.getAllByText('Your home').length).toBeGreaterThan(0);
+    expect(screen.queryByText('SW1A 1AA')).toBeNull();
+  });
+
+  it('renders an optional display label safely when provided', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(
+      <CustomerPortalPage
+        reference="test-report-1"
+        token="valid-token"
+        portalVisitContextOverride={{
+          customerDisplayLabel: 'The Smith household',
+          personalDataMode: 'display_label_only',
+        }}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    expect(screen.getAllByText('The Smith household').length).toBeGreaterThan(0);
+    expect(screen.queryByText('SW1A 1AA')).toBeNull();
   });
 
   it('keeps recommendation output unchanged when route trace labels are toggled', async () => {

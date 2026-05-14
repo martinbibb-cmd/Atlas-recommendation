@@ -214,6 +214,17 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
     expect(model.cover.brandName).toBeUndefined();
   });
 
+  it('keeps address summary out of print by default', () => {
+    const model = buildPortalJourneyPrintModel({
+      ...BASE_INPUT,
+      visitContext: {
+        addressSummary: '3-bed semi in Portsmouth',
+        personalDataMode: 'address_summary',
+      },
+    });
+    expect(model.cover.addressSummary).toBeUndefined();
+  });
+
   it('model with empty selectedSectionIds still includes all core sections', () => {
     const model = buildPortalJourneyPrintModel({ ...BASE_INPUT, selectedSectionIds: [] });
     expect(model.sections.map((s) => s.sectionId)).toEqual([

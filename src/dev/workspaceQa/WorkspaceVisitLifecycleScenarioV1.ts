@@ -474,6 +474,18 @@ function toExportPackage(
       followUpTasks: [{ taskId: 'task-1', title: 'Task 1', resolved: false }] as never,
       scanHandoffPreview: { envelopeId: 'env-1' } as never,
       customerSummary: { recommendedScenarioId: 'system_unvented_cylinder', headline: 'Summary' } as never,
+        portalVisitContext: {
+          portalReference: scenario.id,
+          workspaceId: scenario.session.workspaceId ?? 'workspace-preview',
+          brandId: scenario.session.activeBrandId,
+        visitReference: scenario.workflowState.visitReference,
+        propertyFacts: ['2 bathrooms'],
+        usageFacts: ['3-person household'],
+        recommendationSummary: 'Summary',
+        selectedScenarioId: 'system_unvented_cylinder',
+        accessMode: 'workspace_preview',
+        personalDataMode: 'none',
+      },
     },
     source: {
       target: scenario.session.storageTarget,

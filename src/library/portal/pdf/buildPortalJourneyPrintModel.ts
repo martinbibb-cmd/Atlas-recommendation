@@ -25,6 +25,8 @@
 
 import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegistry';
 import type { LibraryContentProjectionV1 } from '../../projections/LibraryContentProjectionV1';
+import type { PortalVisitContextV1 } from '../../../contracts/PortalVisitContextV1';
+import { resolvePortalAddressSummary } from '../../../lib/portal/portalVisitContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +35,7 @@ export interface PortalJourneyPrintCoverV1 {
   summary: string;
   customerFacts: string[];
   brandName?: string;
+  addressSummary?: string;
 }
 
 export interface PortalJourneyPrintSectionV1 {
@@ -104,6 +107,10 @@ export interface BuildPortalJourneyPrintModelInputV1 {
    * `living_with_your_system`) are always included.
    */
   audienceProjection?: LibraryContentProjectionV1;
+  /** Optional visit-scoped portal context for safe display metadata. */
+  visitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
+  /** Address summary stays hidden in print unless explicitly enabled. */
+  includeAddressSummaryInPrint?: boolean;
 }
 
 // ─── Living-with-your-system static content ───────────────────────────────────
@@ -388,9 +395,14 @@ export function buildPortalJourneyPrintModel(
     brandProfile,
     journeyType = 'open_vented',
     audienceProjection,
+    visitContext,
+    includeAddressSummaryInPrint = false,
   } = input;
 
   const selectedSet = new Set(selectedSectionIds);
+  const addressSummary = resolvePortalAddressSummary(visitContext, {
+    includeInPrint: includeAddressSummaryInPrint,
+  });
 
   // ── Cover ──────────────────────────────────────────────────────────────────
   const MAX_COVER_CUSTOMER_FACTS = 3;
@@ -399,6 +411,7 @@ export function buildPortalJourneyPrintModel(
     summary: recommendationSummary,
     customerFacts: customerFacts.slice(0, MAX_COVER_CUSTOMER_FACTS),
     brandName: brandProfile?.name,
+    ...(addressSummary ? { addressSummary } : {}),
   };
 
   const { sections: rawSections, nextSteps, qrDestinations } =

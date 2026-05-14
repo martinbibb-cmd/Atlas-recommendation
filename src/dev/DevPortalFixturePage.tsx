@@ -1072,6 +1072,24 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         },
         ...(workflowOwnership !== undefined ? { ownership: workflowOwnership } : {}),
       };
+      const portalVisitContext = {
+        portalReference: active.fixture.id,
+        workspaceId: workspaceSession.activeWorkspace?.workspaceId ?? 'dev-workspace-preview',
+        brandId: workspaceBrandSession?.activeBrandId ?? 'atlas-default',
+        visitReference,
+        propertyFacts: [
+          `${active.fixture.engineInput.bathroomCount ?? 1} bathroom${(active.fixture.engineInput.bathroomCount ?? 1) !== 1 ? 's' : ''}`,
+          `${active.fixture.engineInput.heatLossWatts} W heat loss`,
+        ],
+        usageFacts: [
+          `${active.fixture.engineInput.occupancyCount ?? 1}-person household`,
+          `Peak outlets: ${active.fixture.engineInput.peakConcurrentOutlets ?? 1}`,
+        ],
+        recommendationSummary: implementationPack.customerSummary.headline,
+        selectedScenarioId: implementationPack.recommendedScenarioId,
+        accessMode: 'workspace_preview' as const,
+        personalDataMode: 'none' as const,
+      };
       const workflowExportPackage = buildWorkflowExportPackage({
         payload: {
           workflowState: persistedWorkflowSnapshot,
@@ -1083,6 +1101,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
           followUpTasks: simulatedTasks,
           scanHandoffPreview: scanHandoffEnvelopePreview,
           customerSummary: implementationPack.customerSummary,
+          portalVisitContext,
         },
         source: {
           target: 'local_only',

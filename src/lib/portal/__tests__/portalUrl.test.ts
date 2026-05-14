@@ -41,6 +41,13 @@ describe('buildPortalUrl', () => {
     const url = buildPortalUrl('abc-123', 'https://example.com');
     expect(url).not.toContain('?token');
   });
+
+  it('keeps optional display labels and address summaries out of the URL', () => {
+    const url = buildPortalUrl('visit-ref', 'https://example.com', 'signed-token');
+    expect(url).toBe('https://example.com/portal/visit-ref?token=signed-token');
+    expect(url).not.toContain('Smith');
+    expect(url).not.toContain('Example Road');
+  });
 });
 
 // ─── parsePortalPath ──────────────────────────────────────────────────────────
