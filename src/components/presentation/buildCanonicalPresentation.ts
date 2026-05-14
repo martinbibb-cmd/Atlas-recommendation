@@ -482,6 +482,9 @@ export interface FinalPageSimulator {
   homeScenarioDescription: string;
   houseConstraintNotes: string[];
   energyTimingNotes: string[];
+  entrySystemLabel: string;
+  bathroomCount: number;
+  peakOutletsLabel: string;
   /**
    * Architecture-specific guidance for what to test in the System Simulator.
    * Derived from the top-level DHW architecture so the handoff is physics-first.
@@ -2452,6 +2455,9 @@ function buildFinalPage(
     homeScenarioDescription,
     houseConstraintNotes,
     energyTimingNotes,
+    entrySystemLabel: dhwArchitectureToLabel(dhwArchitecture),
+    bathroomCount: input.bathroomCount,
+    peakOutletsLabel: `${demo.peakSimultaneousOutlets} peak outlet${demo.peakSimultaneousOutlets === 1 ? '' : 's'}`,
     dhwArchitectureNote: dhwArchitectureToSimulatorNote(dhwArchitecture),
     simulatorCapabilities,
     physicsEvidenceSummary,

@@ -571,6 +571,60 @@
   line-height: 1.4;
 }
 
+.cpp-simulator__architecture-note {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: #2a4365;
+  line-height: 1.5;
+}
+
+.cpp-simulator__entry-card {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #bfdbfe;
+}
+
+.cpp-simulator__entry-copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.cpp-simulator__entry-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+
+.cpp-simulator__entry-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.cpp-simulator__entry-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.cpp-simulator__entry-fact {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .cpp-simulator__notes {
   margin: 0 0 0.75rem;
   padding-left: 1.25rem;
