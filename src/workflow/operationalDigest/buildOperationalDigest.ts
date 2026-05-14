@@ -103,6 +103,7 @@ function inferInstallPhase(task: SurveyFollowUpTaskV1): OperationalDigestInstall
   if (task.assignedRole === 'engineer') return 'installation';
   if (task.assignedRole === 'office') return 'coordination';
   if (task.source === 'missing_qualification') return 'coordination';
+  // Surveyor-owned and unresolved field checks default to survey phase.
   return 'survey';
 }
 
@@ -150,6 +151,7 @@ function buildDraftFromTask(task: SurveyFollowUpTaskV1, locationStateById: Map<s
 }
 
 function mergeDraftTask(existing: DigestDraft, task: SurveyFollowUpTaskV1, locationStateById: Map<string, OperationalLocationStateV1>) {
+  const summarizedDescription = summarizeDescription(task.description);
   existing.severity = PRIORITY_ORDER[task.priority] < PRIORITY_ORDER[existing.severity]
     ? task.priority
     : existing.severity;
@@ -160,8 +162,8 @@ function mergeDraftTask(existing: DigestDraft, task: SurveyFollowUpTaskV1, locat
     ...existing.locationStates,
     ...task.relatedLocationIds.map((locationId) => locationStateById.get(locationId) ?? 'unresolved'),
   ];
-  if (existing.summary.length < summarizeDescription(task.description).length) {
-    existing.summary = summarizeDescription(task.description);
+  if (existing.summary.length < summarizedDescription.length) {
+    existing.summary = summarizedDescription;
   }
 }
 
