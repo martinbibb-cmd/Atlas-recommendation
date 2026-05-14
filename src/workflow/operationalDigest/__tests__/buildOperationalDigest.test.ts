@@ -6,7 +6,6 @@ import type {
 } from '../../../specification/followUps';
 import type { EngineerJobPackV1 } from '../../../specification/handover';
 import type { SpecificationReadinessV1 } from '../../../specification/readiness';
-import { emptyConfidenceSummary } from '../../../specification/readiness';
 import { buildOperationalDigest } from '../buildOperationalDigest';
 
 function makeEngineerJobPack(): EngineerJobPackV1 {
@@ -75,7 +74,11 @@ describe('buildOperationalDigest', () => {
       blockingReasons: ['Confirm inhibitor dosing before install.'],
       warnings: [],
       unresolvedChecks: ['Confirm inhibitor dosing with customer notes.'],
-      confidenceSummary: emptyConfidenceSummary(),
+      confidenceSummary: {
+        specificationLines: { confirmed: 0, inferred: 0, needs_survey: 0, total: 0 },
+        materialsSchedule: { confirmed: 0, inferred: 0, needs_survey: 0, total: 0 },
+        engineerLocations: { confirmed: 0, inferred: 0, needs_survey: 0, unknown: 0, total: 0 },
+      },
     };
 
     const evidencePlan: FollowUpEvidenceCapturePlanV1 = {
