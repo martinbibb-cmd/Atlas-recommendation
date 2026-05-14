@@ -1,6 +1,7 @@
 import { getDiagramsByConceptId } from '../diagrams/diagramExplanationRegistry';
 import type { AtlasMvpContentEntryV1 } from '../content/atlasMvpContentMapRegistry';
 import type { EducationalContentV1 } from '../content/EducationalContentV1';
+import type { LibraryContentProjectionV1 } from '../projections/LibraryContentProjectionV1';
 
 export interface PortalEducationalCardV1 {
   title: string;
@@ -22,6 +23,13 @@ export interface GetPortalEducationalContentInputV1 {
   routingTriggerTags: string[];
   atlasMvpContentMapRegistry: AtlasMvpContentEntryV1[];
   educationalContentRegistry: EducationalContentV1[];
+  /**
+   * Optional audience projection.  When supplied, `selectedConceptIds` is
+   * intersected with `audienceProjection.visibleConcepts` so that the portal
+   * only surfaces content that the projection has already approved for the
+   * given audience.
+   */
+  audienceProjection?: LibraryContentProjectionV1;
 }
 
 function normalizeToken(value: string): string {
@@ -91,8 +99,16 @@ export function getPortalEducationalContent({
   routingTriggerTags,
   atlasMvpContentMapRegistry,
   educationalContentRegistry,
+  audienceProjection,
 }: GetPortalEducationalContentInputV1): PortalEducationalCardV1[] {
-  const selectedConceptSet = new Set(selectedConceptIds);
+  // When an audience projection is provided, restrict concept selection to
+  // concepts that have been approved for the given audience.
+  const effectiveConceptIds =
+    audienceProjection != null
+      ? selectedConceptIds.filter((id) => audienceProjection.visibleConcepts.includes(id))
+      : selectedConceptIds;
+
+  const selectedConceptSet = new Set(effectiveConceptIds);
   const routingTagSet = new Set(routingTriggerTags.map(normalizeToken));
 
   const scoredMvp = atlasMvpContentMapRegistry

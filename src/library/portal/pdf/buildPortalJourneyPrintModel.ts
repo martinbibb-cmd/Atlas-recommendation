@@ -12,6 +12,9 @@
  *   recommendationSummary — one-sentence recommendation label (customer-safe)
  *   customerFacts         — array of plain-language facts about the home
  *   brandProfile          — optional installer / brand display details
+ *   audienceProjection    — optional library audience projection; when supplied,
+ *                           only sections whose contentId appears in
+ *                           visibleConcepts are included in the PDF
  *
  * Output
  * ──────
@@ -21,6 +24,7 @@
  */
 
 import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegistry';
+import type { LibraryContentProjectionV1 } from '../../projections/LibraryContentProjectionV1';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +97,13 @@ export interface BuildPortalJourneyPrintModelInputV1 {
   };
   /** Journey model to build. Defaults to open_vented for backward compatibility. */
   journeyType?: 'open_vented' | 'heat_pump';
+  /**
+   * Optional audience projection.  When supplied, only sections whose
+   * contentId appears in `audienceProjection.visibleConcepts` are included
+   * in the PDF output.  Sections with static content IDs (e.g.
+   * `living_with_your_system`) are always included.
+   */
+  audienceProjection?: LibraryContentProjectionV1;
 }
 
 // ─── Living-with-your-system static content ───────────────────────────────────
@@ -376,6 +387,7 @@ export function buildPortalJourneyPrintModel(
     customerFacts,
     brandProfile,
     journeyType = 'open_vented',
+    audienceProjection,
   } = input;
 
   const selectedSet = new Set(selectedSectionIds);
@@ -389,10 +401,22 @@ export function buildPortalJourneyPrintModel(
     brandName: brandProfile?.name,
   };
 
-  const { sections, nextSteps, qrDestinations } =
+  const { sections: rawSections, nextSteps, qrDestinations } =
     journeyType === 'heat_pump'
       ? buildHeatPumpSectionsAndNextSteps(selectedSet)
       : buildOpenVentedSectionsAndNextSteps(selectedSet);
+
+  // When an audience projection is provided, suppress any section whose
+  // contentId is not in visibleConcepts.  Static-content sections (e.g.
+  // 'living_with_your_system') that do not correspond to a registry concept
+  // are always retained.
+  const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
+  const sections = audienceProjection != null
+    ? rawSections.filter((section) => {
+        if (!registryConceptIdSet.has(section.contentId)) return true;
+        return audienceProjection.visibleConcepts.includes(section.contentId);
+      })
+    : rawSections;
 
   // ── Page estimate ──────────────────────────────────────────────────────────
   // Cover (1) + one page per section + next steps (with QR area) = estimated pages

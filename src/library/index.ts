@@ -11,3 +11,4 @@ export * from './demoJourneys';
 
 export * from './packRenderer';
 export * from './dev';
+export * from './projections';
