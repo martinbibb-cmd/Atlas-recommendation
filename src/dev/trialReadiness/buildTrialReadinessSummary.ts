@@ -67,7 +67,10 @@ export function buildTrialReadinessSummary({
     (action) => action.priority === 'blocker' || action.priority === 'high',
   );
   const allCriticalDone = criticalActions.every((action) => action.status === 'done');
-  const hasOnlyAcceptedRisksAndWarnings = openActions.length === 0 && (acceptedRiskActions.length > 0 || releaseGateReport.warnings.length > 0);
+  const hasNoOpenActions = openActions.length === 0;
+  const hasAcceptedRisks = acceptedRiskActions.length > 0;
+  const hasWarnings = releaseGateReport.warnings.length > 0;
+  const hasOnlyAcceptedRisksAndWarnings = hasNoOpenActions && (hasAcceptedRisks || hasWarnings);
 
   const blockers = unique([
     ...releaseGateReport.blockingIssues,
@@ -84,14 +87,14 @@ export function buildTrialReadinessSummary({
     ...openBlockerActions.map((action) => `Resolve blocker action: ${action.title}`),
   ]);
 
-  const overallRecommendation: TrialReadinessOverallRecommendationV1 =
-    releaseGateReport.overallStatus === 'fail' || openBlockerActions.length > 0
-      ? 'not_ready'
-      : hasOnlyAcceptedRisksAndWarnings
-        ? 'ready_with_known_risks'
-        : allCriticalDone
-          ? 'ready_for_limited_trial'
-          : 'not_ready';
+  let overallRecommendation: TrialReadinessOverallRecommendationV1 = 'not_ready';
+  if (releaseGateReport.overallStatus === 'fail' || openBlockerActions.length > 0) {
+    overallRecommendation = 'not_ready';
+  } else if (hasOnlyAcceptedRisksAndWarnings) {
+    overallRecommendation = 'ready_with_known_risks';
+  } else if (allCriticalDone) {
+    overallRecommendation = 'ready_for_limited_trial';
+  }
 
   return {
     overallRecommendation,
