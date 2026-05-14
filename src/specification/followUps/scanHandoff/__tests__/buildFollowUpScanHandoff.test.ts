@@ -14,6 +14,7 @@ function makeTask(overrides: Partial<SurveyFollowUpTaskV1>): SurveyFollowUpTaskV
     relatedMaterialIds: [],
     relatedLocationIds: [],
     suggestedEvidenceType: 'note',
+    visibility: ['installer_only'],
     resolved: false,
     ...overrides,
   };
@@ -60,17 +61,19 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         acceptanceCriteria: ['Tundish is visible in at least one image.'],
         linkedLineIds: ['line_tundish'],
         linkedMaterialIds: [],
+        visibility: ['installer_only'],
       },
       {
         evidenceId: 'evidence_unknown_location',
         taskIds: ['follow_up_002'],
         evidenceType: 'scan_pin',
         prompt: 'Drop an Atlas Scan pin at the confirmed on-site location.',
-        targetLocation: 'Needs survey',
+        targetLocation: 'Location to confirm on survey',
         required: true,
         acceptanceCriteria: ['Scan pin is placed at the exact install/check location.'],
         linkedLineIds: [],
         linkedMaterialIds: [],
+        visibility: ['installer_only'],
       },
       {
         evidenceId: 'evidence_qualification',
@@ -81,6 +84,7 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         acceptanceCriteria: ['Qualification evidence is attached or verified against records.'],
         linkedLineIds: [],
         linkedMaterialIds: [],
+        visibility: ['office_only', 'compliance_audit'],
       },
     ],
     optionalEvidence: [
@@ -89,11 +93,12 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         taskIds: ['follow_up_002'],
         evidenceType: 'note',
         prompt: 'Record survey note resolving plant location access constraints.',
-        targetLocation: 'Needs survey',
+        targetLocation: 'Location to confirm on survey',
         required: false,
         acceptanceCriteria: ['Survey note clearly resolves what remains unknown.'],
         linkedLineIds: [],
         linkedMaterialIds: [],
+        visibility: ['installer_only'],
       },
     ],
     unresolvedAfterCapture: ['follow_up_003'],
@@ -121,7 +126,7 @@ describe('buildFollowUpScanHandoff', () => {
       expect.objectContaining({
         evidenceId: 'evidence_unknown_location',
         captureMode: 'scan_pin',
-        targetLocation: 'Needs survey',
+        targetLocation: 'Location to confirm on survey',
       }),
     );
   });

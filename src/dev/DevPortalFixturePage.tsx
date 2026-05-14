@@ -57,6 +57,12 @@ import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPan
 import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel';
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
+import { buildOperationalDigest, OperationalDigestPanel } from '../workflow/operationalDigest';
+import {
+  buildChecklistLinesFromReadinessChecks,
+  buildInstallerWorkflowProjection,
+  buildReadinessChecksFromSpecificationReadiness,
+} from '../workflow/visibility/buildWorkflowProjections';
 import { WorkspaceSessionGuard, useWorkspaceSession, useOptionalWorkspaceBrandSession } from '../auth/profile';
 import {
   WORKFLOW_SCHEMA_VERSION,
@@ -231,10 +237,12 @@ const OPEN_VENTED_RECOMMENDATION_SUMMARY = 'Sealed system with unvented cylinder
 const HEAT_PUMP_RECOMMENDATION_SUMMARY = 'Heat pump with low-temperature radiators — a steady comfort fit for this home.';
 const OPEN_VENTED_SUPPORTING_PDF_SECTION_IDS = ['CON_A01', 'CON_C02', 'CON_C01'] as const;
 const HEAT_PUMP_SUPPORTING_PDF_SECTION_IDS = ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'] as const;
+const FOLLOW_UP_DIGEST_MARGIN_BOTTOM = '0.65rem';
 const INSTALLER_BLOCKING_REASON_PATTERNS: readonly RegExp[] = [
   /^Safety\/compliance check unresolved:/i,
   /^Installer validation unresolved:/i,
   /^Heat pump emitter review unresolved:/i,
+  /^Location to confirm on survey in /i,
   /^Unknown location in /i,
 ];
 // Contract pipe diameters are normalized to standard primary sizes.
@@ -939,6 +947,41 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         tasks: simulatedTasks,
         unresolvedAfterCapture: simulatedUnresolvedDependencies.flatMap((dependency) => dependency.linkedTaskIds),
       };
+      const simulatedScanHandoff = {
+        ...followUpScanHandoff,
+        unresolvedDependencies: simulatedUnresolvedDependencies,
+      };
+      const operationalDigest = buildOperationalDigest({
+        tasks: simulatedTasks,
+        readiness: simulatedReadiness,
+        evidencePlan: simulatedEvidencePlan,
+        scanHandoff: simulatedScanHandoff,
+        engineerJobPack,
+      });
+      const readinessChecks = buildReadinessChecksFromSpecificationReadiness(simulatedReadiness);
+      const checklistLines = buildChecklistLinesFromReadinessChecks(readinessChecks);
+      const installerWorkflowProjection = buildInstallerWorkflowProjection({
+        followUpTasks: simulatedTasks,
+        readinessChecks,
+        evidenceRequirements: [
+          ...simulatedEvidencePlan.requiredEvidence,
+          ...simulatedEvidencePlan.optionalEvidence,
+        ],
+        operationalDigest,
+        checklistLines,
+      });
+      const projectedReadiness = {
+        ...simulatedReadiness,
+        blockingReasons: installerWorkflowProjection.readinessChecks
+          .filter((check) => check.severity === 'blocker')
+          .map((check) => check.text),
+        warnings: installerWorkflowProjection.readinessChecks
+          .filter((check) => check.severity === 'warning')
+          .map((check) => check.text),
+        unresolvedChecks: installerWorkflowProjection.readinessChecks
+          .filter((check) => check.severity === 'info')
+          .map((check) => check.text),
+      };
       const unresolvedTaskCount = simulatedTasks.filter((task) => !task.resolved).length;
       const requiredEvidenceTotal = followUpEvidencePlan.requiredEvidence.length;
       const capturedRequiredEvidenceCount = followUpEvidencePlan.requiredEvidence
@@ -1193,7 +1236,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               testId="dev-workflow-step-readiness"
               complete={simulatedReadiness.blockingReasons.length === 0}
             >
-              <SpecificationReadinessPanel readiness={simulatedReadiness} />
+              <SpecificationReadinessPanel readiness={projectedReadiness} />
             </WorkflowStep>
 
             {/* ── Step 2: Follow-up tasks ──────────────────────────────────── */}
@@ -1203,8 +1246,11 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               testId="dev-workflow-step-follow-up-tasks"
               complete={unresolvedTaskCount === 0}
             >
+              <div style={{ marginBottom: FOLLOW_UP_DIGEST_MARGIN_BOTTOM }}>
+                <OperationalDigestPanel digest={installerWorkflowProjection.operationalDigest} />
+              </div>
               <SurveyFollowUpTaskPanel
-                tasks={simulatedTasks}
+                tasks={installerWorkflowProjection.followUpTasks}
                 lines={specificationLines}
                 materials={materialsSchedule}
                 engineerJobPack={engineerJobPack}

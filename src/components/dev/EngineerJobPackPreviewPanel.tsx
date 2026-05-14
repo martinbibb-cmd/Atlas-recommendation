@@ -56,6 +56,17 @@ function confidenceBadgeColor(confidence: EngineerJobPackItemV1['confidence']): 
   return '#b45309';
 }
 
+function formatLocationLabel(item: EngineerJobPackItemV1): string {
+  if (!item.location) return 'Location unresolved';
+  if (item.location.type === 'unknown' || item.location.confidence === 'needs_survey') {
+    return 'Location to confirm on survey';
+  }
+  if (item.location.confidence === 'inferred') {
+    return `Location inferred from existing evidence (${item.location.label})`;
+  }
+  return `Location confirmed (${item.location.label})`;
+}
+
 function renderSectionCard(
   sectionKey: string,
   title: string,
@@ -155,7 +166,7 @@ function renderItem(item: EngineerJobPackItemV1, index: number, sectionKey: stri
               padding: '0.15rem 0.45rem',
             }}
           >
-            {item.location?.label}
+            {formatLocationLabel(item)}
           </span>
         ) : null}
         {item.mustConfirmOnSite ? (
@@ -189,7 +200,13 @@ export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
     for (const item of allItems) {
       const location = item.location;
       if (!location) continue;
-      unique.set(location.locationId, location.label);
+      if (location.type === 'unknown' || location.confidence === 'needs_survey') {
+        unique.set(location.locationId, 'Location to confirm on survey');
+      } else if (location.confidence === 'inferred') {
+        unique.set(location.locationId, `Location inferred from existing evidence (${location.label})`);
+      } else {
+        unique.set(location.locationId, `Location confirmed (${location.label})`);
+      }
       if (location.confidence === 'needs_survey') hasNeedsSurvey = true;
     }
     return {
@@ -261,7 +278,7 @@ export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
                 cursor: 'pointer',
               }}
             >
-              Needs survey
+              Location to confirm on survey
             </button>
           ) : null}
         </div>
@@ -297,7 +314,7 @@ export default function EngineerJobPackPreviewPanel({ jobPack }: Props) {
             });
             const unlocated = allItems.filter((item) => !item.location && matchesFilter(item));
             const deduped = deduplicateItems(unlocated);
-            return deduped.length > 0 ? renderSectionCard('loc_unlocated', 'No location', deduped) : null;
+            return deduped.length > 0 ? renderSectionCard('loc_unlocated', 'Location unresolved', deduped) : null;
           })()}
         </div>
       )}

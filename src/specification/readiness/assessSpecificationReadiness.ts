@@ -185,7 +185,7 @@ export function assessSpecificationReadiness(
     for (const item of sectionItems) {
       if (item.location?.type !== 'unknown') continue;
       const sectionLabel = ENGINEER_SECTION_LABELS[sectionKey];
-      const message = `Unknown location in ${sectionLabel}: ${item.text}.`;
+      const message = `Location to confirm on survey in ${sectionLabel}: ${item.text}.`;
       if (ENGINEER_LOCATION_BLOCKING_SECTIONS.has(sectionKey)) {
         installerBlockingReasons.push(message);
       } else {

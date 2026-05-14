@@ -12,6 +12,12 @@ interface Props {
   onToggleResolved?: (taskId: string) => void;
 }
 
+interface LocationMetadata {
+  readonly label: string;
+  readonly confidence: 'confirmed' | 'inferred' | 'needs_survey';
+  readonly type: 'known' | 'unknown';
+}
+
 const PRIORITY_ORDER: Readonly<Record<SurveyFollowUpTaskV1['priority'], number>> = {
   blocker: 0,
   important: 1,
@@ -28,7 +34,7 @@ const SOURCE_LABELS: Readonly<Record<SurveyFollowUpTaskV1['source'], string>> = 
   readiness_blocker: 'Readiness blocker',
   unresolved_check: 'Unresolved check',
   material_needs_survey: 'Material needs survey',
-  unknown_location: 'Unknown location',
+  unknown_location: 'Location to confirm on survey',
   missing_qualification: 'Missing qualification',
 };
 
@@ -74,7 +80,7 @@ export default function SurveyFollowUpTaskPanel({
   );
 
   const locationById = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, LocationMetadata>();
     const sectionKeys: Array<keyof EngineerJobPackV1> = [
       'jobSummary',
       'fitThis',
@@ -93,11 +99,23 @@ export default function SurveyFollowUpTaskPanel({
       if (!Array.isArray(section)) continue;
       for (const item of section) {
         if (!item.location) continue;
-        map.set(item.location.locationId, item.location.label);
+        map.set(item.location.locationId, {
+          label: item.location.label,
+          confidence: item.location.confidence,
+          type: item.location.type === 'unknown' ? 'unknown' : 'known',
+        });
       }
     }
     return map;
   }, [engineerJobPack]);
+
+  const formatLocationText = (locationId: string): string => {
+    const location = locationById.get(locationId);
+    if (!location) return 'Location unresolved';
+    if (location.type === 'unknown' || location.confidence === 'needs_survey') return 'Location to confirm on survey';
+    if (location.confidence === 'inferred') return `Location inferred from existing evidence (${location.label})`;
+    return `Location confirmed (${location.label})`;
+  };
 
   const visibleTasks = useMemo(() => {
     const filtered = roleFilter === 'all'
@@ -234,7 +252,7 @@ export default function SurveyFollowUpTaskPanel({
                         <span key={locationId}>
                           {index > 0 ? ', ' : ''}
                           {locationId}
-                          {locationById.get(locationId) ? ` (${locationById.get(locationId)})` : ''}
+                          {` (${formatLocationText(locationId)})`}
                         </span>
                       ))}
                     </p>
