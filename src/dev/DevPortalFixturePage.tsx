@@ -57,6 +57,7 @@ import FollowUpEvidencePlanPanel from '../components/dev/FollowUpEvidencePlanPan
 import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel';
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
+import { buildOperationalDigest, OperationalDigestPanel } from '../workflow/operationalDigest';
 import { WorkspaceSessionGuard, useWorkspaceSession, useOptionalWorkspaceBrandSession } from '../auth/profile';
 import {
   WORKFLOW_SCHEMA_VERSION,
@@ -235,6 +236,7 @@ const INSTALLER_BLOCKING_REASON_PATTERNS: readonly RegExp[] = [
   /^Safety\/compliance check unresolved:/i,
   /^Installer validation unresolved:/i,
   /^Heat pump emitter review unresolved:/i,
+  /^Location to confirm on survey in /i,
   /^Unknown location in /i,
 ];
 // Contract pipe diameters are normalized to standard primary sizes.
@@ -939,6 +941,17 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         tasks: simulatedTasks,
         unresolvedAfterCapture: simulatedUnresolvedDependencies.flatMap((dependency) => dependency.linkedTaskIds),
       };
+      const simulatedScanHandoff = {
+        ...followUpScanHandoff,
+        unresolvedDependencies: simulatedUnresolvedDependencies,
+      };
+      const operationalDigest = buildOperationalDigest({
+        tasks: simulatedTasks,
+        readiness: simulatedReadiness,
+        evidencePlan: simulatedEvidencePlan,
+        scanHandoff: simulatedScanHandoff,
+        engineerJobPack,
+      });
       const unresolvedTaskCount = simulatedTasks.filter((task) => !task.resolved).length;
       const requiredEvidenceTotal = followUpEvidencePlan.requiredEvidence.length;
       const capturedRequiredEvidenceCount = followUpEvidencePlan.requiredEvidence
@@ -1203,6 +1216,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               testId="dev-workflow-step-follow-up-tasks"
               complete={unresolvedTaskCount === 0}
             >
+              <div style={{ marginBottom: '0.65rem' }}>
+                <OperationalDigestPanel digest={operationalDigest} />
+              </div>
               <SurveyFollowUpTaskPanel
                 tasks={simulatedTasks}
                 lines={specificationLines}

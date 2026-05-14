@@ -153,7 +153,7 @@ function buildTaskEvidenceDrafts(
     return drafts;
   }
 
-  if (task.source === 'unknown_location' || task.suggestedEvidenceType === 'scan_pin' || /unknown location|needs survey/.test(text)) {
+  if (task.source === 'unknown_location' || task.suggestedEvidenceType === 'scan_pin' || /unknown location|needs survey|location to confirm on survey/.test(text)) {
     drafts.push(makeDraft(
       task,
       'scan_pin',
@@ -163,7 +163,7 @@ function buildTaskEvidenceDrafts(
         'Pin label clearly identifies what was located.',
       ],
       true,
-      targetLocation ?? 'Needs survey',
+      targetLocation ?? 'Location to confirm on survey',
     ));
     drafts.push(makeDraft(
       task,
@@ -174,7 +174,7 @@ function buildTaskEvidenceDrafts(
         'Entry/access route is visible and unobstructed in the image.',
       ],
       true,
-      targetLocation ?? 'Needs survey',
+      targetLocation ?? 'Location to confirm on survey',
     ));
     return drafts;
   }

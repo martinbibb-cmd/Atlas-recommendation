@@ -66,7 +66,7 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         taskIds: ['follow_up_002'],
         evidenceType: 'scan_pin',
         prompt: 'Drop an Atlas Scan pin at the confirmed on-site location.',
-        targetLocation: 'Needs survey',
+        targetLocation: 'Location to confirm on survey',
         required: true,
         acceptanceCriteria: ['Scan pin is placed at the exact install/check location.'],
         linkedLineIds: [],
@@ -89,7 +89,7 @@ function makePlan(overrides: Partial<FollowUpEvidenceCapturePlanV1> = {}): Follo
         taskIds: ['follow_up_002'],
         evidenceType: 'note',
         prompt: 'Record survey note resolving plant location access constraints.',
-        targetLocation: 'Needs survey',
+        targetLocation: 'Location to confirm on survey',
         required: false,
         acceptanceCriteria: ['Survey note clearly resolves what remains unknown.'],
         linkedLineIds: [],
@@ -121,7 +121,7 @@ describe('buildFollowUpScanHandoff', () => {
       expect.objectContaining({
         evidenceId: 'evidence_unknown_location',
         captureMode: 'scan_pin',
-        targetLocation: 'Needs survey',
+        targetLocation: 'Location to confirm on survey',
       }),
     );
   });

@@ -176,7 +176,7 @@ describe('buildFollowUpEvidenceCapturePlan', () => {
       makeTask({
         taskId: 'follow_up_003',
         title: 'Confirm unknown plant/cylinder location',
-        description: 'Unknown location must be confirmed on survey.',
+        description: 'Location to confirm on survey.',
         source: 'unknown_location',
         suggestedEvidenceType: 'scan_pin',
         relatedLocationIds: ['unknown:boiler_location'],
@@ -248,7 +248,7 @@ describe('buildFollowUpEvidenceCapturePlan', () => {
       makeTask({
         taskId: 'follow_up_003',
         title: 'Confirm unknown plant/cylinder location',
-        description: 'Unknown location must be confirmed on survey.',
+        description: 'Location to confirm on survey.',
         source: 'unknown_location',
         suggestedEvidenceType: 'scan_pin',
       }),

@@ -138,7 +138,7 @@ function inferTitle(seedText: string): string {
     .replace(/^Material needs survey confirmation:\s*/i, '')
     .replace(/^Safety\/compliance check unresolved:\s*/i, '')
     .replace(/^Installer validation unresolved:\s*/i, '')
-    .replace(/^Unknown location in [^:]+:\s*/i, '')
+    .replace(/^Location to confirm on survey in [^:]+:\s*/i, '')
     .replace(/^Specification line needs check:\s*/i, '');
 
   const firstChunk = withoutPrefix.split(/\s+—\s+/)[0]?.trim() ?? '';
@@ -258,7 +258,7 @@ export function buildSurveyFollowUpTasks(
       ? 'missing_qualification'
       : /material needs survey confirmation/i.test(blocker)
         ? 'material_needs_survey'
-        : /unknown location/i.test(blocker)
+        : /unknown location|location to confirm on survey/i.test(blocker)
           ? 'unknown_location'
           : 'readiness_blocker';
 
@@ -333,7 +333,7 @@ export function buildSurveyFollowUpTasks(
     addSeed({
       title: inferTitle(`unknown location ${itemText}`),
       description: buildDescription(
-        'Unknown location must be confirmed on survey:',
+        'Location to confirm on survey:',
         itemText,
         'Capture scan pin and supporting photo evidence.',
       ),

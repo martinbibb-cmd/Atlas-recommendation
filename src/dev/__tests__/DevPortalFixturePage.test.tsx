@@ -401,6 +401,13 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(followUpCount).toBeGreaterThan(0);
   });
 
+  it('follow-up step shows operational digest overlay', async () => {
+    render(<DevPortalFixturePage />);
+    fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
+    await waitFor(() => expect(screen.getByTestId('dev-workflow-step-follow-up-tasks')).toBeTruthy());
+    expect(screen.getByTestId('operational-digest-panel')).toBeTruthy();
+  });
+
   it('Scope packs step shows the scope pack review panel for unvented fixture', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
