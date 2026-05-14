@@ -64,7 +64,7 @@ import { getContentForConcepts } from '../library/content/contentLookup';
 import { educationalAssetRegistry } from '../library/registry/educationalAssetRegistry';
 import { educationalConceptTaxonomy } from '../library/taxonomy/educationalConceptTaxonomy';
 import { LibraryProjectionQaPanel } from '../library/projections/dev/LibraryProjectionQaPanel';
-import { LibraryCoverageAuditPanel } from '../library/coverage';
+import { LibraryAuthoringBacklogPanel, LibraryCoverageAuditPanel } from '../library/coverage';
 import {
   buildChecklistLinesFromReadinessChecks,
   buildInstallerWorkflowProjection,
@@ -1444,7 +1444,10 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
 
             {/* ── Step 10: Library content coverage audit ───────────────────── */}
             <WorkflowStep stepNumber={10} title="Library content coverage audit" testId="dev-workflow-step-library-coverage-audit" defaultExpanded={false}>
-              <LibraryCoverageAuditPanel />
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                <LibraryCoverageAuditPanel />
+                <LibraryAuthoringBacklogPanel />
+              </div>
             </WorkflowStep>
           </div>
         </div>
