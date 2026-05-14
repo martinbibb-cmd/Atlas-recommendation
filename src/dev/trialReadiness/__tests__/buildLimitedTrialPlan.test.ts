@@ -4,6 +4,7 @@ import type { WorkspaceVisitLifecycleScenarioV1 } from '../../workspaceQa/Worksp
 import type { TrialReadinessActionV1 } from '../TrialReadinessActionV1';
 import type { TrialReadinessSummaryV1 } from '../buildTrialReadinessSummary';
 import { buildLimitedTrialPlan } from '../buildLimitedTrialPlan';
+import type { TrialFeedbackSummaryV1 } from '../feedback';
 
 function makeReport(overrides: Partial<WorkspaceLifecycleReleaseReportV1> = {}): WorkspaceLifecycleReleaseReportV1 {
   return {
@@ -50,6 +51,17 @@ function makeAction(overrides: Partial<TrialReadinessActionV1> = {}): TrialReadi
     priority: 'medium',
     source: 'manual_review',
     status: 'done',
+    ...overrides,
+  };
+}
+
+function makeFeedbackSummary(overrides: Partial<TrialFeedbackSummaryV1> = {}): TrialFeedbackSummaryV1 {
+  return {
+    blockerCount: 0,
+    confusionThemes: [],
+    positiveSignals: [],
+    recommendedFixes: [],
+    stopCriteriaTriggered: false,
     ...overrides,
   };
 }
@@ -123,5 +135,20 @@ describe('buildLimitedTrialPlan', () => {
     });
 
     expect(plan.stopCriteria.length).toBeGreaterThan(0);
+  });
+
+  it('feedback stop criteria triggered forces tester count to 0', () => {
+    const plan = buildLimitedTrialPlan({
+      releaseGateReport: makeReport({ overallStatus: 'pass' }),
+      trialReadinessSummary: makeSummary({ overallRecommendation: 'ready_for_limited_trial' }),
+      trialReadinessActions: [makeAction()],
+      workspaceLifecycleScenarios: makeScenarios(),
+      trialFeedbackSummary: makeFeedbackSummary({
+        blockerCount: 1,
+        stopCriteriaTriggered: true,
+      }),
+    });
+
+    expect(plan.suggestedTesterCount).toBe(0);
   });
 });

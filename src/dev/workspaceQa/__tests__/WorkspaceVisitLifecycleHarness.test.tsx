@@ -23,6 +23,7 @@ describe('WorkspaceVisitLifecycleHarness', () => {
     );
     expect(screen.getByTestId('workspace-qa-trial-decision-summary')).toBeTruthy();
     expect(screen.getByTestId('workspace-qa-limited-trial-plan')).toBeTruthy();
+    expect(screen.getByTestId('workspace-qa-trial-feedback-influence-note').textContent).toContain('no');
   });
 
   it('exports release gate JSON including scenario results', async () => {
@@ -208,6 +209,8 @@ describe('WorkspaceVisitLifecycleHarness', () => {
         'trial-readiness-review.json',
         'workspace-lifecycle-scenarios.json',
         'known-gaps.json',
+        'trial-feedback.json',
+        'trial-feedback-summary.json',
         'trial-readiness-summary.json',
         'limited-trial-plan.json',
         'README.md',
@@ -273,5 +276,26 @@ describe('WorkspaceVisitLifecycleHarness', () => {
 
     expect(payload.trialRecommendation).toBeTruthy();
     expect(payload.stopCriteria.length).toBeGreaterThan(0);
+  });
+
+  it('shows feedback influence as yes when blocker feedback changes readiness', async () => {
+    render(<WorkspaceVisitLifecycleHarness />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('workspace-qa-trial-feedback-influence-note')).toBeTruthy(),
+    );
+
+    fireEvent.click(screen.getByTestId('trial-feedback-add-entry'));
+    fireEvent.change(screen.getByTestId('trial-feedback-form-severity'), {
+      target: { value: 'blocker' },
+    });
+    fireEvent.change(screen.getByTestId('trial-feedback-form-summary'), {
+      target: { value: 'Trial blocker from first tester' },
+    });
+    fireEvent.click(screen.getByTestId('trial-feedback-form-save'));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('workspace-qa-trial-feedback-influence-note').textContent).toContain('yes'),
+    );
   });
 });

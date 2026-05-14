@@ -15,6 +15,7 @@ import {
 import {
   addTrialReadinessActionNote,
   buildLimitedTrialPlan,
+  buildTrialFeedbackSummary,
   buildTrialReadinessPack,
   buildTrialReadinessSummary,
   buildTrialReadinessActions,
@@ -31,6 +32,7 @@ import {
   type TrialReadinessSummaryV1,
   type TrialReadinessStatusV1,
   type LimitedTrialPlanV1,
+  type TrialFeedbackSummaryV1,
 } from '../trialReadiness';
 import {
   TrialFeedbackPanel,
@@ -54,6 +56,35 @@ const TRIAL_READINESS_STATUS_OPTIONS: readonly TrialReadinessStatusV1[] = [
 
 function formatEnumLabel(value: string): string {
   return value.replace(/_/g, ' ');
+}
+
+function stringArraysOrderedEqual(values: readonly string[], nextValues: readonly string[]): boolean {
+  return values.length === nextValues.length && values.every((value, index) => value === nextValues[index]);
+}
+
+function didSummaryChange(
+  baseline: TrialReadinessSummaryV1,
+  next: TrialReadinessSummaryV1,
+): boolean {
+  return (
+    baseline.overallRecommendation !== next.overallRecommendation ||
+    baseline.plainEnglishSummary !== next.plainEnglishSummary ||
+    !stringArraysOrderedEqual(baseline.blockers, next.blockers) ||
+    !stringArraysOrderedEqual(baseline.recommendedBeforeTrial, next.recommendedBeforeTrial) ||
+    !stringArraysOrderedEqual(baseline.recommendedDuringTrial, next.recommendedDuringTrial)
+  );
+}
+
+function didLimitedTrialPlanChange(
+  baseline: LimitedTrialPlanV1,
+  next: LimitedTrialPlanV1,
+): boolean {
+  return (
+    baseline.trialRecommendation !== next.trialRecommendation ||
+    baseline.suggestedTesterCount !== next.suggestedTesterCount ||
+    !stringArraysOrderedEqual(baseline.requiredPreTrialChecks, next.requiredPreTrialChecks) ||
+    !stringArraysOrderedEqual(baseline.stopCriteria, next.stopCriteria)
+  );
 }
 
 function StatusPill({
@@ -303,9 +334,36 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
       ).length,
     [trialReadinessActions],
   );
-  const trialDecisionSummary = useMemo<TrialReadinessSummaryV1 | null>(
+  const baseTrialDecisionSummary = useMemo<TrialReadinessSummaryV1 | null>(
     () => (releaseReport ? buildTrialReadinessSummary({ releaseGateReport: releaseReport, trialReadinessActions }) : null),
     [releaseReport, trialReadinessActions],
+  );
+  const baseLimitedTrialPlan = useMemo<LimitedTrialPlanV1 | null>(
+    () =>
+      releaseReport && baseTrialDecisionSummary
+        ? buildLimitedTrialPlan({
+            releaseGateReport: releaseReport,
+            trialReadinessSummary: baseTrialDecisionSummary,
+            trialReadinessActions,
+            workspaceLifecycleScenarios: scenarios,
+          })
+        : null,
+    [baseTrialDecisionSummary, releaseReport, scenarios, trialReadinessActions],
+  );
+  const trialFeedbackSummary = useMemo<TrialFeedbackSummaryV1 | null>(
+    () => (baseLimitedTrialPlan ? buildTrialFeedbackSummary(feedbackEntries, baseLimitedTrialPlan) : null),
+    [baseLimitedTrialPlan, feedbackEntries],
+  );
+  const trialDecisionSummary = useMemo<TrialReadinessSummaryV1 | null>(
+    () =>
+      releaseReport
+        ? buildTrialReadinessSummary({
+            releaseGateReport: releaseReport,
+            trialReadinessActions,
+            trialFeedbackSummary: trialFeedbackSummary ?? undefined,
+          })
+        : null,
+    [releaseReport, trialFeedbackSummary, trialReadinessActions],
   );
   const limitedTrialPlan = useMemo<LimitedTrialPlanV1 | null>(
     () =>
@@ -315,10 +373,26 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
             trialReadinessSummary: trialDecisionSummary,
             trialReadinessActions,
             workspaceLifecycleScenarios: scenarios,
+            trialFeedbackSummary: trialFeedbackSummary ?? undefined,
           })
         : null,
-    [releaseReport, scenarios, trialDecisionSummary, trialReadinessActions],
+    [releaseReport, scenarios, trialDecisionSummary, trialFeedbackSummary, trialReadinessActions],
   );
+  const feedbackAffectsReadiness = useMemo(() => {
+    if (feedbackEntries.length === 0 || trialFeedbackSummary === null) return false;
+    if (!baseTrialDecisionSummary || !trialDecisionSummary || !baseLimitedTrialPlan || !limitedTrialPlan) return false;
+    return (
+      didSummaryChange(baseTrialDecisionSummary, trialDecisionSummary) ||
+      didLimitedTrialPlanChange(baseLimitedTrialPlan, limitedTrialPlan)
+    );
+  }, [
+    baseLimitedTrialPlan,
+    baseTrialDecisionSummary,
+    feedbackEntries.length,
+    limitedTrialPlan,
+    trialDecisionSummary,
+    trialFeedbackSummary,
+  ]);
 
   function handleTrialReadinessStatusChange(actionId: string, status: TrialReadinessStatusV1) {
     setTrialReadinessReviewState((current) =>
@@ -399,6 +473,7 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
       trialReadinessActions,
       trialReadinessReviewState,
       workspaceLifecycleScenarios: scenarios,
+      trialFeedbackEntries: feedbackEntries,
     });
     const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -979,6 +1054,10 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
           <div style={{ display: 'grid', gap: 8, fontSize: 12 }}>
             <div data-testid="workspace-qa-trial-decision-recommendation">
               <strong>Overall recommendation:</strong> {formatEnumLabel(trialDecisionSummary.overallRecommendation)}
+            </div>
+            <div data-testid="workspace-qa-trial-feedback-influence-note">
+              <strong>Trial feedback currently affects readiness:</strong>{' '}
+              {feedbackAffectsReadiness ? 'yes' : 'no'}
             </div>
             <div>
               <strong>Summary:</strong> {trialDecisionSummary.plainEnglishSummary}
