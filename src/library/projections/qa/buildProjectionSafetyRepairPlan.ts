@@ -114,8 +114,31 @@ function buildCardRefs(
   });
 }
 
-function buildOutcomeCopyReplacement(card: LibraryContentProjectionV1['visibleCards'][number]): string {
-  return `What you may notice: ${card.title}. What this means: the system is configured to keep your home comfortable and running reliably.`;
+function buildOutcomeCopyReplacement(
+  card: LibraryContentProjectionV1['visibleCards'][number],
+  technicalTerm: string,
+): string {
+  if (technicalTerm.includes('fill pressure')) {
+    return 'What you may notice: the pressure gauge may move slightly as your heating warms up and cools down. What this means: small pressure changes are normal in a sealed heating system.';
+  }
+
+  if (technicalTerm.includes('zone valve')) {
+    return 'What you may notice: different parts of your home may warm at different times. What this means: heating zones are being controlled to match room demand.';
+  }
+
+  if (
+    technicalTerm.includes('inhibitor')
+    || technicalTerm.includes('bs7593')
+    || technicalTerm.includes('benchmark')
+  ) {
+    return 'What you may notice: radiators heat more evenly and system noise is reduced over time. What this means: the heating water is being protected to support reliable operation.';
+  }
+
+  if (technicalTerm.includes('g3') || technicalTerm.includes('mcs')) {
+    return 'What you may notice: installation and handover may include additional documented checks. What this means: the upgrade is being completed with the required safety and quality controls.';
+  }
+
+  return `What you may notice: ${card.title}. What this means: this change is designed to improve day-to-day comfort and reliability.`;
 }
 
 export function buildProjectionSafetyRepairPlan(
@@ -183,7 +206,7 @@ export function buildProjectionSafetyRepairPlan(
 
     const technicalTerm = TECHNICAL_TERMS.find((term) => cardText.includes(term));
     if (technicalTerm != null) {
-      const replacement = buildOutcomeCopyReplacement(cardRef.card);
+      const replacement = buildOutcomeCopyReplacement(cardRef.card, technicalTerm);
       const replacementId = `copy:${cardRef.cardId}:${technicalTerm}`;
       if (!seenRepairIds.has(replacementId)) {
         seenRepairIds.add(replacementId);
