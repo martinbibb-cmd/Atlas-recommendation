@@ -54,6 +54,24 @@ function recommendationSummary(
   return 'Ready for limited trial: all critical pre-trial actions are complete.';
 }
 
+function determineOverallRecommendation(options: {
+  readonly releaseGateStatus: WorkspaceLifecycleReleaseReportV1['overallStatus'];
+  readonly hasOpenBlockerActions: boolean;
+  readonly hasOnlyAcceptedRisksAndWarnings: boolean;
+  readonly allCriticalDone: boolean;
+}): TrialReadinessOverallRecommendationV1 {
+  if (options.releaseGateStatus === 'fail' || options.hasOpenBlockerActions) {
+    return 'not_ready';
+  }
+  if (options.hasOnlyAcceptedRisksAndWarnings) {
+    return 'ready_with_known_risks';
+  }
+  if (options.allCriticalDone) {
+    return 'ready_for_limited_trial';
+  }
+  return 'not_ready';
+}
+
 export function buildTrialReadinessSummary({
   releaseGateReport,
   trialReadinessActions,
@@ -87,14 +105,12 @@ export function buildTrialReadinessSummary({
     ...openBlockerActions.map((action) => `Resolve blocker action: ${action.title}`),
   ]);
 
-  let overallRecommendation: TrialReadinessOverallRecommendationV1 = 'not_ready';
-  if (releaseGateReport.overallStatus === 'fail' || openBlockerActions.length > 0) {
-    overallRecommendation = 'not_ready';
-  } else if (hasOnlyAcceptedRisksAndWarnings) {
-    overallRecommendation = 'ready_with_known_risks';
-  } else if (allCriticalDone) {
-    overallRecommendation = 'ready_for_limited_trial';
-  }
+  const overallRecommendation = determineOverallRecommendation({
+    releaseGateStatus: releaseGateReport.overallStatus,
+    hasOpenBlockerActions: openBlockerActions.length > 0,
+    hasOnlyAcceptedRisksAndWarnings,
+    allCriticalDone,
+  });
 
   return {
     overallRecommendation,
