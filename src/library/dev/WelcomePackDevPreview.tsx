@@ -71,7 +71,7 @@ import type { OperationalDigestV1 } from '../../workflow/operationalDigest/Opera
 // in the welcome-pack dev preview context.
 const EMPTY_OPERATIONAL_DIGEST: OperationalDigestV1 = {
   digestVersion: 'v1',
-  generatedAt: '',
+  generatedAt: '1970-01-01T00:00:00Z',
   primaryItemLimit: 0,
   totalItems: 0,
   items: [],

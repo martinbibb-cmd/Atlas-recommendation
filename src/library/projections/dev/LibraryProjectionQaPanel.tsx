@@ -6,6 +6,17 @@ import type { CalmWelcomePackViewModelV1 } from '../../packRenderer/CalmWelcomeP
 import type { OperationalDigestV1 } from '../../../workflow/operationalDigest/OperationalDigestV1';
 import type { EducationalContentV1 } from '../../content/EducationalContentV1';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Returns true for cards that originated from the operational digest rather
+ * than the welcome-pack view model.  Digest cards are identified by having an
+ * assetId (the digest item ID) with no conceptId.
+ */
+function isDigestCard(card: { assetId?: string; conceptId?: string }): boolean {
+  return card.assetId != null && card.conceptId == null;
+}
+
 // ─── Leakage check definitions ───────────────────────────────────────────────
 
 /**
@@ -150,7 +161,7 @@ function buildAudienceSummary(
   });
 
   // Count cards that originated from the digest (identified by assetId rather than conceptId).
-  const digestItemCount = projection.visibleCards.filter((c) => c.assetId != null && c.conceptId == null).length;
+  const digestItemCount = projection.visibleCards.filter(isDigestCard).length;
 
   let leakageCheck: LeakageCheckResult;
   if (audience === 'customer') {
