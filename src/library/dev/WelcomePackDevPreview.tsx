@@ -64,6 +64,18 @@ import {
   TrustResponseCard,
   customerAnxietyPatterns,
 } from '../emotionalRouting';
+import { LibraryProjectionQaPanel } from '../projections/dev/LibraryProjectionQaPanel';
+import type { OperationalDigestV1 } from '../../workflow/operationalDigest/OperationalDigestV1';
+
+// A minimal empty operational digest stub used when no real digest is available
+// in the welcome-pack dev preview context.
+const EMPTY_OPERATIONAL_DIGEST: OperationalDigestV1 = {
+  digestVersion: 'v1',
+  generatedAt: '',
+  primaryItemLimit: 0,
+  totalItems: 0,
+  items: [],
+};
 
 const GOLDEN_JOURNEY_FIXTURE_IDS: WelcomePackDemoFixtureId[] = [
   'open_vented_to_sealed_unvented',
@@ -1719,6 +1731,15 @@ export function WelcomePackDevPreview() {
           )}
 
           <PrintableWelcomePackSkeleton viewModel={viewModel} />
+
+          <section aria-label="Library audience projection QA" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
+            <h2>Library Audience Projection QA</h2>
+            <LibraryProjectionQaPanel
+              calmViewModel={calmViewModel}
+              operationalDigest={EMPTY_OPERATIONAL_DIGEST}
+              educationalContent={educationalContent}
+            />
+          </section>
         </>
       )}
 

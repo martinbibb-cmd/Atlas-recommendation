@@ -58,6 +58,12 @@ import FollowUpScanHandoffPanel from '../components/dev/FollowUpScanHandoffPanel
 import ScanHandoffEnvelopePreviewPanel from '../components/dev/ScanHandoffEnvelopePreviewPanel';
 import WorkflowStorageModeSelector from '../components/dev/WorkflowStorageModeSelector';
 import { buildOperationalDigest, OperationalDigestPanel } from '../workflow/operationalDigest';
+import { buildWelcomePackPlan } from '../library/packComposer/buildWelcomePackPlan';
+import { buildCalmWelcomePackViewModel } from '../library/packRenderer/buildCalmWelcomePackViewModel';
+import { getContentForConcepts } from '../library/content/contentLookup';
+import { educationalAssetRegistry } from '../library/registry/educationalAssetRegistry';
+import { educationalConceptTaxonomy } from '../library/taxonomy/educationalConceptTaxonomy';
+import { LibraryProjectionQaPanel } from '../library/projections/dev/LibraryProjectionQaPanel';
 import {
   buildChecklistLinesFromReadinessChecks,
   buildInstallerWorkflowProjection,
@@ -578,10 +584,27 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
     surveyInput,
   });
 
+  const welcomePackPlan = buildWelcomePackPlan({
+    customerSummary,
+    atlasDecision: decision,
+    scenarios,
+  });
+  const educationalContent = getContentForConcepts(welcomePackPlan.selectedConceptIds);
+  const calmViewModel = buildCalmWelcomePackViewModel({
+    plan: welcomePackPlan,
+    customerSummary,
+    taxonomy: educationalConceptTaxonomy,
+    assets: educationalAssetRegistry,
+    educationalContent,
+    eligibilityMode: 'off',
+  });
+
   return {
     pack,
     recommendedScenarioId: decision.recommendedScenarioId,
     customerSummary,
+    calmViewModel,
+    educationalContent,
   };
 }
 
@@ -1388,6 +1411,15 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
                 <ImplementationPackReviewPanel pack={implementationPack.pack} />
                 <ScopePackHandoverPreviewPanel handover={scopePackHandover} />
               </div>
+            </WorkflowStep>
+
+            {/* ── Step 9: Library audience projection QA ───────────────────── */}
+            <WorkflowStep stepNumber={9} title="Library audience projection QA" testId="dev-workflow-step-library-projection-qa" defaultExpanded={false}>
+              <LibraryProjectionQaPanel
+                calmViewModel={implementationPack.calmViewModel}
+                operationalDigest={operationalDigest}
+                educationalContent={implementationPack.educationalContent}
+              />
             </WorkflowStep>
           </div>
         </div>
