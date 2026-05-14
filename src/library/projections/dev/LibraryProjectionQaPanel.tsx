@@ -5,6 +5,11 @@ import type { LibraryContentProjectionV1 } from '../LibraryContentProjectionV1';
 import type { CalmWelcomePackViewModelV1 } from '../../packRenderer/CalmWelcomePackViewModelV1';
 import type { OperationalDigestV1 } from '../../../workflow/operationalDigest/OperationalDigestV1';
 import type { EducationalContentV1 } from '../../content/EducationalContentV1';
+import { assessLibraryProjectionSafety } from '../qa/assessLibraryProjectionSafety';
+import {
+  buildProjectionSafetyRepairPlan,
+  type ProjectionSafetyRepairPlanV1,
+} from '../qa/buildProjectionSafetyRepairPlan';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -137,6 +142,7 @@ interface AudienceSummary {
   readonly hiddenItemCount: number;
   readonly auditTraceCount: number;
   readonly leakageCheck: LeakageCheckResult;
+  readonly repairPlan?: ProjectionSafetyRepairPlanV1;
 }
 
 const ALL_AUDIENCES: readonly LibraryAudienceV1[] = [
@@ -164,8 +170,15 @@ function buildAudienceSummary(
   const digestItemCount = projection.visibleCards.filter(isDigestCard).length;
 
   let leakageCheck: LeakageCheckResult;
+  let repairPlan: ProjectionSafetyRepairPlanV1 | undefined;
   if (audience === 'customer') {
     leakageCheck = checkCustomerLeakage(projection);
+    const safety = assessLibraryProjectionSafety(projection);
+    repairPlan = buildProjectionSafetyRepairPlan({
+      projection,
+      safety,
+      operationalDigest,
+    });
   } else if (audience === 'engineer') {
     leakageCheck = checkEngineerCompleteness(projection);
   } else if (audience === 'office') {
@@ -185,6 +198,7 @@ function buildAudienceSummary(
     hiddenItemCount: projection.hiddenReasonLog.length,
     auditTraceCount: projection.auditTrace.length,
     leakageCheck,
+    repairPlan,
   };
 }
 
@@ -236,7 +250,9 @@ interface AudienceTabPanelProps {
 }
 
 function AudienceTabPanel({ summary }: AudienceTabPanelProps) {
-  const { projection, leakageCheck } = summary;
+  const { projection, leakageCheck, repairPlan } = summary;
+  const blockerRepairs = repairPlan?.repairItems.filter((item) => item.severity === 'blocker') ?? [];
+  const warningRepairs = repairPlan?.repairItems.filter((item) => item.severity === 'warning') ?? [];
 
   return (
     <div
@@ -306,6 +322,54 @@ function AudienceTabPanel({ summary }: AudienceTabPanelProps) {
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {/* Repair suggestions */}
+      {repairPlan != null && repairPlan.repairItems.length > 0 ? (
+        <div
+          style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '0.5rem 0.65rem', background: '#fff' }}
+          data-testid={`qa-repair-suggestions-${summary.audience}`}
+        >
+          <p style={{ margin: '0 0 0.3rem', fontSize: 12, fontWeight: 600 }}>
+            Repair suggestions
+          </p>
+
+          {blockerRepairs.length > 0 ? (
+            <div data-testid={`qa-repair-group-blocker-${summary.audience}`}>
+              <p style={{ margin: '0.25rem 0', fontSize: 12, fontWeight: 600, color: '#991b1b' }}>
+                Blockers
+              </p>
+              <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: 12, color: '#7f1d1d' }}>
+                {blockerRepairs.map((item) => (
+                  <li key={item.repairId}>
+                    {item.recommendation}
+                    <div style={{ fontSize: 11, color: '#64748b' }}>
+                      concepts: {item.linkedConceptIds.join(', ') || 'none'} • cards: {item.linkedCardIds.join(', ') || 'none'} • tasks: {item.linkedTaskIds.join(', ') || 'none'}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {warningRepairs.length > 0 ? (
+            <div data-testid={`qa-repair-group-warning-${summary.audience}`}>
+              <p style={{ margin: '0.4rem 0 0.25rem', fontSize: 12, fontWeight: 600, color: '#92400e' }}>
+                Warnings
+              </p>
+              <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: 12, color: '#78350f' }}>
+                {warningRepairs.map((item) => (
+                  <li key={item.repairId}>
+                    {item.recommendation}
+                    <div style={{ fontSize: 11, color: '#64748b' }}>
+                      concepts: {item.linkedConceptIds.join(', ') || 'none'} • cards: {item.linkedCardIds.join(', ') || 'none'} • tasks: {item.linkedTaskIds.join(', ') || 'none'}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
