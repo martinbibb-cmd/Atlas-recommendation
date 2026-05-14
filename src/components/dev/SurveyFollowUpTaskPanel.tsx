@@ -12,6 +12,12 @@ interface Props {
   onToggleResolved?: (taskId: string) => void;
 }
 
+interface LocationMetadata {
+  readonly label: string;
+  readonly confidence: 'confirmed' | 'inferred' | 'needs_survey';
+  readonly type: 'known' | 'unknown';
+}
+
 const PRIORITY_ORDER: Readonly<Record<SurveyFollowUpTaskV1['priority'], number>> = {
   blocker: 0,
   important: 1,
@@ -74,7 +80,7 @@ export default function SurveyFollowUpTaskPanel({
   );
 
   const locationById = useMemo(() => {
-    const map = new Map<string, { readonly label: string; readonly confidence: 'confirmed' | 'inferred' | 'needs_survey'; readonly type: 'known' | 'unknown' }>();
+    const map = new Map<string, LocationMetadata>();
     const sectionKeys: Array<keyof EngineerJobPackV1> = [
       'jobSummary',
       'fitThis',
@@ -242,11 +248,11 @@ export default function SurveyFollowUpTaskPanel({
                   {task.relatedLocationIds.length > 0 ? (
                     <p style={{ margin: 0, fontSize: 11, color: '#475569' }}>
                       <strong>Locations:</strong>{' '}
-                      {task.relatedLocationIds.map((locationId, index) => (
-                        <span key={locationId}>
+                       {task.relatedLocationIds.map((locationId, index) => (
+                         <span key={locationId}>
                            {index > 0 ? ', ' : ''}
                            {locationId}
-                           {` (${formatLocationText(locationId)})`}
+                            {` (${formatLocationText(locationId)})`}
                          </span>
                        ))}
                      </p>

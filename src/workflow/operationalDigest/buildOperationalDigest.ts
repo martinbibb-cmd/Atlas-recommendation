@@ -81,6 +81,7 @@ function normalize(value: string): string {
 }
 
 function hashString(value: string): string {
+  // FNV-1a 32-bit hash constants (offset basis and prime).
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
     hash ^= value.charCodeAt(index);
@@ -125,7 +126,7 @@ function collectLocationStateById(engineerJobPack: EngineerJobPackV1): Map<strin
 
 function pickWorstLocationState(states: readonly OperationalLocationStateV1[]): OperationalLocationStateV1 {
   if (states.length === 0) return 'unresolved';
-  return [...states].sort((a, b) => LOCATION_STATE_ORDER[b] - LOCATION_STATE_ORDER[a])[0];
+  return states.slice().sort((a, b) => LOCATION_STATE_ORDER[b] - LOCATION_STATE_ORDER[a])[0];
 }
 
 function buildDraftFromTask(task: SurveyFollowUpTaskV1, locationStateById: Map<string, OperationalLocationStateV1>): DigestDraft {
