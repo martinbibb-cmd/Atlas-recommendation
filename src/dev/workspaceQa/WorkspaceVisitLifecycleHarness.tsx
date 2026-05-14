@@ -217,7 +217,6 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
   // Auto-save feedback whenever entries change (after initial load)
   useEffect(() => {
     if (!feedbackLoadedRef.current) return;
-    if (feedbackEntries.length === 0) return;
     const next = buildTrialFeedbackSnapshot(feedbackEntries, feedbackSnapshot);
     setFeedbackSnapshot(next);
     void feedbackStorageAdapter.save(next);
