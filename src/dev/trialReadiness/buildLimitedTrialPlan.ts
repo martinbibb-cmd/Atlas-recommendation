@@ -3,6 +3,7 @@ import type { WorkspaceVisitLifecycleScenarioV1 } from '../workspaceQa/Workspace
 import type { TrialReadinessActionV1 } from './TrialReadinessActionV1';
 import type { TrialReadinessOverallRecommendationV1, TrialReadinessSummaryV1 } from './buildTrialReadinessSummary';
 import type { TrialFeedbackSummaryV1 } from './feedback';
+import { FEEDBACK_CONFUSION_FIX_REQUIRED_CHECK_PREFIX } from './feedback/trialFeedbackReadinessLabels';
 
 export type LimitedTrialSuggestedTesterCountV1 = 0 | '1-2' | '3-5';
 export type LimitedTrialReadinessSignalV1 = 'pass' | 'warn' | 'fail';
@@ -217,7 +218,7 @@ export function buildLimitedTrialPlan({
     excludedScenarios: scenarioLists.excludedScenarios,
     requiredPreTrialChecks: unique([
       ...buildRequiredPreTrialChecks(trialReadinessSummary),
-      ...feedbackFixes.map((fix) => `Implement feedback-derived fix: ${fix}`),
+      ...feedbackFixes.map((fix) => `${FEEDBACK_CONFUSION_FIX_REQUIRED_CHECK_PREFIX} ${fix}`),
     ]),
     duringTrialChecklist: unique([
       ...buildRecommendationSpecificChecklist(trialRecommendation),

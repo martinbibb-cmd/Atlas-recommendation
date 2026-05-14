@@ -58,6 +58,35 @@ function formatEnumLabel(value: string): string {
   return value.replace(/_/g, ' ');
 }
 
+function arraysEqual(values: readonly string[], nextValues: readonly string[]): boolean {
+  return values.length === nextValues.length && values.every((value, index) => value === nextValues[index]);
+}
+
+function didSummaryChange(
+  baseline: TrialReadinessSummaryV1,
+  next: TrialReadinessSummaryV1,
+): boolean {
+  return (
+    baseline.overallRecommendation !== next.overallRecommendation ||
+    baseline.plainEnglishSummary !== next.plainEnglishSummary ||
+    !arraysEqual(baseline.blockers, next.blockers) ||
+    !arraysEqual(baseline.recommendedBeforeTrial, next.recommendedBeforeTrial) ||
+    !arraysEqual(baseline.recommendedDuringTrial, next.recommendedDuringTrial)
+  );
+}
+
+function didLimitedTrialPlanChange(
+  baseline: LimitedTrialPlanV1,
+  next: LimitedTrialPlanV1,
+): boolean {
+  return (
+    baseline.trialRecommendation !== next.trialRecommendation ||
+    baseline.suggestedTesterCount !== next.suggestedTesterCount ||
+    !arraysEqual(baseline.requiredPreTrialChecks, next.requiredPreTrialChecks) ||
+    !arraysEqual(baseline.stopCriteria, next.stopCriteria)
+  );
+}
+
 function StatusPill({
   ok,
   passLabel = 'pass',
@@ -353,8 +382,8 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     if (feedbackEntries.length === 0 || trialFeedbackSummary === null) return false;
     if (!baseTrialDecisionSummary || !trialDecisionSummary || !baseLimitedTrialPlan || !limitedTrialPlan) return false;
     return (
-      JSON.stringify(baseTrialDecisionSummary) !== JSON.stringify(trialDecisionSummary) ||
-      JSON.stringify(baseLimitedTrialPlan) !== JSON.stringify(limitedTrialPlan)
+      didSummaryChange(baseTrialDecisionSummary, trialDecisionSummary) ||
+      didLimitedTrialPlanChange(baseLimitedTrialPlan, limitedTrialPlan)
     );
   }, [
     baseLimitedTrialPlan,

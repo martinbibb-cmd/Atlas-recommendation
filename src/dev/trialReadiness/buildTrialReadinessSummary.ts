@@ -1,6 +1,7 @@
 import type { WorkspaceLifecycleReleaseReportV1 } from '../workspaceQa/buildWorkspaceLifecycleReleaseReport';
 import type { TrialReadinessActionV1 } from './TrialReadinessActionV1';
 import type { TrialFeedbackSummaryV1 } from './feedback';
+import { FEEDBACK_CONFUSION_FIX_BEFORE_TRIAL_PREFIX } from './feedback/trialFeedbackReadinessLabels';
 
 export type TrialReadinessOverallRecommendationV1 =
   | 'ready_for_limited_trial'
@@ -108,7 +109,7 @@ export function buildTrialReadinessSummary({
   const acceptedRisks = unique(acceptedRiskActions.map((action) => action.title));
   const recommendedBeforeTrial = unique([
     ...openActions.map((action) => action.title),
-    ...feedbackConfusionFixes.map((fix) => `Address confusing feedback theme: ${fix}`),
+    ...feedbackConfusionFixes.map((fix) => `${FEEDBACK_CONFUSION_FIX_BEFORE_TRIAL_PREFIX} ${fix}`),
   ]);
   const recommendedDuringTrial = unique([
     ...acceptedRisks.map((risk) => `Monitor accepted risk: ${risk}`),
