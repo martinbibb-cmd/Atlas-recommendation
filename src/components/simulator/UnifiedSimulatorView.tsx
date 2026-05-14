@@ -105,13 +105,13 @@ function formatSystemFamilyLabel(system: EventsSystemFamily | undefined): string
     case 'combi':
       return 'On-demand hot water';
     case 'stored_water':
-      return 'Mains-fed cylinder';
+      return 'Mains-fed hot water';
     case 'open_vented':
       return 'Tank-fed hot water';
     case 'mixergy':
       return 'Mixergy cylinder';
     case 'heat_pump':
-      return 'Heat pump cylinder';
+      return 'Heat pump with stored hot water';
     default:
       return 'Current system';
   }
