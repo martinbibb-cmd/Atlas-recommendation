@@ -166,7 +166,7 @@ export function buildProjectionSafetyRepairPlan(
   const seenRepairIds = new Set<string>();
 
   for (const cardRef of cardRefs) {
-    const cardText = toLowerCaseText(`${cardRef.card.title} ${cardRef.card.summary}`);
+    const cardText = toLowerCaseText(`${cardRef.card.title} | ${cardRef.card.summary}`);
     const linkedConceptIds = cardRef.card.conceptId != null ? [cardRef.card.conceptId] : [];
 
     for (const rule of REPAIR_TERM_RULES) {
