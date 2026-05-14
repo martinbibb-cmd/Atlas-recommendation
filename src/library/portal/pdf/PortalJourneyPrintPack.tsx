@@ -66,6 +66,11 @@ function PrintCover({ cover, pageNumber }: PrintCoverProps) {
         <p className="pjpp-cover-summary" data-testid="pjpp-cover-summary">
           {cover.summary}
         </p>
+        {cover.addressSummary ? (
+          <p className="pjpp-cover-summary" data-testid="pjpp-cover-address-summary">
+            {cover.addressSummary}
+          </p>
+        ) : null}
       </header>
 
       {cover.customerFacts.length > 0 ? (

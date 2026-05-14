@@ -36,7 +36,9 @@ import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenar
 import { buildLockedAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
 import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
 import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
+import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
+import { resolvePortalHomeLabel } from '../../lib/portal/portalVisitContext';
 import './CustomerPortalPage.css';
 
 interface Props {
@@ -56,6 +58,8 @@ interface Props {
    * in the given view mode. Only respected when devFixtureInput is also set.
    */
   devInitialViewMode?: 'insight' | 'presentation';
+  /** Optional personal-data-light visit context for tests/dev preview. */
+  portalVisitContextOverride?: Partial<PortalVisitContextV1>;
 }
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
@@ -136,6 +140,7 @@ function CustomerPortalContent({
   showDevTraceLabelsOverride,
   devFixtureInput,
   devInitialViewMode,
+  portalVisitContextOverride,
 }: Omit<Props, 'brandId'>) {
   const brand = useBrandProfile();
   const ctaCopy = getBrandCtaCopy(brand);
@@ -146,7 +151,6 @@ function CustomerPortalContent({
   const [engineInput, setEngineInput] = useState<EngineInputV2_3 | null>(null);
   // surveyData and floorplanOutput are kept for the inline simulator.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
-  const [postcode, setPostcode] = useState<string | null>(null);
   const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   const [showSimulator, setShowSimulator] = useState(false);
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
@@ -235,6 +239,10 @@ function CustomerPortalContent({
     () => `atlas-ai-summary-${new Date().toISOString().slice(0, 10)}.txt`,
     [],
   );
+  const portalHomeLabel = useMemo(
+    () => resolvePortalHomeLabel(portalVisitContextOverride),
+    [portalVisitContextOverride],
+  );
 
   useEffect(() => {
     // Dev fixture bypass: skip API and token validation when devFixtureInput is provided.
@@ -283,7 +291,6 @@ function CustomerPortalContent({
           setEngineResult(result);
           setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
           setFloorplanOutput(payloadInfo.legacy?.floorplanOutput ?? undefined);
-          setPostcode(report.postcode ?? null);
         }
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
@@ -361,7 +368,7 @@ function CustomerPortalContent({
           <BrandedHeader />
           <div className="portal-hero__brand-row">
             <span className="portal-page__brand" aria-hidden="true"></span>
-            {postcode && <span className="portal-page__postcode">{postcode}</span>}
+            <span className="portal-page__postcode">{portalHomeLabel}</span>
           </div>
         </header>
 
@@ -448,7 +455,7 @@ function CustomerPortalContent({
         </div>
         <InsightPackDeck
           pack={pack}
-          propertyTitle={postcode ?? undefined}
+          propertyTitle={portalHomeLabel}
           onClose={() => setViewMode(null)}
           librarySectionData={libraryPortalIntegration ?? undefined}
           showDevTraceLabels={showDevTraceLabels}
@@ -481,7 +488,7 @@ function CustomerPortalContent({
         {portalViewModel ? (
           <PortalPage
             viewModel={portalViewModel}
-            propertyTitle={postcode ?? undefined}
+            propertyTitle={portalHomeLabel}
             initialTab={portalLaunchContext?.initialTab}
             portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
             aiSummaryText={aiSummaryText}
@@ -509,12 +516,12 @@ function CustomerPortalContent({
         </aside>
       ) : null}
 
-      {/* ── Minimal portal header (brand + postcode only) ─────────────────── */}
+      {/* ── Minimal portal header (brand + safe visit label only) ─────────── */}
       <header className="portal-page__hero" data-testid="portal-hero">
         <BrandedHeader />
         <div className="portal-hero__brand-row">
           <span className="portal-page__brand" aria-hidden="true"></span>
-          {postcode && <span className="portal-page__postcode">{postcode}</span>}
+          <span className="portal-page__postcode">{portalHomeLabel}</span>
         </div>
         <div className="portal-back-row">
           <button
