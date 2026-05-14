@@ -15,6 +15,7 @@ import {
 import {
   addTrialReadinessActionNote,
   buildTrialReadinessPack,
+  buildTrialReadinessSummary,
   buildTrialReadinessActions,
   LocalTrialReadinessReviewStorageAdapter,
   mergeGeneratedActionsWithReviewState,
@@ -23,6 +24,7 @@ import {
   type TrialReadinessActionV1,
   type TrialReadinessActionReviewStateV1,
   type TrialReadinessLintStatusV1,
+  type TrialReadinessSummaryV1,
   type TrialReadinessStatusV1,
 } from '../trialReadiness';
 
@@ -40,6 +42,10 @@ const TRIAL_READINESS_STATUS_OPTIONS: readonly TrialReadinessStatusV1[] = [
   'done',
   'accepted_risk',
 ];
+
+function formatEnumLabel(value: string): string {
+  return value.replace(/_/g, ' ');
+}
 
 function StatusPill({
   ok,
@@ -256,6 +262,10 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
       ).length,
     [trialReadinessActions],
   );
+  const trialDecisionSummary = useMemo<TrialReadinessSummaryV1 | null>(
+    () => (releaseReport ? buildTrialReadinessSummary({ releaseGateReport: releaseReport, trialReadinessActions }) : null),
+    [releaseReport, trialReadinessActions],
+  );
 
   function handleTrialReadinessStatusChange(actionId: string, status: TrialReadinessStatusV1) {
     setTrialReadinessReviewState((current) =>
@@ -342,6 +352,17 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     const link = document.createElement('a');
     link.href = url;
     link.download = 'trial-readiness-pack.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function handleExportTrialDecisionSummary() {
+    if (!trialDecisionSummary) return;
+    const blob = new Blob([JSON.stringify(trialDecisionSummary, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'trial-readiness-summary.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -825,6 +846,48 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
               )}
             </details>
           </>
+        )}
+      </section>
+
+      <section
+        style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, display: 'grid', gap: 10 }}
+        data-testid="workspace-qa-trial-decision-summary"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <h2 style={{ margin: '0 0 4px', fontSize: 14 }}>Trial decision summary</h2>
+            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>
+              Human-readable recommendation for whether to start a limited real-world tester cohort.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportTrialDecisionSummary}
+            disabled={trialDecisionSummary === null}
+            style={{ fontSize: 12, padding: '4px 12px' }}
+            data-testid="workspace-qa-trial-readiness-export-summary"
+          >
+            Export JSON
+          </button>
+        </div>
+
+        {trialDecisionSummary === null ? (
+          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Building trial decision summary…</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8, fontSize: 12 }}>
+            <div data-testid="workspace-qa-trial-decision-recommendation">
+              <strong>Overall recommendation:</strong> {formatEnumLabel(trialDecisionSummary.overallRecommendation)}
+            </div>
+            <div>
+              <strong>Summary:</strong> {trialDecisionSummary.plainEnglishSummary}
+            </div>
+            <div>
+              <strong>Blockers:</strong> {trialDecisionSummary.blockers.length}
+            </div>
+            <div>
+              <strong>Accepted risks:</strong> {trialDecisionSummary.acceptedRisks.length}
+            </div>
+          </div>
         )}
       </section>
     </div>

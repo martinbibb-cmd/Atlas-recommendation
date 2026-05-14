@@ -21,6 +21,7 @@ describe('WorkspaceVisitLifecycleHarness', () => {
     expect(screen.getByTestId('workspace-qa-release-gate-scenarios').querySelectorAll('tbody tr')).toHaveLength(
       getWorkspaceVisitLifecycleScenariosV1().length,
     );
+    expect(screen.getByTestId('workspace-qa-trial-decision-summary')).toBeTruthy();
   });
 
   it('exports release gate JSON including scenario results', async () => {
@@ -206,8 +207,39 @@ describe('WorkspaceVisitLifecycleHarness', () => {
         'trial-readiness-review.json',
         'workspace-lifecycle-scenarios.json',
         'known-gaps.json',
+        'trial-readiness-summary.json',
         'README.md',
       ].sort(),
     );
+  });
+
+  it('exports trial decision summary JSON', async () => {
+    const clickSpy = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const element = originalCreateElement(tagName);
+      if (tagName === 'a') {
+        Object.defineProperty(element, 'click', { value: clickSpy });
+      }
+      return element;
+    });
+
+    render(<WorkspaceVisitLifecycleHarness />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('workspace-qa-trial-readiness-export-summary')).not.toHaveAttribute('disabled'),
+    );
+
+    fireEvent.click(screen.getByTestId('workspace-qa-trial-readiness-export-summary'));
+
+    expect(global.URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+
+    const blob = vi.mocked(global.URL.createObjectURL).mock.calls.at(-1)?.[0] as Blob;
+    const json = await blob.text();
+    const payload = JSON.parse(json) as { overallRecommendation: string; plainEnglishSummary: string };
+
+    expect(payload.overallRecommendation).toBeTruthy();
+    expect(payload.plainEnglishSummary).toBeTruthy();
   });
 });

@@ -91,4 +91,12 @@ describe('trial readiness pack export', () => {
     const scenarios = pack.files['workspace-lifecycle-scenarios.json'] as Array<Record<string, unknown>>;
     expect(scenarios.every((entry) => !('visit' in entry) && !('workflowState' in entry))).toBe(true);
   });
+
+  it('summary file does not include customer payload keys', () => {
+    const pack = makePack();
+    const summaryJson = JSON.stringify(pack.files['trial-readiness-summary.json']);
+    expect(summaryJson.includes('"visit"')).toBe(false);
+    expect(summaryJson.includes('"workflowState"')).toBe(false);
+    expect(summaryJson.includes('"customerPayload"')).toBe(false);
+  });
 });
