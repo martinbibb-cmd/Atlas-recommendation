@@ -60,7 +60,7 @@ const REPAIR_TERM_RULES = [
     reason: 'Inhibitor/BS7593/Benchmark detail must not appear in customer projection.',
   },
   {
-    terms: ['g3 mechanics', 'mcs mechanics', 'g3', 'mcs'],
+    terms: ['g3 mechanics', 'mcs mechanics'],
     visibility: ['office_only', 'compliance_audit'] as const,
     recommendation: 'Move this mechanics item to office and compliance audit visibility.',
     reason: 'G3/MCS mechanics belongs to office/compliance review.',
@@ -134,7 +134,7 @@ function buildOutcomeCopyReplacement(
     return 'What you may notice: radiators heat more evenly and system noise is reduced over time. What this means: the heating water is being protected to support reliable operation.';
   }
 
-  if (technicalTerm.includes('g3') || technicalTerm.includes('mcs')) {
+  if (technicalTerm === 'g3 mechanics' || technicalTerm === 'mcs mechanics') {
     return 'What you may notice: installation and handover may include additional documented checks. What this means: the upgrade is being completed with the required safety and quality controls.';
   }
 
