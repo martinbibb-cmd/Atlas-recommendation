@@ -258,14 +258,15 @@ function buildTesterScript(
 export function buildFirstTesterSessionScript(
   limitedTrialPlan: LimitedTrialPlanV1,
   trialReadinessSummary: TrialReadinessSummaryV1,
-  generatedAt: string = new Date().toISOString(),
+  generatedAt?: string,
 ): FirstTesterSessionScriptV1 {
+  const timestamp = generatedAt ?? new Date().toISOString();
   const recommendation = limitedTrialPlan.trialRecommendation;
 
   // When not_ready, no live tester scripts are produced.
   if (recommendation === 'not_ready') {
     return {
-      generatedAt,
+      generatedAt: timestamp,
       trialRecommendation: recommendation,
       scripts: {
         internal: null,
@@ -276,7 +277,7 @@ export function buildFirstTesterSessionScript(
   }
 
   return {
-    generatedAt,
+    generatedAt: timestamp,
     trialRecommendation: recommendation,
     scripts: {
       internal: buildTesterScript('internal', limitedTrialPlan, trialReadinessSummary),

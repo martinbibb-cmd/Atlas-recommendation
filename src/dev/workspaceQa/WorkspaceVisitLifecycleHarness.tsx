@@ -61,6 +61,16 @@ function formatEnumLabel(value: string): string {
   return value.replace(/_/g, ' ');
 }
 
+function downloadJson(data: unknown, filename: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function stringArraysOrderedEqual(values: readonly string[], nextValues: readonly string[]): boolean {
   return values.length === nextValues.length && values.every((value, index) => value === nextValues[index]);
 }
@@ -407,13 +417,7 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
 
   function handleExportFirstTesterSessionScript() {
     if (!firstTesterSessionScript) return;
-    const blob = new Blob([JSON.stringify(firstTesterSessionScript, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'first-tester-session-script.json';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadJson(firstTesterSessionScript, 'first-tester-session-script.json');
   }
 
   function handleTrialReadinessStatusChange(actionId: string, status: TrialReadinessStatusV1) {
