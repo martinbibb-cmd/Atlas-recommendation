@@ -289,8 +289,8 @@ describe('UnifiedSimulatorView wrapper', () => {
 
     render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={survey} />);
 
-    expect(mockSimulatorDashboard).toHaveBeenCalled();
-    const props = mockSimulatorDashboard.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+    expect(mockSimulatorDashboard).toHaveBeenCalledTimes(1);
+    const props = mockSimulatorDashboard.mock.lastCall?.[0] as Record<string, unknown>;
     expect(props.initialSystemChoice).toBe('combi');
     expect(props.initialSystemInputs).toEqual(mockAdaptFullSurveyToSimulatorInputs.mock.results[0]?.value.systemInputs);
     expect(props.initialProposedSystemChoice).toBe('heat_pump');

@@ -133,6 +133,8 @@ function buildDrawOffChips(events: ClassifiedDayEvent[]) {
 
     grouped.set(event.type, {
       count: existing.count + 1,
+      // Keep the worst grouped outcome so each chip reflects the most constrained
+      // modelled draw for that outlet type (conflict > reduced > successful).
       result: RESULT_TONE_ORDER[event.result] > RESULT_TONE_ORDER[existing.result]
         ? event.result
         : existing.result,
@@ -298,9 +300,9 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
   const resultChips = useMemo(() => {
     const chips: Array<{ label: string; tone: SummaryChipTone }> = [];
     const effectivePressure = surveyAdapted.systemInputs.mainsPressureBar;
-    const effectiveFlow = surveyAdapted.systemInputs.mainsFlowLpm ?? surveyData.mainsDynamicFlowLpm;
+    const resolvedMainsFlowLpm = surveyAdapted.systemInputs.mainsFlowLpm ?? surveyData.mainsDynamicFlowLpm;
     const pressureChip = formatPressureChip(effectivePressure);
-    const flowChip = formatFlowChip(effectiveFlow);
+    const flowChip = formatFlowChip(resolvedMainsFlowLpm);
 
     if (pressureChip) chips.push({ label: pressureChip, tone: 'neutral' });
     if (flowChip) chips.push({ label: flowChip, tone: 'neutral' });
