@@ -2,6 +2,7 @@ import type { TrialReadinessActionV1 } from '../TrialReadinessActionV1';
 import type { TrialReadinessActionReviewStateV1 } from '../trialReadinessReviewState';
 import type { WorkspaceLifecycleReleaseReportV1 } from '../../workspaceQa/buildWorkspaceLifecycleReleaseReport';
 import type { WorkspaceVisitLifecycleScenarioV1 } from '../../workspaceQa/WorkspaceVisitLifecycleScenarioV1';
+import { buildTrialReadinessSummary } from '../buildTrialReadinessSummary';
 import {
   TRIAL_READINESS_PACK_SCHEMA,
   TRIAL_READINESS_PACK_VERSION,
@@ -43,6 +44,7 @@ function buildReadme(folderName: string): string {
     '- trial-readiness-review.json',
     '- workspace-lifecycle-scenarios.json',
     '- known-gaps.json',
+    '- trial-readiness-summary.json',
   ].join('\n');
 }
 
@@ -99,6 +101,7 @@ export function buildTrialReadinessPack({
       'trial-readiness-review.json': toReviewEntries(trialReadinessActions, trialReadinessReviewState),
       'workspace-lifecycle-scenarios.json': toScenarioExportEntries(workspaceLifecycleScenarios),
       'known-gaps.json': toKnownGaps(trialReadinessActions),
+      'trial-readiness-summary.json': buildTrialReadinessSummary({ releaseGateReport, trialReadinessActions }),
       'README.md': buildReadme(folderName),
     },
   };
