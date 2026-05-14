@@ -6,3 +6,7 @@ export type {
 } from './LibraryContentProjectionV1';
 export type { BuildLibraryAudienceProjectionInputV1 } from './buildLibraryAudienceProjection';
 export { buildLibraryAudienceProjection } from './buildLibraryAudienceProjection';
+export type { LibraryProjectionSafetyV1 } from './qa/LibraryProjectionSafetyV1';
+export { assessLibraryProjectionSafety } from './qa/assessLibraryProjectionSafety';
+export { LibraryProjectionSafetyBlockPanel } from './qa/LibraryProjectionSafetyBlockPanel';
+export type { LibraryProjectionSafetyBlockPanelProps } from './qa/LibraryProjectionSafetyBlockPanel';

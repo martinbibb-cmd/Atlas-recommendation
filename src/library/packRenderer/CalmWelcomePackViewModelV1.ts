@@ -1,5 +1,6 @@
 import type { SequenceStage } from '../sequencing/EducationalSequenceRuleV1';
 import type { EducationalPackSectionId } from '../contracts/EducationalPackV1';
+import type { LibraryProjectionSafetyV1 } from '../projections/qa/LibraryProjectionSafetyV1';
 
 export type CalmWelcomePackSectionId = EducationalPackSectionId | 'safety_and_compliance';
 
@@ -67,6 +68,13 @@ export interface CalmWelcomePackViewModelV1 {
   readiness: {
     safeForCustomer: boolean;
     blockingReasons: string[];
+    /**
+     * Optional customer projection safety result.  Populated by callers that
+     * build a customer audience projection after the view model is constructed.
+     * When present and safeForCustomer is false, customer-facing renders must
+     * be blocked.
+     */
+    projectionSafety?: LibraryProjectionSafetyV1;
   };
   /**
    * Flat list of diagram IDs selected for this pack, derived from the plan's
