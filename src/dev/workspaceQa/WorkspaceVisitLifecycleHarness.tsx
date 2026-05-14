@@ -292,7 +292,7 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     link.href = url;
     link.download = 'trial-readiness-review-state.json';
     link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), 1000); // 1 s grace period for the browser to trigger the download
   }
 
   function handleImportReviewStateJson(event: React.ChangeEvent<HTMLInputElement>) {
@@ -307,9 +307,10 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
         setTrialReadinessReviewState(result.snapshot.reviewState);
       });
     };
-    reader.readAsText(file);
-    // Reset the input so the same file can be re-imported if needed.
+    // Reset the input before reading so the same file can be re-imported if
+    // the user selects it again while the previous read is still in progress.
     event.target.value = '';
+    reader.readAsText(file);
   }
 
   function handleExportTrialReadinessActions() {
