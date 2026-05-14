@@ -169,4 +169,45 @@ describe('WorkspaceVisitLifecycleHarness', () => {
     expect(updated?.reviewState?.status).toBe('in_progress');
     expect(updated?.reviewState?.reviewerNote).toBe('Needs customer support walkthrough evidence');
   });
+
+  it('exports trial readiness pack JSON with all required files', async () => {
+    const clickSpy = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const element = originalCreateElement(tagName);
+      if (tagName === 'a') {
+        Object.defineProperty(element, 'click', { value: clickSpy });
+      }
+      return element;
+    });
+
+    render(<WorkspaceVisitLifecycleHarness />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('workspace-qa-trial-readiness-export-pack')).not.toHaveAttribute('disabled'),
+    );
+
+    fireEvent.click(screen.getByTestId('workspace-qa-trial-readiness-export-pack'));
+
+    expect(global.URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+
+    const blob = vi.mocked(global.URL.createObjectURL).mock.calls.at(-1)?.[0] as Blob;
+    const json = await blob.text();
+    const payload = JSON.parse(json) as {
+      files: Record<string, unknown>;
+    };
+
+    expect(Object.keys(payload.files).sort()).toEqual(
+      [
+        'manifest.json',
+        'release-gate-report.json',
+        'trial-readiness-actions.json',
+        'trial-readiness-review.json',
+        'workspace-lifecycle-scenarios.json',
+        'known-gaps.json',
+        'README.md',
+      ].sort(),
+    );
+  });
 });

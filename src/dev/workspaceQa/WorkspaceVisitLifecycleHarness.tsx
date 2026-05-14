@@ -14,6 +14,7 @@ import {
 } from './buildWorkspaceLifecycleReleaseReport';
 import {
   addTrialReadinessActionNote,
+  buildTrialReadinessPack,
   buildTrialReadinessActions,
   LocalTrialReadinessReviewStorageAdapter,
   mergeGeneratedActionsWithReviewState,
@@ -324,6 +325,23 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     const link = document.createElement('a');
     link.href = url;
     link.download = 'trial-readiness-review.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function handleExportTrialReadinessPack() {
+    if (!releaseReport) return;
+    const pack = buildTrialReadinessPack({
+      releaseGateReport: releaseReport,
+      trialReadinessActions,
+      trialReadinessReviewState,
+      workspaceLifecycleScenarios: scenarios,
+    });
+    const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'trial-readiness-pack.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -716,6 +734,15 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
               data-testid="workspace-qa-trial-readiness-export-json"
             >
               Export JSON
+            </button>
+            <button
+              type="button"
+              onClick={handleExportTrialReadinessPack}
+              disabled={releaseReport === null}
+              style={{ fontSize: 12, padding: '4px 12px' }}
+              data-testid="workspace-qa-trial-readiness-export-pack"
+            >
+              Export trial readiness pack
             </button>
             <button
               type="button"

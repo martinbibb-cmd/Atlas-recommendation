@@ -27,3 +27,21 @@ export type {
   TrialReadinessReviewExportResult,
   TrialReadinessReviewImportResult,
 } from './storage';
+
+export {
+  TRIAL_READINESS_PACK_SCHEMA,
+  TRIAL_READINESS_PACK_VERSION,
+  TRIAL_READINESS_PACK_REQUIRED_FILES,
+  buildTrialReadinessPack,
+  validateTrialReadinessPack,
+} from './exportPackage';
+export type {
+  TrialReadinessPackRequiredFileName,
+  TrialReadinessPackManifestV1,
+  TrialReadinessReviewEntryV1,
+  TrialReadinessKnownGapV1,
+  TrialReadinessWorkspaceLifecycleScenarioV1,
+  TrialReadinessPackFilesV1,
+  TrialReadinessPackV1,
+  TrialReadinessPackValidationResult,
+} from './exportPackage';
