@@ -4,6 +4,9 @@ import type { WorkspaceLifecycleReleaseReportV1 } from '../../workspaceQa/buildW
 import type { WorkspaceVisitLifecycleScenarioV1 } from '../../workspaceQa/WorkspaceVisitLifecycleScenarioV1';
 import { buildTrialReadinessSummary } from '../buildTrialReadinessSummary';
 import { buildLimitedTrialPlan } from '../buildLimitedTrialPlan';
+import { buildTrialFeedbackSummary } from '../feedback';
+import { TRIAL_FEEDBACK_SCHEMA_VERSION } from '../feedback/storage/PersistedTrialFeedbackV1';
+import type { TrialFeedbackEntryV1 } from '../feedback';
 import {
   TRIAL_READINESS_PACK_SCHEMA,
   TRIAL_READINESS_PACK_VERSION,
@@ -18,6 +21,7 @@ interface BuildTrialReadinessPackInput {
   readonly trialReadinessActions: readonly TrialReadinessActionV1[];
   readonly trialReadinessReviewState: readonly TrialReadinessActionReviewStateV1[];
   readonly workspaceLifecycleScenarios: readonly WorkspaceVisitLifecycleScenarioV1[];
+  readonly trialFeedbackEntries?: readonly TrialFeedbackEntryV1[];
   readonly exportedAt?: string;
   readonly folderName?: string;
 }
@@ -45,6 +49,8 @@ function buildReadme(folderName: string): string {
     '- trial-readiness-review.json',
     '- workspace-lifecycle-scenarios.json',
     '- known-gaps.json',
+    '- trial-feedback.json',
+    '- trial-feedback-summary.json',
     '- trial-readiness-summary.json',
     '- limited-trial-plan.json',
   ].join('\n');
@@ -82,15 +88,29 @@ export function buildTrialReadinessPack({
   trialReadinessActions,
   trialReadinessReviewState,
   workspaceLifecycleScenarios,
+  trialFeedbackEntries = [],
   exportedAt = new Date().toISOString(),
   folderName = buildFolderName(exportedAt),
 }: BuildTrialReadinessPackInput): TrialReadinessPackV1 {
-  const trialReadinessSummary = buildTrialReadinessSummary({ releaseGateReport, trialReadinessActions });
+  const preFeedbackSummary = buildTrialReadinessSummary({ releaseGateReport, trialReadinessActions });
+  const preFeedbackPlan = buildLimitedTrialPlan({
+    releaseGateReport,
+    trialReadinessSummary: preFeedbackSummary,
+    trialReadinessActions,
+    workspaceLifecycleScenarios,
+  });
+  const trialFeedbackSummary = buildTrialFeedbackSummary(trialFeedbackEntries, preFeedbackPlan);
+  const trialReadinessSummary = buildTrialReadinessSummary({
+    releaseGateReport,
+    trialReadinessActions,
+    trialFeedbackSummary,
+  });
   const limitedTrialPlan = buildLimitedTrialPlan({
     releaseGateReport,
     trialReadinessSummary,
     trialReadinessActions,
     workspaceLifecycleScenarios,
+    trialFeedbackSummary,
   });
   const manifest = {
     schema: TRIAL_READINESS_PACK_SCHEMA,
@@ -110,6 +130,13 @@ export function buildTrialReadinessPack({
       'trial-readiness-review.json': toReviewEntries(trialReadinessActions, trialReadinessReviewState),
       'workspace-lifecycle-scenarios.json': toScenarioExportEntries(workspaceLifecycleScenarios),
       'known-gaps.json': toKnownGaps(trialReadinessActions),
+      'trial-feedback.json': {
+        schemaVersion: TRIAL_FEEDBACK_SCHEMA_VERSION,
+        createdAt: exportedAt,
+        updatedAt: exportedAt,
+        entries: trialFeedbackEntries,
+      },
+      'trial-feedback-summary.json': trialFeedbackSummary,
       'trial-readiness-summary.json': trialReadinessSummary,
       'limited-trial-plan.json': limitedTrialPlan,
       'README.md': buildReadme(folderName),

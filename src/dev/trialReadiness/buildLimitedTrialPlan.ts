@@ -2,6 +2,7 @@ import type { WorkspaceLifecycleReleaseReportV1, WorkspaceLifecycleReleaseStatus
 import type { WorkspaceVisitLifecycleScenarioV1 } from '../workspaceQa/WorkspaceVisitLifecycleScenarioV1';
 import type { TrialReadinessActionV1 } from './TrialReadinessActionV1';
 import type { TrialReadinessOverallRecommendationV1, TrialReadinessSummaryV1 } from './buildTrialReadinessSummary';
+import type { TrialFeedbackSummaryV1 } from './feedback';
 
 export type LimitedTrialSuggestedTesterCountV1 = 0 | '1-2' | '3-5';
 export type LimitedTrialReadinessSignalV1 = 'pass' | 'warn' | 'fail';
@@ -24,6 +25,7 @@ interface BuildLimitedTrialPlanInput {
   readonly trialReadinessSummary: TrialReadinessSummaryV1;
   readonly trialReadinessActions: readonly TrialReadinessActionV1[];
   readonly workspaceLifecycleScenarios: readonly WorkspaceVisitLifecycleScenarioV1[];
+  readonly trialFeedbackSummary?: TrialFeedbackSummaryV1;
 }
 
 const OPEN_VENTED_SCENARIO_ID = 'open_vented_conversion';
@@ -190,21 +192,33 @@ export function buildLimitedTrialPlan({
   trialReadinessSummary,
   trialReadinessActions,
   workspaceLifecycleScenarios,
+  trialFeedbackSummary,
 }: BuildLimitedTrialPlanInput): LimitedTrialPlanV1 {
   const trialRecommendation = trialReadinessSummary.overallRecommendation;
-  const suggestedTesterCount = resolveSuggestedTesterCount(trialRecommendation);
+  const feedbackStopCriteriaTriggered = trialFeedbackSummary?.stopCriteriaTriggered ?? false;
+  const suggestedTesterCount = feedbackStopCriteriaTriggered ? 0 : resolveSuggestedTesterCount(trialRecommendation);
   const scenarioLists = buildScenarioLists({
     releaseGateReport,
     workspaceLifecycleScenarios,
     trialReadinessActions,
   });
+  const feedbackFixes = trialFeedbackSummary?.recommendedFixes ?? [];
+  const feedbackStopCriteria = unique([
+    ...(feedbackStopCriteriaTriggered
+      ? ['An unresolved blocker remains open in trial feedback.']
+      : []),
+    ...feedbackFixes.map((fix) => `Repeated confusion feedback observed: ${fix}`),
+  ]);
 
   return {
     trialRecommendation,
     suggestedTesterCount,
     eligibleScenarios: scenarioLists.eligibleScenarios,
     excludedScenarios: scenarioLists.excludedScenarios,
-    requiredPreTrialChecks: buildRequiredPreTrialChecks(trialReadinessSummary),
+    requiredPreTrialChecks: unique([
+      ...buildRequiredPreTrialChecks(trialReadinessSummary),
+      ...feedbackFixes.map((fix) => `Implement feedback-derived fix: ${fix}`),
+    ]),
     duringTrialChecklist: unique([
       ...buildRecommendationSpecificChecklist(trialRecommendation),
       ...buildDuringTrialChecklist(trialReadinessSummary),
@@ -212,6 +226,6 @@ export function buildLimitedTrialPlan({
     rollbackPlan: buildRollbackPlan(),
     feedbackQuestions: buildFeedbackQuestions(),
     successCriteria: buildSuccessCriteria(trialRecommendation, scenarioLists.eligibleScenarios.length),
-    stopCriteria: DEFAULT_STOP_CRITERIA,
+    stopCriteria: unique([...DEFAULT_STOP_CRITERIA, ...feedbackStopCriteria]),
   };
 }

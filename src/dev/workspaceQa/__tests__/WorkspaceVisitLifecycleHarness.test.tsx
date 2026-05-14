@@ -23,6 +23,7 @@ describe('WorkspaceVisitLifecycleHarness', () => {
     );
     expect(screen.getByTestId('workspace-qa-trial-decision-summary')).toBeTruthy();
     expect(screen.getByTestId('workspace-qa-limited-trial-plan')).toBeTruthy();
+    expect(screen.getByTestId('workspace-qa-trial-feedback-influence-note').textContent).toContain('no');
   });
 
   it('exports release gate JSON including scenario results', async () => {
@@ -208,6 +209,8 @@ describe('WorkspaceVisitLifecycleHarness', () => {
         'trial-readiness-review.json',
         'workspace-lifecycle-scenarios.json',
         'known-gaps.json',
+        'trial-feedback.json',
+        'trial-feedback-summary.json',
         'trial-readiness-summary.json',
         'limited-trial-plan.json',
         'README.md',

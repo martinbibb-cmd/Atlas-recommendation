@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTrialReadinessActions } from '../../buildTrialReadinessActions';
 import type { TrialReadinessActionReviewStateV1 } from '../../trialReadinessReviewState';
+import type { TrialFeedbackEntryV1 } from '../../feedback';
 import {
   TRIAL_READINESS_PACK_REQUIRED_FILES,
   TRIAL_READINESS_PACK_SCHEMA,
@@ -43,11 +44,26 @@ function makePack() {
     },
   ];
 
+  const trialFeedbackEntries: readonly TrialFeedbackEntryV1[] = [
+    {
+      feedbackId: 'fb-1',
+      scenarioId: 'open_vented_conversion',
+      testerType: 'internal',
+      submittedAt: '2026-05-14T00:02:00.000Z',
+      severity: 'confusing',
+      area: 'general',
+      summary: 'Need clearer recommendation wording',
+      status: 'new',
+      relatedTrialPlanItemIds: ['stop-criteria'],
+    },
+  ];
+
   return buildTrialReadinessPack({
     releaseGateReport,
     trialReadinessActions,
     trialReadinessReviewState,
     workspaceLifecycleScenarios: getWorkspaceVisitLifecycleScenariosV1(),
+    trialFeedbackEntries,
     exportedAt: '2026-05-14T00:05:00.000Z',
   });
 }
@@ -106,5 +122,14 @@ describe('trial readiness pack export', () => {
     expect(planJson.includes('"visit"')).toBe(false);
     expect(planJson.includes('"workflowState"')).toBe(false);
     expect(planJson.includes('"customerPayload"')).toBe(false);
+  });
+
+  it('includes trial feedback files', () => {
+    const pack = makePack();
+    const feedback = pack.files['trial-feedback.json'];
+    const feedbackSummary = pack.files['trial-feedback-summary.json'];
+
+    expect(feedback.entries.length).toBe(1);
+    expect(feedbackSummary.recommendedFixes.length).toBeGreaterThan(0);
   });
 });

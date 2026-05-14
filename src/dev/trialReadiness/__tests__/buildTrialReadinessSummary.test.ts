@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WorkspaceLifecycleReleaseReportV1 } from '../../workspaceQa/buildWorkspaceLifecycleReleaseReport';
 import type { TrialReadinessActionV1 } from '../TrialReadinessActionV1';
 import { buildTrialReadinessSummary } from '../buildTrialReadinessSummary';
+import type { TrialFeedbackSummaryV1 } from '../feedback';
 
 function makeReport(overrides: Partial<WorkspaceLifecycleReleaseReportV1> = {}): WorkspaceLifecycleReleaseReportV1 {
   return {
@@ -30,6 +31,17 @@ function makeAction(overrides: Partial<TrialReadinessActionV1> = {}): TrialReadi
     priority: 'high',
     source: 'manual_review',
     status: 'open',
+    ...overrides,
+  };
+}
+
+function makeFeedbackSummary(overrides: Partial<TrialFeedbackSummaryV1> = {}): TrialFeedbackSummaryV1 {
+  return {
+    blockerCount: 0,
+    confusionThemes: [],
+    positiveSignals: [],
+    recommendedFixes: [],
+    stopCriteriaTriggered: false,
     ...overrides,
   };
 }
@@ -110,5 +122,62 @@ describe('buildTrialReadinessSummary', () => {
     expect(serialized.includes('"visit"')).toBe(false);
     expect(serialized.includes('"workflowState"')).toBe(false);
     expect(serialized.includes('"customerPayload"')).toBe(false);
+  });
+
+  it('open blocker feedback forces recommendation to not_ready', () => {
+    const summary = buildTrialReadinessSummary({
+      releaseGateReport: makeReport(),
+      trialReadinessActions: [makeAction({ status: 'done' })],
+      trialFeedbackSummary: makeFeedbackSummary({
+        blockerCount: 1,
+        stopCriteriaTriggered: true,
+      }),
+    });
+
+    expect(summary.overallRecommendation).toBe('not_ready');
+    expect(summary.blockers.some((entry) => entry.includes('Open trial feedback blockers: 1'))).toBe(true);
+  });
+
+  it('confusing feedback adds a recommended before-trial fix', () => {
+    const summary = buildTrialReadinessSummary({
+      releaseGateReport: makeReport(),
+      trialReadinessActions: [makeAction({ status: 'done' })],
+      trialFeedbackSummary: makeFeedbackSummary({
+        confusionThemes: ['recommendation_clarity: ambiguous wording'],
+        recommendedFixes: ['recommendation_clarity: ambiguous wording'],
+      }),
+    });
+
+    expect(
+      summary.recommendedBeforeTrial.some((entry) => entry.includes('recommendation_clarity: ambiguous wording')),
+    ).toBe(true);
+  });
+
+  it('positive feedback adds monitoring guidance but does not block trial', () => {
+    const summary = buildTrialReadinessSummary({
+      releaseGateReport: makeReport(),
+      trialReadinessActions: [
+        makeAction({
+          actionId: 'critical-1',
+          title: 'Complete high-priority evidence',
+          priority: 'high',
+          status: 'done',
+        }),
+        makeAction({
+          actionId: 'blocker-1',
+          title: 'Close blocker',
+          priority: 'blocker',
+          status: 'done',
+        }),
+      ],
+      trialFeedbackSummary: makeFeedbackSummary({
+        positiveSignals: ['recommendation_clarity: easy to follow'],
+      }),
+    });
+
+    expect(summary.overallRecommendation).toBe('ready_for_limited_trial');
+    expect(
+      summary.recommendedDuringTrial.some((entry) => entry.includes('recommendation_clarity: easy to follow')),
+    ).toBe(true);
   });
 });

@@ -1,5 +1,6 @@
 import type { WorkspaceLifecycleReleaseReportV1 } from '../workspaceQa/buildWorkspaceLifecycleReleaseReport';
 import type { TrialReadinessActionV1 } from './TrialReadinessActionV1';
+import type { TrialFeedbackSummaryV1 } from './feedback';
 
 export type TrialReadinessOverallRecommendationV1 =
   | 'ready_for_limited_trial'
@@ -20,6 +21,7 @@ export interface TrialReadinessSummaryV1 {
 interface BuildTrialReadinessSummaryInput {
   readonly releaseGateReport: WorkspaceLifecycleReleaseReportV1;
   readonly trialReadinessActions: readonly TrialReadinessActionV1[];
+  readonly trialFeedbackSummary?: TrialFeedbackSummaryV1;
 }
 
 const EVIDENCE_LINKS: readonly string[] = [
@@ -56,10 +58,11 @@ function recommendationSummary(
 function determineOverallRecommendation(options: {
   readonly releaseGateStatus: WorkspaceLifecycleReleaseReportV1['overallStatus'];
   readonly hasOpenBlockerActions: boolean;
+  readonly feedbackStopCriteriaTriggered: boolean;
   readonly hasOnlyAcceptedRisksAndWarnings: boolean;
   readonly allCriticalDone: boolean;
 }): TrialReadinessOverallRecommendationV1 {
-  if (options.releaseGateStatus === 'fail' || options.hasOpenBlockerActions) {
+  if (options.feedbackStopCriteriaTriggered || options.releaseGateStatus === 'fail' || options.hasOpenBlockerActions) {
     return 'not_ready';
   }
   if (options.hasOnlyAcceptedRisksAndWarnings) {
@@ -74,6 +77,7 @@ function determineOverallRecommendation(options: {
 export function buildTrialReadinessSummary({
   releaseGateReport,
   trialReadinessActions,
+  trialFeedbackSummary,
 }: BuildTrialReadinessSummaryInput): TrialReadinessSummaryV1 {
   const openBlockerActions = trialReadinessActions.filter(
     (action) => action.priority === 'blocker' && isOpenStatus(action),
@@ -88,16 +92,28 @@ export function buildTrialReadinessSummary({
   const hasAcceptedRisks = acceptedRiskActions.length > 0;
   const hasWarnings = releaseGateReport.warnings.length > 0;
   const hasOnlyAcceptedRisksAndWarnings = hasNoOpenActions && (hasAcceptedRisks || hasWarnings);
+  const feedbackStopCriteriaTriggered = trialFeedbackSummary?.stopCriteriaTriggered ?? false;
+  const feedbackBlockers =
+    trialFeedbackSummary && trialFeedbackSummary.blockerCount > 0
+      ? [`Open trial feedback blockers: ${trialFeedbackSummary.blockerCount}`]
+      : [];
+  const feedbackConfusionFixes = trialFeedbackSummary?.recommendedFixes ?? [];
+  const feedbackPositiveSignals = trialFeedbackSummary?.positiveSignals ?? [];
 
   const blockers = unique([
     ...releaseGateReport.blockingIssues,
     ...openBlockerActions.map((action) => action.title),
+    ...feedbackBlockers,
   ]);
   const acceptedRisks = unique(acceptedRiskActions.map((action) => action.title));
-  const recommendedBeforeTrial = unique(openActions.map((action) => action.title));
+  const recommendedBeforeTrial = unique([
+    ...openActions.map((action) => action.title),
+    ...feedbackConfusionFixes.map((fix) => `Address confusing feedback theme: ${fix}`),
+  ]);
   const recommendedDuringTrial = unique([
     ...acceptedRisks.map((risk) => `Monitor accepted risk: ${risk}`),
     ...releaseGateReport.warnings.map((warning) => `Track warning during trial: ${warning}`),
+    ...feedbackPositiveSignals.map((signal) => `Preserve positive trial signal: ${signal}`),
   ]);
   const doNotTestYet = unique([
     ...releaseGateReport.blockingIssues,
@@ -107,6 +123,7 @@ export function buildTrialReadinessSummary({
   const overallRecommendation = determineOverallRecommendation({
     releaseGateStatus: releaseGateReport.overallStatus,
     hasOpenBlockerActions: openBlockerActions.length > 0,
+    feedbackStopCriteriaTriggered,
     hasOnlyAcceptedRisksAndWarnings,
     allCriticalDone,
   });
@@ -119,6 +136,9 @@ export function buildTrialReadinessSummary({
     recommendedBeforeTrial,
     recommendedDuringTrial,
     doNotTestYet,
-    evidenceLinks: EVIDENCE_LINKS,
+    evidenceLinks: unique([
+      ...EVIDENCE_LINKS,
+      ...(trialFeedbackSummary ? ['trial-feedback.json', 'trial-feedback-summary.json'] : []),
+    ]),
   };
 }
