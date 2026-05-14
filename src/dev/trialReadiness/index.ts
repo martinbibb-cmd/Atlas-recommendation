@@ -49,3 +49,20 @@ export type {
   TrialReadinessPackV1,
   TrialReadinessPackValidationResult,
 } from './exportPackage';
+
+export { buildTrialFeedbackSummary, LocalTrialFeedbackStorageAdapter, TRIAL_FEEDBACK_SCHEMA_VERSION, buildTrialFeedbackSnapshot } from './feedback';
+export type {
+  TrialFeedbackEntryV1,
+  TrialFeedbackAreaV1,
+  TrialFeedbackSeverityV1,
+  TrialFeedbackStatusV1,
+  TrialFeedbackTesterTypeV1,
+  TrialFeedbackSummaryV1,
+  PersistedTrialFeedbackV1,
+  TrialFeedbackSaveResult,
+  TrialFeedbackLoadResult,
+  TrialFeedbackClearResult,
+  TrialFeedbackExportResult,
+  TrialFeedbackImportResult,
+  TrialFeedbackStorageAdapterV1,
+} from './feedback';
