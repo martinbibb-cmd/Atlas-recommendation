@@ -93,6 +93,13 @@ const RESULT_TONE_ORDER: Record<'successful' | 'reduced' | 'conflict', number> =
   conflict: 2,
 };
 
+function isMoreSevereResult(
+  nextResult: 'successful' | 'reduced' | 'conflict',
+  currentResult: 'successful' | 'reduced' | 'conflict',
+): boolean {
+  return RESULT_TONE_ORDER[nextResult] > RESULT_TONE_ORDER[currentResult];
+}
+
 function formatSystemFamilyLabel(system: EventsSystemFamily | undefined): string {
   switch (system) {
     case 'combi':
@@ -135,7 +142,7 @@ function buildDrawOffChips(events: ClassifiedDayEvent[]) {
       count: existing.count + 1,
       // Keep the worst grouped outcome so each chip reflects the most constrained
       // modelled draw for that outlet type (conflict > reduced > successful).
-      result: RESULT_TONE_ORDER[event.result] > RESULT_TONE_ORDER[existing.result]
+      result: isMoreSevereResult(event.result, existing.result)
         ? event.result
         : existing.result,
     });
