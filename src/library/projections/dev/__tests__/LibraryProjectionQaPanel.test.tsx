@@ -322,6 +322,17 @@ describe('LibraryProjectionQaPanel', () => {
     expect(warningText.some((t) => /fill pressure|zone valve/i.test(t))).toBe(true);
   });
 
+  it('renders repair suggestions grouped by blocker/warning with linked concepts/cards/tasks', () => {
+    renderPanel(makeLeakyViewModel(), makeDigestWithEngineerItems());
+
+    expect(screen.getByTestId('qa-repair-suggestions-customer')).toBeInTheDocument();
+    expect(screen.getByTestId('qa-repair-group-blocker-customer')).toBeInTheDocument();
+    expect(screen.getByTestId('qa-repair-group-warning-customer')).toBeInTheDocument();
+    expect(screen.getByText(/concepts:/i)).toBeInTheDocument();
+    expect(screen.getByText(/cards:/i)).toBeInTheDocument();
+    expect(screen.getByText(/tasks:/i)).toBeInTheDocument();
+  });
+
   it('customer leakage check passes when no forbidden terms are present', () => {
     renderPanel(makeCleanViewModel());
     expect(screen.getByTestId('qa-leakage-pass-customer')).toBeInTheDocument();
