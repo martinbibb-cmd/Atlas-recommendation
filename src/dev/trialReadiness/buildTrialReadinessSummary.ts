@@ -94,10 +94,10 @@ export function buildTrialReadinessSummary({
   const hasWarnings = releaseGateReport.warnings.length > 0;
   const hasOnlyAcceptedRisksAndWarnings = hasNoOpenActions && (hasAcceptedRisks || hasWarnings);
   const feedbackStopCriteriaTriggered = trialFeedbackSummary?.stopCriteriaTriggered ?? false;
-  const feedbackBlockers =
-    trialFeedbackSummary && trialFeedbackSummary.blockerCount > 0
-      ? [`Open trial feedback blockers: ${trialFeedbackSummary.blockerCount}`]
-      : [];
+  const feedbackBlockerCount = trialFeedbackSummary?.blockerCount ?? 0;
+  const feedbackBlockers = feedbackBlockerCount > 0
+    ? [`Open trial feedback blockers: ${feedbackBlockerCount}`]
+    : [];
   const feedbackConfusionFixes = trialFeedbackSummary?.recommendedFixes ?? [];
   const feedbackPositiveSignals = trialFeedbackSummary?.positiveSignals ?? [];
 
