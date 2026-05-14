@@ -328,6 +328,8 @@ describe('LibraryProjectionQaPanel', () => {
     expect(repairSection).toBeInTheDocument();
     expect(screen.getByTestId('qa-repair-group-blocker-customer')).toBeInTheDocument();
     expect(screen.getByTestId('qa-repair-group-warning-customer')).toBeInTheDocument();
+    expect(screen.getByTestId('library-repair-queue-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('library-repair-queue-group-copy_rewrite')).toBeInTheDocument();
     expect(repairSection.textContent).toMatch(/concepts:/i);
     expect(repairSection.textContent).toMatch(/cards:/i);
     expect(repairSection.textContent).toMatch(/tasks:/i);

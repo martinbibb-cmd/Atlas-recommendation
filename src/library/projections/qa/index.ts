@@ -12,3 +12,12 @@ export type {
 } from './buildProjectionSafetyRepairPlan';
 export { LibraryProjectionSafetyBlockPanel } from './LibraryProjectionSafetyBlockPanel';
 export type { LibraryProjectionSafetyBlockPanelProps } from './LibraryProjectionSafetyBlockPanel';
+export { buildLibraryRepairQueue, LibraryRepairQueuePanel } from './repairQueue';
+export type {
+  LibraryRepairQueueAreaV1,
+  LibraryRepairQueueItemV1,
+  LibraryRepairQueuePanelProps,
+  LibraryRepairQueuePriorityV1,
+  LibraryRepairQueueStatusV1,
+  LibraryRepairQueueV1,
+} from './repairQueue';
