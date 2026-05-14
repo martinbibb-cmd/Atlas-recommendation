@@ -56,6 +56,13 @@ function resolveSuggestedTesterCount(
   return '3-5';
 }
 
+function resolveSuggestedTesterCountWithFeedback(
+  recommendation: TrialReadinessOverallRecommendationV1,
+  feedbackStopCriteriaTriggered: boolean,
+): LimitedTrialSuggestedTesterCountV1 {
+  return feedbackStopCriteriaTriggered ? 0 : resolveSuggestedTesterCount(recommendation);
+}
+
 function resolvePdfReadiness(actions: readonly TrialReadinessActionV1[]): LimitedTrialReadinessSignalV1 {
   const pdfActions = actions.filter((action) => {
     const normalized = `${action.actionId} ${action.title}`.toLowerCase();
@@ -197,7 +204,10 @@ export function buildLimitedTrialPlan({
 }: BuildLimitedTrialPlanInput): LimitedTrialPlanV1 {
   const trialRecommendation = trialReadinessSummary.overallRecommendation;
   const feedbackStopCriteriaTriggered = trialFeedbackSummary?.stopCriteriaTriggered ?? false;
-  const suggestedTesterCount = feedbackStopCriteriaTriggered ? 0 : resolveSuggestedTesterCount(trialRecommendation);
+  const suggestedTesterCount = resolveSuggestedTesterCountWithFeedback(
+    trialRecommendation,
+    feedbackStopCriteriaTriggered,
+  );
   const scenarioLists = buildScenarioLists({
     releaseGateReport,
     workspaceLifecycleScenarios,

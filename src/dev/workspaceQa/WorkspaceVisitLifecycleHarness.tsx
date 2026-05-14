@@ -58,7 +58,7 @@ function formatEnumLabel(value: string): string {
   return value.replace(/_/g, ' ');
 }
 
-function arraysEqual(values: readonly string[], nextValues: readonly string[]): boolean {
+function stringArraysEqual(values: readonly string[], nextValues: readonly string[]): boolean {
   return values.length === nextValues.length && values.every((value, index) => value === nextValues[index]);
 }
 
@@ -69,9 +69,9 @@ function didSummaryChange(
   return (
     baseline.overallRecommendation !== next.overallRecommendation ||
     baseline.plainEnglishSummary !== next.plainEnglishSummary ||
-    !arraysEqual(baseline.blockers, next.blockers) ||
-    !arraysEqual(baseline.recommendedBeforeTrial, next.recommendedBeforeTrial) ||
-    !arraysEqual(baseline.recommendedDuringTrial, next.recommendedDuringTrial)
+    !stringArraysEqual(baseline.blockers, next.blockers) ||
+    !stringArraysEqual(baseline.recommendedBeforeTrial, next.recommendedBeforeTrial) ||
+    !stringArraysEqual(baseline.recommendedDuringTrial, next.recommendedDuringTrial)
   );
 }
 
@@ -82,8 +82,8 @@ function didLimitedTrialPlanChange(
   return (
     baseline.trialRecommendation !== next.trialRecommendation ||
     baseline.suggestedTesterCount !== next.suggestedTesterCount ||
-    !arraysEqual(baseline.requiredPreTrialChecks, next.requiredPreTrialChecks) ||
-    !arraysEqual(baseline.stopCriteria, next.stopCriteria)
+    !stringArraysEqual(baseline.requiredPreTrialChecks, next.requiredPreTrialChecks) ||
+    !stringArraysEqual(baseline.stopCriteria, next.stopCriteria)
   );
 }
 
