@@ -1,7 +1,12 @@
 import { OpenVentedToUnventedDiagram } from './OpenVentedToUnventedDiagram';
 import { PressureVsStorageDiagram } from './PressureVsStorageDiagram';
+import { StoredHotWaterRecoveryTimelineDiagram } from './StoredHotWaterRecoveryTimelineDiagram';
+import { SystemFitDecisionMapDiagram } from './SystemFitDecisionMapDiagram';
 import { WarmVsHotRadiatorsDiagram } from './WarmVsHotRadiatorsDiagram';
+import { WarmRadiatorEmitterSizingDiagram } from './WarmRadiatorEmitterSizingDiagram';
 import { WaterMainLimitationDiagram } from './WaterMainLimitationDiagram';
+import { FlowRestrictionBottleneckDiagram } from './FlowRestrictionBottleneckDiagram';
+import { WeatherCompensationCurveDiagram } from './WeatherCompensationCurveDiagram';
 
 export interface DiagramRendererProps {
   diagramId: string;
@@ -14,6 +19,11 @@ export const DIAGRAM_COMPONENTS = {
   warm_vs_hot_radiators: WarmVsHotRadiatorsDiagram,
   water_main_limitation: WaterMainLimitationDiagram,
   open_vented_to_unvented: OpenVentedToUnventedDiagram,
+  system_fit_decision_map: SystemFitDecisionMapDiagram,
+  stored_hot_water_recovery_timeline: StoredHotWaterRecoveryTimelineDiagram,
+  warm_radiator_emitter_sizing: WarmRadiatorEmitterSizingDiagram,
+  flow_restriction_bottleneck: FlowRestrictionBottleneckDiagram,
+  weather_compensation_curve: WeatherCompensationCurveDiagram,
 } as const;
 
 export type SupportedDiagramRendererId = keyof typeof DIAGRAM_COMPONENTS;
