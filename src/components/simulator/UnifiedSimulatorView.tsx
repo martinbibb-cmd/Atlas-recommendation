@@ -341,24 +341,27 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
 
   const wrapperMessages = useMemo(() => {
     if (resimulationResult == null) {
-      return [{ tone: 'warn' as SummaryChipTone, text: 'Daily summary is unavailable until simulator inputs are ready.' }];
+      return [{ id: 'unavailable', tone: 'warn' as SummaryChipTone, text: 'Daily summary is unavailable until simulator inputs are ready.' }];
     }
 
-    const messages: Array<{ tone: SummaryChipTone; text: string }> = [];
+    const messages: Array<{ id: string; tone: SummaryChipTone; text: string }> = [];
     const hotWater = resimulationResult.resimulation.simpleInstall.hotWater;
 
     if (hotWater.conflict > 0) {
       messages.push({
+        id: 'conflict',
         tone: 'fail',
         text: `${hotWater.conflict} daily hot-water draw${hotWater.conflict === 1 ? '' : 's'} fall into conflict on the current pattern.`,
       });
     } else if (hotWater.reduced > 0) {
       messages.push({
+        id: 'reduced',
         tone: 'warn',
         text: `${hotWater.reduced} draw${hotWater.reduced === 1 ? '' : 's'} are reduced at busier times, even though hot water is still delivered.`,
       });
     } else {
       messages.push({
+        id: 'calm',
         tone: 'pass',
         text: 'The current daily pattern stays calm: modelled hot-water draws complete without reduction.',
       });
@@ -366,6 +369,7 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
 
     if (currentSystemFlowStability === 'limited' || currentSystemFlowStability === 'marginal') {
       messages.push({
+        id: 'flow-stability',
         tone: currentSystemFlowStability === 'limited' ? 'fail' : 'warn',
         text: `Tank-fed supply remains ${currentSystemFlowStability}; pipework layout still matters for outlet performance.`,
       });
@@ -373,6 +377,7 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
 
     if (resimulationResult.resimulation.comparison.headlineImprovements.length > 0) {
       messages.push({
+        id: 'improvement',
         tone: 'neutral',
         text: resimulationResult.resimulation.comparison.headlineImprovements[0],
       });
@@ -538,9 +543,9 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
           )}
 
           <div className="unified-simulator-view__messages" data-testid="simulator-warning-list">
-            {wrapperMessages.map((message, index) => (
+            {wrapperMessages.map((message) => (
               <div
-                key={`${message.text}-${index}`}
+                key={message.id}
                 className={`unified-simulator-view__message unified-simulator-view__message--${message.tone}`}
                 role={message.tone === 'fail' ? 'alert' : 'status'}
               >
