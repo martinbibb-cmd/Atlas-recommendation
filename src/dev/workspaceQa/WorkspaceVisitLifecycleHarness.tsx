@@ -19,6 +19,7 @@ import {
   buildTrialReadinessPack,
   buildTrialReadinessSummary,
   buildTrialReadinessActions,
+  buildFirstTesterSessionScript,
   LocalTrialReadinessReviewStorageAdapter,
   LocalTrialFeedbackStorageAdapter,
   mergeGeneratedActionsWithReviewState,
@@ -33,11 +34,13 @@ import {
   type TrialReadinessStatusV1,
   type LimitedTrialPlanV1,
   type TrialFeedbackSummaryV1,
+  type FirstTesterSessionScriptV1,
 } from '../trialReadiness';
 import {
   TrialFeedbackPanel,
 } from '../trialReadiness/feedback/TrialFeedbackPanel';
 import { buildTrialFeedbackSnapshot } from '../trialReadiness/feedback/trialFeedbackHelpers';
+import { FirstTesterSessionScriptPanel } from '../trialReadiness/firstTesterSession/FirstTesterSessionScriptPanel';
 
 interface WorkspaceVisitLifecycleHarnessProps {
   readonly onBack?: () => void;
@@ -56,6 +59,16 @@ const TRIAL_READINESS_STATUS_OPTIONS: readonly TrialReadinessStatusV1[] = [
 
 function formatEnumLabel(value: string): string {
   return value.replace(/_/g, ' ');
+}
+
+function downloadJson(data: unknown, filename: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function stringArraysOrderedEqual(values: readonly string[], nextValues: readonly string[]): boolean {
@@ -393,6 +406,19 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     trialDecisionSummary,
     trialFeedbackSummary,
   ]);
+
+  const firstTesterSessionScript = useMemo<FirstTesterSessionScriptV1 | null>(
+    () =>
+      limitedTrialPlan && trialDecisionSummary
+        ? buildFirstTesterSessionScript(limitedTrialPlan, trialDecisionSummary)
+        : null,
+    [limitedTrialPlan, trialDecisionSummary],
+  );
+
+  function handleExportFirstTesterSessionScript() {
+    if (!firstTesterSessionScript) return;
+    downloadJson(firstTesterSessionScript, 'first-tester-session-script.json');
+  }
 
   function handleTrialReadinessStatusChange(actionId: string, status: TrialReadinessStatusV1) {
     setTrialReadinessReviewState((current) =>
@@ -1126,6 +1152,11 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
         onExport={() => { void handleExportFeedbackJson(); }}
         onImport={handleImportFeedbackJson}
         onClear={handleClearFeedback}
+      />
+
+      <FirstTesterSessionScriptPanel
+        sessionScript={firstTesterSessionScript}
+        onExport={handleExportFirstTesterSessionScript}
       />
     </div>
   );

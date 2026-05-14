@@ -51,6 +51,12 @@ export type {
 } from './exportPackage';
 
 export { buildTrialFeedbackSummary, LocalTrialFeedbackStorageAdapter, TRIAL_FEEDBACK_SCHEMA_VERSION, buildTrialFeedbackSnapshot } from './feedback';
+
+export { buildFirstTesterSessionScript } from './firstTesterSession/buildFirstTesterSessionScript';
+export type {
+  FirstTesterSessionScriptV1,
+  TesterSessionScriptV1,
+} from './firstTesterSession/FirstTesterSessionScriptV1';
 export type {
   TrialFeedbackEntryV1,
   TrialFeedbackAreaV1,
