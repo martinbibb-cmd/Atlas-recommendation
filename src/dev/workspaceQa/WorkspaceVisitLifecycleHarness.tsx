@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   evaluateWorkspaceVisitLifecycleScenario,
   getWorkspaceVisitLifecycleScenariosV1,
@@ -15,8 +15,10 @@ import {
 import {
   addTrialReadinessActionNote,
   buildTrialReadinessActions,
+  LocalTrialReadinessReviewStorageAdapter,
   mergeGeneratedActionsWithReviewState,
   updateTrialReadinessActionStatus,
+  type PersistedTrialReadinessReviewV1,
   type TrialReadinessActionV1,
   type TrialReadinessActionReviewStateV1,
   type TrialReadinessLintStatusV1,
@@ -133,6 +135,47 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
   const [trialReadinessReviewState, setTrialReadinessReviewState] = useState<readonly TrialReadinessActionReviewStateV1[]>([]);
   const evaluation = evaluationState?.scenarioId === activeScenario?.id ? evaluationState.value : null;
 
+  // ── Trial readiness review persistence ────────────────────────────────────
+  const reviewStorageAdapter = useMemo(() => new LocalTrialReadinessReviewStorageAdapter(), []);
+  /** ISO 8601 timestamp when this review session was opened. */
+  const reviewGeneratedAtRef = useRef<string>(new Date().toISOString());
+  /**
+   * Set to true once the initial localStorage load attempt has completed,
+   * so the auto-save effect does not overwrite a prior session before load
+   * has finished.
+   */
+  const reviewLoadedRef = useRef(false);
+
+  // Load saved review state on mount
+  useEffect(() => {
+    let active = true;
+    void reviewStorageAdapter.loadReviewState().then((result) => {
+      if (!active) return;
+      reviewLoadedRef.current = true;
+      if (result.ok) {
+        reviewGeneratedAtRef.current = result.snapshot.generatedAt;
+        setTrialReadinessReviewState(result.snapshot.reviewState);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [reviewStorageAdapter]);
+
+  // Auto-save whenever review state changes (after initial load)
+  useEffect(() => {
+    if (!reviewLoadedRef.current) return;
+    // Skip saving an empty state — let clearReviewState() keep storage clear.
+    if (trialReadinessReviewState.length === 0) return;
+    const snapshot: PersistedTrialReadinessReviewV1 = {
+      schemaVersion: '1.0',
+      generatedAt: reviewGeneratedAtRef.current,
+      reviewState: trialReadinessReviewState,
+      updatedAt: new Date().toISOString(),
+    };
+    void reviewStorageAdapter.saveReviewState(snapshot);
+  }, [trialReadinessReviewState, reviewStorageAdapter]);
+
   useEffect(() => {
     let active = true;
     if (!activeScenario) return () => {
@@ -223,6 +266,51 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
     setTrialReadinessReviewState((current) =>
       addTrialReadinessActionNote(current, actionId, reviewerNote, new Date().toISOString()),
     );
+  }
+
+  function handleClearTrialReadinessReview() {
+    void reviewStorageAdapter.clearReviewState().then(() => {
+      reviewGeneratedAtRef.current = new Date().toISOString();
+      setTrialReadinessReviewState([]);
+    });
+  }
+
+  async function handleExportReviewStateJson() {
+    // Persist the current state before exporting so the download reflects it.
+    const snapshot: PersistedTrialReadinessReviewV1 = {
+      schemaVersion: '1.0',
+      generatedAt: reviewGeneratedAtRef.current,
+      reviewState: trialReadinessReviewState,
+      updatedAt: new Date().toISOString(),
+    };
+    await reviewStorageAdapter.saveReviewState(snapshot);
+    const exportResult = await reviewStorageAdapter.exportReviewState();
+    if (!exportResult.ok) return;
+    const blob = new Blob([exportResult.json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'trial-readiness-review-state.json';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000); // 1 s grace period for the browser to trigger the download
+  }
+
+  function handleImportReviewStateJson(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const json = reader.result as string;
+      void reviewStorageAdapter.importReviewState(json).then((result) => {
+        if (!result.ok) return;
+        reviewGeneratedAtRef.current = result.snapshot.generatedAt;
+        setTrialReadinessReviewState(result.snapshot.reviewState);
+      });
+    };
+    // Reset the input before reading so the same file can be re-imported if
+    // the user selects it again while the previous read is still in progress.
+    event.target.value = '';
+    reader.readAsText(file);
   }
 
   function handleExportTrialReadinessActions() {
@@ -619,15 +707,48 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
               Live blockers open: {liveBlockerCount}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleExportTrialReadinessActions}
-            disabled={releaseReport === null}
-            style={{ fontSize: 12, padding: '4px 12px' }}
-            data-testid="workspace-qa-trial-readiness-export-json"
-          >
-            Export JSON
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleExportTrialReadinessActions}
+              disabled={releaseReport === null}
+              style={{ fontSize: 12, padding: '4px 12px' }}
+              data-testid="workspace-qa-trial-readiness-export-json"
+            >
+              Export JSON
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportReviewStateJson()}
+              disabled={trialReadinessReviewState.length === 0}
+              style={{ fontSize: 12, padding: '4px 12px' }}
+              data-testid="workspace-qa-trial-readiness-export-review-state"
+            >
+              Export review state
+            </button>
+            <label
+              style={{ fontSize: 12, padding: '4px 12px', cursor: 'pointer', border: '1px solid #cbd5e1', borderRadius: 4 }}
+              data-testid="workspace-qa-trial-readiness-import-review-state-label"
+            >
+              Import review state
+              <input
+                type="file"
+                accept="application/json,.json"
+                style={{ display: 'none' }}
+                onChange={handleImportReviewStateJson}
+                data-testid="workspace-qa-trial-readiness-import-review-state-input"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={handleClearTrialReadinessReview}
+              disabled={trialReadinessReviewState.length === 0}
+              style={{ fontSize: 12, padding: '4px 12px' }}
+              data-testid="workspace-qa-trial-readiness-clear-review"
+            >
+              Clear review
+            </button>
+          </div>
         </div>
 
         {releaseReport === null ? (
