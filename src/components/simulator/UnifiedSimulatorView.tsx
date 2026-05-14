@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
@@ -232,10 +232,6 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
-  const saveStateRef = useRef<SaveState>('idle');
-  useEffect(() => {
-    saveStateRef.current = saveState;
-  }, [saveState]);
 
   const persistReport = useCallback(async () => {
     if (advice == null) { setSaveState('failed'); return; }
@@ -269,10 +265,10 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
   }, [advice, engineOutput, surveyData]);
 
   const handleSaveReport = useCallback(() => {
-    if (saveStateRef.current === 'saving') return;
+    if (saveState === 'saving') return;
     setSaveState('saving');
     persistReport();
-  }, [persistReport]);
+  }, [persistReport, saveState]);
 
   // Navigate to a dedicated print-preview component that renders
   // PrintableRecommendationPage before triggering window.print() — this ensures
