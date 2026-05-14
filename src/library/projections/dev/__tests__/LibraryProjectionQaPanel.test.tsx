@@ -310,7 +310,6 @@ describe('LibraryProjectionQaPanel', () => {
   });
 
   it('customer leakage warnings render when forbidden terms are present', async () => {
-    const user = userEvent.setup();
     renderPanel(makeLeakyViewModel(), makeDigestWithEngineerItems());
 
     // Customer tab is active by default — leakage warnings should be visible.
@@ -325,12 +324,13 @@ describe('LibraryProjectionQaPanel', () => {
   it('renders repair suggestions grouped by blocker/warning with linked concepts/cards/tasks', () => {
     renderPanel(makeLeakyViewModel(), makeDigestWithEngineerItems());
 
-    expect(screen.getByTestId('qa-repair-suggestions-customer')).toBeInTheDocument();
+    const repairSection = screen.getByTestId('qa-repair-suggestions-customer');
+    expect(repairSection).toBeInTheDocument();
     expect(screen.getByTestId('qa-repair-group-blocker-customer')).toBeInTheDocument();
     expect(screen.getByTestId('qa-repair-group-warning-customer')).toBeInTheDocument();
-    expect(screen.getByText(/concepts:/i)).toBeInTheDocument();
-    expect(screen.getByText(/cards:/i)).toBeInTheDocument();
-    expect(screen.getByText(/tasks:/i)).toBeInTheDocument();
+    expect(repairSection.textContent).toMatch(/concepts:/i);
+    expect(repairSection.textContent).toMatch(/cards:/i);
+    expect(repairSection.textContent).toMatch(/tasks:/i);
   });
 
   it('customer leakage check passes when no forbidden terms are present', () => {
