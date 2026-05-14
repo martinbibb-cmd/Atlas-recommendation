@@ -19,6 +19,7 @@ import {
   getRequiredContent,
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
+import { FlowRestrictionBottleneckDiagram, SystemFitDecisionMapDiagram } from '../diagrams';
 
 const pressureContent = getRequiredContent('HYD-02');
 
@@ -156,6 +157,17 @@ export function WaterConstraintJourney({
             )}
           />
         </PrintSafePanel>
+      </CalmSection>
+
+      <ConceptDivider label="Visual explanations" />
+
+      <CalmSection
+        title="Visual explanations"
+        intro="These diagrams show where flow bottlenecks form and why fit decisions stay evidence-led."
+        headingLevel={3}
+      >
+        <FlowRestrictionBottleneckDiagram />
+        <SystemFitDecisionMapDiagram />
       </CalmSection>
 
       <ConceptDivider label="Confusion risks and accessibility" />

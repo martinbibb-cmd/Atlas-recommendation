@@ -20,7 +20,12 @@ import {
   getRequiredContent,
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
-import { OpenVentedToUnventedDiagram, PressureVsStorageDiagram } from '../diagrams';
+import {
+  OpenVentedToUnventedDiagram,
+  PressureVsStorageDiagram,
+  StoredHotWaterRecoveryTimelineDiagram,
+  SystemFitDecisionMapDiagram,
+} from '../diagrams';
 
 const storageContent = getRequiredContent('STR-01');
 
@@ -283,7 +288,9 @@ export function OpenVentedToSealedUnventedJourney({
         intro="These diagrams show how pressure, storage, and system topology work together."
         headingLevel={3}
       >
+        <SystemFitDecisionMapDiagram />
         <PressureVsStorageDiagram />
+        <StoredHotWaterRecoveryTimelineDiagram />
         <OpenVentedToUnventedDiagram />
       </CalmSection>
 

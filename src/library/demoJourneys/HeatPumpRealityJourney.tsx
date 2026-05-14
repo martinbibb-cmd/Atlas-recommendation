@@ -19,6 +19,7 @@ import {
   getRequiredContent,
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
+import { WarmRadiatorEmitterSizingDiagram, WeatherCompensationCurveDiagram } from '../diagrams';
 
 const controlContent = getRequiredContent('CON-01');
 const safetyContent = getRequiredContent('HYD-02');
@@ -161,6 +162,17 @@ export function HeatPumpRealityJourney({
             )}
           />
         </PrintSafePanel>
+      </CalmSection>
+
+      <ConceptDivider label="Visual explanations" />
+
+      <CalmSection
+        title="Visual explanations"
+        intro="These diagrams show how emitter sizing and weather compensation shape daily comfort."
+        headingLevel={3}
+      >
+        <WarmRadiatorEmitterSizingDiagram />
+        <WeatherCompensationCurveDiagram />
       </CalmSection>
 
       <ConceptDivider label="Confusion risks and accessibility" />

@@ -19,7 +19,11 @@ import {
   getRequiredContent,
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
-import { PressureVsStorageDiagram } from '../diagrams';
+import {
+  PressureVsStorageDiagram,
+  StoredHotWaterRecoveryTimelineDiagram,
+  SystemFitDecisionMapDiagram,
+} from '../diagrams';
 
 const storageContent = getRequiredContent('STR-01');
 
@@ -168,6 +172,8 @@ export function RegularToRegularUnventedJourney({
         intro="This diagram shows how mains-fed storage preserves pressure to multiple outlets."
         headingLevel={3}
       >
+        <SystemFitDecisionMapDiagram />
+        <StoredHotWaterRecoveryTimelineDiagram />
         <PressureVsStorageDiagram />
       </CalmSection>
 
