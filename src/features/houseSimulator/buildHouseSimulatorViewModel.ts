@@ -104,6 +104,20 @@ const OUTLET_ROOM: Record<string, string> = {
   cold_tap: 'Kitchen',
 };
 
+// ─── Temperature threshold constants ─────────────────────────────────────────
+
+/** Above this temperature the delivered water poses a scalding risk (°C). */
+const SCALDING_THRESHOLD_C = 55
+
+/** Comfortable hot water delivery temperature (°C) — thermostatically mixed. */
+const COMFORTABLE_THRESHOLD_C = 42
+
+/**
+ * Lukewarm threshold (°C) — below comfortable hot, system is still warming up
+ * or operating at partial load.
+ */
+const LUKEWARM_THRESHOLD_C = 30
+
 // ─── Metric chip builders ─────────────────────────────────────────────────────
 
 function flowChip(flowLpm: number, constrained: boolean): LiveMetricChipProps {
@@ -119,9 +133,9 @@ function tempChip(tempC: number): LiveMetricChipProps {
   // 55 °C+ — scalding risk territory; 42 °C — comfortable hot water delivery;
   // 30 °C — lukewarm (system not yet at temperature); below 30 °C — cold.
   const status =
-    tempC >= 55 ? 'critical'
-    : tempC >= 42 ? 'good'
-    : tempC >= 30 ? 'warning'
+    tempC >= SCALDING_THRESHOLD_C    ? 'critical'
+    : tempC >= COMFORTABLE_THRESHOLD_C ? 'good'
+    : tempC >= LUKEWARM_THRESHOLD_C    ? 'warning'
     : 'idle';
   return {
     label:  'Temperature',
