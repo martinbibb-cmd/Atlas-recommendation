@@ -14,6 +14,13 @@ const TAB_LABELS: Record<DiscoveryTab, string> = {
   unrouted: '🧩 Unrouted Components',
 };
 
+const STATUS_LABELS: Record<StatusFilter, string> = {
+  all: 'All',
+  production: 'Production',
+  dev_only: 'Dev only',
+  unrouted: 'Unrouted',
+};
+
 const STATUS_COLORS: Record<StatusFilter, string> = {
   all: '#475569',
   production: '#15803d',
@@ -83,7 +90,7 @@ export default function ComponentDiscoveryPanel({ onBack }: Props) {
           <span style={STYLES.devBadge}>DEV ONLY</span>
         </div>
         <p style={STYLES.subtitle}>
-          Compares candidate UI files against <code>DEV_ROUTE_REGISTRY</code> and the curated UI inventory to highlight routed, dev-only, and unrouted surfaces.
+          Compares candidate UI files against DEV_ROUTE_REGISTRY and the curated UI inventory to highlight routed, dev-only, and unrouted surfaces.
         </p>
       </header>
 
@@ -122,7 +129,7 @@ export default function ComponentDiscoveryPanel({ onBack }: Props) {
                 className={`chip-btn${statusFilter === filter ? ' chip-btn--active' : ''}`}
                 onClick={() => setStatusFilter(filter)}
               >
-                {filter === 'all' ? 'All' : filter.replace('_', ' ')}
+                {STATUS_LABELS[filter]}
               </button>
             ))}
           </div>
