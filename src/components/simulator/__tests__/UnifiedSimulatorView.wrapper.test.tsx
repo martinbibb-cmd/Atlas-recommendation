@@ -186,17 +186,17 @@ beforeEach(() => {
   });
 
   mockBuildResimulationFromSurvey.mockReturnValue({
-    recommendedSystemLabel: 'On-demand hot water',
+    recommendedSystemLabel: 'Air source heat pump with stored hot water',
     fitSummary: 'Current values are passed straight into the simulator.',
-    upgradePackage: { systemType: 'combi', upgrades: [] },
+    upgradePackage: { systemType: 'heat_pump', upgrades: [] },
     resimulation: {
-      systemType: 'combi',
+      systemType: 'heat_pump',
       simpleInstallSpec: {
-        systemType: 'combi',
+        systemType: 'heat_pump',
         peakHotWaterCapacityLpm: 11.8,
       },
       bestFitSpec: {
-        systemType: 'combi',
+        systemType: 'heat_pump',
       },
       simpleInstall: {
         systemLabel: 'Current system',
@@ -321,5 +321,127 @@ describe('UnifiedSimulatorView wrapper', () => {
     fireEvent.click(screen.getByTestId('simulator-display-mode-engineer'));
     expect(screen.getByTestId('simulator-raw-values').textContent).toContain('Current raw values');
     expect(screen.getByTestId('simulator-raw-values').textContent).toContain('Proposed raw values');
+  });
+
+  it('renders the stored hot-water delta for a combi-to-stored fixture', () => {
+    const survey = makeSurvey();
+    survey.primaryPipeDiameter = 28;
+    mockBuildCompareSeedFromSurvey.mockReturnValue({
+      left: {
+        systemChoice: 'combi',
+        systemInputs: {
+          mainsPressureBar: 2.3,
+          mainsFlowLpm: 14,
+        },
+      },
+      right: {
+        systemChoice: 'unvented',
+        systemInputs: {
+          mainsPressureBar: 2.3,
+          mainsFlowLpm: 14,
+          cylinderSizeLitres: 210,
+        },
+      },
+      compareMode: 'current_vs_proposed',
+      comparisonLabel: 'Current vs proposed',
+    });
+    mockBuildResimulationFromSurvey.mockReturnValue({
+      recommendedSystemLabel: 'System boiler with stored hot water',
+      fitSummary: 'Current values are passed straight into the simulator.',
+      upgradePackage: { systemType: 'stored_water', upgrades: [] },
+      resimulation: {
+        systemType: 'stored_water',
+        simpleInstallSpec: {
+          systemType: 'stored_water',
+          peakHotWaterCapacityLpm: 11.8,
+        },
+        bestFitSpec: {
+          systemType: 'stored_water',
+        },
+        simpleInstall: {
+          systemLabel: 'Current system',
+          events: [],
+          hotWater: {
+            totalDraws: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            simultaneousEventCount: 0,
+            averageBathFillTimeMinutes: null,
+          },
+          heating: {
+            totalHeatingEvents: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            outsideTargetEventCount: 0,
+          },
+        },
+        bestFitInstall: {
+          systemLabel: 'Best fit',
+          events: [],
+          hotWater: {
+            totalDraws: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            simultaneousEventCount: 0,
+            averageBathFillTimeMinutes: null,
+          },
+          heating: {
+            totalHeatingEvents: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            outsideTargetEventCount: 0,
+          },
+        },
+        comparison: {
+          hotWater: {
+            successfulDelta: 0,
+            reducedDelta: 0,
+            conflictDelta: 0,
+            averageBathFillTimeDeltaMinutes: null,
+          },
+          heating: {
+            successfulDelta: 0,
+            reducedDelta: 0,
+            conflictDelta: 0,
+            outsideTargetEventCountDelta: 0,
+          },
+          headlineImprovements: [],
+        },
+      },
+    });
+
+    render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={survey} />);
+
+    const deltaCard = screen.getByTestId('simulator-expectation-delta-stored_hot_water');
+    expect(deltaCard.textContent).toContain('Current experience');
+    expect(deltaCard.textContent).toContain('Future experience');
+    expect(deltaCard.textContent).toContain('What changes');
+    expect(deltaCard.textContent).toContain('What stays familiar');
+    expect(deltaCard.textContent).toContain('Reassurance');
+    expect(deltaCard.textContent).toContain('Hot water can drop in strength when a second outlet opens.');
+    expect(deltaCard.textContent).toContain('Showers and taps feel stronger and more consistent during overlap use.');
+  });
+
+  it('renders the heat-pump delta in the heat-pump fixture', () => {
+    render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={makeSurvey()} />);
+
+    const deltaCard = screen.getByTestId('simulator-expectation-delta-heat_pump');
+    expect(deltaCard.textContent).toContain('Radiators and daily routine');
+    expect(deltaCard.textContent).toContain('Radiators can feel very hot for shorter bursts.');
+    expect(deltaCard.textContent).toContain('Radiators feel warm rather than very hot, with longer steady run periods.');
+    expect(deltaCard.textContent).toContain('Short high-temperature bursts are replaced by sustained delivery.');
+  });
+
+  it('keeps customer mode jargon-safe while hiding engineer-only assumptions', () => {
+    render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={makeSurvey()} />);
+
+    const deltaCard = screen.getByTestId('simulator-expectation-delta-heat_pump');
+    expect(deltaCard.textContent).not.toMatch(/g3|commissioning|heat-exchanger/i);
+    expect(screen.queryByTestId('simulator-assumptions')).toBeNull();
+    expect(screen.queryByTestId('simulator-raw-values')).toBeNull();
   });
 });
