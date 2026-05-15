@@ -25,6 +25,11 @@ import type { SimulatorSystemOverride } from '../../lib/simulator/buildResimulat
 import { buildCanonicalReportPayload } from '../../features/reports/adapters/buildCanonicalReportPayload';
 import { saveReport } from '../../lib/reports/reportApi';
 import { generateReportTitle } from '../../lib/reports/generateReportTitle';
+import {
+  buildSimulatorExpectationDelta,
+  type SimulatorExpectationDelta,
+  type SimulatorExpectationTarget,
+} from './buildSimulatorExpectationDelta';
 import './UnifiedSimulatorView.css';
 
 function buildFloorplanOperatingAssumptions(
@@ -52,6 +57,7 @@ interface Props {
   engineOutput: EngineOutputV1;
   surveyData: FullSurveyModelV1;
   floorplanOutput?: DerivedFloorplanOutput;
+  expectationDelta?: SimulatorExpectationDelta | null;
   /**
    * When true the simulator is running in the customer portal.
    * Restricts the simulator inputs panel to the portal-safe subset and replaces
@@ -186,7 +192,13 @@ function buildRawValueEntries(systemChoice: string, systemInputs: Partial<System
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function UnifiedSimulatorView({ engineOutput, surveyData, floorplanOutput, portalMode = false }: Props) {
+export default function UnifiedSimulatorView({
+  engineOutput,
+  surveyData,
+  floorplanOutput,
+  expectationDelta,
+  portalMode = false,
+}: Props) {
   const surveyAdapted = useMemo(() => adaptFullSurveyToSimulatorInputs(surveyData), [surveyData]);
   const compareSeed = useMemo(() => buildCompareSeedFromSurvey(surveyData, engineOutput), [surveyData, engineOutput]);
   const floorplanOperatingAssumptions = useMemo(() => floorplanOutput ? buildFloorplanOperatingAssumptions(floorplanOutput, surveyData.heatLossWatts) : null, [floorplanOutput, surveyData]);
@@ -434,6 +446,11 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
   const activeSystemLabel = formatSystemFamilyLabel(
     eventsSystem ?? (resimulationResult?.resimulation.systemType as EventsSystemFamily | undefined),
   );
+  const activeSystemChoice: SimulatorExpectationTarget = eventsSystem ?? compareSeed.right.systemChoice;
+  const matchedExpectationDelta = useMemo(
+    () => expectationDelta ?? buildSimulatorExpectationDelta(surveyAdapted.systemChoice, activeSystemChoice, surveyData),
+    [activeSystemChoice, expectationDelta, surveyAdapted.systemChoice, surveyData],
+  );
 
   // Portal print view — render the print-friendly page instead of the dashboard.
   if (isPrinting) {
@@ -519,6 +536,39 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
               ))}
             </div>
           </div>
+
+          {matchedExpectationDelta && (
+            <section
+              className="unified-simulator-view__expectation-delta"
+              data-testid={`simulator-expectation-delta-${matchedExpectationDelta.mode}`}
+              aria-label={matchedExpectationDelta.heading}
+            >
+              <p className="unified-simulator-view__section-label">{matchedExpectationDelta.eyebrow}</p>
+              <h4 className="unified-simulator-view__expectation-title">{matchedExpectationDelta.heading}</h4>
+              <div className="unified-simulator-view__expectation-grid">
+                <div className="unified-simulator-view__expectation-item">
+                  <p className="unified-simulator-view__expectation-label">Current experience</p>
+                  <p className="unified-simulator-view__expectation-body">{matchedExpectationDelta.currentExperience}</p>
+                </div>
+                <div className="unified-simulator-view__expectation-item">
+                  <p className="unified-simulator-view__expectation-label">Future experience</p>
+                  <p className="unified-simulator-view__expectation-body">{matchedExpectationDelta.futureExperience}</p>
+                </div>
+                <div className="unified-simulator-view__expectation-item">
+                  <p className="unified-simulator-view__expectation-label">What changes</p>
+                  <p className="unified-simulator-view__expectation-body">{matchedExpectationDelta.whatChanges}</p>
+                </div>
+                <div className="unified-simulator-view__expectation-item">
+                  <p className="unified-simulator-view__expectation-label">What stays familiar</p>
+                  <p className="unified-simulator-view__expectation-body">{matchedExpectationDelta.whatStaysFamiliar}</p>
+                </div>
+              </div>
+              <div className="unified-simulator-view__expectation-reassurance">
+                <p className="unified-simulator-view__expectation-label">Reassurance</p>
+                <p className="unified-simulator-view__expectation-body">{matchedExpectationDelta.reassurance}</p>
+              </div>
+            </section>
+          )}
 
           {drawOffChips.length > 0 && (
             <div className="unified-simulator-view__section">
