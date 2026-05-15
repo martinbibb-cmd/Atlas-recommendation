@@ -226,9 +226,9 @@
     align-self: stretch;
     text-align: center;
   }
-}
 
-/* Ensure long-panel sections always scroll inside the viewport */
-.vhd-root {
-  overflow-y: auto;
+  /* Ensure the panel is the scroll host on very narrow viewports */
+  .vhd-root {
+    overflow-y: auto;
+  }
 }
