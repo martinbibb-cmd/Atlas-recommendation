@@ -148,6 +148,10 @@ const Z_INDEX_DRAWER = 40;
 const Z_INDEX_ALERTS_TOP_SHEET = 41;
 const Z_INDEX_TIMELINE_BOTTOM_SHEET = 42;
 const Z_INDEX_OUTLET_POPOVER = 43;
+const IPAD_MAX_VIEWPORT_HEIGHT_PX = 1024;
+const COLLAPSED_RAIL_WIDTH_PX = 48;
+const LEFT_RAIL_WIDTH_PX = 220;
+const RIGHT_RAIL_WIDTH_PX = 250;
 
 /** Default dynamic mains pressure (bar) used when no override is provided. */
 const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
@@ -187,6 +191,9 @@ interface NarrationToastItem {
 
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
+  const [activeDhwHours, setActiveDhwHours] = useState<number>(
+    () => defaultHours().filter((state) => state === 'dhw_demand').length,
+  );
   // waterSlots stays as a stable constant — the painter UI is replaced by the
   // weir gauge panel.  The value feeds anyWaterPainted / waterFlows for chart
   // pipes and is never mutated, so useMemo keeps the reference stable.
@@ -223,6 +230,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [efficiencyDrawerOpen, setEfficiencyDrawerOpen] = useState(false);
   const [timelineSheetOpen, setTimelineSheetOpen] = useState(false);
   const [alertsSheetOpen, setAlertsSheetOpen] = useState(false);
+  const [leftRailCollapsed, setLeftRailCollapsed] = useState(false);
+  const [rightRailCollapsed, setRightRailCollapsed] = useState(false);
   const [selectedOutlet, setSelectedOutlet] = useState<OutletKey | null>(null);
   const [narrationToasts, setNarrationToasts] = useState<NarrationToastItem[]>([]);
 
@@ -312,6 +321,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     setHours(prev => {
       const next = [...prev];
       next[h] = nextState(next[h]);
+      setActiveDhwHours(next.filter(state => state === 'dhw_demand').length);
       return next;
     });
   };
@@ -790,27 +800,115 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const selectedOutletTempDelta = selectedOutlet && activeOutlets[selectedOutlet] && selectedOutlet !== 'cold_tap'
     ? parseFloat((outletHotTempC - combiHotOutTempC).toFixed(1))
     : 0;
-
   return (
-    <div style={{ display: 'grid', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <ToggleButton label="System setup" active={setupDrawerOpen} onClick={() => setSetupDrawerOpen(open => !open)} activeColor="#2b6cb0" inactiveColor="#718096" />
-        <ToggleButton label="Engineering" active={engineeringDrawerOpen} onClick={() => setEngineeringDrawerOpen(open => !open)} activeColor="#c53030" inactiveColor="#718096" />
-        <ToggleButton label="Efficiency" active={efficiencyDrawerOpen} onClick={() => setEfficiencyDrawerOpen(open => !open)} activeColor="#276749" inactiveColor="#718096" />
-        <ToggleButton label="Timeline" active={timelineSheetOpen} onClick={() => setTimelineSheetOpen(open => !open)} activeColor="#805ad5" inactiveColor="#718096" />
-        <ToggleButton label="Alerts" active={alertsSheetOpen} onClick={() => setAlertsSheetOpen(open => !open)} activeColor="#c05621" inactiveColor="#718096" />
+    <div style={{
+      height: `min(100vh, ${IPAD_MAX_VIEWPORT_HEIGHT_PX}px)`,
+      display: 'grid',
+      gridTemplateRows: 'auto 1fr auto',
+      gap: 10,
+      padding: 10,
+      borderRadius: 16,
+      border: '1px solid #dbe4f0',
+      background: '#eef3f9',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'auto 1fr auto',
+        alignItems: 'center',
+        gap: 10,
+        background: '#f8fbff',
+        border: '1px solid #dbe4f0',
+        borderRadius: 12,
+        padding: '8px 10px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <strong style={{ color: '#1e3a5f', letterSpacing: '0.02em' }}>Atlas</strong>
+          <span style={{ color: '#475569', fontSize: '0.82rem' }}>Simulator</span>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <SystemNarrationToast messages={narrationToasts} />
+        </div>
+        <div style={{ color: '#475569', fontSize: '0.74rem', textAlign: 'right' }}>
+          {scenarioLabel} · {currentHourLabel}
+        </div>
       </div>
 
-      <SystemNarrationToast messages={narrationToasts} />
-
       <div style={{
-        position: 'relative',
-        minHeight: 420,
-        borderRadius: 14,
-        border: '1px solid #2d3748',
-        background: 'linear-gradient(180deg, #0f172a 0%, #111827 45%, #1f2937 100%)',
-        overflow: 'hidden',
+        display: 'grid',
+        gridTemplateColumns: `${leftRailCollapsed ? `${COLLAPSED_RAIL_WIDTH_PX}px` : `${LEFT_RAIL_WIDTH_PX}px`} minmax(0, 1fr) ${rightRailCollapsed ? `${COLLAPSED_RAIL_WIDTH_PX}px` : `${RIGHT_RAIL_WIDTH_PX}px`}`,
+        gap: 10,
+        minHeight: 0,
       }}>
+        <aside style={{
+          borderRadius: 12,
+          border: '1px solid #dbe4f0',
+          background: '#ffffff',
+          display: 'grid',
+          gridTemplateRows: 'auto 1fr',
+          minHeight: 0,
+          overflow: 'hidden',
+        }}>
+          <button
+            onClick={() => setLeftRailCollapsed(v => !v)}
+            aria-expanded={!leftRailCollapsed}
+            aria-label={leftRailCollapsed ? 'Expand left status panel' : 'Collapse left status panel'}
+            aria-pressed={!leftRailCollapsed}
+            style={{
+              border: 'none',
+              borderBottom: leftRailCollapsed ? 'none' : '1px solid #e2e8f0',
+              background: '#f8fbff',
+              color: '#1e3a5f',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '10px 8px',
+              cursor: 'pointer',
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {leftRailCollapsed ? 'Show status' : 'Hide status'}
+          </button>
+          {!leftRailCollapsed && (
+            <div style={{ padding: 10, display: 'grid', gap: 10, overflowY: 'auto' }}>
+              <div style={{ border: '1px solid #dbe4f0', borderRadius: 10, padding: 10, background: '#f8fbff' }}>
+                <div style={{ color: '#64748b', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>Heat source status</div>
+                <div style={{ color: '#0f172a', fontWeight: 700, fontSize: '0.94rem' }}>{SYSTEM_LABELS[selectedSystem]}</div>
+                <div style={{ color: '#1d4ed8', fontSize: '0.78rem', marginTop: 2 }}>{heatSourceMode}</div>
+                <div style={{ marginTop: 8, color: '#334155', fontSize: '0.76rem' }}>Output {heatSourceOutputLabel}</div>
+                <div style={{ marginTop: 6, height: 6, borderRadius: 999, background: '#dbeafe', overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.min(100, systemLoadPct)}%`, height: '100%', background: '#0284c7' }} />
+                </div>
+              </div>
+              <div style={{ border: '1px solid #dbe4f0', borderRadius: 10, padding: 10, background: '#ffffff' }}>
+                <div style={{ color: '#64748b', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Live draw</div>
+                <div style={{ color: '#0f172a', fontSize: '0.8rem', marginBottom: 4 }}>
+                  Pipe share {totalActiveDrawLpm.toFixed(1)} / {maxMainsLpm.toFixed(1)} L/min
+                </div>
+                <div style={{ height: 6, borderRadius: 999, background: '#e2e8f0', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${Math.min(100, totalActiveDrawLpm / maxMainsLpm * 100)}%`,
+                    height: '100%',
+                    background: sharedDemandActive ? '#f97316' : '#06b6d4',
+                  }} />
+                </div>
+                <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+                  <LiveMetricChip label="Shower" value={outletDeliveredFlowLpm.shower} unit="L/min" peak={outletRequestedFlowLpm.shower} status={activeOutlets.shower ? 'normal' : 'inactive'} compact />
+                  <LiveMetricChip label="Kitchen tap" value={outletDeliveredFlowLpm.sink} unit="L/min" peak={outletRequestedFlowLpm.sink} status={activeOutlets.sink ? 'normal' : 'inactive'} compact />
+                </div>
+              </div>
+            </div>
+          )}
+        </aside>
+
+        <div style={{
+          position: 'relative',
+          minHeight: 0,
+          borderRadius: 14,
+          border: '1px solid #2d3748',
+          background: 'linear-gradient(180deg, #0f172a 0%, #111827 45%, #1f2937 100%)',
+          overflow: 'hidden',
+        }}>
         <div style={{ position: 'absolute', inset: 0, opacity: 0.18, background: 'repeating-linear-gradient(90deg, #ffffff22, #ffffff22 1px, transparent 1px, transparent 40px)' }} />
         <div style={{ position: 'absolute', top: 12, left: 14 }}>
           <div style={{ color: '#e2e8f0', fontSize: '0.72rem' }}>Heat source status</div>
@@ -927,7 +1025,99 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             )}
           </div>
         )}
+        </div>
+
+        <aside style={{
+          borderRadius: 12,
+          border: '1px solid #dbe4f0',
+          background: '#ffffff',
+          display: 'grid',
+          gridTemplateRows: 'auto 1fr',
+          minHeight: 0,
+          overflow: 'hidden',
+        }}>
+          <button
+            onClick={() => setRightRailCollapsed(v => !v)}
+            aria-expanded={!rightRailCollapsed}
+            aria-label={rightRailCollapsed ? 'Expand right menus panel' : 'Collapse right menus panel'}
+            aria-pressed={!rightRailCollapsed}
+            style={{
+              border: 'none',
+              borderBottom: rightRailCollapsed ? 'none' : '1px solid #e2e8f0',
+              background: '#f8fbff',
+              color: '#1e3a5f',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '10px 8px',
+              cursor: 'pointer',
+              letterSpacing: '0.03em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {rightRailCollapsed ? 'Show menus' : 'Hide menus'}
+          </button>
+          {!rightRailCollapsed && (
+            <div style={{ padding: 10, display: 'grid', gap: 10, overflowY: 'auto' }}>
+              <div style={{ border: '1px solid #dbe4f0', borderRadius: 10, padding: 10, background: '#ffffff' }}>
+                <div style={{ color: '#64748b', fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Efficiency</div>
+                <div style={{ color: '#0f172a', fontWeight: 700, fontSize: '1rem' }}>{heatSourceEfficiencyLabel}</div>
+                <div style={{ color: '#475569', fontSize: '0.76rem', marginTop: 4 }}>Return {engineInput.returnWaterTemp}°C · Flow {specEdge.designFlowTempC}°C</div>
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <ToggleButton label="System setup" active={setupDrawerOpen} onClick={() => setSetupDrawerOpen(open => !open)} activeColor="#2b6cb0" inactiveColor="#718096" />
+                <ToggleButton label="Engineering" active={engineeringDrawerOpen} onClick={() => setEngineeringDrawerOpen(open => !open)} activeColor="#c53030" inactiveColor="#718096" />
+                <ToggleButton label="Efficiency" active={efficiencyDrawerOpen} onClick={() => setEfficiencyDrawerOpen(open => !open)} activeColor="#276749" inactiveColor="#718096" />
+                <ToggleButton label="Timeline" active={timelineSheetOpen} onClick={() => setTimelineSheetOpen(open => !open)} activeColor="#805ad5" inactiveColor="#718096" />
+                <ToggleButton label="Alerts" active={alertsSheetOpen} onClick={() => setAlertsSheetOpen(open => !open)} activeColor="#c05621" inactiveColor="#718096" />
+              </div>
+              <div style={{ border: '1px solid #dbe4f0', borderRadius: 10, padding: 10, background: '#f8fbff', color: '#334155', fontSize: '0.76rem' }}>
+                {selectedSystem === 'ashp'
+                  ? 'Heat pump response recovers gradually after demand events.'
+                  : 'Boiler response can pause space heating during peak hot-water events.'}
+              </div>
+            </div>
+          )}
+        </aside>
       </div>
+
+      <section style={{
+        background: '#ffffff',
+        border: '1px solid #dbe4f0',
+        borderRadius: 12,
+        padding: '8px 10px',
+        display: 'grid',
+        gap: 8,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: '0.78rem', color: '#475569' }}>
+            Timeline · {activeDhwHours} DHW active hour(s)
+          </div>
+          <button
+            onClick={() => setTimelineSheetOpen(true)}
+            style={{ borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', padding: '4px 8px', fontSize: '0.72rem', cursor: 'pointer' }}
+          >
+            Expand timeline
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(24, 1fr)', gap: 2 }}>
+          {hours.map((state, h) => (
+            <button
+              key={h}
+              onClick={() => toggleHour(h)}
+              title={`${String(h).padStart(2, '0')}:00 – ${STATE_LABELS[state]}`}
+              aria-label={`Hour ${h}: ${STATE_LABELS[state]}`}
+              style={{
+                border: '1px solid #e2e8f0',
+                borderRadius: 4,
+                background: STATE_COLOURS[state],
+                height: 18,
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            />
+          ))}
+        </div>
+      </section>
 
       <SystemSetupDrawer open={setupDrawerOpen} onClose={() => setSetupDrawerOpen(false)}>
         <h3 style={{ marginTop: 0 }}>System setup</h3>
