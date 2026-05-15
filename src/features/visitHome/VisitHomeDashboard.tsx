@@ -321,7 +321,7 @@ export function VisitHomeDashboard({
           data-testid="card-portal"
           icon="🔗"
           title="Customer portal / Insight"
-          description="Sharable customer portal link with QR code and personalised Atlas Insight Pack."
+          description="Shareable customer portal link with QR code and personalised Atlas Insight Pack."
           status={portalStatus}
           audience={['customer']}
           source="workflow"

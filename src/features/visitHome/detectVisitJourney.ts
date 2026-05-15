@@ -75,7 +75,7 @@ export function detectVisitJourney(
     return {
       archetype: 'open_vented_to_sealed_unvented',
       label: 'Open-vented → sealed + unvented',
-      description: 'Primary circuit conversion from tank-fed supply to mains-fed supply.',
+      description: 'Converting from tank-fed supply to mains-fed supply with sealed system and unvented cylinder.',
       icon: '🔄',
     };
   }
@@ -87,7 +87,7 @@ export function detectVisitJourney(
     return {
       archetype: 'open_vented_to_sealed_unvented',
       label: 'Open-vented → sealed + unvented',
-      description: 'Primary circuit conversion from tank-fed supply to mains-fed supply.',
+      description: 'Converting from tank-fed supply to mains-fed supply with sealed system and unvented cylinder.',
       icon: '🔄',
     };
   }
