@@ -67,6 +67,7 @@ import { buildPortalUrl } from './lib/portal/portalUrl';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
+import ComponentDiscoveryPanel from './components/dev/ComponentDiscoveryPanel';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
@@ -536,6 +537,10 @@ const WELCOME_PACK_DEV_PREVIEW_PATH =
  */
 const PORTAL_FIXTURE_DEV_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/dev/portal-fixtures';
+
+/** Detect /dev/inspector — renders Component Discovery utility directly. */
+const DEV_INSPECTOR_PATH =
+  typeof window !== 'undefined' && window.location.pathname === '/dev/inspector';
 
 /**
  * Detect /installation-specification path or ?installation-specification=1 — renders the Atlas
@@ -1373,6 +1378,15 @@ function AppInner() {
     return (
       <DevPortalFixturePage
         onBack={() => { window.location.href = '/'; }}
+      />
+    );
+  }
+
+  // /dev/inspector — render dev-only component discovery utility.
+  if (DEV_INSPECTOR_PATH) {
+    return (
+      <ComponentDiscoveryPanel
+        onBack={() => { window.location.href = '/dev/devmenu'; }}
       />
     );
   }
