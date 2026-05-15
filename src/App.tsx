@@ -137,6 +137,7 @@ import {
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
+import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -371,6 +372,15 @@ const CREATE_WORKSPACE_ENABLED =
   new URLSearchParams(window.location.search).get('create-workspace') === '1';
 
 /**
+ * Detect ?visit-home=1 — renders the Visit Home Dashboard Shell.
+ * Front-door overview of all outputs for the active visit.
+ * Requires an active visit with engine data to show ready-state cards.
+ */
+const VISIT_HOME_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('visit-home') === '1';
+
+/**
  * Detect ?cacheBust=1 — clears all Atlas-owned localStorage keys and reloads
  * the app cleanly.  Useful for support / debugging when local state becomes stale.
  * The reload removes the query param from the URL so it does not loop.
@@ -429,7 +439,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -651,6 +661,8 @@ function AppInner() {
     if (INITIAL_REPORT_ID != null)       return 'report';
     // ?visitId= deep-link: open visit-hub directly without restoring cached state.
     if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-hub';
+    // ?visit-home=1: open visit home dashboard directly.
+    if (VISIT_HOME_ENABLED)              return 'visit-home';
     const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'workspace-dashboard';
     // 'presentation' and 'printout' require labEngineInput which is not persisted.
     // 'framework-print' is a transient print destination and should not be restored as an entry point.
@@ -1846,6 +1858,39 @@ function AppInner() {
             installationSpecOptionCount={labInstallationSpecifications.length > 0 ? labInstallationSpecifications.length : undefined}
           />
         )}
+        {/* Visit Home Dashboard — front-door overview of all outputs for the active visit */}
+        {journey === 'visit-home' && (() => {
+          let visitHomeEngineOutput: import('./contracts/EngineOutputV1').EngineOutputV1 | undefined;
+          let visitHomeScenarios: import('./contracts/ScenarioResult').ScenarioResult[] | undefined;
+          if (labEngineInput != null) {
+            try {
+              const { engineOutput } = runEngine(labEngineInput);
+              visitHomeEngineOutput = engineOutput;
+              visitHomeScenarios = buildScenariosFromEngineOutput(engineOutput);
+            } catch {
+              // Engine failed — both remain undefined; cards will show blocked status
+            }
+          }
+          return (
+            <VisitHomeDashboard
+              visitId={activeVisitId}
+              engineInput={labEngineInput}
+              engineOutput={visitHomeEngineOutput}
+              scenarios={visitHomeScenarios}
+              surveyModel={labFullSurveyModel}
+              portalUrl={labPortalUrl}
+              installationSpecOptionCount={labInstallationSpecifications.length}
+              onOpenSimulator={() => setJourney('simulator')}
+              onOpenPresentation={() => { setPresentationFromJourney('visit-home'); setJourney('presentation'); }}
+              onPrintSummary={() => setJourney('framework-print')}
+              onOpenInstallationSpecification={() => setJourney('installation-specification')}
+              onOpenInsightPack={labEngineInput != null ? () => { void handleOpenInsightPackForVisit(activeVisitId ?? ''); } : undefined}
+              onOpenHandoffReview={activeVisitId != null ? () => { void handleOpenHandoffReview(activeVisitId); } : undefined}
+              onOpenEngineerRoute={activeVisitId != null ? () => setJourney('engineer') : undefined}
+              onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'workspace-dashboard')}
+            />
+          );
+        })()}
         {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
              After a successful import, navigate to /workspace so the engineer can review
              the captured evidence.  The scan session is already persisted to IDB at this
