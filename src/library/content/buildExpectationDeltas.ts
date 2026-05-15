@@ -109,8 +109,8 @@ export function buildExpectationDeltas({
   recommendedSystem,
   livingExperiencePatterns,
 }: BuildExpectationDeltasInputV1): ExpectationDeltaV1[] {
-  return (Object.entries(livingExperiencePatterns) as Array<[ExpectationDeltaCategoryV1, BuildExpectationDeltasInputV1['livingExperiencePatterns'][ExpectationDeltaCategoryV1]]>)
-    .map(([category, pair]) => {
+  const deltas = (Object.entries(livingExperiencePatterns) as Array<[ExpectationDeltaCategoryV1, BuildExpectationDeltasInputV1['livingExperiencePatterns'][ExpectationDeltaCategoryV1]]>)
+    .map<ExpectationDeltaV1 | undefined>(([category, pair]) => {
       const currentExperience = toCustomerSafeWording(
         pair?.current?.whatYouMayNotice
         ?? pair?.current?.whatStaysFamiliar
@@ -132,6 +132,10 @@ export function buildExpectationDeltas({
         currentExperience,
         futureExperience,
       );
+      const misconceptionRisk = toCustomerSafeWording(
+        pair?.future?.commonMisunderstanding
+        ?? pair?.current?.commonMisunderstanding,
+      );
 
       return {
         category,
@@ -149,11 +153,9 @@ export function buildExpectationDeltas({
           ?? pair?.current?.whatStaysFamiliar
           ?? fallbackReassurance(category),
         ),
-        misconceptionRisk: toCustomerSafeWording(
-          pair?.future?.commonMisunderstanding
-          ?? pair?.current?.commonMisunderstanding,
-        ) || undefined,
+        ...(misconceptionRisk ? { misconceptionRisk } : {}),
       };
-    })
-    .filter((delta): delta is ExpectationDeltaV1 => delta != null);
+    });
+
+  return deltas.filter((delta): delta is ExpectationDeltaV1 => delta !== undefined);
 }
