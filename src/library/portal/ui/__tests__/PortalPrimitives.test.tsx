@@ -31,6 +31,7 @@ import {
   ReassurancePanel,
   WhatYouMayNoticePanel,
   LivingExperienceCard,
+  ExpectationDeltaCard,
   QRDeepDiveCard,
   SectionDivider,
   StickyBottomNav,
@@ -310,6 +311,40 @@ describe('LivingExperienceCard', () => {
   it('has default data-testid', () => {
     render(<LivingExperienceCard heading="X" pattern={pattern} />);
     expect(screen.getByTestId('portal-living-experience-card')).toBeTruthy();
+  });
+});
+
+// ─── ExpectationDeltaCard ──────────────────────────────────────────────────────
+
+describe('ExpectationDeltaCard', () => {
+  const delta = {
+    category: 'hot_water',
+    currentExperience: 'Hot water drops when two outlets open.',
+    futureExperience: 'Hot water stays steadier during overlap use.',
+    perceivedSeverity: 'major',
+    adaptationGuidance: 'Use normal routines first, then adjust peak overlap habits only if needed.',
+    reassurance: 'Everyday hot-water use remains straightforward.',
+    misconceptionRisk: 'Mains-fed stored hot water is unlimited.',
+  } as const;
+
+  it('renders current to future direction', () => {
+    render(<ExpectationDeltaCard delta={delta} />);
+    expect(screen.getByText(/current → future:/i)).toBeTruthy();
+    expect(screen.getByText(/hot water drops when two outlets open/i)).toBeTruthy();
+    expect(screen.getByText(/hot water stays steadier during overlap use/i)).toBeTruthy();
+  });
+
+  it('renders required expectation labels', () => {
+    render(<ExpectationDeltaCard delta={delta} />);
+    expect(screen.getByText('What changes')).toBeTruthy();
+    expect(screen.getByText('What stays familiar')).toBeTruthy();
+    expect(screen.getByText('Usually noticed after…')).toBeTruthy();
+    expect(screen.getByText('Most households adapt within…')).toBeTruthy();
+  });
+
+  it('has default data-testid', () => {
+    render(<ExpectationDeltaCard delta={delta} />);
+    expect(screen.getByTestId('portal-expectation-delta-card')).toBeTruthy();
   });
 });
 

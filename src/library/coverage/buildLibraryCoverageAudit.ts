@@ -142,6 +142,12 @@ export function buildLibraryCoverageAudit(): LibraryCoverageAuditV1 {
       content.livingExperiencePattern.whatThisMeans.trim().length > 0 &&
       typeof content.livingExperiencePattern.printSummary === 'string' &&
       content.livingExperiencePattern.printSummary.trim().length > 0;
+    const hasExpectationDelta =
+      content?.livingExperiencePattern != null &&
+      typeof content.livingExperiencePattern.whatChanges === 'string' &&
+      content.livingExperiencePattern.whatChanges.trim().length > 0 &&
+      typeof content.livingExperiencePattern.whatStaysFamiliar === 'string' &&
+      content.livingExperiencePattern.whatStaysFamiliar.trim().length > 0;
     const hasWhatYouMayNotice =
       content != null &&
       typeof content.customerExplanation === 'string' &&
@@ -162,6 +168,7 @@ export function buildLibraryCoverageAudit(): LibraryCoverageAuditV1 {
       hasLivedExperienceContent,
       hasMisconceptionReality,
       hasLivingExperiencePattern,
+      hasExpectationDelta,
       hasWhatYouMayNotice,
       hasJourneyRouting,
       audiencesCovered,
@@ -205,6 +212,9 @@ export function buildLibraryCoverageAudit(): LibraryCoverageAuditV1 {
       .map((c) => c.conceptId),
     missingLivingExperiencePattern: conceptCoverage
       .filter((c) => !c.hasLivingExperiencePattern)
+      .map((c) => c.conceptId),
+    missingExpectationDelta: conceptCoverage
+      .filter((c) => !c.hasExpectationDelta)
       .map((c) => c.conceptId),
     missingWhatYouMayNotice: conceptCoverage
       .filter((c) => !c.hasWhatYouMayNotice)

@@ -20,6 +20,8 @@ import {
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 import { FlowRestrictionBottleneckDiagram, SystemFitDecisionMapDiagram } from '../diagrams';
+import { buildExpectationDeltas } from '../content';
+import { ExpectationDeltaCard } from '../portal/ui/PortalPrimitives';
 
 const pressureContent = getRequiredContent('HYD-02');
 
@@ -27,8 +29,23 @@ const pressureContent = getRequiredContent('HYD-02');
 const whyNotCombiContent = getRequiredContent('why_not_combi');
 const waterMainLimitContent = getRequiredContent('water_main_limit_not_boiler_limit');
 const microboreContent = getRequiredContent('microbore_flow_limits');
+const pressureVsStorageContent = getRequiredContent('pressure_vs_storage');
 
 const pressureAnalogy = getPrimaryAnalogy(pressureContent);
+const expectationDeltas = buildExpectationDeltas({
+  currentSystem: 'combi_or_unmanaged_peak_use',
+  recommendedSystem: 'stored_or_constraint_aware_path',
+  livingExperiencePatterns: {
+    hot_water: {
+      current: whyNotCombiContent.livingExperiencePattern,
+      future: pressureVsStorageContent.livingExperiencePattern,
+    },
+    daily_routine: {
+      current: whyNotCombiContent.livingExperiencePattern,
+      future: pressureVsStorageContent.livingExperiencePattern,
+    },
+  },
+});
 
 export interface WaterConstraintJourneyProps {
   motionMode?: EducationalMotionMode;
@@ -81,6 +98,14 @@ export function WaterConstraintJourney({
         intro="Set realistic expectations for overlap use and peak demand windows."
         headingLevel={3}
       >
+        {expectationDeltas.map((delta, index) => (
+          <ExpectationDeltaCard
+            key={`${delta.category}-${index}`}
+            delta={delta}
+            heading={index === 0 ? 'Current → Future' : undefined}
+            data-testid="water-constraint-expectation-delta"
+          />
+        ))}
         <WhatToExpectCard
           title={waterMainLimitContent.title}
           notice={extractNotice(waterMainLimitContent.customerExplanation)}

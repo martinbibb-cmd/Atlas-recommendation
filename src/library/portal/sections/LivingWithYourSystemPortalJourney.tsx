@@ -1,4 +1,6 @@
 import './livingWithYourSystemPortalJourney.css';
+import { buildExpectationDeltas, getContentByConceptId } from '../../content';
+import { ExpectationDeltaCard } from '../ui/PortalPrimitives';
 
 export interface LivingWithYourSystemPortalJourneyProps {
   bathroomCount?: number;
@@ -31,6 +33,22 @@ export function LivingWithYourSystemPortalJourney({
   bathroomCount = 2,
 }: LivingWithYourSystemPortalJourneyProps) {
   const displayBathroomCount = bathroomCount >= 2 ? bathroomCount : 2;
+  const combiPattern = getContentByConceptId('why_not_combi')?.livingExperiencePattern;
+  const storedPattern = getContentByConceptId('premium_hot_water_performance')?.livingExperiencePattern;
+  const expectationDeltas = buildExpectationDeltas({
+    currentSystem: 'combi_on_demand',
+    recommendedSystem: 'stored_hot_water',
+    livingExperiencePatterns: {
+      hot_water: {
+        current: combiPattern,
+        future: storedPattern,
+      },
+      recovery: {
+        current: combiPattern,
+        future: storedPattern,
+      },
+    },
+  });
 
   return (
     <section
@@ -64,6 +82,19 @@ export function LivingWithYourSystemPortalJourney({
       </div>
 
       <div className="lwspj-subsections" data-testid="lwspj-subsections">
+        {expectationDeltas.length > 0 ? (
+          <article className="lwspj-card" data-testid="lwspj-expectation-deltas">
+            <h3>Current → Future comparison</h3>
+            {expectationDeltas.map((delta, index) => (
+              <ExpectationDeltaCard
+                key={`${delta.category}-${index}`}
+                delta={delta}
+                heading={index === 0 ? 'Current → Future' : undefined}
+              />
+            ))}
+          </article>
+        ) : null}
+
         <article className="lwspj-card" data-testid="lwspj-morning-usage">
           <h3>Morning usage</h3>
           <p>

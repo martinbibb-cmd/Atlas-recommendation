@@ -117,6 +117,13 @@ describe('buildLibraryCoverageAudit', () => {
     expect(audit.missingByType.missingLivingExperiencePattern).not.toContain('system_fit_explanation');
   });
 
+  it('tracks ExpectationDelta coverage by concept', () => {
+    const audit = buildLibraryCoverageAudit();
+    const systemFit = conceptById(audit.conceptCoverage, 'system_fit_explanation');
+    expect(systemFit?.hasExpectationDelta).toBe(true);
+    expect(audit.missingByType.missingExpectationDelta).not.toContain('system_fit_explanation');
+  });
+
   it('missingByType.missingDiagram is consistent with hasDiagram on each concept', () => {
     const audit = buildLibraryCoverageAudit();
     const missingSet = new Set(audit.missingByType.missingDiagram);

@@ -10,6 +10,7 @@
  *   ComparisonTriptych   — side-by-side comparison (2–3 items)
  *   ReassurancePanel     — "what stays familiar" reassurance block
  *   WhatYouMayNoticePanel — paired notice/reassurance strips
+ *   ExpectationDeltaCard — current → future lived-experience comparison
  *   QRDeepDiveCard       — QR code deep-dive teaser
  *   SectionDivider       — visual section separator
  *   StickyBottomNav      — sticky bottom nav (mobile-first)
@@ -19,6 +20,7 @@
 
 import type { ReactNode } from 'react';
 import type { LivingExperiencePatternV1 } from '../../content/LivingExperiencePatternV1';
+import type { ExpectationDeltaCategoryV1, ExpectationDeltaV1 } from '../../content/ExpectationDeltaV1';
 import './portalPrimitives.css';
 
 // ─── PortalShell ─────────────────────────────────────────────────────────────
@@ -273,6 +275,80 @@ export function LivingExperienceCard({
           </p>
         </div>
       </details>
+    </article>
+  );
+}
+
+// ─── ExpectationDeltaCard ──────────────────────────────────────────────────────
+
+function categoryLabel(category: ExpectationDeltaCategoryV1): string {
+  if (category === 'hot_water') return 'Hot water';
+  if (category === 'radiators') return 'Radiators';
+  if (category === 'noise') return 'Sound profile';
+  if (category === 'recovery') return 'Recovery';
+  if (category === 'controls') return 'Controls';
+  return 'Daily routine';
+}
+
+function usuallyNoticedAfter(perceivedSeverity: ExpectationDeltaV1['perceivedSeverity']): string {
+  if (perceivedSeverity === 'major') return 'the first busy day';
+  if (perceivedSeverity === 'moderate') return 'one to two days';
+  if (perceivedSeverity === 'minor') return 'a few normal cycles';
+  return 'little or no noticeable change';
+}
+
+function mostHouseholdsAdaptWithin(perceivedSeverity: ExpectationDeltaV1['perceivedSeverity']): string {
+  if (perceivedSeverity === 'major') return 'one to two weeks';
+  if (perceivedSeverity === 'moderate') return 'three to seven days';
+  if (perceivedSeverity === 'minor') return 'one to three days';
+  return 'no adaptation period';
+}
+
+export interface ExpectationDeltaCardProps {
+  delta: ExpectationDeltaV1;
+  heading?: string;
+  'data-testid'?: string;
+}
+
+export function ExpectationDeltaCard({
+  delta,
+  heading,
+  'data-testid': testId,
+}: ExpectationDeltaCardProps) {
+  return (
+    <article
+      className="portal-expectation-delta-card"
+      aria-label={heading ?? `${categoryLabel(delta.category)} expectation delta`}
+      data-testid={testId ?? 'portal-expectation-delta-card'}
+    >
+      <p className="portal-expectation-delta-card__eyebrow">{categoryLabel(delta.category)} expectation delta</p>
+      <h3 className="portal-expectation-delta-card__heading">{heading ?? 'Current → Future'}</h3>
+      <p className="portal-expectation-delta-card__direction">
+        <strong>Current → Future:</strong> {delta.currentExperience} → {delta.futureExperience}
+      </p>
+      <div className="portal-expectation-delta-card__grid">
+        <div>
+          <p className="portal-expectation-delta-card__label">What changes</p>
+          <p className="portal-expectation-delta-card__body">{delta.adaptationGuidance}</p>
+        </div>
+        <div>
+          <p className="portal-expectation-delta-card__label">What stays familiar</p>
+          <p className="portal-expectation-delta-card__body">{delta.reassurance}</p>
+        </div>
+        <div>
+          <p className="portal-expectation-delta-card__label">Usually noticed after…</p>
+          <p className="portal-expectation-delta-card__body">{usuallyNoticedAfter(delta.perceivedSeverity)}</p>
+        </div>
+        <div>
+          <p className="portal-expectation-delta-card__label">Most households adapt within…</p>
+          <p className="portal-expectation-delta-card__body">{mostHouseholdsAdaptWithin(delta.perceivedSeverity)}</p>
+        </div>
+      </div>
+      {delta.misconceptionRisk ? (
+        <p className="portal-expectation-delta-card__risk">
+          <strong>Misconception risk:</strong> {delta.misconceptionRisk}
+        </p>
+      ) : null}
     </article>
   );
 }
