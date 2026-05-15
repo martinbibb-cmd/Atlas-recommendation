@@ -14,10 +14,10 @@
  * No Math.random() is used anywhere in this module.
  */
 
-import { useState } from 'react'
-import DrawOffFocusPanel from './DrawOffFocusPanel'
-import CylinderFocusPanel from './CylinderFocusPanel'
-import type { DrawOffViewModel, CylinderStatusViewModel, DrawOffStatus, BoilerState } from './drawOffTypes'
+import { useState } from 'react';
+import DrawOffFocusPanel from './DrawOffFocusPanel';
+import CylinderFocusPanel from './CylinderFocusPanel';
+import type { DrawOffViewModel, CylinderStatusViewModel, DrawOffStatus, BoilerState } from './drawOffTypes';
 
 // ─── Regime ───────────────────────────────────────────────────────────────────
 
@@ -296,23 +296,23 @@ type FocusTarget =
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HouseSimulatorCanvas() {
-  const [regime, setRegime]               = useState<Regime>('boiler_cylinder')
-  const [boilerOutputKw, setBoilerOutputKw] = useState(DEFAULT_BOILER_OUTPUT_KW)
-  const [focusTarget, setFocusTarget]     = useState<FocusTarget | null>(null)
+  const [regime, setRegime] = useState<Regime>('boiler_cylinder');
+  const [boilerOutputKw, setBoilerOutputKw] = useState(DEFAULT_BOILER_OUTPUT_KW);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
 
-  const isCombi  = regime === 'combi'
-  const outlets  = getDrawOffData(regime, boilerOutputKw)
-  const cylinder = getCylinderData(regime)
+  const isCombi = regime === 'combi';
+  const outlets = getDrawOffData(regime, boilerOutputKw);
+  const cylinder = getCylinderData(regime);
 
-  const outletById = (id: string): DrawOffViewModel => outlets.find(o => o.id === id)!
+  const outletById = (id: string): DrawOffViewModel => outlets.find(o => o.id === id)!;
 
-  const closeFocus = () => setFocusTarget(null)
+  const closeFocus = () => setFocusTarget(null);
 
   const focusedOutlet =
     focusTarget?.kind === 'outlet'
       ? outlets.find(o => o.id === focusTarget.outletId) ?? null
-      : null
-  const focusCylinder = focusTarget?.kind === 'cylinder'
+      : null;
+  const focusCylinder = focusTarget?.kind === 'cylinder';
 
   return (
     <div className="house-sim-canvas" data-testid="house-simulator-canvas">

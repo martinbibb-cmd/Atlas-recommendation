@@ -75,10 +75,10 @@ function EngineeringPanel() {
 }
 
 export default function LabShell({ onHome, engineInput }: Props) {
-  const [replayTour, setReplayTour]       = useState(false);
-  const [leftOpen, setLeftOpen]           = useState(false);
-  const [rightOpen, setRightOpen]         = useState(false);
-  const [topSheetOpen, setTopSheetOpen]   = useState(false);
+  const [replayTour, setReplayTour] = useState(false);
+  const [leftOpen, setLeftOpen] = useState(false);
+  const [rightOpen, setRightOpen] = useState(false);
+  const [topSheetOpen, setTopSheetOpen] = useState(false);
   const [bottomSheetOpen, setBottomSheetOpen] = useState(true);
 
   return (
