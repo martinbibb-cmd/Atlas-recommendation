@@ -1832,3 +1832,7 @@
     width: 100vw;
   }
 }
+
+.lab-bottom-sheet--open {
+  border-color: #cbd5e0;
+}

@@ -86,7 +86,7 @@ function VisualTab() {
         <div className="lab-visual-tab__intro" role="status" aria-live="polite">
           <span className="lab-visual-tab__intro-icon" aria-hidden="true">▶</span>
           <span>
-            <strong>Live narration</strong> — select a system profile to inspect heating behaviour and on-demand hot water supply response.
+            <strong>Live narration</strong> — select a system profile to inspect heating behaviour and mains-fed supply response.
           </span>
           <button
             className="lab-visual-tab__intro-dismiss"
