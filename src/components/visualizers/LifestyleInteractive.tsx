@@ -24,7 +24,7 @@
  * dropdown is exposed.  DHW draws always go to the hot-water system (scalar = 1.0).
  */
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ComposedChart,
   Line,
@@ -128,6 +128,13 @@ const BATH_FLOW_LPM = 12;
 /** Keys for the four draw-off outlets shown in the weir gauge panel. */
 type OutletKey = 'shower' | 'sink' | 'bath' | 'cold_tap';
 
+const OUTLET_LABELS: Record<OutletKey, string> = {
+  shower: 'Shower',
+  sink: 'Kitchen tap',
+  bath: 'Bath',
+  cold_tap: 'Cold tap',
+};
+
 /** Default dynamic mains pressure (bar) used when no override is provided. */
 const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
 
@@ -180,6 +187,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   });
 
   const toggleOutlet = (key: OutletKey) => {
+    setSelectedOutlet(key);
     setActiveOutlets(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -188,6 +196,13 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [compareMode, setCompareMode] = useState(false);
   /** The second system shown in compare mode (System B). */
   const [systemB, setSystemB] = useState<DayPainterSystem>('stored_unvented');
+  const [setupDrawerOpen, setSetupDrawerOpen] = useState(false);
+  const [engineeringDrawerOpen, setEngineeringDrawerOpen] = useState(false);
+  const [efficiencyDrawerOpen, setEfficiencyDrawerOpen] = useState(false);
+  const [timelineSheetOpen, setTimelineSheetOpen] = useState(false);
+  const [alertsSheetOpen, setAlertsSheetOpen] = useState(false);
+  const [selectedOutlet, setSelectedOutlet] = useState<OutletKey | null>(null);
+  const [narrationToasts, setNarrationToasts] = useState<string[]>([]);
 
   // ── DHW concurrency presets — drive all flow & kW calculations ─────────────
   const [season, setSeason]       = useState<SeasonPreset>('typical');
@@ -464,6 +479,26 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     (activeOutlets.sink   ? SINK_FLOW_LPM  : 0) +
     (activeOutlets.bath   ? BATH_FLOW_LPM  : 0)
   );
+  const activeOutletKeys = (Object.keys(activeOutlets) as OutletKey[]).filter(key => activeOutlets[key]);
+  const activeHotOutletCount = ['shower', 'sink', 'bath']
+    .filter(key => activeOutlets[key as OutletKey])
+    .length;
+  const combiFlowShareFactor = totalHotDrawLpm > 0 ? Math.min(1, heatLimitLpm / totalHotDrawLpm) : 1;
+  const outletRequestedFlowLpm: Record<OutletKey, number> = {
+    shower: showerFlowLpm,
+    sink: SINK_FLOW_LPM,
+    bath: BATH_FLOW_LPM,
+    cold_tap: COLD_TAP_LPM,
+  };
+  const outletDeliveredFlowLpm: Record<OutletKey, number> = {
+    shower: activeOutlets.shower ? parseFloat((showerFlowLpm * (selectedSystem === 'combi' ? combiFlowShareFactor : 1)).toFixed(1)) : 0,
+    sink: activeOutlets.sink ? parseFloat((SINK_FLOW_LPM * (selectedSystem === 'combi' ? combiFlowShareFactor : 1)).toFixed(1)) : 0,
+    bath: activeOutlets.bath ? parseFloat((BATH_FLOW_LPM * (selectedSystem === 'combi' ? combiFlowShareFactor : 1)).toFixed(1)) : 0,
+    cold_tap: activeOutlets.cold_tap ? COLD_TAP_LPM : 0,
+  };
+  const outletHotTempC = selectedSystem === 'combi'
+    ? parseFloat((combiHotOutTempC * combiFlowShareFactor + coldWaterTempC * (1 - combiFlowShareFactor)).toFixed(1))
+    : combiHotOutTempC;
 
   /**
    * Available cylinder volume at the current reference hour (L).
@@ -479,6 +514,42 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const cylinderMinutesRemaining: number | null = totalHotDrawLpm > 0
     ? parseFloat((currentCylinderVolumeL / totalHotDrawLpm).toFixed(0))
     : null;
+
+  const previousActiveOutletsRef = useRef(activeOutlets);
+  const narrationInitialisedRef = useRef(false);
+
+  useEffect(() => {
+    if (!narrationInitialisedRef.current) {
+      narrationInitialisedRef.current = true;
+      previousActiveOutletsRef.current = activeOutlets;
+      return;
+    }
+    const previouslyActive = previousActiveOutletsRef.current;
+    const newlyActive = (Object.keys(activeOutlets) as OutletKey[]).find(
+      key => activeOutlets[key] && !previouslyActive[key],
+    );
+    if (!newlyActive) {
+      previousActiveOutletsRef.current = activeOutlets;
+      return;
+    }
+
+    let message = `${OUTLET_LABELS[newlyActive]} opened`;
+    if (newlyActive === 'shower' && selectedSystem === 'combi') {
+      message = 'Shower running · Heating paused to prioritise hot water';
+    } else if (selectedSystem === 'combi' && activeHotOutletCount >= 2) {
+      message = `${OUTLET_LABELS[newlyActive]} opened · shared demand reduces flow delivery`;
+    } else if (selectedSystem !== 'combi' && activeHotOutletCount >= 2) {
+      message = 'Cylinder supplying two outlets · stored volume falling';
+    } else if (selectedSystem === 'ashp' && activeHotOutletCount > 0) {
+      message = 'Heat pump recovering gradually · flow temperature rising slowly';
+    }
+    if (totalActiveDrawLpm > maxMainsLpm) {
+      message = 'Incoming mains flow is now limiting simultaneous demand';
+    }
+
+    setNarrationToasts(prev => [message, ...prev].slice(0, 3));
+    previousActiveOutletsRef.current = activeOutlets;
+  }, [activeHotOutletCount, activeOutlets, maxMainsLpm, selectedSystem, totalActiveDrawLpm]);
 
   /**
    * Maximum hot-water supply rate for a given system type.
@@ -671,790 +742,405 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     );
   }
 
+  const scenarioLabel = conditionScenario === 'as_found' ? 'As found' : 'After flush + filter';
+  const currentHour = hours.findIndex(state => state === 'dhw_demand');
+  const timelineAnchorHour = currentHour >= 0 ? currentHour : 7;
+  const currentHourLabel = `${String(timelineAnchorHour).padStart(2, '0')}:00`;
+  const heatSourceMode = activeHotOutletCount > 0
+    ? selectedSystem === 'ashp'
+      ? 'recovering'
+      : 'DHW priority'
+    : selectedSystem === 'ashp'
+      ? 'idle'
+      : 'heating active';
+  const roofEfficiencyLabel = selectedSystem === 'ashp'
+    ? `COP ${hydraulicV1.effectiveCOP.toFixed(2)}`
+    : combiEfficiencyCollapsed
+      ? 'Condensing limited'
+      : `SPF ${specEdge.spfMidpoint.toFixed(2)}`;
+  const sharedDemandActive = selectedSystem === 'combi' && activeHotOutletCount >= 2 && combiFlowShareFactor < 1;
+  const selectedOutletFlowDelta = selectedOutlet && activeOutlets[selectedOutlet]
+    ? parseFloat((outletDeliveredFlowLpm[selectedOutlet] - outletRequestedFlowLpm[selectedOutlet]).toFixed(1))
+    : 0;
+  const selectedOutletTempDelta = selectedOutlet && activeOutlets[selectedOutlet] && selectedOutlet !== 'cold_tap'
+    ? parseFloat((outletHotTempC - combiHotOutTempC).toFixed(1))
+    : 0;
+
   return (
-    <div>
-      <p style={{ fontSize: '0.8rem', color: '#4a5568', marginBottom: 10 }}>
-        Click hour blocks to cycle:{' '}
-        <strong style={{ color: '#276749' }}>At Home</strong> →{' '}
-        <strong style={{ color: '#c53030' }}>High DHW</strong> →{' '}
-        <strong style={{ color: '#2c5282' }}>Away</strong>.
-        Toggles update the curve in real-time.
-      </p>
-
-      {/* ── Compare mode toggle + System picker ──────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        {/* Single / Compare toggle */}
-        <div role="group" aria-label="View mode" style={{ display: 'flex', gap: 0, borderRadius: 20, overflow: 'hidden', border: '1.5px solid #e2e8f0' }}>
-          {(['single', 'compare'] as const).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setCompareMode(mode === 'compare')}
-              aria-pressed={compareMode === (mode === 'compare')}
-              style={{
-                padding: '4px 14px',
-                border: 'none',
-                background: compareMode === (mode === 'compare') ? '#3182ce' : '#f7fafc',
-                color: compareMode === (mode === 'compare') ? '#fff' : '#718096',
-                fontSize: '0.75rem',
-                fontWeight: compareMode === (mode === 'compare') ? 700 : 400,
-                cursor: 'pointer',
-              }}
-            >
-              {mode === 'single' ? 'Single' : 'Compare'}
-            </button>
-          ))}
-        </div>
+    <div style={{ display: 'grid', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <ToggleButton label="System setup" active={setupDrawerOpen} onClick={() => setSetupDrawerOpen(open => !open)} activeColor="#2b6cb0" inactiveColor="#718096" />
+        <ToggleButton label="Engineering" active={engineeringDrawerOpen} onClick={() => setEngineeringDrawerOpen(open => !open)} activeColor="#c53030" inactiveColor="#718096" />
+        <ToggleButton label="Efficiency" active={efficiencyDrawerOpen} onClick={() => setEfficiencyDrawerOpen(open => !open)} activeColor="#276749" inactiveColor="#718096" />
+        <ToggleButton label="Timeline" active={timelineSheetOpen} onClick={() => setTimelineSheetOpen(open => !open)} activeColor="#805ad5" inactiveColor="#718096" />
+        <ToggleButton label="Alerts" active={alertsSheetOpen} onClick={() => setAlertsSheetOpen(open => !open)} activeColor="#c05621" inactiveColor="#718096" />
       </div>
 
-      {/* System A picker — always visible */}
-      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: compareMode ? 4 : 10 }}>
-        {compareMode && (
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#e53e3e', alignSelf: 'center', minWidth: 64 /* aligns with System B: label */ }}>
-            System A:
-          </span>
+      <SystemNarrationToast messages={narrationToasts} />
+
+      <div style={{
+        position: 'relative',
+        minHeight: 420,
+        borderRadius: 14,
+        border: '1px solid #2d3748',
+        background: 'linear-gradient(180deg, #0f172a 0%, #111827 45%, #1f2937 100%)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.18, background: 'repeating-linear-gradient(90deg, #ffffff22, #ffffff22 1px, transparent 1px, transparent 40px)' }} />
+        <div style={{ position: 'absolute', top: 12, left: 14 }}>
+          <div style={{ color: '#e2e8f0', fontSize: '0.72rem' }}>Heat source status</div>
+          <div style={{ color: '#fff', fontWeight: 700 }}>{SYSTEM_LABELS[selectedSystem]}</div>
+          <div style={{ color: '#93c5fd', fontSize: '0.76rem' }}>{heatSourceMode}</div>
+          <div style={{ marginTop: 6, width: 140, height: 30, borderRadius: 8, background: '#0b1220', border: '1px solid #334155', padding: 4 }}>
+            <div style={{ height: 5, borderRadius: 999, background: '#1f2937', overflow: 'hidden' }}>
+              <div style={{ width: `${Math.min(100, systemLoadPct)}%`, height: '100%', background: '#f97316' }} />
+            </div>
+            <div style={{ color: '#cbd5e1', fontSize: '0.62rem', marginTop: 4 }}>
+              Output {selectedSystem === 'ashp' ? `${hydraulicV1.effectiveCOP.toFixed(2)} COP` : `${totalDhwDrawKw.toFixed(1)} kW`}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ position: 'absolute', top: 12, right: 14, textAlign: 'right' }}>
+          <div style={{ color: '#e2e8f0', fontSize: '0.72rem' }}>Efficiency summary</div>
+          <div style={{ color: '#fff', fontWeight: 700 }}>{roofEfficiencyLabel}</div>
+          <div style={{ color: '#86efac', fontSize: '0.72rem' }}>Return {engineInput.returnWaterTemp}°C · Flow {specEdge.designFlowTempC}°C</div>
+          <div style={{ marginTop: 4, display: 'inline-flex', gap: 6 }}>
+            <span style={{ padding: '2px 8px', borderRadius: 999, border: '1px solid #16a34a', color: '#bbf7d0', fontSize: '0.66rem' }}>
+              {selectedSystem === 'ashp' ? 'Modulating' : combiEfficiencyCollapsed ? 'non-condensing window' : 'condensing window'}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ position: 'absolute', top: 86, left: 14, color: '#cbd5e1', fontSize: '0.72rem' }}>
+          Scenario {scenarioLabel} · Time {currentHourLabel}
+        </div>
+
+        <div style={{
+          position: 'absolute',
+          inset: '130px 60px 36px 60px',
+          borderRadius: 10,
+          border: '1px solid #334155',
+          background: '#111827',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 12,
+          padding: 12,
+        }}>
+          <div style={{ borderRadius: 8, border: '1px solid #334155', background: '#1f2937', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 8, left: 8, color: '#cbd5e1', fontSize: '0.68rem' }}>Bathroom</div>
+            <div style={{ position: 'absolute', top: 44, left: 22 }}>
+              <button onClick={() => toggleOutlet('shower')} style={{ border: 'none', background: 'transparent', color: activeOutlets.shower ? '#38bdf8' : '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}>🚿</button>
+            </div>
+            <div style={{ position: 'absolute', bottom: 20, left: 22 }}>
+              <button onClick={() => toggleOutlet('bath')} style={{ border: 'none', background: 'transparent', color: activeOutlets.bath ? '#fdba74' : '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}>🛁</button>
+            </div>
+          </div>
+          <div style={{ borderRadius: 8, border: '1px solid #334155', background: '#1f2937', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 8, left: 8, color: '#cbd5e1', fontSize: '0.68rem' }}>Kitchen / utility</div>
+            <div style={{ position: 'absolute', top: 44, left: 22 }}>
+              <button onClick={() => toggleOutlet('sink')} style={{ border: 'none', background: 'transparent', color: activeOutlets.sink ? '#fb7185' : '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}>🚰</button>
+            </div>
+            <div style={{ position: 'absolute', bottom: 20, left: 22 }}>
+              <button onClick={() => toggleOutlet('cold_tap')} style={{ border: 'none', background: 'transparent', color: activeOutlets.cold_tap ? '#7dd3fc' : '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}>🚱</button>
+            </div>
+          </div>
+          <div style={{ gridColumn: '1 / span 2', marginTop: 6 }}>
+            <div style={{
+              height: 7,
+              borderRadius: 999,
+              background: '#0b1220',
+              border: '1px solid #334155',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${Math.min(100, totalActiveDrawLpm / maxMainsLpm * 100)}%`,
+                height: '100%',
+                background: sharedDemandActive ? '#f97316' : '#22d3ee',
+                boxShadow: sharedDemandActive ? '0 0 10px #f97316' : '0 0 8px #22d3ee',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: '0.66rem', marginTop: 4 }}>
+              Pipe share {totalActiveDrawLpm.toFixed(1)} / {maxMainsLpm.toFixed(1)} L/min
+            </div>
+          </div>
+        </div>
+
+        {activeOutletKeys.map(key => (
+          <div key={key} style={{
+            position: 'absolute',
+            top: key === 'shower' ? 182 : key === 'bath' ? 262 : key === 'sink' ? 182 : 262,
+            left: key === 'shower' || key === 'bath' ? 96 : 296,
+          }}>
+            <LiveMetricChip
+              label="Flow"
+              value={outletDeliveredFlowLpm[key]}
+              unit="L/min"
+              peak={outletRequestedFlowLpm[key]}
+              status={sharedDemandActive && key !== 'cold_tap' ? 'shared' : 'normal'}
+              compact
+            />
+            {key !== 'cold_tap' && (
+              <div style={{ marginTop: 6 }}>
+                <LiveMetricChip
+                  label="Temp"
+                  value={outletHotTempC}
+                  unit="°C"
+                  peak={combiHotOutTempC}
+                  status={sharedDemandActive ? 'warning' : 'normal'}
+                  compact
+                />
+              </div>
+            )}
+          </div>
+        ))}
+
+        {sharedDemandActive && selectedOutlet !== null && (
+          <div style={{ position: 'absolute', right: 12, bottom: 12, display: 'grid', gap: 6 }}>
+            <LiveMetricChip label="Δ flow" value={selectedOutletFlowDelta} unit="L/min" status="limiting" delta={`${selectedOutletFlowDelta} L/min`} compact />
+            {selectedOutlet !== 'cold_tap' && (
+              <LiveMetricChip label="Δ temp" value={selectedOutletTempDelta} unit="°C" status="warning" delta={`${selectedOutletTempDelta}°C`} compact />
+            )}
+          </div>
         )}
-        <div
-          style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
-          role="group"
-          aria-label="Select System A"
-        >
-          {(Object.keys(SYSTEM_LABELS) as DayPainterSystem[]).map(sys => (
-            <button
-              key={sys}
-              onClick={() => setSelectedSystem(sys)}
-              aria-pressed={selectedSystem === sys}
-              style={{
-                padding: '5px 14px',
-                borderRadius: 20,
-                border: `1.5px solid ${selectedSystem === sys ? (compareMode ? '#e53e3e' : '#3182ce') : '#e2e8f0'}`,
-                background: selectedSystem === sys ? (compareMode ? '#fff5f5' : '#ebf8ff') : '#f7fafc',
-                color: selectedSystem === sys ? (compareMode ? '#c53030' : '#2b6cb0') : '#718096',
-                fontSize: '0.78rem',
-                fontWeight: selectedSystem === sys ? 700 : 400,
-                cursor: 'pointer',
-              }}
-            >
-              {SYSTEM_LABELS[sys]}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* System B picker — compare mode only */}
-      {compareMode && (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: 10 }}>
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2b6cb0', alignSelf: 'center', minWidth: 64 /* aligns with System A: label above */ }}>
-            System B:
-          </span>
-          <div
-            style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
-            role="group"
-            aria-label="Select System B"
-          >
+      <SystemSetupDrawer open={setupDrawerOpen} onClose={() => setSetupDrawerOpen(false)}>
+        <h3 style={{ marginTop: 0 }}>System setup</h3>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div role="group" aria-label="View mode" style={{ display: 'flex', gap: 0, borderRadius: 20, overflow: 'hidden', border: '1.5px solid #e2e8f0' }}>
+            {(['single', 'compare'] as const).map(mode => (
+              <button key={mode} onClick={() => setCompareMode(mode === 'compare')} aria-pressed={compareMode === (mode === 'compare')} style={{ padding: '4px 14px', border: 'none', background: compareMode === (mode === 'compare') ? '#3182ce' : '#f7fafc', color: compareMode === (mode === 'compare') ? '#fff' : '#718096', fontSize: '0.75rem', fontWeight: compareMode === (mode === 'compare') ? 700 : 400, cursor: 'pointer' }}>
+                {mode === 'single' ? 'Single' : 'Compare'}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
             {(Object.keys(SYSTEM_LABELS) as DayPainterSystem[]).map(sys => (
-              <button
-                key={sys}
-                onClick={() => setSystemB(sys)}
-                aria-pressed={systemB === sys}
-                style={{
-                  padding: '5px 14px',
-                  borderRadius: 20,
-                  border: `1.5px solid ${systemB === sys ? '#2b6cb0' : '#e2e8f0'}`,
-                  background: systemB === sys ? '#ebf8ff' : '#f7fafc',
-                  color: systemB === sys ? '#2b6cb0' : '#718096',
-                  fontSize: '0.78rem',
-                  fontWeight: systemB === sys ? 700 : 400,
-                  cursor: 'pointer',
-                }}
-              >
+              <button key={sys} onClick={() => setSelectedSystem(sys)} aria-pressed={selectedSystem === sys} style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${selectedSystem === sys ? '#3182ce' : '#e2e8f0'}`, background: selectedSystem === sys ? '#ebf8ff' : '#f7fafc', color: selectedSystem === sys ? '#2b6cb0' : '#718096', fontSize: '0.78rem', fontWeight: selectedSystem === sys ? 700 : 400, cursor: 'pointer' }}>
                 {SYSTEM_LABELS[sys]}
               </button>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* ── 24-hour Day Painter ─────────────────────────────────────────────── */}
-      <div
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(24, 1fr)', gap: 2, marginBottom: 10 }}
-        aria-label="24-hour day painter"
-      >
-        {hours.map((state, h) => (
-          <button
-            key={h}
-            onClick={() => toggleHour(h)}
-            title={`${String(h).padStart(2, '0')}:00 – ${STATE_LABELS[state]}`}
-            aria-label={`Hour ${h}: ${STATE_LABELS[state]}`}
-            aria-pressed={state !== 'away'}
-            style={{
-              height: 36,
-              border: '1px solid #e2e8f0',
-              borderRadius: 4,
-              background: STATE_COLOURS[state],
-              cursor: 'pointer',
-              fontSize: '0.55rem',
-              color: state === 'away' ? '#718096' : '#2d3748',
-              padding: 0,
-              lineHeight: '36px',
-              fontWeight: state !== 'away' ? 700 : 400,
-            }}
-          >
-            {h}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Legend ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: 10 }}>
-        {STATE_CYCLE.map(s => (
-          <span
-            key={s}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#4a5568' }}
-          >
-            <span
-              style={{
-                width: 12, height: 12, borderRadius: 3,
-                background: STATE_COLOURS[s], border: '1px solid #a0aec0',
-                display: 'inline-block',
-              }}
-            />
-            {STATE_LABELS[s]}
-          </span>
-        ))}
-      </div>
-
-      {/* ── 🌊 Water Draw-Off Gauges — weir gauge style ─────────────────────── */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 6 }}>
-          🌊 Water Draw-Off Gauges
-          <span style={{ fontSize: '0.68rem', fontWeight: 400, color: '#718096', marginLeft: 6 }}>
-            Click outlet gauges to toggle draw-off — cold main and system load update live
-          </span>
-        </div>
-
-        {compareMode ? (
-          /* ── Compare mode: two side-by-side gauge columns ── */
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {/* System A column */}
-            <div style={{ border: '1.5px solid #fed7d7', borderRadius: 8, padding: '8px 10px' }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#c53030', marginBottom: 6 }}>
-                {SYSTEM_LABELS[selectedSystem]}
-              </div>
-              {renderDrawOffGaugeSection(selectedSystem)}
+          {compareMode && (
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              {(Object.keys(SYSTEM_LABELS) as DayPainterSystem[]).map(sys => (
+                <button key={sys} onClick={() => setSystemB(sys)} aria-pressed={systemB === sys} style={{ padding: '5px 14px', borderRadius: 20, border: `1.5px solid ${systemB === sys ? '#2b6cb0' : '#e2e8f0'}`, background: systemB === sys ? '#ebf8ff' : '#f7fafc', color: systemB === sys ? '#2b6cb0' : '#718096', fontSize: '0.78rem', fontWeight: systemB === sys ? 700 : 400, cursor: 'pointer' }}>
+                  System B · {SYSTEM_LABELS[sys]}
+                </button>
+              ))}
             </div>
-            {/* System B column */}
-            <div style={{ border: '1.5px solid #bee3f8', borderRadius: 8, padding: '8px 10px' }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2b6cb0', marginBottom: 6 }}>
-                {SYSTEM_LABELS[systemB]}
-              </div>
-              {renderDrawOffGaugeSection(systemB)}
-            </div>
+          )}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <ToggleButton label={isFullJob ? '✅ Full Job (35°C)' : '⚠️ Fast Fit (50°C)'} active={isFullJob} onClick={() => setIsFullJob(p => !p)} activeColor="#276749" inactiveColor="#c05621" />
+            <ToggleButton label="🧂 Softener" active={hasSoftener} onClick={() => setHasSoftener(p => !p)} activeColor="#3182ce" inactiveColor="#718096" />
           </div>
-        ) : (
-          /* ── Single mode: one gauge section for selectedSystem ── */
-          renderDrawOffGaugeSection(selectedSystem)
-        )}
-      </div>
-
-      {/* ── Toggles ────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: 14 }}>
-        <ToggleButton
-          label={isFullJob ? '✅ Full Job (35°C)' : '⚠️ Fast Fit (50°C)'}
-          active={isFullJob}
-          onClick={() => setIsFullJob(p => !p)}
-          activeColor="#276749"
-          inactiveColor="#c05621"
-          title="Toggle British Gas Full Job (new radiators, 35 °C) vs Octopus Fast Fit (existing radiators, 50 °C)"
-        />
-        <ToggleButton
-          label="🧂 Softener"
-          active={hasSoftener}
-          onClick={() => setHasSoftener(p => !p)}
-          activeColor="#3182ce"
-          inactiveColor="#718096"
-          title="Enable water softener – clears DHW scaling tax, boiler DHW recovery remains 100 % efficient over 10 years"
-        />
-      </div>
-
-      {/* ── Condition Explorer ──────────────────────────────────────────────── */}
-      <div style={{
-        border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px',
-        marginBottom: 14, background: '#fffdf7',
-      }}>
-        <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#2d3748', marginBottom: 8 }}>
-          🔍 System Condition Explorer
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {(['as_found', 'after_flush'] as ConditionScenario[]).map(s => (
+              <button key={s} onClick={() => setConditionScenario(s)} aria-pressed={conditionScenario === s} style={{ padding: '4px 12px', borderRadius: 16, border: `1.5px solid ${conditionScenario === s ? '#c05621' : '#e2e8f0'}`, background: conditionScenario === s ? '#fffaf0' : '#f7fafc', color: conditionScenario === s ? '#c05621' : '#718096', fontSize: '0.75rem', fontWeight: conditionScenario === s ? 700 : 400, cursor: 'pointer' }}>
+                {s === 'as_found' ? 'As found' : 'After flush + filter'}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {(Object.keys(COLD_SUPPLY_TEMP_PRESETS) as SeasonPreset[]).map(s => (
+              <button key={s} onClick={() => setSeason(s)} aria-pressed={season === s} style={{ padding: '3px 10px', borderRadius: 14, border: `1.5px solid ${season === s ? '#3182ce' : '#e2e8f0'}`, background: season === s ? '#ebf8ff' : '#f7fafc', color: season === s ? '#2b6cb0' : '#718096', fontSize: '0.72rem', fontWeight: season === s ? 700 : 400, cursor: 'pointer' }}>
+                {titleCase(s)} ({COLD_SUPPLY_TEMP_PRESETS[s]}°C)
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+            {(Object.keys(COMBI_HOT_OUT_PRESETS) as DhwModePreset[]).map(m => (
+              <button key={m} onClick={() => setDhwMode(m)} aria-pressed={dhwMode === m} style={{ padding: '3px 10px', borderRadius: 14, border: `1.5px solid ${dhwMode === m ? '#805ad5' : '#e2e8f0'}`, background: dhwMode === m ? '#faf5ff' : '#f7fafc', color: dhwMode === m ? '#6b46c1' : '#718096', fontSize: '0.72rem', fontWeight: dhwMode === m ? 700 : 400, cursor: 'pointer' }}>
+                {titleCase(m)} ({COMBI_HOT_OUT_PRESETS[m]}°C)
+              </button>
+            ))}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: 10 }} role="group" aria-label="Condition scenario">
-          {(['as_found', 'after_flush'] as ConditionScenario[]).map(s => (
-            <button
-              key={s}
-              onClick={() => setConditionScenario(s)}
-              aria-pressed={conditionScenario === s}
-              style={{
-                padding: '4px 12px', borderRadius: 16,
-                border: `1.5px solid ${conditionScenario === s ? '#c05621' : '#e2e8f0'}`,
-                background: conditionScenario === s ? '#fffaf0' : '#f7fafc',
-                color: conditionScenario === s ? '#c05621' : '#718096',
-                fontSize: '0.75rem', fontWeight: conditionScenario === s ? 700 : 400,
-                cursor: 'pointer',
-              }}
-            >
-              {s === 'as_found' ? '🔴 As Found' : '🟢 After Flush + Filter'}
-            </button>
-          ))}
+      </SystemSetupDrawer>
+
+      <EfficiencyDrawer open={efficiencyDrawerOpen} onClose={() => setEfficiencyDrawerOpen(false)}>
+        <h3 style={{ marginTop: 0 }}>Efficiency & outcomes</h3>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: 12 }}>
+          <StatBadge label="SPF" value={specEdge.spfMidpoint.toFixed(2)} color={specEdge.spfMidpoint >= 3.8 ? '#276749' : '#c05621'} bg={specEdge.spfMidpoint >= 3.8 ? '#f0fff4' : '#fffaf0'} />
+          <StatBadge label="Flow Temp" value={`${specEdge.designFlowTempC}°C`} color={specEdge.designFlowTempC <= 40 ? '#276749' : '#c05621'} bg={specEdge.designFlowTempC <= 40 ? '#f0fff4' : '#fffaf0'} />
+          <StatBadge label="At Home" value={`${homeCount}h`} color="#276749" bg="#f0fff4" />
+          <StatBadge label="High DHW" value={`${dhwCount}h`} color="#c53030" bg="#fff5f5" />
+          <StatBadge label="Away" value={`${awayCount}h`} color="#2c5282" bg="#ebf8ff" />
+          <StatBadge label="DHW draw today" value={`${dhwDrawKwhToday} kWh`} color={dhwCount > 0 ? '#c53030' : '#276749'} bg={dhwCount > 0 ? '#fff5f5' : '#f0fff4'} />
+          {combiEfficiencyCollapsed && <StatBadge label="Combi Efficiency" value="<30% ⚠️" color="#c53030" bg="#fff5f5" />}
+          {hasSoftener && specEdge.dhwScalingTaxPct === 0 && <StatBadge label="DHW Scale Tax" value="0% ✅" color="#276749" bg="#f0fff4" />}
         </div>
-        {/* Glass Box Debug Overlay */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: '6px',
-        }}>
-          <DebugFactor
-            label="Flow derate"
-            value={`${(sludge.flowDeratePct * 100).toFixed(1)}%`}
-            warn={sludge.flowDeratePct > 0}
-          />
-          <DebugFactor
-            label="Cycling loss"
-            value={`${(sludge.cyclingLossPct * 100).toFixed(1)}%`}
-            warn={sludge.cyclingLossPct > 0}
-          />
-          <DebugFactor
-            label="DHW capacity derate"
-            value={`${(sludge.dhwCapacityDeratePct * 100).toFixed(1)}%`}
-            warn={sludge.dhwCapacityDeratePct > 0}
-          />
-          <DebugFactor
-            label="Velocity after derate"
-            value={`${hydraulicV1.ashp.velocityMs.toFixed(2)} m/s`}
-            warn={hydraulicV1.velocityPenalty > 0}
-          />
-          <DebugFactor
-            label="Effective COP"
-            value={hydraulicV1.effectiveCOP.toFixed(2)}
-            warn={hydraulicV1.velocityPenalty > 0}
-          />
-          <DebugFactor
-            label="Minutes below 21°C"
-            value={`${minutesBelowSetpoint} min`}
-            warn={minutesBelowSetpoint > 0}
-          />
-          {totalCyclingPenaltyKwh > 0 && (
-            <DebugFactor
-              label="Cycling fuel waste"
-              value={`${totalCyclingPenaltyKwh} kWh`}
-              warn
-            />
+        <div style={{ display: 'grid', gap: 8 }}>
+          <DebugFactor label="Return temp" value={`${engineInput.returnWaterTemp}°C`} />
+          <DebugFactor label="Flow temp required" value={`${specEdge.designFlowTempC}°C`} warn={specEdge.designFlowTempC > 45} />
+          <DebugFactor label="Effective COP" value={hydraulicV1.effectiveCOP.toFixed(2)} warn={hydraulicV1.velocityPenalty > 0} />
+        </div>
+      </EfficiencyDrawer>
+
+      <EngineeringDrawer open={engineeringDrawerOpen} onClose={() => setEngineeringDrawerOpen(false)}>
+        <h3 style={{ marginTop: 0 }}>Engineering detail & diagnostics</h3>
+        <div style={{ marginBottom: 14 }}>
+          {compareMode ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ border: '1.5px solid #fed7d7', borderRadius: 8, padding: '8px 10px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#c53030', marginBottom: 6 }}>{SYSTEM_LABELS[selectedSystem]}</div>
+                {renderDrawOffGaugeSection(selectedSystem)}
+              </div>
+              <div style={{ border: '1.5px solid #bee3f8', borderRadius: 8, padding: '8px 10px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#2b6cb0', marginBottom: 6 }}>{SYSTEM_LABELS[systemB]}</div>
+                {renderDrawOffGaugeSection(systemB)}
+              </div>
+            </div>
+          ) : (
+            renderDrawOffGaugeSection(selectedSystem)
           )}
         </div>
-        {conditionScenario === 'after_flush' && (
-          <div style={{
-            marginTop: 8, fontSize: '0.72rem', color: '#276749',
-            background: '#f0fff4', borderRadius: 4, padding: '4px 8px',
-          }}>
-            ✅ After flush + filter: flow derate and cycling loss cleared.
-            Scale on DHW HX unchanged (flush does not remove limescale).
-          </div>
-        )}
-      </div>
-
-      {/* ── Stat badges ────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: 14 }}>
-        <StatBadge
-          label="SPF"
-          value={specEdge.spfMidpoint.toFixed(2)}
-          color={specEdge.spfMidpoint >= 3.8 ? '#276749' : '#c05621'}
-          bg={specEdge.spfMidpoint >= 3.8 ? '#f0fff4' : '#fffaf0'}
-        />
-        <StatBadge
-          label="Flow Temp"
-          value={`${specEdge.designFlowTempC}°C`}
-          color={specEdge.designFlowTempC <= 40 ? '#276749' : '#c05621'}
-          bg={specEdge.designFlowTempC <= 40 ? '#f0fff4' : '#fffaf0'}
-        />
-        <StatBadge label="At Home" value={`${homeCount}h`} color="#276749" bg="#f0fff4" />
-        <StatBadge label="High DHW" value={`${dhwCount}h`} color="#c53030" bg="#fff5f5" />
-        <StatBadge label="Away" value={`${awayCount}h`} color="#2c5282" bg="#ebf8ff" />
-        <StatBadge
-          label="DHW draw today"
-          value={`${dhwDrawKwhToday} kWh`}
-          color={dhwCount > 0 ? '#c53030' : '#276749'}
-          bg={dhwCount > 0 ? '#fff5f5' : '#f0fff4'}
-        />
-        {combiEfficiencyCollapsed && (
-          <StatBadge
-            label="Combi Efficiency"
-            value="<30% ⚠️"
-            color="#c53030"
-            bg="#fff5f5"
-          />
-        )}
-        {hasSoftener && specEdge.dhwScalingTaxPct === 0 && (
-          <StatBadge
-            label="DHW Scale Tax"
-            value="0% ✅"
-            color="#276749"
-            bg="#f0fff4"
-          />
-        )}
-      </div>
-
-      {/* ── Graph 1: Technical Truth — Services Demand ─────────────────────── */}
-      <div style={{ marginBottom: 4 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
-          📊 Graph 1 — Services Demand (what the home needs)
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '6px', marginBottom: 12 }}>
+          <DebugFactor label="Flow derate" value={`${(sludge.flowDeratePct * 100).toFixed(1)}%`} warn={sludge.flowDeratePct > 0} />
+          <DebugFactor label="Cycling loss" value={`${(sludge.cyclingLossPct * 100).toFixed(1)}%`} warn={sludge.cyclingLossPct > 0} />
+          <DebugFactor label="DHW capacity derate" value={`${(sludge.dhwCapacityDeratePct * 100).toFixed(1)}%`} warn={sludge.dhwCapacityDeratePct > 0} />
+          <DebugFactor label="Velocity after derate" value={`${hydraulicV1.ashp.velocityMs.toFixed(2)} m/s`} warn={hydraulicV1.velocityPenalty > 0} />
+          <DebugFactor label="Minutes below 21°C" value={`${minutesBelowSetpoint} min`} warn={minutesBelowSetpoint > 0} />
+          {totalCyclingPenaltyKwh > 0 && <DebugFactor label="Cycling fuel waste" value={`${totalCyclingPenaltyKwh} kWh`} warn />}
         </div>
-        {/* Fairness badge: both systems use the identical demand timeline */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: '#f0fff4', border: '1px solid #9ae6b4',
-          borderRadius: 6, padding: '3px 10px',
-          fontSize: '0.72rem', color: '#276749', marginBottom: 6,
-        }}>
-          🟢 Demand timeline identical for both systems
-        </div>
-        <div style={{ height: 180, marginBottom: 8 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={demandChartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
-              <YAxis
-                domain={[0, Math.ceil(heatLossKw * DEMAND_Y_AXIS_SCALE_FACTOR)]}
-                tick={{ fontSize: 9 }}
-                label={{ value: 'kW', angle: -90, position: 'insideLeft', fontSize: 10 }}
-              />
-              <Tooltip
-                contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
-                formatter={(value: number | undefined, name: string | undefined) => [
-                  value !== undefined ? `${value.toFixed(2)} kW` : '',
-                  name ?? '',
-                ]}
-              />
-              <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
-              <Area
-                type="monotone"
-                dataKey="Heat (kW)"
-                fill="#fed7aa"
-                stroke="#ed8936"
-                strokeWidth={2}
-                fillOpacity={0.5}
-              />
-              <Area
-                type="monotone"
-                dataKey="DHW (kW)"
-                fill="#bee3f8"
-                stroke="#3182ce"
-                strokeWidth={2}
-                fillOpacity={0.5}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ── Graph 2: System Response — Boiler Modulation & Efficiency ──────── */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
-          ⚙️ Graph 2 — System Response ({SYSTEM_LABELS[selectedSystem]})
-        </div>
-        <div style={{ height: 200, marginBottom: 8 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
-            <YAxis
-              yAxisId="temp"
-              domain={[14, 23]}
-              tick={{ fontSize: 9 }}
-              label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }}
-            />
-            <YAxis
-              yAxisId="reserve"
-              orientation="right"
-              domain={[0, 100]}
-              tick={{ fontSize: 9 }}
-              label={{ value: 'Reserve %', angle: 90, position: 'insideRight', fontSize: 10 }}
-            />
-            <Tooltip
-              contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
-              formatter={(value: number | undefined, name: string | undefined) => [
-                value !== undefined ? value.toFixed(1) : '',
-                name ?? '',
-              ]}
-            />
-            <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
-            {/* comfort setpoint reference line */}
-            <ReferenceLine
-              yAxisId="temp"
-              y={COMFORT_SETPOINT_C}
-              stroke="#48bb78"
-              strokeDasharray="4 3"
-              label={{ value: '21°C', fontSize: 9, fill: '#276749' }}
-            />
-            {/* Boiler room temperature from engine physics — replaces UI-derived stepped curve */}
-            {showBoiler && (
-              <Line
-                yAxisId="temp"
-                type="monotone"
-                dataKey="Boiler Room (°C)"
-                stroke="#ed8936"
-                strokeWidth={2.5}
-                dot={false}
-              />
-            )}
-            {/* HP room temperature from engine physics — replaces UI-derived horizon curve */}
-            {showHp && (
-              <Line
-                yAxisId="temp"
-                type="monotone"
-                dataKey="HP Room (°C)"
-                stroke="#48bb78"
-                strokeWidth={2.5}
-                dot={false}
-              />
-            )}
-            {/* Hot water reserve – stored cylinder area chart */}
-            {showHwReserve && (
-              <Area
-                yAxisId="reserve"
-                type="monotone"
-                dataKey="Hot water reserve (%)"
-                fill="#bee3f8"
-                stroke="#3182ce"
-                strokeWidth={1.5}
-                fillOpacity={0.35}
-              />
-            )}
-          </ComposedChart>
-        </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ── Graph S: Stored Cylinder — temperature and volume ──────────────── */}
-      {selectedSystem !== 'combi' && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
-            🛢️ Graph S — Stored Cylinder ({CYLINDER_VOLUME_L} L)
-            <span style={{ marginLeft: 8, fontSize: '0.7rem', fontWeight: 400, color: '#718096' }}>
-              (temperature °C and usable volume L from engine — 24 h)
-            </span>
-          </div>
-          <div style={{ height: 180, marginBottom: 8 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={storedCylinderData} margin={{ top: 5, right: 40, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
-                <YAxis
-                  yAxisId="temp"
-                  domain={[38, 62]}
-                  tick={{ fontSize: 9 }}
-                  label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }}
-                />
-                <YAxis
-                  yAxisId="vol"
-                  orientation="right"
-                  domain={[0, CYLINDER_VOLUME_L]}
-                  tick={{ fontSize: 9 }}
-                  label={{ value: 'L', angle: 90, position: 'insideRight', fontSize: 10 }}
-                />
-                <Tooltip
-                  contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
-                  formatter={(value: number | undefined, name: string | undefined) => [
-                    value !== undefined
-                      ? name === 'Cylinder Temp (°C)' ? `${value.toFixed(1)} °C` : `${value.toFixed(1)} L`
-                      : '',
-                    name ?? '',
-                  ]}
-                />
-                <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
-                <ReferenceLine
-                  yAxisId="temp"
-                  y={40}
-                  stroke="#e53e3e"
-                  strokeDasharray="4 2"
-                  label={{ value: '40°C min usable', fontSize: 8, fill: '#c53030', position: 'insideTopRight' }}
-                />
-                <Line
-                  yAxisId="temp"
-                  type="monotone"
-                  dataKey="Cylinder Temp (°C)"
-                  stroke="#c05621"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Area
-                  yAxisId="vol"
-                  type="monotone"
-                  dataKey="Volume Available (L)"
-                  fill="#bee3f8"
-                  stroke="#3182ce"
-                  strokeWidth={1.5}
-                  fillOpacity={0.35}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* ── Graph C: Comfort Stability ──────────────────────────────────────── */}
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
-          🌡️ Graph C — Comfort Stability
-          <span style={{
-            marginLeft: 8, fontSize: '0.7rem', fontWeight: 400, color: '#718096',
-          }}>
-            (boiler room temp + cycling penalty — {conditionScenario === 'as_found' ? '🔴 As Found' : '🟢 After Flush'})
-          </span>
-        </div>
-        {minutesBelowSetpoint > 0 && (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: '#fff5f5', border: '1px solid #fed7d7',
-            borderRadius: 6, padding: '3px 10px',
-            fontSize: '0.72rem', color: '#c53030', marginBottom: 6,
-          }}>
-            ⏱️ {minutesBelowSetpoint} min below 21°C setpoint today
-            {totalCyclingPenaltyKwh > 0 && ` · +${totalCyclingPenaltyKwh} kWh cycling waste`}
-          </div>
-        )}
-        <div style={{ height: 160, marginBottom: 8 }}>
+        <div style={{ height: 160, marginBottom: 12 }}>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={comfortChartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
-              <YAxis
-                yAxisId="temp"
-                domain={[14, 26]}
-                tick={{ fontSize: 9 }}
-                label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }}
-              />
-              <YAxis
-                yAxisId="penalty"
-                orientation="right"
-                domain={[0, 0.5]}
-                tick={{ fontSize: 9 }}
-                label={{ value: 'kW', angle: 90, position: 'insideRight', fontSize: 10 }}
-              />
-              <Tooltip
-                contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
-                formatter={(value: number | undefined, name: string | undefined) => [
-                  value !== undefined ? value.toFixed(2) : '',
-                  name ?? '',
-                ]}
-              />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={['00:00', '06:00', '12:00', '18:00', '23:00']} />
+              <YAxis yAxisId="temp" domain={[14, 26]} tick={{ fontSize: 9 }} label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+              <YAxis yAxisId="penalty" orientation="right" domain={[0, 0.5]} tick={{ fontSize: 9 }} label={{ value: 'kW', angle: 90, position: 'insideRight', fontSize: 10 }} />
+              <Tooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }} formatter={(value: number | undefined, name: string | undefined) => [value !== undefined ? value.toFixed(2) : '', name ?? '']} />
               <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
-              <ReferenceLine
-                yAxisId="temp"
-                y={COMFORT_SETPOINT_C}
-                stroke="#48bb78"
-                strokeDasharray="4 3"
-                label={{ value: '21°C', fontSize: 9, fill: '#276749' }}
-              />
-              <Line
-                yAxisId="temp"
-                type="monotone"
-                dataKey="Room Temp (°C)"
-                stroke="#ed8936"
-                strokeWidth={2}
-                dot={false}
-              />
-              {totalCyclingPenaltyKwh > 0 && (
-                <Area
-                  yAxisId="penalty"
-                  type="stepAfter"
-                  dataKey="Cycling Penalty (kW)"
-                  fill="#fed7d7"
-                  stroke="#e53e3e"
-                  strokeWidth={1}
-                  fillOpacity={0.4}
-                />
-              )}
+              <ReferenceLine yAxisId="temp" y={COMFORT_SETPOINT_C} stroke="#48bb78" strokeDasharray="4 3" label={{ value: '21°C', fontSize: 9, fill: '#276749' }} />
+              <Line yAxisId="temp" type="monotone" dataKey="Room Temp (°C)" stroke="#ed8936" strokeWidth={2} dot={false} />
+              {totalCyclingPenaltyKwh > 0 && <Area yAxisId="penalty" type="stepAfter" dataKey="Cycling Penalty (kW)" fill="#fed7d7" stroke="#e53e3e" strokeWidth={1} fillOpacity={0.4} />}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* ── Graph D: DHW Deliverability (combi only) ────────────────────────── */}
-      {selectedSystem === 'combi' && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2d3748', marginBottom: 4 }}>
-            🚿 Graph D — DHW Deliverability (Combi)
-            <span style={{
-              marginLeft: 8, fontSize: '0.7rem', fontWeight: 400, color: '#718096',
-            }}>
-              ({conditionScenario === 'as_found' ? '🔴 As Found' : '🟢 After Flush'})
-            </span>
-          </div>
-
-          {/* ── DHW preset selectors ───────────────────────────────────────── */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: 8 }}>
-            {/* Season */}
-            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: '#718096' }}>Season:</span>
-              {(Object.keys(COLD_SUPPLY_TEMP_PRESETS) as SeasonPreset[]).map(s => (
-                <button
-                  key={s}
-                  onClick={() => setSeason(s)}
-                  aria-pressed={season === s}
-                  style={{
-                    padding: '3px 10px', borderRadius: 14,
-                    border: `1.5px solid ${season === s ? '#3182ce' : '#e2e8f0'}`,
-                    background: season === s ? '#ebf8ff' : '#f7fafc',
-                    color: season === s ? '#2b6cb0' : '#718096',
-                    fontSize: '0.72rem', fontWeight: season === s ? 700 : 400, cursor: 'pointer',
-                  }}
-                >
-                  {titleCase(s)} ({COLD_SUPPLY_TEMP_PRESETS[s]}°C)
-                </button>
-              ))}
-            </div>
-            {/* DHW mode */}
-            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: '#718096' }}>Hot out:</span>
-              {(Object.keys(COMBI_HOT_OUT_PRESETS) as DhwModePreset[]).map(m => (
-                <button
-                  key={m}
-                  onClick={() => setDhwMode(m)}
-                  aria-pressed={dhwMode === m}
-                  style={{
-                    padding: '3px 10px', borderRadius: 14,
-                    border: `1.5px solid ${dhwMode === m ? '#805ad5' : '#e2e8f0'}`,
-                    background: dhwMode === m ? '#faf5ff' : '#f7fafc',
-                    color: dhwMode === m ? '#6b46c1' : '#718096',
-                    fontSize: '0.72rem', fontWeight: dhwMode === m ? 700 : 400, cursor: 'pointer',
-                  }}
-                >
-                  {titleCase(m)} ({COMBI_HOT_OUT_PRESETS[m]}°C)
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Physics summary badge */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            background: showerFlowLpm > heatLimitLpm ? '#fff5f5' : '#f0fff4',
-            border: `1px solid ${showerFlowLpm > heatLimitLpm ? '#fed7d7' : '#9ae6b4'}`,
-            borderRadius: 6, padding: '3px 10px',
-            fontSize: '0.72rem',
-            color: showerFlowLpm > heatLimitLpm ? '#c53030' : '#276749',
-            marginBottom: 6,
-          }}>
-            ΔT {dhwDeltaT.toFixed(1)}°C · Hot fraction {(hotFraction * 100).toFixed(0)}% · Heat limit {heatLimitLpm.toFixed(1)} L/min · Shower {showerFlowLpm} L/min
-            {showerFlowLpm > heatLimitLpm
-              ? ` ⚠️ Shortfall — needs ${computeRequiredKw(showerFlowLpm, dhwDeltaT).toFixed(1)} kW (combi: ${NOMINAL_COMBI_DHW_KW} kW)`
-              : ' ✅ Within capacity'}
-          </div>
-
-          {sludge.dhwCapacityDeratePct > 0 && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: '#fff5f5', border: '1px solid #fed7d7',
-              borderRadius: 6, padding: '3px 10px',
-              fontSize: '0.72rem', color: '#c53030', marginBottom: 6, marginLeft: 6,
-            }}>
-              💧 Scale derate {(sludge.dhwCapacityDeratePct * 100).toFixed(1)}% —
-              heat limit {heatLimitLpm.toFixed(1)} L/min → delivered {peakDeliveredLpm} L/min
-            </div>
-          )}
-
-          {/* Data source indicator */}
-          {anyWaterPainted && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: '#ebf8ff', border: '1px solid #90cdf4',
-              borderRadius: 6, padding: '3px 10px',
-              fontSize: '0.72rem', color: '#2b6cb0', marginBottom: 6, marginLeft: 6,
-            }}>
-              💡 Graph driven by Water Painter slots
-              {anyWaterCold && ' · Cold draw (DCW) shown — not heat-limited'}
-            </div>
-          )}
-
-          <div style={{ height: 160, marginBottom: 8 }}>
+        {selectedSystem !== 'combi' && (
+          <div style={{ height: 170, marginBottom: 12 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={dhwDeliverabilityData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
+              <ComposedChart data={storedCylinderData} margin={{ top: 5, right: 40, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={["00:00","06:00","12:00","18:00","23:00"]} />
-                <YAxis
-                  domain={[0, Math.ceil(Math.max(
-                    showerFlowLpm,
-                    heatLimitLpm,
-                    anyWaterCold ? COLD_TAP_LPM : 0,
-                  ) * 1.2)]}
-                  tick={{ fontSize: 9 }}
-                  label={{ value: 'L/min', angle: -90, position: 'insideLeft', fontSize: 10 }}
-                />
-                <Tooltip
-                  contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
-                  formatter={(value: number | undefined, name: string | undefined) => [
-                    value !== undefined ? `${value.toFixed(1)} L/min` : '',
-                    name ?? '',
-                  ]}
-                />
+                <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={['00:00', '06:00', '12:00', '18:00', '23:00']} />
+                <YAxis yAxisId="temp" domain={[38, 62]} tick={{ fontSize: 9 }} label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+                <YAxis yAxisId="vol" orientation="right" domain={[0, CYLINDER_VOLUME_L]} tick={{ fontSize: 9 }} label={{ value: 'L', angle: 90, position: 'insideRight', fontSize: 10 }} />
+                <Tooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }} />
                 <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
-                {/* Heat limit — applies to DHW (hot) only; cold draw bypasses this */}
-                <ReferenceLine
-                  y={heatLimitLpm}
-                  stroke="#e53e3e"
-                  strokeDasharray="5 3"
-                  label={{ value: `Heat limit ${heatLimitLpm.toFixed(1)} L/min`, fontSize: 9, fill: '#c53030', position: 'insideTopRight' }}
-                />
-                {/* Hot DHW requested */}
-                <Area
-                  type="stepAfter"
-                  dataKey="Requested (L/min)"
-                  fill="#bee3f8"
-                  stroke="#3182ce"
-                  strokeWidth={1.5}
-                  fillOpacity={0.3}
-                />
-                {/* Cold DCW — separate channel, no heat limit applies */}
-                {anyWaterCold && (
-                  <Area
-                    type="stepAfter"
-                    dataKey="Cold draw (L/min)"
-                    fill="#c6f6d5"
-                    stroke="#48bb78"
-                    strokeWidth={1}
-                    fillOpacity={0.25}
-                    strokeDasharray="3 2"
-                  />
-                )}
-                {/* Delivered hot flow */}
-                <Line
-                  type="stepAfter"
-                  dataKey="Delivered (L/min)"
-                  stroke="#38a169"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                {dhwDeliverabilityData.some(d => (d['Shortfall (L/min)'] as number) > 0) && (
-                  <Area
-                    type="stepAfter"
-                    dataKey="Shortfall (L/min)"
-                    fill="#fed7d7"
-                    stroke="#e53e3e"
-                    strokeWidth={1}
-                    fillOpacity={0.5}
-                  />
-                )}
+                <Line yAxisId="temp" type="monotone" dataKey="Cylinder Temp (°C)" stroke="#c05621" strokeWidth={2} dot={false} />
+                <Area yAxisId="vol" type="monotone" dataKey="Volume Available (L)" fill="#bee3f8" stroke="#3182ce" strokeWidth={1.5} fillOpacity={0.35} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </div>
-      )}
+        )}
+        {selectedSystem === 'combi' && (
+          <div style={{ height: 160, marginBottom: 10 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={dhwDeliverabilityData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={['00:00', '06:00', '12:00', '18:00', '23:00']} />
+                <YAxis domain={[0, Math.ceil(Math.max(showerFlowLpm, heatLimitLpm, anyWaterCold ? COLD_TAP_LPM : 0) * 1.2)]} tick={{ fontSize: 9 }} label={{ value: 'L/min', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+                <Tooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }} formatter={(value: number | undefined, name: string | undefined) => [value !== undefined ? `${value.toFixed(1)} L/min` : '', name ?? '']} />
+                <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
+                <ReferenceLine y={heatLimitLpm} stroke="#e53e3e" strokeDasharray="5 3" label={{ value: `Heat limit ${heatLimitLpm.toFixed(1)} L/min`, fontSize: 9, fill: '#c53030', position: 'insideTopRight' }} />
+                <Area type="stepAfter" dataKey="Requested (L/min)" fill="#bee3f8" stroke="#3182ce" strokeWidth={1.5} fillOpacity={0.3} />
+                {anyWaterCold && <Area type="stepAfter" dataKey="Cold draw (L/min)" fill="#c6f6d5" stroke="#48bb78" strokeWidth={1} fillOpacity={0.25} strokeDasharray="3 2" />}
+                <Line type="stepAfter" dataKey="Delivered (L/min)" stroke="#38a169" strokeWidth={2} dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+        {lifestyle.notes.length > 0 && (
+          <div style={{ background: '#f7fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#4a5568' }}>
+            {lifestyle.notes[0]}
+          </div>
+        )}
+      </EngineeringDrawer>
 
-      {/* ── Recommendation note from LifestyleSimulationModule ─────────────── */}
-      {lifestyle.notes.length > 0 && (
-        <div style={{
-          background: '#f7fafc', border: '1px solid #e2e8f0',
-          borderRadius: 8, padding: '8px 12px',
-          fontSize: '0.78rem', color: '#4a5568',
-        }}>
-          {lifestyle.notes[0]}
+      <TimelineBottomSheet open={timelineSheetOpen} onClose={() => setTimelineSheetOpen(false)}>
+        <div style={{ fontSize: '0.8rem', color: '#4a5568', marginBottom: 8 }}>
+          Click hour blocks to cycle <strong style={{ color: '#276749' }}>At Home</strong> → <strong style={{ color: '#c53030' }}>High DHW</strong> → <strong style={{ color: '#2c5282' }}>Away</strong>.
         </div>
-      )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(24, 1fr)', gap: 2, marginBottom: 10 }} aria-label="24-hour day painter">
+          {hours.map((state, h) => (
+            <button key={h} onClick={() => toggleHour(h)} title={`${String(h).padStart(2, '0')}:00 – ${STATE_LABELS[state]}`} aria-label={`Hour ${h}: ${STATE_LABELS[state]}`} aria-pressed={state !== 'away'} style={{ height: 30, border: '1px solid #e2e8f0', borderRadius: 4, background: STATE_COLOURS[state], cursor: 'pointer', fontSize: '0.55rem', color: state === 'away' ? '#718096' : '#2d3748', padding: 0, lineHeight: '30px', fontWeight: state !== 'away' ? 700 : 400 }}>
+              {h}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: 10 }}>
+          {STATE_CYCLE.map(s => (
+            <span key={s} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', color: '#4a5568' }}>
+              <span style={{ width: 12, height: 12, borderRadius: 3, background: STATE_COLOURS[s], border: '1px solid #a0aec0', display: 'inline-block' }} />
+              {STATE_LABELS[s]}
+            </span>
+          ))}
+        </div>
+        <div style={{ height: 160, marginBottom: 10 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={demandChartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={['00:00', '06:00', '12:00', '18:00', '23:00']} />
+              <YAxis domain={[0, Math.ceil(heatLossKw * DEMAND_Y_AXIS_SCALE_FACTOR)]} tick={{ fontSize: 9 }} label={{ value: 'kW', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+              <Tooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }} formatter={(value: number | undefined, name: string | undefined) => [value !== undefined ? `${value.toFixed(2)} kW` : '', name ?? '']} />
+              <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
+              <Area type="monotone" dataKey="Heat (kW)" fill="#fed7aa" stroke="#ed8936" strokeWidth={2} fillOpacity={0.5} />
+              <Area type="monotone" dataKey="DHW (kW)" fill="#bee3f8" stroke="#3182ce" strokeWidth={2} fillOpacity={0.5} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ height: 170 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={chartData} margin={{ top: 5, right: 24, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="hour" tick={{ fontSize: 9 }} ticks={['00:00', '06:00', '12:00', '18:00', '23:00']} />
+              <YAxis yAxisId="temp" domain={[14, 23]} tick={{ fontSize: 9 }} label={{ value: '°C', angle: -90, position: 'insideLeft', fontSize: 10 }} />
+              <YAxis yAxisId="reserve" orientation="right" domain={[0, 100]} tick={{ fontSize: 9 }} label={{ value: 'Reserve %', angle: 90, position: 'insideRight', fontSize: 10 }} />
+              <Tooltip contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }} />
+              <Legend wrapperStyle={{ fontSize: '0.72rem', paddingTop: 6 }} />
+              <ReferenceLine yAxisId="temp" y={COMFORT_SETPOINT_C} stroke="#48bb78" strokeDasharray="4 3" label={{ value: '21°C', fontSize: 9, fill: '#276749' }} />
+              {showBoiler && <Line yAxisId="temp" type="monotone" dataKey="Boiler Room (°C)" stroke="#ed8936" strokeWidth={2.5} dot={false} />}
+              {showHp && <Line yAxisId="temp" type="monotone" dataKey="HP Room (°C)" stroke="#48bb78" strokeWidth={2.5} dot={false} />}
+              {showHwReserve && <Area yAxisId="reserve" type="monotone" dataKey="Hot water reserve (%)" fill="#bee3f8" stroke="#3182ce" strokeWidth={1.5} fillOpacity={0.35} />}
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </TimelineBottomSheet>
+
+      <AlertsTopSheet open={alertsSheetOpen} onClose={() => setAlertsSheetOpen(false)}>
+        <h3 style={{ marginTop: 0 }}>System limiters & alerts</h3>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <DebugFactor label="Mains draw" value={`${totalActiveDrawLpm.toFixed(1)} / ${maxMainsLpm.toFixed(1)} L/min`} warn={totalActiveDrawLpm > maxMainsLpm} />
+          <DebugFactor label="Combi load" value={`${systemLoadPct.toFixed(0)}%`} warn={systemLoadPct > 90} />
+          <DebugFactor label="Cylinder reserve" value={`${cylinderSoCPct.toFixed(0)}%`} warn={cylinderSoCPct < 30} />
+          <DebugFactor label="Peak delivered shower" value={`${peakDeliveredLpm} L/min`} warn={peakDeliveredLpm < showerFlowLpm} />
+          <DebugFactor label="DHW scale derate" value={`${(sludge.dhwCapacityDeratePct * 100).toFixed(1)}%`} warn={sludge.dhwCapacityDeratePct > 0} />
+        </div>
+      </AlertsTopSheet>
+
+      <OutletDetailPopover
+        open={selectedOutlet !== null}
+        onClose={() => setSelectedOutlet(null)}
+        title={selectedOutlet ? `${OUTLET_LABELS[selectedOutlet]} detail` : 'Outlet detail'}
+      >
+        {selectedOutlet && (
+          <div style={{ display: 'grid', gap: 8 }}>
+            <LiveMetricChip label="Flow" value={outletDeliveredFlowLpm[selectedOutlet]} unit="L/min" peak={outletRequestedFlowLpm[selectedOutlet]} status={activeOutlets[selectedOutlet] ? 'normal' : 'inactive'} />
+            {selectedOutlet !== 'cold_tap' && (
+              <LiveMetricChip label="Temp" value={outletHotTempC} unit="°C" peak={combiHotOutTempC} status={sharedDemandActive ? 'shared' : 'normal'} />
+            )}
+            {selectedOutlet !== 'cold_tap' && activeHotOutletCount > 1 && (
+              <>
+                <LiveMetricChip label="Δ flow" value={selectedOutletFlowDelta} unit="L/min" status="limiting" delta={`${selectedOutletFlowDelta} L/min`} />
+                <LiveMetricChip label="Δ temp" value={selectedOutletTempDelta} unit="°C" status="warning" delta={`${selectedOutletTempDelta}°C`} />
+              </>
+            )}
+          </div>
+        )}
+      </OutletDetailPopover>
     </div>
   );
 }
@@ -1537,6 +1223,232 @@ function DebugFactor({ label, value, warn }: { label: string; value: string; war
       <strong>{value}</strong>
     </div>
   );
+}
+
+type LiveMetricStatus = 'normal' | 'shared' | 'warning' | 'limiting' | 'inactive';
+
+function LiveMetricChip({
+  label,
+  value,
+  unit,
+  peak,
+  status = 'normal',
+  delta,
+  compact,
+}: {
+  label: string;
+  value: string | number;
+  unit?: string;
+  peak?: string | number;
+  status?: LiveMetricStatus;
+  delta?: string;
+  compact?: boolean;
+}) {
+  const [flash, setFlash] = useState(false);
+  const previousValueRef = useRef(value);
+
+  useEffect(() => {
+    if (previousValueRef.current !== value) {
+      previousValueRef.current = value;
+      setFlash(true);
+      const timeout = window.setTimeout(() => setFlash(false), 300);
+      return () => window.clearTimeout(timeout);
+    }
+    return undefined;
+  }, [value]);
+
+  const statusColor: Record<LiveMetricStatus, string> = {
+    normal: '#38bdf8',
+    shared: '#f59e0b',
+    warning: '#fb7185',
+    limiting: '#f97316',
+    inactive: '#64748b',
+  };
+
+  return (
+    <div style={{
+      minWidth: compact ? 98 : 120,
+      background: '#0b1220',
+      borderRadius: 10,
+      border: `1px solid ${statusColor[status]}66`,
+      color: '#e2e8f0',
+      padding: compact ? '6px 8px' : '8px 10px',
+      boxShadow: flash ? `0 0 12px ${statusColor[status]}55` : 'none',
+      transform: flash ? 'scale(1.02)' : 'scale(1)',
+      transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+    }}>
+      <div style={{ fontSize: compact ? '0.58rem' : '0.62rem', color: '#94a3b8' }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+        <div style={{ fontSize: compact ? '1rem' : '1.2rem', fontWeight: 700, lineHeight: 1.1 }}>{value}</div>
+        {unit && <div style={{ fontSize: '0.64rem', color: '#cbd5e1' }}>{unit}</div>}
+      </div>
+      {(peak !== undefined || delta) && (
+        <div style={{ marginTop: 3, fontSize: '0.58rem', color: '#94a3b8' }}>
+          {peak !== undefined ? `Peak ${peak}` : ''}
+          {delta ? `${peak !== undefined ? ' · ' : ''}${delta}` : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SystemNarrationToast({ messages }: { messages: string[] }) {
+  if (messages.length === 0) {
+    return (
+      <div style={{ borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', padding: '8px 10px', fontSize: '0.75rem' }}>
+        Waiting for live system events…
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: 'grid', gap: 6 }}>
+      {messages.map((message, index) => (
+        <div key={`${message}-${index}`} style={{ borderRadius: 10, border: '1px solid #bae6fd', background: index === 0 ? '#e0f2fe' : '#f0f9ff', color: '#0c4a6e', padding: '8px 10px', fontSize: '0.76rem' }}>
+          {message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DrawerFrame({
+  open,
+  onClose,
+  side,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  side: 'left' | 'right';
+  title: string;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 40, pointerEvents: 'none' }}>
+      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a66', pointerEvents: 'auto' }} />
+      <aside style={{ position: 'absolute', top: 0, bottom: 0, ...(side === 'left' ? { left: 0 } : { right: 0 }), width: 'min(520px, 90vw)', background: '#ffffff', borderLeft: side === 'right' ? '1px solid #e2e8f0' : undefined, borderRight: side === 'left' ? '1px solid #e2e8f0' : undefined, boxShadow: '0 0 24px rgba(15,23,42,0.2)', padding: 14, overflowY: 'auto', pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <strong>{title}</strong>
+          <button onClick={onClose} style={{ borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}>Close</button>
+        </div>
+        {children}
+      </aside>
+    </div>
+  );
+}
+
+function BottomSheetFrame({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 42, pointerEvents: 'none' }}>
+      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a66', pointerEvents: 'auto' }} />
+      <section style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '72vh', background: '#ffffff', borderTop: '1px solid #e2e8f0', boxShadow: '0 -8px 20px rgba(15,23,42,0.18)', borderTopLeftRadius: 14, borderTopRightRadius: 14, padding: 14, overflowY: 'auto', pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <strong>{title}</strong>
+          <button onClick={onClose} style={{ borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}>Close</button>
+        </div>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function TopSheetFrame({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 41, pointerEvents: 'none' }}>
+      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a66', pointerEvents: 'auto' }} />
+      <section style={{ position: 'absolute', left: 0, right: 0, top: 0, maxHeight: '55vh', background: '#ffffff', borderBottom: '1px solid #e2e8f0', boxShadow: '0 8px 20px rgba(15,23,42,0.18)', padding: 14, overflowY: 'auto', pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <strong>{title}</strong>
+          <button onClick={onClose} style={{ borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}>Close</button>
+        </div>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function PopoverFrame({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 43, pointerEvents: 'none' }}>
+      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: 'transparent', pointerEvents: 'auto' }} />
+      <section style={{ position: 'absolute', right: 24, top: 120, width: 'min(320px, 90vw)', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, boxShadow: '0 12px 28px rgba(15,23,42,0.22)', padding: 12, pointerEvents: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <strong style={{ fontSize: '0.86rem' }}>{title}</strong>
+          <button onClick={onClose} style={{ borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', cursor: 'pointer' }}>Close</button>
+        </div>
+        {children}
+      </section>
+    </div>
+  );
+}
+
+function SystemSetupDrawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+  return <DrawerFrame open={open} onClose={onClose} side="left" title="System setup">{children}</DrawerFrame>;
+}
+
+function EngineeringDrawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+  return <DrawerFrame open={open} onClose={onClose} side="right" title="Engineering">{children}</DrawerFrame>;
+}
+
+function EfficiencyDrawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+  return <DrawerFrame open={open} onClose={onClose} side="right" title="Efficiency">{children}</DrawerFrame>;
+}
+
+function TimelineBottomSheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+  return <BottomSheetFrame open={open} onClose={onClose} title="Timeline & playback">{children}</BottomSheetFrame>;
+}
+
+function AlertsTopSheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+  return <TopSheetFrame open={open} onClose={onClose} title="System alerts">{children}</TopSheetFrame>;
+}
+
+function OutletDetailPopover({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  return <PopoverFrame open={open} onClose={onClose} title={title}>{children}</PopoverFrame>;
 }
 
 // ─── WeirGauge ────────────────────────────────────────────────────────────────
