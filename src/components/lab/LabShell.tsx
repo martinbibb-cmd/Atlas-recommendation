@@ -86,7 +86,7 @@ function VisualTab() {
         <div className="lab-visual-tab__intro" role="status" aria-live="polite">
           <span className="lab-visual-tab__intro-icon" aria-hidden="true">▶</span>
           <span>
-            <strong>Live narration</strong> — select a system profile to inspect heating behaviour and on-demand hot water response.
+            <strong>Live narration</strong> — select a system profile to inspect heating behaviour and on-demand hot water supply response.
           </span>
           <button
             className="lab-visual-tab__intro-dismiss"
@@ -151,6 +151,8 @@ export default function LabShell({ onHome, engineInput }: Props) {
       setRightOpen(false);
       return;
     }
+    setLeftOpen(false);
+    setRightOpen(false);
     setTopSheetOpen(true);
   };
 
@@ -256,7 +258,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
               ? SYSTEM_TYPE_LABELS[engineInput.currentHeatSourceType] ?? PLACEHOLDER_CURRENT_SYSTEM
               : PLACEHOLDER_CURRENT_SYSTEM}
           </strong>
-          <p className="lab-roof-widget__note">Live draw-off telemetry appears on outlet chips beside active draws.</p>
+          <p className="lab-roof-widget__note">Live draw-off telemetry appears on outlet status chips beside active draws.</p>
         </aside>
 
         <aside className="lab-roof-widget lab-roof-widget--right" aria-label="Efficiency status">
@@ -275,7 +277,6 @@ export default function LabShell({ onHome, engineInput }: Props) {
             <h2>Warnings and explainers</h2>
             <button className="lab-house-action" onClick={() => setTopSheetOpen(false)}>Close</button>
           </div>
-          <LabConfidenceStrip data={PLACEHOLDER_CONFIDENCE_STRIP} />
           <ExplainerPanel />
         </section>
       )}
