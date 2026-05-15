@@ -14,6 +14,8 @@
  *   - All graph data originates from EngineOutputV1 (via the parent).
  *   - Shower dropdown removed — demand is driven by profile choice + duration.
  */
+// ARCHIVED / DEAD PROTOTYPE — do not use for live simulator work.
+// See docs/repo-map/atlas-simulator-surface-map.md for the canonical simulator files.
 import { useState, type CSSProperties } from 'react';
 import type {
   DayProfileV1,

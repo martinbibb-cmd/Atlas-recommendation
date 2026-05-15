@@ -1,3 +1,5 @@
+// ARCHIVED / DEAD PROTOTYPE — do not use for live simulator work.
+// See docs/repo-map/atlas-simulator-surface-map.md for the canonical simulator files.
 import type { DayModelV1, HeatLevel } from './BuildDayModel';
 
 export type DaySystemType =

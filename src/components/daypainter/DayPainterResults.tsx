@@ -1,3 +1,5 @@
+// ARCHIVED / DEAD PROTOTYPE — do not use for live simulator work.
+// See docs/repo-map/atlas-simulator-surface-map.md for the canonical simulator files.
 import { useMemo, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { buildDayModelFromEvents, buildDefaultDayModel, type DayEvent } from '../../engine/daypainter/BuildDayModel';
