@@ -27,7 +27,7 @@
  *   - Top sheet: warnings / physics explainers
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import { useSystemDiagramPlayback } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
 import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
@@ -41,6 +41,9 @@ import { DEFAULT_SYSTEM_INPUTS } from '../../explainers/lego/simulator/systemInp
 import type { SystemInputs } from '../../explainers/lego/simulator/systemInputsTypes';
 import type { ScenarioKey } from '../../explainers/lego/simulator/scenarioTypes';
 import { SCENARIO_PRESETS, DEFAULT_SCENARIO_KEY } from '../../explainers/lego/simulator/scenarioTypes';
+import { adaptFullSurveyToSimulatorInputs } from '../../explainers/lego/simulator/adaptFullSurveyToSimulatorInputs';
+import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 
 import DayTimelinePanel from '../../explainers/lego/simulator/panels/DayTimelinePanel';
 import DrawOffStatusPanel from '../../explainers/lego/simulator/panels/DrawOffStatusPanel';
@@ -79,16 +82,40 @@ const SYSTEM_CHOICE_OPTIONS: { value: SimulatorSystemChoice; label: string }[] =
 interface HouseSimulatorPageProps {
   /** Navigate back to the app home / landing page. */
   onBack: () => void;
-  /** Initial system type when first mounted. Defaults to 'combi'. */
-  initialSystemChoice?: SimulatorSystemChoice;
+  /**
+   * Engine input used to pre-configure the simulator.  Accepts either a
+   * completed EngineInputV2_3 (e.g. from the Full Survey or Fast Choice) or
+   * a full FullSurveyModelV1 that includes extended survey diagnostics.
+   *
+   * When provided the simulator opens pre-populated with the surveyed system
+   * type and physics parameters (mains pressure/flow, heat loss, occupancy,
+   * cylinder type, system condition etc.) rather than generic defaults.
+   *
+   * This is the same hook as ExplainersHubPage/SimulatorDashboard — the same
+   * adaptFullSurveyToSimulatorInputs adapter is used, so both surfaces will
+   * always reflect identical initial values for the same survey.
+   */
+  surveyData?: EngineInputV2_3 | FullSurveyModelV1;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HouseSimulatorPage({
   onBack,
-  initialSystemChoice = 'combi',
+  surveyData,
 }: HouseSimulatorPageProps) {
+
+  // ── Survey adapter (mirrors ExplainersHubPage) ──────────────────────────────
+  // adaptFullSurveyToSimulatorInputs accepts FullSurveyModelV1; EngineInputV2_3
+  // satisfies it because FullSurveyModelV1 = EngineInputV2_3 & { optionalExtras? }.
+  // Missing extras are handled gracefully by the adapter's optional-chaining guards.
+  const surveyAdapted = useMemo(
+    () => (surveyData != null ? adaptFullSurveyToSimulatorInputs(surveyData as FullSurveyModelV1) : null),
+    [surveyData],
+  );
+
+  // True when the simulator was seeded from real survey data (not generic defaults).
+  const isSurveyBacked = surveyAdapted != null;
 
   // ── Panel visibility ────────────────────────────────────────────────────────
   const [leftOpen,        setLeftOpen]        = useState(false);
@@ -99,7 +126,13 @@ export default function HouseSimulatorPage({
   // ── Simulator inputs ────────────────────────────────────────────────────────
   const [timeSpeed,    setTimeSpeed]    = useState(1);
   const [scenarioKey,  setScenarioKey]  = useState<ScenarioKey>(DEFAULT_SCENARIO_KEY);
-  const [systemInputs, setSystemInputs] = useState<SystemInputs>({ ...DEFAULT_SYSTEM_INPUTS });
+
+  // Initial system inputs: merge survey-derived values over DEFAULT_SYSTEM_INPUTS.
+  // This mirrors exactly what SimulatorDashboard does with initialSystemInputs.
+  const [systemInputs, setSystemInputs] = useState<SystemInputs>(() => ({
+    ...DEFAULT_SYSTEM_INPUTS,
+    ...(surveyAdapted?.systemInputs ?? {}),
+  }));
 
   // ── Simulator core hooks (same hooks as the lab — no new physics) ────────────
   const {
@@ -113,7 +146,8 @@ export default function HouseSimulatorPage({
     setManualMode,
     simHour,
   } = useSystemDiagramPlayback(
-    initialSystemChoice,
+    // Use survey-derived system choice when available; fall back to 'combi'.
+    surveyAdapted?.systemChoice ?? 'combi',
     timeSpeed,
     systemInputs.occupancyProfile,
     systemInputs.demandPreset,
@@ -224,6 +258,11 @@ export default function HouseSimulatorPage({
           <p className="hs-subtitle">
             System response · live heating behaviour and on-demand hot water
           </p>
+          {isSurveyBacked && (
+            <span className="hs-survey-badge" aria-label="Simulator pre-populated from your survey">
+              📋 Using survey data
+            </span>
+          )}
         </div>
 
         <nav className="hs-header__actions" aria-label="Simulator panels">

@@ -1734,7 +1734,12 @@ function AppInner() {
 
   // ?house-simulator=1 — render the customer-facing House Simulator surface.
   if (HOUSE_SIMULATOR_MODE_ENABLED) {
-    return <HouseSimulatorPage onBack={() => { window.location.href = window.location.pathname; }} />;
+    return (
+      <HouseSimulatorPage
+        onBack={() => { window.location.href = window.location.pathname; }}
+        surveyData={labEngineInput}
+      />
+    );
   }
 
   // ?print=<view> — render dedicated print layout.
