@@ -25,6 +25,9 @@ export interface LibraryConceptCoverageV1 {
   /** educationalContentRegistry has an entry with a complete livingExperiencePattern object. */
   readonly hasLivingExperiencePattern: boolean;
 
+  /** educationalContentRegistry has an entry whose livingExperiencePattern includes both whatChanges and whatStaysFamiliar. */
+  readonly hasExpectationDelta: boolean;
+
   /** educationalContentRegistry has an entry whose customerExplanation includes "what you may notice" (case-insensitive). */
   readonly hasWhatYouMayNotice: boolean;
 
@@ -77,6 +80,7 @@ export interface LibraryCoverageMissingByTypeV1 {
   readonly missingLivedExperienceContent: readonly string[];
   readonly missingMisconceptionReality: readonly string[];
   readonly missingLivingExperiencePattern: readonly string[];
+  readonly missingExpectationDelta: readonly string[];
   readonly missingWhatYouMayNotice: readonly string[];
   readonly missingJourneyRouting: readonly string[];
 }

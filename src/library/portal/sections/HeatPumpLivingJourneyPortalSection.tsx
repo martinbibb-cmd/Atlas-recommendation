@@ -1,7 +1,10 @@
 import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegistry';
+import { buildExpectationDeltas, getContentByConceptId } from '../../content';
+import type { LivingExperiencePatternV1 } from '../../content/LivingExperiencePatternV1';
 import { DiagramRenderer } from '../../diagrams/DiagramRenderer';
 import {
   ComparisonTriptych,
+  ExpectationDeltaCard,
   PortalDiagramFrame,
   PortalHeroCard,
   PortalMisconceptionBlock,
@@ -38,6 +41,35 @@ const CON_G01_WHAT_NOT_TO_WORRY: string = _con_g01.whatNotToWorryAbout;
 
 const CON_I01_DAY_TO_DAY_CUSTOMER_WORDING: string = _con_i01DayToDay.customerWording;
 const CON_I01_DAY_TO_DAY_WHAT_NOT_TO_WORRY: string = _con_i01DayToDay.whatNotToWorryAbout;
+
+const BOILER_BURST_PATTERN: LivingExperiencePatternV1 = {
+  whatYouMayNotice: 'Radiators can feel very hot for shorter bursts.',
+  whatThisMeans: 'High-temperature boiler operation often works in short on-off cycles.',
+  whatStaysFamiliar: 'Your comfort target in each room remains the same.',
+  whatChanges: 'Heat is delivered in peaks rather than steady low-temperature periods.',
+  reassurance: 'This is a common boiler pattern and not automatically a fault.',
+  commonMisunderstanding: 'Very hot radiators are always needed for comfort.',
+  dailyLifeEffect: 'Rooms can swing more between heating peaks and off periods.',
+  analogyOptions: [{ title: 'Boiler burst pattern', explanation: 'Short hotter bursts can still heat the home.' }],
+  printSummary: 'Boiler comfort is often delivered through shorter hotter bursts.',
+};
+
+const hotRadiatorPattern = getContentByConceptId('hot_radiator_expectation')?.livingExperiencePattern;
+const flowPattern = getContentByConceptId('flow_temperature_living_with_it')?.livingExperiencePattern;
+const expectationDeltas = buildExpectationDeltas({
+  currentSystem: 'boiler_high_temperature',
+  recommendedSystem: 'heat_pump_low_temperature',
+  livingExperiencePatterns: {
+    radiators: {
+      current: BOILER_BURST_PATTERN,
+      future: hotRadiatorPattern,
+    },
+    controls: {
+      current: BOILER_BURST_PATTERN,
+      future: flowPattern,
+    },
+  },
+});
 
 export function HeatPumpLivingJourneyPortalSection() {
   return (
@@ -76,6 +108,18 @@ export function HeatPumpLivingJourneyPortalSection() {
           },
         ]}
       />
+
+      {expectationDeltas.length > 0 ? (
+        <div className="hplj-expectation-deltas" data-testid="hplj-expectation-deltas">
+          {expectationDeltas.map((delta, index) => (
+            <ExpectationDeltaCard
+              key={`${delta.category}-${index}`}
+              delta={delta}
+              heading={index === 0 ? 'Current → Future' : undefined}
+            />
+          ))}
+        </div>
+      ) : null}
 
       <PortalDiagramFrame
         caption="Warm radiators can still deliver full comfort when low-temperature operation is tuned correctly."

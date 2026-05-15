@@ -20,6 +20,8 @@ import {
 } from './journeyHelpers';
 import { buildEducationalSequence, educationalSequenceRules } from '../sequencing';
 import { WarmRadiatorEmitterSizingDiagram, WeatherCompensationCurveDiagram } from '../diagrams';
+import { buildExpectationDeltas } from '../content';
+import { ExpectationDeltaCard } from '../portal/ui/PortalPrimitives';
 
 const controlContent = getRequiredContent('CON-01');
 const safetyContent = getRequiredContent('HYD-02');
@@ -32,6 +34,40 @@ const outdoorUnitContent = getRequiredContent('outdoor_unit_winter_care');
 const radiatorClearanceContent = getRequiredContent('radiator_clearance_and_convection');
 
 const controlAnalogy = getPrimaryAnalogy(controlContent);
+const expectationDeltas = buildExpectationDeltas({
+  currentSystem: 'boiler_high_temperature',
+  recommendedSystem: 'heat_pump',
+  livingExperiencePatterns: {
+    radiators: {
+      current: {
+        whatYouMayNotice: 'Radiators can feel very hot for short bursts.',
+        whatThisMeans: 'Boilers often deliver comfort through higher-temperature cycles.',
+        whatStaysFamiliar: 'Room comfort targets remain familiar.',
+        whatChanges: 'Heat often arrives in shorter peaks.',
+        reassurance: 'This is common in higher-temperature boiler operation.',
+        commonMisunderstanding: 'Very hot radiators are always required for comfort.',
+        dailyLifeEffect: 'Rooms can cycle more between heating peaks and off periods.',
+        analogyOptions: [{ title: 'Boiler burst pattern', explanation: 'Short high-temperature bursts can still heat effectively.' }],
+        printSummary: 'Boiler comfort can be delivered in shorter hotter bursts.',
+      },
+      future: hotRadiatorContent.livingExperiencePattern,
+    },
+    controls: {
+      current: {
+        whatYouMayNotice: 'Manual control changes are often used to chase comfort quickly.',
+        whatThisMeans: 'High-temperature systems can feel responsive to frequent setpoint changes.',
+        whatStaysFamiliar: 'Comfort targets are still the goal.',
+        whatChanges: 'Frequent changes can become less helpful in low-temperature operation.',
+        reassurance: 'One measured adjustment works better than repeated small tweaks.',
+        commonMisunderstanding: 'Frequent manual changes always speed up comfort.',
+        dailyLifeEffect: 'Steadier settings usually give calmer daily comfort.',
+        analogyOptions: [{ title: 'Steady controls', explanation: 'Stable settings help low-temperature systems settle efficiently.' }],
+        printSummary: 'Steadier settings usually improve heat-pump comfort consistency.',
+      },
+      future: flowTempLivingContent.livingExperiencePattern,
+    },
+  },
+});
 
 export interface HeatPumpRealityJourneyProps {
   motionMode?: EducationalMotionMode;
@@ -84,6 +120,14 @@ export function HeatPumpRealityJourney({
         intro="Explain continuous running, weather compensation, and why frequent manual tweaking can reduce performance."
         headingLevel={3}
       >
+        {expectationDeltas.map((delta, index) => (
+          <ExpectationDeltaCard
+            key={`${delta.category}-${index}`}
+            delta={delta}
+            heading={index === 0 ? 'Current → Future' : undefined}
+            data-testid="heat-pump-expectation-delta"
+          />
+        ))}
         <WhatToExpectCard
           title={defrostContent.title}
           notice={extractNotice(defrostContent.customerExplanation)}

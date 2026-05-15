@@ -402,6 +402,58 @@
   color: var(--portal-text-primary) !important;
 }
 
+/* ─── ExpectationDeltaCard ────────────────────────────────────────────────── */
+
+.portal-expectation-delta-card {
+  display: grid;
+  gap: var(--space-3, 12px);
+  padding: var(--space-5, 20px);
+  background: var(--portal-surface);
+  border: 1px solid var(--portal-blue-border);
+  border-radius: var(--portal-card-radius);
+}
+
+.portal-expectation-delta-card__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--portal-blue-mid);
+}
+
+.portal-expectation-delta-card__heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--portal-text-primary);
+}
+
+.portal-expectation-delta-card__direction,
+.portal-expectation-delta-card__body,
+.portal-expectation-delta-card__risk {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--portal-text-body);
+}
+
+.portal-expectation-delta-card__grid {
+  display: grid;
+  gap: var(--space-3, 12px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+
+.portal-expectation-delta-card__label {
+  margin: 0 0 var(--space-1, 4px);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--portal-blue-mid);
+}
+
 /* ─── QRDeepDiveCard ─────────────────────────────────────────────────────── */
 
 .portal-qr-deepdive {

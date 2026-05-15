@@ -1,7 +1,10 @@
 import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegistry';
+import { buildExpectationDeltas, getContentByConceptId } from '../../content';
+import type { LivingExperiencePatternV1 } from '../../content/LivingExperiencePatternV1';
 import { OpenVentedToUnventedDiagram } from '../../diagrams/OpenVentedToUnventedDiagram';
 import {
   ComparisonTriptych,
+  ExpectationDeltaCard,
   PortalDiagramFrame,
   PortalHeroCard,
   PortalMisconceptionBlock,
@@ -25,6 +28,35 @@ const CON_A01_MISCONCEPTION: string = _con_a01.misconception;
 const CON_A01_REALITY: string = _con_a01.reality;
 const CON_A01_CUSTOMER_WORDING: string = _con_a01.customerWording;
 const CON_A01_QR_TITLE = 'Go deeper — sealed system and unvented cylinder walkthrough';
+
+const TANK_FED_CURRENT_PATTERN: LivingExperiencePatternV1 = {
+  whatYouMayNotice: 'Hot water pressure varies more between outlets in busy periods.',
+  whatThisMeans: 'Tank-fed hot water relies on tank head rather than direct mains-fed supply.',
+  whatStaysFamiliar: 'Daily routines can still feel familiar for single-outlet use.',
+  whatChanges: 'Overlap use can expose pressure and supply limits.',
+  reassurance: 'This is a known characteristic of tank-fed supply.',
+  commonMisunderstanding: 'Any pressure variation means the system has failed.',
+  dailyLifeEffect: 'Busy periods are where differences are usually felt most.',
+  analogyOptions: [{ title: 'Tank-fed supply', explanation: 'Delivery depends on tank height and available head.' }],
+  printSummary: 'Tank-fed supply can feel less consistent at peak overlap use.',
+};
+
+const premiumHotWaterPattern = getContentByConceptId('premium_hot_water_performance')?.livingExperiencePattern;
+const openVentedUpgradePattern = getContentByConceptId('open_vented_to_unvented_upgrade')?.livingExperiencePattern;
+const expectationDeltas = buildExpectationDeltas({
+  currentSystem: 'open_vented_tank_fed',
+  recommendedSystem: 'sealed_unvented_mains_fed',
+  livingExperiencePatterns: {
+    hot_water: {
+      current: TANK_FED_CURRENT_PATTERN,
+      future: premiumHotWaterPattern,
+    },
+    daily_routine: {
+      current: TANK_FED_CURRENT_PATTERN,
+      future: openVentedUpgradePattern ?? premiumHotWaterPattern,
+    },
+  },
+});
 
 export function OpenVentedToSealedPortalSection() {
   return (
@@ -77,6 +109,18 @@ export function OpenVentedToSealedPortalSection() {
           },
         ]}
       />
+
+      {expectationDeltas.length > 0 ? (
+        <div className="ovsp-expectation-deltas" data-testid="ovsp-expectation-deltas">
+          {expectationDeltas.map((delta, index) => (
+            <ExpectationDeltaCard
+              key={`${delta.category}-${index}`}
+              delta={delta}
+              heading={index === 0 ? 'Current → Future' : undefined}
+            />
+          ))}
+        </div>
+      ) : null}
 
       <ReassurancePanel
         eyebrow="What not to worry about"
