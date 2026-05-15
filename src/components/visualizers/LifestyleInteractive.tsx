@@ -148,6 +148,10 @@ const Z_INDEX_DRAWER = 40;
 const Z_INDEX_ALERTS_TOP_SHEET = 41;
 const Z_INDEX_TIMELINE_BOTTOM_SHEET = 42;
 const Z_INDEX_OUTLET_POPOVER = 43;
+const IPAD_MAX_VIEWPORT_HEIGHT_PX = 1024;
+const COLLAPSED_RAIL_WIDTH_PX = 48;
+const LEFT_RAIL_WIDTH_PX = 220;
+const RIGHT_RAIL_WIDTH_PX = 250;
 
 /** Default dynamic mains pressure (bar) used when no override is provided. */
 const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
@@ -187,6 +191,9 @@ interface NarrationToastItem {
 
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
+  const [activeDhwHours, setActiveDhwHours] = useState<number>(
+    () => defaultHours().filter((state) => state === 'dhw_demand').length,
+  );
   // waterSlots stays as a stable constant — the painter UI is replaced by the
   // weir gauge panel.  The value feeds anyWaterPainted / waterFlows for chart
   // pipes and is never mutated, so useMemo keeps the reference stable.
@@ -314,6 +321,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     setHours(prev => {
       const next = [...prev];
       next[h] = nextState(next[h]);
+      setActiveDhwHours(next.filter(state => state === 'dhw_demand').length);
       return next;
     });
   };
@@ -792,11 +800,9 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const selectedOutletTempDelta = selectedOutlet && activeOutlets[selectedOutlet] && selectedOutlet !== 'cold_tap'
     ? parseFloat((outletHotTempC - combiHotOutTempC).toFixed(1))
     : 0;
-
   return (
     <div style={{
-      height: 'min(100dvh, 1024px)',
-      maxHeight: '100dvh',
+      height: `min(100vh, ${IPAD_MAX_VIEWPORT_HEIGHT_PX}px)`,
       display: 'grid',
       gridTemplateRows: 'auto 1fr auto',
       gap: 10,
@@ -817,7 +823,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
         padding: '8px 10px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <strong style={{ color: '#1e3a5f', letterSpacing: '0.02em' }}>ATLAS</strong>
+          <strong style={{ color: '#1e3a5f', letterSpacing: '0.02em' }}>Atlas</strong>
           <span style={{ color: '#475569', fontSize: '0.82rem' }}>Simulator</span>
         </div>
         <div style={{ minWidth: 0 }}>
@@ -830,7 +836,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: `${leftRailCollapsed ? '48px' : '220px'} minmax(0, 1fr) ${rightRailCollapsed ? '48px' : '250px'}`,
+        gridTemplateColumns: `${leftRailCollapsed ? `${COLLAPSED_RAIL_WIDTH_PX}px` : `${LEFT_RAIL_WIDTH_PX}px`} minmax(0, 1fr) ${rightRailCollapsed ? `${COLLAPSED_RAIL_WIDTH_PX}px` : `${RIGHT_RAIL_WIDTH_PX}px`}`,
         gap: 10,
         minHeight: 0,
       }}>
@@ -846,6 +852,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           <button
             onClick={() => setLeftRailCollapsed(v => !v)}
             aria-expanded={!leftRailCollapsed}
+            aria-label={leftRailCollapsed ? 'Expand left status panel' : 'Collapse left status panel'}
+            aria-pressed={!leftRailCollapsed}
             style={{
               border: 'none',
               borderBottom: leftRailCollapsed ? 'none' : '1px solid #e2e8f0',
@@ -859,7 +867,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               textTransform: 'uppercase',
             }}
           >
-            {leftRailCollapsed ? '⟩' : 'Status ⟨'}
+            {leftRailCollapsed ? 'Show status' : 'Hide status'}
           </button>
           {!leftRailCollapsed && (
             <div style={{ padding: 10, display: 'grid', gap: 10, overflowY: 'auto' }}>
@@ -1031,6 +1039,8 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
           <button
             onClick={() => setRightRailCollapsed(v => !v)}
             aria-expanded={!rightRailCollapsed}
+            aria-label={rightRailCollapsed ? 'Expand right menus panel' : 'Collapse right menus panel'}
+            aria-pressed={!rightRailCollapsed}
             style={{
               border: 'none',
               borderBottom: rightRailCollapsed ? 'none' : '1px solid #e2e8f0',
@@ -1044,7 +1054,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
               textTransform: 'uppercase',
             }}
           >
-            {rightRailCollapsed ? '⟨' : 'Menus ⟩'}
+            {rightRailCollapsed ? 'Show menus' : 'Hide menus'}
           </button>
           {!rightRailCollapsed && (
             <div style={{ padding: 10, display: 'grid', gap: 10, overflowY: 'auto' }}>
@@ -1080,7 +1090,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <div style={{ fontSize: '0.78rem', color: '#475569' }}>
-            Timeline · {hours.filter(state => state === 'dhw_demand').length} hot-water active hour(s)
+            Timeline · {activeDhwHours} DHW active hour(s)
           </div>
           <button
             onClick={() => setTimelineSheetOpen(true)}
