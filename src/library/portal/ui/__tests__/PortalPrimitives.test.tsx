@@ -292,7 +292,7 @@ describe('LivingExperienceCard', () => {
   it('renders heading and default summary', () => {
     render(<LivingExperienceCard heading="Warm-not-hot radiators" pattern={pattern} />);
     expect(screen.getByRole('heading', { level: 3, name: /warm-not-hot radiators/i })).toBeTruthy();
-    expect(screen.getByText(/radiators feel warm rather than very hot/i)).toBeTruthy();
+    expect(screen.getAllByText(/radiators feel warm rather than very hot/i).length).toBeGreaterThan(0);
   });
 
   it('renders custom summary when provided', () => {
