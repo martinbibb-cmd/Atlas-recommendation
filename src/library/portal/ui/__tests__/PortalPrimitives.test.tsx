@@ -30,6 +30,7 @@ import {
   ComparisonTriptych,
   ReassurancePanel,
   WhatYouMayNoticePanel,
+  LivingExperienceCard,
   QRDeepDiveCard,
   SectionDivider,
   StickyBottomNav,
@@ -264,6 +265,51 @@ describe('WhatYouMayNoticePanel', () => {
   it('has data-testid="portal-what-you-may-notice"', () => {
     render(<WhatYouMayNoticePanel blocks={blocks} />);
     expect(screen.getByTestId('portal-what-you-may-notice')).toBeTruthy();
+  });
+});
+
+// ─── LivingExperienceCard ──────────────────────────────────────────────────────
+
+describe('LivingExperienceCard', () => {
+  const pattern = {
+    whatYouMayNotice: 'Radiators feel warm rather than very hot.',
+    whatThisMeans: 'Steady lower-temperature operation is expected.',
+    whatStaysFamiliar: 'Room comfort targets remain familiar.',
+    whatChanges: 'Run periods are usually longer.',
+    reassurance: 'This behaviour is normal for this setup.',
+    commonMisunderstanding: 'Warm radiators mean the system is failing.',
+    dailyLifeEffect: 'Comfort tends to feel steadier through the day.',
+    optionalTechnicalDetail: 'Lower flow temperatures can improve part-load efficiency.',
+    analogyOptions: [
+      {
+        title: 'Underfloor heating versus a log fire',
+        explanation: 'Both can heat a room, but the feel is different.',
+      },
+    ],
+    printSummary: 'Warm-not-hot radiators are an expected comfort pattern.',
+  } as const;
+
+  it('renders heading and default summary', () => {
+    render(<LivingExperienceCard heading="Warm-not-hot radiators" pattern={pattern} />);
+    expect(screen.getByRole('heading', { level: 3, name: /warm-not-hot radiators/i })).toBeTruthy();
+    expect(screen.getAllByText(/radiators feel warm rather than very hot/i).length).toBeGreaterThan(0);
+  });
+
+  it('renders custom summary when provided', () => {
+    render(<LivingExperienceCard heading="X" pattern={pattern} summary="Custom summary." />);
+    expect(screen.getByText('Custom summary.')).toBeTruthy();
+  });
+
+  it('renders expandable details content', () => {
+    render(<LivingExperienceCard heading="X" pattern={pattern} />);
+    expect(screen.getByText(/show more/i)).toBeTruthy();
+    expect(screen.getByText(/what this means:/i)).toBeTruthy();
+    expect(screen.getByText(/print summary:/i)).toBeTruthy();
+  });
+
+  it('has default data-testid', () => {
+    render(<LivingExperienceCard heading="X" pattern={pattern} />);
+    expect(screen.getByTestId('portal-living-experience-card')).toBeTruthy();
   });
 });
 

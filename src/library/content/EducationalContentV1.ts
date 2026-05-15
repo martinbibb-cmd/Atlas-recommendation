@@ -1,5 +1,6 @@
 import type { EducationalAnalogyFamily } from '../contracts/EducationalAnalogyV1';
 import type { EducationalConceptConfidenceLevelV1 } from '../taxonomy/EducationalConceptTaxonomyV1';
+import type { LivingExperiencePatternV1 } from './LivingExperiencePatternV1';
 
 export type EducationalContentReadingLevelV1 = 'simple' | 'standard' | 'technical';
 
@@ -30,4 +31,5 @@ export interface EducationalContentV1 {
   accessibilityNotes: string[];
   requiredEvidenceFacts: string[];
   confidenceLevel: EducationalConceptConfidenceLevelV1;
+  livingExperiencePattern?: LivingExperiencePatternV1;
 }

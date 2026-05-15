@@ -18,6 +18,7 @@
  */
 
 import type { ReactNode } from 'react';
+import type { LivingExperiencePatternV1 } from '../../content/LivingExperiencePatternV1';
 import './portalPrimitives.css';
 
 // ─── PortalShell ─────────────────────────────────────────────────────────────
@@ -220,6 +221,59 @@ export function WhatYouMayNoticePanel({ blocks }: WhatYouMayNoticePanelProps) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ─── LivingExperienceCard ───────────────────────────────────────────────────────
+
+export interface LivingExperienceCardProps {
+  heading: string;
+  pattern: LivingExperiencePatternV1;
+  summary?: string;
+  'data-testid'?: string;
+}
+
+export function LivingExperienceCard({
+  heading,
+  pattern,
+  summary,
+  'data-testid': testId,
+}: LivingExperienceCardProps) {
+  return (
+    <article
+      className="portal-living-experience-card"
+      aria-label={heading}
+      data-testid={testId ?? 'portal-living-experience-card'}
+    >
+      <h3 className="portal-living-experience-card__heading">{heading}</h3>
+      <p className="portal-living-experience-card__summary">{summary ?? pattern.whatYouMayNotice}</p>
+
+      <details className="portal-living-experience-card__details">
+        <summary className="portal-living-experience-card__toggle">Show more</summary>
+        <div className="portal-living-experience-card__body">
+          <p><strong>What you may notice:</strong> {pattern.whatYouMayNotice}</p>
+          <p><strong>What this means:</strong> {pattern.whatThisMeans}</p>
+          {pattern.whatStaysFamiliar ? <p><strong>What stays familiar:</strong> {pattern.whatStaysFamiliar}</p> : null}
+          {pattern.whatChanges ? <p><strong>What changes:</strong> {pattern.whatChanges}</p> : null}
+          {pattern.reassurance ? <p><strong>Reassurance:</strong> {pattern.reassurance}</p> : null}
+          {pattern.commonMisunderstanding ? <p><strong>Common misunderstanding:</strong> {pattern.commonMisunderstanding}</p> : null}
+          {pattern.dailyLifeEffect ? <p><strong>Daily-life effect:</strong> {pattern.dailyLifeEffect}</p> : null}
+          {pattern.optionalTechnicalDetail ? <p><strong>Optional technical detail:</strong> {pattern.optionalTechnicalDetail}</p> : null}
+          {pattern.analogyOptions.length > 0 ? (
+            <ul className="portal-living-experience-card__analogy-list">
+              {pattern.analogyOptions.map((option) => (
+                <li key={option.title}>
+                  <strong>{option.title}:</strong> {option.explanation}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="portal-living-experience-card__print-summary">
+            <strong>Print summary:</strong> {pattern.printSummary}
+          </p>
+        </div>
+      </details>
+    </article>
   );
 }
 
