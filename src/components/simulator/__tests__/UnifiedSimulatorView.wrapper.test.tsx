@@ -186,7 +186,7 @@ beforeEach(() => {
   });
 
   mockBuildResimulationFromSurvey.mockReturnValue({
-    recommendedSystemLabel: 'Air source heat pump with stored hot water',
+    recommendedSystemLabel: 'Heat pump with stored hot water',
     fitSummary: 'Current values are passed straight into the simulator.',
     upgradePackage: { systemType: 'heat_pump', upgrades: [] },
     resimulation: {
@@ -417,6 +417,7 @@ describe('UnifiedSimulatorView wrapper', () => {
     render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={survey} />);
 
     const deltaCard = screen.getByTestId('simulator-expectation-delta-stored_hot_water');
+    expect(screen.queryByTestId('simulator-expectation-delta-water_constraint')).toBeNull();
     expect(deltaCard.textContent).toContain('Current experience');
     expect(deltaCard.textContent).toContain('Future experience');
     expect(deltaCard.textContent).toContain('What changes');
@@ -438,6 +439,8 @@ describe('UnifiedSimulatorView wrapper', () => {
   });
 
   it('switches stored hot-water fixtures into the water-constraint delta when pipework is constrained', () => {
+    const survey = makeSurvey();
+    survey.dynamicMainsPressure = 1.4;
     mockBuildCompareSeedFromSurvey.mockReturnValue({
       left: {
         systemChoice: 'combi',
@@ -526,7 +529,7 @@ describe('UnifiedSimulatorView wrapper', () => {
       },
     });
 
-    render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={makeSurvey()} />);
+    render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={survey} />);
 
     const deltaCard = screen.getByTestId('simulator-expectation-delta-water_constraint');
     expect(deltaCard.textContent).toContain('Hot water pressure and flow');
