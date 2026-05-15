@@ -99,6 +99,11 @@ export interface VisitHomeDashboardProps {
   onOpenHandoffReview?: () => void;
   /** Open the pre-install engineer route (journey = 'engineer'). */
   onOpenEngineerRoute?: () => void;
+  /**
+   * Trigger a local export-package download for the active visit.
+   * When absent the Export package card is still shown but its CTA is disabled.
+   */
+  onExportPackage?: () => void;
   /** Navigate back (typically to workspace-dashboard). */
   onBack: () => void;
 }
@@ -238,7 +243,8 @@ export function VisitHomeDashboard({
   onOpenInstallationSpecification,
   onOpenInsightPack,
   onOpenHandoffReview,
-  onOpenEngineerRoute,
+  // onOpenEngineerRoute is accepted for future use but not currently wired to a card
+  onExportPackage,
   onBack,
 }: VisitHomeDashboardProps) {
   // ── Derive card statuses from available data ───────────────────────────────
@@ -452,7 +458,7 @@ export function VisitHomeDashboard({
           audience={['office']}
           source="workflow"
           ctaLabel="Export package →"
-          onCta={onOpenEngineerRoute}
+          onCta={onExportPackage}
         />
 
       </div>

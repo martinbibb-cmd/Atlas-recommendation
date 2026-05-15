@@ -1952,6 +1952,27 @@ function AppInner() {
                 setLastOpenedFromHome({ label: 'Engineer Route', journey: 'engineer' });
                 setJourney('engineer');
               } : undefined}
+              onExportPackage={(activeVisitId != null && labEngineInput != null) ? () => {
+                const visitRef = activeVisitId.slice(-8).toUpperCase();
+                const exportedAt = new Date().toISOString();
+                const filename = `atlas-visit-pack-${visitRef}-${exportedAt.slice(0, 10)}.json`;
+                const pack = {
+                  visitId: activeVisitId,
+                  visitReference: visitRef,
+                  exportedAt,
+                  engineInput: labEngineInput,
+                  surveyModel: labFullSurveyModel,
+                };
+                const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              } : undefined}
               onBack={() => setJourney('workspace-dashboard')}
             />
           );

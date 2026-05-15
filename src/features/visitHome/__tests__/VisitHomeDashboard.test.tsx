@@ -270,4 +270,48 @@ describe('VisitHomeDashboard', () => {
     fireEvent.click(screen.getByTestId('visit-home-back'));
     expect(onBack).toHaveBeenCalledOnce();
   });
+
+  describe('export card CTA — routes to onExportPackage, not engineer route', () => {
+    it('export CTA calls onExportPackage when provided', () => {
+      const onExportPackage = vi.fn();
+      render(<VisitHomeDashboard {...makeProps({ onExportPackage })} />);
+
+      const cta = screen.getByTestId('card-export-cta');
+      expect(cta).not.toBeDisabled();
+      fireEvent.click(cta);
+      expect(onExportPackage).toHaveBeenCalledOnce();
+    });
+
+    it('export CTA does not call onOpenEngineerRoute when export is triggered', () => {
+      const onExportPackage = vi.fn();
+      const onOpenEngineerRoute = vi.fn();
+      render(<VisitHomeDashboard {...makeProps({ onExportPackage, onOpenEngineerRoute })} />);
+
+      fireEvent.click(screen.getByTestId('card-export-cta'));
+      expect(onExportPackage).toHaveBeenCalledOnce();
+      expect(onOpenEngineerRoute).not.toHaveBeenCalled();
+    });
+
+    it('export CTA is disabled when onExportPackage is not provided', () => {
+      render(<VisitHomeDashboard {...makeProps({ onExportPackage: undefined })} />);
+
+      const cta = screen.getByTestId('card-export-cta');
+      expect(cta).toBeDisabled();
+    });
+
+    it('export card is blocked when no visit or engine data', () => {
+      render(
+        <VisitHomeDashboard
+          {...makeProps({
+            visitId: undefined,
+            engineInput: undefined,
+            engineOutput: undefined,
+            onExportPackage: undefined,
+          })}
+        />,
+      );
+      const card = screen.getByTestId('card-export');
+      expect(card).toHaveAttribute('data-status', 'blocked');
+    });
+  });
 });
