@@ -135,6 +135,20 @@ const OUTLET_LABELS: Record<OutletKey, string> = {
   cold_tap: 'Cold tap',
 };
 
+const NARRATION_MESSAGES = {
+  showerPriority: 'Shower running · Heating paused to prioritise hot water',
+  sharedDemand: 'Shared demand reduces flow delivery',
+  cylinderSupplyingTwo: 'Cylinder supplying two outlets · stored volume falling',
+  ashpRecovering: 'Heat pump recovering gradually · flow temperature rising slowly',
+  mainsLimiting: 'Incoming mains flow is now limiting simultaneous demand',
+} as const;
+
+const LIVE_METRIC_FLASH_THRESHOLD = 0.2;
+const Z_INDEX_DRAWER = 40;
+const Z_INDEX_ALERTS_TOP_SHEET = 41;
+const Z_INDEX_TIMELINE_BOTTOM_SHEET = 42;
+const Z_INDEX_OUTLET_POPOVER = 43;
+
 /** Default dynamic mains pressure (bar) used when no override is provided. */
 const DEFAULT_MAINS_PRESSURE_BAR = 2.5;
 
@@ -166,6 +180,11 @@ interface Props {
   baseInput?: Partial<EngineInputV2_3>;
 }
 
+interface NarrationToastItem {
+  id: number;
+  message: string;
+}
+
 export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [hours, setHours] = useState<HourState[]>(defaultHours);
   // waterSlots stays as a stable constant — the painter UI is replaced by the
@@ -187,8 +206,11 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   });
 
   const toggleOutlet = (key: OutletKey) => {
-    setSelectedOutlet(key);
-    setActiveOutlets(prev => ({ ...prev, [key]: !prev[key] }));
+    setActiveOutlets(prev => {
+      const isNowActive = !prev[key];
+      setSelectedOutlet(isNowActive ? key : null);
+      return { ...prev, [key]: isNowActive };
+    });
   };
 
   // ── Compare mode ───────────────────────────────────────────────────────────
@@ -202,7 +224,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
   const [timelineSheetOpen, setTimelineSheetOpen] = useState(false);
   const [alertsSheetOpen, setAlertsSheetOpen] = useState(false);
   const [selectedOutlet, setSelectedOutlet] = useState<OutletKey | null>(null);
-  const [narrationToasts, setNarrationToasts] = useState<string[]>([]);
+  const [narrationToasts, setNarrationToasts] = useState<NarrationToastItem[]>([]);
 
   // ── DHW concurrency presets — drive all flow & kW calculations ─────────────
   const [season, setSeason]       = useState<SeasonPreset>('typical');
@@ -484,6 +506,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     .filter(key => activeOutlets[key as OutletKey])
     .length;
   const combiFlowShareFactor = totalHotDrawLpm > 0 ? Math.min(1, heatLimitLpm / totalHotDrawLpm) : 1;
+  const flowMultiplier = selectedSystem === 'combi' ? combiFlowShareFactor : 1;
   const outletRequestedFlowLpm: Record<OutletKey, number> = {
     shower: showerFlowLpm,
     sink: SINK_FLOW_LPM,
@@ -491,9 +514,9 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     cold_tap: COLD_TAP_LPM,
   };
   const outletDeliveredFlowLpm: Record<OutletKey, number> = {
-    shower: activeOutlets.shower ? parseFloat((showerFlowLpm * (selectedSystem === 'combi' ? combiFlowShareFactor : 1)).toFixed(1)) : 0,
-    sink: activeOutlets.sink ? parseFloat((SINK_FLOW_LPM * (selectedSystem === 'combi' ? combiFlowShareFactor : 1)).toFixed(1)) : 0,
-    bath: activeOutlets.bath ? parseFloat((BATH_FLOW_LPM * (selectedSystem === 'combi' ? combiFlowShareFactor : 1)).toFixed(1)) : 0,
+    shower: activeOutlets.shower ? parseFloat((showerFlowLpm * flowMultiplier).toFixed(1)) : 0,
+    sink: activeOutlets.sink ? parseFloat((SINK_FLOW_LPM * flowMultiplier).toFixed(1)) : 0,
+    bath: activeOutlets.bath ? parseFloat((BATH_FLOW_LPM * flowMultiplier).toFixed(1)) : 0,
     cold_tap: activeOutlets.cold_tap ? COLD_TAP_LPM : 0,
   };
   const outletHotTempC = selectedSystem === 'combi'
@@ -517,6 +540,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
 
   const previousActiveOutletsRef = useRef(activeOutlets);
   const narrationInitialisedRef = useRef(false);
+  const narrationToastIdRef = useRef(0);
 
   useEffect(() => {
     if (!narrationInitialisedRef.current) {
@@ -533,21 +557,19 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
       return;
     }
 
-    let message = `${OUTLET_LABELS[newlyActive]} opened`;
-    if (newlyActive === 'shower' && selectedSystem === 'combi') {
-      message = 'Shower running · Heating paused to prioritise hot water';
-    } else if (selectedSystem === 'combi' && activeHotOutletCount >= 2) {
-      message = `${OUTLET_LABELS[newlyActive]} opened · shared demand reduces flow delivery`;
-    } else if (selectedSystem !== 'combi' && activeHotOutletCount >= 2) {
-      message = 'Cylinder supplying two outlets · stored volume falling';
-    } else if (selectedSystem === 'ashp' && activeHotOutletCount > 0) {
-      message = 'Heat pump recovering gradually · flow temperature rising slowly';
-    }
-    if (totalActiveDrawLpm > maxMainsLpm) {
-      message = 'Incoming mains flow is now limiting simultaneous demand';
-    }
+    const narrationMessage = (() => {
+      if (totalActiveDrawLpm > maxMainsLpm) return NARRATION_MESSAGES.mainsLimiting;
+      if (newlyActive === 'shower' && selectedSystem === 'combi') return NARRATION_MESSAGES.showerPriority;
+      if (selectedSystem === 'combi' && activeHotOutletCount >= 2) {
+        return `${OUTLET_LABELS[newlyActive]} opened · ${NARRATION_MESSAGES.sharedDemand}`;
+      }
+      if (selectedSystem !== 'combi' && activeHotOutletCount >= 2) return NARRATION_MESSAGES.cylinderSupplyingTwo;
+      if (selectedSystem === 'ashp' && activeHotOutletCount > 0) return NARRATION_MESSAGES.ashpRecovering;
+      return `${OUTLET_LABELS[newlyActive]} opened`;
+    })();
 
-    setNarrationToasts(prev => [message, ...prev].slice(0, 3));
+    narrationToastIdRef.current += 1;
+    setNarrationToasts(prev => [{ id: narrationToastIdRef.current, message: narrationMessage }, ...prev].slice(0, 3));
     previousActiveOutletsRef.current = activeOutlets;
   }, [activeHotOutletCount, activeOutlets, maxMainsLpm, selectedSystem, totalActiveDrawLpm]);
 
@@ -753,11 +775,14 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
     : selectedSystem === 'ashp'
       ? 'idle'
       : 'heating active';
-  const roofEfficiencyLabel = selectedSystem === 'ashp'
+  const heatSourceEfficiencyLabel = selectedSystem === 'ashp'
     ? `COP ${hydraulicV1.effectiveCOP.toFixed(2)}`
     : combiEfficiencyCollapsed
       ? 'Condensing limited'
       : `SPF ${specEdge.spfMidpoint.toFixed(2)}`;
+  const heatSourceOutputLabel = selectedSystem === 'ashp'
+    ? `${hydraulicV1.effectiveCOP.toFixed(2)} COP`
+    : `${totalDhwDrawKw.toFixed(1)} kW`;
   const sharedDemandActive = selectedSystem === 'combi' && activeHotOutletCount >= 2 && combiFlowShareFactor < 1;
   const selectedOutletFlowDelta = selectedOutlet && activeOutlets[selectedOutlet]
     ? parseFloat((outletDeliveredFlowLpm[selectedOutlet] - outletRequestedFlowLpm[selectedOutlet]).toFixed(1))
@@ -795,15 +820,13 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
             <div style={{ height: 5, borderRadius: 999, background: '#1f2937', overflow: 'hidden' }}>
               <div style={{ width: `${Math.min(100, systemLoadPct)}%`, height: '100%', background: '#f97316' }} />
             </div>
-            <div style={{ color: '#cbd5e1', fontSize: '0.62rem', marginTop: 4 }}>
-              Output {selectedSystem === 'ashp' ? `${hydraulicV1.effectiveCOP.toFixed(2)} COP` : `${totalDhwDrawKw.toFixed(1)} kW`}
-            </div>
+            <div style={{ color: '#cbd5e1', fontSize: '0.62rem', marginTop: 4 }}>Output {heatSourceOutputLabel}</div>
           </div>
         </div>
 
         <div style={{ position: 'absolute', top: 12, right: 14, textAlign: 'right' }}>
           <div style={{ color: '#e2e8f0', fontSize: '0.72rem' }}>Efficiency summary</div>
-          <div style={{ color: '#fff', fontWeight: 700 }}>{roofEfficiencyLabel}</div>
+          <div style={{ color: '#fff', fontWeight: 700 }}>{heatSourceEfficiencyLabel}</div>
           <div style={{ color: '#86efac', fontSize: '0.72rem' }}>Return {engineInput.returnWaterTemp}°C · Flow {specEdge.designFlowTempC}°C</div>
           <div style={{ marginTop: 4, display: 'inline-flex', gap: 6 }}>
             <span style={{ padding: '2px 8px', borderRadius: 999, border: '1px solid #16a34a', color: '#bbf7d0', fontSize: '0.66rem' }}>
@@ -1248,12 +1271,20 @@ function LiveMetricChip({
   const previousValueRef = useRef(value);
 
   useEffect(() => {
-    if (previousValueRef.current !== value) {
+    const previous = previousValueRef.current;
+    const next = value;
+    const bothNumeric = typeof previous === 'number' && typeof next === 'number';
+    const shouldFlash = bothNumeric
+      ? Math.abs(next - previous) >= LIVE_METRIC_FLASH_THRESHOLD
+      : previous !== next;
+
+    if (shouldFlash) {
       previousValueRef.current = value;
       setFlash(true);
       const timeout = window.setTimeout(() => setFlash(false), 300);
       return () => window.clearTimeout(timeout);
     }
+    previousValueRef.current = value;
     return undefined;
   }, [value]);
 
@@ -1292,7 +1323,7 @@ function LiveMetricChip({
   );
 }
 
-function SystemNarrationToast({ messages }: { messages: string[] }) {
+function SystemNarrationToast({ messages }: { messages: NarrationToastItem[] }) {
   if (messages.length === 0) {
     return (
       <div style={{ borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#64748b', padding: '8px 10px', fontSize: '0.75rem' }}>
@@ -1302,9 +1333,9 @@ function SystemNarrationToast({ messages }: { messages: string[] }) {
   }
   return (
     <div style={{ display: 'grid', gap: 6 }}>
-      {messages.map((message, index) => (
-        <div key={`${message}-${index}`} style={{ borderRadius: 10, border: '1px solid #bae6fd', background: index === 0 ? '#e0f2fe' : '#f0f9ff', color: '#0c4a6e', padding: '8px 10px', fontSize: '0.76rem' }}>
-          {message}
+      {messages.map((item, index) => (
+        <div key={item.id} style={{ borderRadius: 10, border: '1px solid #bae6fd', background: index === 0 ? '#e0f2fe' : '#f0f9ff', color: '#0c4a6e', padding: '8px 10px', fontSize: '0.76rem' }}>
+          {item.message}
         </div>
       ))}
     </div>
@@ -1326,8 +1357,19 @@ function DrawerFrame({
 }) {
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 40, pointerEvents: 'none' }}>
-      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a66', pointerEvents: 'auto' }} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_DRAWER, pointerEvents: 'none' }}>
+      <button
+        aria-label={`Close ${title}`}
+        onClick={onClose}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        tabIndex={0}
+        style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a88', pointerEvents: 'auto', cursor: 'pointer' }}
+      />
       <aside style={{ position: 'absolute', top: 0, bottom: 0, ...(side === 'left' ? { left: 0 } : { right: 0 }), width: 'min(520px, 90vw)', background: '#ffffff', borderLeft: side === 'right' ? '1px solid #e2e8f0' : undefined, borderRight: side === 'left' ? '1px solid #e2e8f0' : undefined, boxShadow: '0 0 24px rgba(15,23,42,0.2)', padding: 14, overflowY: 'auto', pointerEvents: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <strong>{title}</strong>
@@ -1352,8 +1394,19 @@ function BottomSheetFrame({
 }) {
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 42, pointerEvents: 'none' }}>
-      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a66', pointerEvents: 'auto' }} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_TIMELINE_BOTTOM_SHEET, pointerEvents: 'none' }}>
+      <button
+        aria-label={`Close ${title}`}
+        onClick={onClose}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        tabIndex={0}
+        style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a88', pointerEvents: 'auto', cursor: 'pointer' }}
+      />
       <section style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '72vh', background: '#ffffff', borderTop: '1px solid #e2e8f0', boxShadow: '0 -8px 20px rgba(15,23,42,0.18)', borderTopLeftRadius: 14, borderTopRightRadius: 14, padding: 14, overflowY: 'auto', pointerEvents: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <strong>{title}</strong>
@@ -1378,8 +1431,19 @@ function TopSheetFrame({
 }) {
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 41, pointerEvents: 'none' }}>
-      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a66', pointerEvents: 'auto' }} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_ALERTS_TOP_SHEET, pointerEvents: 'none' }}>
+      <button
+        aria-label={`Close ${title}`}
+        onClick={onClose}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        tabIndex={0}
+        style={{ position: 'absolute', inset: 0, border: 'none', background: '#0f172a88', pointerEvents: 'auto', cursor: 'pointer' }}
+      />
       <section style={{ position: 'absolute', left: 0, right: 0, top: 0, maxHeight: '55vh', background: '#ffffff', borderBottom: '1px solid #e2e8f0', boxShadow: '0 8px 20px rgba(15,23,42,0.18)', padding: 14, overflowY: 'auto', pointerEvents: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <strong>{title}</strong>
@@ -1404,8 +1468,19 @@ function PopoverFrame({
 }) {
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 43, pointerEvents: 'none' }}>
-      <button aria-label={`Close ${title}`} onClick={onClose} style={{ position: 'absolute', inset: 0, border: 'none', background: 'transparent', pointerEvents: 'auto' }} />
+    <div style={{ position: 'fixed', inset: 0, zIndex: Z_INDEX_OUTLET_POPOVER, pointerEvents: 'none' }}>
+      <button
+        aria-label={`Close ${title}`}
+        onClick={onClose}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Escape') {
+            event.preventDefault();
+            onClose();
+          }
+        }}
+        tabIndex={0}
+        style={{ position: 'absolute', inset: 0, border: 'none', background: 'transparent', pointerEvents: 'auto' }}
+      />
       <section style={{ position: 'absolute', right: 24, top: 120, width: 'min(320px, 90vw)', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, boxShadow: '0 12px 28px rgba(15,23,42,0.22)', padding: 12, pointerEvents: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <strong style={{ fontSize: '0.86rem' }}>{title}</strong>
