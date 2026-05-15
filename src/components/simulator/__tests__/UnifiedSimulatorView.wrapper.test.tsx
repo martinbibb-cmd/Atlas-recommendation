@@ -422,6 +422,7 @@ describe('UnifiedSimulatorView wrapper', () => {
     expect(deltaCard.textContent).toContain('What changes');
     expect(deltaCard.textContent).toContain('What stays familiar');
     expect(deltaCard.textContent).toContain('Reassurance');
+    expect(deltaCard.textContent).toContain('Hot water and recovery');
     expect(deltaCard.textContent).toContain('Hot water can drop in strength when a second outlet opens.');
     expect(deltaCard.textContent).toContain('Showers and taps feel stronger and more consistent during overlap use.');
   });
@@ -440,7 +441,7 @@ describe('UnifiedSimulatorView wrapper', () => {
     render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={makeSurvey()} />);
 
     const deltaCard = screen.getByTestId('simulator-expectation-delta-heat_pump');
-    expect(deltaCard.textContent).not.toMatch(/g3|commissioning|heat-exchanger/i);
+    expect(deltaCard.textContent).not.toMatch(/g3|commissioning|heat[- ]exchanger/i);
     expect(screen.queryByTestId('simulator-assumptions')).toBeNull();
     expect(screen.queryByTestId('simulator-raw-values')).toBeNull();
   });

@@ -17,7 +17,7 @@ export interface SimulatorExpectationDelta {
 }
 
 const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
-const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
+const MIN_DYNAMIC_MAINS_FLOW_LPM = 10;
 const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
 
 const BOILER_BURST_PATTERN: LivingExperiencePatternV1 = {
@@ -60,7 +60,7 @@ function isStoredHotWaterChoice(systemChoice: SimulatorExpectationTarget): boole
 
 function isWaterConstraintJourney(surveyData: FullSurveyModelV1): boolean {
   return (surveyData.dynamicMainsPressure ?? Number.POSITIVE_INFINITY) < MIN_DYNAMIC_MAINS_PRESSURE_BAR
-    || (surveyData.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_MAINS_DYNAMIC_FLOW_LPM
+    || (surveyData.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_DYNAMIC_MAINS_FLOW_LPM
     || (surveyData.primaryPipeDiameter ?? Number.POSITIVE_INFINITY) <= MIN_PRIMARY_PIPE_DIAMETER_MM;
 }
 
