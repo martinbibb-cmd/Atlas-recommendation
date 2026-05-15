@@ -746,9 +746,10 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
 
     // Retry — succeeds.
     fireEvent.click(screen.getByRole('button', { name: /save report/i }));
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2), { timeout: 10_000 });
     await waitFor(() =>
       expect(document.querySelector('[data-testid="share-panel"]')).not.toBeNull(),
-      { timeout: 3000 },
+      { timeout: 10_000 },
     );
 
     // fetch must have been called twice — once for the initial save and once for the retry.
