@@ -1,8 +1,8 @@
 /**
- * SimulatorDashboard — 4-panel simulator layout with optional compare mode.
+ * SimulatorDashboard — house-first simulator layout with optional compare mode.
  *
  * Single mode (default):
- *  - 2×2 panel grid: System Diagram, House View, Draw-Off Behaviour, Efficiency
+ *  - 2×2 panel grid: House View, System Diagram, Draw-Off Behaviour, Efficiency
  *  - Limiters row below the grid
  *  - System Inputs row below limiters
  *
@@ -10,6 +10,7 @@
  *  - ComparisonSummaryStrip at top showing key before/after physics
  *  - Two columns side by side: Current System | Proposed System
  *  - Each column runs independent hooks via the same simulator architecture
+ *  - Each column starts with the house state before the lower-level system views
  *  - Left column seeded from the surveyed current system
  *  - Right column seeded from the engine's recommended proposed system
  *
@@ -714,6 +715,9 @@ export default function SimulatorDashboard({
             />
 
             <div className="sim-compare-panels">
+              <SimulatorPanel title="House View" icon="🏠" onExpand={() => openCompare('left', 'House View', '🏠', <HouseStatusPanel state={houseState} isExpanded />)}>
+                <HouseStatusPanel state={houseState} />
+              </SimulatorPanel>
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('left', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />)}>
                 <SystemDiagramPanel state={diagramState} highlightedComponents={highlightedComponents} boilerOutputKw={boilerOutputKwForDiagram} />
               </SimulatorPanel>
@@ -804,6 +808,9 @@ export default function SimulatorDashboard({
             />
 
             <div className="sim-compare-panels">
+              <SimulatorPanel title="House View" icon="🏠" onExpand={() => openCompare('right', 'House View', '🏠', <HouseStatusPanel state={houseStateImproved} isExpanded />)}>
+                <HouseStatusPanel state={houseStateImproved} />
+              </SimulatorPanel>
               <SimulatorPanel title="System Diagram" icon="⚙" onExpand={() => openCompare('right', 'System Diagram', '⚙', <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />)}>
                 <SystemDiagramPanel state={diagramStateImproved} highlightedComponents={highlightedComponentsImproved} boilerOutputKw={boilerOutputKwForDiagramImproved} />
               </SimulatorPanel>

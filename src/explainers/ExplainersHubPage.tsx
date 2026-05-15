@@ -122,6 +122,8 @@ const SYSTEM_CHOICE_LABEL: Record<SimulatorSystemChoice, string> = {
   mixergy:     'Mixergy cylinder',
 };
 
+const SIMULATOR_SUBTITLE = 'Live home comfort, hot water, and system response';
+
 export default function ExplainersHubPage({ onBack, onEditSetup, surveyData, onOpenSystemLab, onOpenPresentation, floorplanOutput }: Props) {
   const [config, setConfig] = useState<StepperConfig | null>(null);
   // When launched from a survey, hide the stepper by default.
@@ -258,7 +260,7 @@ export default function ExplainersHubPage({ onBack, onEditSetup, surveyData, onO
           )}
           <div>
             <h1 className="hub-page__title">Simulator</h1>
-            <p className="hub-page__subtitle">Live taps, heating, and full system diagram</p>
+            <p className="hub-page__subtitle">{SIMULATOR_SUBTITLE}</p>
           </div>
         </div>
 
@@ -303,7 +305,7 @@ export default function ExplainersHubPage({ onBack, onEditSetup, surveyData, onO
         )}
         <div>
           <h1 className="hub-page__title">Simulator</h1>
-          <p className="hub-page__subtitle">Live taps, heating, and full system diagram</p>
+          <p className="hub-page__subtitle">{SIMULATOR_SUBTITLE}</p>
         </div>
       </div>
 
