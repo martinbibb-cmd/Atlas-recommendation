@@ -345,7 +345,7 @@ export default function HouseFirstSimulatorDashboard({
                   aria-label={[
                     outlet.label,
                     `${outlet.flowLpm.toFixed(1)} L/min`,
-                    outlet.deliveredTempC != null ? `${Math.round(outlet.deliveredTempC)}°C` : null,
+                    outlet.deliveredTempC !== undefined ? `${Math.round(outlet.deliveredTempC)}°C` : null,
                   ].filter(Boolean).join(', ')}
                 >
                   <span className="lab-drawoff-chip__icon" aria-hidden="true">
@@ -355,7 +355,7 @@ export default function HouseFirstSimulatorDashboard({
                   <span className="lab-drawoff-chip__metric">
                     {outlet.flowLpm.toFixed(1)} L/min
                   </span>
-                  {outlet.deliveredTempC != null && (
+                  {outlet.deliveredTempC !== undefined && (
                     <span className="lab-drawoff-chip__metric">
                       {Math.round(outlet.deliveredTempC)}°C
                     </span>
