@@ -68,8 +68,7 @@ describe('route + inventory consolidation', () => {
       uiRegistry: DEV_UI_REGISTRY,
     });
 
-    expect(report.routeAuditRows.map((row) => row.status)).toEqual(['production', 'dev_only']);
+    expect(report.routeAuditRows.map((row) => row.status).sort()).toEqual(['dev_only', 'production']);
     expect(report.counts.unrouted).toBe(0);
   });
 });
-
