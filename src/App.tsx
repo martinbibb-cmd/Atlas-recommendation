@@ -9,6 +9,7 @@ import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
 import LabShell from './components/lab/LabShell';
+import HouseSimulatorPage from './features/houseSimulator/HouseSimulatorPage';
 import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
@@ -191,6 +192,14 @@ const DEV_MENU_ENABLED =
 const LAB_MODE_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('lab') === '1';
+
+/**
+ * Detect ?house-simulator=1 — renders the new customer-facing House Simulator
+ * surface directly.  The existing lab/workbench at /?lab=1 is unchanged.
+ */
+const HOUSE_SIMULATOR_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('house-simulator') === '1';
 
 /**
  * Detect ?print=<view> — renders a dedicated print layout directly.
@@ -1721,6 +1730,16 @@ function AppInner() {
   // ?lab=1 feature flag — render Demo Lab directly.
   if (LAB_MODE_ENABLED) {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
+  }
+
+  // ?house-simulator=1 — render the customer-facing House Simulator surface.
+  if (HOUSE_SIMULATOR_MODE_ENABLED) {
+    return (
+      <HouseSimulatorPage
+        onBack={() => { window.location.href = window.location.pathname; }}
+        surveyData={labEngineInput}
+      />
+    );
   }
 
   // ?print=<view> — render dedicated print layout.
