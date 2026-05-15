@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import WhatIfLab from '../explainers/WhatIfLab';
 import ExplainerPanel from '../../explainers/educational/ExplainerPanel';
 import LabHomeLink from './LabHomeLink';
@@ -9,6 +9,7 @@ import ConfidenceScoreBar from './ConfidenceScoreBar';
 import PerformanceEnablersPanel from '../performance/PerformanceEnablersPanel';
 import CondensingRuntimePanel from '../summary/CondensingRuntimePanel';
 import AtlasTour from '../tour/AtlasTour';
+import HouseSimulatorCanvas from './HouseSimulatorCanvas';
 import { resetAtlasTourSeen } from '../../lib/tourStorage';
 import {
   PLACEHOLDER_CURRENT_SYSTEM,
@@ -18,8 +19,6 @@ import {
   CANDIDATE_SYSTEMS,
 } from './labSharedData';
 import './lab.css';
-
-type LabTab = 'visual' | 'summary' | 'whatif' | 'explainers';
 
 interface Props {
   onHome: () => void;
@@ -34,127 +33,53 @@ const SYSTEM_TYPE_LABELS: Record<string, string> = {
   other: 'Other system',
 };
 
-function SummaryTab() {
+/** Engineering detail panel shown in the right slide-over. */
+function EngineeringPanel() {
   return (
-    <div className="lab-summary">
-      <div className="lab-summary__grid">
-        {CANDIDATE_SYSTEMS.map(system => (
-          <div key={system.id} className="lab-summary__card">
-            <div className="lab-summary__card-title">{system.label}</div>
-            <dl className="lab-summary__dl">
-              {COMPARISON_HEADINGS.map(h => (
-                <div key={h.key} className="lab-summary__row">
-                  <dt className="lab-summary__dt">{h.label}</dt>
-                  <dd className="lab-summary__dd">{system.rows[h.key]}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-        ))}
-      </div>
-
-      <div className="lab-summary__enablers">
-        <PerformanceEnablersPanel />
-      </div>
-
-      <div className="lab-summary__enablers">
-        <CondensingRuntimePanel condensingRuntime={null} condensingState={null} />
-      </div>
-    </div>
-  );
-}
-
-const VISUAL_DEMO_KEY = 'atlasVisualDemoSeen';
-
-function VisualTab() {
-  const [showIntro, setShowIntro] = useState(
-    () => localStorage.getItem(VISUAL_DEMO_KEY) !== 'true',
-  );
-
-  useEffect(() => {
-    if (!showIntro) return;
-    const timer = setTimeout(() => {
-      localStorage.setItem(VISUAL_DEMO_KEY, 'true');
-      setShowIntro(false);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [showIntro]);
-
-  return (
-    <div className="lab-visual-tab">
-      {showIntro && (
-        <div className="lab-visual-tab__intro" role="status" aria-live="polite">
-          <span className="lab-visual-tab__intro-icon" aria-hidden="true">▶</span>
-          <span>
-            <strong>Live narration</strong> — select a system profile to inspect heating behaviour and mains-fed supply response.
-          </span>
-          <button
-            className="lab-visual-tab__intro-dismiss"
-            onClick={() => {
-              localStorage.setItem(VISUAL_DEMO_KEY, 'true');
-              setShowIntro(false);
-            }}
-            aria-label="Dismiss live narration intro"
-          >
-            ×
-          </button>
+    <div className="lab-engineering-panel">
+      <div className="lab-summary">
+        <div className="lab-summary__grid">
+          {CANDIDATE_SYSTEMS.map(system => (
+            <div key={system.id} className="lab-summary__card">
+              <div className="lab-summary__card-title">{system.label}</div>
+              <dl className="lab-summary__dl">
+                {COMPARISON_HEADINGS.map(h => (
+                  <div key={h.key} className="lab-summary__row">
+                    <dt className="lab-summary__dt">{h.label}</dt>
+                    <dd className="lab-summary__dd">{system.rows[h.key]}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ))}
         </div>
-      )}
-      <DrawOffWorkbench />
+        <div className="lab-summary__enablers">
+          <PerformanceEnablersPanel />
+        </div>
+        <div className="lab-summary__enablers">
+          <CondensingRuntimePanel condensingRuntime={null} condensingState={null} />
+        </div>
+      </div>
+
+      <hr style={{ margin: '1.25rem 0', borderColor: '#e2e8f0' }} />
+
+      {/* Full draw-off workbench remains accessible here for detailed inspection */}
+      <div>
+        <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#718096', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 0.65rem' }}>
+          Draw-off workbench
+        </p>
+        <DrawOffWorkbench />
+      </div>
     </div>
   );
 }
 
 export default function LabShell({ onHome, engineInput }: Props) {
-  const [activeTab, setActiveTab] = useState<LabTab>('visual');
-  const [replayTour, setReplayTour] = useState(false);
-  const [leftOpen, setLeftOpen] = useState(false);
-  const [rightOpen, setRightOpen] = useState(false);
-  const [topSheetOpen, setTopSheetOpen] = useState(false);
+  const [replayTour, setReplayTour]       = useState(false);
+  const [leftOpen, setLeftOpen]           = useState(false);
+  const [rightOpen, setRightOpen]         = useState(false);
+  const [topSheetOpen, setTopSheetOpen]   = useState(false);
   const [bottomSheetOpen, setBottomSheetOpen] = useState(true);
-
-  const TAB_LABELS: Record<LabTab, string> = {
-    visual: 'Behaviour Preview',
-    summary: 'Summary',
-    whatif: 'What if…?',
-    explainers: 'Physics Explainers',
-  };
-
-  const TAB_IDS: Record<LabTab, string | undefined> = {
-    visual: 'visual-tab',
-    summary: 'system-lab-tab',
-    whatif: 'what-if-tab',
-    explainers: 'explainers-tab',
-  };
-
-  const TAB_TOUR_ATTRS: Record<LabTab, string | undefined> = {
-    visual: 'visual-tab',
-    summary: undefined,
-    whatif: 'what-if-tab',
-    explainers: undefined,
-  };
-
-  const selectTab = (tab: LabTab) => {
-    setActiveTab(tab);
-    if (tab === 'visual') {
-      setLeftOpen(false);
-      setRightOpen(false);
-      return;
-    }
-    if (tab === 'summary') {
-      setRightOpen(true);
-      setLeftOpen(false);
-      return;
-    }
-    if (tab === 'whatif') {
-      setLeftOpen(true);
-      setRightOpen(false);
-      return;
-    }
-    setLeftOpen(false);
-    setRightOpen(false);
-    setTopSheetOpen(true);
-  };
 
   return (
     <div className="lab-wrap lab-wrap--house-first">
@@ -164,28 +89,41 @@ export default function LabShell({ onHome, engineInput }: Props) {
         onClose={() => setReplayTour(false)}
       />
 
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="lab-house-header">
         <LabHomeLink onHome={onHome} />
         <div className="lab-house-title">
           <h1 className="lab-h1">System Simulator</h1>
-          <p className="lab-subtitle">House-first interaction surface with live heating behaviour and system response.</p>
+          <p className="lab-subtitle">House-first · draw-off behaviour · live system response</p>
         </div>
         <div className="lab-house-header-actions">
-          <button className="lab-house-action" onClick={() => setLeftOpen(v => !v)} aria-expanded={leftOpen}>
-            Setup
+          <button
+            className="lab-house-action"
+            onClick={() => { setLeftOpen(v => !v); setRightOpen(false); }}
+            aria-expanded={leftOpen}
+            aria-label="Open setup panel"
+          >
+            ⚙ Setup
           </button>
-          <button className="lab-house-action" onClick={() => setRightOpen(v => !v)} aria-expanded={rightOpen}>
-            Engineering
+          <button
+            className="lab-house-action"
+            onClick={() => { setRightOpen(v => !v); setLeftOpen(false); }}
+            aria-expanded={rightOpen}
+            aria-label="Open engineering detail panel"
+          >
+            🔧 Engineering
           </button>
-          <button className="lab-house-action" onClick={() => setTopSheetOpen(v => !v)} aria-expanded={topSheetOpen}>
-            Warnings
+          <button
+            className="lab-house-action"
+            onClick={() => setTopSheetOpen(v => !v)}
+            aria-expanded={topSheetOpen}
+            aria-label="Open warnings and explainers"
+          >
+            ⚠ Warnings
           </button>
           <button
             className="tour-replay-link"
-            onClick={() => {
-              resetAtlasTourSeen();
-              setReplayTour(true);
-            }}
+            onClick={() => { resetAtlasTourSeen(); setReplayTour(true); }}
             aria-label="Replay the guided tour"
           >
             ? Tour
@@ -193,11 +131,13 @@ export default function LabShell({ onHome, engineInput }: Props) {
         </div>
       </header>
 
+      {/* ── Toast narration ──────────────────────────────────────────────────── */}
       <div className="lab-house-toast" role="status" aria-live="polite">
         <strong>{PLACEHOLDER_VERDICT.system}</strong>
         <span>{PLACEHOLDER_VERDICT.note}</span>
       </div>
 
+      {/* ── Context strip ────────────────────────────────────────────────────── */}
       <div className="lab-context-row" aria-label="Comparison context">
         <span className="lab-context-label">Current:</span>
         <span className="lab-context-chip lab-context-chip--current">
@@ -212,65 +152,30 @@ export default function LabShell({ onHome, engineInput }: Props) {
         <ConfidenceScoreBar data={PLACEHOLDER_CONFIDENCE_STRIP} />
       </div>
 
-      <div id="export-buttons" data-tour="export-actions" className="lab-print-nav" aria-label="Demo print views">
-        <span className="lab-print-nav__label">Demo exports:</span>
-        <a
-          className="lab-print-nav__link"
-          href="?print=technical"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open engineering detail demo print view"
-        >
-          Engineering Detail
-        </a>
-        <a
-          className="lab-print-nav__link"
-          href="?print=comparison"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open technical comparison demo print view"
-        >
-          Technical Comparison
-        </a>
-      </div>
-
-      <div className="lab-tabs" role="tablist" aria-label="Lab views" data-tour="system-lab-tabs">
-        {(Object.keys(TAB_LABELS) as LabTab[]).map(tab => (
-          <button
-            key={tab}
-            id={TAB_IDS[tab]}
-            data-tour={TAB_TOUR_ATTRS[tab]}
-            role="tab"
-            aria-selected={activeTab === tab}
-            className={`lab-tab${activeTab === tab ? ' lab-tab--active' : ''}`}
-            onClick={() => selectTab(tab)}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        ))}
-      </div>
-
+      {/* ── House-first simulator stage ───────────────────────────────────────── */}
       <section className="lab-house-stage" aria-label="House-first simulator surface">
+        {/* Roof-side widgets */}
         <aside className="lab-roof-widget lab-roof-widget--left" aria-label="Heat source status">
-          <span className="lab-roof-widget__label">Heat source status</span>
+          <span className="lab-roof-widget__label">Heat source</span>
           <strong className="lab-roof-widget__value">
             {engineInput?.currentHeatSourceType
               ? SYSTEM_TYPE_LABELS[engineInput.currentHeatSourceType] ?? PLACEHOLDER_CURRENT_SYSTEM
               : PLACEHOLDER_CURRENT_SYSTEM}
           </strong>
-          <p className="lab-roof-widget__note">Live draw-off telemetry appears on outlet status chips beside active draws.</p>
+          <p className="lab-roof-widget__note">Outlet chips show live temperature and flow beside each active draw.</p>
         </aside>
-
         <aside className="lab-roof-widget lab-roof-widget--right" aria-label="Efficiency status">
           <span className="lab-roof-widget__label">Efficiency</span>
           <CondensingIndicator condensingState={null} />
         </aside>
 
-        <div className="lab-house-canvas">
-          <VisualTab />
+        {/* Central house canvas — primary interaction surface */}
+        <div className="lab-house-canvas" id="visual-tab" data-tour="visual-tab">
+          <HouseSimulatorCanvas />
         </div>
       </section>
 
+      {/* ── Warnings / explainers top sheet ──────────────────────────────────── */}
       {topSheetOpen && (
         <section className="lab-top-sheet" role="region" aria-label="Warnings and explainers">
           <div className="lab-top-sheet__header">
@@ -281,6 +186,7 @@ export default function LabShell({ onHome, engineInput }: Props) {
         </section>
       )}
 
+      {/* ── Setup slide-over (left) ───────────────────────────────────────────── */}
       {leftOpen && (
         <aside className="lab-slide-over lab-slide-over--left" role="region" aria-label="Setup and configuration">
           <div className="lab-slide-over__header">
@@ -291,22 +197,39 @@ export default function LabShell({ onHome, engineInput }: Props) {
         </aside>
       )}
 
+      {/* ── Engineering slide-over (right) ───────────────────────────────────── */}
       {rightOpen && (
-        <aside className="lab-slide-over lab-slide-over--right" role="region" aria-label="Engineering and efficiency detail">
+        <aside
+          className="lab-slide-over lab-slide-over--right"
+          role="region"
+          aria-label="Engineering and efficiency detail"
+          id="system-lab-tab"
+          data-tour="system-lab-tab"
+        >
           <div className="lab-slide-over__header">
             <h2>Engineering and efficiency detail</h2>
             <button className="lab-house-action" onClick={() => setRightOpen(false)}>Close</button>
           </div>
-          <SummaryTab />
+          <EngineeringPanel />
         </aside>
       )}
 
-      <section className={`lab-bottom-sheet${bottomSheetOpen ? ' lab-bottom-sheet--open' : ''}`} aria-label="Timeline and scenarios">
+      {/* ── Timeline / scenarios bottom sheet ────────────────────────────────── */}
+      <section
+        className={`lab-bottom-sheet${bottomSheetOpen ? ' lab-bottom-sheet--open' : ''}`}
+        aria-label="Timeline and scenarios"
+      >
         <div className="lab-bottom-sheet__header">
           <h2>Timeline and scenarios</h2>
-          <button className="lab-house-action" onClick={() => setBottomSheetOpen(v => !v)}>
-            {bottomSheetOpen ? 'Collapse' : 'Expand'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div id="export-buttons" data-tour="export-actions" className="lab-print-nav" style={{ margin: 0, border: 'none', background: 'none', padding: 0 }} aria-label="Demo print views">
+              <a className="lab-print-nav__link" href="?print=technical"  target="_blank" rel="noopener noreferrer" aria-label="Open engineering detail demo print view">Engineering Detail</a>
+              <a className="lab-print-nav__link" href="?print=comparison" target="_blank" rel="noopener noreferrer" aria-label="Open technical comparison demo print view">Comparison</a>
+            </div>
+            <button className="lab-house-action" onClick={() => setBottomSheetOpen(v => !v)}>
+              {bottomSheetOpen ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
         </div>
         {bottomSheetOpen && (
           <div className="lab-bottom-sheet__body">

@@ -1836,3 +1836,514 @@
 .lab-bottom-sheet--open {
   border-color: #cbd5e0;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* House Simulator Canvas                                                      */
+/* iPad-first house-first draw-off simulator surface.                         */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Wrapper ─────────────────────────────────────────────────────────────── */
+
+.house-sim-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+/* ── Regime selector bar ──────────────────────────────────────────────────── */
+
+.house-sim-canvas__regime-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.45rem;
+  padding: 0.25rem 0;
+}
+
+.house-sim-canvas__regime-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #718096;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.house-sim-canvas__regime-btn {
+  padding: 0.4rem 1rem;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4a5568;
+  cursor: pointer;
+  min-height: 36px;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.house-sim-canvas__regime-btn:hover {
+  background: #ebf8ff;
+  border-color: #90cdf4;
+  color: #2b6cb0;
+}
+
+.house-sim-canvas__regime-btn--active {
+  background: #ebf8ff;
+  border-color: #3182ce;
+  color: #2b6cb0;
+  font-weight: 700;
+}
+
+/* ── Combi output slider ──────────────────────────────────────────────────── */
+
+.house-sim-canvas__slider-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0;
+}
+
+.house-sim-canvas__slider-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #4a5568;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.house-sim-canvas__slider {
+  flex: 1;
+  min-width: 0;
+  accent-color: #3182ce;
+  height: 4px;
+}
+
+.house-sim-canvas__slider-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2d3748;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 4rem;
+  text-align: right;
+}
+
+/* ── House schematic ──────────────────────────────────────────────────────── */
+
+.house-sim-canvas__schematic {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-left: 3px solid #4a5568;
+  border-right: 3px solid #4a5568;
+  border-radius: 0;
+  background: linear-gradient(180deg, #f7fbff 0%, #ffffff 100%);
+}
+
+/* ── Schematic header row (source badge + cylinder badge) ──────────────────── */
+
+.house-sim-canvas__schematic-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.65rem 0.4rem;
+  background: rgba(247, 251, 255, 0.9);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Heat source badge */
+.house-sim-canvas__source-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.house-sim-canvas__source-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.house-sim-canvas__source-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+/* Cylinder badge */
+.house-cylinder-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  border: 1.5px solid #bee3f8;
+  border-radius: 999px;
+  background: #ebf8ff;
+  cursor: pointer;
+  min-height: 36px;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.house-cylinder-badge:hover {
+  background: #bee3f8;
+  border-color: #63b3ed;
+}
+
+.house-cylinder-badge__icon {
+  font-size: 0.9rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.house-cylinder-badge__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.house-cylinder-badge__name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  line-height: 1.2;
+}
+
+.house-cylinder-badge__state {
+  font-size: 0.68rem;
+  color: #4299e1;
+  text-transform: capitalize;
+  line-height: 1;
+}
+
+/* ── SVG Roof ─────────────────────────────────────────────────────────────── */
+
+.house-sim-canvas__roof {
+  flex-shrink: 0;
+  height: 40px;
+  margin-left: -3px;
+  margin-right: -3px;
+}
+
+.house-sim-canvas__roof-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── House body ───────────────────────────────────────────────────────────── */
+
+.house-sim-canvas__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+/* ── Floor bands ──────────────────────────────────────────────────────────── */
+
+.house-sim-canvas__floor {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 3px solid #4a5568;
+}
+
+.house-sim-canvas__floor:last-child {
+  border-bottom: none;
+}
+
+.house-sim-canvas__floor--first {
+  background: linear-gradient(135deg, #ebf8ff 0%, #bee3f8 100%);
+}
+
+.house-sim-canvas__floor--ground {
+  background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+}
+
+.house-sim-canvas__floor-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Room grid ────────────────────────────────────────────────────────────── */
+
+.house-sim-canvas__rooms {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+/* ── Individual room cell ─────────────────────────────────────────────────── */
+
+.house-sim-canvas__room {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding: 0.55rem 0.6rem;
+  border-radius: 10px;
+  min-height: 72px;
+}
+
+.house-sim-canvas__room--plain {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  justify-content: space-between;
+}
+
+.house-sim-canvas__room--wet {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1.5px solid #90cdf4;
+}
+
+.house-sim-canvas__room-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #2d3748;
+  line-height: 1.2;
+}
+
+.house-sim-canvas__room-decor {
+  font-size: 1.3rem;
+  opacity: 0.55;
+  line-height: 1;
+  margin-top: auto;
+}
+
+.house-sim-canvas__outlets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  margin-top: 0.1rem;
+}
+
+/* ── Outlet chip buttons ──────────────────────────────────────────────────── */
+
+.house-outlet-chip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  border: 1.5px solid;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  min-height: 44px;
+  transition: opacity 0.1s, box-shadow 0.12s;
+  font-family: inherit;
+}
+
+.house-outlet-chip:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.house-outlet-chip:focus-visible {
+  outline: 2px solid #3182ce;
+  outline-offset: 2px;
+}
+
+.house-outlet-chip__icon {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.house-outlet-chip__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #2d3748;
+  flex: 1;
+  min-width: 0;
+}
+
+.house-outlet-chip__metrics {
+  font-size: 0.7rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #2d3748;
+  white-space: nowrap;
+}
+
+.house-outlet-chip__status {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+/* Status-specific colours */
+.house-outlet-chip--stable {
+  border-color: #68d391;
+  background: #f0fff4;
+}
+.house-outlet-chip--stable .house-outlet-chip__status {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.house-outlet-chip--limited {
+  border-color: #ed8936;
+  background: #fffaf0;
+}
+.house-outlet-chip--limited .house-outlet-chip__status {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+.house-outlet-chip--starved {
+  border-color: #e53e3e;
+  background: #fff5f5;
+}
+.house-outlet-chip--starved .house-outlet-chip__status {
+  background: #fed7d7;
+  color: #742a2a;
+}
+
+.house-outlet-chip--inactive {
+  border-color: #e2e8f0;
+  background: #f7fafc;
+  opacity: 0.7;
+}
+.house-outlet-chip--inactive .house-outlet-chip__status {
+  background: #edf2f7;
+  color: #4a5568;
+}
+
+/* ── Foundation slab ──────────────────────────────────────────────────────── */
+
+.house-sim-canvas__foundation {
+  flex-shrink: 0;
+  height: 7px;
+  background: #2d3748;
+  margin-left: -3px;
+  margin-right: -3px;
+  border-radius: 0 0 4px 4px;
+}
+
+/* ── Hint text ────────────────────────────────────────────────────────────── */
+
+.house-sim-canvas__hint {
+  margin: 0;
+  font-size: 0.73rem;
+  color: #718096;
+  text-align: center;
+  padding: 0 0.5rem;
+  line-height: 1.4;
+}
+
+/* ── Focus overlay ────────────────────────────────────────────────────────── */
+
+.house-sim-canvas__focus-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.house-sim-canvas__focus-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.house-sim-canvas__focus-panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 96vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28);
+}
+
+.house-sim-canvas__focus-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 2;
+  border-radius: 18px 18px 0 0;
+}
+
+.house-sim-canvas__focus-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.house-sim-canvas__focus-close {
+  border: none;
+  background: #f7fafc;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #4a5568;
+}
+
+.house-sim-canvas__focus-close:hover {
+  background: #edf2f7;
+}
+
+/* ── Responsive — narrow screens ──────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .house-sim-canvas__rooms {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .house-sim-canvas__floor--first .house-sim-canvas__rooms {
+    /* Bathroom spans full width on narrow screens */
+    grid-template-areas:
+      "bed1 bed2"
+      "bath bath";
+  }
+
+  .house-sim-canvas__floor--first .house-sim-canvas__room:last-child {
+    grid-area: bath;
+  }
+
+  .house-sim-canvas__floor--ground .house-sim-canvas__rooms {
+    grid-template-areas:
+      "kitchen wc"
+      "lounge  lounge";
+  }
+
+  .house-sim-canvas__floor--ground .house-sim-canvas__room:nth-child(2) {
+    grid-area: lounge;
+  }
+
+  .house-sim-canvas__regime-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.78rem;
+  }
+}
