@@ -261,6 +261,20 @@ export function buildProjectionSafetyRepairPlan(
     for (const conceptId of projection.visibleConcepts) affectedConceptIds.add(conceptId);
   }
 
+  if (safety.missingRequiredContent.includes('what_this_means')) {
+    repairItems.push({
+      repairId: 'missing:what_this_means',
+      severity: 'warning',
+      source: 'No "what this means" content found in customer projection',
+      kind: 'content_gap',
+      recommendation: 'Add customer-safe interpretation wording that starts with "what this means".',
+      linkedConceptIds: projection.visibleConcepts,
+      linkedCardIds: [],
+      linkedTaskIds: [],
+    });
+    for (const conceptId of projection.visibleConcepts) affectedConceptIds.add(conceptId);
+  }
+
   return {
     unsafe: !safety.safeForCustomer,
     repairItems,

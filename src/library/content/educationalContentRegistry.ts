@@ -353,6 +353,27 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     readingLevel: 'standard',
     accessibilityNotes: ['Plain sentence structure', 'Two-sentence summary of the constraint logic'],
     requiredEvidenceFacts: ['hydraulic_constraint_present', 'simultaneous_use'],
+    livingExperiencePattern: {
+      whatYouMayNotice: 'Hot water can drop in strength when a second outlet opens.',
+      whatThisMeans: 'On-demand hot water shares one heat source and one inlet supply across every open tap.',
+      whatStaysFamiliar: 'Single-outlet use can still feel normal for most daily routines.',
+      whatChanges: 'Overlap demand is where limits become noticeable.',
+      reassurance: 'This behaviour is a system characteristic, not a sudden fault.',
+      commonMisunderstanding: 'A larger combi always resolves simultaneous-use shortfalls.',
+      dailyLifeEffect: 'Households with overlap-heavy routines may notice more interruption at busy times.',
+      optionalTechnicalDetail: 'Heat-exchanger output and inlet flow are independent limits on simultaneous delivery.',
+      analogyOptions: [
+        {
+          title: 'One hose split between two sprinklers',
+          explanation: 'The same supply split across two outlets lowers what each can deliver.',
+        },
+        {
+          title: 'No analogy: direct reading',
+          explanation: 'On-demand hot water is bounded by both heat-exchanger output and mains flow rate.',
+        },
+      ],
+      printSummary: 'On-demand hot water has a shared supply ceiling, so simultaneous draws compete.',
+    },
     confidenceLevel: 'best_practice',
   },
 
@@ -425,6 +446,27 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     readingLevel: 'standard',
     accessibilityNotes: ['Plain language throughout', 'Honest about recovery limits'],
     requiredEvidenceFacts: ['day_to_day_outcomes_present'],
+    livingExperiencePattern: {
+      whatYouMayNotice: 'Showers and taps feel stronger and more consistent during overlap use.',
+      whatThisMeans: 'Stored hot water is supplied from mains-fed storage rather than tank head.',
+      whatStaysFamiliar: 'Day-to-day hot water routines remain straightforward.',
+      whatChanges: 'Heavier use can still require recovery time.',
+      reassurance: 'Strong delivery and recovery windows are both normal parts of stored systems.',
+      commonMisunderstanding: 'Mains-fed stored hot water is unlimited and instantly replenished.',
+      dailyLifeEffect: 'Busy periods feel steadier, but planning around recovery can still help.',
+      optionalTechnicalDetail: 'Inlet flow rate and cylinder recovery rate shape real-world performance.',
+      analogyOptions: [
+        {
+          title: 'A reservoir fed by mains, not by gravity',
+          explanation: 'Delivery pressure is provided by mains supply rather than tank position.',
+        },
+        {
+          title: 'No analogy: direct reading',
+          explanation: 'Performance depends on mains inlet flow and cylinder sizing.',
+        },
+      ],
+      printSummary: 'Stored mains-fed hot water supports overlap use, with recovery after heavy draw.',
+    },
     confidenceLevel: 'best_practice',
   },
 
@@ -461,6 +503,27 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     readingLevel: 'standard',
     accessibilityNotes: ['Concrete comparison framing', 'Misconception corrected early'],
     requiredEvidenceFacts: ['hydraulic_constraint_present'],
+    livingExperiencePattern: {
+      whatYouMayNotice: 'Shower pressure can feel strong while hot water still runs out under back-to-back heavy use.',
+      whatThisMeans: 'Pressure and stored hot-water capacity are separate constraints.',
+      whatStaysFamiliar: 'Normal controls and daily usage patterns can stay the same.',
+      whatChanges: 'High overlap demand reveals storage and recovery limits first.',
+      reassurance: 'Running out after heavy draw is a capacity/recovery signal, not a pressure fault.',
+      commonMisunderstanding: 'Higher pressure means more stored hot water is available.',
+      dailyLifeEffect: 'Recovery planning matters more than pressure tweaks during peak use.',
+      optionalTechnicalDetail: 'Pressure governs delivery force; cylinder volume and recharge govern available hot-water amount.',
+      analogyOptions: [
+        {
+          title: 'Fire hose and bucket — two different measures',
+          explanation: 'Delivery force and stored quantity are different properties.',
+        },
+        {
+          title: 'No analogy: direct reading',
+          explanation: 'Mains pressure affects rate while cylinder volume affects available draw-off.',
+        },
+      ],
+      printSummary: 'Pressure and stored volume are independent; strong pressure does not create extra stored hot water.',
+    },
     confidenceLevel: 'physical_law',
   },
 
@@ -570,6 +633,27 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     readingLevel: 'standard',
     accessibilityNotes: ['Reassurance framing at the start', 'Misconception named and corrected clearly'],
     requiredEvidenceFacts: ['emitter_upgrade_or_high_temp_note'],
+    livingExperiencePattern: {
+      whatYouMayNotice: 'Radiators feel warm rather than very hot, with longer steady run periods.',
+      whatThisMeans: 'This is the intended low-temperature comfort pattern of a heat pump.',
+      whatStaysFamiliar: 'Target room comfort remains the goal.',
+      whatChanges: 'Comfort is delivered through steady warmth rather than short hot bursts.',
+      reassurance: 'Warm-not-hot radiator feel alone does not indicate a fault.',
+      commonMisunderstanding: 'Warm radiators mean the heat pump is undersized or failing.',
+      dailyLifeEffect: 'Homes often feel more even through the day when controls are left to settle.',
+      optionalTechnicalDetail: 'Heat pumps favour sustained lower flow temperatures when emitter area and heat loss are matched.',
+      analogyOptions: [
+        {
+          title: 'Underfloor heating versus a log fire',
+          explanation: 'Both can heat effectively, but the comfort experience is different.',
+        },
+        {
+          title: 'No analogy: direct reading',
+          explanation: 'Heat pumps reach room targets through longer lower-temperature operation.',
+        },
+      ],
+      printSummary: 'Warm-not-hot radiators are expected with heat pumps; comfort comes from steady delivery.',
+    },
     confidenceLevel: 'best_practice',
   },
 
@@ -714,6 +798,27 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     readingLevel: 'standard',
     accessibilityNotes: ['Manages comparison to previous boiler experience', 'Gentle reframing rather than correction'],
     requiredEvidenceFacts: ['emitter_upgrade_or_high_temp_note'],
+    livingExperiencePattern: {
+      whatYouMayNotice: 'The system runs for longer and radiators stay steadily warm.',
+      whatThisMeans: 'Lower steady flow temperature is the intended way heat pumps deliver comfort.',
+      whatStaysFamiliar: 'Daily schedule and comfort targets remain familiar.',
+      whatChanges: 'Short high-temperature bursts are replaced by sustained delivery.',
+      reassurance: 'Longer run times alone are expected in this operating mode.',
+      commonMisunderstanding: 'Higher flow setpoints always improve comfort and efficiency.',
+      dailyLifeEffect: 'Fewer abrupt changes are usually needed once compensation is set correctly.',
+      optionalTechnicalDetail: 'Part-load heat-pump efficiency improves at lower flow temperatures.',
+      analogyOptions: [
+        {
+          title: 'Slow cooker versus hob burst',
+          explanation: 'Longer gentler operation can achieve the same comfort outcome.',
+        },
+        {
+          title: 'No analogy: direct reading',
+          explanation: 'Comfort is achieved via sustained delivery rather than peak bursts.',
+        },
+      ],
+      printSummary: 'Lower steady flow temperature is normal for heat pumps and supports consistent comfort.',
+    },
     confidenceLevel: 'best_practice',
   },
 
@@ -932,6 +1037,27 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     readingLevel: 'standard',
     accessibilityNotes: ['Addresses neighbour-comparison anxiety directly', 'Reassurance at the start, evidence rationale follows'],
     requiredEvidenceFacts: ['recommended_scenario_available'],
+    livingExperiencePattern: {
+      whatYouMayNotice: 'Your recommendation may differ from neighbours or initial expectations.',
+      whatThisMeans: 'System fit is chosen from your property evidence, demand profile, and supply constraints.',
+      whatStaysFamiliar: 'The goal remains reliable comfort and usable hot water.',
+      whatChanges: 'The selected topology may prioritise fit and reliability over trend-driven assumptions.',
+      reassurance: 'Different recommendations between homes are expected and can both be correct.',
+      commonMisunderstanding: 'One topology is best for every home.',
+      dailyLifeEffect: 'You get a system matched to how your home actually behaves day to day.',
+      optionalTechnicalDetail: 'Topology selection follows heat-loss, hot-water demand, and supply-infrastructure checks.',
+      analogyOptions: [
+        {
+          title: 'A bespoke fitting rather than off-the-shelf',
+          explanation: 'Property-specific evidence guides the final system choice.',
+        },
+        {
+          title: 'No analogy: direct reading',
+          explanation: 'No single topology is best for every property.',
+        },
+      ],
+      printSummary: 'System fit is evidence-led for your home, not chosen as a default.',
+    },
     confidenceLevel: 'best_practice',
   },
 

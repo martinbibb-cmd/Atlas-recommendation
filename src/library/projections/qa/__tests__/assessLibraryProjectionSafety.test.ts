@@ -207,6 +207,18 @@ describe('assessLibraryProjectionSafety — portal fallback integration', () => 
     expect(result.missingRequiredContent).toContain('what_you_may_notice');
   });
 
+  it('indicates missing "what this means" content when absent', () => {
+    const projection = makeCustomerProjection([
+      {
+        title: 'What you may notice',
+        summary: 'What you may notice: radiators are warm.',
+      },
+    ]);
+    const result = assessLibraryProjectionSafety(projection);
+    expect(result.warnings.join(' ')).toMatch(/what this means/i);
+    expect(result.missingRequiredContent).toContain('what_this_means');
+  });
+
   it('warns when the customer projection has too many cards', () => {
     const manyCards = Array.from({ length: 10 }, (_, i) => ({
       title: `Card ${i + 1}`,
@@ -239,5 +251,6 @@ describe('assessLibraryProjectionSafety — supporting PDF readiness', () => {
     const result = assessLibraryProjectionSafety(projection);
     expect(result.missingRequiredContent).toContain('diagrams');
     expect(result.missingRequiredContent).toContain('what_you_may_notice');
+    expect(result.missingRequiredContent).toContain('what_this_means');
   });
 });

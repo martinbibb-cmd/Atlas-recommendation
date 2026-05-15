@@ -64,6 +64,7 @@ function cardHaystack(card: { title: string; summary: string }): string {
  *  - No calm summary card present
  *  - More than MAX_CUSTOMER_CARDS visible cards
  *  - No "what you may notice" content in any visible card
+ *  - No "what this means" content in any visible card
  */
 export function assessLibraryProjectionSafety(
   projection: LibraryContentProjectionV1,
@@ -142,6 +143,15 @@ export function assessLibraryProjectionSafety(
   if (!hasWhatYouMayNotice) {
     warnings.push('No "what you may notice" content found in customer projection');
     missingRequiredContent.push('what_you_may_notice');
+  }
+
+  // ── Warning: no "what this means" content ─────────────────────────────────
+  const hasWhatThisMeans = projection.visibleCards.some((card) =>
+    cardHaystack(card).includes('what this means'),
+  );
+  if (!hasWhatThisMeans) {
+    warnings.push('No "what this means" content found in customer projection');
+    missingRequiredContent.push('what_this_means');
   }
 
   return {

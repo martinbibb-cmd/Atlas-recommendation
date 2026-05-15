@@ -110,6 +110,13 @@ describe('buildLibraryCoverageAudit', () => {
     }
   });
 
+  it('tracks LivingExperiencePattern coverage by concept', () => {
+    const audit = buildLibraryCoverageAudit();
+    const systemFit = conceptById(audit.conceptCoverage, 'system_fit_explanation');
+    expect(systemFit?.hasLivingExperiencePattern).toBe(true);
+    expect(audit.missingByType.missingLivingExperiencePattern).not.toContain('system_fit_explanation');
+  });
+
   it('missingByType.missingDiagram is consistent with hasDiagram on each concept', () => {
     const audit = buildLibraryCoverageAudit();
     const missingSet = new Set(audit.missingByType.missingDiagram);
