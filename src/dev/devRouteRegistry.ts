@@ -170,7 +170,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   // ── Derived / embedded surfaces (no standalone route) ────────────────────
   {
     codeName: 'LifestyleInteractive',
-    fullRouteExample: 'unresolved — embedded in simulator',
+    fullRouteExample: 'unresolved — legacy visualiser preview',
     routeKind: 'derived',
     access: 'dev_only',
   },

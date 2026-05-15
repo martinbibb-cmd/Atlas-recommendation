@@ -246,9 +246,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     fileName: 'LifestyleInteractive.tsx',
     filePath: 'src/components/visualizers/LifestyleInteractive.tsx',
     category: 'visualiser',
-    status: 'active',
+    status: 'deprecated',
+    notes:
+      'Legacy Day Painter visualiser. Deprecated in favour of the canonical Explainers Hub experience.',
     routeKind: 'derived',
-    fullRouteExample: 'unresolved — embedded in simulator',
+    fullRouteExample: 'unresolved — legacy visualiser preview',
     access: 'dev_only',
     parentCodeName: 'ExplainersHubPage',
     render: () => <LifestyleInteractive />,
