@@ -1551,12 +1551,22 @@ function SimulatorPage({
         <div className="atlas-deck-simulator__tiles">
           {/* Simulator tile — only rendered when the simulator action is available */}
           {onOpenSimulator && (
-            <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--sim">
+            <div
+              className="atlas-deck-simulator__tile atlas-deck-simulator__tile--sim"
+              data-testid="simulator-entry-card"
+            >
               <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">⚡</p>
-              <p className="atlas-deck-simulator__tile-heading">System Simulator</p>
+              <p className="atlas-deck-simulator__tile-heading">See daily hot-water performance</p>
               <p className="atlas-deck-simulator__tile-desc">
-                Live taps, heating and full system diagram. See exactly how your system performs.
+                Open the existing simulator with your current values and see the same system logic in a calmer wrapper.
               </p>
+              <div className="atlas-deck-simulator__fact-chips" aria-label="Simulator entry facts">
+                <span className="atlas-deck-simulator__fact-chip">{sim.entrySystemLabel}</span>
+                <span className="atlas-deck-simulator__fact-chip">
+                  {sim.bathroomCount} {sim.bathroomCount === 1 ? 'bathroom' : 'bathrooms'}
+                </span>
+                <span className="atlas-deck-simulator__fact-chip">{sim.peakOutletsLabel}</span>
+              </div>
               {sim.simulatorCapabilities.length > 0 && (
                 <ul className="atlas-deck-simulator__caps">
                   {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
@@ -1567,7 +1577,7 @@ function SimulatorPage({
                 className="atlas-deck-simulator__tile-btn"
                 onClick={onOpenSimulator}
               >
-                Open simulator →
+                See daily hot-water performance
               </button>
             </div>
           )}

@@ -453,9 +453,15 @@ function ShortlistedCard({
 function SimulatorSection({
   sim,
   onOpenSimulator,
+  systemTypeLabel,
+  bathroomCount,
+  peakOutletsLabel,
 }: {
   sim: FinalPageSimulator;
   onOpenSimulator?: () => void;
+  systemTypeLabel: string;
+  bathroomCount: number;
+  peakOutletsLabel: string;
 }) {
   return (
     <div className="cpp-simulator">
@@ -464,6 +470,28 @@ function SimulatorSection({
       </p>
       <p className="cpp-simulator__scenario">{sim.homeScenarioDescription}</p>
       <p className="cpp-simulator__architecture-note">{sim.dhwArchitectureNote}</p>
+      {onOpenSimulator && (
+        <div className="cpp-simulator__entry-card" data-testid="simulator-entry-card">
+          <div className="cpp-simulator__entry-copy">
+            <p className="cpp-simulator__entry-title">See daily hot-water performance</p>
+            <p className="cpp-simulator__entry-note">Opens the existing simulator with your current values.</p>
+          </div>
+          <div className="cpp-simulator__entry-facts" aria-label="Simulator entry facts">
+            <span className="cpp-simulator__entry-fact">{systemTypeLabel}</span>
+            <span className="cpp-simulator__entry-fact">
+              {bathroomCount} {bathroomCount === 1 ? 'bathroom' : 'bathrooms'}
+            </span>
+            <span className="cpp-simulator__entry-fact">{peakOutletsLabel}</span>
+          </div>
+          <button
+            type="button"
+            className="cpp-simulator__cta"
+            onClick={onOpenSimulator}
+          >
+            See daily hot-water performance
+          </button>
+        </div>
+      )}
       {sim.simulatorCapabilities.length > 0 && (
         <ul className="cpp-simulator__capabilities">
           {sim.simulatorCapabilities.map((cap, i) => <li key={i}>{cap}</li>)}
@@ -494,15 +522,6 @@ function SimulatorSection({
             ))}
           </ul>
         </div>
-      )}
-      {onOpenSimulator && (
-        <button
-          type="button"
-          className="cpp-simulator__cta"
-          onClick={onOpenSimulator}
-        >
-          Open System Simulator →
-        </button>
       )}
     </div>
   );
@@ -735,7 +754,13 @@ export default function CanonicalPresentationPage({
       >
         <p className="cpp-page__eyebrow">Final page</p>
         <h2 className="cpp-page__heading">Proof — test this recommendation</h2>
-        <SimulatorSection sim={finalPage} onOpenSimulator={onOpenSimulator} />
+        <SimulatorSection
+          sim={finalPage}
+          onOpenSimulator={onOpenSimulator}
+          systemTypeLabel={page1.currentSystem.systemTypeLabel ?? 'Current system'}
+          bathroomCount={input.bathroomCount}
+          peakOutletsLabel={page1.home.peakOutletsLabel}
+        />
       </section>
 
     </div>

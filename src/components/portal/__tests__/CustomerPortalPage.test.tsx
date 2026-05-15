@@ -250,13 +250,14 @@ describe('CustomerPortalPage', () => {
     fireEvent.click(lastDot);
 
     // Simulator CTA should now be visible
-    await waitFor(() => expect(screen.getByText('Open simulator →')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
+    expect(screen.getByTestId('simulator-entry-card').textContent).toContain('1 bathroom');
 
     // Simulator is not yet rendered
     expect(document.querySelector('[data-testid="portal-unified-simulator"]')).toBeNull();
 
     // Click the CTA to launch the inline simulator
-    fireEvent.click(screen.getByText('Open simulator →'));
+    fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
 
     // Simulator section should now be visible
     await waitFor(() => expect(screen.getByTestId('portal-unified-simulator')).toBeTruthy());
@@ -272,8 +273,8 @@ describe('CustomerPortalPage', () => {
     const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
     const dots = nav.querySelectorAll('button');
     fireEvent.click(dots[dots.length - 1]);
-    await waitFor(() => expect(screen.getByText('Open simulator →')).toBeTruthy());
-    fireEvent.click(screen.getByText('Open simulator →'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
 
     const printBtn = screen.getByTestId('print-report-btn');
@@ -292,8 +293,8 @@ describe('CustomerPortalPage', () => {
     const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
     const dots = nav.querySelectorAll('button');
     fireEvent.click(dots[dots.length - 1]);
-    await waitFor(() => expect(screen.getByText('Open simulator →')).toBeTruthy());
-    fireEvent.click(screen.getByText('Open simulator →'));
+    await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
     await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
 
     // Expert-only labels must not appear in the portal simulator inputs

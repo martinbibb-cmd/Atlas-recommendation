@@ -14,6 +14,8 @@ import { buildStoredHotWaterContextFromSurvey } from '../../lib/dhw/buildStoredH
 import { computeDrawOff } from '../../engine/modules/StoredDhwModule';
 import type { DrawOffFlowStability } from '../../engine/modules/StoredDhwModule';
 import type { RecommendationPresentationState } from '../../lib/selection/optionSelection';
+import type { ClassifiedDayEvent } from '../../logic/outcomes/types';
+import type { SystemInputs } from '../../explainers/lego/simulator/systemInputsTypes';
 import PrintableRecommendationPage from '../advice/PrintableRecommendationPage';
 import AdvicePanel from '../advice/AdvicePanel';
 import PerformanceOutcomesPanel from '../outcomes/PerformanceOutcomesPanel';
@@ -62,6 +64,8 @@ interface Props {
 // ─── System family selector for events/upgrades panel ─────────────────────────
 
 type EventsSystemFamily = SimulatorSystemOverride;
+type SimulatorDisplayMode = 'customer' | 'surveyor' | 'engineer';
+type SummaryChipTone = 'neutral' | 'pass' | 'warn' | 'fail';
 
 const EVENTS_SYSTEM_OPTIONS: { value: EventsSystemFamily; label: string }[] = [
   { value: 'combi',        label: 'Combi' },
@@ -69,6 +73,116 @@ const EVENTS_SYSTEM_OPTIONS: { value: EventsSystemFamily; label: string }[] = [
   { value: 'mixergy',      label: 'Mixergy cylinder' },
   { value: 'heat_pump',    label: 'Heat pump cylinder' },
 ];
+
+const DISPLAY_MODE_OPTIONS: { value: SimulatorDisplayMode; label: string }[] = [
+  { value: 'customer', label: 'Customer view' },
+  { value: 'surveyor', label: 'Surveyor view' },
+  { value: 'engineer', label: 'Engineer view' },
+];
+
+const DRAW_OFF_LABELS: Record<string, string> = {
+  shower: 'Shower',
+  bath: 'Bath',
+  kitchen_draw: 'Kitchen tap',
+  tap_draw: 'Hot tap',
+};
+
+const RESULT_TONE_ORDER: Record<'successful' | 'reduced' | 'conflict', number> = {
+  successful: 0,
+  reduced: 1,
+  conflict: 2,
+};
+
+function isMoreSevereResult(
+  nextResult: 'successful' | 'reduced' | 'conflict',
+  currentResult: 'successful' | 'reduced' | 'conflict',
+): boolean {
+  return RESULT_TONE_ORDER[nextResult] > RESULT_TONE_ORDER[currentResult];
+}
+
+function formatSystemFamilyLabel(system: EventsSystemFamily | undefined): string {
+  switch (system) {
+    case 'combi':
+      return 'On-demand hot water';
+    case 'stored_water':
+      return 'Mains-fed hot water';
+    case 'open_vented':
+      return 'Tank-fed hot water';
+    case 'mixergy':
+      return 'Mixergy cylinder';
+    case 'heat_pump':
+      return 'Heat pump with stored hot water';
+    default:
+      return 'Current system';
+  }
+}
+
+function formatPressureChip(bar?: number): string | null {
+  if (bar == null || !Number.isFinite(bar)) return null;
+  return `${bar.toFixed(1)} bar supply`;
+}
+
+function formatFlowChip(flowLpm?: number): string | null {
+  if (flowLpm == null || !Number.isFinite(flowLpm)) return null;
+  return `${Math.round(flowLpm * 10) / 10} L/min flow`;
+}
+
+function buildDrawOffChips(events: ClassifiedDayEvent[]) {
+  const grouped = new Map<string, { count: number; result: ClassifiedDayEvent['result'] }>();
+
+  for (const event of events) {
+    if (!(event.type in DRAW_OFF_LABELS)) continue;
+    const existing = grouped.get(event.type);
+    if (!existing) {
+      grouped.set(event.type, { count: 1, result: event.result });
+      continue;
+    }
+
+    grouped.set(event.type, {
+      count: existing.count + 1,
+      // Keep the worst grouped outcome so each chip reflects the most constrained
+      // modelled draw for that outlet type (conflict > reduced > successful).
+      result: isMoreSevereResult(event.result, existing.result)
+        ? event.result
+        : existing.result,
+    });
+  }
+
+  return Array.from(grouped.entries()).map(([type, value]) => ({
+    id: type,
+    label: `${DRAW_OFF_LABELS[type]} ×${value.count}`,
+    tone: value.result === 'conflict'
+      ? 'fail'
+      : value.result === 'reduced'
+        ? 'warn'
+        : 'pass' as SummaryChipTone,
+  }));
+}
+
+function buildRawValueEntries(systemChoice: string, systemInputs: Partial<SystemInputs>) {
+  const entries: Array<{ label: string; value: string }> = [
+    { label: 'System', value: formatSystemFamilyLabel(systemChoice as EventsSystemFamily) },
+  ];
+
+  const maybePush = (label: string, value: string | number | undefined) => {
+    if (value == null || value === '') return;
+    entries.push({ label, value: String(value) });
+  };
+
+  maybePush('Pressure', systemInputs.mainsPressureBar != null ? `${systemInputs.mainsPressureBar} bar` : undefined);
+  maybePush('Flow', systemInputs.mainsFlowLpm != null ? `${systemInputs.mainsFlowLpm} L/min` : undefined);
+  maybePush('Cold inlet', systemInputs.coldInletTempC != null ? `${systemInputs.coldInletTempC} °C` : undefined);
+  maybePush('Cylinder', systemInputs.cylinderSizeLitres != null ? `${systemInputs.cylinderSizeLitres} L` : undefined);
+  maybePush('Combi output', systemInputs.combiPowerKw != null ? `${systemInputs.combiPowerKw} kW` : undefined);
+  maybePush('Heat loss', systemInputs.heatLossKw != null ? `${systemInputs.heatLossKw} kW` : undefined);
+  maybePush('Boiler output', systemInputs.boilerOutputKw != null ? `${systemInputs.boilerOutputKw} kW` : undefined);
+  maybePush('Primary pipe', systemInputs.primaryPipeSize);
+  maybePush('Emitter type', systemInputs.emitterType);
+  maybePush('Controls', systemInputs.controlStrategy);
+  maybePush('Condition', systemInputs.systemCondition);
+
+  return entries;
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -79,6 +193,7 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
 
   // ── System selector for the events/upgrades panel ─────────────────────────
   const [eventsSystem, setEventsSystem] = useState<EventsSystemFamily | undefined>(undefined);
+  const [displayMode, setDisplayMode] = useState<SimulatorDisplayMode>('customer');
 
   const advice = useMemo(() => buildAdviceFromCompare({
     engineOutput,
@@ -118,10 +233,14 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
   const [savedReportId, setSavedReportId] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
   const saveStateRef = useRef<SaveState>('idle');
-  saveStateRef.current = saveState;
+
+  const setSaveStateSynced = useCallback((next: SaveState) => {
+    saveStateRef.current = next;
+    setSaveState(next);
+  }, []);
 
   const persistReport = useCallback(async () => {
-    if (advice == null) { setSaveState('failed'); return; }
+    if (advice == null) { setSaveStateSynced('failed'); return; }
     try {
       const engineInput = toEngineInput(surveyData);
       const recommendedOptionId =
@@ -147,15 +266,15 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
         postcode: surveyData.postcode ?? null,
         payload,
       });
-      setSavedReportId(res.id); setSaveState('saved');
-    } catch { setSaveState('failed'); }
-  }, [advice, engineOutput, surveyData]);
+      setSavedReportId(res.id); setSaveStateSynced('saved');
+    } catch { setSaveStateSynced('failed'); }
+  }, [advice, engineOutput, setSaveStateSynced, surveyData]);
 
   const handleSaveReport = useCallback(() => {
     if (saveStateRef.current === 'saving') return;
-    setSaveState('saving');
+    setSaveStateSynced('saving');
     persistReport();
-  }, [persistReport]);
+  }, [persistReport, setSaveStateSynced]);
 
   // Navigate to a dedicated print-preview component that renders
   // PrintableRecommendationPage before triggering window.print() — this ensures
@@ -181,6 +300,140 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
       engineOutput.options?.[0]?.id ?? '';
     return { recommendedOptionId, chosenByCustomer: false };
   }, [engineOutput]);
+
+  const drawOffChips = useMemo(
+    () => buildDrawOffChips(resimulationResult?.resimulation.simpleInstall.events ?? []),
+    [resimulationResult],
+  );
+
+  const resultChips = useMemo(() => {
+    const chips: Array<{ label: string; tone: SummaryChipTone }> = [];
+    const effectivePressure = surveyAdapted.systemInputs.mainsPressureBar;
+    const resolvedMainsFlowLpm = surveyAdapted.systemInputs.mainsFlowLpm ?? surveyData.mainsDynamicFlowLpm;
+    const pressureChip = formatPressureChip(effectivePressure);
+    const flowChip = formatFlowChip(resolvedMainsFlowLpm);
+
+    if (pressureChip) chips.push({ label: pressureChip, tone: 'neutral' });
+    if (flowChip) chips.push({ label: flowChip, tone: 'neutral' });
+
+    if (currentSystemFlowStability != null) {
+      chips.push({
+        label: `Flow stability: ${currentSystemFlowStability}`,
+        tone: currentSystemFlowStability === 'limited'
+          ? 'fail'
+          : currentSystemFlowStability === 'marginal'
+            ? 'warn'
+            : 'pass',
+      });
+    }
+
+    const spec = resimulationResult?.resimulation.simpleInstallSpec;
+    if (spec?.peakHotWaterCapacityLpm != null) {
+      chips.push({
+        label: `Peak hot water ${Math.round(spec.peakHotWaterCapacityLpm * 10) / 10} L/min`,
+        tone: 'neutral',
+      });
+    }
+    if (spec?.hotWaterStorageLitres != null) {
+      chips.push({
+        label: `${Math.round(spec.hotWaterStorageLitres)} L hot-water store`,
+        tone: 'pass',
+      });
+    }
+    if (spec?.recoveryRateLitresPerHour != null) {
+      chips.push({
+        label: `${Math.round(spec.recoveryRateLitresPerHour)} L/h recovery`,
+        tone: 'neutral',
+      });
+    }
+
+    return chips;
+  }, [currentSystemFlowStability, resimulationResult, surveyAdapted.systemInputs.mainsPressureBar, surveyAdapted.systemInputs.mainsFlowLpm, surveyData.mainsDynamicFlowLpm]);
+
+  const wrapperMessages = useMemo(() => {
+    if (resimulationResult == null) {
+      return [{ id: 'unavailable', tone: 'warn' as SummaryChipTone, text: 'Daily summary is unavailable until simulator inputs are ready.' }];
+    }
+
+    const messages: Array<{ id: string; tone: SummaryChipTone; text: string }> = [];
+    const hotWater = resimulationResult.resimulation.simpleInstall.hotWater;
+
+    if (hotWater.conflict > 0) {
+      messages.push({
+        id: 'conflict',
+        tone: 'fail',
+        text: `${hotWater.conflict} daily hot-water draw${hotWater.conflict === 1 ? '' : 's'} fall into conflict on the current pattern.`,
+      });
+    } else if (hotWater.reduced > 0) {
+      messages.push({
+        id: 'reduced',
+        tone: 'warn',
+        text: `${hotWater.reduced} draw${hotWater.reduced === 1 ? '' : 's'} are reduced at busier times, even though hot water is still delivered.`,
+      });
+    } else {
+      messages.push({
+        id: 'calm',
+        tone: 'pass',
+        text: 'The current daily pattern stays calm: modelled hot-water draws complete without reduction.',
+      });
+    }
+
+    if (currentSystemFlowStability === 'limited' || currentSystemFlowStability === 'marginal') {
+      messages.push({
+        id: 'flow-stability',
+        tone: currentSystemFlowStability === 'limited' ? 'fail' : 'warn',
+        text: `Tank-fed supply remains ${currentSystemFlowStability}; pipework layout still matters for outlet performance.`,
+      });
+    }
+
+    if (resimulationResult.resimulation.comparison.headlineImprovements.length > 0) {
+      messages.push({
+        id: 'improvement',
+        tone: 'neutral',
+        text: resimulationResult.resimulation.comparison.headlineImprovements[0],
+      });
+    }
+
+    return messages;
+  }, [currentSystemFlowStability, resimulationResult]);
+
+  const assumptionChips = useMemo(() => {
+    const chips: string[] = [
+      `${surveyData.bathroomCount} ${surveyData.bathroomCount === 1 ? 'bathroom' : 'bathrooms'}`,
+    ];
+
+    if (surveyData.occupancyCount != null) {
+      chips.push(`${surveyData.occupancyCount} ${surveyData.occupancyCount === 1 ? 'person' : 'people'}`);
+    }
+    if (surveyData.peakConcurrentOutlets != null) {
+      chips.push(`${surveyData.peakConcurrentOutlets} peak outlet${surveyData.peakConcurrentOutlets === 1 ? '' : 's'}`);
+    }
+    if (surveyData.heatLossWatts != null) {
+      chips.push(`${(surveyData.heatLossWatts / 1000).toFixed(1)} kW heat loss`);
+    }
+    if (surveyData.primaryPipeDiameter != null) {
+      chips.push(`${surveyData.primaryPipeDiameter} mm primary pipe`);
+    }
+
+    return chips;
+  }, [surveyData]);
+
+  const rawValueSections = useMemo(() => ([
+    {
+      id: 'current',
+      title: 'Current raw values',
+      values: buildRawValueEntries(surveyAdapted.systemChoice, surveyAdapted.systemInputs),
+    },
+    {
+      id: 'proposed',
+      title: 'Proposed raw values',
+      values: buildRawValueEntries(compareSeed.right.systemChoice, compareSeed.right.systemInputs),
+    },
+  ]), [compareSeed.right.systemChoice, compareSeed.right.systemInputs, surveyAdapted.systemChoice, surveyAdapted.systemInputs]);
+
+  const activeSystemLabel = formatSystemFamilyLabel(
+    eventsSystem ?? (resimulationResult?.resimulation.systemType as EventsSystemFamily | undefined),
+  );
 
   // Portal print view — render the print-friendly page instead of the dashboard.
   if (isPrinting) {
@@ -237,6 +490,125 @@ export default function UnifiedSimulatorView({ engineOutput, surveyData, floorpl
             </button>
           </div>
         </div>
+        <section
+          className="unified-simulator-view__wrapper"
+          data-testid="simulator-visual-wrapper"
+          aria-label="Daily hot-water summary"
+        >
+          <div className="unified-simulator-view__wrapper-top">
+            <div>
+              <p className="unified-simulator-view__eyebrow">Daily hot-water performance</p>
+              <h3 className="unified-simulator-view__wrapper-title">{activeSystemLabel}</h3>
+              <p className="unified-simulator-view__wrapper-copy">
+                {resimulationResult?.fitSummary ?? 'Current values are loaded into the existing simulator without changing the model.'}
+              </p>
+            </div>
+            <div className="unified-simulator-view__mode-toggle" role="tablist" aria-label="Simulator display mode">
+              {DISPLAY_MODE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="tab"
+                  className={`unified-simulator-view__mode-btn${displayMode === option.value ? ' unified-simulator-view__mode-btn--active' : ''}`}
+                  aria-selected={displayMode === option.value}
+                  onClick={() => setDisplayMode(option.value)}
+                  data-testid={`simulator-display-mode-${option.value}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {drawOffChips.length > 0 && (
+            <div className="unified-simulator-view__section">
+              <span className="unified-simulator-view__section-label">Modelled draw-offs</span>
+              <div className="unified-simulator-view__chips">
+                {drawOffChips.map((chip) => (
+                  <span
+                    key={chip.id}
+                    className={`unified-simulator-view__chip unified-simulator-view__chip--${chip.tone}`}
+                    data-testid={`simulator-draw-off-chip-${chip.id}`}
+                  >
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {resultChips.length > 0 && (
+            <div className="unified-simulator-view__section">
+              <span className="unified-simulator-view__section-label">Pressure, flow, and recovery</span>
+              <div className="unified-simulator-view__chips">
+                {resultChips.map((chip) => (
+                  <span
+                    key={chip.label}
+                    className={`unified-simulator-view__chip unified-simulator-view__chip--${chip.tone}`}
+                  >
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="unified-simulator-view__messages" data-testid="simulator-warning-list">
+            {wrapperMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`unified-simulator-view__message unified-simulator-view__message--${message.tone}`}
+                role={message.tone === 'fail' ? 'alert' : 'status'}
+              >
+                {message.text}
+              </div>
+            ))}
+          </div>
+
+          {displayMode !== 'customer' && assumptionChips.length > 0 && (
+            <div className="unified-simulator-view__section" data-testid="simulator-assumptions">
+              <span className="unified-simulator-view__section-label">Current assumptions</span>
+              <div className="unified-simulator-view__chips">
+                {assumptionChips.map((chip) => (
+                  <span key={chip} className="unified-simulator-view__chip unified-simulator-view__chip--neutral">
+                    {chip}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {displayMode === 'engineer' && (
+            <div className="unified-simulator-view__raw-values" data-testid="simulator-raw-values">
+              <div className="unified-simulator-view__raw-links">
+                {rawValueSections.map((section) => (
+                  <a key={section.id} href={`#simulator-raw-${section.id}`} className="unified-simulator-view__raw-link">
+                    {section.title}
+                  </a>
+                ))}
+              </div>
+              <div className="unified-simulator-view__raw-grid">
+                {rawValueSections.map((section) => (
+                  <section
+                    key={section.id}
+                    id={`simulator-raw-${section.id}`}
+                    className="unified-simulator-view__raw-card"
+                  >
+                    <h4>{section.title}</h4>
+                    <dl>
+                      {section.values.map((entry) => (
+                        <div key={`${section.id}-${entry.label}`} className="unified-simulator-view__raw-row">
+                          <dt>{entry.label}</dt>
+                          <dd>{entry.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
         <SimulatorDashboard
           initialSystemChoice={surveyAdapted.systemChoice}
           initialSystemInputs={surveyAdapted.systemInputs}

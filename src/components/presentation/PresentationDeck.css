@@ -2103,6 +2103,24 @@
   flex: 1;
 }
 
+.atlas-deck-simulator__fact-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.atlas-deck-simulator__fact-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .atlas-deck-simulator__caps {
   margin: 0;
   padding-left: 1rem;
