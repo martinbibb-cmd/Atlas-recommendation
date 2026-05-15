@@ -130,6 +130,29 @@ describe('VisitHomeDashboard', () => {
     expect(onOpenInstallationSpecification).toHaveBeenCalledOnce();
   });
 
+  it('Visit Home links to simulator, library, and workflow surfaces', () => {
+    const onOpenSimulator = vi.fn();
+    const onPrintSummary = vi.fn();
+    const onOpenInstallationSpecification = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onOpenSimulator,
+          onPrintSummary,
+          onOpenInstallationSpecification,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('card-simulator-cta'));
+    fireEvent.click(screen.getByTestId('card-pdf-cta'));
+    fireEvent.click(screen.getByTestId('card-implementation-cta'));
+
+    expect(onOpenSimulator).toHaveBeenCalledOnce();
+    expect(onPrintSummary).toHaveBeenCalledOnce();
+    expect(onOpenInstallationSpecification).toHaveBeenCalledOnce();
+  });
+
   describe('journey card', () => {
     it('shows heat_pump_reality archetype when engine recommends ashp', () => {
       render(

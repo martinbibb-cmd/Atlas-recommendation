@@ -3,7 +3,7 @@ import { buildFullRouteExample } from '../../dev/devRouteRegistry';
 import { getComponentDiscoveryReport, type RouteAuditRow } from '../../dev/utils/componentScanner';
 
 type DiscoveryTab = 'route_audit' | 'unrouted';
-type StatusFilter = 'all' | 'production' | 'dev_only' | 'unrouted';
+type StatusFilter = 'all' | 'production' | 'dev_only' | 'retired' | 'unrouted';
 
 interface Props {
   onBack?: () => void;
@@ -18,6 +18,7 @@ const STATUS_LABELS: Record<StatusFilter, string> = {
   all: 'All',
   production: 'Production',
   dev_only: 'Dev only',
+  retired: 'Retired',
   unrouted: 'Unrouted',
 };
 
@@ -25,6 +26,7 @@ const STATUS_COLORS: Record<StatusFilter, string> = {
   all: '#475569',
   production: '#15803d',
   dev_only: '#ca8a04',
+  retired: '#6b7280',
   unrouted: '#dc2626',
 };
 
@@ -97,6 +99,7 @@ export default function ComponentDiscoveryPanel({ onBack }: Props) {
       <div style={STYLES.summaryRow}>
         <span style={statusBadge('production')}>Green · production routes: {report.counts.production}</span>
         <span style={statusBadge('dev_only')}>Yellow · dev-only routes: {report.counts.devOnly}</span>
+        <span style={statusBadge('retired')}>Grey · retired routes: {report.counts.retired}</span>
         <span style={statusBadge('unrouted')}>Red · unrouted pages: {report.counts.unrouted}</span>
         <span style={STYLES.summaryText}>Unrouted visual/dev components: {report.unroutedComponents.length}</span>
       </div>
@@ -123,7 +126,7 @@ export default function ComponentDiscoveryPanel({ onBack }: Props) {
         />
         {tab === 'route_audit' && (
           <div style={STYLES.filterRow}>
-            {(['all', 'production', 'dev_only', 'unrouted'] as StatusFilter[]).map(filter => (
+            {(['all', 'production', 'dev_only', 'retired', 'unrouted'] as StatusFilter[]).map(filter => (
               <button
                 key={filter}
                 className={`chip-btn${statusFilter === filter ? ' chip-btn--active' : ''}`}

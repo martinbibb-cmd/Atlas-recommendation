@@ -56,6 +56,7 @@ describe('componentScanner', () => {
     expect(report.counts).toEqual({
       production: 1,
       devOnly: 1,
+      retired: 0,
       unrouted: 1,
     });
   });
