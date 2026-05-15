@@ -17,6 +17,7 @@ import { VisitHomeDashboard } from '../VisitHomeDashboard';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
+import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
 // ─── Minimal fixtures ─────────────────────────────────────────────────────────
 
@@ -143,16 +144,17 @@ describe('VisitHomeDashboard', () => {
     });
 
     it('shows open_vented_to_sealed_unvented when circuit is open_vented and recommendation is system_unvented', () => {
+      const surveyModel: FullSurveyModelV1 = {
+        ...MINIMAL_ENGINE_INPUT,
+        fullSurvey: {
+          heatingCondition: { systemCircuitType: 'open_vented' },
+        },
+      };
       render(
         <VisitHomeDashboard
           {...makeProps({
             engineOutput: SYSTEM_UNVENTED_OUTPUT as EngineOutputV1,
-            surveyModel: {
-              ...MINIMAL_ENGINE_INPUT,
-              fullSurvey: {
-                heatingCondition: { systemCircuitType: 'open_vented' },
-              },
-            } as never,
+            surveyModel,
           })}
         />,
       );

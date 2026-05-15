@@ -42,7 +42,7 @@ export interface VisitJourneyInfo {
 const HEAT_PUMP_PATTERN = /\b(ashp|heat.pump|hp)\b/i;
 const WATER_CONSTRAINT_PATTERN = /\b(pressure|flow|hydraulic|mains|pipe)\b/i;
 const STORED_UNVENTED_PATTERN = /\b(system_unvented|regular_unvented|unvented)\b/i;
-const REGULAR_PATTERN = /\b(regular|vented)\b/i;
+const REGULAR_PATTERN = /\b(regular_unvented|regular)\b/i;
 
 /**
  * Detects the primary journey archetype from engine output and supporting data.

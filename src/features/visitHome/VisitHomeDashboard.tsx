@@ -259,6 +259,12 @@ export function VisitHomeDashboard({
     ? `Visit ${visitId.slice(-8).toUpperCase()}`
     : 'Current visit';
 
+  // ── Stable portal CTA — avoids inline arrow on every render ───────────────
+
+  const handleOpenPortal = portalUrl != null
+    ? () => { window.open(portalUrl, '_blank', 'noopener,noreferrer'); }
+    : undefined;
+
   return (
     <div className="vhd-root">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -320,7 +326,7 @@ export function VisitHomeDashboard({
           audience={['customer']}
           source="workflow"
           ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-          onCta={onOpenInsightPack ?? (portalUrl != null ? () => { window.open(portalUrl, '_blank', 'noopener,noreferrer'); } : undefined)}
+          onCta={onOpenInsightPack ?? handleOpenPortal}
         />
 
         {/* 3. Daily hot-water simulator */}

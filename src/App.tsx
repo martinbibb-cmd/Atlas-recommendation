@@ -1859,25 +1859,38 @@ function AppInner() {
           />
         )}
         {/* Visit Home Dashboard — front-door overview of all outputs for the active visit */}
-        {journey === 'visit-home' && (
-          <VisitHomeDashboard
-            visitId={activeVisitId}
-            engineInput={labEngineInput}
-            engineOutput={labEngineInput != null ? (() => { try { return runEngine(labEngineInput).engineOutput; } catch { return undefined; } })() : undefined}
-            scenarios={labEngineInput != null ? (() => { try { return buildScenariosFromEngineOutput(runEngine(labEngineInput).engineOutput); } catch { return undefined; } })() : undefined}
-            surveyModel={labFullSurveyModel}
-            portalUrl={labPortalUrl}
-            installationSpecOptionCount={labInstallationSpecifications.length}
-            onOpenSimulator={() => setJourney('simulator')}
-            onOpenPresentation={() => { setPresentationFromJourney('visit-home'); setJourney('presentation'); }}
-            onPrintSummary={() => setJourney('framework-print')}
-            onOpenInstallationSpecification={() => setJourney('installation-specification')}
-            onOpenInsightPack={labEngineInput != null ? () => { void handleOpenInsightPackForVisit(activeVisitId ?? ''); } : undefined}
-            onOpenHandoffReview={activeVisitId != null ? () => { void handleOpenHandoffReview(activeVisitId); } : undefined}
-            onOpenEngineerRoute={activeVisitId != null ? () => setJourney('engineer') : undefined}
-            onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'workspace-dashboard')}
-          />
-        )}
+        {journey === 'visit-home' && (() => {
+          let visitHomeEngineOutput: import('./contracts/EngineOutputV1').EngineOutputV1 | undefined;
+          let visitHomeScenarios: import('./contracts/ScenarioResult').ScenarioResult[] | undefined;
+          if (labEngineInput != null) {
+            try {
+              const { engineOutput } = runEngine(labEngineInput);
+              visitHomeEngineOutput = engineOutput;
+              visitHomeScenarios = buildScenariosFromEngineOutput(engineOutput);
+            } catch {
+              // Engine failed — both remain undefined; cards will show blocked status
+            }
+          }
+          return (
+            <VisitHomeDashboard
+              visitId={activeVisitId}
+              engineInput={labEngineInput}
+              engineOutput={visitHomeEngineOutput}
+              scenarios={visitHomeScenarios}
+              surveyModel={labFullSurveyModel}
+              portalUrl={labPortalUrl}
+              installationSpecOptionCount={labInstallationSpecifications.length}
+              onOpenSimulator={() => setJourney('simulator')}
+              onOpenPresentation={() => { setPresentationFromJourney('visit-home'); setJourney('presentation'); }}
+              onPrintSummary={() => setJourney('framework-print')}
+              onOpenInstallationSpecification={() => setJourney('installation-specification')}
+              onOpenInsightPack={labEngineInput != null ? () => { void handleOpenInsightPackForVisit(activeVisitId ?? ''); } : undefined}
+              onOpenHandoffReview={activeVisitId != null ? () => { void handleOpenHandoffReview(activeVisitId); } : undefined}
+              onOpenEngineerRoute={activeVisitId != null ? () => setJourney('engineer') : undefined}
+              onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'workspace-dashboard')}
+            />
+          );
+        })()}
         {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
              After a successful import, navigate to /workspace so the engineer can review
              the captured evidence.  The scan session is already persisted to IDB at this
