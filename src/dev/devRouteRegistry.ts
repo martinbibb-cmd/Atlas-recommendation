@@ -106,8 +106,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   {
     codeName: 'WorkspaceSettingsPage',
     routePath: '/workspace/settings',
-    queryFlags: ['dev/workspace-settings (dev alias)'],
-    fullRouteExample: '/workspace/settings',
+    fullRouteExample: '/workspace/settings or /dev/workspace-settings',
     routeKind: 'path',
     access: 'production',
   },

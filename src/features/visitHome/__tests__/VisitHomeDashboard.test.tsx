@@ -130,7 +130,7 @@ describe('VisitHomeDashboard', () => {
     expect(onOpenInstallationSpecification).toHaveBeenCalledOnce();
   });
 
-  it('supporting PDF CTA calls onPrintSummary — preserves library link from Visit Home', () => {
+  it('calls onPrintSummary when supporting PDF CTA is clicked', () => {
     const onPrintSummary = vi.fn();
     render(
       <VisitHomeDashboard

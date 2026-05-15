@@ -628,6 +628,28 @@ function CanonicalPresentationRoute({
   );
 }
 
+function RetiredRouteNotice({
+  backLabel = '← Back',
+  onBack,
+  title = 'Retired route',
+  children,
+}: {
+  backLabel?: string;
+  onBack: () => void;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '1rem' }}>
+      <button className="back-btn" onClick={onBack}>{backLabel}</button>
+      <div style={{ maxWidth: 760, marginTop: '1rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1rem' }}>
+        <h2 style={{ marginTop: 0 }}>{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   // ── Mobile-state persistence: restore session cache on load ───────────────
   // Read once at component initialisation (before first render) so restored
@@ -1442,18 +1464,14 @@ function AppInner() {
   // ?report=1 is retired. Keep a safe notice instead of exposing duplicate report paths.
   if (REPORT_MODE_ENABLED) {
     return (
-      <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '1rem' }}>
-        <button className="back-btn" onClick={() => { window.location.href = '/'; }}>← Back</button>
-        <div style={{ maxWidth: 760, marginTop: '1rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1rem' }}>
-          <h2 style={{ marginTop: 0 }}>Retired route</h2>
-          <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
+      <RetiredRouteNotice onBack={() => { window.location.href = '/'; }}>
+        <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
             The legacy <code>?report=1</code> route is retired.
-          </p>
-          <p style={{ color: '#475569', marginBottom: 0 }}>
+        </p>
+        <p style={{ color: '#475569', marginBottom: 0 }}>
             Use saved report routes (<code>/report/&lt;report-id&gt;</code>) or Visit Home cards for current outputs.
-          </p>
-        </div>
-      </div>
+        </p>
+      </RetiredRouteNotice>
     );
   }
 
@@ -2148,15 +2166,11 @@ function AppInner() {
         />
       )}
       {journey === 'printout' && (
-        <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '1rem' }}>
-          <button className="back-btn" onClick={() => setJourney('framework-print')}>Open supporting PDF →</button>
-          <div style={{ maxWidth: 760, marginTop: '1rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1rem' }}>
-            <h2 style={{ marginTop: 0 }}>Retired route</h2>
-            <p style={{ color: '#475569', marginBottom: 0 }}>
-              This legacy printout route has been retired. Use the Supporting PDF route.
-            </p>
-          </div>
-        </div>
+        <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('framework-print')}>
+          <p style={{ color: '#475569', marginBottom: 0 }}>
+            This legacy printout route has been retired. Use the Supporting PDF route.
+          </p>
+        </RetiredRouteNotice>
       )}
       {journey === 'framework-print' && labEngineInput != null && (() => {
         const result    = runEngine(labEngineInput);
