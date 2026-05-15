@@ -1,10 +1,13 @@
 import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
 import { buildExpectationDeltas, getContentByConceptId } from '../../library/content';
 import type { LivingExperiencePatternV1 } from '../../library/content/LivingExperiencePatternV1';
-import { BOILER_BURST_PATTERN } from '../../library/content/simulatorExpectationPatterns';
+import {
+  BOILER_BURST_PATTERN,
+  TANK_FED_CURRENT_PATTERN,
+} from '../../library/content/simulatorExpectationPatterns';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 
-type SimulatorExpectationTarget = SimulatorSystemChoice | 'stored_water';
+export type SimulatorExpectationTarget = SimulatorSystemChoice | 'stored_water';
 
 export interface SimulatorExpectationDelta {
   mode: 'stored_hot_water' | 'heat_pump' | 'water_constraint';
@@ -83,11 +86,18 @@ export function buildSimulatorExpectationDelta(
     };
   }
 
-  if (!isStoredHotWaterChoice(activeSystemChoice) || currentSystemChoice !== 'combi') {
+  if (!isStoredHotWaterChoice(activeSystemChoice)) {
     return null;
   }
 
-  const currentPattern = getContentByConceptId('why_not_combi')?.livingExperiencePattern;
+  const currentPattern = currentSystemChoice === 'open_vented'
+    ? TANK_FED_CURRENT_PATTERN
+    : currentSystemChoice === 'combi'
+      ? getContentByConceptId('why_not_combi')?.livingExperiencePattern
+      : undefined;
+  if (!currentPattern) {
+    return null;
+  }
   const futurePattern = isWaterConstraintJourney(surveyData)
     ? getContentByConceptId('pressure_vs_storage')?.livingExperiencePattern
     : getContentByConceptId('premium_hot_water_performance')?.livingExperiencePattern;

@@ -25,7 +25,11 @@ import type { SimulatorSystemOverride } from '../../lib/simulator/buildResimulat
 import { buildCanonicalReportPayload } from '../../features/reports/adapters/buildCanonicalReportPayload';
 import { saveReport } from '../../lib/reports/reportApi';
 import { generateReportTitle } from '../../lib/reports/generateReportTitle';
-import { buildSimulatorExpectationDelta, type SimulatorExpectationDelta } from './buildSimulatorExpectationDelta';
+import {
+  buildSimulatorExpectationDelta,
+  type SimulatorExpectationDelta,
+  type SimulatorExpectationTarget,
+} from './buildSimulatorExpectationDelta';
 import './UnifiedSimulatorView.css';
 
 function buildFloorplanOperatingAssumptions(
@@ -442,7 +446,7 @@ export default function UnifiedSimulatorView({
   const activeSystemLabel = formatSystemFamilyLabel(
     eventsSystem ?? (resimulationResult?.resimulation.systemType as EventsSystemFamily | undefined),
   );
-  const activeSystemChoice = (eventsSystem ?? compareSeed.right.systemChoice) as EventsSystemFamily;
+  const activeSystemChoice: SimulatorExpectationTarget = eventsSystem ?? compareSeed.right.systemChoice;
   const matchedExpectationDelta = useMemo(
     () => expectationDelta ?? buildSimulatorExpectationDelta(surveyAdapted.systemChoice, activeSystemChoice, surveyData),
     [activeSystemChoice, expectationDelta, surveyAdapted.systemChoice, surveyData],

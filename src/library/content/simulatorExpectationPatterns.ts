@@ -11,3 +11,15 @@ export const BOILER_BURST_PATTERN: LivingExperiencePatternV1 = {
   analogyOptions: [{ title: 'Boiler burst pattern', explanation: 'Short hotter bursts can still heat the home.' }],
   printSummary: 'Boiler comfort is often delivered through shorter hotter bursts.',
 };
+
+export const TANK_FED_CURRENT_PATTERN: LivingExperiencePatternV1 = {
+  whatYouMayNotice: 'Hot water pressure varies more between outlets in busy periods.',
+  whatThisMeans: 'Tank-fed hot water relies on tank head rather than direct mains-fed supply.',
+  whatStaysFamiliar: 'Daily routines can still feel familiar for single-outlet use.',
+  whatChanges: 'Overlap use can expose pressure and supply limits.',
+  reassurance: 'This is a known characteristic of tank-fed supply.',
+  commonMisunderstanding: 'Any pressure variation means the system has failed.',
+  dailyLifeEffect: 'Busy periods are where differences are usually felt most.',
+  analogyOptions: [{ title: 'Tank-fed supply', explanation: 'Delivery depends on tank height and available head.' }],
+  printSummary: 'Tank-fed supply can feel less consistent at peak overlap use.',
+};
