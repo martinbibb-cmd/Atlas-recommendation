@@ -824,7 +824,7 @@ export default function LifestyleInteractive({ baseInput = {} }: Props) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <strong style={{ color: '#1e3a5f', letterSpacing: '0.02em' }}>Atlas</strong>
-          <span style={{ color: '#475569', fontSize: '0.82rem' }}>Simulator</span>
+          <span style={{ color: '#475569', fontSize: '0.82rem' }}>Day Painter</span>
         </div>
         <div style={{ minWidth: 0 }}>
           <SystemNarrationToast messages={narrationToasts} />
