@@ -116,6 +116,8 @@ function flowChip(flowLpm: number, constrained: boolean): LiveMetricChipProps {
 }
 
 function tempChip(tempC: number): LiveMetricChipProps {
+  // 55 °C+ — scalding risk territory; 42 °C — comfortable hot water delivery;
+  // 30 °C — lukewarm (system not yet at temperature); below 30 °C — cold.
   const status =
     tempC >= 55 ? 'critical'
     : tempC >= 42 ? 'good'

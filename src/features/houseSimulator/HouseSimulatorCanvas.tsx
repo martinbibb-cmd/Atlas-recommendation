@@ -60,13 +60,15 @@ function RoomCell({ room, activeOutlets }: RoomCellProps) {
   const roomOutlets = activeOutlets.filter(o => o.roomName === room.name);
 
   return (
-    <div className={`hs-room ${roomHeatClass(room.state)}`}>
+    <div
+      className={`hs-room ${roomHeatClass(room.state)}`}
+    >
       {room.hasEmitter && (
         <span
           className={`hs-emitter${room.emitterActive ? ' hs-emitter--active' : ''}`}
-          aria-label={room.emitterActive ? 'Emitter active' : 'Emitter off'}
+          aria-label={room.emitterActive ? 'Radiator active' : 'Radiator off'}
         >
-          🌡
+          <span aria-hidden="true">🌡</span>
         </span>
       )}
       <span className="hs-room__name">{room.name}</span>

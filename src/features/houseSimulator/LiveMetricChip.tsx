@@ -67,6 +67,8 @@ export default function LiveMetricChip({
   const border = STATUS_BORDER[status];
   const bg     = STATUS_BG[status];
 
+  // \u202F = narrow no-break space — keeps value and unit visually joined without
+  // the wide gap a regular space would produce at larger font weights.
   const displayValue = unit != null ? `${value}\u202F${unit}` : String(value);
 
   if (compact) {

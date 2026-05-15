@@ -119,6 +119,11 @@ export default function HouseSimulatorPage({
     systemInputs.demandPreset,
   );
 
+  // Sync cylinder type when switching system choice.
+  // Each system family implies a compatible cylinder technology:
+  //   mixergy → always uses its own stratified cylinder type.
+  //   open_vented → system boiler with gravity-fed CWS; only corrects if previously unvented.
+  //   unvented / heat_pump → mains-fed cylinder; only corrects if previously open_vented.
   function setSystemChoice(c: SimulatorSystemChoice) {
     setSystemChoiceRaw(c);
     if (c === 'mixergy') {
