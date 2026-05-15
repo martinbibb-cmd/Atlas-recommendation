@@ -59,6 +59,30 @@ export interface VisitHomeDashboardProps {
    */
   installationSpecOptionCount?: number;
 
+  // ── Library safety ─────────────────────────────────────────────────────────
+
+  /**
+   * When true the library projection is not safe for customer output.
+   * Forces the Supporting PDF and Customer Portal / Insight cards to 'blocked'
+   * so the surveyor cannot accidentally share unsafe educational content.
+   */
+  libraryUnsafe?: boolean;
+  /**
+   * Human-readable reasons why the library is blocked.
+   * Shown as supplementary text on blocked PDF / portal cards.
+   */
+  libraryBlockReasons?: readonly string[];
+
+  // ── Continue-where-you-left-off ────────────────────────────────────────────
+
+  /**
+   * Label for the last surface opened from this dashboard (e.g. 'Simulator').
+   * When provided, a "Continue" banner is shown at the top of the dashboard.
+   */
+  lastSurface?: string;
+  /** Opens the last surface the user was on. Only called when lastSurface is set. */
+  onContinueLastSurface?: () => void;
+
   // ── CTA handlers (all delegate to existing App.tsx journeys) ─────────────
 
   /** Open the Simulator Dashboard (journey = 'simulator'). */
@@ -75,7 +99,7 @@ export interface VisitHomeDashboardProps {
   onOpenHandoffReview?: () => void;
   /** Open the pre-install engineer route (journey = 'engineer'). */
   onOpenEngineerRoute?: () => void;
-  /** Navigate back (typically to visit-hub or workspace-dashboard). */
+  /** Navigate back (typically to workspace-dashboard). */
   onBack: () => void;
 }
 
@@ -204,6 +228,10 @@ export function VisitHomeDashboard({
   surveyModel,
   portalUrl,
   installationSpecOptionCount = 0,
+  libraryUnsafe = false,
+  libraryBlockReasons,
+  lastSurface,
+  onContinueLastSurface,
   onOpenSimulator,
   onOpenPresentation,
   onPrintSummary,
@@ -224,7 +252,9 @@ export function VisitHomeDashboard({
     ? 'needs-review'
     : 'blocked';
 
-  const portalStatus: CardStatus = portalUrl != null
+  const portalStatus: CardStatus = libraryUnsafe
+    ? 'blocked'
+    : portalUrl != null
     ? 'ready'
     : hasEngineData
     ? 'needs-review'
@@ -232,7 +262,11 @@ export function VisitHomeDashboard({
 
   const simulatorStatus: CardStatus = hasEngineData ? 'ready' : 'needs-review';
 
-  const pdfStatus: CardStatus = hasEngineData ? 'ready' : 'blocked';
+  const pdfStatus: CardStatus = libraryUnsafe
+    ? 'blocked'
+    : hasEngineData
+    ? 'ready'
+    : 'blocked';
 
   const implementationStatus: CardStatus = installationSpecOptionCount > 0
     ? 'ready'
@@ -283,6 +317,21 @@ export function VisitHomeDashboard({
         </div>
       </div>
 
+      {/* ── Continue-where-you-left-off banner ─────────────────────────────── */}
+      {lastSurface != null && onContinueLastSurface != null && (
+        <div className="vhd-continue-banner" data-testid="visit-home-continue-banner">
+          <span>Continue: <strong>{lastSurface}</strong></span>
+          <button
+            type="button"
+            className="vhd-continue-banner__btn"
+            onClick={onContinueLastSurface}
+            data-testid="visit-home-continue-btn"
+          >
+            Continue →
+          </button>
+        </div>
+      )}
+
       {/* ── Journey card ───────────────────────────────────────────────────── */}
       {journeyInfo.archetype != null && (
         <div
@@ -321,12 +370,16 @@ export function VisitHomeDashboard({
           data-testid="card-portal"
           icon="🔗"
           title="Customer portal / Insight"
-          description="Shareable customer portal link with QR code and personalised Atlas Insight Pack."
+          description={
+            libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
+              ? `Blocked: ${libraryBlockReasons[0]}`
+              : 'Shareable customer portal link with QR code and personalised Atlas Insight Pack.'
+          }
           status={portalStatus}
           audience={['customer']}
           source="workflow"
           ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-          onCta={onOpenInsightPack ?? handleOpenPortal}
+          onCta={libraryUnsafe ? undefined : (onOpenInsightPack ?? handleOpenPortal)}
         />
 
         {/* 3. Daily hot-water simulator */}
@@ -347,12 +400,16 @@ export function VisitHomeDashboard({
           data-testid="card-pdf"
           icon="📄"
           title="Supporting PDF"
-          description="Customer-facing print pack with recommendation, scenarios, and library explainers."
+          description={
+            libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
+              ? `Blocked: ${libraryBlockReasons[0]}`
+              : 'Customer-facing print pack with recommendation, scenarios, and library explainers.'
+          }
           status={pdfStatus}
           audience={['customer', 'office']}
           source="library"
           ctaLabel="Print summary →"
-          onCta={hasEngineData ? onPrintSummary : undefined}
+          onCta={!libraryUnsafe && hasEngineData ? onPrintSummary : undefined}
         />
 
         {/* 5. Implementation workflow */}

@@ -672,7 +672,7 @@ function AppInner() {
     }
     // 'visit-hub' and 'visit' require an active visit ID.
     // If the visit cache is absent, fall back to 'workspace-dashboard' to avoid a white screen.
-    if ((restored === 'visit-hub' || restored === 'visit') && !_restoredVisit?.value?.visitId) {
+    if ((restored === 'visit-hub' || restored === 'visit' || restored === 'visit-home') && !_restoredVisit?.value?.visitId) {
       return 'workspace-dashboard';
     }
     return restored;
@@ -740,6 +740,11 @@ function AppInner() {
    * When opened from the visit hub the Back button should return to 'visit-hub'.
    */
   const [presentationFromJourney, setPresentationFromJourney] = useState<Journey>('simulator');
+  /**
+   * The last sub-journey opened from the Visit Home Dashboard, used for the
+   * "continue where you left off" banner.  Cleared when returning to visit-home.
+   */
+  const [lastOpenedFromHome, setLastOpenedFromHome] = useState<{ label: string; journey: Journey } | null>(null);
   const [floorPlanSystemType, setFloorPlanSystemType] = useState<'combi' | 'system' | 'regular' | 'heat_pump' | undefined>();
   /**
    * Latest floor-plan derived output captured from FloorPlanBuilder.
@@ -895,7 +900,7 @@ function AppInner() {
   // Print/lab/dev-only routes are excluded to avoid polluting the cache with
   // transient states that are not meaningful to restore.
   const PERSISTED_JOURNEYS: Journey[] = [
-    'visit', 'visit-hub', 'remote-survey', 'simulator', 'presentation',
+    'visit', 'visit-hub', 'visit-home', 'remote-survey', 'simulator', 'presentation',
   ];
 
   useEffect(() => {
@@ -1880,14 +1885,39 @@ function AppInner() {
               surveyModel={labFullSurveyModel}
               portalUrl={labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}
-              onOpenSimulator={() => setJourney('simulator')}
-              onOpenPresentation={() => { setPresentationFromJourney('visit-home'); setJourney('presentation'); }}
-              onPrintSummary={() => setJourney('framework-print')}
-              onOpenInstallationSpecification={() => setJourney('installation-specification')}
-              onOpenInsightPack={labEngineInput != null ? () => { void handleOpenInsightPackForVisit(activeVisitId ?? ''); } : undefined}
-              onOpenHandoffReview={activeVisitId != null ? () => { void handleOpenHandoffReview(activeVisitId); } : undefined}
-              onOpenEngineerRoute={activeVisitId != null ? () => setJourney('engineer') : undefined}
-              onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'workspace-dashboard')}
+              lastSurface={lastOpenedFromHome?.label}
+              onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
+              onOpenSimulator={() => {
+                setLastOpenedFromHome({ label: 'Simulator', journey: 'simulator' });
+                setSimulatorFromJourney('visit-home');
+                setJourney('simulator');
+              }}
+              onOpenPresentation={() => {
+                setLastOpenedFromHome({ label: 'Presentation', journey: 'presentation' });
+                setPresentationFromJourney('visit-home');
+                setJourney('presentation');
+              }}
+              onPrintSummary={() => {
+                setLastOpenedFromHome({ label: 'Supporting PDF', journey: 'framework-print' });
+                setJourney('framework-print');
+              }}
+              onOpenInstallationSpecification={() => {
+                setLastOpenedFromHome({ label: 'Specification', journey: 'installation-specification' });
+                setJourney('installation-specification');
+              }}
+              onOpenInsightPack={labEngineInput != null ? () => {
+                setLastOpenedFromHome({ label: 'Insight Pack', journey: 'insight-pack' });
+                void handleOpenInsightPackForVisit(activeVisitId ?? '');
+              } : undefined}
+              onOpenHandoffReview={activeVisitId != null ? () => {
+                setLastOpenedFromHome({ label: 'Handoff Review', journey: 'visit-handoff' });
+                void handleOpenHandoffReview(activeVisitId);
+              } : undefined}
+              onOpenEngineerRoute={activeVisitId != null ? () => {
+                setLastOpenedFromHome({ label: 'Engineer Route', journey: 'engineer' });
+                setJourney('engineer');
+              } : undefined}
+              onBack={() => setJourney('workspace-dashboard')}
             />
           );
         })()}
@@ -1909,12 +1939,12 @@ function AppInner() {
             onClose={() => setJourney('visit-hub')}
           />
         )}
-        {/* Installation Specification — opened from Visit Hub or QuoteCollectionStep */}
+        {/* Installation Specification — opened from Visit Home or QuoteCollectionStep */}
         {journey === 'installation-specification' && (
-          <SpecificationErrorBoundary onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}>
+          <SpecificationErrorBoundary onBack={() => setJourney(activeVisitId != null ? 'visit-home' : 'landing')}>
             <Suspense fallback={specificationLoadingFallback}>
               <InstallationSpecificationPage
-                onBack={() => setJourney(activeVisitId != null ? 'visit-hub' : 'landing')}
+                onBack={() => setJourney(activeVisitId != null ? 'visit-home' : 'landing')}
                 canonicalCurrentSystem={canonicalCurrentSystem}
                 visitId={activeVisitId ?? undefined}
                 origin="visit-hub"
@@ -1930,24 +1960,24 @@ function AppInner() {
                     return [...prev, option];
                   });
                 }}
-                onFinish={() => { setJourney(activeVisitId != null ? 'visit-hub' : 'landing'); }}
+                onFinish={() => { setJourney(activeVisitId != null ? 'visit-home' : 'landing'); }}
               />
             </Suspense>
           </SpecificationErrorBoundary>
         )}
-        {/* Completed-visit handoff review — reachable from Visit Hub after completion */}
+        {/* Completed-visit handoff review — reachable from Visit Home after completion */}
         {journey === 'visit-handoff' && (
           <VisitHandoffReviewPage
             initialPack={activeHandoffPack ?? undefined}
             visitCompleted={true}
-            onBack={() => setJourney('visit-hub')}
+            onBack={() => setJourney('visit-home')}
           />
         )}
         {/* Engineer pre-install route — /visit/:visitId/engineer */}
         {journey === 'engineer' && activeVisitId != null && (
           <EngineerPreinstallPage
             visitId={activeVisitId}
-            onBack={() => setJourney('visit-hub')}
+            onBack={() => setJourney('visit-home')}
           />
         )}
         {journey === 'visit' && activeVisitId != null && (
@@ -1968,13 +1998,13 @@ function AppInner() {
             }}
             onComplete={(engineInput) => {
               // Survey is complete — store engine input for presentation/simulator use,
-              // then route to the Visit Hub so the engineer can formally complete the visit
-              // by clicking "Complete visit" and accessing handoff tools.
+              // then route to Visit Home so the surveyor has a clear overview of all
+              // available outputs before accessing handoff tools.
               setLabEngineInput(engineInput);
               if (activeAtlasVisit) {
                 trackVisitCompleted(activeAtlasVisit);
               }
-              setJourney('visit-hub');
+              setJourney('visit-home');
             }}
             onOpenSimulator={(engineInput) => {
               // Direct shortcut from InsightLayerPage — skip fit-map.
@@ -2145,9 +2175,9 @@ function AppInner() {
             portalUrl={labPortalUrl}
             visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
             onBack={() => {
-              // Return to the visit hub if we came from there, otherwise go to the presentation.
+              // Return to the Visit Home Dashboard if we came from a visit, otherwise go to the presentation.
               if (activeVisitId != null) {
-                setJourney('visit-hub');
+                setJourney('visit-home');
               } else {
                 setJourney('presentation');
               }
