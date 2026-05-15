@@ -437,10 +437,108 @@ describe('UnifiedSimulatorView wrapper', () => {
     expect(deltaCard.textContent).toContain('Short high-temperature bursts are replaced by sustained delivery.');
   });
 
+  it('switches stored hot-water fixtures into the water-constraint delta when pipework is constrained', () => {
+    mockBuildCompareSeedFromSurvey.mockReturnValue({
+      left: {
+        systemChoice: 'combi',
+        systemInputs: {
+          mainsPressureBar: 2.3,
+          mainsFlowLpm: 14,
+        },
+      },
+      right: {
+        systemChoice: 'unvented',
+        systemInputs: {
+          mainsPressureBar: 2.3,
+          mainsFlowLpm: 14,
+          cylinderSizeLitres: 210,
+        },
+      },
+      compareMode: 'current_vs_proposed',
+      comparisonLabel: 'Current vs proposed',
+    });
+    mockBuildResimulationFromSurvey.mockReturnValue({
+      recommendedSystemLabel: 'System boiler with stored hot water',
+      fitSummary: 'Current values are passed straight into the simulator.',
+      upgradePackage: { systemType: 'stored_water', upgrades: [] },
+      resimulation: {
+        systemType: 'stored_water',
+        simpleInstallSpec: {
+          systemType: 'stored_water',
+          peakHotWaterCapacityLpm: 11.8,
+        },
+        bestFitSpec: {
+          systemType: 'stored_water',
+        },
+        simpleInstall: {
+          systemLabel: 'Current system',
+          events: [],
+          hotWater: {
+            totalDraws: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            simultaneousEventCount: 0,
+            averageBathFillTimeMinutes: null,
+          },
+          heating: {
+            totalHeatingEvents: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            outsideTargetEventCount: 0,
+          },
+        },
+        bestFitInstall: {
+          systemLabel: 'Best fit',
+          events: [],
+          hotWater: {
+            totalDraws: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            simultaneousEventCount: 0,
+            averageBathFillTimeMinutes: null,
+          },
+          heating: {
+            totalHeatingEvents: 0,
+            successful: 0,
+            reduced: 0,
+            conflict: 0,
+            outsideTargetEventCount: 0,
+          },
+        },
+        comparison: {
+          hotWater: {
+            successfulDelta: 0,
+            reducedDelta: 0,
+            conflictDelta: 0,
+            averageBathFillTimeDeltaMinutes: null,
+          },
+          heating: {
+            successfulDelta: 0,
+            reducedDelta: 0,
+            conflictDelta: 0,
+            outsideTargetEventCountDelta: 0,
+          },
+          headlineImprovements: [],
+        },
+      },
+    });
+
+    render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={makeSurvey()} />);
+
+    const deltaCard = screen.getByTestId('simulator-expectation-delta-water_constraint');
+    expect(deltaCard.textContent).toContain('Hot water pressure and flow');
+    expect(deltaCard.textContent).toContain('What pressure and flow mean in daily use');
+  });
+
   it('keeps customer mode jargon-safe while hiding engineer-only assumptions', () => {
     render(<UnifiedSimulatorView engineOutput={ENGINE_OUTPUT} surveyData={makeSurvey()} />);
 
     const deltaCard = screen.getByTestId('simulator-expectation-delta-heat_pump');
+    expect(deltaCard.textContent).toContain('Radiators and daily routine');
+    expect(deltaCard.textContent).toContain('Warm-not-hot radiator feel alone does not indicate a fault.');
     expect(deltaCard.textContent).not.toMatch(/g3|commissioning|heat[- ]exchanger/i);
     expect(screen.queryByTestId('simulator-assumptions')).toBeNull();
     expect(screen.queryByTestId('simulator-raw-values')).toBeNull();
