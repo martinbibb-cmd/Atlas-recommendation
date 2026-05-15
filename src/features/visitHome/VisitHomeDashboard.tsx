@@ -379,7 +379,7 @@ export function VisitHomeDashboard({
           audience={['customer']}
           source="workflow"
           ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-          onCta={libraryUnsafe ? undefined : (onOpenInsightPack ?? handleOpenPortal)}
+          onCta={onOpenInsightPack ?? handleOpenPortal}
         />
 
         {/* 3. Daily hot-water simulator */}
@@ -409,7 +409,7 @@ export function VisitHomeDashboard({
           audience={['customer', 'office']}
           source="library"
           ctaLabel="Print summary →"
-          onCta={!libraryUnsafe && hasEngineData ? onPrintSummary : undefined}
+          onCta={hasEngineData ? onPrintSummary : undefined}
         />
 
         {/* 5. Implementation workflow */}
