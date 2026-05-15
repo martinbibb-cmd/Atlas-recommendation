@@ -505,8 +505,7 @@ export default function SimulatorDashboard({
     resetToAutoMode: resetToAutoModeImproved,
     setManualMode: setManualModeImproved,
   } = useSystemDiagramPlayback(initialProposedSystemChoice ?? initialSystemChoice, timeSpeed, improvedInputs.occupancyProfile, improvedInputs.demandPreset);
-  // useHousePlayback is called for React hook ordering.
-  useHousePlayback(diagramStateImproved);
+  const houseStateImproved = useHousePlayback(diagramStateImproved);
   const drawOffStateImproved = useDrawOffPlayback(diagramStateImproved, improvedInputs.cylinderType, improvedInputs.cylinderSizeLitres, improvedInputs.mainsFlowLpm, improvedInputs.combiPowerKw, improvedInputs.coldInletTempC);
   const emitterStateImproved = useEmitterPrimaryModel({
     emitterCapacityFactor: improvedInputs.emitterCapacityFactor,
