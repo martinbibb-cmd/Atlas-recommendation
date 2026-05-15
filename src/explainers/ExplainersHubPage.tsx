@@ -35,6 +35,7 @@ import { adaptFloorplanToAtlasInputs } from '../lib/floorplan/adaptFloorplanToAt
 import { buildHeatingOperatingState, FLOOR_PLAN_EMITTER_EXPLANATION_TAGS } from '../lib/heating/buildHeatingOperatingState';
 import { useGlobalMenu } from '../components/shell/GlobalMenuContext';
 import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
+import LabShell from '../components/lab/LabShell';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,9 @@ export default function ExplainersHubPage({ onBack, onEditSetup, surveyData, onO
   //   (b) stepper has completed and config is set.
   const showDashboard = !showStepper && (surveyAdapted != null || config != null);
 
+  const isLabRoute =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('lab') === '1';
   // ── Global menu sections (Physics Explainers + Energy Literacy) ─────────────
   // Registered when the dashboard is shown so they appear in the global menu
   // instead of inline below the simulator panels.
@@ -192,6 +196,16 @@ export default function ExplainersHubPage({ onBack, onEditSetup, surveyData, onO
     setContextMenuSections(dashboardMenuSections);
     return () => setContextMenuSections([]);
   }, [showDashboard, dashboardMenuSections, setContextMenuSections]);
+
+  if (isLabRoute && surveyData == null) {
+    return (
+      <LabShell
+        onHome={onBack ?? (() => {
+          window.location.href = window.location.pathname;
+        })}
+      />
+    );
+  }
 
   if (showDashboard) {
     const isSurveyBacked = surveyAdapted != null && !config;
