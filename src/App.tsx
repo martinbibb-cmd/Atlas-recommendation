@@ -7,7 +7,6 @@ import ScopePage from './components/governance/ScopePage';
 import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
-import ReportView from './components/report/ReportView';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
 import LabShell from './components/lab/LabShell';
 import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
@@ -203,7 +202,7 @@ const PRINT_VIEW =
     : null;
 
 /**
- * Detect ?report=1 — renders the unified ReportView with demo engine output.
+ * Detect ?report=1 — legacy report demo route (now retired notice).
  * This is the single entry point for the print pipeline.
  */
 const REPORT_MODE_ENABLED =
@@ -629,6 +628,28 @@ function CanonicalPresentationRoute({
   );
 }
 
+function RetiredRouteNotice({
+  backLabel = '← Back',
+  onBack,
+  title = 'Retired route',
+  children,
+}: {
+  backLabel?: string;
+  onBack: () => void;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '1rem' }}>
+      <button className="back-btn" onClick={onBack}>{backLabel}</button>
+      <div style={{ maxWidth: 760, marginTop: '1rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1rem' }}>
+        <h2 style={{ marginTop: 0 }}>{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   // ── Mobile-state persistence: restore session cache on load ───────────────
   // Read once at component initialisation (before first render) so restored
@@ -1038,10 +1059,10 @@ function AppInner() {
     setShowNewVisitDialog(true);
   }
 
-  /** Open an existing visit by ID — routes to the Visit Hub page. */
+  /** Open an existing visit by ID — routes to Visit Home dashboard. */
   function handleOpenVisit(visitId: string) {
     setActiveVisitId(visitId);
-    setJourney('visit-hub');
+    setJourney('visit-home');
   }
 
   /**
@@ -1440,17 +1461,17 @@ function AppInner() {
     );
   }
 
-  // ?report=1 feature flag — render the unified ReportView with demo engine output.
+  // ?report=1 is retired. Keep a safe notice instead of exposing duplicate report paths.
   if (REPORT_MODE_ENABLED) {
-    const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
     return (
-      <ReportView
-        output={engineOutput}
-        engineInput={CONSOLE_DEMO_INPUT}
-        onBack={() => {
-          window.location.href = window.location.pathname;
-        }}
-      />
+      <RetiredRouteNotice onBack={() => { window.location.href = '/'; }}>
+        <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
+            The legacy <code>?report=1</code> route is retired.
+        </p>
+        <p style={{ color: '#475569', marginBottom: 0 }}>
+            Use saved report routes (<code>/report/&lt;report-id&gt;</code>) or Visit Home cards for current outputs.
+        </p>
+      </RetiredRouteNotice>
     );
   }
 
@@ -2144,30 +2165,13 @@ function AppInner() {
           prioritiesState={labPrioritiesState}
         />
       )}
-      {journey === 'printout' && labEngineInput != null && (() => {
-        const result   = runEngine(labEngineInput);
-        const scenarios = buildScenariosFromEngineOutput(result.engineOutput);
-        if (scenarios.length === 0) return null;
-        const decision = buildDecisionFromScenarios({
-          scenarios,
-          boilerType:     toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
-          ageYears:       labEngineInput.currentSystem?.boiler?.ageYears ?? 0,
-          occupancyCount: labEngineInput.occupancyCount,
-          bathroomCount:  labEngineInput.bathroomCount,
-          showerCompatibilityNote: result.engineOutput.showerCompatibilityNote,
-        });
-        const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, labEngineInput);
-        return (
-          <CustomerAdvicePrintPack
-            decision={decision}
-            scenarios={scenarios}
-            visualBlocks={visualBlocks}
-            portalUrl={labPortalUrl}
-            visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-            onBack={() => setJourney('presentation')}
-          />
-        );
-      })()}
+      {journey === 'printout' && (
+        <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('framework-print')}>
+          <p style={{ color: '#475569', marginBottom: 0 }}>
+            This legacy printout route has been retired. Use the Supporting PDF route.
+          </p>
+        </RetiredRouteNotice>
+      )}
       {journey === 'framework-print' && labEngineInput != null && (() => {
         const result    = runEngine(labEngineInput);
         const scenarios = buildScenariosFromEngineOutput(result.engineOutput);

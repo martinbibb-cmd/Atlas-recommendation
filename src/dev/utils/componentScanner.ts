@@ -32,6 +32,7 @@ export interface ComponentDiscoveryReport {
   counts: {
     production: number;
     devOnly: number;
+    retired: number;
     unrouted: number;
   };
 }
@@ -136,10 +137,11 @@ export function buildComponentDiscoveryReport({
     (acc, row) => {
       if (row.status === 'production') acc.production += 1;
       else if (row.status === 'dev_only') acc.devOnly += 1;
+      else if (row.status === 'retired') acc.retired += 1;
       else acc.unrouted += 1;
       return acc;
     },
-    { production: 0, devOnly: 0, unrouted: 0 },
+    { production: 0, devOnly: 0, retired: 0, unrouted: 0 },
   );
 
   return {

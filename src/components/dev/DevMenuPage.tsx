@@ -86,6 +86,7 @@ const ACCESS_LABELS: Record<DevUiAccess, string> = {
   dev_only: 'Dev only',
   fallback: 'Fallback',
   review: 'Review',
+  retired: 'Retired',
 };
 
 const ACCESS_COLORS: Record<DevUiAccess, string> = {
@@ -93,6 +94,7 @@ const ACCESS_COLORS: Record<DevUiAccess, string> = {
   dev_only: '#64748b',
   fallback: '#d97706',
   review: '#7c3aed',
+  retired: '#6b7280',
 };
 
 const ROUTE_KIND_LABELS: Record<DevUiRouteKind, string> = {
@@ -376,7 +378,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
       {/* Access filter chips */}
       <div style={STYLES.filterRow}>
         <span style={STYLES.filterLabel}>Access:</span>
-        {(['production', 'dev_only', 'fallback', 'review'] as DevUiAccess[]).map(a => (
+        {(['production', 'dev_only', 'fallback', 'review', 'retired'] as DevUiAccess[]).map(a => (
           <button
             key={a}
             className={`chip-btn${filters.accessFilter === a ? ' chip-btn--active' : ''}`}
@@ -385,6 +387,15 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
             {ACCESS_LABELS[a]}
           </button>
         ))}
+      </div>
+
+      <div style={STYLES.filterRow}>
+        <span style={STYLES.filterLabel}>Dev QA links:</span>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/portal-fixtures'; }}>Portal fixtures</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/welcome-pack'; }}>Welcome pack diagnostics</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/?workspace-lifecycle-qa=1'; }}>Workspace lifecycle QA</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/inspector'; }}>Component discovery</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/workspace-settings'; }}>Workspace settings</button>
       </div>
 
       {/* Route kind filter chips */}

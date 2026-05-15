@@ -130,6 +130,20 @@ describe('VisitHomeDashboard', () => {
     expect(onOpenInstallationSpecification).toHaveBeenCalledOnce();
   });
 
+  it('calls onPrintSummary when supporting PDF CTA is clicked', () => {
+    const onPrintSummary = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onPrintSummary,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('card-pdf-cta'));
+    expect(onPrintSummary).toHaveBeenCalledOnce();
+  });
+
   describe('journey card', () => {
     it('shows heat_pump_reality archetype when engine recommends ashp', () => {
       render(
