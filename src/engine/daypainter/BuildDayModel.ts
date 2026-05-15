@@ -1,3 +1,5 @@
+// ARCHIVED / DEAD PROTOTYPE — do not use for live simulator work.
+// See docs/repo-map/atlas-simulator-surface-map.md for the canonical simulator files.
 export type HeatLevel = 'off' | 'setback' | 'comfort';
 export type DayEventType = 'shower' | 'bath' | 'handwash' | 'coldFillAppliance' | 'otherDraw';
 
