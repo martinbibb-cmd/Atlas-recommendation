@@ -3,9 +3,10 @@
  *
  * Developer-only component browser / UI atlas for Atlas.
  *
- * Two top-level tabs:
+ * Top-level tabs include:
  *   - UI Inventory  – curated registry of all Atlas UI surfaces
  *   - Visuals Gallery – individual visual elements (Physics Visuals, Lego Builder Components)
+ *   - Component Discovery – route auditor + unrouted component scanner
  *
  * UI Inventory lists all curated UI surfaces from the dev registry, with:
  *   - free-text search (by name, file, route, query flags, access class)
@@ -39,6 +40,7 @@ import { generateCopyBoxOutput, formatSingleItemAsText, type CopyFormat } from '
 import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
 import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 import AnalyticsPanel from './AnalyticsPanel';
+import ComponentDiscoveryPanel from './ComponentDiscoveryPanel';
 import { useActiveUser } from '../../features/userProfiles/useActiveUser';
 import { resetDemoData } from '../../dev/demoSeed';
 import type { ApplianceDefinitionV1 } from '../../contracts/hardware/ApplianceDefinitionV1';
@@ -124,7 +126,7 @@ interface Props {
 
 // ─── Top-level page mode ──────────────────────────────────────────────────────
 
-type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware';
+type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware' | 'discovery';
 
 const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   inventory: '🗂 UI Inventory',
@@ -132,6 +134,7 @@ const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   storage:   '💾 Storage',
   analytics: '📊 Analytics',
   hardware:  '🔧 Hardware',
+  discovery: '🔎 Component Discovery',
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -273,6 +276,10 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         <HardwarePatchEditorPanel />
       </div>
     );
+  }
+
+  if (pageMode === 'discovery') {
+    return <ComponentDiscoveryPanel onBack={() => setPageMode('inventory')} />;
   }
 
   return (

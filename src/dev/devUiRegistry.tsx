@@ -436,6 +436,26 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     access: 'dev_only',
     render: () => <WorkspaceVisitLifecycleHarness />,
   },
+  {
+    id: 'component-discovery-panel',
+    commonName: 'Component Discovery',
+    codeName: 'ComponentDiscoveryPanel',
+    fileName: 'ComponentDiscoveryPanel.tsx',
+    filePath: 'src/components/dev/ComponentDiscoveryPanel.tsx',
+    category: 'utility',
+    status: 'active',
+    notes:
+      'Developer route auditor for page surfaces plus unrouted component discovery across visual/dev candidates.',
+    routeKind: 'path',
+    routePath: '/dev/inspector',
+    fullRouteExample: '/dev/inspector',
+    access: 'dev_only',
+    render: () => (
+      <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>
+        ComponentDiscoveryPanel — open via /dev/inspector or Dev Menu → Component Discovery.
+      </div>
+    ),
+  },
 
   // ── Visit Workspaces ────────────────────────────────────────────────────────
   {

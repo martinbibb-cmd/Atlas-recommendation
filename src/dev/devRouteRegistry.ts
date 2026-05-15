@@ -30,6 +30,8 @@ export interface DevRouteMeta {
   access: DevUiAccess;
 }
 
+export type DevRouteAuditStatus = 'production' | 'dev_only' | 'unrouted';
+
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
 /**
@@ -100,6 +102,13 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routePath: '/dev/devmenu',
     queryFlags: ['devmenu=1 (legacy)'],
     fullRouteExample: '/dev/devmenu',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'ComponentDiscoveryPanel',
+    routePath: '/dev/inspector',
+    fullRouteExample: '/dev/inspector',
     routeKind: 'path',
     access: 'dev_only',
   },
@@ -225,4 +234,16 @@ export function isFlagRoute(meta: DevRouteMeta): boolean {
 /** Returns true if the surface is accessible in production. */
 export function isProductionRoute(meta: DevRouteMeta): boolean {
   return meta.access === 'production';
+}
+
+/** Maps a route metadata record into discovery audit status buckets. */
+export function getRouteAuditStatus(meta: DevRouteMeta | undefined): DevRouteAuditStatus {
+  if (meta == null) return 'unrouted';
+  if (meta.access === 'production') return 'production';
+  return 'dev_only';
+}
+
+/** Fast lookup map for codeName → route metadata. */
+export function buildRouteAuditIndex(): ReadonlyMap<string, DevRouteMeta> {
+  return new Map(DEV_ROUTE_REGISTRY.map(meta => [meta.codeName, meta]));
 }
