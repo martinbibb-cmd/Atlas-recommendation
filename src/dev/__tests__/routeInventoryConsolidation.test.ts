@@ -71,4 +71,67 @@ describe('route + inventory consolidation', () => {
     expect(report.routeAuditRows.map((row) => row.status).sort()).toEqual(['dev_only', 'production']);
     expect(report.counts.unrouted).toBe(0);
   });
+
+  it('every active (non-retired) route entry has a resolvable access path', () => {
+    const activeRoutes = DEV_ROUTE_REGISTRY.filter((r) => r.access !== 'retired');
+    for (const route of activeRoutes) {
+      const hasPath =
+        (route.routePath != null && route.routePath.length > 0) ||
+        (route.queryFlags != null && route.queryFlags.length > 0) ||
+        (route.fullRouteExample != null && route.fullRouteExample.length > 0);
+      expect(
+        hasPath,
+        `Route "${route.codeName}" has no routePath, queryFlags, or fullRouteExample`,
+      ).toBe(true);
+    }
+  });
+
+  it('retired routes are not listed as production routes', () => {
+    const retiredAsProduction = DEV_ROUTE_REGISTRY.filter(
+      (r) => r.access === 'retired' && isProductionRoute(r),
+    );
+    expect(
+      retiredAsProduction.map((r) => r.codeName),
+      'retired routes must not appear as production routes',
+    ).toHaveLength(0);
+  });
+
+  it('visit-home dashboard has a distinct back path to workspace-dashboard in route registry', () => {
+    const route = DEV_ROUTE_REGISTRY.find((r) => r.codeName === 'VisitHomeDashboard');
+    expect(route).toBeDefined();
+    expect(route?.access).toBe('production');
+    // The full route example must reference the workspace origin so the back path is traceable
+    expect(route?.fullRouteExample).toContain('visit');
+  });
+
+  it('dev-menu surfaces — portal-fixtures, workspace-lifecycle-qa, welcome-pack, inspector — all have registered routes', () => {
+    const devMenuSurfaces = [
+      'DevPortalFixturePage',
+      'WorkspaceVisitLifecycleHarness',
+      'WelcomePackDevPreview',
+      'ComponentDiscoveryPanel',
+    ];
+
+    for (const codeName of devMenuSurfaces) {
+      const route = DEV_ROUTE_REGISTRY.find((r) => r.codeName === codeName);
+      expect(route, `${codeName} must be in DEV_ROUTE_REGISTRY`).toBeDefined();
+      expect(route?.access).toBe('dev_only');
+    }
+  });
+
+  it('library diagnostic surfaces are all dev_only and registered', () => {
+    const librarySurfaces = [
+      'LibraryCoverageAuditPanel',
+      'LibraryAuthoringBacklogPanel',
+      'LibraryProjectionQaPanel',
+      'LibraryRepairQueuePanel',
+    ];
+
+    for (const codeName of librarySurfaces) {
+      const route = DEV_ROUTE_REGISTRY.find((r) => r.codeName === codeName);
+      expect(route, `${codeName} must be in DEV_ROUTE_REGISTRY`).toBeDefined();
+      expect(route?.access).toBe('dev_only');
+      expect(isProductionRoute(route!)).toBe(false);
+    }
+  });
 });
