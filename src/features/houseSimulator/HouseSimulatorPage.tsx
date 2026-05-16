@@ -240,7 +240,7 @@ export default function HouseSimulatorPage({
   const efficiencyBadgeColor =
     EFFICIENCY_BADGE_COLOR[vm.efficiencyWidget.statusTone] ?? '#718096';
 
-  const drawOffActions = {
+  const outletActions = {
     shower: () => setDemandControls({ shower: !demandControls.shower }),
     bath: () => setDemandControls({ bath: !demandControls.bath }),
     kitchen: () => setDemandControls({ kitchen: !demandControls.kitchen }),
@@ -250,11 +250,7 @@ export default function HouseSimulatorPage({
   function toggleOutlet(outletId: string) {
     const outletNode = vm.outletNodes.find(node => node.outletId === outletId);
     if (outletNode != null && outletNode.supported) {
-      if (outletNode.controlId === 'cold_tap') {
-        drawOffActions.coldTap();
-        return;
-      }
-      drawOffActions[outletNode.controlId]();
+      outletActions[outletNode.controlId]();
     }
   }
 
@@ -422,10 +418,10 @@ export default function HouseSimulatorPage({
             coldTap={demandControls.coldTap}
             onSetMode={mode => (mode === 'auto' ? resetToAutoMode() : setManualMode())}
             onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
-            onToggleShower={drawOffActions.shower}
-            onToggleBath={drawOffActions.bath}
-            onToggleKitchen={drawOffActions.kitchen}
-            onToggleColdTap={drawOffActions.coldTap}
+            onToggleShower={outletActions.shower}
+            onToggleBath={outletActions.bath}
+            onToggleKitchen={outletActions.kitchen}
+            onToggleColdTap={outletActions.coldTap}
             onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })}
             onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })}
             onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}
