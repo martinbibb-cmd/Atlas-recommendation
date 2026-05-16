@@ -17,9 +17,9 @@
  * The existing lab/workbench (/?lab=1) is unchanged.
  *
  * Layout:
- *   - Compact header: home link · title · Setup / Engineering / Warnings buttons
- *   - SystemNarrationToast: top live-phase banner
+ *   - Compact header: home link · title · left/right hamburger menu entries
  *   - Roof widgets: left = heat source status  ·  right = efficiency summary
+ *   - SystemNarrationToast: roof-ridge HUD overlay
  *   - HouseSimulatorCanvas: central persistent house view with outlet nodes
  *   - TimelineBottomSheet: 24-hour timeline + scenario selector + draw-off controls
  *   - SimulatorSideDrawer (left):  Setup / system configuration
@@ -321,40 +321,36 @@ export default function HouseSimulatorPage({
           )}
         </div>
 
-        <nav className="hs-header__actions" aria-label="Simulator panels">
+        <nav className="hs-header__actions" aria-label="Simulator menus">
           <button
-            className="hs-action-btn"
-            onClick={() => { setLeftOpen(v => !v); setRightOpen(false); }}
+            className="hs-action-btn hs-action-btn--hamburger"
+            onClick={() => {
+              setLeftOpen(v => !v);
+              setRightOpen(false);
+              setTopSheetOpen(false);
+            }}
             aria-expanded={leftOpen}
             aria-controls="hs-setup-drawer"
+            aria-label="Open simulation and tools menu"
           >
-            ⚙ Setup
+            ☰
+            <span>Simulation</span>
           </button>
           <button
-            className="hs-action-btn"
-            onClick={() => { setRightOpen(v => !v); setLeftOpen(false); }}
+            className={`hs-action-btn hs-action-btn--hamburger${warningCount > 0 ? ' hs-action-btn--warn' : ''}`}
+            onClick={() => {
+              setRightOpen(v => !v);
+              setLeftOpen(false);
+            }}
             aria-expanded={rightOpen}
             aria-controls="hs-engineering-drawer"
+            aria-label="Open engineering and warnings menu"
           >
-            📊 Engineering
-          </button>
-          <button
-            className={`hs-action-btn${warningCount > 0 ? ' hs-action-btn--warn' : ''}`}
-            onClick={() => setTopSheetOpen(v => !v)}
-            aria-expanded={topSheetOpen}
-            aria-controls="hs-warnings-sheet"
-          >
-            ⚠ Warnings{warningCount > 0 ? ` (${warningCount})` : ''}
+            ☰
+            <span>Engineering{warningCount > 0 ? ` (${warningCount})` : ''}</span>
           </button>
         </nav>
       </header>
-
-      {/* ── Narration toast ───────────────────────────────────────────────── */}
-      <SystemNarrationToast
-        icon={vm.narration.icon}
-        phase={vm.narration.phase}
-        warningText={vm.narration.warningText}
-      />
 
       {/* ── Central house stage ───────────────────────────────────────────── */}
       <section className="hs-stage" aria-label="House simulator stage">
@@ -374,6 +370,14 @@ export default function HouseSimulatorPage({
           selectedOutletId={selectedOutletId}
           onOutletPress={handleOutletPress}
         />
+
+        <div className="hs-stage__ridge-toast">
+          <SystemNarrationToast
+            icon={vm.narration.icon}
+            phase={vm.narration.phase}
+            warningText={vm.narration.warningText}
+          />
+        </div>
 
         {/* Right roof widget — efficiency summary */}
         <aside className="hs-roof-widget hs-roof-widget--right" aria-label="Efficiency status">
@@ -467,13 +471,39 @@ export default function HouseSimulatorPage({
       <SimulatorSideDrawer
         id="hs-engineering-drawer"
         side="right"
-        title="Engineering detail"
+        title="Engineering and warnings"
         open={rightOpen}
         onClose={() => setRightOpen(false)}
       >
+        <div className="hs-setup-section">
+          <p className="hs-setup-label">Warnings</p>
+          <button
+            className={`hs-action-btn hs-action-btn--drawer${warningCount > 0 ? ' hs-action-btn--warn' : ''}`}
+            onClick={() => {
+              setTopSheetOpen(true);
+              setRightOpen(false);
+              setLeftOpen(false);
+            }}
+            aria-expanded={topSheetOpen}
+            aria-controls="hs-warnings-sheet"
+          >
+            Open warnings panel{warningCount > 0 ? ` (${warningCount})` : ''}
+          </button>
+        </div>
         <EfficiencyPanel state={efficiencyState} />
         <LimitersPanel state={limiterState} />
       </SimulatorSideDrawer>
+
+      {(leftOpen || rightOpen) && (
+        <div
+          className="hs-drawer-backdrop"
+          role="presentation"
+          onClick={() => {
+            setLeftOpen(false);
+            setRightOpen(false);
+          }}
+        />
+      )}
 
       {/* ── Warnings overlay drawer ───────────────────────────────────────── */}
       {topSheetOpen && (
