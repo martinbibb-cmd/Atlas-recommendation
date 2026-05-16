@@ -1231,9 +1231,8 @@ function AppInner() {
   }
 
   function handleStartDemoReview(visitId: string = DEMO_VISIT_IDS.completed_won) {
-    const demoVisitId = visitId;
     const demoSurvey = CONSOLE_DEMO_INPUT as unknown as FullSurveyModelV1;
-    setActiveVisitId(demoVisitId);
+    setActiveVisitId(visitId);
     setLabEngineInput(CONSOLE_DEMO_INPUT);
     setLabFullSurveyModel(demoSurvey);
     try {
@@ -1251,7 +1250,7 @@ function AppInner() {
         : undefined;
       const customerSummary = decision != null ? buildCustomerSummary(decision, scenarios) : undefined;
       setVisitRecommendationSnapshot({
-        visitId: demoVisitId,
+        visitId,
         engineOutput,
         scenarios,
         decision,
@@ -1259,7 +1258,7 @@ function AppInner() {
       });
       saveVisitAtomically({
         schemaVersion: 2,
-        visitId: demoVisitId,
+        visitId,
         updatedAt: new Date().toISOString(),
         survey: demoSurvey,
         engine: engineOutput,
@@ -1280,7 +1279,7 @@ function AppInner() {
         const key = localStorage.key(i);
         if (key == null) continue;
         if (!key.startsWith('atlas_visit_') || key.endsWith('_tmp')) continue;
-        const visitId = key.replace('atlas_visit_', '').trim();
+        const visitId = key.replace('atlas_visit_', '');
         if (visitId.length > 0) visitIds.add(visitId);
       }
     } catch {
