@@ -1939,6 +1939,8 @@ function AppInner() {
               surveyModel={labFullSurveyModel}
               portalUrl={labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}
+              workspaceRole={workspaceSettingsMembership?.role}
+              workspacePermissions={workspaceSettingsMembership?.permissions}
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               onOpenSimulator={() => {

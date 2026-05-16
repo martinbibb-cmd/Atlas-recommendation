@@ -185,6 +185,12 @@
   flex: 1;
 }
 
+.vhd-card__reason {
+  font-size: 0.75rem;
+  color: #991b1b;
+  margin: 0;
+}
+
 .vhd-card__meta {
   display: flex;
   flex-wrap: wrap;
