@@ -166,7 +166,7 @@ export default function HouseSimulatorCanvas({
 
         <div className="hs-house__stage">
           {/* 1) House artwork layer (static, fixed stage) */}
-          <svg className="hs-house__artwork" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+          <svg className="hs-house__artwork hs-layer hs-layer--artwork" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
             <defs>
               <linearGradient id="hsHouseBackdrop" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#f8fafc" />
@@ -179,7 +179,7 @@ export default function HouseSimulatorCanvas({
           </svg>
 
           {/* 2) Room/grid layer + 3) outlet interaction layer + 4) chip layer */}
-          <div className="hs-house__body">
+          <div className="hs-house__body hs-layer hs-layer--body">
             {insideFloors.map((floor, idx) => (
               <div
                 key={floor.key}
@@ -211,21 +211,23 @@ export default function HouseSimulatorCanvas({
 
       {/* ── Outside band ─────────────────────────────────────────────────── */}
       {outsideFloor && (
-        <div className="hs-floor hs-floor--outside">
-          <div className="hs-floor__label">
-            <span aria-hidden="true">{FLOOR_ICON['outside']}</span>
-            {outsideFloor.label}
-          </div>
-          <div className="hs-floor__rooms">
-            {outsideFloor.rooms.map(room => (
-              <RoomCell
-                key={room.name}
-                room={room}
-                outletNodes={outletNodes}
-                selectedOutletId={selectedOutletId}
-                onOutletPress={onOutletPress}
-              />
-            ))}
+        <div className="hs-canvas__outside-band">
+          <div className="hs-floor hs-floor--outside">
+            <div className="hs-floor__label">
+              <span aria-hidden="true">{FLOOR_ICON['outside']}</span>
+              {outsideFloor.label}
+            </div>
+            <div className="hs-floor__rooms">
+              {outsideFloor.rooms.map(room => (
+                <RoomCell
+                  key={room.name}
+                  room={room}
+                  outletNodes={outletNodes}
+                  selectedOutletId={selectedOutletId}
+                  onOutletPress={onOutletPress}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
