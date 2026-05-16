@@ -5,7 +5,7 @@
  *
  * Shows all outputs from an Atlas visit as status-aware cards:
  *   1. Recommendation summary     (customer · engine · ready/needs-review/blocked)
- *   2. Customer portal / Insight  (customer · workflow · ready/blocked)
+ *   2. Customer portal            (customer · workflow · ready/blocked)
  *   3. Daily hot-water simulator  (surveyor/engineer · simulator · ready)
  *   4. Supporting PDF             (customer/office · library · ready/blocked)
  *   5. Implementation workflow    (engineer · workflow · ready/blocked)
@@ -90,7 +90,7 @@ export interface VisitHomeDashboardProps {
 
   /**
    * When true the library projection is not safe for customer output.
-   * Forces the Supporting PDF and Customer Portal / Insight cards to 'blocked'
+   * Forces the Supporting PDF and Customer Portal cards to 'blocked'
    * so the surveyor cannot accidentally share unsafe educational content.
    */
   libraryUnsafe?: boolean;
@@ -151,12 +151,10 @@ export interface VisitHomeDashboardProps {
   onOpenSimulator: () => void;
   /** Open the in-room Presentation (journey = 'presentation'). */
   onOpenPresentation: () => void;
-  /** Print the supporting PDF (journey = 'framework-print'). */
+  /** Print the supporting PDF (journey = 'library-pdf'). */
   onPrintSummary?: () => void;
   /** Open the Installation Specification stepper (journey = 'installation-specification'). */
   onOpenInstallationSpecification: () => void;
-  /** Open the Atlas Insight Pack (journey = 'insight-pack'). */
-  onOpenInsightPack?: () => void;
   /** Open the completed-visit handoff review (journey = 'visit-handoff'). */
   onOpenHandoffReview?: () => void;
   /** Open the pre-install engineer route (journey = 'engineer'). */
@@ -325,7 +323,6 @@ export function VisitHomeDashboard({
   onOpenPresentation,
   onPrintSummary,
   onOpenInstallationSpecification,
-  onOpenInsightPack,
   onOpenHandoffReview,
   onOpenEngineerRoute,
   onExportPackage,
@@ -350,7 +347,7 @@ export function VisitHomeDashboard({
       installationSpecOptionCount,
     },
     outputAvailability: {
-      hasPortalOutput: portalUrl != null || onOpenInsightPack != null,
+      hasPortalOutput: portalUrl != null,
       hasSupportingPdfOutput: hasSupportingPdf,
       hasHandoffReview: onOpenHandoffReview != null,
       hasExportPackage: onExportPackage != null,
@@ -369,7 +366,7 @@ export function VisitHomeDashboard({
   const exportStatus: CardStatus = viewModel.exportStatus;
 
   const portalDescription = viewModel.portalMissingMessage
-    ?? 'Customer portal and Atlas Insight Pack for review before sharing.';
+    ?? 'Customer-safe portal for review before sharing.';
   const supportingPdfDescription = viewModel.supportingPdfMissingMessage
     ?? 'Customer-facing print pack with recommendation, scenarios, and explainers.';
   const actionProjection = buildVisitHomeActionProjection({
@@ -390,7 +387,6 @@ export function VisitHomeDashboard({
     },
     availableOutputs: {
       hasPortalUrl: portalUrl != null,
-      hasInsightPack: onOpenInsightPack != null,
       hasSupportingPdf,
       hasHandoffReview: onOpenHandoffReview != null,
       hasExportPackage: onExportPackage != null,
@@ -563,11 +559,11 @@ export function VisitHomeDashboard({
             {hydrationState === 'survey-in-progress' && onRunRecommendation != null && (
               <button
                 type="button"
-                className="vhd-empty-state__cta vhd-empty-state__cta--secondary"
+                className="vhd-empty-state__cta vhd-empty-state__cta--primary"
                 onClick={onRunRecommendation}
                 data-testid="visit-home-run-recommendation-cta"
               >
-                ⚙️ Run recommendation
+                ⭐ Generate recommendation
               </button>
             )}
             {onImportWorkflowPackage != null && (
@@ -752,8 +748,8 @@ export function VisitHomeDashboard({
                   blockedReason={actionReason('customer-portal')}
                   audience={['customer']}
                   source="workflow"
-                  ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-                  onCta={canTriggerAction('customer-portal', portalStatus, 'not-blocked') ? (onOpenInsightPack ?? handleOpenPortal) : undefined}
+                  ctaLabel="Open customer portal →"
+                  onCta={canTriggerAction('customer-portal', portalStatus, 'not-blocked') ? handleOpenPortal : undefined}
                 />
               )}
 

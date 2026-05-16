@@ -106,7 +106,6 @@ describe('operational gating — accepted scenario presence', () => {
       implementationReadiness: { installationSpecOptionCount: 0 },
       availableOutputs: {
         hasPortalUrl: false,
-        hasInsightPack: false,
         hasSupportingPdf: false,
         hasHandoffReview: false,
         hasExportPackage: false,
@@ -129,7 +128,6 @@ describe('operational gating — accepted scenario presence', () => {
       implementationReadiness: { installationSpecOptionCount: 0 },
       availableOutputs: {
         hasPortalUrl: false,
-        hasInsightPack: false,
         hasSupportingPdf: false,
         hasHandoffReview: false,
         hasExportPackage: false,
@@ -152,7 +150,6 @@ describe('operational gating — accepted scenario presence', () => {
       implementationReadiness: { installationSpecOptionCount: 0 },
       availableOutputs: {
         hasPortalUrl: false,
-        hasInsightPack: false,
         hasSupportingPdf: false,
         hasHandoffReview: false,
         hasExportPackage: false,
@@ -176,7 +173,6 @@ describe('operational gating — accepted scenario presence', () => {
       implementationReadiness: { installationSpecOptionCount: 0 },
       availableOutputs: {
         hasPortalUrl: false,
-        hasInsightPack: false,
         hasSupportingPdf: false,
         hasHandoffReview: false,
         hasExportPackage: false,
@@ -200,7 +196,6 @@ describe('operational gating — accepted scenario presence', () => {
       implementationReadiness: { installationSpecOptionCount: 0 },
       availableOutputs: {
         hasPortalUrl: false,
-        hasInsightPack: false,
         hasSupportingPdf: false,
         hasHandoffReview: false,
         hasExportPackage: false,
@@ -502,7 +497,6 @@ describe('import workflow package → accepted scenario hydrates dashboard', () 
       <VisitHomeDashboard
         {...makeProps({
           portalUrl: undefined,
-          onOpenInsightPack: undefined,
         })}
       />,
     );

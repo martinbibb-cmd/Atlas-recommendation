@@ -24,6 +24,8 @@ export interface DevRouteMeta {
   queryFlags?: string[];
   /** Ready-to-paste example URL for browser / Copilot use. */
   fullRouteExample?: string;
+  /** Canonical replacement route when this surface is retired or legacy-only. */
+  replacementRoute?: string;
   /** How this surface is reached. */
   routeKind: DevUiRouteKind;
   /** Who may access this surface in production. */
@@ -92,9 +94,10 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   },
   {
     codeName: 'UnifiedSimulatorView',
-    fullRouteExample: '/portal/<reference>?token=<signed-token> → Insight',
+    fullRouteExample: '/?insight-pack=1 (legacy diagnostics)',
+    replacementRoute: '/?house-simulator=1',
     routeKind: 'derived',
-    access: 'production',
+    access: 'legacy_dev_only',
   },
   {
     codeName: 'VisitHomeDashboard',
@@ -152,7 +155,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   {
     codeName: 'ComponentDiscoveryPanel',
     routePath: '/dev/inspector',
-    fullRouteExample: '/dev/inspector',
+    fullRouteExample: '/dev/inspector or /dev/component-discovery',
     routeKind: 'path',
     access: 'dev_only',
   },
@@ -324,12 +327,41 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routeKind: 'derived',
     access: 'dev_only',
   },
+  {
+    codeName: 'VisitHubPage',
+    fullRouteExample: 'legacy journey state: visit-hub',
+    replacementRoute: 'visit-home',
+    routeKind: 'derived',
+    access: 'legacy_dev_only',
+  },
+  {
+    codeName: 'VisitHomeUnifiedSimulatorRoute',
+    fullRouteExample: 'legacy journey state: unified-simulator',
+    replacementRoute: '/?house-simulator=1',
+    routeKind: 'derived',
+    access: 'legacy_dev_only',
+  },
+  {
+    codeName: 'InsightPackDeck',
+    fullRouteExample: 'legacy journey state: insight-pack',
+    replacementRoute: '/portal/<reference>?token=<signed-token>',
+    routeKind: 'derived',
+    access: 'legacy_dev_only',
+  },
+  {
+    codeName: 'CustomerAdvicePrintPack',
+    fullRouteExample: 'legacy journey state: framework-print',
+    replacementRoute: 'library-pdf',
+    routeKind: 'derived',
+    access: 'legacy_dev_only',
+  },
 
   // ── Retired routes (excluded from normal navigation) ──────────────────────
   {
     codeName: 'ReportView',
     queryFlags: ['report=1'],
     fullRouteExample: '/?report=1 (retired)',
+    replacementRoute: '/report/<report-id>',
     routeKind: 'query_flag',
     access: 'retired',
   },
@@ -337,6 +369,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     codeName: 'SurveyPrintoutPage',
     queryFlags: ['print=survey'],
     fullRouteExample: '/?print=survey (retired)',
+    replacementRoute: 'library-pdf',
     routeKind: 'query_flag',
     access: 'retired',
   },
@@ -344,6 +377,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     codeName: 'CustomerRecommendationPrint',
     queryFlags: ['print=survey&internal=1'],
     fullRouteExample: '/?print=survey&internal=1 (retired internal print)',
+    replacementRoute: 'library-pdf',
     routeKind: 'query_flag',
     access: 'retired',
   },
@@ -351,6 +385,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     codeName: 'HandoffArrivalPage',
     queryFlags: ['handoff=1'],
     fullRouteExample: '/?handoff=1 (retired)',
+    replacementRoute: 'visit-home',
     routeKind: 'query_flag',
     access: 'retired',
   },

@@ -84,6 +84,7 @@ const STATUS_COLORS: Record<DevUiStatus, string> = {
 const ACCESS_LABELS: Record<DevUiAccess, string> = {
   production: 'Production',
   dev_only: 'Dev only',
+  legacy_dev_only: 'Legacy (dev only)',
   fallback: 'Fallback',
   review: 'Review',
   retired: 'Retired',
@@ -92,6 +93,7 @@ const ACCESS_LABELS: Record<DevUiAccess, string> = {
 const ACCESS_COLORS: Record<DevUiAccess, string> = {
   production: '#16a34a',
   dev_only: '#64748b',
+  legacy_dev_only: '#92400e',
   fallback: '#d97706',
   review: '#7c3aed',
   retired: '#6b7280',

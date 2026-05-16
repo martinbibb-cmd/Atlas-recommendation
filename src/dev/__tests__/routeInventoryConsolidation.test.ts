@@ -58,6 +58,24 @@ describe('route + inventory consolidation', () => {
     }
   });
 
+  it('marks legacy customer output surfaces as legacy_dev_only with canonical replacements', () => {
+    const legacySurfaces = [
+      ['VisitHubPage', 'visit-home'],
+      ['VisitHomeUnifiedSimulatorRoute', '/?house-simulator=1'],
+      ['UnifiedSimulatorView', '/?house-simulator=1'],
+      ['InsightPackDeck', '/portal/<reference>?token=<signed-token>'],
+      ['CustomerAdvicePrintPack', 'library-pdf'],
+    ] as const;
+
+    for (const [codeName, replacementRoute] of legacySurfaces) {
+      const route = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === codeName);
+      expect(route, `${codeName} route metadata should be present`).toBeDefined();
+      expect(route?.access).toBe('legacy_dev_only');
+      expect(route?.replacementRoute).toBe(replacementRoute);
+      expect(route ? isProductionRoute(route) : true).toBe(false);
+    }
+  });
+
   it('classifies newly wired pages as routed rather than unrouted', () => {
     const report = buildComponentDiscoveryReport({
       candidateFilePaths: [

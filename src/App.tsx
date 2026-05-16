@@ -322,7 +322,7 @@ const HANDOFF_ENABLED =
   new URLSearchParams(window.location.search).get('handoff') === '1';
 
 /**
- * Detect ?visitId=<id> — opens the visit-hub for the given visit ID on load.
+ * Detect ?visitId=<id> — opens Visit Home for the given visit ID on load.
  *
  * Used by Atlas Scan iOS (and other handoff sources) to open a specific visit
  * directly when launching Atlas Mind.  Takes precedence over cached session
@@ -331,7 +331,7 @@ const HANDOFF_ENABLED =
  * main App state machine is reached.
  *
  * Examples:
- *   /?visitId=visit_abc123          — open visit-hub for that visit
+ *   /?visitId=visit_abc123          — open Visit Home for that visit
  *   /?scan-package=1&visitId=xyz    — import scan, then return to that visit
  */
 const INITIAL_VISIT_ID_PARAM =
@@ -565,9 +565,13 @@ const WELCOME_PACK_DEV_PREVIEW_PATH =
 const PORTAL_FIXTURE_DEV_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/dev/portal-fixtures';
 
-/** Detect /dev/inspector — renders Component Discovery utility directly. */
+/** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
 const DEV_INSPECTOR_PATH =
-  typeof window !== 'undefined' && window.location.pathname === '/dev/inspector';
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/dev/inspector' ||
+    window.location.pathname === '/dev/component-discovery'
+  );
 
 /**
  * Detect /installation-specification path or ?installation-specification=1 — renders the Atlas
@@ -713,8 +717,8 @@ function AppInner() {
     if (FLOOR_PLAN_TOOL_MODE)            return 'floor-plan';
     if (ENGINEER_VISIT_ID != null)       return 'engineer';
     if (INITIAL_REPORT_ID != null)       return 'report';
-    // ?visitId= deep-link: open visit-hub directly without restoring cached state.
-    if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-hub';
+    // ?visitId= deep-link: open Visit Home directly without restoring cached state.
+    if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-home';
     // ?visit-home=1: open visit home dashboard directly.
     if (VISIT_HOME_ENABLED)              return 'visit-home';
     const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'workspace-dashboard';
@@ -724,10 +728,13 @@ function AppInner() {
     if (restored === 'presentation' || restored === 'printout' || restored === 'framework-print' || restored === 'library-pdf') {
       return 'workspace-dashboard';
     }
-    // 'visit-hub' and 'visit' require an active visit ID.
+    // 'visit-home' and 'visit' require an active visit ID.
     // If the visit cache is absent, fall back to 'workspace-dashboard' to avoid a white screen.
     if ((restored === 'visit-hub' || restored === 'visit' || restored === 'visit-home') && !_restoredVisit?.value?.visitId) {
       return 'workspace-dashboard';
+    }
+    if (restored === 'visit-hub') {
+      return 'visit-home';
     }
     return restored;
   });
@@ -956,7 +963,7 @@ function AppInner() {
   // Print/lab/dev-only routes are excluded to avoid polluting the cache with
   // transient states that are not meaningful to restore.
   const PERSISTED_JOURNEYS: Journey[] = [
-    'visit', 'visit-hub', 'visit-home', 'remote-survey', 'simulator', 'presentation',
+    'visit', 'visit-home', 'remote-survey', 'simulator', 'presentation',
   ];
 
   useEffect(() => {
@@ -1337,7 +1344,7 @@ function AppInner() {
             }),
           });
         }).catch(() => {/* best effort */});
-        setPresentationFromJourney('visit-hub');
+        setPresentationFromJourney('visit-home');
         setJourney('presentation');
         return;
       }
@@ -1354,7 +1361,7 @@ function AppInner() {
    * Print summary for a completed visit.
    *
    * Loads the visit's working payload, converts it to engine input, generates a
-   * signed portal URL from the latest report, and routes to the printout journey.
+   * signed portal URL from the latest report, and routes to the canonical library PDF journey.
    * Falls back to the survey if the working payload is missing.
    */
   async function handlePrintSummary(visitId: string) {
@@ -1401,7 +1408,7 @@ function AppInner() {
             setLabPortalUrl(buildPortalUrl(reportId, window.location.origin, token));
           })
           .catch((err) => { console.warn('[Atlas] Portal URL generation failed for printout:', err); });
-        setJourney('framework-print');
+        setJourney('library-pdf');
         return;
       }
     } catch (err) {
@@ -2131,10 +2138,9 @@ function AppInner() {
           reportId={activeReportId}
           onBack={() => {
             setActiveReportId(null);
-            // Return to the Visit Hub if the report was opened from one; otherwise
-            // return to the landing page.
+            // Return to Visit Home if a visit is active; otherwise return to landing.
             if (activeVisitId != null) {
-              setJourney('visit-hub');
+              setJourney('visit-home');
             } else {
               setJourney('landing');
             }
@@ -2331,7 +2337,6 @@ function AppInner() {
                 setLastOpenedFromHome({ label: 'Specification', journey: 'installation-specification' });
                 setJourney('installation-specification');
               }}
-              onOpenInsightPack={undefined}
               onOpenHandoffReview={activeVisitId != null ? () => {
                 setLastOpenedFromHome({ label: 'Handoff Review', journey: 'visit-handoff' });
                 void handleOpenHandoffReview(activeVisitId);
@@ -2383,7 +2388,7 @@ function AppInner() {
           <ExternalVisitManifestPanel
             visitId={activeVisitId}
             tenantId={hostResolution.workspaceSlug ?? 'default'}
-            onClose={() => setJourney('visit-hub')}
+            onClose={() => setJourney('visit-home')}
           />
         )}
         {/* Installation Specification — opened from Visit Home or QuoteCollectionStep */}
@@ -2431,7 +2436,7 @@ function AppInner() {
         <GlobalMenuShell>
           <VisitPage
             visitId={activeVisitId}
-            onBack={() => setJourney('visit-hub')}
+            onBack={() => setJourney('visit-home')}
             onDraft={(draft) => {
               // Capture heatLoss and priorities from the visit survey draft so
               // the presentation deck can show the house snapshot and selected
@@ -2462,15 +2467,7 @@ function AppInner() {
             onOpenInsightPack={(engineInput, quotes) => {
               setLabEngineInput(engineInput);
               setLabQuotes(quotes);
-              if (quotes.length === 0) {
-                // No quotes collected — go directly to visit-hub where the
-                // engineer can formally complete the visit.  The visit status
-                // has already been saved as recommendation_ready by VisitPage.
-                setJourney('visit-hub');
-              } else {
-                setInsightPackFromJourney('visit-hub');
-                setJourney('insight-pack');
-              }
+              setJourney('visit-home');
             }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -2482,7 +2479,7 @@ function AppInner() {
             onReopenVisit={activeVisitId != null ? async () => {
               try {
                 await saveVisit(activeVisitId, { completed_at: null, completion_method: null });
-                setJourney('visit-hub');
+                setJourney('visit-home');
               } catch (err) {
                 console.error('[Atlas] Could not reopen visit:', err);
               }
@@ -2528,8 +2525,7 @@ function AppInner() {
               setFullSurveyPrefill(undefined);
               setLabEngineInput(engineInput);
               setLabQuotes(quotes);
-              setInsightPackFromJourney('simulator');
-              setJourney('insight-pack');
+              setJourney('library-pdf');
             }}
             onOpenFloorPlan={(surveyResults) => {
               const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -2593,49 +2589,25 @@ function AppInner() {
           engineInput={labEngineInput}
           onBack={() => setJourney(presentationFromJourney)}
           onOpenSimulator={() => setJourney('simulator')}
-          onPrint={() => setJourney('framework-print')}
+          onPrint={() => setJourney('library-pdf')}
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}
         />
       )}
       {journey === 'printout' && (
-        <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('framework-print')}>
+        <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('library-pdf')}>
           <p style={{ color: '#475569', marginBottom: 0 }}>
             This legacy printout route has been retired. Use the Supporting PDF route.
           </p>
         </RetiredRouteNotice>
       )}
-      {journey === 'framework-print' && labEngineInput != null && (() => {
-        const result    = runEngine(labEngineInput);
-        const scenarios = buildScenariosFromEngineOutput(result.engineOutput);
-        if (scenarios.length === 0) return null;
-        const decision = buildDecisionFromScenarios({
-          scenarios,
-          boilerType:     toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
-          ageYears:       labEngineInput.currentSystem?.boiler?.ageYears ?? 0,
-          occupancyCount: labEngineInput.occupancyCount,
-          bathroomCount:  labEngineInput.bathroomCount,
-          showerCompatibilityNote: result.engineOutput.showerCompatibilityNote,
-        });
-        const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, labEngineInput);
-        return (
-          <CustomerAdvicePrintPack
-            decision={decision}
-            scenarios={scenarios}
-            visualBlocks={visualBlocks}
-            portalUrl={labPortalUrl}
-            visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-            onBack={() => {
-              // Return to the Visit Home Dashboard if we came from a visit, otherwise go to the presentation.
-              if (activeVisitId != null) {
-                setJourney('visit-home');
-              } else {
-                setJourney('presentation');
-              }
-            }}
-          />
-        );
-      })()}
+      {journey === 'framework-print' && (
+        <RetiredRouteNotice backLabel="Open canonical PDF →" onBack={() => setJourney('library-pdf')}>
+          <p style={{ color: '#475569', marginBottom: 0 }}>
+            This legacy framework print route is retired. Use the canonical Library supporting PDF.
+          </p>
+        </RetiredRouteNotice>
+      )}
       {/* Library supporting PDF — library-backed print output for Visit Home (replaces legacy framework-print from visit-home path) */}
       {journey === 'library-pdf' && labEngineInput != null && (() => {
         const { engineOutput } = runEngine(labEngineInput);

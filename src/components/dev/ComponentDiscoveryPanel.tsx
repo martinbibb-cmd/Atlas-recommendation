@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { buildFullRouteExample } from '../../dev/devRouteRegistry';
 import { getComponentDiscoveryReport, type RouteAuditRow } from '../../dev/utils/componentScanner';
 
-type DiscoveryTab = 'route_audit' | 'unrouted';
+type DiscoveryTab = 'route_audit' | 'legacy' | 'unrouted';
 type StatusFilter = 'all' | 'production' | 'dev_only' | 'retired' | 'unrouted';
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
 
 const TAB_LABELS: Record<DiscoveryTab, string> = {
   route_audit: '🧭 Route Auditor',
+  legacy: '🗃 Legacy Routes',
   unrouted: '🧩 Unrouted Components',
 };
 
@@ -78,6 +79,18 @@ export default function ComponentDiscoveryPanel({ onBack }: Props) {
       ),
     [report.unroutedComponents, search],
   );
+  const legacyRows = useMemo(
+    () =>
+      report.routeAuditRows.filter((row) => {
+        const access = row.routeMeta?.access;
+        const isLegacy = access === 'legacy_dev_only' || access === 'retired';
+        return isLegacy && matchesSearch(
+          `${row.codeName} ${row.filePath} ${row.routeMeta?.fullRouteExample ?? ''} ${row.routeMeta?.replacementRoute ?? ''}`,
+          search,
+        );
+      }),
+    [report.routeAuditRows, search],
+  );
 
   return (
     <div style={STYLES.page}>
@@ -92,7 +105,7 @@ export default function ComponentDiscoveryPanel({ onBack }: Props) {
           <span style={STYLES.devBadge}>DEV ONLY</span>
         </div>
         <p style={STYLES.subtitle}>
-          Compares candidate UI files against DEV_ROUTE_REGISTRY and the curated UI inventory to highlight routed, dev-only, and unrouted surfaces.
+          Compares candidate UI files against DEV_ROUTE_REGISTRY and the curated UI inventory to highlight production, dev-only, legacy-only, retired, and unrouted surfaces.
         </p>
       </header>
 
@@ -167,6 +180,41 @@ export default function ComponentDiscoveryPanel({ onBack }: Props) {
                   </td>
                   <td style={STYLES.td}>
                     {row.routeMeta ? <code>{buildFullRouteExample(row.routeMeta)}</code> : <span style={STYLES.unresolved}>No registry entry</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : tab === 'legacy' ? (
+        <div style={STYLES.tableWrap}>
+          <table style={STYLES.table}>
+            <thead>
+              <tr>
+                <th style={STYLES.th}>Component</th>
+                <th style={STYLES.th}>File</th>
+                <th style={STYLES.th}>Legacy access</th>
+                <th style={STYLES.th}>Legacy route</th>
+                <th style={STYLES.th}>Canonical replacement</th>
+              </tr>
+            </thead>
+            <tbody>
+              {legacyRows.map(row => (
+                <tr key={`${row.codeName}:${row.filePath}`}>
+                  <td style={STYLES.td}><code>{row.codeName}</code></td>
+                  <td style={STYLES.td}><code>{row.filePath}</code></td>
+                  <td style={STYLES.td}>
+                    <span style={statusBadge(row.routeMeta?.access === 'retired' ? 'retired' : 'dev_only')}>
+                      {row.routeMeta?.access === 'retired' ? 'retired' : 'legacy dev only'}
+                    </span>
+                  </td>
+                  <td style={STYLES.td}>
+                    {row.routeMeta ? <code>{buildFullRouteExample(row.routeMeta)}</code> : <span style={STYLES.unresolved}>No registry entry</span>}
+                  </td>
+                  <td style={STYLES.td}>
+                    {row.routeMeta?.replacementRoute != null
+                      ? <code>{row.routeMeta.replacementRoute}</code>
+                      : <span style={STYLES.unresolved}>No replacement registered</span>}
                   </td>
                 </tr>
               ))}
