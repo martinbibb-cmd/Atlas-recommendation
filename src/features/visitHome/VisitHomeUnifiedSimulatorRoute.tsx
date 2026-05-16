@@ -31,7 +31,17 @@ export function VisitHomeUnifiedSimulatorRoute({
 
   return (
     <div style={{ background: '#f8fafc', minHeight: '100vh' }} data-testid="visit-home-unified-simulator-route">
-      <div style={{ padding: '0.5rem 1rem' }}>
+      <div
+        style={{
+          padding: '0.5rem 1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          borderBottom: '1px solid #e2e8f0',
+          background: '#fff',
+        }}
+        data-testid="visit-home-unified-simulator-header"
+      >
         <button
           className="back-btn"
           onClick={onBack}
@@ -40,6 +50,12 @@ export function VisitHomeUnifiedSimulatorRoute({
         >
           ← Back
         </button>
+        <span
+          style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}
+          data-testid="visit-home-unified-simulator-workspace-marker"
+        >
+          Daily-use simulator — review workspace
+        </span>
       </div>
       {engineInput != null && engineOutput != null ? (
         <UnifiedSimulatorView

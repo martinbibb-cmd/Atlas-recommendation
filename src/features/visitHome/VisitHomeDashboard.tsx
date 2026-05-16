@@ -543,7 +543,7 @@ export function VisitHomeDashboard({
                 <DashboardCard
                   data-testid="card-pdf"
                   icon="📄"
-                  title="Supporting PDF"
+                  title="Library supporting PDF"
                   description={supportingPdfDescription}
                   status={actionStatus('supporting-pdf', pdfStatus)}
                   blockedReason={actionReason('supporting-pdf')}
