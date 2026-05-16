@@ -29,6 +29,8 @@ import { runEngine } from '../engine/Engine';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import HouseSimulatorPage from '../features/houseSimulator/HouseSimulatorPage';
 import { WorkspaceVisitLifecycleHarness } from './workspaceQa';
+import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
+import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
 
 // ─── Demo input ───────────────────────────────────────────────────────────────
 
@@ -845,6 +847,80 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     ],
     includeInCopyBox: true,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>CustomerPortalPage — open via /portal/{'<reference>'}?token={'<signed-token>'}. Use /dev/portal-fixtures for fixture-based QA.</div>,
+  },
+
+  // ── PDF / Print surfaces ────────────────────────────────────────────────────
+  {
+    id: 'portal-journey-print-pack',
+    commonName: 'Supporting PDF',
+    codeName: 'PortalJourneyPrintPack',
+    fileName: 'PortalJourneyPrintPack.tsx',
+    filePath: 'src/library/portal/pdf/PortalJourneyPrintPack.tsx',
+    category: 'report',
+    status: 'canonical',
+    notes:
+      'Canonical production customer-supporting PDF surface. ' +
+      'Reached via journey state library-pdf. ' +
+      'Visit Home Supporting PDF CTA routes here. ' +
+      'Presentation print action routes here. ' +
+      'All legacy framework-print / CustomerAdvicePrintPack outputs defer to this surface.',
+    routeKind: 'derived',
+    fullRouteExample: 'Visit Home → Supporting PDF CTA → library-pdf journey',
+    access: 'production',
+    owner: 'pdf',
+    domain: 'visit review',
+    sourceFiles: [
+      'src/library/portal/pdf/PortalJourneyPrintPack.tsx',
+      'src/library/portal/pdf/buildPortalJourneyPrintModel.ts',
+    ],
+    usedByRoutes: ['VisitHomeDashboard'],
+    includeInCopyBox: true,
+    render: () => (
+      <PortalJourneyPrintPack
+        model={buildPortalJourneyPrintModel({
+          selectedSectionIds: [],
+          recommendationSummary: 'Sealed system with unvented cylinder is recommended for your home.',
+          customerFacts: ['3 people in the home', '1 bathroom', 'Property: SW1A 1AA'],
+          journeyType: 'open_vented',
+        })}
+      />
+    ),
+  },
+  {
+    id: 'customer-advice-print-pack',
+    commonName: 'Customer Advice Print Pack (Legacy)',
+    codeName: 'CustomerAdvicePrintPack',
+    fileName: 'CustomerAdvicePrintPack.tsx',
+    filePath: 'src/components/print/CustomerAdvicePrintPack.tsx',
+    category: 'deprecated',
+    status: 'deprecated',
+    notes:
+      'Legacy customer advice print surface (?print=survey). ' +
+      'Superseded by PortalJourneyPrintPack (library-pdf). ' +
+      'Retained for explicit legacy diagnostics only. ' +
+      'No production CTA should reference framework-print or this surface.',
+    routeKind: 'derived',
+    fullRouteExample: '/?print=survey (legacy — retired route)',
+    access: 'legacy_dev_only',
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>CustomerAdvicePrintPack — legacy diagnostics only. Canonical PDF output is PortalJourneyPrintPack (library-pdf).</div>,
+  },
+  {
+    id: 'atlas-framework-print-page',
+    commonName: 'Atlas Framework Print Page (Legacy)',
+    codeName: 'AtlasFrameworkPrintPage',
+    fileName: 'AtlasFrameworkPrintPage.tsx',
+    filePath: 'src/components/print/AtlasFrameworkPrintPage.tsx',
+    category: 'deprecated',
+    status: 'deprecated',
+    notes:
+      'Legacy blueprint-style technical print summary. ' +
+      'Superseded by PortalJourneyPrintPack (library-pdf). ' +
+      'Retained only for dev reference. ' +
+      'No production CTA should reference this surface.',
+    routeKind: 'derived',
+    fullRouteExample: 'legacy journey state: framework-print (blueprint summary)',
+    access: 'legacy_dev_only',
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>AtlasFrameworkPrintPage — legacy dev-only. Canonical PDF output is PortalJourneyPrintPack (library-pdf).</div>,
   },
 
   // ── Legacy customer output surfaces (insight-pack family) ───────────────────
