@@ -16,7 +16,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { VisitHomeDashboard } from '../VisitHomeDashboard';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
+import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
+import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
 // ─── Minimal fixtures ─────────────────────────────────────────────────────────
 
@@ -36,6 +38,24 @@ const ENGINE_OUTPUT: Partial<EngineOutputV1> = {
   explainers: [],
 };
 
+const ACCEPTED_SCENARIO: ScenarioResult = {
+  scenarioId: 'combi',
+  system: { type: 'combi', summary: 'Combi boiler' },
+  performance: {
+    hotWater: 'good',
+    heating: 'good',
+    efficiency: 'good',
+    reliability: 'good',
+  },
+  physicsFlags: {},
+  displayIdentity: { label: 'Combi', tagline: '' },
+  benefits: [],
+  constraints: [],
+  outcomes: [],
+  requiredWorks: [],
+  upgradePaths: [],
+};
+
 // ─── Default props factory ────────────────────────────────────────────────────
 
 function makeProps(
@@ -45,7 +65,9 @@ function makeProps(
     visitId: 'visit-abc123',
     engineInput: ENGINE_INPUT,
     engineOutput: ENGINE_OUTPUT as EngineOutputV1,
-    scenarios: [],
+    scenarios: [ACCEPTED_SCENARIO],
+    acceptedScenario: ACCEPTED_SCENARIO,
+    surveyModel: ENGINE_INPUT as FullSurveyModelV1,
     workspaceRole: 'admin',
     onOpenSimulator: vi.fn(),
     onOpenPresentation: vi.fn(),
@@ -260,6 +282,18 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
 
     it('simulator card status is ready when engine data is available', () => {
       render(<VisitHomeDashboard {...makeProps()} />);
+      expect(screen.getByTestId('card-simulator')).toHaveAttribute('data-status', 'ready');
+    });
+
+    it('simulator remains ready when accepted scenario and survey model exist', () => {
+      render(
+        <VisitHomeDashboard
+          {...makeProps({
+            engineInput: undefined,
+            engineOutput: undefined,
+          })}
+        />,
+      );
       expect(screen.getByTestId('card-simulator')).toHaveAttribute('data-status', 'ready');
     });
   });

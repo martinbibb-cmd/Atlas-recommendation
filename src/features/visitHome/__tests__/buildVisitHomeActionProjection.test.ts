@@ -4,7 +4,9 @@ import { buildVisitHomeActionProjection } from '../buildVisitHomeActionProjectio
 const BASE_INPUT = {
   visitReadiness: {
     hasVisit: true,
-    hasEngineData: true,
+    hasRecommendation: true,
+    hasAcceptedScenario: true,
+    hasSurveyModel: true,
   },
   libraryProjectionSafety: {
     unsafe: false,
@@ -67,7 +69,9 @@ describe('buildVisitHomeActionProjection', () => {
       workspaceRole: 'office',
       visitReadiness: {
         hasVisit: false,
-        hasEngineData: false,
+        hasRecommendation: false,
+        hasAcceptedScenario: false,
+        hasSurveyModel: false,
       },
     });
     const blockedExport = projection.blockedActions.find((item) => item.actionId === 'export-handover-package');
@@ -80,14 +84,16 @@ describe('buildVisitHomeActionProjection', () => {
       workspaceRole: 'surveyor',
       visitReadiness: {
         hasVisit: true,
-        hasEngineData: true,
+        hasRecommendation: true,
+        hasAcceptedScenario: true,
+        hasSurveyModel: true,
       },
     });
     const simulator = projection.visibleActions.find((item) => item.actionId === 'run-simulator');
     expect(simulator?.status).toBe('ready');
   });
 
-  it('marks export as ready when visit and engine data exist, independent of generated package output', () => {
+  it('marks export as needs-review when recommendation exists but no package has been generated', () => {
     const projection = buildVisitHomeActionProjection({
       ...BASE_INPUT,
       workspaceRole: 'office',
@@ -97,7 +103,7 @@ describe('buildVisitHomeActionProjection', () => {
       },
     });
     const exportAction = projection.visibleActions.find((item) => item.actionId === 'export-handover-package');
-    expect(exportAction?.status).toBe('ready');
+    expect(exportAction?.status).toBe('needs-review');
   });
 
   it('marks missing supporting PDF output as needs-review instead of blocked', () => {
@@ -146,7 +152,9 @@ describe('buildVisitHomeActionProjection', () => {
       workspaceRole: 'surveyor',
       visitReadiness: {
         hasVisit: true,
-        hasEngineData: false,
+        hasRecommendation: false,
+        hasAcceptedScenario: false,
+        hasSurveyModel: false,
       },
     });
     const simulatorBlocked = recommendationBlocked.blockedActions.find((item) => item.actionId === 'run-simulator');

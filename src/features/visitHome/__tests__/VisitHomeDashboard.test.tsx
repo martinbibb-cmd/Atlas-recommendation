@@ -16,6 +16,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { VisitHomeDashboard } from '../VisitHomeDashboard';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../../contracts/ScenarioResult';
+import type { CustomerSummaryV1 } from '../../../contracts/CustomerSummaryV1';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
@@ -71,6 +72,41 @@ const SCENARIO_WITH_PRESSURE_CONSTRAINT: ScenarioResult[] = [
   },
 ];
 
+const ACCEPTED_SCENARIO: ScenarioResult = {
+  scenarioId: 'combi',
+  system: { type: 'combi', summary: 'Combi boiler' },
+  performance: {
+    hotWater: 'good',
+    heating: 'good',
+    efficiency: 'good',
+    reliability: 'good',
+  },
+  physicsFlags: {},
+  displayIdentity: { label: 'Combi', tagline: '' },
+  benefits: [],
+  constraints: [],
+  outcomes: [],
+  requiredWorks: [],
+  upgradePaths: [],
+};
+
+const RECOMMENDATION_SUMMARY: CustomerSummaryV1 = {
+  recommendedScenarioId: 'combi',
+  recommendedSystemLabel: 'Combi boiler',
+  headline: 'Combi boiler is the right fit.',
+  plainEnglishDecision: 'The recommendation aligns with household demand and property constraints.',
+  whyThisWins: ['Daily hot water demand is met without stored hot-water losses.'],
+  whatThisAvoids: [],
+  includedNow: [],
+  requiredChecks: ['Confirm flue route and condensate path.'],
+  optionalUpgrades: [],
+  futureReady: [],
+  confidenceNotes: [],
+  hardConstraints: [],
+  performancePenalties: [],
+  fitNarrative: 'The recommendation aligns with household demand and property constraints.',
+};
+
 // ─── Default props factory ────────────────────────────────────────────────────
 
 function makeProps(
@@ -80,7 +116,10 @@ function makeProps(
     visitId: 'visit-abc123',
     engineInput: MINIMAL_ENGINE_INPUT,
     engineOutput: COMBI_ENGINE_OUTPUT as EngineOutputV1,
-    scenarios: [],
+    scenarios: [ACCEPTED_SCENARIO],
+    acceptedScenario: ACCEPTED_SCENARIO,
+    recommendationSummary: RECOMMENDATION_SUMMARY,
+    surveyModel: MINIMAL_ENGINE_INPUT as FullSurveyModelV1,
     workspaceRole: 'admin',
     portalUrl: undefined,
     installationSpecOptionCount: 0,
@@ -109,6 +148,18 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('card-implementation')).toBeInTheDocument();
     expect(screen.getByTestId('card-handoff')).toBeInTheDocument();
     expect(screen.getByTestId('card-export')).toBeInTheDocument();
+  });
+
+  it('hydrates dashboard state from accepted scenario even when engine input is unavailable', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          engineInput: undefined,
+          engineOutput: undefined,
+        })}
+      />,
+    );
+    expect(screen.getByTestId('card-recommendation')).toHaveAttribute('data-status', 'ready');
   });
 
   it('renders workspace-first layout classes by default with mobile fallback marker', () => {
@@ -246,7 +297,7 @@ describe('VisitHomeDashboard', () => {
       expect(cta).toBeDisabled();
     });
 
-    it('PDF card is needs-review when no recommendation/PDF output is available and CTA is disabled', () => {
+  it('PDF card is needs-review when no recommendation/PDF output is available and CTA is disabled', () => {
       render(
         <VisitHomeDashboard
           {...makeProps({
@@ -259,9 +310,27 @@ describe('VisitHomeDashboard', () => {
       const card = screen.getByTestId('card-pdf');
       expect(card).toHaveAttribute('data-status', 'needs-review');
 
-      const cta = screen.getByTestId('card-pdf-cta');
-      expect(cta).toBeDisabled();
-    });
+    const cta = screen.getByTestId('card-pdf-cta');
+    expect(cta).toBeDisabled();
+  });
+
+  it('shows specific not-generated copy for portal and supporting PDF when recommendation exists', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          portalUrl: undefined,
+          onOpenInsightPack: undefined,
+          onPrintSummary: undefined,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('card-portal')).toHaveAttribute('data-status', 'needs-review');
+    expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'needs-review');
+    expect(screen.getByText('Customer portal not generated yet.')).toBeInTheDocument();
+    expect(screen.getByText('Supporting PDF not generated yet.')).toBeInTheDocument();
+    expect(screen.queryByText('Recommendation not available')).not.toBeInTheDocument();
+  });
 
     it('handoff card is blocked when no visitId and CTA is disabled', () => {
       render(
@@ -325,6 +394,15 @@ describe('VisitHomeDashboard', () => {
 
     fireEvent.click(screen.getByTestId('visit-home-back'));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it('renders recommendation hero from canonical recommendation state', () => {
+    render(<VisitHomeDashboard {...makeProps()} />);
+    const hero = screen.getByTestId('visit-home-recommendation-hero');
+    expect(hero).toBeInTheDocument();
+    expect(hero).toHaveTextContent('Recommended system');
+    expect(hero).toHaveTextContent('Combi boiler');
+    expect(hero).toHaveTextContent('Key expectation delta');
   });
 
   describe('export card CTA — routes to onExportPackage, not engineer route', () => {

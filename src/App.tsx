@@ -821,6 +821,13 @@ function AppInner() {
    * portal can validate the link.
    */
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
+  const [visitRecommendationSnapshot, setVisitRecommendationSnapshot] = useState<{
+    visitId: string;
+    engineOutput?: EngineOutputV1;
+    scenarios?: ScenarioResult[];
+    decision?: AtlasDecisionV1;
+    customerSummary?: CustomerSummaryV1;
+  } | null>(null);
 
   /**
    * Resolves the active workspace from the browser host once on mount.
@@ -984,6 +991,13 @@ function AppInner() {
     }
 
     const persisted = restored.visit;
+    setVisitRecommendationSnapshot({
+      visitId: persisted.visitId,
+      engineOutput: persisted.engine,
+      scenarios: persisted.scenarios,
+      decision: persisted.decision,
+      customerSummary: persisted.customerSummary,
+    });
     setLabFullSurveyModel(persisted.survey);
     if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
     if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
@@ -1053,6 +1067,13 @@ function AppInner() {
       customerSummary: customerSummarySnapshot,
     };
     saveVisitAtomically(persisted);
+    setVisitRecommendationSnapshot({
+      visitId: activeVisitId,
+      engineOutput: engineSnapshot,
+      scenarios: scenariosSnapshot,
+      decision: decisionSnapshot,
+      customerSummary: customerSummarySnapshot,
+    });
   }, [activeVisitId, labFullSurveyModel, labEngineInput]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
@@ -1920,9 +1941,26 @@ function AppInner() {
         )}
         {/* Visit Home Dashboard — front-door overview of all outputs for the active visit */}
         {journey === 'visit-home' && (() => {
+          const canonicalSnapshot =
+            activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
+              ? visitRecommendationSnapshot
+              : null;
           let visitHomeEngineOutput: import('./contracts/EngineOutputV1').EngineOutputV1 | undefined;
           let visitHomeScenarios: import('./contracts/ScenarioResult').ScenarioResult[] | undefined;
-          if (labEngineInput != null) {
+          let visitHomeRecommendationSummary: import('./contracts/CustomerSummaryV1').CustomerSummaryV1 | undefined;
+          let acceptedScenario: import('./contracts/ScenarioResult').ScenarioResult | undefined;
+
+          if (canonicalSnapshot != null) {
+            visitHomeEngineOutput = canonicalSnapshot.engineOutput;
+            visitHomeScenarios = canonicalSnapshot.scenarios;
+            visitHomeRecommendationSummary = canonicalSnapshot.customerSummary;
+            const recommendedScenarioId = canonicalSnapshot.decision?.recommendedScenarioId;
+            if (recommendedScenarioId != null && visitHomeScenarios != null) {
+              acceptedScenario = visitHomeScenarios.find((scenario) => scenario.scenarioId === recommendedScenarioId);
+            }
+          }
+
+          if (visitHomeEngineOutput == null && labEngineInput != null) {
             try {
               const { engineOutput } = runEngine(labEngineInput);
               visitHomeEngineOutput = engineOutput;
@@ -1931,12 +1969,23 @@ function AppInner() {
               // Engine failed — both remain undefined; cards will show blocked status
             }
           }
+
+          if (acceptedScenario == null && visitHomeScenarios != null && visitHomeEngineOutput != null) {
+            const recommendedId = visitHomeEngineOutput.recommendation?.primary?.toLowerCase();
+            if (recommendedId != null) {
+              acceptedScenario = visitHomeScenarios.find(
+                (scenario) => scenario.scenarioId.toLowerCase() === recommendedId,
+              );
+            }
+          }
           return (
             <VisitHomeDashboard
               visitId={activeVisitId}
               engineInput={labEngineInput}
               engineOutput={visitHomeEngineOutput}
               scenarios={visitHomeScenarios}
+              acceptedScenario={acceptedScenario}
+              recommendationSummary={visitHomeRecommendationSummary}
               surveyModel={labFullSurveyModel}
               portalUrl={labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}
