@@ -2331,7 +2331,7 @@ function AppInner() {
             : undefined;
         const recommendationSummary =
           canonicalSummary?.headline ??
-          `${engineOutput.recommendation?.primary ?? 'Your system'} for ${labEngineInput.postcode ?? 'your home'}.`;
+          `A heating recommendation for ${labEngineInput.postcode ?? 'your home'} is being prepared.`;
         const journeyType: 'open_vented' | 'heat_pump' =
           engineOutput.recommendation?.primary === 'ashp' ? 'heat_pump' : 'open_vented';
         const customerFacts = [
@@ -2367,6 +2367,8 @@ function AppInner() {
             >
               <button
                 className="back-btn"
+                // Return to Visit Home if opened from active visit; otherwise fall back to the
+                // presentation workspace (the only other context that holds labEngineInput).
                 onClick={() => setJourney(activeVisitId != null ? 'visit-home' : 'presentation')}
                 data-testid="library-pdf-back"
               >

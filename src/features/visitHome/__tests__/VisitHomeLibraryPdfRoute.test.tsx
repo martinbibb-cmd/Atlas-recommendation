@@ -10,7 +10,7 @@
  *   4. A back button is present
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { buildPortalJourneyPrintModel } from '../../../library/portal/pdf/buildPortalJourneyPrintModel';
 import { PortalJourneyPrintPack } from '../../../library/portal/pdf/PortalJourneyPrintPack';
@@ -120,10 +120,7 @@ describe('Library PDF route — library-backed output', () => {
     it('does not render "G3" compliance regulation reference in customer-facing output', () => {
       const { container } = render(<LibraryPdfRouteShell model={OPEN_VENTED_MODEL} />);
       // G3 is an installer regulation number — must not appear in customer-facing copy.
-      // Use a split check to avoid matching substrings like "G3P" while still catching "G3 " or "(G3)".
-      const text = container.textContent ?? '';
-      const words = text.split(/\s+|[()[\]{}<>,;:!?'"]/);
-      expect(words).not.toContain('G3');
+      expect(container.textContent).not.toMatch(/\bG3\b/);
     });
 
     it('does not render "power flush" installer jargon in customer-facing output', () => {
@@ -146,15 +143,16 @@ describe('Library PDF route — library-backed output', () => {
         // Tundish is in reassurance context — this is correct customer education
         expect(reassuranceEl.textContent).toMatch(/does not mean/i);
       }
-      // G3 and tundish must never appear together — that would indicate a compliance citation
+      // G3 and tundish must never appear in proximity — that would indicate a compliance citation.
+      // 100 characters is chosen to span a typical sentence (c.70–90 chars) so adjacent terms are caught.
+      const MIN_COMPLIANCE_CITATION_SEPARATION = 100;
       const docText = document.textContent ?? '';
       const hasG3 = /\bG3\b/.test(docText);
       const hasTundish = /tundish/i.test(docText);
       if (hasG3 && hasTundish) {
-        // Both present — fail if they appear within 100 characters of each other
         const g3Idx = docText.search(/\bG3\b/);
         const tundishIdx = docText.toLowerCase().indexOf('tundish');
-        expect(Math.abs(g3Idx - tundishIdx)).toBeGreaterThan(100);
+        expect(Math.abs(g3Idx - tundishIdx)).toBeGreaterThan(MIN_COMPLIANCE_CITATION_SEPARATION);
       }
     });
   });
