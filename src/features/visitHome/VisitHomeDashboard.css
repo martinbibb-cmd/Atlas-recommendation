@@ -35,6 +35,12 @@
   margin: 0;
 }
 
+.vhd-header__workflow {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
 /* ── Continue-where-you-left-off banner ───────────────────────────────────── */
 
 .vhd-continue-banner {
@@ -73,7 +79,6 @@
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  margin: 1rem 1.25rem;
   padding: 0.875rem 1rem;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -96,15 +101,41 @@
 .vhd-journey-card__description {
   font-size: 0.8125rem;
   color: #374151;
+  margin-bottom: 0;
 }
 
-/* ── Card grid ────────────────────────────────────────────────────────────── */
+/* ── Workspace layout ─────────────────────────────────────────────────────── */
 
-.vhd-grid {
+.vhd-layout--workspace-default {
+  display: flex;
+  flex-direction: column;
+}
+
+.vhd-workspace {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
-  padding: 0 1.25rem 2rem;
+  padding: 1rem 1.25rem;
+}
+
+.vhd-workspace--three-rail {
+  /* Desktop/tablet rails: summary, review canvas, implementation/actions. */
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(260px, 340px);
+  align-items: start;
+}
+
+.vhd-rail {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.vhd-main-area {
+  min-width: 0;
+}
+
+.vhd-main-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 0.875rem;
 }
 
 /* ── Individual card ──────────────────────────────────────────────────────── */
@@ -122,6 +153,11 @@
 
 .vhd-card--blocked {
   opacity: 0.72;
+}
+
+.vhd-card--feature {
+  min-height: 250px;
+  grid-column: 1 / -1;
 }
 
 .vhd-card__header {
@@ -179,6 +215,71 @@
   cursor: not-allowed;
 }
 
+.vhd-readiness-panel,
+.vhd-admin-actions {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.vhd-panel-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  color: #0f172a;
+}
+
+.vhd-readiness-list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8125rem;
+  color: #334155;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.vhd-panel-copy {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+.vhd-panel-copy + .vhd-panel-copy {
+  margin-top: 0.4rem;
+}
+
+.vhd-inline-action {
+  border: none;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-radius: 0.45rem;
+  padding: 0.4rem 0.75rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vhd-inline-action:hover:not(:disabled) {
+  background: #bfdbfe;
+}
+
+.vhd-inline-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.vhd-mobile-fallback-note {
+  margin: 0 1.25rem 1.25rem;
+  padding: 0.625rem 0.75rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  color: #475569;
+  font-size: 0.75rem;
+}
+
 /* ── Badges ───────────────────────────────────────────────────────────────── */
 
 .vhd-badge {
@@ -201,34 +302,61 @@
   border: none;
 }
 
-/* ── Mobile polish ────────────────────────────────────────────────────────── */
+/* ── iPad/tablet and phone fallback ───────────────────────────────────────── */
 
-/* On narrow viewports (< 360px) collapse to single column and reduce padding
-   so cards and CTAs are never cropped or cramped. */
-@media (max-width: 359px) {
+@media (max-width: 1199px) {
+  .vhd-workspace--three-rail {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .vhd-rail--left {
+    grid-column: 1 / -1;
+    position: sticky;
+    top: 0.5rem;
+  }
+
+  .vhd-main-area,
+  .vhd-rail--right {
+    min-width: 0;
+  }
+
+  .vhd-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .vhd-workspace--three-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .vhd-rail--left,
+  .vhd-main-area,
+  .vhd-rail--right {
+    grid-column: auto;
+    position: static;
+  }
+
   .vhd-header,
-  .vhd-continue-banner,
-  .vhd-journey-card {
+  .vhd-workspace,
+  .vhd-continue-banner {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
+  }
+
+  .vhd-continue-banner {
     margin-left: 0.75rem;
     margin-right: 0.75rem;
   }
 
-  .vhd-grid {
-    grid-template-columns: 1fr;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    gap: 0.75rem;
-  }
-
-  .vhd-card__cta {
-    align-self: stretch;
+  .vhd-card__cta,
+  .vhd-inline-action {
+    width: 100%;
     text-align: center;
   }
 
-  /* Ensure the panel is the scroll host on very narrow viewports */
-  .vhd-root {
-    overflow-y: auto;
+  .vhd-mobile-fallback-note {
+    margin-left: 0.75rem;
+    margin-right: 0.75rem;
   }
 }

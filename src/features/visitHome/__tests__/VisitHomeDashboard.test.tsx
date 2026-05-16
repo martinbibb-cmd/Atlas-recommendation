@@ -110,6 +110,33 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('card-export')).toBeInTheDocument();
   });
 
+  it('renders workspace-first layout classes by default with mobile fallback marker', () => {
+    render(<VisitHomeDashboard {...makeProps()} />);
+
+    const root = screen.getByTestId('visit-home-layout-root');
+    const workspace = screen.getByTestId('visit-home-workspace-layout');
+    expect(root).toHaveClass('vhd-layout--workspace-default');
+    expect(root).toHaveClass('vhd-layout--mobile-fallback');
+    expect(workspace).toHaveClass('vhd-workspace--three-rail');
+  });
+
+  it('shows review workflow copy and keeps scan as capture/import entry point', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({ engineOutput: ASHP_ENGINE_OUTPUT as EngineOutputV1 })}
+      />,
+    );
+
+    expect(screen.getByText('Review this visit')).toBeInTheDocument();
+    expect(screen.getByText('Open customer journey →')).toBeInTheDocument();
+    expect(screen.getByText('Run daily-use simulator →')).toBeInTheDocument();
+    expect(screen.getByText('Prepare implementation pack →')).toBeInTheDocument();
+    expect(screen.getByText('Export handover package →')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-scan-entry-note')).toHaveTextContent(
+      'Atlas Scan remains the capture/import entry point for survey evidence, photos, pins, and notes.',
+    );
+  });
+
   it('simulator CTA calls onOpenSimulator — keeps existing launch path', () => {
     const onOpenSimulator = vi.fn();
     render(<VisitHomeDashboard {...makeProps({ onOpenSimulator })} />);
