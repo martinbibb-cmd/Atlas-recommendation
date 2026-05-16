@@ -133,7 +133,7 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByText('Prepare implementation pack →')).toBeInTheDocument();
     expect(screen.getByText('Export handover package →')).toBeInTheDocument();
     expect(screen.getByTestId('visit-home-scan-entry-note')).toHaveTextContent(
-      'Atlas Scan remains the capture/import entry point',
+      'Atlas Scan remains the capture/import entry point for survey evidence, photos, pins, and notes.',
     );
   });
 

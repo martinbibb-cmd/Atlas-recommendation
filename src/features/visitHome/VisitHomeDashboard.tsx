@@ -338,7 +338,7 @@ export function VisitHomeDashboard({
           <h1 className="vhd-header__title">Review this visit</h1>
           <p className="vhd-header__subtitle">{propertyTitle}</p>
           <p className="vhd-header__workflow">
-            Atlas Mind review workspace for recommendation, simulator, customer outputs, and handover.
+            Atlas Mind is the review workspace for recommendation, simulator, customer outputs, and handover.
           </p>
         </div>
       </div>
