@@ -2023,7 +2023,7 @@ function AppInner() {
                 setJourney('presentation');
               }}
               onPrintSummary={labEngineInput != null && visitHomeEngineOutput != null ? () => {
-                setLastOpenedFromHome({ label: 'Library Supporting PDF', journey: 'library-pdf' });
+                setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
                 setJourney('library-pdf');
               } : undefined}
               onOpenInstallationSpecification={() => {
