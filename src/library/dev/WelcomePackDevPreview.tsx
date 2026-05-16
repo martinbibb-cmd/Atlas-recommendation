@@ -66,6 +66,7 @@ import {
 } from '../emotionalRouting';
 import { LibraryProjectionQaPanel } from '../projections/dev/LibraryProjectionQaPanel';
 import { LibraryAuthoringBacklogPanel, LibraryCoverageAuditPanel } from '../coverage';
+import { PdfComparisonQaPanel } from '../pdfQa';
 import type { OperationalDigestV1 } from '../../workflow/operationalDigest/OperationalDigestV1';
 
 // A minimal empty operational digest stub used when no real digest is available
@@ -76,6 +77,48 @@ const EMPTY_OPERATIONAL_DIGEST: OperationalDigestV1 = {
   primaryItemLimit: 0,
   totalItems: 0,
   items: [],
+};
+
+// Demo scenario used by the PDF comparison QA panel in diagnostics mode.
+// This represents a minimal clean canonical library-pdf snapshot.
+const PDF_COMPARISON_DEMO_SCENARIO = {
+  scenarioLabel: 'Demo — open-vented to sealed (3-bed semi)',
+  mode: 'canonical_library_pdf' as const,
+  recommendationSummary:
+    'A sealed system with an unvented cylinder is the best fit for this home.',
+  sections: [
+    {
+      sectionId: 'cover',
+      heading: 'Your new heating system',
+      bodyText:
+        'Your installer has recommended an unvented cylinder setup for your home.',
+    },
+    {
+      sectionId: 'what_changes',
+      heading: 'What changes in your home',
+      bodyText:
+        'What changes: a sealed heating circuit replaces the open-vented system. ' +
+        'What you may notice: a pressure gauge near the boiler.',
+    },
+    {
+      sectionId: 'what_stays_familiar',
+      heading: 'What stays familiar',
+      bodyText:
+        'What stays familiar: the radiators remain in place and work the same way.',
+    },
+    {
+      sectionId: 'system_protection',
+      heading: 'Protecting the existing heating system',
+      bodyText:
+        'Standard protection and commissioning checks are carried out as part of every installation.',
+    },
+    {
+      sectionId: 'living_with',
+      heading: 'Living with your new system',
+      bodyText: 'What you may notice: the system is quieter than before.',
+    },
+  ],
+  surveyCondition: 'present' as const,
 };
 
 const GOLDEN_JOURNEY_FIXTURE_IDS: WelcomePackDemoFixtureId[] = [
@@ -1748,6 +1791,11 @@ export function WelcomePackDevPreview() {
             <div style={{ marginTop: '0.75rem' }}>
               <LibraryAuthoringBacklogPanel />
             </div>
+          </section>
+
+          <section aria-label="PDF comparison QA" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
+            <h2>PDF Comparison QA</h2>
+            <PdfComparisonQaPanel scenario={PDF_COMPARISON_DEMO_SCENARIO} />
           </section>
         </>
       )}
