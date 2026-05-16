@@ -257,7 +257,7 @@ export default function HouseSimulatorPage({
   function handleOutletPress(outletId: string) {
     if (isManualMode) {
       toggleOutlet(outletId);
-      setSelectedOutletId(outletId);
+      setSelectedOutletId(null);
       return;
     }
     setSelectedOutletId(outletId);
