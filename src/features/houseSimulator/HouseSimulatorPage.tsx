@@ -50,7 +50,6 @@ import DrawOffStatusPanel from '../../explainers/lego/simulator/panels/DrawOffSt
 import SystemInputsPanel from '../../explainers/lego/simulator/panels/SystemInputsPanel';
 import EfficiencyPanel from '../../explainers/lego/simulator/panels/EfficiencyPanel';
 import LimitersPanel from '../../explainers/lego/simulator/panels/LimitersPanel';
-import ExplainerPanel from '../../explainers/educational/ExplainerPanel';
 
 import { buildHouseSimulatorViewModel } from './buildHouseSimulatorViewModel';
 import HouseSimulatorCanvas from './HouseSimulatorCanvas';
@@ -122,6 +121,7 @@ export default function HouseSimulatorPage({
   const [rightOpen,       setRightOpen]       = useState(false);
   const [topSheetOpen,    setTopSheetOpen]    = useState(false);
   const [bottomSheetOpen, setBottomSheetOpen] = useState(true);
+  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
 
   // ── Simulator inputs ────────────────────────────────────────────────────────
   const [timeSpeed,    setTimeSpeed]    = useState(1);
@@ -240,6 +240,66 @@ export default function HouseSimulatorPage({
   const efficiencyBadgeColor =
     EFFICIENCY_BADGE_COLOR[vm.efficiencyWidget.statusTone] ?? '#718096';
 
+  function toggleOutlet(outletId: string) {
+    switch (outletId) {
+      case 'shower':
+        setDemandControls({ shower: !demandControls.shower });
+        break;
+      case 'bath':
+        setDemandControls({ bath: !demandControls.bath });
+        break;
+      case 'kitchen':
+        setDemandControls({ kitchen: !demandControls.kitchen });
+        break;
+      case 'cold_tap':
+      case 'washing_machine':
+        setDemandControls({ coldTap: !demandControls.coldTap });
+        break;
+      default:
+        break;
+    }
+  }
+
+  function handleOutletPress(outletId: string) {
+    setSelectedOutletId(outletId);
+    if (isManualMode) {
+      toggleOutlet(outletId);
+    }
+  }
+
+  const systemWarnings = [
+    ...(diagramState.serviceSwitchingActive
+      ? [{
+          id: 'service_switching',
+          severity: 'warning',
+          title: 'Heating is paused while on-demand hot water is running',
+          explanation: 'The heat source has switched priority to hot-water service, so space-heating output is temporarily paused.',
+          suggestedFix: 'Reduce simultaneous demand or return to auto playback once draw-off demand ends.',
+        }]
+      : []),
+    ...(drawOffState.combiAtCapacity
+      ? [{
+          id: 'combi_capacity',
+          severity: 'warning',
+          title: 'On-demand hot-water output is at capacity',
+          explanation: 'Multiple outlets are sharing available output, so flow and delivery temperature are constrained.',
+          suggestedFix: 'Close one outlet or move to a stored-hot-water setup for higher simultaneous demand.',
+        }]
+      : []),
+  ];
+  const warningItems = [
+    ...limiterState.activeLimiters,
+    ...systemWarnings,
+  ];
+  const warningCount = warningItems.length;
+  const activeEvents = [
+    ...((diagramState.systemMode === 'heating' || diagramState.systemMode === 'heating_and_reheat') ? ['Heating active'] : []),
+    ...vm.outletNodes
+      .filter(node => node.active && node.outletId !== 'washing_machine')
+      .map(node => node.label),
+    ...(diagramState.serviceSwitchingActive ? ['Service switching'] : []),
+  ];
+
   return (
     <div className="hs-wrap">
 
@@ -283,12 +343,12 @@ export default function HouseSimulatorPage({
             📊 Engineering
           </button>
           <button
-            className={`hs-action-btn${vm.hasWarnings ? ' hs-action-btn--warn' : ''}`}
+            className={`hs-action-btn${warningCount > 0 ? ' hs-action-btn--warn' : ''}`}
             onClick={() => setTopSheetOpen(v => !v)}
             aria-expanded={topSheetOpen}
             aria-controls="hs-warnings-sheet"
           >
-            ⚠ Warnings{vm.warningCount > 0 ? ` (${vm.warningCount})` : ''}
+            ⚠ Warnings{warningCount > 0 ? ` (${warningCount})` : ''}
           </button>
         </nav>
       </header>
@@ -306,10 +366,10 @@ export default function HouseSimulatorPage({
           id="hs-warnings-sheet"
           className="hs-top-sheet"
           role="region"
-          aria-label="Warnings and physics explainers"
+          aria-label="Active warnings"
         >
           <div className="hs-top-sheet__header">
-            <h2>Warnings and explainers</h2>
+            <h2>Current warnings</h2>
             <button
               className="hs-action-btn"
               onClick={() => setTopSheetOpen(false)}
@@ -318,7 +378,32 @@ export default function HouseSimulatorPage({
               Close
             </button>
           </div>
-          <ExplainerPanel />
+          {warningItems.length === 0 ? (
+            <p className="hs-top-sheet__empty">No active warnings right now.</p>
+          ) : (
+            <ul className="hs-warning-list">
+              {warningItems.map(warning => (
+                <li key={warning.id} className={`hs-warning-item hs-warning-item--${warning.severity}`}>
+                  <div className="hs-warning-item__header">
+                    <strong>{warning.title}</strong>
+                    <span className="hs-warning-item__severity">{warning.severity}</span>
+                  </div>
+                  <p>{warning.explanation}</p>
+                  {warning.suggestedFix && <p className="hs-warning-item__fix">Suggested action: {warning.suggestedFix}</p>}
+                  <button
+                    className="hs-warning-item__learn"
+                    onClick={() => {
+                      setRightOpen(true);
+                      setLeftOpen(false);
+                      setTopSheetOpen(false);
+                    }}
+                  >
+                    Learn why
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
@@ -335,7 +420,10 @@ export default function HouseSimulatorPage({
         {/* Central house canvas */}
         <HouseSimulatorCanvas
           houseState={houseState}
-          activeOutlets={vm.activeOutlets}
+          outletNodes={vm.outletNodes}
+          isManualMode={isManualMode}
+          selectedOutletId={selectedOutletId}
+          onOutletPress={handleOutletPress}
         />
 
         {/* Right roof widget — efficiency summary */}
@@ -360,32 +448,38 @@ export default function HouseSimulatorPage({
         scenarioKey={scenarioKey}
         onScenarioChange={handleScenarioChange}
         onToggle={() => setBottomSheetOpen(v => !v)}
+        simHour={simHour}
+        mode={isManualMode ? 'manual' : 'auto'}
+        onSetMode={mode => (mode === 'auto' ? resetToAutoMode() : setManualMode())}
+        activeEvents={activeEvents}
+        advancedChildren={(
+          <DrawOffStatusPanel
+            state={drawOffState}
+            systemChoice={systemChoice}
+            cylinderType={systemInputs.cylinderType}
+            mainsPressureBar={systemInputs.mainsPressureBar}
+            mainsFlowLpm={systemInputs.mainsFlowLpm}
+            boilerDhwOutputKw={systemInputs.combiPowerKw}
+            coldInletTempC={systemInputs.coldInletTempC}
+            mode={isManualMode ? 'manual' : 'auto'}
+            heatingEnabled={demandControls.heatingEnabled}
+            shower={demandControls.shower}
+            bath={demandControls.bath}
+            kitchen={demandControls.kitchen}
+            coldTap={demandControls.coldTap}
+            onSetMode={mode => (mode === 'auto' ? resetToAutoMode() : setManualMode())}
+            onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
+            onToggleShower={() => setDemandControls({ shower: !demandControls.shower })}
+            onToggleBath={() => setDemandControls({ bath: !demandControls.bath })}
+            onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })}
+            onToggleColdTap={() => setDemandControls({ coldTap: !demandControls.coldTap })}
+            onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })}
+            onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })}
+            onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}
+          />
+        )}
       >
         <DayTimelinePanel state={dayTimelineState} />
-        <DrawOffStatusPanel
-          state={drawOffState}
-          systemChoice={systemChoice}
-          cylinderType={systemInputs.cylinderType}
-          mainsPressureBar={systemInputs.mainsPressureBar}
-          mainsFlowLpm={systemInputs.mainsFlowLpm}
-          boilerDhwOutputKw={systemInputs.combiPowerKw}
-          coldInletTempC={systemInputs.coldInletTempC}
-          mode={isManualMode ? 'manual' : 'auto'}
-          heatingEnabled={demandControls.heatingEnabled}
-          shower={demandControls.shower}
-          bath={demandControls.bath}
-          kitchen={demandControls.kitchen}
-          coldTap={demandControls.coldTap}
-          onSetMode={mode => (mode === 'auto' ? resetToAutoMode() : setManualMode())}
-          onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
-          onToggleShower={() => setDemandControls({ shower: !demandControls.shower })}
-          onToggleBath={() => setDemandControls({ bath: !demandControls.bath })}
-          onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })}
-          onToggleColdTap={() => setDemandControls({ coldTap: !demandControls.coldTap })}
-          onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })}
-          onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })}
-          onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}
-        />
       </TimelineBottomSheet>
 
       {/* ── Left drawer: Setup / system configuration ─────────────────────── */}

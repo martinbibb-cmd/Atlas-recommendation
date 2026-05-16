@@ -18,15 +18,21 @@
 
 import type { HouseDisplayState, RoomDisplayState, RoomHeatState } from '../../explainers/lego/simulator/useHousePlayback';
 import HouseSimulatorOutletNode from './HouseSimulatorOutletNode';
-import type { ActiveOutletChipViewModel } from './buildHouseSimulatorViewModel';
+import type { OutletNodeViewModel } from './buildHouseSimulatorViewModel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface HouseSimulatorCanvasProps {
   /** Live house display state from useHousePlayback. */
   houseState: HouseDisplayState;
-  /** Active outlet chip view models from buildHouseSimulatorViewModel. */
-  activeOutlets: ActiveOutletChipViewModel[];
+  /** All outlet nodes from buildHouseSimulatorViewModel. */
+  outletNodes: OutletNodeViewModel[];
+  /** True when simulator is in manual interaction mode. */
+  isManualMode: boolean;
+  /** Currently selected outlet id (used in auto mode popover). */
+  selectedOutletId: string | null;
+  /** Called when an outlet node is tapped/clicked. */
+  onOutletPress: (outletId: string) => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -52,12 +58,29 @@ const FLOOR_ICON: Record<string, string> = {
 
 interface RoomCellProps {
   room: RoomDisplayState;
-  activeOutlets: ActiveOutletChipViewModel[];
+  outletNodes: OutletNodeViewModel[];
+  selectedOutletId: string | null;
+  onOutletPress: (outletId: string) => void;
 }
 
-function RoomCell({ room, activeOutlets }: RoomCellProps) {
-  // Find active outlets whose roomName matches this room's name.
-  const roomOutlets = activeOutlets.filter(o => o.roomName === room.name);
+function outletPositionClass(outletId: string): string {
+  switch (outletId) {
+    case 'shower': return 'hs-outlet-node--pos-shower';
+    case 'bath': return 'hs-outlet-node--pos-bath';
+    case 'kitchen': return 'hs-outlet-node--pos-kitchen';
+    case 'cold_tap': return 'hs-outlet-node--pos-cold-tap';
+    case 'washing_machine': return 'hs-outlet-node--pos-washing-machine';
+    default: return 'hs-outlet-node--pos-default';
+  }
+}
+
+function RoomCell({
+  room,
+  outletNodes,
+  selectedOutletId,
+  onOutletPress,
+}: RoomCellProps) {
+  const roomOutlets = outletNodes.filter(o => o.roomName === room.name);
 
   return (
     <div
@@ -72,17 +95,22 @@ function RoomCell({ room, activeOutlets }: RoomCellProps) {
         </span>
       )}
       <span className="hs-room__name">{room.name}</span>
-      {roomOutlets.map(outlet => (
-        <HouseSimulatorOutletNode
-          key={outlet.outletId}
-          outletId={outlet.outletId}
-          label={outlet.label}
-          icon={outlet.icon}
-          active
-          constrained={outlet.constrained}
-          metrics={outlet.metrics}
-        />
-      ))}
+      <div className="hs-room__outlet-layer">
+        {roomOutlets.map(outlet => (
+          <HouseSimulatorOutletNode
+            key={outlet.outletId}
+            outletId={outlet.outletId}
+            label={outlet.label}
+            icon={outlet.icon}
+            active={outlet.active}
+            constrained={outlet.constrained}
+            metrics={outlet.metrics}
+            selected={selectedOutletId === outlet.outletId}
+            onPress={() => onOutletPress(outlet.outletId)}
+            positionClassName={outletPositionClass(outlet.outletId)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -91,9 +119,15 @@ function RoomCell({ room, activeOutlets }: RoomCellProps) {
 
 export default function HouseSimulatorCanvas({
   houseState,
-  activeOutlets,
+  outletNodes,
+  isManualMode,
+  selectedOutletId,
+  onOutletPress,
 }: HouseSimulatorCanvasProps) {
   const { floors, indoorTempC, statusLabel, chPaused } = houseState;
+  const selectedOutlet = selectedOutletId != null
+    ? outletNodes.find(outlet => outlet.outletId === selectedOutletId)
+    : undefined;
 
   const insideFloors = floors.filter(f => f.key !== 'outside');
   const outsideFloor = floors.find(f => f.key === 'outside');
@@ -114,39 +148,59 @@ export default function HouseSimulatorCanvas({
       {/* ── House schematic ───────────────────────────────────────────────── */}
       <div className="hs-house" aria-label="House floor plan">
 
-        {/* SVG roof silhouette */}
         <div className="hs-house__roof" aria-hidden="true">
-          <svg
-            className="hs-house__roof-svg"
-            viewBox="0 0 240 36"
-            preserveAspectRatio="none"
-            focusable="false"
-            aria-hidden="true"
-          >
-            <polygon points="120,3 3,36 237,36" fill="#4a5568" />
-            <rect x="164" y="12" width="16" height="24" fill="#4a5568" />
-            <rect x="161" y="8" width="22" height="6" fill="#718096" rx="1" ry="1" />
+          <svg className="hs-house__roof-svg" viewBox="0 0 240 36" preserveAspectRatio="none" focusable="false" aria-hidden="true">
+            <defs>
+              <linearGradient id="hsRoofGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#5a667a" />
+                <stop offset="100%" stopColor="#3f4a5d" />
+              </linearGradient>
+            </defs>
+            <polygon points="120,3 3,36 237,36" fill="url(#hsRoofGradient)" />
+            <rect x="164" y="12" width="16" height="24" fill="#3f4a5d" />
+            <rect x="161" y="8" width="22" height="6" fill="#6d7c95" rx="1" ry="1" />
           </svg>
         </div>
 
-        {/* Floors */}
-        <div className="hs-house__body">
-          {insideFloors.map((floor, idx) => (
-            <div
-              key={floor.key}
-              className={`hs-floor${idx < insideFloors.length - 1 ? ' hs-floor--has-divider' : ''}`}
-            >
-              <div className="hs-floor__label">
-                <span aria-hidden="true">{FLOOR_ICON[floor.key] ?? ''}</span>
-                {floor.label}
+        <div className="hs-house__stage">
+          {/* 1) House artwork layer (static, fixed stage) */}
+          <svg className="hs-house__artwork" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="hsHouseBackdrop" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#f8fafc" />
+                <stop offset="100%" stopColor="#eef2f7" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="1000" height="620" fill="url(#hsHouseBackdrop)" />
+            <line x1="0" y1="205" x2="1000" y2="205" stroke="#9aa6bd" strokeWidth="2" />
+            <line x1="0" y1="410" x2="1000" y2="410" stroke="#9aa6bd" strokeWidth="2" />
+          </svg>
+
+          {/* 2) Room/grid layer + 3) outlet interaction layer + 4) chip layer */}
+          <div className="hs-house__body">
+            {insideFloors.map((floor, idx) => (
+              <div
+                key={floor.key}
+                className={`hs-floor${idx < insideFloors.length - 1 ? ' hs-floor--has-divider' : ''}`}
+              >
+                <div className="hs-floor__label">
+                  <span aria-hidden="true">{FLOOR_ICON[floor.key] ?? ''}</span>
+                  {floor.label}
+                </div>
+                <div className="hs-floor__rooms">
+                  {floor.rooms.map(room => (
+                    <RoomCell
+                      key={room.name}
+                      room={room}
+                      outletNodes={outletNodes}
+                      selectedOutletId={selectedOutletId}
+                      onOutletPress={onOutletPress}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="hs-floor__rooms">
-                {floor.rooms.map(room => (
-                  <RoomCell key={room.name} room={room} activeOutlets={activeOutlets} />
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Foundation */}
@@ -162,10 +216,33 @@ export default function HouseSimulatorCanvas({
           </div>
           <div className="hs-floor__rooms">
             {outsideFloor.rooms.map(room => (
-              <RoomCell key={room.name} room={room} activeOutlets={activeOutlets} />
+              <RoomCell
+                key={room.name}
+                room={room}
+                outletNodes={outletNodes}
+                selectedOutletId={selectedOutletId}
+                onOutletPress={onOutletPress}
+              />
             ))}
           </div>
         </div>
+      )}
+
+      {/* 5) Canvas-local outlet detail layer */}
+      {selectedOutlet != null && (
+        <aside className="hs-outlet-popover" aria-label={`${selectedOutlet.label} details`}>
+          <strong>{selectedOutlet.label}</strong>
+          <p>
+            {selectedOutlet.active
+              ? 'Active outlet'
+              : isManualMode
+                ? 'Tap to open this outlet in manual mode'
+                : 'Auto mode controls this outlet from scenario playback'}
+          </p>
+          {selectedOutlet.detailText && (
+            <p className="hs-outlet-popover__warning">{selectedOutlet.detailText}</p>
+          )}
+        </aside>
       )}
     </div>
   );

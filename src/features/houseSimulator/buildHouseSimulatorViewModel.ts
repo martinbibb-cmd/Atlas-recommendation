@@ -66,6 +66,18 @@ export type ActiveOutletChipViewModel = {
   metrics: LiveMetricChipProps[];
 };
 
+/** All outlet nodes (active + inactive) rendered in the house canvas. */
+export type OutletNodeViewModel = {
+  outletId: string;
+  label: string;
+  icon: string;
+  roomName: string;
+  active: boolean;
+  constrained: boolean;
+  metrics: LiveMetricChipProps[];
+  detailText?: string;
+};
+
 /** Complete view model consumed by HouseSimulatorPage. */
 export type HouseSimulatorViewModel = {
   narration: NarrationViewModel;
@@ -73,6 +85,8 @@ export type HouseSimulatorViewModel = {
   efficiencyWidget: EfficiencyWidgetViewModel;
   /** All currently open outlets with their live metric chips. */
   activeOutlets: ActiveOutletChipViewModel[];
+  /** All outlet nodes for stable in-canvas interaction. */
+  outletNodes: OutletNodeViewModel[];
   /** True when any physics limiter is active. */
   hasWarnings: boolean;
   /** Number of active limiters. */
@@ -94,6 +108,7 @@ const OUTLET_ICON: Record<string, string> = {
   bath:     '🛁',
   kitchen:  '🚰',
   cold_tap: '🚰',
+  washing_machine: '🧺',
 };
 
 /** Maps outlet id to the room name it lives in within the house canvas. */
@@ -102,6 +117,7 @@ const OUTLET_ROOM: Record<string, string> = {
   bath:     'Bathroom',
   kitchen:  'Kitchen',
   cold_tap: 'Kitchen',
+  washing_machine: 'Kitchen',
 };
 
 // ─── Temperature threshold constants ─────────────────────────────────────────
@@ -205,6 +221,43 @@ export function buildHouseSimulatorViewModel(
       };
     });
 
+  const outletNodes: OutletNodeViewModel[] = drawOffState.outletStates.map(o => {
+    const metrics: LiveMetricChipProps[] = [];
+    if (o.open) {
+      metrics.push(flowChip(o.flowLpm, o.isConstrained));
+      if (o.deliveredTempC !== undefined) {
+        metrics.push(tempChip(o.deliveredTempC));
+      }
+    }
+    return {
+      outletId: o.outletId,
+      label: o.label,
+      icon: OUTLET_ICON[o.outletId] ?? '💧',
+      roomName: OUTLET_ROOM[o.outletId] ?? 'Kitchen',
+      active: o.open,
+      constrained: o.isConstrained,
+      metrics,
+      detailText: o.constraintReason,
+    };
+  });
+
+  const coldTapNode = drawOffState.outletStates.find(o => o.outletId === 'cold_tap');
+  outletNodes.push({
+    outletId: 'washing_machine',
+    label: 'Washing machine',
+    icon: OUTLET_ICON['washing_machine'],
+    roomName: OUTLET_ROOM['washing_machine'],
+    active: coldTapNode?.open ?? false,
+    constrained: coldTapNode?.isConstrained ?? false,
+    metrics: (coldTapNode?.open ?? false)
+      ? [
+          flowChip(coldTapNode?.flowLpm ?? 0, coldTapNode?.isConstrained ?? false),
+          ...(coldTapNode?.deliveredTempC !== undefined ? [tempChip(coldTapNode.deliveredTempC)] : []),
+        ]
+      : [],
+    detailText: coldTapNode?.constraintReason,
+  });
+
   // ── Warnings ───────────────────────────────────────────────────────────────
   const hasWarnings    = limiterState.activeLimiters.length > 0;
   const warningCount   = limiterState.activeLimiters.length;
@@ -214,6 +267,7 @@ export function buildHouseSimulatorViewModel(
     heatSourceWidget,
     efficiencyWidget,
     activeOutlets,
+    outletNodes,
     hasWarnings,
     warningCount,
   };
