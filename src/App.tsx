@@ -185,6 +185,12 @@ function formatSavedAgo(updatedAt: string): string {
   return `${hours}h ago`;
 }
 
+function formatVisitReference(visitId: string): string {
+  const normalized = visitId.trim().toUpperCase();
+  if (normalized.length >= 8) return normalized.slice(-8);
+  return normalized.padStart(8, '0');
+}
+
 /** Detect /dev/devmenu or ?devmenu=1 — renders the developer component browser. */
 const DEV_MENU_ENABLED =
   typeof window !== 'undefined' &&
@@ -1278,6 +1284,9 @@ function AppInner() {
         if (visitId.length > 0) visitIds.add(visitId);
       }
     } catch {
+      if (import.meta.env.DEV) {
+        console.warn('[Atlas] Unable to enumerate local saved visits from localStorage.');
+      }
       return [];
     }
     return [...visitIds];
@@ -1506,7 +1515,7 @@ function AppInner() {
       seen.add(key);
       entries.push({
         visitId,
-        label: `Saved visit ${visitId.slice(-8).toUpperCase()}`,
+        label: `Saved visit ${formatVisitReference(visitId)}`,
         source: 'local',
       });
     }
@@ -1516,7 +1525,7 @@ function AppInner() {
       seen.add(key);
       entries.push({
         visitId,
-        label: `Workflow package ${visitId.slice(-8).toUpperCase()}`,
+        label: `Workflow package ${formatVisitReference(visitId)}`,
         source: 'workflow',
       });
     }
@@ -1526,7 +1535,7 @@ function AppInner() {
       seen.add(key);
       entries.push({
         visitId,
-        label: `Demo fixture ${visitId.slice(-8).toUpperCase()}`,
+        label: `Demo fixture ${formatVisitReference(visitId)}`,
         source: 'demo',
       });
     }
