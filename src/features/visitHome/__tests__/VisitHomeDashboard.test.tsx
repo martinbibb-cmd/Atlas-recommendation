@@ -135,6 +135,11 @@ function makeProps(
   };
 }
 
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+  window.dispatchEvent(new Event('resize'));
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('VisitHomeDashboard', () => {
@@ -170,6 +175,49 @@ describe('VisitHomeDashboard', () => {
     expect(root).toHaveClass('vhd-layout--workspace-default');
     expect(root).toHaveClass('vhd-layout--mobile-fallback');
     expect(workspace).toHaveClass('vhd-workspace--three-rail');
+  });
+
+  it('renders grouped workspace sections for customer, technical, and delivery review', () => {
+    render(<VisitHomeDashboard {...makeProps()} />);
+    expect(screen.getByTestId('visit-home-section-customer-review')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-section-technical-review')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-section-delivery-handover')).toBeInTheDocument();
+  });
+
+  it('shows recommendation hero with placeholders when recommendation data is absent', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          engineInput: undefined,
+          engineOutput: undefined,
+          acceptedScenario: undefined,
+          recommendationSummary: undefined,
+          scenarios: [],
+          surveyModel: undefined,
+          visitId: undefined,
+        })}
+      />,
+    );
+
+    const hero = screen.getByTestId('visit-home-recommendation-hero');
+    expect(hero).toHaveTextContent('Recommended system');
+    expect(hero).toHaveTextContent('Recommendation pending');
+  });
+
+  it.each([
+    ['desktop', 1366],
+    ['tablet', 1024],
+  ])('keeps key CTAs visible at %s widths', (_label, width) => {
+    setViewportWidth(width);
+    render(<VisitHomeDashboard {...makeProps()} />);
+
+    expect(screen.getByTestId('card-recommendation-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('card-portal-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('card-pdf-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('card-simulator-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('card-implementation-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('card-handoff-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('card-export-cta')).toBeInTheDocument();
   });
 
   it('shows review workflow copy and keeps scan as capture/import entry point', () => {
