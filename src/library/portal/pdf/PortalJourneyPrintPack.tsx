@@ -15,6 +15,7 @@
  */
 
 import type { PortalJourneyPrintModelV1, PortalJourneyPrintSectionV1 } from './buildPortalJourneyPrintModel';
+import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
 import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import './portalJourneyPrintPack.css';
 
@@ -157,6 +158,47 @@ interface PrintNextStepsProps {
   pageNumber: number;
 }
 
+// ─── System protection section ────────────────────────────────────────────────
+
+interface PrintSystemProtectionProps {
+  systemProtection: SystemProtectionSummaryV1;
+  pageNumber: number;
+}
+
+function PrintSystemProtection({ systemProtection, pageNumber }: PrintSystemProtectionProps) {
+  return (
+    <section
+      className="pjpp-page pjpp-section pjpp-section--system-protection"
+      aria-labelledby="pjpp-system-protection-heading"
+      data-testid="pjpp-system-protection"
+      data-page={pageNumber}
+    >
+      <h2
+        id="pjpp-system-protection-heading"
+        className="pjpp-section__heading"
+      >
+        {systemProtection.title}
+      </h2>
+
+      <p className="pjpp-section__summary">{systemProtection.customerSummary}</p>
+
+      {systemProtection.customerVisibleBullets.length > 0 ? (
+        <ul className="pjpp-section__items" data-testid="pjpp-items-system-protection">
+          {systemProtection.customerVisibleBullets.map((bullet, i) => (
+            <li key={i} className="pjpp-section__item">
+              {bullet}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      <aside className="pjpp-reassurance" data-testid="pjpp-reassurance-system-protection">
+        {systemProtection.whatInstallerWillCheck}
+      </aside>
+    </section>
+  );
+}
+
 function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStepsProps) {
   return (
     <section
@@ -236,6 +278,13 @@ export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
           pageNumber={pageCounter++}
         />
       ))}
+
+      {model.systemProtection != null ? (
+        <PrintSystemProtection
+          systemProtection={model.systemProtection}
+          pageNumber={pageCounter++}
+        />
+      ) : null}
 
       <PrintNextSteps
         nextSteps={model.nextSteps}

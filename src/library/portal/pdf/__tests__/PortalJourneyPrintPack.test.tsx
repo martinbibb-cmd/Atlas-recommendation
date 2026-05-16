@@ -290,3 +290,22 @@ describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
     expect(container.textContent).not.toMatch(/content pending|debug|CON_[A-Z0-9_]+/i);
   });
 });
+
+// ─── No guessed CWS tank capacity ─────────────────────────────────────────────
+
+describe('PortalJourneyPrintPack — no guessed CWS tank capacity', () => {
+  it('does not render the generic "100–150 L" guessed CWS tank label', () => {
+    const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    expect(container.textContent).not.toContain('100–150 L');
+    expect(container.textContent).not.toContain('100-150 L');
+  });
+
+  it('does not render any guessed litre ranges for loft cold-water storage tanks', () => {
+    const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    // The CWS (cold-water storage) loft tank must not show a guessed range.
+    // "150–250 L" in PressureVsStorageDiagram is legitimate educational content
+    // for the proposed new unvented cylinder and is intentionally excluded from this check.
+    expect(container.textContent).not.toContain('100–150 L');
+    expect(container.textContent).not.toContain('110–140 L');
+  });
+});

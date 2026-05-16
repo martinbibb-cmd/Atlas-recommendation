@@ -27,6 +27,12 @@ import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegi
 import type { LibraryContentProjectionV1 } from '../../projections/LibraryContentProjectionV1';
 import type { PortalVisitContextV1 } from '../../../contracts/PortalVisitContextV1';
 import { resolvePortalAddressSummary } from '../../../lib/portal/portalVisitContext';
+import {
+  buildSystemProtectionSummary,
+  type SurveySystemConditionV1,
+  type SystemProtectionSummaryV1,
+} from './buildSystemProtectionSummary';
+export type { SurveySystemConditionV1, SystemProtectionSummaryV1 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,6 +85,12 @@ export interface PortalJourneyPrintModelV1 {
   sections: PortalJourneyPrintSectionV1[];
   nextSteps: PortalJourneyPrintNextStepV1[];
   qrDestinations: PortalJourneyPrintQrDestinationV1[];
+  /**
+   * Survey-informed system protection summary.
+   * Present when surveyCondition is supplied to buildPortalJourneyPrintModel.
+   * Rendered as a small section after "What stays familiar".
+   */
+  systemProtection?: SystemProtectionSummaryV1;
   pageEstimate: {
     usedPages: number;
     maxPages: number;
@@ -111,6 +123,12 @@ export interface BuildPortalJourneyPrintModelInputV1 {
   visitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
   /** Address summary stays hidden in print unless explicitly enabled. */
   includeAddressSummaryInPrint?: boolean;
+  /**
+   * Optional survey system condition signals for the system protection section.
+   * When present, buildSystemProtectionSummary is called and the result is
+   * included in the model as systemProtection.
+   */
+  surveyCondition?: SurveySystemConditionV1;
 }
 
 // ─── Living-with-your-system static content ───────────────────────────────────
@@ -397,6 +415,7 @@ export function buildPortalJourneyPrintModel(
     audienceProjection,
     visitContext,
     includeAddressSummaryInPrint = false,
+    surveyCondition,
   } = input;
 
   const selectedSet = new Set(selectedSectionIds);
@@ -435,11 +454,17 @@ export function buildPortalJourneyPrintModel(
   // Cover (1) + one page per section + next steps (with QR area) = estimated pages
   const usedPages = Math.min(1 + sections.length + 1, 7);
 
+  // ── System protection ──────────────────────────────────────────────────────
+  const systemProtection = surveyCondition != null
+    ? buildSystemProtectionSummary(surveyCondition)
+    : undefined;
+
   return {
     cover,
     sections,
     nextSteps,
     qrDestinations,
+    systemProtection,
     pageEstimate: {
       usedPages,
       maxPages: 7,
