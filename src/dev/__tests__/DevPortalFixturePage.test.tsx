@@ -161,13 +161,14 @@ describe('DevPortalFixturePage — library supporting PDF preview', () => {
     expect(printSpy).toHaveBeenCalledOnce();
   });
 
-  it('shows readiness panel and reports ready to replace', async () => {
+  it('shows readiness panel and reports needs review when survey condition is unavailable', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-pdf-comparison-open_vented_to_sealed_unvented'));
 
     await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-readiness-panel')).toBeTruthy());
-    expect(screen.getByTestId('dev-supporting-pdf-ready-value')).toHaveTextContent('Yes');
+    expect(screen.getByTestId('dev-supporting-pdf-ready-value')).toHaveTextContent('Needs review');
     expect(screen.getByTestId('dev-supporting-pdf-blocking-reasons-none')).toHaveTextContent('None');
+    expect(screen.getByTestId('dev-supporting-pdf-warnings')).toHaveTextContent(/survey condition/i);
   });
 
   it('keeps current Insight fallback available in comparison mode', async () => {

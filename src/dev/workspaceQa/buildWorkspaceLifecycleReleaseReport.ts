@@ -7,6 +7,7 @@ export type WorkspaceLifecycleReleaseStatusV1 = 'pass' | 'warn' | 'fail';
 
 export interface WorkspaceLifecycleTrialReadinessV1 {
   readonly customerPortal: WorkspaceLifecycleReleaseStatusV1;
+  readonly supportingPdf: WorkspaceLifecycleReleaseStatusV1;
   readonly implementationWorkflow: WorkspaceLifecycleReleaseStatusV1;
   readonly workspaceOwnership: WorkspaceLifecycleReleaseStatusV1;
   readonly storageExport: WorkspaceLifecycleReleaseStatusV1;
@@ -56,6 +57,7 @@ const RELEASE_STATUS_PRIORITY: Record<WorkspaceLifecycleReleaseStatusV1, number>
 
 const TRIAL_READINESS_KEYS: readonly (keyof WorkspaceLifecycleTrialReadinessV1)[] = [
   'customerPortal',
+  'supportingPdf',
   'implementationWorkflow',
   'workspaceOwnership',
   'storageExport',
@@ -68,9 +70,10 @@ const SCENARIO_TRIAL_READINESS_KEYS: Record<
 > = {
   new_demo_visit: [],
   authenticated_no_workspace_blocked: ['workspaceOwnership'],
-  workspace_owned_visit: ['customerPortal', 'implementationWorkflow', 'workspaceOwnership'],
+  workspace_owned_visit: ['customerPortal', 'supportingPdf', 'implementationWorkflow', 'workspaceOwnership'],
   open_vented_conversion: [
     'customerPortal',
+    'supportingPdf',
     'implementationWorkflow',
     'workspaceOwnership',
     'storageExport',
@@ -78,6 +81,7 @@ const SCENARIO_TRIAL_READINESS_KEYS: Record<
   ],
   heat_pump_path: [
     'customerPortal',
+    'supportingPdf',
     'implementationWorkflow',
     'workspaceOwnership',
     'storageExport',
@@ -85,6 +89,7 @@ const SCENARIO_TRIAL_READINESS_KEYS: Record<
   ],
   revisit_follow_up_path: [
     'customerPortal',
+    'supportingPdf',
     'implementationWorkflow',
     'workspaceOwnership',
     'storageExport',
@@ -136,6 +141,8 @@ function resolveTrialReadinessStatus(
 ): WorkspaceLifecycleReleaseStatusV1 {
   switch (key) {
     case 'customerPortal':
+      return evaluation.summary.brandingValid ? 'pass' : 'fail';
+    case 'supportingPdf':
       return evaluation.summary.brandingValid ? 'pass' : 'fail';
     case 'implementationWorkflow':
       return evaluation.summary.workflowValid ? 'pass' : 'fail';

@@ -99,6 +99,14 @@ export interface VisitHomeDashboardProps {
    * Shown as supplementary text on blocked PDF / portal cards.
    */
   libraryBlockReasons?: readonly string[];
+  /**
+   * When true the supporting PDF customer-readiness gate is blocked by PDF QA.
+   */
+  supportingPdfUnsafe?: boolean;
+  /**
+   * Exact PDF QA blocking reasons for the supporting PDF card.
+   */
+  supportingPdfBlockReasons?: readonly string[];
 
   // ── Continue-where-you-left-off ────────────────────────────────────────────
 
@@ -304,6 +312,8 @@ export function VisitHomeDashboard({
   workspacePermissions,
   libraryUnsafe = false,
   libraryBlockReasons,
+  supportingPdfUnsafe = false,
+  supportingPdfBlockReasons,
   lastSurface,
   onContinueLastSurface,
   hasSavedLocalVisit = false,
@@ -344,6 +354,7 @@ export function VisitHomeDashboard({
     workflowReadiness: {
       hasVisit,
       libraryUnsafe,
+      supportingPdfUnsafe,
       installationSpecOptionCount,
     },
     outputAvailability: {
@@ -384,6 +395,10 @@ export function VisitHomeDashboard({
     },
     implementationReadiness: {
       installationSpecOptionCount,
+    },
+    supportingPdfReadiness: {
+      unsafe: supportingPdfUnsafe,
+      reasons: supportingPdfBlockReasons,
     },
     availableOutputs: {
       hasPortalUrl: portalUrl != null,

@@ -144,6 +144,8 @@ import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUn
 import { readWorkflowPackageFile } from './features/visitHome/importVisitWorkflowPackage';
 import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from './library/portal/pdf/buildPortalJourneyPrintModel';
+import { assessLibraryPdfCustomerReadiness } from './library/portal/pdf/assessLibraryPdfCustomerReadiness';
+import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from './library/pdfQa';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -2202,6 +2204,44 @@ function AppInner() {
             );
           }
 
+          const supportingPdfReadinessGate = (() => {
+            if (labEngineInput == null || visitHomeEngineOutput == null) return undefined;
+            const recommendationSummary =
+              canonicalSnapshot?.customerSummary?.headline
+              ?? `A heating recommendation for ${labEngineInput.postcode ?? 'your home'} is being prepared.`;
+            const journeyType: 'open_vented' | 'heat_pump' =
+              visitHomeEngineOutput.recommendation?.primary === 'ashp' ? 'heat_pump' : 'open_vented';
+            const customerFacts = [
+              labEngineInput.occupancyCount != null
+                ? `${labEngineInput.occupancyCount} ${labEngineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
+                : null,
+              labEngineInput.bathroomCount != null
+                ? `${labEngineInput.bathroomCount} bathroom${labEngineInput.bathroomCount === 1 ? '' : 's'}`
+                : null,
+              labEngineInput.postcode ? `Property: ${labEngineInput.postcode}` : null,
+            ].filter((fact): fact is string => fact != null);
+            const printModel = buildPortalJourneyPrintModel({
+              selectedSectionIds: [],
+              recommendationSummary,
+              customerFacts,
+              journeyType,
+            });
+            const pdfComparisonAudit = buildPdfComparisonAudit(
+              buildPdfComparisonScenarioFromPrintModel(printModel, 'Visit Home library supporting PDF'),
+            );
+            return assessLibraryPdfCustomerReadiness({
+              printModel,
+              projectionSafety: {
+                safeForCustomer: true,
+                blockingReasons: [],
+                warnings: [],
+                leakageTerms: [],
+                missingRequiredContent: [],
+              },
+              pdfComparisonAudit,
+            });
+          })();
+
           // ── Local save check — whether this visitId has a localStorage snapshot ──
           const hasSavedLocalVisit =
             activeVisitId != null &&
@@ -2227,6 +2267,8 @@ function AppInner() {
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}
+              supportingPdfUnsafe={supportingPdfReadinessGate != null && !supportingPdfReadinessGate.readyForCustomer}
+              supportingPdfBlockReasons={supportingPdfReadinessGate?.blockingReasons}
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               hasSavedLocalVisit={hasSavedLocalVisit}

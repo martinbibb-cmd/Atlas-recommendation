@@ -14,6 +14,7 @@ function makeReport(overrides: Partial<WorkspaceLifecycleReleaseReportV1> = {}):
     recommendedNextActions: [],
     trialReadiness: {
       customerPortal: 'pass',
+      supportingPdf: 'pass',
       implementationWorkflow: 'pass',
       workspaceOwnership: 'pass',
       storageExport: 'pass',

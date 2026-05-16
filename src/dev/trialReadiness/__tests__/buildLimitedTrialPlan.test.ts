@@ -20,6 +20,7 @@ function makeReport(overrides: Partial<WorkspaceLifecycleReleaseReportV1> = {}):
     recommendedNextActions: [],
     trialReadiness: {
       customerPortal: 'pass',
+      supportingPdf: 'pass',
       implementationWorkflow: 'pass',
       workspaceOwnership: 'pass',
       storageExport: 'pass',
@@ -150,5 +151,26 @@ describe('buildLimitedTrialPlan', () => {
     });
 
     expect(plan.suggestedTesterCount).toBe(0);
+  });
+
+  it('supporting PDF fail excludes open-vented and heat-pump paths from trial eligibility', () => {
+    const plan = buildLimitedTrialPlan({
+      releaseGateReport: makeReport({
+        trialReadiness: {
+          customerPortal: 'pass',
+          supportingPdf: 'fail',
+          implementationWorkflow: 'pass',
+          workspaceOwnership: 'pass',
+          storageExport: 'pass',
+          scanFollowUp: 'pass',
+        },
+      }),
+      trialReadinessSummary: makeSummary(),
+      trialReadinessActions: [makeAction()],
+      workspaceLifecycleScenarios: makeScenarios(),
+    });
+
+    expect(plan.excludedScenarios.some((entry) => entry.includes('Open-vented conversion'))).toBe(true);
+    expect(plan.excludedScenarios.some((entry) => entry.includes('Heat pump path'))).toBe(true);
   });
 });

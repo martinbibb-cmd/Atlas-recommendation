@@ -1,4 +1,5 @@
 export { buildPdfComparisonAudit } from './buildPdfComparisonAudit';
+export { buildPdfComparisonScenarioFromPrintModel } from './buildPdfComparisonScenarioFromPrintModel';
 export { PdfComparisonQaPanel } from './PdfComparisonQaPanel';
 export type { PdfComparisonQaPanelProps } from './PdfComparisonQaPanel';
 export type { PdfComparisonScenarioV1, PdfComparisonModeV1, PdfSectionSnapshotV1 } from './PdfComparisonScenarioV1';

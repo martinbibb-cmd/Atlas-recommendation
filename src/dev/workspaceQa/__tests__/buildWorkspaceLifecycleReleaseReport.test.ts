@@ -12,6 +12,7 @@ function makePassScenario(
     label: 'Workspace-owned visit',
     trialReadiness: {
       customerPortal: 'pass',
+      supportingPdf: 'pass',
       implementationWorkflow: 'pass',
       workspaceOwnership: 'pass',
       storageExport: 'pass',
@@ -34,6 +35,7 @@ describe('buildWorkspaceLifecycleReleaseReport', () => {
     expect(report.warnings).toEqual([]);
     expect(report.trialReadiness).toEqual({
       customerPortal: 'pass',
+      supportingPdf: 'pass',
       implementationWorkflow: 'pass',
       workspaceOwnership: 'pass',
       storageExport: 'pass',
@@ -49,6 +51,7 @@ describe('buildWorkspaceLifecycleReleaseReport', () => {
         ownershipFailure: true,
         trialReadiness: {
           customerPortal: 'pass',
+          supportingPdf: 'pass',
           implementationWorkflow: 'pass',
           workspaceOwnership: 'fail',
           storageExport: 'pass',
@@ -87,6 +90,7 @@ describe('buildWorkspaceLifecycleReleaseReport', () => {
         unresolvedImplementationBlockers: ['Capture outstanding evidence'],
         trialReadiness: {
           customerPortal: 'pass',
+          supportingPdf: 'warn',
           implementationWorkflow: 'warn',
           workspaceOwnership: 'pass',
           storageExport: 'pass',

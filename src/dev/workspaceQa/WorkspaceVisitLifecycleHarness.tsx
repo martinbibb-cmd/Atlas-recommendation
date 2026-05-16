@@ -571,8 +571,9 @@ export default function WorkspaceVisitLifecycleHarness({ onBack }: WorkspaceVisi
   }
 
   const releaseReadinessRows: readonly [string, WorkspaceLifecycleReleaseStatusV1][] = releaseReport
-    ? [
+      ? [
         ['customer portal', releaseReport.trialReadiness.customerPortal],
+        ['supporting PDF', releaseReport.trialReadiness.supportingPdf],
         ['implementation workflow', releaseReport.trialReadiness.implementationWorkflow],
         ['workspace ownership', releaseReport.trialReadiness.workspaceOwnership],
         ['storage export', releaseReport.trialReadiness.storageExport],

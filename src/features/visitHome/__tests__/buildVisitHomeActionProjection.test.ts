@@ -174,4 +174,23 @@ describe('buildVisitHomeActionProjection', () => {
     const simulatorBlocked = recommendationBlocked.blockedActions.find((item) => item.actionId === 'run-simulator');
     expect(simulatorBlocked?.reasonLabel).toBe('Recommendation not available');
   });
+
+  it('blocks supporting PDF with exact QA reasons when PDF readiness fails', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'owner',
+      supportingPdfReadiness: {
+        unsafe: true,
+        reasons: [
+          'PDF QA blocked: guessed CWS/vented tank capacity detected.',
+          'PDF QA blocked: legacy report headings detected.',
+        ],
+      },
+    });
+
+    const pdf = projection.visibleActions.find((item) => item.actionId === 'supporting-pdf');
+    expect(pdf?.status).toBe('blocked');
+    expect(pdf?.reasonLabel).toContain('guessed CWS/vented tank capacity');
+    expect(pdf?.reasonLabel).toContain('legacy report headings');
+  });
 });

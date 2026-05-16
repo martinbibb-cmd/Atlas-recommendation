@@ -63,7 +63,14 @@ function resolveSuggestedTesterCountWithFeedback(
   return feedbackStopCriteriaTriggered ? 0 : resolveSuggestedTesterCount(recommendation);
 }
 
-function resolvePdfReadiness(actions: readonly TrialReadinessActionV1[]): LimitedTrialReadinessSignalV1 {
+function resolvePdfReadiness(
+  report: WorkspaceLifecycleReleaseReportV1,
+  actions: readonly TrialReadinessActionV1[],
+): LimitedTrialReadinessSignalV1 {
+  const releaseGatePdfReadiness = report.trialReadiness.supportingPdf;
+  if (releaseGatePdfReadiness != null) {
+    return releaseGatePdfReadiness;
+  }
   const pdfActions = actions.filter((action) => {
     const normalized = `${action.actionId} ${action.title}`.toLowerCase();
     return normalized.includes('pdf');
@@ -88,7 +95,7 @@ function isOpenVentedOrHeatPumpEligible(
 ): boolean {
   const portalReadiness = toSignal(releaseGateReport.trialReadiness.customerPortal);
   const workflowReadiness = toSignal(releaseGateReport.trialReadiness.implementationWorkflow);
-  const pdfReadiness = resolvePdfReadiness(trialReadinessActions);
+  const pdfReadiness = resolvePdfReadiness(releaseGateReport, trialReadinessActions);
 
   return (
     isPassOrWarnOnly(portalReadiness) &&

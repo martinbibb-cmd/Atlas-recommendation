@@ -27,8 +27,10 @@ import { buildDecisionFromScenarios } from '../engine/modules/buildDecisionFromS
 import { buildCustomerSummary } from '../engine/modules/buildCustomerSummary';
 import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
 import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
+import { assessLibraryPdfCustomerReadiness } from '../library/portal/pdf/assessLibraryPdfCustomerReadiness';
 import { assessSupportingPdfReadiness } from '../library/portal/pdf/supportingPdfReadiness';
 import { SUPPORTED_DIAGRAM_RENDERER_IDS } from '../library/diagrams/DiagramRenderer';
+import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from '../library/pdfQa';
 import { sectionsForMode } from '../features/insightPack/canonicalSections';
 import { buildSuggestedImplementationPack } from '../specification/buildSuggestedImplementationPack';
 import ImplementationPackReviewPanel from '../components/dev/ImplementationPackReviewPanel';
@@ -683,7 +685,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
       const currentInsightEstimatedPages = Math.ceil(
         sectionsForMode('in-room').length / INSIGHT_PRINT_SECTIONS_PER_PAGE,
       );
-      const readiness = assessSupportingPdfReadiness({
+      const replacementReadiness = assessSupportingPdfReadiness({
         model: printModel,
         expectedRecommendationSummary,
         maxCustomerPages: printModel.pageEstimate.maxPages,
@@ -700,6 +702,33 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         accessibilityBasicsPass: true,
         insightFallbackAvailable: true,
       });
+      const pdfComparisonAudit = buildPdfComparisonAudit(
+        buildPdfComparisonScenarioFromPrintModel(printModel, 'Library supporting PDF preview'),
+      );
+      const pdfCustomerReadiness = assessLibraryPdfCustomerReadiness({
+        printModel,
+        projectionSafety: {
+          safeForCustomer: true,
+          blockingReasons: [],
+          warnings: [],
+          leakageTerms: [],
+          missingRequiredContent: [],
+        },
+        pdfComparisonAudit,
+      });
+      const blockingReasons = [
+        ...replacementReadiness.blockingReasons,
+        ...pdfCustomerReadiness.blockingReasons,
+      ];
+      const warnings = [
+        ...replacementReadiness.warnings,
+        ...pdfCustomerReadiness.warnings,
+      ];
+      const readinessState = blockingReasons.length > 0
+        ? 'Blocked'
+        : warnings.length > 0
+          ? 'Needs review'
+          : 'Ready';
       return (
         <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
           <div style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid #e2e8f0' }}>
@@ -802,16 +831,16 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem' }}
               data-testid="dev-supporting-pdf-readiness-panel"
             >
-              <h2 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>Replacement readiness</h2>
+              <h2 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem' }}>PDF readiness</h2>
               <p style={{ margin: '0 0 0.5rem' }}>
-                Ready to replace:{' '}
-                <strong data-testid="dev-supporting-pdf-ready-value">{readiness.ready ? 'Yes' : 'No'}</strong>
+                Status:{' '}
+                <strong data-testid="dev-supporting-pdf-ready-value">{readinessState}</strong>
               </p>
 
               <h3 style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>Blocking reasons</h3>
-              {readiness.blockingReasons.length > 0 ? (
+              {blockingReasons.length > 0 ? (
                 <ul style={{ margin: '0 0 0.5rem', paddingLeft: '1.1rem' }} data-testid="dev-supporting-pdf-blocking-reasons">
-                  {readiness.blockingReasons.map((reason) => (
+                  {blockingReasons.map((reason) => (
                     <li key={reason}>{reason}</li>
                   ))}
                 </ul>
@@ -820,14 +849,25 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
               )}
 
               <h3 style={{ margin: '0.25rem 0', fontSize: '0.85rem' }}>Warnings</h3>
-              {readiness.warnings.length > 0 ? (
+              {warnings.length > 0 ? (
                 <ul style={{ margin: 0, paddingLeft: '1.1rem' }} data-testid="dev-supporting-pdf-warnings">
-                  {readiness.warnings.map((warning) => (
+                  {warnings.map((warning) => (
                     <li key={warning}>{warning}</li>
                   ))}
                 </ul>
               ) : (
                 <p style={{ margin: 0 }} data-testid="dev-supporting-pdf-warnings-none">None</p>
+              )}
+
+              <h3 style={{ margin: '0.5rem 0 0.25rem', fontSize: '0.85rem' }}>Positive checks</h3>
+              {pdfCustomerReadiness.positiveChecks.length > 0 ? (
+                <ul style={{ margin: 0, paddingLeft: '1.1rem' }} data-testid="dev-supporting-pdf-positive-checks">
+                  {pdfCustomerReadiness.positiveChecks.map((check) => (
+                    <li key={check}>{check}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ margin: 0 }} data-testid="dev-supporting-pdf-positive-checks-none">None</p>
               )}
             </section>
 
