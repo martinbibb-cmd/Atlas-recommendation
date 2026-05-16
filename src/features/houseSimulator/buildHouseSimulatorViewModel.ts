@@ -71,7 +71,7 @@ export type ActiveOutletChipViewModel = {
 /** All outlet nodes (active + inactive) rendered in the house canvas. */
 export type OutletNodeViewModel = {
   outletId: string;
-  controlId: 'shower' | 'bath' | 'kitchen' | 'coldTap';
+  controlId: 'shower' | 'bath' | 'kitchen' | 'cold_tap';
   label: string;
   icon: string;
   roomName: string;
@@ -187,7 +187,7 @@ function createWashingMachineNode(coldTapNode?: OutletStateView): OutletNodeView
   // as a current-model limitation rather than independent physics.
   return {
     outletId: 'washing_machine',
-    controlId: 'coldTap',
+    controlId: 'cold_tap',
     label: 'Washing machine',
     icon: OUTLET_ICON['washing_machine'],
     roomName: OUTLET_ROOM['washing_machine'],
@@ -207,7 +207,7 @@ function mapOutletToControlId(outletId: string): OutletNodeViewModel['controlId'
     case 'shower': return 'shower';
     case 'bath': return 'bath';
     case 'kitchen': return 'kitchen';
-    default: return 'coldTap';
+    default: return 'cold_tap';
   }
 }
 

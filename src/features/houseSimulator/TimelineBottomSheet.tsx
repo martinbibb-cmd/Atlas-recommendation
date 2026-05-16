@@ -59,7 +59,7 @@ export default function TimelineBottomSheet({
       aria-label="Timeline and scenarios"
     >
       <div className="hs-bottom-sheet__header">
-        <h2 className="hs-bottom-sheet__title">Timeline</h2>
+        <h2 className="hs-bottom-sheet__title">Timeline and scenarios</h2>
         <button
           className="hs-action-btn hs-bottom-sheet__advanced-toggle"
           onClick={onToggle}
