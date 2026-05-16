@@ -787,9 +787,11 @@ function AppInner() {
    */
   const [labQuotes, setLabQuotes] = useState<QuoteInput[]>([]);
   /**
-   * Journey that last opened the Insight Pack, used for the Back button.
+   * Journey to return to from the legacy /?insight-pack=1 diagnostic path.
+   * Always 'simulator' since the only production callers have been removed;
+   * this value is kept so the dev-only insight-pack block still compiles.
    */
-  const [insightPackFromJourney, setInsightPackFromJourney] = useState<Journey>('simulator');
+  const insightPackFromJourney: Journey = 'simulator';
   /**
    * The journey that last opened the simulator, used to navigate Back correctly.
    * When the simulator is opened from the recommendation/survey pages, Back
@@ -1472,39 +1474,6 @@ function AppInner() {
     }
   }
 
-  /**
-   * Open the Atlas Insight Pack for a completed visit.
-   *
-   * Loads the visit's working payload, converts it to engine input, and
-   * routes to the Insight Pack journey with the collected quotes.
-   * Falls back to the survey if the working payload is missing or has no quotes.
-   */
-  async function handleOpenInsightPackForVisit(visitId: string) {
-    try {
-      const visitDetail = await getVisit(visitId);
-      const workingPayload = visitDetail.working_payload;
-      if (workingPayload && Object.keys(workingPayload).length > 0) {
-        const survey = workingPayload as unknown as FullSurveyModelV1;
-        const quotes = survey.fullSurvey?.quotes;
-        if (Array.isArray(quotes) && quotes.length > 0) {
-          const engineInput = toEngineInput(sanitiseModelForEngine(survey));
-          setActiveVisitId(visitId);
-          setLabEngineInput(engineInput);
-          setLabQuotes(quotes);
-          if (survey.fullSurvey?.heatLoss) setLabHeatLossState(survey.fullSurvey.heatLoss);
-          if (survey.fullSurvey?.priorities) setLabPrioritiesState(survey.fullSurvey.priorities);
-          setInsightPackFromJourney('visit-hub');
-          setJourney('insight-pack');
-          return;
-        }
-      }
-    } catch (err) {
-      console.error('[Atlas] Could not load visit for Insight Pack', visitId, err);
-    }
-    // Fallback: resume survey so the user can complete the quotes step.
-    setJourney('visit');
-  }
-
   // Derive the canonical current-system summary once, before all early returns.
   // Used by both the INSTALLATION_SPECIFICATION_ENABLED route and the
   // journey === 'installation-specification' branch.
@@ -2171,7 +2140,6 @@ function AppInner() {
               window.open(reportUrl, '_blank', 'noopener,noreferrer');
             }}
             onOpenEngineerRoute={() => setJourney('engineer')}
-            onOpenInsightPack={() => { void handleOpenInsightPackForVisit(activeVisitId); }}
             onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
             onImportScan={() => setJourney('receive-scan')}
             onOpenExternalFiles={() => setJourney('external-files')}
