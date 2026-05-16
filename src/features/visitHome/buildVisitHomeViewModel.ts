@@ -90,6 +90,10 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     (input.surveyModel?.currentSystem?.heatingSystemType as 'open_vented' | 'sealed' | 'unknown' | undefined);
   const journeyInfo = detectVisitJourney(input.engineResult, input.scenarios, systemCircuit);
 
+  // Visit has enough data to unlock review surfaces (simulator, portal, pdf)
+  // even if the full recommendation pipeline has not completed.
+  const canUnlockReviewSurfaces = hasVisit && (hasRecommendation || hasAcceptedScenario);
+
   const recommendationStatus: VisitHomeSurfaceStatus = hasRecommendation
     ? 'ready'
     : hasVisit
@@ -100,7 +104,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     ? 'blocked'
     : input.outputAvailability.hasPortalOutput
     ? 'ready'
-    : (hasRecommendation || hasAcceptedScenario) && hasVisit
+    : canUnlockReviewSurfaces
     ? 'needs-review'
     : 'blocked';
 
@@ -108,7 +112,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     ? 'blocked'
     : input.outputAvailability.hasSupportingPdfOutput
     ? 'ready'
-    : (hasRecommendation || hasAcceptedScenario) && hasVisit
+    : canUnlockReviewSurfaces
     ? 'needs-review'
     : 'blocked';
 
@@ -116,7 +120,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     ? 'blocked'
     : hasAcceptedScenario && hasSurveyModel
     ? 'ready'
-    : (hasRecommendation || hasAcceptedScenario) && hasVisit
+    : canUnlockReviewSurfaces
     ? 'needs-review'
     : 'blocked';
 

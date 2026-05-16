@@ -1102,6 +1102,76 @@ function AppInner() {
   }
 
   /**
+   * Explicit "save locally" triggered from Visit Home controls.
+   * Rebuilds the canonical snapshot from current in-memory state and writes
+   * it to localStorage atomically.
+   */
+  function handleSaveVisitLocally() {
+    if (activeVisitId == null || labFullSurveyModel == null) return;
+    let engineSnapshot: EngineOutputV1 | undefined;
+    let scenariosSnapshot: ScenarioResult[] | undefined;
+    let decisionSnapshot: AtlasDecisionV1 | undefined;
+    let customerSummarySnapshot: CustomerSummaryV1 | undefined;
+    try {
+      const sourceInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel));
+      const { engineOutput } = runEngine(sourceInput);
+      engineSnapshot = engineOutput;
+      scenariosSnapshot = buildScenariosFromEngineOutput(engineOutput);
+      if (scenariosSnapshot.length > 0) {
+        decisionSnapshot = buildDecisionFromScenarios({
+          scenarios: scenariosSnapshot,
+          boilerType: toLifecycleBoilerType(sourceInput.currentHeatSourceType),
+          ageYears: sourceInput.currentSystem?.boiler?.ageYears ?? 0,
+          occupancyCount: sourceInput.occupancyCount,
+          bathroomCount: sourceInput.bathroomCount,
+          showerCompatibilityNote: engineSnapshot.showerCompatibilityNote,
+        });
+        customerSummarySnapshot = buildCustomerSummary(decisionSnapshot, scenariosSnapshot);
+      }
+    } catch {
+      // Persist survey even when derived snapshots cannot be computed.
+    }
+    saveVisitAtomically({
+      schemaVersion: 2,
+      visitId: activeVisitId,
+      updatedAt: new Date().toISOString(),
+      survey: labFullSurveyModel,
+      engine: engineSnapshot,
+      decision: decisionSnapshot,
+      scenarios: scenariosSnapshot,
+      customerSummary: customerSummarySnapshot,
+    });
+  }
+
+  /**
+   * Resume the locally persisted visit state for the active visit ID.
+   * Reads from localStorage and rehydrates all relevant in-memory state.
+   */
+  function handleResumeLocalVisit() {
+    if (activeVisitId == null) return;
+    const restored = readPersistedAtlasVisitV2(activeVisitId);
+    if (restored.visit == null) return;
+    const persisted = restored.visit;
+    setVisitRecommendationSnapshot({
+      visitId: persisted.visitId,
+      engineOutput: persisted.engine,
+      scenarios: persisted.scenarios,
+      decision: persisted.decision,
+      customerSummary: persisted.customerSummary,
+    });
+    setLabFullSurveyModel(persisted.survey);
+    if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
+    if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
+    if (labEngineInput === undefined) {
+      try {
+        setLabEngineInput(toEngineInput(sanitiseModelForEngine(persisted.survey)));
+      } catch {
+        // Keep survey even if engine input conversion fails.
+      }
+    }
+  }
+
+  /**
    * View recommendation for a completed visit.
    *
    * Loads the visit's working payload, converts it to engine input, and routes
@@ -2032,79 +2102,18 @@ function AppInner() {
                 void readWorkflowPackageFile(file).then((result) => {
                   if (result.status !== 'imported') return;
                   setActiveVisitId(result.visitId);
-                  if (result.engineInput != null) {
-                    setLabEngineInput(result.engineInput);
-                  }
-                  if (result.surveyModel != null) {
-                    setLabFullSurveyModel(result.surveyModel);
-                  }
+                  if (result.engineInput != null) setLabEngineInput(result.engineInput);
+                  if (result.surveyModel != null) setLabFullSurveyModel(result.surveyModel);
                 });
               }}
-              onSaveLocally={activeVisitId != null && labFullSurveyModel != null ? () => {
-                let engineSnapshot: EngineOutputV1 | undefined;
-                let scenariosSnapshot: ScenarioResult[] | undefined;
-                let decisionSnapshot: AtlasDecisionV1 | undefined;
-                let customerSummarySnapshot: CustomerSummaryV1 | undefined;
-                try {
-                  const sourceInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel));
-                  const { engineOutput } = runEngine(sourceInput);
-                  engineSnapshot = engineOutput;
-                  scenariosSnapshot = buildScenariosFromEngineOutput(engineOutput);
-                  if (scenariosSnapshot.length > 0) {
-                    decisionSnapshot = buildDecisionFromScenarios({
-                      scenarios: scenariosSnapshot,
-                      boilerType: toLifecycleBoilerType(sourceInput.currentHeatSourceType),
-                      ageYears: sourceInput.currentSystem?.boiler?.ageYears ?? 0,
-                      occupancyCount: sourceInput.occupancyCount,
-                      bathroomCount: sourceInput.bathroomCount,
-                      showerCompatibilityNote: engineSnapshot.showerCompatibilityNote,
-                    });
-                    customerSummarySnapshot = buildCustomerSummary(decisionSnapshot, scenariosSnapshot);
-                  }
-                } catch {
-                  // Persist survey even when derived snapshots cannot be computed.
-                }
-                saveVisitAtomically({
-                  schemaVersion: 2,
-                  visitId: activeVisitId,
-                  updatedAt: new Date().toISOString(),
-                  survey: labFullSurveyModel,
-                  engine: engineSnapshot,
-                  decision: decisionSnapshot,
-                  scenarios: scenariosSnapshot,
-                  customerSummary: customerSummarySnapshot,
-                });
-              } : undefined}
-              onResumeLocalVisit={activeVisitId != null ? () => {
-                const restored = readPersistedAtlasVisitV2(activeVisitId);
-                if (restored.visit == null) return;
-                const persisted = restored.visit;
-                setVisitRecommendationSnapshot({
-                  visitId: persisted.visitId,
-                  engineOutput: persisted.engine,
-                  scenarios: persisted.scenarios,
-                  decision: persisted.decision,
-                  customerSummary: persisted.customerSummary,
-                });
-                setLabFullSurveyModel(persisted.survey);
-                if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
-                if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
-                if (labEngineInput === undefined) {
-                  try {
-                    setLabEngineInput(toEngineInput(sanitiseModelForEngine(persisted.survey)));
-                  } catch {
-                    // keep survey even if engine input conversion fails
-                  }
-                }
-              } : undefined}
+              onSaveLocally={activeVisitId != null && labFullSurveyModel != null ? handleSaveVisitLocally : undefined}
+              onResumeLocalVisit={activeVisitId != null ? handleResumeLocalVisit : undefined}
               onClearSession={() => {
                 setActiveVisitId(undefined);
                 setLastOpenedFromHome(null);
                 setJourney('workspace-dashboard');
               }}
-              onOpenExistingVisit={() => {
-                setJourney('workspace-dashboard');
-              }}
+              onOpenExistingVisit={() => setJourney('workspace-dashboard')}
               onOpenSimulator={() => {
                 setLastOpenedFromHome({ label: 'Simulator', journey: 'house-simulator' });
                 setSimulatorFromJourney('visit-home');
