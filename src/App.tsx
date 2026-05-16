@@ -139,6 +139,7 @@ import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
+import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -448,7 +449,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -1944,19 +1945,19 @@ function AppInner() {
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               onOpenSimulator={() => {
-                setLastOpenedFromHome({ label: 'Simulator', journey: 'simulator' });
+                setLastOpenedFromHome({ label: 'Simulator', journey: 'unified-simulator' });
                 setSimulatorFromJourney('visit-home');
-                setJourney('simulator');
+                setJourney('unified-simulator');
               }}
               onOpenPresentation={() => {
                 setLastOpenedFromHome({ label: 'Presentation', journey: 'presentation' });
                 setPresentationFromJourney('visit-home');
                 setJourney('presentation');
               }}
-              onPrintSummary={() => {
+              onPrintSummary={labEngineInput != null && visitHomeEngineOutput != null ? () => {
                 setLastOpenedFromHome({ label: 'Supporting PDF', journey: 'framework-print' });
                 setJourney('framework-print');
-              }}
+              } : undefined}
               onOpenInstallationSpecification={() => {
                 setLastOpenedFromHome({ label: 'Specification', journey: 'installation-specification' });
                 setJourney('installation-specification');
@@ -2193,6 +2194,17 @@ function AppInner() {
             onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('simulator'); setJourney('presentation'); } : undefined}
             surveyData={labEngineInput}
             floorplanOutput={floorplanOutput}
+          />
+        </GlobalMenuShell>
+      )}
+      {journey === 'unified-simulator' && (
+        <GlobalMenuShell>
+          <VisitHomeUnifiedSimulatorRoute
+            engineInput={labEngineInput}
+            surveyModel={labFullSurveyModel}
+            floorplanOutput={floorplanOutput}
+            onBack={() => setJourney(simulatorFromJourney)}
+            backLabel={simulatorFromJourney}
           />
         </GlobalMenuShell>
       )}

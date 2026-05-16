@@ -100,7 +100,7 @@ export interface VisitHomeDashboardProps {
   /** Open the in-room Presentation (journey = 'presentation'). */
   onOpenPresentation: () => void;
   /** Print the supporting PDF (journey = 'framework-print'). */
-  onPrintSummary: () => void;
+  onPrintSummary?: () => void;
   /** Open the Installation Specification stepper (journey = 'installation-specification'). */
   onOpenInstallationSpecification: () => void;
   /** Open the Atlas Insight Pack (journey = 'insight-pack'). */
@@ -279,6 +279,7 @@ export function VisitHomeDashboard({
 
   const hasEngineData = engineOutput != null && engineInput != null;
   const hasVisit = visitId != null;
+  const hasSupportingPdf = onPrintSummary != null;
 
   const recommendationStatus: CardStatus = hasEngineData
     ? 'ready'
@@ -298,9 +299,9 @@ export function VisitHomeDashboard({
 
   const pdfStatus: CardStatus = libraryUnsafe
     ? 'blocked'
-    : hasEngineData
+    : hasSupportingPdf && hasVisit && hasEngineData
     ? 'ready'
-    : 'blocked';
+    : 'needs-review';
 
   const implementationStatus: CardStatus = installationSpecOptionCount > 0
     ? 'ready'
@@ -328,6 +329,7 @@ export function VisitHomeDashboard({
     availableOutputs: {
       hasPortalUrl: portalUrl != null,
       hasInsightPack: onOpenInsightPack != null,
+      hasSupportingPdf,
       hasHandoffReview: onOpenHandoffReview != null,
       hasExportPackage: onExportPackage != null,
     },

@@ -43,10 +43,15 @@ export interface BuildVisitHomeActionProjectionInput {
   readonly availableOutputs: {
     readonly hasPortalUrl: boolean;
     readonly hasInsightPack: boolean;
+    readonly hasSupportingPdf: boolean;
     readonly hasHandoffReview: boolean;
     readonly hasExportPackage: boolean;
   };
 }
+
+const BLOCK_REASON_LIBRARY_SAFETY = 'Library safety needs review';
+const BLOCK_REASON_VISIT_MISSING = 'Visit data missing';
+const BLOCK_REASON_RECOMMENDATION_MISSING = 'Recommendation not available';
 
 const ALL_ACTION_IDS: readonly VisitHomeActionId[] = [
   'review-survey',
@@ -121,35 +126,41 @@ function buildStatusAndReason(
   const hasEngineData = input.visitReadiness.hasEngineData;
   const hasVisit = input.visitReadiness.hasVisit;
   const libraryUnsafe = input.libraryProjectionSafety.unsafe;
-  const libraryReason = input.libraryProjectionSafety.reasons?.[0];
 
   switch (actionId) {
     case 'review-survey':
+      if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       if (!hasEngineData && hasVisit) return { status: 'needs-review' };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: 'Survey data is not ready for review yet.' };
+      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       return { status: 'ready' };
     case 'customer-portal':
-      if (libraryUnsafe) return { status: 'blocked', reasonLabel: libraryReason ?? 'Customer projection safety is blocked.' };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: 'Finish survey processing before opening the customer portal.' };
+      if (libraryUnsafe) return { status: 'blocked', reasonLabel: BLOCK_REASON_LIBRARY_SAFETY };
+      if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
+      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       if (!input.availableOutputs.hasPortalUrl && !input.availableOutputs.hasInsightPack) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'supporting-pdf':
-      if (libraryUnsafe) return { status: 'blocked', reasonLabel: libraryReason ?? 'Customer projection safety is blocked.' };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: 'Finish survey processing before printing the supporting PDF.' };
+      if (libraryUnsafe) return { status: 'blocked', reasonLabel: BLOCK_REASON_LIBRARY_SAFETY };
+      if (!hasVisit || !hasEngineData) return { status: 'needs-review' };
+      if (!input.availableOutputs.hasSupportingPdf) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'run-simulator':
-      return { status: hasEngineData ? 'ready' : 'needs-review' };
+      if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
+      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      return { status: 'ready' };
     case 'implementation-workflow':
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: 'Implementation workflow unlocks after survey processing.' };
+      if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
+      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       if (input.implementationReadiness.installationSpecOptionCount > 0) return { status: 'ready' };
       return { status: 'needs-review' };
     case 'resolve-follow-ups':
-      if (!hasVisit || !hasEngineData) return { status: 'blocked', reasonLabel: 'Follow-up evidence opens after visit and survey readiness.' };
-      if (!input.availableOutputs.hasHandoffReview) return { status: 'needs-review' };
-      return { status: 'ready' };
+      if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
+      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (input.availableOutputs.hasHandoffReview) return { status: 'ready' };
+      return { status: 'needs-review' };
     case 'export-handover-package':
-      if (!hasVisit || !hasEngineData) return { status: 'blocked', reasonLabel: 'Export package unlocks after visit and survey readiness.' };
-      if (!input.availableOutputs.hasExportPackage) return { status: 'needs-review' };
+      if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
+      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       return { status: 'ready' };
     case 'workspace-controls':
       return { status: 'ready' };

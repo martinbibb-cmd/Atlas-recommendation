@@ -5,7 +5,7 @@
  *
  * Covers:
  *   - dashboard renders all expected cards
- *   - simulator CTA calls onOpenSimulator (keeps existing launch path)
+ *   - simulator CTA calls onOpenSimulator
  *   - implementation CTA calls onOpenInstallationSpecification (opens existing workflow)
  *   - journey card reflects archetype from engine output / scenario data
  *   - blocked outputs show status badge, CTA is disabled — no broken links
@@ -138,7 +138,7 @@ describe('VisitHomeDashboard', () => {
     );
   });
 
-  it('simulator CTA calls onOpenSimulator — keeps existing launch path', () => {
+  it('simulator CTA calls onOpenSimulator', () => {
     const onOpenSimulator = vi.fn();
     render(<VisitHomeDashboard {...makeProps({ onOpenSimulator })} />);
 
@@ -246,17 +246,18 @@ describe('VisitHomeDashboard', () => {
       expect(cta).toBeDisabled();
     });
 
-    it('PDF card is blocked when no engine data and CTA is disabled', () => {
+    it('PDF card is needs-review when no recommendation/PDF output is available and CTA is disabled', () => {
       render(
         <VisitHomeDashboard
           {...makeProps({
             engineInput: undefined,
             engineOutput: undefined,
+            onPrintSummary: undefined,
           })}
         />,
       );
       const card = screen.getByTestId('card-pdf');
-      expect(card).toHaveAttribute('data-status', 'blocked');
+      expect(card).toHaveAttribute('data-status', 'needs-review');
 
       const cta = screen.getByTestId('card-pdf-cta');
       expect(cta).toBeDisabled();
@@ -304,10 +305,18 @@ describe('VisitHomeDashboard', () => {
       const card = screen.getByTestId('card-implementation');
       expect(card).toHaveAttribute('data-status', 'blocked');
       expect(screen.getByTestId('card-implementation-blocked-reason')).toHaveTextContent(
-        'Implementation workflow unlocks after survey processing.',
+        'Visit data missing',
       );
       expect(screen.getByTestId('card-implementation-cta')).toBeDisabled();
     });
+  });
+
+  it('readiness counts exclude hidden role actions', () => {
+    render(<VisitHomeDashboard {...makeProps({ workspaceRole: 'surveyor' })} />);
+    const panel = screen.getByTestId('visit-home-readiness-panel');
+    expect(panel).toHaveTextContent('3 ready');
+    expect(panel).toHaveTextContent('0 needs review');
+    expect(panel).toHaveTextContent('0 blocked');
   });
 
   it('back button calls onBack', () => {

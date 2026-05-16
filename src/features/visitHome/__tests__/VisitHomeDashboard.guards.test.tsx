@@ -7,7 +7,7 @@
  *   1. default visit opens dashboard — VisitHomeDashboard renders with visitId + engine data
  *   2. dashboard home button returns from child surfaces — onBack fires correctly
  *   3. unsafe library blocks customer PDF/portal card — libraryUnsafe prop
- *   4. simulator still launches existing path — onOpenSimulator called (preserved)
+ *   4. simulator launch is delegated via onOpenSimulator
  *   5. continue-where-you-left-off banner shown and dismissable
  *   6. direct dev routes still work — visit-home does not affect URL-param routes
  */
@@ -187,7 +187,7 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
       expect(cta).toBeDisabled();
     });
 
-    it('shows the first block reason in the PDF card description', () => {
+    it('shows explicit library safety blocked reason in the PDF card description', () => {
       render(
         <VisitHomeDashboard
           {...makeProps({
@@ -197,10 +197,10 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
         />,
       );
       const card = screen.getByTestId('card-pdf');
-      expect(card).toHaveTextContent('Projection safety: leakage term found in visible content');
+      expect(card).toHaveTextContent('Library safety needs review');
     });
 
-    it('shows the first block reason in the portal card description', () => {
+    it('shows explicit library safety blocked reason in the portal card description', () => {
       render(
         <VisitHomeDashboard
           {...makeProps({
@@ -210,7 +210,7 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
         />,
       );
       const card = screen.getByTestId('card-portal');
-      expect(card).toHaveTextContent('Missing required content: diagrams');
+      expect(card).toHaveTextContent('Library safety needs review');
     });
 
     it('PDF card is ready (not blocked) when libraryUnsafe is false', () => {
@@ -234,9 +234,9 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
     });
   });
 
-  // ── 4. Simulator still launches existing path ─────────────────────────────
+  // ── 4. Simulator launch wiring ─────────────────────────────
 
-  describe('simulator still launches existing path', () => {
+  describe('simulator launch wiring', () => {
     it('simulator CTA calls onOpenSimulator when engine data is present', () => {
       const onOpenSimulator = vi.fn();
       render(<VisitHomeDashboard {...makeProps({ onOpenSimulator })} />);
@@ -246,16 +246,16 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
       expect(onOpenSimulator).toHaveBeenCalledOnce();
     });
 
-    it('simulator CTA is enabled even when engine data is absent (needs-review state)', () => {
+    it('simulator CTA is disabled when recommendation data is absent', () => {
       const onOpenSimulator = vi.fn();
       render(
         <VisitHomeDashboard
           {...makeProps({ engineInput: undefined, engineOutput: undefined, onOpenSimulator })}
         />,
       );
-      // Simulator is always accessible — shows needs-review but CTA is enabled
       const cta = screen.getByTestId('card-simulator-cta');
-      expect(cta).not.toBeDisabled();
+      expect(cta).toBeDisabled();
+      expect(screen.getByTestId('card-simulator')).toHaveAttribute('data-status', 'blocked');
     });
 
     it('simulator card status is ready when engine data is available', () => {
