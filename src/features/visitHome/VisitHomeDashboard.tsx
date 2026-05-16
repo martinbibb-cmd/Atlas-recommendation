@@ -553,7 +553,7 @@ export function VisitHomeDashboard({
             {onImportScanPackage != null && (
               <button
                 type="button"
-                className="vhd-empty-state__cta"
+                className={`vhd-empty-state__cta${hydrationState === 'survey-in-progress' ? ' vhd-empty-state__cta--secondary' : ''}`}
                 onClick={onImportScanPackage}
                 data-testid="visit-home-import-scan-cta"
               >

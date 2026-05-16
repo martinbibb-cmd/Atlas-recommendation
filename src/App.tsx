@@ -1205,7 +1205,8 @@ function AppInner() {
         });
         customerSummarySnapshot = buildCustomerSummary(decisionSnapshot, scenariosSnapshot);
       }
-    } catch {
+    } catch (err) {
+      console.error('[Atlas] Recommendation generation failed:', err);
       return;
     }
 
@@ -1266,7 +1267,8 @@ function AppInner() {
         scenarios,
         customerSummary,
       });
-    } catch {
+    } catch (err) {
+      console.error('[Atlas] Demo recommendation hydration failed:', err);
       // Keep demo survey context even if recommendation snapshots fail.
     }
     setJourney('visit-home');
