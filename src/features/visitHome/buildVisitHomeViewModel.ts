@@ -69,7 +69,7 @@ function resolveSelectedSystem(
   engineResult: EngineOutputV1 | undefined,
 ): string {
   if (recommendationSummary?.recommendedSystemLabel) return recommendationSummary.recommendedSystemLabel;
-  if (acceptedScenario?.display?.label) return acceptedScenario.display.label;
+  if (acceptedScenario?.display?.title) return acceptedScenario.display.title;
   if (acceptedScenario?.system.summary) return acceptedScenario.system.summary;
   if (engineResult?.recommendation?.primary) return titleCaseRecommendation(engineResult.recommendation.primary);
   return 'Recommendation pending';

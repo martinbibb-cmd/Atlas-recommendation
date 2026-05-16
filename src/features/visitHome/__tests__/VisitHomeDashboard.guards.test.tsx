@@ -114,7 +114,14 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
     it('shows visit not ready state — recommendation card is needs-review when only visitId set', () => {
       render(
         <VisitHomeDashboard
-          {...makeProps({ engineInput: undefined, engineOutput: undefined })}
+          {...makeProps({
+            engineInput: undefined,
+            engineOutput: undefined,
+            acceptedScenario: undefined,
+            recommendationSummary: undefined,
+            scenarios: [],
+            surveyModel: undefined,
+          })}
         />,
       );
       const card = screen.getByTestId('card-recommendation');
@@ -272,7 +279,15 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
       const onOpenSimulator = vi.fn();
       render(
         <VisitHomeDashboard
-          {...makeProps({ engineInput: undefined, engineOutput: undefined, onOpenSimulator })}
+          {...makeProps({
+            engineInput: undefined,
+            engineOutput: undefined,
+            acceptedScenario: undefined,
+            recommendationSummary: undefined,
+            scenarios: [],
+            surveyModel: undefined,
+            onOpenSimulator,
+          })}
         />,
       );
       const cta = screen.getByTestId('card-simulator-cta');
