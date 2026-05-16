@@ -331,7 +331,7 @@
 
 .hs-canvas__outside-band {
   position: relative;
-  z-index: 3;
+  z-index: 1;
   min-height: 120px;
 }
 

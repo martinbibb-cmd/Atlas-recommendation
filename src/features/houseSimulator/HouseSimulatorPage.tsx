@@ -333,7 +333,7 @@ export default function HouseSimulatorPage({
             aria-controls="hs-setup-drawer"
             aria-label="Open simulation and tools menu"
           >
-            ☰
+            <span aria-hidden="true">☰</span>
             <span>Simulation</span>
           </button>
           <button
@@ -346,7 +346,7 @@ export default function HouseSimulatorPage({
             aria-controls="hs-engineering-drawer"
             aria-label="Open engineering and warnings menu"
           >
-            ☰
+            <span aria-hidden="true">☰</span>
             <span>Engineering{warningCount > 0 ? ` (${warningCount})` : ''}</span>
           </button>
         </nav>
