@@ -167,8 +167,9 @@ function buildStatusAndReason(
     case 'export-handover-package':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
-      if (!input.availableOutputs.hasExportPackage) return { status: 'needs-review' };
-      return { status: 'ready' };
+      return input.availableOutputs.hasExportPackage
+        ? { status: 'ready' }
+        : { status: 'needs-review' };
     case 'workspace-controls':
       return { status: 'ready' };
     default:

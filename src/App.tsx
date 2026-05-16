@@ -451,6 +451,14 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
 
 type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
+interface VisitRecommendationSnapshot {
+  visitId: string;
+  engineOutput?: EngineOutputV1;
+  scenarios?: ScenarioResult[];
+  decision?: AtlasDecisionV1;
+  customerSummary?: CustomerSummaryV1;
+}
+
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
 
@@ -821,13 +829,7 @@ function AppInner() {
    * portal can validate the link.
    */
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
-  const [visitRecommendationSnapshot, setVisitRecommendationSnapshot] = useState<{
-    visitId: string;
-    engineOutput?: EngineOutputV1;
-    scenarios?: ScenarioResult[];
-    decision?: AtlasDecisionV1;
-    customerSummary?: CustomerSummaryV1;
-  } | null>(null);
+  const [visitRecommendationSnapshot, setVisitRecommendationSnapshot] = useState<VisitRecommendationSnapshot | null>(null);
 
   /**
    * Resolves the active workspace from the browser host once on mount.
@@ -1941,6 +1943,22 @@ function AppInner() {
         )}
         {/* Visit Home Dashboard — front-door overview of all outputs for the active visit */}
         {journey === 'visit-home' && (() => {
+          const resolveAcceptedScenario = (
+            scenarios: import('./contracts/ScenarioResult').ScenarioResult[] | undefined,
+            preferredScenarioId?: string,
+            fallbackScenarioId?: string,
+          ): import('./contracts/ScenarioResult').ScenarioResult | undefined => {
+            if (scenarios == null || scenarios.length === 0) return undefined;
+            if (preferredScenarioId != null) {
+              const match = scenarios.find((scenario) => scenario.scenarioId === preferredScenarioId);
+              if (match != null) return match;
+            }
+            if (fallbackScenarioId != null) {
+              const normalizedFallbackId = fallbackScenarioId.toLowerCase();
+              return scenarios.find((scenario) => scenario.scenarioId.toLowerCase() === normalizedFallbackId);
+            }
+            return undefined;
+          };
           const canonicalSnapshot =
             activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
               ? visitRecommendationSnapshot
@@ -1954,10 +1972,10 @@ function AppInner() {
             visitHomeEngineOutput = canonicalSnapshot.engineOutput;
             visitHomeScenarios = canonicalSnapshot.scenarios;
             visitHomeRecommendationSummary = canonicalSnapshot.customerSummary;
-            const recommendedScenarioId = canonicalSnapshot.decision?.recommendedScenarioId;
-            if (recommendedScenarioId != null && visitHomeScenarios != null) {
-              acceptedScenario = visitHomeScenarios.find((scenario) => scenario.scenarioId === recommendedScenarioId);
-            }
+            acceptedScenario = resolveAcceptedScenario(
+              visitHomeScenarios,
+              canonicalSnapshot.decision?.recommendedScenarioId,
+            );
           }
 
           if (visitHomeEngineOutput == null && labEngineInput != null) {
@@ -1970,13 +1988,12 @@ function AppInner() {
             }
           }
 
-          if (acceptedScenario == null && visitHomeScenarios != null && visitHomeEngineOutput != null) {
-            const recommendedId = visitHomeEngineOutput.recommendation?.primary?.toLowerCase();
-            if (recommendedId != null) {
-              acceptedScenario = visitHomeScenarios.find(
-                (scenario) => scenario.scenarioId.toLowerCase() === recommendedId,
-              );
-            }
+          if (acceptedScenario == null) {
+            acceptedScenario = resolveAcceptedScenario(
+              visitHomeScenarios,
+              undefined,
+              visitHomeEngineOutput?.recommendation?.primary,
+            );
           }
           return (
             <VisitHomeDashboard

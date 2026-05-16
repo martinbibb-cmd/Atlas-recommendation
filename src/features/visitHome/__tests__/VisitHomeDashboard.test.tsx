@@ -297,7 +297,7 @@ describe('VisitHomeDashboard', () => {
       expect(cta).toBeDisabled();
     });
 
-  it('PDF card is needs-review when no recommendation/PDF output is available and CTA is disabled', () => {
+    it('PDF card is needs-review when recommendation exists but supporting PDF is not generated and CTA is disabled', () => {
       render(
         <VisitHomeDashboard
           {...makeProps({

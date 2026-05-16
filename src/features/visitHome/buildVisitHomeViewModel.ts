@@ -52,12 +52,12 @@ export interface VisitHomeViewModel {
 }
 
 function titleCaseRecommendation(systemId: string): string {
-  const normalised = systemId
+  const normalized = systemId
     .replace(/[_-]+/g, ' ')
     .replace(/\bashp\b/gi, 'ASHP')
     .trim();
-  if (normalised.length === 0) return 'Recommended system';
-  return normalised
+  if (normalized.length === 0) return 'Recommended system';
+  return normalized
     .split(' ')
     .map((part) => (part === 'ASHP' ? part : `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`))
     .join(' ');
@@ -127,13 +127,15 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
       ? 'needs-review'
       : 'blocked';
 
-  const handoffStatus: VisitHomeSurfaceStatus = hasVisit && hasRecommendation
-    ? input.outputAvailability.hasHandoffReview ? 'ready' : 'needs-review'
-    : 'blocked';
+  let handoffStatus: VisitHomeSurfaceStatus = 'blocked';
+  if (hasVisit && hasRecommendation) {
+    handoffStatus = input.outputAvailability.hasHandoffReview ? 'ready' : 'needs-review';
+  }
 
-  const exportStatus: VisitHomeSurfaceStatus = hasVisit && hasRecommendation
-    ? input.outputAvailability.hasExportPackage ? 'ready' : 'needs-review'
-    : 'blocked';
+  let exportStatus: VisitHomeSurfaceStatus = 'blocked';
+  if (hasVisit && hasRecommendation) {
+    exportStatus = input.outputAvailability.hasExportPackage ? 'ready' : 'needs-review';
+  }
 
   const keyExpectationDelta =
     input.recommendationSummary?.whyThisWins?.[0] ??
@@ -148,11 +150,12 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     input.acceptedScenario?.keyConstraints?.slice(0, 3) ??
     [];
 
-  const confidenceReadiness: VisitHomeSurfaceStatus = hasAcceptedScenario && hasSurveyModel
-    ? 'ready'
-    : hasRecommendation
-    ? 'needs-review'
-    : 'blocked';
+  let confidenceReadiness: VisitHomeSurfaceStatus = 'blocked';
+  if (hasAcceptedScenario && hasSurveyModel) {
+    confidenceReadiness = 'ready';
+  } else if (hasRecommendation) {
+    confidenceReadiness = 'needs-review';
+  }
 
   return {
     hasRecommendation,
@@ -176,7 +179,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     journeyInfo,
     hero: {
       selectedSystem: resolveSelectedSystem(input.recommendationSummary, input.acceptedScenario, input.engineResult),
-      journeyArchetype: journeyInfo.archetype == null ? 'Journey pending' : journeyInfo.label,
+      journeyArchetype: journeyInfo.label.trim().length > 0 ? journeyInfo.label : 'Journey pending',
       keyExpectationDelta,
       keyConstraints,
       confidenceReadiness,

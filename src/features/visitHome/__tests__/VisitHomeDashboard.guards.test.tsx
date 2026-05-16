@@ -300,7 +300,7 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
       expect(screen.getByTestId('card-simulator')).toHaveAttribute('data-status', 'ready');
     });
 
-    it('simulator remains ready when accepted scenario and survey model exist', () => {
+    it('simulator is ready when accepted scenario and survey model exist', () => {
       render(
         <VisitHomeDashboard
           {...makeProps({
