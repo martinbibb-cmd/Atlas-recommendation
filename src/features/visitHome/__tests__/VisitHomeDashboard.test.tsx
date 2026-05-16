@@ -231,7 +231,7 @@ describe('VisitHomeDashboard', () => {
 
     expect(screen.getByText('Review this visit')).toBeInTheDocument();
     expect(screen.getByText('Open customer journey →')).toBeInTheDocument();
-    expect(screen.getByText('Run daily-use simulator →')).toBeInTheDocument();
+    expect(screen.getByText('Open house simulator →')).toBeInTheDocument();
     expect(screen.getByText('Prepare implementation pack →')).toBeInTheDocument();
     expect(screen.getByText('Export handover package →')).toBeInTheDocument();
     expect(screen.getByTestId('visit-home-scan-entry-note')).toHaveTextContent(

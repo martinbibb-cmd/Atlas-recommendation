@@ -563,13 +563,13 @@ export function VisitHomeDashboard({
                 <DashboardCard
                   data-testid="card-simulator"
                   icon="📊"
-                  title="Daily hot-water simulator"
-                  description="Primary simulator surface for 24-hour demand and system response review."
+                  title="Open house simulator"
+                  description="Interactive daily-use simulator. Uses the current house-simulator surface."
                   status={actionStatus('run-simulator', simulatorStatus)}
                   blockedReason={actionReason('run-simulator')}
                   audience={['surveyor', 'engineer']}
                   source="simulator"
-                  ctaLabel="Run daily-use simulator →"
+                  ctaLabel="Open house simulator →"
                   onCta={canTriggerAction('run-simulator', simulatorStatus, 'not-blocked') ? onOpenSimulator : undefined}
                   variant="feature"
                   highlights={buildSimulatorHighlights(
