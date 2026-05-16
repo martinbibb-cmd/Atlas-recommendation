@@ -81,8 +81,13 @@ const LEGACY_HEADING_RULES: readonly LegacyHeadingRule[] = [
  * Detects guessed tank capacity ranges such as "100–150 L", "110–140 L",
  * "120 to 170 litres", etc.
  * Matches:  <number> [–/-/to] <number> [L/litres/ltr] (case-insensitive)
+ *
+ * A fresh RegExp is constructed per call so the `g` flag's stateful lastIndex
+ * does not persist between invocations.
  */
-const GUESSED_CAPACITY_PATTERN = /\b(\d{2,3})\s*(?:–|-|to)\s*(\d{2,3})\s*(?:L|l|litres?|ltr)\b/gi;
+function buildGuessedCapacityPattern(): RegExp {
+  return /\b(\d{2,3})\s*(?:–|-|to)\s*(\d{2,3})\s*(?:L|l|litres?|ltr)\b/gi;
+}
 
 // ─── Misleading phrasing ──────────────────────────────────────────────────────
 
@@ -136,10 +141,9 @@ function detectGuessedCapacity(
     const haystack = sectionHaystack(section);
     let match: RegExpExecArray | null;
 
-    // Reset lastIndex before use
-    GUESSED_CAPACITY_PATTERN.lastIndex = 0;
+    const pattern = buildGuessedCapacityPattern();
 
-    while ((match = GUESSED_CAPACITY_PATTERN.exec(haystack)) !== null) {
+    while ((match = pattern.exec(haystack)) !== null) {
       findings.push(
         makeFinding({
           ruleId: 'guessed_capacity',
@@ -308,7 +312,7 @@ function buildPositiveChecks(
   const noGuessedCwsCheck = makePositiveCheck(
     'no_guessed_cws_volumes',
     'No guessed CWS/tank volumes (unless twin-tank surveyed)',
-    scenario.isTwinTankSurveyed === true ? true : guessedCapacityFindings.length === 0,
+    scenario.isTwinTankSurveyed === true || guessedCapacityFindings.length === 0,
   );
 
   return [
