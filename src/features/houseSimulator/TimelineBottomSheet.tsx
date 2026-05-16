@@ -58,84 +58,77 @@ export default function TimelineBottomSheet({
       className={`hs-bottom-sheet${open ? ' hs-bottom-sheet--open' : ''}`}
       aria-label="Timeline and scenarios"
     >
-      {/* ── Sheet header ─────────────────────────────────────────────────── */}
       <div className="hs-bottom-sheet__header">
         <h2 className="hs-bottom-sheet__title">Timeline and scenarios</h2>
-        <div className="hs-bottom-sheet__toolbar">
-          {/* Scenario preset selector */}
-          <div
-            className="hs-scenario-selector"
-            role="group"
-            aria-label="Day scenario"
-          >
-            {SCENARIO_PRESET_LIST.map(preset => (
-              <button
-                key={preset.key}
-                className={`hs-scenario-btn${scenarioKey === preset.key ? ' hs-scenario-btn--active' : ''}`}
-                onClick={() => onScenarioChange(preset.key)}
-                aria-pressed={scenarioKey === preset.key}
-                title={preset.description}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-          {/* Collapse / expand toggle */}
-          <button
-            className="hs-action-btn"
-            onClick={onToggle}
-            aria-label={open ? 'Collapse timeline' : 'Expand timeline'}
-          >
-            {open ? '▲' : '▼'}
-          </button>
-        </div>
+        <button
+          className="hs-action-btn hs-bottom-sheet__advanced-toggle"
+          onClick={onToggle}
+          aria-label={open ? 'Hide advanced controls' : 'Show advanced controls'}
+          aria-expanded={open}
+        >
+          {open ? 'Hide advanced controls' : 'Show advanced controls'}
+        </button>
       </div>
 
-      {/* ── Sheet body (timeline + controls summary) ──────────────────────── */}
-      {open && (
-        <div className="hs-bottom-sheet__body">
-          <div className="hs-bottom-sheet__controls">
-            <div className="hs-bottom-sheet__playback" role="group" aria-label="Playback mode">
-              <button
-                className={`hs-scenario-btn${mode === 'auto' ? ' hs-scenario-btn--active' : ''}`}
-                onClick={() => onSetMode('auto')}
-                aria-pressed={mode === 'auto'}
-              >
-                Auto
-              </button>
-              <button
-                className={`hs-scenario-btn${mode === 'manual' ? ' hs-scenario-btn--active' : ''}`}
-                onClick={() => onSetMode('manual')}
-                aria-pressed={mode === 'manual'}
-              >
-                Manual
-              </button>
-            </div>
-            <label className="hs-bottom-sheet__scrubber">
-              Time scrubber
-              <progress max={23} value={simHour} aria-label={`Current simulated hour ${simHour}:00`} />
-              <span aria-hidden="true">{String(simHour).padStart(2, '0')}:00</span>
-            </label>
+      <div className="hs-bottom-sheet__compact">
+        <div
+          className="hs-scenario-selector"
+          role="group"
+          aria-label="Day scenario"
+        >
+          {SCENARIO_PRESET_LIST.map(preset => (
+            <button
+              key={preset.key}
+              className={`hs-scenario-btn${scenarioKey === preset.key ? ' hs-scenario-btn--active' : ''}`}
+              onClick={() => onScenarioChange(preset.key)}
+              aria-pressed={scenarioKey === preset.key}
+              title={preset.description}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="hs-bottom-sheet__controls">
+          <div className="hs-bottom-sheet__playback" role="group" aria-label="Playback mode">
+            <button
+              className={`hs-scenario-btn${mode === 'auto' ? ' hs-scenario-btn--active' : ''}`}
+              onClick={() => onSetMode('auto')}
+              aria-pressed={mode === 'auto'}
+            >
+              Auto
+            </button>
+            <button
+              className={`hs-scenario-btn${mode === 'manual' ? ' hs-scenario-btn--active' : ''}`}
+              onClick={() => onSetMode('manual')}
+              aria-pressed={mode === 'manual'}
+            >
+              Manual
+            </button>
           </div>
+          <label className="hs-bottom-sheet__scrubber">
+            Time scrubber
+            <progress max={23} value={simHour} aria-label={`Current simulated hour ${simHour}:00`} />
+            <span aria-hidden="true">{String(simHour).padStart(2, '0')}:00</span>
+          </label>
+        </div>
 
-          <div className="hs-bottom-sheet__events" aria-label="Active events summary">
-            {activeEvents.length > 0 ? activeEvents.map(event => (
-              <span key={event} className="hs-bottom-sheet__event-pill">{event}</span>
-            )) : (
-              <span className="hs-bottom-sheet__event-empty">No active events</span>
-            )}
-          </div>
-
-          {children}
-
-          {advancedChildren != null && (
-            <details className="hs-bottom-sheet__advanced">
-              <summary>Advanced controls</summary>
-              <div className="hs-bottom-sheet__advanced-body">
-                {advancedChildren}
-              </div>
-            </details>
+        <div className="hs-bottom-sheet__events" aria-label="Active events summary">
+          {activeEvents.length > 0 ? activeEvents.map(event => (
+            <span key={event} className="hs-bottom-sheet__event-pill">{event}</span>
+          )) : (
+            <span className="hs-bottom-sheet__event-empty">No active events</span>
           )}
+        </div>
+
+        {children}
+      </div>
+
+      {open && advancedChildren != null && (
+        <div className="hs-bottom-sheet__advanced" role="region" aria-label="Advanced controls">
+          <div className="hs-bottom-sheet__advanced-body">
+            {advancedChildren}
+          </div>
         </div>
       )}
     </section>

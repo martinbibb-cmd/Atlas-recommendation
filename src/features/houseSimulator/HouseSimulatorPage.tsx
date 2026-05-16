@@ -120,7 +120,7 @@ export default function HouseSimulatorPage({
   const [leftOpen,        setLeftOpen]        = useState(false);
   const [rightOpen,       setRightOpen]       = useState(false);
   const [topSheetOpen,    setTopSheetOpen]    = useState(false);
-  const [bottomSheetOpen, setBottomSheetOpen] = useState(true);
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
 
   // ── Simulator inputs ────────────────────────────────────────────────────────
@@ -240,11 +240,17 @@ export default function HouseSimulatorPage({
   const efficiencyBadgeColor =
     EFFICIENCY_BADGE_COLOR[vm.efficiencyWidget.statusTone] ?? '#718096';
 
+  const outletActions = {
+    shower: () => setDemandControls({ shower: !demandControls.shower }),
+    bath: () => setDemandControls({ bath: !demandControls.bath }),
+    kitchen: () => setDemandControls({ kitchen: !demandControls.kitchen }),
+    cold_tap: () => setDemandControls({ coldTap: !demandControls.coldTap }),
+  } as const;
+
   function toggleOutlet(outletId: string) {
     const outletNode = vm.outletNodes.find(node => node.outletId === outletId);
-    if (outletNode != null) {
-      const controlKey = outletNode.controlId === 'cold_tap' ? 'coldTap' : outletNode.controlId;
-      setDemandControls({ [controlKey]: !demandControls[controlKey] });
+    if (outletNode != null && outletNode.supported) {
+      outletActions[outletNode.controlId]();
     }
   }
 
@@ -350,53 +356,6 @@ export default function HouseSimulatorPage({
         warningText={vm.narration.warningText}
       />
 
-      {/* ── Warnings top sheet ────────────────────────────────────────────── */}
-      {topSheetOpen && (
-        <section
-          id="hs-warnings-sheet"
-          className="hs-top-sheet"
-          role="region"
-          aria-label="Active warnings"
-        >
-          <div className="hs-top-sheet__header">
-            <h2>Current warnings</h2>
-            <button
-              className="hs-action-btn"
-              onClick={() => setTopSheetOpen(false)}
-              aria-label="Close warnings panel"
-            >
-              Close
-            </button>
-          </div>
-          {warningItems.length === 0 ? (
-            <p className="hs-top-sheet__empty">No active warnings right now.</p>
-          ) : (
-            <ul className="hs-warning-list">
-              {warningItems.map(warning => (
-                <li key={warning.id} className={`hs-warning-item hs-warning-item--${warning.severity}`}>
-                  <div className="hs-warning-item__header">
-                    <strong>{warning.title}</strong>
-                    <span className="hs-warning-item__severity">{warning.severity}</span>
-                  </div>
-                  <p>{warning.explanation}</p>
-                  {warning.suggestedFix && <p className="hs-warning-item__fix">Suggested action: {warning.suggestedFix}</p>}
-                  <button
-                    className="hs-warning-item__learn"
-                    onClick={() => {
-                      setRightOpen(true);
-                      setLeftOpen(false);
-                      setTopSheetOpen(false);
-                    }}
-                  >
-                    Learn why
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
       {/* ── Central house stage ───────────────────────────────────────────── */}
       <section className="hs-stage" aria-label="House simulator stage">
 
@@ -459,10 +418,10 @@ export default function HouseSimulatorPage({
             coldTap={demandControls.coldTap}
             onSetMode={mode => (mode === 'auto' ? resetToAutoMode() : setManualMode())}
             onToggleHeating={() => setDemandControls({ heatingEnabled: !demandControls.heatingEnabled })}
-            onToggleShower={() => setDemandControls({ shower: !demandControls.shower })}
-            onToggleBath={() => setDemandControls({ bath: !demandControls.bath })}
-            onToggleKitchen={() => setDemandControls({ kitchen: !demandControls.kitchen })}
-            onToggleColdTap={() => setDemandControls({ coldTap: !demandControls.coldTap })}
+            onToggleShower={outletActions.shower}
+            onToggleBath={outletActions.bath}
+            onToggleKitchen={outletActions.kitchen}
+            onToggleColdTap={outletActions.cold_tap}
             onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })}
             onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })}
             onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}
@@ -515,6 +474,59 @@ export default function HouseSimulatorPage({
         <EfficiencyPanel state={efficiencyState} />
         <LimitersPanel state={limiterState} />
       </SimulatorSideDrawer>
+
+      {/* ── Warnings overlay drawer ───────────────────────────────────────── */}
+      {topSheetOpen && (
+        <div className="hs-overlay" role="presentation" onClick={() => setTopSheetOpen(false)}>
+          <section
+            id="hs-warnings-sheet"
+            className="hs-overlay-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Current warnings"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="hs-overlay-panel__header">
+              <h2>Current warnings</h2>
+              <button
+                className="hs-action-btn"
+                onClick={() => setTopSheetOpen(false)}
+                aria-label="Close warnings panel"
+              >
+                Close
+              </button>
+            </div>
+            <div className="hs-overlay-panel__body">
+              {warningItems.length === 0 ? (
+                <p className="hs-top-sheet__empty">No active warnings right now.</p>
+              ) : (
+                <ul className="hs-warning-list">
+                  {warningItems.map(warning => (
+                    <li key={warning.id} className={`hs-warning-item hs-warning-item--${warning.severity}`}>
+                      <div className="hs-warning-item__header">
+                        <strong>{warning.title}</strong>
+                        <span className="hs-warning-item__severity">{warning.severity}</span>
+                      </div>
+                      <p>{warning.explanation}</p>
+                      {warning.suggestedFix && <p className="hs-warning-item__fix">Suggested action: {warning.suggestedFix}</p>}
+                      <button
+                        className="hs-warning-item__learn"
+                        onClick={() => {
+                          setRightOpen(true);
+                          setLeftOpen(false);
+                          setTopSheetOpen(false);
+                        }}
+                      >
+                        Learn why
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
 
     </div>
   );
