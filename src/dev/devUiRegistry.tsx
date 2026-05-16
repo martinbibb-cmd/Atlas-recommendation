@@ -27,6 +27,7 @@ import AtlasExplorerPage from '../components/explorer/AtlasExplorerPage';
 import CanonicalPresentationPage from '../components/presentation/CanonicalPresentationPage';
 import { runEngine } from '../engine/Engine';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
+import HouseSimulatorPage from '../features/houseSimulator/HouseSimulatorPage';
 import { WorkspaceVisitLifecycleHarness } from './workspaceQa';
 
 // ─── Demo input ───────────────────────────────────────────────────────────────
@@ -134,6 +135,10 @@ export interface DevUiRegistryItem {
   routeKind?: DevUiRouteKind;
   /** Who may access this surface. Default: 'dev_only'. */
   access?: DevUiAccess;
+  /** Team or discipline responsible for the surface. */
+  owner?: string;
+  /** Product domain where the surface is authoritative. */
+  domain?: string;
 
   // ── Hierarchy metadata ─────────────────────────────────────────────────────
 
@@ -182,6 +187,31 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     sourceFiles: ['src/explainers/ExplainersHubPage.tsx', 'src/explainers/lego/simulator/SimulatorDashboard.tsx'],
     includeInCopyBox: true,
     render: () => <ExplainersHubPage onBack={() => undefined} />,
+  },
+  {
+    id: 'house-simulator-page',
+    commonName: 'House Simulator',
+    codeName: 'HouseSimulatorPage',
+    fileName: 'HouseSimulatorPage.tsx',
+    filePath: 'src/features/houseSimulator/HouseSimulatorPage.tsx',
+    category: 'simulator',
+    status: 'canonical',
+    notes:
+      'Canonical production house simulator for Visit Review. ' +
+      'Authoritative simulator surface for /?house-simulator=1 and Visit Home CTA routing.',
+    routeKind: 'query_flag',
+    queryFlags: ['house-simulator=1'],
+    fullRouteExample: '/?house-simulator=1',
+    access: 'production',
+    owner: 'simulator',
+    domain: 'visit review',
+    sourceFiles: [
+      'src/features/houseSimulator/HouseSimulatorPage.tsx',
+      'src/features/houseSimulator/buildHouseSimulatorViewModel.ts',
+    ],
+    usedByRoutes: ['VisitHomeDashboard'],
+    includeInCopyBox: true,
+    render: () => <HouseSimulatorPage onBack={() => undefined} surveyData={DEV_DEMO_INPUT} />,
   },
 
   // ── Lego Building Set ──────────────────────────────────────────────────────
