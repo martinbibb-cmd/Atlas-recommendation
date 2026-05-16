@@ -140,6 +140,8 @@ import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
+import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
+import { buildPortalJourneyPrintModel } from './library/portal/pdf/buildPortalJourneyPrintModel';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -449,7 +451,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 interface VisitRecommendationSnapshot {
   visitId: string;
@@ -709,9 +711,9 @@ function AppInner() {
     if (VISIT_HOME_ENABLED)              return 'visit-home';
     const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'workspace-dashboard';
     // 'presentation' and 'printout' require labEngineInput which is not persisted.
-    // 'framework-print' is a transient print destination and should not be restored as an entry point.
+    // 'framework-print' and 'library-pdf' are transient print destinations and should not be restored as an entry point.
     // Restoring any of these without the necessary data would result in a white screen — fall back to 'workspace-dashboard'.
-    if (restored === 'presentation' || restored === 'printout' || restored === 'framework-print') {
+    if (restored === 'presentation' || restored === 'printout' || restored === 'framework-print' || restored === 'library-pdf') {
       return 'workspace-dashboard';
     }
     // 'visit-hub' and 'visit' require an active visit ID.
@@ -2021,17 +2023,14 @@ function AppInner() {
                 setJourney('presentation');
               }}
               onPrintSummary={labEngineInput != null && visitHomeEngineOutput != null ? () => {
-                setLastOpenedFromHome({ label: 'Supporting PDF', journey: 'framework-print' });
-                setJourney('framework-print');
+                setLastOpenedFromHome({ label: 'Library Supporting PDF', journey: 'library-pdf' });
+                setJourney('library-pdf');
               } : undefined}
               onOpenInstallationSpecification={() => {
                 setLastOpenedFromHome({ label: 'Specification', journey: 'installation-specification' });
                 setJourney('installation-specification');
               }}
-              onOpenInsightPack={labEngineInput != null ? () => {
-                setLastOpenedFromHome({ label: 'Insight Pack', journey: 'insight-pack' });
-                void handleOpenInsightPackForVisit(activeVisitId ?? '');
-              } : undefined}
+              onOpenInsightPack={undefined}
               onOpenHandoffReview={activeVisitId != null ? () => {
                 setLastOpenedFromHome({ label: 'Handoff Review', journey: 'visit-handoff' });
                 void handleOpenHandoffReview(activeVisitId);
@@ -2321,6 +2320,75 @@ function AppInner() {
               }
             }}
           />
+        );
+      })()}
+      {/* Library supporting PDF — library-backed print output for Visit Home (replaces legacy framework-print from visit-home path) */}
+      {journey === 'library-pdf' && labEngineInput != null && (() => {
+        const { engineOutput } = runEngine(labEngineInput);
+        const canonicalSummary =
+          activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
+            ? visitRecommendationSnapshot?.customerSummary
+            : undefined;
+        const recommendationSummary =
+          canonicalSummary?.headline ??
+          `${engineOutput.recommendation?.primary ?? 'Your system'} for ${labEngineInput.postcode ?? 'your home'}.`;
+        const journeyType: 'open_vented' | 'heat_pump' =
+          engineOutput.recommendation?.primary === 'ashp' ? 'heat_pump' : 'open_vented';
+        const customerFacts = [
+          labEngineInput.occupancyCount != null
+            ? `${labEngineInput.occupancyCount} ${labEngineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
+            : null,
+          labEngineInput.bathroomCount != null
+            ? `${labEngineInput.bathroomCount} bathroom${labEngineInput.bathroomCount === 1 ? '' : 's'}`
+            : null,
+          labEngineInput.postcode ? `Property: ${labEngineInput.postcode}` : null,
+        ].filter((fact): fact is string => fact != null);
+        const printModel = buildPortalJourneyPrintModel({
+          selectedSectionIds: [],
+          recommendationSummary,
+          customerFacts,
+          journeyType,
+        });
+        return (
+          <div
+            style={{ background: '#f8fafc', minHeight: '100vh' }}
+            data-testid="library-pdf-route"
+          >
+            <div
+              style={{
+                padding: '0.5rem 1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                borderBottom: '1px solid #e2e8f0',
+                background: '#fff',
+              }}
+              data-testid="library-pdf-header"
+            >
+              <button
+                className="back-btn"
+                onClick={() => setJourney(activeVisitId != null ? 'visit-home' : 'presentation')}
+                data-testid="library-pdf-back"
+              >
+                ← Back
+              </button>
+              <span
+                style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}
+                data-testid="library-pdf-workspace-marker"
+              >
+                Library supporting PDF — review workspace
+              </span>
+              <button
+                style={{ marginLeft: 'auto' }}
+                className="back-btn"
+                onClick={() => window.print()}
+                data-testid="library-pdf-print-btn"
+              >
+                Print / Save as PDF
+              </button>
+            </div>
+            <PortalJourneyPrintPack model={printModel} />
+          </div>
         );
       })()}
       {journey === 'insight-pack' && labEngineInput != null && labQuotes.length > 0 && (() => {

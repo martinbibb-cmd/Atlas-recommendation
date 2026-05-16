@@ -273,6 +273,38 @@ describe('VisitHomeDashboard', () => {
     expect(onPrintSummary).toHaveBeenCalledOnce();
   });
 
+  it('supporting PDF card title is "Library supporting PDF" — library-backed output label', () => {
+    render(<VisitHomeDashboard {...makeProps()} />);
+    const card = screen.getByTestId('card-pdf');
+    expect(card).toHaveTextContent('Library supporting PDF');
+  });
+
+  it('portal card shows needs-review when no portalUrl and no onOpenInsightPack — legacy route not wired', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          portalUrl: undefined,
+          onOpenInsightPack: undefined,
+        })}
+      />,
+    );
+    expect(screen.getByTestId('card-portal')).toHaveAttribute('data-status', 'needs-review');
+    expect(screen.getByTestId('card-portal-cta')).toBeDisabled();
+  });
+
+  it('portal card CTA label is "Portal ready →" when portalUrl is set and no insightPack', () => {
+    const handleOpenPortal = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          portalUrl: 'https://portal.example.com',
+          onOpenInsightPack: undefined,
+        })}
+      />,
+    );
+    expect(screen.getByTestId('card-portal-cta')).toHaveTextContent('Portal ready →');
+  });
+
   describe('journey card', () => {
     it('shows heat_pump_reality archetype when engine recommends ashp', () => {
       render(

@@ -49,4 +49,35 @@ describe('Visit Home unified simulator route', () => {
     fireEvent.click(screen.getByTestId('visit-home-unified-simulator-back'));
     expect(onBack).toHaveBeenCalledOnce();
   });
+
+  it('renders "Daily-use simulator — review workspace" workspace marker header', () => {
+    render(
+      <VisitHomeUnifiedSimulatorRoute
+        engineInput={ENGINE_INPUT}
+        onBack={vi.fn()}
+        backLabel="visit-home"
+      />,
+    );
+
+    expect(screen.getByTestId('visit-home-unified-simulator-workspace-marker')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-unified-simulator-workspace-marker')).toHaveTextContent(
+      'Daily-use simulator — review workspace',
+    );
+  });
+
+  it('workspace header is visually distinct with a separate header bar from the simulator content', () => {
+    render(
+      <VisitHomeUnifiedSimulatorRoute
+        engineInput={ENGINE_INPUT}
+        onBack={vi.fn()}
+        backLabel="visit-home"
+      />,
+    );
+
+    expect(screen.getByTestId('visit-home-unified-simulator-header')).toBeInTheDocument();
+    // Both back button and workspace marker are inside the header
+    const header = screen.getByTestId('visit-home-unified-simulator-header');
+    expect(header).toContainElement(screen.getByTestId('visit-home-unified-simulator-back'));
+    expect(header).toContainElement(screen.getByTestId('visit-home-unified-simulator-workspace-marker'));
+  });
 });
