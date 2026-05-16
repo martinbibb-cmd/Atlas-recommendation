@@ -155,7 +155,7 @@ function buildStatusAndReason(
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       // Accepted scenario alone is sufficient to unlock the simulator (at needs-review).
       if (!hasRecommendation && !hasAcceptedScenario) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
-      if (!hasAcceptedScenario || !hasSurveyModel) return { status: 'needs-review' };
+      if (!hasRecommendation || !hasSurveyModel) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'implementation-workflow':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };

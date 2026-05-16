@@ -48,6 +48,13 @@ import './VisitHomeDashboard.css';
 export type CardStatus = 'ready' | 'needs-review' | 'blocked' | 'dev-only';
 export type CardAudience = 'customer' | 'surveyor' | 'office' | 'engineer';
 export type CardSource = 'engine' | 'library' | 'workflow' | 'simulator';
+export type VisitSelectorSource = 'local' | 'workflow' | 'demo';
+
+export interface VisitSelectorEntry {
+  readonly visitId: string;
+  readonly label: string;
+  readonly source: VisitSelectorSource;
+}
 
 export interface VisitHomeDashboardProps {
   /** Active visit ID — used to derive availability of outputs. */
@@ -125,8 +132,18 @@ export interface VisitHomeDashboardProps {
   onClearSession?: () => void;
   /** Open the existing visit search (workspace visit list). */
   onOpenExistingVisit?: () => void;
-  /** Start with the built-in demo fixture. */
-  onStartDemo?: () => void;
+  /** Start with a hydrated demo review fixture. */
+  onStartDemoReview?: () => void;
+  /** Open demo fixtures browser. */
+  onOpenDemoFixtures?: () => void;
+  /** Continue survey capture for the current visit. */
+  onContinueSurvey?: () => void;
+  /** Trigger recommendation generation from current survey data. */
+  onRunRecommendation?: () => void;
+  /** Optional visit selector entries shown in lifecycle entry states. */
+  visitSelectorEntries?: readonly VisitSelectorEntry[];
+  /** Open a selected visit from the lightweight browser. */
+  onSelectVisit?: (visitId: string) => void;
 
   // ── CTA handlers (all delegate to existing App.tsx journeys) ─────────────
 
@@ -298,7 +315,12 @@ export function VisitHomeDashboard({
   onResumeLocalVisit,
   onClearSession,
   onOpenExistingVisit,
-  onStartDemo,
+  onStartDemoReview,
+  onOpenDemoFixtures,
+  onContinueSurvey,
+  onRunRecommendation,
+  visitSelectorEntries = [],
+  onSelectVisit,
   onOpenSimulator,
   onOpenPresentation,
   onPrintSummary,
@@ -420,8 +442,17 @@ export function VisitHomeDashboard({
     hasRecommendation: viewModel.hasRecommendation,
     hasAcceptedScenario: viewModel.hasAcceptedScenario,
     hasSurveyModel: viewModel.hasSurveyModel,
+    hasHandoffReview: onOpenHandoffReview != null,
+    hasExportPackage: onExportPackage != null,
   });
   const hydrationDisplay = HYDRATION_STATE_DISPLAY[hydrationState];
+  const showLifecycleEntryPanel = hydrationState === 'no-visit' || hydrationState === 'survey-in-progress';
+  const deliveryActionIds: VisitHomeActionId[] = [
+    'implementation-workflow',
+    'resolve-follow-ups',
+    'export-handover-package',
+  ];
+  const hasVisibleDeliveryActions = deliveryActionIds.some((actionId) => isActionVisible(actionId));
 
   // ── Property title for display ─────────────────────────────────────────────
 
@@ -497,22 +528,46 @@ export function VisitHomeDashboard({
         <span className="vhd-hydration-banner__description">{hydrationDisplay.description}</span>
       </div>
 
-      {/* ── No-visit empty state entry panel ──────────────────────────────── */}
-      {hydrationState === 'no-visit' && (
+      {/* ── Lifecycle entry panel (no-visit / survey-in-progress) ─────────── */}
+      {showLifecycleEntryPanel && (
         <div className="vhd-empty-state" data-testid="visit-home-empty-state">
-          <p className="vhd-empty-state__heading">Start a review session</p>
+          <p className="vhd-empty-state__heading">
+            {hydrationState === 'no-visit' ? 'Start a review session' : 'Continue this visit'}
+          </p>
           <p className="vhd-empty-state__copy">
-            Import a scan package, open an existing visit, or start with a demo to load recommendation data.
+            {hydrationState === 'no-visit'
+              ? 'Import a scan package, open an existing visit, or start with a demo to load recommendation data.'
+              : 'Continue survey capture, resume Atlas Scan import, or generate recommendation to hydrate this workspace.'}
           </p>
           <div className="vhd-empty-state__actions">
-            {onImportScanPackage != null && (
+            {hydrationState === 'survey-in-progress' && onContinueSurvey != null && (
               <button
                 type="button"
                 className="vhd-empty-state__cta vhd-empty-state__cta--primary"
+                onClick={onContinueSurvey}
+                data-testid="visit-home-continue-survey-cta"
+              >
+                📝 Continue survey
+              </button>
+            )}
+            {onImportScanPackage != null && (
+              <button
+                type="button"
+                className={`vhd-empty-state__cta${hydrationState === 'survey-in-progress' ? ' vhd-empty-state__cta--secondary' : ''}`}
                 onClick={onImportScanPackage}
                 data-testid="visit-home-import-scan-cta"
               >
-                📥 Import Atlas Scan package
+                📥 Resume Atlas Scan import
+              </button>
+            )}
+            {hydrationState === 'survey-in-progress' && onRunRecommendation != null && (
+              <button
+                type="button"
+                className="vhd-empty-state__cta vhd-empty-state__cta--secondary"
+                onClick={onRunRecommendation}
+                data-testid="visit-home-run-recommendation-cta"
+              >
+                ⚙️ Run recommendation
               </button>
             )}
             {onImportWorkflowPackage != null && (
@@ -546,17 +601,45 @@ export function VisitHomeDashboard({
                 🔍 Open existing visit
               </button>
             )}
-            {onStartDemo != null && (
+            {onStartDemoReview != null && (
               <button
                 type="button"
                 className="vhd-empty-state__cta vhd-empty-state__cta--secondary"
-                onClick={onStartDemo}
+                onClick={onStartDemoReview}
                 data-testid="visit-home-start-demo-cta"
               >
-                🎬 Start demo fixture
+                🎬 Start demo review
+              </button>
+            )}
+            {onOpenDemoFixtures != null && (
+              <button
+                type="button"
+                className="vhd-empty-state__cta"
+                onClick={onOpenDemoFixtures}
+                data-testid="visit-home-open-demo-fixtures-cta"
+              >
+                🧪 Open demo fixtures
               </button>
             )}
           </div>
+          {visitSelectorEntries.length > 0 && onSelectVisit != null && (
+            <div className="vhd-readiness-panel" data-testid="visit-home-selector-panel">
+              <h2 className="vhd-panel-title">Open existing visit</h2>
+              <div className="vhd-local-controls__actions">
+                {visitSelectorEntries.map((entry) => (
+                  <button
+                    key={`${entry.source}:${entry.visitId}`}
+                    type="button"
+                    className="vhd-inline-action"
+                    onClick={() => onSelectVisit(entry.visitId)}
+                    data-testid={`visit-home-selector-${entry.source}-${entry.visitId}`}
+                  >
+                    {entry.label} ({entry.source})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -718,61 +801,63 @@ export function VisitHomeDashboard({
         </main>
 
         <aside className="vhd-rail vhd-rail--right">
-          <section className="vhd-section" data-testid="visit-home-section-delivery-handover">
-            <h2 className="vhd-section__title">Delivery / handover</h2>
-            <div className="vhd-rail vhd-rail--nested">
-              {isActionVisible('implementation-workflow') && (
-                <DashboardCard
-                  data-testid="card-implementation"
-                  icon="🔧"
-                  title="Implementation workflow"
-                  description={
-                    installationSpecOptionCount > 0
-                      ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
-                      : 'Prepare scope, materials, and commissioning checklist for delivery.'
-                  }
-                  status={implementationActionStatus}
-                  blockedReason={actionReason('implementation-workflow')}
-                  audience={['engineer']}
-                  source="workflow"
-                  ctaLabel="Prepare implementation pack →"
-                  onCta={canTriggerAction('implementation-workflow', implementationStatus, 'ready-or-needs-review')
-                    ? onOpenInstallationSpecification
-                    : undefined}
-                />
-              )}
+          {hasVisibleDeliveryActions && (
+            <section className="vhd-section" data-testid="visit-home-section-delivery-handover">
+              <h2 className="vhd-section__title">Delivery / handover</h2>
+              <div className="vhd-rail vhd-rail--nested">
+                {isActionVisible('implementation-workflow') && (
+                  <DashboardCard
+                    data-testid="card-implementation"
+                    icon="🔧"
+                    title="Implementation workflow"
+                    description={
+                      installationSpecOptionCount > 0
+                        ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
+                        : 'Prepare scope, materials, and commissioning checklist for delivery.'
+                    }
+                    status={implementationActionStatus}
+                    blockedReason={actionReason('implementation-workflow')}
+                    audience={['engineer']}
+                    source="workflow"
+                    ctaLabel="Prepare implementation pack →"
+                    onCta={canTriggerAction('implementation-workflow', implementationStatus, 'ready-or-needs-review')
+                      ? onOpenInstallationSpecification
+                      : undefined}
+                  />
+                )}
 
-              {isActionVisible('resolve-follow-ups') && (
-                <DashboardCard
-                  data-testid="card-handoff"
-                  icon="📱"
-                  title="Follow-up and handoff"
-                  description="Review post-visit handoff details and linked captured evidence."
-                  status={actionStatus('resolve-follow-ups', handoffStatus)}
-                  blockedReason={actionReason('resolve-follow-ups')}
-                  audience={['engineer', 'office']}
-                  source="workflow"
-                  ctaLabel="Review handoff →"
-                  onCta={canTriggerAction('resolve-follow-ups', handoffStatus, 'not-blocked') ? onOpenHandoffReview : undefined}
-                />
-              )}
+                {isActionVisible('resolve-follow-ups') && (
+                  <DashboardCard
+                    data-testid="card-handoff"
+                    icon="📱"
+                    title="Follow-up and handoff"
+                    description="Review post-visit handoff details and linked captured evidence."
+                    status={actionStatus('resolve-follow-ups', handoffStatus)}
+                    blockedReason={actionReason('resolve-follow-ups')}
+                    audience={['engineer', 'office']}
+                    source="workflow"
+                    ctaLabel="Review handoff →"
+                    onCta={canTriggerAction('resolve-follow-ups', handoffStatus, 'not-blocked') ? onOpenHandoffReview : undefined}
+                  />
+                )}
 
-              {isActionVisible('export-handover-package') && (
-                <DashboardCard
-                  data-testid="card-export"
-                  icon="📦"
-                  title="Export package"
-                  description="Export recommendation, portal context, and implementation pack for office handover."
-                  status={actionStatus('export-handover-package', exportStatus)}
-                  blockedReason={actionReason('export-handover-package')}
-                  audience={['office']}
-                  source="workflow"
-                  ctaLabel="Export handover package →"
-                  onCta={canTriggerAction('export-handover-package', exportStatus, 'not-blocked') ? onExportPackage : undefined}
-                />
-              )}
-            </div>
-          </section>
+                {isActionVisible('export-handover-package') && (
+                  <DashboardCard
+                    data-testid="card-export"
+                    icon="📦"
+                    title="Export package"
+                    description="Export recommendation, portal context, and implementation pack for office handover."
+                    status={actionStatus('export-handover-package', exportStatus)}
+                    blockedReason={actionReason('export-handover-package')}
+                    audience={['office']}
+                    source="workflow"
+                    ctaLabel="Export handover package →"
+                    onCta={canTriggerAction('export-handover-package', exportStatus, 'not-blocked') ? onExportPackage : undefined}
+                  />
+                )}
+              </div>
+            </section>
+          )}
 
           <div className="vhd-readiness-panel" data-testid="visit-home-scan-entry-note">
             <h2 className="vhd-panel-title">Capture and import split</h2>

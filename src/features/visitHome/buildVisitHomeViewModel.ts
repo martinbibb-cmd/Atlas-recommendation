@@ -118,7 +118,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
 
   const simulatorStatus: VisitHomeSurfaceStatus = !input.simulatorAvailability.hasSimulatorSurface
     ? 'blocked'
-    : hasAcceptedScenario && hasSurveyModel
+    : hasRecommendation && hasSurveyModel
     ? 'ready'
     : canUnlockReviewSurfaces
     ? 'needs-review'

@@ -224,7 +224,7 @@ describe('VisitHomeDashboard hydration banner', () => {
     expect(banner).toHaveAttribute('data-hydration-state', 'no-visit');
   });
 
-  it('shows visit-loaded state when visitId set but no recommendation', () => {
+  it('shows survey-in-progress state when visitId set but no recommendation', () => {
     render(
       <VisitHomeDashboard
         {...makeProps({
@@ -237,7 +237,7 @@ describe('VisitHomeDashboard hydration banner', () => {
       />,
     );
     const banner = screen.getByTestId('visit-home-hydration-banner');
-    expect(banner).toHaveAttribute('data-hydration-state', 'visit-loaded');
+    expect(banner).toHaveAttribute('data-hydration-state', 'survey-in-progress');
   });
 
   it('shows recommendation-ready when engine output exists but no accepted scenario + survey model pair', () => {
@@ -258,6 +258,12 @@ describe('VisitHomeDashboard hydration banner', () => {
     const banner = screen.getByTestId('visit-home-hydration-banner');
     expect(banner).toHaveAttribute('data-hydration-state', 'review-in-progress');
   });
+
+  it('shows handover-ready when handoff output is available', () => {
+    render(<VisitHomeDashboard {...makeProps({ onOpenHandoffReview: vi.fn() })} />);
+    const banner = screen.getByTestId('visit-home-hydration-banner');
+    expect(banner).toHaveAttribute('data-hydration-state', 'handover-ready');
+  });
 });
 
 // ─── Visit Home Dashboard — empty state when no visit ─────────────────────────
@@ -273,7 +279,7 @@ describe('VisitHomeDashboard empty state', () => {
           scenarios: [],
           onImportScanPackage: vi.fn(),
           onOpenExistingVisit: vi.fn(),
-          onStartDemo: vi.fn(),
+          onStartDemoReview: vi.fn(),
         })}
       />,
     );
@@ -319,8 +325,8 @@ describe('VisitHomeDashboard empty state', () => {
     expect(onOpenExistingVisit).toHaveBeenCalledOnce();
   });
 
-  it('start demo CTA calls onStartDemo', () => {
-    const onStartDemo = vi.fn();
+  it('start demo CTA calls onStartDemoReview', () => {
+    const onStartDemoReview = vi.fn();
     render(
       <VisitHomeDashboard
         {...makeProps({
@@ -328,12 +334,81 @@ describe('VisitHomeDashboard empty state', () => {
           engineOutput: undefined,
           acceptedScenario: undefined,
           scenarios: [],
-          onStartDemo,
+          onStartDemoReview,
         })}
       />,
     );
     fireEvent.click(screen.getByTestId('visit-home-start-demo-cta'));
-    expect(onStartDemo).toHaveBeenCalledOnce();
+    expect(onStartDemoReview).toHaveBeenCalledOnce();
+  });
+
+  it('shows continue-survey and run-recommendation CTAs when survey is in progress', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          engineOutput: undefined,
+          acceptedScenario: undefined,
+          recommendationSummary: undefined,
+          scenarios: [],
+          surveyModel: undefined,
+          onContinueSurvey: vi.fn(),
+          onRunRecommendation: vi.fn(),
+        })}
+      />,
+    );
+    expect(screen.getByTestId('visit-home-continue-survey-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-run-recommendation-cta')).toBeInTheDocument();
+  });
+
+  it('run recommendation CTA calls onRunRecommendation', () => {
+    const onRunRecommendation = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          engineOutput: undefined,
+          acceptedScenario: undefined,
+          recommendationSummary: undefined,
+          scenarios: [],
+          surveyModel: undefined,
+          onRunRecommendation,
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('visit-home-run-recommendation-cta'));
+    expect(onRunRecommendation).toHaveBeenCalledOnce();
+  });
+
+  it('existing visit selector opens chosen visit session', () => {
+    const onSelectVisit = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          visitId: undefined,
+          engineOutput: undefined,
+          acceptedScenario: undefined,
+          scenarios: [],
+          visitSelectorEntries: [
+            { visitId: 'atlas_visit_local_1', label: 'Saved visit LOCAL001', source: 'local' },
+            { visitId: 'demo_visit_001', label: 'Demo fixture 00000001', source: 'demo' },
+          ],
+          onSelectVisit,
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('visit-home-selector-local-atlas_visit_local_1'));
+    expect(onSelectVisit).toHaveBeenCalledWith('atlas_visit_local_1');
+  });
+
+  it('hides delivery / handover rail section when no delivery actions are visible', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          workspaceRole: 'viewer',
+          workspacePermissions: ['view_visits'],
+        })}
+      />,
+    );
+    expect(screen.queryByTestId('visit-home-section-delivery-handover')).not.toBeInTheDocument();
   });
 });
 
