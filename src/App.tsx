@@ -33,6 +33,7 @@ import EngineerPreinstallPage from './components/engineer/EngineerPreinstallPage
 import { SpatialTwinPage } from './features/spatialTwin/routes/SpatialTwinPage';
 import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
+import UnifiedSimulatorView from './components/simulator/UnifiedSimulatorView';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
 import { getVisit, saveVisit } from './lib/visits/visitApi';
@@ -448,7 +449,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
@@ -1944,19 +1945,19 @@ function AppInner() {
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               onOpenSimulator={() => {
-                setLastOpenedFromHome({ label: 'Simulator', journey: 'simulator' });
+                setLastOpenedFromHome({ label: 'Simulator', journey: 'unified-simulator' });
                 setSimulatorFromJourney('visit-home');
-                setJourney('simulator');
+                setJourney('unified-simulator');
               }}
               onOpenPresentation={() => {
                 setLastOpenedFromHome({ label: 'Presentation', journey: 'presentation' });
                 setPresentationFromJourney('visit-home');
                 setJourney('presentation');
               }}
-              onPrintSummary={() => {
+              onPrintSummary={labEngineInput != null && visitHomeEngineOutput != null ? () => {
                 setLastOpenedFromHome({ label: 'Supporting PDF', journey: 'framework-print' });
                 setJourney('framework-print');
-              }}
+              } : undefined}
               onOpenInstallationSpecification={() => {
                 setLastOpenedFromHome({ label: 'Specification', journey: 'installation-specification' });
                 setJourney('installation-specification');
@@ -2194,6 +2195,42 @@ function AppInner() {
             surveyData={labEngineInput}
             floorplanOutput={floorplanOutput}
           />
+        </GlobalMenuShell>
+      )}
+      {journey === 'unified-simulator' && (
+        <GlobalMenuShell>
+          <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+            <div style={{ padding: '0.5rem 1rem' }}>
+              <button className="back-btn" onClick={() => setJourney(simulatorFromJourney)}>
+                ← Back
+              </button>
+            </div>
+            {(() => {
+              if (labEngineInput == null) {
+                return (
+                  <div style={{ padding: '0 1rem 1rem', color: '#475569' }}>
+                    Recommendation not available.
+                  </div>
+                );
+              }
+              try {
+                const { engineOutput } = runEngine(labEngineInput);
+                return (
+                  <UnifiedSimulatorView
+                    engineOutput={engineOutput}
+                    surveyData={(labFullSurveyModel ?? labEngineInput) as FullSurveyModelV1}
+                    floorplanOutput={floorplanOutput}
+                  />
+                );
+              } catch {
+                return (
+                  <div style={{ padding: '0 1rem 1rem', color: '#475569' }}>
+                    Recommendation not available.
+                  </div>
+                );
+              }
+            })()}
+          </div>
         </GlobalMenuShell>
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}

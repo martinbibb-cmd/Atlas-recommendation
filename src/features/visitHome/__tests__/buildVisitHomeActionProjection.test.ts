@@ -16,6 +16,7 @@ const BASE_INPUT = {
   availableOutputs: {
     hasPortalUrl: true,
     hasInsightPack: true,
+    hasSupportingPdf: true,
     hasHandoffReview: true,
     hasExportPackage: true,
   },
@@ -70,6 +71,85 @@ describe('buildVisitHomeActionProjection', () => {
       },
     });
     const blockedExport = projection.blockedActions.find((item) => item.actionId === 'export-handover-package');
-    expect(blockedExport?.reasonLabel).toBe('Export package unlocks after visit and survey readiness.');
+    expect(blockedExport?.reasonLabel).toBe('Visit data missing');
+  });
+
+  it('marks simulator as ready when visit and engine data are present', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'surveyor',
+      visitReadiness: {
+        hasVisit: true,
+        hasEngineData: true,
+      },
+    });
+    const simulator = projection.visibleActions.find((item) => item.actionId === 'run-simulator');
+    expect(simulator?.status).toBe('ready');
+  });
+
+  it('marks export as ready when visit and engine data exist, independent of generated package output', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'office',
+      availableOutputs: {
+        ...BASE_INPUT.availableOutputs,
+        hasExportPackage: false,
+      },
+    });
+    const exportAction = projection.visibleActions.find((item) => item.actionId === 'export-handover-package');
+    expect(exportAction?.status).toBe('ready');
+  });
+
+  it('marks missing supporting PDF output as needs-review instead of blocked', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'office',
+      availableOutputs: {
+        ...BASE_INPUT.availableOutputs,
+        hasSupportingPdf: false,
+      },
+    });
+    const pdf = projection.visibleActions.find((item) => item.actionId === 'supporting-pdf');
+    expect(pdf?.status).toBe('needs-review');
+  });
+
+  it('library unsafe blocks only customer portal and supporting PDF surfaces', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'owner',
+      libraryProjectionSafety: {
+        unsafe: true,
+        reasons: ['x'],
+      },
+    });
+    const blockedIds = projection.blockedActions.map((item) => item.actionId);
+    expect(blockedIds).toContain('customer-portal');
+    expect(blockedIds).toContain('supporting-pdf');
+    expect(blockedIds).not.toContain('run-simulator');
+    expect(blockedIds).not.toContain('export-handover-package');
+  });
+
+  it('uses explicit blocked reason copy for library safety and missing data gates', () => {
+    const libraryBlocked = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'viewer',
+      libraryProjectionSafety: {
+        unsafe: true,
+        reasons: ['legacy reason'],
+      },
+    });
+    const portalBlocked = libraryBlocked.blockedActions.find((item) => item.actionId === 'customer-portal');
+    expect(portalBlocked?.reasonLabel).toBe('Library safety needs review');
+
+    const recommendationBlocked = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'surveyor',
+      visitReadiness: {
+        hasVisit: true,
+        hasEngineData: false,
+      },
+    });
+    const simulatorBlocked = recommendationBlocked.blockedActions.find((item) => item.actionId === 'run-simulator');
+    expect(simulatorBlocked?.reasonLabel).toBe('Recommendation not available');
   });
 });
