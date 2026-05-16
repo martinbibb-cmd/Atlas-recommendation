@@ -143,6 +143,12 @@ function resolveTrialReadinessStatus(
     case 'customerPortal':
       return evaluation.summary.brandingValid ? 'pass' : 'fail';
     case 'supportingPdf':
+      // Workspace lifecycle scenarios do not currently include PDF-QA fixtures.
+      // Until they do, supporting PDF readiness follows the same brand-integrity
+      // gate as customer-portal output at this release-gate layer.
+      // TODO(ATLAS-PDF-QA-LIFECYCLE): Replace this fallback with
+      // assessLibraryPdfCustomerReadiness-derived signals once workspace
+      // lifecycle scenarios include PDF-QA evidence.
       return evaluation.summary.brandingValid ? 'pass' : 'fail';
     case 'implementationWorkflow':
       return evaluation.summary.workflowValid ? 'pass' : 'fail';

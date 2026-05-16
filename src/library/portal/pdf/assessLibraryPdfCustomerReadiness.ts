@@ -60,7 +60,7 @@ export function assessLibraryPdfCustomerReadiness(
   }
 
   if (surveyCondition == null) {
-    warnings.push('Survey condition is unavailable; verify system-protection evidence before customer share.');
+    warnings.push('Survey condition data unavailable; verify system-protection evidence manually before release.');
   }
 
   if (surveyCondition != null && !hasPassedCheck(pdfComparisonAudit, 'system_protection_present')) {

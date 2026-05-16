@@ -77,7 +77,9 @@ describe('assessLibraryPdfCustomerReadiness', () => {
     });
 
     expect(result.readyForCustomer).toBe(false);
-    expect(result.blockingReasons.join(' ')).toMatch(/guessed cws\/vented tank capacity/i);
+    expect(result.blockingReasons).toContain(
+      'PDF QA blocked: guessed CWS/vented tank capacity detected.',
+    );
   });
 
   it('legacy heading is blocked', () => {
@@ -98,7 +100,9 @@ describe('assessLibraryPdfCustomerReadiness', () => {
     });
 
     expect(result.readyForCustomer).toBe(false);
-    expect(result.blockingReasons.join(' ')).toMatch(/legacy report headings/i);
+    expect(result.blockingReasons).toContain(
+      'PDF QA blocked: legacy report headings detected.',
+    );
   });
 
   it('missing survey condition is warning only', () => {
@@ -110,6 +114,8 @@ describe('assessLibraryPdfCustomerReadiness', () => {
 
     expect(result.readyForCustomer).toBe(true);
     expect(result.blockingReasons).toHaveLength(0);
-    expect(result.warnings.join(' ')).toMatch(/survey condition is unavailable/i);
+    expect(result.warnings).toContain(
+      'Survey condition data unavailable; verify system-protection evidence manually before release.',
+    );
   });
 });
