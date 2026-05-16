@@ -241,30 +241,20 @@ export default function HouseSimulatorPage({
     EFFICIENCY_BADGE_COLOR[vm.efficiencyWidget.statusTone] ?? '#718096';
 
   function toggleOutlet(outletId: string) {
-    switch (outletId) {
-      case 'shower':
-        setDemandControls({ shower: !demandControls.shower });
-        break;
-      case 'bath':
-        setDemandControls({ bath: !demandControls.bath });
-        break;
-      case 'kitchen':
-        setDemandControls({ kitchen: !demandControls.kitchen });
-        break;
-      case 'cold_tap':
-      case 'washing_machine':
-        setDemandControls({ coldTap: !demandControls.coldTap });
-        break;
-      default:
-        break;
+    const outletNode = vm.outletNodes.find(node => node.outletId === outletId);
+    if (outletNode != null) {
+      const controlKey = outletNode.controlId === 'cold_tap' ? 'coldTap' : outletNode.controlId;
+      setDemandControls({ [controlKey]: !demandControls[controlKey] });
     }
   }
 
   function handleOutletPress(outletId: string) {
-    setSelectedOutletId(outletId);
     if (isManualMode) {
       toggleOutlet(outletId);
+      setSelectedOutletId(null);
+      return;
     }
+    setSelectedOutletId(outletId);
   }
 
   const systemWarnings = [
@@ -295,7 +285,7 @@ export default function HouseSimulatorPage({
   const activeEvents = [
     ...((diagramState.systemMode === 'heating' || diagramState.systemMode === 'heating_and_reheat') ? ['Heating active'] : []),
     ...vm.outletNodes
-      .filter(node => node.active && node.outletId !== 'washing_machine')
+      .filter(node => node.active && !node.isSynthetic)
       .map(node => node.label),
     ...(diagramState.serviceSwitchingActive ? ['Service switching'] : []),
   ];

@@ -18,6 +18,8 @@ import type { EfficiencyDisplayState } from '../../explainers/lego/simulator/use
 import type { LimiterDisplayState } from '../../explainers/lego/simulator/useLimiterPlayback';
 import type { LiveMetricChipProps } from './LiveMetricChip';
 
+type OutletStateView = DrawOffDisplayState['outletStates'][number];
+
 // ─── Public view model types ──────────────────────────────────────────────────
 
 /** Narration data for SystemNarrationToast. */
@@ -69,9 +71,11 @@ export type ActiveOutletChipViewModel = {
 /** All outlet nodes (active + inactive) rendered in the house canvas. */
 export type OutletNodeViewModel = {
   outletId: string;
+  controlId: 'shower' | 'bath' | 'kitchen' | 'cold_tap';
   label: string;
   icon: string;
   roomName: string;
+  isSynthetic?: boolean;
   active: boolean;
   constrained: boolean;
   metrics: LiveMetricChipProps[];
@@ -112,6 +116,9 @@ const OUTLET_ICON: Record<string, string> = {
 };
 
 /** Maps outlet id to the room name it lives in within the house canvas. */
+// This is intentionally a simplified stage map for the current house surface.
+// Washing machine is anchored to kitchen for now (no dedicated utility room in
+// this fixed-stage layout).
 const OUTLET_ROOM: Record<string, string> = {
   shower:   'Bathroom',
   bath:     'Bathroom',
@@ -161,6 +168,45 @@ function tempChip(tempC: number): LiveMetricChipProps {
   };
 }
 
+function buildOutletMetrics(outlet: OutletStateView): LiveMetricChipProps[] {
+  if (!outlet.open) {
+    return [];
+  }
+  const metrics: LiveMetricChipProps[] = [flowChip(outlet.flowLpm, outlet.isConstrained)];
+  if (outlet.deliveredTempC !== undefined) {
+    metrics.push(tempChip(outlet.deliveredTempC));
+  }
+  return metrics;
+}
+
+function createWashingMachineNode(coldTapNode?: OutletStateView): OutletNodeViewModel {
+  // The house-simulator controls expose a dedicated washing-machine node, but
+  // the current simulator demand model uses one shared cold-only appliance
+  // channel (`cold_tap`). This node intentionally mirrors that shared channel
+  // as a current-model limitation rather than independent physics.
+  return {
+    outletId: 'washing_machine',
+    controlId: 'cold_tap',
+    label: 'Washing machine',
+    icon: OUTLET_ICON['washing_machine'],
+    roomName: OUTLET_ROOM['washing_machine'],
+    isSynthetic: true,
+    active: coldTapNode?.open ?? false,
+    constrained: coldTapNode?.isConstrained ?? false,
+    metrics: coldTapNode != null ? buildOutletMetrics(coldTapNode) : [],
+    detailText: coldTapNode?.constraintReason,
+  };
+}
+
+function mapOutletToControlId(outletId: string): OutletNodeViewModel['controlId'] {
+  switch (outletId) {
+    case 'shower': return 'shower';
+    case 'bath': return 'bath';
+    case 'kitchen': return 'kitchen';
+    default: return 'cold_tap';
+  }
+}
+
 // ─── Public adapter ───────────────────────────────────────────────────────────
 
 export function buildHouseSimulatorViewModel(
@@ -205,12 +251,7 @@ export function buildHouseSimulatorViewModel(
   const activeOutlets: ActiveOutletChipViewModel[] = drawOffState.outletStates
     .filter(o => o.open)
     .map(o => {
-      const metrics: LiveMetricChipProps[] = [
-        flowChip(o.flowLpm, o.isConstrained),
-      ];
-      if (o.deliveredTempC !== undefined) {
-        metrics.push(tempChip(o.deliveredTempC));
-      }
+      const metrics = buildOutletMetrics(o);
       return {
         outletId:    o.outletId,
         label:       o.label,
@@ -222,41 +263,21 @@ export function buildHouseSimulatorViewModel(
     });
 
   const outletNodes: OutletNodeViewModel[] = drawOffState.outletStates.map(o => {
-    const metrics: LiveMetricChipProps[] = [];
-    if (o.open) {
-      metrics.push(flowChip(o.flowLpm, o.isConstrained));
-      if (o.deliveredTempC !== undefined) {
-        metrics.push(tempChip(o.deliveredTempC));
-      }
-    }
     return {
       outletId: o.outletId,
+      controlId: mapOutletToControlId(o.outletId),
       label: o.label,
       icon: OUTLET_ICON[o.outletId] ?? '💧',
       roomName: OUTLET_ROOM[o.outletId] ?? 'Kitchen',
       active: o.open,
       constrained: o.isConstrained,
-      metrics,
+      metrics: buildOutletMetrics(o),
       detailText: o.constraintReason,
     };
   });
 
   const coldTapNode = drawOffState.outletStates.find(o => o.outletId === 'cold_tap');
-  outletNodes.push({
-    outletId: 'washing_machine',
-    label: 'Washing machine',
-    icon: OUTLET_ICON['washing_machine'],
-    roomName: OUTLET_ROOM['washing_machine'],
-    active: coldTapNode?.open ?? false,
-    constrained: coldTapNode?.isConstrained ?? false,
-    metrics: (coldTapNode?.open ?? false)
-      ? [
-          flowChip(coldTapNode?.flowLpm ?? 0, coldTapNode?.isConstrained ?? false),
-          ...(coldTapNode?.deliveredTempC !== undefined ? [tempChip(coldTapNode.deliveredTempC)] : []),
-        ]
-      : [],
-    detailText: coldTapNode?.constraintReason,
-  });
+  outletNodes.push(createWashingMachineNode(coldTapNode));
 
   // ── Warnings ───────────────────────────────────────────────────────────────
   const hasWarnings    = limiterState.activeLimiters.length > 0;

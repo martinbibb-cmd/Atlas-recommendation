@@ -113,14 +113,8 @@ export default function TimelineBottomSheet({
             </div>
             <label className="hs-bottom-sheet__scrubber">
               Time scrubber
-              <input
-                type="range"
-                min={0}
-                max={23}
-                value={simHour}
-                readOnly
-                aria-label={`Current simulated hour ${simHour}:00`}
-              />
+              <progress max={23} value={simHour} aria-label={`Current simulated hour ${simHour}:00`} />
+              <span aria-hidden="true">{String(simHour).padStart(2, '0')}:00</span>
             </label>
           </div>
 

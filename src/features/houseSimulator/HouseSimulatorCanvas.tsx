@@ -125,7 +125,7 @@ export default function HouseSimulatorCanvas({
   onOutletPress,
 }: HouseSimulatorCanvasProps) {
   const { floors, indoorTempC, statusLabel, chPaused } = houseState;
-  const selectedOutlet = selectedOutletId != null
+  const selectedOutletNode = selectedOutletId != null
     ? outletNodes.find(outlet => outlet.outletId === selectedOutletId)
     : undefined;
 
@@ -149,7 +149,7 @@ export default function HouseSimulatorCanvas({
       <div className="hs-house" aria-label="House floor plan">
 
         <div className="hs-house__roof" aria-hidden="true">
-          <svg className="hs-house__roof-svg" viewBox="0 0 240 36" preserveAspectRatio="none" focusable="false" aria-hidden="true">
+          <svg className="hs-house__roof-svg" viewBox="0 0 240 36" preserveAspectRatio="xMidYMid meet" focusable="false" aria-hidden="true">
             <defs>
               <linearGradient id="hsRoofGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#5a667a" />
@@ -164,7 +164,7 @@ export default function HouseSimulatorCanvas({
 
         <div className="hs-house__stage">
           {/* 1) House artwork layer (static, fixed stage) */}
-          <svg className="hs-house__artwork" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
+          <svg className="hs-house__artwork" viewBox="0 0 1000 620" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
             <defs>
               <linearGradient id="hsHouseBackdrop" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#f8fafc" />
@@ -229,18 +229,18 @@ export default function HouseSimulatorCanvas({
       )}
 
       {/* 5) Canvas-local outlet detail layer */}
-      {selectedOutlet != null && (
-        <aside className="hs-outlet-popover" aria-label={`${selectedOutlet.label} details`}>
-          <strong>{selectedOutlet.label}</strong>
+      {selectedOutletNode != null && (
+        <aside className="hs-outlet-popover" aria-label={`${selectedOutletNode.label} details`}>
+          <strong>{selectedOutletNode.label}</strong>
           <p>
-            {selectedOutlet.active
+            {selectedOutletNode.active
               ? 'Active outlet'
               : isManualMode
                 ? 'Tap to open this outlet in manual mode'
                 : 'Auto mode controls this outlet from scenario playback'}
           </p>
-          {selectedOutlet.detailText && (
-            <p className="hs-outlet-popover__warning">{selectedOutlet.detailText}</p>
+          {selectedOutletNode.detailText && (
+            <p className="hs-outlet-popover__warning">{selectedOutletNode.detailText}</p>
           )}
         </aside>
       )}
