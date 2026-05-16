@@ -33,8 +33,10 @@ export function computeVisitHydrationState(
   input: ComputeVisitHydrationStateInput,
 ): VisitHydrationState {
   if (!input.hasVisit) return 'no-visit';
-  if (input.hasHandoffReview || input.hasExportPackage) return 'handover-ready';
-  if (input.hasAcceptedScenario && input.hasSurveyModel) return 'review-in-progress';
+  if (input.hasAcceptedScenario && input.hasSurveyModel) {
+    if (input.hasHandoffReview || input.hasExportPackage) return 'handover-ready';
+    return 'review-in-progress';
+  }
   if (input.hasRecommendation) return 'recommendation-ready';
   return 'survey-in-progress';
 }

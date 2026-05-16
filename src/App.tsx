@@ -1181,10 +1181,10 @@ function AppInner() {
 
   function handleGenerateRecommendation() {
     if (activeVisitId == null) return;
-    if (labFullSurveyModel == null && labEngineInput == null) return;
+    if (labFullSurveyModel == null) return;
 
-    const sourceInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel as FullSurveyModelV1));
-    const surveySnapshot = labFullSurveyModel ?? (sourceInput as unknown as FullSurveyModelV1);
+    const sourceInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel));
+    const surveySnapshot = labFullSurveyModel;
 
     let engineSnapshot: EngineOutputV1 | undefined;
     let scenariosSnapshot: ScenarioResult[] | undefined;
@@ -1230,9 +1230,9 @@ function AppInner() {
     });
   }
 
-  function handleStartDemoReview(visitId: string = DEMO_VISIT_IDS.completed_won) {
+  function handleStartDemoReview(demoVisitId: string = DEMO_VISIT_IDS.completed_won) {
     const demoSurvey = CONSOLE_DEMO_INPUT as unknown as FullSurveyModelV1;
-    setActiveVisitId(visitId);
+    setActiveVisitId(demoVisitId);
     setLabEngineInput(CONSOLE_DEMO_INPUT);
     setLabFullSurveyModel(demoSurvey);
     try {
@@ -1250,7 +1250,7 @@ function AppInner() {
         : undefined;
       const customerSummary = decision != null ? buildCustomerSummary(decision, scenarios) : undefined;
       setVisitRecommendationSnapshot({
-        visitId,
+        visitId: demoVisitId,
         engineOutput,
         scenarios,
         decision,
@@ -1258,7 +1258,7 @@ function AppInner() {
       });
       saveVisitAtomically({
         schemaVersion: 2,
-        visitId,
+        visitId: demoVisitId,
         updatedAt: new Date().toISOString(),
         survey: demoSurvey,
         engine: engineOutput,
