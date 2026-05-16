@@ -220,7 +220,7 @@ describe('route + inventory consolidation', () => {
     expect(isProductionRoute(route!)).toBe(true);
   });
 
-  it('no production route references framework-print as a CTA destination', () => {
+  it('production routes should not reference framework-print as a CTA destination', () => {
     const productionRoutes = DEV_ROUTE_REGISTRY.filter((entry) => entry.access === 'production');
     const frameworkPrintReferences = productionRoutes.filter((route) =>
       [
