@@ -288,6 +288,25 @@ describe('VisitHomeDashboard', () => {
       expect(card).toHaveAttribute('data-status', 'ready');
       expect(card).toHaveTextContent('2 options saved');
     });
+
+    it('blocked actions render reason labels instead of only dead buttons', () => {
+      render(
+        <VisitHomeDashboard
+          {...makeProps({
+            workspaceRole: 'office',
+            engineInput: undefined,
+            engineOutput: undefined,
+            visitId: undefined,
+          })}
+        />,
+      );
+      const card = screen.getByTestId('card-implementation');
+      expect(card).toHaveAttribute('data-status', 'blocked');
+      expect(screen.getByTestId('card-implementation-blocked-reason')).toHaveTextContent(
+        'Implementation workflow unlocks after survey processing.',
+      );
+      expect(screen.getByTestId('card-implementation-cta')).toBeDisabled();
+    });
   });
 
   it('back button calls onBack', () => {
@@ -339,6 +358,44 @@ describe('VisitHomeDashboard', () => {
       );
       const card = screen.getByTestId('card-export');
       expect(card).toHaveAttribute('data-status', 'blocked');
+    });
+  });
+
+  describe('role-aware action visibility', () => {
+    it('surveyor sees review/simulator/follow-up actions', () => {
+      render(<VisitHomeDashboard {...makeProps({ workspaceRole: 'surveyor' })} />);
+      expect(screen.getByTestId('card-recommendation')).toBeInTheDocument();
+      expect(screen.getByTestId('card-simulator')).toBeInTheDocument();
+      expect(screen.getByTestId('card-handoff')).toBeInTheDocument();
+      expect(screen.queryByTestId('card-pdf')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('card-export')).not.toBeInTheDocument();
+    });
+
+    it('office sees customer journey/PDF/workflow/export actions', () => {
+      render(<VisitHomeDashboard {...makeProps({ workspaceRole: 'office' })} />);
+      expect(screen.getByTestId('card-recommendation')).toBeInTheDocument();
+      expect(screen.getByTestId('card-pdf')).toBeInTheDocument();
+      expect(screen.getByTestId('card-implementation')).toBeInTheDocument();
+      expect(screen.getByTestId('card-export')).toBeInTheDocument();
+      expect(screen.queryByTestId('card-simulator')).not.toBeInTheDocument();
+    });
+
+    it('engineer sees implementation pack and walkthrough/follow-up actions', () => {
+      render(<VisitHomeDashboard {...makeProps({ workspaceRole: 'engineer' })} />);
+      expect(screen.getByTestId('card-implementation')).toBeInTheDocument();
+      expect(screen.getByTestId('card-handoff')).toBeInTheDocument();
+      expect(screen.queryByTestId('card-pdf')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('card-export')).not.toBeInTheDocument();
+    });
+
+    it('customer-preview role cannot see implementation internals', () => {
+      render(<VisitHomeDashboard {...makeProps({ workspaceRole: 'customer-preview' })} />);
+      expect(screen.getByTestId('card-portal')).toBeInTheDocument();
+      expect(screen.getByTestId('card-pdf')).toBeInTheDocument();
+      expect(screen.getByTestId('card-simulator')).toBeInTheDocument();
+      expect(screen.queryByTestId('card-implementation')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('card-handoff')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('card-export')).not.toBeInTheDocument();
     });
   });
 });

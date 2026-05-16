@@ -28,6 +28,12 @@ import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { WorkspaceMemberPermission } from '../../auth/profile';
+import {
+  buildVisitHomeActionProjection,
+  type VisitHomeActionId,
+  type VisitHomeActionRole,
+} from './buildVisitHomeActionProjection';
 import { detectVisitJourney } from './detectVisitJourney';
 import './VisitHomeDashboard.css';
 
@@ -58,6 +64,10 @@ export interface VisitHomeDashboardProps {
    * When > 0 the Implementation Workflow card shows 'ready'.
    */
   installationSpecOptionCount?: number;
+  /** Active workspace role used to project visible Visit Home actions. */
+  workspaceRole?: VisitHomeActionRole;
+  /** Active workspace permissions used to project blocked actions and reasons. */
+  workspacePermissions?: readonly WorkspaceMemberPermission[];
 
   // ── Library safety ─────────────────────────────────────────────────────────
 
@@ -180,6 +190,7 @@ interface DashboardCardProps {
   ctaLabel: string;
   onCta: (() => void) | undefined;
   variant?: 'default' | 'feature';
+  blockedReason?: string;
 }
 
 function DashboardCard({
@@ -193,6 +204,7 @@ function DashboardCard({
   ctaLabel,
   onCta,
   variant = 'default',
+  blockedReason,
 }: DashboardCardProps) {
   const isBlocked = status === 'blocked';
   const cardClassName = [
@@ -214,6 +226,11 @@ function DashboardCard({
       </div>
       <h3 className="vhd-card__title">{title}</h3>
       <p className="vhd-card__description">{description}</p>
+      {isBlocked && blockedReason != null && (
+        <p className="vhd-card__reason" data-testid={testId ? `${testId}-blocked-reason` : undefined}>
+          {blockedReason}
+        </p>
+      )}
       <div className="vhd-card__meta">
         {audience.map((a) => <AudienceBadge key={a} audience={a} />)}
         <SourceBadge source={source} />
@@ -242,6 +259,8 @@ export function VisitHomeDashboard({
   surveyModel,
   portalUrl,
   installationSpecOptionCount = 0,
+  workspaceRole,
+  workspacePermissions,
   libraryUnsafe = false,
   libraryBlockReasons,
   lastSurface,
@@ -292,15 +311,39 @@ export function VisitHomeDashboard({
   const handoffStatus: CardStatus = hasVisit && hasEngineData ? 'ready' : 'blocked';
 
   const exportStatus: CardStatus = hasVisit && hasEngineData ? 'ready' : 'blocked';
-  const readinessStatuses: CardStatus[] = [
-    recommendationStatus,
-    portalStatus,
-    simulatorStatus,
-    pdfStatus,
-    implementationStatus,
-    handoffStatus,
-    exportStatus,
-  ];
+  const actionProjection = buildVisitHomeActionProjection({
+    workspaceRole,
+    workspacePermissions,
+    visitReadiness: {
+      hasVisit,
+      hasEngineData,
+    },
+    libraryProjectionSafety: {
+      unsafe: libraryUnsafe,
+      reasons: libraryBlockReasons,
+    },
+    implementationReadiness: {
+      installationSpecOptionCount,
+    },
+    availableOutputs: {
+      hasPortalUrl: portalUrl != null,
+      hasInsightPack: onOpenInsightPack != null,
+      hasHandoffReview: onOpenHandoffReview != null,
+      hasExportPackage: onExportPackage != null,
+    },
+  });
+  const actionStateById = new Map(
+    actionProjection.visibleActions.map((action) => [action.actionId, action]),
+  );
+  const isActionVisible = (actionId: VisitHomeActionId): boolean => actionStateById.has(actionId);
+  const actionStatus = (actionId: VisitHomeActionId, fallback: CardStatus): CardStatus =>
+    actionStateById.get(actionId)?.status ?? fallback;
+  const actionReason = (actionId: VisitHomeActionId): string | undefined =>
+    actionStateById.get(actionId)?.reasonLabel;
+
+  const readinessStatuses: CardStatus[] = actionProjection.visibleActions
+    .map((action) => action.status)
+    .filter((status) => status !== 'dev-only');
   const readinessCounts = readinessStatuses.reduce(
     (counts, status) => {
       if (status === 'ready') counts.ready += 1;
@@ -377,7 +420,7 @@ export function VisitHomeDashboard({
       {/* ── Workspace rails ────────────────────────────────────────────────── */}
       <div className="vhd-workspace vhd-workspace--three-rail" data-testid="visit-home-workspace-layout">
         <aside className="vhd-rail vhd-rail--left">
-          {journeyInfo.archetype != null && (
+          {journeyInfo.archetype != null && isActionVisible('review-survey') && (
             <div
               className="vhd-journey-card"
               data-testid="visit-journey-card"
@@ -392,8 +435,8 @@ export function VisitHomeDashboard({
                 <button
                   type="button"
                   className="vhd-inline-action"
-                  onClick={hasEngineData ? onOpenPresentation : undefined}
-                  disabled={!hasEngineData}
+                  onClick={actionStatus('review-survey', recommendationStatus) === 'ready' ? onOpenPresentation : undefined}
+                  disabled={actionStatus('review-survey', recommendationStatus) !== 'ready'}
                   data-testid="visit-home-open-customer-journey"
                 >
                   Open customer journey →
@@ -411,108 +454,124 @@ export function VisitHomeDashboard({
             </ul>
           </div>
 
-          <DashboardCard
-            data-testid="card-recommendation"
-            icon="🎯"
-            title="Recommendation summary"
-            description="Review the recommendation with evidence and scenario context before customer handover."
-            status={recommendationStatus}
-            audience={['customer', 'surveyor']}
-            source="engine"
-            ctaLabel="Review recommendation →"
-            onCta={hasEngineData ? onOpenPresentation : undefined}
-          />
+          {isActionVisible('review-survey') && (
+            <DashboardCard
+              data-testid="card-recommendation"
+              icon="🎯"
+              title="Recommendation summary"
+              description="Review the recommendation with evidence and scenario context before customer handover."
+              status={actionStatus('review-survey', recommendationStatus)}
+              blockedReason={actionReason('review-survey')}
+              audience={['customer', 'surveyor']}
+              source="engine"
+              ctaLabel="Review recommendation →"
+              onCta={actionStatus('review-survey', recommendationStatus) === 'ready' ? onOpenPresentation : undefined}
+            />
+          )}
         </aside>
 
         <main className="vhd-main-area">
           <div className="vhd-main-grid">
-            <DashboardCard
-              data-testid="card-portal"
-              icon="🔗"
-              title="Customer portal / Insight"
-              description={
-                libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
-                  ? `Blocked: ${libraryBlockReasons[0]}`
-                  : 'Customer portal and Atlas Insight Pack for review before sharing.'
-              }
-              status={portalStatus}
-              audience={['customer']}
-              source="workflow"
-              ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-              onCta={onOpenInsightPack ?? handleOpenPortal}
-            />
+            {isActionVisible('customer-portal') && (
+              <DashboardCard
+                data-testid="card-portal"
+                icon="🔗"
+                title="Customer portal / Insight"
+                description="Customer portal and Atlas Insight Pack for review before sharing."
+                status={actionStatus('customer-portal', portalStatus)}
+                blockedReason={actionReason('customer-portal')}
+                audience={['customer']}
+                source="workflow"
+                ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
+                onCta={actionStatus('customer-portal', portalStatus) === 'blocked' ? undefined : (onOpenInsightPack ?? handleOpenPortal)}
+              />
+            )}
 
-            <DashboardCard
-              data-testid="card-pdf"
-              icon="📄"
-              title="Supporting PDF"
-              description={
-                libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
-                  ? `Blocked: ${libraryBlockReasons[0]}`
-                  : 'Customer-facing print pack with recommendation, scenarios, and explainers.'
-              }
-              status={pdfStatus}
-              audience={['customer', 'office']}
-              source="library"
-              ctaLabel="Print summary →"
-              onCta={hasEngineData ? onPrintSummary : undefined}
-            />
+            {isActionVisible('supporting-pdf') && (
+              <DashboardCard
+                data-testid="card-pdf"
+                icon="📄"
+                title="Supporting PDF"
+                description="Customer-facing print pack with recommendation, scenarios, and explainers."
+                status={actionStatus('supporting-pdf', pdfStatus)}
+                blockedReason={actionReason('supporting-pdf')}
+                audience={['customer', 'office']}
+                source="library"
+                ctaLabel="Print summary →"
+                onCta={actionStatus('supporting-pdf', pdfStatus) === 'ready' ? onPrintSummary : undefined}
+              />
+            )}
 
-            <DashboardCard
-              data-testid="card-simulator"
-              icon="📊"
-              title="Daily hot-water simulator"
-              description="Run the 24-hour demand and system response simulator during review."
-              status={simulatorStatus}
-              audience={['surveyor', 'engineer']}
-              source="simulator"
-              ctaLabel="Run daily-use simulator →"
-              onCta={onOpenSimulator}
-              variant="feature"
-            />
+            {isActionVisible('run-simulator') && (
+              <DashboardCard
+                data-testid="card-simulator"
+                icon="📊"
+                title="Daily hot-water simulator"
+                description="Run the 24-hour demand and system response simulator during review."
+                status={actionStatus('run-simulator', simulatorStatus)}
+                blockedReason={actionReason('run-simulator')}
+                audience={['surveyor', 'engineer']}
+                source="simulator"
+                ctaLabel="Run daily-use simulator →"
+                onCta={actionStatus('run-simulator', simulatorStatus) === 'blocked' ? undefined : onOpenSimulator}
+                variant="feature"
+              />
+            )}
           </div>
         </main>
 
         <aside className="vhd-rail vhd-rail--right">
-          <DashboardCard
-            data-testid="card-implementation"
-            icon="🔧"
-            title="Implementation workflow"
-            description={
-              installationSpecOptionCount > 0
-                ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
-                : 'Prepare scope, materials, and commissioning checklist for delivery.'
-            }
-            status={implementationStatus}
-            audience={['engineer']}
-            source="workflow"
-            ctaLabel="Prepare implementation pack →"
-            onCta={hasEngineData ? onOpenInstallationSpecification : undefined}
-          />
+          {isActionVisible('implementation-workflow') && (
+            <DashboardCard
+              data-testid="card-implementation"
+              icon="🔧"
+              title="Implementation workflow"
+              description={
+                installationSpecOptionCount > 0
+                  ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
+                  : 'Prepare scope, materials, and commissioning checklist for delivery.'
+              }
+              status={actionStatus('implementation-workflow', implementationStatus)}
+              blockedReason={actionReason('implementation-workflow')}
+              audience={['engineer']}
+              source="workflow"
+              ctaLabel="Prepare implementation pack →"
+              onCta={actionStatus('implementation-workflow', implementationStatus) === 'ready'
+                || actionStatus('implementation-workflow', implementationStatus) === 'needs-review'
+                ? onOpenInstallationSpecification
+                : undefined}
+            />
+          )}
 
-          <DashboardCard
-            data-testid="card-handoff"
-            icon="📱"
-            title="Follow-up and handoff"
-            description="Review post-visit handoff details and linked captured evidence."
-            status={handoffStatus}
-            audience={['engineer', 'office']}
-            source="workflow"
-            ctaLabel="Review handoff →"
-            onCta={onOpenHandoffReview}
-          />
+          {isActionVisible('resolve-follow-ups') && (
+            <DashboardCard
+              data-testid="card-handoff"
+              icon="📱"
+              title="Follow-up and handoff"
+              description="Review post-visit handoff details and linked captured evidence."
+              status={actionStatus('resolve-follow-ups', handoffStatus)}
+              blockedReason={actionReason('resolve-follow-ups')}
+              audience={['engineer', 'office']}
+              source="workflow"
+              ctaLabel="Review handoff →"
+              onCta={actionStatus('resolve-follow-ups', handoffStatus) === 'blocked' ? undefined : onOpenHandoffReview}
+            />
+          )}
 
-          <DashboardCard
-            data-testid="card-export"
-            icon="📦"
-            title="Export package"
-            description="Export recommendation, portal context, and implementation pack for office handover."
-            status={exportStatus}
-            audience={['office']}
-            source="workflow"
-            ctaLabel="Export handover package →"
-            onCta={onExportPackage}
-          />
+          {isActionVisible('export-handover-package') && (
+            <DashboardCard
+              data-testid="card-export"
+              icon="📦"
+              title="Export package"
+              description="Export recommendation, portal context, and implementation pack for office handover."
+              status={actionStatus('export-handover-package', exportStatus)}
+              blockedReason={actionReason('export-handover-package')}
+              audience={['office']}
+              source="workflow"
+              ctaLabel="Export handover package →"
+              onCta={actionStatus('export-handover-package', exportStatus) === 'blocked' ? undefined : onExportPackage}
+            />
+          )}
 
           <div className="vhd-readiness-panel" data-testid="visit-home-scan-entry-note">
             <h2 className="vhd-panel-title">Capture and import split</h2>
@@ -524,17 +583,19 @@ export function VisitHomeDashboard({
             </p>
           </div>
 
-          <div className="vhd-admin-actions" data-testid="visit-home-admin-actions">
-            <h2 className="vhd-panel-title">Admin actions</h2>
-            <button
-              type="button"
-              className="vhd-inline-action"
-              onClick={onOpenEngineerRoute}
-              disabled={onOpenEngineerRoute == null}
-            >
-              Open engineer route →
-            </button>
-          </div>
+          {isActionVisible('workspace-controls') && (
+            <div className="vhd-admin-actions" data-testid="visit-home-admin-actions">
+              <h2 className="vhd-panel-title">Admin actions</h2>
+              <button
+                type="button"
+                className="vhd-inline-action"
+                onClick={onOpenEngineerRoute}
+                disabled={onOpenEngineerRoute == null}
+              >
+                Open engineer route →
+              </button>
+            </div>
+          )}
         </aside>
       </div>
       <p className="vhd-mobile-fallback-note" data-testid="visit-home-mobile-fallback-note">
