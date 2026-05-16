@@ -161,6 +161,18 @@ interface DashboardCardProps {
   highlights?: readonly string[];
 }
 
+function buildSimulatorHighlights(
+  keyExpectationDelta: string,
+  firstConstraint?: string,
+): readonly string[] {
+  return [
+    `Expectation summary: ${keyExpectationDelta}`,
+    firstConstraint != null
+      ? `Hot-water and recovery highlight: ${firstConstraint}`
+      : 'Hot-water and recovery highlight: Review draw-off demand and recovery behaviour in the simulator timeline.',
+  ];
+}
+
 function DashboardCard({
   'data-testid': testId,
   icon,
@@ -556,12 +568,10 @@ export function VisitHomeDashboard({
                   ctaLabel="Run daily-use simulator →"
                   onCta={canTriggerAction('run-simulator', simulatorStatus, 'not-blocked') ? onOpenSimulator : undefined}
                   variant="feature"
-                  highlights={[
-                    `Expectation summary: ${viewModel.hero.keyExpectationDelta}`,
-                    viewModel.hero.keyConstraints[0] != null
-                      ? `Hot-water and recovery highlight: ${viewModel.hero.keyConstraints[0]}`
-                      : 'Hot-water and recovery highlight: Review draw-off demand and recovery behaviour in the simulator timeline.',
-                  ]}
+                  highlights={buildSimulatorHighlights(
+                    viewModel.hero.keyExpectationDelta,
+                    viewModel.hero.keyConstraints[0],
+                  )}
                 />
               )}
             </div>
