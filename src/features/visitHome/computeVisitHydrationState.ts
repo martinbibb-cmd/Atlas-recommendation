@@ -7,31 +7,36 @@
  *
  * States (ordered from least to most hydrated):
  *   no-visit            — no visitId present; no data at all
- *   visit-loaded        — visitId set but no recommendation output yet
+ *   survey-in-progress  — visit loaded but recommendation not generated yet
  *   recommendation-ready — has engine output or recommendation summary
  *   review-in-progress  — has accepted scenario AND survey model
+ *   handover-ready      — delivery outputs are available
  */
 
 export type VisitHydrationState =
   | 'no-visit'
-  | 'visit-loaded'
+  | 'survey-in-progress'
   | 'recommendation-ready'
-  | 'review-in-progress';
+  | 'review-in-progress'
+  | 'handover-ready';
 
 export interface ComputeVisitHydrationStateInput {
   readonly hasVisit: boolean;
   readonly hasRecommendation: boolean;
   readonly hasAcceptedScenario: boolean;
   readonly hasSurveyModel: boolean;
+  readonly hasHandoffReview: boolean;
+  readonly hasExportPackage: boolean;
 }
 
 export function computeVisitHydrationState(
   input: ComputeVisitHydrationStateInput,
 ): VisitHydrationState {
   if (!input.hasVisit) return 'no-visit';
+  if (input.hasHandoffReview || input.hasExportPackage) return 'handover-ready';
   if (input.hasAcceptedScenario && input.hasSurveyModel) return 'review-in-progress';
   if (input.hasRecommendation) return 'recommendation-ready';
-  return 'visit-loaded';
+  return 'survey-in-progress';
 }
 
 // ── Display metadata per state ────────────────────────────────────────────────
@@ -49,22 +54,28 @@ export const HYDRATION_STATE_DISPLAY: Record<VisitHydrationState, HydrationState
       'Import a scan package, open an existing visit, or start with a demo fixture to begin review.',
     tone: 'neutral',
   },
-  'visit-loaded': {
-    label: 'Visit loaded — recommendation pending',
+  'survey-in-progress': {
+    label: 'Survey in progress',
     description:
-      'Visit data is present. Complete the survey or import a recommendation to unlock review surfaces.',
+      'Continue survey capture, resume Atlas Scan import, or run recommendation to hydrate review surfaces.',
     tone: 'info',
   },
   'recommendation-ready': {
     label: 'Recommendation ready',
     description:
-      'Engine output is available. Accept a scenario to unlock the full review workspace.',
+      'Engine output is available. Continue review and prepare customer and delivery outputs.',
     tone: 'success',
   },
   'review-in-progress': {
     label: 'Review in progress',
     description:
       'Accepted scenario and survey model are loaded. All review surfaces are available.',
+    tone: 'active',
+  },
+  'handover-ready': {
+    label: 'Handover ready',
+    description:
+      'Delivery outputs are available. Proceed with handover review and package export.',
     tone: 'active',
   },
 };

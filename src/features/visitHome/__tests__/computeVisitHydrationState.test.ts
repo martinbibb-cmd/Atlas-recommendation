@@ -18,6 +18,8 @@ describe('computeVisitHydrationState', () => {
         hasRecommendation: false,
         hasAcceptedScenario: false,
         hasSurveyModel: false,
+        hasHandoffReview: false,
+        hasExportPackage: false,
       }),
     ).toBe('no-visit');
   });
@@ -29,19 +31,23 @@ describe('computeVisitHydrationState', () => {
         hasRecommendation: true,
         hasAcceptedScenario: true,
         hasSurveyModel: true,
+        hasHandoffReview: false,
+        hasExportPackage: false,
       }),
     ).toBe('no-visit');
   });
 
-  it('returns visit-loaded when visit is set but no recommendation data', () => {
+  it('returns survey-in-progress when visit is set but no recommendation data', () => {
     expect(
       computeVisitHydrationState({
         hasVisit: true,
         hasRecommendation: false,
         hasAcceptedScenario: false,
         hasSurveyModel: false,
+        hasHandoffReview: false,
+        hasExportPackage: false,
       }),
-    ).toBe('visit-loaded');
+    ).toBe('survey-in-progress');
   });
 
   it('returns recommendation-ready when visit and recommendation exist but no accepted scenario', () => {
@@ -51,6 +57,8 @@ describe('computeVisitHydrationState', () => {
         hasRecommendation: true,
         hasAcceptedScenario: false,
         hasSurveyModel: false,
+        hasHandoffReview: false,
+        hasExportPackage: false,
       }),
     ).toBe('recommendation-ready');
   });
@@ -62,6 +70,8 @@ describe('computeVisitHydrationState', () => {
         hasRecommendation: true,
         hasAcceptedScenario: true,
         hasSurveyModel: false,
+        hasHandoffReview: false,
+        hasExportPackage: false,
       }),
     ).toBe('recommendation-ready');
   });
@@ -73,6 +83,8 @@ describe('computeVisitHydrationState', () => {
         hasRecommendation: true,
         hasAcceptedScenario: true,
         hasSurveyModel: true,
+        hasHandoffReview: false,
+        hasExportPackage: false,
       }),
     ).toBe('review-in-progress');
   });
@@ -84,14 +96,42 @@ describe('computeVisitHydrationState', () => {
         hasRecommendation: false,
         hasAcceptedScenario: true,
         hasSurveyModel: true,
+        hasHandoffReview: false,
+        hasExportPackage: false,
       }),
     ).toBe('review-in-progress');
+  });
+
+  it('returns handover-ready when handoff output exists', () => {
+    expect(
+      computeVisitHydrationState({
+        hasVisit: true,
+        hasRecommendation: true,
+        hasAcceptedScenario: true,
+        hasSurveyModel: true,
+        hasHandoffReview: true,
+        hasExportPackage: false,
+      }),
+    ).toBe('handover-ready');
+  });
+
+  it('returns handover-ready when export package exists', () => {
+    expect(
+      computeVisitHydrationState({
+        hasVisit: true,
+        hasRecommendation: true,
+        hasAcceptedScenario: true,
+        hasSurveyModel: true,
+        hasHandoffReview: false,
+        hasExportPackage: true,
+      }),
+    ).toBe('handover-ready');
   });
 });
 
 describe('HYDRATION_STATE_DISPLAY', () => {
   it('provides display metadata for every state', () => {
-    const states = ['no-visit', 'visit-loaded', 'recommendation-ready', 'review-in-progress'] as const;
+    const states = ['no-visit', 'survey-in-progress', 'recommendation-ready', 'review-in-progress', 'handover-ready'] as const;
     for (const state of states) {
       const display = HYDRATION_STATE_DISPLAY[state];
       expect(display.label.length).toBeGreaterThan(0);

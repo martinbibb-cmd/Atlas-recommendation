@@ -93,6 +93,21 @@ describe('buildVisitHomeActionProjection', () => {
     expect(simulator?.status).toBe('ready');
   });
 
+  it('marks simulator as ready when recommendation and survey exist without accepted scenario', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'surveyor',
+      visitReadiness: {
+        hasVisit: true,
+        hasRecommendation: true,
+        hasAcceptedScenario: false,
+        hasSurveyModel: true,
+      },
+    });
+    const simulator = projection.visibleActions.find((item) => item.actionId === 'run-simulator');
+    expect(simulator?.status).toBe('ready');
+  });
+
   it('marks export as needs-review when recommendation exists but no package has been generated', () => {
     const projection = buildVisitHomeActionProjection({
       ...BASE_INPUT,
