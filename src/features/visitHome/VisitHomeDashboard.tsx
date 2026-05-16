@@ -161,6 +161,9 @@ interface DashboardCardProps {
   highlights?: readonly string[];
 }
 
+/**
+ * Builds simulator card highlights from existing recommendation hydration data.
+ */
 function buildSimulatorHighlights(
   keyExpectationDelta: string,
   firstConstraint?: string,
@@ -188,7 +191,7 @@ function DashboardCard({
   highlights,
 }: DashboardCardProps) {
   const isBlocked = status === 'blocked';
-  const audienceTone = audience
+  const audienceLabel = audience
     .map((entry) => entry.replace('-', ' '))
     .join(' / ');
   const cardClassName = [
@@ -224,7 +227,7 @@ function DashboardCard({
         </ul>
       )}
       <p className="vhd-card__context">
-        For <strong>{audienceTone}</strong> · Source: <strong>{source}</strong>
+        For <strong>{audienceLabel}</strong> · Source: <strong>{source}</strong>
       </p>
       <button
         type="button"
@@ -366,6 +369,7 @@ export function VisitHomeDashboard({
   const needsReviewCount = readinessCounts.needsReview;
   const blockedCount = readinessCounts.blocked;
   const journeyInfo = viewModel.journeyInfo;
+  const keyExpectationDelta = viewModel.hero.keyExpectationDelta;
   const recommendationHeroVisible = viewModel.hasRecommendation || viewModel.hasAcceptedScenario;
 
   // ── Property title for display ─────────────────────────────────────────────
@@ -439,7 +443,7 @@ export function VisitHomeDashboard({
                   </span>
                 </div>
                 <p className="vhd-recommendation-hero__delta">
-                  <strong>Key expectation delta:</strong> {viewModel.hero.keyExpectationDelta}
+                  <strong>Key expectation delta:</strong> {keyExpectationDelta}
                 </p>
               </>
             ) : (
@@ -489,7 +493,7 @@ export function VisitHomeDashboard({
           <div className="vhd-readiness-panel" data-testid="visit-home-expectation-highlights">
             <h2 className="vhd-panel-title">Expectation highlights</h2>
             <p className="vhd-panel-copy">
-              {viewModel.hero.keyExpectationDelta}
+              {keyExpectationDelta}
             </p>
             {viewModel.hero.keyConstraints.length > 0 && (
               <ul className="vhd-readiness-list">
@@ -509,8 +513,8 @@ export function VisitHomeDashboard({
                 <DashboardCard
                   data-testid="card-recommendation"
                   icon="🎯"
-                  title="Lived-experience explanations"
-                  description="Review recommendation evidence and lived-experience explanations before customer handover."
+                  title="Lived experience explanations"
+                  description="Review recommendation evidence and lived experience explanations before customer handover."
                   status={actionStatus('review-survey', recommendationStatus)}
                   blockedReason={actionReason('review-survey')}
                   audience={['customer', 'surveyor']}
