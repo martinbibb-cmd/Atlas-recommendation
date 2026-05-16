@@ -196,4 +196,71 @@ describe('route + inventory consolidation', () => {
       expect(isProductionRoute(route!)).toBe(false);
     }
   });
+
+  // ── PDF authority tests ─────────────────────────────────────────────────────
+
+  it('promotes PortalJourneyPrintPack as the canonical production PDF surface', () => {
+    const uiEntry = DEV_UI_REGISTRY.find((item) => item.codeName === 'PortalJourneyPrintPack');
+    const route = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === 'PortalJourneyPrintPack');
+
+    expect(uiEntry, 'PortalJourneyPrintPack must be in DEV_UI_REGISTRY').toBeDefined();
+    expect(uiEntry).toMatchObject({
+      status: 'canonical',
+      access: 'production',
+      owner: 'pdf',
+    });
+
+    expect(route, 'PortalJourneyPrintPack must be in DEV_ROUTE_REGISTRY').toBeDefined();
+    expect(route).toMatchObject({
+      routeKind: 'derived',
+      access: 'production',
+      lifecycle: 'canonical',
+      canonicalOwner: 'pdf',
+    });
+    expect(isProductionRoute(route!)).toBe(true);
+  });
+
+  it('no production route references framework-print as a CTA destination', () => {
+    const productionRoutes = DEV_ROUTE_REGISTRY.filter((entry) => entry.access === 'production');
+    const frameworkPrintReferences = productionRoutes.filter((route) =>
+      [
+        route.routePath,
+        route.fullRouteExample,
+        ...(route.queryFlags ?? []),
+      ].some((value) => value?.includes('framework-print')),
+    );
+    expect(
+      frameworkPrintReferences.map((r) => r.codeName),
+      'No production route may reference framework-print',
+    ).toHaveLength(0);
+  });
+
+  it('marks legacy blueprint/framework print surfaces as legacy_dev_only with replacement route library-pdf', () => {
+    const legacyPrintSurfaces = [
+      'CustomerAdvicePrintPack',
+      'AtlasFrameworkPrintPage',
+    ] as const;
+
+    for (const codeName of legacyPrintSurfaces) {
+      const route = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === codeName);
+      expect(route, `${codeName} route metadata should be present`).toBeDefined();
+      expect(route?.access).toBe('legacy_dev_only');
+      expect(route?.replacementRoute).toBe('library-pdf');
+      expect(route ? isProductionRoute(route) : true).toBe(false);
+    }
+  });
+
+  it('legacy print surfaces appear in UI inventory as deprecated', () => {
+    const legacyPrintSurfaces = [
+      'CustomerAdvicePrintPack',
+      'AtlasFrameworkPrintPage',
+    ] as const;
+
+    for (const codeName of legacyPrintSurfaces) {
+      const uiEntry = DEV_UI_REGISTRY.find((item) => item.codeName === codeName);
+      expect(uiEntry, `${codeName} must be in DEV_UI_REGISTRY`).toBeDefined();
+      expect(uiEntry?.status).toBe('deprecated');
+      expect(uiEntry?.access).toBe('legacy_dev_only');
+    }
+  });
 });
