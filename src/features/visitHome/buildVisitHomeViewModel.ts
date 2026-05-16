@@ -100,7 +100,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     ? 'blocked'
     : input.outputAvailability.hasPortalOutput
     ? 'ready'
-    : hasRecommendation
+    : (hasRecommendation || hasAcceptedScenario) && hasVisit
     ? 'needs-review'
     : 'blocked';
 
@@ -108,7 +108,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     ? 'blocked'
     : input.outputAvailability.hasSupportingPdfOutput
     ? 'ready'
-    : hasRecommendation
+    : (hasRecommendation || hasAcceptedScenario) && hasVisit
     ? 'needs-review'
     : 'blocked';
 
@@ -116,7 +116,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     ? 'blocked'
     : hasAcceptedScenario && hasSurveyModel
     ? 'ready'
-    : hasRecommendation
+    : (hasRecommendation || hasAcceptedScenario) && hasVisit
     ? 'needs-review'
     : 'blocked';
 

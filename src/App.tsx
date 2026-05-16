@@ -140,6 +140,7 @@ import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
+import { readWorkflowPackageFile } from './features/visitHome/importVisitWorkflowPackage';
 import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from './library/portal/pdf/buildPortalJourneyPrintModel';
 
@@ -1997,6 +1998,19 @@ function AppInner() {
               visitHomeEngineOutput?.recommendation?.primary,
             );
           }
+
+          // ── Local save check — whether this visitId has a localStorage snapshot ──
+          const hasSavedLocalVisit =
+            activeVisitId != null &&
+            (() => {
+              try {
+                const result = readPersistedAtlasVisitV2(activeVisitId);
+                return result.visit != null;
+              } catch {
+                return false;
+              }
+            })();
+
           return (
             <VisitHomeDashboard
               visitId={activeVisitId}
@@ -2012,6 +2026,85 @@ function AppInner() {
               workspacePermissions={workspaceSettingsMembership?.permissions}
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
+              hasSavedLocalVisit={hasSavedLocalVisit}
+              onImportScanPackage={() => setJourney('receive-scan')}
+              onImportWorkflowPackage={(file) => {
+                void readWorkflowPackageFile(file).then((result) => {
+                  if (result.status !== 'imported') return;
+                  setActiveVisitId(result.visitId);
+                  if (result.engineInput != null) {
+                    setLabEngineInput(result.engineInput);
+                  }
+                  if (result.surveyModel != null) {
+                    setLabFullSurveyModel(result.surveyModel);
+                  }
+                });
+              }}
+              onSaveLocally={activeVisitId != null && labFullSurveyModel != null ? () => {
+                let engineSnapshot: EngineOutputV1 | undefined;
+                let scenariosSnapshot: ScenarioResult[] | undefined;
+                let decisionSnapshot: AtlasDecisionV1 | undefined;
+                let customerSummarySnapshot: CustomerSummaryV1 | undefined;
+                try {
+                  const sourceInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel));
+                  const { engineOutput } = runEngine(sourceInput);
+                  engineSnapshot = engineOutput;
+                  scenariosSnapshot = buildScenariosFromEngineOutput(engineOutput);
+                  if (scenariosSnapshot.length > 0) {
+                    decisionSnapshot = buildDecisionFromScenarios({
+                      scenarios: scenariosSnapshot,
+                      boilerType: toLifecycleBoilerType(sourceInput.currentHeatSourceType),
+                      ageYears: sourceInput.currentSystem?.boiler?.ageYears ?? 0,
+                      occupancyCount: sourceInput.occupancyCount,
+                      bathroomCount: sourceInput.bathroomCount,
+                      showerCompatibilityNote: engineSnapshot.showerCompatibilityNote,
+                    });
+                    customerSummarySnapshot = buildCustomerSummary(decisionSnapshot, scenariosSnapshot);
+                  }
+                } catch {
+                  // Persist survey even when derived snapshots cannot be computed.
+                }
+                saveVisitAtomically({
+                  schemaVersion: 2,
+                  visitId: activeVisitId,
+                  updatedAt: new Date().toISOString(),
+                  survey: labFullSurveyModel,
+                  engine: engineSnapshot,
+                  decision: decisionSnapshot,
+                  scenarios: scenariosSnapshot,
+                  customerSummary: customerSummarySnapshot,
+                });
+              } : undefined}
+              onResumeLocalVisit={activeVisitId != null ? () => {
+                const restored = readPersistedAtlasVisitV2(activeVisitId);
+                if (restored.visit == null) return;
+                const persisted = restored.visit;
+                setVisitRecommendationSnapshot({
+                  visitId: persisted.visitId,
+                  engineOutput: persisted.engine,
+                  scenarios: persisted.scenarios,
+                  decision: persisted.decision,
+                  customerSummary: persisted.customerSummary,
+                });
+                setLabFullSurveyModel(persisted.survey);
+                if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
+                if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
+                if (labEngineInput === undefined) {
+                  try {
+                    setLabEngineInput(toEngineInput(sanitiseModelForEngine(persisted.survey)));
+                  } catch {
+                    // keep survey even if engine input conversion fails
+                  }
+                }
+              } : undefined}
+              onClearSession={() => {
+                setActiveVisitId(undefined);
+                setLastOpenedFromHome(null);
+                setJourney('workspace-dashboard');
+              }}
+              onOpenExistingVisit={() => {
+                setJourney('workspace-dashboard');
+              }}
               onOpenSimulator={() => {
                 setLastOpenedFromHome({ label: 'Simulator', journey: 'house-simulator' });
                 setSimulatorFromJourney('visit-home');
