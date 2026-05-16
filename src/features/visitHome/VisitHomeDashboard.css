@@ -104,6 +104,43 @@
   margin-bottom: 0;
 }
 
+.vhd-recommendation-hero {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.875rem 1rem;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+.vhd-recommendation-hero__system {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.vhd-recommendation-hero__meta {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  color: #334155;
+}
+
+.vhd-recommendation-hero__delta {
+  margin: 0.55rem 0 0;
+  font-size: 0.8rem;
+  color: #334155;
+}
+
+.vhd-recommendation-hero__constraints {
+  margin: 0.55rem 0 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
 /* ── Workspace layout ─────────────────────────────────────────────────────── */
 
 .vhd-layout--workspace-default {

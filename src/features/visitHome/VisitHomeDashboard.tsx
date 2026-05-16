@@ -26,6 +26,7 @@
 import type { CSSProperties } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
+import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { WorkspaceMemberPermission } from '../../auth/profile';
@@ -34,7 +35,7 @@ import {
   type VisitHomeActionId,
   type VisitHomeActionRole,
 } from './buildVisitHomeActionProjection';
-import { detectVisitJourney } from './detectVisitJourney';
+import { buildVisitHomeViewModel } from './buildVisitHomeViewModel';
 import './VisitHomeDashboard.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,6 +53,10 @@ export interface VisitHomeDashboardProps {
   engineOutput?: EngineOutputV1;
   /** Evaluated scenario results for this visit. */
   scenarios?: ScenarioResult[];
+  /** Canonical accepted scenario for this visit recommendation state boundary. */
+  acceptedScenario?: ScenarioResult;
+  /** Canonical recommendation summary used across review surfaces. */
+  recommendationSummary?: CustomerSummaryV1;
   /** Full survey model from the most recent draft. */
   surveyModel?: FullSurveyModelV1;
   /**
@@ -256,6 +261,8 @@ export function VisitHomeDashboard({
   engineInput,
   engineOutput,
   scenarios,
+  acceptedScenario,
+  recommendationSummary,
   surveyModel,
   portalUrl,
   installationSpecOptionCount = 0,
@@ -277,47 +284,50 @@ export function VisitHomeDashboard({
 }: VisitHomeDashboardProps) {
   // ── Derive card statuses from available data ───────────────────────────────
 
-  const hasEngineData = engineOutput != null && engineInput != null;
   const hasVisit = visitId != null;
   const hasSupportingPdf = onPrintSummary != null;
+  const viewModel = buildVisitHomeViewModel({
+    engineResult: engineOutput,
+    acceptedScenario,
+    scenarios,
+    surveyModel,
+    recommendationSummary,
+    workflowReadiness: {
+      hasVisit,
+      libraryUnsafe,
+      installationSpecOptionCount,
+    },
+    outputAvailability: {
+      hasPortalOutput: portalUrl != null || onOpenInsightPack != null,
+      hasSupportingPdfOutput: hasSupportingPdf,
+      hasHandoffReview: onOpenHandoffReview != null,
+      hasExportPackage: onExportPackage != null,
+    },
+    simulatorAvailability: {
+      hasSimulatorSurface: onOpenSimulator != null,
+    },
+  });
 
-  const recommendationStatus: CardStatus = hasEngineData
-    ? 'ready'
-    : hasVisit
-    ? 'needs-review'
-    : 'blocked';
+  const recommendationStatus: CardStatus = viewModel.recommendationStatus;
+  const portalStatus: CardStatus = viewModel.portalStatus;
+  const simulatorStatus: CardStatus = viewModel.simulatorStatus;
+  const pdfStatus: CardStatus = viewModel.supportingPdfStatus;
+  const implementationStatus: CardStatus = viewModel.implementationStatus;
+  const handoffStatus: CardStatus = viewModel.handoffStatus;
+  const exportStatus: CardStatus = viewModel.exportStatus;
 
-  const portalStatus: CardStatus = libraryUnsafe
-    ? 'blocked'
-    : portalUrl != null
-    ? 'ready'
-    : hasEngineData
-    ? 'needs-review'
-    : 'blocked';
-
-  const simulatorStatus: CardStatus = hasEngineData ? 'ready' : 'needs-review';
-
-  const pdfStatus: CardStatus = libraryUnsafe
-    ? 'blocked'
-    : hasSupportingPdf && hasVisit && hasEngineData
-    ? 'ready'
-    : 'needs-review';
-
-  const implementationStatus: CardStatus = installationSpecOptionCount > 0
-    ? 'ready'
-    : hasEngineData
-    ? 'needs-review'
-    : 'blocked';
-
-  const handoffStatus: CardStatus = hasVisit && hasEngineData ? 'ready' : 'blocked';
-
-  const exportStatus: CardStatus = hasVisit && hasEngineData ? 'ready' : 'blocked';
+  const portalDescription = viewModel.portalMissingMessage
+    ?? 'Customer portal and Atlas Insight Pack for review before sharing.';
+  const supportingPdfDescription = viewModel.supportingPdfMissingMessage
+    ?? 'Customer-facing print pack with recommendation, scenarios, and explainers.';
   const actionProjection = buildVisitHomeActionProjection({
     workspaceRole,
     workspacePermissions,
     visitReadiness: {
       hasVisit,
-      hasEngineData,
+      hasRecommendation: viewModel.hasRecommendation,
+      hasAcceptedScenario: viewModel.hasAcceptedScenario,
+      hasSurveyModel: viewModel.hasSurveyModel,
     },
     libraryProjectionSafety: {
       unsafe: libraryUnsafe,
@@ -369,13 +379,7 @@ export function VisitHomeDashboard({
   const readyCount = readinessCounts.ready;
   const needsReviewCount = readinessCounts.needsReview;
   const blockedCount = readinessCounts.blocked;
-
-  // ── Journey card detection ─────────────────────────────────────────────────
-
-  const systemCircuit =
-    surveyModel?.fullSurvey?.heatingCondition?.systemCircuitType ??
-    (surveyModel?.currentSystem?.heatingSystemType as 'open_vented' | 'sealed' | 'unknown' | undefined);
-  const journeyInfo = detectVisitJourney(engineOutput, scenarios, systemCircuit);
+  const journeyInfo = viewModel.journeyInfo;
 
   // ── Property title for display ─────────────────────────────────────────────
 
@@ -433,6 +437,29 @@ export function VisitHomeDashboard({
       {/* ── Workspace rails ────────────────────────────────────────────────── */}
       <div className="vhd-workspace vhd-workspace--three-rail" data-testid="visit-home-workspace-layout">
         <aside className="vhd-rail vhd-rail--left">
+          {viewModel.hasRecommendation && (
+            <section className="vhd-recommendation-hero" data-testid="visit-home-recommendation-hero">
+              <h2 className="vhd-panel-title">Recommended system</h2>
+              <p className="vhd-recommendation-hero__system">{viewModel.hero.selectedSystem}</p>
+              <div className="vhd-recommendation-hero__meta">
+                <span><strong>Journey:</strong> {viewModel.hero.journeyArchetype}</span>
+                <span>
+                  <strong>Readiness:</strong> {STATUS_STYLES[viewModel.hero.confidenceReadiness].label}
+                </span>
+              </div>
+              <p className="vhd-recommendation-hero__delta">
+                <strong>Key expectation delta:</strong> {viewModel.hero.keyExpectationDelta}
+              </p>
+              {viewModel.hero.keyConstraints.length > 0 && (
+                <ul className="vhd-recommendation-hero__constraints">
+                  {viewModel.hero.keyConstraints.map((constraint) => (
+                    <li key={constraint}>{constraint}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
+
           {journeyInfo.archetype != null && isActionVisible('review-survey') && (
             <div
               className="vhd-journey-card"
@@ -490,7 +517,7 @@ export function VisitHomeDashboard({
                 data-testid="card-portal"
                 icon="🔗"
                 title="Customer portal / Insight"
-                description="Customer portal and Atlas Insight Pack for review before sharing."
+                description={portalDescription}
                 status={actionStatus('customer-portal', portalStatus)}
                 blockedReason={actionReason('customer-portal')}
                 audience={['customer']}
@@ -505,7 +532,7 @@ export function VisitHomeDashboard({
                 data-testid="card-pdf"
                 icon="📄"
                 title="Supporting PDF"
-                description="Customer-facing print pack with recommendation, scenarios, and explainers."
+                description={supportingPdfDescription}
                 status={actionStatus('supporting-pdf', pdfStatus)}
                 blockedReason={actionReason('supporting-pdf')}
                 audience={['customer', 'office']}

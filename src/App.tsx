@@ -451,6 +451,14 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
 
 type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
+interface VisitRecommendationSnapshot {
+  visitId: string;
+  engineOutput?: EngineOutputV1;
+  scenarios?: ScenarioResult[];
+  decision?: AtlasDecisionV1;
+  customerSummary?: CustomerSummaryV1;
+}
+
 const FLOOR_PLAN_TOOL_MODE =
   typeof window !== 'undefined' && window.location.pathname === '/floor-plan-tool';
 
@@ -821,6 +829,7 @@ function AppInner() {
    * portal can validate the link.
    */
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
+  const [visitRecommendationSnapshot, setVisitRecommendationSnapshot] = useState<VisitRecommendationSnapshot | null>(null);
 
   /**
    * Resolves the active workspace from the browser host once on mount.
@@ -984,6 +993,13 @@ function AppInner() {
     }
 
     const persisted = restored.visit;
+    setVisitRecommendationSnapshot({
+      visitId: persisted.visitId,
+      engineOutput: persisted.engine,
+      scenarios: persisted.scenarios,
+      decision: persisted.decision,
+      customerSummary: persisted.customerSummary,
+    });
     setLabFullSurveyModel(persisted.survey);
     if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
     if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
@@ -1053,6 +1069,13 @@ function AppInner() {
       customerSummary: customerSummarySnapshot,
     };
     saveVisitAtomically(persisted);
+    setVisitRecommendationSnapshot({
+      visitId: activeVisitId,
+      engineOutput: engineSnapshot,
+      scenarios: scenariosSnapshot,
+      decision: decisionSnapshot,
+      customerSummary: customerSummarySnapshot,
+    });
   }, [activeVisitId, labFullSurveyModel, labEngineInput]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
@@ -1920,9 +1943,42 @@ function AppInner() {
         )}
         {/* Visit Home Dashboard — front-door overview of all outputs for the active visit */}
         {journey === 'visit-home' && (() => {
+          const resolveAcceptedScenario = (
+            scenarios: import('./contracts/ScenarioResult').ScenarioResult[] | undefined,
+            preferredScenarioId?: string,
+            fallbackScenarioId?: string,
+          ): import('./contracts/ScenarioResult').ScenarioResult | undefined => {
+            if (scenarios == null || scenarios.length === 0) return undefined;
+            if (preferredScenarioId != null) {
+              const match = scenarios.find((scenario) => scenario.scenarioId === preferredScenarioId);
+              if (match != null) return match;
+            }
+            if (fallbackScenarioId != null) {
+              const normalizedFallbackId = fallbackScenarioId.toLowerCase();
+              return scenarios.find((scenario) => scenario.scenarioId.toLowerCase() === normalizedFallbackId);
+            }
+            return undefined;
+          };
+          const canonicalSnapshot =
+            activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
+              ? visitRecommendationSnapshot
+              : null;
           let visitHomeEngineOutput: import('./contracts/EngineOutputV1').EngineOutputV1 | undefined;
           let visitHomeScenarios: import('./contracts/ScenarioResult').ScenarioResult[] | undefined;
-          if (labEngineInput != null) {
+          let visitHomeRecommendationSummary: import('./contracts/CustomerSummaryV1').CustomerSummaryV1 | undefined;
+          let acceptedScenario: import('./contracts/ScenarioResult').ScenarioResult | undefined;
+
+          if (canonicalSnapshot != null) {
+            visitHomeEngineOutput = canonicalSnapshot.engineOutput;
+            visitHomeScenarios = canonicalSnapshot.scenarios;
+            visitHomeRecommendationSummary = canonicalSnapshot.customerSummary;
+            acceptedScenario = resolveAcceptedScenario(
+              visitHomeScenarios,
+              canonicalSnapshot.decision?.recommendedScenarioId,
+            );
+          }
+
+          if (visitHomeEngineOutput == null && labEngineInput != null) {
             try {
               const { engineOutput } = runEngine(labEngineInput);
               visitHomeEngineOutput = engineOutput;
@@ -1931,12 +1987,22 @@ function AppInner() {
               // Engine failed — both remain undefined; cards will show blocked status
             }
           }
+
+          if (acceptedScenario == null) {
+            acceptedScenario = resolveAcceptedScenario(
+              visitHomeScenarios,
+              undefined,
+              visitHomeEngineOutput?.recommendation?.primary,
+            );
+          }
           return (
             <VisitHomeDashboard
               visitId={activeVisitId}
               engineInput={labEngineInput}
               engineOutput={visitHomeEngineOutput}
               scenarios={visitHomeScenarios}
+              acceptedScenario={acceptedScenario}
+              recommendationSummary={visitHomeRecommendationSummary}
               surveyModel={labFullSurveyModel}
               portalUrl={labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}

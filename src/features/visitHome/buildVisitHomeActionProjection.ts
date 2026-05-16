@@ -31,7 +31,9 @@ export interface BuildVisitHomeActionProjectionInput {
   readonly workspacePermissions?: readonly WorkspaceMemberPermission[];
   readonly visitReadiness: {
     readonly hasVisit: boolean;
-    readonly hasEngineData: boolean;
+    readonly hasRecommendation: boolean;
+    readonly hasAcceptedScenario: boolean;
+    readonly hasSurveyModel: boolean;
   };
   readonly libraryProjectionSafety: {
     readonly unsafe: boolean;
@@ -123,45 +125,51 @@ function buildStatusAndReason(
   actionId: VisitHomeActionId,
   input: BuildVisitHomeActionProjectionInput,
 ): { status: CardStatus; reasonLabel?: string } {
-  const hasEngineData = input.visitReadiness.hasEngineData;
+  const hasRecommendation = input.visitReadiness.hasRecommendation;
   const hasVisit = input.visitReadiness.hasVisit;
+  const hasAcceptedScenario = input.visitReadiness.hasAcceptedScenario;
+  const hasSurveyModel = input.visitReadiness.hasSurveyModel;
   const libraryUnsafe = input.libraryProjectionSafety.unsafe;
 
   switch (actionId) {
     case 'review-survey':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
-      if (!hasEngineData && hasVisit) return { status: 'needs-review' };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!hasRecommendation && hasVisit) return { status: 'needs-review' };
+      if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       return { status: 'ready' };
     case 'customer-portal':
       if (libraryUnsafe) return { status: 'blocked', reasonLabel: BLOCK_REASON_LIBRARY_SAFETY };
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       if (!input.availableOutputs.hasPortalUrl && !input.availableOutputs.hasInsightPack) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'supporting-pdf':
       if (libraryUnsafe) return { status: 'blocked', reasonLabel: BLOCK_REASON_LIBRARY_SAFETY };
-      if (!hasVisit || !hasEngineData) return { status: 'needs-review' };
+      if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
+      if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       if (!input.availableOutputs.hasSupportingPdf) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'run-simulator':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!hasAcceptedScenario || !hasSurveyModel) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'implementation-workflow':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       if (input.implementationReadiness.installationSpecOptionCount > 0) return { status: 'ready' };
       return { status: 'needs-review' };
     case 'resolve-follow-ups':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       if (input.availableOutputs.hasHandoffReview) return { status: 'ready' };
       return { status: 'needs-review' };
     case 'export-handover-package':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
-      if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
-      return { status: 'ready' };
+      if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      return input.availableOutputs.hasExportPackage
+        ? { status: 'ready' }
+        : { status: 'needs-review' };
     case 'workspace-controls':
       return { status: 'ready' };
     default:
