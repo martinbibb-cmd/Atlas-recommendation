@@ -244,12 +244,16 @@ export default function HouseSimulatorPage({
     shower: () => setDemandControls({ shower: !demandControls.shower }),
     bath: () => setDemandControls({ bath: !demandControls.bath }),
     kitchen: () => setDemandControls({ kitchen: !demandControls.kitchen }),
-    cold_tap: () => setDemandControls({ coldTap: !demandControls.coldTap }),
+    coldTap: () => setDemandControls({ coldTap: !demandControls.coldTap }),
   } as const;
 
   function toggleOutlet(outletId: string) {
     const outletNode = vm.outletNodes.find(node => node.outletId === outletId);
     if (outletNode != null && outletNode.supported) {
+      if (outletNode.controlId === 'cold_tap') {
+        drawOffActions.coldTap();
+        return;
+      }
       drawOffActions[outletNode.controlId]();
     }
   }
@@ -421,7 +425,7 @@ export default function HouseSimulatorPage({
             onToggleShower={drawOffActions.shower}
             onToggleBath={drawOffActions.bath}
             onToggleKitchen={drawOffActions.kitchen}
-            onToggleColdTap={drawOffActions.cold_tap}
+            onToggleColdTap={drawOffActions.coldTap}
             onPresetOne={() => setDemandControls({ shower: true, bath: false, kitchen: false, coldTap: false })}
             onPresetTwo={() => setDemandControls({ shower: true, bath: true, kitchen: false, coldTap: false })}
             onPresetBathFill={() => setDemandControls({ shower: false, bath: true, kitchen: false, coldTap: false, heatingEnabled: false })}

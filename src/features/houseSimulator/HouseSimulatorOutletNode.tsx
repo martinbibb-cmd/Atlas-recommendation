@@ -58,11 +58,15 @@ export default function HouseSimulatorOutletNode({
   synthetic = false,
   positionClassName,
 }: HouseSimulatorOutletNodeProps) {
-  const stateClass = !supported
-    ? ' hs-outlet-node--unavailable'
-    : active
-      ? ' hs-outlet-node--active'
-      : ' hs-outlet-node--inactive';
+  let stateClass = ' hs-outlet-node--inactive';
+  let stateLabel = 'inactive';
+  if (!supported) {
+    stateClass = ' hs-outlet-node--unavailable';
+    stateLabel = 'unavailable';
+  } else if (active) {
+    stateClass = ' hs-outlet-node--active';
+    stateLabel = 'active';
+  }
   return (
     <button
       type="button"
@@ -71,7 +75,7 @@ export default function HouseSimulatorOutletNode({
       onClick={onPress}
       disabled={!supported}
       aria-pressed={selected}
-      aria-label={`${label}${!supported ? ' — unavailable' : active ? ' — active' : ' — inactive'}${synthetic ? ', proxy control' : ''}${constrained ? ', constrained' : ''}`}
+      aria-label={`${label} — ${stateLabel}${synthetic ? ', proxy control' : ''}${constrained ? ', constrained' : ''}`}
     >
       <span className="hs-outlet-node__icon" aria-hidden="true">{icon}</span>
       <span className="hs-outlet-node__label">{label}</span>

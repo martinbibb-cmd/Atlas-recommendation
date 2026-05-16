@@ -66,7 +66,7 @@ export default function TimelineBottomSheet({
           aria-label={open ? 'Hide advanced controls' : 'Show advanced controls'}
           aria-expanded={open}
         >
-          {open ? 'Close advanced' : 'Advanced'}
+          {open ? 'Hide advanced controls' : 'Show advanced controls'}
         </button>
       </div>
 

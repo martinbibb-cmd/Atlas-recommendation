@@ -196,7 +196,9 @@ function createWashingMachineNode(coldTapNode?: OutletStateView): OutletNodeView
     active: coldTapNode?.open ?? false,
     constrained: coldTapNode?.isConstrained ?? false,
     metrics: coldTapNode != null ? buildOutletMetrics(coldTapNode) : [],
-    detailText: coldTapNode?.constraintReason ?? (coldTapNode == null ? 'Cold-only appliance channel unavailable on this profile.' : undefined),
+    detailText: coldTapNode == null
+      ? 'Cold-only appliance channel unavailable on this profile.'
+      : coldTapNode.constraintReason,
   };
 }
 
