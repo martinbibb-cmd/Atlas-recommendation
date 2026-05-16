@@ -17,7 +17,6 @@ const BASE_INPUT = {
   },
   availableOutputs: {
     hasPortalUrl: true,
-    hasInsightPack: true,
     hasSupportingPdf: true,
     hasHandoffReview: true,
     hasExportPackage: true,

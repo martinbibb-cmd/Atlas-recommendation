@@ -44,7 +44,6 @@ export interface BuildVisitHomeActionProjectionInput {
   };
   readonly availableOutputs: {
     readonly hasPortalUrl: boolean;
-    readonly hasInsightPack: boolean;
     readonly hasSupportingPdf: boolean;
     readonly hasHandoffReview: boolean;
     readonly hasExportPackage: boolean;
@@ -142,7 +141,7 @@ function buildStatusAndReason(
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       // If visit exists with accepted scenario or recommendation, show needs-review rather than blocked.
       if (!hasRecommendation && !hasAcceptedScenario) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
-      if (!input.availableOutputs.hasPortalUrl && !input.availableOutputs.hasInsightPack) return { status: 'needs-review' };
+      if (!input.availableOutputs.hasPortalUrl) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'supporting-pdf':
       if (libraryUnsafe) return { status: 'blocked', reasonLabel: BLOCK_REASON_LIBRARY_SAFETY };

@@ -74,10 +74,11 @@ export type DevUiStatus = 'canonical' | 'active' | 'experimental' | 'review' | '
  * Who may access this surface.
  * - production – reachable by real users in production
  * - dev_only   – developer / internal access only (query flag or dev menu)
+ * - legacy_dev_only – deprecated surface kept only for explicit legacy diagnostics
  * - fallback   – used as a fallback / degraded path
  * - review     – still under evaluation; not yet production-confirmed
  */
-export type DevUiAccess = 'production' | 'dev_only' | 'fallback' | 'review' | 'retired';
+export type DevUiAccess = 'production' | 'dev_only' | 'legacy_dev_only' | 'fallback' | 'review' | 'retired';
 
 /**
  * How this surface is reached.
@@ -551,11 +552,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     fileName: 'UnifiedSimulatorView.tsx',
     filePath: 'src/components/simulator/UnifiedSimulatorView.tsx',
     category: 'simulator',
-    status: 'active',
-    notes: 'Wrapper used by portal insight route to render physics-driven system response and recommendation context.',
+    status: 'deprecated',
+    notes: 'Legacy portal insight wrapper retained for explicit legacy diagnostics only; canonical production simulator is house-simulator.',
     routeKind: 'derived',
-    fullRouteExample: '/portal/<reference>?token=<signed-token> → Insight',
-    access: 'production',
+    fullRouteExample: '/?insight-pack=1 (legacy diagnostics only)',
+    access: 'legacy_dev_only',
     parentCodeName: 'CustomerPortalPage',
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>UnifiedSimulatorView — open from the customer portal Insight route.</div>,
   },

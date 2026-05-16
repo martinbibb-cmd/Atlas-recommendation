@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { VisitHomeDashboard } from '../VisitHomeDashboard';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../../contracts/ScenarioResult';
@@ -127,7 +127,6 @@ function makeProps(
     onOpenPresentation: vi.fn(),
     onPrintSummary: vi.fn(),
     onOpenInstallationSpecification: vi.fn(),
-    onOpenInsightPack: vi.fn(),
     onOpenHandoffReview: vi.fn(),
     onOpenEngineerRoute: vi.fn(),
     onBack: vi.fn(),
@@ -279,12 +278,47 @@ describe('VisitHomeDashboard', () => {
     expect(card).toHaveTextContent('Library supporting PDF');
   });
 
-  it('portal card shows needs-review when no portalUrl and no onOpenInsightPack — legacy route not wired', () => {
+  it('validates production customer-review CTAs exclude retired surfaces', () => {
+    render(<VisitHomeDashboard {...makeProps({ portalUrl: 'https://portal.example.com' })} />);
+    const customerReview = screen.getByTestId('visit-home-section-customer-review');
+    const text = customerReview.textContent ?? '';
+    expect(text).not.toContain('Insight Pack');
+    expect(text).not.toContain('framework-print');
+    expect(text).not.toContain('unified-simulator');
+    expect(text).not.toContain('CustomerAdvicePrintPack');
+  });
+
+  it('validates visit-home customer-review routes resolve to canonical surfaces', () => {
+    const onOpenPresentation = vi.fn();
+    const onPrintSummary = vi.fn();
+    const mockWindowOpen = vi.fn();
+    vi.stubGlobal('open', mockWindowOpen);
+    render(<VisitHomeDashboard {...makeProps({ portalUrl: 'https://portal.example.com', onOpenPresentation, onPrintSummary })} />);
+    const customerReview = screen.getByTestId('visit-home-section-customer-review');
+    const ctaLabels = within(customerReview)
+      .getAllByRole('button')
+      .map((button) => button.textContent?.trim() ?? '');
+    expect(ctaLabels).toMatchInlineSnapshot(`
+      [
+        "Review recommendation →",
+        "Open customer portal →",
+        "Print summary →",
+      ]
+    `);
+    fireEvent.click(screen.getByTestId('card-recommendation-cta'));
+    fireEvent.click(screen.getByTestId('card-portal-cta'));
+    fireEvent.click(screen.getByTestId('card-pdf-cta'));
+    expect(onOpenPresentation).toHaveBeenCalledOnce();
+    expect(mockWindowOpen).toHaveBeenCalledOnce();
+    expect(onPrintSummary).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
+  it('portal card shows needs-review when no portalUrl is available', () => {
     render(
       <VisitHomeDashboard
         {...makeProps({
           portalUrl: undefined,
-          onOpenInsightPack: undefined,
         })}
       />,
     );
@@ -292,17 +326,21 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('card-portal-cta')).toBeDisabled();
   });
 
-  it('portal card CTA label is "Portal ready →" when portalUrl is set and no insightPack', () => {
-    const handleOpenPortal = vi.fn();
+  it('portal card CTA label is "Open customer portal →" when portalUrl is set', () => {
+    const mockWindowOpen = vi.fn();
+    vi.stubGlobal('open', mockWindowOpen);
     render(
       <VisitHomeDashboard
         {...makeProps({
           portalUrl: 'https://portal.example.com',
-          onOpenInsightPack: undefined,
         })}
       />,
     );
-    expect(screen.getByTestId('card-portal-cta')).toHaveTextContent('Portal ready →');
+    const cta = screen.getByTestId('card-portal-cta');
+    expect(cta).toHaveTextContent('Open customer portal →');
+    fireEvent.click(cta);
+    expect(mockWindowOpen).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
   });
 
   describe('journey card', () => {
@@ -401,7 +439,6 @@ describe('VisitHomeDashboard', () => {
       <VisitHomeDashboard
         {...makeProps({
           portalUrl: undefined,
-          onOpenInsightPack: undefined,
           onPrintSummary: undefined,
         })}
       />,
