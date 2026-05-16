@@ -15,6 +15,8 @@ import type { DevUiRouteKind, DevUiAccess } from './devUiRegistry';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type DevRouteLifecycle = 'canonical' | 'active' | 'legacy_dev_only' | 'retired';
+
 export interface DevRouteMeta {
   /** Matches DevUiRegistryItem.codeName. */
   codeName: string;
@@ -30,6 +32,10 @@ export interface DevRouteMeta {
   routeKind: DevUiRouteKind;
   /** Who may access this surface in production. */
   access: DevUiAccess;
+  /** Route lifecycle for inventory/discovery audits. */
+  lifecycle?: DevRouteLifecycle;
+  /** Canonical owning surface/domain for this route. */
+  canonicalOwner?: string;
 }
 
 export type DevRouteAuditStatus = 'production' | 'dev_only' | 'retired' | 'unrouted';
@@ -49,6 +55,15 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     fullRouteExample: '/?lab=1',
     routeKind: 'query_flag',
     access: 'production',
+  },
+  {
+    codeName: 'HouseSimulatorPage',
+    queryFlags: ['house-simulator=1'],
+    fullRouteExample: '/?house-simulator=1',
+    routeKind: 'query_flag',
+    access: 'production',
+    lifecycle: 'canonical',
+    canonicalOwner: 'simulator',
   },
   {
     codeName: 'CanonicalPresentationPage',
@@ -98,6 +113,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: '/?house-simulator=1',
     routeKind: 'derived',
     access: 'legacy_dev_only',
+    lifecycle: 'legacy_dev_only',
   },
   {
     codeName: 'VisitHomeDashboard',
@@ -340,6 +356,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: '/?house-simulator=1',
     routeKind: 'derived',
     access: 'legacy_dev_only',
+    lifecycle: 'legacy_dev_only',
   },
   {
     codeName: 'InsightPackDeck',
@@ -347,6 +364,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: '/portal/<reference>?token=<signed-token>',
     routeKind: 'derived',
     access: 'legacy_dev_only',
+    lifecycle: 'legacy_dev_only',
   },
   {
     codeName: 'CustomerAdvicePrintPack',
@@ -354,6 +372,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: 'library-pdf',
     routeKind: 'derived',
     access: 'legacy_dev_only',
+    lifecycle: 'legacy_dev_only',
   },
 
   // ── Retired routes (excluded from normal navigation) ──────────────────────
@@ -364,6 +383,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: '/report/<report-id>',
     routeKind: 'query_flag',
     access: 'retired',
+    lifecycle: 'retired',
   },
   {
     codeName: 'SurveyPrintoutPage',
@@ -372,6 +392,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: 'library-pdf',
     routeKind: 'query_flag',
     access: 'retired',
+    lifecycle: 'retired',
   },
   {
     codeName: 'CustomerRecommendationPrint',
@@ -380,6 +401,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: 'library-pdf',
     routeKind: 'query_flag',
     access: 'retired',
+    lifecycle: 'retired',
   },
   {
     codeName: 'HandoffArrivalPage',
@@ -388,6 +410,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: 'visit-home',
     routeKind: 'query_flag',
     access: 'retired',
+    lifecycle: 'retired',
   },
 ];
 

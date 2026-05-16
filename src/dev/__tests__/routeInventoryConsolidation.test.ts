@@ -6,6 +6,7 @@ import { buildComponentDiscoveryReport } from '../utils/componentScanner';
 describe('route + inventory consolidation', () => {
   it('registers newly wired surfaces in UI inventory', () => {
     const required = [
+      'HouseSimulatorPage',
       'VisitHomeDashboard',
       'LibraryCoverageAuditPanel',
       'LibraryAuthoringBacklogPanel',
@@ -24,6 +25,27 @@ describe('route + inventory consolidation', () => {
     for (const codeName of required) {
       expect(codeNames.has(codeName)).toBe(true);
     }
+  });
+
+  it('promotes HouseSimulatorPage as the canonical production simulator surface', () => {
+    const uiEntry = DEV_UI_REGISTRY.find((item) => item.codeName === 'HouseSimulatorPage');
+    const route = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === 'HouseSimulatorPage');
+
+    expect(uiEntry).toMatchObject({
+      status: 'canonical',
+      routeKind: 'query_flag',
+      access: 'production',
+      fullRouteExample: '/?house-simulator=1',
+      owner: 'simulator',
+      domain: 'visit review',
+    });
+    expect(route).toMatchObject({
+      queryFlags: ['house-simulator=1'],
+      routeKind: 'query_flag',
+      access: 'production',
+      lifecycle: 'canonical',
+      canonicalOwner: 'simulator',
+    });
   });
 
   it('keeps dev-only QA surfaces out of production access', () => {
@@ -79,6 +101,7 @@ describe('route + inventory consolidation', () => {
   it('classifies newly wired pages as routed rather than unrouted', () => {
     const report = buildComponentDiscoveryReport({
       candidateFilePaths: [
+        'src/features/houseSimulator/HouseSimulatorPage.tsx',
         'src/features/workspace/WorkspaceSettingsPage.tsx',
         'src/dev/DevPortalFixturePage.tsx',
       ],
@@ -86,8 +109,29 @@ describe('route + inventory consolidation', () => {
       uiRegistry: DEV_UI_REGISTRY,
     });
 
-    expect(report.routeAuditRows.map((row) => row.status).sort()).toEqual(['dev_only', 'production']);
+    expect(report.routeAuditRows.map((row) => row.status).sort()).toEqual([
+      'dev_only',
+      'production',
+      'production',
+    ]);
+    expect(report.routeAuditRows.find((row) => row.codeName === 'HouseSimulatorPage')).toMatchObject({
+      status: 'production',
+      inUiInventory: true,
+    });
     expect(report.counts.unrouted).toBe(0);
+  });
+
+  it('keeps unified-simulator out of production route metadata', () => {
+    const productionRoutes = DEV_ROUTE_REGISTRY.filter((entry) => entry.access === 'production');
+    const hasUnifiedSimulatorReference = productionRoutes.some((route) =>
+      [
+        route.routePath,
+        route.fullRouteExample,
+        ...(route.queryFlags ?? []),
+      ].some((value) => value?.includes('unified-simulator')),
+    );
+
+    expect(hasUnifiedSimulatorReference).toBe(false);
   });
 
   it('every active (non-retired) route entry has a resolvable access path', () => {
