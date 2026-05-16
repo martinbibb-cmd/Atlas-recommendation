@@ -61,7 +61,7 @@ describe('buildSystemProtectionSummary — at-risk / sludge signals', () => {
     expect(result.treatmentLevel).toBe('clean_and_protect');
   });
 
-  it('uneven heating trigger clean_and_protect', () => {
+  it('uneven heating triggers clean_and_protect', () => {
     const result = buildSystemProtectionSummary({ unevenHeating: true });
     expect(result.treatmentLevel).toBe('clean_and_protect');
   });

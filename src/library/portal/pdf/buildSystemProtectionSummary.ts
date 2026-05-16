@@ -89,6 +89,11 @@ export interface SurveySystemConditionV1 {
   /**
    * Installer-selected flush/clean strategy from the recommendation step.
    * Source: FullSurveyModelV1.fullSurvey.recommendation.powerflush
+   *
+   * This field is typed as `... | null` because RecommendationState.powerflush
+   * may be explicitly set to null (before selection). The `!= null` check in
+   * hasSurveyData intentionally covers both undefined (field absent) and null
+   * (field explicitly cleared), distinguishing them from a real selection.
    */
   installerFlushStrategy?: 'yes' | 'no' | 'chemical_only' | 'not_assessed' | null;
   /**
