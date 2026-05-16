@@ -844,7 +844,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
       'src/components/portal/selectors/buildPortalDisplayModel.ts',
     ],
     includeInCopyBox: true,
-    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>CustomerPortalPage — open via /portal/&lt;reference&gt;?token=&lt;signed-token&gt;. Use /dev/portal-fixtures for fixture-based QA.</div>,
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>CustomerPortalPage — open via /portal/{'<reference>'}?token={'<signed-token>'}. Use /dev/portal-fixtures for fixture-based QA.</div>,
   },
 
   // ── Legacy customer output surfaces (insight-pack family) ───────────────────
@@ -868,6 +868,6 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
       'src/features/insightPack/InsightPackDeck.tsx',
       'src/features/insightPack/buildInsightPackFromEngine.ts',
     ],
-    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>InsightPackDeck — legacy diagnostics only. Canonical customer output is CustomerPortalPage (/portal/&lt;reference&gt;).</div>,
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>InsightPackDeck — legacy diagnostics only. Canonical customer output is CustomerPortalPage (/portal/{'<reference>'}).</div>,
   },
 ];
