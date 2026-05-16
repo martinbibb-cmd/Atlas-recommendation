@@ -17,6 +17,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
+import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 
 vi.mock('../../../engine/Engine', () => ({
   runEngine: vi.fn(() => ({
@@ -63,7 +64,7 @@ function makeProps(overrides: Record<string, unknown> = {}) {
     engineOutput: COMBI_ENGINE_OUTPUT as EngineOutputV1,
     scenarios: [ACCEPTED_SCENARIO_STUB],
     acceptedScenario: ACCEPTED_SCENARIO_STUB,
-    surveyModel: ENGINE_INPUT as import('../../../ui/fullSurvey/FullSurveyModelV1').FullSurveyModelV1,
+    surveyModel: ENGINE_INPUT as FullSurveyModelV1,
     workspaceRole: 'admin' as const,
     onOpenSimulator: vi.fn(),
     onOpenPresentation: vi.fn(),
