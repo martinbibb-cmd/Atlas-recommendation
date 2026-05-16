@@ -106,6 +106,8 @@ function RoomCell({
             constrained={outlet.constrained}
             metrics={outlet.metrics}
             selected={selectedOutletId === outlet.outletId}
+            supported={outlet.supported}
+            synthetic={outlet.isSynthetic}
             onPress={() => onOutletPress(outlet.outletId)}
             positionClassName={outletPositionClass(outlet.outletId)}
           />
@@ -233,7 +235,9 @@ export default function HouseSimulatorCanvas({
         <aside className="hs-outlet-popover" aria-label={`${selectedOutletNode.label} details`}>
           <strong>{selectedOutletNode.label}</strong>
           <p>
-            {selectedOutletNode.active
+            {!selectedOutletNode.supported
+              ? 'This outlet is unavailable in the current simulator profile'
+              : selectedOutletNode.active
               ? 'Active outlet'
               : isManualMode
                 ? 'Tap to open this outlet in manual mode'

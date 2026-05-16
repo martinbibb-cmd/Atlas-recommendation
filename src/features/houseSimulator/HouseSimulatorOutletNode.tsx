@@ -35,6 +35,10 @@ export interface HouseSimulatorOutletNodeProps {
   onPress?: () => void;
   /** Visual selected state for detail popover focus. */
   selected?: boolean;
+  /** Whether this outlet is currently operable by the simulator controls. */
+  supported?: boolean;
+  /** True when this node proxies another channel (e.g. washing machine -> cold tap). */
+  synthetic?: boolean;
   /** Absolute node position class name. */
   positionClassName?: string;
 }
@@ -50,16 +54,24 @@ export default function HouseSimulatorOutletNode({
   metrics = [],
   onPress,
   selected = false,
+  supported = true,
+  synthetic = false,
   positionClassName,
 }: HouseSimulatorOutletNodeProps) {
+  const stateClass = !supported
+    ? ' hs-outlet-node--unavailable'
+    : active
+      ? ' hs-outlet-node--active'
+      : ' hs-outlet-node--inactive';
   return (
     <button
       type="button"
-      className={`hs-outlet-node${active ? ' hs-outlet-node--active' : ''}${constrained ? ' hs-outlet-node--constrained' : ''}${selected ? ' hs-outlet-node--selected' : ''}${positionClassName ? ` ${positionClassName}` : ''}`}
+      className={`hs-outlet-node${stateClass}${constrained ? ' hs-outlet-node--constrained' : ''}${selected ? ' hs-outlet-node--selected' : ''}${synthetic ? ' hs-outlet-node--synthetic' : ''}${positionClassName ? ` ${positionClassName}` : ''}`}
       data-outlet-id={outletId}
       onClick={onPress}
+      disabled={!supported}
       aria-pressed={selected}
-      aria-label={`${label}${active ? ' — active' : ' — inactive'}${constrained ? ', constrained' : ''}`}
+      aria-label={`${label}${!supported ? ' — unavailable' : active ? ' — active' : ' — inactive'}${synthetic ? ', proxy control' : ''}${constrained ? ', constrained' : ''}`}
     >
       <span className="hs-outlet-node__icon" aria-hidden="true">{icon}</span>
       <span className="hs-outlet-node__label">{label}</span>
@@ -72,6 +84,9 @@ export default function HouseSimulatorOutletNode({
       )}
       {constrained && (
         <span className="hs-outlet-node__constraint-flag" aria-hidden="true">⚠</span>
+      )}
+      {synthetic && (
+        <span className="hs-outlet-node__synthetic-flag" aria-hidden="true">Proxy</span>
       )}
     </button>
   );

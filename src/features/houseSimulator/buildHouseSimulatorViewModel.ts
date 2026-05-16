@@ -76,6 +76,7 @@ export type OutletNodeViewModel = {
   icon: string;
   roomName: string;
   isSynthetic?: boolean;
+  supported: boolean;
   active: boolean;
   constrained: boolean;
   metrics: LiveMetricChipProps[];
@@ -191,10 +192,11 @@ function createWashingMachineNode(coldTapNode?: OutletStateView): OutletNodeView
     icon: OUTLET_ICON['washing_machine'],
     roomName: OUTLET_ROOM['washing_machine'],
     isSynthetic: true,
+    supported: coldTapNode != null,
     active: coldTapNode?.open ?? false,
     constrained: coldTapNode?.isConstrained ?? false,
     metrics: coldTapNode != null ? buildOutletMetrics(coldTapNode) : [],
-    detailText: coldTapNode?.constraintReason,
+    detailText: coldTapNode?.constraintReason ?? (coldTapNode == null ? 'Cold-only appliance channel unavailable on this profile.' : undefined),
   };
 }
 
@@ -269,6 +271,7 @@ export function buildHouseSimulatorViewModel(
       label: o.label,
       icon: OUTLET_ICON[o.outletId] ?? '💧',
       roomName: OUTLET_ROOM[o.outletId] ?? 'Kitchen',
+      supported: true,
       active: o.open,
       constrained: o.isConstrained,
       metrics: buildOutletMetrics(o),
