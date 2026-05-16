@@ -132,20 +132,6 @@ const STATUS_STYLES: Record<CardStatus, CSSProperties & { label: string }> = {
   'dev-only':     { label: 'Dev only',      background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' },
 };
 
-const AUDIENCE_COLOURS: Record<CardAudience, { bg: string; color: string }> = {
-  customer:  { bg: '#eff6ff', color: '#1d4ed8' },
-  surveyor:  { bg: '#f5f3ff', color: '#6d28d9' },
-  office:    { bg: '#ecfdf5', color: '#065f46' },
-  engineer:  { bg: '#fff7ed', color: '#9a3412' },
-};
-
-const SOURCE_COLOURS: Record<CardSource, { bg: string; color: string }> = {
-  engine:    { bg: '#f0f9ff', color: '#0369a1' },
-  library:   { bg: '#fdf4ff', color: '#7e22ce' },
-  workflow:  { bg: '#f0fdf4', color: '#15803d' },
-  simulator: { bg: '#fff1f2', color: '#be123c' },
-};
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: CardStatus }) {
@@ -156,30 +142,6 @@ function StatusBadge({ status }: { status: CardStatus }) {
       style={{ background: s.background, color: s.color, borderColor: s.borderColor as string }}
     >
       {s.label}
-    </span>
-  );
-}
-
-function AudienceBadge({ audience }: { audience: CardAudience }) {
-  const s = AUDIENCE_COLOURS[audience];
-  return (
-    <span
-      className="vhd-badge vhd-badge--audience"
-      style={{ background: s.bg, color: s.color }}
-    >
-      {audience}
-    </span>
-  );
-}
-
-function SourceBadge({ source }: { source: CardSource }) {
-  const s = SOURCE_COLOURS[source];
-  return (
-    <span
-      className="vhd-badge vhd-badge--source"
-      style={{ background: s.bg, color: s.color }}
-    >
-      {source}
     </span>
   );
 }
@@ -196,6 +158,22 @@ interface DashboardCardProps {
   onCta: (() => void) | undefined;
   variant?: 'default' | 'feature';
   blockedReason?: string;
+  highlights?: readonly string[];
+}
+
+/**
+ * Builds simulator card highlights from existing recommendation hydration data.
+ */
+function buildSimulatorHighlights(
+  keyExpectationDelta: string,
+  firstConstraint?: string,
+): readonly string[] {
+  return [
+    `Expectation summary: ${keyExpectationDelta}`,
+    firstConstraint != null
+      ? `Hot-water and recovery highlight: ${firstConstraint}`
+      : 'Hot-water and recovery highlight: Review hot-water demand and recovery behaviour in the simulator timeline.',
+  ];
 }
 
 function DashboardCard({
@@ -210,12 +188,17 @@ function DashboardCard({
   onCta,
   variant = 'default',
   blockedReason,
+  highlights,
 }: DashboardCardProps) {
   const isBlocked = status === 'blocked';
+  const audienceLabel = audience
+    .map((entry) => entry.replace('-', ' '))
+    .join(' / ');
   const cardClassName = [
     'vhd-card',
     isBlocked ? 'vhd-card--blocked' : '',
     variant === 'feature' ? 'vhd-card--feature' : '',
+    `vhd-card--status-${status}`,
   ]
     .filter(Boolean)
     .join(' ');
@@ -236,10 +219,16 @@ function DashboardCard({
           {blockedReason}
         </p>
       )}
-      <div className="vhd-card__meta">
-        {audience.map((a) => <AudienceBadge key={a} audience={a} />)}
-        <SourceBadge source={source} />
-      </div>
+      {highlights != null && highlights.length > 0 && (
+        <ul className="vhd-card__highlights">
+          {highlights.map((highlight) => (
+            <li key={highlight}>{highlight}</li>
+          ))}
+        </ul>
+      )}
+      <p className="vhd-card__context">
+        For <strong>{audienceLabel}</strong> · Source: <strong>{source}</strong>
+      </p>
       <button
         type="button"
         className="vhd-card__cta"
@@ -380,6 +369,8 @@ export function VisitHomeDashboard({
   const needsReviewCount = readinessCounts.needsReview;
   const blockedCount = readinessCounts.blocked;
   const journeyInfo = viewModel.journeyInfo;
+  const keyExpectationDelta = viewModel.hero.keyExpectationDelta;
+  const recommendationHeroVisible = viewModel.hasRecommendation || viewModel.hasAcceptedScenario;
 
   // ── Property title for display ─────────────────────────────────────────────
 
@@ -437,28 +428,42 @@ export function VisitHomeDashboard({
       {/* ── Workspace rails ────────────────────────────────────────────────── */}
       <div className="vhd-workspace vhd-workspace--three-rail" data-testid="visit-home-workspace-layout">
         <aside className="vhd-rail vhd-rail--left">
-          {viewModel.hasRecommendation && (
-            <section className="vhd-recommendation-hero" data-testid="visit-home-recommendation-hero">
+          <section className="vhd-recommendation-hero" data-testid="visit-home-recommendation-hero">
+            <div className="vhd-recommendation-hero__header">
               <h2 className="vhd-panel-title">Recommended system</h2>
-              <p className="vhd-recommendation-hero__system">{viewModel.hero.selectedSystem}</p>
-              <div className="vhd-recommendation-hero__meta">
-                <span><strong>Journey:</strong> {viewModel.hero.journeyArchetype}</span>
-                <span>
-                  <strong>Readiness:</strong> {STATUS_STYLES[viewModel.hero.confidenceReadiness].label}
-                </span>
-              </div>
-              <p className="vhd-recommendation-hero__delta">
-                <strong>Key expectation delta:</strong> {viewModel.hero.keyExpectationDelta}
-              </p>
-              {viewModel.hero.keyConstraints.length > 0 && (
-                <ul className="vhd-recommendation-hero__constraints">
-                  {viewModel.hero.keyConstraints.map((constraint) => (
-                    <li key={constraint}>{constraint}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
+              <StatusBadge status={viewModel.hero.confidenceReadiness} />
+            </div>
+            {recommendationHeroVisible ? (
+              <>
+                <p className="vhd-recommendation-hero__system">{viewModel.hero.selectedSystem}</p>
+                <div className="vhd-recommendation-hero__meta">
+                  <span><strong>Journey:</strong> {viewModel.hero.journeyArchetype}</span>
+                  <span>
+                    <strong>Confidence / readiness:</strong> {STATUS_STYLES[viewModel.hero.confidenceReadiness].label}
+                  </span>
+                </div>
+                <p className="vhd-recommendation-hero__delta">
+                  <strong>Key expectation delta:</strong> {keyExpectationDelta}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="vhd-recommendation-hero__system">Recommendation pending</p>
+                <p className="vhd-recommendation-hero__delta">
+                  <strong>Key expectation delta:</strong> Capture complete recommendation inputs to hydrate this summary.
+                </p>
+              </>
+            )}
+          </section>
+
+          <div className="vhd-readiness-panel" data-testid="visit-home-readiness-panel">
+            <h2 className="vhd-panel-title">Readiness summary</h2>
+            <ul className="vhd-readiness-list">
+              <li><strong>{readyCount}</strong> ready</li>
+              <li><strong>{needsReviewCount}</strong> needs review</li>
+              <li><strong>{blockedCount}</strong> blocked</li>
+            </ul>
+          </div>
 
           {journeyInfo.archetype != null && isActionVisible('review-survey') && (
             <div
@@ -485,132 +490,154 @@ export function VisitHomeDashboard({
             </div>
           )}
 
-          <div className="vhd-readiness-panel" data-testid="visit-home-readiness-panel">
-            <h2 className="vhd-panel-title">Readiness status</h2>
-            <ul className="vhd-readiness-list">
-              <li><strong>{readyCount}</strong> ready</li>
-              <li><strong>{needsReviewCount}</strong> needs review</li>
-              <li><strong>{blockedCount}</strong> blocked</li>
-            </ul>
+          <div className="vhd-readiness-panel" data-testid="visit-home-expectation-highlights">
+            <h2 className="vhd-panel-title">Expectation highlights</h2>
+            <p className="vhd-panel-copy">
+              {keyExpectationDelta}
+            </p>
+            {viewModel.hero.keyConstraints.length > 0 && (
+              <ul className="vhd-readiness-list">
+                {viewModel.hero.keyConstraints.map((constraint) => (
+                  <li key={constraint}>{constraint}</li>
+                ))}
+              </ul>
+            )}
           </div>
-
-          {isActionVisible('review-survey') && (
-            <DashboardCard
-              data-testid="card-recommendation"
-              icon="🎯"
-              title="Recommendation summary"
-              description="Review the recommendation with evidence and scenario context before customer handover."
-              status={actionStatus('review-survey', recommendationStatus)}
-              blockedReason={actionReason('review-survey')}
-              audience={['customer', 'surveyor']}
-              source="engine"
-              ctaLabel="Review recommendation →"
-              onCta={canTriggerAction('review-survey', recommendationStatus) ? onOpenPresentation : undefined}
-            />
-          )}
         </aside>
 
         <main className="vhd-main-area">
-          <div className="vhd-main-grid">
-            {isActionVisible('customer-portal') && (
-              <DashboardCard
-                data-testid="card-portal"
-                icon="🔗"
-                title="Customer portal / Insight"
-                description={portalDescription}
-                status={actionStatus('customer-portal', portalStatus)}
-                blockedReason={actionReason('customer-portal')}
-                audience={['customer']}
-                source="workflow"
-                ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-                onCta={canTriggerAction('customer-portal', portalStatus, 'not-blocked') ? (onOpenInsightPack ?? handleOpenPortal) : undefined}
-              />
-            )}
+          <section className="vhd-section" data-testid="visit-home-section-customer-review">
+            <h2 className="vhd-section__title">Customer review</h2>
+            <div className="vhd-main-grid">
+              {isActionVisible('review-survey') && (
+                <DashboardCard
+                  data-testid="card-recommendation"
+                  icon="🎯"
+                  title="Lived experience explanations"
+                  description="Review recommendation evidence and lived experience explanations before customer handover."
+                  status={actionStatus('review-survey', recommendationStatus)}
+                  blockedReason={actionReason('review-survey')}
+                  audience={['customer', 'surveyor']}
+                  source="engine"
+                  ctaLabel="Review recommendation →"
+                  onCta={canTriggerAction('review-survey', recommendationStatus) ? onOpenPresentation : undefined}
+                />
+              )}
 
-            {isActionVisible('supporting-pdf') && (
-              <DashboardCard
-                data-testid="card-pdf"
-                icon="📄"
-                title="Supporting PDF"
-                description={supportingPdfDescription}
-                status={actionStatus('supporting-pdf', pdfStatus)}
-                blockedReason={actionReason('supporting-pdf')}
-                audience={['customer', 'office']}
-                source="library"
-                ctaLabel="Print summary →"
-                onCta={canTriggerAction('supporting-pdf', pdfStatus) ? onPrintSummary : undefined}
-              />
-            )}
+              {isActionVisible('customer-portal') && (
+                <DashboardCard
+                  data-testid="card-portal"
+                  icon="🔗"
+                  title="Customer portal"
+                  description={portalDescription}
+                  status={actionStatus('customer-portal', portalStatus)}
+                  blockedReason={actionReason('customer-portal')}
+                  audience={['customer']}
+                  source="workflow"
+                  ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
+                  onCta={canTriggerAction('customer-portal', portalStatus, 'not-blocked') ? (onOpenInsightPack ?? handleOpenPortal) : undefined}
+                />
+              )}
 
-            {isActionVisible('run-simulator') && (
-              <DashboardCard
-                data-testid="card-simulator"
-                icon="📊"
-                title="Daily hot-water simulator"
-                description="Run the 24-hour demand and system response simulator during review."
-                status={actionStatus('run-simulator', simulatorStatus)}
-                blockedReason={actionReason('run-simulator')}
-                audience={['surveyor', 'engineer']}
-                source="simulator"
-                ctaLabel="Run daily-use simulator →"
-                onCta={canTriggerAction('run-simulator', simulatorStatus, 'not-blocked') ? onOpenSimulator : undefined}
-                variant="feature"
-              />
-            )}
-          </div>
+              {isActionVisible('supporting-pdf') && (
+                <DashboardCard
+                  data-testid="card-pdf"
+                  icon="📄"
+                  title="Supporting PDF"
+                  description={supportingPdfDescription}
+                  status={actionStatus('supporting-pdf', pdfStatus)}
+                  blockedReason={actionReason('supporting-pdf')}
+                  audience={['customer', 'office']}
+                  source="library"
+                  ctaLabel="Print summary →"
+                  onCta={canTriggerAction('supporting-pdf', pdfStatus) ? onPrintSummary : undefined}
+                />
+              )}
+            </div>
+          </section>
+
+          <section className="vhd-section" data-testid="visit-home-section-technical-review">
+            <h2 className="vhd-section__title">Technical review</h2>
+            <div className="vhd-main-grid">
+              {isActionVisible('run-simulator') && (
+                <DashboardCard
+                  data-testid="card-simulator"
+                  icon="📊"
+                  title="Daily hot-water simulator"
+                  description="Primary simulator surface for 24-hour demand and system response review."
+                  status={actionStatus('run-simulator', simulatorStatus)}
+                  blockedReason={actionReason('run-simulator')}
+                  audience={['surveyor', 'engineer']}
+                  source="simulator"
+                  ctaLabel="Run daily-use simulator →"
+                  onCta={canTriggerAction('run-simulator', simulatorStatus, 'not-blocked') ? onOpenSimulator : undefined}
+                  variant="feature"
+                  highlights={buildSimulatorHighlights(
+                    viewModel.hero.keyExpectationDelta,
+                    viewModel.hero.keyConstraints[0],
+                  )}
+                />
+              )}
+            </div>
+          </section>
         </main>
 
         <aside className="vhd-rail vhd-rail--right">
-          {isActionVisible('implementation-workflow') && (
-            <DashboardCard
-              data-testid="card-implementation"
-              icon="🔧"
-              title="Implementation workflow"
-              description={
-                installationSpecOptionCount > 0
-                  ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
-                  : 'Prepare scope, materials, and commissioning checklist for delivery.'
-              }
-              status={implementationActionStatus}
-              blockedReason={actionReason('implementation-workflow')}
-              audience={['engineer']}
-              source="workflow"
-              ctaLabel="Prepare implementation pack →"
-              onCta={canTriggerAction('implementation-workflow', implementationStatus, 'ready-or-needs-review')
-                ? onOpenInstallationSpecification
-                : undefined}
-            />
-          )}
+          <section className="vhd-section" data-testid="visit-home-section-delivery-handover">
+            <h2 className="vhd-section__title">Delivery / handover</h2>
+            <div className="vhd-rail vhd-rail--nested">
+              {isActionVisible('implementation-workflow') && (
+                <DashboardCard
+                  data-testid="card-implementation"
+                  icon="🔧"
+                  title="Implementation workflow"
+                  description={
+                    installationSpecOptionCount > 0
+                      ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
+                      : 'Prepare scope, materials, and commissioning checklist for delivery.'
+                  }
+                  status={implementationActionStatus}
+                  blockedReason={actionReason('implementation-workflow')}
+                  audience={['engineer']}
+                  source="workflow"
+                  ctaLabel="Prepare implementation pack →"
+                  onCta={canTriggerAction('implementation-workflow', implementationStatus, 'ready-or-needs-review')
+                    ? onOpenInstallationSpecification
+                    : undefined}
+                />
+              )}
 
-          {isActionVisible('resolve-follow-ups') && (
-            <DashboardCard
-              data-testid="card-handoff"
-              icon="📱"
-              title="Follow-up and handoff"
-              description="Review post-visit handoff details and linked captured evidence."
-              status={actionStatus('resolve-follow-ups', handoffStatus)}
-              blockedReason={actionReason('resolve-follow-ups')}
-              audience={['engineer', 'office']}
-              source="workflow"
-              ctaLabel="Review handoff →"
-              onCta={canTriggerAction('resolve-follow-ups', handoffStatus, 'not-blocked') ? onOpenHandoffReview : undefined}
-            />
-          )}
+              {isActionVisible('resolve-follow-ups') && (
+                <DashboardCard
+                  data-testid="card-handoff"
+                  icon="📱"
+                  title="Follow-up and handoff"
+                  description="Review post-visit handoff details and linked captured evidence."
+                  status={actionStatus('resolve-follow-ups', handoffStatus)}
+                  blockedReason={actionReason('resolve-follow-ups')}
+                  audience={['engineer', 'office']}
+                  source="workflow"
+                  ctaLabel="Review handoff →"
+                  onCta={canTriggerAction('resolve-follow-ups', handoffStatus, 'not-blocked') ? onOpenHandoffReview : undefined}
+                />
+              )}
 
-          {isActionVisible('export-handover-package') && (
-            <DashboardCard
-              data-testid="card-export"
-              icon="📦"
-              title="Export package"
-              description="Export recommendation, portal context, and implementation pack for office handover."
-              status={actionStatus('export-handover-package', exportStatus)}
-              blockedReason={actionReason('export-handover-package')}
-              audience={['office']}
-              source="workflow"
-              ctaLabel="Export handover package →"
-              onCta={canTriggerAction('export-handover-package', exportStatus, 'not-blocked') ? onExportPackage : undefined}
-            />
-          )}
+              {isActionVisible('export-handover-package') && (
+                <DashboardCard
+                  data-testid="card-export"
+                  icon="📦"
+                  title="Export package"
+                  description="Export recommendation, portal context, and implementation pack for office handover."
+                  status={actionStatus('export-handover-package', exportStatus)}
+                  blockedReason={actionReason('export-handover-package')}
+                  audience={['office']}
+                  source="workflow"
+                  ctaLabel="Export handover package →"
+                  onCta={canTriggerAction('export-handover-package', exportStatus, 'not-blocked') ? onExportPackage : undefined}
+                />
+              )}
+            </div>
+          </section>
 
           <div className="vhd-readiness-panel" data-testid="visit-home-scan-entry-note">
             <h2 className="vhd-panel-title">Capture and import split</h2>

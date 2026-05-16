@@ -105,31 +105,40 @@
 }
 
 .vhd-recommendation-hero {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.75rem;
-  padding: 0.875rem 1rem;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  background: linear-gradient(160deg, #ffffff, #eef4ff);
+  border: 2px solid #93c5fd;
+  border-radius: 0.875rem;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 10px 24px rgba(30, 64, 175, 0.08);
+}
+
+.vhd-recommendation-hero__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
 }
 
 .vhd-recommendation-hero__system {
-  margin: 0 0 0.4rem;
-  font-size: 0.95rem;
-  font-weight: 700;
+  margin: 0.2rem 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 800;
   color: #0f172a;
+  line-height: 1.3;
 }
 
 .vhd-recommendation-hero__meta {
   display: grid;
-  gap: 0.25rem;
-  font-size: 0.78rem;
+  gap: 0.3rem;
+  font-size: 0.8rem;
   color: #334155;
 }
 
 .vhd-recommendation-hero__delta {
-  margin: 0.55rem 0 0;
-  font-size: 0.8rem;
-  color: #334155;
+  margin: 0.7rem 0 0;
+  font-size: 0.86rem;
+  color: #1e293b;
+  line-height: 1.45;
 }
 
 .vhd-recommendation-hero__constraints {
@@ -150,13 +159,13 @@
 
 .vhd-workspace {
   display: grid;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
+  gap: 1.25rem;
+  padding: 1.1rem 1.25rem 1.4rem;
 }
 
 .vhd-workspace--three-rail {
   /* Desktop/tablet rails: summary, review canvas, implementation/actions. */
-  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-columns: minmax(270px, 330px) minmax(0, 1fr) minmax(280px, 360px);
   align-items: start;
 }
 
@@ -169,32 +178,65 @@
   min-width: 0;
 }
 
+.vhd-section {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.875rem;
+  padding: 0.85rem;
+}
+
+.vhd-section + .vhd-section {
+  margin-top: 0.875rem;
+}
+
+.vhd-section__title {
+  margin: 0 0 0.625rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #334155;
+}
+
 .vhd-main-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(240px, 1fr));
-  gap: 0.875rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 /* ── Individual card ──────────────────────────────────────────────────────── */
 
 .vhd-card {
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #dbe4ef;
   border-radius: 0.75rem;
-  padding: 1rem 1rem 0.875rem;
+  padding: 0.95rem 0.95rem 0.875rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  gap: 0.45rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .vhd-card--blocked {
-  opacity: 0.72;
+  opacity: 0.82;
+}
+
+.vhd-card--status-ready {
+  border-left: 4px solid #22c55e;
+}
+
+.vhd-card--status-needs-review {
+  border-left: 4px solid #f59e0b;
+}
+
+.vhd-card--status-blocked {
+  border-left: 4px solid #ef4444;
 }
 
 .vhd-card--feature {
-  min-height: 250px;
+  min-height: 265px;
   grid-column: 1 / -1;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
 }
 
 .vhd-card__header {
@@ -216,10 +258,10 @@
 }
 
 .vhd-card__description {
-  font-size: 0.8125rem;
+  font-size: 0.815rem;
   color: #475569;
   margin: 0;
-  flex: 1;
+  line-height: 1.45;
 }
 
 .vhd-card__reason {
@@ -228,11 +270,19 @@
   margin: 0;
 }
 
-.vhd-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin-top: 0.25rem;
+.vhd-card__highlights {
+  margin: 0.2rem 0 0;
+  padding-left: 1.05rem;
+  color: #334155;
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+}
+
+.vhd-card__context {
+  margin: 0.15rem 0 0;
+  font-size: 0.735rem;
+  color: #64748b;
 }
 
 .vhd-card__cta {
@@ -292,6 +342,10 @@
   margin-top: 0.4rem;
 }
 
+.vhd-rail--nested {
+  gap: 0.75rem;
+}
+
 .vhd-inline-action {
   border: none;
   background: #dbeafe;
@@ -349,22 +403,24 @@
 
 @media (max-width: 1199px) {
   .vhd-workspace--three-rail {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
   }
 
   .vhd-rail--left {
-    grid-column: 1 / -1;
-    position: sticky;
-    top: 0.5rem;
+    grid-column: 1 / 2;
   }
 
-  .vhd-main-area,
+  .vhd-main-area {
+    grid-column: 2 / 3;
+  }
+
   .vhd-rail--right {
+    grid-column: 1 / -1;
     min-width: 0;
   }
 
-  .vhd-main-grid {
-    grid-template-columns: 1fr;
+  .vhd-section {
+    padding: 0.8rem;
   }
 }
 
@@ -377,7 +433,6 @@
   .vhd-main-area,
   .vhd-rail--right {
     grid-column: auto;
-    position: static;
   }
 
   .vhd-header,
@@ -390,6 +445,10 @@
   .vhd-continue-banner {
     margin-left: 0.75rem;
     margin-right: 0.75rem;
+  }
+
+  .vhd-main-grid {
+    grid-template-columns: 1fr;
   }
 
   .vhd-card__cta,
