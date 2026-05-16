@@ -531,7 +531,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/features/visitHome/VisitHomeDashboard.tsx',
     category: 'journey',
     status: 'active',
-    notes: 'Primary post-survey visit dashboard. Opens simulator, customer portal/insight, supporting PDF, and implementation workflow.',
+    notes: 'Primary post-survey visit dashboard. Opens simulator, customer portal, supporting PDF, and implementation workflow.',
     routeKind: 'derived',
     fullRouteExample: 'workspace dashboard → open visit → Visit Home Dashboard',
     access: 'production',
@@ -587,8 +587,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     routeKind: 'derived',
     fullRouteExample: '/?insight-pack=1 (legacy diagnostics only)',
     access: 'legacy_dev_only',
-    parentCodeName: 'CustomerPortalPage',
-    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>UnifiedSimulatorView — open from the customer portal Insight route.</div>,
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>UnifiedSimulatorView — legacy diagnostic only; open via /?insight-pack=1.</div>,
   },
   {
     id: 'library-coverage-audit-panel',
@@ -818,5 +817,57 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     access: 'dev_only',
     parentCodeName: 'DevPortalFixturePage',
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>WorkflowStorageModeSelector — open from portal fixtures workflow.</div>,
+  },
+
+  // ── Customer Portal ─────────────────────────────────────────────────────────
+  {
+    id: 'customer-portal-page',
+    commonName: 'Customer Portal',
+    codeName: 'CustomerPortalPage',
+    fileName: 'CustomerPortalPage.tsx',
+    filePath: 'src/components/portal/CustomerPortalPage.tsx',
+    category: 'journey',
+    status: 'canonical',
+    notes:
+      'Canonical customer-facing recommendation portal. ' +
+      'The only production path for customer-facing visit output. ' +
+      'All legacy insight-pack / blueprint customer outputs defer to this surface.',
+    routeKind: 'path',
+    routePath: '/portal/:reference',
+    fullRouteExample: '/portal/<reference>?token=<signed-token>',
+    access: 'production',
+    owner: 'portal',
+    domain: 'customer review',
+    sourceFiles: [
+      'src/components/portal/CustomerPortalPage.tsx',
+      'src/components/portal/selectors/buildPortalJourneyModel.ts',
+      'src/components/portal/selectors/buildPortalDisplayModel.ts',
+    ],
+    includeInCopyBox: true,
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>CustomerPortalPage — open via /portal/{'<reference>'}?token={'<signed-token>'}. Use /dev/portal-fixtures for fixture-based QA.</div>,
+  },
+
+  // ── Legacy customer output surfaces (insight-pack family) ───────────────────
+  {
+    id: 'insight-pack-deck',
+    commonName: 'Insight Pack Deck',
+    codeName: 'InsightPackDeck',
+    fileName: 'InsightPackDeck.tsx',
+    filePath: 'src/features/insightPack/InsightPackDeck.tsx',
+    category: 'deprecated',
+    status: 'deprecated',
+    notes:
+      'Legacy multi-screen customer recommendation deck. ' +
+      'Superseded by CustomerPortalPage. ' +
+      'Retained for explicit legacy diagnostics only via /?insight-pack=1. ' +
+      'No production CTA should reference this surface.',
+    routeKind: 'derived',
+    fullRouteExample: '/?insight-pack=1 (legacy diagnostics only)',
+    access: 'legacy_dev_only',
+    sourceFiles: [
+      'src/features/insightPack/InsightPackDeck.tsx',
+      'src/features/insightPack/buildInsightPackFromEngine.ts',
+    ],
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>InsightPackDeck — legacy diagnostics only. Canonical customer output is CustomerPortalPage (/portal/{'<reference>'}).</div>,
   },
 ];

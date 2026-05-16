@@ -106,6 +106,8 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     fullRouteExample: '/portal/<reference>?token=<signed-token>',
     routeKind: 'path',
     access: 'production',
+    lifecycle: 'canonical',
+    canonicalOwner: 'portal',
   },
   {
     codeName: 'UnifiedSimulatorView',

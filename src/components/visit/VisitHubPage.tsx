@@ -63,8 +63,6 @@ interface Props {
   onOpenReport: (reportId: string) => void;
   /** Open the pre-install engineer route for this visit. */
   onOpenEngineerRoute?: () => void;
-  /** Open the Atlas Insight Pack for this visit. */
-  onOpenInsightPack?: () => void;
   /** Open the completed-visit handoff review page. */
   onOpenHandoffReview?: () => void;
   /** Open the Atlas Scan import flow to receive a scan from the Atlas Scan iOS app. */
@@ -392,7 +390,6 @@ function HubActions({
   onEmailSummary,
   onSaveVisitLocally,
   onOpenEngineerRoute,
-  onOpenInsightPack,
   onOpenHandoffReview,
   onExportVisitPack,
   onCompleteVisit,
@@ -402,7 +399,6 @@ function HubActions({
   isReopening,
   portalUrl,
   portalLoading,
-  hasQuotes,
   onImportScan,
   onOpenExternalFiles,
   onOpenInstallationSpecification,
@@ -417,7 +413,6 @@ function HubActions({
   onEmailSummary?: () => void;
   onSaveVisitLocally?: () => void;
   onOpenEngineerRoute?: () => void;
-  onOpenInsightPack?: () => void;
   onOpenHandoffReview?: () => void;
   onExportVisitPack?: () => void;
   onCompleteVisit: () => void;
@@ -551,17 +546,6 @@ function HubActions({
               data-testid="open-engineer-route-btn"
             >
               🔧 Engineer handoff
-            </button>
-          )}
-
-          {onOpenInsightPack && (
-            <button
-              className="visit-hub__action-btn visit-hub__action-btn--secondary"
-              onClick={onOpenInsightPack}
-              aria-label="Open insight view"
-              data-testid="open-insight-pack-btn"
-            >
-              📊 Insight view{hasQuotes ? '' : ' · Specification incomplete'}
             </button>
           )}
 
@@ -758,17 +742,6 @@ function HubActions({
             ▶ Present to customer
           </button>
 
-          {onOpenInsightPack && (
-            <button
-              className="visit-hub__action-btn visit-hub__action-btn--secondary"
-              onClick={onOpenInsightPack}
-              aria-label="Open insight view"
-              data-testid="open-insight-pack-btn"
-            >
-              📊 Insight view{hasQuotes ? '' : ' · Specification incomplete'}
-            </button>
-          )}
-
           {onOpenInstallationSpecification && (
             <button
               className="visit-hub__action-btn visit-hub__action-btn--secondary"
@@ -959,7 +932,6 @@ export default function VisitHubPage({
   onPrintSummary,
   onOpenReport,
   onOpenEngineerRoute,
-  onOpenInsightPack,
   onOpenHandoffReview,
   onImportScan,
   onOpenExternalFiles,
@@ -1340,7 +1312,6 @@ export default function VisitHubPage({
           onEmailSummary={handleEmailSummary}
           onSaveVisitLocally={handleSaveVisitLocally}
           onOpenEngineerRoute={onOpenEngineerRoute}
-          onOpenInsightPack={onOpenInsightPack}
           onOpenHandoffReview={onOpenHandoffReview}
           onExportVisitPack={handleExportVisitPack}
           onCompleteVisit={handleCompleteVisit}

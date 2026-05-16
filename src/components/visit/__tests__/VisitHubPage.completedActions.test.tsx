@@ -5,7 +5,6 @@
  *
  * Covers:
  *   - Completed visit renders "Present to customer" visibly without expanding tools
- *   - Completed visit renders "Insight view" visibly without expanding tools
  *   - Review handoff button is inside the Diagnostics collapse (not top-level)
  *   - "Download customer PDF" button is present and replaces the old "Save summary"
  *   - "Send customer PDF" button is present and replaces the old "Email summary"
@@ -119,7 +118,6 @@ const BASE_PROPS = {
   onResumeSurvey: vi.fn(),
   onOpenPresentation: vi.fn(),
   onOpenReport: vi.fn(),
-  onOpenInsightPack: vi.fn(),
   onOpenHandoffReview: vi.fn(),
   onPrintSummary: vi.fn(),
   onOpenEngineerRoute: vi.fn(),
@@ -148,18 +146,6 @@ describe('VisitHubPage — completed visit primary actions (PR 17)', () => {
     const btn = screen.getByTestId('present-to-customer-btn');
     expect(btn).toBeTruthy();
     // Not inside a closed <details> — the button should be accessible
-    expect(btn.closest('details[open]')).toBeNull();
-  });
-
-  it('renders "Insight view" visibly without expanding any tools section', async () => {
-    const { getVisit } = await import('../../../lib/visits/visitApi');
-    vi.mocked(getVisit).mockResolvedValue(makeCompletedVisit());
-
-    render(<VisitHubPage {...BASE_PROPS} />);
-    await screen.findByTestId('visit-hub-body-completed-hint');
-
-    const btn = screen.getByTestId('open-insight-pack-btn');
-    expect(btn).toBeTruthy();
     expect(btn.closest('details[open]')).toBeNull();
   });
 
