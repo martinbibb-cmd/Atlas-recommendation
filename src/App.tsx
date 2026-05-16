@@ -33,7 +33,6 @@ import EngineerPreinstallPage from './components/engineer/EngineerPreinstallPage
 import { SpatialTwinPage } from './features/spatialTwin/routes/SpatialTwinPage';
 import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
-import UnifiedSimulatorView from './components/simulator/UnifiedSimulatorView';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
 import { getVisit, saveVisit } from './lib/visits/visitApi';
@@ -140,6 +139,7 @@ import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
+import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -2199,38 +2199,13 @@ function AppInner() {
       )}
       {journey === 'unified-simulator' && (
         <GlobalMenuShell>
-          <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-            <div style={{ padding: '0.5rem 1rem' }}>
-              <button className="back-btn" onClick={() => setJourney(simulatorFromJourney)}>
-                ← Back
-              </button>
-            </div>
-            {(() => {
-              if (labEngineInput == null) {
-                return (
-                  <div style={{ padding: '0 1rem 1rem', color: '#475569' }}>
-                    Recommendation not available.
-                  </div>
-                );
-              }
-              try {
-                const { engineOutput } = runEngine(labEngineInput);
-                return (
-                  <UnifiedSimulatorView
-                    engineOutput={engineOutput}
-                    surveyData={(labFullSurveyModel ?? labEngineInput) as FullSurveyModelV1}
-                    floorplanOutput={floorplanOutput}
-                  />
-                );
-              } catch {
-                return (
-                  <div style={{ padding: '0 1rem 1rem', color: '#475569' }}>
-                    Recommendation not available.
-                  </div>
-                );
-              }
-            })()}
-          </div>
+          <VisitHomeUnifiedSimulatorRoute
+            engineInput={labEngineInput}
+            surveyModel={labFullSurveyModel}
+            floorplanOutput={floorplanOutput}
+            onBack={() => setJourney(simulatorFromJourney)}
+            backLabel={simulatorFromJourney}
+          />
         </GlobalMenuShell>
       )}
       {journey === 'lab' && <LabShell onHome={() => setJourney('landing')} engineInput={labEngineInput} />}

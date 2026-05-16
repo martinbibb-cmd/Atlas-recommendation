@@ -279,6 +279,7 @@ export function VisitHomeDashboard({
 
   const hasEngineData = engineOutput != null && engineInput != null;
   const hasVisit = visitId != null;
+  const hasSupportingPdf = onPrintSummary != null;
 
   const recommendationStatus: CardStatus = hasEngineData
     ? 'ready'
@@ -298,7 +299,7 @@ export function VisitHomeDashboard({
 
   const pdfStatus: CardStatus = libraryUnsafe
     ? 'blocked'
-    : onPrintSummary != null && hasVisit && hasEngineData
+    : hasSupportingPdf && hasVisit && hasEngineData
     ? 'ready'
     : 'needs-review';
 
@@ -328,7 +329,7 @@ export function VisitHomeDashboard({
     availableOutputs: {
       hasPortalUrl: portalUrl != null,
       hasInsightPack: onOpenInsightPack != null,
-      hasSupportingPdf: onPrintSummary != null,
+      hasSupportingPdf,
       hasHandoffReview: onOpenHandoffReview != null,
       hasExportPackage: onExportPackage != null,
     },

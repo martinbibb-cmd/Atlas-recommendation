@@ -157,7 +157,6 @@ function buildStatusAndReason(
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       if (!hasEngineData) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       if (input.availableOutputs.hasHandoffReview) return { status: 'ready' };
-      if (input.implementationReadiness.installationSpecOptionCount > 0) return { status: 'needs-review' };
       return { status: 'needs-review' };
     case 'export-handover-package':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
