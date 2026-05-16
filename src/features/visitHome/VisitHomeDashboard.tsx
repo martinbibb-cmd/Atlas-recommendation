@@ -24,6 +24,7 @@
  */
 
 import type { CSSProperties } from 'react';
+import { useRef } from 'react';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
@@ -36,6 +37,10 @@ import {
   type VisitHomeActionRole,
 } from './buildVisitHomeActionProjection';
 import { buildVisitHomeViewModel } from './buildVisitHomeViewModel';
+import {
+  computeVisitHydrationState,
+  HYDRATION_STATE_DISPLAY,
+} from './computeVisitHydrationState';
 import './VisitHomeDashboard.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -97,6 +102,31 @@ export interface VisitHomeDashboardProps {
   lastSurface?: string;
   /** Opens the last surface the user was on. Only called when lastSurface is set. */
   onContinueLastSurface?: () => void;
+
+  // ── Visit lifecycle controls ───────────────────────────────────────────────
+
+  /**
+   * Whether a local save exists for the current visitId that can be resumed.
+   * When true the "Resume saved visit" control is shown.
+   */
+  hasSavedLocalVisit?: boolean;
+  /** Trigger Atlas Scan package import (routes to receive-scan). */
+  onImportScanPackage?: () => void;
+  /**
+   * Import a JSON workflow export package from a file.
+   * Called with the File chosen by the user from the hidden file input.
+   */
+  onImportWorkflowPackage?: (file: File) => void;
+  /** Explicitly save the current visit state to local storage. */
+  onSaveLocally?: () => void;
+  /** Resume the locally saved visit state. Only shown when hasSavedLocalVisit is true. */
+  onResumeLocalVisit?: () => void;
+  /** Clear the current review session and return to workspace. */
+  onClearSession?: () => void;
+  /** Open the existing visit search (workspace visit list). */
+  onOpenExistingVisit?: () => void;
+  /** Start with the built-in demo fixture. */
+  onStartDemo?: () => void;
 
   // ── CTA handlers (all delegate to existing App.tsx journeys) ─────────────
 
@@ -261,6 +291,14 @@ export function VisitHomeDashboard({
   libraryBlockReasons,
   lastSurface,
   onContinueLastSurface,
+  hasSavedLocalVisit = false,
+  onImportScanPackage,
+  onImportWorkflowPackage,
+  onSaveLocally,
+  onResumeLocalVisit,
+  onClearSession,
+  onOpenExistingVisit,
+  onStartDemo,
   onOpenSimulator,
   onOpenPresentation,
   onPrintSummary,
@@ -271,6 +309,9 @@ export function VisitHomeDashboard({
   onExportPackage,
   onBack,
 }: VisitHomeDashboardProps) {
+  // ── Hidden file input ref for workflow package import ─────────────────────
+  const workflowFileInputRef = useRef<HTMLInputElement>(null);
+
   // ── Derive card statuses from available data ───────────────────────────────
 
   const hasVisit = visitId != null;
@@ -372,6 +413,16 @@ export function VisitHomeDashboard({
   const keyExpectationDelta = viewModel.hero.keyExpectationDelta;
   const recommendationHeroVisible = viewModel.hasRecommendation || viewModel.hasAcceptedScenario;
 
+  // ── Hydration state ────────────────────────────────────────────────────────
+
+  const hydrationState = computeVisitHydrationState({
+    hasVisit,
+    hasRecommendation: viewModel.hasRecommendation,
+    hasAcceptedScenario: viewModel.hasAcceptedScenario,
+    hasSurveyModel: viewModel.hasSurveyModel,
+  });
+  const hydrationDisplay = HYDRATION_STATE_DISPLAY[hydrationState];
+
   // ── Property title for display ─────────────────────────────────────────────
 
   const propertyTitle = engineInput?.postcode
@@ -385,6 +436,17 @@ export function VisitHomeDashboard({
   const handleOpenPortal = portalUrl != null
     ? () => { window.open(portalUrl, '_blank', 'noopener,noreferrer'); }
     : undefined;
+
+  // ── Workflow package file input handler ───────────────────────────────────
+
+  function handleWorkflowFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file != null && onImportWorkflowPackage != null) {
+      onImportWorkflowPackage(file);
+    }
+    // Reset so the same file can be re-selected after a rejection
+    e.target.value = '';
+  }
 
   return (
     <div
@@ -422,6 +484,79 @@ export function VisitHomeDashboard({
           >
             Continue →
           </button>
+        </div>
+      )}
+
+      {/* ── Visit hydration status banner ──────────────────────────────────── */}
+      <div
+        className={`vhd-hydration-banner vhd-hydration-banner--${hydrationDisplay.tone}`}
+        data-testid="visit-home-hydration-banner"
+        data-hydration-state={hydrationState}
+      >
+        <span className="vhd-hydration-banner__label">{hydrationDisplay.label}</span>
+        <span className="vhd-hydration-banner__description">{hydrationDisplay.description}</span>
+      </div>
+
+      {/* ── No-visit empty state entry panel ──────────────────────────────── */}
+      {hydrationState === 'no-visit' && (
+        <div className="vhd-empty-state" data-testid="visit-home-empty-state">
+          <p className="vhd-empty-state__heading">Start a review session</p>
+          <p className="vhd-empty-state__copy">
+            Import a scan package, open an existing visit, or start with a demo to load recommendation data.
+          </p>
+          <div className="vhd-empty-state__actions">
+            {onImportScanPackage != null && (
+              <button
+                type="button"
+                className="vhd-empty-state__cta vhd-empty-state__cta--primary"
+                onClick={onImportScanPackage}
+                data-testid="visit-home-import-scan-cta"
+              >
+                📥 Import Atlas Scan package
+              </button>
+            )}
+            {onImportWorkflowPackage != null && (
+              <>
+                <button
+                  type="button"
+                  className="vhd-empty-state__cta"
+                  onClick={() => workflowFileInputRef.current?.click()}
+                  data-testid="visit-home-import-workflow-cta"
+                >
+                  📂 Open workflow export package
+                </button>
+                <input
+                  ref={workflowFileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  style={{ display: 'none' }}
+                  aria-hidden="true"
+                  data-testid="visit-home-workflow-file-input"
+                  onChange={handleWorkflowFileChange}
+                />
+              </>
+            )}
+            {onOpenExistingVisit != null && (
+              <button
+                type="button"
+                className="vhd-empty-state__cta"
+                onClick={onOpenExistingVisit}
+                data-testid="visit-home-open-existing-cta"
+              >
+                🔍 Open existing visit
+              </button>
+            )}
+            {onStartDemo != null && (
+              <button
+                type="button"
+                className="vhd-empty-state__cta vhd-empty-state__cta--secondary"
+                onClick={onStartDemo}
+                data-testid="visit-home-start-demo-cta"
+              >
+                🎬 Start demo fixture
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -647,7 +782,81 @@ export function VisitHomeDashboard({
             <p className="vhd-panel-copy">
               Atlas Mind is the review workspace for recommendation, customer portal, simulator, and handover.
             </p>
+            {onImportScanPackage != null && (
+              <button
+                type="button"
+                className="vhd-inline-action"
+                style={{ marginTop: '0.5rem' }}
+                onClick={onImportScanPackage}
+                data-testid="visit-home-scan-import-cta"
+              >
+                Import Atlas Scan package →
+              </button>
+            )}
           </div>
+
+          {/* ── Local visit controls ──────────────────────────────────────── */}
+          {(onSaveLocally != null || onResumeLocalVisit != null || onClearSession != null || onImportWorkflowPackage != null) && (
+            <div className="vhd-readiness-panel vhd-local-controls" data-testid="visit-home-local-controls">
+              <h2 className="vhd-panel-title">Visit session</h2>
+              <div className="vhd-local-controls__actions">
+                {onSaveLocally != null && (
+                  <button
+                    type="button"
+                    className="vhd-inline-action"
+                    onClick={onSaveLocally}
+                    data-testid="visit-home-save-locally"
+                  >
+                    💾 Save visit locally
+                  </button>
+                )}
+                {hasSavedLocalVisit && onResumeLocalVisit != null && (
+                  <button
+                    type="button"
+                    className="vhd-inline-action"
+                    onClick={onResumeLocalVisit}
+                    data-testid="visit-home-resume-local"
+                  >
+                    ↩ Resume saved visit
+                  </button>
+                )}
+                {onImportWorkflowPackage != null && (
+                  <>
+                    <button
+                      type="button"
+                      className="vhd-inline-action"
+                      onClick={() => workflowFileInputRef.current?.click()}
+                      data-testid="visit-home-import-workflow-controls-cta"
+                    >
+                      📂 Open workflow package
+                    </button>
+                    {/* File input is shared with the empty-state one; only render if not already rendered */}
+                    {hydrationState !== 'no-visit' && (
+                      <input
+                        ref={workflowFileInputRef}
+                        type="file"
+                        accept=".json,application/json"
+                        style={{ display: 'none' }}
+                        aria-hidden="true"
+                        data-testid="visit-home-workflow-file-input-controls"
+                        onChange={handleWorkflowFileChange}
+                      />
+                    )}
+                  </>
+                )}
+                {onClearSession != null && (
+                  <button
+                    type="button"
+                    className="vhd-inline-action vhd-inline-action--destructive"
+                    onClick={onClearSession}
+                    data-testid="visit-home-clear-session"
+                  >
+                    ✕ Clear review session
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {isActionVisible('workspace-controls') && (
             <div className="vhd-admin-actions" data-testid="visit-home-admin-actions">

@@ -367,6 +367,140 @@
   opacity: 0.65;
 }
 
+.vhd-inline-action--destructive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.vhd-inline-action--destructive:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+/* ── Hydration status banner ──────────────────────────────────────────────── */
+
+.vhd-hydration-banner {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.625rem;
+  margin: 0.75rem 1.25rem 0;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  border: 1px solid;
+}
+
+.vhd-hydration-banner--neutral {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+.vhd-hydration-banner--info {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.vhd-hydration-banner--success {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.vhd-hydration-banner--active {
+  background: #fefce8;
+  border-color: #fde047;
+  color: #713f12;
+}
+
+.vhd-hydration-banner__label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vhd-hydration-banner__description {
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* ── Empty-state entry panel ─────────────────────────────────────────────── */
+
+.vhd-empty-state {
+  margin: 1rem 1.25rem 0;
+  padding: 1.25rem 1.5rem;
+  background: #fff;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 0.875rem;
+}
+
+.vhd-empty-state__heading {
+  margin: 0 0 0.375rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.vhd-empty-state__copy {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.vhd-empty-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.vhd-empty-state__cta {
+  padding: 0.525rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.vhd-empty-state__cta:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.vhd-empty-state__cta--primary {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.vhd-empty-state__cta--primary:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.vhd-empty-state__cta--secondary {
+  background: #fff;
+  color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+.vhd-empty-state__cta--secondary:hover {
+  background: #f3f4f6;
+}
+
+/* ── Local visit controls panel ──────────────────────────────────────────── */
+
+.vhd-local-controls__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
 .vhd-mobile-fallback-note {
   margin: 0 1.25rem 1.25rem;
   padding: 0.625rem 0.75rem;
