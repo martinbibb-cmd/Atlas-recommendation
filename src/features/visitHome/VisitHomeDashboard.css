@@ -118,6 +118,7 @@
 }
 
 .vhd-workspace--three-rail {
+  /* Desktop/tablet rails: summary, review canvas, implementation/actions. */
   grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(260px, 340px);
   align-items: start;
 }

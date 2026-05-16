@@ -195,9 +195,16 @@ function DashboardCard({
   variant = 'default',
 }: DashboardCardProps) {
   const isBlocked = status === 'blocked';
+  const cardClassName = [
+    'vhd-card',
+    isBlocked ? 'vhd-card--blocked' : '',
+    variant === 'feature' ? 'vhd-card--feature' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
     <div
-      className={`vhd-card${isBlocked ? ' vhd-card--blocked' : ''}${variant === 'feature' ? ' vhd-card--feature' : ''}`}
+      className={cardClassName}
       data-testid={testId}
       data-status={status}
     >
@@ -294,9 +301,18 @@ export function VisitHomeDashboard({
     handoffStatus,
     exportStatus,
   ];
-  const readyCount = readinessStatuses.filter((status) => status === 'ready').length;
-  const needsReviewCount = readinessStatuses.filter((status) => status === 'needs-review').length;
-  const blockedCount = readinessStatuses.filter((status) => status === 'blocked').length;
+  const readinessCounts = readinessStatuses.reduce(
+    (counts, status) => {
+      if (status === 'ready') counts.ready += 1;
+      if (status === 'needs-review') counts.needsReview += 1;
+      if (status === 'blocked') counts.blocked += 1;
+      return counts;
+    },
+    { ready: 0, needsReview: 0, blocked: 0 },
+  );
+  const readyCount = readinessCounts.ready;
+  const needsReviewCount = readinessCounts.needsReview;
+  const blockedCount = readinessCounts.blocked;
 
   // ── Journey card detection ─────────────────────────────────────────────────
 
@@ -338,7 +354,7 @@ export function VisitHomeDashboard({
           <h1 className="vhd-header__title">Review this visit</h1>
           <p className="vhd-header__subtitle">{propertyTitle}</p>
           <p className="vhd-header__workflow">
-            Atlas Mind is the review workspace for recommendation, simulator, customer outputs, and handover.
+            Atlas Mind is the review workspace for recommendation, customer portal, simulator, and handover.
           </p>
         </div>
       </div>
@@ -403,7 +419,7 @@ export function VisitHomeDashboard({
             status={recommendationStatus}
             audience={['customer', 'surveyor']}
             source="engine"
-            ctaLabel="Review this visit →"
+            ctaLabel="Review recommendation →"
             onCta={hasEngineData ? onOpenPresentation : undefined}
           />
         </aside>
@@ -445,7 +461,7 @@ export function VisitHomeDashboard({
             <DashboardCard
               data-testid="card-simulator"
               icon="📊"
-              title="Daily-use simulator"
+              title="Daily hot-water simulator"
               description="Run the 24-hour demand and system response simulator during review."
               status={simulatorStatus}
               audience={['surveyor', 'engineer']}
@@ -504,7 +520,7 @@ export function VisitHomeDashboard({
               Atlas Scan remains the capture/import entry point for survey evidence, photos, pins, and notes.
             </p>
             <p className="vhd-panel-copy">
-              Atlas Mind is the review workspace for recommendation, simulator, and customer handover outputs.
+              Atlas Mind is the review workspace for recommendation, customer portal, simulator, and handover.
             </p>
           </div>
 
