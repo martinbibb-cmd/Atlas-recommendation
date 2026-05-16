@@ -103,9 +103,7 @@ const REQUIRED_PERMISSION_BY_ACTION: Readonly<
 };
 
 function normaliseRole(role: VisitHomeActionRole | undefined): VisitHomeActionRole {
-  if (role == null) return 'admin';
-  if (role === 'viewer') return 'customer-preview';
-  return role;
+  return role ?? 'viewer';
 }
 
 function resolvePermissions(

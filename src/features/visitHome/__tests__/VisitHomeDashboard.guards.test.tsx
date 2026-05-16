@@ -46,6 +46,7 @@ function makeProps(
     engineInput: ENGINE_INPUT,
     engineOutput: ENGINE_OUTPUT as EngineOutputV1,
     scenarios: [],
+    workspaceRole: 'admin',
     onOpenSimulator: vi.fn(),
     onOpenPresentation: vi.fn(),
     onPrintSummary: vi.fn(),

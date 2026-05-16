@@ -340,11 +340,22 @@ export function VisitHomeDashboard({
     actionStateById.get(actionId)?.status ?? fallback;
   const actionReason = (actionId: VisitHomeActionId): string | undefined =>
     actionStateById.get(actionId)?.reasonLabel;
+  const canTriggerAction = (
+    actionId: VisitHomeActionId,
+    fallback: CardStatus,
+    triggerMode: 'ready-only' | 'ready-or-needs-review' | 'not-blocked' = 'ready-only',
+  ): boolean => {
+    const status = actionStatus(actionId, fallback);
+    if (triggerMode === 'not-blocked') return status !== 'blocked';
+    if (triggerMode === 'ready-or-needs-review') return status === 'ready' || status === 'needs-review';
+    return status === 'ready';
+  };
+  const implementationActionStatus = actionStatus('implementation-workflow', implementationStatus);
 
-  const readinessStatuses: CardStatus[] = actionProjection.visibleActions
+  const visibleActionStatuses: CardStatus[] = actionProjection.visibleActions
     .map((action) => action.status)
     .filter((status) => status !== 'dev-only');
-  const readinessCounts = readinessStatuses.reduce(
+  const readinessCounts = visibleActionStatuses.reduce(
     (counts, status) => {
       if (status === 'ready') counts.ready += 1;
       if (status === 'needs-review') counts.needsReview += 1;
@@ -435,8 +446,8 @@ export function VisitHomeDashboard({
                 <button
                   type="button"
                   className="vhd-inline-action"
-                  onClick={actionStatus('review-survey', recommendationStatus) === 'ready' ? onOpenPresentation : undefined}
-                  disabled={actionStatus('review-survey', recommendationStatus) !== 'ready'}
+                  onClick={canTriggerAction('review-survey', recommendationStatus) ? onOpenPresentation : undefined}
+                  disabled={!canTriggerAction('review-survey', recommendationStatus)}
                   data-testid="visit-home-open-customer-journey"
                 >
                   Open customer journey →
@@ -465,7 +476,7 @@ export function VisitHomeDashboard({
               audience={['customer', 'surveyor']}
               source="engine"
               ctaLabel="Review recommendation →"
-              onCta={actionStatus('review-survey', recommendationStatus) === 'ready' ? onOpenPresentation : undefined}
+              onCta={canTriggerAction('review-survey', recommendationStatus) ? onOpenPresentation : undefined}
             />
           )}
         </aside>
@@ -483,7 +494,7 @@ export function VisitHomeDashboard({
                 audience={['customer']}
                 source="workflow"
                 ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-                onCta={actionStatus('customer-portal', portalStatus) === 'blocked' ? undefined : (onOpenInsightPack ?? handleOpenPortal)}
+                onCta={canTriggerAction('customer-portal', portalStatus, 'not-blocked') ? (onOpenInsightPack ?? handleOpenPortal) : undefined}
               />
             )}
 
@@ -498,7 +509,7 @@ export function VisitHomeDashboard({
                 audience={['customer', 'office']}
                 source="library"
                 ctaLabel="Print summary →"
-                onCta={actionStatus('supporting-pdf', pdfStatus) === 'ready' ? onPrintSummary : undefined}
+                onCta={canTriggerAction('supporting-pdf', pdfStatus) ? onPrintSummary : undefined}
               />
             )}
 
@@ -513,7 +524,7 @@ export function VisitHomeDashboard({
                 audience={['surveyor', 'engineer']}
                 source="simulator"
                 ctaLabel="Run daily-use simulator →"
-                onCta={actionStatus('run-simulator', simulatorStatus) === 'blocked' ? undefined : onOpenSimulator}
+                onCta={canTriggerAction('run-simulator', simulatorStatus, 'not-blocked') ? onOpenSimulator : undefined}
                 variant="feature"
               />
             )}
@@ -531,13 +542,12 @@ export function VisitHomeDashboard({
                   ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
                   : 'Prepare scope, materials, and commissioning checklist for delivery.'
               }
-              status={actionStatus('implementation-workflow', implementationStatus)}
+              status={implementationActionStatus}
               blockedReason={actionReason('implementation-workflow')}
               audience={['engineer']}
               source="workflow"
               ctaLabel="Prepare implementation pack →"
-              onCta={actionStatus('implementation-workflow', implementationStatus) === 'ready'
-                || actionStatus('implementation-workflow', implementationStatus) === 'needs-review'
+              onCta={canTriggerAction('implementation-workflow', implementationStatus, 'ready-or-needs-review')
                 ? onOpenInstallationSpecification
                 : undefined}
             />
@@ -554,7 +564,7 @@ export function VisitHomeDashboard({
               audience={['engineer', 'office']}
               source="workflow"
               ctaLabel="Review handoff →"
-              onCta={actionStatus('resolve-follow-ups', handoffStatus) === 'blocked' ? undefined : onOpenHandoffReview}
+              onCta={canTriggerAction('resolve-follow-ups', handoffStatus, 'not-blocked') ? onOpenHandoffReview : undefined}
             />
           )}
 
@@ -569,7 +579,7 @@ export function VisitHomeDashboard({
               audience={['office']}
               source="workflow"
               ctaLabel="Export handover package →"
-              onCta={actionStatus('export-handover-package', exportStatus) === 'blocked' ? undefined : onExportPackage}
+              onCta={canTriggerAction('export-handover-package', exportStatus, 'not-blocked') ? onExportPackage : undefined}
             />
           )}
 

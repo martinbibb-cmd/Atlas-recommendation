@@ -81,6 +81,7 @@ function makeProps(
     engineInput: MINIMAL_ENGINE_INPUT,
     engineOutput: COMBI_ENGINE_OUTPUT as EngineOutputV1,
     scenarios: [],
+    workspaceRole: 'admin',
     portalUrl: undefined,
     installationSpecOptionCount: 0,
     onOpenSimulator: vi.fn(),
