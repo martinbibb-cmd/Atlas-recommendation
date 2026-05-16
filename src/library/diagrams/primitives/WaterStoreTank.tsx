@@ -2,7 +2,8 @@ import '../diagrams.css';
 
 export interface WaterStoreTankProps {
   label: string;
-  capacityLabel: string;
+  /** Optional capacity label. Omit entirely for tanks where the volume was not surveyed. */
+  capacityLabel?: string;
   pressureLabel?: string;
 }
 
@@ -10,7 +11,7 @@ export function WaterStoreTank({ label, capacityLabel, pressureLabel }: WaterSto
   return (
     <div
       className="atlas-edu-diagram__wrapper"
-      aria-label={`${label}, ${capacityLabel}${pressureLabel ? `, ${pressureLabel}` : ''}`}
+      aria-label={[label, capacityLabel, pressureLabel].filter(Boolean).join(', ')}
     >
       <p className="atlas-edu-diagram__label">{label}</p>
       <svg
@@ -25,7 +26,7 @@ export function WaterStoreTank({ label, capacityLabel, pressureLabel }: WaterSto
         <line x1={8} y1={44} x2={56} y2={44} stroke="#234a7d" strokeWidth={1} strokeDasharray="4 2" />
         <rect x={27} y={72} width={10} height={8} fill="#234a7d" />
       </svg>
-      <p className="atlas-edu-diagram__label">{capacityLabel}</p>
+      {capacityLabel ? <p className="atlas-edu-diagram__label">{capacityLabel}</p> : null}
       {pressureLabel ? <p className="atlas-edu-diagram__label">{pressureLabel}</p> : null}
     </div>
   );

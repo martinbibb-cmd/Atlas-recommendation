@@ -14,9 +14,31 @@ const WHAT_THIS_MEANS =
 
 export interface OpenVentedToUnventedDiagramProps {
   printSafe?: boolean;
+  /**
+   * Surveyed CWS (cold-water storage) tank volume in litres.
+   * Only shown when explicitly recorded during the survey.
+   * Omit to avoid displaying a guessed or generic size range.
+   */
+  cwsVolumeLSurveyed?: number;
+  /**
+   * When true, the property has two linked loft tanks rather than one.
+   * Overrides the standard CWS tank label to "Two linked loft tanks".
+   */
+  twinCwsTanks?: boolean;
 }
 
-export function OpenVentedToUnventedDiagram({ printSafe = false }: OpenVentedToUnventedDiagramProps) {
+export function OpenVentedToUnventedDiagram({
+  printSafe = false,
+  cwsVolumeLSurveyed,
+  twinCwsTanks = false,
+}: OpenVentedToUnventedDiagramProps) {
+  const cwsLabel = twinCwsTanks
+    ? 'Two linked loft tanks'
+    : 'Cold water storage tank (loft)';
+
+  const cwsCapacityLabel =
+    cwsVolumeLSurveyed != null ? `${cwsVolumeLSurveyed} L (surveyed)` : undefined;
+
   return (
     <div
       className="atlas-edu-diagram__wrapper atlas-edu-diagram-primitives"
@@ -33,13 +55,12 @@ export function OpenVentedToUnventedDiagram({ printSafe = false }: OpenVentedToU
             screenReaderSummary="Loft cold water storage tank feeds vented hot water cylinder at low tank-fed pressure."
           >
             <WaterStoreTank
-              label="Cold water storage tank (loft)"
-              capacityLabel="100–150 L"
+              label={cwsLabel}
+              capacityLabel={cwsCapacityLabel}
               pressureLabel={TANK_FED_PRESSURE_LABEL}
             />
             <WaterStoreTank
               label="Vented hot water cylinder"
-              capacityLabel="110–140 L"
               pressureLabel={TANK_FED_PRESSURE_LABEL}
             />
             <p className="atlas-edu-diagram__label">Heating circuit: unchanged</p>
@@ -52,7 +73,6 @@ export function OpenVentedToUnventedDiagram({ printSafe = false }: OpenVentedToU
           >
             <WaterStoreTank
               label="Unvented cylinder"
-              capacityLabel="150–250 L"
               pressureLabel="Mains-fed supply"
             />
             <p className="atlas-edu-diagram__label">Loft tanks: removed</p>
