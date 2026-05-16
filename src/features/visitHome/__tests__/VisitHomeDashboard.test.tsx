@@ -210,6 +210,7 @@ describe('VisitHomeDashboard', () => {
   ])('keeps key CTAs visible at %s widths', (_label, width) => {
     setViewportWidth(width);
     render(<VisitHomeDashboard {...makeProps()} />);
+    const workspace = screen.getByTestId('visit-home-workspace-layout');
 
     expect(screen.getByTestId('card-recommendation-cta')).toBeInTheDocument();
     expect(screen.getByTestId('card-portal-cta')).toBeInTheDocument();
@@ -218,6 +219,7 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('card-implementation-cta')).toBeInTheDocument();
     expect(screen.getByTestId('card-handoff-cta')).toBeInTheDocument();
     expect(screen.getByTestId('card-export-cta')).toBeInTheDocument();
+    expect(workspace).toHaveClass('vhd-workspace--three-rail');
   });
 
   it('shows review workflow copy and keeps scan as capture/import entry point', () => {

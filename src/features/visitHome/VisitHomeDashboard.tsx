@@ -172,7 +172,7 @@ function buildSimulatorHighlights(
     `Expectation summary: ${keyExpectationDelta}`,
     firstConstraint != null
       ? `Hot-water and recovery highlight: ${firstConstraint}`
-      : 'Hot-water and recovery highlight: Review draw-off demand and recovery behaviour in the simulator timeline.',
+      : 'Hot-water and recovery highlight: Review hot-water demand and recovery behaviour in the simulator timeline.',
   ];
 }
 
@@ -563,7 +563,7 @@ export function VisitHomeDashboard({
                 <DashboardCard
                   data-testid="card-simulator"
                   icon="📊"
-                  title="Daily use preview"
+                  title="Daily hot-water simulator"
                   description="Primary simulator surface for 24-hour demand and system response review."
                   status={actionStatus('run-simulator', simulatorStatus)}
                   blockedReason={actionReason('run-simulator')}
