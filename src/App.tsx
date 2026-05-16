@@ -2604,7 +2604,7 @@ function AppInner() {
       {journey === 'framework-print' && (
         <RetiredRouteNotice backLabel="Open canonical PDF →" onBack={() => setJourney('library-pdf')}>
           <p style={{ color: '#475569', marginBottom: 0 }}>
-            This legacy framework print route is retired. Use the canonical Library supporting PDF.
+            This legacy framework print route is retired. Use the canonical library-backed supporting PDF.
           </p>
         </RetiredRouteNotice>
       )}

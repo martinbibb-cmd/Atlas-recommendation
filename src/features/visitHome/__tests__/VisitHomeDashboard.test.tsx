@@ -278,7 +278,7 @@ describe('VisitHomeDashboard', () => {
     expect(card).toHaveTextContent('Library supporting PDF');
   });
 
-  it('smoke: production customer-review CTAs do not expose retired surfaces', () => {
+  it('validates production customer-review CTAs exclude retired surfaces', () => {
     render(<VisitHomeDashboard {...makeProps({ portalUrl: 'https://portal.example.com' })} />);
     const customerReview = screen.getByTestId('visit-home-section-customer-review');
     const text = customerReview.textContent ?? '';
@@ -288,8 +288,12 @@ describe('VisitHomeDashboard', () => {
     expect(text).not.toContain('CustomerAdvicePrintPack');
   });
 
-  it('snapshot: visit-home customer-review routes resolve to canonical surfaces', () => {
-    render(<VisitHomeDashboard {...makeProps({ portalUrl: 'https://portal.example.com' })} />);
+  it('validates visit-home customer-review routes resolve to canonical surfaces', () => {
+    const onOpenPresentation = vi.fn();
+    const onPrintSummary = vi.fn();
+    const mockWindowOpen = vi.fn();
+    vi.stubGlobal('open', mockWindowOpen);
+    render(<VisitHomeDashboard {...makeProps({ portalUrl: 'https://portal.example.com', onOpenPresentation, onPrintSummary })} />);
     const customerReview = screen.getByTestId('visit-home-section-customer-review');
     const ctaLabels = within(customerReview)
       .getAllByRole('button')
@@ -301,6 +305,13 @@ describe('VisitHomeDashboard', () => {
         "Print summary →",
       ]
     `);
+    fireEvent.click(screen.getByTestId('card-recommendation-cta'));
+    fireEvent.click(screen.getByTestId('card-portal-cta'));
+    fireEvent.click(screen.getByTestId('card-pdf-cta'));
+    expect(onOpenPresentation).toHaveBeenCalledOnce();
+    expect(mockWindowOpen).toHaveBeenCalledOnce();
+    expect(onPrintSummary).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
   });
 
   it('portal card shows needs-review when no portalUrl is available', () => {
@@ -316,8 +327,8 @@ describe('VisitHomeDashboard', () => {
   });
 
   it('portal card CTA label is "Open customer portal →" when portalUrl is set', () => {
-    const handleOpenPortal = vi.fn();
-    vi.stubGlobal('open', handleOpenPortal);
+    const mockWindowOpen = vi.fn();
+    vi.stubGlobal('open', mockWindowOpen);
     render(
       <VisitHomeDashboard
         {...makeProps({
@@ -328,7 +339,7 @@ describe('VisitHomeDashboard', () => {
     const cta = screen.getByTestId('card-portal-cta');
     expect(cta).toHaveTextContent('Open customer portal →');
     fireEvent.click(cta);
-    expect(handleOpenPortal).toHaveBeenCalledOnce();
+    expect(mockWindowOpen).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();
   });
 
