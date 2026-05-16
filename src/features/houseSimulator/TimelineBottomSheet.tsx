@@ -25,8 +25,18 @@ export interface TimelineBottomSheetProps {
   onScenarioChange: (key: ScenarioKey) => void;
   /** Called to toggle the sheet open/closed. */
   onToggle: () => void;
-  /** Timeline and draw-off panels rendered as children. */
+  /** Current simulated hour for timeline scrubber context. */
+  simHour: number;
+  /** Current playback mode. */
+  mode: 'auto' | 'manual';
+  /** Toggle playback mode. */
+  onSetMode: (mode: 'auto' | 'manual') => void;
+  /** Current active event labels surfaced in the summary area. */
+  activeEvents: string[];
+  /** Main sheet body content (timeline strip and event summary). */
   children: ReactNode;
+  /** Optional advanced controls content, hidden by default. */
+  advancedChildren?: ReactNode;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -36,7 +46,12 @@ export default function TimelineBottomSheet({
   scenarioKey,
   onScenarioChange,
   onToggle,
+  simHour,
+  mode,
+  onSetMode,
+  activeEvents,
   children,
+  advancedChildren,
 }: TimelineBottomSheetProps) {
   return (
     <section
@@ -76,10 +91,51 @@ export default function TimelineBottomSheet({
         </div>
       </div>
 
-      {/* ── Sheet body (timeline + draw-off controls) ─────────────────────── */}
+      {/* ── Sheet body (timeline + controls summary) ──────────────────────── */}
       {open && (
         <div className="hs-bottom-sheet__body">
+          <div className="hs-bottom-sheet__controls">
+            <div className="hs-bottom-sheet__playback" role="group" aria-label="Playback mode">
+              <button
+                className={`hs-scenario-btn${mode === 'auto' ? ' hs-scenario-btn--active' : ''}`}
+                onClick={() => onSetMode('auto')}
+                aria-pressed={mode === 'auto'}
+              >
+                Auto
+              </button>
+              <button
+                className={`hs-scenario-btn${mode === 'manual' ? ' hs-scenario-btn--active' : ''}`}
+                onClick={() => onSetMode('manual')}
+                aria-pressed={mode === 'manual'}
+              >
+                Manual
+              </button>
+            </div>
+            <label className="hs-bottom-sheet__scrubber">
+              Time scrubber
+              <progress max={23} value={simHour} aria-label={`Current simulated hour ${simHour}:00`} />
+              <span aria-hidden="true">{String(simHour).padStart(2, '0')}:00</span>
+            </label>
+          </div>
+
+          <div className="hs-bottom-sheet__events" aria-label="Active events summary">
+            {activeEvents.length > 0 ? activeEvents.map(event => (
+              <span key={event} className="hs-bottom-sheet__event-pill">{event}</span>
+            )) : (
+              <span className="hs-bottom-sheet__event-empty">No active events</span>
+            )}
+          </div>
+
           {children}
+
+          {advancedChildren != null && (
+            <details className="hs-bottom-sheet__advanced">
+              <summary>Advanced controls</summary>
+              <div className="hs-bottom-sheet__advanced-body">
+                {advancedChildren}
+              </div>
+            </details>
+          )}
         </div>
       )}
     </section>

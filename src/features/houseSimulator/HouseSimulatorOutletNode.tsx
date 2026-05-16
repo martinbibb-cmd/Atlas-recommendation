@@ -31,6 +31,12 @@ export interface HouseSimulatorOutletNodeProps {
   constrained?: boolean;
   /** Metric chips to display when the outlet is active. */
   metrics?: LiveMetricChipProps[];
+  /** Optional click/tap handler for direct interaction in the house canvas. */
+  onPress?: () => void;
+  /** Visual selected state for detail popover focus. */
+  selected?: boolean;
+  /** Absolute node position class name. */
+  positionClassName?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -42,13 +48,18 @@ export default function HouseSimulatorOutletNode({
   active,
   constrained = false,
   metrics = [],
+  onPress,
+  selected = false,
+  positionClassName,
 }: HouseSimulatorOutletNodeProps) {
   return (
-    <div
-      className={`hs-outlet-node${active ? ' hs-outlet-node--active' : ''}${constrained ? ' hs-outlet-node--constrained' : ''}`}
+    <button
+      type="button"
+      className={`hs-outlet-node${active ? ' hs-outlet-node--active' : ''}${constrained ? ' hs-outlet-node--constrained' : ''}${selected ? ' hs-outlet-node--selected' : ''}${positionClassName ? ` ${positionClassName}` : ''}`}
       data-outlet-id={outletId}
-      role="status"
-      aria-label={`${label}${active ? ' — active' : ''}${constrained ? ', constrained' : ''}`}
+      onClick={onPress}
+      aria-pressed={selected}
+      aria-label={`${label}${active ? ' — active' : ' — inactive'}${constrained ? ', constrained' : ''}`}
     >
       <span className="hs-outlet-node__icon" aria-hidden="true">{icon}</span>
       <span className="hs-outlet-node__label">{label}</span>
@@ -62,6 +73,6 @@ export default function HouseSimulatorOutletNode({
       {constrained && (
         <span className="hs-outlet-node__constraint-flag" aria-hidden="true">⚠</span>
       )}
-    </div>
+    </button>
   );
 }
