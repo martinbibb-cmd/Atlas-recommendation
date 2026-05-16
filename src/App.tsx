@@ -7,9 +7,9 @@ import ScopePage from './components/governance/ScopePage';
 import MethodologyPage from './components/governance/MethodologyPage';
 import NeutralityPage from './components/governance/NeutralityPage';
 import PrivacyPage from './components/governance/PrivacyPage';
-import ReportView from './components/report/ReportView';
 import ExplainersHubPage from './explainers/ExplainersHubPage';
 import LabShell from './components/lab/LabShell';
+import HouseSimulatorPage from './features/houseSimulator/HouseSimulatorPage';
 import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
@@ -67,6 +67,7 @@ import { buildPortalUrl } from './lib/portal/portalUrl';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
+import ComponentDiscoveryPanel from './components/dev/ComponentDiscoveryPanel';
 import ScanImportHarness from './features/scanImport/dev/ScanImportHarness';
 import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlow';
 import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
@@ -193,6 +194,14 @@ const LAB_MODE_ENABLED =
   new URLSearchParams(window.location.search).get('lab') === '1';
 
 /**
+ * Detect ?house-simulator=1 — renders the new customer-facing House Simulator
+ * surface directly.  The existing lab/workbench at /?lab=1 is unchanged.
+ */
+const HOUSE_SIMULATOR_MODE_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('house-simulator') === '1';
+
+/**
  * Detect ?print=<view> — renders a dedicated print layout directly.
  * Supported values: 'customer' | 'technical' | 'comparison'
  */
@@ -202,7 +211,7 @@ const PRINT_VIEW =
     : null;
 
 /**
- * Detect ?report=1 — renders the unified ReportView with demo engine output.
+ * Detect ?report=1 — legacy report demo route (now retired notice).
  * This is the single entry point for the print pipeline.
  */
 const REPORT_MODE_ENABLED =
@@ -537,6 +546,10 @@ const WELCOME_PACK_DEV_PREVIEW_PATH =
 const PORTAL_FIXTURE_DEV_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/dev/portal-fixtures';
 
+/** Detect /dev/inspector — renders Component Discovery utility directly. */
+const DEV_INSPECTOR_PATH =
+  typeof window !== 'undefined' && window.location.pathname === '/dev/inspector';
+
 /**
  * Detect /installation-specification path or ?installation-specification=1 — renders the Atlas
  * Installation Specification visual stepper shell.
@@ -619,6 +632,28 @@ function CanonicalPresentationRoute({
           onOptionsChange={onOptionsChange}
           lockedSummary={lockedSummary}
         />
+      </div>
+    </div>
+  );
+}
+
+function RetiredRouteNotice({
+  backLabel = '← Back',
+  onBack,
+  title = 'Retired route',
+  children,
+}: {
+  backLabel?: string;
+  onBack: () => void;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '1rem' }}>
+      <button className="back-btn" onClick={onBack}>{backLabel}</button>
+      <div style={{ maxWidth: 760, marginTop: '1rem', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1rem' }}>
+        <h2 style={{ marginTop: 0 }}>{title}</h2>
+        {children}
       </div>
     </div>
   );
@@ -1033,10 +1068,10 @@ function AppInner() {
     setShowNewVisitDialog(true);
   }
 
-  /** Open an existing visit by ID — routes to the Visit Hub page. */
+  /** Open an existing visit by ID — routes to Visit Home dashboard. */
   function handleOpenVisit(visitId: string) {
     setActiveVisitId(visitId);
-    setJourney('visit-hub');
+    setJourney('visit-home');
   }
 
   /**
@@ -1377,6 +1412,15 @@ function AppInner() {
     );
   }
 
+  // /dev/inspector — render dev-only component discovery utility.
+  if (DEV_INSPECTOR_PATH) {
+    return (
+      <ComponentDiscoveryPanel
+        onBack={() => { window.location.href = '/dev/devmenu'; }}
+      />
+    );
+  }
+
   // /installation-specification or ?installation-specification=1 — render the Atlas Installation Specification stepper shell.
   if (INSTALLATION_SPECIFICATION_ENABLED) {
     const handleBack = () => { window.history.back(); };
@@ -1426,17 +1470,17 @@ function AppInner() {
     );
   }
 
-  // ?report=1 feature flag — render the unified ReportView with demo engine output.
+  // ?report=1 is retired. Keep a safe notice instead of exposing duplicate report paths.
   if (REPORT_MODE_ENABLED) {
-    const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
     return (
-      <ReportView
-        output={engineOutput}
-        engineInput={CONSOLE_DEMO_INPUT}
-        onBack={() => {
-          window.location.href = window.location.pathname;
-        }}
-      />
+      <RetiredRouteNotice onBack={() => { window.location.href = '/'; }}>
+        <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
+            The legacy <code>?report=1</code> route is retired.
+        </p>
+        <p style={{ color: '#475569', marginBottom: 0 }}>
+            Use saved report routes (<code>/report/&lt;report-id&gt;</code>) or Visit Home cards for current outputs.
+        </p>
+      </RetiredRouteNotice>
     );
   }
 
@@ -1688,6 +1732,16 @@ function AppInner() {
     return <ExplainersHubPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
+  // ?house-simulator=1 — render the customer-facing House Simulator surface.
+  if (HOUSE_SIMULATOR_MODE_ENABLED) {
+    return (
+      <HouseSimulatorPage
+        onBack={() => { window.location.href = window.location.pathname; }}
+        surveyData={labEngineInput}
+      />
+    );
+  }
+
   // ?print=<view> — render dedicated print layout.
   if (PRINT_VIEW === 'customer')   return <LabPrintCustomer />;
   if (PRINT_VIEW === 'technical')  return <LabPrintTechnical />;
@@ -1917,6 +1971,27 @@ function AppInner() {
                 setLastOpenedFromHome({ label: 'Engineer Route', journey: 'engineer' });
                 setJourney('engineer');
               } : undefined}
+              onExportPackage={(activeVisitId != null && labEngineInput != null) ? () => {
+                const visitRef = activeVisitId.slice(-8).toUpperCase();
+                const exportedAt = new Date().toISOString();
+                const filename = `atlas-visit-pack-${visitRef}-${exportedAt.slice(0, 10)}.json`;
+                const pack = {
+                  visitId: activeVisitId,
+                  visitReference: visitRef,
+                  exportedAt,
+                  engineInput: labEngineInput,
+                  surveyModel: labFullSurveyModel,
+                };
+                const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              } : undefined}
               onBack={() => setJourney('workspace-dashboard')}
             />
           );
@@ -2130,30 +2205,13 @@ function AppInner() {
           prioritiesState={labPrioritiesState}
         />
       )}
-      {journey === 'printout' && labEngineInput != null && (() => {
-        const result   = runEngine(labEngineInput);
-        const scenarios = buildScenariosFromEngineOutput(result.engineOutput);
-        if (scenarios.length === 0) return null;
-        const decision = buildDecisionFromScenarios({
-          scenarios,
-          boilerType:     toLifecycleBoilerType(labEngineInput.currentHeatSourceType),
-          ageYears:       labEngineInput.currentSystem?.boiler?.ageYears ?? 0,
-          occupancyCount: labEngineInput.occupancyCount,
-          bathroomCount:  labEngineInput.bathroomCount,
-          showerCompatibilityNote: result.engineOutput.showerCompatibilityNote,
-        });
-        const visualBlocks = buildVisualBlocks(decision, scenarios, undefined, labEngineInput);
-        return (
-          <CustomerAdvicePrintPack
-            decision={decision}
-            scenarios={scenarios}
-            visualBlocks={visualBlocks}
-            portalUrl={labPortalUrl}
-            visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-            onBack={() => setJourney('presentation')}
-          />
-        );
-      })()}
+      {journey === 'printout' && (
+        <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('framework-print')}>
+          <p style={{ color: '#475569', marginBottom: 0 }}>
+            This legacy printout route has been retired. Use the Supporting PDF route.
+          </p>
+        </RetiredRouteNotice>
+      )}
       {journey === 'framework-print' && labEngineInput != null && (() => {
         const result    = runEngine(labEngineInput);
         const scenarios = buildScenariosFromEngineOutput(result.engineOutput);

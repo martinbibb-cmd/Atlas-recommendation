@@ -237,9 +237,9 @@ describe('resultSurfaces — LiveHubPage secondary exports', () => {
 // ─── 5. LabShell — demo/sandbox labels ───────────────────────────────────────
 
 describe('resultSurfaces — LabShell demo/sandbox labels', () => {
-  it('labels the export section as "Demo exports:" not "Print / export:"', () => {
+  it('renders "System Simulator" and no legacy export section label', () => {
     render(<LabShell onHome={() => {}} />);
-    expect(screen.getByText(/demo exports:/i)).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /^system simulator$/i })).toBeTruthy();
     expect(screen.queryByText(/print \/ export:/i)).toBeNull();
   });
 

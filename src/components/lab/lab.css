@@ -1837,6 +1837,155 @@
   border-color: #cbd5e0;
 }
 
+/* ── Draw-off live chips ──────────────────────────────────────────────────── */
+
+.lab-drawoff-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.lab-drawoff-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.65rem;
+  border: 1.5px solid #bee3f8;
+  border-radius: 999px;
+  background: rgba(235, 248, 255, 0.92);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1a365d;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.lab-drawoff-chip--constrained {
+  border-color: #fbd38d;
+  background: rgba(255, 251, 235, 0.92);
+  color: #7b341e;
+}
+
+.lab-drawoff-chip__icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.lab-drawoff-chip__label {
+  font-weight: 700;
+}
+
+.lab-drawoff-chip__metric {
+  opacity: 0.85;
+}
+
+.lab-drawoff-chip__warn {
+  color: #c05621;
+}
+
+/* ── Bottom sheet toolbar (scenario + toggle) ────────────────────────────── */
+
+.lab-bottom-sheet__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ── Scenario selector in house-first shell ─────────────────────────────── */
+
+.sim-scenario-selector {
+  display: flex;
+  gap: 0;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sim-scenario-selector__btn {
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border: none;
+  background: #f7fafc;
+  color: #4a5568;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.sim-scenario-selector__btn:hover {
+  background: #edf2f7;
+  color: #2d3748;
+}
+
+.sim-scenario-selector__btn--active {
+  background: #2b6cb0;
+  color: #fff;
+}
+
+/* ── System selector in the setup panel ─────────────────────────────────── */
+
+.sim-system-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.sim-system-selector__btn {
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.28rem 0.75rem;
+  border: 1.5px solid #cbd5e0;
+  border-radius: 999px;
+  background: #fff;
+  color: #2d3748;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sim-system-selector__btn:hover {
+  border-color: #90cdf4;
+  background: #ebf8ff;
+  color: #2b6cb0;
+}
+
+.sim-system-selector__btn--active {
+  border-color: #2b6cb0;
+  background: #2b6cb0;
+  color: #fff;
+}
+
+/* ── Setup section labels ────────────────────────────────────────────────── */
+
+.lab-hf-setup-section {
+  margin-bottom: 0.75rem;
+}
+
+.lab-hf-setup-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.35rem;
+}
+
+/* ── Toast warning inline ────────────────────────────────────────────────── */
+
+.lab-house-toast__warn {
+  margin-left: auto;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #c05621;
+  white-space: nowrap;
+}
+
+
+
 /* ═══════════════════════════════════════════════════════════════════════════ */
 /* House Simulator Canvas                                                      */
 /* iPad-first house-first draw-off simulator surface.                         */

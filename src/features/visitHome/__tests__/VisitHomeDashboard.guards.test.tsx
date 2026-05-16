@@ -62,9 +62,9 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
   // ── 1. Default visit opens dashboard ─────────────────────────────────────
 
   describe('default visit opens dashboard', () => {
-    it('renders the Visit Dashboard title when visitId and engine data are provided', () => {
+    it('renders the review title when visitId and engine data are provided', () => {
       render(<VisitHomeDashboard {...makeProps()} />);
-      expect(screen.getByText('Visit Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Review this visit')).toBeInTheDocument();
     });
 
     it('shows the postcode as the property title when engineInput has postcode', () => {
@@ -328,7 +328,7 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
           {...makeProps({ visitId: undefined })}
         />,
       );
-      expect(screen.getByText('Visit Dashboard')).toBeInTheDocument();
+      expect(screen.getByText('Review this visit')).toBeInTheDocument();
     });
 
     it('visit-home dashboard does not affect URL-param routes — component has no location side-effects', () => {

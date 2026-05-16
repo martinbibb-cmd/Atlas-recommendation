@@ -15,6 +15,12 @@
 .unified-simulator-view__mode-toggle { display:flex; flex-wrap:wrap; gap:.4rem; }
 .unified-simulator-view__mode-btn { padding:.4rem .8rem; border-radius:999px; border:1px solid #cbd5e1; background:#f8fafc; color:#475569; font-size:.78rem; font-weight:600; cursor:pointer; }
 .unified-simulator-view__mode-btn--active { border-color:#3b82f6; background:#dbeafe; color:#1d4ed8; }
+.unified-simulator-view__expectation-delta { display:grid; gap:.75rem; padding:1rem; border-radius:16px; background:#f8fbff; border:1px solid #d8e6ff; }
+.unified-simulator-view__expectation-title { margin:0; font-size:1rem; color:#0f172a; }
+.unified-simulator-view__expectation-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; }
+.unified-simulator-view__expectation-item,.unified-simulator-view__expectation-reassurance { display:grid; gap:.3rem; }
+.unified-simulator-view__expectation-label { margin:0; font-size:.78rem; font-weight:700; color:#475569; }
+.unified-simulator-view__expectation-body { margin:0; color:#334155; line-height:1.5; }
 .unified-simulator-view__section { display:grid; gap:.45rem; }
 .unified-simulator-view__section-label { font-size:.78rem; font-weight:700; color:#475569; }
 .unified-simulator-view__chips { display:flex; flex-wrap:wrap; gap:.5rem; }

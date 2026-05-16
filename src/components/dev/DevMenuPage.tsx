@@ -3,9 +3,10 @@
  *
  * Developer-only component browser / UI atlas for Atlas.
  *
- * Two top-level tabs:
+ * Top-level tabs include:
  *   - UI Inventory  – curated registry of all Atlas UI surfaces
  *   - Visuals Gallery – individual visual elements (Physics Visuals, Lego Builder Components)
+ *   - Component Discovery – route auditor + unrouted component scanner
  *
  * UI Inventory lists all curated UI surfaces from the dev registry, with:
  *   - free-text search (by name, file, route, query flags, access class)
@@ -39,6 +40,7 @@ import { generateCopyBoxOutput, formatSingleItemAsText, type CopyFormat } from '
 import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
 import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 import AnalyticsPanel from './AnalyticsPanel';
+import ComponentDiscoveryPanel from './ComponentDiscoveryPanel';
 import { useActiveUser } from '../../features/userProfiles/useActiveUser';
 import { resetDemoData } from '../../dev/demoSeed';
 import type { ApplianceDefinitionV1 } from '../../contracts/hardware/ApplianceDefinitionV1';
@@ -84,6 +86,7 @@ const ACCESS_LABELS: Record<DevUiAccess, string> = {
   dev_only: 'Dev only',
   fallback: 'Fallback',
   review: 'Review',
+  retired: 'Retired',
 };
 
 const ACCESS_COLORS: Record<DevUiAccess, string> = {
@@ -91,6 +94,7 @@ const ACCESS_COLORS: Record<DevUiAccess, string> = {
   dev_only: '#64748b',
   fallback: '#d97706',
   review: '#7c3aed',
+  retired: '#6b7280',
 };
 
 const ROUTE_KIND_LABELS: Record<DevUiRouteKind, string> = {
@@ -124,7 +128,7 @@ interface Props {
 
 // ─── Top-level page mode ──────────────────────────────────────────────────────
 
-type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware';
+type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware' | 'discovery';
 
 const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   inventory: '🗂 UI Inventory',
@@ -132,6 +136,7 @@ const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   storage:   '💾 Storage',
   analytics: '📊 Analytics',
   hardware:  '🔧 Hardware',
+  discovery: '🔎 Component Discovery',
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -275,6 +280,10 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
     );
   }
 
+  if (pageMode === 'discovery') {
+    return <ComponentDiscoveryPanel onBack={() => setPageMode('inventory')} />;
+  }
+
   return (
     <div style={STYLES.page}>
       <header style={STYLES.header}>
@@ -369,7 +378,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
       {/* Access filter chips */}
       <div style={STYLES.filterRow}>
         <span style={STYLES.filterLabel}>Access:</span>
-        {(['production', 'dev_only', 'fallback', 'review'] as DevUiAccess[]).map(a => (
+        {(['production', 'dev_only', 'fallback', 'review', 'retired'] as DevUiAccess[]).map(a => (
           <button
             key={a}
             className={`chip-btn${filters.accessFilter === a ? ' chip-btn--active' : ''}`}
@@ -378,6 +387,15 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
             {ACCESS_LABELS[a]}
           </button>
         ))}
+      </div>
+
+      <div style={STYLES.filterRow}>
+        <span style={STYLES.filterLabel}>Dev QA links:</span>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/portal-fixtures'; }}>Portal fixtures</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/welcome-pack'; }}>Welcome pack diagnostics</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/?workspace-lifecycle-qa=1'; }}>Workspace lifecycle QA</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/inspector'; }}>Component discovery</button>
+        <button className="chip-btn" onClick={() => { window.location.href = '/dev/workspace-settings'; }}>Workspace settings</button>
       </div>
 
       {/* Route kind filter chips */}

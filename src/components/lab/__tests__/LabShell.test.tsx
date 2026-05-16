@@ -1,70 +1,63 @@
 /**
  * LabShell.test.tsx
  *
- * Validates that LabShell renders the house-first simulator UI:
- *   - Shows the house simulator canvas as the primary interaction surface
- *   - No tab bar rendered (house-first removes the tab navigation)
- *   - Setup, Engineering, and Warnings action buttons exist
- *   - No Engineer/Customer mode toggle
- *   - No Floor Plan, Behaviour Console, or Physics tabs
+ * Validates that LabShell renders the house-first Real Simulator UI:
+ *   - Shows the "System Simulator" heading
+ *   - Shows the Setup, Engineering, and Warnings action buttons
+ *   - Shows the house simulator surface (house stage)
+ *   - Does NOT render old scroll-heavy tab buttons
+ *   - Left slide-over opens when Setup button is clicked
+ *   - Right slide-over opens when Engineering button is clicked
+ *   - Warnings top sheet opens when Warnings button is clicked
  */
 
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import LabShell from '../LabShell';
 
-describe('LabShell — house-first canvas', () => {
-  it('renders the house simulator canvas as the primary surface', () => {
+describe('LabShell — house-first heading and actions', () => {
+  it('renders the System Simulator heading', () => {
     render(<LabShell onHome={() => {}} />);
-    expect(screen.getByTestId('house-simulator-canvas')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /system simulator/i })).toBeTruthy();
   });
 
-  it('renders Setup, Engineering, and Warnings action buttons', () => {
+  it('renders the Setup action button', () => {
     render(<LabShell onHome={() => {}} />);
     expect(screen.getByRole('button', { name: /setup/i })).toBeTruthy();
+  });
+
+  it('renders the Engineering action button', () => {
+    render(<LabShell onHome={() => {}} />);
     expect(screen.getByRole('button', { name: /engineering/i })).toBeTruthy();
+  });
+
+  it('renders the Warnings action button', () => {
+    render(<LabShell onHome={() => {}} />);
     expect(screen.getByRole('button', { name: /warnings/i })).toBeTruthy();
-  });
-
-  it('does not render a tab bar (tabs removed in house-first refactor)', () => {
-    render(<LabShell onHome={() => {}} />);
-    expect(screen.queryByRole('tab')).toBeNull();
-  });
-
-  it('does not render a Floor Plan tab', () => {
-    render(<LabShell onHome={() => {}} />);
-    expect(screen.queryByRole('tab', { name: 'Floor Plan' })).toBeNull();
-  });
-
-  it('does not render a Behaviour Console tab', () => {
-    render(<LabShell onHome={() => {}} />);
-    expect(screen.queryByRole('tab', { name: 'Behaviour Console' })).toBeNull();
-  });
-
-  it('does not render a Physics tab', () => {
-    render(<LabShell onHome={() => {}} />);
-    expect(screen.queryByRole('tab', { name: 'Physics' })).toBeNull();
-  });
-
-  it('does not render a Simulator tab', () => {
-    render(<LabShell onHome={() => {}} />);
-    expect(screen.queryByRole('tab', { name: 'Simulator' })).toBeNull();
-  });
-
-  it('opens the Engineering slide-over when Engineering button is clicked', () => {
-    render(<LabShell onHome={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /engineering/i }));
-    expect(screen.getByRole('region', { name: /engineering and efficiency detail/i })).toBeTruthy();
-  });
-
-  it('opens the Warnings top sheet when Warnings button is clicked', () => {
-    render(<LabShell onHome={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /warnings/i }));
-    expect(screen.getByRole('region', { name: /warnings and explainers/i })).toBeTruthy();
   });
 });
 
-describe('LabShell — no mode toggle', () => {
+describe('LabShell — no old tab interface', () => {
+  it('does not render a "Behaviour Preview" tab button', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.queryByRole('tab', { name: 'Behaviour Preview' })).toBeNull();
+  });
+
+  it('does not render a "Summary" tab button', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.queryByRole('tab', { name: 'Summary' })).toBeNull();
+  });
+
+  it('does not render a "What if…?" tab button', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.queryByRole('tab', { name: 'What if…?' })).toBeNull();
+  });
+
+  it('does not render a "Physics Explainers" tab button', () => {
+    render(<LabShell onHome={() => {}} />);
+    expect(screen.queryByRole('tab', { name: 'Physics Explainers' })).toBeNull();
+  });
+
   it('does not render an Engineer mode button', () => {
     render(<LabShell onHome={() => {}} />);
     expect(screen.queryByRole('button', { name: 'Engineer' })).toBeNull();
@@ -73,6 +66,49 @@ describe('LabShell — no mode toggle', () => {
   it('does not render a Customer mode button', () => {
     render(<LabShell onHome={() => {}} />);
     expect(screen.queryByRole('button', { name: 'Customer' })).toBeNull();
+  });
+});
+
+describe('LabShell — house simulator surface', () => {
+  it('renders the house simulator surface', () => {
+    render(<LabShell onHome={() => {}} />);
+    const stage = document.querySelector('.lab-house-stage');
+    expect(stage).toBeTruthy();
+  });
+
+  it('renders the house canvas', () => {
+    render(<LabShell onHome={() => {}} />);
+    const canvas = document.querySelector('.lab-house-canvas');
+    expect(canvas).toBeTruthy();
+  });
+});
+
+describe('LabShell — slide-overs and sheets', () => {
+  it('left slide-over opens when Setup is clicked', () => {
+    render(<LabShell onHome={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /setup/i }));
+    expect(screen.getByRole('region', { name: /setup and configuration/i })).toBeTruthy();
+  });
+
+  it('right slide-over opens when Engineering is clicked', () => {
+    render(<LabShell onHome={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /engineering/i }));
+    expect(screen.getByRole('region', { name: /engineering and efficiency detail/i })).toBeTruthy();
+  });
+
+  it('top sheet opens when Warnings is clicked', () => {
+    render(<LabShell onHome={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /warnings/i }));
+    expect(screen.getByRole('region', { name: /warnings and physics explainers/i })).toBeTruthy();
+  });
+
+  it('Setup slide-over closes when Close is clicked inside it', () => {
+    render(<LabShell onHome={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /setup/i }));
+    const panel = screen.getByRole('region', { name: /setup and configuration/i });
+    const closeBtn = panel.querySelector('button');
+    if (closeBtn) fireEvent.click(closeBtn);
+    expect(screen.queryByRole('region', { name: /setup and configuration/i })).toBeNull();
   });
 });
 

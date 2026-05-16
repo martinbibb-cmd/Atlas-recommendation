@@ -110,6 +110,33 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('card-export')).toBeInTheDocument();
   });
 
+  it('renders workspace-first layout classes by default with mobile fallback marker', () => {
+    render(<VisitHomeDashboard {...makeProps()} />);
+
+    const root = screen.getByTestId('visit-home-layout-root');
+    const workspace = screen.getByTestId('visit-home-workspace-layout');
+    expect(root).toHaveClass('vhd-layout--workspace-default');
+    expect(root).toHaveClass('vhd-layout--mobile-fallback');
+    expect(workspace).toHaveClass('vhd-workspace--three-rail');
+  });
+
+  it('shows review workflow copy and keeps scan as capture/import entry point', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({ engineOutput: ASHP_ENGINE_OUTPUT as EngineOutputV1 })}
+      />,
+    );
+
+    expect(screen.getByText('Review this visit')).toBeInTheDocument();
+    expect(screen.getByText('Open customer journey →')).toBeInTheDocument();
+    expect(screen.getByText('Run daily-use simulator →')).toBeInTheDocument();
+    expect(screen.getByText('Prepare implementation pack →')).toBeInTheDocument();
+    expect(screen.getByText('Export handover package →')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-scan-entry-note')).toHaveTextContent(
+      'Atlas Scan remains the capture/import entry point for survey evidence, photos, pins, and notes.',
+    );
+  });
+
   it('simulator CTA calls onOpenSimulator — keeps existing launch path', () => {
     const onOpenSimulator = vi.fn();
     render(<VisitHomeDashboard {...makeProps({ onOpenSimulator })} />);
@@ -128,6 +155,20 @@ describe('VisitHomeDashboard', () => {
     expect(cta).not.toBeDisabled();
     fireEvent.click(cta);
     expect(onOpenInstallationSpecification).toHaveBeenCalledOnce();
+  });
+
+  it('calls onPrintSummary when supporting PDF CTA is clicked', () => {
+    const onPrintSummary = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onPrintSummary,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('card-pdf-cta'));
+    expect(onPrintSummary).toHaveBeenCalledOnce();
   });
 
   describe('journey card', () => {
@@ -255,5 +296,49 @@ describe('VisitHomeDashboard', () => {
 
     fireEvent.click(screen.getByTestId('visit-home-back'));
     expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  describe('export card CTA — routes to onExportPackage, not engineer route', () => {
+    it('export CTA calls onExportPackage when provided', () => {
+      const onExportPackage = vi.fn();
+      render(<VisitHomeDashboard {...makeProps({ onExportPackage })} />);
+
+      const cta = screen.getByTestId('card-export-cta');
+      expect(cta).not.toBeDisabled();
+      fireEvent.click(cta);
+      expect(onExportPackage).toHaveBeenCalledOnce();
+    });
+
+    it('export CTA does not call onOpenEngineerRoute when export is triggered', () => {
+      const onExportPackage = vi.fn();
+      const onOpenEngineerRoute = vi.fn();
+      render(<VisitHomeDashboard {...makeProps({ onExportPackage, onOpenEngineerRoute })} />);
+
+      fireEvent.click(screen.getByTestId('card-export-cta'));
+      expect(onExportPackage).toHaveBeenCalledOnce();
+      expect(onOpenEngineerRoute).not.toHaveBeenCalled();
+    });
+
+    it('export CTA is disabled when onExportPackage is not provided', () => {
+      render(<VisitHomeDashboard {...makeProps({ onExportPackage: undefined })} />);
+
+      const cta = screen.getByTestId('card-export-cta');
+      expect(cta).toBeDisabled();
+    });
+
+    it('export card is blocked when no visit or engine data', () => {
+      render(
+        <VisitHomeDashboard
+          {...makeProps({
+            visitId: undefined,
+            engineInput: undefined,
+            engineOutput: undefined,
+            onExportPackage: undefined,
+          })}
+        />,
+      );
+      const card = screen.getByTestId('card-export');
+      expect(card).toHaveAttribute('data-status', 'blocked');
+    });
   });
 });

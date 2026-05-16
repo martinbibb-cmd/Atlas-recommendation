@@ -30,6 +30,8 @@ export interface DevRouteMeta {
   access: DevUiAccess;
 }
 
+export type DevRouteAuditStatus = 'production' | 'dev_only' | 'retired' | 'unrouted';
+
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
 /**
@@ -38,7 +40,7 @@ export interface DevRouteMeta {
  * and the journey switch inside the main render.
  */
 export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
-  // ── Query-flag surfaces ──────────────────────────────────────────────────
+  // ── Production routes ─────────────────────────────────────────────────────
   {
     codeName: 'ExplainersHubPage',
     queryFlags: ['lab=1'],
@@ -61,56 +63,12 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'production',
   },
   {
-    codeName: 'PresentationAuditPage',
-    queryFlags: ['audit=1'],
-    fullRouteExample: '/?audit=1',
-    routeKind: 'query_flag',
-    access: 'dev_only',
-  },
-  {
-    codeName: 'WorkspaceVisitLifecycleHarness',
-    queryFlags: ['workspace-lifecycle-qa=1'],
-    fullRouteExample: '/?workspace-lifecycle-qa=1',
-    routeKind: 'query_flag',
-    access: 'dev_only',
-  },
-  {
     codeName: 'AtlasExplorerPage',
     queryFlags: ['explorer=1'],
     fullRouteExample: '/?explorer=1',
     routeKind: 'query_flag',
     access: 'review',
   },
-  {
-    codeName: 'PhysicsVisualGallery',
-    queryFlags: ['gallery=1'],
-    fullRouteExample: '/?gallery=1',
-    routeKind: 'query_flag',
-    access: 'dev_only',
-  },
-  {
-    codeName: 'ReportView',
-    queryFlags: ['report=1'],
-    fullRouteExample: '/?report=1',
-    routeKind: 'query_flag',
-    access: 'dev_only',
-  },
-  {
-    codeName: 'DevMenuPage',
-    routePath: '/dev/devmenu',
-    queryFlags: ['devmenu=1 (legacy)'],
-    fullRouteExample: '/dev/devmenu',
-    routeKind: 'path',
-    access: 'dev_only',
-  },
-  {
-    codeName: 'StorageDiagnosticsPanel',
-    fullRouteExample: '/dev/devmenu → 💾 Storage tab',
-    routeKind: 'derived',
-    access: 'dev_only',
-  },
-
-  // ── Pathname routes ──────────────────────────────────────────────────────
   {
     codeName: 'FloorPlanBuilder',
     routePath: '/floor-plan-tool',
@@ -133,6 +91,78 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'production',
   },
   {
+    codeName: 'UnifiedSimulatorView',
+    fullRouteExample: '/portal/<reference>?token=<signed-token> → Insight',
+    routeKind: 'derived',
+    access: 'production',
+  },
+  {
+    codeName: 'VisitHomeDashboard',
+    queryFlags: ['visit-home=1'],
+    fullRouteExample: 'workspace dashboard → open visit → Visit Home Dashboard',
+    routeKind: 'derived',
+    access: 'production',
+  },
+  {
+    codeName: 'WorkspaceSettingsPage',
+    routePath: '/workspace/settings',
+    fullRouteExample: '/workspace/settings or /dev/workspace-settings',
+    routeKind: 'path',
+    access: 'production',
+  },
+  {
+    codeName: 'InstallationSpecificationPage',
+    routePath: '/installation-specification',
+    queryFlags: ['installation-specification=1'],
+    fullRouteExample: '/installation-specification',
+    routeKind: 'path',
+    access: 'production',
+  },
+
+  // ── Development / QA routes ───────────────────────────────────────────────
+  {
+    codeName: 'PresentationAuditPage',
+    queryFlags: ['audit=1'],
+    fullRouteExample: '/?audit=1',
+    routeKind: 'query_flag',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'WorkspaceVisitLifecycleHarness',
+    queryFlags: ['workspace-lifecycle-qa=1'],
+    fullRouteExample: '/?workspace-lifecycle-qa=1',
+    routeKind: 'query_flag',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'PhysicsVisualGallery',
+    queryFlags: ['gallery=1'],
+    fullRouteExample: '/?gallery=1',
+    routeKind: 'query_flag',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'DevMenuPage',
+    routePath: '/dev/devmenu',
+    queryFlags: ['devmenu=1 (legacy)'],
+    fullRouteExample: '/dev/devmenu',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'ComponentDiscoveryPanel',
+    routePath: '/dev/inspector',
+    fullRouteExample: '/dev/inspector',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'StorageDiagnosticsPanel',
+    fullRouteExample: '/dev/devmenu → 💾 Storage tab',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
     codeName: 'WelcomePackDevPreview',
     routePath: '/dev/welcome-pack',
     fullRouteExample: '/dev/welcome-pack',
@@ -144,6 +174,102 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routePath: '/dev/portal-fixtures',
     fullRouteExample: '/dev/portal-fixtures',
     routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'LibraryCoverageAuditPanel',
+    fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'LibraryAuthoringBacklogPanel',
+    fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'LibraryProjectionQaPanel',
+    fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'LibraryRepairQueuePanel',
+    fullRouteExample: '/dev/portal-fixtures → workflow → Library Projection QA',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'ImplementationPackReviewPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'SpecificationLineReviewPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'InstallationScopePackReviewPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'ScopePackHandoverPreviewPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'EngineerJobPackPreviewPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'MaterialsScheduleReviewPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'SpecificationReadinessPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'SurveyFollowUpTaskPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'FollowUpEvidencePlanPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'FollowUpScanHandoffPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'ScanHandoffEnvelopePreviewPanel',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
+    access: 'dev_only',
+  },
+  {
+    codeName: 'WorkflowStorageModeSelector',
+    fullRouteExample: '/dev/portal-fixtures → implementation workflow step',
+    routeKind: 'derived',
     access: 'dev_only',
   },
 
@@ -198,6 +324,36 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routeKind: 'derived',
     access: 'dev_only',
   },
+
+  // ── Retired routes (excluded from normal navigation) ──────────────────────
+  {
+    codeName: 'ReportView',
+    queryFlags: ['report=1'],
+    fullRouteExample: '/?report=1 (retired)',
+    routeKind: 'query_flag',
+    access: 'retired',
+  },
+  {
+    codeName: 'SurveyPrintoutPage',
+    queryFlags: ['print=survey'],
+    fullRouteExample: '/?print=survey (retired)',
+    routeKind: 'query_flag',
+    access: 'retired',
+  },
+  {
+    codeName: 'CustomerRecommendationPrint',
+    queryFlags: ['print=survey&internal=1'],
+    fullRouteExample: '/?print=survey&internal=1 (retired internal print)',
+    routeKind: 'query_flag',
+    access: 'retired',
+  },
+  {
+    codeName: 'HandoffArrivalPage',
+    queryFlags: ['handoff=1'],
+    fullRouteExample: '/?handoff=1 (retired)',
+    routeKind: 'query_flag',
+    access: 'retired',
+  },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -225,4 +381,17 @@ export function isFlagRoute(meta: DevRouteMeta): boolean {
 /** Returns true if the surface is accessible in production. */
 export function isProductionRoute(meta: DevRouteMeta): boolean {
   return meta.access === 'production';
+}
+
+/** Maps a route metadata record into discovery audit status buckets. */
+export function getRouteAuditStatus(meta: DevRouteMeta | undefined): DevRouteAuditStatus {
+  if (meta == null) return 'unrouted';
+  if (meta.access === 'production') return 'production';
+  if (meta.access === 'retired') return 'retired';
+  return 'dev_only';
+}
+
+/** Fast lookup map for codeName → route metadata. */
+export function buildRouteAuditIndex(): ReadonlyMap<string, DevRouteMeta> {
+  return new Map(DEV_ROUTE_REGISTRY.map(meta => [meta.codeName, meta]));
 }
