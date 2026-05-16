@@ -65,7 +65,7 @@ export const HYDRATION_STATE_DISPLAY: Record<VisitHydrationState, HydrationState
   'recommendation-ready': {
     label: 'Recommendation ready',
     description:
-      'Engine output is available. Continue review and prepare customer and delivery outputs.',
+      'Engine output is available. Accept a scenario to unlock review and prepare customer and delivery outputs.',
     tone: 'success',
   },
   'review-in-progress': {

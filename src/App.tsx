@@ -1275,7 +1275,8 @@ function AppInner() {
   function listSavedLocalVisitIds(): string[] {
     const visitIds = new Set<string>();
     try {
-      for (let i = 0; i < localStorage.length; i += 1) {
+      const storageLength = localStorage.length;
+      for (let i = 0; i < storageLength; i += 1) {
         const key = localStorage.key(i);
         if (key == null) continue;
         if (!key.startsWith('atlas_visit_') || key.endsWith('_tmp')) continue;
