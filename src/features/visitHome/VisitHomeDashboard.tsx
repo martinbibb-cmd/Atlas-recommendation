@@ -1,7 +1,7 @@
 /**
  * VisitHomeDashboard.tsx
  *
- * Visit Home Dashboard Shell — the intuitive front door for a completed visit.
+ * Visit Home Dashboard Shell — workspace-first post-survey review surface.
  *
  * Shows all outputs from an Atlas visit as status-aware cards:
  *   1. Recommendation summary     (customer · engine · ready/needs-review/blocked)
@@ -15,7 +15,7 @@
  * Plus a Journey card derived from the engine output / archetype detection.
  *
  * DESIGN RULES:
- *   - No engine, simulator, portal, PDF, or implementation logic.
+ *   - No engine, simulator, portal, PDF, scan, or implementation logic.
  *   - All CTAs call existing handlers — no new routes.
  *   - Status badges use: ready / needs-review / blocked / dev-only
  *   - Blocked cards show the status badge; the CTA is disabled (no broken links).
@@ -179,6 +179,7 @@ interface DashboardCardProps {
   source: CardSource;
   ctaLabel: string;
   onCta: (() => void) | undefined;
+  variant?: 'default' | 'feature';
 }
 
 function DashboardCard({
@@ -191,11 +192,12 @@ function DashboardCard({
   source,
   ctaLabel,
   onCta,
+  variant = 'default',
 }: DashboardCardProps) {
   const isBlocked = status === 'blocked';
   return (
     <div
-      className={`vhd-card${isBlocked ? ' vhd-card--blocked' : ''}`}
+      className={`vhd-card${isBlocked ? ' vhd-card--blocked' : ''}${variant === 'feature' ? ' vhd-card--feature' : ''}`}
       data-testid={testId}
       data-status={status}
     >
@@ -243,7 +245,7 @@ export function VisitHomeDashboard({
   onOpenInstallationSpecification,
   onOpenInsightPack,
   onOpenHandoffReview,
-  // onOpenEngineerRoute is accepted for future use but not currently wired to a card
+  onOpenEngineerRoute,
   onExportPackage,
   onBack,
 }: VisitHomeDashboardProps) {
@@ -283,6 +285,18 @@ export function VisitHomeDashboard({
   const handoffStatus: CardStatus = hasVisit && hasEngineData ? 'ready' : 'blocked';
 
   const exportStatus: CardStatus = hasVisit && hasEngineData ? 'ready' : 'blocked';
+  const readinessStatuses: CardStatus[] = [
+    recommendationStatus,
+    portalStatus,
+    simulatorStatus,
+    pdfStatus,
+    implementationStatus,
+    handoffStatus,
+    exportStatus,
+  ];
+  const readyCount = readinessStatuses.filter((status) => status === 'ready').length;
+  const needsReviewCount = readinessStatuses.filter((status) => status === 'needs-review').length;
+  const blockedCount = readinessStatuses.filter((status) => status === 'blocked').length;
 
   // ── Journey card detection ─────────────────────────────────────────────────
 
@@ -306,7 +320,10 @@ export function VisitHomeDashboard({
     : undefined;
 
   return (
-    <div className="vhd-root">
+    <div
+      className="vhd-root vhd-layout vhd-layout--workspace-default vhd-layout--mobile-fallback"
+      data-testid="visit-home-layout-root"
+    >
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="vhd-header">
         <button
@@ -318,8 +335,11 @@ export function VisitHomeDashboard({
           ← Back
         </button>
         <div>
-          <h1 className="vhd-header__title">Visit Dashboard</h1>
+          <h1 className="vhd-header__title">Review this visit</h1>
           <p className="vhd-header__subtitle">{propertyTitle}</p>
+          <p className="vhd-header__workflow">
+            Atlas Mind review workspace for recommendation, simulator, customer outputs, and handover.
+          </p>
         </div>
       </div>
 
@@ -338,130 +358,172 @@ export function VisitHomeDashboard({
         </div>
       )}
 
-      {/* ── Journey card ───────────────────────────────────────────────────── */}
-      {journeyInfo.archetype != null && (
-        <div
-          className="vhd-journey-card"
-          data-testid="visit-journey-card"
-          data-archetype={journeyInfo.archetype}
-        >
-          <span className="vhd-journey-card__icon" aria-hidden="true">
-            {journeyInfo.icon}
-          </span>
-          <div>
-            <div className="vhd-journey-card__label">{journeyInfo.label}</div>
-            <div className="vhd-journey-card__description">{journeyInfo.description}</div>
+      {/* ── Workspace rails ────────────────────────────────────────────────── */}
+      <div className="vhd-workspace vhd-workspace--three-rail" data-testid="visit-home-workspace-layout">
+        <aside className="vhd-rail vhd-rail--left">
+          {journeyInfo.archetype != null && (
+            <div
+              className="vhd-journey-card"
+              data-testid="visit-journey-card"
+              data-archetype={journeyInfo.archetype}
+            >
+              <span className="vhd-journey-card__icon" aria-hidden="true">
+                {journeyInfo.icon}
+              </span>
+              <div>
+                <div className="vhd-journey-card__label">{journeyInfo.label}</div>
+                <div className="vhd-journey-card__description">{journeyInfo.description}</div>
+                <button
+                  type="button"
+                  className="vhd-inline-action"
+                  onClick={hasEngineData ? onOpenPresentation : undefined}
+                  disabled={!hasEngineData}
+                  data-testid="visit-home-open-customer-journey"
+                >
+                  Open customer journey →
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="vhd-readiness-panel" data-testid="visit-home-readiness-panel">
+            <h2 className="vhd-panel-title">Readiness status</h2>
+            <ul className="vhd-readiness-list">
+              <li><strong>{readyCount}</strong> ready</li>
+              <li><strong>{needsReviewCount}</strong> needs review</li>
+              <li><strong>{blockedCount}</strong> blocked</li>
+            </ul>
           </div>
-        </div>
-      )}
 
-      {/* ── Card grid ──────────────────────────────────────────────────────── */}
-      <div className="vhd-grid">
+          <DashboardCard
+            data-testid="card-recommendation"
+            icon="🎯"
+            title="Recommendation summary"
+            description="Review the recommendation with evidence and scenario context before customer handover."
+            status={recommendationStatus}
+            audience={['customer', 'surveyor']}
+            source="engine"
+            ctaLabel="Review this visit →"
+            onCta={hasEngineData ? onOpenPresentation : undefined}
+          />
+        </aside>
 
-        {/* 1. Recommendation summary */}
-        <DashboardCard
-          data-testid="card-recommendation"
-          icon="🎯"
-          title="Recommendation summary"
-          description="In-room presentation of the engine-derived recommendation with evidence and scenarios."
-          status={recommendationStatus}
-          audience={['customer', 'surveyor']}
-          source="engine"
-          ctaLabel="Open presentation →"
-          onCta={hasEngineData ? onOpenPresentation : undefined}
-        />
+        <main className="vhd-main-area">
+          <div className="vhd-main-grid">
+            <DashboardCard
+              data-testid="card-portal"
+              icon="🔗"
+              title="Customer portal / Insight"
+              description={
+                libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
+                  ? `Blocked: ${libraryBlockReasons[0]}`
+                  : 'Customer portal and Atlas Insight Pack for review before sharing.'
+              }
+              status={portalStatus}
+              audience={['customer']}
+              source="workflow"
+              ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
+              onCta={onOpenInsightPack ?? handleOpenPortal}
+            />
 
-        {/* 2. Customer portal / Insight */}
-        <DashboardCard
-          data-testid="card-portal"
-          icon="🔗"
-          title="Customer portal / Insight"
-          description={
-            libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
-              ? `Blocked: ${libraryBlockReasons[0]}`
-              : 'Shareable customer portal link with QR code and personalised Atlas Insight Pack.'
-          }
-          status={portalStatus}
-          audience={['customer']}
-          source="workflow"
-          ctaLabel={onOpenInsightPack != null ? 'Open Insight Pack →' : 'Portal ready →'}
-          onCta={onOpenInsightPack ?? handleOpenPortal}
-        />
+            <DashboardCard
+              data-testid="card-pdf"
+              icon="📄"
+              title="Supporting PDF"
+              description={
+                libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
+                  ? `Blocked: ${libraryBlockReasons[0]}`
+                  : 'Customer-facing print pack with recommendation, scenarios, and explainers.'
+              }
+              status={pdfStatus}
+              audience={['customer', 'office']}
+              source="library"
+              ctaLabel="Print summary →"
+              onCta={hasEngineData ? onPrintSummary : undefined}
+            />
 
-        {/* 3. Daily hot-water simulator */}
-        <DashboardCard
-          data-testid="card-simulator"
-          icon="📊"
-          title="Daily hot-water simulator"
-          description="Physics-driven 24-hour demand and system response charts for in-room explanation."
-          status={simulatorStatus}
-          audience={['surveyor', 'engineer']}
-          source="simulator"
-          ctaLabel="Open simulator →"
-          onCta={onOpenSimulator}
-        />
+            <DashboardCard
+              data-testid="card-simulator"
+              icon="📊"
+              title="Daily-use simulator"
+              description="Run the 24-hour demand and system response simulator during review."
+              status={simulatorStatus}
+              audience={['surveyor', 'engineer']}
+              source="simulator"
+              ctaLabel="Run daily-use simulator →"
+              onCta={onOpenSimulator}
+              variant="feature"
+            />
+          </div>
+        </main>
 
-        {/* 4. Supporting PDF */}
-        <DashboardCard
-          data-testid="card-pdf"
-          icon="📄"
-          title="Supporting PDF"
-          description={
-            libraryUnsafe && libraryBlockReasons && libraryBlockReasons.length > 0
-              ? `Blocked: ${libraryBlockReasons[0]}`
-              : 'Customer-facing print pack with recommendation, scenarios, and library explainers.'
-          }
-          status={pdfStatus}
-          audience={['customer', 'office']}
-          source="library"
-          ctaLabel="Print summary →"
-          onCta={hasEngineData ? onPrintSummary : undefined}
-        />
+        <aside className="vhd-rail vhd-rail--right">
+          <DashboardCard
+            data-testid="card-implementation"
+            icon="🔧"
+            title="Implementation workflow"
+            description={
+              installationSpecOptionCount > 0
+                ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
+                : 'Prepare scope, materials, and commissioning checklist for delivery.'
+            }
+            status={implementationStatus}
+            audience={['engineer']}
+            source="workflow"
+            ctaLabel="Prepare implementation pack →"
+            onCta={hasEngineData ? onOpenInstallationSpecification : undefined}
+          />
 
-        {/* 5. Implementation workflow */}
-        <DashboardCard
-          data-testid="card-implementation"
-          icon="🔧"
-          title="Implementation workflow"
-          description={
-            installationSpecOptionCount > 0
-              ? `Installation specification — ${installationSpecOptionCount} option${installationSpecOptionCount === 1 ? '' : 's'} saved.`
-              : 'Installation specification stepper — scope, materials, and commissioning checklist.'
-          }
-          status={implementationStatus}
-          audience={['engineer']}
-          source="workflow"
-          ctaLabel={installationSpecOptionCount > 0 ? 'Review specification →' : 'Start specification →'}
-          onCta={hasEngineData ? onOpenInstallationSpecification : undefined}
-        />
+          <DashboardCard
+            data-testid="card-handoff"
+            icon="📱"
+            title="Follow-up and handoff"
+            description="Review post-visit handoff details and linked captured evidence."
+            status={handoffStatus}
+            audience={['engineer', 'office']}
+            source="workflow"
+            ctaLabel="Review handoff →"
+            onCta={onOpenHandoffReview}
+          />
 
-        {/* 6. Follow-up evidence / scan handoff */}
-        <DashboardCard
-          data-testid="card-handoff"
-          icon="📱"
-          title="Follow-up evidence / scan handoff"
-          description="Post-visit handoff review with captured scan evidence and engineer notes."
-          status={handoffStatus}
-          audience={['engineer', 'office']}
-          source="workflow"
-          ctaLabel="Review handoff →"
-          onCta={onOpenHandoffReview}
-        />
+          <DashboardCard
+            data-testid="card-export"
+            icon="📦"
+            title="Export package"
+            description="Export recommendation, portal context, and implementation pack for office handover."
+            status={exportStatus}
+            audience={['office']}
+            source="workflow"
+            ctaLabel="Export handover package →"
+            onCta={onExportPackage}
+          />
 
-        {/* 7. Export package */}
-        <DashboardCard
-          data-testid="card-export"
-          icon="📦"
-          title="Export package"
-          description="Full workflow export including recommendation, portal context, and specification."
-          status={exportStatus}
-          audience={['office']}
-          source="workflow"
-          ctaLabel="Export package →"
-          onCta={onExportPackage}
-        />
+          <div className="vhd-readiness-panel" data-testid="visit-home-scan-entry-note">
+            <h2 className="vhd-panel-title">Capture and import split</h2>
+            <p className="vhd-panel-copy">
+              Atlas Scan remains the capture/import entry point for survey evidence, photos, pins, and notes.
+            </p>
+            <p className="vhd-panel-copy">
+              Atlas Mind is the review workspace for recommendation, simulator, and customer handover outputs.
+            </p>
+          </div>
 
+          <div className="vhd-admin-actions" data-testid="visit-home-admin-actions">
+            <h2 className="vhd-panel-title">Admin actions</h2>
+            <button
+              type="button"
+              className="vhd-inline-action"
+              onClick={onOpenEngineerRoute}
+              disabled={onOpenEngineerRoute == null}
+            >
+              Open engineer route →
+            </button>
+          </div>
+        </aside>
       </div>
+      <p className="vhd-mobile-fallback-note" data-testid="visit-home-mobile-fallback-note">
+        Phone fallback is single-column only and supports quick review when away from desk or tablet.
+      </p>
     </div>
   );
 }
