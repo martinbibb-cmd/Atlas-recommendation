@@ -451,7 +451,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 interface VisitRecommendationSnapshot {
   visitId: string;
@@ -2013,9 +2013,9 @@ function AppInner() {
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               onOpenSimulator={() => {
-                setLastOpenedFromHome({ label: 'Simulator', journey: 'unified-simulator' });
+                setLastOpenedFromHome({ label: 'Simulator', journey: 'house-simulator' });
                 setSimulatorFromJourney('visit-home');
-                setJourney('unified-simulator');
+                setJourney('house-simulator');
               }}
               onOpenPresentation={() => {
                 setLastOpenedFromHome({ label: 'Presentation', journey: 'presentation' });
@@ -2262,6 +2262,16 @@ function AppInner() {
           />
         </GlobalMenuShell>
       )}
+      {journey === 'house-simulator' && (
+        <GlobalMenuShell>
+          <HouseSimulatorPage
+            onBack={() => setJourney(simulatorFromJourney)}
+            surveyData={labEngineInput}
+          />
+        </GlobalMenuShell>
+      )}
+      {/* Legacy dev-only route — VisitHomeUnifiedSimulatorRoute is no longer reached from
+          Visit Home. Retained here for dev/diagnostic access only. */}
       {journey === 'unified-simulator' && (
         <GlobalMenuShell>
           <VisitHomeUnifiedSimulatorRoute
