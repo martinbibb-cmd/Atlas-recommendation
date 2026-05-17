@@ -25,6 +25,7 @@ interface CustomerPortalJourneyComposerProps {
 
 type VisualTone = 'good' | 'warn' | 'danger' | 'neutral';
 const MAX_VISUAL_FILL_PCT = 90 + 2;
+const MAX_LIFECYCLE_AGE_SHARE = 1.2;
 
 function humanizeCurrentSystem(input: EngineInputV2_3): string {
   switch (input.currentHeatSourceType) {
@@ -145,7 +146,7 @@ function lifecycleTone(condition: AtlasDecisionV1['lifecycle']['currentSystem'][
 }
 
 function formatConditionLabel(condition: AtlasDecisionV1['lifecycle']['currentSystem']['condition']): string {
-  return condition.replace('_', ' ');
+  return condition.replaceAll('_', ' ');
 }
 
 function buildLifecycleVisualModel(lifecycle: AtlasDecisionV1['lifecycle']) {
@@ -153,7 +154,7 @@ function buildLifecycleVisualModel(lifecycle: AtlasDecisionV1['lifecycle']) {
   const condition = lifecycle.currentSystem.condition;
   const { scaleRisk, usageIntensity, maintenanceLevel } = lifecycle.influencingFactors;
   const [, adjustedMax] = lifecycle.expectedLifespan.adjustedRangeYears;
-  const ageShare = adjustedMax > 0 ? Math.min(1.2, ageYears / adjustedMax) : 0;
+  const ageShare = adjustedMax > 0 ? Math.min(MAX_LIFECYCLE_AGE_SHARE, ageYears / adjustedMax) : 0;
   const scalePenalty = scaleRisk === 'high' ? 11 : scaleRisk === 'medium' ? 6 : 2;
   const cyclingPenalty = usageIntensity === 'high' ? 8 : usageIntensity === 'medium' ? 4 : 1;
   const maintenancePenalty = maintenanceLevel === 'poor' ? 6 : maintenanceLevel === 'unknown' ? 4 : maintenanceLevel === 'average' ? 2 : 0;
@@ -388,7 +389,7 @@ function buildScenarioStory(
 
   const storedModel = buildStoredWaterVisualModel(input, scenario);
   return {
-    title: input.bathroomCount ?? 1 >= 2 ? 'Stored reserve after bath' : 'Morning recovery',
+    title: (input.bathroomCount ?? 1) >= 2 ? 'Stored reserve after bath' : 'Morning recovery',
     tone: storedModel.tone,
     statusLabel,
     takeaway: storedModel.takeaway,

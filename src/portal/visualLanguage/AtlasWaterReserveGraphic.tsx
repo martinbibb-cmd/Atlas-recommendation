@@ -7,7 +7,7 @@ interface AtlasWaterReserveGraphicProps {
   annotations?: string[];
 }
 
-const MAX_VISIBLE_RECHARGE_TOP_PCT = 90 + 2;
+const MAX_VISIBLE_RESERVE_STACK_PCT = 90 + 2;
 
 function clampPct(value: number): number {
   return Math.max(0, Math.min(100, value));
@@ -24,7 +24,7 @@ export function AtlasWaterReserveGraphic({
   const usable = clampPct(usableReservePct);
   const recharge = clampPct(rechargePct);
   const coolPct = Math.max(8, 100 - usable);
-  const rechargeTop = Math.max(16, 100 - Math.min(usable + recharge, MAX_VISIBLE_RECHARGE_TOP_PCT));
+  const rechargeTop = Math.max(16, 100 - Math.min(usable + recharge, MAX_VISIBLE_RESERVE_STACK_PCT));
 
   return (
     <div className="atlas-water-reserve-graphic" aria-label="Hot-water reserve graphic">
@@ -51,8 +51,8 @@ export function AtlasWaterReserveGraphic({
           </div>
         </div>
         <div className="atlas-water-reserve-graphic__events">
-          {eventCards.map((event) => (
-            <article key={event.label} className="atlas-water-reserve-graphic__event-card">
+          {eventCards.map((event, index) => (
+            <article key={`${event.label}-${index}`} className="atlas-water-reserve-graphic__event-card">
               <p className="atlas-water-reserve-graphic__event">{event.label}</p>
               <p className="atlas-water-reserve-graphic__copy">{event.copy}</p>
             </article>
@@ -61,8 +61,8 @@ export function AtlasWaterReserveGraphic({
       </div>
       {annotations.length > 0 ? (
         <div className="atlas-water-reserve-graphic__annotations">
-          {annotations.map((annotation) => (
-            <span key={annotation} className="atlas-water-reserve-graphic__annotation">
+          {annotations.map((annotation, index) => (
+            <span key={`${annotation}-${index}`} className="atlas-water-reserve-graphic__annotation">
               {annotation}
             </span>
           ))}

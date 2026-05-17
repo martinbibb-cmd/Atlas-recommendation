@@ -49,7 +49,7 @@ function hasLivedExperience(entry: (typeof educationalContentRegistry)[number]):
 }
 
 function customerSentence(summary: string | undefined, fallback: string): string {
-  if (summary && summary.trim().length > 0) return summary;
+  if (summary?.trim()) return summary;
   return fallback;
 }
 
