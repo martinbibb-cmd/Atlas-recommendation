@@ -9,6 +9,7 @@ function conceptCoverage(overrides: Partial<LibraryConceptCoverageV1>): LibraryC
     category: 'whole_system',
     hasDiagram: true,
     hasAnimation: true,
+    expectsAnimation: true,
     hasPrintCard: true,
     hasLivedExperienceContent: true,
     hasMisconceptionReality: true,
@@ -140,5 +141,19 @@ describe('buildLibraryAuthoringBacklog', () => {
     );
 
     expect(diagramItems).toHaveLength(1);
+  });
+
+  it('does not create animation backlog items when animation is not expected for a concept', () => {
+    const audit = createCoverageAudit([
+      conceptCoverage({
+        conceptId: 'scope_clarity',
+        hasAnimation: false,
+        expectsAnimation: false,
+      }),
+    ]);
+
+    const backlog = buildLibraryAuthoringBacklog(audit);
+    const animationGap = backlog.backlogItems.find((item) => item.gapType === 'animation');
+    expect(animationGap).toBeUndefined();
   });
 });

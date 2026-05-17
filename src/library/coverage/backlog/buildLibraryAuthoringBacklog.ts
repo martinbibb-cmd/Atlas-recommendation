@@ -124,7 +124,7 @@ function buildAffectedAudiences(conceptId: string, coverage: LibraryConceptCover
 function toGapTypes(coverage: LibraryConceptCoverageV1): LibraryAuthoringGapTypeV1[] {
   const gapTypes: LibraryAuthoringGapTypeV1[] = [];
   if (!coverage.hasDiagram) gapTypes.push('diagram');
-  if (!coverage.hasAnimation) gapTypes.push('animation');
+  if (coverage.expectsAnimation && !coverage.hasAnimation) gapTypes.push('animation');
   if (!coverage.hasPrintCard) gapTypes.push('print_card');
   if (!coverage.hasLivedExperienceContent) gapTypes.push('lived_experience');
   if (!coverage.hasMisconceptionReality) gapTypes.push('misconception_reality');

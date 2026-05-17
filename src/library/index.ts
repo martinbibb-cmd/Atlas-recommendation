@@ -6,6 +6,7 @@ export * from './emotionalRouting';
 export * from './taxonomy';
 export * from './content';
 export * from './printEquivalents';
+export * from './animations';
 export * from './ui';
 export * from './demoJourneys';
 

@@ -3,6 +3,7 @@ import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import { DiagramRenderer } from '../../library/diagrams/DiagramRenderer';
+import { EducationalAnimationRenderer } from '../../library/animations';
 import { getDiagramById } from '../../library/diagrams/diagramExplanationRegistry';
 import { atlasMvpContentMapRegistry, educationalContentRegistry } from '../../library/content';
 import { getPortalEducationalContent } from '../../library/portal/getPortalEducationalContent';
@@ -134,13 +135,9 @@ export function LibraryPortalSectionRenderer({
     }
     return [...matched];
   }, [authoredCards]);
-  const matchedMvpEntries = useMemo(
-    () => atlasMvpContentMapRegistry.filter((entry) => matchedMvpContentIds.includes(entry.id)),
-    [matchedMvpContentIds],
-  );
   const matchedAnimationIds = useMemo(
-    () => [...new Set(matchedMvpEntries.flatMap((entry) => entry.suggestedAnimationIds))],
-    [matchedMvpEntries],
+    () => stableUnique(authoredCards.flatMap((card) => card.suggestedAnimationIds)),
+    [authoredCards],
   );
   const composedScenarioId = composed?.brandedViewModel.recommendedScenarioId;
   const recommendationMatches = Boolean(
@@ -290,7 +287,27 @@ export function LibraryPortalSectionRenderer({
         ))}
       </div>
 
-      {diagrams.length > 0 ? (
+      {matchedAnimationIds.length > 0 ? (
+        <>
+          <SectionDivider label={matchedAnimationIds.length > 1 ? 'Guided animations' : 'Guided animation'} />
+          <div className="library-portal-section__diagrams" data-testid="library-portal-animations">
+            {matchedAnimationIds.map((animationId) => (
+              <PortalDiagramFrame
+                key={`portal-animation-${animationId}`}
+                data-testid="library-portal-animation-frame"
+              >
+                <EducationalAnimationRenderer
+                  animationId={animationId}
+                  prefersReducedMotion={Boolean(accessibilityPreferences?.prefersReducedMotion)}
+                />
+              </PortalDiagramFrame>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      {/* Diagrams are the fallback surface when no resolved animation IDs are available. */}
+      {diagrams.length > 0 && matchedAnimationIds.length === 0 ? (
         <>
           <SectionDivider label="System diagram" />
           <div className="library-portal-section__diagrams" data-testid="library-portal-diagrams">

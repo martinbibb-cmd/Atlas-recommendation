@@ -14,6 +14,13 @@ vi.mock('../../../library/packRenderer/buildCalmWelcomePackFromAtlasDecision', (
 vi.mock('../../../library/diagrams/DiagramRenderer', () => ({
   DiagramRenderer: ({ diagramId }: { diagramId: string }) => <div data-testid={`diagram-${diagramId}`}>{diagramId}</div>,
 }));
+vi.mock('../../../library/animations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../library/animations')>();
+  return {
+    ...actual,
+    EducationalAnimationRenderer: ({ animationId }: { animationId: string }) => <div data-testid={`animation-${animationId}`}>{animationId}</div>,
+  };
+});
 
 const mockedBuilder = vi.mocked(buildCalmWelcomePackFromAtlasDecision);
 
@@ -123,8 +130,8 @@ describe('LibraryPortalSectionRenderer', () => {
     expect(screen.getByText('System pressure and filling loop')).toBeTruthy();
     expect(screen.getByText('Warm radiators')).toBeTruthy();
     expect(screen.getAllByText(/powerflush|flushing/i).length).toBeGreaterThan(0);
-    expect(screen.getByTestId('library-portal-diagrams')).toBeTruthy();
-    expect(screen.getByTestId('diagram-pressure_vs_storage')).toBeTruthy();
+    expect(screen.getByTestId('library-portal-animations')).toBeTruthy();
+    expect(screen.getByTestId('animation-stored_hot_water_recovery')).toBeTruthy();
     expect(screen.getByTestId('library-portal-qr')).toBeTruthy();
     expect(screen.queryByText('Pressure is a source boundary; volume is a storage boundary.')).toBeNull();
     expect(screen.getByTestId('library-portal-source-label')).toBeTruthy();
