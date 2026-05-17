@@ -240,7 +240,7 @@ describe('CustomerPortalPage', () => {
     expect(labelsWithTrace).toEqual(labelsWithoutTrace);
   });
 
-  it('navigates to the simulator page and opens the live simulator', async () => {
+  it('navigates to the simulator page and opens the house simulator', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await openPresentationView();
@@ -264,10 +264,10 @@ describe('CustomerPortalPage', () => {
 
     // Simulator section should now be visible
     await waitFor(() => expect(screen.getByTestId('portal-unified-simulator')).toBeTruthy());
-    expect(screen.getByTestId('unified-simulator-view')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /house simulator/i })).toBeTruthy();
   });
 
-  it('clicking the print button shows PrintableRecommendationPage in portal mode', async () => {
+  it('returns to the presentation deck from the inline house simulator', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await openPresentationView();
@@ -278,13 +278,9 @@ describe('CustomerPortalPage', () => {
     fireEvent.click(dots[dots.length - 1]);
     await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
-    await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
-
-    const printBtn = screen.getByTestId('print-report-btn');
-    fireEvent.click(printBtn);
-    // After clicking, PrintableRecommendationPage should replace the simulator view.
-    await waitFor(() => expect(screen.getByLabelText('Back to advice page')).toBeTruthy());
-    expect(document.querySelector('[data-testid="unified-simulator-view"]')).toBeNull();
+    await waitFor(() => expect(screen.getByRole('heading', { name: /house simulator/i })).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /back to presentation/i }));
+    await waitFor(() => expect(screen.getByRole('navigation', { name: 'Deck navigation' })).toBeTruthy());
   });
 
   it('portal mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
@@ -298,7 +294,7 @@ describe('CustomerPortalPage', () => {
     fireEvent.click(dots[dots.length - 1]);
     await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
-    await waitFor(() => expect(screen.getByTestId('unified-simulator-view')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('heading', { name: /house simulator/i })).toBeTruthy());
 
     // Expert-only labels must not appear in the portal simulator inputs
     expect(screen.queryByText('Mains pressure')).toBeNull();
