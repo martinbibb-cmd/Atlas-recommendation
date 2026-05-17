@@ -11,7 +11,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     screenReaderSummary:
       'Stored hot water is used through peak demand and then recovers in the background; recovery after heavy use is expected.',
     reducedMotionFallback: 'pressure_vs_storage',
-    printFallback: 'stored_hot_water_recovery_timeline',
+    printFallback: 'pressure_vs_storage',
     durationMs: 18000,
     customerSafe: true,
   },
@@ -25,7 +25,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     screenReaderSummary:
       'Two nearby shower draws consume stored hot water from a shared reserve, then the cylinder reheats after demand settles.',
     reducedMotionFallback: 'stored_hot_water_recovery_timeline',
-    printFallback: 'pressure_vs_storage',
+    printFallback: 'stored_hot_water_recovery_timeline',
     durationMs: 16000,
     customerSafe: true,
   },

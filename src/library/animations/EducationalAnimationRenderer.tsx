@@ -77,7 +77,7 @@ export function EducationalAnimationRenderer({
       <div role="img" aria-label={animation.screenReaderSummary}>
         {isPlaying
           ? 'Guided animation placeholder: playing state.'
-          : 'Guided animation placeholder: ready state. Press Play to start.'}
+          : 'Guided animation placeholder: ready state.'}
       </div>
       <div>
         <button
