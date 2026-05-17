@@ -25,6 +25,8 @@ export interface SimulatorSideDrawerProps {
   children: ReactNode;
   /** HTML id applied to the drawer container — used for aria-controls on the trigger button. */
   id?: string;
+  /** Optional test id for regression harnesses. */
+  dataTestId?: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -36,6 +38,7 @@ export default function SimulatorSideDrawer({
   onClose,
   children,
   id,
+  dataTestId,
 }: SimulatorSideDrawerProps) {
   if (!open) return null;
 
@@ -45,6 +48,7 @@ export default function SimulatorSideDrawer({
       className={`hs-drawer hs-drawer--${side}`}
       role="region"
       aria-label={title}
+      data-testid={dataTestId}
     >
       <div className="hs-drawer__header">
         <h2 className="hs-drawer__title">{title}</h2>

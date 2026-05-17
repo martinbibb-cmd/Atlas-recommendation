@@ -156,6 +156,13 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'PhoneFirstQaHarness',
+    queryFlags: ['phone-customer-qa=1'],
+    fullRouteExample: '/?phone-customer-qa=1',
+    routeKind: 'query_flag',
+    access: 'dev_only',
+  },
+  {
     codeName: 'PhysicsVisualGallery',
     queryFlags: ['gallery=1'],
     fullRouteExample: '/?gallery=1',

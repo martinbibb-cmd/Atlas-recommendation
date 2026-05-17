@@ -41,6 +41,7 @@ import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
 import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 import AnalyticsPanel from './AnalyticsPanel';
 import ComponentDiscoveryPanel from './ComponentDiscoveryPanel';
+import PhoneFirstQaHarness from '../../dev/PhoneFirstQaHarness';
 import { useActiveUser } from '../../features/userProfiles/useActiveUser';
 import { resetDemoData } from '../../dev/demoSeed';
 import type { ApplianceDefinitionV1 } from '../../contracts/hardware/ApplianceDefinitionV1';
@@ -130,7 +131,7 @@ interface Props {
 
 // ─── Top-level page mode ──────────────────────────────────────────────────────
 
-type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware' | 'discovery';
+type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware' | 'discovery' | 'phoneQa';
 
 const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   inventory: '🗂 UI Inventory',
@@ -139,6 +140,7 @@ const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   analytics: '📊 Analytics',
   hardware:  '🔧 Hardware',
   discovery: '🔎 Component Discovery',
+  phoneQa:   '📱 Phone customer QA',
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -286,6 +288,10 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
     return <ComponentDiscoveryPanel onBack={() => setPageMode('inventory')} />;
   }
 
+  if (pageMode === 'phoneQa') {
+    return <PhoneFirstQaHarness onBack={() => setPageMode('inventory')} />;
+  }
+
   return (
     <div style={STYLES.page}>
       <header style={STYLES.header}>
@@ -396,6 +402,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         <button className="chip-btn" onClick={() => { window.location.href = '/dev/portal-fixtures'; }}>Portal fixtures</button>
         <button className="chip-btn" onClick={() => { window.location.href = '/dev/welcome-pack'; }}>Welcome pack diagnostics</button>
         <button className="chip-btn" onClick={() => { window.location.href = '/?workspace-lifecycle-qa=1'; }}>Workspace lifecycle QA</button>
+        <button className="chip-btn" onClick={() => setPageMode('phoneQa')}>Phone customer QA</button>
         <button className="chip-btn" onClick={() => { window.location.href = '/dev/inspector'; }}>Component discovery</button>
         <button className="chip-btn" onClick={() => { window.location.href = '/dev/workspace-settings'; }}>Workspace settings</button>
       </div>
