@@ -306,6 +306,7 @@ export function LibraryPortalSectionRenderer({
         </>
       ) : null}
 
+      {/* Diagrams are the explicit fallback surface when no canonical animation is available. */}
       {diagrams.length > 0 && matchedAnimationIds.length === 0 ? (
         <>
           <SectionDivider label="System diagram" />

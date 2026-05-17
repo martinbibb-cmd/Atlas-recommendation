@@ -37,7 +37,7 @@ export function EducationalAnimationRenderer({
   }
 
   if (!animation.screenReaderSummary.trim()) {
-    return <p role="alert">Animation summary unavailable.</p>;
+    return <p>Animation summary unavailable.</p>;
   }
 
   if (mode === 'print') {
@@ -76,8 +76,8 @@ export function EducationalAnimationRenderer({
       <p>{animation.screenReaderSummary}</p>
       <div role="img" aria-label={animation.screenReaderSummary}>
         {isPlaying
-          ? 'Animation playing in guided mode.'
-          : 'Animation ready. Press Play to start guided motion.'}
+          ? 'Guided animation placeholder: playing state.'
+          : 'Guided animation placeholder: ready state. Press Play to start.'}
       </div>
       <div>
         <button

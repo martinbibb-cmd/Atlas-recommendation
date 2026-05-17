@@ -154,6 +154,8 @@ const HEAT_PUMP_LIVING_ITEMS = [
 ] as const;
 
 function resolvePrintDiagramFromContentEntry(entry: AtlasMvpContentEntryV1): string | undefined {
+  // Precedence: first suggested animation with a canonical printFallback wins.
+  // If no mapped animation provides a print fallback, use the first diagram ID.
   for (const suggestedAnimationId of entry.suggestedAnimationIds) {
     const animationId = resolveEducationalAnimationId(suggestedAnimationId);
     if (!animationId) continue;

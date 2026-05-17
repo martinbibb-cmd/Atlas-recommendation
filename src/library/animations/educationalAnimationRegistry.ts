@@ -11,7 +11,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     screenReaderSummary:
       'Stored hot water is used through peak demand and then recovers in the background; recovery after heavy use is expected.',
     reducedMotionFallback: 'pressure_vs_storage',
-    printFallback: 'diagram-pressure-vs-storage',
+    printFallback: 'stored_hot_water_recovery_timeline',
     durationMs: 18000,
     customerSafe: true,
   },
@@ -25,7 +25,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     screenReaderSummary:
       'Two nearby shower draws consume stored hot water from a shared reserve, then the cylinder reheats after demand settles.',
     reducedMotionFallback: 'stored_hot_water_recovery_timeline',
-    printFallback: 'diagram-pressure-vs-storage',
+    printFallback: 'pressure_vs_storage',
     durationMs: 16000,
     customerSafe: true,
   },
@@ -81,7 +81,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     screenReaderSummary:
       'Unvented cylinder safety path is shown from relief point through discharge route; visible safety hardware is expected in normal design.',
     reducedMotionFallback: 'open_vented_to_unvented',
-    printFallback: 'diagram-unvented-safety',
+    printFallback: 'open_vented_to_unvented',
     durationMs: 12000,
     customerSafe: true,
   },
