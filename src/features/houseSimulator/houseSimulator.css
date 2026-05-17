@@ -907,7 +907,7 @@
 
   .hs-outlet-node {
     min-width: 90px;
-    min-height: 44px;
+    min-height: var(--customer-mobile-touch-target, 44px);
   }
 }
 .hs-system-btn:hover { background: #edf2f7; }

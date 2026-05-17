@@ -1544,6 +1544,9 @@ function AppInner() {
             engineInput: sourceInput,
             engineOutput: ensuredEngineOutput,
             decisionSynthesis: null,
+            // Marks reports created from Visit Home recommendation generation
+            // so downstream consumers can distinguish them from print/visit-hub
+            // report creation flows.
             runMeta: { source: 'portal_bootstrap' },
           }),
         });
@@ -1565,7 +1568,7 @@ function AppInner() {
       statusMessage = 'Recommendation generated, portal link refreshed, and customer outputs updated.';
     } catch (err) {
       console.warn('[Atlas] Recommendation generated, but portal output refresh failed:', err);
-      statusMessage = 'Recommendation generated. Portal link refresh failed — retry from Customer portal.';
+      statusMessage = 'Recommendation generated. Portal link refresh failed — use Visit Home → Customer portal to regenerate.';
     }
 
     const nextSnapshot: VisitRecommendationSnapshot = {
