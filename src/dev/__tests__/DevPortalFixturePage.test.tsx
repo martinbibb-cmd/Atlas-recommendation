@@ -95,7 +95,7 @@ describe('DevPortalFixturePage — fixture opens real portal choice screen', () 
     await waitFor(() =>
       expect(screen.getByTestId('portal-welcome')).toBeTruthy(),
     );
-    expect(screen.getByTestId('portal-welcome-insight')).toBeTruthy();
+    expect(screen.queryByTestId('portal-welcome-insight')).toBeNull();
     expect(screen.getByTestId('portal-welcome-presentation')).toBeTruthy();
   });
 
