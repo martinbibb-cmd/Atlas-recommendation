@@ -85,6 +85,11 @@ function buildPortalAccessibilityPreferences(): WelcomePackAccessibilityPreferen
   };
 }
 
+function isPhoneViewport(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia(CUSTOMER_PORTAL_PHONE_MEDIA_QUERY).matches;
+}
+
 function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): string[] {
   const tags = new Set<string>();
   if ((input.occupancyCount ?? 0) >= 3 || (input.peakConcurrentOutlets ?? 0) >= 2) {
@@ -156,15 +161,7 @@ function CustomerPortalContent({
   // surveyData is kept for the inline simulator.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [showSimulator, setShowSimulator] = useState(false);
-  const defaultPortalViewMode: PortalViewMode =
-    devInitialViewMode
-    ?? (
-      typeof window !== 'undefined'
-        && typeof window.matchMedia === 'function'
-        && window.matchMedia(CUSTOMER_PORTAL_PHONE_MEDIA_QUERY).matches
-      ? 'presentation'
-      : null
-    );
+  const defaultPortalViewMode: PortalViewMode = devInitialViewMode ?? (isPhoneViewport() ? 'presentation' : null);
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
   const [viewMode, setViewMode] = useState<PortalViewMode>(defaultPortalViewMode);
   // Launch context received from the deck CTA — drives the initial tab of the portal.
