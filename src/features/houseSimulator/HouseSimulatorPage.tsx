@@ -294,6 +294,7 @@ export default function HouseSimulatorPage({
       .filter(node => node.active && !node.isSynthetic)
       .map(node => node.label),
     ...(diagramState.serviceSwitchingActive ? ['Service switching'] : []),
+    ...warningItems.map((warning) => warning.title),
   ];
 
   return (

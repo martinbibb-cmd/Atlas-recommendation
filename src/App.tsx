@@ -1475,7 +1475,7 @@ function AppInner() {
     });
   }
 
-  function handleGenerateRecommendation() {
+  async function handleGenerateRecommendation() {
     if (activeVisitId == null) {
       setLocalSessionStatus({ tone: 'error', message: 'Cannot generate recommendation: no active visit.' });
       return;
@@ -1519,9 +1519,59 @@ function AppInner() {
       visitRecommendationSnapshot?.visitId === activeVisitId
         ? visitRecommendationSnapshot
         : null;
-    const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
-    const lifecycleState: VisitReviewLifecycleState = 'recommendation_ready';
-    setVisitRecommendationSnapshot({
+    let generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+    let lifecycleState: VisitReviewLifecycleState = 'recommendation_ready';
+    let portalUrl: string | undefined;
+    let statusMessage = 'Recommendation generated and visit snapshot refreshed.';
+
+    try {
+      const reports = await listReportsForVisit(activeVisitId);
+      let reportId: string;
+      if (reports.length > 0) {
+        reportId = reports[0].id;
+      } else {
+        const ensuredEngineOutput = engineSnapshot ?? runEngine(sourceInput).engineOutput;
+        const saved = await saveReport({
+          title: generateReportTitle({
+            postcode: sourceInput.postcode ?? null,
+            recommendedSystem: ensuredEngineOutput.recommendation?.primary ?? null,
+          }),
+          postcode: sourceInput.postcode ?? null,
+          visit_id: activeVisitId,
+          status: 'complete',
+          payload: buildCanonicalReportPayload({
+            surveyData: surveySnapshot,
+            engineInput: sourceInput,
+            engineOutput: ensuredEngineOutput,
+            decisionSynthesis: null,
+            // Marks reports created from Visit Home recommendation generation
+            // so downstream consumers can distinguish them from print/visit-hub
+            // report creation flows.
+            runMeta: { source: 'portal_bootstrap' },
+          }),
+        });
+        reportId = saved.id;
+      }
+      const token = await generatePortalToken(reportId);
+      portalUrl = buildPortalUrl(reportId, window.location.origin, token);
+      generatedOutputs = {
+        ...generatedOutputs,
+        portal: {
+          generated: true,
+          generatedAt: new Date().toISOString(),
+          url: portalUrl,
+          version: '1.0',
+          renderer: 'library_customer_portal',
+        },
+      };
+      lifecycleState = 'outputs_generated';
+      statusMessage = 'Recommendation generated, portal link refreshed, and customer outputs updated.';
+    } catch (err) {
+      console.warn('[Atlas] Recommendation generated, but portal output refresh failed:', err);
+      statusMessage = 'Recommendation generated. Portal link refresh failed — use Visit Home → Customer portal to regenerate.';
+    }
+
+    const nextSnapshot: VisitRecommendationSnapshot = {
       visitId: activeVisitId,
       visitReference: formatVisitReference(activeVisitId),
       engineOutput: engineSnapshot,
@@ -1532,7 +1582,11 @@ function AppInner() {
       lifecycleState,
       generatedOutputs,
       portalVisitContext: labPortalVisitContext,
-    });
+    };
+    setVisitRecommendationSnapshot(nextSnapshot);
+    if (portalUrl != null) {
+      setLabPortalUrl(portalUrl);
+    }
     saveVisitAtomically({
       schemaVersion: 2,
       visitId: activeVisitId,
@@ -1548,7 +1602,7 @@ function AppInner() {
       generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     });
-    setLocalSessionStatus({ tone: 'success', message: 'Recommendation generated and visit snapshot refreshed.' });
+    setLocalSessionStatus({ tone: 'success', message: statusMessage });
   }
 
   function persistActiveVisitSnapshot(

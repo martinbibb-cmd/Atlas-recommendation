@@ -66,6 +66,7 @@ interface Props {
 }
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
+export const CUSTOMER_PORTAL_PHONE_MEDIA_QUERY = '(max-width: 768px)';
 const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
 const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
 const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
@@ -82,6 +83,11 @@ function buildPortalAccessibilityPreferences(): WelcomePackAccessibilityPreferen
     includeTechnicalAppendix: false,
     profiles: [],
   };
+}
+
+function isPhoneViewport(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia(CUSTOMER_PORTAL_PHONE_MEDIA_QUERY).matches;
 }
 
 function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): string[] {
@@ -155,8 +161,9 @@ function CustomerPortalContent({
   // surveyData is kept for the inline simulator.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [showSimulator, setShowSimulator] = useState(false);
+  const defaultPortalViewMode: PortalViewMode = devInitialViewMode ?? (isPhoneViewport() ? 'presentation' : null);
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
-  const [viewMode, setViewMode] = useState<PortalViewMode>(devInitialViewMode ?? null);
+  const [viewMode, setViewMode] = useState<PortalViewMode>(defaultPortalViewMode);
   // Launch context received from the deck CTA — drives the initial tab of the portal.
   const [portalLaunchContext, setPortalLaunchContext] = useState<PortalLaunchContext | null>(null);
   const showDevTraceLabels = showDevTraceLabelsOverride ?? !import.meta.env.PROD;

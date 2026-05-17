@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import CustomerPortalPage from '../CustomerPortalPage';
+import CustomerPortalPage, { CUSTOMER_PORTAL_PHONE_MEDIA_QUERY } from '../CustomerPortalPage';
 import type { ReportDetail } from '../../../lib/reports/reportApi';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 
@@ -118,6 +118,24 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode: choice/i)).toBeTruthy();
     expect(screen.getByText(/activeRendererComponent: PortalChoiceScreen/i)).toBeTruthy();
+  });
+
+  it('phone viewport lands directly in presentation mode (no welcome step)', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: query === CUSTOMER_PORTAL_PHONE_MEDIA_QUERY,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+    expect(screen.queryByTestId('portal-welcome')).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {

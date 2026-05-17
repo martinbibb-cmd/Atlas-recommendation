@@ -40,6 +40,7 @@
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
+  min-height: var(--customer-mobile-touch-target, 44px);
 }
 
 .rp-panel {
@@ -86,6 +87,7 @@
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  min-height: var(--customer-mobile-touch-target, 44px);
 }
 
 /* ── Reading surface tokens ───────────────────────────────────────────────── */
@@ -170,6 +172,23 @@ html[data-atlas-reading-ruler-enabled='true'] .atlas-reading-surface[data-readin
 }
 
 @media (max-width: 640px) {
+  .rp-panel {
+    width: min(100vw - 1rem, 420px);
+    max-height: min(68dvh, 560px);
+    overflow: auto;
+  }
+
+  .hs-header .rp-launcher {
+    position: relative;
+  }
+
+  .hs-header .rp-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.35rem);
+    z-index: 90;
+  }
+
   .rp-grid {
     grid-template-columns: 1fr;
   }
