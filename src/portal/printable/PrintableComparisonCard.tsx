@@ -5,9 +5,10 @@ export interface PrintableComparisonCardProps {
   summary: string;
   items: string[];
   recommended?: boolean;
+  listTestId?: string;
 }
 
-export function PrintableComparisonCard({ heading, summary, items, recommended = false }: PrintableComparisonCardProps) {
+export function PrintableComparisonCard({ heading, summary, items, recommended = false, listTestId }: PrintableComparisonCardProps) {
   return (
     <article
       className={`printable-card printable-card__comparison${recommended ? ' printable-card__comparison--recommended' : ''}`}
@@ -17,7 +18,7 @@ export function PrintableComparisonCard({ heading, summary, items, recommended =
       <p className="printable-card__heading">{heading}</p>
       <p className="printable-card__summary">{summary}</p>
       {items.length > 0 ? (
-        <ul className="printable-card__list">
+        <ul className="printable-card__list" data-testid={listTestId}>
           {items.map((item) => <li key={item}>{item}</li>)}
         </ul>
       ) : null}

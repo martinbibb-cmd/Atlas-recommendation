@@ -395,6 +395,7 @@ function CustomerPortalContent({
             recommendationTitle={recommendationTitle}
             summary={recommendationSummary}
             surfaceLabel="Welcome"
+            headingLevel={1}
           />
           <h1 className="portal-welcome__heading">Your Home Heating Recommendation</h1>
           <p className="portal-welcome__intro">

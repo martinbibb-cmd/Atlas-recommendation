@@ -18,7 +18,7 @@ import type { PortalJourneyPrintModelV1, PortalJourneyPrintSectionV1 } from './b
 import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
 import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
-import { PrintableComparisonCard, PrintableConditionChart, PrintableJourneySummary, PrintableProofSummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
+import { PrintableComparisonCard, PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
 import './portalJourneyPrintPack.css';
 
 // ─── Diagram ID mapping ───────────────────────────────────────────────────────
@@ -122,30 +122,14 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
       <PrintableComparisonCard
         heading="At a glance"
         summary={section.summary}
-        items={[]}
+        items={section.items}
+        listTestId={`pjpp-items-${section.sectionId}`}
         recommended={section.sectionId === 'what_changes'}
       />
-
-      {section.items.length > 0 ? (
-        <ul className="pjpp-section__items" data-testid={`pjpp-items-${section.sectionId}`}>
-          {section.items.map((item, i) => (
-            <li key={i} className="pjpp-section__item">
-              {item}
-            </li>
-          ))}
-        </ul>
-      ) : null}
 
       <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
         <strong>Key takeaway:</strong> {section.keyTakeaway}
       </p>
-
-      <PrintableProofSummary
-        heading="Why this matters"
-        summary={section.summary}
-        takeaway="See the highlighted takeaway above."
-        reassurance={section.reassurance}
-      />
 
       {rendererDiagramId ? (
         <figure
@@ -201,11 +185,6 @@ function PrintSystemProtection({ systemProtection, pageNumber }: PrintSystemProt
 
       <p className="pjpp-section__summary">{systemProtection.customerSummary}</p>
 
-      <PrintableConditionChart
-        title={systemProtection.title}
-        rows={systemProtection.customerVisibleBullets.map((bullet, index) => ({ label: `Check ${index + 1}`, value: bullet }))}
-      />
-
       {systemProtection.customerVisibleBullets.length > 0 ? (
         <ul className="pjpp-section__items" data-testid="pjpp-items-system-protection">
           {systemProtection.customerVisibleBullets.map((bullet, i) => (
@@ -239,8 +218,6 @@ function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStep
         {nextSteps.map((step, i) => (
           <li key={i} className="pjpp-next-steps__item">
             <PrintableQuickWinCard heading={step.label} body={step.body} />
-            <strong className="pjpp-next-steps__label">{step.label}</strong>
-            <p className="pjpp-next-steps__body">{step.body}</p>
           </li>
         ))}
       </ol>

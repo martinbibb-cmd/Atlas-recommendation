@@ -40,7 +40,10 @@ export function useReadingFocusTracker(surfaceRef: RefObject<HTMLElement | null>
     const handlePointerMove = (event: PointerEvent) => update(event.target);
     const handleFocusIn = (event: FocusEvent) => update(event.target);
     const handleScroll = () => update();
-    const handleSelectionChange = () => update(document.getSelection()?.anchorNode ?? null);
+    const handleSelectionChange = () => {
+      const anchorNode = document.getSelection()?.anchorNode;
+      update(anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement ?? null);
+    };
 
     surface.addEventListener('pointermove', handlePointerMove, { passive: true });
     surface.addEventListener('focusin', handleFocusIn);
