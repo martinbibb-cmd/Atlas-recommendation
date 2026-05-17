@@ -2982,108 +2982,104 @@ function AppInner() {
             onBack={() => setJourney('visit-home')}
           />
         )}
-        {journey === 'visit' && activeVisitId != null && (
-        <GlobalMenuShell>
-          <VisitPage
-            visitId={activeVisitId}
-            onBack={() => setJourney('visit-home')}
-            onDraft={(draft) => {
-              // Capture heatLoss and priorities from the visit survey draft so
-              // the presentation deck can show the house snapshot and selected
-              // priority chips — mirrors the same pattern used by the 'remote-survey' journey.
-              if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
-              if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
-              if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
-              // Capture the full survey model so the Installation Specification
-              // stepper can display the canonical current-system summary.
-              setLabFullSurveyModel(draft);
-            }}
-            onComplete={(engineInput) => {
-              // Survey is complete — store engine input for presentation/simulator use,
-              // then route to Visit Home so the surveyor has a clear overview of all
-              // available outputs before accessing handoff tools.
-              setLabEngineInput(engineInput);
-              if (activeAtlasVisit) {
-                trackVisitCompleted(activeAtlasVisit);
-              }
+      {journey === 'visit' && activeVisitId != null && (
+        <VisitPage
+          visitId={activeVisitId}
+          onBack={() => setJourney('visit-home')}
+          onDraft={(draft) => {
+            // Capture heatLoss and priorities from the visit survey draft so
+            // the presentation deck can show the house snapshot and selected
+            // priority chips — mirrors the same pattern used by the 'remote-survey' journey.
+            if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
+            if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
+            if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
+            // Capture the full survey model so the Installation Specification
+            // stepper can display the canonical current-system summary.
+            setLabFullSurveyModel(draft);
+          }}
+          onComplete={(engineInput) => {
+            // Survey is complete — store engine input for presentation/simulator use,
+            // then route to Visit Home so the surveyor has a clear overview of all
+            // available outputs before accessing handoff tools.
+            setLabEngineInput(engineInput);
+            if (activeAtlasVisit) {
+              trackVisitCompleted(activeAtlasVisit);
+            }
+            setJourney('visit-home');
+          }}
+          onOpenSimulator={(engineInput) => {
+            // Direct shortcut from InsightLayerPage — skip fit-map.
+            setLabEngineInput(engineInput);
+            setSimulatorFromJourney('visit');
+            setJourney('simulator');
+          }}
+          onOpenInsightPack={(engineInput, quotes) => {
+            setLabEngineInput(engineInput);
+            setLabQuotes(quotes);
+            setJourney('visit-home');
+          }}
+          onOpenFloorPlan={(surveyResults) => {
+            const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
+            setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
+            setJourney('floor-plan');
+          }}
+          onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
+          onOpenInstallationSpecification={() => setJourney('installation-specification')}
+          onReopenVisit={activeVisitId != null ? async () => {
+            try {
+              await saveVisit(activeVisitId, { completed_at: null, completion_method: null });
               setJourney('visit-home');
-            }}
-            onOpenSimulator={(engineInput) => {
-              // Direct shortcut from InsightLayerPage — skip fit-map.
-              setLabEngineInput(engineInput);
-              setSimulatorFromJourney('visit');
-              setJourney('simulator');
-            }}
-            onOpenInsightPack={(engineInput, quotes) => {
-              setLabEngineInput(engineInput);
-              setLabQuotes(quotes);
-              setJourney('visit-home');
-            }}
-            onOpenFloorPlan={(surveyResults) => {
-              const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
-              setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
-              setJourney('floor-plan');
-            }}
-            onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
-            onOpenInstallationSpecification={() => setJourney('installation-specification')}
-            onReopenVisit={activeVisitId != null ? async () => {
-              try {
-                await saveVisit(activeVisitId, { completed_at: null, completion_method: null });
-                setJourney('visit-home');
-              } catch (err) {
-                console.error('[Atlas] Could not reopen visit:', err);
-              }
-            } : undefined}
-            floorplanOutput={floorplanOutput}
-          />
-        </GlobalMenuShell>
+            } catch (err) {
+              console.error('[Atlas] Could not reopen visit:', err);
+            }
+          } : undefined}
+          floorplanOutput={floorplanOutput}
+        />
       )}
       </VisitProvider>
       </BrandProvider>
       {journey === 'remote-survey' && (
-        <GlobalMenuShell>
-          <FullSurveyStepper
-            onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
-            prefill={fullSurveyPrefill}
-            onDraft={(draft) => {
-              // Capture heatLoss, priorities and recommendation as they are
-              // updated during the survey so they are available for the
-              // presentation and printout layers.
-              if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
-              if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
-              if (draft.fullSurvey?.recommendation) setLabRecommendationState(draft.fullSurvey.recommendation);
-              if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
-              // Capture the full survey model so the Installation Specification
-              // stepper can display the canonical current-system summary.
-              setLabFullSurveyModel(draft);
-            }}
-            onComplete={(engineInput) => {
-              // Route directly to simulator — fit-map step removed.
-              setFullSurveyPrefill(undefined);
-              setLabEngineInput(engineInput);
-              setSimulatorFromJourney('remote-survey');
-              setJourney('simulator');
-            }}
-            onOpenSimulator={(engineInput) => {
-              // Direct shortcut from InsightLayerPage — skip fit-map.
-              setFullSurveyPrefill(undefined);
-              setLabEngineInput(engineInput);
-              setSimulatorFromJourney('remote-survey');
-              setJourney('simulator');
-            }}
-            onOpenInsightPack={(engineInput, quotes) => {
-              setFullSurveyPrefill(undefined);
-              setLabEngineInput(engineInput);
-              setLabQuotes(quotes);
-              setJourney('library-pdf');
-            }}
-            onOpenFloorPlan={(surveyResults) => {
-              const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
-              setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
-              setJourney('floor-plan');
-            }}
-          />
-        </GlobalMenuShell>
+        <FullSurveyStepper
+          onBack={() => { setFullSurveyPrefill(undefined); setJourney('landing'); }}
+          prefill={fullSurveyPrefill}
+          onDraft={(draft) => {
+            // Capture heatLoss, priorities and recommendation as they are
+            // updated during the survey so they are available for the
+            // presentation and printout layers.
+            if (draft.fullSurvey?.heatLoss) setLabHeatLossState(draft.fullSurvey.heatLoss);
+            if (draft.fullSurvey?.priorities) setLabPrioritiesState(draft.fullSurvey.priorities);
+            if (draft.fullSurvey?.recommendation) setLabRecommendationState(draft.fullSurvey.recommendation);
+            if (draft.fullSurvey?.quotes) setLabQuotes(draft.fullSurvey.quotes);
+            // Capture the full survey model so the Installation Specification
+            // stepper can display the canonical current-system summary.
+            setLabFullSurveyModel(draft);
+          }}
+          onComplete={(engineInput) => {
+            // Route directly to simulator — fit-map step removed.
+            setFullSurveyPrefill(undefined);
+            setLabEngineInput(engineInput);
+            setSimulatorFromJourney('remote-survey');
+            setJourney('simulator');
+          }}
+          onOpenSimulator={(engineInput) => {
+            // Direct shortcut from InsightLayerPage — skip fit-map.
+            setFullSurveyPrefill(undefined);
+            setLabEngineInput(engineInput);
+            setSimulatorFromJourney('remote-survey');
+            setJourney('simulator');
+          }}
+          onOpenInsightPack={(engineInput, quotes) => {
+            setFullSurveyPrefill(undefined);
+            setLabEngineInput(engineInput);
+            setLabQuotes(quotes);
+            setJourney('library-pdf');
+          }}
+          onOpenFloorPlan={(surveyResults) => {
+            const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
+            setFloorPlanSystemType(preferCombi ? 'combi' : 'system');
+            setJourney('floor-plan');
+          }}
+        />
       )}
       {journey === 'scope' && <ScopePage onBack={() => setJourney('landing')} />}
       {journey === 'methodology' && <MethodologyPage onBack={() => setJourney('landing')} />}
@@ -3101,24 +3097,16 @@ function AppInner() {
         />
       )}
       {journey === 'simulator' && (
-        <GlobalMenuShell>
-          <ExplainersHubPage
-            onBack={() => setJourney(simulatorFromJourney)}
-            onEditSetup={() => setJourney(simulatorFromJourney)}
-            onOpenSystemLab={() => setJourney('lab')}
-            onOpenPresentation={labEngineInput != null ? () => { setPresentationFromJourney('simulator'); setJourney('presentation'); } : undefined}
-            surveyData={labEngineInput}
-            floorplanOutput={floorplanOutput}
-          />
-        </GlobalMenuShell>
+        <HouseSimulatorPage
+          onBack={() => setJourney(simulatorFromJourney)}
+          surveyData={labEngineInput}
+        />
       )}
       {journey === 'house-simulator' && (
-        <GlobalMenuShell>
-          <HouseSimulatorPage
-            onBack={() => setJourney(simulatorFromJourney)}
-            surveyData={labEngineInput}
-          />
-        </GlobalMenuShell>
+        <HouseSimulatorPage
+          onBack={() => setJourney(simulatorFromJourney)}
+          surveyData={labEngineInput}
+        />
       )}
       {/* Legacy dev-only route — VisitHomeUnifiedSimulatorRoute is no longer reached from
           Visit Home. Retained here for dev/diagnostic access only. */}

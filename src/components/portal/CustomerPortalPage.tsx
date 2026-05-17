@@ -19,8 +19,7 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import { getReport } from '../../lib/reports/reportApi';
 import { validatePortalToken } from '../../lib/portal/portalToken';
 import { BrandProvider, BrandedHeader, BrandedFooter, getBrandCtaCopy, useBrandProfile } from '../../features/branding';
-import UnifiedSimulatorView from '../simulator/UnifiedSimulatorView';
-import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
+import HouseSimulatorPage from '../../features/houseSimulator/HouseSimulatorPage';
 import { readCanonicalReportPayload } from '../../features/reports/adapters/readCanonicalReportPayload';
 import { runEngine } from '../../engine/Engine';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
@@ -150,9 +149,8 @@ function CustomerPortalContent({
   const [tokenDenied, setTokenDenied] = useState<'missing' | 'invalid' | 'expired' | null>(null);
   const [engineResult, setEngineResult] = useState<FullEngineResult | null>(null);
   const [engineInput, setEngineInput] = useState<EngineInputV2_3 | null>(null);
-  // surveyData and floorplanOutput are kept for the inline simulator.
+  // surveyData is kept for the inline simulator.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
-  const [floorplanOutput, setFloorplanOutput] = useState<DerivedFloorplanOutput | undefined>();
   const [showSimulator, setShowSimulator] = useState(false);
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
   const [viewMode, setViewMode] = useState<PortalViewMode>(devInitialViewMode ?? null);
@@ -291,7 +289,6 @@ function CustomerPortalContent({
           setEngineInput(input);
           setEngineResult(result);
           setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
-          setFloorplanOutput(payloadInfo.legacy?.floorplanOutput ?? undefined);
         }
       } catch (err: unknown) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
@@ -549,11 +546,9 @@ function CustomerPortalContent({
           <h2 className="portal-section__heading" id="portal-simulator-heading">
             Live simulator
           </h2>
-          <UnifiedSimulatorView
-            engineOutput={engineResult.engineOutput}
+          <HouseSimulatorPage
+            onBack={() => setShowSimulator(false)}
             surveyData={surveyData}
-            floorplanOutput={floorplanOutput}
-            portalMode
           />
         </section>
       ) : (
