@@ -1,10 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   DEFAULT_READING_PREFERENCES_V1,
   type ReadingColorOverlayV1,
   type ReadingPreferencesV1,
 } from './ReadingPreferencesV1';
+import {
+  ReadingPreferencesContext,
+  type ReadingPreferencesContextValue,
+} from './ReadingPreferencesContext';
 import './readingPreferences.css';
 
 const READING_PROFILE_KEY = 'atlas.readingPreferences.v1';
@@ -15,18 +19,6 @@ const OVERLAY_RGB_BY_MODE: Record<Exclude<ReadingColorOverlayV1, 'none'>, string
   cool: '224 240 255',
   rose: '255 232 240',
 };
-
-interface ReadingPreferencesContextValue {
-  enabled: boolean;
-  panelOpen: boolean;
-  profile: ReadingPreferencesV1;
-  setPanelOpen: (open: boolean) => void;
-  setEnabled: (enabled: boolean) => void;
-  updateProfile: (patch: Partial<ReadingPreferencesV1>) => void;
-  resetProfile: () => void;
-}
-
-const ReadingPreferencesContext = createContext<ReadingPreferencesContextValue | null>(null);
 
 function parseStoredProfile(raw: string | null): ReadingPreferencesV1 {
   if (!raw) return DEFAULT_READING_PREFERENCES_V1;
@@ -93,7 +85,7 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
       profile,
       setPanelOpen,
       setEnabled,
-      updateProfile: (patch) => setProfile((current) => ({ ...current, ...patch })),
+      updateProfile: (patch: Partial<ReadingPreferencesV1>) => setProfile((current) => ({ ...current, ...patch })),
       resetProfile: () => setProfile(DEFAULT_READING_PREFERENCES_V1),
     }),
     [enabled, panelOpen, profile],
@@ -105,12 +97,4 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
       {enabled && profile.readingRulerEnabled ? <div className="atlas-reading-ruler" aria-hidden="true" /> : null}
     </ReadingPreferencesContext.Provider>
   );
-}
-
-export function useReadingPreferences(): ReadingPreferencesContextValue {
-  const ctx = useContext(ReadingPreferencesContext);
-  if (!ctx) {
-    throw new Error('useReadingPreferences must be used within ReadingPreferencesProvider');
-  }
-  return ctx;
 }

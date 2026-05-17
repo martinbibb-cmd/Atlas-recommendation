@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { useReadingPreferences } from './ReadingPreferencesProvider';
+import { useReadingPreferences } from './useReadingPreferences';
 import type { ReadingColorOverlayV1 } from './ReadingPreferencesV1';
 
 const OVERLAY_OPTIONS: { value: ReadingColorOverlayV1; label: string }[] = [
