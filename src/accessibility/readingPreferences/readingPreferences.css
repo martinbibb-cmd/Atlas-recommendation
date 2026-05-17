@@ -7,6 +7,7 @@
   --atlas-reading-ruler-line-count: 2;
   --atlas-reading-overlay-rgb: 0 0 0;
   --atlas-reading-overlay-alpha: 0;
+  --atlas-reading-ruler-top-offset: 34%;
 }
 
 .rp-launcher {
@@ -126,7 +127,8 @@ html[data-atlas-reading-reduced-motion='true'] *::after {
   position: fixed;
   left: 0;
   right: 0;
-  top: 34%;
+  /* Position ruler below sticky headers on most customer surfaces. */
+  top: var(--atlas-reading-ruler-top-offset);
   height: calc(1rem * var(--atlas-reading-font-scale) * var(--atlas-reading-line-height) * var(--atlas-reading-ruler-line-count));
   pointer-events: none;
   z-index: 1150;

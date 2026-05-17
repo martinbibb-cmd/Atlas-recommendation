@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   DEFAULT_READING_PREFERENCES_V1,
+  DEFAULT_READING_OVERLAY_ALPHA,
   type ReadingColorOverlayV1,
   type ReadingPreferencesV1,
 } from './ReadingPreferencesV1';
@@ -62,7 +63,7 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
       profile.colorOverlay === 'none'
         ? '0 0 0'
         : OVERLAY_RGB_BY_MODE[profile.colorOverlay];
-    const overlayAlpha = profile.colorOverlay === 'none' ? 0 : 0.18;
+    const overlayAlpha = profile.colorOverlay === 'none' ? 0 : DEFAULT_READING_OVERLAY_ALPHA;
 
     root.setAttribute('data-atlas-reading-enabled', enabled ? 'true' : 'false');
     root.setAttribute('data-atlas-reading-contrast', profile.contrastMode);

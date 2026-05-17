@@ -17,6 +17,7 @@ export interface ReadingPreferencesV1 {
 }
 
 export type AccessibilityReadingProfileV1 = ReadingPreferencesV1;
+export const DEFAULT_READING_OVERLAY_ALPHA = 0.18;
 
 export const DEFAULT_READING_PREFERENCES_V1: ReadingPreferencesV1 = {
   fontScale: 1,
@@ -26,7 +27,7 @@ export const DEFAULT_READING_PREFERENCES_V1: ReadingPreferencesV1 = {
   colorOverlay: 'none',
   contrastMode: 'default',
   readingRulerEnabled: false,
-  rulerOpacity: 0.18,
+  rulerOpacity: DEFAULT_READING_OVERLAY_ALPHA,
   rulerLineCount: 2,
   wordHighlighting: false,
   reducedMotion: false,
