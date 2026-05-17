@@ -56,6 +56,7 @@ import HouseSimulatorCanvas from './HouseSimulatorCanvas';
 import SystemNarrationToast from './SystemNarrationToast';
 import SimulatorSideDrawer from './SimulatorSideDrawer';
 import TimelineBottomSheet from './TimelineBottomSheet';
+import { ReadingPreferencesLauncher } from '../../accessibility/readingPreferences/ReadingPreferencesLauncher';
 
 import './houseSimulator.css';
 
@@ -296,7 +297,8 @@ export default function HouseSimulatorPage({
   ];
 
   return (
-    <div className="hs-wrap">
+    <div className="hs-wrap atlas-reading-surface">
+      <ReadingPreferencesLauncher />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="hs-header">

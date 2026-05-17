@@ -39,6 +39,7 @@ import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import { resolvePortalHomeLabel } from '../../lib/portal/portalVisitContext';
+import { ReadingPreferencesLauncher } from '../../accessibility/readingPreferences/ReadingPreferencesLauncher';
 import './CustomerPortalPage.css';
 
 interface Props {
@@ -356,7 +357,8 @@ function CustomerPortalContent({
   // ── Welcome page — choose a view ──────────────────────────────────────────
   if (viewMode === null) {
     return (
-      <div className="portal-page" data-testid="customer-portal">
+      <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
+        <ReadingPreferencesLauncher />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -436,7 +438,8 @@ function CustomerPortalContent({
     );
 
     return (
-      <div className="portal-page portal-page--full-width" data-testid="customer-portal">
+      <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+        <ReadingPreferencesLauncher />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -468,7 +471,8 @@ function CustomerPortalContent({
   // ── Five-tab portal view — opened via deck CTA ────────────────────────────
   if (viewMode === 'portal') {
     return (
-      <div className="portal-page portal-page--full-width" data-testid="customer-portal">
+      <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+        <ReadingPreferencesLauncher />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -507,7 +511,8 @@ function CustomerPortalContent({
 
   // ── Presentation view (deck) ──────────────────────────────────────────────
   return (
-    <div className="portal-page" data-testid="customer-portal">
+    <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
+      <ReadingPreferencesLauncher />
       {showDevTraceLabels ? (
         <aside data-testid="portal-route-trace-labels">
           <p>currentPortalRoute: {currentPortalRoute}</p>

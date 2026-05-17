@@ -264,7 +264,7 @@ export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
 
   return (
     <article
-      className="pjpp-document"
+      className="pjpp-document atlas-reading-surface"
       data-testid="pjpp-document"
       data-print-safe="true"
       aria-label="Supporting Insight PDF"

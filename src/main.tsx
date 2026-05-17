@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { redactString } from './lib/privacy/safeLog.ts'
+import { ReadingPreferencesProvider } from './accessibility/readingPreferences/ReadingPreferencesProvider.tsx'
 
 // Register the Atlas service worker for Web Share Target support and offline
 // caching.  Registration is best-effort — the app works without it.
@@ -94,7 +95,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <ReadingPreferencesProvider>
+        <App />
+      </ReadingPreferencesProvider>
     </ErrorBoundary>
   </StrictMode>,
 )
