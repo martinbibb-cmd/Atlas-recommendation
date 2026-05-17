@@ -14,7 +14,7 @@ export type CopyFormat = 'text' | 'markdown' | 'json';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function resolveRouteDisplay(item: DevUiRegistryItem): string {
+export function resolveRouteDisplay(item: DevUiRegistryItem): string {
   if (item.fullRouteExample != null) return item.fullRouteExample;
   if (item.queryFlags != null && item.queryFlags.length > 0) {
     return '/?' + item.queryFlags.join('&');

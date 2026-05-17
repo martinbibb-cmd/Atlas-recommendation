@@ -53,4 +53,20 @@ describe('generateLibraryReferenceText', () => {
     expect(text).toContain('Atlas UI Library Reference');
     expect(text).toContain('Total entries: 0');
   });
+
+  it('renders copyLabel and hierarchy metadata when present', () => {
+    const text = generateLibraryReferenceText([
+      makeItem({
+        commonName: 'Base Name',
+        copyLabel: 'Copy Label Name',
+        codeName: 'HierarchyPage',
+        parentCodeName: 'ParentPage',
+        childElementIds: ['ChildA', 'ChildB'],
+      }),
+    ]);
+
+    expect(text).toContain('Copy Label Name (HierarchyPage)');
+    expect(text).toContain('parent: ParentPage');
+    expect(text).toContain('contains: ChildA, ChildB');
+  });
 });

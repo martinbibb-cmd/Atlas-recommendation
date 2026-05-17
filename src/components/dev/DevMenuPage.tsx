@@ -41,6 +41,7 @@ import {
   generateCopyBoxOutput,
   formatSingleItemAsText,
   generateLibraryReferenceText,
+  resolveRouteDisplay,
   type CopyFormat,
 } from '../../dev/devUiCopyExport';
 import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
@@ -834,12 +835,9 @@ function HardwarePatchEditorPanel() {
 }
 
 function resolveNavigableRoute(item: DevUiRegistryItem): string | null {
-  if (item.fullRouteExample != null && item.fullRouteExample !== '' && item.fullRouteExample !== 'unresolved') {
-    return item.fullRouteExample;
-  }
-  if (item.routePath != null && item.routePath !== '') return item.routePath;
-  if (item.queryFlags != null && item.queryFlags.length > 0) return `/?${item.queryFlags.join('&')}`;
-  return null;
+  const route = resolveRouteDisplay(item);
+  if (route === 'unresolved' || route.startsWith('unresolved')) return null;
+  return route;
 }
 
 function downloadTextFile(fileName: string, content: string): void {
@@ -888,13 +886,9 @@ function LibraryBrowserPanel({
     });
   }, [search, categoryFilter]);
 
-  const libraryReferenceText = useMemo(
-    () => generateLibraryReferenceText(DEV_UI_REGISTRY),
-    [],
-  );
-
   function handleDownloadReference() {
-    downloadTextFile('atlas-ui-library-reference.txt', libraryReferenceText);
+    const referenceText = generateLibraryReferenceText(DEV_UI_REGISTRY);
+    downloadTextFile('atlas-ui-library-reference.txt', referenceText);
   }
 
   return (
