@@ -197,6 +197,7 @@ function CustomerPortalContent({
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [showSimulator, setShowSimulator] = useState(false);
   const isDevFixtureMode = Boolean(devFixtureInput);
+  // Production and production-like preview surfaces must stay on canonical portal renderer.
   const isProductionPortalSurface = !isDevFixtureMode;
   function computeInitialPortalViewMode(): PortalViewMode {
     if (!isDevFixtureMode) return 'portal';
@@ -587,7 +588,7 @@ function CustomerPortalContent({
             propertyTitle={portalHomeLabel}
             initialTab={portalLaunchContext?.initialTab}
             portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
-            aiSummaryText={isDevFixtureMode ? aiSummaryText : undefined}
+            aiSummaryText={isProductionPortalSurface ? undefined : aiSummaryText}
             aiSummaryFilename={aiSummaryFilename}
           />
         ) : (
@@ -708,7 +709,7 @@ function CustomerPortalContent({
           propertyTitle={portalHomeLabel}
           initialTab={portalLaunchContext?.initialTab}
           portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
-          aiSummaryText={isDevFixtureMode ? aiSummaryText : undefined}
+          aiSummaryText={isProductionPortalSurface ? undefined : aiSummaryText}
           aiSummaryFilename={aiSummaryFilename}
         />
       ) : (
