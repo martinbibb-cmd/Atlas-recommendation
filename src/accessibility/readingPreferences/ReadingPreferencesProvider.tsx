@@ -80,33 +80,6 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
     root.style.setProperty('--atlas-reading-overlay-alpha', String(overlayAlpha));
   }, [enabled, profile]);
 
-  // Scoped reading ruler: follow pointer within .atlas-reading-surface only.
-  // The ruler is rendered as a CSS ::after pseudo-element on each reading surface,
-  // positioned via --atlas-ruler-y which tracks the pointer relative to that surface.
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (!enabled || !profile.readingRulerEnabled) return;
-
-    let rafId: number | null = null;
-
-    const handlePointerMove = (event: PointerEvent) => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        const target = (event.target as Element | null)?.closest?.('.atlas-reading-surface') as HTMLElement | null;
-        if (!target) return;
-        const rect = target.getBoundingClientRect();
-        const y = event.clientY - rect.top + target.scrollTop;
-        target.style.setProperty('--atlas-ruler-y', `${y}px`);
-      });
-    };
-
-    document.addEventListener('pointermove', handlePointerMove, { passive: true });
-    return () => {
-      document.removeEventListener('pointermove', handlePointerMove);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
-  }, [enabled, profile.readingRulerEnabled]);
 
   const value = useMemo<ReadingPreferencesContextValue>(
     () => ({

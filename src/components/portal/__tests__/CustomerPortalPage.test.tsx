@@ -87,10 +87,12 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-token-error')).toBeTruthy());
   });
 
-  it('renders portal error on 404', async () => {
+  it('renders customer-safe portal error on 404', async () => {
     mockFetch404();
     render(<CustomerPortalPage reference="missing-ref" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('portal-error')).toBeTruthy());
+    expect(screen.queryByText('Report not found')).toBeNull();
+    expect(screen.getByText(/Please contact your installer/i)).toBeTruthy();
   });
 
   it('production portal does not include InsightPackDeck or legacy insight/blueprint sections', async () => {
@@ -112,6 +114,7 @@ describe('CustomerPortalPage', () => {
     // Portal header uses safe visit-scoped copy
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
     expect(screen.getAllByText('Your home').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('journey-identity-header')).toBeTruthy();
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode: choice/i)).toBeTruthy();
     expect(screen.getByText(/activeRendererComponent: PortalChoiceScreen/i)).toBeTruthy();

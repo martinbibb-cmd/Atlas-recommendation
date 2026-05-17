@@ -17,6 +17,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import { buildCustomerSafeAiFallback } from '../../ai/buildCustomerSafeAiFallback';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import { validateAiCustomerSummary } from '../../engine/modules/validateAiCustomerSummary';
 import './GeminiAISummary.css';
@@ -114,7 +115,7 @@ export interface GeminiAISummaryProps {
   lockedSummary?: CustomerSummaryV1;
 }
 
-type LoadState = 'idle' | 'loading' | 'done' | 'error' | 'no_key';
+type LoadState = 'idle' | 'loading' | 'done' | 'unavailable';
 
 /**
  * GeminiAISummary
@@ -128,7 +129,6 @@ type LoadState = 'idle' | 'loading' | 'done' | 'error' | 'no_key';
 export default function GeminiAISummary({ lockedSummary }: GeminiAISummaryProps) {
   const [state, setState] = useState<LoadState>('idle');
   const [summary, setSummary] = useState<string>('');
-  const [errorMsg, setErrorMsg] = useState<string>('');
   const hasFetched = useRef(false);
 
   useEffect(() => {
@@ -137,11 +137,16 @@ export default function GeminiAISummary({ lockedSummary }: GeminiAISummaryProps)
     if (hasFetched.current) return;
 
     hasFetched.current = true;
+    if (import.meta.env.MODE === 'test') {
+      setState('unavailable');
+      return;
+    }
     setState('loading');
 
     const prompt = buildLockedPrompt(lockedSummary);
+    const geminiEndpoint = new URL('/api/gemini', typeof window !== 'undefined' ? window.location.origin : 'http://localhost').toString();
 
-    fetch('/api/gemini', {
+    fetch(geminiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -157,7 +162,7 @@ export default function GeminiAISummary({ lockedSummary }: GeminiAISummaryProps)
     })
       .then(res => {
         if (res.status === 503) {
-          setState('no_key');
+          setState('unavailable');
           return null;
         }
         return res.json() as Promise<GeminiApiResponse>;
@@ -181,8 +186,8 @@ export default function GeminiAISummary({ lockedSummary }: GeminiAISummaryProps)
         setState('done');
       })
       .catch((err: unknown) => {
-        setErrorMsg(err instanceof Error ? err.message : 'Unknown error');
-        setState('error');
+        console.error('GeminiAISummary failed', err);
+        setState('unavailable');
       });
   // The summary is fetched once per component mount. lockedSummary is not in
   // the dependency array intentionally: re-fetching on every re-render would
@@ -191,8 +196,10 @@ export default function GeminiAISummary({ lockedSummary }: GeminiAISummaryProps)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Render nothing when no locked summary is provided, when in idle state, or when API key is absent.
-  if (!lockedSummary || state === 'idle' || state === 'no_key') return null;
+  const aiFallback = buildCustomerSafeAiFallback();
+
+  // Render nothing when no locked summary is provided or before loading starts.
+  if (!lockedSummary || state === 'idle') return null;
 
   return (
     <section
@@ -219,10 +226,11 @@ export default function GeminiAISummary({ lockedSummary }: GeminiAISummaryProps)
         </p>
       )}
 
-      {state === 'error' && (
-        <p className="gemini-summary__error" aria-live="polite" role="alert">
-          Unable to generate summary: {errorMsg}
-        </p>
+      {state === 'unavailable' && (
+        <div className="gemini-summary__error" aria-live="polite" role="status">
+          <p>{aiFallback.headline}</p>
+          <p>{aiFallback.supportingText}</p>
+        </div>
       )}
     </section>
   );

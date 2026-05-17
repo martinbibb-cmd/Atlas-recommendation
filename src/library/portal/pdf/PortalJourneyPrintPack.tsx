@@ -17,6 +17,8 @@
 import type { PortalJourneyPrintModelV1, PortalJourneyPrintSectionV1 } from './buildPortalJourneyPrintModel';
 import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
 import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
+import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
+import { PrintableComparisonCard, PrintableConditionChart, PrintableJourneySummary, PrintableProofSummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
 import './portalJourneyPrintPack.css';
 
 // ─── Diagram ID mapping ───────────────────────────────────────────────────────
@@ -55,7 +57,7 @@ function PrintCover({ cover, pageNumber }: PrintCoverProps) {
       data-testid="pjpp-cover"
       data-page={pageNumber}
     >
-      <header className="pjpp-cover-header">
+      <header className="pjpp-cover-header" data-reading-region="true">
         {cover.brandName ? (
           <p className="pjpp-cover-brand" data-testid="pjpp-cover-brand">
             {cover.brandName}
@@ -74,16 +76,19 @@ function PrintCover({ cover, pageNumber }: PrintCoverProps) {
         ) : null}
       </header>
 
+      <PrintableJourneySummary
+        propertyTitle={cover.addressSummary}
+        recommendationTitle={cover.title}
+        summary={cover.summary}
+      />
+
       {cover.customerFacts.length > 0 ? (
-        <aside className="pjpp-cover-facts" aria-label="Your home" data-testid="pjpp-cover-facts">
-          <p className="pjpp-cover-facts__label">Your home</p>
-          <ul className="pjpp-cover-facts__list">
-            {cover.customerFacts.map((fact, i) => (
-              <li key={i} className="pjpp-cover-facts__item">
-                {fact}
-              </li>
-            ))}
-          </ul>
+        <aside className="pjpp-cover-facts" aria-label="Your home" data-testid="pjpp-cover-facts" data-reading-region="true">
+          <PrintableSystemCard
+            heading="Your home"
+            summary={cover.addressSummary ?? 'Survey details used for this recommendation.'}
+            facts={cover.customerFacts}
+          />
         </aside>
       ) : null}
     </section>
@@ -114,6 +119,13 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
 
       <p className="pjpp-section__summary">{section.summary}</p>
 
+      <PrintableComparisonCard
+        heading="At a glance"
+        summary={section.summary}
+        items={[]}
+        recommended={section.sectionId === 'what_changes'}
+      />
+
       {section.items.length > 0 ? (
         <ul className="pjpp-section__items" data-testid={`pjpp-items-${section.sectionId}`}>
           {section.items.map((item, i) => (
@@ -127,6 +139,13 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
       <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
         <strong>Key takeaway:</strong> {section.keyTakeaway}
       </p>
+
+      <PrintableProofSummary
+        heading="Why this matters"
+        summary={section.summary}
+        takeaway="See the highlighted takeaway above."
+        reassurance={section.reassurance}
+      />
 
       {rendererDiagramId ? (
         <figure
@@ -145,7 +164,7 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
         </figure>
       ) : null}
 
-      <aside className="pjpp-reassurance" data-testid={`pjpp-reassurance-${section.sectionId}`}>
+      <aside className="pjpp-reassurance" data-testid={`pjpp-reassurance-${section.sectionId}`} data-reading-region="true">
         {section.reassurance}
       </aside>
     </section>
@@ -182,6 +201,11 @@ function PrintSystemProtection({ systemProtection, pageNumber }: PrintSystemProt
 
       <p className="pjpp-section__summary">{systemProtection.customerSummary}</p>
 
+      <PrintableConditionChart
+        title={systemProtection.title}
+        rows={systemProtection.customerVisibleBullets.map((bullet, index) => ({ label: `Check ${index + 1}`, value: bullet }))}
+      />
+
       {systemProtection.customerVisibleBullets.length > 0 ? (
         <ul className="pjpp-section__items" data-testid="pjpp-items-system-protection">
           {systemProtection.customerVisibleBullets.map((bullet, i) => (
@@ -192,8 +216,8 @@ function PrintSystemProtection({ systemProtection, pageNumber }: PrintSystemProt
         </ul>
       ) : null}
 
-      <aside className="pjpp-reassurance" data-testid="pjpp-reassurance-system-protection">
-        {systemProtection.whatInstallerWillCheck}
+      <aside className="pjpp-reassurance" data-testid="pjpp-reassurance-system-protection" data-reading-region="true">
+        <PrintableQuickWinCard heading="Installer check" body={systemProtection.whatInstallerWillCheck} />
       </aside>
     </section>
   );
@@ -214,6 +238,7 @@ function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStep
       <ol className="pjpp-next-steps__list" data-testid="pjpp-next-steps-list">
         {nextSteps.map((step, i) => (
           <li key={i} className="pjpp-next-steps__item">
+            <PrintableQuickWinCard heading={step.label} body={step.body} />
             <strong className="pjpp-next-steps__label">{step.label}</strong>
             <p className="pjpp-next-steps__body">{step.body}</p>
           </li>
@@ -226,7 +251,7 @@ function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStep
 
       <ul className="pjpp-qr-destinations__list" data-testid="pjpp-qr-list">
         {qrDestinations.map((dest, i) => (
-          <li key={i} className="pjpp-qr-destination" data-testid={`pjpp-qr-item-${i}`}>
+          <li key={i} className="pjpp-qr-destination" data-testid={`pjpp-qr-item-${i}`} data-reading-region="true">
             <div
               className="pjpp-qr-destination__placeholder"
               aria-label={`QR code for: ${dest.heading}`}
@@ -269,6 +294,7 @@ export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
       data-print-safe="true"
       aria-label="Supporting Insight PDF"
     >
+      <ReadingAssistOverlay />
       <PrintCover cover={model.cover} pageNumber={pageCounter++} />
 
       {model.sections.map((section) => (

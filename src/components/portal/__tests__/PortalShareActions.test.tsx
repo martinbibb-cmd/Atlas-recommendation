@@ -149,7 +149,7 @@ describe('PortalShareActions', () => {
   it('shows AI summary helper text when aiSummaryText is provided', () => {
     render(<PortalShareActions aiSummaryText="some text" />);
     expect(screen.getByTestId('share-ai-helper')).toBeTruthy();
-    expect(screen.getByTestId('share-ai-helper').textContent).toContain('ChatGPT');
+    expect(screen.getByTestId('share-ai-helper').textContent).toContain('preferred assistant');
   });
 
   // ── Download advice pack — URL ────────────────────────────────────────────

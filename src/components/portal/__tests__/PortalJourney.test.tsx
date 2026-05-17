@@ -171,10 +171,10 @@ describe('PortalPage — container and tab bar', () => {
 
   it('renders all four tab buttons (Four Atlas Pillars)', () => {
     render(<PortalPage viewModel={makeViewModel()} />);
-    expect(screen.getByText('What Matters to You')).toBeTruthy();
-    expect(screen.getByText('Verdict & Physics')).toBeTruthy();
-    expect(screen.getByText('Your Day')).toBeTruthy();
-    expect(screen.getByText('Roadmap')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'What Matters to You' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Verdict & Physics' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Your Day' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Roadmap' })).toBeTruthy();
   });
 
   it('default active tab is "identity" and shows its panel', () => {
@@ -210,12 +210,11 @@ describe('PortalPage — container and tab bar', () => {
     expect(screen.getByText('SW1A 1AA')).toBeTruthy();
   });
 
-  it('does not render a header when propertyTitle is absent', () => {
+  it('renders the persistent journey header even when propertyTitle is absent', () => {
     render(<PortalPage viewModel={makeViewModel()} />);
-    // No header banner — the tab bar is the top-level navigation element
-    expect(screen.queryByRole('banner')).toBeNull();
-    // Tab list (navigation) is still rendered
-    expect(screen.getByRole('tablist', { name: 'Portal navigation' })).toBeTruthy();
+    expect(screen.getByTestId('journey-identity-header')).toBeTruthy();
+    expect(screen.getByText('Combi boiler')).toBeTruthy();
+    expect(within(screen.getByTestId('journey-identity-header')).getByText('What Matters to You')).toBeTruthy();
   });
 });
 

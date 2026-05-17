@@ -31,6 +31,8 @@ import { SystemWorkExplainerBlockView } from '../presentation/blocks/SystemWorkE
 import { CustomerNeedResolutionBlockView } from '../presentation/blocks/CustomerNeedResolutionBlockView';
 import { FutureUpgradeBlockView } from '../presentation/blocks/FutureUpgradeBlockView';
 import { PortalShareActions } from './PortalShareActions';
+import { PersistentJourneyHeader } from './PersistentJourneyHeader';
+import { ReadingAssistOverlay } from '../../accessibility/readingAssist/ReadingAssistOverlay';
 import '../presentation/CustomerDeck.css';
 import './PortalPage.css';
 
@@ -60,14 +62,14 @@ function renderPortalBlock(block: VisualBlock): React.ReactElement | null {
  */
 function IdentityTab({ blocks }: { blocks: PortalViewModel['identityBlocks'] }) {
   if (blocks.length === 0) {
-    return <p className="portal-page__empty">No recommendation content available.</p>;
+    return <p className="portal-page__empty" data-reading-region="true">No recommendation content available.</p>;
   }
   return (
     <div className="portal-page__block-stack">
       {blocks.map((block) => {
         const rendered = renderPortalBlock(block);
         return rendered ? (
-          <div key={block.id} className="portal-page__block-wrapper">
+          <div key={block.id} className="portal-page__block-wrapper" data-reading-region="true">
             {rendered}
           </div>
         ) : null;
@@ -86,13 +88,13 @@ function VerdictTab({ verdictData }: { verdictData: PortalViewModel['verdictData
   const { whyCards, comparisonCards, spatialProof } = verdictData;
   const hasContent = whyCards.length > 0 || comparisonCards.length > 0 || spatialProof;
   if (!hasContent) {
-    return <p className="portal-page__empty">No proof cards available.</p>;
+    return <p className="portal-page__empty" data-reading-region="true">No proof cards available.</p>;
   }
   return (
     <div className="portal-page__verdict-stack">
       {/* Physics proof — key reasons and avoided risks */}
       {whyCards.length > 0 && (
-        <section className="portal-page__verdict-section" aria-label="Physics evidence">
+        <section className="portal-page__verdict-section" aria-label="Physics evidence" data-reading-region="true">
           <p className="portal-page__why-intro">
             These are the specific measurements and signals Atlas used to make this recommendation for your home
           </p>
@@ -106,7 +108,7 @@ function VerdictTab({ verdictData }: { verdictData: PortalViewModel['verdictData
 
       {/* Scenario Explorer — Atlas Pick vs alternatives */}
       {comparisonCards.length > 0 && (
-        <section className="portal-page__verdict-section" aria-label="Scenario Explorer">
+        <section className="portal-page__verdict-section" aria-label="Scenario Explorer" data-reading-region="true">
           <p className="portal-page__scenario-intro">
             See how the recommended system compares to the alternatives evaluated for your home
           </p>
@@ -120,7 +122,7 @@ function VerdictTab({ verdictData }: { verdictData: PortalViewModel['verdictData
 
       {/* Spatial proof — where the work happens */}
       {spatialProof && (
-        <section className="portal-page__verdict-section" aria-label="Spatial evidence">
+        <section className="portal-page__verdict-section" aria-label="Spatial evidence" data-reading-region="true">
           <SpatialProofSection block={spatialProof} />
         </section>
       )}
@@ -139,7 +141,7 @@ function ExperienceTab({ experienceData }: { experienceData: PortalViewModel['ex
   if (simulation) {
     return (
       <>
-        <div className="portal-page__daily-use-header">
+        <div className="portal-page__daily-use-header" data-reading-region="true">
           <p className="portal-page__daily-use-header-title">Your 24-hour experience</p>
           <p className="portal-page__daily-use-header-desc">
             Move through the day to see how the recommended system responds to a morning shower, kitchen tap use, and evening heating cycle.
@@ -150,7 +152,7 @@ function ExperienceTab({ experienceData }: { experienceData: PortalViewModel['ex
     );
   }
   if (cards.length === 0) {
-    return <p className="portal-page__empty">No daily-use outcomes available.</p>;
+    return <p className="portal-page__empty" data-reading-region="true">No daily-use outcomes available.</p>;
   }
   return (
     <div className="portal-page__card-grid">
@@ -167,14 +169,14 @@ function ExperienceTab({ experienceData }: { experienceData: PortalViewModel['ex
  */
 function RoadmapTab({ blocks }: { blocks: PortalViewModel['roadmapBlocks'] }) {
   if (blocks.length === 0) {
-    return <p className="portal-page__empty">No future upgrade paths available.</p>;
+    return <p className="portal-page__empty" data-reading-region="true">No future upgrade paths available.</p>;
   }
   return (
     <div className="portal-page__block-stack">
       {blocks.map((block) => {
         const rendered = renderPortalBlock(block);
         return rendered ? (
-          <div key={block.id} className="portal-page__block-wrapper">
+          <div key={block.id} className="portal-page__block-wrapper" data-reading-region="true">
             {rendered}
           </div>
         ) : null;
@@ -199,7 +201,8 @@ function AiDataBlobPanel({ aiSummaryText }: { aiSummaryText: string }) {
     <section
       className="portal-ai-blob"
       data-testid="portal-ai-blob"
-      aria-label="AI agent data payload"
+      aria-label="AI-enhanced summary"
+      data-reading-region="true"
     >
       <button
         type="button"
@@ -209,9 +212,9 @@ function AiDataBlobPanel({ aiSummaryText }: { aiSummaryText: string }) {
         data-testid="portal-ai-blob-toggle"
       >
         <span className="portal-ai-blob__icon" aria-hidden="true">✦</span>
-        <span className="portal-ai-blob__title">AI agent payload</span>
+        <span className="portal-ai-blob__title">AI-enhanced summary</span>
         <span className="portal-ai-blob__hint">
-          {expanded ? 'Hide' : 'Show data for AI assistant'}
+          {expanded ? 'Hide' : 'Show summary text'}
         </span>
         <span className="portal-ai-blob__chevron" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
       </button>
@@ -220,7 +223,7 @@ function AiDataBlobPanel({ aiSummaryText }: { aiSummaryText: string }) {
           className="portal-ai-blob__text"
           data-testid="portal-ai-blob-text"
           tabIndex={0}
-          aria-label="AI handoff payload text — select all and copy to use in an AI assistant"
+          aria-label="AI-enhanced summary text"
         >
           {aiSummaryText}
         </pre>
@@ -263,6 +266,10 @@ export interface PortalPageProps {
  */
 export function PortalPage({ viewModel, propertyTitle, initialTab, portalUrl, advicePackUrl, aiSummaryText, aiSummaryFilename, onDownloadAdvicePack }: PortalPageProps) {
   const [activeTab, setActiveTab] = useState<PortalTabId>(initialTab ?? 'identity');
+  const activeTabLabel = viewModel.tabs.find((tab) => tab.id === activeTab)?.label ?? 'Recommendation';
+  const recommendedScenario = viewModel.verdictData.comparisonCards[0];
+  const recommendationTitle = recommendedScenario?.title ?? 'Your recommendation';
+  const recommendationSummary = recommendedScenario?.summary;
 
   function renderActivePanel() {
     switch (activeTab) {
@@ -277,11 +284,14 @@ export function PortalPage({ viewModel, propertyTitle, initialTab, portalUrl, ad
     <div className="portal-page__shell" data-testid="portal-page">
 
       {/* Header */}
-      {propertyTitle && (
-        <header className="portal-page__header">
-          <span className="portal-page__property-title">{propertyTitle}</span>
-        </header>
-      )}
+      <header className="portal-page__header">
+        <PersistentJourneyHeader
+          propertyTitle={propertyTitle}
+          recommendationTitle={recommendationTitle}
+          summary={recommendationSummary}
+          surfaceLabel={activeTabLabel}
+        />
+      </header>
 
       {/* Share / export action strip */}
       <PortalShareActions
@@ -307,6 +317,7 @@ export function PortalPage({ viewModel, propertyTitle, initialTab, portalUrl, ad
         className="portal-page__panel"
         data-testid={`portal-panel-${activeTab}`}
       >
+        <ReadingAssistOverlay />
         {renderActivePanel()}
       </main>
 
