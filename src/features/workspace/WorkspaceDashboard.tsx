@@ -375,7 +375,7 @@ export default function WorkspaceDashboard({
     ? (ROLE_LABELS[effectiveRole] ?? effectiveRole)
     : 'Guest';
   const showWorkspaceTools = canViewAnalytics || canEditBranding || canManageWorkspace;
-  const canSwitchWorkspace = activeUser !== null && canManageWorkspace;
+  const canUserSwitchWorkspace = activeUser !== null && canManageWorkspace;
 
   return (
     <div
@@ -810,8 +810,8 @@ export default function WorkspaceDashboard({
               <ActionChip
                 label="🏢 Switch workspace"
                 onClick={onOpenWorkspaceSettings}
-                muted={!canSwitchWorkspace}
-                disabled={!canSwitchWorkspace}
+                muted={!canUserSwitchWorkspace}
+                disabled={!canUserSwitchWorkspace}
               />
             )}
           </div>

@@ -49,6 +49,11 @@ export type CardStatus = 'ready' | 'needs-review' | 'blocked' | 'dev-only';
 export type CardAudience = 'customer' | 'surveyor' | 'office' | 'engineer';
 export type CardSource = 'engine' | 'library' | 'workflow' | 'simulator';
 export type VisitSelectorSource = 'local' | 'workflow' | 'demo';
+type ActionableState = {
+  why: string;
+  unlocks: string;
+  nextStep: string;
+};
 
 export interface VisitSelectorEntry {
   readonly visitId: string;
@@ -188,6 +193,16 @@ const STATUS_STYLES: Record<CardStatus, CSSProperties & { label: string }> = {
   'blocked':      { label: 'Blocked',       background: '#fef2f2', color: '#991b1b', borderColor: '#fca5a5' },
   'dev-only':     { label: 'Dev only',      background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' },
 };
+const REASON_VISIT_DATA_MISSING = 'Visit data missing';
+const REASON_PERMISSION_NOT_GRANTED = 'Permission not granted for this workspace role.';
+const REASON_LIBRARY_SAFETY_REVIEW = 'Library safety needs review';
+const PDF_QA_BLOCKED_PREFIX = 'PDF QA blocked:';
+function isPDFQABlocked(reason: string | undefined): boolean {
+  if (reason == null || reason.length === 0) return false;
+  return reason
+    .split(' • ')
+    .some((entry) => entry.trim().startsWith(PDF_QA_BLOCKED_PREFIX));
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -216,11 +231,7 @@ interface DashboardCardProps {
   variant?: 'default' | 'feature';
   blockedReason?: string;
   highlights?: readonly string[];
-  actionableState?: {
-    why: string;
-    unlocks: string;
-    nextStep: string;
-  };
+  actionableState?: ActionableState;
 }
 
 /**
@@ -454,16 +465,16 @@ export function VisitHomeDashboard({
     actionId: VisitHomeActionId,
     status: CardStatus,
     reason: string | undefined,
-  ): { why: string; unlocks: string; nextStep: string } | undefined => {
+  ): ActionableState | undefined => {
     if (status !== 'blocked' && status !== 'needs-review') return undefined;
-    if (reason === 'Visit data missing') {
+    if (reason === REASON_VISIT_DATA_MISSING) {
       return {
         why: 'This step is blocked because no active visit data is loaded for review.',
         unlocks: 'Open or import a visit so review data is available.',
         nextStep: 'Open visit',
       };
     }
-    if (reason === 'Permission not granted for this workspace role.') {
+    if (reason === REASON_PERMISSION_NOT_GRANTED) {
       return {
         why: 'Your current workspace role does not allow this action.',
         unlocks: 'A workspace admin needs to grant the required permission.',
@@ -480,7 +491,7 @@ export function VisitHomeDashboard({
           nextStep: 'Generate recommendation',
         };
       case 'customer-portal':
-        if (reason === 'Library safety needs review') {
+        if (reason === REASON_LIBRARY_SAFETY_REVIEW) {
           return {
             why: 'Customer portal content is blocked by library safety checks.',
             unlocks: 'Resolve the library safety blockers for customer-facing output.',
@@ -495,7 +506,7 @@ export function VisitHomeDashboard({
           nextStep: 'Generate customer outputs',
         };
       case 'supporting-pdf':
-        if (reason === 'Library safety needs review' || reason?.includes('PDF QA blocked:')) {
+        if (reason === REASON_LIBRARY_SAFETY_REVIEW || isPDFQABlocked(reason)) {
           return {
             why: 'The supporting PDF is blocked by customer-readiness or library safety checks.',
             unlocks: 'Resolve PDF QA and library blockers for customer-safe output.',

@@ -474,7 +474,7 @@ export default function HouseSimulatorPage({
         <div className="hs-setup-section">
           <p className="hs-setup-label">Warnings</p>
           {warningItems.length === 0 ? (
-            <p className="hs-top-sheet__empty">No active warnings right now.</p>
+            <p className="hs-warnings__empty">No active warnings right now.</p>
           ) : (
             <ul className="hs-warning-list">
               {warningItems.map(warning => (
