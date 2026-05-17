@@ -87,16 +87,25 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
     if (typeof document === 'undefined') return;
     if (!enabled || !profile.readingRulerEnabled) return;
 
+    let rafId: number | null = null;
+
     const handlePointerMove = (event: PointerEvent) => {
-      const target = (event.target as Element | null)?.closest?.('.atlas-reading-surface') as HTMLElement | null;
-      if (!target) return;
-      const rect = target.getBoundingClientRect();
-      const y = event.clientY - rect.top + target.scrollTop;
-      target.style.setProperty('--atlas-ruler-y', `${y}px`);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const target = (event.target as Element | null)?.closest?.('.atlas-reading-surface') as HTMLElement | null;
+        if (!target) return;
+        const rect = target.getBoundingClientRect();
+        const y = event.clientY - rect.top + target.scrollTop;
+        target.style.setProperty('--atlas-ruler-y', `${y}px`);
+      });
     };
 
     document.addEventListener('pointermove', handlePointerMove, { passive: true });
-    return () => document.removeEventListener('pointermove', handlePointerMove);
+    return () => {
+      document.removeEventListener('pointermove', handlePointerMove);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [enabled, profile.readingRulerEnabled]);
 
   const value = useMemo<ReadingPreferencesContextValue>(

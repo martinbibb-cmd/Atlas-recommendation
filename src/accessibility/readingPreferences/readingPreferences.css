@@ -142,6 +142,8 @@ html[data-atlas-reading-reduced-motion='true'] *::after {
    render outside .atlas-reading-surface — the simulator canvas and nav chrome
    are therefore never obscured. */
 html[data-atlas-reading-ruler-enabled='true'] .atlas-reading-surface {
+  /* Intermediate: total ruler band height */
+  --atlas-ruler-height: calc(1rem * var(--atlas-reading-font-scale) * var(--atlas-reading-line-height) * var(--atlas-reading-ruler-line-count));
   overflow: clip;
 }
 
@@ -151,8 +153,8 @@ html[data-atlas-reading-ruler-enabled='true'] .atlas-reading-surface::after {
   left: 0;
   right: 0;
   /* Centre the band on the pointer's line. Default off-screen until first move. */
-  top: calc(var(--atlas-ruler-y, -400px) - calc(0.5 * 1rem * var(--atlas-reading-font-scale) * var(--atlas-reading-line-height) * var(--atlas-reading-ruler-line-count)));
-  height: calc(1rem * var(--atlas-reading-font-scale) * var(--atlas-reading-line-height) * var(--atlas-reading-ruler-line-count));
+  top: calc(var(--atlas-ruler-y, -400px) - calc(var(--atlas-ruler-height) / 2));
+  height: var(--atlas-ruler-height);
   pointer-events: none;
   border-top: 1px solid rgb(15 23 42 / 0.35);
   border-bottom: 1px solid rgb(15 23 42 / 0.35);
