@@ -151,7 +151,7 @@ const HEAT_PUMP_LIVING_ITEMS = [
   'Warm radiators and steady running can be normal signs of correct operation.',
 ] as const;
 
-function buildGenericRecommendationSectionsAndNextSteps(): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
+function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
   const sections: PortalJourneyPrintSectionV1[] = [
     {
       contentId: 'generic_recommendation_summary',
@@ -520,7 +520,7 @@ export function buildPortalJourneyPrintModel(
       ? buildHeatPumpSectionsAndNextSteps(selectedSet)
       : journeyType === 'open_vented'
       ? buildOpenVentedSectionsAndNextSteps(selectedSet)
-      : buildGenericRecommendationSectionsAndNextSteps();
+      : buildGenericRecommendationContent();
 
   // When an audience projection is provided, suppress any section whose
   // contentId is not in visibleConcepts.  Static-content sections (e.g.

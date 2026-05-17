@@ -216,7 +216,6 @@ function isLegacyJourney(journey: Journey): boolean {
 
 function buildSurveySystemConditionFromModel(
   surveyModel: FullSurveyModelV1 | undefined,
-  _engineOutput: EngineOutputV1 | undefined,
 ): SurveySystemConditionV1 | undefined {
   if (surveyModel == null) return undefined;
   const heatingCondition = surveyModel.fullSurvey?.heatingCondition;
@@ -815,7 +814,7 @@ function buildSupportingPdfReadinessGate(input: {
     customerFacts,
     journeyType,
     visitContext: input.portalVisitContext,
-    surveyCondition: buildSurveySystemConditionFromModel(input.surveyModel, input.engineOutput),
+    surveyCondition: buildSurveySystemConditionFromModel(input.surveyModel),
   });
   const pdfComparisonAudit = buildPdfComparisonAudit(
     buildPdfComparisonScenarioFromPrintModel(printModel, 'Visit Home library supporting PDF'),
@@ -1164,10 +1163,11 @@ function AppInner() {
   }, [localSessionStatus]);
 
   useEffect(() => {
+    if (journey !== 'visit-home') return;
     if (lastOpenedFromHome == null) return;
     if (!isLegacyJourney(lastOpenedFromHome.journey)) return;
     setLastOpenedFromHome(null);
-  }, [lastOpenedFromHome]);
+  }, [journey, lastOpenedFromHome]);
 
   useEffect(() => {
     if (!activeVisitId || ENGINEER_VISIT_ID != null) return;
@@ -2434,11 +2434,6 @@ function AppInner() {
             }
           }
 
-          const safeLastOpenedFromHome =
-            lastOpenedFromHome != null && isLegacyJourney(lastOpenedFromHome.journey)
-              ? null
-              : lastOpenedFromHome;
-
           if (visitHomeEngineOutput == null && labEngineInput != null) {
             try {
               const { engineOutput } = runEngine(labEngineInput);
@@ -2480,10 +2475,7 @@ function AppInner() {
             })();
           const hasSurveyForSupportingPdf =
             labFullSurveyModel != null
-            || (
-              activeVisitId != null
-              && readPersistedAtlasVisitV2(activeVisitId).visit?.survey != null
-            );
+            || hasSavedLocalVisit;
 
           return (
             <VisitHomeDashboard
@@ -2500,8 +2492,8 @@ function AppInner() {
               workspacePermissions={workspaceSettingsMembership?.permissions}
               supportingPdfUnsafe={supportingPdfReadinessGate != null && !supportingPdfReadinessGate.readyForCustomer}
               supportingPdfBlockReasons={supportingPdfReadinessGate?.blockingReasons}
-              lastSurface={safeLastOpenedFromHome?.label}
-              onContinueLastSurface={safeLastOpenedFromHome != null ? () => setJourney(safeLastOpenedFromHome.journey) : undefined}
+              lastSurface={lastOpenedFromHome?.label}
+              onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               hasSavedLocalVisit={hasSavedLocalVisit}
               onImportScanPackage={() => setJourney('receive-scan')}
               onImportWorkflowPackage={(file) => {
@@ -2934,7 +2926,7 @@ function AppInner() {
           customerFacts,
           journeyType,
           visitContext: canonicalSnapshot?.portalVisitContext ?? labPortalVisitContext,
-          surveyCondition: buildSurveySystemConditionFromModel(surveyForPdf, engineOutput),
+          surveyCondition: buildSurveySystemConditionFromModel(surveyForPdf),
         });
         return (
           <div
