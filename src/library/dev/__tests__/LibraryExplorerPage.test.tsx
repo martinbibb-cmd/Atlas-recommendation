@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { LibraryExplorerPage } from '../LibraryExplorerPage';
 import { educationalAnimationRegistry } from '../../animations/educationalAnimationRegistry';
 import { diagramExplanationRegistry } from '../../diagrams/diagramExplanationRegistry';
@@ -50,7 +50,7 @@ describe('LibraryExplorerPage', () => {
     for (const [journeyId, animationIds] of animationsByJourney.entries()) {
       const card = screen.getByTestId(`library-explorer-journey-${journeyId}`);
       for (const animationId of animationIds) {
-        expect(within(card).getByText(new RegExp(animationId))).toBeTruthy();
+        expect(card.textContent).toContain(animationId);
       }
     }
   });
@@ -73,8 +73,8 @@ describe('LibraryExplorerPage', () => {
 
     expect(conceptWithBoth).toBeDefined();
     const conceptCard = screen.getByTestId(`library-explorer-concept-${conceptWithBoth!.conceptId}`);
-    expect(within(conceptCard).getByText(new RegExp(conceptWithBoth!.animationId))).toBeTruthy();
-    expect(within(conceptCard).getByText(new RegExp(conceptWithBoth!.diagramId))).toBeTruthy();
+    expect(conceptCard.textContent).toContain(conceptWithBoth!.animationId);
+    expect(conceptCard.textContent).toContain(conceptWithBoth!.diagramId);
   });
 
   it('has no invisible animation registry entries', () => {
