@@ -6,6 +6,12 @@ import { diagramExplanationRegistry } from '../../diagrams/diagramExplanationReg
 import { DEV_UI_REGISTRY } from '../../../dev/devUiRegistry';
 
 describe('LibraryExplorerPage', () => {
+  it('shows the physics storytelling gate above the registry tabs', () => {
+    render(<LibraryExplorerPage />);
+    expect(screen.getByTestId('library-explorer-storyboard')).toBeTruthy();
+    expect(screen.getByText(/every visual must read like a household moment/i)).toBeTruthy();
+  });
+
   it('appears in the dev menu inventory registry', () => {
     const entry = DEV_UI_REGISTRY.find((item) => item.codeName === 'LibraryExplorerPage');
     expect(entry).toBeDefined();
