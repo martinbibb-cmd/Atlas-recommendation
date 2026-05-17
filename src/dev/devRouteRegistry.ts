@@ -213,6 +213,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'LibraryExplorerPage',
+    routePath: '/dev/library-explorer',
+    queryFlags: ['library-explorer=1'],
+    fullRouteExample: '/dev/library-explorer',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
     codeName: 'LibraryCoverageAuditPanel',
     fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
     routeKind: 'derived',

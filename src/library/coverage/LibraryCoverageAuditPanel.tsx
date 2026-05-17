@@ -178,6 +178,9 @@ export function LibraryCoverageAuditPanel() {
       <p style={{ margin: '0 0 1rem', fontSize: 12, color: '#64748b' }}>
         {readinessScore.totalConcepts} concepts tracked across all registered taxonomy entries.
       </p>
+      <p style={{ margin: '0 0 1rem', fontSize: 12 }}>
+        <a href="/dev/library-explorer">Open Library Explorer →</a>
+      </p>
 
       {/* ── Readiness scores ─────────────────────────────────────────────── */}
       <div

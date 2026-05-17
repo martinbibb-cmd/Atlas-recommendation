@@ -477,19 +477,23 @@ export function LibraryProjectionQaPanel({
         style={{
           padding: '0.6rem 0.75rem',
           borderBottom: '1px solid #e2e8f0',
-          display: 'flex',
-          alignItems: 'center',
+          display: 'grid',
           gap: '0.5rem',
         }}
       >
-        <h2 style={{ margin: 0, fontSize: '0.95rem', flex: 1 }}>
-          Library Audience Projection QA
-        </h2>
-        {overallWarningCount > 0 ? (
-          <StatusPill ok={false} label={`${overallWarningCount} warning${overallWarningCount !== 1 ? 's' : ''}`} />
-        ) : (
-          <StatusPill ok={true} label="All checks passed" />
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{ margin: 0, fontSize: '0.95rem', flex: 1 }}>
+            Library Audience Projection QA
+          </h2>
+          {overallWarningCount > 0 ? (
+            <StatusPill ok={false} label={`${overallWarningCount} warning${overallWarningCount !== 1 ? 's' : ''}`} />
+          ) : (
+            <StatusPill ok={true} label="All checks passed" />
+          )}
+        </div>
+        <p style={{ margin: 0, fontSize: 12 }}>
+          <a href="/dev/library-explorer">Open Library Explorer →</a>
+        </p>
       </div>
 
       {/* Tabs */}

@@ -17,6 +17,7 @@ describe('route + inventory consolidation', () => {
       'WorkspaceSettingsPage',
       'DevPortalFixturePage',
       'CustomerPortalPreviewPage',
+      'LibraryExplorerPage',
       'ImplementationPackReviewPanel',
       'SpecificationLineReviewPanel',
       'InstallationScopePackReviewPanel',
@@ -174,6 +175,7 @@ describe('route + inventory consolidation', () => {
       'CustomerPortalPreviewPage',
       'WorkspaceVisitLifecycleHarness',
       'WelcomePackDevPreview',
+      'LibraryExplorerPage',
       'ComponentDiscoveryPanel',
     ];
 
@@ -190,6 +192,7 @@ describe('route + inventory consolidation', () => {
       'LibraryAuthoringBacklogPanel',
       'LibraryProjectionQaPanel',
       'LibraryRepairQueuePanel',
+      'LibraryExplorerPage',
     ];
 
     for (const codeName of librarySurfaces) {

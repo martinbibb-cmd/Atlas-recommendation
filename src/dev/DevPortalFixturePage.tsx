@@ -1474,6 +1474,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
 
             {/* ── Step 9: Library audience projection QA ───────────────────── */}
             <WorkflowStep stepNumber={9} title="Library audience projection QA" testId="dev-workflow-step-library-projection-qa" defaultExpanded={false}>
+              <p style={{ margin: '0 0 0.5rem', fontSize: 12 }}>
+                <a href="/dev/library-explorer">Open Library Explorer →</a>
+              </p>
               <LibraryProjectionQaPanel
                 calmViewModel={implementationPack.calmViewModel}
                 operationalDigest={operationalDigest}
@@ -1484,6 +1487,9 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
             {/* ── Step 10: Library content coverage audit ───────────────────── */}
             <WorkflowStep stepNumber={10} title="Library content coverage audit" testId="dev-workflow-step-library-coverage-audit" defaultExpanded={false}>
               <div style={{ display: 'grid', gap: '0.75rem' }}>
+                <p style={{ margin: 0, fontSize: 12 }}>
+                  <a href="/dev/library-explorer">Open Library Explorer →</a>
+                </p>
                 <LibraryCoverageAuditPanel />
                 <LibraryAuthoringBacklogPanel />
               </div>

@@ -117,6 +117,9 @@ export function LibraryAuthoringBacklogPanel() {
           item{filteredItems.length === 1 ? '' : 's'}
         </span>
       </div>
+      <p style={{ margin: '0 0 0.75rem', fontSize: 11 }}>
+        <a href="/dev/library-explorer">Open Library Explorer →</a>
+      </p>
 
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
         {(Object.keys(QUICK_FILTER_LABELS) as QuickFilter[]).map((filter) => (
