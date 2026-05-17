@@ -148,6 +148,7 @@ import {
 } from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
+import CustomerPortalPreviewPage from './dev/CustomerPortalPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
@@ -674,6 +675,17 @@ const WELCOME_PACK_DEV_PREVIEW_PATH =
  */
 const PORTAL_FIXTURE_DEV_PATH =
   typeof window !== 'undefined' && window.location.pathname === '/dev/portal-fixtures';
+
+/**
+ * Detect /dev/customer-portal-preview or ?customer-portal-preview=1 —
+ * renders a production-like CustomerPortalPage preview using fixture data.
+ */
+const CUSTOMER_PORTAL_PREVIEW_DEV_PATH =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/dev/customer-portal-preview'
+    || new URLSearchParams(window.location.search).get('customer-portal-preview') === '1'
+  );
 
 /** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
 const DEV_INSPECTOR_PATH =
@@ -2151,6 +2163,15 @@ function AppInner() {
   if (PORTAL_FIXTURE_DEV_PATH) {
     return (
       <DevPortalFixturePage
+        onBack={() => { window.location.href = '/'; }}
+      />
+    );
+  }
+
+  // /dev/customer-portal-preview (or ?customer-portal-preview=1) — production-like customer portal preview.
+  if (CUSTOMER_PORTAL_PREVIEW_DEV_PATH) {
+    return (
+      <CustomerPortalPreviewPage
         onBack={() => { window.location.href = '/'; }}
       />
     );

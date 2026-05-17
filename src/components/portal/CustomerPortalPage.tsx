@@ -56,6 +56,11 @@ interface Props {
    */
   devFixtureInput?: EngineInputV2_3;
   /**
+   * Dev-only: production-like preview input.
+   * Runs the canonical portal shell without fixture-mode renderer toggles.
+   */
+  productionPreviewInput?: EngineInputV2_3;
+  /**
    * Dev-only: when set, skips the choice screen and opens the portal directly
    * in the given view mode. Only respected when devFixtureInput is also set.
    */
@@ -177,6 +182,7 @@ function CustomerPortalContent({
   token,
   showDevTraceLabelsOverride,
   devFixtureInput,
+  productionPreviewInput,
   devInitialViewMode,
   portalVisitContextOverride,
 }: Omit<Props, 'brandId'>) {
@@ -310,6 +316,18 @@ function CustomerPortalContent({
       }
       return;
     }
+    if (productionPreviewInput) {
+      try {
+        const result = runEngine(productionPreviewInput);
+        setEngineInput(productionPreviewInput);
+        setEngineResult(result);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     let cancelled = false;
     async function loadPortal() {
@@ -350,7 +368,7 @@ function CustomerPortalContent({
     }
     void loadPortal();
     return () => { cancelled = true; };
-  }, [reference, token, devFixtureInput]);
+  }, [reference, token, devFixtureInput, productionPreviewInput]);
 
   if (loading) {
     return <div className="portal-page__loading" role="status" aria-live="polite">Loading your recommendation…</div>;

@@ -41,7 +41,8 @@ describe('DevPortalFixturePage — fixture launcher', () => {
     render(<DevPortalFixturePage />);
     expect(screen.getByTestId('dev-portal-fixture-launcher')).toBeTruthy();
     expect(screen.getByTestId('dev-fixture-banner')).toBeTruthy();
-    expect(screen.getByText(/Dev fixture portal — not customer data/i)).toBeTruthy();
+    expect(screen.getByText(/Dev fixture diagnostics — not customer data/i)).toBeTruthy();
+    expect(screen.getByText(/Not production portal/i)).toBeTruthy();
   });
 
   it('renders all 5 fixture cards', () => {
@@ -50,7 +51,7 @@ describe('DevPortalFixturePage — fixture launcher', () => {
     expect(cards.length).toBe(5);
   });
 
-  it('renders "Open portal", "Open Insight", "Open In-room presentation", "Open implementation pack", and "Copy portal URL" for each fixture', () => {
+  it('renders fixture diagnostic actions for each fixture', () => {
     render(<DevPortalFixturePage />);
     for (const fixture of PORTAL_FIXTURES) {
       expect(screen.getByTestId(`fixture-open-${fixture.id}`)).toBeTruthy();
@@ -89,7 +90,7 @@ describe('DevPortalFixturePage — fixture opens real portal choice screen', () 
     await waitFor(() =>
       expect(screen.getByTestId('dev-fixture-active-label')).toBeTruthy(),
     );
-    expect(screen.getByText(/Dev fixture portal — not customer data/i)).toBeTruthy();
+    expect(screen.getByText(/Dev fixture diagnostics — not customer data/i)).toBeTruthy();
 
     // The real portal welcome / choice screen
     await waitFor(() =>
@@ -214,6 +215,11 @@ describe('DevPortalFixturePage — production route safety', () => {
     expect(entry).toBeTruthy();
     expect(entry?.access).toBe('dev_only');
     expect(entry?.routePath).toBe('/dev/portal-fixtures');
+  });
+
+  it('fixture route metadata never points at production portal URL pattern', () => {
+    const entry = DEV_ROUTE_REGISTRY.find((r) => r.codeName === 'DevPortalFixturePage');
+    expect(entry?.fullRouteExample).not.toContain('/portal/');
   });
 
   it('/dev/portal-fixtures does not match the customer portal path pattern (/portal/:reference)', () => {

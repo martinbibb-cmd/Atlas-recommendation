@@ -111,6 +111,7 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode: portal/i)).toBeTruthy();
     expect(screen.getByText(/activeRendererComponent: PortalPage/i)).toBeTruthy();
+    expect(screen.queryByTestId('dev-portal-fixture-launcher')).toBeNull();
     expect(screen.queryByTestId('portal-legacy-renderer-leak-banner')).toBeNull();
     expect(screen.queryByText(/AI-enhanced summary/i)).toBeNull();
     expect(screen.queryByText(/gemini|provider|api error|generation failed/i)).toBeNull();
