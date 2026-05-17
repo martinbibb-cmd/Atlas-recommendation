@@ -21,7 +21,7 @@ export function applyDefaultVisualReadiness<T extends object>(
 
 export function isCustomerReadyProductionVisual(
   entry?: Partial<VisualReadinessMetadata> | null,
-): entry is VisualReadinessMetadata {
+): entry is VisualReadinessMetadata & { customerReady: true; visualStatus: 'production_ready' } {
   return Boolean(
     entry
     && entry.customerReady

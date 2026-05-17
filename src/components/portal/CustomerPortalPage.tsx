@@ -413,6 +413,27 @@ function CustomerPortalContent({
     activeRendererComponent,
   });
   const showLegacyLeakBanner = showDevTraceLabels && legacyRendererAssertion.leakDetected;
+  function renderPortalJourney() {
+    if (!portalViewModel || !portalData || !engineResult) {
+      return (
+        <div className="portal-page__error" role="alert" data-testid="portal-view-error">
+          <p className="portal-page__error-headline">Portal not available</p>
+          <p className="portal-page__error-detail">Your portal could not be assembled from the available data.</p>
+        </div>
+      );
+    }
+
+    return (
+      <CustomerPortalJourneyComposer
+        decision={portalData.decision}
+        scenarios={portalData.scenarios}
+        viewModel={portalViewModel}
+        engineInput={portalData.engineInput}
+        engineResult={engineResult}
+        propertyTitle={portalHomeLabel}
+      />
+    );
+  }
 
   // ── Welcome page — choose a view ──────────────────────────────────────────
   if (effectiveViewMode === null && isDevFixtureMode) {
@@ -561,21 +582,7 @@ function CustomerPortalContent({
             <ReadingPreferencesLauncher />
           </div>
         </div>
-        {portalViewModel && portalData ? (
-          <CustomerPortalJourneyComposer
-            decision={portalData.decision}
-            scenarios={portalData.scenarios}
-            viewModel={portalViewModel}
-            engineInput={portalData.engineInput}
-            engineResult={engineResult}
-            propertyTitle={portalHomeLabel}
-          />
-        ) : (
-          <div className="portal-page__error" role="alert" data-testid="portal-view-error">
-            <p className="portal-page__error-headline">Portal not available</p>
-            <p className="portal-page__error-detail">Your portal could not be assembled from the available data.</p>
-          </div>
-        )}
+        {renderPortalJourney()}
         <BrandedFooter footerNote={ctaCopy.printFooterNote} />
       </div>
     );
@@ -682,21 +689,7 @@ function CustomerPortalContent({
         </aside>
       ) : null}
       <PortalHeroShell portalHomeLabel={portalHomeLabel} />
-      {portalViewModel && portalData ? (
-        <CustomerPortalJourneyComposer
-          decision={portalData.decision}
-          scenarios={portalData.scenarios}
-          viewModel={portalViewModel}
-          engineInput={portalData.engineInput}
-          engineResult={engineResult}
-          propertyTitle={portalHomeLabel}
-        />
-      ) : (
-        <div className="portal-page__error" role="alert" data-testid="portal-view-error">
-          <p className="portal-page__error-headline">Portal not available</p>
-          <p className="portal-page__error-detail">Your portal could not be assembled from the available data.</p>
-        </div>
-      )}
+      {renderPortalJourney()}
       <BrandedFooter footerNote={ctaCopy.printFooterNote} />
     </div>
   );

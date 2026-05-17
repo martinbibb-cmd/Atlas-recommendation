@@ -187,6 +187,8 @@
 }
 
 .customer-portal-journey__reserve-bars {
+  --customer-portal-reserve-used-width: 72%;
+  --customer-portal-reserve-recovering-width: 48%;
   display: grid;
   gap: 0.55rem;
   margin-top: 0.85rem;
@@ -203,12 +205,12 @@
 }
 
 .customer-portal-journey__reserve-bar--used {
-  width: 72%;
+  width: var(--customer-portal-reserve-used-width);
   background: #38bdf8;
 }
 
 .customer-portal-journey__reserve-bar--recovering {
-  width: 48%;
+  width: var(--customer-portal-reserve-recovering-width);
   background: #bae6fd;
 }
 
