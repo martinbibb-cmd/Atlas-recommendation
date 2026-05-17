@@ -24,6 +24,8 @@
  */
 
 import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegistry';
+import type { AtlasMvpContentEntryV1 } from '../../content/atlasMvpContentMapRegistry';
+import { getEducationalAnimationById, resolveEducationalAnimationId } from '../../animations';
 import type { LibraryContentProjectionV1 } from '../../projections/LibraryContentProjectionV1';
 import type { PortalVisitContextV1 } from '../../../contracts/PortalVisitContextV1';
 import { resolvePortalAddressSummary } from '../../../lib/portal/portalVisitContext';
@@ -151,6 +153,18 @@ const HEAT_PUMP_LIVING_ITEMS = [
   'Warm radiators and steady running can be normal signs of correct operation.',
 ] as const;
 
+function resolvePrintDiagramFromContentEntry(entry: AtlasMvpContentEntryV1): string | undefined {
+  for (const suggestedAnimationId of entry.suggestedAnimationIds) {
+    const animationId = resolveEducationalAnimationId(suggestedAnimationId);
+    if (!animationId) continue;
+    const animation = getEducationalAnimationById(animationId);
+    if (animation?.printFallback) {
+      return animation.printFallback;
+    }
+  }
+  return entry.suggestedDiagramIds[0];
+}
+
 function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
   const sections: PortalJourneyPrintSectionV1[] = [
     {
@@ -256,7 +270,7 @@ function buildOpenVentedSectionsAndNextSteps(
         'Hot water is stored in a cylinder, ready for busy times.',
       ],
       diagramCaption: 'Before and after: tank-fed layout to sealed + unvented layout.',
-      diagramId: conA01.suggestedDiagramIds[0],
+      diagramId: resolvePrintDiagramFromContentEntry(conA01),
       diagramRendererId: 'open_vented_to_unvented',
     });
   }
@@ -276,7 +290,7 @@ function buildOpenVentedSectionsAndNextSteps(
         'The cylinder reheats in the background after heavy demand.',
       ],
       diagramCaption: 'Pressure (force) and storage (amount) shown as separate controls.',
-      diagramId: conC02.suggestedDiagramIds[0],
+      diagramId: resolvePrintDiagramFromContentEntry(conC02),
       diagramRendererId: 'pressure_vs_storage',
     });
   }
@@ -312,7 +326,7 @@ function buildOpenVentedSectionsAndNextSteps(
         'Call your installer if you ever see repeated discharge.',
       ],
       diagramCaption: 'Safety path from cylinder to discharge point.',
-      diagramId: conC01.suggestedDiagramIds[0],
+      diagramId: resolvePrintDiagramFromContentEntry(conC01),
       diagramRendererId: 'open_vented_to_unvented',
     });
   }
@@ -392,7 +406,7 @@ function buildHeatPumpSectionsAndNextSteps(
         'Comfort is measured by room temperature, not only radiator surface feel.',
       ],
       diagramCaption: 'Warm-for-longer operation compared with shorter hotter bursts.',
-      diagramId: conE02.suggestedDiagramIds[0],
+      diagramId: resolvePrintDiagramFromContentEntry(conE02),
       diagramRendererId: 'warm_vs_hot_radiators',
     });
   }
@@ -411,7 +425,7 @@ function buildHeatPumpSectionsAndNextSteps(
         conG01.whatStaysFamiliar,
       ],
       // No renderer-specific diagram exists for compensation curve yet.
-      diagramId: conG01.suggestedDiagramIds[0],
+      diagramId: resolvePrintDiagramFromContentEntry(conG01),
     });
   }
 
@@ -428,7 +442,7 @@ function buildHeatPumpSectionsAndNextSteps(
         `Reality: ${conH01.reality}`,
         'Brief mist around the outdoor unit can be expected in cold damp conditions.',
       ],
-      diagramId: conH01.suggestedDiagramIds[0],
+      diagramId: resolvePrintDiagramFromContentEntry(conH01),
       diagramRendererId: 'heat_pump_defrost',
     });
   }

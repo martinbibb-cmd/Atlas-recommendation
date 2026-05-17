@@ -1,4 +1,5 @@
 import { getDiagramsByConceptId } from '../diagrams/diagramExplanationRegistry';
+import { resolveEducationalAnimationId } from '../animations';
 import type { AtlasMvpContentEntryV1 } from '../content/atlasMvpContentMapRegistry';
 import type { EducationalContentV1 } from '../content/EducationalContentV1';
 import type { LibraryContentProjectionV1 } from '../projections/LibraryContentProjectionV1';
@@ -69,6 +70,10 @@ function parseEducationalExplanation(customerExplanation: string): { whatYouMayN
 }
 
 function toPortalCardFromMvp(entry: AtlasMvpContentEntryV1): PortalEducationalCardV1 {
+  const suggestedAnimationIds = entry.suggestedAnimationIds
+    .map((animationId) => resolveEducationalAnimationId(animationId))
+    .filter((animationId): animationId is string => Boolean(animationId));
+
   return {
     title: entry.title,
     oneLineSummary: entry.oneLineSummary,
@@ -80,7 +85,7 @@ function toPortalCardFromMvp(entry: AtlasMvpContentEntryV1): PortalEducationalCa
     reality: entry.reality?.trim() ? entry.reality : undefined,
     technicalAppendixSummary: entry.technicalAppendixSummary?.trim() ? entry.technicalAppendixSummary : undefined,
     suggestedDiagramIds: entry.suggestedDiagramIds,
-    suggestedAnimationIds: entry.suggestedAnimationIds,
+    suggestedAnimationIds,
     suggestedPrintCardIds: entry.suggestedPrintCardIds,
   };
 }

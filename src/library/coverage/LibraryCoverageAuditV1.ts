@@ -12,6 +12,8 @@ export interface LibraryConceptCoverageV1 {
 
   /** At least one animation asset in educationalAssetRegistry covers this concept. */
   readonly hasAnimation: boolean;
+  /** Concept taxonomy marks animation as an expected preferred asset type. */
+  readonly expectsAnimation: boolean;
 
   /** At least one asset with hasPrintEquivalent=true covers this concept. */
   readonly hasPrintCard: boolean;

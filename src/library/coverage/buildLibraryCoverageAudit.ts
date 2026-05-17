@@ -3,6 +3,7 @@ import { educationalAssetRegistry } from '../registry/educationalAssetRegistry';
 import { educationalContentRegistry } from '../content/educationalContentRegistry';
 import { educationalRoutingRules } from '../routing/educationalRoutingRules';
 import { diagramExplanationRegistry } from '../diagrams/diagramExplanationRegistry';
+import { educationalAnimationRegistry } from '../animations/educationalAnimationRegistry';
 import type {
   LibraryCoverageAuditV1,
   LibraryConceptCoverageV1,
@@ -33,11 +34,9 @@ function buildDiagramConceptIds(): Set<string> {
 /** concept IDs covered by at least one animation asset */
 function buildAnimationConceptIds(): Set<string> {
   const ids = new Set<string>();
-  for (const asset of educationalAssetRegistry) {
-    if (asset.assetType === 'animation') {
-      for (const id of asset.conceptIds) {
-        ids.add(id);
-      }
+  for (const animation of educationalAnimationRegistry) {
+    for (const id of animation.conceptIds) {
+      ids.add(id);
     }
   }
   return ids;
@@ -125,6 +124,7 @@ export function buildLibraryCoverageAudit(): LibraryCoverageAuditV1 {
     const content = contentByConceptId.get(concept.conceptId);
     const hasDiagram = diagramConceptIds.has(concept.conceptId);
     const hasAnimation = animationConceptIds.has(concept.conceptId);
+    const expectsAnimation = concept.preferredAssetTypes.includes('animation');
     const hasPrintCard = printCardConceptIds.has(concept.conceptId);
     const hasLivedExperienceContent =
       content != null &&
@@ -164,6 +164,7 @@ export function buildLibraryCoverageAudit(): LibraryCoverageAuditV1 {
       category: concept.category,
       hasDiagram,
       hasAnimation,
+      expectsAnimation,
       hasPrintCard,
       hasLivedExperienceContent,
       hasMisconceptionReality,
@@ -202,7 +203,9 @@ export function buildLibraryCoverageAudit(): LibraryCoverageAuditV1 {
 
   const missingByType: LibraryCoverageMissingByTypeV1 = {
     missingDiagram: conceptCoverage.filter((c) => !c.hasDiagram).map((c) => c.conceptId),
-    missingAnimation: conceptCoverage.filter((c) => !c.hasAnimation).map((c) => c.conceptId),
+    missingAnimation: conceptCoverage
+      .filter((c) => c.expectsAnimation && !c.hasAnimation)
+      .map((c) => c.conceptId),
     missingPrintCard: conceptCoverage.filter((c) => !c.hasPrintCard).map((c) => c.conceptId),
     missingLivedExperienceContent: conceptCoverage
       .filter((c) => !c.hasLivedExperienceContent)

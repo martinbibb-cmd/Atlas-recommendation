@@ -1,0 +1,88 @@
+import type { EducationalAnimationV1 } from './EducationalAnimationV1';
+
+export const educationalAnimationRegistry: EducationalAnimationV1[] = [
+  {
+    animationId: 'stored_hot_water_recovery',
+    title: 'Stored hot-water recovery',
+    conceptIds: ['stored_hot_water_efficiency', 'short_draw_losses', 'pressure_vs_storage'],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
+    purpose: 'expectation',
+    fallbackDiagramId: 'pressure_vs_storage',
+    screenReaderSummary:
+      'Stored hot water is used through peak demand and then recovers in the background; recovery after heavy use is expected.',
+    reducedMotionFallback: 'pressure_vs_storage',
+    printFallback: 'diagram-pressure-vs-storage',
+    durationMs: 18000,
+    customerSafe: true,
+  },
+  {
+    animationId: 'shower_overlap_reserve',
+    title: 'Shower overlap reserve',
+    conceptIds: ['pressure_vs_storage', 'premium_hot_water_performance'],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
+    purpose: 'daily_use',
+    fallbackDiagramId: 'stored_hot_water_recovery_timeline',
+    screenReaderSummary:
+      'Two nearby shower draws consume stored hot water from a shared reserve, then the cylinder reheats after demand settles.',
+    reducedMotionFallback: 'stored_hot_water_recovery_timeline',
+    printFallback: 'diagram-pressure-vs-storage',
+    durationMs: 16000,
+    customerSafe: true,
+  },
+  {
+    animationId: 'warm_radiator_steady_heat',
+    title: 'Warm radiator steady heat',
+    conceptIds: ['hot_radiator_expectation', 'flow_temperature_living_with_it', 'weather_compensation'],
+    journeyIds: ['heat_pump_reality'],
+    purpose: 'reassurance',
+    fallbackDiagramId: 'warm_vs_hot_radiators',
+    screenReaderSummary:
+      'Heat-pump comfort is shown as warm-for-longer operation rather than short hotter bursts, while room comfort remains stable.',
+    reducedMotionFallback: 'warm_vs_hot_radiators',
+    printFallback: 'warm_vs_hot_radiators',
+    durationMs: 15000,
+    customerSafe: true,
+  },
+  {
+    animationId: 'water_main_bottleneck',
+    title: 'Water main bottleneck',
+    conceptIds: ['water_main_limit_not_boiler_limit', 'flow_restriction', 'hydraulic_constraint'],
+    journeyIds: ['water_constraint_reality', 'open_vented_to_sealed_unvented'],
+    purpose: 'physics',
+    fallbackDiagramId: 'water_main_limitation',
+    screenReaderSummary:
+      'Incoming water-main flow is capped at the source and gets divided across outlets, so downstream appliances cannot create extra flow.',
+    reducedMotionFallback: 'water_main_limitation',
+    printFallback: 'water_main_limitation',
+    durationMs: 14000,
+    customerSafe: true,
+  },
+  {
+    animationId: 'weather_compensation_day',
+    title: 'Weather compensation through the day',
+    conceptIds: ['weather_compensation', 'control_strategy', 'flow_temperature_living_with_it'],
+    journeyIds: ['heat_pump_reality'],
+    purpose: 'comparison',
+    fallbackDiagramId: 'weather_compensation_curve',
+    screenReaderSummary:
+      'Flow temperature tracks outdoor conditions through the day using a compensation curve to keep indoor comfort steady.',
+    reducedMotionFallback: 'weather_compensation_curve',
+    printFallback: 'weather_compensation_curve',
+    durationMs: 20000,
+    customerSafe: true,
+  },
+  {
+    animationId: 'cylinder_safety_path',
+    title: 'Cylinder safety path',
+    conceptIds: ['unvented_safety_reassurance', 'SAF-01'],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
+    purpose: 'reassurance',
+    fallbackDiagramId: 'open_vented_to_unvented',
+    screenReaderSummary:
+      'Unvented cylinder safety path is shown from relief point through discharge route; visible safety hardware is expected in normal design.',
+    reducedMotionFallback: 'open_vented_to_unvented',
+    printFallback: 'diagram-unvented-safety',
+    durationMs: 12000,
+    customerSafe: true,
+  },
+];
