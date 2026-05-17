@@ -21,6 +21,7 @@ function makeReleaseGateReport() {
         optionalGoogleDriveUnavailable: true,
         trialReadiness: {
           customerPortal: 'pass',
+          supportingPdf: 'pass',
           implementationWorkflow: 'warn',
           workspaceOwnership: 'pass',
           storageExport: 'warn',

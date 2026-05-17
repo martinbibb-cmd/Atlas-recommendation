@@ -42,6 +42,10 @@ export interface BuildVisitHomeActionProjectionInput {
   readonly implementationReadiness: {
     readonly installationSpecOptionCount: number;
   };
+  readonly supportingPdfReadiness?: {
+    readonly unsafe: boolean;
+    readonly reasons?: readonly string[];
+  };
   readonly availableOutputs: {
     readonly hasPortalUrl: boolean;
     readonly hasSupportingPdf: boolean;
@@ -51,6 +55,7 @@ export interface BuildVisitHomeActionProjectionInput {
 }
 
 const BLOCK_REASON_LIBRARY_SAFETY = 'Library safety needs review';
+const BLOCK_REASON_PDF_SAFETY = 'Library PDF readiness blocked';
 const BLOCK_REASON_VISIT_MISSING = 'Visit data missing';
 const BLOCK_REASON_RECOMMENDATION_MISSING = 'Recommendation not available';
 
@@ -129,6 +134,8 @@ function buildStatusAndReason(
   const hasAcceptedScenario = input.visitReadiness.hasAcceptedScenario;
   const hasSurveyModel = input.visitReadiness.hasSurveyModel;
   const libraryUnsafe = input.libraryProjectionSafety.unsafe;
+  const supportingPdfUnsafe = input.supportingPdfReadiness?.unsafe === true;
+  const supportingPdfReasons = input.supportingPdfReadiness?.reasons ?? [];
 
   switch (actionId) {
     case 'review-survey':
@@ -144,6 +151,14 @@ function buildStatusAndReason(
       if (!input.availableOutputs.hasPortalUrl) return { status: 'needs-review' };
       return { status: 'ready' };
     case 'supporting-pdf':
+      if (supportingPdfUnsafe) {
+        return {
+          status: 'blocked',
+          reasonLabel: supportingPdfReasons.length > 0
+            ? supportingPdfReasons.join(' • ')
+            : BLOCK_REASON_PDF_SAFETY,
+        };
+      }
       if (libraryUnsafe) return { status: 'blocked', reasonLabel: BLOCK_REASON_LIBRARY_SAFETY };
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       // If visit exists with accepted scenario or recommendation, show needs-review rather than blocked.

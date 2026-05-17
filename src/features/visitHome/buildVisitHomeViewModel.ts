@@ -15,6 +15,7 @@ export interface BuildVisitHomeViewModelInput {
   readonly workflowReadiness: {
     readonly hasVisit: boolean;
     readonly libraryUnsafe: boolean;
+    readonly supportingPdfUnsafe?: boolean;
     readonly installationSpecOptionCount: number;
   };
   readonly outputAvailability: {
@@ -84,6 +85,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
   const hasSurveyModel = input.surveyModel != null;
   const hasVisit = input.workflowReadiness.hasVisit;
   const libraryUnsafe = input.workflowReadiness.libraryUnsafe;
+  const supportingPdfUnsafe = input.workflowReadiness.supportingPdfUnsafe === true;
 
   const systemCircuit =
     input.surveyModel?.fullSurvey?.heatingCondition?.systemCircuitType ??
@@ -108,7 +110,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     ? 'needs-review'
     : 'blocked';
 
-  const supportingPdfStatus: VisitHomeSurfaceStatus = libraryUnsafe
+  const supportingPdfStatus: VisitHomeSurfaceStatus = supportingPdfUnsafe || libraryUnsafe
     ? 'blocked'
     : input.outputAvailability.hasSupportingPdfOutput
     ? 'ready'

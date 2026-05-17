@@ -144,6 +144,8 @@ import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUn
 import { readWorkflowPackageFile } from './features/visitHome/importVisitWorkflowPackage';
 import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from './library/portal/pdf/buildPortalJourneyPrintModel';
+import { assessLibraryPdfCustomerReadiness } from './library/portal/pdf/assessLibraryPdfCustomerReadiness';
+import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from './library/pdfQa';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -680,6 +682,48 @@ function RetiredRouteNotice({
       </div>
     </div>
   );
+}
+
+function buildSupportingPdfReadinessGate(input: {
+  readonly engineInput?: EngineInputV2_3;
+  readonly engineOutput?: EngineOutputV1;
+  readonly recommendationHeadline?: string;
+}) {
+  if (input.engineInput == null || input.engineOutput == null) return undefined;
+  const recommendationSummary =
+    input.recommendationHeadline
+    ?? `A heating recommendation for ${input.engineInput.postcode ?? 'your home'} is being prepared.`;
+  const journeyType: 'open_vented' | 'heat_pump' =
+    input.engineOutput.recommendation?.primary === 'ashp' ? 'heat_pump' : 'open_vented';
+  const customerFacts = [
+    input.engineInput.occupancyCount != null
+      ? `${input.engineInput.occupancyCount} ${input.engineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
+      : null,
+    input.engineInput.bathroomCount != null
+      ? `${input.engineInput.bathroomCount} bathroom${input.engineInput.bathroomCount === 1 ? '' : 's'}`
+      : null,
+    input.engineInput.postcode ? `Property: ${input.engineInput.postcode}` : null,
+  ].filter((fact): fact is string => fact != null);
+  const printModel = buildPortalJourneyPrintModel({
+    selectedSectionIds: [],
+    recommendationSummary,
+    customerFacts,
+    journeyType,
+  });
+  const pdfComparisonAudit = buildPdfComparisonAudit(
+    buildPdfComparisonScenarioFromPrintModel(printModel, 'Visit Home library supporting PDF'),
+  );
+  return assessLibraryPdfCustomerReadiness({
+    printModel,
+    projectionSafety: {
+      safeForCustomer: true,
+      blockingReasons: [],
+      warnings: [],
+      leakageTerms: [],
+      missingRequiredContent: [],
+    },
+    pdfComparisonAudit,
+  });
 }
 
 function AppInner() {
@@ -2202,6 +2246,12 @@ function AppInner() {
             );
           }
 
+          const supportingPdfReadinessGate = buildSupportingPdfReadinessGate({
+            engineInput: labEngineInput,
+            engineOutput: visitHomeEngineOutput,
+            recommendationHeadline: canonicalSnapshot?.customerSummary?.headline,
+          });
+
           // ── Local save check — whether this visitId has a localStorage snapshot ──
           const hasSavedLocalVisit =
             activeVisitId != null &&
@@ -2227,6 +2277,8 @@ function AppInner() {
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}
+              supportingPdfUnsafe={supportingPdfReadinessGate != null && !supportingPdfReadinessGate.readyForCustomer}
+              supportingPdfBlockReasons={supportingPdfReadinessGate?.blockingReasons}
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               hasSavedLocalVisit={hasSavedLocalVisit}

@@ -12,6 +12,7 @@ function makeReport(overrides: Partial<WorkspaceLifecycleReleaseReportV1> = {}):
     recommendedNextActions: [],
     trialReadiness: {
       customerPortal: 'pass',
+      supportingPdf: 'pass',
       implementationWorkflow: 'pass',
       workspaceOwnership: 'pass',
       storageExport: 'pass',
@@ -77,5 +78,25 @@ describe('buildTrialReadinessActions', () => {
     if (firstMediumIndex !== -1 && firstHighIndex !== -1) {
       expect(firstMediumIndex).toBeGreaterThan(firstHighIndex);
     }
+  });
+
+  it('supporting PDF fail adds a blocker action', () => {
+    const actions = buildTrialReadinessActions(
+      makeReport({
+        trialReadiness: {
+          customerPortal: 'pass',
+          supportingPdf: 'fail',
+          implementationWorkflow: 'pass',
+          workspaceOwnership: 'pass',
+          storageExport: 'pass',
+          scanFollowUp: 'pass',
+        },
+      }),
+      { hasFailures: false },
+    );
+
+    const pdfAction = actions.find((action) => action.actionId === 'portal-supporting-pdf-customer-readiness-gate');
+    expect(pdfAction?.priority).toBe('blocker');
+    expect(pdfAction?.source).toBe('release_gate');
   });
 });

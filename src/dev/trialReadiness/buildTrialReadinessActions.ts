@@ -125,6 +125,26 @@ export function buildTrialReadinessActions(
     });
   }
 
+  if (releaseReport.trialReadiness.supportingPdf === 'fail') {
+    actions.push({
+      actionId: 'portal-supporting-pdf-customer-readiness-gate',
+      title: 'resolve supporting PDF customer-readiness blockers',
+      area: 'portal',
+      priority: 'blocker',
+      source: 'release_gate',
+      status: 'open',
+    });
+  } else if (releaseReport.trialReadiness.supportingPdf === 'warn') {
+    actions.push({
+      actionId: 'portal-supporting-pdf-customer-readiness-review',
+      title: 'review supporting PDF customer-readiness warnings',
+      area: 'portal',
+      priority: 'high',
+      source: 'release_gate',
+      status: 'open',
+    });
+  }
+
   actions.push(...SEEDED_BASE_ACTIONS, ...manualKnownGaps);
 
   if (includesGoogleDriveMissingWarning(releaseReport)) {

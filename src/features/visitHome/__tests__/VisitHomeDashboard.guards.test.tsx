@@ -261,6 +261,24 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
       expect(screen.getByTestId('card-simulator')).toHaveAttribute('data-status', 'ready');
       expect(screen.getByTestId('card-recommendation')).toHaveAttribute('data-status', 'ready');
     });
+
+    it('PDF card is blocked with exact QA reasons when supportingPdfUnsafe is true', () => {
+      render(
+        <VisitHomeDashboard
+          {...makeProps({
+            supportingPdfUnsafe: true,
+            supportingPdfBlockReasons: [
+              'PDF QA blocked: guessed CWS/vented tank capacity detected.',
+              'PDF QA blocked: legacy report headings detected.',
+            ],
+          })}
+        />,
+      );
+      const card = screen.getByTestId('card-pdf');
+      expect(card).toHaveAttribute('data-status', 'blocked');
+      expect(card).toHaveTextContent('guessed CWS/vented tank capacity');
+      expect(card).toHaveTextContent('legacy report headings');
+    });
   });
 
   // ── 4. Simulator launch wiring ─────────────────────────────
