@@ -87,4 +87,28 @@ describe('LibraryExplorerPage', () => {
 
     expect(visibleCards).toHaveLength(educationalAnimationRegistry.length);
   });
+
+  it('production-ready filter narrows diagram inventory to customer-ready production visuals', () => {
+    render(<LibraryExplorerPage />);
+    fireEvent.click(screen.getByTestId('library-explorer-tab-diagrams'));
+    fireEvent.click(screen.getByTestId('library-explorer-visual-filter-production_ready'));
+
+    const productionReady = diagramExplanationRegistry.filter(
+      (diagram) => diagram.visualStatus === 'production_ready' && diagram.customerReady,
+    );
+
+    for (const diagram of productionReady) {
+      expect(screen.getByTestId(`library-explorer-diagram-${diagram.diagramId}`)).toBeTruthy();
+    }
+    expect(screen.queryByTestId('library-explorer-diagram-system_fit_decision_map')).toBeNull();
+  });
+
+  it('needs redesign filter shows draft and placeholder visuals that still need replacement', () => {
+    render(<LibraryExplorerPage />);
+    fireEvent.click(screen.getByTestId('library-explorer-tab-animations'));
+    fireEvent.click(screen.getByTestId('library-explorer-visual-filter-needs_redesign'));
+
+    expect(screen.queryByTestId('library-explorer-animation-water_main_bottleneck')).toBeNull();
+    expect(screen.getByTestId('library-explorer-animation-stored_hot_water_recovery')).toBeTruthy();
+  });
 });

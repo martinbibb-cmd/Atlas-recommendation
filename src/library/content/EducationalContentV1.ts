@@ -32,4 +32,7 @@ export interface EducationalContentV1 {
   requiredEvidenceFacts: string[];
   confidenceLevel: EducationalConceptConfidenceLevelV1;
   livingExperiencePattern?: LivingExperiencePatternV1;
+  visualStatus?: 'production_ready' | 'draft' | 'placeholder' | 'dev_only';
+  customerReady?: boolean;
+  replacementNeededReason?: string;
 }

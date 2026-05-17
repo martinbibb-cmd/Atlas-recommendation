@@ -5,7 +5,7 @@
  * Accessible via a signed portal link sent after the survey visit.
  *
  * Production route behavior:
- *   - Renders the library-native PortalPage shell directly.
+ *   - Renders the curated customer journey shell directly.
  *   - Never renders the in-room CanonicalPresentationPage.
  *   - Keeps simulator access through portal-native CTA/panels.
  *
@@ -26,14 +26,11 @@ import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage
 import InsightPackDeck from '../../features/insightPack/InsightPackDeck';
 import { buildInsightPackFromEngine } from '../../features/insightPack/buildInsightPackFromEngine';
 import type { InsightPackSurveyContext } from '../../features/insightPack/buildInsightPackFromEngine';
-import { PortalPage } from './PortalPage';
 import { buildPortalViewModel } from '../../engine/modules/buildPortalViewModel';
 import { buildVisualBlocks } from '../../engine/modules/buildVisualBlocks';
 import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
 import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
-import { buildLockedAiHandoffText } from '../../engine/modules/buildAiHandoffPayload';
 import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
-import type { PortalLaunchContext } from '../../contracts/PortalLaunchContext';
 import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import { resolvePortalHomeLabel } from '../../lib/portal/portalVisitContext';
@@ -41,6 +38,7 @@ import { ReadingPreferencesLauncher } from '../../accessibility/readingPreferenc
 import { ReadingAssistOverlay } from '../../accessibility/readingAssist/ReadingAssistOverlay';
 import { PersistentJourneyHeader } from './PersistentJourneyHeader';
 import { buildCustomerSafeAiFallback } from '../../ai/buildCustomerSafeAiFallback';
+import { CustomerPortalJourneyComposer } from '../../portal/customerJourney/CustomerPortalJourneyComposer';
 import './CustomerPortalPage.css';
 
 interface Props {
@@ -156,7 +154,7 @@ export function assertNoLegacyPresentationRenderer({
   activeRendererComponent: string;
 }): { leakDetected: boolean; message: string } {
   const leakDetected = isProductionPortalSurface
-    && (selectedPortalMode !== 'portal' || activeRendererComponent !== 'PortalPage');
+    && (selectedPortalMode !== 'portal' || activeRendererComponent !== 'CustomerPortalJourneyComposer');
   return {
     leakDetected,
     message: LEGACY_PORTAL_RENDERER_LEAK_BANNER,
@@ -208,7 +206,6 @@ function CustomerPortalContent({
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
   const [viewMode, setViewMode] = useState<PortalViewMode>(defaultPortalViewMode);
   // Launch context received from the deck CTA — drives the initial tab of the portal.
-  const [portalLaunchContext, setPortalLaunchContext] = useState<PortalLaunchContext | null>(null);
   const showDevTraceLabels = showDevTraceLabelsOverride ?? !import.meta.env.PROD;
 
   // ── Portal data: decision + scenarios (memoised — built once) ────────────
@@ -274,23 +271,6 @@ function CustomerPortalContent({
     };
   }, [lockedSummary, portalData]);
 
-  // ── AI summary text (memoised — derived from locked summary) ─────────────
-  // Must use buildLockedAiHandoffText(lockedSummary) — never buildAiHandoffText
-  // directly — so customer-facing AI text is gated through CustomerSummaryV1.
-  const aiSummaryText = useMemo(() => {
-    if (!lockedSummary) return undefined;
-    try {
-      return buildLockedAiHandoffText(lockedSummary);
-    } catch {
-      return undefined;
-    }
-  }, [lockedSummary]);
-
-  // ── AI summary filename — computed once, not on every render ─────────────
-  const aiSummaryFilename = useMemo(
-    () => `atlas-ai-summary-${new Date().toISOString().slice(0, 10)}.txt`,
-    [],
-  );
   const portalHomeLabel = useMemo(
     () => resolvePortalHomeLabel(portalVisitContextOverride),
     [portalVisitContextOverride],
@@ -408,7 +388,6 @@ function CustomerPortalContent({
   function handleOpenPortal() {
     const recommendedScenarioId = portalViewModel?.verdictData.comparisonCards[0]?.scenarioId;
     if (!recommendedScenarioId) return; // guard: no valid scenario — do not open a degenerate portal
-    setPortalLaunchContext({ recommendedScenarioId });
     setViewMode('portal');
   }
 
@@ -424,7 +403,7 @@ function CustomerPortalContent({
       : effectiveViewMode === 'insight'
         ? 'InsightPackDeck'
         : effectiveViewMode === 'portal'
-          ? 'PortalPage'
+          ? 'CustomerPortalJourneyComposer'
           : showSimulator
             ? 'UnifiedSimulatorView'
             : 'CanonicalPresentationPage';
@@ -582,14 +561,14 @@ function CustomerPortalContent({
             <ReadingPreferencesLauncher />
           </div>
         </div>
-        {portalViewModel ? (
-          <PortalPage
+        {portalViewModel && portalData ? (
+          <CustomerPortalJourneyComposer
+            decision={portalData.decision}
+            scenarios={portalData.scenarios}
             viewModel={portalViewModel}
+            engineInput={portalData.engineInput}
+            engineResult={engineResult}
             propertyTitle={portalHomeLabel}
-            initialTab={portalLaunchContext?.initialTab}
-            portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
-            aiSummaryText={isProductionPortalSurface ? undefined : aiSummaryText}
-            aiSummaryFilename={aiSummaryFilename}
           />
         ) : (
           <div className="portal-page__error" role="alert" data-testid="portal-view-error">
@@ -703,14 +682,14 @@ function CustomerPortalContent({
         </aside>
       ) : null}
       <PortalHeroShell portalHomeLabel={portalHomeLabel} />
-      {portalViewModel ? (
-        <PortalPage
+      {portalViewModel && portalData ? (
+        <CustomerPortalJourneyComposer
+          decision={portalData.decision}
+          scenarios={portalData.scenarios}
           viewModel={portalViewModel}
+          engineInput={portalData.engineInput}
+          engineResult={engineResult}
           propertyTitle={portalHomeLabel}
-          initialTab={portalLaunchContext?.initialTab}
-          portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
-          aiSummaryText={isProductionPortalSurface ? undefined : aiSummaryText}
-          aiSummaryFilename={aiSummaryFilename}
         />
       ) : (
         <div className="portal-page__error" role="alert" data-testid="portal-view-error">

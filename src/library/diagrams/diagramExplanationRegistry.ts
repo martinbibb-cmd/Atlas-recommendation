@@ -1,4 +1,6 @@
-export interface DiagramExplanationEntry {
+import type { VisualReadinessMetadata } from '../visualReadiness';
+
+export interface DiagramExplanationEntry extends VisualReadinessMetadata {
   diagramId: string;
   title: string;
   conceptIds: string[];
@@ -12,6 +14,8 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'pressure_vs_storage',
     title: 'Pressure vs storage',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['pressure_vs_storage', 'STR-01', 'premium_hot_water_performance'],
     misconceptionsTargeted: [
       'Cylinders mean weak pressure.',
@@ -27,6 +31,8 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'warm_vs_hot_radiators',
     title: 'Warm vs hot radiators',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['hot_radiator_expectation', 'flow_temperature_living_with_it', 'CON-01'],
     misconceptionsTargeted: [
       'Warm radiators mean the heating is failing.',
@@ -42,6 +48,8 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'water_main_limitation',
     title: 'Water main limitation',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['water_main_limit_not_boiler_limit', 'microbore_flow_limits'],
     misconceptionsTargeted: [
       'A bigger boiler gives better flow.',
@@ -57,6 +65,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'open_vented_to_unvented',
     title: 'Open-vented to sealed + unvented',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Needs a clearer customer-facing before-and-after illustration.',
     conceptIds: ['open_vented_to_unvented_upgrade', 'sealed_system_conversion', 'pressure_vs_storage'],
     misconceptionsTargeted: [
       'Removing loft tanks weakens the heating.',
@@ -72,6 +83,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'system_fit_decision_map',
     title: 'System fit decision map',
+    visualStatus: 'placeholder',
+    customerReady: false,
+    replacementNeededReason: 'Current schematic reads like an internal decision map rather than a customer visual.',
     conceptIds: ['system_fit_explanation', 'system_work_explainer', 'scope_clarity'],
     misconceptionsTargeted: [
       'There is one universally best system type for every home.',
@@ -92,6 +106,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'stored_hot_water_recovery_timeline',
     title: 'Stored hot water recovery timeline',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Timeline needs a more designed reserve-and-recovery treatment for customer use.',
     conceptIds: ['system_work_explainer', 'stored_hot_water_efficiency', 'operating_behaviour'],
     misconceptionsTargeted: [
       'Stored hot water output is identical at all times of day.',
@@ -107,6 +124,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'warm_radiator_emitter_sizing',
     title: 'Warm radiator and emitter sizing comparison',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Current emitter diagram is too technical for the portal journey.',
     conceptIds: ['emitter_sizing', 'flow_temperature', 'flow_temperature_living_with_it'],
     misconceptionsTargeted: [
       'Warm radiators always mean poor heating performance.',
@@ -122,6 +142,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'flow_restriction_bottleneck',
     title: 'Flow restriction bottleneck',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Needs a calmer customer illustration with less schematic pipe detail.',
     conceptIds: [
       'flow_restriction',
       'pipework_constraint',
@@ -142,6 +165,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'weather_compensation_curve',
     title: 'Weather compensation curve',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Needs a customer-facing comfort expectation visual rather than a raw curve.',
     conceptIds: ['weather_compensation', 'control_strategy', 'flow_temperature'],
     misconceptionsTargeted: [
       'Flow temperature should stay fixed all day in all weather.',

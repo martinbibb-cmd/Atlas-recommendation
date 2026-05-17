@@ -1,3 +1,5 @@
+import type { VisualReadinessMetadata } from '../visualReadiness';
+
 export type EducationalAnimationPurposeV1 =
   | 'expectation'
   | 'physics'
@@ -5,7 +7,7 @@ export type EducationalAnimationPurposeV1 =
   | 'reassurance'
   | 'daily_use';
 
-export interface EducationalAnimationV1 {
+export interface EducationalAnimationV1 extends VisualReadinessMetadata {
   animationId: string;
   title: string;
   conceptIds: string[];
