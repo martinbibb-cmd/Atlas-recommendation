@@ -825,3 +825,16 @@ describe('buildCanonicalPresentation — boiler age and degradation data-flow', 
     expect(model.page1_5.componentDegradation.architecture).toBe('combi');
   });
 });
+
+
+describe('buildCanonicalPresentation — customer-safe survey narratives', () => {
+  it('uses customer-safe fallback copy for uncaptured survey details', () => {
+    const input = withInput({ primaryPipeDiameter: undefined, pvStatus: undefined, batteryStatus: undefined });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input);
+
+    expect(model.page1.house.pipeworkLabel).toMatch(/not measured during this survey/i);
+    expect(model.page1.energy.pvStatusLabel).not.toMatch(/not recorded/i);
+    expect(model.page1.energy.batteryStatusLabel).not.toMatch(/not recorded/i);
+  });
+});

@@ -1,4 +1,4 @@
-import { createContext } from 'react';
+import { createContext, useContext } from 'react';
 import type { ReadingPreferencesV1 } from './ReadingPreferencesV1';
 import { DEFAULT_READING_PREFERENCES_V1 } from './ReadingPreferencesV1';
 
@@ -27,3 +27,7 @@ export const FALLBACK_READING_PREFERENCES_CONTEXT: ReadingPreferencesContextValu
 export const ReadingPreferencesContext = createContext<ReadingPreferencesContextValue>(
   FALLBACK_READING_PREFERENCES_CONTEXT,
 );
+
+export function useReadingPreferences() {
+  return useContext(ReadingPreferencesContext);
+}

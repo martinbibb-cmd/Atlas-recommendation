@@ -54,7 +54,7 @@ export interface PortalHeroCardProps {
 
 export function PortalHeroCard({ eyebrow, heading, summary, badge, children }: PortalHeroCardProps) {
   return (
-    <section className="portal-hero-card" aria-label={heading} data-testid="portal-hero-card">
+    <section className="portal-hero-card" aria-label={heading} data-testid="portal-hero-card" data-reading-region="true">
       {eyebrow ? <p className="portal-hero-card__eyebrow">{eyebrow}</p> : null}
       <h2 className="portal-hero-card__heading">{heading}</h2>
       {summary ? <p className="portal-hero-card__summary">{summary}</p> : null}
@@ -102,6 +102,7 @@ export function EducationalInfoCard({
         className={`portal-info-card atlas-reading-surface${toneClass}`}
         aria-label={ariaLabel ?? heading}
         data-testid={testId ?? 'portal-info-card'}
+        data-reading-region="true"
       >
       {eyebrow ? <p className="portal-info-card__eyebrow">{eyebrow}</p> : null}
       {renderInfoHeading(headingLevel, heading)}
@@ -136,6 +137,7 @@ export function ComparisonTriptych({ cards }: ComparisonTriptychProps) {
           className={`portal-comparison-triptych__card${card.highlight ? ' portal-comparison-triptych__card--highlight' : ''}`}
           aria-label={card.ariaLabel ?? card.heading}
           data-testid={card.testId}
+          data-reading-region="true"
         >
           {(card.icon || card.eyebrow) ? (
             <div className="portal-comparison-triptych__icon-row">
@@ -181,6 +183,7 @@ export function ReassurancePanel({
       className="portal-reassurance-panel"
       aria-label={heading}
       data-testid={testId ?? 'portal-reassurance-panel'}
+      data-reading-region="true"
     >
       <p className="portal-reassurance-panel__eyebrow">{eyebrow}</p>
       <h3 className="portal-reassurance-panel__heading">{heading}</h3>
@@ -376,7 +379,7 @@ export function QRDeepDiveCard({
   'data-testid': testId,
 }: QRDeepDiveCardProps) {
   return (
-    <div className="portal-qr-deepdive" data-testid={testId ?? 'portal-qr-deepdive'}>
+    <div className="portal-qr-deepdive" data-testid={testId ?? 'portal-qr-deepdive'} data-reading-region="true">
       {icon ? (
         <span className="portal-qr-deepdive__icon" aria-hidden="true">{icon}</span>
       ) : null}

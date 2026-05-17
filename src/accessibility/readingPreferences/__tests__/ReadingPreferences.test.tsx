@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { ReadingPreferencesProvider } from '../ReadingPreferencesProvider';
+import { ReadingAssistOverlay } from '../../readingAssist/ReadingAssistOverlay';
 import { ReadingPreferencesLauncher } from '../ReadingPreferencesLauncher';
 import { DEFAULT_READING_PREFERENCES_V1 } from '../ReadingPreferencesV1';
 
@@ -113,3 +114,23 @@ describe('ReadingPreferences — hide ruler control', () => {
     expect(document.documentElement.getAttribute('data-atlas-reading-ruler-enabled')).toBe('false');
   });
 });
+
+
+describe('ReadingPreferences — text-anchored overlay', () => {
+  it('renders a reading assist overlay for active reading regions when enabled', async () => {
+    renderWithProvider(
+      <>
+        <ReadingPreferencesLauncher />
+        <div className="atlas-reading-surface">
+          <ReadingAssistOverlay />
+          <p data-reading-region="true">Atlas recommendation paragraph</p>
+        </div>
+      </>,
+    );
+    fireEvent.click(screen.getByText('Reading preferences'));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Focus reading mode/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Reading ruler/i }));
+    await waitFor(() => expect(screen.getByTestId('reading-assist-overlay')).toBeTruthy());
+  });
+});
+

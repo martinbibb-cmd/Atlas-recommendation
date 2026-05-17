@@ -3,8 +3,8 @@
  *
  * Provides a persistent set of actions near the portal header:
  *   1. Copy portal link
- *   2. Copy AI summary (for paste into ChatGPT, Claude, Gemini, etc.)
- *   3. Download AI summary as .txt
+ *   2. Copy the AI-enhanced summary text
+ *   3. Download the AI-enhanced summary as .txt
  *   4. Download advice pack (URL or callback)
  *   5. Open with app / Share (Web Share API)
  *
@@ -26,7 +26,7 @@ export interface PortalShareActionsProps {
   portalUrl?: string;
   /** Direct download URL for the advice pack PDF, if pre-generated. */
   advicePackUrl?: string;
-  /** Pre-serialised AI handoff text to copy / download. */
+  /** Pre-serialised AI-enhanced summary text to copy / download. */
   aiSummaryText?: string;
   /** Filename for the downloaded .txt file, e.g. "atlas-ai-summary-2026-04-25.txt". */
   aiSummaryFilename?: string;
@@ -120,7 +120,7 @@ export function PortalShareActions({
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title: 'Atlas AI recommendation summary',
+          title: 'Atlas AI-enhanced summary',
           text: aiSummaryText,
         });
         setAiShared(true);
@@ -213,7 +213,7 @@ export function PortalShareActions({
           type="button"
           className="portal-share-actions__btn portal-share-actions__btn--ai-share"
           onClick={handleShareToAiApp}
-          aria-label="Share AI payload to an AI assistant app"
+          aria-label="Share AI-enhanced summary to an assistant app"
           data-testid="share-ai-app"
         >
           <span className="portal-share-actions__icon" aria-hidden="true">✦</span>
@@ -229,7 +229,7 @@ export function PortalShareActions({
           type="button"
           className="portal-share-actions__btn"
           onClick={handleDownloadAiSummary}
-          aria-label="Download AI summary as text file"
+          aria-label="Download AI-enhanced summary as text file"
           data-testid="share-download-ai"
         >
           <span className="portal-share-actions__icon" aria-hidden="true">⬇</span>
@@ -290,7 +290,7 @@ export function PortalShareActions({
       {/* Copy AI summary helper text */}
       {aiSummaryText && (
         <p className="portal-share-actions__helper" data-testid="share-ai-helper">
-          Paste the AI summary into ChatGPT, Claude, Gemini, or another assistant.
+          Use the AI-enhanced summary with your preferred assistant if you want an extra plain-language walkthrough.
         </p>
       )}
 

@@ -24,6 +24,7 @@ import type { DhwType, PipeLayout, ControlFamily } from '../../features/survey/s
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
 import { resolveNominalEfficiencyPct } from '../../engine/utils/efficiency';
+import { buildCustomerSafeSurveyNarrative } from '../../customerSafe/buildCustomerSafeSurveyNarrative';
 
 export type { DhwArchitecture };
 
@@ -559,7 +560,7 @@ const WALL_TYPE_LABELS: Record<string, string> = {
   cavity_unfilled: 'Unfilled cavity wall (high heat loss)',
   cavity_filled:   'Filled cavity wall',
   timber_frame:    'Timber frame',
-  unknown:         'Wall type not recorded',
+  unknown:         buildCustomerSafeSurveyNarrative('Wall type not recorded'),
 };
 
 const INSULATION_LABELS: Record<string, string> = {
@@ -567,7 +568,7 @@ const INSULATION_LABELS: Record<string, string> = {
   moderate:    'Moderate insulation',
   good:        'Good insulation',
   exceptional: 'Exceptional insulation',
-  unknown:     'Insulation level not recorded',
+  unknown:     buildCustomerSafeSurveyNarrative('Insulation level not recorded'),
 };
 
 const HEAT_LOSS_BAND_LABELS: Record<string, string> = {
@@ -576,7 +577,7 @@ const HEAT_LOSS_BAND_LABELS: Record<string, string> = {
   moderate:  'Moderate heat loss',
   low:       'Low heat loss',
   very_low:  'Very low heat loss',
-  unknown:   'Heat loss band not modelled',
+  unknown:   buildCustomerSafeSurveyNarrative('Heat loss band not modelled'),
 };
 
 const PV_SUITABILITY_LABELS: Record<string, string> = {
@@ -634,7 +635,7 @@ const PIPE_LAYOUT_LABELS: Record<string, string> = {
   one_pipe:  'One-pipe system',
   manifold:  'Manifold distribution',
   microbore: 'Microbore pipework',
-  unknown:   'Pipe layout not recorded',
+  unknown:   buildCustomerSafeSurveyNarrative('Pipe layout not recorded'),
 };
 
 const CONTROL_FAMILY_LABELS: Record<string, string> = {
@@ -643,14 +644,14 @@ const CONTROL_FAMILY_LABELS: Record<string, string> = {
   s_plan:         'S-plan (twin 2-port zone valves)',
   s_plan_plus:    'S-plan Plus (twin zones + underfloor)',
   thermal_store:  'Thermal store control',
-  unknown:        'Controls not recorded',
+  unknown:        buildCustomerSafeSurveyNarrative('Controls not recorded'),
 };
 
 const THERMOSTAT_STYLE_LABELS: Record<string, string> = {
   basic:        'Basic (on/off) thermostat',
   programmable: 'Programmable thermostat',
   smart:        'Smart thermostat',
-  unknown:      'Thermostat type not recorded',
+  unknown:      buildCustomerSafeSurveyNarrative('Thermostat type not recorded'),
 };
 
 const PROGRAMMER_TYPE_LABELS: Record<string, string> = {
@@ -659,7 +660,7 @@ const PROGRAMMER_TYPE_LABELS: Record<string, string> = {
   digital:           'Digital 7-day programmer',
   smart:             'Smart / app-linked programmer',
   none:              'No programmer fitted',
-  unknown:           'Programmer type not recorded',
+  unknown:           buildCustomerSafeSurveyNarrative('Programmer type not recorded'),
 };
 
 const SEDBUK_BAND_LABELS: Record<string, string> = {
@@ -670,25 +671,25 @@ const SEDBUK_BAND_LABELS: Record<string, string> = {
   E: 'Band E (74–78% seasonal efficiency)',
   F: 'Band F (70–74% seasonal efficiency)',
   G: 'Band G (<70% seasonal efficiency)',
-  unknown: 'SEDBUK band not recorded',
+  unknown: buildCustomerSafeSurveyNarrative('SEDBUK band not recorded'),
 };
 
 const SERVICE_HISTORY_LABELS: Record<string, string> = {
   regular:   'Regularly serviced',
   irregular: 'Service history irregular or unknown',
-  unknown:   'Service history not recorded',
+  unknown:   buildCustomerSafeSurveyNarrative('Service history not recorded'),
 };
 
 const HEATING_SYSTEM_TYPE_LABELS: Record<string, string> = {
   open_vented: 'Open-vented (tank-fed) circuit',
   sealed:      'Sealed pressurised circuit',
-  unknown:     'Circuit type not recorded',
+  unknown:     buildCustomerSafeSurveyNarrative('Circuit type not recorded'),
 };
 
 const PIPEWORK_ACCESS_LABELS: Record<string, string> = {
   accessible: 'Primary pipework accessible',
   buried:     'Primary pipework buried / concealed',
-  unknown:    'Pipework access not recorded',
+  unknown:    buildCustomerSafeSurveyNarrative('Pipework access not recorded'),
 };
 
 const BLEED_WATER_LABELS: Record<string, string> = {
@@ -696,7 +697,7 @@ const BLEED_WATER_LABELS: Record<string, string> = {
   slightly_discoloured: 'Bleed water slightly discoloured',
   dark:                 'Bleed water dark (magnetite likely)',
   sludge:               'Bleed water shows sludge (contamination)',
-  unknown:              'Bleed water colour not recorded',
+  unknown:              buildCustomerSafeSurveyNarrative('Bleed water colour not recorded'),
 };
 
 const RADIATOR_PERFORMANCE_LABELS: Record<string, string> = {
@@ -714,14 +715,14 @@ const CIRCULATION_ISSUES_LABELS: Record<string, string> = {
 const MAGNETIC_FILTER_LABELS: Record<string, string> = {
   fitted:     'Magnetic filter fitted',
   not_fitted: 'No magnetic filter fitted',
-  unknown:    'Magnetic filter status not recorded',
+  unknown:    buildCustomerSafeSurveyNarrative('Magnetic filter status not recorded'),
 };
 
 const CLEANING_HISTORY_LABELS: Record<string, string> = {
   never_cleaned:           'System never cleaned',
   cleaned_over_5_years_ago:'Last cleaned more than 5 years ago',
   recently_cleaned:        'Recently cleaned',
-  unknown:                 'Cleaning history not recorded',
+  unknown:                 buildCustomerSafeSurveyNarrative('Cleaning history not recorded'),
 };
 
 /** Map bleed water colour to a condition pill status. */
@@ -968,13 +969,13 @@ function buildHouseSignal(result: FullEngineResult, input: EngineInputV2_3): Hou
   const pipeDiam = input.primaryPipeDiameter;
   const pipeworkLabel = pipeDiam != null
     ? `${pipeDiam} mm primary pipework`
-    : 'Pipework size not recorded';
+    : buildCustomerSafeSurveyNarrative('Pipework size not recorded');
 
   let waterSupplyLabel: string;
   if (input.coldWaterSource === 'mains_true') waterSupplyLabel = 'Mains-fed supply';
   else if (input.coldWaterSource === 'loft_tank') waterSupplyLabel = 'Tank-fed supply (loft tank)';
   else if (input.coldWaterSource === 'mains_shared') waterSupplyLabel = 'Shared mains supply';
-  else waterSupplyLabel = 'Water supply not recorded';
+  else waterSupplyLabel = buildCustomerSafeSurveyNarrative('Water supply not recorded');
 
   const pvPotentialLabel = PV_SUITABILITY_LABELS[result.pvAssessment.pvSuitability] ?? 'PV potential not assessed';
 
@@ -1052,8 +1053,8 @@ function buildHomeSignal(result: FullEngineResult, input: EngineInputV2_3): Home
 function buildEnergySignal(result: FullEngineResult, input: EngineInputV2_3): EnergySignal {
   const pv = result.pvAssessment;
 
-  const pvStatusLabel   = PV_STATUS_LABELS[input.pvStatus ?? 'none'] ?? 'PV status not recorded';
-  const batteryLabel    = BATTERY_STATUS_LABELS[input.batteryStatus ?? 'none'] ?? 'Battery status not recorded';
+  const pvStatusLabel   = PV_STATUS_LABELS[input.pvStatus ?? 'none'] ?? buildCustomerSafeSurveyNarrative('PV status not recorded');
+  const batteryLabel    = BATTERY_STATUS_LABELS[input.batteryStatus ?? 'none'] ?? buildCustomerSafeSurveyNarrative('Battery status not recorded');
 
   // Distinguish "good roof but no PV" from "existing PV"
   let pvSuitabilityLabel = PV_SUITABILITY_LABELS[pv.pvSuitability] ?? pv.pvSuitability;
@@ -1095,7 +1096,7 @@ function buildCurrentSystemSignal(input: EngineInputV2_3): CurrentSystemSignal {
   // lifespan guidance only when type is actually a boiler family)
   let ageContext: string;
   if (age == null) {
-    ageContext = 'System age unknown — cannot assess remaining life expectancy.';
+    ageContext = buildCustomerSafeSurveyNarrative('System age unknown — cannot assess remaining life expectancy.');
   } else if (type === 'combi' || type === 'system') {
     if (age < 5)       ageContext = 'Young boiler — typically well within expected service life.';
     else if (age < 10) ageContext = 'Mid-life boiler — performance should be close to original spec.';
@@ -1380,7 +1381,7 @@ function buildCirculationSignals(
   } else if (hasMagneticFilter === false && (age ?? 0) >= 5) {
     signals.push({ label: 'No magnetic filter', status: 'warn' });
   } else {
-    signals.push({ label: 'Magnetic filter: not recorded', status: 'unknown' });
+    signals.push({ label: buildCustomerSafeSurveyNarrative('Magnetic filter: not recorded'), status: 'unknown' });
   }
 
   // Water hardness
@@ -1594,7 +1595,7 @@ function buildAgeingContext(input: EngineInputV2_3, result: FullEngineResult): P
 
   if (ageEstimate != null) {
     if (age == null) {
-      notes.push(`Age not recorded — using a condition-led service-life estimate (~${ageEstimate} years).`);
+      notes.push(buildCustomerSafeSurveyNarrative(`Age not recorded — using a condition-led service-life estimate (~${ageEstimate} years).`));
     }
 
     if (type === 'combi' || type === 'system') {

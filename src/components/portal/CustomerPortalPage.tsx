@@ -39,6 +39,9 @@ import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1'
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import { resolvePortalHomeLabel } from '../../lib/portal/portalVisitContext';
 import { ReadingPreferencesLauncher } from '../../accessibility/readingPreferences/ReadingPreferencesLauncher';
+import { ReadingAssistOverlay } from '../../accessibility/readingAssist/ReadingAssistOverlay';
+import { PersistentJourneyHeader } from './PersistentJourneyHeader';
+import { buildCustomerSafeAiFallback } from '../../ai/buildCustomerSafeAiFallback';
 import './CustomerPortalPage.css';
 
 interface Props {
@@ -242,6 +245,11 @@ function CustomerPortalContent({
     () => resolvePortalHomeLabel(portalVisitContextOverride),
     [portalVisitContextOverride],
   );
+  const recommendationTitle = lockedSummary?.recommendedSystemLabel
+    ?? portalViewModel?.verdictData.comparisonCards[0]?.title
+    ?? 'Your recommendation';
+  const recommendationSummary = lockedSummary?.headline
+    ?? portalViewModel?.verdictData.comparisonCards[0]?.summary;
 
   useEffect(() => {
     // Dev fixture bypass: skip API and token validation when devFixtureInput is provided.
@@ -291,6 +299,7 @@ function CustomerPortalContent({
           setSurveyData((payloadInfo.legacy?.surveyData ?? payloadInfo.legacy?.engineInput ?? null) as FullSurveyModelV1 | null);
         }
       } catch (err: unknown) {
+        console.error('CustomerPortalPage load failed', err);
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
         if (!cancelled) setLoading(false);
@@ -319,10 +328,16 @@ function CustomerPortalContent({
 
   if (error || !engineResult || !engineInput) {
     const isNotFound = error?.toLowerCase().includes('not found');
+    const aiFallback = buildCustomerSafeAiFallback();
+    const safeDetail = isNotFound
+      ? 'Please contact your installer if you expected a portal link for this visit.'
+      : /gemini|api error|generation failed|models\/gemini/i.test(error ?? '')
+        ? `${aiFallback.headline} ${aiFallback.supportingText}`
+        : 'The recommendation is temporarily unavailable. Please try again later or contact your installer.';
     return (
-      <div className="portal-page__error" role="alert" data-testid="portal-error">
+      <div className="portal-page__error" role="alert" data-testid="portal-error" data-reading-region="true">
         <p className="portal-page__error-headline">{isNotFound ? 'Recommendation not found' : 'Could not load your recommendation'}</p>
-        <p className="portal-page__error-detail">{error ?? 'The recommendation data is missing or incomplete.'}</p>
+        <p className="portal-page__error-detail">{safeDetail}</p>
       </div>
     );
   }
@@ -355,6 +370,7 @@ function CustomerPortalContent({
   if (viewMode === null) {
     return (
       <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
+        <ReadingAssistOverlay />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -373,7 +389,14 @@ function CustomerPortalContent({
           </div>
         </header>
 
-        <div className="portal-welcome" data-testid="portal-welcome">
+        <div className="portal-welcome" data-testid="portal-welcome" data-reading-region="true">
+          <PersistentJourneyHeader
+            propertyTitle={portalHomeLabel}
+            recommendationTitle={recommendationTitle}
+            summary={recommendationSummary}
+            surfaceLabel="Welcome"
+            headingLevel={1}
+          />
           <h1 className="portal-welcome__heading">Your Home Heating Recommendation</h1>
           <p className="portal-welcome__intro">
             Choose how you would like to explore your results:
@@ -423,6 +446,7 @@ function CustomerPortalContent({
 
     return (
       <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+        <ReadingAssistOverlay />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -430,6 +454,12 @@ function CustomerPortalContent({
             <p>activeRendererComponent: {activeRendererComponent}</p>
           </aside>
         ) : null}
+        <PersistentJourneyHeader
+          propertyTitle={portalHomeLabel}
+          recommendationTitle={recommendationTitle}
+          summary={recommendationSummary}
+          surfaceLabel="Insight"
+        />
         <div className="portal-back-row">
           <button
             type="button"
@@ -455,6 +485,7 @@ function CustomerPortalContent({
   if (viewMode === 'portal') {
     return (
       <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+        <ReadingAssistOverlay />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -497,6 +528,7 @@ function CustomerPortalContent({
   // ── Presentation view (deck) ──────────────────────────────────────────────
   return (
     <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
+      <ReadingAssistOverlay />
       {showDevTraceLabels ? (
         <aside data-testid="portal-route-trace-labels">
           <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -515,6 +547,12 @@ function CustomerPortalContent({
             <ReadingPreferencesLauncher />
           </div>
         </div>
+        <PersistentJourneyHeader
+          propertyTitle={portalHomeLabel}
+          recommendationTitle={recommendationTitle}
+          summary={recommendationSummary}
+          surfaceLabel="Presentation"
+        />
         <div className="portal-back-row">
           <button
             type="button"
@@ -530,6 +568,7 @@ function CustomerPortalContent({
       {showSimulator && surveyData ? (
         <section
           className="portal-section portal-unified-simulator"
+          data-reading-region="true"
           id="portal-simulator"
           aria-labelledby="portal-simulator-heading"
           data-testid="portal-unified-simulator"

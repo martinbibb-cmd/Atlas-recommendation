@@ -18,20 +18,57 @@
 /* ─── Header ──────────────────────────────────────────────────────────────── */
 
 .portal-page__header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   padding: 1rem 1.25rem 0.75rem;
   border-bottom: 1px solid #e2e8f0;
+  background: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(10px);
 }
 
-.portal-page__property-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #718096;
-  letter-spacing: 0.03em;
+.journey-identity {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.journey-identity__eyebrow-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.journey-identity__eyebrow,
+.journey-identity__surface {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.journey-identity__surface {
+  color: #2563eb;
+}
+
+.journey-identity__title {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+
+.journey-identity__property,
+.journey-identity__summary {
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
 }
 
 /* ─── Panel ───────────────────────────────────────────────────────────────── */
 
 .portal-page__panel {
+  position: relative;
   flex: 1;
   padding: 1.75rem 1.5rem;
   animation: portalPanelFadeIn 0.2s ease;
