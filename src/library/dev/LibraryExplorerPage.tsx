@@ -39,6 +39,13 @@ function conceptSetFromArchetype(archetypeId: string): Set<string> {
   ]);
 }
 
+function hasLivedExperience(entry: (typeof educationalContentRegistry)[number]): boolean {
+  return (
+    entry.livingExperiencePattern != null ||
+    (entry.livingWithSystemGuidance != null && entry.livingWithSystemGuidance.trim().length > 0)
+  );
+}
+
 export function LibraryExplorerPage() {
   const [tab, setTab] = useState<LibraryExplorerTab>('concepts');
 
@@ -176,11 +183,7 @@ export function LibraryExplorerPage() {
             for (const entry of animations) for (const conceptId of entry.conceptIds) journeyConcepts.add(conceptId);
             const conceptIds = [...journeyConcepts].sort();
             const livedCards = educationalContentRegistry.filter((entry) =>
-              conceptIds.includes(entry.conceptId) &&
-              (
-                entry.livingExperiencePattern != null ||
-                (entry.livingWithSystemGuidance != null && entry.livingWithSystemGuidance.trim().length > 0)
-              ),
+              conceptIds.includes(entry.conceptId) && hasLivedExperience(entry),
             );
             const archetype = welcomePackArchetypes.find((entry) => entry.goldenJourneyId === journeyId);
             const printSections = archetype?.defaultSections ?? [];
@@ -253,10 +256,7 @@ export function LibraryExplorerPage() {
       {tab === 'lived-experience' && (
         <section data-testid="library-explorer-panel-lived-experience" style={{ display: 'grid', gap: '0.75rem' }}>
           {educationalContentRegistry
-            .filter((entry) =>
-              entry.livingExperiencePattern != null ||
-              (entry.livingWithSystemGuidance != null && entry.livingWithSystemGuidance.trim().length > 0),
-            )
+            .filter((entry) => hasLivedExperience(entry))
             .map((entry) => (
               <article
                 key={entry.contentId}
