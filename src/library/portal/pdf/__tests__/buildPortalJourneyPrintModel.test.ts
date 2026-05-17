@@ -5,6 +5,7 @@ import {
 } from '../buildPortalJourneyPrintModel';
 
 const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
+  journeyType: 'open_vented',
   selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
   recommendationSummary: 'Sealed system with unvented cylinder — the right fit for this home.',
   customerFacts: ['4-person household', '2 bathrooms', 'Regular boiler, open-vented circuit'],
@@ -294,5 +295,29 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
     ].join(' ');
 
     expect(customerFacingText).not.toMatch(/content pending|debug|diagnostic|CON_[A-Z0-9_]+/i);
+  });
+});
+
+describe('buildPortalJourneyPrintModel — generic recommendation fallback journey', () => {
+  it('does not default fallback journey to open-vented conversion copy', () => {
+    const model = buildPortalJourneyPrintModel({
+      selectedSectionIds: [],
+      recommendationSummary: 'Generic recommendation summary for your home.',
+      customerFacts: ['2-person household'],
+      journeyType: 'generic_recommendation_summary',
+    });
+    const headings = model.sections.map((section) => section.heading);
+    expect(headings).toContain('What this recommendation means');
+    expect(headings).not.toContain('What changes in your home');
+  });
+
+  it('supports non-open-vented generic family journey types', () => {
+    const model = buildPortalJourneyPrintModel({
+      selectedSectionIds: [],
+      recommendationSummary: 'Stored hot water recommendation.',
+      customerFacts: ['3-person household'],
+      journeyType: 'stored_hot_water',
+    });
+    expect(model.sections.map((section) => section.heading)).toContain('What this recommendation means');
   });
 });

@@ -92,6 +92,7 @@ import type { QuoteInput } from './features/insightPack/insightPack.types';
 import type { LifecycleBoilerType } from './contracts/LifecycleAssessment';
 import type { EngineOutputV1 } from './contracts/EngineOutputV1';
 import type { AtlasDecisionV1 } from './contracts/AtlasDecisionV1';
+import type { PortalVisitContextV1 } from './contracts/PortalVisitContextV1';
 import type { ScenarioResult } from './contracts/ScenarioResult';
 import type { CustomerSummaryV1 } from './contracts/CustomerSummaryV1';
 import {
@@ -144,6 +145,7 @@ import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUn
 import { readWorkflowPackageFile } from './features/visitHome/importVisitWorkflowPackage';
 import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from './library/portal/pdf/buildPortalJourneyPrintModel';
+import type { SurveySystemConditionV1 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import { assessLibraryPdfCustomerReadiness } from './library/portal/pdf/assessLibraryPdfCustomerReadiness';
 import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from './library/pdfQa';
 
@@ -191,6 +193,89 @@ function formatVisitReference(visitId: string): string {
   const normalized = visitId.trim().toUpperCase();
   if (normalized.length >= 8) return normalized.slice(-8);
   return normalized.padStart(8, '0');
+}
+
+type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
+type LocalSessionStatusTone = 'success' | 'error';
+type PortalPdfJourneyType =
+  | 'open_vented'
+  | 'stored_hot_water'
+  | 'heat_pump'
+  | 'water_constraint'
+  | 'regular_unvented'
+  | 'generic_recommendation_summary';
+
+function isLegacyJourney(journey: Journey): boolean {
+  return (
+    journey === 'visit-hub'
+    || journey === 'insight-pack'
+    || journey === 'framework-print'
+    || journey === 'unified-simulator'
+  );
+}
+
+function buildSurveySystemConditionFromModel(
+  surveyModel: FullSurveyModelV1 | undefined,
+  _engineOutput: EngineOutputV1 | undefined,
+): SurveySystemConditionV1 | undefined {
+  if (surveyModel == null) return undefined;
+  const heatingCondition = surveyModel.fullSurvey?.heatingCondition;
+  const recommendation = surveyModel.fullSurvey?.recommendation;
+  const currentSystem = surveyModel.currentSystem;
+  const systemAgeYears = currentSystem?.boiler?.ageYears;
+  const surveyCondition: SurveySystemConditionV1 = {
+    bleedWaterColour: heatingCondition?.bleedWaterColour,
+    coldSpots: heatingCondition?.radiatorsColdAtBottom,
+    unevenHeating: heatingCondition?.radiatorsHeatingUnevenly,
+    magneticDebrisEvidence: heatingCondition?.magneticDebrisEvidence,
+    systemNoisyOrInconsistent: heatingCondition?.boilerCavitationOrNoise,
+    systemAgeYears,
+    filterPresent: surveyModel.hasMagneticFilter,
+    installerFlushStrategy: recommendation?.powerflush ?? null,
+    recentlyCleaned: currentSystem?.conditionSignals?.cleaningHistory === 'recently_cleaned',
+  };
+  return surveyCondition;
+}
+
+function resolvePdfJourneyType(
+  acceptedScenario: ScenarioResult | undefined,
+  decision: AtlasDecisionV1 | undefined,
+  scenarios: ScenarioResult[] | undefined,
+  engineOutput: EngineOutputV1 | undefined,
+  surveyModel: FullSurveyModelV1 | undefined,
+): PortalPdfJourneyType {
+  const decisionScenarioId = decision?.recommendedScenarioId?.toLowerCase();
+  const selectedScenario =
+    acceptedScenario
+    ?? (decisionScenarioId != null ? scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === decisionScenarioId) : undefined);
+  const scenarioId = selectedScenario?.scenarioId?.toLowerCase() ?? decisionScenarioId ?? '';
+  const scenarioType = selectedScenario?.system.type;
+  const primary = engineOutput?.recommendation?.primary?.toLowerCase() ?? '';
+  const systemCircuit = surveyModel?.fullSurvey?.heatingCondition?.systemCircuitType
+    ?? surveyModel?.currentSystem?.heatingSystemType;
+  const hasWaterConstraint =
+    selectedScenario?.physicsFlags?.pressureConstraint === true
+    || selectedScenario?.physicsFlags?.hydraulicLimit === true
+    || scenarioId.includes('water_constraint')
+    || scenarioId.includes('pressure')
+    || scenarioId.includes('flow');
+
+  if (scenarioType === 'ashp' || primary === 'ashp' || scenarioId.includes('ashp')) {
+    return 'heat_pump';
+  }
+  if (hasWaterConstraint) {
+    return 'water_constraint';
+  }
+  if (scenarioId.includes('regular_unvented') || scenarioId.includes('regular_vented') || scenarioType === 'regular') {
+    return 'regular_unvented';
+  }
+  if (scenarioId.includes('system_unvented') || scenarioType === 'system') {
+    return systemCircuit === 'open_vented' ? 'open_vented' : 'stored_hot_water';
+  }
+  if (scenarioId.includes('open_vented')) {
+    return 'open_vented';
+  }
+  return 'generic_recommendation_summary';
 }
 
 /** Detect /dev/devmenu or ?devmenu=1 — renders the developer component browser. */
@@ -465,10 +550,13 @@ type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 
 
 interface VisitRecommendationSnapshot {
   visitId: string;
+  visitReference?: string;
   engineOutput?: EngineOutputV1;
   scenarios?: ScenarioResult[];
   decision?: AtlasDecisionV1;
   customerSummary?: CustomerSummaryV1;
+  acceptedScenarioId?: string;
+  portalVisitContext?: PersistedPortalVisitContext;
 }
 
 const FLOOR_PLAN_TOOL_MODE =
@@ -685,30 +773,49 @@ function RetiredRouteNotice({
 }
 
 function buildSupportingPdfReadinessGate(input: {
-  readonly engineInput?: EngineInputV2_3;
+  readonly surveyModel?: FullSurveyModelV1;
   readonly engineOutput?: EngineOutputV1;
   readonly recommendationHeadline?: string;
+  readonly acceptedScenario?: ScenarioResult;
+  readonly decision?: AtlasDecisionV1;
+  readonly scenarios?: ScenarioResult[];
+  readonly portalVisitContext?: PersistedPortalVisitContext;
 }) {
-  if (input.engineInput == null || input.engineOutput == null) return undefined;
+  const engineInput = (() => {
+    if (input.surveyModel == null) return undefined;
+    try {
+      return toEngineInput(sanitiseModelForEngine(input.surveyModel));
+    } catch {
+      return undefined;
+    }
+  })();
+  if (engineInput == null || input.engineOutput == null) return undefined;
   const recommendationSummary =
     input.recommendationHeadline
-    ?? `A heating recommendation for ${input.engineInput.postcode ?? 'your home'} is being prepared.`;
-  const journeyType: 'open_vented' | 'heat_pump' =
-    input.engineOutput.recommendation?.primary === 'ashp' ? 'heat_pump' : 'open_vented';
+    ?? 'Generic recommendation summary for your home.';
+  const journeyType = resolvePdfJourneyType(
+    input.acceptedScenario,
+    input.decision,
+    input.scenarios,
+    input.engineOutput,
+    input.surveyModel,
+  );
   const customerFacts = [
-    input.engineInput.occupancyCount != null
-      ? `${input.engineInput.occupancyCount} ${input.engineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
+    engineInput.occupancyCount != null
+      ? `${engineInput.occupancyCount} ${engineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
       : null,
-    input.engineInput.bathroomCount != null
-      ? `${input.engineInput.bathroomCount} bathroom${input.engineInput.bathroomCount === 1 ? '' : 's'}`
+    engineInput.bathroomCount != null
+      ? `${engineInput.bathroomCount} bathroom${engineInput.bathroomCount === 1 ? '' : 's'}`
       : null,
-    input.engineInput.postcode ? `Property: ${input.engineInput.postcode}` : null,
+    engineInput.postcode ? `Property: ${engineInput.postcode}` : null,
   ].filter((fact): fact is string => fact != null);
   const printModel = buildPortalJourneyPrintModel({
     selectedSectionIds: [],
     recommendationSummary,
     customerFacts,
     journeyType,
+    visitContext: input.portalVisitContext,
+    surveyCondition: buildSurveySystemConditionFromModel(input.surveyModel, input.engineOutput),
   });
   const pdfComparisonAudit = buildPdfComparisonAudit(
     buildPdfComparisonScenarioFromPrintModel(printModel, 'Visit Home library supporting PDF'),
@@ -767,9 +874,16 @@ function AppInner() {
     if (VISIT_HOME_ENABLED)              return 'visit-home';
     const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'workspace-dashboard';
     // 'presentation' and 'printout' require labEngineInput which is not persisted.
-    // 'framework-print' and 'library-pdf' are transient print destinations and should not be restored as an entry point.
+    // 'framework-print', 'library-pdf', and legacy journeys should not be restored as entry points.
     // Restoring any of these without the necessary data would result in a white screen — fall back to 'workspace-dashboard'.
-    if (restored === 'presentation' || restored === 'printout' || restored === 'framework-print' || restored === 'library-pdf') {
+    if (
+      restored === 'presentation'
+      || restored === 'printout'
+      || restored === 'framework-print'
+      || restored === 'library-pdf'
+      || restored === 'insight-pack'
+      || restored === 'unified-simulator'
+    ) {
       return 'workspace-dashboard';
     }
     // 'visit-home' and 'visit' require an active visit ID.
@@ -777,9 +891,7 @@ function AppInner() {
     if ((restored === 'visit-hub' || restored === 'visit' || restored === 'visit-home') && !_restoredVisit?.value?.visitId) {
       return 'workspace-dashboard';
     }
-    if (restored === 'visit-hub') {
-      return 'visit-home';
-    }
+    if (restored === 'visit-hub') return 'visit-home';
     return restored;
   });
   /** Active report ID for the /report/:id route. */
@@ -892,7 +1004,9 @@ function AppInner() {
    * portal can validate the link.
    */
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
+  const [labPortalVisitContext, setLabPortalVisitContext] = useState<PersistedPortalVisitContext | undefined>();
   const [visitRecommendationSnapshot, setVisitRecommendationSnapshot] = useState<VisitRecommendationSnapshot | null>(null);
+  const [localSessionStatus, setLocalSessionStatus] = useState<{ tone: LocalSessionStatusTone; message: string } | null>(null);
   const [importedWorkflowVisitIds, setImportedWorkflowVisitIds] = useState<string[]>([]);
 
   /**
@@ -1044,6 +1158,18 @@ function AppInner() {
   }, [cacheNotice]);
 
   useEffect(() => {
+    if (localSessionStatus === null) return;
+    const timer = setTimeout(() => setLocalSessionStatus(null), 5000);
+    return () => clearTimeout(timer);
+  }, [localSessionStatus]);
+
+  useEffect(() => {
+    if (lastOpenedFromHome == null) return;
+    if (!isLegacyJourney(lastOpenedFromHome.journey)) return;
+    setLastOpenedFromHome(null);
+  }, [lastOpenedFromHome]);
+
+  useEffect(() => {
     if (!activeVisitId || ENGINEER_VISIT_ID != null) return;
     if (hydratedPersistedVisitId === activeVisitId) return;
 
@@ -1059,11 +1185,15 @@ function AppInner() {
     const persisted = restored.visit;
     setVisitRecommendationSnapshot({
       visitId: persisted.visitId,
+      visitReference: persisted.visitReference,
       engineOutput: persisted.engine,
       scenarios: persisted.scenarios,
       decision: persisted.decision,
       customerSummary: persisted.customerSummary,
+      acceptedScenarioId: persisted.acceptedScenarioId,
+      portalVisitContext: persisted.portalVisitContext,
     });
+    setLabPortalVisitContext(persisted.portalVisitContext);
     setLabFullSurveyModel(persisted.survey);
     if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
     if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
@@ -1125,22 +1255,28 @@ function AppInner() {
     const persisted: PersistedAtlasVisitV2 = {
       schemaVersion: 2,
       visitId: activeVisitId,
+      visitReference: formatVisitReference(activeVisitId),
       updatedAt: new Date().toISOString(),
       survey: labFullSurveyModel,
       engine: engineSnapshot,
       decision: decisionSnapshot,
       scenarios: scenariosSnapshot,
       customerSummary: customerSummarySnapshot,
+      acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      portalVisitContext: labPortalVisitContext,
     };
     saveVisitAtomically(persisted);
     setVisitRecommendationSnapshot({
       visitId: activeVisitId,
+      visitReference: formatVisitReference(activeVisitId),
       engineOutput: engineSnapshot,
       scenarios: scenariosSnapshot,
       decision: decisionSnapshot,
       customerSummary: customerSummarySnapshot,
+      acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      portalVisitContext: labPortalVisitContext,
     });
-  }, [activeVisitId, labFullSurveyModel, labEngineInput]);
+  }, [activeVisitId, labFullSurveyModel, labEngineInput, labPortalVisitContext]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -1168,7 +1304,10 @@ function AppInner() {
    * it to localStorage atomically.
    */
   function handleSaveVisitLocally() {
-    if (activeVisitId == null || labFullSurveyModel == null) return;
+    if (activeVisitId == null || labFullSurveyModel == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Unable to save: no active visit survey in memory.' });
+      return;
+    }
     let engineSnapshot: EngineOutputV1 | undefined;
     let scenariosSnapshot: ScenarioResult[] | undefined;
     let decisionSnapshot: AtlasDecisionV1 | undefined;
@@ -1192,15 +1331,34 @@ function AppInner() {
     } catch {
       // Persist survey even when derived snapshots cannot be computed.
     }
-    saveVisitAtomically({
+    const acceptedScenarioId = decisionSnapshot?.recommendedScenarioId;
+    const snapshot: PersistedAtlasVisitV2 = {
       schemaVersion: 2,
       visitId: activeVisitId,
+      visitReference: formatVisitReference(activeVisitId),
       updatedAt: new Date().toISOString(),
       survey: labFullSurveyModel,
       engine: engineSnapshot,
       decision: decisionSnapshot,
       scenarios: scenariosSnapshot,
       customerSummary: customerSummarySnapshot,
+      acceptedScenarioId,
+      portalVisitContext: labPortalVisitContext,
+    };
+    saveVisitAtomically(snapshot);
+    setVisitRecommendationSnapshot({
+      visitId: activeVisitId,
+      visitReference: snapshot.visitReference,
+      engineOutput: engineSnapshot,
+      scenarios: scenariosSnapshot,
+      decision: decisionSnapshot,
+      customerSummary: customerSummarySnapshot,
+      acceptedScenarioId,
+      portalVisitContext: labPortalVisitContext,
+    });
+    setLocalSessionStatus({
+      tone: 'success',
+      message: `Saved visit ${snapshot.visitReference ?? formatVisitReference(activeVisitId)} locally.`,
     });
   }
 
@@ -1209,17 +1367,27 @@ function AppInner() {
    * Reads from localStorage and rehydrates all relevant in-memory state.
    */
   function handleResumeLocalVisit() {
-    if (activeVisitId == null) return;
+    if (activeVisitId == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Unable to resume: no active visit selected.' });
+      return;
+    }
     const restored = readPersistedAtlasVisitV2(activeVisitId);
-    if (restored.visit == null) return;
+    if (restored.visit == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'No saved local snapshot found for this visit.' });
+      return;
+    }
     const persisted = restored.visit;
     setVisitRecommendationSnapshot({
       visitId: persisted.visitId,
+      visitReference: persisted.visitReference,
       engineOutput: persisted.engine,
       scenarios: persisted.scenarios,
       decision: persisted.decision,
       customerSummary: persisted.customerSummary,
+      acceptedScenarioId: persisted.acceptedScenarioId,
+      portalVisitContext: persisted.portalVisitContext,
     });
+    setLabPortalVisitContext(persisted.portalVisitContext);
     setLabFullSurveyModel(persisted.survey);
     if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
     if (persisted.survey.fullSurvey?.priorities) setLabPrioritiesState(persisted.survey.fullSurvey.priorities);
@@ -1230,11 +1398,21 @@ function AppInner() {
         // Keep survey even if engine input conversion fails.
       }
     }
+    setLocalSessionStatus({
+      tone: 'success',
+      message: `Resumed saved visit ${persisted.visitReference ?? formatVisitReference(persisted.visitId)}.`,
+    });
   }
 
   function handleGenerateRecommendation() {
-    if (activeVisitId == null) return;
-    if (labFullSurveyModel == null) return;
+    if (activeVisitId == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Cannot generate recommendation: no active visit.' });
+      return;
+    }
+    if (labFullSurveyModel == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Cannot generate recommendation: survey is missing.' });
+      return;
+    }
 
     const sourceInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel));
     const surveySnapshot = labFullSurveyModel;
@@ -1260,6 +1438,7 @@ function AppInner() {
       }
     } catch (err) {
       console.error('[Atlas] Recommendation generation failed:', err);
+      setLocalSessionStatus({ tone: 'error', message: 'Recommendation generation failed. Review survey inputs and retry.' });
       return;
     }
 
@@ -1267,21 +1446,28 @@ function AppInner() {
     setLabFullSurveyModel(surveySnapshot);
     setVisitRecommendationSnapshot({
       visitId: activeVisitId,
+      visitReference: formatVisitReference(activeVisitId),
       engineOutput: engineSnapshot,
       scenarios: scenariosSnapshot,
       decision: decisionSnapshot,
       customerSummary: customerSummarySnapshot,
+      acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      portalVisitContext: labPortalVisitContext,
     });
     saveVisitAtomically({
       schemaVersion: 2,
       visitId: activeVisitId,
+      visitReference: formatVisitReference(activeVisitId),
       updatedAt: new Date().toISOString(),
       survey: surveySnapshot,
       engine: engineSnapshot,
       decision: decisionSnapshot,
       scenarios: scenariosSnapshot,
       customerSummary: customerSummarySnapshot,
+      acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      portalVisitContext: labPortalVisitContext,
     });
+    setLocalSessionStatus({ tone: 'success', message: 'Recommendation generated and visit snapshot refreshed.' });
   }
 
   function handleStartDemoReview(demoVisitId: string = DEMO_VISIT_IDS.completed_won) {
@@ -1305,20 +1491,26 @@ function AppInner() {
       const customerSummary = decision != null ? buildCustomerSummary(decision, scenarios) : undefined;
       setVisitRecommendationSnapshot({
         visitId: demoVisitId,
+        visitReference: formatVisitReference(demoVisitId),
         engineOutput,
         scenarios,
         decision,
         customerSummary,
+        acceptedScenarioId: decision?.recommendedScenarioId,
+        portalVisitContext: labPortalVisitContext,
       });
       saveVisitAtomically({
         schemaVersion: 2,
         visitId: demoVisitId,
+        visitReference: formatVisitReference(demoVisitId),
         updatedAt: new Date().toISOString(),
         survey: demoSurvey,
         engine: engineOutput,
         decision,
         scenarios,
         customerSummary,
+        acceptedScenarioId: decision?.recommendedScenarioId,
+        portalVisitContext: labPortalVisitContext,
       });
     } catch (err) {
       console.error('[Atlas] Demo recommendation hydration failed:', err);
@@ -2173,23 +2365,31 @@ function AppInner() {
       <VisitProvider initialVisit={activeAtlasVisit}>
         {/* Visit Hub — shown when opening an existing visit */}
         {journey === 'visit-hub' && activeVisitId != null && (
-          <VisitHubPage
-            visitId={activeVisitId}
-            onBack={() => setJourney('workspace-dashboard')}
-            onResumeSurvey={() => setJourney('visit')}
-            onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
-            onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
-            onOpenReport={(reportId) => {
-              const reportUrl = `${window.location.origin}/report/${reportId}`;
-              window.open(reportUrl, '_blank', 'noopener,noreferrer');
-            }}
-            onOpenEngineerRoute={() => setJourney('engineer')}
-            onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
-            onImportScan={() => setJourney('receive-scan')}
-            onOpenExternalFiles={() => setJourney('external-files')}
-            onOpenInstallationSpecification={() => setJourney('installation-specification')}
-            installationSpecOptionCount={labInstallationSpecifications.length > 0 ? labInstallationSpecifications.length : undefined}
-          />
+          import.meta.env.DEV ? (
+            <VisitHubPage
+              visitId={activeVisitId}
+              onBack={() => setJourney('workspace-dashboard')}
+              onResumeSurvey={() => setJourney('visit')}
+              onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
+              onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
+              onOpenReport={(reportId) => {
+                const reportUrl = `${window.location.origin}/report/${reportId}`;
+                window.open(reportUrl, '_blank', 'noopener,noreferrer');
+              }}
+              onOpenEngineerRoute={() => setJourney('engineer')}
+              onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
+              onImportScan={() => setJourney('receive-scan')}
+              onOpenExternalFiles={() => setJourney('external-files')}
+              onOpenInstallationSpecification={() => setJourney('installation-specification')}
+              installationSpecOptionCount={labInstallationSpecifications.length > 0 ? labInstallationSpecifications.length : undefined}
+            />
+          ) : (
+            <RetiredRouteNotice backLabel="Open Visit Home →" onBack={() => setJourney('visit-home')} title="Legacy route retired">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Visit Home is the canonical review route. Legacy Visit Hub is development-only.
+              </p>
+            </RetiredRouteNotice>
+          )
         )}
         {/* Visit Home Dashboard — front-door overview of all outputs for the active visit */}
         {journey === 'visit-home' && (() => {
@@ -2224,9 +2424,20 @@ function AppInner() {
             visitHomeRecommendationSummary = canonicalSnapshot.customerSummary;
             acceptedScenario = resolveAcceptedScenario(
               visitHomeScenarios,
-              canonicalSnapshot.decision?.recommendedScenarioId,
+              canonicalSnapshot.acceptedScenarioId ?? canonicalSnapshot.decision?.recommendedScenarioId,
             );
+            if (acceptedScenario == null) {
+              acceptedScenario = resolveAcceptedScenario(
+                visitHomeScenarios,
+                canonicalSnapshot.decision?.recommendedScenarioId,
+              );
+            }
           }
+
+          const safeLastOpenedFromHome =
+            lastOpenedFromHome != null && isLegacyJourney(lastOpenedFromHome.journey)
+              ? null
+              : lastOpenedFromHome;
 
           if (visitHomeEngineOutput == null && labEngineInput != null) {
             try {
@@ -2247,9 +2458,13 @@ function AppInner() {
           }
 
           const supportingPdfReadinessGate = buildSupportingPdfReadinessGate({
-            engineInput: labEngineInput,
+            surveyModel: labFullSurveyModel,
             engineOutput: visitHomeEngineOutput,
             recommendationHeadline: canonicalSnapshot?.customerSummary?.headline,
+            acceptedScenario,
+            decision: canonicalSnapshot?.decision,
+            scenarios: visitHomeScenarios,
+            portalVisitContext: canonicalSnapshot?.portalVisitContext ?? labPortalVisitContext,
           });
 
           // ── Local save check — whether this visitId has a localStorage snapshot ──
@@ -2263,6 +2478,12 @@ function AppInner() {
                 return false;
               }
             })();
+          const hasSurveyForSupportingPdf =
+            labFullSurveyModel != null
+            || (
+              activeVisitId != null
+              && readPersistedAtlasVisitV2(activeVisitId).visit?.survey != null
+            );
 
           return (
             <VisitHomeDashboard
@@ -2279,8 +2500,8 @@ function AppInner() {
               workspacePermissions={workspaceSettingsMembership?.permissions}
               supportingPdfUnsafe={supportingPdfReadinessGate != null && !supportingPdfReadinessGate.readyForCustomer}
               supportingPdfBlockReasons={supportingPdfReadinessGate?.blockingReasons}
-              lastSurface={lastOpenedFromHome?.label}
-              onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
+              lastSurface={safeLastOpenedFromHome?.label}
+              onContinueLastSurface={safeLastOpenedFromHome != null ? () => setJourney(safeLastOpenedFromHome.journey) : undefined}
               hasSavedLocalVisit={hasSavedLocalVisit}
               onImportScanPackage={() => setJourney('receive-scan')}
               onImportWorkflowPackage={(file) => {
@@ -2297,9 +2518,16 @@ function AppInner() {
               }}
               onSaveLocally={activeVisitId != null && labFullSurveyModel != null ? handleSaveVisitLocally : undefined}
               onResumeLocalVisit={activeVisitId != null ? handleResumeLocalVisit : undefined}
+              localSessionStatus={localSessionStatus}
+              devBuildMarker={import.meta.env.DEV ? `Dev build · ${new Date().toISOString().slice(0, 10)}` : undefined}
               onClearSession={() => {
                 setActiveVisitId(undefined);
                 setLastOpenedFromHome(null);
+                setLabEngineInput(undefined);
+                setLabFullSurveyModel(undefined);
+                setVisitRecommendationSnapshot(null);
+                setLabPortalVisitContext(undefined);
+                setLocalSessionStatus(null);
                 setJourney('workspace-dashboard');
               }}
               onOpenExistingVisit={() => setJourney('workspace-dashboard')}
@@ -2318,17 +2546,17 @@ function AppInner() {
                 const restored = readPersistedAtlasVisitV2(visitId);
                 if (restored.visit != null) {
                   setLabFullSurveyModel(restored.visit.survey);
-                  if (restored.visit.engine != null) {
-                    setVisitRecommendationSnapshot({
-                      visitId: restored.visit.visitId,
-                      engineOutput: restored.visit.engine,
-                      scenarios: restored.visit.scenarios,
-                      decision: restored.visit.decision,
-                      customerSummary: restored.visit.customerSummary,
-                    });
-                  } else {
-                    setVisitRecommendationSnapshot(null);
-                  }
+                  setLabPortalVisitContext(restored.visit.portalVisitContext);
+                  setVisitRecommendationSnapshot({
+                    visitId: restored.visit.visitId,
+                    visitReference: restored.visit.visitReference,
+                    engineOutput: restored.visit.engine,
+                    scenarios: restored.visit.scenarios,
+                    decision: restored.visit.decision,
+                    customerSummary: restored.visit.customerSummary,
+                    acceptedScenarioId: restored.visit.acceptedScenarioId,
+                    portalVisitContext: restored.visit.portalVisitContext,
+                  });
                   try {
                     setLabEngineInput(toEngineInput(sanitiseModelForEngine(restored.visit.survey)));
                   } catch {
@@ -2349,7 +2577,7 @@ function AppInner() {
                 setPresentationFromJourney('visit-home');
                 setJourney('presentation');
               }}
-              onPrintSummary={labEngineInput != null && visitHomeEngineOutput != null ? () => {
+              onPrintSummary={visitHomeEngineOutput != null && hasSurveyForSupportingPdf ? () => {
                 setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
                 setJourney('library-pdf');
               } : undefined}
@@ -2629,31 +2857,84 @@ function AppInner() {
         </RetiredRouteNotice>
       )}
       {/* Library supporting PDF — library-backed print output for Visit Home (replaces legacy framework-print from visit-home path) */}
-      {journey === 'library-pdf' && labEngineInput != null && (() => {
-        const { engineOutput } = runEngine(labEngineInput);
-        const canonicalSummary =
+      {journey === 'library-pdf' && (() => {
+        const canonicalSnapshot =
           activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
-            ? visitRecommendationSnapshot?.customerSummary
+            ? visitRecommendationSnapshot
+            : null;
+        const persistedCanonical =
+          activeVisitId != null
+            ? readPersistedAtlasVisitV2(activeVisitId).visit
             : undefined;
+        const surveyForPdf =
+          labFullSurveyModel
+          ?? persistedCanonical?.survey;
+        const engineOutput =
+          canonicalSnapshot?.engineOutput
+          ?? persistedCanonical?.engine;
+        const scenarios =
+          canonicalSnapshot?.scenarios
+          ?? persistedCanonical?.scenarios;
+        const decision =
+          canonicalSnapshot?.decision
+          ?? persistedCanonical?.decision;
+        const customerSummary =
+          canonicalSnapshot?.customerSummary
+          ?? persistedCanonical?.customerSummary;
+        const preferredScenarioId = (canonicalSnapshot?.acceptedScenarioId ?? decision?.recommendedScenarioId)?.toLowerCase();
+        const acceptedScenario =
+          preferredScenarioId == null
+            ? undefined
+            : scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === preferredScenarioId);
+
+        if (surveyForPdf == null || engineOutput == null) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Recommendation data is unavailable for this visit. Open or resume the visit snapshot, then try again.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
+
+        let engineInput: EngineInputV2_3;
+        try {
+          engineInput = toEngineInput(sanitiseModelForEngine(surveyForPdf));
+        } catch {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Saved survey data could not be prepared for the supporting PDF. Please review the visit survey and retry.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
         const recommendationSummary =
-          canonicalSummary?.headline ??
-          `A heating recommendation for ${labEngineInput.postcode ?? 'your home'} is being prepared.`;
-        const journeyType: 'open_vented' | 'heat_pump' =
-          engineOutput.recommendation?.primary === 'ashp' ? 'heat_pump' : 'open_vented';
+          customerSummary?.headline
+          ?? 'Generic recommendation summary for your home.';
+        const journeyType = resolvePdfJourneyType(
+          acceptedScenario,
+          decision,
+          scenarios,
+          engineOutput,
+          surveyForPdf,
+        );
         const customerFacts = [
-          labEngineInput.occupancyCount != null
-            ? `${labEngineInput.occupancyCount} ${labEngineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
+          engineInput.occupancyCount != null
+            ? `${engineInput.occupancyCount} ${engineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
             : null,
-          labEngineInput.bathroomCount != null
-            ? `${labEngineInput.bathroomCount} bathroom${labEngineInput.bathroomCount === 1 ? '' : 's'}`
+          engineInput.bathroomCount != null
+            ? `${engineInput.bathroomCount} bathroom${engineInput.bathroomCount === 1 ? '' : 's'}`
             : null,
-          labEngineInput.postcode ? `Property: ${labEngineInput.postcode}` : null,
+          engineInput.postcode ? `Property: ${engineInput.postcode}` : null,
         ].filter((fact): fact is string => fact != null);
         const printModel = buildPortalJourneyPrintModel({
           selectedSectionIds: [],
           recommendationSummary,
           customerFacts,
           journeyType,
+          visitContext: canonicalSnapshot?.portalVisitContext ?? labPortalVisitContext,
+          surveyCondition: buildSurveySystemConditionFromModel(surveyForPdf, engineOutput),
         });
         return (
           <div
