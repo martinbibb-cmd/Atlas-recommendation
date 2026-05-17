@@ -66,6 +66,7 @@ interface Props {
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
 export const CUSTOMER_PORTAL_PHONE_MEDIA_QUERY = '(max-width: 768px)';
+export const LEGACY_PORTAL_RENDERER_LEAK_BANNER = 'LEGACY PORTAL RENDERER LEAK DETECTED';
 const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
 const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
 const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
@@ -140,6 +141,23 @@ function buildPortalPropertyConstraintTags(input: EngineInputV2_3): string[] {
   return [...tags];
 }
 
+export function assertNoLegacyPresentationRenderer({
+  isProductionPortalSurface,
+  selectedPortalMode,
+  activeRendererComponent,
+}: {
+  isProductionPortalSurface: boolean;
+  selectedPortalMode: string;
+  activeRendererComponent: string;
+}): { leakDetected: boolean; message: string } {
+  const leakDetected = isProductionPortalSurface
+    && (selectedPortalMode !== 'portal' || activeRendererComponent !== 'PortalPage');
+  return {
+    leakDetected,
+    message: LEGACY_PORTAL_RENDERER_LEAK_BANNER,
+  };
+}
+
 function PortalHeroShell({ portalHomeLabel }: { portalHomeLabel: string }) {
   return (
     <header className="portal-page__hero" data-testid="portal-hero">
@@ -173,6 +191,7 @@ function CustomerPortalContent({
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [showSimulator, setShowSimulator] = useState(false);
   const isDevFixtureMode = Boolean(devFixtureInput);
+  const isProductionPortalSurface = !isDevFixtureMode;
   function computeInitialPortalViewMode(): PortalViewMode {
     if (!isDevFixtureMode) return 'portal';
     if (devInitialViewMode) return devInitialViewMode;
@@ -374,24 +393,31 @@ function CustomerPortalContent({
     setViewMode('portal');
   }
 
+  const effectiveViewMode: PortalViewMode = isProductionPortalSurface ? 'portal' : viewMode;
   const currentPortalRoute =
     typeof window !== 'undefined'
       ? `${window.location.pathname}${window.location.search}`
       : `/portal/${reference}`;
-  const selectedPortalMode = viewMode ?? 'choice';
+  const selectedPortalMode = effectiveViewMode ?? 'choice';
   const activeRendererComponent =
-    viewMode === null
+    effectiveViewMode === null
       ? 'PortalChoiceScreen'
-      : viewMode === 'insight'
+      : effectiveViewMode === 'insight'
         ? 'InsightPackDeck'
-        : viewMode === 'portal'
+        : effectiveViewMode === 'portal'
           ? 'PortalPage'
           : showSimulator
             ? 'UnifiedSimulatorView'
             : 'CanonicalPresentationPage';
+  const legacyRendererAssertion = assertNoLegacyPresentationRenderer({
+    isProductionPortalSurface,
+    selectedPortalMode,
+    activeRendererComponent,
+  });
+  const showLegacyLeakBanner = showDevTraceLabels && legacyRendererAssertion.leakDetected;
 
   // ── Welcome page — choose a view ──────────────────────────────────────────
-  if (viewMode === null && isDevFixtureMode) {
+  if (effectiveViewMode === null && isDevFixtureMode) {
     return (
       <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
         <ReadingAssistOverlay />
@@ -448,7 +474,7 @@ function CustomerPortalContent({
   }
 
   // ── Insight Pack view ─────────────────────────────────────────────────────
-  if (viewMode === 'insight' && isDevFixtureMode) {
+  if (effectiveViewMode === 'insight' && isDevFixtureMode) {
     const surveyContext: InsightPackSurveyContext = {
       currentBoiler: engineInput.currentSystem?.boiler,
       occupancyCount: engineInput.occupancyCount,
@@ -506,7 +532,7 @@ function CustomerPortalContent({
   }
 
   // ── Five-tab portal view — opened via deck CTA ────────────────────────────
-  if (viewMode === 'portal') {
+  if (effectiveViewMode === 'portal') {
     return (
       <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
         <ReadingAssistOverlay />
@@ -515,6 +541,11 @@ function CustomerPortalContent({
             <p>currentPortalRoute: {currentPortalRoute}</p>
             <p>selectedPortalMode: {selectedPortalMode}</p>
             <p>activeRendererComponent: {activeRendererComponent}</p>
+          </aside>
+        ) : null}
+        {showLegacyLeakBanner ? (
+          <aside className="portal-page__error" role="alert" data-testid="portal-legacy-renderer-leak-banner">
+            <p className="portal-page__error-headline">{legacyRendererAssertion.message}</p>
           </aside>
         ) : null}
         <PortalHeroShell portalHomeLabel={portalHomeLabel} />
@@ -538,7 +569,7 @@ function CustomerPortalContent({
             propertyTitle={portalHomeLabel}
             initialTab={portalLaunchContext?.initialTab}
             portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
-            aiSummaryText={aiSummaryText}
+            aiSummaryText={isDevFixtureMode ? aiSummaryText : undefined}
             aiSummaryFilename={aiSummaryFilename}
           />
         ) : (
@@ -647,6 +678,11 @@ function CustomerPortalContent({
           <p>activeRendererComponent: {activeRendererComponent}</p>
         </aside>
       ) : null}
+      {showLegacyLeakBanner ? (
+        <aside className="portal-page__error" role="alert" data-testid="portal-legacy-renderer-leak-banner">
+          <p className="portal-page__error-headline">{legacyRendererAssertion.message}</p>
+        </aside>
+      ) : null}
       <PortalHeroShell portalHomeLabel={portalHomeLabel} />
       {portalViewModel ? (
         <PortalPage
@@ -654,7 +690,7 @@ function CustomerPortalContent({
           propertyTitle={portalHomeLabel}
           initialTab={portalLaunchContext?.initialTab}
           portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
-          aiSummaryText={aiSummaryText}
+          aiSummaryText={isDevFixtureMode ? aiSummaryText : undefined}
           aiSummaryFilename={aiSummaryFilename}
         />
       ) : (

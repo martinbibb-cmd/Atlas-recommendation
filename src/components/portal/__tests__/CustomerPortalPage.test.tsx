@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import CustomerPortalPage, { CUSTOMER_PORTAL_PHONE_MEDIA_QUERY } from '../CustomerPortalPage';
+import CustomerPortalPage, {
+  assertNoLegacyPresentationRenderer,
+  CUSTOMER_PORTAL_PHONE_MEDIA_QUERY,
+  LEGACY_PORTAL_RENDERER_LEAK_BANNER,
+} from '../CustomerPortalPage';
 import type { ReportDetail } from '../../../lib/reports/reportApi';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 
@@ -91,6 +95,11 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.queryByTestId('insight-pack-deck')).toBeNull();
     expect(screen.queryByTestId('presentation-deck')).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Deck navigation' })).toBeNull();
+    expect(screen.queryByTestId('pvsp-section')).toBeNull();
+    expect(screen.queryByTestId('portal-ai-blob')).toBeNull();
+    expect(screen.queryByTestId('share-copy-ai')).toBeNull();
+    expect(screen.queryByTestId('share-download-ai')).toBeNull();
   });
 
   it('loads directly into the portal shell on production route', async () => {
@@ -102,6 +111,30 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode: portal/i)).toBeTruthy();
     expect(screen.getByText(/activeRendererComponent: PortalPage/i)).toBeTruthy();
+    expect(screen.queryByTestId('portal-legacy-renderer-leak-banner')).toBeNull();
+    expect(screen.queryByText(/AI-enhanced summary/i)).toBeNull();
+    expect(screen.queryByText(/gemini|provider|api error|generation failed/i)).toBeNull();
+  });
+
+  it('shows customer-safe AI fallback text without provider/debug leakage', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({
+        ok: true,
+        report: {
+          ...STUB_REPORT,
+          payload: {
+            ...STUB_REPORT.payload,
+            engineInput: null,
+          },
+        },
+      }),
+    } as unknown as Response);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-error')).toBeTruthy());
+    const errorText = screen.getByTestId('portal-error').textContent ?? '';
+    expect(errorText).not.toMatch(/gemini|provider|api error|debug|models\/gemini/i);
   });
 
   it('phone viewport lands directly in portal mode (no welcome step)', async () => {
@@ -262,6 +295,25 @@ describe('CustomerPortalPage', () => {
     const labelsWithoutTrace = screen.getAllByRole('tab').map((tab) => tab.textContent);
 
     expect(labelsWithTrace).toEqual(labelsWithoutTrace);
+  });
+
+  it('assertNoLegacyPresentationRenderer flags production legacy renderer leakage', () => {
+    const result = assertNoLegacyPresentationRenderer({
+      isProductionPortalSurface: true,
+      selectedPortalMode: 'presentation',
+      activeRendererComponent: 'CanonicalPresentationPage',
+    });
+    expect(result.leakDetected).toBe(true);
+    expect(result.message).toBe(LEGACY_PORTAL_RENDERER_LEAK_BANNER);
+  });
+
+  it('assertNoLegacyPresentationRenderer passes canonical production portal renderer', () => {
+    const result = assertNoLegacyPresentationRenderer({
+      isProductionPortalSurface: true,
+      selectedPortalMode: 'portal',
+      activeRendererComponent: 'PortalPage',
+    });
+    expect(result.leakDetected).toBe(false);
   });
 
 });
