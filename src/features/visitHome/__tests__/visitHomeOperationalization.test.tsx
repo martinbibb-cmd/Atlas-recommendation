@@ -432,6 +432,20 @@ describe('VisitHomeDashboard local visit controls', () => {
     expect(onSaveLocally).toHaveBeenCalledOnce();
   });
 
+  it('shows local session success state text when provided', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onSaveLocally: vi.fn(),
+          localSessionStatus: { tone: 'success', message: 'Saved visit ABC12345 locally.' },
+        })}
+      />,
+    );
+    expect(screen.getByTestId('visit-home-local-session-status')).toHaveTextContent(
+      'Saved visit ABC12345 locally.',
+    );
+  });
+
   it('resume saved visit CTA is shown and calls onResumeLocalVisit when hasSavedLocalVisit is true', () => {
     const onResumeLocalVisit = vi.fn();
     render(

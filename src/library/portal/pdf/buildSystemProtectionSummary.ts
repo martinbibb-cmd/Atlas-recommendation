@@ -265,7 +265,7 @@ function buildCopyForTreatmentLevel(
           'Your installer will verify the existing filter is in good order and complete the standard setup checks before handover.',
         customerVisibleBullets: [
           'No signs of restricted circulation found during the survey',
-          'Existing protection device noted and retained',
+          'Filter/protection device if included in scope is confirmed at handover',
           'Standard commissioning checks will be completed at handover',
         ],
       };
@@ -280,7 +280,7 @@ function buildCopyForTreatmentLevel(
           'Your installer will carry out standard protection and setup checks and confirm the outcome at handover.',
         customerVisibleBullets: [
           'No significant signs of debris noted during the survey',
-          'Standard protection is included in every installation',
+          'Filter/protection device if included in scope is confirmed before handover',
           'Your installer will confirm the setup checks at handover',
         ],
       };
@@ -298,6 +298,7 @@ function buildCopyForTreatmentLevel(
           customerVisibleBullets: [
             'Circuit cleaning is part of the planned preparation',
             'Cleaning and protection are expected parts of the upgrade',
+            'Filter/protection device if included in scope will be confirmed by your installer',
             'Your installer will confirm the method before work begins',
           ],
         };
@@ -313,6 +314,7 @@ function buildCopyForTreatmentLevel(
         customerVisibleBullets: [
           'Survey showed signs of restricted circulation in the heating circuit',
           'Cleaning and protection are expected parts of the preparation',
+          'Filter/protection device if included in scope will be confirmed by your installer',
           'Your installer will confirm the method before work begins',
         ],
       };
@@ -327,6 +329,7 @@ function buildCopyForTreatmentLevel(
           'Your installer will check the heating circuit and confirm the preparation approach before installation begins.',
         customerVisibleBullets: [
           'Heating circuit condition to be confirmed by your installer',
+          'Filter/protection device if included in scope will be confirmed before work begins',
           'Preparation method will be agreed before work begins',
           'Your installer remains your first point of contact for questions',
         ],

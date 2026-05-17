@@ -6,6 +6,7 @@ import { assessLibraryPdfCustomerReadiness } from '../assessLibraryPdfCustomerRe
 
 function makePrintModel() {
   return buildPortalJourneyPrintModel({
+    journeyType: 'open_vented',
     selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
     recommendationSummary: 'Sealed system with unvented cylinder recommended.',
     customerFacts: ['4-person household', '2 bathrooms'],

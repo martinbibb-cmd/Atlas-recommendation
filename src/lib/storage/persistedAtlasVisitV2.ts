@@ -1,18 +1,22 @@
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 
 export interface PersistedAtlasVisitV2 {
   schemaVersion: 2;
   visitId: string;
+  visitReference?: string;
   updatedAt: string;
   survey: FullSurveyModelV1;
   engine?: EngineOutputV1;
   decision?: AtlasDecisionV1;
   scenarios?: ScenarioResult[];
   customerSummary?: CustomerSummaryV1;
+  acceptedScenarioId?: string;
+  portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
   scanCapture?: unknown;
   quotePlan?: unknown;
 }

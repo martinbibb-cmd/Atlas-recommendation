@@ -4,6 +4,7 @@ import { PortalJourneyPrintPack } from '../PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from '../buildPortalJourneyPrintModel';
 
 const BASE_MODEL = buildPortalJourneyPrintModel({
+  journeyType: 'open_vented',
   selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_C01'],
   recommendationSummary: 'Sealed system with unvented cylinder — the right fit for this home.',
   customerFacts: ['4-person household', '2 bathrooms', 'Regular boiler, open-vented circuit'],
@@ -66,6 +67,7 @@ describe('PortalJourneyPrintPack — cover page', () => {
 
   it('does not render brand name element when brandName is absent', () => {
     const modelNoBrand = buildPortalJourneyPrintModel({
+      journeyType: 'open_vented',
       selectedSectionIds: ['CON_A01'],
       recommendationSummary: 'Test',
       customerFacts: [],

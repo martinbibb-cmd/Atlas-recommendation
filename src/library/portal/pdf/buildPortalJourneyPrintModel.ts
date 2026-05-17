@@ -110,8 +110,14 @@ export interface BuildPortalJourneyPrintModelInputV1 {
   brandProfile?: {
     name?: string;
   };
-  /** Journey model to build. Defaults to open_vented for backward compatibility. */
-  journeyType?: 'open_vented' | 'heat_pump';
+  /** Journey model to build. Defaults to generic recommendation summary. */
+  journeyType?:
+    | 'open_vented'
+    | 'stored_hot_water'
+    | 'heat_pump'
+    | 'water_constraint'
+    | 'regular_unvented'
+    | 'generic_recommendation_summary';
   /**
    * Optional audience projection.  When supplied, only sections whose
    * contentId appears in `audienceProjection.visibleConcepts` are included
@@ -144,6 +150,82 @@ const HEAT_PUMP_LIVING_ITEMS = [
   'Weather and load compensation can adjust flow temperature gradually through the day.',
   'Warm radiators and steady running can be normal signs of correct operation.',
 ] as const;
+
+function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
+  const sections: PortalJourneyPrintSectionV1[] = [
+    {
+      contentId: 'generic_recommendation_summary',
+      sectionId: 'what_changes',
+      heading: 'What this recommendation means',
+      summary: 'Your recommendation focuses on stable comfort, dependable hot water, and a practical installation path.',
+      keyTakeaway: 'Your installer will tailor final setup details to your surveyed home conditions.',
+      reassurance: 'You will receive a clear handover explaining controls and expected day-to-day behaviour.',
+      items: [
+        'Your recommendation is based on survey findings from your home.',
+        'The final setup is confirmed during installer checks before works start.',
+        'Daily operation remains straightforward with familiar comfort targets.',
+      ],
+    },
+    {
+      contentId: 'generic_recommendation_summary',
+      sectionId: 'what_stays_familiar',
+      heading: 'What stays familiar',
+      summary: 'Your household routines remain central to the final setup and handover.',
+      keyTakeaway: 'Comfort and hot water expectations stay aligned with your normal routine.',
+      reassurance: 'Your installer confirms any preparation and setup steps before work begins.',
+      items: [
+        'Heating schedules and preferred room temperatures stay under your control.',
+        'Hot water usage guidance is explained at handover in plain language.',
+        'Your installer remains the first point of contact for follow-up questions.',
+      ],
+    },
+    {
+      contentId: 'living_with_your_system',
+      sectionId: 'living_with_your_system',
+      heading: 'Living with the system',
+      summary: 'Day-to-day use should feel consistent, with clear guidance provided at handover.',
+      keyTakeaway: 'The recommendation is designed for practical, stable day-to-day operation.',
+      reassurance: 'Your installer will confirm any preparation method and final controls setup.',
+      items: [
+        'Use your controls as guided at handover for best day-to-day comfort.',
+        'Bring this summary to your appointment if you want extra walkthrough detail.',
+        'Contact your installer if performance does not match expected handover behaviour.',
+      ],
+    },
+  ];
+
+  const nextSteps: PortalJourneyPrintNextStepV1[] = [
+    {
+      label: 'Pre-install review',
+      body: 'Your installer will review the recommendation and confirm the final preparation approach before work begins.',
+    },
+    {
+      label: 'Installation day',
+      body: 'Your installer will explain key system changes and complete a customer-safe handover.',
+    },
+    {
+      label: 'After handover',
+      body: 'Keep this summary for reference and contact your installer if you want additional guidance.',
+    },
+  ];
+
+  const qrDestinations: PortalJourneyPrintQrDestinationV1[] = [
+    {
+      heading: 'How your recommendation was selected',
+      note: 'A plain-language walkthrough of surveyed home factors and recommendation outcomes.',
+    },
+    {
+      heading: 'What to expect on installation day',
+      note: 'Preparation, handover, and follow-up support explained step by step.',
+    },
+    {
+      heading: 'Day-to-day operation guide',
+      note: 'Simple guidance for comfort settings and routine operation.',
+    },
+  ];
+
+  return { sections, nextSteps, qrDestinations };
+}
 
 function buildOpenVentedSectionsAndNextSteps(
   selectedSet: Set<string>,
@@ -411,7 +493,7 @@ export function buildPortalJourneyPrintModel(
     recommendationSummary,
     customerFacts,
     brandProfile,
-    journeyType = 'open_vented',
+    journeyType = 'generic_recommendation_summary',
     audienceProjection,
     visitContext,
     includeAddressSummaryInPrint = false,
@@ -436,7 +518,9 @@ export function buildPortalJourneyPrintModel(
   const { sections: rawSections, nextSteps, qrDestinations } =
     journeyType === 'heat_pump'
       ? buildHeatPumpSectionsAndNextSteps(selectedSet)
-      : buildOpenVentedSectionsAndNextSteps(selectedSet);
+      : journeyType === 'open_vented'
+      ? buildOpenVentedSectionsAndNextSteps(selectedSet)
+      : buildGenericRecommendationContent();
 
   // When an audience projection is provided, suppress any section whose
   // contentId is not in visibleConcepts.  Static-content sections (e.g.

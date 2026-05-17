@@ -152,6 +152,10 @@ export interface VisitHomeDashboardProps {
   visitSelectorEntries?: readonly VisitSelectorEntry[];
   /** Open a selected visit from the lightweight browser. */
   onSelectVisit?: (visitId: string) => void;
+  /** Optional session save/resume status surface shown in the session controls panel. */
+  localSessionStatus?: { tone: 'success' | 'error'; message: string } | null;
+  /** Dev-only build marker shown in the header when provided. */
+  devBuildMarker?: string;
 
   // ── CTA handlers (all delegate to existing App.tsx journeys) ─────────────
 
@@ -329,6 +333,8 @@ export function VisitHomeDashboard({
   onRunRecommendation,
   visitSelectorEntries = [],
   onSelectVisit,
+  localSessionStatus = null,
+  devBuildMarker,
   onOpenSimulator,
   onOpenPresentation,
   onPrintSummary,
@@ -508,6 +514,15 @@ export function VisitHomeDashboard({
         <div>
           <h1 className="vhd-header__title">Review this visit</h1>
           <p className="vhd-header__subtitle">{propertyTitle}</p>
+          {devBuildMarker ? (
+            <p
+              className="vhd-header__workflow"
+              style={{ color: '#7c2d12', fontWeight: 600 }}
+              data-testid="visit-home-dev-build-marker"
+            >
+              {devBuildMarker}
+            </p>
+          ) : null}
           <p className="vhd-header__workflow">
             Atlas Mind is the review workspace for recommendation, customer portal, simulator, and handover.
           </p>
@@ -951,6 +966,19 @@ export function VisitHomeDashboard({
                   </button>
                 )}
               </div>
+              {localSessionStatus != null ? (
+                <p
+                  data-testid="visit-home-local-session-status"
+                  style={{
+                    marginTop: '0.65rem',
+                    marginBottom: 0,
+                    color: localSessionStatus.tone === 'success' ? '#166534' : '#991b1b',
+                    fontWeight: 600,
+                  }}
+                >
+                  {localSessionStatus.message}
+                </p>
+              ) : null}
             </div>
           )}
 
