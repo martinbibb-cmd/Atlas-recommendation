@@ -46,6 +46,10 @@ function describeDemandPattern(input: EngineInputV2_3): string {
   return 'Daily use looks closest to a straightforward heating pattern with one main hot-water task at a time.';
 }
 
+function formatBathroomCount(count: number): string {
+  return `${count} bathroom${count === 1 ? '' : 's'}`;
+}
+
 function describeMainIssue(decision: AtlasDecisionV1): string {
   return decision.compatibilityWarnings[0]
     ?? decision.avoidedRisks[0]
@@ -236,7 +240,7 @@ function WarmRadiatorExpectationVisual() {
     <article className="customer-portal-journey__visual-card" data-testid="customer-portal-visual-fallback-warm-radiator">
       <div className="customer-portal-journey__visual-header">
         <h3 className="customer-portal-journey__card-title">Heat pump warm radiator expectation</h3>
-        <StatusChip label="Illustrated summary" tone="good" />
+        <StatusChip label="Illustrated summary" tone="neutral" />
       </div>
       <div className="customer-portal-journey__temperature-steps" aria-hidden="true">
         <div>
@@ -314,11 +318,12 @@ export function CustomerPortalJourneyComposer({
   const currentSystem = humanizeCurrentSystem(engineInput);
   const currentAge = engineInput.currentSystem?.boiler?.ageYears ?? 0;
   const pressureDiagram = getDiagramById('pressure_vs_storage');
+  const isPressureDiagramReady = pressureDiagram != null
+    && isCustomerReadyProductionVisual(pressureDiagram);
   const isStoredWaterSystem = recommendedScenario?.system.type === 'system'
     || recommendedScenario?.system.type === 'regular'
     || recommendedScenario?.dhwSubtype === 'mixergy';
-  const shouldRenderPressureDiagram = isStoredWaterSystem
-    && isCustomerReadyProductionVisual(pressureDiagram);
+  const shouldRenderPressureDiagram = isStoredWaterSystem && isPressureDiagramReady;
   const protectionItems = buildPreparationItems(decision, recommendedScenario).slice(0, 3);
   const comparisonCards = viewModel.verdictData.comparisonCards.filter((card) => !card.isRecommended).slice(0, 2);
   const familiarPoints = buildFamiliarPoints(engineInput, recommendedScenario);
@@ -348,7 +353,7 @@ export function CustomerPortalJourneyComposer({
               <p className="customer-portal-journey__hero-summary">{decision.headline}</p>
               <div className="customer-portal-journey__chip-row">
                 <StatusChip label={`${engineInput.occupancyCount ?? 0} people`} tone="neutral" />
-                <StatusChip label={`${engineInput.bathroomCount ?? 0} bathroom${engineInput.bathroomCount === 1 ? '' : 's'}`} tone="neutral" />
+                <StatusChip label={formatBathroomCount(engineInput.bathroomCount ?? 0)} tone="neutral" />
                 <StatusChip label={recommendedScenario?.dhwSubtype === 'mixergy' ? 'Mixergy-ready route' : 'Customer-ready route'} tone="good" />
               </div>
             </div>
@@ -374,7 +379,7 @@ export function CustomerPortalJourneyComposer({
               summary={currentSystem}
               bullets={[
                 describeSupply(engineInput),
-                `${engineInput.occupancyCount ?? 0} people and ${engineInput.bathroomCount ?? 0} bathroom${engineInput.bathroomCount === 1 ? '' : 's'} shaped the route.`,
+                `${engineInput.occupancyCount ?? 0} people and ${formatBathroomCount(engineInput.bathroomCount ?? 0)} shaped the route.`,
                 `Peak heat demand is tracked at ${((engineInput.heatLossWatts ?? 0) / 1000).toFixed(1)} kW.`,
               ]}
               badge="Current system"
