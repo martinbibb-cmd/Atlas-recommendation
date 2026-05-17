@@ -205,6 +205,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'CustomerPortalPreviewPage',
+    routePath: '/dev/customer-portal-preview',
+    queryFlags: ['customer-portal-preview=1'],
+    fullRouteExample: '/dev/customer-portal-preview',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
     codeName: 'LibraryCoverageAuditPanel',
     fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
     routeKind: 'derived',

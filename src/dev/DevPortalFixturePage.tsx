@@ -3,12 +3,11 @@
  *
  * Dev-only route: /dev/portal-fixtures
  *
- * Provides a fixture launcher for the customer portal so portal features can be
- * tested without a live visit record or signed token.
+ * Provides fixture diagnostics for legacy/library/workflow surfaces without a
+ * live visit record or signed token.
  *
- * Each fixture button opens the real CustomerPortalPage (same
- * CustomerPortalPage / InsightPackDeck path) with a pre-built EngineInputV2_3
- * injected via the devFixtureInput prop, bypassing API and token validation.
+ * This is not a canonical production-like portal preview route.
+ * Use /dev/customer-portal-preview for production-mode portal validation.
  *
  * Production safety:
  *   - Route is registered only in DEV_ROUTE_REGISTRY as access: 'dev_only'.
@@ -305,7 +304,7 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
           onClick={() => onOpen(fixture)}
           data-testid={`fixture-open-${fixture.id}`}
         >
-          Open portal
+          Open fixture portal mode
         </button>
         <button
           type="button"
@@ -347,7 +346,7 @@ function FixtureCard({ fixture, onOpen }: FixtureCardProps) {
           onClick={handleCopyUrl}
           data-testid={`fixture-copy-url-${fixture.id}`}
         >
-          {copied ? 'Copied!' : 'Copy portal URL'}
+          {copied ? 'Copied!' : 'Copy fixture URL'}
         </button>
       </div>
     </div>
@@ -614,7 +613,7 @@ function buildImplementationPackForFixture(fixture: PortalFixture) {
 /**
  * DevPortalFixturePage
  *
- * Dev-only fixture launcher for the customer portal.
+ * Dev-only fixture diagnostics surface.
  * Renders at /dev/portal-fixtures — not reachable from any customer route.
  */
 export default function DevPortalFixturePage({ onBack }: DevPortalFixturePageProps) {
@@ -1510,7 +1509,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
             style={{ margin: 0 }}
             data-testid="dev-fixture-active-label"
           >
-            🔬 Dev fixture portal — not customer data · {active.fixture.label}
+            🔬 Dev fixture diagnostics — not customer data · {active.fixture.label}
           </span>
         </div>
         <CustomerPortalPage
@@ -1533,13 +1532,12 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         )}
         <div className="dev-portal-fixture__banner" data-testid="dev-fixture-banner">
           <span aria-hidden="true">🔬</span>
-          <strong>Dev fixture portal — not customer data</strong>
-          <span>Select a fixture to open the real portal renderer with pre-built engine input. No tokens, no API calls, no persistence.</span>
+          <strong>Dev fixture diagnostics — not customer data</strong>
+          <span>Dev-only diagnostics for legacy, library, and implementation workflow surfaces. Not production portal.</span>
         </div>
-        <h1 className="dev-portal-fixture__heading">Portal Fixture Launcher</h1>
+        <h1 className="dev-portal-fixture__heading">Portal Fixture Diagnostics</h1>
         <p className="dev-portal-fixture__subheading">
-          Each fixture opens the real <code>CustomerPortalPage</code> / <code>InsightPackDeck</code> path using a fixed engine input.
-          Use these to test portal features without a live visit or signed token.
+          This route is diagnostics-only. For production-like portal shell validation, use <code>/dev/customer-portal-preview</code>.
         </p>
       </header>
 

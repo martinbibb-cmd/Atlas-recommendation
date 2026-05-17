@@ -16,6 +16,7 @@ describe('route + inventory consolidation', () => {
       'WorkspaceVisitLifecycleHarness',
       'WorkspaceSettingsPage',
       'DevPortalFixturePage',
+      'CustomerPortalPreviewPage',
       'ImplementationPackReviewPanel',
       'SpecificationLineReviewPanel',
       'InstallationScopePackReviewPanel',
@@ -51,6 +52,7 @@ describe('route + inventory consolidation', () => {
   it('keeps dev-only QA surfaces out of production access', () => {
     const devOnly = [
       'DevPortalFixturePage',
+      'CustomerPortalPreviewPage',
       'WorkspaceVisitLifecycleHarness',
       'LibraryCoverageAuditPanel',
       'LibraryAuthoringBacklogPanel',
@@ -169,6 +171,7 @@ describe('route + inventory consolidation', () => {
   it('dev-menu surfaces — portal-fixtures, workspace-lifecycle-qa, welcome-pack, inspector — all have registered routes', () => {
     const devMenuSurfaces = [
       'DevPortalFixturePage',
+      'CustomerPortalPreviewPage',
       'WorkspaceVisitLifecycleHarness',
       'WelcomePackDevPreview',
       'ComponentDiscoveryPanel',
