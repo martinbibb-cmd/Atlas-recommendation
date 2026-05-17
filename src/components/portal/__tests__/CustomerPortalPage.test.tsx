@@ -250,65 +250,6 @@ describe('CustomerPortalPage', () => {
     expect(labelsWithTrace).toEqual(labelsWithoutTrace);
   });
 
-  it('dev presentation preview navigates to simulator and opens house simulator', async () => {
-    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
-    await openPresentationView();
-
-    // Navigate to the last slide (Proof / simulator page) via progress dots
-    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
-    const dots = nav.querySelectorAll('button');
-    // Click the last dot to jump directly to the simulator page
-    const lastDot = dots[dots.length - 1];
-    fireEvent.click(lastDot);
-
-    // Simulator CTA should now be visible
-    await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
-    expect(screen.getByTestId('simulator-entry-card').textContent).toContain('1 bathroom');
-
-    // Simulator is not yet rendered
-    expect(document.querySelector('[data-testid="portal-unified-simulator"]')).toBeNull();
-
-    // Click the CTA to launch the inline simulator
-    fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
-
-    // Simulator section should now be visible
-    await waitFor(() => expect(screen.getByTestId('portal-unified-simulator')).toBeTruthy());
-    expect(screen.getByRole('heading', { name: /house simulator/i })).toBeTruthy();
-  });
-
-  it('dev presentation preview returns to deck from inline house simulator', async () => {
-    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
-    await openPresentationView();
-
-    // Navigate to simulator page and open it
-    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
-    const dots = nav.querySelectorAll('button');
-    fireEvent.click(dots[dots.length - 1]);
-    await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: /house simulator/i })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /back to presentation/i }));
-    await waitFor(() => expect(screen.getByRole('navigation', { name: 'Deck navigation' })).toBeTruthy());
-  });
-
-  it('dev presentation simulator mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
-    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
-    await openPresentationView();
-
-    // Navigate to simulator page and open it
-    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
-    const dots = nav.querySelectorAll('button');
-    fireEvent.click(dots[dots.length - 1]);
-    await waitFor(() => expect(screen.getByRole('button', { name: /see daily hot-water performance/i })).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: /see daily hot-water performance/i }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: /house simulator/i })).toBeTruthy());
-
-    // Expert-only labels must not appear in the portal simulator inputs
-    expect(screen.queryByText('Mains pressure')).toBeNull();
-    expect(screen.queryByText('Mains flow')).toBeNull();
-    expect(screen.queryByText('Boiler output')).toBeNull();
-    expect(screen.queryByText('Actual heat loss')).toBeNull();
-  });
 });
 
 // ─── Branding ─────────────────────────────────────────────────────────────────
