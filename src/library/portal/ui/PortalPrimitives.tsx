@@ -34,7 +34,7 @@ export interface PortalShellProps {
 export function PortalShell({ children, className = '', reducedMotion = false }: PortalShellProps) {
   return (
     <div
-      className={`portal-shell${reducedMotion ? ' portal-shell--reduced-motion' : ''}${className ? ` ${className}` : ''}`}
+      className={`portal-shell atlas-reading-surface${reducedMotion ? ' portal-shell--reduced-motion' : ''}${className ? ` ${className}` : ''}`}
       data-reduced-motion={reducedMotion || undefined}
     >
       {children}
@@ -98,11 +98,11 @@ export function EducationalInfoCard({
 }: EducationalInfoCardProps) {
   const toneClass = tone !== 'default' ? ` portal-info-card--${tone}` : '';
   return (
-    <article
-      className={`portal-info-card${toneClass}`}
-      aria-label={ariaLabel ?? heading}
-      data-testid={testId ?? 'portal-info-card'}
-    >
+      <article
+        className={`portal-info-card atlas-reading-surface${toneClass}`}
+        aria-label={ariaLabel ?? heading}
+        data-testid={testId ?? 'portal-info-card'}
+      >
       {eyebrow ? <p className="portal-info-card__eyebrow">{eyebrow}</p> : null}
       {renderInfoHeading(headingLevel, heading)}
       {body ? <p className="portal-info-card__body">{body}</p> : null}
@@ -243,7 +243,7 @@ export function LivingExperienceCard({
 }: LivingExperienceCardProps) {
   return (
     <article
-      className="portal-living-experience-card"
+      className="portal-living-experience-card atlas-reading-surface"
       aria-label={heading}
       data-testid={testId ?? 'portal-living-experience-card'}
     >
@@ -317,7 +317,7 @@ export function ExpectationDeltaCard({
 }: ExpectationDeltaCardProps) {
   return (
     <article
-      className="portal-expectation-delta-card"
+      className="portal-expectation-delta-card atlas-reading-surface"
       aria-label={heading ?? `${categoryLabel(delta.category)} expectation delta`}
       data-testid={testId ?? 'portal-expectation-delta-card'}
     >

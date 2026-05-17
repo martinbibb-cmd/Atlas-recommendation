@@ -14,7 +14,7 @@ interface Props {
 
 export default function ExplainerCard({ explainer }: Props) {
   return (
-    <article className="ec-card" aria-label={explainer.title}>
+    <article className="ec-card atlas-reading-surface" aria-label={explainer.title}>
 
       {/* ── Title ──────────────────────────────────────────────────────────── */}
       <h3 className="ec-card__title">{explainer.title}</h3>
