@@ -147,6 +147,7 @@ import {
   type VisitReviewLifecycleState,
 } from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
+import { LibraryExplorerPage } from './library/dev/LibraryExplorerPage';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import CustomerPortalPreviewPage from './dev/CustomerPortalPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
@@ -685,6 +686,17 @@ const CUSTOMER_PORTAL_PREVIEW_DEV_PATH =
   (
     window.location.pathname === '/dev/customer-portal-preview'
     || new URLSearchParams(window.location.search).get('customer-portal-preview') === '1'
+  );
+
+/**
+ * Detect /dev/library-explorer or ?library-explorer=1 —
+ * renders the dev/customer content Library Explorer.
+ */
+const LIBRARY_EXPLORER_DEV_PATH =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/dev/library-explorer'
+    || new URLSearchParams(window.location.search).get('library-explorer') === '1'
   );
 
 /** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
@@ -2174,6 +2186,20 @@ function AppInner() {
       <CustomerPortalPreviewPage
         onBack={() => { window.location.href = '/'; }}
       />
+    );
+  }
+
+  // /dev/library-explorer (or ?library-explorer=1) — library content asset explorer.
+  if (LIBRARY_EXPLORER_DEV_PATH) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/dev/devmenu'; }}>
+            ← Back
+          </button>
+        </div>
+        <LibraryExplorerPage />
+      </div>
     );
   }
 

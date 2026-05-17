@@ -1778,6 +1778,9 @@ export function WelcomePackDevPreview() {
 
           <section aria-label="Library audience projection QA" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
             <h2>Library Audience Projection QA</h2>
+            <p style={{ margin: '0 0 0.5rem', fontSize: 12 }}>
+              <a href="/dev/library-explorer">Open Library Explorer →</a>
+            </p>
             <LibraryProjectionQaPanel
               calmViewModel={calmViewModel}
               operationalDigest={EMPTY_OPERATIONAL_DIGEST}
@@ -1787,6 +1790,9 @@ export function WelcomePackDevPreview() {
 
           <section aria-label="Library content coverage audit" style={{ marginTop: '2rem', marginBottom: '1rem' }}>
             <h2>Library Content Coverage Audit</h2>
+            <p style={{ margin: '0 0 0.5rem', fontSize: 12 }}>
+              <a href="/dev/library-explorer">Open Library Explorer →</a>
+            </p>
             <LibraryCoverageAuditPanel />
             <div style={{ marginTop: '0.75rem' }}>
               <LibraryAuthoringBacklogPanel />
