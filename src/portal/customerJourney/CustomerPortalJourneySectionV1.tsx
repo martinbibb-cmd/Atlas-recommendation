@@ -23,7 +23,7 @@ export function CustomerPortalJourneySectionV1({
       data-reading-region="true"
     >
       <div className="customer-portal-journey__section-header">
-        <p className="customer-portal-journey__eyebrow">{eyebrow}</p>
+        <p className="customer-portal-journey__section-label">{eyebrow}</p>
         <h2 className="customer-portal-journey__section-title">{title}</h2>
         {intro ? <p className="customer-portal-journey__section-intro">{intro}</p> : null}
       </div>

@@ -184,7 +184,10 @@ function PressureVsStorageVisual({
     <article className="customer-portal-journey__visual-card">
       <div className="customer-portal-journey__visual-header">
         <h3 className="customer-portal-journey__card-title">Water pressure vs stored volume</h3>
-        <StatusChip label={shouldRenderDiagram ? 'Production-ready visual' : 'Illustrated summary'} tone="good" />
+        <StatusChip
+          label={shouldRenderDiagram ? 'Production-ready visual' : 'Illustrated summary'}
+          tone={shouldRenderDiagram ? 'good' : 'neutral'}
+        />
       </div>
       {shouldRenderDiagram ? (
         <div className="customer-portal-journey__diagram-frame" data-testid="customer-portal-visual-pressure-vs-storage">
@@ -311,17 +314,18 @@ export function CustomerPortalJourneyComposer({
   const currentSystem = humanizeCurrentSystem(engineInput);
   const currentAge = engineInput.currentSystem?.boiler?.ageYears ?? 0;
   const pressureDiagram = getDiagramById('pressure_vs_storage');
+  const isStoredWaterSystem = recommendedScenario?.system.type === 'system'
+    || recommendedScenario?.system.type === 'regular'
+    || recommendedScenario?.dhwSubtype === 'mixergy';
   const shouldRenderPressureDiagram = Boolean(
-    (recommendedScenario?.system.type === 'system' || recommendedScenario?.system.type === 'regular' || recommendedScenario?.dhwSubtype === 'mixergy')
+    isStoredWaterSystem
     && isCustomerReadyProductionVisual(pressureDiagram),
   );
   const protectionItems = buildPreparationItems(decision, recommendedScenario).slice(0, 3);
   const comparisonCards = viewModel.verdictData.comparisonCards.filter((card) => !card.isRecommended).slice(0, 2);
   const familiarPoints = buildFamiliarPoints(engineInput, recommendedScenario);
   const nextSteps = buildNextSteps(decision);
-  const shouldShowStoredWaterVisual = recommendedScenario?.system.type === 'system'
-    || recommendedScenario?.system.type === 'regular'
-    || recommendedScenario?.dhwSubtype === 'mixergy';
+  const shouldShowStoredWaterVisual = isStoredWaterSystem;
   const shouldShowWarmRadiatorExpectation = recommendedScenario?.system.type === 'ashp';
   const journeyTitle = getScenarioTitle(recommendedScenario);
   const recommendationSummary = recommendedScenario?.system.summary ?? decision.summary;
