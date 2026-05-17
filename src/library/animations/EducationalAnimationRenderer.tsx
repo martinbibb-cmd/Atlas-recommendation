@@ -37,10 +37,6 @@ export function EducationalAnimationRenderer({
     return null;
   }
 
-  if (!animation.screenReaderSummary.trim()) {
-    return <p>Animation summary unavailable.</p>;
-  }
-
   if (mode === 'print') {
     return (
       <section data-testid={`educational-animation-print-${animation.animationId}`}>
@@ -77,8 +73,8 @@ export function EducationalAnimationRenderer({
       <p>{animation.screenReaderSummary}</p>
       <div aria-live="polite" data-replay-tick={replayTick}>
         {isPlaying
-          ? 'Guided animation placeholder: playing state.'
-          : 'Guided animation placeholder: ready state.'}
+          ? `${animation.title} playing. ${animation.screenReaderSummary}`
+          : `${animation.title} ready.`}
       </div>
       <div>
         <button

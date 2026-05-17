@@ -164,7 +164,7 @@ function resolvePrintDiagramFromContentEntry(entry: AtlasMvpContentEntryV1): str
       return animation.printFallback;
     }
   }
-  return entry.suggestedDiagramIds[0];
+  return entry.suggestedDiagramIds.length > 0 ? entry.suggestedDiagramIds[0] : undefined;
 }
 
 function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {

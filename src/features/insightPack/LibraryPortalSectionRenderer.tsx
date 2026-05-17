@@ -289,7 +289,7 @@ export function LibraryPortalSectionRenderer({
 
       {matchedAnimationIds.length > 0 ? (
         <>
-          <SectionDivider label="Guided animation" />
+          <SectionDivider label={matchedAnimationIds.length > 1 ? 'Guided animations' : 'Guided animation'} />
           <div className="library-portal-section__diagrams" data-testid="library-portal-animations">
             {matchedAnimationIds.map((animationId) => (
               <PortalDiagramFrame
