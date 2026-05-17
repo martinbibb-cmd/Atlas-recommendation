@@ -15,7 +15,7 @@
  * 5. Analytics snapshot KPI tiles (role-aware: canViewAnalytics)
  * 6. Branding setup card (role-aware: canEditBranding)
  * 7. External files / privacy note
- * 8. Role-aware action row (analytics, branding, workspace settings, user profile)
+ * 8. Role-aware quick actions (new visit, open visit, workspace tools, profile/workspace switch)
  *
  * Design rules
  * ────────────
@@ -58,7 +58,7 @@ export interface WorkspaceDashboardProps {
   onOpenWorkspaceSettings: () => void;
   /** Called when the user opens the user profile panel. */
   onOpenUserProfile: () => void;
-  /** Called to access the full legacy landing / all-tools view. */
+  /** Called to access workspace tools. */
   onOpenAllTools: () => void;
   /**
    * Called from the demo banner to open the external-files manifest for the
@@ -374,6 +374,8 @@ export default function WorkspaceDashboard({
   const roleLabel = effectiveRole != null
     ? (ROLE_LABELS[effectiveRole] ?? effectiveRole)
     : 'Guest';
+  const showWorkspaceTools = canViewAnalytics || canEditBranding || canManageWorkspace;
+  const canSwitchWorkspace = activeUser !== null && canManageWorkspace;
 
   return (
     <div
@@ -800,17 +802,18 @@ export default function WorkspaceDashboard({
               <ActionChip label="＋ New Visit" onClick={onStartNewVisit} primary />
             )}
             <ActionChip label="🔍 Open Visit" onClick={onOpenAllVisits} />
-            {canViewAnalytics && (
-              <ActionChip label="📊 Analytics" onClick={onOpenAnalytics} />
-            )}
-            {canEditBranding && (
-              <ActionChip label="🎨 Branding" onClick={onOpenBranding} />
-            )}
-            {canManageWorkspace && (
-              <ActionChip label="⚙ Workspace settings" onClick={onOpenWorkspaceSettings} />
+            {showWorkspaceTools && (
+              <ActionChip label="🧰 Workspace tools" onClick={onOpenAllTools} />
             )}
             <ActionChip label="👤 Profile" onClick={onOpenUserProfile} />
-            <ActionChip label="All tools →" onClick={onOpenAllTools} muted />
+            {activeUser !== null && (
+              <ActionChip
+                label="🏢 Switch workspace"
+                onClick={onOpenWorkspaceSettings}
+                muted={!canSwitchWorkspace}
+                disabled={!canSwitchWorkspace}
+              />
+            )}
           </div>
         </div>
 
@@ -826,15 +829,18 @@ function ActionChip({
   onClick,
   primary = false,
   muted = false,
+  disabled = false,
 }: {
   label: string;
   onClick: () => void;
   primary?: boolean;
   muted?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         padding: '6px 14px',
         fontSize: 13,
@@ -843,7 +849,8 @@ function ActionChip({
         color: primary ? '#fff' : muted ? '#94a3b8' : '#374151',
         border: `1px solid ${primary ? '#4f46e5' : '#e2e8f0'}`,
         borderRadius: 20,
-        cursor: 'pointer',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.7 : 1,
       }}
     >
       {label}

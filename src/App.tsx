@@ -1816,7 +1816,7 @@ function AppInner() {
 
   // /receive-scan — render the typed ScanToMindHandoffV1 receive page.
   // Atlas Scan iOS navigates here with ?payload=<URL-encoded JSON>.
-  // After a successful receive, open the visit-hub for the received visit.
+  // After a successful receive, open Visit Home for the received visit.
   if (RECEIVE_SCAN_HANDOFF_PATH) {
     return (
       <ScanHandoffReceivePage
