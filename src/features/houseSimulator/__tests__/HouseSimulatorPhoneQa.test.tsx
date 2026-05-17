@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import HouseSimulatorPage from '../HouseSimulatorPage';
@@ -42,7 +43,7 @@ beforeEach(() => {
 });
 
 describe('HouseSimulatorPage phone QA', () => {
-  it.each(PHONE_QA_VIEWPORTS)('renders canvas and controls for %s smoke viewport', (viewport) => {
+  it.each(PHONE_QA_VIEWPORTS)('renders canvas and controls for $label', (viewport) => {
     renderSimulator(viewport.width);
 
     const root = screen.getByTestId('house-simulator-root');
@@ -78,10 +79,13 @@ describe('HouseSimulatorPage phone QA', () => {
   });
 
   it('keeps safe-area tokens wired through app, simulator, and reading-preferences CSS', () => {
-    const appCss = readFileSync(new URL('../../../App.css', import.meta.url), 'utf8');
-    const simulatorCss = readFileSync(new URL('../houseSimulator.css', import.meta.url), 'utf8');
+    const appCss = readFileSync(resolve(process.cwd(), 'src/App.css'), 'utf8');
+    const simulatorCss = readFileSync(
+      resolve(process.cwd(), 'src/features/houseSimulator/houseSimulator.css'),
+      'utf8',
+    );
     const readingCss = readFileSync(
-      new URL('../../../accessibility/readingPreferences/readingPreferences.css', import.meta.url),
+      resolve(process.cwd(), 'src/accessibility/readingPreferences/readingPreferences.css'),
       'utf8',
     );
 

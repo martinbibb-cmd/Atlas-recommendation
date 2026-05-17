@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import CustomerPortalPage, { CUSTOMER_PORTAL_PHONE_MEDIA_QUERY } from '../CustomerPortalPage';
@@ -45,7 +46,7 @@ beforeEach(() => {
 });
 
 describe('CustomerPortalPage phone QA', () => {
-  it.each(PHONE_QA_VIEWPORTS)('opens directly in presentation mode for %s smoke viewport', async (_viewport) => {
+  it.each(PHONE_QA_VIEWPORTS)('opens directly in presentation mode for $label', async () => {
     stubPhoneMatchMedia();
 
     render(
@@ -62,7 +63,10 @@ describe('CustomerPortalPage phone QA', () => {
   });
 
   it('keeps safe-area padding and mobile overflow guards in customer portal CSS', () => {
-    const portalCss = readFileSync(new URL('../CustomerPortalPage.css', import.meta.url), 'utf8');
+    const portalCss = readFileSync(
+      resolve(process.cwd(), 'src/components/portal/CustomerPortalPage.css'),
+      'utf8',
+    );
 
     expect(portalCss).toContain('var(--customer-safe-top)');
     expect(portalCss).toContain('var(--customer-safe-right)');
@@ -72,7 +76,10 @@ describe('CustomerPortalPage phone QA', () => {
   });
 
   it('keeps the comparison modal as a full-screen sheet on phone widths', () => {
-    const deckCss = readFileSync(new URL('../../presentation/PresentationDeck.css', import.meta.url), 'utf8');
+    const deckCss = readFileSync(
+      resolve(process.cwd(), 'src/components/presentation/PresentationDeck.css'),
+      'utf8',
+    );
 
     expect(deckCss).toContain('@media (max-width: 768px)');
     expect(deckCss).toContain('width: 100vw;');
