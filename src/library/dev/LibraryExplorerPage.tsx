@@ -7,6 +7,7 @@ import { EducationalAnimationRenderer, educationalAnimationRegistry } from '../a
 import { welcomePackArchetypes } from '../packComposer/archetypes/welcomePackArchetypes';
 import { buildLibraryCoverageAudit } from '../coverage/buildLibraryCoverageAudit';
 import { buildLibraryAuthoringBacklog } from '../coverage/backlog/buildLibraryAuthoringBacklog';
+import { matchesVisualReadinessFilter, type VisualReadinessFilter } from '../visualReadiness';
 
 type LibraryExplorerTab =
   | 'concepts'
@@ -48,6 +49,7 @@ function hasLivedExperience(entry: (typeof educationalContentRegistry)[number]):
 
 export function LibraryExplorerPage() {
   const [tab, setTab] = useState<LibraryExplorerTab>('concepts');
+  const [visualFilter, setVisualFilter] = useState<VisualReadinessFilter>('all');
 
   const audit = useMemo(() => buildLibraryCoverageAudit(), []);
   const backlog = useMemo(() => buildLibraryAuthoringBacklog(audit), [audit]);
@@ -77,6 +79,14 @@ export function LibraryExplorerPage() {
     }
     return [...ids].sort();
   }, []);
+  const filteredDiagrams = useMemo(
+    () => diagramExplanationRegistry.filter((entry) => matchesVisualReadinessFilter(entry, visualFilter)),
+    [visualFilter],
+  );
+  const filteredAnimations = useMemo(
+    () => educationalAnimationRegistry.filter((entry) => matchesVisualReadinessFilter(entry, visualFilter)),
+    [visualFilter],
+  );
 
   return (
     <main style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a', padding: '1rem' }} data-testid="library-explorer-page">
@@ -110,9 +120,41 @@ export function LibraryExplorerPage() {
         ))}
       </nav>
 
+      <section
+        data-testid="library-explorer-visual-filters"
+        style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '1rem' }}
+      >
+        {([
+          ['all', 'All visuals'],
+          ['production_ready', 'Production-ready'],
+          ['draft', 'Draft'],
+          ['placeholder', 'Placeholder'],
+          ['needs_redesign', 'Needs redesign'],
+        ] as const).map(([filterId, label]) => (
+          <button
+            key={filterId}
+            type="button"
+            data-testid={`library-explorer-visual-filter-${filterId}`}
+            onClick={() => setVisualFilter(filterId)}
+            style={{
+              padding: '0.3rem 0.65rem',
+              borderRadius: 999,
+              border: '1px solid',
+              borderColor: visualFilter === filterId ? '#0f766e' : '#cbd5e1',
+              background: visualFilter === filterId ? '#f0fdfa' : '#fff',
+              color: visualFilter === filterId ? '#115e59' : '#334155',
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </section>
+
       {tab === 'animations' && (
         <section data-testid="library-explorer-panel-animations" style={{ display: 'grid', gap: '0.75rem' }}>
-          {educationalAnimationRegistry.map((animation) => (
+          {filteredAnimations.map((animation) => (
             <article
               key={animation.animationId}
               data-testid={`library-explorer-animation-${animation.animationId}`}
@@ -125,6 +167,9 @@ export function LibraryExplorerPage() {
                 <div><strong>conceptIds:</strong> {animation.conceptIds.join(', ') || 'none'}</div>
                 <div><strong>journeyIds:</strong> {animation.journeyIds.join(', ') || 'none'}</div>
                 <div><strong>customerSafe:</strong> {animation.customerSafe ? 'true' : 'false'}</div>
+                <div><strong>visualStatus:</strong> {animation.visualStatus}</div>
+                <div><strong>customerReady:</strong> {animation.customerReady ? 'true' : 'false'}</div>
+                <div><strong>replacementNeededReason:</strong> {animation.replacementNeededReason ?? 'none'}</div>
                 <div><strong>durationMs:</strong> {animation.durationMs}</div>
                 <div><strong>screenReaderSummary:</strong> {animation.screenReaderSummary}</div>
                 <div><strong>reducedMotionFallback:</strong> {animation.reducedMotionFallback}</div>
@@ -151,7 +196,7 @@ export function LibraryExplorerPage() {
 
       {tab === 'diagrams' && (
         <section data-testid="library-explorer-panel-diagrams" style={{ display: 'grid', gap: '0.75rem' }}>
-          {diagramExplanationRegistry.map((diagram) => (
+          {filteredDiagrams.map((diagram) => (
             <article
               key={diagram.diagramId}
               data-testid={`library-explorer-diagram-${diagram.diagramId}`}
@@ -162,6 +207,9 @@ export function LibraryExplorerPage() {
                 <div><strong>diagramId:</strong> {diagram.diagramId}</div>
                 <div><strong>linked concepts:</strong> {diagram.conceptIds.join(', ') || 'none'}</div>
                 <div><strong>journey usage:</strong> {diagram.journeyIds.join(', ') || 'none'}</div>
+                <div><strong>visualStatus:</strong> {diagram.visualStatus}</div>
+                <div><strong>customerReady:</strong> {diagram.customerReady ? 'true' : 'false'}</div>
+                <div><strong>replacementNeededReason:</strong> {diagram.replacementNeededReason ?? 'none'}</div>
                 <div><strong>screen reader summary:</strong> {diagram.screenReaderSummary}</div>
                 <div><strong>print-safe state:</strong> {isDiagramRendererIdSupported(diagram.diagramId) ? 'print_safe' : 'renderer_missing'}</div>
               </div>

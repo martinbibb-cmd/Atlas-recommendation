@@ -1,5 +1,6 @@
 import type { EducationalConceptConfidenceLevelV1 } from '../taxonomy/EducationalConceptTaxonomyV1';
 import type { EducationalContentV1 } from './EducationalContentV1';
+import { applyDefaultVisualReadiness } from '../visualReadiness';
 
 export interface AtlasMvpContentEntryV1 {
   id: string;
@@ -32,10 +33,13 @@ export interface AtlasMvpContentEntryV1 {
   taxonomyConceptIds: string[];
   routingTriggerTags: string[];
   confidenceLevel: EducationalConceptConfidenceLevelV1;
+  visualStatus?: 'production_ready' | 'draft' | 'placeholder' | 'dev_only';
+  customerReady?: boolean;
+  replacementNeededReason?: string;
 }
 
 function makeEntry(entry: AtlasMvpContentEntryV1): AtlasMvpContentEntryV1 {
-  return entry;
+  return applyDefaultVisualReadiness(entry);
 }
 
 export const atlasMvpContentMapRegistry: AtlasMvpContentEntryV1[] = [

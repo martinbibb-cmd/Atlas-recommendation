@@ -1,6 +1,7 @@
 import type { EducationalContentV1 } from './EducationalContentV1';
+import { applyDefaultVisualReadiness } from '../visualReadiness';
 
-export const educationalContentRegistry: EducationalContentV1[] = [
+const educationalContentEntries: EducationalContentV1[] = [
   {
     contentId: 'EC-CON-01',
     conceptId: 'CON-01',
@@ -1313,3 +1314,6 @@ export const educationalContentRegistry: EducationalContentV1[] = [
     confidenceLevel: 'manufacturer_guidance',
   },
 ];
+
+export const educationalContentRegistry: EducationalContentV1[] = educationalContentEntries
+  .map((entry) => applyDefaultVisualReadiness(entry));

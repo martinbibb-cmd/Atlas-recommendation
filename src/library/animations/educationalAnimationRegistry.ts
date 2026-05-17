@@ -4,6 +4,9 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
   {
     animationId: 'stored_hot_water_recovery',
     title: 'Stored hot-water recovery',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Needs a more polished reserve-and-recovery motion treatment.',
     conceptIds: ['stored_hot_water_efficiency', 'short_draw_losses', 'pressure_vs_storage'],
     journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
     purpose: 'expectation',
@@ -18,6 +21,9 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
   {
     animationId: 'shower_overlap_reserve',
     title: 'Shower overlap reserve',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Needs a clearer customer story for stored hot-water reserve.',
     conceptIds: ['pressure_vs_storage', 'premium_hot_water_performance'],
     journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
     purpose: 'daily_use',
@@ -32,6 +38,9 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
   {
     animationId: 'warm_radiator_steady_heat',
     title: 'Warm radiator steady heat',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Needs a warmer customer-facing comfort expectation treatment.',
     conceptIds: ['hot_radiator_expectation', 'flow_temperature_living_with_it', 'weather_compensation'],
     journeyIds: ['heat_pump_reality'],
     purpose: 'reassurance',
@@ -46,6 +55,8 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
   {
     animationId: 'water_main_bottleneck',
     title: 'Water main bottleneck',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['water_main_limit_not_boiler_limit', 'flow_restriction', 'hydraulic_constraint'],
     journeyIds: ['water_constraint_reality', 'open_vented_to_sealed_unvented'],
     purpose: 'physics',
@@ -60,6 +71,9 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
   {
     animationId: 'weather_compensation_day',
     title: 'Weather compensation through the day',
+    visualStatus: 'draft',
+    customerReady: false,
+    replacementNeededReason: 'Needs a calmer comfort-led animation for the customer portal.',
     conceptIds: ['weather_compensation', 'control_strategy', 'flow_temperature_living_with_it'],
     journeyIds: ['heat_pump_reality'],
     purpose: 'comparison',
@@ -74,6 +88,9 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
   {
     animationId: 'cylinder_safety_path',
     title: 'Cylinder safety path',
+    visualStatus: 'placeholder',
+    customerReady: false,
+    replacementNeededReason: 'Current path animation is still a schematic placeholder.',
     conceptIds: ['unvented_safety_reassurance', 'SAF-01'],
     journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
     purpose: 'reassurance',

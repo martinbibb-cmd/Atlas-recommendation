@@ -106,13 +106,16 @@ describe('CustomerPortalPage', () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
+    expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy();
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
-    expect(screen.getAllByText('Your home').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Here’s what Atlas found/i)).toBeTruthy();
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode: portal/i)).toBeTruthy();
-    expect(screen.getByText(/activeRendererComponent: PortalPage/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: CustomerPortalJourneyComposer/i)).toBeTruthy();
     expect(screen.queryByTestId('dev-portal-fixture-launcher')).toBeNull();
     expect(screen.queryByTestId('portal-legacy-renderer-leak-banner')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByTestId('library-portal-section')).toBeNull();
     expect(screen.queryByText(/AI-enhanced summary/i)).toBeNull();
     expect(screen.queryByText(/gemini|provider|api error|generation failed/i)).toBeNull();
   });
@@ -154,7 +157,23 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.queryByTestId('portal-welcome')).toBeNull();
     expect(screen.queryByTestId('presentation-deck')).toBeNull();
+    expect(screen.getByTestId('portal-page')).toHaveStyle({ overflowX: 'clip' });
     vi.unstubAllGlobals();
+  });
+
+  it('falls back to polished summary cards when a portal visual is not production-ready', async () => {
+    mockFetchSuccess({
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        surveyData: STORED_HOT_WATER_INPUT as unknown as ReportDetail['payload']['surveyData'],
+        engineInput: STORED_HOT_WATER_INPUT,
+      },
+    });
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
+    expect(screen.getByTestId('customer-portal-visual-fallback-cylinder-recovery')).toBeTruthy();
+    expect(screen.queryByText('Stored hot water recovery timeline')).toBeNull();
   });
 
   it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {
@@ -271,7 +290,7 @@ describe('CustomerPortalPage', () => {
     expect(screen.queryByText('SW1A 1AA')).toBeNull();
   });
 
-  it('keeps portal tab labels unchanged when route trace labels are toggled', async () => {
+  it('keeps journey section headings unchanged when route trace labels are toggled', async () => {
     mockFetchSuccess(STUB_REPORT);
     const { unmount } = render(
       <CustomerPortalPage
@@ -281,7 +300,7 @@ describe('CustomerPortalPage', () => {
       />,
     );
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
-    const labelsWithTrace = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    const labelsWithTrace = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
     unmount();
 
     mockFetchSuccess(STUB_REPORT);
@@ -293,7 +312,7 @@ describe('CustomerPortalPage', () => {
       />,
     );
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
-    const labelsWithoutTrace = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    const labelsWithoutTrace = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
 
     expect(labelsWithTrace).toEqual(labelsWithoutTrace);
   });
@@ -312,7 +331,7 @@ describe('CustomerPortalPage', () => {
     const result = assertNoLegacyPresentationRenderer({
       isProductionPortalSurface: true,
       selectedPortalMode: 'portal',
-      activeRendererComponent: 'PortalPage',
+      activeRendererComponent: 'CustomerPortalJourneyComposer',
     });
     expect(result.leakDetected).toBe(false);
   });
@@ -369,22 +388,19 @@ describe('CustomerPortalPage — branding', () => {
   });
 
   it('recommendation headline is unchanged regardless of brand', async () => {
-    // Both atlas-default and installer-demo must produce the same recommendation
-    // tab set because brand never touches recommendation logic.
     mockFetchSuccess(STUB_REPORT);
     const { unmount } = render(
       <CustomerPortalPage reference="test-report-1" token="valid-token" />,
     );
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
-    const defaultLabels = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    const defaultLabels = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
     unmount();
 
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" brandId="installer-demo" />);
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
-    const demoBrandLabels = screen.getAllByRole('tab').map((tab) => tab.textContent);
+    const demoBrandLabels = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
 
-    // Tab labels are driven by the engine — must be identical for both brands
     expect(defaultLabels).toEqual(demoBrandLabels);
   });
 });

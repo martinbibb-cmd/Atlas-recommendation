@@ -13,8 +13,9 @@ describe('CustomerPortalPreviewPage', () => {
   it('renders canonical portal shell in production-like mode with fixture input', async () => {
     render(<CustomerPortalPreviewPage />);
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
+    expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode:\s*portal/i)).toBeTruthy();
-    expect(screen.getByText(/activeRendererComponent:\s*PortalPage/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent:\s*CustomerPortalJourneyComposer/i)).toBeTruthy();
     expect(screen.queryByTestId('presentation-deck')).toBeNull();
     expect(screen.queryByTestId('insight-pack-deck')).toBeNull();
     expect(screen.queryByTestId('dev-portal-fixture-launcher')).toBeNull();
