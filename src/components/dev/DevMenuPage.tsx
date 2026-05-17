@@ -5,6 +5,7 @@
  *
  * Top-level tabs include:
  *   - UI Inventory  – curated registry of all Atlas UI surfaces
+ *   - Library – browse + navigate registry entries with TXT reference export
  *   - Visuals Gallery – individual visual elements (Physics Visuals, Lego Builder Components)
  *   - Component Discovery – route auditor + unrouted component scanner
  *
@@ -36,7 +37,12 @@ import {
   type DevUiFilterState,
   type DevUiViewMode,
 } from '../../dev/devUiFilters';
-import { generateCopyBoxOutput, formatSingleItemAsText, type CopyFormat } from '../../dev/devUiCopyExport';
+import {
+  generateCopyBoxOutput,
+  formatSingleItemAsText,
+  generateLibraryReferenceText,
+  type CopyFormat,
+} from '../../dev/devUiCopyExport';
 import { clearAtlasCache } from '../../lib/storage/atlasCacheKeys';
 import StorageDiagnosticsPanel from './StorageDiagnosticsPanel';
 import AnalyticsPanel from './AnalyticsPanel';
@@ -131,10 +137,11 @@ interface Props {
 
 // ─── Top-level page mode ──────────────────────────────────────────────────────
 
-type DevMenuPageMode = 'inventory' | 'visuals' | 'storage' | 'analytics' | 'hardware' | 'discovery' | 'phoneQa';
+type DevMenuPageMode = 'inventory' | 'library' | 'visuals' | 'storage' | 'analytics' | 'hardware' | 'discovery' | 'phoneQa';
 
 const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   inventory: '🗂 UI Inventory',
+  library:   '📚 Library',
   visuals:   '🎨 Visuals Gallery',
   storage:   '💾 Storage',
   analytics: '📊 Analytics',
@@ -227,6 +234,15 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
 
   if (pageMode === 'visuals') {
     return <VisualsGalleryPage onBack={() => setPageMode('inventory')} />;
+  }
+
+  if (pageMode === 'library') {
+    return (
+      <LibraryBrowserPanel
+        onBack={() => setPageMode('inventory')}
+        onPreview={setSelectedItem}
+      />
+    );
   }
 
   if (pageMode === 'storage') {
@@ -817,6 +833,178 @@ function HardwarePatchEditorPanel() {
   );
 }
 
+function resolveNavigableRoute(item: DevUiRegistryItem): string | null {
+  if (item.fullRouteExample != null && item.fullRouteExample !== '' && item.fullRouteExample !== 'unresolved') {
+    return item.fullRouteExample;
+  }
+  if (item.routePath != null && item.routePath !== '') return item.routePath;
+  if (item.queryFlags != null && item.queryFlags.length > 0) return `/?${item.queryFlags.join('&')}`;
+  return null;
+}
+
+function downloadTextFile(fileName: string, content: string): void {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(objectUrl);
+}
+
+function LibraryBrowserPanel({
+  onBack,
+  onPreview,
+}: {
+  onBack: () => void;
+  onPreview: (item: DevUiRegistryItem) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<DevUiCategory | 'all'>('all');
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set<DevUiCategory>();
+    DEV_UI_REGISTRY.forEach(item => set.add(item.category));
+    return Array.from(set).sort();
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return DEV_UI_REGISTRY.filter((item) => {
+      if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
+      if (query === '') return true;
+      const text = [
+        item.commonName,
+        item.codeName,
+        item.filePath,
+        item.fileName,
+        item.fullRouteExample ?? '',
+        item.routePath ?? '',
+        ...(item.queryFlags ?? []),
+      ].join(' ').toLowerCase();
+      return text.includes(query);
+    });
+  }, [search, categoryFilter]);
+
+  const libraryReferenceText = useMemo(
+    () => generateLibraryReferenceText(DEV_UI_REGISTRY),
+    [],
+  );
+
+  function handleDownloadReference() {
+    downloadTextFile('atlas-ui-library-reference.txt', libraryReferenceText);
+  }
+
+  return (
+    <div style={STYLES.page}>
+      <header style={STYLES.header}>
+        <button className="back-btn" onClick={onBack} style={{ marginBottom: '1rem' }}>
+          ← UI Inventory
+        </button>
+        <div style={STYLES.titleRow}>
+          <h1 style={STYLES.title}>📚 Library</h1>
+          <span style={STYLES.devBadge}>DEV ONLY</span>
+        </div>
+        <p style={STYLES.subtitle}>
+          Browse and navigate the Atlas UI library, then download a text reference file.
+        </p>
+      </header>
+
+      <div style={STYLES.libraryToolbar}>
+        <input
+          type="search"
+          value={search}
+          onChange={event => setSearch(event.target.value)}
+          placeholder="Search by name, code, file, route…"
+          style={STYLES.searchInput}
+          aria-label="Search library entries"
+        />
+        <button className="chip-btn" onClick={handleDownloadReference}>
+          ⬇ Download reference (.txt)
+        </button>
+      </div>
+
+      <div style={STYLES.filterRow}>
+        <span style={STYLES.filterLabel}>Category:</span>
+        <button
+          className={`chip-btn${categoryFilter === 'all' ? ' chip-btn--active' : ''}`}
+          onClick={() => setCategoryFilter('all')}
+        >
+          All
+        </button>
+        {categoryOptions.map(category => (
+          <button
+            key={category}
+            className={`chip-btn${categoryFilter === category ? ' chip-btn--active' : ''}`}
+            onClick={() => setCategoryFilter(category)}
+          >
+            {CATEGORY_LABELS[category]}
+          </button>
+        ))}
+      </div>
+
+      <div style={STYLES.librarySummaryRow}>
+        <span style={STYLES.summaryText}>
+          Showing {filteredItems.length} of {DEV_UI_REGISTRY.length} entries.
+        </span>
+      </div>
+
+      <div style={STYLES.tableWrap}>
+        <table style={STYLES.table}>
+          <thead>
+            <tr>
+              <th style={STYLES.th}>Name</th>
+              <th style={STYLES.th}>Category</th>
+              <th style={STYLES.th}>Route</th>
+              <th style={STYLES.th}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.map(item => {
+              const route = resolveNavigableRoute(item);
+              return (
+                <tr key={item.id}>
+                  <td style={STYLES.td}>
+                    <div style={STYLES.libraryNameCell}>
+                      <strong>{item.commonName}</strong>
+                      <code>{item.codeName}</code>
+                    </div>
+                  </td>
+                  <td style={STYLES.td}>
+                    <span style={{ ...STYLES.badge, ...STYLES.categoryBadge }}>
+                      {CATEGORY_LABELS[item.category]}
+                    </span>
+                  </td>
+                  <td style={STYLES.td}>
+                    <code>{route ?? 'unresolved'}</code>
+                  </td>
+                  <td style={STYLES.td}>
+                    <div style={STYLES.libraryActionsRow}>
+                      <button className="chip-btn" onClick={() => onPreview(item)}>
+                        Preview
+                      </button>
+                      {route != null && (
+                        <button
+                          className="chip-btn"
+                          onClick={() => { window.location.href = route; }}
+                        >
+                          Open route
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Registry card ────────────────────────────────────────────────────────────
 
 function RegistryCard({
@@ -1277,6 +1465,57 @@ const STYLES: Record<string, CSSProperties> = {
     color: '#64748b',
     padding: '1rem 0',
     margin: 0,
+  },
+  summaryText: {
+    color: '#334155',
+    fontSize: '0.82rem',
+  },
+  libraryToolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    flexWrap: 'wrap',
+    marginBottom: '0.75rem',
+  },
+  librarySummaryRow: {
+    marginBottom: '0.75rem',
+  },
+  tableWrap: {
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    borderRadius: 10,
+    overflowX: 'auto',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+  },
+  th: {
+    textAlign: 'left',
+    borderBottom: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    color: '#334155',
+    fontSize: '0.76rem',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    padding: '0.65rem 0.75rem',
+  },
+  td: {
+    borderBottom: '1px solid #f1f5f9',
+    padding: '0.65rem 0.75rem',
+    fontSize: '0.84rem',
+    color: '#1e293b',
+    verticalAlign: 'top',
+  },
+  libraryNameCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+  },
+  libraryActionsRow: {
+    display: 'flex',
+    gap: '0.4rem',
+    flexWrap: 'wrap',
   },
 
   // Card

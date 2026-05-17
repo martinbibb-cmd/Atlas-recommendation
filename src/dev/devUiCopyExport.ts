@@ -85,6 +85,51 @@ function formatAsJson(items: DevUiRegistryItem[]): string {
   return JSON.stringify(payload, null, 2);
 }
 
+function formatAsLibraryReference(items: DevUiRegistryItem[]): string {
+  const sorted = [...items].sort((a, b) => {
+    if (a.category !== b.category) return a.category.localeCompare(b.category);
+    return (a.copyLabel ?? a.commonName).localeCompare(b.copyLabel ?? b.commonName);
+  });
+
+  const categoryCounts = sorted.reduce<Record<string, number>>((acc, item) => {
+    acc[item.category] = (acc[item.category] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const summaryLines = Object.entries(categoryCounts)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, count]) => `- ${category}: ${count}`);
+
+  const itemLines = sorted.flatMap((item) => {
+    const route = resolveRouteDisplay(item);
+    const lines = [
+      `${item.copyLabel ?? item.commonName} (${item.codeName})`,
+      `  file: ${item.filePath}`,
+      `  route: ${route}`,
+      `  access: ${item.access ?? 'unknown'}`,
+      `  status: ${item.status}`,
+      `  category: ${item.category}`,
+    ];
+    if (item.parentCodeName != null) lines.push(`  parent: ${item.parentCodeName}`);
+    if (item.childElementIds != null && item.childElementIds.length > 0) {
+      lines.push(`  contains: ${item.childElementIds.join(', ')}`);
+    }
+    return [lines.join('\n'), ''];
+  });
+
+  return [
+    'Atlas UI Library Reference',
+    `Total entries: ${sorted.length}`,
+    '',
+    'Category summary:',
+    ...summaryLines,
+    '',
+    'Entries:',
+    '',
+    ...itemLines,
+  ].join('\n').trimEnd();
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -146,4 +191,9 @@ export function generateCopyBoxOutput(
  */
 export function getCopyBoxItems(items: DevUiRegistryItem[]): DevUiRegistryItem[] {
   return items.filter(isEligibleForCopyBox);
+}
+
+/** Generates a plain-text reference of all library entries for TXT downloads. */
+export function generateLibraryReferenceText(items: DevUiRegistryItem[]): string {
+  return formatAsLibraryReference(items);
 }
