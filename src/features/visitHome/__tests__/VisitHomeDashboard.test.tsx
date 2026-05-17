@@ -326,6 +326,23 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('card-portal-cta')).toBeDisabled();
   });
 
+  it('portal card exposes generate CTA when output is missing and generation handler is provided', () => {
+    const onGenerateCustomerPortal = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          portalUrl: undefined,
+          hasPortalOutput: false,
+          onGenerateCustomerPortal,
+        })}
+      />,
+    );
+    const cta = screen.getByTestId('card-portal-cta');
+    expect(cta).toHaveTextContent('Generate customer portal →');
+    fireEvent.click(cta);
+    expect(onGenerateCustomerPortal).toHaveBeenCalledOnce();
+  });
+
   it('portal card CTA label is "Open customer portal →" when portalUrl is set', () => {
     const mockWindowOpen = vi.fn();
     vi.stubGlobal('open', mockWindowOpen);
@@ -341,6 +358,23 @@ describe('VisitHomeDashboard', () => {
     fireEvent.click(cta);
     expect(mockWindowOpen).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();
+  });
+
+  it('supporting PDF card exposes generate CTA when output is missing and generation handler is provided', () => {
+    const onGenerateSupportingPdf = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onPrintSummary: undefined,
+          hasSupportingPdfOutput: false,
+          onGenerateSupportingPdf,
+        })}
+      />,
+    );
+    const cta = screen.getByTestId('card-pdf-cta');
+    expect(cta).toHaveTextContent('Generate supporting PDF →');
+    fireEvent.click(cta);
+    expect(onGenerateSupportingPdf).toHaveBeenCalledOnce();
   });
 
   describe('journey card', () => {

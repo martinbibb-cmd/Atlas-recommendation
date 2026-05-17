@@ -4,12 +4,15 @@ import {
   readPersistedAtlasVisitV2,
 } from '../persistedAtlasVisitV2';
 import type { PersistedAtlasVisitV2 } from '../persistedAtlasVisitV2';
+import { createEmptyGeneratedOutputs } from '../visitReviewLifecycle';
 
 function makeVisit(visitId = 'visit_test_1'): PersistedAtlasVisitV2 {
   return {
     schemaVersion: 2,
     visitId,
     updatedAt: '2026-05-08T10:00:00.000Z',
+    lifecycleState: 'survey_in_progress',
+    generatedOutputs: createEmptyGeneratedOutputs(),
     survey: {
       postcode: 'SW1A 1AA',
       dynamicMainsPressure: 2,
@@ -62,5 +65,48 @@ describe('persistedAtlasVisitV2', () => {
     const restored = readPersistedAtlasVisitV2('visit_schema_warn');
     expect(restored.visit).toBeNull();
     expect(restored.schemaMismatch).toBe(true);
+  });
+
+  it('persists lifecycle state and generated outputs registry', () => {
+    const visit = makeVisit('visit_outputs');
+    const now = '2026-05-10T10:00:00.000Z';
+    visit.lifecycleState = 'outputs_generated';
+    visit.generatedOutputs = {
+      ...createEmptyGeneratedOutputs(),
+      portal: {
+        generated: true,
+        generatedAt: now,
+        url: 'https://atlas.test/portal/demo?token=abc',
+        version: '1.0',
+      },
+      pdf: {
+        generated: true,
+        generatedAt: now,
+        documentId: 'pdf_demo_1',
+        version: '1.0',
+      },
+    };
+    saveVisitAtomically(visit);
+
+    const restored = readPersistedAtlasVisitV2('visit_outputs');
+    expect(restored.visit?.lifecycleState).toBe('outputs_generated');
+    expect(restored.visit?.generatedOutputs?.portal.generated).toBe(true);
+    expect(restored.visit?.generatedOutputs?.pdf.generated).toBe(true);
+  });
+
+  it('normalizes missing lifecycle/output fields from legacy schemaVersion 2 payloads', () => {
+    localStorage.setItem(
+      'atlas_visit_visit_legacy_fields',
+      JSON.stringify({
+        schemaVersion: 2,
+        visitId: 'visit_legacy_fields',
+        updatedAt: '2026-05-08T10:00:00.000Z',
+        survey: { postcode: 'SW1A 1AA' },
+      }),
+    );
+    const restored = readPersistedAtlasVisitV2('visit_legacy_fields');
+    expect(restored.visit?.lifecycleState).toBe('survey_in_progress');
+    expect(restored.visit?.generatedOutputs?.portal.generated).toBe(false);
+    expect(restored.visit?.generatedOutputs?.pdf.generated).toBe(false);
   });
 });

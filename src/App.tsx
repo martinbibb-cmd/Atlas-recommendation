@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
@@ -136,6 +136,15 @@ import {
   clearPersistedAtlasVisitV2,
   type PersistedAtlasVisitV2,
 } from './lib/storage/persistedAtlasVisitV2';
+import {
+  createEmptyGeneratedOutputs,
+  deriveLifecycleStateFromSnapshot,
+  isLifecycleAtLeast,
+  isRecommendationReadyForLifecycle,
+  normaliseGeneratedOutputs,
+  type GeneratedOutputsV1,
+  type VisitReviewLifecycleState,
+} from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
@@ -555,6 +564,8 @@ interface VisitRecommendationSnapshot {
   decision?: AtlasDecisionV1;
   customerSummary?: CustomerSummaryV1;
   acceptedScenarioId?: string;
+  lifecycleState: VisitReviewLifecycleState;
+  generatedOutputs: GeneratedOutputsV1;
   portalVisitContext?: PersistedPortalVisitContext;
 }
 
@@ -1005,6 +1016,10 @@ function AppInner() {
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
   const [labPortalVisitContext, setLabPortalVisitContext] = useState<PersistedPortalVisitContext | undefined>();
   const [visitRecommendationSnapshot, setVisitRecommendationSnapshot] = useState<VisitRecommendationSnapshot | null>(null);
+  // Ref mirror prevents stale-closure reads inside persistence effects and callbacks
+  // that intentionally do not depend on the full snapshot object.
+  const visitRecommendationSnapshotRef = useRef<VisitRecommendationSnapshot | null>(null);
+  const pdfDocumentCounterRef = useRef(0);
   const [localSessionStatus, setLocalSessionStatus] = useState<{ tone: LocalSessionStatusTone; message: string } | null>(null);
   const [importedWorkflowVisitIds, setImportedWorkflowVisitIds] = useState<string[]>([]);
 
@@ -1163,6 +1178,10 @@ function AppInner() {
   }, [localSessionStatus]);
 
   useEffect(() => {
+    visitRecommendationSnapshotRef.current = visitRecommendationSnapshot;
+  }, [visitRecommendationSnapshot]);
+
+  useEffect(() => {
     if (journey !== 'visit-home') return;
     if (lastOpenedFromHome == null) return;
     if (!isLegacyJourney(lastOpenedFromHome.journey)) return;
@@ -1183,6 +1202,19 @@ function AppInner() {
     }
 
     const persisted = restored.visit;
+    const generatedOutputs = normaliseGeneratedOutputs(persisted.generatedOutputs);
+    const recommendationReady = isRecommendationReadyForLifecycle({
+      decision: persisted.decision,
+      customerSummary: persisted.customerSummary,
+      acceptedScenarioId: persisted.acceptedScenarioId,
+      engineRecommendationPrimary: persisted.engine?.recommendation?.primary,
+    });
+    const lifecycleState =
+      persisted.lifecycleState ??
+      deriveLifecycleStateFromSnapshot({
+        recommendationReady,
+        generatedOutputs,
+      });
     setVisitRecommendationSnapshot({
       visitId: persisted.visitId,
       visitReference: persisted.visitReference,
@@ -1191,8 +1223,11 @@ function AppInner() {
       decision: persisted.decision,
       customerSummary: persisted.customerSummary,
       acceptedScenarioId: persisted.acceptedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: persisted.portalVisitContext,
     });
+    setLabPortalUrl(generatedOutputs.portal.url);
     setLabPortalVisitContext(persisted.portalVisitContext);
     setLabFullSurveyModel(persisted.survey);
     if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
@@ -1252,6 +1287,12 @@ function AppInner() {
       // Persist survey even when derived snapshots cannot be computed.
     }
 
+    const existingSnapshot =
+      visitRecommendationSnapshotRef.current?.visitId === activeVisitId
+        ? visitRecommendationSnapshotRef.current
+        : null;
+    const generatedOutputs = normaliseGeneratedOutputs(existingSnapshot?.generatedOutputs);
+    const lifecycleState = existingSnapshot?.lifecycleState ?? 'survey_in_progress';
     const persisted: PersistedAtlasVisitV2 = {
       schemaVersion: 2,
       visitId: activeVisitId,
@@ -1263,6 +1304,8 @@ function AppInner() {
       scenarios: scenariosSnapshot,
       customerSummary: customerSummarySnapshot,
       acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     };
     saveVisitAtomically(persisted);
@@ -1274,6 +1317,8 @@ function AppInner() {
       decision: decisionSnapshot,
       customerSummary: customerSummarySnapshot,
       acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     });
   }, [activeVisitId, labFullSurveyModel, labEngineInput, labPortalVisitContext]);
@@ -1332,6 +1377,12 @@ function AppInner() {
       // Persist survey even when derived snapshots cannot be computed.
     }
     const acceptedScenarioId = decisionSnapshot?.recommendedScenarioId;
+    const currentSnapshot =
+      visitRecommendationSnapshot?.visitId === activeVisitId
+        ? visitRecommendationSnapshot
+        : null;
+    const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+    const lifecycleState = currentSnapshot?.lifecycleState ?? 'survey_in_progress';
     const snapshot: PersistedAtlasVisitV2 = {
       schemaVersion: 2,
       visitId: activeVisitId,
@@ -1343,6 +1394,8 @@ function AppInner() {
       scenarios: scenariosSnapshot,
       customerSummary: customerSummarySnapshot,
       acceptedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     };
     saveVisitAtomically(snapshot);
@@ -1354,6 +1407,8 @@ function AppInner() {
       decision: decisionSnapshot,
       customerSummary: customerSummarySnapshot,
       acceptedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     });
     setLocalSessionStatus({
@@ -1377,6 +1432,19 @@ function AppInner() {
       return;
     }
     const persisted = restored.visit;
+    const generatedOutputs = normaliseGeneratedOutputs(persisted.generatedOutputs);
+    const recommendationReady = isRecommendationReadyForLifecycle({
+      decision: persisted.decision,
+      customerSummary: persisted.customerSummary,
+      acceptedScenarioId: persisted.acceptedScenarioId,
+      engineRecommendationPrimary: persisted.engine?.recommendation?.primary,
+    });
+    const lifecycleState =
+      persisted.lifecycleState ??
+      deriveLifecycleStateFromSnapshot({
+        recommendationReady,
+        generatedOutputs,
+      });
     setVisitRecommendationSnapshot({
       visitId: persisted.visitId,
       visitReference: persisted.visitReference,
@@ -1385,8 +1453,11 @@ function AppInner() {
       decision: persisted.decision,
       customerSummary: persisted.customerSummary,
       acceptedScenarioId: persisted.acceptedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: persisted.portalVisitContext,
     });
+    setLabPortalUrl(generatedOutputs.portal.url);
     setLabPortalVisitContext(persisted.portalVisitContext);
     setLabFullSurveyModel(persisted.survey);
     if (persisted.survey.fullSurvey?.heatLoss) setLabHeatLossState(persisted.survey.fullSurvey.heatLoss);
@@ -1444,6 +1515,12 @@ function AppInner() {
 
     setLabEngineInput(sourceInput);
     setLabFullSurveyModel(surveySnapshot);
+    const currentSnapshot =
+      visitRecommendationSnapshot?.visitId === activeVisitId
+        ? visitRecommendationSnapshot
+        : null;
+    const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+    const lifecycleState: VisitReviewLifecycleState = 'recommendation_ready';
     setVisitRecommendationSnapshot({
       visitId: activeVisitId,
       visitReference: formatVisitReference(activeVisitId),
@@ -1452,6 +1529,8 @@ function AppInner() {
       decision: decisionSnapshot,
       customerSummary: customerSummarySnapshot,
       acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     });
     saveVisitAtomically({
@@ -1465,9 +1544,147 @@ function AppInner() {
       scenarios: scenariosSnapshot,
       customerSummary: customerSummarySnapshot,
       acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      lifecycleState,
+      generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     });
     setLocalSessionStatus({ tone: 'success', message: 'Recommendation generated and visit snapshot refreshed.' });
+  }
+
+  function persistActiveVisitSnapshot(
+    snapshot: VisitRecommendationSnapshot,
+    surveySnapshot: FullSurveyModelV1,
+  ) {
+    saveVisitAtomically({
+      schemaVersion: 2,
+      visitId: snapshot.visitId,
+      visitReference: snapshot.visitReference,
+      updatedAt: new Date().toISOString(),
+      survey: surveySnapshot,
+      engine: snapshot.engineOutput,
+      decision: snapshot.decision,
+      scenarios: snapshot.scenarios,
+      customerSummary: snapshot.customerSummary,
+      acceptedScenarioId: snapshot.acceptedScenarioId,
+      lifecycleState: snapshot.lifecycleState,
+      generatedOutputs: snapshot.generatedOutputs,
+      portalVisitContext: snapshot.portalVisitContext,
+    });
+    setVisitRecommendationSnapshot(snapshot);
+    setLabPortalUrl(snapshot.generatedOutputs.portal.url);
+  }
+
+  async function handleGenerateCustomerPortal() {
+    if (activeVisitId == null || labFullSurveyModel == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Cannot generate customer portal: visit survey is missing.' });
+      return;
+    }
+    try {
+      const engineInput = labEngineInput ?? toEngineInput(sanitiseModelForEngine(labFullSurveyModel));
+      if (labEngineInput == null) setLabEngineInput(engineInput);
+      const reports = await listReportsForVisit(activeVisitId);
+      let reportId: string;
+      if (reports.length > 0) {
+        reportId = reports[0].id;
+      } else {
+        const { engineOutput } = runEngine(engineInput);
+        const saved = await saveReport({
+          title: generateReportTitle({
+            postcode: engineInput.postcode ?? null,
+            recommendedSystem: engineOutput.recommendation?.primary ?? null,
+          }),
+          postcode: engineInput.postcode ?? null,
+          visit_id: activeVisitId,
+          status: 'complete',
+          payload: buildCanonicalReportPayload({
+            surveyData: labFullSurveyModel,
+            engineInput,
+            engineOutput,
+            decisionSynthesis: null,
+            runMeta: { source: 'portal_bootstrap' },
+          }),
+        });
+        reportId = saved.id;
+      }
+      const token = await generatePortalToken(reportId);
+      const portalUrl = buildPortalUrl(reportId, window.location.origin, token);
+      const now = new Date().toISOString();
+      const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
+      const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+      const nextOutputs: GeneratedOutputsV1 = {
+        ...generatedOutputs,
+        portal: {
+          generated: true,
+          generatedAt: now,
+          url: portalUrl,
+          version: '1.0',
+        },
+      };
+      const priorLifecycle = currentSnapshot?.lifecycleState ?? 'recommendation_ready';
+      const lifecycleState: VisitReviewLifecycleState = isLifecycleAtLeast(priorLifecycle, 'review_in_progress')
+        ? priorLifecycle
+        : 'outputs_generated';
+      const nextSnapshot: VisitRecommendationSnapshot = {
+        visitId: activeVisitId,
+        visitReference: formatVisitReference(activeVisitId),
+        engineOutput: currentSnapshot?.engineOutput,
+        scenarios: currentSnapshot?.scenarios,
+        decision: currentSnapshot?.decision,
+        customerSummary: currentSnapshot?.customerSummary,
+        acceptedScenarioId: currentSnapshot?.acceptedScenarioId,
+        lifecycleState,
+        generatedOutputs: nextOutputs,
+        portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
+      };
+      persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
+      setLocalSessionStatus({ tone: 'success', message: 'Customer portal generated and visit outputs updated.' });
+    } catch (err) {
+      console.error('[Atlas] Could not generate customer portal output', err);
+      setLocalSessionStatus({ tone: 'error', message: 'Customer portal generation failed. Please retry.' });
+    }
+  }
+
+  function handleGenerateSupportingPdf() {
+    if (activeVisitId == null || labFullSurveyModel == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Cannot generate supporting PDF: visit survey is missing.' });
+      return;
+    }
+    const now = new Date().toISOString();
+    const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
+    const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+    pdfDocumentCounterRef.current += 1;
+    const documentId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? `supporting-pdf-${crypto.randomUUID()}`
+      : `supporting-pdf-${formatVisitReference(activeVisitId)}-${Date.now()}-${pdfDocumentCounterRef.current}`;
+    const nextOutputs: GeneratedOutputsV1 = {
+      ...generatedOutputs,
+      pdf: {
+        generated: true,
+        generatedAt: now,
+        documentId,
+        version: '1.0',
+      },
+    };
+    const priorLifecycle = currentSnapshot?.lifecycleState ?? 'recommendation_ready';
+    const lifecycleState: VisitReviewLifecycleState = isLifecycleAtLeast(priorLifecycle, 'review_in_progress')
+      ? priorLifecycle
+      : 'outputs_generated';
+    const nextSnapshot: VisitRecommendationSnapshot = {
+      visitId: activeVisitId,
+      visitReference: formatVisitReference(activeVisitId),
+      engineOutput: currentSnapshot?.engineOutput,
+      scenarios: currentSnapshot?.scenarios,
+      decision: currentSnapshot?.decision,
+      customerSummary: currentSnapshot?.customerSummary,
+      acceptedScenarioId: currentSnapshot?.acceptedScenarioId,
+      lifecycleState,
+      generatedOutputs: nextOutputs,
+      portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
+    };
+    persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
+    setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
+    setJourney('library-pdf');
+    setLocalSessionStatus({ tone: 'success', message: 'Supporting PDF marked as generated for this visit.' });
   }
 
   function handleStartDemoReview(demoVisitId: string = DEMO_VISIT_IDS.completed_won) {
@@ -1489,6 +1706,8 @@ function AppInner() {
           })
         : undefined;
       const customerSummary = decision != null ? buildCustomerSummary(decision, scenarios) : undefined;
+      const lifecycleState: VisitReviewLifecycleState = 'recommendation_ready';
+      const generatedOutputs = createEmptyGeneratedOutputs();
       setVisitRecommendationSnapshot({
         visitId: demoVisitId,
         visitReference: formatVisitReference(demoVisitId),
@@ -1497,6 +1716,8 @@ function AppInner() {
         decision,
         customerSummary,
         acceptedScenarioId: decision?.recommendedScenarioId,
+        lifecycleState,
+        generatedOutputs,
         portalVisitContext: labPortalVisitContext,
       });
       saveVisitAtomically({
@@ -1510,6 +1731,8 @@ function AppInner() {
         scenarios,
         customerSummary,
         acceptedScenarioId: decision?.recommendedScenarioId,
+        lifecycleState,
+        generatedOutputs,
         portalVisitContext: labPortalVisitContext,
       });
     } catch (err) {
@@ -2413,6 +2636,18 @@ function AppInner() {
             activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
               ? visitRecommendationSnapshot
               : null;
+          const generatedOutputs = normaliseGeneratedOutputs(canonicalSnapshot?.generatedOutputs);
+          const lifecycleState: VisitReviewLifecycleState =
+            canonicalSnapshot?.lifecycleState ??
+            deriveLifecycleStateFromSnapshot({
+              recommendationReady: isRecommendationReadyForLifecycle({
+                decision: canonicalSnapshot?.decision,
+                customerSummary: canonicalSnapshot?.customerSummary,
+                acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId,
+                engineRecommendationPrimary: canonicalSnapshot?.engineOutput?.recommendation?.primary,
+              }),
+              generatedOutputs,
+            });
           let visitHomeEngineOutput: import('./contracts/EngineOutputV1').EngineOutputV1 | undefined;
           let visitHomeScenarios: import('./contracts/ScenarioResult').ScenarioResult[] | undefined;
           let visitHomeRecommendationSummary: import('./contracts/CustomerSummaryV1').CustomerSummaryV1 | undefined;
@@ -2486,7 +2721,11 @@ function AppInner() {
               acceptedScenario={acceptedScenario}
               recommendationSummary={visitHomeRecommendationSummary}
               surveyModel={labFullSurveyModel}
-              portalUrl={labPortalUrl}
+              lifecycleState={lifecycleState}
+              portalUrl={generatedOutputs.portal.url ?? labPortalUrl}
+              hasPortalOutput={generatedOutputs.portal.generated}
+              hasSupportingPdfOutput={generatedOutputs.pdf.generated}
+              hasHandoffOutput={generatedOutputs.handoff.generated}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}
@@ -2519,12 +2758,15 @@ function AppInner() {
                 setLabFullSurveyModel(undefined);
                 setVisitRecommendationSnapshot(null);
                 setLabPortalVisitContext(undefined);
+                setLabPortalUrl(undefined);
                 setLocalSessionStatus(null);
                 setJourney('workspace-dashboard');
               }}
               onOpenExistingVisit={() => setJourney('workspace-dashboard')}
               onContinueSurvey={activeVisitId != null ? () => setJourney('visit') : undefined}
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
+              onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
+              onGenerateSupportingPdf={activeVisitId != null ? () => { void handleGenerateSupportingPdf(); } : undefined}
               onStartDemoReview={handleStartDemoReview}
               onOpenDemoFixtures={() => setJourney('workspace-dashboard')}
               visitSelectorEntries={visitSelectorEntries}
@@ -2537,8 +2779,22 @@ function AppInner() {
                 }
                 const restored = readPersistedAtlasVisitV2(visitId);
                 if (restored.visit != null) {
+                  const generatedOutputs = normaliseGeneratedOutputs(restored.visit.generatedOutputs);
+                  const recommendationReady = isRecommendationReadyForLifecycle({
+                    decision: restored.visit.decision,
+                    customerSummary: restored.visit.customerSummary,
+                    acceptedScenarioId: restored.visit.acceptedScenarioId,
+                    engineRecommendationPrimary: restored.visit.engine?.recommendation?.primary,
+                  });
+                  const lifecycleState =
+                    restored.visit.lifecycleState ??
+                    deriveLifecycleStateFromSnapshot({
+                      recommendationReady,
+                      generatedOutputs,
+                    });
                   setLabFullSurveyModel(restored.visit.survey);
                   setLabPortalVisitContext(restored.visit.portalVisitContext);
+                  setLabPortalUrl(generatedOutputs.portal.url);
                   setVisitRecommendationSnapshot({
                     visitId: restored.visit.visitId,
                     visitReference: restored.visit.visitReference,
@@ -2547,6 +2803,8 @@ function AppInner() {
                     decision: restored.visit.decision,
                     customerSummary: restored.visit.customerSummary,
                     acceptedScenarioId: restored.visit.acceptedScenarioId,
+                    lifecycleState,
+                    generatedOutputs,
                     portalVisitContext: restored.visit.portalVisitContext,
                   });
                   try {
@@ -2556,10 +2814,37 @@ function AppInner() {
                   }
                 } else {
                   setVisitRecommendationSnapshot(null);
+                  setLabPortalUrl(undefined);
                 }
                 setJourney('visit-home');
               }}
               onOpenSimulator={() => {
+                if (activeVisitId != null && labFullSurveyModel != null) {
+                  const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
+                  const currentOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+                  const nextSnapshot: VisitRecommendationSnapshot = {
+                    visitId: activeVisitId,
+                    visitReference: formatVisitReference(activeVisitId),
+                    engineOutput: currentSnapshot?.engineOutput,
+                    scenarios: currentSnapshot?.scenarios,
+                    decision: currentSnapshot?.decision,
+                    customerSummary: currentSnapshot?.customerSummary,
+                    acceptedScenarioId: currentSnapshot?.acceptedScenarioId,
+                    lifecycleState: isLifecycleAtLeast(currentSnapshot?.lifecycleState ?? 'recommendation_ready', 'outputs_generated')
+                      ? 'review_in_progress'
+                      : currentSnapshot?.lifecycleState ?? 'recommendation_ready',
+                    generatedOutputs: {
+                      ...currentOutputs,
+                      simulatorReview: {
+                        generated: true,
+                        generatedAt: new Date().toISOString(),
+                        version: '1.0',
+                      },
+                    },
+                    portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
+                  };
+                  persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
+                }
                 setLastOpenedFromHome({ label: 'Simulator', journey: 'house-simulator' });
                 setSimulatorFromJourney('visit-home');
                 setJourney('house-simulator');
@@ -2578,6 +2863,30 @@ function AppInner() {
                 setJourney('installation-specification');
               }}
               onOpenHandoffReview={activeVisitId != null ? () => {
+                if (activeVisitId != null && labFullSurveyModel != null) {
+                  const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
+                  const currentOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+                  const nextSnapshot: VisitRecommendationSnapshot = {
+                    visitId: activeVisitId,
+                    visitReference: formatVisitReference(activeVisitId),
+                    engineOutput: currentSnapshot?.engineOutput,
+                    scenarios: currentSnapshot?.scenarios,
+                    decision: currentSnapshot?.decision,
+                    customerSummary: currentSnapshot?.customerSummary,
+                    acceptedScenarioId: currentSnapshot?.acceptedScenarioId,
+                    lifecycleState: 'handover_ready',
+                    generatedOutputs: {
+                      ...currentOutputs,
+                      handoff: {
+                        generated: true,
+                        generatedAt: new Date().toISOString(),
+                        version: '1.0',
+                      },
+                    },
+                    portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
+                  };
+                  persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
+                }
                 setLastOpenedFromHome({ label: 'Handoff Review', journey: 'visit-handoff' });
                 void handleOpenHandoffReview(activeVisitId);
               } : undefined}
