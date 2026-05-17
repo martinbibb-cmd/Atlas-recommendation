@@ -4,6 +4,13 @@ import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import {
+  deriveLifecycleStateFromSnapshot,
+  isLifecycleState,
+  normaliseGeneratedOutputs,
+  type GeneratedOutputsV1,
+  type VisitReviewLifecycleState,
+} from './visitReviewLifecycle';
 
 export interface PersistedAtlasVisitV2 {
   schemaVersion: 2;
@@ -16,6 +23,8 @@ export interface PersistedAtlasVisitV2 {
   scenarios?: ScenarioResult[];
   customerSummary?: CustomerSummaryV1;
   acceptedScenarioId?: string;
+  lifecycleState?: VisitReviewLifecycleState;
+  generatedOutputs?: GeneratedOutputsV1;
   portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
   scanCapture?: unknown;
   quotePlan?: unknown;
@@ -44,7 +53,23 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
     if (typeof parsed.visitId !== 'string' || parsed.visitId.trim().length === 0) return null;
     if (typeof parsed.updatedAt !== 'string' || parsed.updatedAt.trim().length === 0) return null;
     if (!parsed.survey || typeof parsed.survey !== 'object') return null;
-    return parsed as PersistedAtlasVisitV2;
+    const recommendationReady =
+      parsed.decision != null ||
+      parsed.customerSummary != null ||
+      parsed.acceptedScenarioId != null ||
+      parsed.engine?.recommendation?.primary != null;
+    const generatedOutputs = normaliseGeneratedOutputs(parsed.generatedOutputs);
+    const lifecycleState = isLifecycleState(parsed.lifecycleState)
+      ? parsed.lifecycleState
+      : deriveLifecycleStateFromSnapshot({
+        recommendationReady,
+        generatedOutputs,
+      });
+    return {
+      ...(parsed as PersistedAtlasVisitV2),
+      lifecycleState,
+      generatedOutputs,
+    };
   } catch {
     return null;
   }

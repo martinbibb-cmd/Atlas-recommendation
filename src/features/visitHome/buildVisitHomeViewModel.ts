@@ -2,6 +2,7 @@ import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import { isLifecycleAtLeast, type VisitReviewLifecycleState } from '../../lib/storage/visitReviewLifecycle';
 import { detectVisitJourney, type VisitJourneyInfo } from './detectVisitJourney';
 
 export type VisitHomeSurfaceStatus = 'ready' | 'needs-review' | 'blocked';
@@ -12,6 +13,7 @@ export interface BuildVisitHomeViewModelInput {
   readonly scenarios?: ScenarioResult[];
   readonly surveyModel?: FullSurveyModelV1;
   readonly recommendationSummary?: CustomerSummaryV1;
+  readonly lifecycleState?: VisitReviewLifecycleState;
   readonly workflowReadiness: {
     readonly hasVisit: boolean;
     readonly libraryUnsafe: boolean;
@@ -77,10 +79,13 @@ function resolveSelectedSystem(
 }
 
 export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): VisitHomeViewModel {
-  const hasRecommendation =
-    input.acceptedScenario != null ||
-    input.recommendationSummary != null ||
-    input.engineResult?.recommendation?.primary != null;
+  const hasRecommendation = input.lifecycleState != null
+    ? isLifecycleAtLeast(input.lifecycleState, 'recommendation_ready')
+    : (
+      input.acceptedScenario != null ||
+      input.recommendationSummary != null ||
+      input.engineResult?.recommendation?.primary != null
+    );
   const hasAcceptedScenario = input.acceptedScenario != null;
   const hasSurveyModel = input.surveyModel != null;
   const hasVisit = input.workflowReadiness.hasVisit;
