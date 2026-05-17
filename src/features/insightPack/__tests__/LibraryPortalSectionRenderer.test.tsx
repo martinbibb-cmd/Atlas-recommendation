@@ -14,9 +14,13 @@ vi.mock('../../../library/packRenderer/buildCalmWelcomePackFromAtlasDecision', (
 vi.mock('../../../library/diagrams/DiagramRenderer', () => ({
   DiagramRenderer: ({ diagramId }: { diagramId: string }) => <div data-testid={`diagram-${diagramId}`}>{diagramId}</div>,
 }));
-vi.mock('../../../library/animations', () => ({
-  EducationalAnimationRenderer: ({ animationId }: { animationId: string }) => <div data-testid={`animation-${animationId}`}>{animationId}</div>,
-}));
+vi.mock('../../../library/animations', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../library/animations')>();
+  return {
+    ...actual,
+    EducationalAnimationRenderer: ({ animationId }: { animationId: string }) => <div data-testid={`animation-${animationId}`}>{animationId}</div>,
+  };
+});
 
 const mockedBuilder = vi.mocked(buildCalmWelcomePackFromAtlasDecision);
 

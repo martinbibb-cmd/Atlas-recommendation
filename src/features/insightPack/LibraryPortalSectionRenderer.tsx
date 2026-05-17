@@ -135,10 +135,6 @@ export function LibraryPortalSectionRenderer({
     }
     return [...matched];
   }, [authoredCards]);
-  const matchedMvpEntries = useMemo(
-    () => atlasMvpContentMapRegistry.filter((entry) => matchedMvpContentIds.includes(entry.id)),
-    [matchedMvpContentIds],
-  );
   const matchedAnimationIds = useMemo(
     () => stableUnique(authoredCards.flatMap((card) => card.suggestedAnimationIds)),
     [authoredCards],
