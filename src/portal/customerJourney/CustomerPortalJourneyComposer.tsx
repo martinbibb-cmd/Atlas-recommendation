@@ -317,10 +317,8 @@ export function CustomerPortalJourneyComposer({
   const isStoredWaterSystem = recommendedScenario?.system.type === 'system'
     || recommendedScenario?.system.type === 'regular'
     || recommendedScenario?.dhwSubtype === 'mixergy';
-  const shouldRenderPressureDiagram = Boolean(
-    isStoredWaterSystem
-    && isCustomerReadyProductionVisual(pressureDiagram),
-  );
+  const shouldRenderPressureDiagram = isStoredWaterSystem
+    && isCustomerReadyProductionVisual(pressureDiagram);
   const protectionItems = buildPreparationItems(decision, recommendedScenario).slice(0, 3);
   const comparisonCards = viewModel.verdictData.comparisonCards.filter((card) => !card.isRecommended).slice(0, 2);
   const familiarPoints = buildFamiliarPoints(engineInput, recommendedScenario);
@@ -502,7 +500,7 @@ export function CustomerPortalJourneyComposer({
           sectionId="next-steps"
           eyebrow="What happens next"
           title="The path from recommendation to install"
-          intro="The customer portal should feel like a journey, not a registry browser."
+          intro="Atlas keeps the next steps clear so you know what happens before installation day and at handover."
         >
           <ol className="customer-portal-journey__ordered-list">
             {nextSteps.map((step) => (
