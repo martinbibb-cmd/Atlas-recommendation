@@ -140,6 +140,18 @@ function buildPortalPropertyConstraintTags(input: EngineInputV2_3): string[] {
   return [...tags];
 }
 
+function PortalHeroShell({ portalHomeLabel }: { portalHomeLabel: string }) {
+  return (
+    <header className="portal-page__hero" data-testid="portal-hero">
+      <BrandedHeader />
+      <div className="portal-hero__brand-row">
+        <span className="portal-page__brand" aria-hidden="true"></span>
+        <span className="portal-page__postcode">{portalHomeLabel}</span>
+      </div>
+    </header>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 function CustomerPortalContent({
@@ -160,10 +172,13 @@ function CustomerPortalContent({
   // surveyData is kept for the inline simulator.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [showSimulator, setShowSimulator] = useState(false);
-  const isDevFixturePreview = Boolean(devFixtureInput);
-  const defaultPortalViewMode: PortalViewMode = isDevFixturePreview
-    ? (devInitialViewMode ?? (isPhoneViewport() ? 'presentation' : null))
-    : 'portal';
+  const isDevFixtureMode = Boolean(devFixtureInput);
+  function computeInitialPortalViewMode(): PortalViewMode {
+    if (!isDevFixtureMode) return 'portal';
+    if (devInitialViewMode) return devInitialViewMode;
+    return isPhoneViewport() ? 'presentation' : null;
+  }
+  const defaultPortalViewMode: PortalViewMode = computeInitialPortalViewMode();
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
   const [viewMode, setViewMode] = useState<PortalViewMode>(defaultPortalViewMode);
   // Launch context received from the deck CTA — drives the initial tab of the portal.
@@ -376,7 +391,7 @@ function CustomerPortalContent({
             : 'CanonicalPresentationPage';
 
   // ── Welcome page — choose a view ──────────────────────────────────────────
-  if (viewMode === null && isDevFixturePreview) {
+  if (viewMode === null && isDevFixtureMode) {
     return (
       <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
         <ReadingAssistOverlay />
@@ -433,7 +448,7 @@ function CustomerPortalContent({
   }
 
   // ── Insight Pack view ─────────────────────────────────────────────────────
-  if (viewMode === 'insight' && isDevFixturePreview) {
+  if (viewMode === 'insight' && isDevFixtureMode) {
     const surveyContext: InsightPackSurveyContext = {
       currentBoiler: engineInput.currentSystem?.boiler,
       occupancyCount: engineInput.occupancyCount,
@@ -502,15 +517,9 @@ function CustomerPortalContent({
             <p>activeRendererComponent: {activeRendererComponent}</p>
           </aside>
         ) : null}
-        <header className="portal-page__hero" data-testid="portal-hero">
-          <BrandedHeader />
-          <div className="portal-hero__brand-row">
-            <span className="portal-page__brand" aria-hidden="true"></span>
-            <span className="portal-page__postcode">{portalHomeLabel}</span>
-          </div>
-        </header>
+        <PortalHeroShell portalHomeLabel={portalHomeLabel} />
         <div className="portal-back-row portal-back-row--with-actions">
-          {isDevFixturePreview ? (
+          {isDevFixtureMode ? (
             <button
               type="button"
               className="back-btn"
@@ -544,7 +553,7 @@ function CustomerPortalContent({
   }
 
   // ── Presentation view (deck) ──────────────────────────────────────────────
-  if (isDevFixturePreview) {
+  if (isDevFixtureMode) {
     return (
     <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
       <ReadingAssistOverlay />
@@ -638,13 +647,7 @@ function CustomerPortalContent({
           <p>activeRendererComponent: {activeRendererComponent}</p>
         </aside>
       ) : null}
-      <header className="portal-page__hero" data-testid="portal-hero">
-        <BrandedHeader />
-        <div className="portal-hero__brand-row">
-          <span className="portal-page__brand" aria-hidden="true"></span>
-          <span className="portal-page__postcode">{portalHomeLabel}</span>
-        </div>
-      </header>
+      <PortalHeroShell portalHomeLabel={portalHomeLabel} />
       {portalViewModel ? (
         <PortalPage
           viewModel={portalViewModel}

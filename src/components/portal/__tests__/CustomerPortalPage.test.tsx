@@ -137,6 +137,20 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByText(/insightRendererComponent: InsightPackDeck/i)).toBeTruthy();
   });
 
+  it('devInitialViewMode=presentation opens presentation preview directly', async () => {
+    render(
+      <CustomerPortalPage
+        reference="test-report-1"
+        devFixtureInput={STUB_ENGINE_INPUT}
+        devInitialViewMode="presentation"
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+    expect(screen.queryByTestId('portal-welcome')).toBeNull();
+    expect(screen.getByText(/selectedPortalMode: presentation/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: CanonicalPresentationPage/i)).toBeTruthy();
+  });
+
   it('devInitialViewMode=insight mounts CON_C02 section for stored hot water with two bathrooms', async () => {
     render(
       <CustomerPortalPage
@@ -154,7 +168,7 @@ describe('CustomerPortalPage', () => {
   });
 
   it('renders the canonical presentation deck — same pages as the in-room presentation', async () => {
-    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" devFixtureInput={STUB_ENGINE_INPUT} />);
     await openPresentationView();
 
     expect(screen.getByTestId('customer-portal')).toBeTruthy();
