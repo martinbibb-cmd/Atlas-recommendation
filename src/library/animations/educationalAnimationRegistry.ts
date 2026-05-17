@@ -9,7 +9,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     purpose: 'expectation',
     fallbackDiagramId: 'pressure_vs_storage',
     screenReaderSummary:
-      'Stored hot water is used through peak demand and then recovers in the background; recovery after heavy use is expected.',
+      'Stored hot water is used through peak demand. Recovery in the background after heavy use is expected.',
     reducedMotionFallback: 'pressure_vs_storage',
     printFallback: 'pressure_vs_storage',
     durationMs: 18000,
@@ -51,7 +51,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     purpose: 'physics',
     fallbackDiagramId: 'water_main_limitation',
     screenReaderSummary:
-      'Incoming water-main flow is capped at the source and gets divided across outlets, so downstream appliances cannot create extra flow.',
+      'Incoming water-main flow is capped at the source. The flow is divided across outlets, so downstream appliances cannot create extra flow.',
     reducedMotionFallback: 'water_main_limitation',
     printFallback: 'water_main_limitation',
     durationMs: 14000,
@@ -79,7 +79,7 @@ export const educationalAnimationRegistry: EducationalAnimationV1[] = [
     purpose: 'reassurance',
     fallbackDiagramId: 'open_vented_to_unvented',
     screenReaderSummary:
-      'Unvented cylinder safety path is shown from relief point through discharge route; visible safety hardware is expected in normal design.',
+      'Unvented cylinder safety path is shown from relief point through discharge route. Visible safety hardware is expected in normal design.',
     reducedMotionFallback: 'open_vented_to_unvented',
     printFallback: 'open_vented_to_unvented',
     durationMs: 12000,

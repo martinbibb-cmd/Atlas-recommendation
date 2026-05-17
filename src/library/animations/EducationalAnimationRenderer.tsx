@@ -31,6 +31,7 @@ export function EducationalAnimationRenderer({
 }: EducationalAnimationRendererProps) {
   const animation = useMemo(() => getEducationalAnimationById(animationId), [animationId]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [replayTick, setReplayTick] = useState(0);
 
   if (!animation) {
     return null;
@@ -74,7 +75,7 @@ export function EducationalAnimationRenderer({
     >
       <h3>{animation.title}</h3>
       <p>{animation.screenReaderSummary}</p>
-      <div role="img" aria-label={animation.screenReaderSummary}>
+      <div aria-live="polite" data-replay-tick={replayTick}>
         {isPlaying
           ? 'Guided animation placeholder: playing state.'
           : 'Guided animation placeholder: ready state.'}
@@ -89,7 +90,10 @@ export function EducationalAnimationRenderer({
         </button>
         <button
           type="button"
-          onClick={() => setIsPlaying(false)}
+          onClick={() => {
+            setReplayTick((value) => value + 1);
+            setIsPlaying(true);
+          }}
           aria-label="Replay animation"
         >
           Replay
