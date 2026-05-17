@@ -52,7 +52,7 @@ export type CardSource = 'engine' | 'library' | 'workflow' | 'simulator';
 export type VisitSelectorSource = 'local' | 'workflow' | 'demo';
 type ActionableState = {
   why: string;
-  actionLabel: string;
+  actionDescription: string;
   nextStep: string;
 };
 
@@ -311,7 +311,7 @@ function DashboardCard({
             <strong>Why:</strong> {actionableState.why}
           </p>
           <p className="vhd-card__actionable-row">
-            <strong>Action:</strong> {actionableState.actionLabel}
+            <strong>Action:</strong> {actionableState.actionDescription}
           </p>
           <p className="vhd-card__actionable-row">
             <strong>Next step:</strong> {actionableState.nextStep}
@@ -493,14 +493,14 @@ export function VisitHomeDashboard({
       if (reason === REASON_VISIT_DATA_MISSING) {
         return {
           why: 'This step is blocked because no active visit data is loaded for review.',
-          actionLabel: 'Open visit',
+          actionDescription: 'Open visit',
           nextStep: 'Open visit',
         };
       }
       if (reason === REASON_PERMISSION_NOT_GRANTED) {
         return {
           why: 'Your current workspace role does not allow this action.',
-          actionLabel: 'Switch workspace role or request access',
+          actionDescription: 'Switch workspace role or request access',
           nextStep: 'Switch workspace role or request access',
         };
       }
@@ -510,14 +510,14 @@ export function VisitHomeDashboard({
           why: status === 'needs-review'
             ? 'A visit exists, but recommendation evidence has not been generated yet.'
             : 'Recommendation evidence is not available for this visit.',
-          actionLabel: 'Generate recommendation',
+          actionDescription: 'Generate recommendation',
           nextStep: 'Generate recommendation',
         };
       case 'customer-portal':
         if (reason === REASON_LIBRARY_SAFETY_REVIEW) {
           return {
             why: 'Customer portal content is blocked by library safety checks.',
-            actionLabel: 'Review library safety blockers',
+            actionDescription: 'Review library safety blockers',
             nextStep: 'Review library safety blockers',
           };
         }
@@ -525,14 +525,14 @@ export function VisitHomeDashboard({
           why: status === 'needs-review'
             ? 'A recommendation exists, but the customer portal has not been generated yet.'
             : 'Recommendation output is not accepted or available for portal generation.',
-          actionLabel: 'Generate customer portal',
+          actionDescription: 'Generate customer portal',
           nextStep: 'Generate customer portal',
         };
       case 'supporting-pdf':
         if (reason === REASON_LIBRARY_SAFETY_REVIEW || isPDFQABlocked(reason)) {
           return {
             why: 'The supporting PDF is blocked by customer-readiness or library safety checks.',
-            actionLabel: 'Fix PDF readiness blockers',
+            actionDescription: 'Fix PDF readiness blockers',
             nextStep: 'Fix PDF readiness blockers',
           };
         }
@@ -540,7 +540,7 @@ export function VisitHomeDashboard({
           why: status === 'needs-review'
             ? 'A recommendation exists, but the supporting PDF has not been generated yet.'
             : 'Recommendation output is not accepted or available for PDF generation.',
-          actionLabel: 'Generate supporting PDF',
+          actionDescription: 'Generate supporting PDF',
           nextStep: 'Generate supporting PDF',
         };
       case 'run-simulator':
@@ -548,7 +548,7 @@ export function VisitHomeDashboard({
           why: status === 'needs-review'
             ? 'Simulator playback is available, but recommendation inputs still need review.'
             : 'The simulator needs recommendation-ready visit data first.',
-          actionLabel: 'Generate recommendation',
+          actionDescription: 'Generate recommendation',
           nextStep: 'Generate recommendation',
         };
       case 'implementation-workflow':
@@ -556,7 +556,7 @@ export function VisitHomeDashboard({
           why: status === 'needs-review'
             ? 'Recommendation is ready, but no installation specification options are saved yet.'
             : 'Implementation workflow requires recommendation-ready visit data.',
-          actionLabel: 'Prepare implementation pack',
+          actionDescription: 'Prepare implementation pack',
           nextStep: 'Prepare implementation pack',
         };
       case 'resolve-follow-ups':
@@ -564,7 +564,7 @@ export function VisitHomeDashboard({
           why: status === 'needs-review'
             ? 'Handoff follow-up output has not been generated for this visit yet.'
             : 'Follow-up review requires recommendation-ready visit data.',
-          actionLabel: 'Review handoff',
+          actionDescription: 'Review handoff',
           nextStep: 'Review handoff',
         };
       case 'export-handover-package':
@@ -572,13 +572,13 @@ export function VisitHomeDashboard({
           why: status === 'needs-review'
             ? 'A handover package export has not been generated for this visit yet.'
             : 'Export requires recommendation-ready visit data.',
-          actionLabel: 'Export handover package',
+          actionDescription: 'Export handover package',
           nextStep: 'Export handover package',
         };
       case 'workspace-controls':
         return {
           why: 'Workspace controls are currently unavailable for this role.',
-          actionLabel: 'Switch workspace role or request access',
+          actionDescription: 'Switch workspace role or request access',
           nextStep: 'Switch workspace role or request access',
         };
       default:
@@ -956,7 +956,7 @@ export function VisitHomeDashboard({
                   audience={['customer', 'office']}
                   source="library"
                   ctaLabel={supportingPdfOutputAvailable ? 'Print summary →' : 'Generate supporting PDF →'}
-                  onCta={canTriggerAction('supporting-pdf', pdfStatus, 'ready-or-needs-review')
+                  onCta={canTriggerAction('supporting-pdf', pdfStatus, 'not-blocked')
                     ? (supportingPdfOutputAvailable ? onPrintSummary : onGenerateSupportingPdf)
                     : undefined}
                 />

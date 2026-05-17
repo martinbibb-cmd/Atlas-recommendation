@@ -6,6 +6,7 @@ import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import {
   deriveLifecycleStateFromSnapshot,
+  isRecommendationReadyForLifecycle,
   isLifecycleState,
   normaliseGeneratedOutputs,
   type GeneratedOutputsV1,
@@ -53,11 +54,12 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
     if (typeof parsed.visitId !== 'string' || parsed.visitId.trim().length === 0) return null;
     if (typeof parsed.updatedAt !== 'string' || parsed.updatedAt.trim().length === 0) return null;
     if (!parsed.survey || typeof parsed.survey !== 'object') return null;
-    const recommendationReady =
-      parsed.decision != null ||
-      parsed.customerSummary != null ||
-      parsed.acceptedScenarioId != null ||
-      parsed.engine?.recommendation?.primary != null;
+    const recommendationReady = isRecommendationReadyForLifecycle({
+      decision: parsed.decision,
+      customerSummary: parsed.customerSummary,
+      acceptedScenarioId: parsed.acceptedScenarioId,
+      engineRecommendationPrimary: parsed.engine?.recommendation?.primary,
+    });
     const generatedOutputs = normaliseGeneratedOutputs(parsed.generatedOutputs);
     const lifecycleState = isLifecycleState(parsed.lifecycleState)
       ? parsed.lifecycleState

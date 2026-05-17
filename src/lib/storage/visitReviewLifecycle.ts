@@ -80,3 +80,16 @@ export function deriveLifecycleStateFromSnapshot(input: {
   return 'survey_in_progress';
 }
 
+export function isRecommendationReadyForLifecycle(input: {
+  readonly decision?: unknown;
+  readonly customerSummary?: unknown;
+  readonly acceptedScenarioId?: string;
+  readonly engineRecommendationPrimary?: string;
+}): boolean {
+  return (
+    input.decision != null ||
+    input.customerSummary != null ||
+    input.acceptedScenarioId != null ||
+    input.engineRecommendationPrimary != null
+  );
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, useMemo } from 'react';
+import { useState, useEffect, lazy, Suspense, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
@@ -140,6 +140,7 @@ import {
   createEmptyGeneratedOutputs,
   deriveLifecycleStateFromSnapshot,
   isLifecycleAtLeast,
+  isRecommendationReadyForLifecycle,
   normaliseGeneratedOutputs,
   type GeneratedOutputsV1,
   type VisitReviewLifecycleState,
@@ -1015,6 +1016,10 @@ function AppInner() {
   const [labPortalUrl, setLabPortalUrl] = useState<string | undefined>();
   const [labPortalVisitContext, setLabPortalVisitContext] = useState<PersistedPortalVisitContext | undefined>();
   const [visitRecommendationSnapshot, setVisitRecommendationSnapshot] = useState<VisitRecommendationSnapshot | null>(null);
+  // Ref mirror prevents stale-closure reads inside persistence effects and callbacks
+  // that intentionally do not depend on the full snapshot object.
+  const visitRecommendationSnapshotRef = useRef<VisitRecommendationSnapshot | null>(null);
+  const pdfDocumentCounterRef = useRef(0);
   const [localSessionStatus, setLocalSessionStatus] = useState<{ tone: LocalSessionStatusTone; message: string } | null>(null);
   const [importedWorkflowVisitIds, setImportedWorkflowVisitIds] = useState<string[]>([]);
 
@@ -1173,6 +1178,10 @@ function AppInner() {
   }, [localSessionStatus]);
 
   useEffect(() => {
+    visitRecommendationSnapshotRef.current = visitRecommendationSnapshot;
+  }, [visitRecommendationSnapshot]);
+
+  useEffect(() => {
     if (journey !== 'visit-home') return;
     if (lastOpenedFromHome == null) return;
     if (!isLegacyJourney(lastOpenedFromHome.journey)) return;
@@ -1194,11 +1203,12 @@ function AppInner() {
 
     const persisted = restored.visit;
     const generatedOutputs = normaliseGeneratedOutputs(persisted.generatedOutputs);
-    const recommendationReady =
-      persisted.decision != null ||
-      persisted.customerSummary != null ||
-      persisted.acceptedScenarioId != null ||
-      persisted.engine?.recommendation?.primary != null;
+    const recommendationReady = isRecommendationReadyForLifecycle({
+      decision: persisted.decision,
+      customerSummary: persisted.customerSummary,
+      acceptedScenarioId: persisted.acceptedScenarioId,
+      engineRecommendationPrimary: persisted.engine?.recommendation?.primary,
+    });
     const lifecycleState =
       persisted.lifecycleState ??
       deriveLifecycleStateFromSnapshot({
@@ -1278,8 +1288,8 @@ function AppInner() {
     }
 
     const existingSnapshot =
-      visitRecommendationSnapshot?.visitId === activeVisitId
-        ? visitRecommendationSnapshot
+      visitRecommendationSnapshotRef.current?.visitId === activeVisitId
+        ? visitRecommendationSnapshotRef.current
         : null;
     const generatedOutputs = normaliseGeneratedOutputs(existingSnapshot?.generatedOutputs);
     const lifecycleState = existingSnapshot?.lifecycleState ?? 'survey_in_progress';
@@ -1311,7 +1321,7 @@ function AppInner() {
       generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     });
-  }, [activeVisitId, labFullSurveyModel, labEngineInput, labPortalVisitContext, visitRecommendationSnapshot]);
+  }, [activeVisitId, labFullSurveyModel, labEngineInput, labPortalVisitContext]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -1423,11 +1433,12 @@ function AppInner() {
     }
     const persisted = restored.visit;
     const generatedOutputs = normaliseGeneratedOutputs(persisted.generatedOutputs);
-    const recommendationReady =
-      persisted.decision != null ||
-      persisted.customerSummary != null ||
-      persisted.acceptedScenarioId != null ||
-      persisted.engine?.recommendation?.primary != null;
+    const recommendationReady = isRecommendationReadyForLifecycle({
+      decision: persisted.decision,
+      customerSummary: persisted.customerSummary,
+      acceptedScenarioId: persisted.acceptedScenarioId,
+      engineRecommendationPrimary: persisted.engine?.recommendation?.primary,
+    });
     const lifecycleState =
       persisted.lifecycleState ??
       deriveLifecycleStateFromSnapshot({
@@ -1641,12 +1652,16 @@ function AppInner() {
     const now = new Date().toISOString();
     const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
     const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+    pdfDocumentCounterRef.current += 1;
+    const documentId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? `supporting-pdf-${crypto.randomUUID()}`
+      : `supporting-pdf-${formatVisitReference(activeVisitId)}-${Date.now()}-${pdfDocumentCounterRef.current}`;
     const nextOutputs: GeneratedOutputsV1 = {
       ...generatedOutputs,
       pdf: {
         generated: true,
         generatedAt: now,
-        documentId: `supporting-pdf-${formatVisitReference(activeVisitId)}-${Date.now()}`,
+        documentId,
         version: '1.0',
       },
     };
@@ -2625,11 +2640,12 @@ function AppInner() {
           const lifecycleState: VisitReviewLifecycleState =
             canonicalSnapshot?.lifecycleState ??
             deriveLifecycleStateFromSnapshot({
-              recommendationReady:
-                canonicalSnapshot?.decision != null ||
-                canonicalSnapshot?.customerSummary != null ||
-                canonicalSnapshot?.acceptedScenarioId != null ||
-                canonicalSnapshot?.engineOutput?.recommendation?.primary != null,
+              recommendationReady: isRecommendationReadyForLifecycle({
+                decision: canonicalSnapshot?.decision,
+                customerSummary: canonicalSnapshot?.customerSummary,
+                acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId,
+                engineRecommendationPrimary: canonicalSnapshot?.engineOutput?.recommendation?.primary,
+              }),
               generatedOutputs,
             });
           let visitHomeEngineOutput: import('./contracts/EngineOutputV1').EngineOutputV1 | undefined;
@@ -2750,7 +2766,7 @@ function AppInner() {
               onContinueSurvey={activeVisitId != null ? () => setJourney('visit') : undefined}
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
               onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
-              onGenerateSupportingPdf={activeVisitId != null ? handleGenerateSupportingPdf : undefined}
+              onGenerateSupportingPdf={activeVisitId != null ? () => { void handleGenerateSupportingPdf(); } : undefined}
               onStartDemoReview={handleStartDemoReview}
               onOpenDemoFixtures={() => setJourney('workspace-dashboard')}
               visitSelectorEntries={visitSelectorEntries}
@@ -2764,11 +2780,12 @@ function AppInner() {
                 const restored = readPersistedAtlasVisitV2(visitId);
                 if (restored.visit != null) {
                   const generatedOutputs = normaliseGeneratedOutputs(restored.visit.generatedOutputs);
-                  const recommendationReady =
-                    restored.visit.decision != null ||
-                    restored.visit.customerSummary != null ||
-                    restored.visit.acceptedScenarioId != null ||
-                    restored.visit.engine?.recommendation?.primary != null;
+                  const recommendationReady = isRecommendationReadyForLifecycle({
+                    decision: restored.visit.decision,
+                    customerSummary: restored.visit.customerSummary,
+                    acceptedScenarioId: restored.visit.acceptedScenarioId,
+                    engineRecommendationPrimary: restored.visit.engine?.recommendation?.primary,
+                  });
                   const lifecycleState =
                     restored.visit.lifecycleState ??
                     deriveLifecycleStateFromSnapshot({
@@ -2837,7 +2854,7 @@ function AppInner() {
                 setPresentationFromJourney('visit-home');
                 setJourney('presentation');
               }}
-              onPrintSummary={generatedOutputs.pdf.generated && visitHomeEngineOutput != null && hasSurveyForSupportingPdf ? () => {
+              onPrintSummary={visitHomeEngineOutput != null && hasSurveyForSupportingPdf ? () => {
                 setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
                 setJourney('library-pdf');
               } : undefined}
