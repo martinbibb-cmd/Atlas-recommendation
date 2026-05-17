@@ -151,6 +151,13 @@ export function ReadingPreferencesLauncher() {
                   onChange={(event) => updateProfile({ rulerLineCount: Number(event.target.value) })}
                 />
               </label>
+              <button
+                type="button"
+                className="rp-reset"
+                onClick={() => updateProfile({ readingRulerEnabled: false })}
+              >
+                Hide ruler
+              </button>
             </div>
           ) : null}
 
@@ -182,7 +189,7 @@ export function ReadingPreferencesLauncher() {
           </label>
 
           <button type="button" className="rp-reset" onClick={resetProfile}>
-            Reset reading comfort
+            Reset reading preferences
           </button>
         </section>
       ) : null}

@@ -93,11 +93,21 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-error')).toBeTruthy());
   });
 
-  it('shows a welcome page with two view choices after loading', async () => {
+  it('production portal does not include InsightPackDeck or legacy insight/blueprint sections', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
-    expect(screen.getByTestId('portal-welcome-insight')).toBeTruthy();
+    // InsightPackDeck option must not be offered from the production choice screen
+    expect(screen.queryByTestId('portal-welcome-insight')).toBeNull();
+    expect(screen.queryByTestId('insight-pack-deck')).toBeNull();
+  });
+
+  it('shows a welcome page with the presentation view choice after loading', async () => {
+    mockFetchSuccess(STUB_REPORT);
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    // Production portal must not include InsightPackDeck option
+    expect(screen.queryByTestId('portal-welcome-insight')).toBeNull();
     expect(screen.getByTestId('portal-welcome-presentation')).toBeTruthy();
     // Portal header uses safe visit-scoped copy
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
@@ -107,25 +117,18 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByText(/activeRendererComponent: PortalChoiceScreen/i)).toBeTruthy();
   });
 
-  it('clicking Insight reaches the real Insight renderer and shows route trace labels', async () => {
+  it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {
     mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
-
-    fireEvent.click(screen.getByTestId('portal-welcome-insight'));
-
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" devInitialViewMode="insight" />);
     await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
     expect(screen.getByText(/selectedPortalMode: insight/i)).toBeTruthy();
     expect(screen.getByText(/activeRendererComponent: InsightPackDeck/i)).toBeTruthy();
     expect(screen.getByText(/insightRendererComponent: InsightPackDeck/i)).toBeTruthy();
   });
 
-  it('real Insight renderer mounts CON_C02 section for stored hot water with two bathrooms', async () => {
+  it('devInitialViewMode=insight mounts CON_C02 section for stored hot water with two bathrooms', async () => {
     mockFetchSuccess(STORED_HOT_WATER_REPORT);
-    render(<CustomerPortalPage reference="test-report-stored-hot-water" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
-
-    fireEvent.click(screen.getByTestId('portal-welcome-insight'));
+    render(<CustomerPortalPage reference="test-report-stored-hot-water" token="valid-token" devInitialViewMode="insight" />);
     await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
     fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
 
@@ -176,9 +179,9 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
     expect(screen.queryByTestId('portal-route-trace-labels')).toBeNull();
 
-    fireEvent.click(screen.getByTestId('portal-welcome-insight'));
-    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
-    expect(screen.queryByTestId('insight-route-trace-labels')).toBeNull();
+    fireEvent.click(screen.getByTestId('portal-welcome-presentation'));
+    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+    expect(screen.queryByTestId('portal-route-trace-labels')).toBeNull();
   });
 
   it('renders without customer name or address data', async () => {

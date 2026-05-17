@@ -1618,6 +1618,7 @@ function AppInner() {
           generatedAt: now,
           url: portalUrl,
           version: '1.0',
+          renderer: 'library_customer_portal',
         },
       };
       const priorLifecycle = currentSnapshot?.lifecycleState ?? 'recommendation_ready';

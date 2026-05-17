@@ -298,7 +298,6 @@ export default function HouseSimulatorPage({
 
   return (
     <div className="hs-wrap atlas-reading-surface">
-      <ReadingPreferencesLauncher />
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="hs-header">
@@ -347,6 +346,7 @@ export default function HouseSimulatorPage({
           >
             Engineering{warningCount > 0 ? ` (${warningCount})` : ''}
           </button>
+          <ReadingPreferencesLauncher />
         </nav>
       </header>
 
