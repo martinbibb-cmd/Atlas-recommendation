@@ -49,6 +49,11 @@ export type CardStatus = 'ready' | 'needs-review' | 'blocked' | 'dev-only';
 export type CardAudience = 'customer' | 'surveyor' | 'office' | 'engineer';
 export type CardSource = 'engine' | 'library' | 'workflow' | 'simulator';
 export type VisitSelectorSource = 'local' | 'workflow' | 'demo';
+type ActionableState = {
+  why: string;
+  unlocks: string;
+  nextStep: string;
+};
 
 export interface VisitSelectorEntry {
   readonly visitId: string;
@@ -188,6 +193,16 @@ const STATUS_STYLES: Record<CardStatus, CSSProperties & { label: string }> = {
   'blocked':      { label: 'Blocked',       background: '#fef2f2', color: '#991b1b', borderColor: '#fca5a5' },
   'dev-only':     { label: 'Dev only',      background: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' },
 };
+const REASON_VISIT_DATA_MISSING = 'Visit data missing';
+const REASON_PERMISSION_NOT_GRANTED = 'Permission not granted for this workspace role.';
+const REASON_LIBRARY_SAFETY_REVIEW = 'Library safety needs review';
+const PDF_QA_BLOCKED_PREFIX = 'PDF QA blocked:';
+function isPDFQABlocked(reason: string | undefined): boolean {
+  if (reason == null || reason.length === 0) return false;
+  return reason
+    .split(' • ')
+    .some((entry) => entry.trim().startsWith(PDF_QA_BLOCKED_PREFIX));
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -216,6 +231,7 @@ interface DashboardCardProps {
   variant?: 'default' | 'feature';
   blockedReason?: string;
   highlights?: readonly string[];
+  actionableState?: ActionableState;
 }
 
 /**
@@ -246,6 +262,7 @@ function DashboardCard({
   variant = 'default',
   blockedReason,
   highlights,
+  actionableState,
 }: DashboardCardProps) {
   const isBlocked = status === 'blocked';
   const audienceLabel = audience
@@ -275,6 +292,19 @@ function DashboardCard({
         <p className="vhd-card__reason" data-testid={testId ? `${testId}-blocked-reason` : undefined}>
           {blockedReason}
         </p>
+      )}
+      {actionableState != null && (
+        <div className="vhd-card__actionable" data-testid={testId ? `${testId}-actionable` : undefined}>
+          <p className="vhd-card__actionable-row">
+            <strong>Why:</strong> {actionableState.why}
+          </p>
+          <p className="vhd-card__actionable-row">
+            <strong>What unlocks it:</strong> {actionableState.unlocks}
+          </p>
+          <p className="vhd-card__actionable-row">
+            <strong>Next step:</strong> {actionableState.nextStep}
+          </p>
+        </div>
       )}
       {highlights != null && highlights.length > 0 && (
         <ul className="vhd-card__highlights">
@@ -431,6 +461,109 @@ export function VisitHomeDashboard({
     if (triggerMode === 'ready-or-needs-review') return status === 'ready' || status === 'needs-review';
     return status === 'ready';
   };
+  const buildActionableState = (
+    actionId: VisitHomeActionId,
+    status: CardStatus,
+    reason: string | undefined,
+  ): ActionableState | undefined => {
+    if (status !== 'blocked' && status !== 'needs-review') return undefined;
+    if (reason === REASON_VISIT_DATA_MISSING) {
+      return {
+        why: 'This step is blocked because no active visit data is loaded for review.',
+        unlocks: 'Open or import a visit so review data is available.',
+        nextStep: 'Open visit',
+      };
+    }
+    if (reason === REASON_PERMISSION_NOT_GRANTED) {
+      return {
+        why: 'Your current workspace role does not allow this action.',
+        unlocks: 'A workspace admin needs to grant the required permission.',
+        nextStep: 'Switch workspace role or request access',
+      };
+    }
+    switch (actionId) {
+      case 'review-survey':
+        return {
+          why: status === 'needs-review'
+            ? 'A visit exists, but recommendation evidence has not been generated yet.'
+            : 'Recommendation evidence is not available for this visit.',
+          unlocks: 'Generate or refresh the recommendation for this visit.',
+          nextStep: 'Generate recommendation',
+        };
+      case 'customer-portal':
+        if (reason === REASON_LIBRARY_SAFETY_REVIEW) {
+          return {
+            why: 'Customer portal content is blocked by library safety checks.',
+            unlocks: 'Resolve the library safety blockers for customer-facing output.',
+            nextStep: 'Review library safety blockers',
+          };
+        }
+        return {
+          why: status === 'needs-review'
+            ? 'A recommendation exists, but the customer portal has not been generated yet.'
+            : 'Recommendation output is not accepted or available for portal generation.',
+          unlocks: 'Create customer-facing outputs from the current recommendation.',
+          nextStep: 'Generate customer outputs',
+        };
+      case 'supporting-pdf':
+        if (reason === REASON_LIBRARY_SAFETY_REVIEW || isPDFQABlocked(reason)) {
+          return {
+            why: 'The supporting PDF is blocked by customer-readiness or library safety checks.',
+            unlocks: 'Resolve PDF QA and library blockers for customer-safe output.',
+            nextStep: 'Fix PDF readiness blockers',
+          };
+        }
+        return {
+          why: status === 'needs-review'
+            ? 'A recommendation exists, but the supporting PDF has not been generated yet.'
+            : 'Recommendation output is not accepted or available for PDF generation.',
+          unlocks: 'Create customer-facing outputs from the current recommendation.',
+          nextStep: 'Generate customer outputs',
+        };
+      case 'run-simulator':
+        return {
+          why: status === 'needs-review'
+            ? 'Simulator playback is available, but recommendation inputs still need review.'
+            : 'The simulator needs recommendation-ready visit data first.',
+          unlocks: 'Generate recommendation data and confirm survey coverage.',
+          nextStep: 'Generate recommendation',
+        };
+      case 'implementation-workflow':
+        return {
+          why: status === 'needs-review'
+            ? 'Recommendation is ready, but no installation specification options are saved yet.'
+            : 'Implementation workflow requires recommendation-ready visit data.',
+          unlocks: 'Create at least one installation specification option.',
+          nextStep: 'Prepare implementation pack',
+        };
+      case 'resolve-follow-ups':
+        return {
+          why: status === 'needs-review'
+            ? 'Handoff follow-up output has not been generated for this visit yet.'
+            : 'Follow-up review requires recommendation-ready visit data.',
+          unlocks: 'Generate and open handoff review output.',
+          nextStep: 'Review handoff',
+        };
+      case 'export-handover-package':
+        return {
+          why: status === 'needs-review'
+            ? 'A handover package export has not been generated for this visit yet.'
+            : 'Export requires recommendation-ready visit data.',
+          unlocks: 'Generate the handover package from current visit outputs.',
+          nextStep: 'Export handover package',
+        };
+      case 'workspace-controls':
+        return {
+          why: 'Workspace controls are currently unavailable for this role.',
+          unlocks: 'Use a role with workspace management permissions.',
+          nextStep: 'Switch workspace role or request access',
+        };
+      default:
+        return undefined;
+    }
+  };
+  const actionableStateFor = (actionId: VisitHomeActionId, fallbackStatus: CardStatus) =>
+    buildActionableState(actionId, actionStatus(actionId, fallbackStatus), actionReason(actionId));
   const implementationActionStatus = actionStatus('implementation-workflow', implementationStatus);
 
   const visibleActionStatuses: CardStatus[] = actionProjection.visibleActions
@@ -761,6 +894,7 @@ export function VisitHomeDashboard({
                   description="Review recommendation evidence and lived experience explanations before customer handover."
                   status={actionStatus('review-survey', recommendationStatus)}
                   blockedReason={actionReason('review-survey')}
+                  actionableState={actionableStateFor('review-survey', recommendationStatus)}
                   audience={['customer', 'surveyor']}
                   source="engine"
                   ctaLabel="Review recommendation →"
@@ -776,6 +910,7 @@ export function VisitHomeDashboard({
                   description={portalDescription}
                   status={actionStatus('customer-portal', portalStatus)}
                   blockedReason={actionReason('customer-portal')}
+                  actionableState={actionableStateFor('customer-portal', portalStatus)}
                   audience={['customer']}
                   source="workflow"
                   ctaLabel="Open customer portal →"
@@ -791,6 +926,7 @@ export function VisitHomeDashboard({
                   description={supportingPdfDescription}
                   status={actionStatus('supporting-pdf', pdfStatus)}
                   blockedReason={actionReason('supporting-pdf')}
+                  actionableState={actionableStateFor('supporting-pdf', pdfStatus)}
                   audience={['customer', 'office']}
                   source="library"
                   ctaLabel="Print summary →"
@@ -811,6 +947,7 @@ export function VisitHomeDashboard({
                   description="Interactive daily-use simulator. Uses the current house-simulator surface."
                   status={actionStatus('run-simulator', simulatorStatus)}
                   blockedReason={actionReason('run-simulator')}
+                  actionableState={actionableStateFor('run-simulator', simulatorStatus)}
                   audience={['surveyor', 'engineer']}
                   source="simulator"
                   ctaLabel="Open house simulator →"
@@ -843,6 +980,7 @@ export function VisitHomeDashboard({
                     }
                     status={implementationActionStatus}
                     blockedReason={actionReason('implementation-workflow')}
+                    actionableState={actionableStateFor('implementation-workflow', implementationStatus)}
                     audience={['engineer']}
                     source="workflow"
                     ctaLabel="Prepare implementation pack →"
@@ -860,6 +998,7 @@ export function VisitHomeDashboard({
                     description="Review post-visit handoff details and linked captured evidence."
                     status={actionStatus('resolve-follow-ups', handoffStatus)}
                     blockedReason={actionReason('resolve-follow-ups')}
+                    actionableState={actionableStateFor('resolve-follow-ups', handoffStatus)}
                     audience={['engineer', 'office']}
                     source="workflow"
                     ctaLabel="Review handoff →"
@@ -875,6 +1014,7 @@ export function VisitHomeDashboard({
                     description="Export recommendation, portal context, and implementation pack for office handover."
                     status={actionStatus('export-handover-package', exportStatus)}
                     blockedReason={actionReason('export-handover-package')}
+                    actionableState={actionableStateFor('export-handover-package', exportStatus)}
                     audience={['office']}
                     source="workflow"
                     ctaLabel="Export handover package →"

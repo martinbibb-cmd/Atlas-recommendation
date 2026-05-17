@@ -351,6 +351,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     replacementRoute: 'visit-home',
     routeKind: 'derived',
     access: 'legacy_dev_only',
+    lifecycle: 'legacy_dev_only',
   },
   {
     codeName: 'VisitHomeUnifiedSimulatorRoute',

@@ -17,14 +17,14 @@
  * The existing lab/workbench (/?lab=1) is unchanged.
  *
  * Layout:
- *   - Compact header: home link · title · left/right hamburger menu entries
+ *   - Compact header: home link · title · setup/engineering controls
  *   - Roof widgets: left = heat source status  ·  right = efficiency summary
  *   - SystemNarrationToast: roof-ridge HUD overlay
  *   - HouseSimulatorCanvas: central persistent house view with outlet nodes
  *   - TimelineBottomSheet: 24-hour timeline + scenario selector + draw-off controls
  *   - SimulatorSideDrawer (left):  Setup / system configuration
  *   - SimulatorSideDrawer (right): Engineering / efficiency detail
- *   - Top sheet: warnings / physics explainers
+ *   - Engineering drawer: warnings / physics explainers
  */
 
 import { useState, useMemo } from 'react';
@@ -119,7 +119,6 @@ export default function HouseSimulatorPage({
   // ── Panel visibility ────────────────────────────────────────────────────────
   const [leftOpen,        setLeftOpen]        = useState(false);
   const [rightOpen,       setRightOpen]       = useState(false);
-  const [topSheetOpen,    setTopSheetOpen]    = useState(false);
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
 
@@ -323,21 +322,19 @@ export default function HouseSimulatorPage({
 
         <nav className="hs-header__actions" aria-label="Simulator menus">
           <button
-            className="hs-action-btn hs-action-btn--hamburger"
+            className="hs-action-btn"
             onClick={() => {
               setLeftOpen(v => !v);
               setRightOpen(false);
-              setTopSheetOpen(false);
             }}
             aria-expanded={leftOpen}
             aria-controls="hs-setup-drawer"
-            aria-label="Open simulation and tools menu"
+            aria-label="Open setup and simulation controls"
           >
-            <span aria-hidden="true">☰</span>
-            <span>Simulation</span>
+            Setup
           </button>
           <button
-            className={`hs-action-btn hs-action-btn--hamburger${warningCount > 0 ? ' hs-action-btn--warn' : ''}`}
+            className={`hs-action-btn${warningCount > 0 ? ' hs-action-btn--warn' : ''}`}
             onClick={() => {
               setRightOpen(v => !v);
               setLeftOpen(false);
@@ -346,8 +343,7 @@ export default function HouseSimulatorPage({
             aria-controls="hs-engineering-drawer"
             aria-label="Open engineering and warnings menu"
           >
-            <span aria-hidden="true">☰</span>
-            <span>Engineering{warningCount > 0 ? ` (${warningCount})` : ''}</span>
+            Engineering{warningCount > 0 ? ` (${warningCount})` : ''}
           </button>
         </nav>
       </header>
@@ -477,18 +473,22 @@ export default function HouseSimulatorPage({
       >
         <div className="hs-setup-section">
           <p className="hs-setup-label">Warnings</p>
-          <button
-            className={`hs-action-btn hs-action-btn--drawer${warningCount > 0 ? ' hs-action-btn--warn' : ''}`}
-            onClick={() => {
-              setTopSheetOpen(true);
-              setRightOpen(false);
-              setLeftOpen(false);
-            }}
-            aria-expanded={topSheetOpen}
-            aria-controls="hs-warnings-sheet"
-          >
-            Open warnings panel{warningCount > 0 ? ` (${warningCount})` : ''}
-          </button>
+          {warningItems.length === 0 ? (
+            <p className="hs-warnings__empty">No active warnings right now.</p>
+          ) : (
+            <ul className="hs-warning-list">
+              {warningItems.map(warning => (
+                <li key={warning.id} className={`hs-warning-item hs-warning-item--${warning.severity}`}>
+                  <div className="hs-warning-item__header">
+                    <strong>{warning.title}</strong>
+                    <span className="hs-warning-item__severity">{warning.severity}</span>
+                  </div>
+                  <p>{warning.explanation}</p>
+                  {warning.suggestedFix && <p className="hs-warning-item__fix">Suggested action: {warning.suggestedFix}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <EfficiencyPanel state={efficiencyState} />
         <LimitersPanel state={limiterState} />
@@ -503,59 +503,6 @@ export default function HouseSimulatorPage({
             setRightOpen(false);
           }}
         />
-      )}
-
-      {/* ── Warnings overlay drawer ───────────────────────────────────────── */}
-      {topSheetOpen && (
-        <div className="hs-overlay" role="presentation" onClick={() => setTopSheetOpen(false)}>
-          <section
-            id="hs-warnings-sheet"
-            className="hs-overlay-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Current warnings"
-            onClick={event => event.stopPropagation()}
-          >
-            <div className="hs-overlay-panel__header">
-              <h2>Current warnings</h2>
-              <button
-                className="hs-action-btn"
-                onClick={() => setTopSheetOpen(false)}
-                aria-label="Close warnings panel"
-              >
-                Close
-              </button>
-            </div>
-            <div className="hs-overlay-panel__body">
-              {warningItems.length === 0 ? (
-                <p className="hs-top-sheet__empty">No active warnings right now.</p>
-              ) : (
-                <ul className="hs-warning-list">
-                  {warningItems.map(warning => (
-                    <li key={warning.id} className={`hs-warning-item hs-warning-item--${warning.severity}`}>
-                      <div className="hs-warning-item__header">
-                        <strong>{warning.title}</strong>
-                        <span className="hs-warning-item__severity">{warning.severity}</span>
-                      </div>
-                      <p>{warning.explanation}</p>
-                      {warning.suggestedFix && <p className="hs-warning-item__fix">Suggested action: {warning.suggestedFix}</p>}
-                      <button
-                        className="hs-warning-item__learn"
-                        onClick={() => {
-                          setRightOpen(true);
-                          setLeftOpen(false);
-                          setTopSheetOpen(false);
-                        }}
-                      >
-                        Learn why
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-        </div>
       )}
 
     </div>
