@@ -7,3 +7,8 @@ export {
   resolveEducationalAnimationId,
 } from './animationLookup';
 export { EducationalAnimationRenderer } from './EducationalAnimationRenderer';
+export {
+  getAnimationsForJourney,
+  getAnimationIdsForJourney,
+  getRoutedJourneyIds,
+} from './journeyAnimationMap';
