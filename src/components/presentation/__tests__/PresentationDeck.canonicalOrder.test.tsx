@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import PresentationDeck from '../PresentationDeck';
 import { runEngine } from '../../../engine/Engine';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
@@ -148,6 +148,39 @@ describe('PresentationDeck — canonical page order', () => {
     for (const label of between) {
       expect(label).toMatch(/^(Option \d+|Changes \d+)$/);
     }
+  });
+
+  it('proof page does not show the portal CTA tile', () => {
+    const result = runEngine(FIXTURE);
+    render(
+      <PresentationDeck
+        result={result}
+        input={FIXTURE}
+        recommendationResult={result.recommendationResult}
+      />,
+    );
+    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const proofBtn = nav.querySelector('button[aria-label="Go to page: Proof"]');
+    expect(proofBtn).toBeTruthy();
+    fireEvent.click(proofBtn as HTMLButtonElement);
+    expect(screen.queryByText('Open your portal')).toBeNull();
+    expect(screen.queryByText('Open your portal →')).toBeNull();
+  });
+
+  it('proof page does not render AI summary block', () => {
+    const result = runEngine(FIXTURE);
+    render(
+      <PresentationDeck
+        result={result}
+        input={FIXTURE}
+        recommendationResult={result.recommendationResult}
+      />,
+    );
+    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
+    const proofBtn = nav.querySelector('button[aria-label="Go to page: Proof"]');
+    expect(proofBtn).toBeTruthy();
+    fireEvent.click(proofBtn as HTMLButtonElement);
+    expect(screen.queryByText('AI Summary')).toBeNull();
   });
 });
 

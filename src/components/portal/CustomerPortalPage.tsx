@@ -66,6 +66,7 @@ interface Props {
 }
 
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
+export const CUSTOMER_PORTAL_PHONE_MEDIA_QUERY = '(max-width: 768px)';
 const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
 const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
 const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
@@ -160,7 +161,7 @@ function CustomerPortalContent({
     ?? (
       typeof window !== 'undefined'
         && typeof window.matchMedia === 'function'
-        && window.matchMedia('(max-width: 768px)').matches
+        && window.matchMedia(CUSTOMER_PORTAL_PHONE_MEDIA_QUERY).matches
       ? 'presentation'
       : null
     );
