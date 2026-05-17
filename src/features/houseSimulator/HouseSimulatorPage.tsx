@@ -298,7 +298,7 @@ export default function HouseSimulatorPage({
   ];
 
   return (
-    <div className="hs-wrap atlas-reading-surface">
+    <div className="hs-wrap atlas-reading-surface" data-testid="house-simulator-root">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="hs-header">
@@ -352,7 +352,7 @@ export default function HouseSimulatorPage({
       </header>
 
       {/* ── Central house stage ───────────────────────────────────────────── */}
-      <section className="hs-stage" aria-label="House simulator stage">
+      <section className="hs-stage" aria-label="House simulator stage" data-testid="house-simulator-stage">
 
         {/* Left roof widget — heat source status */}
         <aside className="hs-roof-widget hs-roof-widget--left" aria-label="Heat source status">
@@ -473,6 +473,7 @@ export default function HouseSimulatorPage({
         title="Engineering and warnings"
         open={rightOpen}
         onClose={() => setRightOpen(false)}
+        dataTestId="house-simulator-engineering-drawer"
       >
         <div className="hs-setup-section">
           <p className="hs-setup-label">Warnings</p>

@@ -57,6 +57,7 @@ export default function TimelineBottomSheet({
     <section
       className={`hs-bottom-sheet${open ? ' hs-bottom-sheet--open' : ''}`}
       aria-label="Timeline and scenarios"
+      data-testid="house-simulator-bottom-sheet"
     >
       <div className="hs-bottom-sheet__header">
         <h2 className="hs-bottom-sheet__title">Timeline and scenarios</h2>

@@ -6,6 +6,7 @@ export type VisitReviewLifecycleState =
   | 'handover_ready';
 
 export type GeneratedOutputRendererV1 = 'library_customer_portal' | 'legacy_dev_only';
+export const CANONICAL_PORTAL_RENDERER: GeneratedOutputRendererV1 = 'library_customer_portal';
 
 export interface GeneratedOutputArtifactV1 {
   readonly generated: boolean;
@@ -28,6 +29,20 @@ function createEmptyOutputArtifact(): GeneratedOutputArtifactV1 {
   return { generated: false };
 }
 
+export function buildGeneratedPortalArtifact(input: {
+  readonly generatedAt: string;
+  readonly url: string;
+  readonly version?: string;
+}): GeneratedOutputArtifactV1 {
+  return {
+    generated: true,
+    generatedAt: input.generatedAt,
+    url: input.url,
+    version: input.version ?? '1.0',
+    renderer: CANONICAL_PORTAL_RENDERER,
+  };
+}
+
 export function createEmptyGeneratedOutputs(): GeneratedOutputsV1 {
   return {
     portal: createEmptyOutputArtifact(),
@@ -47,6 +62,20 @@ export function normaliseGeneratedOutputs(
     pdf: outputs.pdf ?? base.pdf,
     simulatorReview: outputs.simulatorReview ?? base.simulatorReview,
     handoff: outputs.handoff ?? base.handoff,
+  };
+}
+
+export function withGeneratedPortalOutput(
+  outputs: Partial<GeneratedOutputsV1> | undefined,
+  portal: {
+    readonly generatedAt: string;
+    readonly url: string;
+    readonly version?: string;
+  },
+): GeneratedOutputsV1 {
+  return {
+    ...normaliseGeneratedOutputs(outputs),
+    portal: buildGeneratedPortalArtifact(portal),
   };
 }
 

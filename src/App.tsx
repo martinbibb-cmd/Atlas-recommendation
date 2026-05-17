@@ -142,11 +142,13 @@ import {
   isLifecycleAtLeast,
   isRecommendationReadyForLifecycle,
   normaliseGeneratedOutputs,
+  withGeneratedPortalOutput,
   type GeneratedOutputsV1,
   type VisitReviewLifecycleState,
 } from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
+import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
 import type { VisitSelectorEntry } from './features/visitHome/VisitHomeDashboard';
@@ -382,6 +384,14 @@ const SCAN_IMPORT_ENABLED =
 const WORKSPACE_LIFECYCLE_QA_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('workspace-lifecycle-qa') === '1';
+
+/**
+ * Detect ?phone-customer-qa=1 — renders the phone-first customer QA harness
+ * for portal, simulator, deep-link landing, and reading preferences review.
+ */
+const PHONE_CUSTOMER_QA_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('phone-customer-qa') === '1';
 
 /**
  * Detect ?scan-package=1 — renders the Atlas Scan package import flow.
@@ -1554,16 +1564,10 @@ function AppInner() {
       }
       const token = await generatePortalToken(reportId);
       portalUrl = buildPortalUrl(reportId, window.location.origin, token);
-      generatedOutputs = {
-        ...generatedOutputs,
-        portal: {
-          generated: true,
-          generatedAt: new Date().toISOString(),
-          url: portalUrl,
-          version: '1.0',
-          renderer: 'library_customer_portal',
-        },
-      };
+      generatedOutputs = withGeneratedPortalOutput(generatedOutputs, {
+        generatedAt: new Date().toISOString(),
+        url: portalUrl,
+      });
       lifecycleState = 'outputs_generated';
       statusMessage = 'Recommendation generated, portal link refreshed, and customer outputs updated.';
     } catch (err) {
@@ -1665,16 +1669,10 @@ function AppInner() {
       const now = new Date().toISOString();
       const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
       const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
-      const nextOutputs: GeneratedOutputsV1 = {
-        ...generatedOutputs,
-        portal: {
-          generated: true,
-          generatedAt: now,
-          url: portalUrl,
-          version: '1.0',
-          renderer: 'library_customer_portal',
-        },
-      };
+      const nextOutputs: GeneratedOutputsV1 = withGeneratedPortalOutput(generatedOutputs, {
+        generatedAt: now,
+        url: portalUrl,
+      });
       const priorLifecycle = currentSnapshot?.lifecycleState ?? 'recommendation_ready';
       const lifecycleState: VisitReviewLifecycleState = isLifecycleAtLeast(priorLifecycle, 'review_in_progress')
         ? priorLifecycle
@@ -2301,6 +2299,11 @@ function AppInner() {
   // ?workspace-lifecycle-qa=1 — deterministic workspace visit lifecycle QA harness.
   if (WORKSPACE_LIFECYCLE_QA_ENABLED) {
     return <WorkspaceVisitLifecycleHarness onBack={() => { window.location.href = window.location.pathname; }} />;
+  }
+
+  // ?phone-customer-qa=1 — deterministic phone-first customer QA harness.
+  if (PHONE_CUSTOMER_QA_ENABLED) {
+    return <PhoneFirstQaHarness onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
   // ?handoff=1 — render canonical AtlasPropertyV1 handoff arrival page.

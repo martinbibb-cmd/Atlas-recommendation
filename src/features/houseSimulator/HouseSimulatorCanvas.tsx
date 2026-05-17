@@ -135,7 +135,7 @@ export default function HouseSimulatorCanvas({
   const outsideFloor = floors.find(f => f.key === 'outside');
 
   return (
-    <div className="hs-canvas">
+    <div className="hs-canvas" data-testid="house-simulator-canvas">
       {/* ── Status bar ───────────────────────────────────────────────────── */}
       <div className={`hs-canvas__status${chPaused ? ' hs-canvas__status--paused' : ''}`}>
         <span className="hs-canvas__temp">{indoorTempC.toFixed(1)} °C</span>

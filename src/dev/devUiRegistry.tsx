@@ -29,6 +29,7 @@ import { runEngine } from '../engine/Engine';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
 import HouseSimulatorPage from '../features/houseSimulator/HouseSimulatorPage';
 import { WorkspaceVisitLifecycleHarness } from './workspaceQa';
+import PhoneFirstQaHarness from './PhoneFirstQaHarness';
 import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
 
@@ -468,6 +469,22 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     fullRouteExample: '/?workspace-lifecycle-qa=1',
     access: 'dev_only',
     render: () => <WorkspaceVisitLifecycleHarness />,
+  },
+  {
+    id: 'phone-first-qa-harness',
+    commonName: 'Phone customer QA',
+    codeName: 'PhoneFirstQaHarness',
+    fileName: 'PhoneFirstQaHarness.tsx',
+    filePath: 'src/dev/PhoneFirstQaHarness.tsx',
+    category: 'audit',
+    status: 'active',
+    notes:
+      'Phone-first QA harness for customer-facing portal, simulator, deep-link landing, and reading preferences checks.',
+    routeKind: 'query_flag',
+    queryFlags: ['phone-customer-qa=1'],
+    fullRouteExample: '/?phone-customer-qa=1',
+    access: 'dev_only',
+    render: () => <PhoneFirstQaHarness />,
   },
   {
     id: 'component-discovery-panel',
