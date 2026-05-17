@@ -1,17 +1,16 @@
 /**
  * CustomerPortalPage.tsx
  *
- * Customer portal — mirrors the in-room recommendation presentation exactly.
+ * Customer portal — phone-first portal shell for customer follow-up.
  * Accessible via a signed portal link sent after the survey visit.
  *
- * The portal renders the same CanonicalPresentationPage (deck mode) that is
- * shown to the customer in-room, so every slide is identical.
+ * Production route behavior:
+ *   - Renders the library-native PortalPage shell directly.
+ *   - Never renders the in-room CanonicalPresentationPage.
+ *   - Keeps simulator access through portal-native CTA/panels.
  *
- * Restrictions vs the in-room view:
- *   - No "Back" button — customers cannot navigate to other reports or surveys.
- *   - No survey editing — portal is read-only.
- *   - Simulator is available inline via the final deck slide CTA.
- *   - Deck CTA button launches the five-tab PortalPage (PR6).
+ * Dev fixture behavior:
+ *   - Optional presentation/insight preview modes remain available for QA.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -161,7 +160,10 @@ function CustomerPortalContent({
   // surveyData is kept for the inline simulator.
   const [surveyData, setSurveyData] = useState<FullSurveyModelV1 | null>(null);
   const [showSimulator, setShowSimulator] = useState(false);
-  const defaultPortalViewMode: PortalViewMode = devInitialViewMode ?? (isPhoneViewport() ? 'presentation' : null);
+  const isDevFixturePreview = Boolean(devFixtureInput);
+  const defaultPortalViewMode: PortalViewMode = isDevFixturePreview
+    ? (devInitialViewMode ?? (isPhoneViewport() ? 'presentation' : null))
+    : 'portal';
   // Welcome page: null = show welcome, 'insight' = insight pack, 'presentation' = deck, 'portal' = five-tab portal
   const [viewMode, setViewMode] = useState<PortalViewMode>(defaultPortalViewMode);
   // Launch context received from the deck CTA — drives the initial tab of the portal.
@@ -374,7 +376,7 @@ function CustomerPortalContent({
             : 'CanonicalPresentationPage';
 
   // ── Welcome page — choose a view ──────────────────────────────────────────
-  if (viewMode === null) {
+  if (viewMode === null && isDevFixturePreview) {
     return (
       <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
         <ReadingAssistOverlay />
@@ -431,7 +433,7 @@ function CustomerPortalContent({
   }
 
   // ── Insight Pack view ─────────────────────────────────────────────────────
-  if (viewMode === 'insight') {
+  if (viewMode === 'insight' && isDevFixturePreview) {
     const surveyContext: InsightPackSurveyContext = {
       currentBoiler: engineInput.currentSystem?.boiler,
       occupancyCount: engineInput.occupancyCount,
@@ -500,14 +502,23 @@ function CustomerPortalContent({
             <p>activeRendererComponent: {activeRendererComponent}</p>
           </aside>
         ) : null}
+        <header className="portal-page__hero" data-testid="portal-hero">
+          <BrandedHeader />
+          <div className="portal-hero__brand-row">
+            <span className="portal-page__brand" aria-hidden="true"></span>
+            <span className="portal-page__postcode">{portalHomeLabel}</span>
+          </div>
+        </header>
         <div className="portal-back-row portal-back-row--with-actions">
-          <button
-            type="button"
-            className="back-btn"
-            onClick={() => { setViewMode('presentation'); setShowSimulator(false); }}
-          >
-            ← Back to presentation
-          </button>
+          {isDevFixturePreview ? (
+            <button
+              type="button"
+              className="back-btn"
+              onClick={() => { setViewMode('presentation'); setShowSimulator(false); }}
+            >
+              ← Back to presentation
+            </button>
+          ) : null}
           <div className="portal-header-actions">
             <ReadingPreferencesLauncher />
           </div>
@@ -533,7 +544,8 @@ function CustomerPortalContent({
   }
 
   // ── Presentation view (deck) ──────────────────────────────────────────────
-  return (
+  if (isDevFixturePreview) {
+    return (
     <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
       <ReadingAssistOverlay />
       {showDevTraceLabels ? (
@@ -611,6 +623,43 @@ function CustomerPortalContent({
       )}
 
       {/* ── Footer ───────────────────────────────────────────────────────── */}
+      <BrandedFooter footerNote={ctaCopy.printFooterNote} />
+    </div>
+    );
+  }
+
+  return (
+    <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+      <ReadingAssistOverlay />
+      {showDevTraceLabels ? (
+        <aside data-testid="portal-route-trace-labels">
+          <p>currentPortalRoute: {currentPortalRoute}</p>
+          <p>selectedPortalMode: {selectedPortalMode}</p>
+          <p>activeRendererComponent: {activeRendererComponent}</p>
+        </aside>
+      ) : null}
+      <header className="portal-page__hero" data-testid="portal-hero">
+        <BrandedHeader />
+        <div className="portal-hero__brand-row">
+          <span className="portal-page__brand" aria-hidden="true"></span>
+          <span className="portal-page__postcode">{portalHomeLabel}</span>
+        </div>
+      </header>
+      {portalViewModel ? (
+        <PortalPage
+          viewModel={portalViewModel}
+          propertyTitle={portalHomeLabel}
+          initialTab={portalLaunchContext?.initialTab}
+          portalUrl={typeof window !== 'undefined' ? window.location.href : undefined}
+          aiSummaryText={aiSummaryText}
+          aiSummaryFilename={aiSummaryFilename}
+        />
+      ) : (
+        <div className="portal-page__error" role="alert" data-testid="portal-view-error">
+          <p className="portal-page__error-headline">Portal not available</p>
+          <p className="portal-page__error-detail">Your portal could not be assembled from the available data.</p>
+        </div>
+      )}
       <BrandedFooter footerNote={ctaCopy.printFooterNote} />
     </div>
   );

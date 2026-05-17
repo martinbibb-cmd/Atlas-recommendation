@@ -55,16 +55,6 @@ const STORED_HOT_WATER_INPUT: EngineInputV2_3 = {
   peakConcurrentOutlets: 2,
 };
 
-const STORED_HOT_WATER_REPORT: ReportDetail = {
-  ...STUB_REPORT,
-  id: 'test-report-stored-hot-water',
-  payload: {
-    ...STUB_REPORT.payload,
-    surveyData: STORED_HOT_WATER_INPUT as unknown as ReportDetail['payload']['surveyData'],
-    engineInput: STORED_HOT_WATER_INPUT,
-  },
-};
-
 function mockFetchSuccess(report: ReportDetail) {
   global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, report }) } as unknown as Response);
 }
@@ -72,7 +62,7 @@ function mockFetch404() {
   global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404, json: () => Promise.resolve({ ok: false, error: 'Report not found' }) } as unknown as Response);
 }
 
-/** Helper: wait for data to load and navigate past the welcome screen to the presentation view. */
+/** Helper: dev fixture flow — wait for choice screen then open presentation preview. */
 async function openPresentationView() {
   await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
   fireEvent.click(screen.getByTestId('portal-welcome-presentation'));
@@ -98,29 +88,23 @@ describe('CustomerPortalPage', () => {
   it('production portal does not include InsightPackDeck or legacy insight/blueprint sections', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
-    // InsightPackDeck option must not be offered from the production choice screen
-    expect(screen.queryByTestId('portal-welcome-insight')).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.queryByTestId('insight-pack-deck')).toBeNull();
+    expect(screen.queryByTestId('presentation-deck')).toBeNull();
   });
 
-  it('shows a welcome page with the presentation view choice after loading', async () => {
+  it('loads directly into the portal shell on production route', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
-    // Production portal must not include InsightPackDeck option
-    expect(screen.queryByTestId('portal-welcome-insight')).toBeNull();
-    expect(screen.getByTestId('portal-welcome-presentation')).toBeTruthy();
-    // Portal header uses safe visit-scoped copy
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
     expect(screen.getAllByText('Your home').length).toBeGreaterThan(0);
-    expect(screen.getByTestId('journey-identity-header')).toBeTruthy();
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
-    expect(screen.getByText(/selectedPortalMode: choice/i)).toBeTruthy();
-    expect(screen.getByText(/activeRendererComponent: PortalChoiceScreen/i)).toBeTruthy();
+    expect(screen.getByText(/selectedPortalMode: portal/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: PortalPage/i)).toBeTruthy();
   });
 
-  it('phone viewport lands directly in presentation mode (no welcome step)', async () => {
+  it('phone viewport lands directly in portal mode (no welcome step)', async () => {
     mockFetchSuccess(STUB_REPORT);
     vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
       matches: query === CUSTOMER_PORTAL_PHONE_MEDIA_QUERY,
@@ -133,14 +117,20 @@ describe('CustomerPortalPage', () => {
       dispatchEvent: vi.fn(),
     })));
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('presentation-deck')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.queryByTestId('portal-welcome')).toBeNull();
+    expect(screen.queryByTestId('presentation-deck')).toBeNull();
     vi.unstubAllGlobals();
   });
 
   it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {
-    mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" token="valid-token" devInitialViewMode="insight" />);
+    render(
+      <CustomerPortalPage
+        reference="test-report-1"
+        devFixtureInput={STUB_ENGINE_INPUT}
+        devInitialViewMode="insight"
+      />,
+    );
     await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
     expect(screen.getByText(/selectedPortalMode: insight/i)).toBeTruthy();
     expect(screen.getByText(/activeRendererComponent: InsightPackDeck/i)).toBeTruthy();
@@ -148,8 +138,13 @@ describe('CustomerPortalPage', () => {
   });
 
   it('devInitialViewMode=insight mounts CON_C02 section for stored hot water with two bathrooms', async () => {
-    mockFetchSuccess(STORED_HOT_WATER_REPORT);
-    render(<CustomerPortalPage reference="test-report-stored-hot-water" token="valid-token" devInitialViewMode="insight" />);
+    render(
+      <CustomerPortalPage
+        reference="test-report-stored-hot-water"
+        devFixtureInput={STORED_HOT_WATER_INPUT}
+        devInitialViewMode="insight"
+      />,
+    );
     await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
     fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
 
@@ -159,8 +154,7 @@ describe('CustomerPortalPage', () => {
   });
 
   it('renders the canonical presentation deck — same pages as the in-room presentation', async () => {
-    mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
     await openPresentationView();
 
     expect(screen.getByTestId('customer-portal')).toBeTruthy();
@@ -189,11 +183,10 @@ describe('CustomerPortalPage', () => {
   });
 
   it('hides route trace labels when dev labels are disabled', async () => {
-    mockFetchSuccess(STUB_REPORT);
     render(
       <CustomerPortalPage
         reference="test-report-1"
-        token="valid-token"
+        devFixtureInput={STUB_ENGINE_INPUT}
         showDevTraceLabelsOverride={false}
       />,
     );
@@ -208,7 +201,7 @@ describe('CustomerPortalPage', () => {
   it('renders without customer name or address data', async () => {
     mockFetchSuccess({ ...STUB_REPORT, postcode: null, customer_name: null });
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.getAllByText('Your home').length).toBeGreaterThan(0);
     expect(screen.queryByText('SW1A 1AA')).toBeNull();
   });
@@ -225,12 +218,12 @@ describe('CustomerPortalPage', () => {
         }}
       />,
     );
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.getAllByText('The Smith household').length).toBeGreaterThan(0);
     expect(screen.queryByText('SW1A 1AA')).toBeNull();
   });
 
-  it('keeps recommendation output unchanged when route trace labels are toggled', async () => {
+  it('keeps portal tab labels unchanged when route trace labels are toggled', async () => {
     mockFetchSuccess(STUB_REPORT);
     const { unmount } = render(
       <CustomerPortalPage
@@ -239,10 +232,8 @@ describe('CustomerPortalPage', () => {
         showDevTraceLabelsOverride
       />,
     );
-    await openPresentationView();
-    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
-    const labelsWithTrace = Array.from(nav.querySelectorAll('button[aria-label^="Go to page:"]'))
-      .map((btn) => btn.getAttribute('aria-label'));
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
+    const labelsWithTrace = screen.getAllByRole('tab').map((tab) => tab.textContent);
     unmount();
 
     mockFetchSuccess(STUB_REPORT);
@@ -253,17 +244,14 @@ describe('CustomerPortalPage', () => {
         showDevTraceLabelsOverride={false}
       />,
     );
-    await openPresentationView();
-    const navWithoutTrace = screen.getByRole('navigation', { name: 'Deck navigation' });
-    const labelsWithoutTrace = Array.from(navWithoutTrace.querySelectorAll('button[aria-label^="Go to page:"]'))
-      .map((btn) => btn.getAttribute('aria-label'));
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
+    const labelsWithoutTrace = screen.getAllByRole('tab').map((tab) => tab.textContent);
 
     expect(labelsWithTrace).toEqual(labelsWithoutTrace);
   });
 
-  it('navigates to the simulator page and opens the house simulator', async () => {
-    mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+  it('dev presentation preview navigates to simulator and opens house simulator', async () => {
+    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
     await openPresentationView();
 
     // Navigate to the last slide (Proof / simulator page) via progress dots
@@ -288,9 +276,8 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByRole('heading', { name: /house simulator/i })).toBeTruthy();
   });
 
-  it('returns to the presentation deck from the inline house simulator', async () => {
-    mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+  it('dev presentation preview returns to deck from inline house simulator', async () => {
+    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
     await openPresentationView();
 
     // Navigate to simulator page and open it
@@ -304,9 +291,8 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByRole('navigation', { name: 'Deck navigation' })).toBeTruthy());
   });
 
-  it('portal mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
-    mockFetchSuccess(STUB_REPORT);
-    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+  it('dev presentation simulator mode hides expert-only inputs (mains pressure, mains flow, boiler output)', async () => {
+    render(<CustomerPortalPage reference="test-report-1" devFixtureInput={STUB_ENGINE_INPUT} />);
     await openPresentationView();
 
     // Navigate to simulator page and open it
@@ -333,7 +319,7 @@ describe('CustomerPortalPage — branding', () => {
   it('renders atlas-default brand header (company name "Atlas") when no brandId supplied', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
 
     // BrandedHeader rendered inside portal-hero
     const header = screen.getByTestId('branded-header');
@@ -344,7 +330,7 @@ describe('CustomerPortalPage — branding', () => {
   it('renders installer-demo company name when brandId="installer-demo"', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" brandId="installer-demo" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
 
     expect(screen.getByTestId('branded-header-company').textContent).toBe('Demo Heating Co');
   });
@@ -352,7 +338,7 @@ describe('CustomerPortalPage — branding', () => {
   it('shows installer contact in header when showInstallerContact is true (installer-demo)', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" brandId="installer-demo" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
 
     expect(screen.getByTestId('branded-header-contact')).toBeTruthy();
   });
@@ -360,7 +346,7 @@ describe('CustomerPortalPage — branding', () => {
   it('hides installer contact when showInstallerContact is false (atlas-default)', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
 
     expect(screen.queryByTestId('branded-header-contact')).toBeNull();
   });
@@ -368,7 +354,7 @@ describe('CustomerPortalPage — branding', () => {
   it('renders branded footer on the welcome page', async () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('portal-welcome')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
 
     expect(screen.getByTestId('branded-footer')).toBeTruthy();
     expect(screen.getByTestId('branded-footer-company').textContent).toBe('Atlas');
@@ -376,26 +362,21 @@ describe('CustomerPortalPage — branding', () => {
 
   it('recommendation headline is unchanged regardless of brand', async () => {
     // Both atlas-default and installer-demo must produce the same recommendation
-    // headline because brand never touches recommendation logic.
+    // tab set because brand never touches recommendation logic.
     mockFetchSuccess(STUB_REPORT);
     const { unmount } = render(
       <CustomerPortalPage reference="test-report-1" token="valid-token" />,
     );
-    await openPresentationView();
-    // Collect page labels — these come from the engine, not the brand
-    const nav = screen.getByRole('navigation', { name: 'Deck navigation' });
-    const defaultLabels = Array.from(nav.querySelectorAll('button[aria-label^="Go to page:"]'))
-      .map(b => b.getAttribute('aria-label'));
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
+    const defaultLabels = screen.getAllByRole('tab').map((tab) => tab.textContent);
     unmount();
 
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" brandId="installer-demo" />);
-    await openPresentationView();
-    const nav2 = screen.getByRole('navigation', { name: 'Deck navigation' });
-    const demoBrandLabels = Array.from(nav2.querySelectorAll('button[aria-label^="Go to page:"]'))
-      .map(b => b.getAttribute('aria-label'));
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
+    const demoBrandLabels = screen.getAllByRole('tab').map((tab) => tab.textContent);
 
-    // Slide labels are driven by the engine — must be identical for both brands
+    // Tab labels are driven by the engine — must be identical for both brands
     expect(defaultLabels).toEqual(demoBrandLabels);
   });
 });

@@ -282,15 +282,15 @@ function PortalPhoneSurface() {
 
   const checks = useMemo<QaCheck[]>(() => [
     {
-      label: 'Portal opens directly in presentation mode on phone',
+      label: 'Portal opens directly in customer portal shell on phone',
       status: 'pass',
-      detail: 'The preview forces the phone media query and lands in the presentation deck.',
+      detail: 'The preview forces the phone media query and lands in the production portal shell.',
     },
     noOverflow,
     {
       label: 'Bottom navigation and portal CTA stay reachable',
       status: 'pass',
-      detail: 'Deck navigation remains mounted inside the phone viewport.',
+      detail: 'Portal tabs and simulator CTA remain reachable inside the phone viewport.',
     },
   ], [noOverflow]);
 
@@ -444,7 +444,7 @@ function DeepLinkSurface() {
               <header style={{ display: 'grid', gap: '0.35rem' }}>
                 <strong style={{ color: '#0f172a' }}>Customer landing</strong>
                 <span style={{ color: '#64748b', fontSize: '0.85rem' }}>
-                  Phone-first deep link opens the customer portal directly in presentation mode.
+                  Phone-first deep link opens the customer portal directly in portal-shell mode.
                 </span>
               </header>
               <div
