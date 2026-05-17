@@ -55,7 +55,6 @@ import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToCo
 import { optionToConceptModel, type OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
 import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
-import GeminiAISummary from './GeminiAISummary';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import CylinderComparePanel from '../physics-visuals/CylinderComparePanel';
 import ConvectionExplainer from '../visualizers/ConvectionExplainer';
@@ -1500,15 +1499,12 @@ function SimulatorPage({
   sim,
   onOpenSimulator,
   onPrint,
-  onOpenPortal,
 }: {
   sim: FinalPageSimulator;
   onOpenSimulator?: () => void;
   onPrint?: () => void;
-  /** Called when the user taps "Open your portal". Opens the five-tab portal surface. */
-  onOpenPortal?: () => void;
 }) {
-  const hasAnyAction = onOpenSimulator != null || onPrint != null || onOpenPortal != null;
+  const hasAnyAction = onOpenSimulator != null || onPrint != null;
   return (
     <>
       <p className="atlas-presentation-deck__page-eyebrow">Proof</p>
@@ -1600,24 +1596,6 @@ function SimulatorPage({
             </div>
           )}
 
-          {/* Portal tile — opens the five-tab portal surface */}
-          {onOpenPortal && (
-            <div className="atlas-deck-simulator__tile atlas-deck-simulator__tile--portal">
-              <p className="atlas-deck-simulator__tile-icon" aria-hidden="true">📊</p>
-              <p className="atlas-deck-simulator__tile-heading">Open your portal</p>
-              <p className="atlas-deck-simulator__tile-desc">
-                Compare options, review the evidence, and explore day-to-day outcomes in your personal portal.
-              </p>
-              <button
-                type="button"
-                className="atlas-deck-simulator__tile-btn atlas-deck-simulator__tile-btn--portal"
-                data-testid="open-portal-btn"
-                onClick={onOpenPortal}
-              >
-                Open your portal →
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -1737,11 +1715,11 @@ export default function PresentationDeck({
   recommendationResult,
   onOpenSimulator,
   onPrint,
-  onOpenPortal,
+  onOpenPortal: _onOpenPortal,
   onOptionsChange,
   heatLossState,
   prioritiesState,
-  lockedSummary,
+  lockedSummary: _lockedSummary,
 }: PresentationDeckProps) {
   const reducedMotion = useReducedMotion();
   const brand = useOptionalBrandProfile();
@@ -2079,10 +2057,6 @@ export default function PresentationDeck({
             sim={finalPage}
             onOpenSimulator={onOpenSimulator}
             onPrint={onPrint}
-            onOpenPortal={onOpenPortal}
-          />
-          <GeminiAISummary
-            lockedSummary={lockedSummary}
           />
         </>
       ),

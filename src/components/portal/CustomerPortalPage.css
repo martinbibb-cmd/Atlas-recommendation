@@ -847,6 +847,56 @@
   width: 100%;
 }
 
+@media (max-width: 768px) {
+  .portal-page {
+    max-width: none;
+    padding:
+      calc(var(--customer-mobile-page-padding) + var(--customer-safe-top))
+      calc(var(--customer-mobile-page-padding) + var(--customer-safe-right))
+      calc(5.5rem + var(--customer-safe-bottom))
+      calc(var(--customer-mobile-page-padding) + var(--customer-safe-left));
+    overflow-x: clip;
+  }
+
+  .portal-page__hero {
+    position: sticky;
+    top: var(--customer-safe-top);
+    z-index: 30;
+    border-radius: var(--customer-mobile-card-radius);
+    margin: 0 0 1rem;
+    padding: 1rem;
+  }
+
+  .portal-hero__title {
+    font-size: calc(clamp(1.35rem, 4vw, 1.85rem) * var(--customer-mobile-heading-scale));
+  }
+
+  .portal-welcome {
+    padding-top: 1rem;
+  }
+
+  .portal-welcome__cards {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .portal-welcome__card,
+  .portal-simulator-intro,
+  .portal-comparison-card,
+  .portal-accordion {
+    width: 100%;
+    border-radius: var(--customer-mobile-card-radius);
+  }
+
+  .portal-welcome__card,
+  .portal-simulator-intro__cta,
+  .portal-comparison-card__header,
+  .portal-accordion__trigger,
+  .portal-plan-cta {
+    min-height: var(--customer-mobile-touch-target);
+  }
+}
+
 .portal-welcome__card:hover {
   background: #ebf4ff;
   border-color: #90cdf4;
