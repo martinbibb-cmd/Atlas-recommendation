@@ -7,6 +7,8 @@ interface AtlasWaterReserveGraphicProps {
   annotations?: string[];
 }
 
+const MAX_VISIBLE_RECHARGE_TOP_PCT = 90 + 2;
+
 function clampPct(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
@@ -22,7 +24,7 @@ export function AtlasWaterReserveGraphic({
   const usable = clampPct(usableReservePct);
   const recharge = clampPct(rechargePct);
   const coolPct = Math.max(8, 100 - usable);
-  const rechargeTop = Math.max(16, 100 - Math.min(usable + recharge, 92));
+  const rechargeTop = Math.max(16, 100 - Math.min(usable + recharge, MAX_VISIBLE_RECHARGE_TOP_PCT));
 
   return (
     <div className="atlas-water-reserve-graphic" aria-label="Hot-water reserve graphic">

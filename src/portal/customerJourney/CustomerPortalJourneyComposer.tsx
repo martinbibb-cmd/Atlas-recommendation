@@ -24,6 +24,7 @@ interface CustomerPortalJourneyComposerProps {
 }
 
 type VisualTone = 'good' | 'warn' | 'danger' | 'neutral';
+const MAX_VISUAL_FILL_PCT = 90 + 2;
 
 function humanizeCurrentSystem(input: EngineInputV2_3): string {
   switch (input.currentHeatSourceType) {
@@ -228,7 +229,7 @@ function buildStoredWaterVisualModel(input: EngineInputV2_3, scenario: ScenarioR
   const mixergy = scenario?.dhwSubtype === 'mixergy';
   const baseReserve = mixergy ? 86 : scenario?.system.type === 'ashp' ? 80 : 74;
   const demandPenalty = Math.max(0, occupancy - 2) * 5 + Math.max(0, outlets - 1) * 14;
-  const usableReservePct = Math.max(28, Math.min(92, baseReserve - demandPenalty));
+  const usableReservePct = Math.max(28, Math.min(MAX_VISUAL_FILL_PCT, baseReserve - demandPenalty));
   const rechargePct = mixergy ? 32 : scenario?.system.type === 'ashp' ? 18 : 24;
   const tone: VisualTone = usableReservePct >= 55 ? 'good' : usableReservePct >= 42 ? 'warn' : 'danger';
   const overlapLabel = outlets >= 2 ? 'Two outlets at once' : 'Main hot-water draw';
