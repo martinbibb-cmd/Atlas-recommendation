@@ -363,7 +363,7 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   },
   {
     codeName: 'InsightPackDeck',
-    fullRouteExample: 'legacy journey state: insight-pack',
+    fullRouteExample: 'dev-only: CustomerPortalPage devInitialViewMode="insight"',
     replacementRoute: '/portal/<reference>?token=<signed-token>',
     routeKind: 'derived',
     access: 'legacy_dev_only',

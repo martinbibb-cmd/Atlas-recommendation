@@ -78,6 +78,7 @@ describe('persistedAtlasVisitV2', () => {
         generatedAt: now,
         url: 'https://atlas.test/portal/demo?token=abc',
         version: '1.0',
+        renderer: 'library_customer_portal',
       },
       pdf: {
         generated: true,
@@ -91,6 +92,7 @@ describe('persistedAtlasVisitV2', () => {
     const restored = readPersistedAtlasVisitV2('visit_outputs');
     expect(restored.visit?.lifecycleState).toBe('outputs_generated');
     expect(restored.visit?.generatedOutputs?.portal.generated).toBe(true);
+    expect(restored.visit?.generatedOutputs?.portal.renderer).toBe('library_customer_portal');
     expect(restored.visit?.generatedOutputs?.pdf.generated).toBe(true);
   });
 

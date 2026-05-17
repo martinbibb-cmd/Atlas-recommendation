@@ -7,16 +7,28 @@
   --atlas-reading-ruler-line-count: 2;
   --atlas-reading-overlay-rgb: 0 0 0;
   --atlas-reading-overlay-alpha: 0;
-  --atlas-reading-ruler-top-offset: 34%;
 }
 
+/* ── Launcher ─────────────────────────────────────────────────────────────── */
+/* Launcher is inline by default. Hosts place it inside headers or side panels.
+   The .rp-launcher--fixed modifier enables floating placement as a fallback. */
 .rp-launcher {
+  display: grid;
+  gap: 0.6rem;
+  z-index: 100;
+}
+
+.rp-launcher--fixed {
   position: fixed;
   right: 1rem;
   bottom: 1rem;
   z-index: 1200;
-  display: grid;
-  gap: 0.6rem;
+}
+
+/* Launcher in a portal header: float to the right of header content */
+.portal-header-actions .rp-launcher,
+.hs-header .rp-launcher {
+  align-self: center;
 }
 
 .rp-launcher__toggle {
@@ -76,6 +88,7 @@
   cursor: pointer;
 }
 
+/* ── Reading surface tokens ───────────────────────────────────────────────── */
 html[data-atlas-reading-enabled='true'] .atlas-reading-surface {
   position: relative;
   font-size: calc(1rem * var(--atlas-reading-font-scale));
@@ -123,18 +136,29 @@ html[data-atlas-reading-reduced-motion='true'] *::after {
   scroll-behavior: auto !important;
 }
 
-.atlas-reading-ruler {
-  position: fixed;
+/* ── Scoped reading ruler ─────────────────────────────────────────────────── */
+/* The ruler follows the pointer within each reading surface via --atlas-ruler-y,
+   which is updated by ReadingPreferencesProvider on pointermove. It does NOT
+   render outside .atlas-reading-surface — the simulator canvas and nav chrome
+   are therefore never obscured. */
+html[data-atlas-reading-ruler-enabled='true'] .atlas-reading-surface {
+  overflow: clip;
+}
+
+html[data-atlas-reading-ruler-enabled='true'] .atlas-reading-surface::after {
+  content: '';
+  position: absolute;
   left: 0;
   right: 0;
-  /* Position ruler below sticky headers on most customer surfaces. */
-  top: var(--atlas-reading-ruler-top-offset);
+  /* Centre the band on the pointer's line. Default off-screen until first move. */
+  top: calc(var(--atlas-ruler-y, -400px) - calc(0.5 * 1rem * var(--atlas-reading-font-scale) * var(--atlas-reading-line-height) * var(--atlas-reading-ruler-line-count)));
   height: calc(1rem * var(--atlas-reading-font-scale) * var(--atlas-reading-line-height) * var(--atlas-reading-ruler-line-count));
   pointer-events: none;
-  z-index: 1150;
   border-top: 1px solid rgb(15 23 42 / 0.35);
   border-bottom: 1px solid rgb(15 23 42 / 0.35);
   background: rgb(15 23 42 / var(--atlas-reading-ruler-opacity));
+  /* Keep ruler above overlay but below interactive elements */
+  z-index: 3;
 }
 
 @media (max-width: 640px) {
@@ -144,8 +168,7 @@ html[data-atlas-reading-reduced-motion='true'] *::after {
 }
 
 @media print {
-  .rp-launcher,
-  .atlas-reading-ruler {
+  .rp-launcher {
     display: none !important;
   }
 }

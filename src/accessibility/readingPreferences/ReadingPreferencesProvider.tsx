@@ -69,6 +69,7 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
     root.setAttribute('data-atlas-reading-contrast', profile.contrastMode);
     root.setAttribute('data-atlas-reading-word-highlighting', profile.wordHighlighting ? 'true' : 'false');
     root.setAttribute('data-atlas-reading-reduced-motion', profile.reducedMotion ? 'true' : 'false');
+    root.setAttribute('data-atlas-reading-ruler-enabled', (enabled && profile.readingRulerEnabled) ? 'true' : 'false');
     root.style.setProperty('--atlas-reading-font-scale', String(profile.fontScale));
     root.style.setProperty('--atlas-reading-line-height', String(profile.lineHeight));
     root.style.setProperty('--atlas-reading-letter-spacing', `${profile.letterSpacing}em`);
@@ -78,6 +79,25 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
     root.style.setProperty('--atlas-reading-overlay-rgb', overlayRgb);
     root.style.setProperty('--atlas-reading-overlay-alpha', String(overlayAlpha));
   }, [enabled, profile]);
+
+  // Scoped reading ruler: follow pointer within .atlas-reading-surface only.
+  // The ruler is rendered as a CSS ::after pseudo-element on each reading surface,
+  // positioned via --atlas-ruler-y which tracks the pointer relative to that surface.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!enabled || !profile.readingRulerEnabled) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const target = (event.target as Element | null)?.closest?.('.atlas-reading-surface') as HTMLElement | null;
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const y = event.clientY - rect.top + target.scrollTop;
+      target.style.setProperty('--atlas-ruler-y', `${y}px`);
+    };
+
+    document.addEventListener('pointermove', handlePointerMove, { passive: true });
+    return () => document.removeEventListener('pointermove', handlePointerMove);
+  }, [enabled, profile.readingRulerEnabled]);
 
   const value = useMemo<ReadingPreferencesContextValue>(
     () => ({
@@ -95,7 +115,6 @@ export function ReadingPreferencesProvider({ children }: { children: ReactNode }
   return (
     <ReadingPreferencesContext.Provider value={value}>
       {children}
-      {enabled && profile.readingRulerEnabled ? <div className="atlas-reading-ruler" aria-hidden="true" /> : null}
     </ReadingPreferencesContext.Provider>
   );
 }

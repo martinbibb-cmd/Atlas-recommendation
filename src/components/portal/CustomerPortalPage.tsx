@@ -358,7 +358,6 @@ function CustomerPortalContent({
   if (viewMode === null) {
     return (
       <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
-        <ReadingPreferencesLauncher />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -371,6 +370,9 @@ function CustomerPortalContent({
           <div className="portal-hero__brand-row">
             <span className="portal-page__brand" aria-hidden="true"></span>
             <span className="portal-page__postcode">{portalHomeLabel}</span>
+            <div className="portal-header-actions">
+              <ReadingPreferencesLauncher />
+            </div>
           </div>
         </header>
 
@@ -380,21 +382,6 @@ function CustomerPortalContent({
             Choose how you would like to explore your results:
           </p>
           <div className="portal-welcome__cards">
-            <button
-              type="button"
-              className="portal-welcome__card"
-              onClick={() => setViewMode('insight')}
-              data-testid="portal-welcome-insight"
-            >
-              <span className="portal-welcome__card-icon" aria-hidden="true">📋</span>
-              <span className="portal-welcome__card-title">Insight Overview</span>
-              <span className="portal-welcome__card-desc">
-                A clear, structured summary of your home, the options considered, and
-                the evidence behind the recommendation — ideal for reviewing at your
-                own pace.
-              </span>
-            </button>
-
             <button
               type="button"
               className="portal-welcome__card portal-welcome__card--primary"
@@ -439,7 +426,6 @@ function CustomerPortalContent({
 
     return (
       <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
-        <ReadingPreferencesLauncher />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -472,7 +458,6 @@ function CustomerPortalContent({
   if (viewMode === 'portal') {
     return (
       <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
-        <ReadingPreferencesLauncher />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
             <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -480,7 +465,7 @@ function CustomerPortalContent({
             <p>activeRendererComponent: {activeRendererComponent}</p>
           </aside>
         ) : null}
-        <div className="portal-back-row">
+        <div className="portal-back-row portal-back-row--with-actions">
           <button
             type="button"
             className="back-btn"
@@ -488,6 +473,9 @@ function CustomerPortalContent({
           >
             ← Back to presentation
           </button>
+          <div className="portal-header-actions">
+            <ReadingPreferencesLauncher />
+          </div>
         </div>
         {portalViewModel ? (
           <PortalPage
@@ -512,7 +500,6 @@ function CustomerPortalContent({
   // ── Presentation view (deck) ──────────────────────────────────────────────
   return (
     <div className="portal-page atlas-reading-surface" data-testid="customer-portal">
-      <ReadingPreferencesLauncher />
       {showDevTraceLabels ? (
         <aside data-testid="portal-route-trace-labels">
           <p>currentPortalRoute: {currentPortalRoute}</p>
@@ -527,6 +514,9 @@ function CustomerPortalContent({
         <div className="portal-hero__brand-row">
           <span className="portal-page__brand" aria-hidden="true"></span>
           <span className="portal-page__postcode">{portalHomeLabel}</span>
+          <div className="portal-header-actions">
+            <ReadingPreferencesLauncher />
+          </div>
         </div>
         <div className="portal-back-row">
           <button

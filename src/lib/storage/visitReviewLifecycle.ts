@@ -5,12 +5,16 @@ export type VisitReviewLifecycleState =
   | 'review_in_progress'
   | 'handover_ready';
 
+export type GeneratedOutputRendererV1 = 'library_customer_portal' | 'legacy_dev_only';
+
 export interface GeneratedOutputArtifactV1 {
   readonly generated: boolean;
   readonly generatedAt?: string;
   readonly url?: string;
   readonly version?: string;
   readonly documentId?: string;
+  /** Which renderer this artifact targets. Canonical portal artifacts must use 'library_customer_portal'. */
+  readonly renderer?: GeneratedOutputRendererV1;
 }
 
 export interface GeneratedOutputsV1 {
