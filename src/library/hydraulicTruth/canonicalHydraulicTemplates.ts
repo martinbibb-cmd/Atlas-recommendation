@@ -151,7 +151,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     featureFlags: [
       'pressure_controlled_loop',
       'filling_loop_disconnected_default',
-      'unvented_no_thermocline',
+      'unvented_standard_storage_visual',
       'd2_continuous_fall',
       'no_top_fed_radiator_connections',
       'no_decorative_crossover_pipework',
