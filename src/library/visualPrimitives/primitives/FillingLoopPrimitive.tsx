@@ -17,6 +17,15 @@ export interface FillingLoopPrimitiveProps {
 }
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
+const FLOW_Y = 20;
+const RETURN_Y = 52;
+const LEFT_START_X = 48;
+const LEFT_CURVE_SPLIT_X = 72;
+const RIGHT_CURVE_SPLIT_X = 78;
+const RIGHT_END_X = 102;
+const GHOST_LINK_Y = 47;
+const DISCONNECT_GAP_START_X = 73;
+const DISCONNECT_GAP_END_X = 77;
 
 export function FillingLoopPrimitive({
   showLabel = true,
@@ -40,24 +49,24 @@ export function FillingLoopPrimitive({
       >
         <line
           x1={8}
-          y1={20}
+          y1={FLOW_Y}
           x2={142}
-          y2={20}
+          y2={FLOW_Y}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
         />
         <line
           x1={8}
-          y1={52}
+          y1={RETURN_Y}
           x2={142}
-          y2={52}
+          y2={RETURN_Y}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
 
         <path
-          d="M 48 20 C 58 20, 58 47, 72 47"
+          d={`M ${LEFT_START_X} ${FLOW_Y} C 58 ${FLOW_Y}, 58 ${GHOST_LINK_Y}, ${LEFT_CURVE_SPLIT_X} ${GHOST_LINK_Y}`}
           stroke="#374151"
           strokeWidth={2.5}
           strokeDasharray="3 2"
@@ -66,7 +75,7 @@ export function FillingLoopPrimitive({
           fill="none"
         />
         <path
-          d="M 78 47 C 92 47, 92 20, 102 20"
+          d={`M ${RIGHT_CURVE_SPLIT_X} ${GHOST_LINK_Y} C 92 ${GHOST_LINK_Y}, 92 ${FLOW_Y}, ${RIGHT_END_X} ${FLOW_Y}`}
           stroke="#374151"
           strokeWidth={2.5}
           strokeDasharray="3 2"
@@ -77,7 +86,15 @@ export function FillingLoopPrimitive({
 
         <circle cx={56} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
         <circle cx={94} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
-        <line x1={73} y1={47} x2={77} y2={47} stroke={printSafe ? '#000' : '#9ca3af'} strokeWidth={2} data-testid="filling-loop-disconnect-gap" />
+        <line
+          x1={DISCONNECT_GAP_START_X}
+          y1={GHOST_LINK_Y}
+          x2={DISCONNECT_GAP_END_X}
+          y2={GHOST_LINK_Y}
+          stroke={printSafe ? '#000' : '#9ca3af'}
+          strokeWidth={2}
+          data-testid="filling-loop-disconnect-gap"
+        />
       </svg>
 
       {showLabel && (

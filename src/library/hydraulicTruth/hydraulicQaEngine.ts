@@ -3,6 +3,12 @@ import { HYDRAULIC_TRUTH_MODELS, TOPOLOGY_TEMPLATE_MAP } from './canonicalHydrau
 import { HYDRAULIC_CONSTRAINTS } from './hydraulicConstraints';
 import type { HydraulicQaIssue, HydraulicQaResult, TopologyHydraulicTruthModel } from './types';
 
+/**
+ * Relative plausibility penalties:
+ * - Regulation and fundamental hydraulic breaches carry the highest penalties.
+ * - Unsafe placement/stratification/separation errors are severe but slightly lower.
+ * - Visual/decorative problems are lower, yet still reduce installer confidence.
+ */
 const ISSUE_WEIGHTS: Record<HydraulicQaIssue['category'], number> = {
   hydraulically_implausible: 24,
   visually_confusing: 10,

@@ -200,7 +200,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     regulatoryNotes: ['Stratification cue is mandatory for this template.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.mixergy.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.mixergy,
-    featureFlags: ['mixergy_thermocline', 'mixergy_stratification', 'pump_inline_on_return', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
+    featureFlags: ['thermocline_visualisation', 'mixergy_stratification', 'pump_inline_on_return', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
     accessibilityCompatibility: {
       noLabelMode: true,
       monochromePrintSafeMode: true,

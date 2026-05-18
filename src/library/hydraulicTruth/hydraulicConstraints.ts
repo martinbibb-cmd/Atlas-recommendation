@@ -6,7 +6,7 @@ export const HYDRAULIC_CONSTRAINTS: HydraulicConstraint[] = [
     kind: 'must_not_show',
     description: 'Standard unvented cylinders must not display thermocline or stratification bands.',
     issueCategory: 'stratification_error',
-    requiredFeatureFlag: 'mixergy_thermocline',
+    requiredFeatureFlag: 'thermocline_visualisation',
     templates: ['sealed_unvented'],
     topologyIds: ['sealed_unvented_cylinder'],
   },
@@ -15,7 +15,7 @@ export const HYDRAULIC_CONSTRAINTS: HydraulicConstraint[] = [
     kind: 'must_show',
     description: 'Mixergy templates must show explicit thermocline and stratification zones.',
     issueCategory: 'stratification_error',
-    requiredFeatureFlag: 'mixergy_thermocline',
+    requiredFeatureFlag: 'thermocline_visualisation',
     templates: ['mixergy'],
   },
   {
