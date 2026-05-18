@@ -38,6 +38,14 @@ function nodeStyle(left: number, top: number): CSSProperties {
   return { position: 'absolute', left, top };
 }
 
+function noCylinderNoteStyle(): CSSProperties {
+  return { position: 'absolute', right: 20, bottom: 18, fontSize: 12, color: '#475569' };
+}
+
+function pressureStateLabelStyle(): CSSProperties {
+  return { position: 'absolute', left: 614, top: 22, fontSize: 11, color: '#6b7280', display: 'grid', gap: 98 };
+}
+
 function pipeStroke(printSafe: boolean, flow: boolean): string {
   if (flow) return printSafe ? '#000' : FLOW_COLOUR;
   return printSafe ? '#475569' : RETURN_COLOUR;
@@ -169,7 +177,7 @@ function CombiDirectHotWaterTopology({ options }: { options: VisualTopologyRende
       <div style={nodeStyle(142, 164)}><BoilerPrimitive variant="combi" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
       <div style={nodeStyle(340, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
       <div style={nodeStyle(496, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      {options.showLabels && <div style={{ position: 'absolute', right: 20, bottom: 18, fontSize: 12, color: '#475569' }}>No cylinder</div>}
+      {options.showLabels && <div style={noCylinderNoteStyle()}>No cylinder</div>}
     </TopologyShell>
   );
 }
@@ -314,7 +322,7 @@ function SystemPressureLayoutTopology({ options }: { options: VisualTopologyRend
       <div style={nodeStyle(612, 170)}><PressureGaugePrimitive pressureBar={1.3} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
       <div style={nodeStyle(612, 282)}><PressureGaugePrimitive pressureBar={2.8} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
       {options.showLabels && (
-        <div style={{ position: 'absolute', left: 614, top: 22, fontSize: 11, color: '#6b7280', display: 'grid', gap: 98 }}>
+        <div style={pressureStateLabelStyle()}>
           <span>Low state</span>
           <span>Normal state</span>
           <span>High state</span>

@@ -425,7 +425,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     category: 'tank',
     displayName: 'Cold Water Storage Tank (Loft)',
     canonicalPurpose:
-      'Rectangular loft tank that provides tank-fed supply to a vented cylinder. Present in open-vented / tank-fed hot water systems.',
+      'Rectangular loft tank providing tank-fed supply to a vented cylinder in open-vented hot-water layouts.',
     sourceLocations: [
       'src/library/diagrams/OpenVentedToUnventedDiagram.tsx (tank rect in open-vented panel)',
       'src/library/diagrams/primitives/WaterStoreTank.tsx',
