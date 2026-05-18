@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { VISUAL_PRIMITIVE_REGISTRY } from '../visualPrimitiveRegistry';
 import {
   GALLERY_RENDERED_REGISTRY_IDS,
@@ -45,10 +45,10 @@ describe('VisualPrimitiveGallery QA surface', () => {
     render(<VisualPrimitiveGallery />);
     const banner = screen.getByTestId('vp-gallery-qa-banner');
 
-    expect(within(banner).getByText(/FAIL/i)).toBeTruthy();
-    expect(within(banner).getByText(/needs_rebuild/i)).toBeTruthy();
-    expect(within(banner).getByText(/abstract_placeholder/i)).toBeTruthy();
-    expect(within(banner).getByText(/WARN/i)).toBeTruthy();
-    expect(within(banner).getByText(/recognisable_with_context/i)).toBeTruthy();
+    expect(banner.textContent).toContain('FAIL');
+    expect(banner.textContent).toContain('needs_rebuild');
+    expect(banner.textContent).toContain('abstract_placeholder');
+    expect(banner.textContent).toContain('WARN');
+    expect(banner.textContent).toContain('recognisable_with_context');
   });
 });
