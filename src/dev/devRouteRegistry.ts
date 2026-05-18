@@ -12,6 +12,9 @@
  */
 
 import type { DevUiRouteKind, DevUiAccess } from './devUiRegistry';
+import {
+  getVisualEducationLibrarySurface,
+} from './visualEducationLibrary';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -229,26 +232,26 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
-    codeName: 'VisualPrimitiveGallery',
-    routePath: '/dev/visual-primitive-gallery',
-    queryFlags: ['visual-primitive-gallery=1'],
-    fullRouteExample: '/dev/visual-primitive-gallery',
+    codeName: getVisualEducationLibrarySurface('VisualPrimitiveGallery').codeName,
+    routePath: getVisualEducationLibrarySurface('VisualPrimitiveGallery').routePath,
+    queryFlags: [getVisualEducationLibrarySurface('VisualPrimitiveGallery').queryFlag],
+    fullRouteExample: getVisualEducationLibrarySurface('VisualPrimitiveGallery').routePath,
     routeKind: 'path',
     access: 'dev_only',
   },
   {
-    codeName: 'VisualTopologyGallery',
-    routePath: '/dev/visual-topology-gallery',
-    queryFlags: ['visual-topology-gallery=1'],
-    fullRouteExample: '/dev/visual-topology-gallery',
+    codeName: getVisualEducationLibrarySurface('VisualTopologyGallery').codeName,
+    routePath: getVisualEducationLibrarySurface('VisualTopologyGallery').routePath,
+    queryFlags: [getVisualEducationLibrarySurface('VisualTopologyGallery').queryFlag],
+    fullRouteExample: getVisualEducationLibrarySurface('VisualTopologyGallery').routePath,
     routeKind: 'path',
     access: 'dev_only',
   },
   {
-    codeName: 'AnalogyOverlayGallery',
-    routePath: '/dev/analogy-overlay-gallery',
-    queryFlags: ['analogy-overlay-gallery=1'],
-    fullRouteExample: '/dev/analogy-overlay-gallery',
+    codeName: getVisualEducationLibrarySurface('AnalogyOverlayGallery').codeName,
+    routePath: getVisualEducationLibrarySurface('AnalogyOverlayGallery').routePath,
+    queryFlags: [getVisualEducationLibrarySurface('AnalogyOverlayGallery').queryFlag],
+    fullRouteExample: getVisualEducationLibrarySurface('AnalogyOverlayGallery').routePath,
     routeKind: 'path',
     access: 'dev_only',
   },

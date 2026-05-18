@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { DEV_ROUTE_REGISTRY } from '../devRouteRegistry';
+import { DEV_UI_REGISTRY } from '../devUiRegistry';
+import { INITIAL_FILTER_STATE, applyFilters } from '../devUiFilters';
+import {
+  VISUAL_EDUCATION_LIBRARY_SURFACES,
+  resolveActiveVisualEducationLibrarySurface,
+} from '../visualEducationLibrary';
+
+describe('visual education library routing smoke coverage', () => {
+  it('registers all three visual gallery routes in the dev route registry', () => {
+    for (const surface of VISUAL_EDUCATION_LIBRARY_SURFACES) {
+      const route = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === surface.codeName);
+      expect(route, `${surface.codeName} must exist in DEV_ROUTE_REGISTRY`).toBeDefined();
+      expect(route).toMatchObject({
+        routePath: surface.routePath,
+        queryFlags: [surface.queryFlag],
+        routeKind: 'path',
+        access: 'dev_only',
+      });
+    }
+  });
+
+  it('exposes all three visual gallery routes as visible dev UI registry items', () => {
+    const visibleItems = applyFilters(DEV_UI_REGISTRY, INITIAL_FILTER_STATE);
+
+    for (const surface of VISUAL_EDUCATION_LIBRARY_SURFACES) {
+      const item = DEV_UI_REGISTRY.find((entry) => entry.codeName === surface.codeName);
+      expect(item, `${surface.codeName} must exist in DEV_UI_REGISTRY`).toBeDefined();
+      expect(item).toMatchObject({
+        commonName: surface.commonName,
+        routePath: surface.routePath,
+        queryFlags: [surface.queryFlag],
+        routeKind: 'path',
+        access: 'dev_only',
+        status: 'active',
+      });
+      expect(item?.notes).toContain('Visual Education Library');
+      expect(visibleItems.some((entry) => entry.codeName === surface.codeName)).toBe(true);
+    }
+  });
+
+  it('matches App route and query-flag detection for each visual gallery surface', () => {
+    for (const surface of VISUAL_EDUCATION_LIBRARY_SURFACES) {
+      expect(
+        resolveActiveVisualEducationLibrarySurface({ pathname: surface.routePath, search: '' })?.codeName,
+      ).toBe(surface.codeName);
+      expect(
+        resolveActiveVisualEducationLibrarySurface({ pathname: '/', search: `?${surface.queryFlag}` })?.codeName,
+      ).toBe(surface.codeName);
+    }
+  });
+});

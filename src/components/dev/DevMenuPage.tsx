@@ -53,6 +53,7 @@ import { useActiveUser } from '../../features/userProfiles/useActiveUser';
 import { resetDemoData } from '../../dev/demoSeed';
 import type { ApplianceDefinitionV1 } from '../../contracts/hardware/ApplianceDefinitionV1';
 import type { HardwarePatchV1, HardwarePatchEntryV1 } from '../../contracts/hardware/HardwarePatchV1';
+import { VISUAL_EDUCATION_LIBRARY_SURFACES } from '../../dev/visualEducationLibrary';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -179,6 +180,21 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
   const copyBoxOutput = useMemo(
     () => generateCopyBoxOutput(copyBoxItems, copyFormat),
     [copyBoxItems, copyFormat],
+  );
+  const visualEducationLibraryItems = useMemo(
+    () =>
+      VISUAL_EDUCATION_LIBRARY_SURFACES.map((surface) => ({
+        surface,
+        registryItem: DEV_UI_REGISTRY.find((item) => item.codeName === surface.codeName),
+      })).filter(
+        (
+          entry,
+        ): entry is {
+          surface: (typeof VISUAL_EDUCATION_LIBRARY_SURFACES)[number];
+          registryItem: DevUiRegistryItem;
+        } => entry.registryItem != null,
+      ),
+    [],
   );
 
   const handleToggleExpand = useCallback((id: string) => {
@@ -423,6 +439,65 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         <button className="chip-btn" onClick={() => { window.location.href = '/dev/inspector'; }}>Component discovery</button>
         <button className="chip-btn" onClick={() => { window.location.href = '/dev/workspace-settings'; }}>Workspace settings</button>
       </div>
+
+      <section
+        data-testid="devmenu-visual-education-library"
+        style={{
+          background: '#eff6ff',
+          border: '1px solid #93c5fd',
+          borderRadius: 12,
+          padding: '0.9rem 1rem',
+          display: 'grid',
+          gap: '0.85rem',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 4 }}>
+          <h2 style={{ margin: 0, fontSize: '1rem', color: '#1e3a8a' }}>Visual Education Library</h2>
+          <p style={{ margin: 0, fontSize: '0.8125rem', color: '#1d4ed8' }}>
+            Direct dev-menu links for the visual QA galleries so the primitive, topology, and overlay reviews are never trapped behind dead routes.
+          </p>
+        </div>
+        <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+          {visualEducationLibraryItems.map(({ surface, registryItem }) => (
+            <article
+              key={surface.id}
+              data-testid={`devmenu-visual-education-library-${surface.id}`}
+              style={{
+                background: '#fff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 10,
+                padding: '0.75rem',
+                display: 'grid',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'grid', gap: 4 }}>
+                <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>{surface.commonName}</strong>
+                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>{surface.description}</p>
+              </div>
+              <div style={STYLES.badgeRow}>
+                <span style={{ ...STYLES.badge, color: ROUTE_KIND_COLORS[registryItem.routeKind], borderColor: ROUTE_KIND_COLORS[registryItem.routeKind] }}>
+                  {ROUTE_KIND_LABELS[registryItem.routeKind]}
+                </span>
+                <span style={{ ...STYLES.badge, color: ACCESS_COLORS[registryItem.access], borderColor: ACCESS_COLORS[registryItem.access] }}>
+                  {ACCESS_LABELS[registryItem.access]}
+                </span>
+                <span style={{ ...STYLES.badge, color: STATUS_COLORS[registryItem.status], borderColor: STATUS_COLORS[registryItem.status] }}>
+                  {STATUS_LABELS[registryItem.status]}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gap: 4, fontSize: '0.75rem', color: '#334155' }}>
+                <span><strong>Route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
+                <span><strong>Query flag:</strong> <code style={STYLES.code}>?{surface.queryFlag}</code></span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <a className="chip-btn" href={surface.routePath}>Open route</a>
+                <a className="chip-btn" href={`/?${surface.queryFlag}`}>Open query flag</a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
       {/* Route kind filter chips */}
       <div style={STYLES.filterRow}>
