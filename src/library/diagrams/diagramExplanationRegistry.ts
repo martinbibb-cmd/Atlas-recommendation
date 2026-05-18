@@ -75,9 +75,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
     ],
     journeyIds: ['open_vented_to_sealed_unvented'],
     screenReaderSummary:
-      'Two-panel comparison. Left: open-vented heating with a feed and expansion tank open to atmosphere. Right: sealed heating system with expansion vessel and pressure gauge in the healthy zone.',
+      'Two-panel comparison. Left: open-vented setup with loft cold-water storage tank, vented cylinder, boiler, pump, and open vent path. Right: sealed system with boiler, pump, sealed-system cylinder, expansion vessel cutaway, filling-loop cue, and pressure gauge in the normal operating zone.',
     whatThisMeans:
-      'A sealed heating system keeps the central heating circuit closed and stable, while the expansion vessel safely absorbs the small pressure changes as the water heats and cools.',
+      'The upgrade changes heating from an open vented path with loft-tank dependence to a sealed pressure-managed loop with expansion-vessel protection and controlled top-up practice.',
   },
   {
     diagramId: 'stratified_cylinder_mixergy',
@@ -242,7 +242,7 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
     ],
     journeyIds: ['heat_pump_reality'],
     screenReaderSummary:
-      'Two-part visual. Part one compares weather compensation and load compensation. Part two shows radiator valves closing while the automatic bypass valve opens to keep safe flow through the boiler.',
+      'Two-part diagram with sections labelled Weather vs load compensation and Automatic bypass valve (ABV). The first section compares compensation behaviour on boiler-and-radiator systems; the second shows TRVs closing while ABV opens between flow and return to protect boiler circulation.',
     whatThisMeans:
       'Weather compensation helps the boiler run gently before the home gets cold, while the automatic bypass valve protects flow through the boiler when radiator valves close.',
   },

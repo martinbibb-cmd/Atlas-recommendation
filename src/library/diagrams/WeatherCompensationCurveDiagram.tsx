@@ -6,7 +6,7 @@ const SCREEN_READER_SUMMARY =
 const WHAT_THIS_MEANS =
   'Weather compensation helps the boiler run gently before the home gets cold, while the automatic bypass valve protects flow through the boiler when radiator valves close.';
 
-const WEATHER_COMPENSATION_EXAMPLES = [
+const COMPENSATION_REFERENCE_POINTS = [
   { outdoor: '-2°C', flow: '50°C' },
   { outdoor: '4°C', flow: '45°C' },
   { outdoor: '10°C', flow: '38°C' },
@@ -92,7 +92,7 @@ export function WeatherCompensationCurveDiagram({
       </div>
 
       <ul className="atlas-edu-diagram__timeline-phases-descriptions">
-        {WEATHER_COMPENSATION_EXAMPLES.map((point) => (
+        {COMPENSATION_REFERENCE_POINTS.map((point) => (
           <li key={point.outdoor} className="atlas-edu-diagram__timeline-phase-desc">
             <strong>{point.outdoor} outside:</strong> target flow around {point.flow}
           </li>
