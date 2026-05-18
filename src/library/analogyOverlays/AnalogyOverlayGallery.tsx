@@ -126,7 +126,7 @@ export function AnalogyOverlayGallery() {
 
   const [selectedConcept, setSelectedConcept] = useState<AnalogyTargetConcept>(conceptOptions[0]?.id ?? 'abv_protected_loop');
   const [selectedMode, setSelectedMode] = useState<AnalogyMode | 'none'>('none');
-  const [showLabels, setShowLabels] = useState(true);
+  const [hideLabels, setHideLabels] = useState(false);
   const [printSafe, setPrintSafe] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
 
@@ -141,7 +141,20 @@ export function AnalogyOverlayGallery() {
     () => new Map(anchors.map((anchor) => [anchor.id, { x: anchor.x, y: anchor.y }])),
     [anchors],
   );
-  const metaphorReplacesSystem = Boolean(activeOverlay && activeOverlay.overlayElements.length === 0);
+  const overlayAnchorsAreValid = Boolean(
+    activeOverlay
+    && activeOverlay.overlayElements.every((element) =>
+      element.type === 'callout'
+        ? anchorMap.has(element.anchorId)
+        : anchorMap.has(element.fromAnchorId) && anchorMap.has(element.toAnchorId)),
+  );
+  const metaphorReplacesSystem = Boolean(
+    activeOverlay
+    && (
+      activeOverlay.overlayElements.length === 0
+      || !overlayAnchorsAreValid
+    ),
+  );
 
   return (
     <main
@@ -165,7 +178,7 @@ export function AnalogyOverlayGallery() {
           data-testid="analogy-overlay-topology-canvas"
         >
           {renderVisualTopology(topologyId, {
-            showLabels,
+            showLabels: !hideLabels,
             printSafe,
             pipeTrace: false,
             mobileWidth: false,
@@ -243,7 +256,7 @@ export function AnalogyOverlayGallery() {
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <label>
-            <input type="checkbox" checked={!showLabels} onChange={(event) => setShowLabels(!event.target.checked)} />
+            <input type="checkbox" checked={hideLabels} onChange={(event) => setHideLabels(event.target.checked)} />
             {' '}No-label mode
           </label>
           <label>
