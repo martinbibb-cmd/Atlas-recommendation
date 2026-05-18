@@ -162,7 +162,7 @@ function OpenVentedVentedCylinderTopology({ options }: { options: VisualTopology
         {/*
           Return pipe — routes through pump (inline).
           Right segment: from cylinder/rads rightward to pump outlet (x=223).
-          Vertical jog down to pump pipe centre y=267.
+          Vertical jog UP from y=300 to pump pipe centre y=267.
           Pump handles x=159–223 at y=267.
           Left segment: pump inlet (x=159) to boiler column (x=120).
           Vertical rise to boiler connection.
@@ -223,7 +223,7 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         <line x1={520} y1={140} x2={520} y2={300} stroke={flow} strokeWidth={w} />
         {/*
           Return pipe — routes through pump (inline).
-          Right segment to pump outlet (x=223), jog to pump y=267,
+          Right segment to pump outlet (x=223), jog UP from y=300 to pump y=267,
           pump handles x=159–223, left segment to boiler column.
         */}
         <line x1={520} y1={300} x2={223} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
@@ -328,7 +328,7 @@ function MixergyStratifiedTopology({ options }: { options: VisualTopologyRenderO
         {/*
           Return pipe — routes through pump (inline).
           Pump at (170,256): inlet x=173, outlet x=237, centre y=277.
-          Return from cylinder (right) to pump outlet, jog to y=277,
+          Return from cylinder (right) to pump outlet, jog UP from y=290 to y=277,
           pump handles x=173–237, left segment to boiler column.
         */}
         <line x1={370} y1={290} x2={237} y2={290} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
@@ -382,7 +382,7 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
         {/*
           Return pipe — routes through pump (inline).
           Pump at (170,252): inlet x=173, outlet x=237, centre y=273.
-          Return from store to pump outlet, jog to y=273,
+          Return from store to pump outlet, jog UP from y=286 to y=273,
           pump handles x=173–237, left segment to boiler column.
         */}
         <line x1={420} y1={286} x2={237} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
@@ -485,7 +485,7 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
         {/*
           Return pipe — routes through pump (inline).
           Pump at (165,248): inlet x=168, outlet x=232, centre y=269.
-          Right segment to pump outlet, jog to y=269,
+          Right segment to pump outlet, jog UP from y=300 to y=269,
           pump handles x=168–232, left segment to boiler column.
         */}
         <line x1={620} y1={300} x2={232} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />

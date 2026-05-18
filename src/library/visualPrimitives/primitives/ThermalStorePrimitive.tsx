@@ -14,6 +14,12 @@ export interface ThermalStorePrimitiveProps {
   size?: PrimitiveSize;
 }
 
+// Coil path anchor Y positions (in viewBox units).
+// The coil path traces cold-in (bottom) to hot-out (top) through the vessel.
+const COIL_COLD_Y = 104; // bottom entry — cold mains connection
+const COIL_MID_Y  = 76;  // mid-bend centre
+const COIL_HOT_Y  = 32;  // top exit — hot DHW connection
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
 /**
@@ -111,7 +117,7 @@ export function ThermalStorePrimitive({
           exits as hot DHW at top-right.
         */}
         <path
-          d="M 62 104 C 50 96, 30 88, 30 76 C 30 64, 50 60, 62 52 C 50 46, 30 40, 30 32"
+          d={`M 62 ${COIL_COLD_Y} C 50 96, 30 88, 30 ${COIL_MID_Y} C 30 64, 50 60, 62 52 C 50 46, 30 40, 30 ${COIL_HOT_Y}`}
           stroke={coilColour}
           strokeWidth={2.5}
           fill="none"
