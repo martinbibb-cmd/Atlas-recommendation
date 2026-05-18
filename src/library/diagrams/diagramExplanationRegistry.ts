@@ -65,9 +65,8 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'open_vented_to_unvented',
     title: 'Open-vented to sealed + unvented',
-    visualStatus: 'draft',
-    customerReady: false,
-    replacementNeededReason: 'Needs a clearer customer-facing before-and-after illustration.',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['open_vented_to_unvented_upgrade', 'sealed_system_conversion', 'pressure_vs_storage'],
     misconceptionsTargeted: [
       'Removing loft tanks weakens the heating.',
@@ -76,9 +75,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
     ],
     journeyIds: ['open_vented_to_sealed_unvented'],
     screenReaderSummary:
-      'Side-by-side diagram. Left: open-vented system with cold water storage tank in loft and vented hot water cylinder. Right: sealed system with unvented cylinder fed directly by mains. Loft tanks are removed. Heating circuit remains unchanged.',
+      'Two-panel comparison. Left: open-vented heating with a feed and expansion tank open to atmosphere. Right: sealed heating system with expansion vessel and pressure gauge in the healthy zone.',
     whatThisMeans:
-      'Switching to a sealed system with an unvented cylinder removes loft tanks and brings mains pressure to hot water outlets. The heating circuit and radiators remain unchanged.',
+      'A sealed heating system keeps the central heating circuit closed and stable, while the expansion vessel safely absorbs the small pressure changes as the water heats and cools.',
   },
   {
     diagramId: 'system_fit_decision_map',
@@ -165,9 +164,8 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'weather_compensation_curve',
     title: 'Weather compensation curve',
-    visualStatus: 'draft',
-    customerReady: false,
-    replacementNeededReason: 'Needs a customer-facing comfort expectation visual rather than a raw curve.',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['weather_compensation', 'control_strategy', 'flow_temperature'],
     misconceptionsTargeted: [
       'Flow temperature should stay fixed all day in all weather.',
@@ -176,9 +174,77 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
     ],
     journeyIds: ['heat_pump_reality'],
     screenReaderSummary:
-      'Line chart showing weather compensation: as outdoor temperature falls, target flow temperature rises along a smooth curve; as outdoor temperature rises, target flow temperature falls.',
+      'Two-part visual. Part one compares weather compensation and load compensation. Part two shows radiator valves closing while the automatic bypass valve opens to keep safe flow through the boiler.',
     whatThisMeans:
-      'Weather compensation changes flow temperature automatically with outdoor conditions. Small day-to-day flow-temperature shifts are normal and help maintain stable comfort.',
+      'Weather compensation helps the boiler run gently before the home gets cold, while the automatic bypass valve protects flow through the boiler when radiator valves close.',
+  },
+  {
+    diagramId: 'stratified_cylinder_mixergy',
+    title: 'Stratified cylinder and Mixergy comparison',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['STR-01', 'stored_hot_water_efficiency', 'premium_hot_water_performance'],
+    misconceptionsTargeted: [
+      'A Mixergy cylinder is the same as a thermal store.',
+      'Cylinder temperature is uniform at every height.',
+      'All cylinders keep usable hot water in the same way during draw-off.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
+    screenReaderSummary:
+      'Side-by-side cylinder cutaway. Traditional cylinder shows broader blending and lukewarm middle water. Stratified Mixergy cylinder keeps a clear hot top layer, cold lower layer, and sharper thermocline boundary during draw-off.',
+    whatThisMeans:
+      'A stratified cylinder keeps hot water at the top and cold water at the bottom, so the useful hot layer is protected instead of mixing the whole cylinder lukewarm.',
+  },
+  {
+    diagramId: 'powerflush_condition_led',
+    title: 'Condition-led Powerflush',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['MNT-01', 'MNT-02', 'flow_restriction'],
+    misconceptionsTargeted: [
+      'Powerflush is always needed.',
+      'Dirty heating water has little effect on comfort.',
+      'A stressed pump is always an appliance fault.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Before and after central heating loop. Before shows dark sludge, restricted flow, and cold radiator patches. After shows cleaner flow, even radiator warmth, and a magnetic filter catching debris.',
+    whatThisMeans:
+      'A Powerflush is used when system water is dirty enough to restrict flow, helping radiators heat evenly again and reducing strain on the boiler and pump.',
+  },
+  {
+    diagramId: 'magnetic_filter_capture',
+    title: 'Magnetic filter capture path',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['MNT-01', 'MNT-02'],
+    misconceptionsTargeted: [
+      'A magnetic filter is the same as a drinking-water filter.',
+      'Magnetite cannot damage boiler components.',
+      'Filter maintenance has no effect on reliability.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Heating return pipe feeds a magnetic filter body before the boiler. Dark magnetite particles are captured at the magnet core while cleaner heating water continues toward the boiler.',
+    whatThisMeans:
+      'A magnetic filter protects the boiler by catching tiny black iron particles from the central heating water before they can build up inside important components.',
+  },
+  {
+    diagramId: 'system_pressure_window',
+    title: 'System pressure window',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['HYD-02', 'sealed_system_conversion'],
+    misconceptionsTargeted: [
+      'Higher pressure always improves heating performance.',
+      'Low pressure never affects radiator output.',
+      'Repeated top-ups are harmless.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
+    screenReaderSummary:
+      'A large sealed-system pressure gauge with low zone below 1.0 bar, healthy green range around 1.0–1.5 bar when cold, and high warning zone above normal.',
+    whatThisMeans:
+      'System pressure is the sealed heating circuit’s starting pressure; too low can stop radiators heating properly, while too high may cause the system to discharge for safety.',
   },
 ];
 

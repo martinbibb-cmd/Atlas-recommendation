@@ -7,6 +7,10 @@ import { WarmRadiatorEmitterSizingDiagram } from './WarmRadiatorEmitterSizingDia
 import { WaterMainLimitationDiagram } from './WaterMainLimitationDiagram';
 import { FlowRestrictionBottleneckDiagram } from './FlowRestrictionBottleneckDiagram';
 import { WeatherCompensationCurveDiagram } from './WeatherCompensationCurveDiagram';
+import { StratifiedCylinderMixergyDiagram } from './StratifiedCylinderMixergyDiagram';
+import { PowerflushConditionLedDiagram } from './PowerflushConditionLedDiagram';
+import { MagneticFilterDiagram } from './MagneticFilterDiagram';
+import { SystemPressureWindowDiagram } from './SystemPressureWindowDiagram';
 
 export interface DiagramRendererProps {
   diagramId: string;
@@ -24,6 +28,10 @@ export const DIAGRAM_COMPONENTS = {
   warm_radiator_emitter_sizing: WarmRadiatorEmitterSizingDiagram,
   flow_restriction_bottleneck: FlowRestrictionBottleneckDiagram,
   weather_compensation_curve: WeatherCompensationCurveDiagram,
+  stratified_cylinder_mixergy: StratifiedCylinderMixergyDiagram,
+  powerflush_condition_led: PowerflushConditionLedDiagram,
+  magnetic_filter_capture: MagneticFilterDiagram,
+  system_pressure_window: SystemPressureWindowDiagram,
 } as const;
 
 export type SupportedDiagramRendererId = keyof typeof DIAGRAM_COMPONENTS;

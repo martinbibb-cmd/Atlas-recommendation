@@ -28,6 +28,9 @@ const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
   'diagram-open-to-sealed': 'open_vented_to_unvented',
   'diagram-pressure-vs-storage': 'pressure_vs_storage',
   'diagram-unvented-safety': 'open_vented_to_unvented',
+  'diagram-cleaning-method': 'powerflush_condition_led',
+  'diagram-filter-location': 'magnetic_filter_capture',
+  'diagram-pressure-window': 'system_pressure_window',
 };
 
 function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string | null {
