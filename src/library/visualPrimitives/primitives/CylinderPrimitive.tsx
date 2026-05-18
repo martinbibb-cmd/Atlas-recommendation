@@ -86,8 +86,13 @@ export function CylinderPrimitive({
           strokeWidth={2}
         />
 
-        {/* Cold zone (lower portion) */}
-        {coldH > 0 && (
+        {/*
+          Vented cylinder: show hot/cold fill bands so the occupant can see
+          the charge level in this tank-fed indirect cylinder.
+          Unvented cylinder: stored potable hot water — no stratification
+          banding, just a uniform warm fill.
+        */}
+        {variant === 'vented' && coldH > 0 && (
           <rect
             x={CYLINDER_BODY_X + 1}
             y={CYLINDER_BODY_Y + hotH + 1}
@@ -98,8 +103,7 @@ export function CylinderPrimitive({
           />
         )}
 
-        {/* Hot zone (upper portion) */}
-        {hotH > 0 && (
+        {variant === 'vented' && hotH > 0 && (
           <rect
             x={CYLINDER_BODY_X + 1}
             y={CYLINDER_BODY_Y + 1}
@@ -110,18 +114,32 @@ export function CylinderPrimitive({
           />
         )}
 
-        {/* Fill level percentage */}
-        <text
-          x={CYLINDER_BODY_X + CYLINDER_BODY_W / 2}
-          y={CYLINDER_BODY_Y + CYLINDER_BODY_H / 2 + 4}
-          textAnchor="middle"
-          fontSize={10}
-          fontWeight="bold"
-          fontFamily="system-ui, sans-serif"
-          fill={printSafe ? '#000' : '#7f1d1d'}
-        >
-          {Math.round(clampedFill * 100)}%
-        </text>
+        {/* Unvented: uniform warm body — no layered hot/cold bands */}
+        {variant === 'unvented' && (
+          <rect
+            x={CYLINDER_BODY_X + 1}
+            y={CYLINDER_BODY_Y + 1}
+            width={CYLINDER_BODY_W - 2}
+            height={CYLINDER_BODY_H - 2}
+            rx={13}
+            fill={printSafe ? '#d1d5db' : '#fed7aa'}
+          />
+        )}
+
+        {/* Fill level percentage — vented only */}
+        {variant === 'vented' && (
+          <text
+            x={CYLINDER_BODY_X + CYLINDER_BODY_W / 2}
+            y={CYLINDER_BODY_Y + CYLINDER_BODY_H / 2 + 4}
+            textAnchor="middle"
+            fontSize={10}
+            fontWeight="bold"
+            fontFamily="system-ui, sans-serif"
+            fill={printSafe ? '#000' : '#7f1d1d'}
+          >
+            {Math.round(clampedFill * 100)}%
+          </text>
+        )}
 
         {/* Vent pipe — only on vented variant */}
         {variant === 'vented' && (

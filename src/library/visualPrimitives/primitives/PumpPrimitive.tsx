@@ -68,6 +68,8 @@ export function PumpPrimitive({
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
+          data-testid="pump-inlet-pipe"
+          data-port-position="left"
         />
         {/* Outlet pipe */}
         <line
@@ -75,6 +77,8 @@ export function PumpPrimitive({
           x2={96} y2={cy}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
+          data-testid="pump-outlet-pipe"
+          data-port-position="right"
         />
 
         {/* Pump body circle */}
