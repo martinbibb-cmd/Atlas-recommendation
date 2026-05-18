@@ -200,7 +200,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     regulatoryNotes: ['Stratification cue is mandatory for this template.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.mixergy.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.mixergy,
-    featureFlags: ['mixergy_thermocline', 'mixergy_stratification', 'pump_inline_on_return', 'no_decorative_crossover_pipework'],
+    featureFlags: ['mixergy_thermocline', 'mixergy_stratification', 'pump_inline_on_return', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
     accessibilityCompatibility: {
       noLabelMode: true,
       monochromePrintSafeMode: true,
@@ -216,7 +216,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     regulatoryNotes: ['Diagram keeps potable and primary paths independent.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.thermal_store.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.thermal_store,
-    featureFlags: ['thermal_store_potable_primary_separation', 'pump_inline_on_return', 'no_decorative_crossover_pipework'],
+    featureFlags: ['thermal_store_potable_primary_separation', 'pump_inline_on_return', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
     accessibilityCompatibility: {
       noLabelMode: true,
       monochromePrintSafeMode: true,
@@ -294,4 +294,3 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     },
   },
 ];
-
