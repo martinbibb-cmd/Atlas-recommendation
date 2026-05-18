@@ -1,7 +1,7 @@
 import './diagrams.css';
 
 const SCREEN_READER_SUMMARY =
-  'A large sealed-system pressure gauge with low zone below 1.0 bar, healthy green range around 1.0–1.5 bar when cold, and high warning zone above normal. Labels explain low pressure and high pressure household effects.';
+  'A sealed-system pressure gauge with low zone below 1.0 bar, normal operating range around 1.0–1.5 bar when cold, and high warning zone above normal. Labels explain low-pressure and high-pressure household effects.';
 
 const WHAT_THIS_MEANS =
   'System pressure is the sealed heating circuit’s starting pressure; too low can stop radiators heating properly, while too high may cause the system to discharge for safety.';

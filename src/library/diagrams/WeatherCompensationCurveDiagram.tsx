@@ -1,7 +1,7 @@
 import './diagrams.css';
 
 const SCREEN_READER_SUMMARY =
-  'Two-part visual. Part one compares weather compensation and load compensation. Part two shows radiator valves closing while the automatic bypass valve opens to keep safe flow through the boiler.';
+  'Two-part diagram: first section compares weather compensation and load compensation on recognisable boiler-and-radiator systems; second section shows TRVs closing while the automatic bypass valve opens between flow and return to protect circulation through the boiler.';
 
 const WHAT_THIS_MEANS =
   'Weather compensation helps the boiler run gently before the home gets cold, while the automatic bypass valve protects flow through the boiler when radiator valves close.';

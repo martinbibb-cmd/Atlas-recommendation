@@ -7,6 +7,17 @@ const SYMBOLIC_QA_NOTES: Record<string, string> = {
   flow_restriction_bottleneck: 'Partly symbolic: restriction cue is abstract relative to full property pipe routing.',
 };
 
+function buildQaNote(diagramId: string): string | undefined {
+  const manualNote = SYMBOLIC_QA_NOTES[diagramId];
+  if (manualNote) return manualNote;
+  const registryEntry = getDiagramById(diagramId);
+  if (!registryEntry) return 'Renderer exists but registry metadata is missing.';
+  if (registryEntry.visualStatus !== 'production_ready') {
+    return `Registry status is "${registryEntry.visualStatus}" — verify remaining symbolic elements before customer sign-off.`;
+  }
+  return undefined;
+}
+
 export function DiagramFixturePage() {
   return (
     <main style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a', padding: '1rem' }} data-testid="diagram-fixture-page">
@@ -20,7 +31,7 @@ export function DiagramFixturePage() {
       <section style={{ display: 'grid', gap: '1rem' }} data-testid="diagram-fixture-grid">
         {SUPPORTED_DIAGRAM_RENDERER_IDS.map((diagramId) => {
           const registryEntry = getDiagramById(diagramId);
-          const qaNote = SYMBOLIC_QA_NOTES[diagramId];
+          const qaNote = buildQaNote(diagramId);
           return (
             <article
               key={diagramId}

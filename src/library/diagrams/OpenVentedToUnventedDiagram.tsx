@@ -1,7 +1,7 @@
 import './diagrams.css';
 
 const SCREEN_READER_SUMMARY =
-  'Two-panel comparison. Left: open-vented heating with a feed and expansion tank open to atmosphere. Right: sealed heating system with expansion vessel and pressure gauge in the healthy zone.';
+  'Two-panel comparison. Left: open-vented setup with loft cold-water storage tank, vented cylinder, boiler, pump, and open vent path. Right: sealed system with boiler, pump, unvented cylinder, expansion vessel cutaway, filling-loop cue, and pressure gauge in the normal operating zone.';
 
 const WHAT_THIS_MEANS =
   'A sealed heating system keeps the central heating circuit closed and stable, while the expansion vessel safely absorbs the small pressure changes as the water heats and cools.';
@@ -10,7 +10,8 @@ export interface OpenVentedToUnventedDiagramProps {
   printSafe?: boolean;
   /**
    * Surveyed cold-water storage tank volume in litres.
-   * Only shown when explicitly recorded.
+   * Only shown when explicitly recorded during survey; omit if not recorded
+   * to avoid displaying guessed values.
    */
   cwsVolumeLSurveyed?: number;
   /**
