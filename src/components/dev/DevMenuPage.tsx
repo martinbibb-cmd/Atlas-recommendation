@@ -458,7 +458,10 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           </p>
         </div>
         <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-          {visualEducationLibraryItems.map(({ surface, registryItem }) => (
+          {visualEducationLibraryItems.map(({ surface, registryItem }) => {
+            const routeKind = registryItem.routeKind ?? 'unknown';
+            const access = registryItem.access ?? 'dev_only';
+            return (
             <article
               key={surface.id}
               data-testid={`devmenu-visual-education-library-${surface.id}`}
@@ -476,11 +479,11 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
                 <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>{surface.description}</p>
               </div>
               <div style={STYLES.badgeRow}>
-                <span style={{ ...STYLES.badge, color: ROUTE_KIND_COLORS[registryItem.routeKind], borderColor: ROUTE_KIND_COLORS[registryItem.routeKind] }}>
-                  {ROUTE_KIND_LABELS[registryItem.routeKind]}
+                <span style={{ ...STYLES.badge, color: ROUTE_KIND_COLORS[routeKind], borderColor: ROUTE_KIND_COLORS[routeKind] }}>
+                  {ROUTE_KIND_LABELS[routeKind]}
                 </span>
-                <span style={{ ...STYLES.badge, color: ACCESS_COLORS[registryItem.access], borderColor: ACCESS_COLORS[registryItem.access] }}>
-                  {ACCESS_LABELS[registryItem.access]}
+                <span style={{ ...STYLES.badge, color: ACCESS_COLORS[access], borderColor: ACCESS_COLORS[access] }}>
+                  {ACCESS_LABELS[access]}
                 </span>
                 <span style={{ ...STYLES.badge, color: STATUS_COLORS[registryItem.status], borderColor: STATUS_COLORS[registryItem.status] }}>
                   {STATUS_LABELS[registryItem.status]}
@@ -495,7 +498,8 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
                 <a className="chip-btn" href={`/?${surface.queryFlag}`}>Open query flag</a>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </section>
 
