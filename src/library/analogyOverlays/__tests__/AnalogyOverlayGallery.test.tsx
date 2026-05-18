@@ -28,6 +28,19 @@ describe('analogy overlay registry', () => {
     }
   });
 
+  it('retains required anchor IDs for ABV and Mixergy overlays after geometry updates', () => {
+    const abvAnchors = new Set(getTopologyOverlayAnchors('abv_protected_heating_loop').map((anchor) => anchor.id));
+    const mixergyAnchors = new Set(getTopologyOverlayAnchors('mixergy_stratified_cylinder').map((anchor) => anchor.id));
+
+    expect(abvAnchors.has('abv')).toBe(true);
+    expect(abvAnchors.has('flow_header')).toBe(true);
+    expect(abvAnchors.has('return_header')).toBe(true);
+
+    expect(mixergyAnchors.has('cylinder_top')).toBe(true);
+    expect(mixergyAnchors.has('thermocline')).toBe(true);
+    expect(mixergyAnchors.has('hot_draw_off')).toBe(true);
+  });
+
   it('provides every required analogy mode for each target concept', () => {
     const concepts = Array.from(new Set(ANALOGY_OVERLAY_REGISTRY.map((entry) => entry.targetConcept)));
     for (const concept of concepts) {
@@ -59,5 +72,10 @@ describe('AnalogyOverlayGallery', () => {
     expect(routeEntry?.access).toBe('dev_only');
     expect(uiEntry?.routePath).toBe('/dev/analogy-overlay-gallery');
     expect(uiEntry?.access).toBe('dev_only');
+  });
+
+  it('shows physical-realism QA callouts', () => {
+    render(<AnalogyOverlayGallery />);
+    expect(screen.getByTestId('analogy-overlay-qa-callouts').textContent).toContain('preserve topology-anchor IDs');
   });
 });

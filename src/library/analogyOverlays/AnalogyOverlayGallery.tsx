@@ -169,6 +169,12 @@ export function AnalogyOverlayGallery() {
         <p style={{ margin: 0, color: '#475569', fontSize: 13, maxWidth: '74ch' }}>
           Canonical topology first. Analogy overlays switch narration mode without changing physical system truth.
         </p>
+        <p
+          data-testid="analogy-overlay-qa-callouts"
+          style={{ margin: '0.65rem 0 0', fontSize: 12, color: '#1e3a8a', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, padding: '0.5rem 0.75rem' }}
+        >
+          QA callouts: preserve topology-anchor IDs, keep radiator/ABV/Mixergy physical realism in baseline views, and flag decorative pipe loops.
+        </p>
       </header>
 
       <section style={{ display: 'grid', gap: '0.75rem' }}>

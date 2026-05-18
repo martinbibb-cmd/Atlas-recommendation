@@ -40,6 +40,7 @@ describe('VisualTopologyGallery', () => {
 
     expect(screen.getByTestId('vt-gallery-primary-no-label')).toBeTruthy();
     expect(screen.getByText(/Primary fixture — no-label view first/i)).toBeTruthy();
+    expect(screen.getByTestId('vt-gallery-physical-realism-callouts').textContent).toContain('bottom-based radiator connections');
 
     for (const topology of VISUAL_TOPOLOGY_REGISTRY) {
       expect(screen.getAllByTestId(`vt-gallery-card-${topology.id}`)).toHaveLength(2);

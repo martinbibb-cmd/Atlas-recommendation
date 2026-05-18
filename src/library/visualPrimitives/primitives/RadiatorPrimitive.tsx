@@ -15,11 +15,14 @@
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export type RadiatorTemperatureTone = 'hot' | 'warm' | 'cool';
+export type RadiatorConnectionLayout = 'opposite_ends_bottom' | 'same_side_bottom';
 
 export interface RadiatorPrimitiveProps {
   temperatureTone?: RadiatorTemperatureTone;
   /** Number of fin sections to render (2–8). */
   sections?: number;
+  /** Bottom-connection style used in typical UK installs. */
+  connectionLayout?: RadiatorConnectionLayout;
   showLabel?: boolean;
   printSafe?: boolean;
   size?: PrimitiveSize;
@@ -48,6 +51,7 @@ const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 export function RadiatorPrimitive({
   temperatureTone = 'warm',
   sections = 5,
+  connectionLayout = 'opposite_ends_bottom',
   showLabel = true,
   printSafe = false,
   size = 'md',
@@ -63,6 +67,11 @@ export function RadiatorPrimitive({
   const bodyW = 112;
   const bodyH = 44;
   const finStep = bodyW / clampedSections;
+  const portY = bodyY + bodyH;
+  const leftPortX = bodyX + 10;
+  const rightPortX = bodyX + bodyW - 10;
+  const flowPortX = rightPortX;
+  const returnPortX = connectionLayout === 'same_side_bottom' ? rightPortX - 12 : leftPortX;
 
   const fill = printSafe
     ? temperatureTone === 'hot'
@@ -112,28 +121,41 @@ export function RadiatorPrimitive({
           );
         })}
 
-        {/* Flow pipe (top) */}
+        {/* Bottom flow connection (TRV side) */}
         <line
-          x1={30} y1={bodyY}
-          x2={30} y2={0}
+          x1={flowPortX} y1={portY}
+          x2={flowPortX} y2={svgH}
           stroke={printSafe ? '#000' : '#ef4444'}
           strokeWidth={2.5}
+          data-testid="radiator-flow-connection"
+          data-port-position="bottom"
         />
-        {/* Return pipe (bottom) */}
+        {/* Bottom return connection (lockshield side) */}
         <line
-          x1={30} y1={bodyY + bodyH}
-          x2={30} y2={svgH}
+          x1={returnPortX} y1={portY}
+          x2={returnPortX} y2={svgH}
           stroke={printSafe ? '#555' : '#3b82f6'}
           strokeWidth={2.5}
           strokeDasharray={printSafe ? '4 2' : undefined}
+          data-testid="radiator-return-connection"
+          data-port-position="bottom"
         />
 
-        {/* TRV knob stub (top-right) */}
+        {/* TRV body (flow side, bottom-mounted) */}
         <rect
-          x={bodyX + bodyW - 20} y={bodyY - 8}
-          width={16} height={8}
+          x={flowPortX - 5} y={portY + 1}
+          width={10} height={6}
           rx={2}
-          fill="#6b7280"
+          fill={printSafe ? '#9ca3af' : '#dc2626'}
+          stroke={printSafe ? '#374151' : '#7f1d1d'}
+          strokeWidth={1}
+        />
+        {/* Lockshield cap (return side, bottom-mounted) */}
+        <rect
+          x={returnPortX - 4} y={portY + 1}
+          width={8} height={5}
+          rx={1.5}
+          fill={printSafe ? '#d1d5db' : '#94a3b8'}
           stroke="#4b5563"
           strokeWidth={1}
         />

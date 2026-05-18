@@ -392,6 +392,23 @@ export function VisualPrimitiveGallery() {
             <span>⚠ WARN — {warnCount} primitive(s) marked recognisable_with_context.</span>
           )}
         </div>
+
+        <div
+          data-testid="vp-gallery-physical-fidelity-callouts"
+          style={{
+            background: '#eff6ff',
+            border: '1px solid #93c5fd',
+            borderRadius: 8,
+            padding: '0.5rem 0.75rem',
+            fontSize: 12,
+            color: '#1e3a8a',
+            display: 'grid',
+            gap: 2,
+          }}
+        >
+          <span><strong>Primitive fidelity rule:</strong> passing requires recognisable shape, not just label text.</span>
+          <span>Boiler, cylinder, radiator, pump, gauge, magnetic filter, ABV, filling loop, and powerflush machine must read correctly in no-label mode.</span>
+        </div>
       </header>
 
       <section data-testid="vp-gallery-primary-no-label-fixture" style={{ marginBottom: '2rem' }}>

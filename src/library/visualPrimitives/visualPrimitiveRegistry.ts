@@ -213,7 +213,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     printSafe: true,
     motionSafe: true,
     qaNote:
-      'The thermocline boundary distinguishes Mixergy from a standard cylinder visually. Verify this is perceptible without colour in print mode.',
+      'Keep a clean smart-cylinder silhouette with clear thermocline and minimal external pipework; never frame this as a thermal store.',
   },
 
   // ── Thermal store ──────────────────────────────────────────────────────────
@@ -234,7 +234,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     printSafe: true,
     motionSafe: true,
     qaNote:
-      'Must visually distinguish from a standard cylinder. The internal coil element is the key differentiator.',
+      'Must remain distinct from Mixergy by showing primary-water storage with a dedicated potable separation path (coil/heat exchanger).',
   },
 
   // ── Radiators ───────────────────────────────────────────────────────────────
@@ -361,7 +361,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     printSafe: true,
     motionSafe: true,
     qaNote:
-      'No existing rendering found in the codebase. BoilerPrimitive or PipeLoopPrimitive may incorporate this in future topology diagrams.',
+      'Render as a compact bypass valve body with an angled adjustment head on a flow-to-return bridge, not a generic valve icon.',
   },
 
   // ── Filters ─────────────────────────────────────────────────────────────────

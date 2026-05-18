@@ -50,7 +50,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
-    qaNote: 'No-label view must still make the vent pipe and tank-fed path obvious.',
+    qaNote: 'No-label view must keep vent pipe/tank-fed path obvious and radiator branches bottom-connected and traceable.',
   },
   {
     id: 'sealed_unvented_cylinder',
@@ -74,6 +74,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
+    qaNote: 'Radiator branches should read as bottom-connected emitters on a plausible sealed flow/return route.',
   },
   {
     id: 'combi_direct_hot_water',
@@ -87,6 +88,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
+    qaNote: 'Emitter branches should remain bottom-connected with no decorative crossovers.',
   },
   {
     id: 'mixergy_stratified_cylinder',
@@ -100,7 +102,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
-    qaNote: 'Do not describe or present this as a thermal store.',
+    qaNote: 'Keep this visually clean and stratified with minimal pipework; do not describe or present this as a thermal store.',
   },
   {
     id: 'thermal_store_layout',
@@ -114,7 +116,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
-    qaNote: 'Primary stored water and potable water paths must remain visually separate.',
+    qaNote: 'Primary stored water and potable water paths must remain visibly separate via internal heat-exchanger representation.',
   },
   {
     id: 'powerflush_service_layout',
@@ -128,6 +130,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
+    qaNote: 'ABV should read as a compact bypass valve with angled adjustment head bridging flow and return.',
   },
   {
     id: 'abv_protected_heating_loop',
@@ -141,6 +144,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
+    qaNote: 'Return filtering should stay physically traceable with radiator branches connected to plausible emitter ports.',
   },
   {
     id: 'magnetic_filter_on_return',

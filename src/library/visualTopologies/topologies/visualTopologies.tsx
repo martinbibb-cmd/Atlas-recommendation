@@ -99,6 +99,10 @@ function OpenVentedVentedCylinderTopology({ options }: { options: VisualTopology
         <line x1={560} y1={140} x2={560} y2={205} stroke={flow} strokeWidth={w} />
         <line x1={560} y1={300} x2={120} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={120} y1={300} x2={120} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={348} y1={140} x2={348} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={284} y1={112} x2={284} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={494} y1={140} x2={494} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={430} y1={112} x2={430} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         <line x1={560} y1={100} x2={700} y2={100} stroke={AUX_COLOUR} strokeWidth={w - 1} />
         <line x1={700} y1={100} x2={700} y2={60} stroke={AUX_COLOUR} strokeWidth={w - 1} />
@@ -131,6 +135,10 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         <line x1={520} y1={140} x2={520} y2={300} stroke={flow} strokeWidth={w} />
         <line x1={520} y1={300} x2={120} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={120} y1={300} x2={120} y2={205} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={340} y1={140} x2={340} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={276} y1={112} x2={276} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={484} y1={140} x2={484} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={420} y1={112} x2={420} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         <line x1={576} y1={250} x2={680} y2={250} stroke={pipeStroke(options.printSafe, false)} strokeWidth={w - 1} />
         <line x1={576} y1={185} x2={680} y2={185} stroke={pipeStroke(options.printSafe, true)} strokeWidth={w - 1} />
@@ -165,6 +173,10 @@ function CombiDirectHotWaterTopology({ options }: { options: VisualTopologyRende
         <line x1={620} y1={140} x2={620} y2={300} stroke={flow} strokeWidth={w} />
         <line x1={620} y1={300} x2={220} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={220} y1={300} x2={220} y2={220} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={414} y1={140} x2={414} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={350} y1={112} x2={350} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={570} y1={140} x2={570} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={506} y1={112} x2={506} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         <line x1={188} y1={250} x2={80} y2={250} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={188} y1={210} x2={80} y2={210} stroke={flow} strokeWidth={w - 1} />
@@ -226,6 +238,7 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
         <text x={528} y={154} fontSize={11} fill={flow}>Potable hot water out</text>
         <text x={528} y={242} fontSize={11} fill={ret}>Potable mains in</text>
         <text x={170} y={165} fontSize={11} fill={flow}>Primary water loop</text>
+        <text x={528} y={258} fontSize={11} fill={AUX_COLOUR}>Potable path isolated via internal coil</text>
       </PipeLayer>
 
       <div style={nodeStyle(64, 154)}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
@@ -249,6 +262,12 @@ function PowerflushServiceTopology({ options }: { options: VisualTopologyRenderO
         <line x1={690} y1={140} x2={690} y2={290} stroke={flow} strokeWidth={w} />
         <line x1={690} y1={290} x2={260} y2={290} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={260} y1={290} x2={260} y2={170} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={390} y1={140} x2={390} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={326} y1={112} x2={326} y2={290} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={542} y1={140} x2={542} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={478} y1={112} x2={478} y2={290} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={694} y1={140} x2={694} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={630} y1={112} x2={630} y2={290} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         <line x1={230} y1={174} x2={140} y2={174} stroke={dirty} strokeWidth={w - 1} strokeDasharray="6 3" />
         <line x1={230} y1={252} x2={140} y2={252} stroke={clean} strokeWidth={w - 1} />
@@ -278,13 +297,18 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
         <line x1={620} y1={140} x2={620} y2={300} stroke={flow} strokeWidth={w} />
         <line x1={620} y1={300} x2={130} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={130} y1={300} x2={130} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={348} y1={140} x2={348} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={284} y1={112} x2={284} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={494} y1={140} x2={494} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={430} y1={112} x2={430} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={556} y1={140} x2={556} y2={300} stroke={AUX_COLOUR} strokeWidth={w - 0.5} />
       </PipeLayer>
 
       <div style={nodeStyle(60, 164)}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
       <div style={nodeStyle(165, 248)}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
       <div style={nodeStyle(274, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
       <div style={nodeStyle(420, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(536, 190)}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <div style={nodeStyle(470, 176)}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
     </TopologyShell>
   );
 }
@@ -301,6 +325,10 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
         <line x1={560} y1={140} x2={560} y2={300} stroke={flow} strokeWidth={w} />
         <line x1={560} y1={300} x2={140} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={140} y1={300} x2={140} y2={220} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={322} y1={140} x2={322} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={258} y1={112} x2={258} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={468} y1={140} x2={468} y2={112} stroke={flow} strokeWidth={w - 1} />
+        <line x1={404} y1={112} x2={404} y2={300} stroke={ret} strokeWidth={w - 1} strokeDasharray={pipeDash(options.printSafe, false)} />
         <text x={590} y={282} fontSize={11} fill={ret}>Clean return into boiler</text>
       </PipeLayer>
 
