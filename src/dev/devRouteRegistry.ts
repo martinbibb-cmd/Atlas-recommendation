@@ -245,6 +245,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'AnalogyOverlayGallery',
+    routePath: '/dev/analogy-overlay-gallery',
+    queryFlags: ['analogy-overlay-gallery=1'],
+    fullRouteExample: '/dev/analogy-overlay-gallery',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
     codeName: 'LibraryCoverageAuditPanel',
     fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
     routeKind: 'derived',
