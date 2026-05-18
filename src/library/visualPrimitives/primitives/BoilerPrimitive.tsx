@@ -30,6 +30,7 @@ import {
   RETURN_PIPE_DASH,
   PRINT_RETURN_DASH,
 } from '../primitiveTokens';
+import { FLOW_PULSE_CLASS } from '../primitiveMotion';
 
 export type BoilerVariant = 'combi' | 'system' | 'regular';
 export type PrimitiveSize = 'sm' | 'md' | 'lg';
@@ -39,6 +40,8 @@ export interface BoilerPrimitiveProps {
   showLabel?: boolean;
   printSafe?: boolean;
   size?: PrimitiveSize;
+  /** When true, applies a flow-pulse animation to the pipe stubs. Defaults to false. */
+  animateFlow?: boolean;
 }
 
 const VARIANT_LABELS: Record<BoilerVariant, string> = {
@@ -54,6 +57,7 @@ export function BoilerPrimitive({
   showLabel = true,
   printSafe = false,
   size = 'md',
+  animateFlow = false,
 }: BoilerPrimitiveProps) {
   const scale = SCALE[size];
   const w = Math.round(100 * scale);
@@ -123,6 +127,7 @@ export function BoilerPrimitive({
           x2={30} y2={104}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
+          className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.flow : undefined}
         />
         {/* Return pipe (cool — blue/dashed for colour-blind safety) */}
         <line
@@ -130,7 +135,8 @@ export function BoilerPrimitive({
           x2={70} y2={104}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
-          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
+          strokeDasharray={animateFlow && !printSafe ? undefined : (printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH)}
+          className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.return : undefined}
         />
         {/* Gas supply stub (grey dashed) */}
         <line

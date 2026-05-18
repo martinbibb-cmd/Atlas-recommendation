@@ -27,6 +27,7 @@ import {
   PRINT_RETURN_COLOUR,
   RETURN_COLOUR,
 } from '../primitiveTokens';
+import { DRAW_OFF_PULSE_CLASS } from '../primitiveMotion';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export type CylinderVariant = 'vented' | 'unvented';
@@ -38,6 +39,8 @@ export interface CylinderPrimitiveProps {
   showLabel?: boolean;
   printSafe?: boolean;
   size?: PrimitiveSize;
+  /** When true, animates the hot draw-off arrow on mount. Defaults to false. */
+  animateFlow?: boolean;
 }
 
 const VARIANT_LABELS: Record<CylinderVariant, string> = {
@@ -53,6 +56,7 @@ export function CylinderPrimitive({
   showLabel = true,
   printSafe = false,
   size = 'md',
+  animateFlow = false,
 }: CylinderPrimitiveProps) {
   const scale = SCALE[size];
   const clampedFill = Math.max(0, Math.min(1, fillLevel));
@@ -168,10 +172,12 @@ export function CylinderPrimitive({
           x2={CYLINDER_SVG_W} y2={CYLINDER_BODY_Y + 18}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
+          className={animateFlow && !printSafe ? DRAW_OFF_PULSE_CLASS : undefined}
         />
         <polygon
           points={`${CYLINDER_SVG_W - 6},${CYLINDER_BODY_Y + 14} ${CYLINDER_SVG_W},${CYLINDER_BODY_Y + 18} ${CYLINDER_SVG_W - 6},${CYLINDER_BODY_Y + 22}`}
           fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          className={animateFlow && !printSafe ? DRAW_OFF_PULSE_CLASS : undefined}
         />
       </svg>
 

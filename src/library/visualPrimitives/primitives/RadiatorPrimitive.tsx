@@ -24,6 +24,7 @@ import {
   VALVE_H,
   VALVE_W,
 } from '../primitiveTokens';
+import { COOLING_TRANSITION_CLASS, FLOW_PULSE_CLASS } from '../primitiveMotion';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export type RadiatorTemperatureTone = 'hot' | 'warm' | 'cool';
@@ -38,6 +39,8 @@ export interface RadiatorPrimitiveProps {
   showLabel?: boolean;
   printSafe?: boolean;
   size?: PrimitiveSize;
+  /** When true, applies cooling-transition and flow-pulse animations. Defaults to false. */
+  animateFlow?: boolean;
 }
 
 const TONE_FILL: Record<RadiatorTemperatureTone, string> = {
@@ -67,6 +70,7 @@ export function RadiatorPrimitive({
   showLabel = true,
   printSafe = false,
   size = 'md',
+  animateFlow = false,
 }: RadiatorPrimitiveProps) {
   const scale = SCALE[size];
   const clampedSections = Math.max(2, Math.min(8, sections));
@@ -116,6 +120,7 @@ export function RadiatorPrimitive({
           fill={fill}
           stroke={stroke}
           strokeWidth={2}
+          className={animateFlow && !printSafe ? COOLING_TRANSITION_CLASS : undefined}
         />
 
         {/* Fin dividers */}
@@ -139,6 +144,7 @@ export function RadiatorPrimitive({
           x2={flowPortX} y2={svgH}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
+          className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.flow : undefined}
           data-testid="radiator-flow-connection"
           data-port-position="bottom"
         />
@@ -148,7 +154,8 @@ export function RadiatorPrimitive({
           x2={returnPortX} y2={svgH}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
-          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
+          strokeDasharray={animateFlow && !printSafe ? undefined : (printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH)}
+          className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.return : undefined}
           data-testid="radiator-return-connection"
           data-port-position="bottom"
         />

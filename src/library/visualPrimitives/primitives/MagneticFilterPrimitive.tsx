@@ -15,12 +15,15 @@
  */
 
 import { AUX_COLOUR, LABEL_FONT_SIZE, PIPE_STROKE_MAIN } from '../primitiveTokens';
+import { SLUDGE_SETTLE_CLASS } from '../primitiveMotion';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface MagneticFilterPrimitiveProps {
   showLabel?: boolean;
   printSafe?: boolean;
   size?: PrimitiveSize;
+  /** When true, animates sludge particle dots settling toward the magnet on mount. Defaults to false. */
+  animateFlow?: boolean;
 }
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
@@ -29,6 +32,7 @@ export function MagneticFilterPrimitive({
   showLabel = true,
   printSafe = false,
   size = 'md',
+  animateFlow = false,
 }: MagneticFilterPrimitiveProps) {
   const scale = SCALE[size];
   // SVG authored at 160×90
@@ -115,6 +119,8 @@ export function MagneticFilterPrimitive({
             r={3.5}
             fill={printSafe ? '#555' : '#1c1917'}
             opacity={0.75}
+            className={animateFlow && !printSafe ? SLUDGE_SETTLE_CLASS : undefined}
+            style={animateFlow && !printSafe ? { animationDelay: `${i * 0.1}s` } : undefined}
           />
         ))}
 

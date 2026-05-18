@@ -32,12 +32,15 @@ import {
   VALVE_H,
   VALVE_W,
 } from '../primitiveTokens';
+import { BYPASS_ACTIVATION_CLASS } from '../primitiveMotion';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface ABVPrimitiveProps {
   showLabel?: boolean;
   printSafe?: boolean;
   size?: PrimitiveSize;
+  /** When true, animates the bypass valve body with a brief flash. Defaults to false. */
+  animateFlow?: boolean;
 }
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
@@ -46,6 +49,7 @@ export function ABVPrimitive({
   showLabel = true,
   printSafe = false,
   size = 'md',
+  animateFlow = false,
 }: ABVPrimitiveProps) {
   const scale = SCALE[size];
   // SVG authored at 160×80
@@ -105,6 +109,7 @@ export function ABVPrimitive({
           fill={printSafe ? '#d1d5db' : '#fde68a'}
           stroke="#374151"
           strokeWidth={1.5}
+          className={animateFlow && !printSafe ? BYPASS_ACTIVATION_CLASS : undefined}
         />
 
         {/* Angled adjustment cap/head cue */}
