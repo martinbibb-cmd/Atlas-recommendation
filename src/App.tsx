@@ -151,6 +151,7 @@ import { LibraryExplorerPage } from './library/dev/LibraryExplorerPage';
 import { DiagramFixturePage } from './library/dev/DiagramFixturePage';
 import { VisualPrimitiveGallery } from './library/visualPrimitives/VisualPrimitiveGallery';
 import { VisualTopologyGallery } from './library/visualTopologies/VisualTopologyGallery';
+import { AnalogyOverlayGallery } from './library/analogyOverlays/AnalogyOverlayGallery';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import CustomerPortalPreviewPage from './dev/CustomerPortalPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
@@ -733,6 +734,17 @@ const VISUAL_TOPOLOGY_GALLERY_DEV_PATH =
   (
     window.location.pathname === '/dev/visual-topology-gallery'
     || new URLSearchParams(window.location.search).get('visual-topology-gallery') === '1'
+  );
+
+/**
+ * Detect /dev/analogy-overlay-gallery or ?analogy-overlay-gallery=1 —
+ * renders the PR 3 canonical analogy overlay QA gallery.
+ */
+const ANALOGY_OVERLAY_GALLERY_DEV_PATH =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/dev/analogy-overlay-gallery'
+    || new URLSearchParams(window.location.search).get('analogy-overlay-gallery') === '1'
   );
 
 /** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
@@ -2277,6 +2289,20 @@ function AppInner() {
           </button>
         </div>
         <VisualTopologyGallery />
+      </div>
+    );
+  }
+
+  // /dev/analogy-overlay-gallery (or ?analogy-overlay-gallery=1) — PR 3 analogy overlay gallery.
+  if (ANALOGY_OVERLAY_GALLERY_DEV_PATH) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/dev/devmenu'; }}>
+            ← Back
+          </button>
+        </div>
+        <AnalogyOverlayGallery />
       </div>
     );
   }
