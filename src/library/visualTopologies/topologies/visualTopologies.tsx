@@ -238,7 +238,7 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
         <text x={528} y={154} fontSize={11} fill={flow}>Potable hot water out</text>
         <text x={528} y={242} fontSize={11} fill={ret}>Potable mains in</text>
         <text x={170} y={165} fontSize={11} fill={flow}>Primary water loop</text>
-        <text x={528} y={258} fontSize={11} fill={AUX_COLOUR}>Potable path isolated via internal coil</text>
+        <text x={528} y={258} fontSize={11} fill={options.printSafe ? '#000' : '#334155'}>Potable path isolated via internal coil</text>
       </PipeLayer>
 
       <div style={nodeStyle(64, 154)}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>

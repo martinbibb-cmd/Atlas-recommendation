@@ -21,7 +21,7 @@ export interface RadiatorPrimitiveProps {
   temperatureTone?: RadiatorTemperatureTone;
   /** Number of fin sections to render (2–8). */
   sections?: number;
-  /** Bottom-connection style used in typical UK installs. */
+  /** Common UK bottom-connection style. */
   connectionLayout?: RadiatorConnectionLayout;
   showLabel?: boolean;
   printSafe?: boolean;

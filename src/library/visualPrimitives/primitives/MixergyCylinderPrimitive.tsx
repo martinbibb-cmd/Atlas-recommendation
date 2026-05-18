@@ -101,7 +101,7 @@ export function MixergyCylinderPrimitive({
           />
         )}
 
-        {/* Subtle charging cue near upper shell */}
+        {/* Subtle upper-side charging point cue for Mixergy top-charge behaviour */}
         <circle
           cx={BODY_X + 8}
           cy={BODY_Y + 10}
@@ -125,7 +125,7 @@ export function MixergyCylinderPrimitive({
 
         {/* Cold mains inlet — low entry */}
         <line
-          x1={0} y1={BODY_Y + BODY_H - 10}
+          x1={0} y1={BODY_Y + BODY_H - 14}
           x2={BODY_X} y2={BODY_Y + BODY_H - 14}
           stroke={printSafe ? '#555' : '#3b82f6'}
           strokeWidth={2.5}
