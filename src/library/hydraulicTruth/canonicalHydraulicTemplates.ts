@@ -66,7 +66,7 @@ export const CANONICAL_DIAGRAM_SIMPLIFICATIONS: Record<CanonicalHydraulicTemplat
   },
   combi: {
     intentionallySimplified: [
-      'Internal combi plate exchanger is abstracted to on-demand hot-water pipe stubs.',
+      'Internal combi plate exchanger is abstracted to on-demand hot water pipe stubs.',
     ],
     cannotSimplifyWithoutMisleading: [
       'Do not add cylinder-like storage cues to combi topology.',
@@ -119,7 +119,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
   {
     topologyId: 'open_vented_vented_cylinder',
     templateId: 'open_vented',
-    hydraulicIntentSummary: 'Tank-fed hot-water layout with close-coupled feed/vent and a traceable primary flow/return loop.',
+    hydraulicIntentSummary: 'Tank-fed hot water layout with close-coupled feed/vent and a traceable primary flow/return loop.',
     safetyNotes: ['Open vent route remains visible to avoid sealed-system interpretation mistakes.'],
     regulatoryNotes: ['Open-vented reference must keep vent and feed as a close-coupled pair.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.open_vented.intentionallySimplified,
@@ -140,7 +140,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
   {
     topologyId: 'sealed_unvented_cylinder',
     templateId: 'sealed_unvented',
-    hydraulicIntentSummary: 'Sealed heating loop with unvented hot-water storage, pressure controls, and explicit G3 discharge fall.',
+    hydraulicIntentSummary: 'Sealed heating loop with unvented hot water storage, pressure controls, and explicit G3 discharge fall.',
     safetyNotes: [
       'D2 safety discharge is shown as continuously falling pipework.',
       'Filling loop defaults to disconnected/ghosted service state.',
@@ -168,7 +168,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     topologyId: 'combi_direct_hot_water',
     templateId: 'combi',
     hydraulicIntentSummary: 'Combi layout showing on-demand hot water directly from boiler and no storage cylinder.',
-    safetyNotes: ['No stored hot-water cylinder path is presented in this template.'],
+    safetyNotes: ['No stored hot water cylinder path is presented in this template.'],
     regulatoryNotes: ['Mains-fed supply to combi is shown as direct inlet.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.combi.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.combi,

@@ -223,7 +223,7 @@ export function VisualTopologyGallery() {
         <section data-testid="vt-gallery-installer-review-mode" style={{ marginBottom: '2rem', display: 'grid', gap: '0.85rem' }}>
           <h2 style={{ fontSize: 16, margin: 0 }}>Installer review mode — hydraulic truth QA</h2>
           <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>
-            Rule-driven hydraulic intent check from canonical templates. These notes explain plausibility and safety, not visual neatness.
+            Rule-driven hydraulic validation against canonical templates. These notes verify technical accuracy and safety compliance, not visual presentation.
           </p>
           {VISUAL_TOPOLOGY_REGISTRY.map((entry) => {
             const qa = runHydraulicTopologyQa(entry.id);

@@ -9,8 +9,12 @@ describe('hydraulic truth regression checks', () => {
     const { container } = render(renderVisualTopology('sealed_unvented_cylinder', DEFAULT_OPTIONS));
     const d2 = container.querySelector('[data-testid="d2-discharge-pipe"]');
     expect(d2).toBeTruthy();
-    expect(Number(d2?.getAttribute('y2'))).toBeGreaterThan(Number(d2?.getAttribute('y1')));
-    expect(Number(d2?.getAttribute('x2'))).toBeGreaterThan(Number(d2?.getAttribute('x1')));
+    const x1 = Number.parseFloat(d2?.getAttribute('x1') ?? '0');
+    const y1 = Number.parseFloat(d2?.getAttribute('y1') ?? '0');
+    const x2 = Number.parseFloat(d2?.getAttribute('x2') ?? '0');
+    const y2 = Number.parseFloat(d2?.getAttribute('y2') ?? '0');
+    expect(y2).toBeGreaterThan(y1);
+    expect(x2).toBeGreaterThan(x1);
   });
 
   it('ABV stays downstream of pump location in ABV-protected layout', () => {

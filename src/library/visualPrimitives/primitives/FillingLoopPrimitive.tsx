@@ -17,15 +17,15 @@ export interface FillingLoopPrimitiveProps {
 }
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
-const FLOW_PIPE_Y_PX = 20;
-const RETURN_PIPE_Y_PX = 52;
-const LEFT_GHOST_LINK_START_X_PX = 48;
-const LEFT_GHOST_LINK_JOIN_X_PX = 72;
-const RIGHT_GHOST_LINK_JOIN_X_PX = 78;
-const RIGHT_GHOST_LINK_END_X_PX = 102;
-const GHOST_LINK_CURVE_Y_PX = 47;
-const DISCONNECT_GAP_START_X_PX = 73;
-const DISCONNECT_GAP_END_X_PX = 77;
+const FLOW_PIPE_Y = 20;
+const RETURN_PIPE_Y = 52;
+const LEFT_GHOST_LINK_START_X = 48;
+const LEFT_GHOST_LINK_JOIN_X = 72;
+const RIGHT_GHOST_LINK_JOIN_X = 78;
+const RIGHT_GHOST_LINK_END_X = 102;
+const GHOST_LINK_CURVE_Y = 47;
+const DISCONNECT_GAP_START_X = 73;
+const DISCONNECT_GAP_END_X = 77;
 
 export function FillingLoopPrimitive({
   showLabel = true,
@@ -49,24 +49,24 @@ export function FillingLoopPrimitive({
       >
         <line
           x1={8}
-          y1={FLOW_PIPE_Y_PX}
+          y1={FLOW_PIPE_Y}
           x2={142}
-          y2={FLOW_PIPE_Y_PX}
+          y2={FLOW_PIPE_Y}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
         />
         <line
           x1={8}
-          y1={RETURN_PIPE_Y_PX}
+          y1={RETURN_PIPE_Y}
           x2={142}
-          y2={RETURN_PIPE_Y_PX}
+          y2={RETURN_PIPE_Y}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
 
         <path
-          d={`M ${LEFT_GHOST_LINK_START_X_PX} ${FLOW_PIPE_Y_PX} C 58 ${FLOW_PIPE_Y_PX}, 58 ${GHOST_LINK_CURVE_Y_PX}, ${LEFT_GHOST_LINK_JOIN_X_PX} ${GHOST_LINK_CURVE_Y_PX}`}
+          d={`M ${LEFT_GHOST_LINK_START_X} ${FLOW_PIPE_Y} C 58 ${FLOW_PIPE_Y}, 58 ${GHOST_LINK_CURVE_Y}, ${LEFT_GHOST_LINK_JOIN_X} ${GHOST_LINK_CURVE_Y}`}
           stroke="#374151"
           strokeWidth={2.5}
           strokeDasharray="3 2"
@@ -75,7 +75,7 @@ export function FillingLoopPrimitive({
           fill="none"
         />
         <path
-          d={`M ${RIGHT_GHOST_LINK_JOIN_X_PX} ${GHOST_LINK_CURVE_Y_PX} C 92 ${GHOST_LINK_CURVE_Y_PX}, 92 ${FLOW_PIPE_Y_PX}, ${RIGHT_GHOST_LINK_END_X_PX} ${FLOW_PIPE_Y_PX}`}
+          d={`M ${RIGHT_GHOST_LINK_JOIN_X} ${GHOST_LINK_CURVE_Y} C 92 ${GHOST_LINK_CURVE_Y}, 92 ${FLOW_PIPE_Y}, ${RIGHT_GHOST_LINK_END_X} ${FLOW_PIPE_Y}`}
           stroke="#374151"
           strokeWidth={2.5}
           strokeDasharray="3 2"
@@ -87,10 +87,10 @@ export function FillingLoopPrimitive({
         <circle cx={56} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
         <circle cx={94} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
         <line
-          x1={DISCONNECT_GAP_START_X_PX}
-          y1={GHOST_LINK_CURVE_Y_PX}
-          x2={DISCONNECT_GAP_END_X_PX}
-          y2={GHOST_LINK_CURVE_Y_PX}
+          x1={DISCONNECT_GAP_START_X}
+          y1={GHOST_LINK_CURVE_Y}
+          x2={DISCONNECT_GAP_END_X}
+          y2={GHOST_LINK_CURVE_Y}
           stroke={printSafe ? '#000' : '#9ca3af'}
           strokeWidth={2}
           data-testid="filling-loop-disconnect-gap"

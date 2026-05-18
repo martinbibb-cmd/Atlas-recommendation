@@ -26,7 +26,7 @@ const HYDRAULIC_TRUTH_MODEL_MAP = new Map(
 function getTruthModel(topologyId: VisualTopologyId): TopologyHydraulicTruthModel {
   const model = HYDRAULIC_TRUTH_MODEL_MAP.get(topologyId);
   if (model == null) {
-    throw new Error(`Missing hydraulic truth model for topology: ${topologyId}`);
+    throw new Error(`Missing hydraulic truth model for topology: ${topologyId}. Register it in HYDRAULIC_TRUTH_MODELS.`);
   }
   return model;
 }
