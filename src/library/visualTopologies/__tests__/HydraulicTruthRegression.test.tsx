@@ -54,10 +54,8 @@ describe('hydraulic truth regression checks', () => {
     expect(restrictionBoundary).toBeTruthy();
     expect(abvBridge).toBeTruthy();
 
-    const pumpParent = pump?.parentElement as HTMLElement | null;
-    const abvParent = abv?.parentElement as HTMLElement | null;
-    const pumpLeft = Number.parseFloat(pumpParent?.style.left ?? '0');
-    const abvLeft = Number.parseFloat(abvParent?.style.left ?? '0');
+    const pumpLeft = Number.parseFloat((pump as HTMLElement).style.left ?? '0');
+    const abvLeft = Number.parseFloat((abv as HTMLElement).style.left ?? '0');
     const boundaryX = Number.parseFloat(restrictionBoundary?.getAttribute('x1') ?? '0');
     expect(abvLeft).toBeGreaterThan(pumpLeft);
     expect(abvLeft).toBeLessThan(boundaryX);
@@ -72,10 +70,8 @@ describe('hydraulic truth regression checks', () => {
     expect(filter).toBeTruthy();
     expect(returnSegment).toBeTruthy();
 
-    const boilerParent = boiler?.parentElement as HTMLElement | null;
-    const filterParent = filter?.parentElement as HTMLElement | null;
-    const boilerLeft = Number.parseFloat(boilerParent?.style.left ?? '0');
-    const filterLeft = Number.parseFloat(filterParent?.style.left ?? '0');
+    const boilerLeft = Number.parseFloat((boiler as HTMLElement).style.left ?? '0');
+    const filterLeft = Number.parseFloat((filter as HTMLElement).style.left ?? '0');
     expect(filterLeft).toBeGreaterThan(boilerLeft);
   });
 

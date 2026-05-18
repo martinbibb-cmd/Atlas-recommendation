@@ -333,15 +333,7 @@ function CombiDirectHotWaterTopology({ options }: { options: VisualTopologyRende
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary CH ring */}
         <line x1={220} y1={140} x2={620} y2={140} stroke={flow} strokeWidth={w} />
-        <line
-          x1={620}
-          y1={140}
-          x2={620}
-          y2={300}
-          stroke={flow}
-          strokeWidth={w}
-          data-testid="abv-restriction-boundary"
-        />
+        <line x1={620} y1={140} x2={620} y2={300} stroke={flow} strokeWidth={w} />
         <line x1={620} y1={300} x2={220} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={220} y1={300} x2={220} y2={220} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
@@ -544,7 +536,15 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary ring */}
         <line x1={130} y1={140} x2={620} y2={140} stroke={flow} strokeWidth={w} />
-        <line x1={620} y1={140} x2={620} y2={300} stroke={flow} strokeWidth={w} />
+        <line
+          x1={620}
+          y1={140}
+          x2={620}
+          y2={300}
+          stroke={flow}
+          strokeWidth={w}
+          data-testid="abv-restriction-boundary"
+        />
         {/*
           Return pipe — routes through pump (inline).
           Pump at (165,248): inlet x=168, outlet x=232, centre y=269.
