@@ -19,8 +19,12 @@ const ISSUE_WEIGHTS: Record<HydraulicQaIssue['category'], number> = {
   unsafe_component_position: 18,
 };
 
+const HYDRAULIC_TRUTH_MODEL_MAP = new Map(
+  HYDRAULIC_TRUTH_MODELS.map((entry) => [entry.topologyId, entry] as const),
+);
+
 function getTruthModel(topologyId: VisualTopologyId): TopologyHydraulicTruthModel {
-  const model = HYDRAULIC_TRUTH_MODELS.find((entry) => entry.topologyId === topologyId);
+  const model = HYDRAULIC_TRUTH_MODEL_MAP.get(topologyId);
   if (model == null) {
     throw new Error(`Missing hydraulic truth model for topology: ${topologyId}`);
   }

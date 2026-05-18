@@ -115,18 +115,6 @@ export const CANONICAL_DIAGRAM_SIMPLIFICATIONS: Record<CanonicalHydraulicTemplat
   },
 };
 
-export const TOPOLOGY_TEMPLATE_MAP: Record<VisualTopologyId, CanonicalHydraulicTemplateId> = {
-  open_vented_vented_cylinder: 'open_vented',
-  sealed_unvented_cylinder: 'sealed_unvented',
-  combi_direct_hot_water: 'combi',
-  mixergy_stratified_cylinder: 'mixergy',
-  thermal_store_layout: 'thermal_store',
-  powerflush_service_layout: 'powerflush_setup',
-  abv_protected_heating_loop: 'abv_protected_loop',
-  magnetic_filter_on_return: 'magnetic_filter_protection',
-  system_pressure_layout: 'sealed_unvented',
-};
-
 export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
   {
     topologyId: 'open_vented_vented_cylinder',
@@ -294,3 +282,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     },
   },
 ];
+
+export const TOPOLOGY_TEMPLATE_MAP = Object.fromEntries(
+  HYDRAULIC_TRUTH_MODELS.map((model) => [model.topologyId, model.templateId]),
+) as Record<VisualTopologyId, CanonicalHydraulicTemplateId>;
