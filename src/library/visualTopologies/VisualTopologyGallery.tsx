@@ -8,6 +8,7 @@ import { renderVisualTopology } from './topologies';
 import { VISUAL_PRIMITIVE_REGISTRY } from '../visualPrimitives/visualPrimitiveRegistry';
 import { HumanVisualReviewChecklist } from '../dev/HumanVisualReviewChecklist';
 import { getHydraulicTruthModel, runHydraulicTopologyQa } from '../hydraulicTruth';
+import { evaluateTopologyTemplateCompliance } from './templateCompliance';
 
 type SupplementalViewMode = 'mobile' | 'pipe_trace' | 'print_safe';
 type QaMode = 'standard' | 'installer_review';
@@ -228,6 +229,8 @@ export function VisualTopologyGallery() {
           {VISUAL_TOPOLOGY_REGISTRY.map((entry) => {
             const qa = runHydraulicTopologyQa(entry.id);
             const truth = getHydraulicTruthModel(entry.id);
+            const compliance = evaluateTopologyTemplateCompliance(entry.id);
+            const plausible = qa.passed && compliance.passed;
             return (
               <article
                 key={`installer-review-${entry.id}`}
@@ -241,13 +244,13 @@ export function VisualTopologyGallery() {
                       fontSize: 11,
                       borderRadius: 999,
                       padding: '2px 8px',
-                      border: `1px solid ${qa.passed ? '#86efac' : '#fca5a5'}`,
-                      background: qa.passed ? '#dcfce7' : '#fee2e2',
-                      color: qa.passed ? '#166534' : '#991b1b',
+                      border: `1px solid ${plausible ? '#86efac' : '#fca5a5'}`,
+                      background: plausible ? '#dcfce7' : '#fee2e2',
+                      color: plausible ? '#166534' : '#991b1b',
                       fontWeight: 600,
                     }}
                   >
-                    Plausibility score: {qa.plausibilityScore}
+                    {plausible ? 'Plausible' : 'Blocked'} · Score: {qa.plausibilityScore}
                   </span>
                 </div>
                 <p style={{ margin: 0, fontSize: 12 }}><strong>Hydraulic intent summary:</strong> {truth.hydraulicIntentSummary}</p>
@@ -268,6 +271,57 @@ export function VisualTopologyGallery() {
           })}
         </section>
       )}
+
+      <section data-testid="vt-gallery-template-compliance-panel" style={{ marginBottom: '2rem', display: 'grid', gap: '0.85rem' }}>
+        <h2 style={{ fontSize: 16, margin: 0 }}>Template compliance panel</h2>
+        <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>
+          Topologies remain plausible only when canonical template compliance and installer review checks both stay clear.
+        </p>
+        {VISUAL_TOPOLOGY_REGISTRY.map((entry) => {
+          const compliance = evaluateTopologyTemplateCompliance(entry.id);
+          return (
+            <article
+              key={`template-compliance-${entry.id}`}
+              data-testid={`vt-template-compliance-${entry.id}`}
+              style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '0.75rem', background: '#f8fafc', display: 'grid', gap: 6 }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: 13 }}>{entry.title}</strong>
+                <span
+                  style={{
+                    fontSize: 11,
+                    borderRadius: 999,
+                    padding: '2px 8px',
+                    border: `1px solid ${compliance.passed ? '#86efac' : '#fca5a5'}`,
+                    background: compliance.passed ? '#dcfce7' : '#fee2e2',
+                    color: compliance.passed ? '#166534' : '#991b1b',
+                    fontWeight: 600,
+                  }}
+                >
+                  {compliance.passed ? 'Compliant' : 'Blocked'}
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: 12 }}><strong>Topology ID:</strong> <code>{compliance.topologyId}</code></p>
+              <p style={{ margin: 0, fontSize: 12 }}><strong>Template:</strong> <code>{compliance.templateId}</code></p>
+              <p style={{ margin: 0, fontSize: 12 }}><strong>Known simplification:</strong> {compliance.knownSimplification}</p>
+              <ul style={{ margin: '2px 0 0', paddingLeft: 18, fontSize: 11, color: '#334155' }}>
+                {compliance.renderAssertions.map((assertion) => (
+                  <li key={`${entry.id}-${assertion.id}`}>
+                    {assertion.description}
+                  </li>
+                ))}
+              </ul>
+              {compliance.blockingIssues.length > 0 && (
+                <ul style={{ margin: '2px 0 0', paddingLeft: 18, fontSize: 11, color: '#7f1d1d' }}>
+                  {compliance.blockingIssues.map((issue) => (
+                    <li key={`${entry.id}-${issue}`}>{issue}</li>
+                  ))}
+                </ul>
+              )}
+            </article>
+          );
+        })}
+      </section>
 
       <section style={{ marginBottom: '2rem' }} data-testid="vt-gallery-registry-metadata">
         <h2 style={{ fontSize: 16, margin: '0 0 0.5rem' }}>Registry metadata</h2>

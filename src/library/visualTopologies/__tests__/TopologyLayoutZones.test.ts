@@ -53,6 +53,9 @@ const KNOWN_OUT_OF_ZONE = new Set<string>([
   // PowerflushServiceTopology: boiler is on the far right because in a
   // powerflush layout the machine connects to both sides of the boiler.
   'BoilerPrimitive:690:188',
+  // Open-vented topology canonical rule: pump sits on primary flow downstream
+  // of close-coupled vent/feed, so it intentionally leaves return-leg zone.
+  'PumpPrimitive:245:119',
 ]);
 
 // ─── Parse source file ────────────────────────────────────────────────────────
@@ -63,6 +66,14 @@ function parseNodeStyleCalls(source: string): { component: string; x: number; y:
   const re = /nodeStyle\((\d+),\s*(\d+)\)}\s*><([A-Za-z]+)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(source)) !== null) {
+    const x = parseInt(m[1], 10);
+    const y = parseInt(m[2], 10);
+    const component = m[3];
+    results.push({ component, x, y });
+  }
+  // Match role wrapper: <TopologyNode role="..." left={X} top={Y}><ComponentName
+  const roleWrapperRe = /<TopologyNode[^>]*left=\{(\d+)\}[^>]*top=\{(\d+)\}[^>]*><([A-Za-z]+)/g;
+  while ((m = roleWrapperRe.exec(source)) !== null) {
     const x = parseInt(m[1], 10);
     const y = parseInt(m[2], 10);
     const component = m[3];
@@ -130,7 +141,7 @@ describe('topology layout zone regression', () => {
     }
   });
 
-  it('every pump is on the return leg', () => {
+  it('every pump is in canonical pump zone unless explicitly whitelisted', () => {
     const pumpCalls = calls.filter(c => c.component === 'PumpPrimitive');
     expect(pumpCalls.length).toBeGreaterThan(0);
 

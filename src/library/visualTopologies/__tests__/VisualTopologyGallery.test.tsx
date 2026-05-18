@@ -64,6 +64,14 @@ describe('VisualTopologyGallery', () => {
     }
   });
 
+  it('shows template compliance panel entries for every topology', () => {
+    render(<VisualTopologyGallery />);
+    expect(screen.getByTestId('vt-gallery-template-compliance-panel')).toBeTruthy();
+    for (const topology of VISUAL_TOPOLOGY_REGISTRY) {
+      expect(screen.getByTestId(`vt-template-compliance-${topology.id}`)).toBeTruthy();
+    }
+  });
+
   it('is registered as a dev-only route and UI surface', () => {
     const routeEntry = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === 'VisualTopologyGallery');
     const uiEntry = DEV_UI_REGISTRY.find((entry) => entry.codeName === 'VisualTopologyGallery');

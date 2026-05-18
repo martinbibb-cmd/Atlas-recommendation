@@ -47,6 +47,24 @@ function nodeStyle(left: number, top: number): CSSProperties {
   return { position: 'absolute', left, top };
 }
 
+function TopologyNode({
+  role,
+  left,
+  top,
+  children,
+}: {
+  role: string;
+  left: number;
+  top: number;
+  children: ReactNode;
+}) {
+  return (
+    <div data-topology-component-role={role} style={nodeStyle(left, top)}>
+      {children}
+    </div>
+  );
+}
+
 function noCylinderNoteStyle(): CSSProperties {
   return { position: 'absolute', right: 20, bottom: 18, fontSize: 12, color: '#475569' };
 }
@@ -157,20 +175,24 @@ function OpenVentedVentedCylinderTopology({ options }: { options: VisualTopology
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
-        <line x1={120} y1={140} x2={560} y2={140} stroke={flow} strokeWidth={w} />
+        <line x1={120} y1={140} x2={248} y2={140} stroke={flow} strokeWidth={w} />
+        <line
+          x1={248}
+          y1={140}
+          x2={312}
+          y2={140}
+          stroke={flow}
+          strokeWidth={w}
+          data-testid="pump-topology-circuit"
+        />
+        <line x1={312} y1={140} x2={560} y2={140} stroke={flow} strokeWidth={w} />
         <line x1={560} y1={140} x2={560} y2={205} stroke={flow} strokeWidth={w} />
         {/*
-          Return pipe — routes through pump (inline).
-          Right segment: from cylinder/rads rightward to pump outlet (x=223).
-          Vertical jog UP from y=300 to pump pipe centre y=267.
-          Pump handles x=159–223 at y=267.
-          Left segment: pump inlet (x=159) to boiler column (x=120).
-          Vertical rise to boiler connection.
+          Return rail for primary loop.
         */}
         <line x1={560} y1={300} x2={223} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={223} y1={300} x2={223} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
-        <line x1={159} y1={267} x2={120} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={120} y1={267} x2={120} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={223} y1={300} x2={120} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={120} y1={300} x2={120} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
         <line x1={348} y1={140} x2={348} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -178,13 +200,26 @@ function OpenVentedVentedCylinderTopology({ options }: { options: VisualTopology
         <line x1={494} y1={140} x2={494} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         <line x1={430} y1={112} x2={430} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
 
-        {/*
-          Vent pipe — routed right of cylinder (x=700) to avoid crossing the
-          primary flow pipe at y=140. Exits cylinder top, rises to header tank.
-          No-crossing rule: vent pipe stays east of x=560 at all times.
-        */}
-        <line x1={700} y1={170} x2={700} y2={60} stroke={AUX_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={700} y1={196} x2={700} y2={250} stroke={AUX_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
+        {/* Close-coupled vent and feed pair near neutral point; pump sits downstream on flow. */}
+        <line
+          x1={176}
+          y1={140}
+          x2={176}
+          y2={60}
+          stroke={AUX_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="open-vented-close-coupled-vent"
+        />
+        <line
+          x1={192}
+          y1={140}
+          x2={192}
+          y2={300}
+          stroke={AUX_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="open-vented-close-coupled-feed"
+        />
+        <line x1={176} y1={60} x2={700} y2={60} stroke={AUX_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
@@ -197,15 +232,15 @@ function OpenVentedVentedCylinderTopology({ options }: { options: VisualTopology
         {/* Pipe labels — canonical standoff via pipeLabelProps */}
         <text {...pipeLabelProps(578, 140, 'above', flow)}>Primary flow</text>
         <text {...pipeLabelProps(360, 300, 'below', ret)}>Primary return</text>
-        <text {...pipeLabelProps(706, 130, 'above', AUX_COLOUR)}>Vent pipe</text>
+        <text {...pipeLabelProps(706, 60, 'above', AUX_COLOUR)}>Close-coupled vent/feed</text>
       </PipeLayer>
 
-      <div style={nodeStyle(56, 160)}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(156, 246)}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(274, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(420, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(666, 18)}><HeaderTankPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(520, 170)}><CylinderPrimitive variant="vented" fillLevel={0.7} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="boiler" left={56} top={160}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="primary_flow_pump_downstream_vent_feed" left={245} top={119}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_1" left={274} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_2" left={420} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="header_tank" left={666} top={18}><HeaderTankPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="vented_cylinder" left={520} top={170}><CylinderPrimitive variant="vented" fillLevel={0.7} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
@@ -238,7 +273,16 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         <line x1={420} y1={112} x2={420} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Cylinder DHW stubs */}
-        <line x1={576} y1={250} x2={680} y2={250} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line
+          x1={576}
+          y1={250}
+          x2={680}
+          y2={250}
+          stroke={ret}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          strokeDasharray={pipeDash(options.printSafe, false)}
+          data-testid="sealed-unvented-expansion-vessel-return-branch"
+        />
         <line x1={576} y1={185} x2={680} y2={185} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         <line x1={676} y1={170} x2={760} y2={170} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={676} y1={130} x2={760} y2={130} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -267,14 +311,14 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         <text {...pipeLabelProps(646, 318, 'below', AUX_COLOUR)}>D2 safety discharge</text>
       </PipeLayer>
 
-      <div style={nodeStyle(56, 156)}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(156, 246)}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(266, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(410, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(520, 160)}><CylinderPrimitive variant="unvented" fillLevel={0.75} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(364, 252)}><FillingLoopPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(635, 250)}><ExpansionVesselPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(610, 88)}><PressureGaugePrimitive pressureBar={1.3} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="boiler" left={56} top={156}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pump" left={156} top={246}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_1" left={266} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_2" left={410} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="unvented_cylinder" left={520} top={160}><CylinderPrimitive variant="unvented" fillLevel={0.75} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="filling_loop_disconnected_default" left={364} top={252}><FillingLoopPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="expansion_vessel_on_primary_return" left={635} top={250}><ExpansionVesselPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pressure_gauge" left={610} top={88}><PressureGaugePrimitive pressureBar={1.3} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
@@ -318,9 +362,9 @@ function CombiDirectHotWaterTopology({ options }: { options: VisualTopologyRende
         <text {...pipeLabelProps(500, 300, 'below', ret)}>CH return</text>
       </PipeLayer>
 
-      <div style={nodeStyle(142, 164)}><BoilerPrimitive variant="combi" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(340, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(496, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="combi_boiler" left={142} top={164}><BoilerPrimitive variant="combi" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_1" left={340} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_2" left={496} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       {options.showLabels && <div style={noCylinderNoteStyle()}>No cylinder</div>}
     </TopologyShell>
   );
@@ -369,9 +413,9 @@ function MixergyStratifiedTopology({ options }: { options: VisualTopologyRenderO
         <text {...pipeLabelProps(378, 190, 'above', flow)}>Charging heat input</text>
       </PipeLayer>
 
-      <div style={nodeStyle(66, 170)}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(170, 256)}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(470, 140)}><MixergyCylinderPrimitive stateOfChargePct={70} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="boiler" left={66} top={170}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pump" left={170} top={256}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="mixergy_cylinder" left={470} top={140}><MixergyCylinderPrimitive stateOfChargePct={70} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
@@ -424,9 +468,9 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
         <text {...pipeLabelProps(528, 246, 'below', options.printSafe ? '#000' : '#334155')}>Potable path isolated via internal coil</text>
       </PipeLayer>
 
-      <div style={nodeStyle(64, 154)}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(170, 252)}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(430, 114)}><ThermalStorePrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="boiler" left={64} top={154}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pump" left={170} top={252}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="thermal_store" left={430} top={114}><ThermalStorePrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
@@ -472,12 +516,12 @@ function PowerflushServiceTopology({ options }: { options: VisualTopologyRenderO
         <text {...pipeLabelProps(62, 252, 'below', clean)}>Clean return path</text>
       </PipeLayer>
 
-      <div style={nodeStyle(26, 168)}><PowerflushMachinePrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(316, 70)}><RadiatorPrimitive size="sm" temperatureTone="cool" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(468, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(620, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(690, 188)}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(560, 248)}><MagneticFilterPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="powerflush_machine" left={26} top={168}><PowerflushMachinePrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_1" left={316} top={70}><RadiatorPrimitive size="sm" temperatureTone="cool" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_2" left={468} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_3" left={620} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="boiler" left={690} top={188}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="magnetic_filter_return_before_boiler" left={560} top={248}><MagneticFilterPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
@@ -492,7 +536,15 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary ring */}
         <line x1={130} y1={140} x2={620} y2={140} stroke={flow} strokeWidth={w} />
-        <line x1={620} y1={140} x2={620} y2={300} stroke={flow} strokeWidth={w} />
+        <line
+          x1={620}
+          y1={140}
+          x2={620}
+          y2={300}
+          stroke={flow}
+          strokeWidth={w}
+          data-testid="abv-restriction-boundary"
+        />
         {/*
           Return pipe — routes through pump (inline).
           Pump at (165,248): inlet x=168, outlet x=232, centre y=269.
@@ -510,7 +562,15 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
         <line x1={494} y1={140} x2={494} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         <line x1={430} y1={112} x2={430} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
         {/* ABV bridge — maintains PIPE_STROKE_BRANCH (AUX path) */}
-        <line x1={556} y1={140} x2={556} y2={300} stroke={AUX_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line
+          x1={556}
+          y1={140}
+          x2={556}
+          y2={300}
+          stroke={AUX_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="abv-downstream-pump-upstream-restrictions-bridge"
+        />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
@@ -521,11 +581,11 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
         )}
       </PipeLayer>
 
-      <div style={nodeStyle(60, 164)}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(165, 248)}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(274, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(420, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(470, 176)}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="boiler" left={60} top={164}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pump" left={165} top={248}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="restriction_radiator_branch_1" left={274} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="restriction_radiator_branch_2" left={420} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="abv_after_pump_before_restrictions" left={470} top={176}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
@@ -560,12 +620,21 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
 
         {/* Pipe label */}
         <text {...pipeLabelProps(590, 300, 'above', ret)}>Clean return into boiler</text>
+        <line
+          x1={260}
+          y1={300}
+          x2={140}
+          y2={300}
+          stroke="transparent"
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="magnetic-filter-final-return-before-boiler"
+        />
       </PipeLayer>
 
-      <div style={nodeStyle(70, 164)}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(248, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(394, 70)}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(520, 246)}><MagneticFilterPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="boiler" left={70} top={164}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_1" left={248} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_2" left={394} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="magnetic_filter_return_final_before_boiler" left={188} top={246}><MagneticFilterPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
@@ -573,12 +642,12 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
 function SystemPressureLayoutTopology({ options }: { options: VisualTopologyRenderOptions }) {
   return (
     <TopologyShell options={options}>
-      <div style={nodeStyle(46, 154)}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(190, 116)}><PipeLoopPrimitive size="md" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(468, 210)}><ExpansionVesselPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(612, 58)}><PressureGaugePrimitive pressureBar={0.5} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(612, 170)}><PressureGaugePrimitive pressureBar={1.3} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
-      <div style={nodeStyle(612, 282)}><PressureGaugePrimitive pressureBar={2.8} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>
+      <TopologyNode role="boiler" left={46} top={154}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pipe_loop" left={190} top={116}><PipeLoopPrimitive size="md" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="expansion_vessel" left={468} top={210}><ExpansionVesselPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pressure_gauge_low" left={612} top={58}><PressureGaugePrimitive pressureBar={0.5} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pressure_gauge_normal" left={612} top={170}><PressureGaugePrimitive pressureBar={1.3} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pressure_gauge_high" left={612} top={282}><PressureGaugePrimitive pressureBar={2.8} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       {options.showLabels && (
         <div style={pressureStateLabelStyle()}>
           <span>Low state</span>
