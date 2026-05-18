@@ -38,6 +38,8 @@ describe('VisualTopologyGallery', () => {
   it('renders no-label primary fixture first and all topology cards', () => {
     render(<VisualTopologyGallery />);
 
+    expect(screen.getByTestId('vt-gallery-human-review')).toBeTruthy();
+    expect(screen.getByText(/Can I follow flow and return without reading text\?/i)).toBeTruthy();
     expect(screen.getByTestId('vt-gallery-primary-no-label')).toBeTruthy();
     expect(screen.getByText(/Primary fixture — no-label view first/i)).toBeTruthy();
     expect(screen.getByTestId('vt-gallery-physical-realism-callouts').textContent).toContain('bottom-based radiator connections');

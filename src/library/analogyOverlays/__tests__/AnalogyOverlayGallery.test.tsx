@@ -78,4 +78,10 @@ describe('AnalogyOverlayGallery', () => {
     render(<AnalogyOverlayGallery />);
     expect(screen.getByTestId('analogy-overlay-qa-callouts').textContent).toContain('preserve topology-anchor IDs');
   });
+
+  it('shows the human overlay review checklist', () => {
+    render(<AnalogyOverlayGallery />);
+    expect(screen.getByTestId('analogy-overlay-human-review')).toBeTruthy();
+    expect(screen.getByText(/Does the overlay explain behaviour without covering equipment\?/i)).toBeTruthy();
+  });
 });
