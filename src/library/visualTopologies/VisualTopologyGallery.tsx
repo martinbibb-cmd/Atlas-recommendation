@@ -6,6 +6,7 @@ import {
 } from './visualTopologyRegistry';
 import { renderVisualTopology } from './topologies';
 import { VISUAL_PRIMITIVE_REGISTRY } from '../visualPrimitives/visualPrimitiveRegistry';
+import { HumanVisualReviewChecklist } from '../dev/HumanVisualReviewChecklist';
 
 type SupplementalViewMode = 'mobile' | 'pipe_trace' | 'print_safe';
 
@@ -100,6 +101,20 @@ export function VisualTopologyGallery() {
           Canonical connected heating-system layouts composed from PR 1 primitives only.
         </p>
       </header>
+
+      <HumanVisualReviewChecklist
+        checklistId="vt-gallery-human-review"
+        title="Topology reviewer checklist"
+        intro="Review each topology in no-label mode first, then confirm the mobile, pipe-trace, and print-safe views still tell the same story."
+        reviewerPrompts={[
+          'No-label view comes first',
+          'Pipe-trace view must make flow and return obvious',
+          'Installer plausibility matters as much as visual neatness',
+        ]}
+        questionNotes={{
+          overlay_stays_clear: 'Mark this N/A in the topology gallery and answer it in the overlay gallery when callouts are active.',
+        }}
+      />
 
       <section data-testid="vt-gallery-primary-no-label" style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: 16, margin: '0 0 0.5rem' }}>Primary fixture — no-label view first</h2>

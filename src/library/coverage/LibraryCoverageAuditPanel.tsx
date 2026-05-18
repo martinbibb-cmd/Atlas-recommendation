@@ -179,6 +179,8 @@ export function LibraryCoverageAuditPanel() {
         {readinessScore.totalConcepts} concepts tracked across all registered taxonomy entries.
       </p>
       <p style={{ margin: '0 0 1rem', fontSize: 12 }}>
+        <a href="/dev/visual-education-library">Open Visual Education QA Hub →</a>
+        <br />
         <a href="/dev/library-explorer">Open Library Explorer →</a>
       </p>
 

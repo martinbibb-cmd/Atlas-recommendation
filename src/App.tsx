@@ -116,6 +116,10 @@ import { AtlasAuthProvider } from './auth/AtlasAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 import { useAtlasAuth } from './auth/useAtlasAuth';
 import {
+  isVisualEducationLibraryQaHubRoute,
+  resolveActiveVisualEducationLibrarySurface,
+} from './dev/visualEducationLibrary';
+import {
   DEFAULT_PERMISSIONS_BY_ROLE,
   type WorkspaceMemberRole,
   type WorkspaceMembershipV1,
@@ -148,6 +152,7 @@ import {
 } from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import { LibraryExplorerPage } from './library/dev/LibraryExplorerPage';
+import { VisualEducationLibraryQaHubPage } from './library/dev/VisualEducationLibraryQaHubPage';
 import { DiagramFixturePage } from './library/dev/DiagramFixturePage';
 import { VisualPrimitiveGallery } from './library/visualPrimitives/VisualPrimitiveGallery';
 import { VisualTopologyGallery } from './library/visualTopologies/VisualTopologyGallery';
@@ -714,38 +719,15 @@ const DIAGRAM_FIXTURE_DEV_PATH =
     || new URLSearchParams(window.location.search).get('diagram-fixture') === '1'
   );
 
-/**
- * Detect /dev/visual-primitive-gallery or ?visual-primitive-gallery=1 —
- * renders the PR 1 canonical visual primitive QA gallery.
- */
-const VISUAL_PRIMITIVE_GALLERY_DEV_PATH =
-  typeof window !== 'undefined' &&
-  (
-    window.location.pathname === '/dev/visual-primitive-gallery'
-    || new URLSearchParams(window.location.search).get('visual-primitive-gallery') === '1'
-  );
+/** Detect any visual education library route or query flag. */
+const ACTIVE_VISUAL_EDUCATION_LIBRARY_SURFACE =
+  typeof window !== 'undefined'
+    ? resolveActiveVisualEducationLibrarySurface(window.location)
+    : null;
 
-/**
- * Detect /dev/visual-topology-gallery or ?visual-topology-gallery=1 —
- * renders the PR 2 canonical physical topology QA gallery.
- */
-const VISUAL_TOPOLOGY_GALLERY_DEV_PATH =
-  typeof window !== 'undefined' &&
-  (
-    window.location.pathname === '/dev/visual-topology-gallery'
-    || new URLSearchParams(window.location.search).get('visual-topology-gallery') === '1'
-  );
-
-/**
- * Detect /dev/analogy-overlay-gallery or ?analogy-overlay-gallery=1 —
- * renders the PR 3 canonical analogy overlay QA gallery.
- */
-const ANALOGY_OVERLAY_GALLERY_DEV_PATH =
-  typeof window !== 'undefined' &&
-  (
-    window.location.pathname === '/dev/analogy-overlay-gallery'
-    || new URLSearchParams(window.location.search).get('analogy-overlay-gallery') === '1'
-  );
+/** Detect /dev/visual-education-library or ?visual-education-library=1. */
+const VISUAL_EDUCATION_LIBRARY_QA_HUB_PATH =
+  typeof window !== 'undefined' && isVisualEducationLibraryQaHubRoute(window.location);
 
 /** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
 const DEV_INSPECTOR_PATH =
@@ -2251,6 +2233,20 @@ function AppInner() {
     );
   }
 
+  // /dev/visual-education-library (or ?visual-education-library=1) — front door for the visual QA galleries.
+  if (VISUAL_EDUCATION_LIBRARY_QA_HUB_PATH) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/dev/devmenu'; }}>
+            ← Back
+          </button>
+        </div>
+        <VisualEducationLibraryQaHubPage />
+      </div>
+    );
+  }
+
   // /dev/diagram-fixture (or ?diagram-fixture=1) — visual QA fixture for physical diagram recognisability.
   if (DIAGRAM_FIXTURE_DEV_PATH) {
     return (
@@ -2265,8 +2261,8 @@ function AppInner() {
     );
   }
 
-  // /dev/visual-primitive-gallery (or ?visual-primitive-gallery=1) — PR 1 canonical visual primitive QA gallery.
-  if (VISUAL_PRIMITIVE_GALLERY_DEV_PATH) {
+  // Visual Education Library — direct routes and query flags for the dev QA galleries.
+  if (ACTIVE_VISUAL_EDUCATION_LIBRARY_SURFACE?.codeName === 'VisualPrimitiveGallery') {
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <div style={{ padding: '0.5rem 1rem' }}>
@@ -2279,8 +2275,7 @@ function AppInner() {
     );
   }
 
-  // /dev/visual-topology-gallery (or ?visual-topology-gallery=1) — PR 2 canonical visual topology QA gallery.
-  if (VISUAL_TOPOLOGY_GALLERY_DEV_PATH) {
+  if (ACTIVE_VISUAL_EDUCATION_LIBRARY_SURFACE?.codeName === 'VisualTopologyGallery') {
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <div style={{ padding: '0.5rem 1rem' }}>
@@ -2293,8 +2288,7 @@ function AppInner() {
     );
   }
 
-  // /dev/analogy-overlay-gallery (or ?analogy-overlay-gallery=1) — PR 3 analogy overlay gallery.
-  if (ANALOGY_OVERLAY_GALLERY_DEV_PATH) {
+  if (ACTIVE_VISUAL_EDUCATION_LIBRARY_SURFACE?.codeName === 'AnalogyOverlayGallery') {
     return (
       <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
         <div style={{ padding: '0.5rem 1rem' }}>

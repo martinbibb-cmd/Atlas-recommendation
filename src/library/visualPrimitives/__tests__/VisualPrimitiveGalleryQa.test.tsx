@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { VISUAL_PRIMITIVE_REGISTRY } from '../visualPrimitiveRegistry';
 import {
   GALLERY_RENDERED_REGISTRY_IDS,
@@ -61,6 +61,18 @@ describe('VisualPrimitiveGallery QA surface', () => {
     expect(screen.getByTestId('vp-gallery-primary-no-label-fixture')).toBeTruthy();
     expect(screen.getByText(/Primary fixture — no-label recognisability/i)).toBeTruthy();
     expect(screen.getByTestId('vp-gallery-physical-fidelity-callouts').textContent).toContain('Primitive fidelity rule');
+  });
+
+  it('renders the human reviewer checklist and tracks answered questions', () => {
+    render(<VisualPrimitiveGallery />);
+
+    expect(screen.getByTestId('vp-gallery-human-review')).toBeTruthy();
+    expect(screen.getByText(/Can I name the object with labels hidden\?/i)).toBeTruthy();
+    expect(screen.getByTestId('vp-gallery-human-review-status').textContent).toContain('0 of 7 answered');
+
+    fireEvent.click(screen.getByTestId('vp-gallery-human-review-name_without_labels-yes'));
+
+    expect(screen.getByTestId('vp-gallery-human-review-status').textContent).toContain('1 of 7 answered');
   });
 
   it('shows fail and warn states in QA banner when failing/warning primitives exist', () => {

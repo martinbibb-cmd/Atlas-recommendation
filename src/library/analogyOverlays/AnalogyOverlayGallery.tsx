@@ -8,6 +8,7 @@ import { getTopologyOverlayAnchors } from './topologyAnchors';
 import type { AnalogyMode, AnalogyOverlayElement, AnalogyTargetConcept } from './types';
 import { renderVisualTopology } from '../visualTopologies/topologies';
 import type { VisualTopologyId } from '../visualTopologies/visualTopologyRegistry';
+import { HumanVisualReviewChecklist } from '../dev/HumanVisualReviewChecklist';
 
 interface ConceptOption {
   id: AnalogyTargetConcept;
@@ -176,6 +177,17 @@ export function AnalogyOverlayGallery() {
           QA callouts: preserve topology-anchor IDs, keep radiator/ABV/Mixergy physical realism in baseline views, and flag decorative pipe loops.
         </p>
       </header>
+
+      <HumanVisualReviewChecklist
+        checklistId="analogy-overlay-human-review"
+        title="Overlay reviewer checklist"
+        intro="Check the baseline topology first, then switch overlays on and confirm print-safe and reduced-motion still explain the same behaviour without hiding the equipment."
+        reviewerPrompts={[
+          'Baseline topology must stay visible',
+          'Reduced-motion must keep the meaning intact',
+          'Overlay copy should clarify, not cover',
+        ]}
+      />
 
       <section style={{ display: 'grid', gap: '0.75rem' }}>
         <h2 style={{ margin: 0, fontSize: 16 }}>Topology shown first</h2>

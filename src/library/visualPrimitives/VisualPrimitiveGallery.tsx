@@ -42,6 +42,7 @@ import {
   VISUAL_PRIMITIVE_GALLERY_COVERAGE,
   buildVisualPrimitiveQaSummary,
 } from './galleryQa';
+import { HumanVisualReviewChecklist } from '../dev/HumanVisualReviewChecklist';
 
 // ─── View mode ────────────────────────────────────────────────────────────────
 
@@ -409,6 +410,22 @@ export function VisualPrimitiveGallery() {
           <span><strong>Primitive fidelity rule:</strong> passing requires recognisable shape, not just label text.</span>
           <span>Boiler, cylinder, radiator, pump, gauge, magnetic filter, ABV, filling loop, and powerflush machine must read correctly in no-label mode.</span>
         </div>
+
+        <HumanVisualReviewChecklist
+          checklistId="vp-gallery-human-review"
+          title="Primitive reviewer checklist"
+          intro="Answer this for each primitive after checking the no-label cards first, then the labelled print-safe fixture."
+          reviewerPrompts={[
+            'Start with no-label recognisability',
+            'Use print-safe to confirm non-colour cues',
+            'Mark N/A only when a question truly does not apply',
+          ]}
+          questionNotes={{
+            follow_flow_and_return: 'Use the pipe loop card and any visible return dashes to confirm flow still reads without labels.',
+            reduced_motion_keeps_meaning: 'Motion is opt-in only here. If nothing moves, the primitive should still explain the same thing.',
+            overlay_stays_clear: 'Standalone primitives usually mark this N/A. Answer it fully when reviewing overlays.',
+          }}
+        />
       </header>
 
       <section data-testid="vp-gallery-primary-no-label-fixture" style={{ marginBottom: '2rem' }}>

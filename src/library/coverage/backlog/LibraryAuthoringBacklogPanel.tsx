@@ -118,6 +118,8 @@ export function LibraryAuthoringBacklogPanel() {
         </span>
       </div>
       <p style={{ margin: '0 0 0.75rem', fontSize: 11 }}>
+        <a href="/dev/visual-education-library">Open Visual Education QA Hub →</a>
+        <br />
         <a href="/dev/library-explorer">Open Library Explorer →</a>
       </p>
 

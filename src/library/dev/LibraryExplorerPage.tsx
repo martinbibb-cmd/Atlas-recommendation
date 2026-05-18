@@ -152,7 +152,9 @@ export function LibraryExplorerPage() {
             <span className="atlas-library-storyboard__meta-chip">{`Backlog ${backlog.backlogItems.length}`}</span>
           </div>
           <p className="atlas-library-storyboard__copy">
-            <a href="/dev/diagram-fixture">Open Diagram Fixture →</a>
+            <a href="/dev/visual-education-library">Open Visual Education QA Hub →</a>
+            <br />
+            <a href="/dev/diagram-fixture">Legacy Diagram Fixture →</a>
           </p>
         </section>
       </header>
