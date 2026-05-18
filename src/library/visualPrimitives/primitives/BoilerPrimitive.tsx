@@ -65,7 +65,7 @@ export function BoilerPrimitive({
           x={10} y={4}
           width={80} height={76}
           rx={5}
-          fill={printSafe ? 'none' : '#1e40af'}
+          fill={printSafe ? '#f3f4f6' : '#1e40af'}
           stroke={printSafe ? '#1e3a8a' : '#1e3a8a'}
           strokeWidth={2}
           strokeDasharray={printSafe ? '4 2' : undefined}

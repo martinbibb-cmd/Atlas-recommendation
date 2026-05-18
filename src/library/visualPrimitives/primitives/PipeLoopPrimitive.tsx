@@ -69,7 +69,6 @@ export function PipeLoopPrimitive({
           x2={R_X} y2={T}
           stroke={flowColor}
           strokeWidth={pipeW}
-          strokeDasharray={printSafe ? undefined : undefined}
         />
         {/* Bottom return pipe — cool */}
         <line
