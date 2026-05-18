@@ -8,6 +8,7 @@ import {
   firebaseSignOut,
   initializeFirebaseAnalytics,
   isFirebaseConfigured,
+  GOOGLE_AUTH_DISABLED,
   subscribeToFirebaseAuthState,
 } from './firebaseAuthClient';
 
@@ -259,6 +260,9 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
   }, [hydrateAuthenticatedState, mockBootstrapState]);
 
   const continueWithGoogle = useCallback(async () => {
+    if (GOOGLE_AUTH_DISABLED) {
+      throw new Error('Google sign-in is currently disabled.');
+    }
     if (DEV_MOCK_AUTH_ENABLED) {
       hydrateAuthenticatedState(buildMockProfile());
       return;

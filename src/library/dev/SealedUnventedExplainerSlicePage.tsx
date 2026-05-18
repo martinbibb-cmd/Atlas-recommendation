@@ -148,68 +148,59 @@ export function SealedUnventedExplainerSlicePage() {
   const [selectedMode, setSelectedMode] = useState<AnalogyMode>('basic_household');
   const [overlayEnabled, setOverlayEnabled] = useState(false);
   const overlay = OVERLAYS[selectedMode];
-  const truthModel = useMemo(() => getHydraulicTruthModel('sealed_unvented_cylinder'), []);
-  const qa = useMemo(() => runHydraulicTopologyQa('sealed_unvented_cylinder'), []);
 
   return (
     <main
       data-testid="sealed-unvented-explainer-slice"
-      style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a', padding: '1rem', display: 'grid', gap: '1rem' }}
+      style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a', padding: '1rem', display: 'grid', gap: '1.5rem', maxWidth: 920, margin: '0 auto' }}
     >
-      <header style={{ display: 'grid', gap: 8 }}>
-        <h1 style={{ margin: 0, fontSize: 24 }}>Customer Explainer Slice — Sealed heating + unvented hot water</h1>
-        <p style={{ margin: 0, fontSize: 13, color: '#475569', maxWidth: '78ch' }}>
-          One concept, one physical system: this page proves hydraulic truth, topology rendering, optional analogy overlays, and customer-safe copy in one end-to-end flow.
+      <header style={{ display: 'grid', gap: 6 }}>
+        <h1 style={{ margin: 0, fontSize: 24 }}>Sealed heating and stored hot water — what it means for your home</h1>
+        <p style={{ margin: 0, fontSize: 14, color: '#475569', maxWidth: '72ch' }}>
+          This upgrade removes the cold-water tanks from your loft and delivers hot water at mains pressure. Your heating stays exactly as it is.
         </p>
       </header>
 
       <article
         data-testid="sealed-unvented-customer-card"
-        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', padding: '0.9rem', display: 'grid', gap: 8 }}
+        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#f0fdf4', padding: '1rem 1.1rem', display: 'grid', gap: 10 }}
       >
-        <h2 style={{ margin: 0, fontSize: 18 }}>What this upgrade means at home</h2>
-        <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 14 }}>
-          <li>The loft tanks are removed.</li>
-          <li>A sealed heating circuit is added for pressure-managed heating.</li>
-          <li>An unvented cylinder provides stored hot water from mains-fed supply.</li>
-          <li>This route uses stored hot water, not on-demand hot water.</li>
-          <li>The expansion vessel absorbs heating-water expansion during warm-up.</li>
-          <li>The pressure gauge and filling loop are normal sealed-system features.</li>
-          <li>The tundish and discharge route are safety features, not faults.</li>
+        <h2 style={{ margin: 0, fontSize: 17, color: '#166534' }}>What changes — and why it's better</h2>
+        <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8, fontSize: 14, lineHeight: 1.55 }}>
+          <li>The loft tanks are removed. Your loft space clears and the frost risk from exposed pipework goes away.</li>
+          <li>A sealed heating circuit is added for pressure-managed heating — more reliable and quieter over time.</li>
+          <li>An unvented cylinder provides stored hot water from mains-fed supply, so every tap and shower runs at your full mains pressure.</li>
+          <li>This route uses stored hot water, not on-demand hot water — the cylinder keeps a ready supply so you're never waiting.</li>
+          <li>The expansion vessel absorbs heating-water expansion during warm-up, keeping pressure steady automatically.</li>
+          <li>The pressure gauge and filling loop are normal sealed-system features your installer will walk you through in minutes.</li>
+          <li>The tundish and discharge route are safety features, not faults — they show the safety system is working as designed.</li>
         </ul>
       </article>
 
-      <section
-        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', padding: '0.9rem', display: 'grid', gap: 10 }}
-        data-testid="sealed-unvented-hydraulic-truth-summary"
-      >
-        <h2 style={{ margin: 0, fontSize: 18 }}>Hydraulic truth baseline</h2>
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <strong>Template:</strong> Sealed heating with unvented hot-water storage.
-        </p>
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <strong>Physical intent:</strong> {truthModel.hydraulicIntentSummary}
-        </p>
-        <p style={{ margin: 0, fontSize: 13 }}>
-          <strong>QA result:</strong> {qa.passed ? 'Pass' : 'Check required'} ({qa.plausibilityScore}/100).
-        </p>
-      </section>
+      <TopologyPreview
+        title="How your system will look"
+        showLabels
+        printSafe={false}
+        mobileWidth={false}
+        overlay={overlayEnabled ? overlay : null}
+        testId="sealed-unvented-customer-page-preview"
+      />
 
       <section
-        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', padding: '0.9rem', display: 'grid', gap: 8 }}
+        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', padding: '0.9rem 1rem', display: 'grid', gap: 10 }}
         data-testid="sealed-unvented-analogy-controls"
       >
-        <h2 style={{ margin: 0, fontSize: 18 }}>Analogy mode selector</h2>
-        <p style={{ margin: 0, fontSize: 13 }}>
-          Default mode is Basic household. The physical system stays visible at all times.
+        <h2 style={{ margin: 0, fontSize: 16 }}>Understand it in your own way</h2>
+        <p style={{ margin: 0, fontSize: 13, color: '#475569' }}>
+          Choose a description style that makes most sense to you. The diagram stays the same — only the labels change.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <button
             onClick={() => setOverlayEnabled(false)}
             aria-pressed={!overlayEnabled}
-            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: '4px 10px', background: !overlayEnabled ? '#dbeafe' : '#fff', cursor: 'pointer' }}
+            style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: '4px 10px', background: !overlayEnabled ? '#dbeafe' : '#fff', cursor: 'pointer', fontSize: 13 }}
           >
-            Physical system baseline
+            Plain view
           </button>
           {REQUIRED_ANALOGY_MODES.map((mode) => (
             <button
@@ -225,33 +216,25 @@ export function SealedUnventedExplainerSlicePage() {
                 padding: '4px 10px',
                 background: overlayEnabled && selectedMode === mode ? '#ede9fe' : '#fff',
                 cursor: 'pointer',
+                fontSize: 13,
               }}
             >
               {MODE_LABELS[mode]}
             </button>
           ))}
         </div>
-        <p style={{ margin: 0, fontSize: 13 }} data-testid="sealed-unvented-analogy-summary">
+        <p style={{ margin: 0, fontSize: 13, color: '#334155' }} data-testid="sealed-unvented-analogy-summary">
           {overlayEnabled ? overlay.summary : 'Overlay off: baseline physical system shown with no analogy layer.'}
         </p>
         {overlayEnabled ? (
-          <p style={{ margin: 0, fontSize: 13 }} data-testid="sealed-unvented-analogy-accessibility-summary">
-            <strong>Accessibility summary:</strong> {overlay.accessibilitySummary}
+          <p style={{ margin: 0, fontSize: 12, color: '#64748b' }} data-testid="sealed-unvented-analogy-accessibility-summary">
+            {overlay.accessibilitySummary}
           </p>
         ) : null}
       </section>
 
       <TopologyPreview
-        title="Customer page"
-        showLabels
-        printSafe={false}
-        mobileWidth={false}
-        overlay={overlayEnabled ? overlay : null}
-        testId="sealed-unvented-customer-page-preview"
-      />
-
-      <TopologyPreview
-        title="Mobile preview"
+        title="On mobile"
         showLabels={false}
         printSafe={false}
         mobileWidth
@@ -260,26 +243,13 @@ export function SealedUnventedExplainerSlicePage() {
       />
 
       <TopologyPreview
-        title="Print preview"
+        title="For your records"
         showLabels
         printSafe
         mobileWidth={false}
         overlay={null}
         testId="sealed-unvented-print-preview"
       />
-
-      <section
-        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#fff', padding: '0.9rem', display: 'grid', gap: 6 }}
-        data-testid="sealed-unvented-accessibility-checks"
-      >
-        <h2 style={{ margin: 0, fontSize: 18 }}>No-label accessibility checks</h2>
-        <p style={{ margin: 0, fontSize: 13 }}>
-          No-label support: {truthModel.accessibilityCompatibility.noLabelMode ? 'Pass' : 'Review required'}.
-        </p>
-        <p style={{ margin: 0, fontSize: 13 }}>
-          Print-safe support: {truthModel.accessibilityCompatibility.monochromePrintSafeMode ? 'Pass' : 'Review required'}.
-        </p>
-      </section>
     </main>
   );
 }
