@@ -24,7 +24,7 @@ const ANCHORS_BY_TOPOLOGY: Partial<Record<VisualTopologyId, readonly TopologyAnc
   system_pressure_layout: [
     { id: 'loop', x: 358, y: 210 },
     { id: 'expansion_vessel', x: 492, y: 244 },
-    { id: 'gauge_low', x: 646, y: 92 },
+    { id: 'gauge_low', x: 646, y: 94 },
     { id: 'gauge_normal', x: 646, y: 202 },
     { id: 'gauge_high', x: 646, y: 314 },
   ],
