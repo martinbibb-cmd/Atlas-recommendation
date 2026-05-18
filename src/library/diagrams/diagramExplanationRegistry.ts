@@ -80,6 +80,74 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
       'A sealed heating system keeps the central heating circuit closed and stable, while the expansion vessel safely absorbs the small pressure changes as the water heats and cools.',
   },
   {
+    diagramId: 'stratified_cylinder_mixergy',
+    title: 'Stratified cylinder (Mixergy) cutaway',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['STR-01', 'stored_hot_water_efficiency', 'premium_hot_water_performance'],
+    misconceptionsTargeted: [
+      'A hot-water cylinder heats uniformly from top to bottom.',
+      'Stratification is just marketing language.',
+      'Useful draw-off only improves if the full cylinder is heated.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
+    screenReaderSummary:
+      'Side-by-side cylinder cutaway. Traditional cylinder shows broader blending and lukewarm middle water. Stratified Mixergy cylinder keeps a clear hot top layer, cold lower layer, and a sharper thermocline during draw-off.',
+    whatThisMeans:
+      'A stratified cylinder protects a usable hot layer at the top instead of blending the full store lukewarm, so household draw-off stays more predictable.',
+  },
+  {
+    diagramId: 'powerflush_condition_led',
+    title: 'Condition-led Powerflush',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['MNT-01', 'MNT-02', 'flow_restriction', 'system_work_explainer'],
+    misconceptionsTargeted: [
+      'Powerflushing is always required regardless of circuit condition.',
+      'Cleaning is cosmetic rather than hydraulic.',
+      'Dirty circuit water has no effect on radiator balance or pump load.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Before and after heating-loop diagram. Before shows dirty return path and patchy radiator heating. After shows a flushing machine with dirty water extraction and clean return path restoring more even heat.',
+    whatThisMeans:
+      'Powerflushing is condition-led: when contamination restricts flow, targeted cleaning can restore circulation and radiator performance.',
+  },
+  {
+    diagramId: 'magnetic_filter_capture',
+    title: 'Magnetic filter capture path',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['MNT-01', 'MNT-02', 'HYD-03'],
+    misconceptionsTargeted: [
+      'A magnetic filter is optional decoration.',
+      'Debris stays harmless once the system is running.',
+      'Filter position does not matter.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Return pipe passes through a magnetic filter body before the boiler. A removable magnetic core captures dark magnetite particles while cleaner return water continues to the boiler.',
+    whatThisMeans:
+      'A magnetic filter on the return helps protect the boiler and pump by capturing iron debris before it circulates through sensitive components.',
+  },
+  {
+    diagramId: 'system_pressure_window',
+    title: 'Sealed-system pressure window',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['HYD-02', 'SAF-02'],
+    misconceptionsTargeted: [
+      'Higher pressure always means better heating.',
+      'Repeated top-up is normal and harmless.',
+      'Gauge movement between hot and cold means immediate failure.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Pressure gauge with low, healthy, and high zones. The healthy band is centred around normal cold-fill values while warning zones call out low-circulation and high-pressure discharge risks.',
+    whatThisMeans:
+      'Stable pressure in the healthy zone supports reliable circulation; persistent low or high readings should be checked rather than ignored.',
+  },
+  {
     diagramId: 'system_fit_decision_map',
     title: 'System fit decision map',
     visualStatus: 'placeholder',

@@ -259,6 +259,18 @@
   fill: #dbe7f5;
 }
 
+.atlas-ukheating__rad-cool {
+  fill: #e1edf8;
+}
+
+.atlas-ukheating__rad-warm {
+  fill: #f6dca6;
+}
+
+.atlas-ukheating__rad-hot {
+  fill: #f1bf71;
+}
+
 .atlas-ukheating__gauge-band {
   stroke: #3f9b62;
   stroke-width: 5;
@@ -292,6 +304,15 @@
 
 .atlas-ukheating__sensor {
   fill: #d8e6f7;
+  stroke: #466487;
+  stroke-width: 2;
+}
+
+.atlas-ukheating__stat,
+.atlas-ukheating__flush-unit,
+.atlas-ukheating__filter-cap,
+.atlas-ukheating__impact-icon {
+  fill: #eef4fb;
   stroke: #466487;
   stroke-width: 2;
 }
@@ -331,6 +352,14 @@
   stroke-width: 2;
 }
 
+.atlas-ukheating__filling-loop {
+  stroke-dasharray: 4 3;
+}
+
+.atlas-ukheating__valve-dot {
+  fill: #466487;
+}
+
 .atlas-ukheating__mixing-zone {
   fill: #e1cfab;
   stroke: #7b92ad;
@@ -366,8 +395,34 @@
   stroke-dasharray: 3 4;
 }
 
+.atlas-ukheating__draw-off-arrow,
+.atlas-ukheating__mains-arrow,
+.atlas-ukheating__flush-hose {
+  stroke: #466487;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.atlas-ukheating__flush-hose--return {
+  stroke-dasharray: 4 3;
+}
+
 .atlas-ukheating__dirty-loop {
   stroke: #6f6f6f;
+}
+
+.atlas-ukheating__dirty-path {
+  stroke: #6f6f6f;
+  stroke-width: 2.6;
+  fill: none;
+  stroke-dasharray: 5 3;
+}
+
+.atlas-ukheating__clean-path {
+  stroke: #3f9b62;
+  stroke-width: 2.6;
+  fill: none;
 }
 
 .atlas-ukheating__filter-magnet {
@@ -389,6 +444,12 @@
 
 .atlas-ukheating__zone--high {
   stroke: #b9722b;
+}
+
+.atlas-ukheating__impact-mark {
+  stroke: #1e3553;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 .atlas-ukheating__svg--animated .atlas-ukheating__gauge-needle {

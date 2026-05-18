@@ -39,22 +39,29 @@ export function WeatherCompensationCurveDiagram({
             aria-describedby="atlas-ukheating-weather-comp-labels"
             className={`atlas-ukheating__svg${printSafe ? '' : ' atlas-ukheating__svg--animated'}`}
           >
-            <rect x="18" y="18" width="132" height="160" rx="10" className="atlas-ukheating__panel" />
-            <rect x="170" y="18" width="132" height="160" rx="10" className="atlas-ukheating__panel" />
-            <circle cx="50" cy="46" r="9" className="atlas-ukheating__sensor" />
-            <path d="M 64 46 L 126 46" className="atlas-ukheating__pipe" />
-            <path d="M 34 142 C 58 120, 92 118, 126 98" className="atlas-ukheating__curve atlas-ukheating__curve--steady" />
-            <path d="M 186 140 L 204 108 L 222 140 L 240 108 L 258 140 L 276 108" className="atlas-ukheating__curve atlas-ukheating__curve--burst" />
-            <rect x="44" y="120" width="18" height="22" className="atlas-ukheating__rad" />
-            <rect x="76" y="112" width="18" height="30" className="atlas-ukheating__rad" />
-            <rect x="108" y="118" width="18" height="24" className="atlas-ukheating__rad" />
-            <rect x="198" y="120" width="18" height="22" className="atlas-ukheating__rad" />
-            <rect x="230" y="112" width="18" height="30" className="atlas-ukheating__rad" />
-            <rect x="262" y="118" width="18" height="24" className="atlas-ukheating__rad" />
+            <rect x="20" y="18" width="130" height="160" rx="10" className="atlas-ukheating__panel" />
+            <rect x="170" y="18" width="130" height="160" rx="10" className="atlas-ukheating__panel" />
+            <circle cx="42" cy="46" r="10" className="atlas-ukheating__sensor" />
+            <path d="M 56 46 H 84" className="atlas-ukheating__pipe" />
+            <rect x="88" y="34" width="30" height="24" rx="5" className="atlas-ukheating__boiler" />
+            <path d="M 118 46 H 136 V 108 H 44" className="atlas-ukheating__pipe" />
+            <rect x="44" y="92" width="16" height="28" className="atlas-ukheating__rad atlas-ukheating__rad-warm" />
+            <rect x="68" y="92" width="16" height="28" className="atlas-ukheating__rad atlas-ukheating__rad-warm" />
+            <rect x="92" y="92" width="16" height="28" className="atlas-ukheating__rad atlas-ukheating__rad-warm" />
+            <path d="M 40 136 C 64 118, 88 112, 136 92" className="atlas-ukheating__curve atlas-ukheating__curve--steady" />
+
+            <rect x="182" y="34" width="30" height="24" rx="5" className="atlas-ukheating__boiler" />
+            <rect x="224" y="38" width="34" height="18" rx="4" className="atlas-ukheating__stat" />
+            <path d="M 212 46 H 224" className="atlas-ukheating__pipe" />
+            <path d="M 258 46 H 284 V 108 H 194" className="atlas-ukheating__pipe" />
+            <rect x="194" y="92" width="16" height="28" className="atlas-ukheating__rad atlas-ukheating__rad-cool" />
+            <rect x="218" y="92" width="16" height="28" className="atlas-ukheating__rad atlas-ukheating__rad-cool" />
+            <rect x="242" y="92" width="16" height="28" className="atlas-ukheating__rad atlas-ukheating__rad-hot" />
+            <path d="M 190 136 L 206 108 L 222 136 L 238 108 L 254 136 L 270 108" className="atlas-ukheating__curve atlas-ukheating__curve--burst" />
           </svg>
           <div id="atlas-ukheating-weather-comp-labels" style={{ display: 'grid', gap: '0.35rem' }}>
-            <p className="atlas-edu-diagram__label">Weather compensation: proactive warm and steady radiator flow</p>
-            <p className="atlas-edu-diagram__label">Load compensation: reacts after room temperature falls</p>
+            <p className="atlas-edu-diagram__label">Weather compensation: outdoor sensor guides steady boiler flow</p>
+            <p className="atlas-edu-diagram__label">Load compensation: room thermostat calls later, then boiler responds</p>
           </div>
         </section>
 
@@ -78,8 +85,8 @@ export function WeatherCompensationCurveDiagram({
             <circle cx="188" cy="124" r="8" className="atlas-ukheating__abv" />
           </svg>
           <div id="atlas-ukheating-abv-labels" style={{ display: 'grid', gap: '0.35rem' }}>
-            <p className="atlas-edu-diagram__label">When TRVs close, radiator flow reduces</p>
-            <p className="atlas-edu-diagram__label">ABV opens to provide a safe bypass back to return</p>
+            <p className="atlas-edu-diagram__label">Flow pipe up top, return pipe below, pump keeps circulation moving</p>
+            <p className="atlas-edu-diagram__label">When TRVs close, ABV opens between flow and return</p>
           </div>
         </section>
       </div>

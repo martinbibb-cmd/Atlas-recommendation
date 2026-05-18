@@ -54,7 +54,10 @@ export function StratifiedCylinderMixergyDiagram({ printSafe = false }: Stratifi
             <path d="M 88 166 H 118" className="atlas-ukheating__pipe" />
             <path d="M 202 48 H 246" className="atlas-ukheating__pipe" />
             <path d="M 88 166 C 98 166, 102 154, 112 150" className="atlas-ukheating__diffuser" />
+            <path d="M 202 48 H 256" className="atlas-ukheating__draw-off-arrow" />
+            <path d="M 84 166 H 118" className="atlas-ukheating__mains-arrow" />
           </svg>
+          <p className="atlas-edu-diagram__label">Top draw-off stays hottest, cold mains entry remains low in the vessel</p>
           <p className="atlas-edu-diagram__label">Clear hot top layer with protected usable draw-off</p>
         </section>
       </div>

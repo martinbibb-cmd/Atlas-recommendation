@@ -28,9 +28,10 @@ export function PowerflushConditionLedDiagram({ printSafe = false }: PowerflushC
             <circle cx="104" cy="100" r="12" className="atlas-ukheating__pump atlas-ukheating__pump-stressed" />
             <rect x="146" y="68" width="20" height="34" className="atlas-ukheating__rad atlas-ukheating__rad-cold" />
             <rect x="184" y="68" width="20" height="34" className="atlas-ukheating__rad atlas-ukheating__rad-cold" />
-            <rect x="222" y="68" width="20" height="34" className="atlas-ukheating__rad" />
+            <rect x="222" y="68" width="20" height="34" className="atlas-ukheating__rad atlas-ukheating__rad-warm" />
+            <path d="M 282 94 H 308" className="atlas-ukheating__dirty-path" />
           </svg>
-          <p className="atlas-edu-diagram__label">Sludge and magnetite restrict circulation</p>
+          <p className="atlas-edu-diagram__label">Dirty return path leaves patchy radiator heat</p>
         </section>
 
         <section className="atlas-edu-diagram__before-after-panel" aria-label="After condition-led Powerflush">
@@ -48,9 +49,13 @@ export function PowerflushConditionLedDiagram({ printSafe = false }: PowerflushC
             <rect x="146" y="68" width="20" height="34" className="atlas-ukheating__rad" />
             <rect x="184" y="68" width="20" height="34" className="atlas-ukheating__rad" />
             <rect x="222" y="68" width="20" height="34" className="atlas-ukheating__rad" />
-            <rect x="250" y="120" width="24" height="26" rx="6" className="atlas-ukheating__filter-body" />
-            <line x1="262" y1="122" x2="262" y2="144" className="atlas-ukheating__filter-magnet" />
+            <rect x="258" y="66" width="44" height="66" rx="6" className="atlas-ukheating__flush-unit" />
+            <path d="M 258 84 H 242" className="atlas-ukheating__flush-hose" />
+            <path d="M 258 112 H 242" className="atlas-ukheating__flush-hose atlas-ukheating__flush-hose--return" />
+            <path d="M 302 84 H 316" className="atlas-ukheating__dirty-path" />
+            <path d="M 302 112 H 316" className="atlas-ukheating__clean-path" />
           </svg>
+          <p className="atlas-edu-diagram__label">Flushing machine removes dirty water and returns cleaner water to loop</p>
           <p className="atlas-edu-diagram__label">Used when condition checks confirm flow restriction</p>
         </section>
       </div>

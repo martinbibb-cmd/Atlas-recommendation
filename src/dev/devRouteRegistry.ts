@@ -221,6 +221,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'DiagramFixturePage',
+    routePath: '/dev/diagram-fixture',
+    queryFlags: ['diagram-fixture=1'],
+    fullRouteExample: '/dev/diagram-fixture',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
     codeName: 'LibraryCoverageAuditPanel',
     fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
     routeKind: 'derived',
