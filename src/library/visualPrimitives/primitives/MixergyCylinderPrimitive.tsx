@@ -12,6 +12,20 @@
  * stateOfChargePct (0–100) controls the depth of the hot zone.
  */
 
+import {
+  CYLINDER_BODY_H,
+  CYLINDER_BODY_W,
+  CYLINDER_BODY_X,
+  CYLINDER_BODY_Y,
+  CYLINDER_SVG_H,
+  CYLINDER_SVG_W,
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_BRANCH,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface MixergyCylinderPrimitiveProps {
@@ -24,11 +38,8 @@ export interface MixergyCylinderPrimitiveProps {
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
-// SVG authored at 84×132
-const BODY_X = 10;
-const BODY_Y = 14;
-const BODY_W = 60;
-const BODY_H = 96;
+// Uses CYLINDER_SVG_W / CYLINDER_SVG_H / CYLINDER_BODY_* from primitiveTokens
+// so CylinderPrimitive and MixergyCylinderPrimitive are pixel-aligned in topologies.
 
 export function MixergyCylinderPrimitive({
   stateOfChargePct = 80,
@@ -38,9 +49,9 @@ export function MixergyCylinderPrimitive({
 }: MixergyCylinderPrimitiveProps) {
   const scale = SCALE[size];
   const soc = Math.max(0, Math.min(100, stateOfChargePct));
-  const hotH = (soc / 100) * BODY_H;
-  const coldH = BODY_H - hotH;
-  const thermoclineY = BODY_Y + hotH;
+  const hotH = (soc / 100) * CYLINDER_BODY_H;
+  const coldH = CYLINDER_BODY_H - hotH;
+  const thermoclineY = CYLINDER_BODY_Y + hotH;
 
   return (
     <div
@@ -48,17 +59,17 @@ export function MixergyCylinderPrimitive({
       aria-label={`Mixergy cylinder — hot zone ${soc}% from top`}
     >
       <svg
-        width={Math.round(84 * scale)}
-        height={Math.round(132 * scale)}
-        viewBox="0 0 84 132"
+        width={Math.round(CYLINDER_SVG_W * scale)}
+        height={Math.round(CYLINDER_SVG_H * scale)}
+        viewBox={`0 0 ${CYLINDER_SVG_W} ${CYLINDER_SVG_H}`}
         role="img"
         aria-hidden="true"
         focusable="false"
       >
         {/* Body outline */}
         <rect
-          x={BODY_X} y={BODY_Y}
-          width={BODY_W} height={BODY_H}
+          x={CYLINDER_BODY_X} y={CYLINDER_BODY_Y}
+          width={CYLINDER_BODY_W} height={CYLINDER_BODY_H}
           rx={14}
           fill="#e2e8f0"
           stroke="#276749"
@@ -68,9 +79,9 @@ export function MixergyCylinderPrimitive({
         {/* Hot zone — top-down */}
         {hotH > 0 && (
           <rect
-            x={BODY_X + 1}
-            y={BODY_Y + 1}
-            width={BODY_W - 2}
+            x={CYLINDER_BODY_X + 1}
+            y={CYLINDER_BODY_Y + 1}
+            width={CYLINDER_BODY_W - 2}
             height={hotH - 1}
             rx={2}
             fill={printSafe ? '#888' : '#fca5a5'}
@@ -80,9 +91,9 @@ export function MixergyCylinderPrimitive({
         {/* Cold zone — lower */}
         {coldH > 0 && (
           <rect
-            x={BODY_X + 1}
+            x={CYLINDER_BODY_X + 1}
             y={thermoclineY}
-            width={BODY_W - 2}
+            width={CYLINDER_BODY_W - 2}
             height={coldH - 1}
             rx={2}
             fill={printSafe ? '#ddd' : '#bfdbfe'}
@@ -90,11 +101,11 @@ export function MixergyCylinderPrimitive({
         )}
 
         {/* Sharp thermocline boundary */}
-        {hotH > 0 && hotH < BODY_H && (
+        {hotH > 0 && hotH < CYLINDER_BODY_H && (
           <line
-            x1={BODY_X + 1}
+            x1={CYLINDER_BODY_X + 1}
             y1={thermoclineY}
-            x2={BODY_X + BODY_W - 1}
+            x2={CYLINDER_BODY_X + CYLINDER_BODY_W - 1}
             y2={thermoclineY}
             stroke={printSafe ? '#000' : '#dc2626'}
             strokeWidth={2}
@@ -103,8 +114,8 @@ export function MixergyCylinderPrimitive({
 
         {/* Subtle upper-side charging point cue for Mixergy top-charge behaviour */}
         <circle
-          cx={BODY_X + 8}
-          cy={BODY_Y + 10}
+          cx={CYLINDER_BODY_X + 8}
+          cy={CYLINDER_BODY_Y + 10}
           r={2}
           fill={printSafe ? '#6b7280' : '#f97316'}
           opacity={0.8}
@@ -112,33 +123,33 @@ export function MixergyCylinderPrimitive({
 
         {/* Hot draw-off — top right */}
         <line
-          x1={BODY_X + BODY_W} y1={BODY_Y + 20}
-          x2={82} y2={BODY_Y + 20}
-          stroke={printSafe ? '#000' : '#ef4444'}
-          strokeWidth={2.5}
+          x1={CYLINDER_BODY_X + CYLINDER_BODY_W} y1={CYLINDER_BODY_Y + 20}
+          x2={CYLINDER_SVG_W - 2} y2={CYLINDER_BODY_Y + 20}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="mixergy-hot-draw-off"
         />
         <polygon
-          points={`76,${BODY_Y + 16} 82,${BODY_Y + 20} 76,${BODY_Y + 24}`}
-          fill={printSafe ? '#000' : '#ef4444'}
+          points={`${CYLINDER_SVG_W - 8},${CYLINDER_BODY_Y + 16} ${CYLINDER_SVG_W - 2},${CYLINDER_BODY_Y + 20} ${CYLINDER_SVG_W - 8},${CYLINDER_BODY_Y + 24}`}
+          fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
         />
 
         {/* Cold mains inlet — low entry */}
         <line
-          x1={0} y1={BODY_Y + BODY_H - 14}
-          x2={BODY_X} y2={BODY_Y + BODY_H - 14}
-          stroke={printSafe ? '#555' : '#3b82f6'}
-          strokeWidth={2.5}
+          x1={0} y1={CYLINDER_BODY_Y + CYLINDER_BODY_H - 14}
+          x2={CYLINDER_BODY_X} y2={CYLINDER_BODY_Y + CYLINDER_BODY_H - 14}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="mixergy-cold-entry"
         />
         <polygon
-          points={`${BODY_X - 6},${BODY_Y + BODY_H - 18} ${BODY_X},${BODY_Y + BODY_H - 14} ${BODY_X - 6},${BODY_Y + BODY_H - 10}`}
-          fill={printSafe ? '#555' : '#3b82f6'}
+          points={`${CYLINDER_BODY_X - 6},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 18} ${CYLINDER_BODY_X},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 14} ${CYLINDER_BODY_X - 6},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 10}`}
+          fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
         />
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#276749', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#276749', textAlign: 'center' }}>
           Mixergy cylinder
         </span>
       )}

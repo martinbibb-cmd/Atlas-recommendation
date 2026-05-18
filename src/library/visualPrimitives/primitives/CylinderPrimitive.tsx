@@ -13,6 +13,20 @@
  * fillLevel (0–1) controls how much of the body is shown as heated.
  */
 
+import {
+  CYLINDER_BODY_H,
+  CYLINDER_BODY_W,
+  CYLINDER_BODY_X,
+  CYLINDER_BODY_Y,
+  CYLINDER_SVG_H,
+  CYLINDER_SVG_W,
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_BRANCH,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export type CylinderVariant = 'vented' | 'unvented';
@@ -33,14 +47,6 @@ const VARIANT_LABELS: Record<CylinderVariant, string> = {
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
-// SVG authored at 80×130
-const SVG_W = 80;
-const SVG_H = 130;
-const BODY_X = 10;
-const BODY_Y = 12;
-const BODY_W = 60;
-const BODY_H = 96;
-
 export function CylinderPrimitive({
   variant = 'unvented',
   fillLevel = 0.75,
@@ -50,8 +56,8 @@ export function CylinderPrimitive({
 }: CylinderPrimitiveProps) {
   const scale = SCALE[size];
   const clampedFill = Math.max(0, Math.min(1, fillLevel));
-  const hotH = clampedFill * BODY_H;
-  const coldH = BODY_H - hotH;
+  const hotH = clampedFill * CYLINDER_BODY_H;
+  const coldH = CYLINDER_BODY_H - hotH;
 
   return (
     <div
@@ -59,17 +65,17 @@ export function CylinderPrimitive({
       aria-label={`${VARIANT_LABELS[variant]}, ${Math.round(clampedFill * 100)}% charged`}
     >
       <svg
-        width={Math.round(SVG_W * scale)}
-        height={Math.round(SVG_H * scale)}
-        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+        width={Math.round(CYLINDER_SVG_W * scale)}
+        height={Math.round(CYLINDER_SVG_H * scale)}
+        viewBox={`0 0 ${CYLINDER_SVG_W} ${CYLINDER_SVG_H}`}
         role="img"
         aria-hidden="true"
         focusable="false"
       >
         {/* Body outline */}
         <rect
-          x={BODY_X} y={BODY_Y}
-          width={BODY_W} height={BODY_H}
+          x={CYLINDER_BODY_X} y={CYLINDER_BODY_Y}
+          width={CYLINDER_BODY_W} height={CYLINDER_BODY_H}
           rx={14}
           fill="#e2e8f0"
           stroke="#334155"
@@ -79,9 +85,9 @@ export function CylinderPrimitive({
         {/* Cold zone (lower portion) */}
         {coldH > 0 && (
           <rect
-            x={BODY_X + 1}
-            y={BODY_Y + hotH + 1}
-            width={BODY_W - 2}
+            x={CYLINDER_BODY_X + 1}
+            y={CYLINDER_BODY_Y + hotH + 1}
+            width={CYLINDER_BODY_W - 2}
             height={coldH - 2}
             rx={2}
             fill={printSafe ? '#ddd' : '#bfdbfe'}
@@ -91,9 +97,9 @@ export function CylinderPrimitive({
         {/* Hot zone (upper portion) */}
         {hotH > 0 && (
           <rect
-            x={BODY_X + 1}
-            y={BODY_Y + 1}
-            width={BODY_W - 2}
+            x={CYLINDER_BODY_X + 1}
+            y={CYLINDER_BODY_Y + 1}
+            width={CYLINDER_BODY_W - 2}
             height={hotH - 2}
             rx={2}
             fill={printSafe ? '#888' : '#fca5a5'}
@@ -102,8 +108,8 @@ export function CylinderPrimitive({
 
         {/* Fill level percentage */}
         <text
-          x={BODY_X + BODY_W / 2}
-          y={BODY_Y + BODY_H / 2 + 4}
+          x={CYLINDER_BODY_X + CYLINDER_BODY_W / 2}
+          y={CYLINDER_BODY_Y + CYLINDER_BODY_H / 2 + 4}
           textAnchor="middle"
           fontSize={10}
           fontWeight="bold"
@@ -117,11 +123,11 @@ export function CylinderPrimitive({
         {variant === 'vented' && (
           <>
             <line
-              x1={40} y1={BODY_Y}
-              x2={40} y2={4}
+              x1={42} y1={CYLINDER_BODY_Y}
+              x2={42} y2={4}
               stroke="#334155" strokeWidth={2}
             />
-            <circle cx={40} cy={3} r={2} fill="#334155" />
+            <circle cx={42} cy={3} r={2} fill="#334155" />
           </>
         )}
 
@@ -129,14 +135,14 @@ export function CylinderPrimitive({
         {variant === 'unvented' && (
           <>
             <rect
-              x={54} y={BODY_Y - 10}
+              x={56} y={CYLINDER_BODY_Y - 10}
               width={12} height={8}
               rx={2}
               fill="#374151" stroke="#1f2937" strokeWidth={1}
             />
-            <line x1={60} y1={BODY_Y - 10} x2={60} y2={BODY_Y - 2} stroke="#374151" strokeWidth={1.5} />
+            <line x1={62} y1={CYLINDER_BODY_Y - 10} x2={62} y2={CYLINDER_BODY_Y - 2} stroke="#374151" strokeWidth={1.5} />
             <text
-              x={68} y={BODY_Y - 3}
+              x={70} y={CYLINDER_BODY_Y - 3}
               fontSize={5}
               fontFamily="system-ui"
               fill="#6b7280"
@@ -146,31 +152,31 @@ export function CylinderPrimitive({
 
         {/* Mains/cold inlet arrow (bottom-left) */}
         <line
-          x1={0} y1={BODY_Y + BODY_H - 16}
-          x2={BODY_X} y2={BODY_Y + BODY_H - 16}
-          stroke={printSafe ? '#555' : '#3b82f6'}
-          strokeWidth={2.5}
+          x1={0} y1={CYLINDER_BODY_Y + CYLINDER_BODY_H - 16}
+          x2={CYLINDER_BODY_X} y2={CYLINDER_BODY_Y + CYLINDER_BODY_H - 16}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
         />
         <polygon
-          points={`${BODY_X - 6},${BODY_Y + BODY_H - 20} ${BODY_X},${BODY_Y + BODY_H - 16} ${BODY_X - 6},${BODY_Y + BODY_H - 12}`}
-          fill={printSafe ? '#555' : '#3b82f6'}
+          points={`${CYLINDER_BODY_X - 6},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 20} ${CYLINDER_BODY_X},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 16} ${CYLINDER_BODY_X - 6},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 12}`}
+          fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
         />
 
         {/* Hot draw-off arrow (top-right) */}
         <line
-          x1={BODY_X + BODY_W} y1={BODY_Y + 18}
-          x2={SVG_W} y2={BODY_Y + 18}
-          stroke={printSafe ? '#000' : '#ef4444'}
-          strokeWidth={2.5}
+          x1={CYLINDER_BODY_X + CYLINDER_BODY_W} y1={CYLINDER_BODY_Y + 18}
+          x2={CYLINDER_SVG_W} y2={CYLINDER_BODY_Y + 18}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
         />
         <polygon
-          points={`${SVG_W - 6},${BODY_Y + 14} ${SVG_W},${BODY_Y + 18} ${SVG_W - 6},${BODY_Y + 22}`}
-          fill={printSafe ? '#000' : '#ef4444'}
+          points={`${CYLINDER_SVG_W - 6},${CYLINDER_BODY_Y + 14} ${CYLINDER_SVG_W},${CYLINDER_BODY_Y + 18} ${CYLINDER_SVG_W - 6},${CYLINDER_BODY_Y + 22}`}
+          fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
         />
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           {VARIANT_LABELS[variant]}
         </span>
       )}

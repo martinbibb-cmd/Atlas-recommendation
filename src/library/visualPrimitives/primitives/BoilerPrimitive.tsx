@@ -18,6 +18,19 @@
  *   size          — "sm" | "md" | "lg" — scales SVG dimensions
  */
 
+import {
+  AUX_COLOUR,
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_GAS,
+  PIPE_STROKE_MAIN,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+  RETURN_PIPE_DASH,
+  PRINT_RETURN_DASH,
+} from '../primitiveTokens';
+
 export type BoilerVariant = 'combi' | 'system' | 'regular';
 export type PrimitiveSize = 'sm' | 'md' | 'lg';
 
@@ -108,33 +121,33 @@ export function BoilerPrimitive({
         <line
           x1={30} y1={80}
           x2={30} y2={104}
-          stroke={printSafe ? '#000' : '#ef4444'}
-          strokeWidth={3}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
         />
-        {/* Return pipe (cool — blue/light) */}
+        {/* Return pipe (cool — blue/dashed for colour-blind safety) */}
         <line
           x1={70} y1={80}
           x2={70} y2={104}
-          stroke={printSafe ? '#555' : '#3b82f6'}
-          strokeWidth={3}
-          strokeDasharray={printSafe ? '5 2' : undefined}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
+          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
         {/* Gas supply stub (grey dashed) */}
         <line
           x1={50} y1={80}
           x2={50} y2={104}
-          stroke="#9ca3af"
-          strokeWidth={2}
+          stroke={AUX_COLOUR}
+          strokeWidth={PIPE_STROKE_GAS}
           strokeDasharray="4 2"
         />
 
         {/* Pipe foot labels */}
-        <text x={30} y={109} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? '#000' : '#ef4444'}>Flow</text>
-        <text x={70} y={109} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? '#555' : '#3b82f6'}>Return</text>
+        <text x={30} y={109} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}>Flow</text>
+        <text x={70} y={109} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}>Return</text>
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           {VARIANT_LABELS[variant]}
         </span>
       )}

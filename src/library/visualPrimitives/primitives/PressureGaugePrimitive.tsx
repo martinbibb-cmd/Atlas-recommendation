@@ -12,6 +12,12 @@
  * Source: OpenVentedToUnventedDiagram.tsx gauge elements, SystemPressureWindowDiagram.tsx
  */
 
+import {
+  GAUGE_NEEDLE_PIVOT_R,
+  GAUGE_READING_FONT_SIZE,
+  GAUGE_TICK_FONT_SIZE,
+  LABEL_FONT_SIZE,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface PressureGaugePrimitiveProps {
@@ -129,13 +135,13 @@ export function PressureGaugePrimitive({
           strokeLinecap="round"
         />
         {/* Needle pivot */}
-        <circle cx={CX} cy={CY} r={3} fill="#334155" />
+        <circle cx={CX} cy={CY} r={GAUGE_NEEDLE_PIVOT_R} fill="#334155" />
 
         {/* Pressure reading */}
         <text
           x={CX} y={CY + 14}
           textAnchor="middle"
-          fontSize={9}
+          fontSize={GAUGE_READING_FONT_SIZE}
           fontWeight="bold"
           fontFamily="system-ui, sans-serif"
           fill={toneColor}
@@ -154,7 +160,7 @@ export function PressureGaugePrimitive({
               x={pt.x}
               y={pt.y + 3}
               textAnchor="middle"
-              fontSize={6}
+              fontSize={GAUGE_TICK_FONT_SIZE}
               fontFamily="system-ui, sans-serif"
               fill="#64748b"
             >
@@ -165,7 +171,7 @@ export function PressureGaugePrimitive({
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           System pressure
         </span>
       )}

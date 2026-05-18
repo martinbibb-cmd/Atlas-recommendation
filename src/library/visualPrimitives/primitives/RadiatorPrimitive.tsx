@@ -12,6 +12,18 @@
  *   'cool'  — off or radiating negligible heat
  */
 
+import {
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_BRANCH,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+  RETURN_PIPE_DASH,
+  PRINT_RETURN_DASH,
+  VALVE_H,
+  VALVE_W,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export type RadiatorTemperatureTone = 'hot' | 'warm' | 'cool';
@@ -125,8 +137,8 @@ export function RadiatorPrimitive({
         <line
           x1={flowPortX} y1={portY}
           x2={flowPortX} y2={svgH}
-          stroke={printSafe ? '#000' : '#ef4444'}
-          strokeWidth={2.5}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="radiator-flow-connection"
           data-port-position="bottom"
         />
@@ -134,26 +146,26 @@ export function RadiatorPrimitive({
         <line
           x1={returnPortX} y1={portY}
           x2={returnPortX} y2={svgH}
-          stroke={printSafe ? '#555' : '#3b82f6'}
-          strokeWidth={2.5}
-          strokeDasharray={printSafe ? '4 2' : undefined}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
           data-testid="radiator-return-connection"
           data-port-position="bottom"
         />
 
-        {/* TRV body (flow side, bottom-mounted) */}
+        {/* TRV body (flow side, bottom-mounted) — canonical VALVE_W × VALVE_H */}
         <rect
-          x={flowPortX - 5} y={portY + 1}
-          width={10} height={6}
+          x={flowPortX - VALVE_W / 2} y={portY + 1}
+          width={VALVE_W} height={VALVE_H}
           rx={2}
           fill={printSafe ? '#9ca3af' : '#dc2626'}
           stroke={printSafe ? '#374151' : '#7f1d1d'}
           strokeWidth={1}
         />
-        {/* Lockshield cap (return side, bottom-mounted) */}
+        {/* Lockshield cap (return side, bottom-mounted) — 80% of canonical valve */}
         <rect
-          x={returnPortX - 4} y={portY + 1}
-          width={8} height={5}
+          x={returnPortX - Math.round(VALVE_W * 0.4)} y={portY + 1}
+          width={Math.round(VALVE_W * 0.8)} height={Math.round(VALVE_H * 0.83)}
           rx={1.5}
           fill={printSafe ? '#d1d5db' : '#94a3b8'}
           stroke="#4b5563"
@@ -162,7 +174,7 @@ export function RadiatorPrimitive({
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           {TONE_LABEL[temperatureTone]}
         </span>
       )}

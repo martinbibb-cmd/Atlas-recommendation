@@ -14,6 +14,7 @@
  * Source: src/library/diagrams/MagneticFilterDiagram.tsx
  */
 
+import { AUX_COLOUR, LABEL_FONT_SIZE, PIPE_STROKE_MAIN } from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface MagneticFilterPrimitiveProps {
@@ -49,8 +50,8 @@ export function MagneticFilterPrimitive({
         <line
           x1={4} y1={50}
           x2={48} y2={50}
-          stroke={printSafe ? '#000' : '#334155'}
-          strokeWidth={3}
+          stroke={printSafe ? '#000' : AUX_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
         />
 
         {/* Dirty flow — dark particles hint */}
@@ -121,8 +122,8 @@ export function MagneticFilterPrimitive({
         <line
           x1={112} y1={50}
           x2={156} y2={50}
-          stroke={printSafe ? '#555' : '#334155'}
-          strokeWidth={3}
+          stroke={printSafe ? '#555' : AUX_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
         />
 
         {/* Pipe labels */}
@@ -144,7 +145,7 @@ export function MagneticFilterPrimitive({
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           Magnetic filter
         </span>
       )}

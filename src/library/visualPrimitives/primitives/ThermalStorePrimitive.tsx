@@ -1,3 +1,11 @@
+import {
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_BRANCH,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface ThermalStorePrimitiveProps {
@@ -56,14 +64,14 @@ export function ThermalStorePrimitive({
           fill="none"
         />
 
-        <line x1={16} y1={46} x2={4} y2={46} stroke={printSafe ? '#555' : '#3b82f6'} strokeWidth={2.5} />
-        <line x1={16} y1={100} x2={4} y2={100} stroke={printSafe ? '#555' : '#3b82f6'} strokeWidth={2.5} />
-        <line x1={76} y1={34} x2={88} y2={34} stroke={printSafe ? '#000' : '#ef4444'} strokeWidth={2.5} />
-        <line x1={76} y1={116} x2={88} y2={116} stroke={printSafe ? '#555' : '#3b82f6'} strokeWidth={2.5} />
+        <line x1={16} y1={46} x2={4} y2={46} stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={16} y1={100} x2={4} y2={100} stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={76} y1={34} x2={88} y2={34} stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={76} y1={116} x2={88} y2={116} stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR} strokeWidth={PIPE_STROKE_BRANCH} />
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           Thermal store
         </span>
       )}

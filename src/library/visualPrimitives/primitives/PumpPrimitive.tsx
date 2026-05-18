@@ -17,6 +17,16 @@
  *   directional arrows so context is clear.
  */
 
+import {
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_MAIN,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+  RETURN_PIPE_DASH,
+  PRINT_RETURN_DASH,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface PumpPrimitiveProps {
@@ -55,16 +65,16 @@ export function PumpPrimitive({
         <line
           x1={4} y1={cy}
           x2={cx - r} y2={cy}
-          stroke={printSafe ? '#555' : '#3b82f6'}
-          strokeWidth={3}
-          strokeDasharray={printSafe ? '5 2' : undefined}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
+          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
         {/* Outlet pipe */}
         <line
           x1={cx + r} y1={cy}
           x2={96} y2={cy}
-          stroke={printSafe ? '#000' : '#ef4444'}
-          strokeWidth={3}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
         />
 
         {/* Pump body circle */}
@@ -106,12 +116,12 @@ export function PumpPrimitive({
         {/* Flow direction arrow on outlet */}
         <polygon
           points={`${cx + r + 6},${cy - 4} ${cx + r + 14},${cy} ${cx + r + 6},${cy + 4}`}
-          fill={printSafe ? '#000' : '#ef4444'}
+          fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
         />
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           Circulation pump
         </span>
       )}

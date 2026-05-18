@@ -1,3 +1,4 @@
+import { LABEL_FONT_SIZE } from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface PowerflushMachinePrimitiveProps {
@@ -50,7 +51,7 @@ export function PowerflushMachinePrimitive({
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           Powerflush machine
         </span>
       )}

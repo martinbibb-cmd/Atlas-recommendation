@@ -1,3 +1,13 @@
+import {
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_MAIN,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+  RETURN_PIPE_DASH,
+  PRINT_RETURN_DASH,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface FillingLoopPrimitiveProps {
@@ -33,17 +43,17 @@ export function FillingLoopPrimitive({
           y1={20}
           x2={142}
           y2={20}
-          stroke={printSafe ? '#000' : '#ef4444'}
-          strokeWidth={3}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
         />
         <line
           x1={8}
           y1={52}
           x2={142}
           y2={52}
-          stroke={printSafe ? '#555' : '#3b82f6'}
-          strokeWidth={3}
-          strokeDasharray={printSafe ? '5 3' : undefined}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_MAIN}
+          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
 
         <path
@@ -58,7 +68,7 @@ export function FillingLoopPrimitive({
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           Filling loop
         </span>
       )}

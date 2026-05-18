@@ -18,6 +18,17 @@
  *   - Position of pump, expansion vessel, filling loop relative to the circuit
  */
 
+import {
+  FLOW_COLOUR,
+  LABEL_FONT_SIZE,
+  PIPE_STROKE_BRANCH,
+  PIPE_STROKE_MAIN,
+  PRINT_FLOW_COLOUR,
+  PRINT_RETURN_COLOUR,
+  RETURN_COLOUR,
+  RETURN_PIPE_DASH,
+  PRINT_RETURN_DASH,
+} from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface PipeLoopPrimitiveProps {
@@ -46,9 +57,9 @@ export function PipeLoopPrimitive({
   size = 'md',
 }: PipeLoopPrimitiveProps) {
   const scale = SCALE[size];
-  const flowColor = printSafe ? '#000' : '#ef4444';
-  const returnColor = printSafe ? '#555' : '#3b82f6';
-  const pipeW = 3;
+  const flowColor = printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR;
+  const returnColor = printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR;
+  const pipeW = PIPE_STROKE_MAIN;
 
   return (
     <div
@@ -70,13 +81,13 @@ export function PipeLoopPrimitive({
           stroke={flowColor}
           strokeWidth={pipeW}
         />
-        {/* Bottom return pipe — cool */}
+        {/* Bottom return pipe — cool (dashed for colour-blind safety) */}
         <line
           x1={L} y1={B}
           x2={R_X} y2={B}
           stroke={returnColor}
           strokeWidth={pipeW}
-          strokeDasharray={printSafe ? '6 3' : undefined}
+          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
         {/* Left vertical */}
         <line
@@ -144,15 +155,15 @@ export function PipeLoopPrimitive({
                 stroke={printSafe ? '#374151' : '#ef4444'}
                 strokeWidth={1}
               />
-              <line x1={rightPort} y1={radBottom} x2={rightPort} y2={T} stroke={flowColor} strokeWidth={1.7} />
+              <line x1={rightPort} y1={radBottom} x2={rightPort} y2={T} stroke={flowColor} strokeWidth={PIPE_STROKE_BRANCH} />
               <line
                 x1={leftPort}
                 y1={radBottom}
                 x2={leftPort}
                 y2={B}
                 stroke={returnColor}
-                strokeWidth={1.7}
-                strokeDasharray={printSafe ? '3 2' : undefined}
+                strokeWidth={PIPE_STROKE_BRANCH}
+                strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
               />
               <rect
                 x={rightPort - 2.5}
@@ -196,7 +207,7 @@ export function PipeLoopPrimitive({
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           Sealed circuit loop
         </span>
       )}
