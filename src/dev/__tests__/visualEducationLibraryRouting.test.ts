@@ -3,7 +3,9 @@ import { DEV_ROUTE_REGISTRY } from '../devRouteRegistry';
 import { DEV_UI_REGISTRY } from '../devUiRegistry';
 import { INITIAL_FILTER_STATE, applyFilters } from '../devUiFilters';
 import {
+  VISUAL_EDUCATION_LIBRARY_QA_HUB,
   VISUAL_EDUCATION_LIBRARY_SURFACES,
+  isVisualEducationLibraryQaHubRoute,
   resolveActiveVisualEducationLibrarySurface,
 } from '../visualEducationLibrary';
 
@@ -19,6 +21,16 @@ describe('visual education library routing smoke coverage', () => {
         access: 'dev_only',
       });
     }
+
+    const hubRoute = DEV_ROUTE_REGISTRY.find(
+      (entry) => entry.codeName === VISUAL_EDUCATION_LIBRARY_QA_HUB.codeName,
+    );
+    expect(hubRoute).toMatchObject({
+      routePath: VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath,
+      queryFlags: [VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag],
+      routeKind: 'path',
+      access: 'dev_only',
+    });
   });
 
   it('exposes all three visual gallery routes as visible dev UI registry items', () => {
@@ -38,6 +50,23 @@ describe('visual education library routing smoke coverage', () => {
       expect(item?.notes).toContain('Visual Education Library');
       expect(visibleItems.some((entry) => entry.codeName === surface.codeName)).toBe(true);
     }
+
+    const hubItem = DEV_UI_REGISTRY.find(
+      (entry) => entry.codeName === VISUAL_EDUCATION_LIBRARY_QA_HUB.codeName,
+    );
+    expect(hubItem).toMatchObject({
+      routePath: VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath,
+      queryFlags: [VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag],
+      routeKind: 'path',
+      access: 'dev_only',
+      status: 'active',
+      childElementIds: [
+        'visual-primitive-gallery',
+        'visual-topology-gallery',
+        'analogy-overlay-gallery',
+        'diagram-fixture-page',
+      ],
+    });
   });
 
   it('matches App route and query-flag detection for each visual gallery surface', () => {
@@ -49,5 +78,18 @@ describe('visual education library routing smoke coverage', () => {
         resolveActiveVisualEducationLibrarySurface({ pathname: '/', search: `?${surface.queryFlag}` })?.codeName,
       ).toBe(surface.codeName);
     }
+
+    expect(
+      isVisualEducationLibraryQaHubRoute({
+        pathname: VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath,
+        search: '',
+      }),
+    ).toBe(true);
+    expect(
+      isVisualEducationLibraryQaHubRoute({
+        pathname: '/',
+        search: `?${VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag}`,
+      }),
+    ).toBe(true);
   });
 });

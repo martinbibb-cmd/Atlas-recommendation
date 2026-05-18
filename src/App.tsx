@@ -115,7 +115,10 @@ import { UserProfilePanel } from './features/userProfiles/UserProfilePanel';
 import { AtlasAuthProvider } from './auth/AtlasAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 import { useAtlasAuth } from './auth/useAtlasAuth';
-import { resolveActiveVisualEducationLibrarySurface } from './dev/visualEducationLibrary';
+import {
+  isVisualEducationLibraryQaHubRoute,
+  resolveActiveVisualEducationLibrarySurface,
+} from './dev/visualEducationLibrary';
 import {
   DEFAULT_PERMISSIONS_BY_ROLE,
   type WorkspaceMemberRole,
@@ -149,6 +152,7 @@ import {
 } from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import { LibraryExplorerPage } from './library/dev/LibraryExplorerPage';
+import { VisualEducationLibraryQaHubPage } from './library/dev/VisualEducationLibraryQaHubPage';
 import { DiagramFixturePage } from './library/dev/DiagramFixturePage';
 import { VisualPrimitiveGallery } from './library/visualPrimitives/VisualPrimitiveGallery';
 import { VisualTopologyGallery } from './library/visualTopologies/VisualTopologyGallery';
@@ -720,6 +724,10 @@ const ACTIVE_VISUAL_EDUCATION_LIBRARY_SURFACE =
   typeof window !== 'undefined'
     ? resolveActiveVisualEducationLibrarySurface(window.location)
     : null;
+
+/** Detect /dev/visual-education-library or ?visual-education-library=1. */
+const VISUAL_EDUCATION_LIBRARY_QA_HUB_PATH =
+  typeof window !== 'undefined' && isVisualEducationLibraryQaHubRoute(window.location);
 
 /** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
 const DEV_INSPECTOR_PATH =
@@ -2221,6 +2229,20 @@ function AppInner() {
           </button>
         </div>
         <LibraryExplorerPage />
+      </div>
+    );
+  }
+
+  // /dev/visual-education-library (or ?visual-education-library=1) — front door for the visual QA galleries.
+  if (VISUAL_EDUCATION_LIBRARY_QA_HUB_PATH) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/dev/devmenu'; }}>
+            ← Back
+          </button>
+        </div>
+        <VisualEducationLibraryQaHubPage />
       </div>
     );
   }

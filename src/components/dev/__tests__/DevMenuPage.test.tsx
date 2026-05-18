@@ -11,6 +11,8 @@ describe('DevMenuPage visual education library links', () => {
     render(<DevMenuPage onBack={() => {}} />);
 
     expect(screen.getByTestId('devmenu-visual-education-library')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open QA hub' })).toHaveAttribute('href', '/dev/visual-education-library');
+    expect(screen.getByRole('link', { name: 'Open QA hub via query flag' })).toHaveAttribute('href', '/?visual-education-library=1');
 
     const primitiveCard = screen.getByTestId('devmenu-visual-education-library-visual-primitive-gallery');
     const topologyCard = screen.getByTestId('devmenu-visual-education-library-visual-topology-gallery');

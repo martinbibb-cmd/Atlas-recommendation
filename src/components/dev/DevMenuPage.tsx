@@ -53,7 +53,10 @@ import { useActiveUser } from '../../features/userProfiles/useActiveUser';
 import { resetDemoData } from '../../dev/demoSeed';
 import type { ApplianceDefinitionV1 } from '../../contracts/hardware/ApplianceDefinitionV1';
 import type { HardwarePatchV1, HardwarePatchEntryV1 } from '../../contracts/hardware/HardwarePatchV1';
-import { VISUAL_EDUCATION_LIBRARY_SURFACES } from '../../dev/visualEducationLibrary';
+import {
+  VISUAL_EDUCATION_LIBRARY_QA_HUB,
+  VISUAL_EDUCATION_LIBRARY_SURFACES,
+} from '../../dev/visualEducationLibrary';
 
 // ─── Display helpers ──────────────────────────────────────────────────────────
 
@@ -456,6 +459,10 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           <p style={{ margin: 0, fontSize: '0.8125rem', color: '#1d4ed8' }}>
             Direct dev-menu links for the visual QA galleries so the primitive, topology, and overlay reviews are never trapped behind dead routes.
           </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <a className="chip-btn" href={VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath}>Open QA hub</a>
+            <a className="chip-btn" href={`/?${VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag}`}>Open QA hub via query flag</a>
+          </div>
         </div>
         <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
           {visualEducationLibraryItems.map(({ surface, registryItem }) => {

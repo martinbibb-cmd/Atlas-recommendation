@@ -14,6 +14,7 @@
 import type { DevUiRouteKind, DevUiAccess } from './devUiRegistry';
 import {
   getVisualEducationLibrarySurface,
+  VISUAL_EDUCATION_LIBRARY_QA_HUB,
 } from './visualEducationLibrary';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -220,6 +221,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     routePath: '/dev/library-explorer',
     queryFlags: ['library-explorer=1'],
     fullRouteExample: '/dev/library-explorer',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
+    codeName: VISUAL_EDUCATION_LIBRARY_QA_HUB.codeName,
+    routePath: VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath,
+    queryFlags: [VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag],
+    fullRouteExample: VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath,
     routeKind: 'path',
     access: 'dev_only',
   },

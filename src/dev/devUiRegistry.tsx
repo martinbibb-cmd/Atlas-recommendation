@@ -32,7 +32,10 @@ import { WorkspaceVisitLifecycleHarness } from './workspaceQa';
 import PhoneFirstQaHarness from './PhoneFirstQaHarness';
 import { PortalJourneyPrintPack } from '../library/portal/pdf/PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from '../library/portal/pdf/buildPortalJourneyPrintModel';
-import { getVisualEducationLibrarySurface } from './visualEducationLibrary';
+import {
+  getVisualEducationLibrarySurface,
+  VISUAL_EDUCATION_LIBRARY_QA_HUB,
+} from './visualEducationLibrary';
 
 // ─── Demo input ───────────────────────────────────────────────────────────────
 
@@ -626,9 +629,32 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     fullRouteExample: '/dev/library-explorer',
     access: 'dev_only',
     parentCodeName: 'DevPortalFixturePage',
-    childElementIds: ['diagram-fixture-page'],
     includeInCopyBox: true,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>LibraryExplorerPage — open via /dev/library-explorer.</div>,
+  },
+  {
+    id: VISUAL_EDUCATION_LIBRARY_QA_HUB.id,
+    commonName: VISUAL_EDUCATION_LIBRARY_QA_HUB.commonName,
+    codeName: VISUAL_EDUCATION_LIBRARY_QA_HUB.codeName,
+    fileName: 'VisualEducationLibraryQaHubPage.tsx',
+    filePath: 'src/library/dev/VisualEducationLibraryQaHubPage.tsx',
+    category: 'audit',
+    status: 'active',
+    notes: VISUAL_EDUCATION_LIBRARY_QA_HUB.description,
+    routeKind: 'path',
+    routePath: VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath,
+    queryFlags: [VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag],
+    fullRouteExample: VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath,
+    access: 'dev_only',
+    parentCodeName: 'DevPortalFixturePage',
+    childElementIds: [
+      'visual-primitive-gallery',
+      'visual-topology-gallery',
+      'analogy-overlay-gallery',
+      'diagram-fixture-page',
+    ],
+    includeInCopyBox: true,
+    render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>VisualEducationLibraryQaHubPage — open via /dev/visual-education-library.</div>,
   },
   {
     id: 'diagram-fixture-page',
@@ -644,8 +670,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     queryFlags: ['diagram-fixture=1'],
     fullRouteExample: '/dev/diagram-fixture',
     access: 'dev_only',
-    parentCodeName: 'LibraryExplorerPage',
-    childElementIds: ['visual-primitive-gallery'],
+    parentCodeName: 'VisualEducationLibraryQaHubPage',
     includeInCopyBox: true,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>DiagramFixturePage — open via /dev/diagram-fixture.</div>,
   },
@@ -663,8 +688,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     queryFlags: [getVisualEducationLibrarySurface('VisualPrimitiveGallery').queryFlag],
     fullRouteExample: getVisualEducationLibrarySurface('VisualPrimitiveGallery').routePath,
     access: 'dev_only',
-    parentCodeName: 'DiagramFixturePage',
-    childElementIds: ['visual-topology-gallery'],
+    parentCodeName: 'VisualEducationLibraryQaHubPage',
     includeInCopyBox: true,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>VisualPrimitiveGallery — open via /dev/visual-primitive-gallery.</div>,
   },
@@ -682,8 +706,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     queryFlags: [getVisualEducationLibrarySurface('VisualTopologyGallery').queryFlag],
     fullRouteExample: getVisualEducationLibrarySurface('VisualTopologyGallery').routePath,
     access: 'dev_only',
-    parentCodeName: 'VisualPrimitiveGallery',
-    childElementIds: ['analogy-overlay-gallery'],
+    parentCodeName: 'VisualEducationLibraryQaHubPage',
     includeInCopyBox: true,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>VisualTopologyGallery — open via /dev/visual-topology-gallery.</div>,
   },
@@ -701,7 +724,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     queryFlags: [getVisualEducationLibrarySurface('AnalogyOverlayGallery').queryFlag],
     fullRouteExample: getVisualEducationLibrarySurface('AnalogyOverlayGallery').routePath,
     access: 'dev_only',
-    parentCodeName: 'VisualTopologyGallery',
+    parentCodeName: 'VisualEducationLibraryQaHubPage',
     includeInCopyBox: true,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>AnalogyOverlayGallery — open via /dev/analogy-overlay-gallery.</div>,
   },

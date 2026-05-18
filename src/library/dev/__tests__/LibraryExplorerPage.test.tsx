@@ -10,6 +10,7 @@ describe('LibraryExplorerPage', () => {
     render(<LibraryExplorerPage />);
     expect(screen.getByTestId('library-explorer-storyboard')).toBeTruthy();
     expect(screen.getByText(/every visual must read like a household moment/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Open Visual Education QA Hub/i })).toHaveAttribute('href', '/dev/visual-education-library');
   });
 
   it('appears in the dev menu inventory registry', () => {

@@ -13,6 +13,32 @@ export interface VisualEducationLibrarySurface {
   description: string;
 }
 
+export interface VisualEducationLibraryHubRoute {
+  id: 'visual-education-library-qa-hub';
+  codeName: 'VisualEducationLibraryQaHubPage';
+  commonName: 'Visual Education Library QA Hub';
+  routePath: '/dev/visual-education-library';
+  queryFlag: 'visual-education-library=1';
+  description: string;
+}
+
+export interface VisualEducationLegacySurfaceLink {
+  label: 'Legacy Diagram Fixture' | 'Library Explorer';
+  routePath: '/dev/diagram-fixture' | '/dev/library-explorer';
+  queryFlag: 'diagram-fixture=1' | 'library-explorer=1';
+  description: string;
+}
+
+export const VISUAL_EDUCATION_LIBRARY_QA_HUB: VisualEducationLibraryHubRoute = {
+  id: 'visual-education-library-qa-hub',
+  codeName: 'VisualEducationLibraryQaHubPage',
+  commonName: 'Visual Education Library QA Hub',
+  routePath: '/dev/visual-education-library',
+  queryFlag: 'visual-education-library=1',
+  description:
+    'Front door for the visual education QA surfaces, with direct links to the primitive, topology, overlay, and legacy diagram fixtures.',
+};
+
 export const VISUAL_EDUCATION_LIBRARY_SURFACES: readonly VisualEducationLibrarySurface[] = [
   {
     id: 'visual-primitive-gallery',
@@ -43,6 +69,21 @@ export const VISUAL_EDUCATION_LIBRARY_SURFACES: readonly VisualEducationLibraryS
   },
 ] as const;
 
+export const VISUAL_EDUCATION_LEGACY_SURFACE_LINKS: readonly VisualEducationLegacySurfaceLink[] = [
+  {
+    label: 'Legacy Diagram Fixture',
+    routePath: '/dev/diagram-fixture',
+    queryFlag: 'diagram-fixture=1',
+    description: 'Legacy heating diagram fixture kept for comparison against the newer PR1/PR2/PR3 galleries.',
+  },
+  {
+    label: 'Library Explorer',
+    routePath: '/dev/library-explorer',
+    queryFlag: 'library-explorer=1',
+    description: 'Concept backlog and content coverage surface — useful, but not the new visual gallery front door.',
+  },
+] as const;
+
 export function getVisualEducationLibrarySurface(
   codeName: VisualEducationLibrarySurface['codeName'],
 ): VisualEducationLibrarySurface {
@@ -62,5 +103,15 @@ export function resolveActiveVisualEducationLibrarySurface(
       (surface) =>
         locationLike.pathname === surface.routePath || params.get(surface.queryFlag.split('=')[0]) === '1',
     ) ?? null
+  );
+}
+
+export function isVisualEducationLibraryQaHubRoute(
+  locationLike: Pick<Location, 'pathname' | 'search'>,
+): boolean {
+  const params = new URLSearchParams(locationLike.search);
+  return (
+    locationLike.pathname === VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath
+    || params.get(VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag.split('=')[0]) === '1'
   );
 }
