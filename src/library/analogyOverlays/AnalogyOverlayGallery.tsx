@@ -152,7 +152,7 @@ export function AnalogyOverlayGallery() {
         {`@keyframes atlas-analogy-pulse { 0% { opacity: 0.55; transform: scale(1);} 50% { opacity: 1; transform: scale(1.18);} 100% { opacity: 0.55; transform: scale(1);} }`}
       </style>
       <header>
-        <h1 style={{ margin: '0 0 0.35rem', fontSize: 24 }}>Analogy Overlay Gallery — PR 3</h1>
+        <h1 style={{ margin: '0 0 0.35rem', fontSize: 24 }}>Analogy Overlay Gallery</h1>
         <p style={{ margin: 0, color: '#475569', fontSize: 13, maxWidth: '74ch' }}>
           Canonical topology first. Analogy overlays switch narration mode without changing physical system truth.
         </p>
