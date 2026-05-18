@@ -242,6 +242,16 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         <line x1={576} y1={185} x2={680} y2={185} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         <line x1={676} y1={170} x2={760} y2={170} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={676} y1={130} x2={760} y2={130} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        {/* G3 D2 discharge route — continuous fall away from cylinder */}
+        <line
+          x1={590}
+          y1={282}
+          x2={760}
+          y2={334}
+          stroke={AUX_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="d2-discharge-pipe"
+        />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
@@ -254,6 +264,7 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         {/* Pipe labels */}
         <text {...pipeLabelProps(682, 170, 'above', ret)}>Mains cold in</text>
         <text {...pipeLabelProps(682, 130, 'above', flow)}>Hot draw-off out</text>
+        <text {...pipeLabelProps(646, 318, 'below', AUX_COLOUR)}>D2 safety discharge</text>
       </PipeLayer>
 
       <div style={nodeStyle(56, 156)}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></div>

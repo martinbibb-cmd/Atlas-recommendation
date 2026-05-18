@@ -10,6 +10,7 @@ export * from './animations';
 export * from './ui';
 export * from './demoJourneys';
 export * from './analogyOverlays';
+export * from './hydraulicTruth';
 
 export * from './packRenderer';
 export * from './dev';

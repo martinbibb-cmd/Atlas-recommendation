@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { VisualTopologyGallery } from '../VisualTopologyGallery';
 import { VISUAL_TOPOLOGY_REGISTRY } from '../visualTopologyRegistry';
 import { VISUAL_PRIMITIVE_REGISTRY } from '../../visualPrimitives/visualPrimitiveRegistry';
@@ -52,6 +52,16 @@ describe('VisualTopologyGallery', () => {
   it('shows a clean missing primitive warning state when all references resolve', () => {
     render(<VisualTopologyGallery />);
     expect(screen.getByTestId('vt-gallery-missing-primitive-warning').textContent).toContain('All topology primitive references resolve');
+  });
+
+  it('supports installer review mode with per-topology hydraulic QA summaries', () => {
+    render(<VisualTopologyGallery />);
+    fireEvent.click(screen.getByRole('button', { name: /installer review mode/i }));
+
+    expect(screen.getByTestId('vt-gallery-installer-review-mode')).toBeTruthy();
+    for (const topology of VISUAL_TOPOLOGY_REGISTRY) {
+      expect(screen.getByTestId(`vt-gallery-installer-review-${topology.id}`)).toBeTruthy();
+    }
   });
 
   it('is registered as a dev-only route and UI surface', () => {
