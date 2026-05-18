@@ -229,6 +229,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'VisualPrimitiveGallery',
+    routePath: '/dev/visual-primitive-gallery',
+    queryFlags: ['visual-primitive-gallery=1'],
+    fullRouteExample: '/dev/visual-primitive-gallery',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
     codeName: 'LibraryCoverageAuditPanel',
     fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
     routeKind: 'derived',
