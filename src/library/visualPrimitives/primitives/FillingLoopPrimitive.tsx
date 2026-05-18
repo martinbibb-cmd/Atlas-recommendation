@@ -57,14 +57,27 @@ export function FillingLoopPrimitive({
         />
 
         <path
-          d="M 48 20 C 58 20, 58 52, 75 52 C 94 52, 94 20, 102 20"
+          d="M 48 20 C 58 20, 58 47, 72 47"
           stroke="#374151"
           strokeWidth={2.5}
+          strokeDasharray="3 2"
+          opacity={0.7}
+          data-testid="filling-loop-ghost-link-left"
+          fill="none"
+        />
+        <path
+          d="M 78 47 C 92 47, 92 20, 102 20"
+          stroke="#374151"
+          strokeWidth={2.5}
+          strokeDasharray="3 2"
+          opacity={0.7}
+          data-testid="filling-loop-ghost-link-right"
           fill="none"
         />
 
         <circle cx={56} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
         <circle cx={94} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
+        <line x1={73} y1={47} x2={77} y2={47} stroke={printSafe ? '#000' : '#9ca3af'} strokeWidth={2} data-testid="filling-loop-disconnect-gap" />
       </svg>
 
       {showLabel && (
