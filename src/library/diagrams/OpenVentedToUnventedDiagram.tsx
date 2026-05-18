@@ -8,7 +8,14 @@ const WHAT_THIS_MEANS =
 
 export interface OpenVentedToUnventedDiagramProps {
   printSafe?: boolean;
+  /**
+   * Surveyed cold-water storage tank volume in litres.
+   * Only shown when explicitly recorded.
+   */
   cwsVolumeLSurveyed?: number;
+  /**
+   * When true, the property has two linked loft tanks.
+   */
   twinCwsTanks?: boolean;
 }
 
