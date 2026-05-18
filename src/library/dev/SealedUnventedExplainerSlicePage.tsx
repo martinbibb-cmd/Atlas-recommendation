@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { REQUIRED_ANALOGY_MODES, type AnalogyMode, type AnalogyOverlayElement } from '../analogyOverlays';
-import { getHydraulicTruthModel, runHydraulicTopologyQa } from '../hydraulicTruth';
 import { renderVisualTopology } from '../visualTopologies/topologies';
 
 interface ExplainerOverlay {
@@ -28,7 +27,7 @@ const ANCHORS = new Map([
 const OVERLAYS: Record<AnalogyMode, ExplainerOverlay> = {
   basic_household: {
     summary: 'Think of the expansion vessel as a cushion: when heating water expands, that cushion absorbs the extra push so pressure stays controlled.',
-    accessibilitySummary: 'The overlay marks the expansion vessel, pressure gauge, filling loop, and safety discharge route while the full physical system remains visible.',
+    accessibilitySummary: 'The diagram marks the expansion vessel, pressure gauge, filling loop, and safety discharge route on the physical system.',
     elements: [
       { id: 'basic-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Expansion cushion', offsetX: 100, offsetY: 20 },
       { id: 'basic-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Normal pressure check', offsetX: 100, offsetY: -18 },
@@ -37,43 +36,43 @@ const OVERLAYS: Record<AnalogyMode, ExplainerOverlay> = {
     ],
   },
   medical: {
-    summary: 'The sealed circuit behaves like controlled circulation: the expansion vessel dampens pressure swings and the gauge shows the operating window.',
-    accessibilitySummary: 'Clinical-mode callouts identify damped pressure control and the normal service and safety points on the physical layout.',
+    summary: 'Like controlled circulation in a closed system: the expansion vessel keeps pressure steady and the gauge shows that everything is within range.',
+    accessibilitySummary: 'The diagram labels the pressure buffer, the pressure window indicator, the normal top-up point, and the safety discharge route.',
     elements: [
-      { id: 'med-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Pressure damping chamber', offsetX: 104, offsetY: 20 },
-      { id: 'med-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Operating pressure window', offsetX: 112, offsetY: -16 },
-      { id: 'med-fill', type: 'callout', anchorId: 'filling_loop', label: 'Commissioning service point', offsetX: -128, offsetY: 20 },
-      { id: 'med-safety', type: 'callout', anchorId: 'd2_discharge', label: 'Safety discharge path', offsetX: 32, offsetY: 28 },
+      { id: 'med-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Pressure buffer', offsetX: 104, offsetY: 20 },
+      { id: 'med-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Pressure within range', offsetX: 112, offsetY: -16 },
+      { id: 'med-fill', type: 'callout', anchorId: 'filling_loop', label: 'Normal top-up point', offsetX: -128, offsetY: 20 },
+      { id: 'med-safety', type: 'callout', anchorId: 'd2_discharge', label: 'Safety release route', offsetX: 32, offsetY: 28 },
     ],
   },
   traffic: {
-    summary: 'The sealed loop is like a managed route: the gauge tracks the pressure lane, and the expansion vessel absorbs surges before they become a problem.',
-    accessibilitySummary: 'Traffic-mode callouts map surge buffering and pressure window checks to the same physical vessel, gauge, and discharge hardware.',
+    summary: 'Like a managed road network: the gauge shows pressure is in the right lane, and the expansion vessel absorbs any surges before they become a problem.',
+    accessibilitySummary: 'The diagram labels the surge absorber, the pressure indicator, the normal top-up point, and the safety exit route.',
     elements: [
-      { id: 'traffic-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Surge buffer', offsetX: 96, offsetY: 20 },
-      { id: 'traffic-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Pressure lane indicator', offsetX: 108, offsetY: -16 },
-      { id: 'traffic-fill', type: 'callout', anchorId: 'filling_loop', label: 'Service access link', offsetX: -112, offsetY: 20 },
+      { id: 'traffic-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Surge absorber', offsetX: 96, offsetY: 20 },
+      { id: 'traffic-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Pressure in range', offsetX: 108, offsetY: -16 },
+      { id: 'traffic-fill', type: 'callout', anchorId: 'filling_loop', label: 'Normal top-up point', offsetX: -112, offsetY: 20 },
       { id: 'traffic-safety', type: 'callout', anchorId: 'd2_discharge', label: 'Safety exit route', offsetX: 24, offsetY: 28 },
     ],
   },
   electrical: {
-    summary: 'Read this as a protected circuit: the gauge is the live state check, and the expansion vessel handles thermal transients in the sealed loop.',
-    accessibilitySummary: 'Electrical-mode callouts keep the same physical anchors for pressure state, transient buffering, and safety discharge.',
+    summary: 'Like a protected circuit: the gauge confirms normal operating state, and the expansion vessel handles any extra load during warm-up.',
+    accessibilitySummary: 'The diagram labels the load buffer, the normal state indicator, the top-up connection, and the safety discharge path.',
     elements: [
-      { id: 'elec-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Transient buffer', offsetX: 94, offsetY: 20 },
-      { id: 'elec-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Live pressure state', offsetX: 102, offsetY: -16 },
-      { id: 'elec-fill', type: 'callout', anchorId: 'filling_loop', label: 'Service link point', offsetX: -108, offsetY: 20 },
-      { id: 'elec-safety', type: 'callout', anchorId: 'd2_discharge', label: 'Safety discharge line', offsetX: 28, offsetY: 28 },
+      { id: 'elec-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Load buffer', offsetX: 94, offsetY: 20 },
+      { id: 'elec-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Normal operating state', offsetX: 102, offsetY: -16 },
+      { id: 'elec-fill', type: 'callout', anchorId: 'filling_loop', label: 'Normal top-up point', offsetX: -108, offsetY: 20 },
+      { id: 'elec-safety', type: 'callout', anchorId: 'd2_discharge', label: 'Safety discharge path', offsetX: 28, offsetY: 28 },
     ],
   },
   physics_engineering: {
-    summary: 'Thermal expansion in the sealed heating circuit is absorbed by expansion volume, while the pressure gauge and filling loop support normal commissioning and servicing checks.',
-    accessibilitySummary: 'Engineering-mode callouts identify expansion-volume control, pressure monitoring, service fill point, and compliant discharge routing.',
+    summary: 'As heating water warms it expands; the expansion vessel absorbs that extra volume so the sealed circuit stays at a steady, safe pressure.',
+    accessibilitySummary: 'The diagram labels the expansion vessel, the pressure gauge, the filling loop top-up point, and the safety discharge route.',
     elements: [
-      { id: 'eng-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Expansion volume control', offsetX: 112, offsetY: 20 },
-      { id: 'eng-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Sealed pressure reference', offsetX: 116, offsetY: -16 },
-      { id: 'eng-fill', type: 'callout', anchorId: 'filling_loop', label: 'Normal fill and top-up point', offsetX: -136, offsetY: 20 },
-      { id: 'eng-safety', type: 'callout', anchorId: 'd2_discharge', label: 'Tundish discharge (safety)', offsetX: 34, offsetY: 28 },
+      { id: 'eng-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Expansion vessel', offsetX: 112, offsetY: 20 },
+      { id: 'eng-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Pressure gauge', offsetX: 116, offsetY: -16 },
+      { id: 'eng-fill', type: 'callout', anchorId: 'filling_loop', label: 'Filling loop top-up point', offsetX: -136, offsetY: 20 },
+      { id: 'eng-safety', type: 'callout', anchorId: 'd2_discharge', label: 'Tundish — safety discharge', offsetX: 34, offsetY: 28 },
     ],
   },
 };
@@ -81,13 +80,7 @@ const OVERLAYS: Record<AnalogyMode, ExplainerOverlay> = {
 function renderOverlayElement(element: AnalogyOverlayElement, printSafe: boolean) {
   if (element.type === 'link') return null;
   const anchor = ANCHORS.get(element.anchorId);
-  if (anchor == null) {
-    if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console
-      console.warn(`[SealedUnventedExplainerSlicePage] Missing overlay anchor: ${element.anchorId}`);
-    }
-    return null;
-  }
+  if (anchor == null) return null;
 
   const labelX = anchor.x + element.offsetX;
   const labelY = anchor.y + element.offsetY;
