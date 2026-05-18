@@ -32,17 +32,19 @@ describe('SealedUnventedExplainerSlicePage', () => {
   });
 
   it('includes customer-safe acceptance copy and avoids forbidden/internal terms', () => {
-    render(<SealedUnventedExplainerSlicePage />);
+    const { container } = render(<SealedUnventedExplainerSlicePage />);
 
     expect(screen.getByText(/The loft tanks are removed\./i)).toBeInTheDocument();
     expect(screen.getByText(/A sealed heating circuit is added/i)).toBeInTheDocument();
-    expect(screen.getByText(/unvented cylinder provides stored hot water at mains pressure/i)).toBeInTheDocument();
+    expect(screen.getByText(/unvented cylinder provides stored hot water from mains-fed supply/i)).toBeInTheDocument();
+    expect(screen.getByText(/stored hot water, not on-demand hot water/i)).toBeInTheDocument();
     expect(screen.getByText(/expansion vessel absorbs heating-water expansion/i)).toBeInTheDocument();
     expect(screen.getByText(/pressure gauge and filling loop are normal sealed-system features/i)).toBeInTheDocument();
     expect(screen.getByText(/tundish and discharge route are safety features, not faults/i)).toBeInTheDocument();
 
     expect(screen.queryByText(/gravity system|low pressure system|high pressure system|instantaneous hot water/i)).toBeNull();
     expect(screen.queryByText(/sealed_unvented_cylinder|sealed_unvented|CON_/i)).toBeNull();
+    expect(container.innerHTML).not.toMatch(/gravity system|low pressure system|high pressure system|instantaneous hot water|sealed_unvented_cylinder|sealed_unvented|CON_/i);
   });
 
   it('is registered as a dev-only route and UI surface', () => {

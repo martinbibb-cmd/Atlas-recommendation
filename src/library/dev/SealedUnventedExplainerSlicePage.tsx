@@ -81,7 +81,13 @@ const OVERLAYS: Record<AnalogyMode, ExplainerOverlay> = {
 function renderOverlayElement(element: AnalogyOverlayElement, printSafe: boolean) {
   if (element.type === 'link') return null;
   const anchor = ANCHORS.get(element.anchorId);
-  if (anchor == null) return null;
+  if (anchor == null) {
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn(`[SealedUnventedExplainerSlicePage] Missing overlay anchor: ${element.anchorId}`);
+    }
+    return null;
+  }
 
   const labelX = anchor.x + element.offsetX;
   const labelY = anchor.y + element.offsetY;
@@ -145,6 +151,7 @@ function TopologyPreview({
 }
 
 export function SealedUnventedExplainerSlicePage() {
+  // Default mode remains pre-selected even when overlays start off so first activation is deterministic.
   const [selectedMode, setSelectedMode] = useState<AnalogyMode>('basic_household');
   const [overlayEnabled, setOverlayEnabled] = useState(false);
   const overlay = OVERLAYS[selectedMode];
@@ -171,7 +178,8 @@ export function SealedUnventedExplainerSlicePage() {
         <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 14 }}>
           <li>The loft tanks are removed.</li>
           <li>A sealed heating circuit is added for pressure-managed heating.</li>
-          <li>An unvented cylinder provides stored hot water at mains pressure.</li>
+          <li>An unvented cylinder provides stored hot water from mains-fed supply.</li>
+          <li>This route uses stored hot water, not on-demand hot water.</li>
           <li>The expansion vessel absorbs heating-water expansion during warm-up.</li>
           <li>The pressure gauge and filling loop are normal sealed-system features.</li>
           <li>The tundish and discharge route are safety features, not faults.</li>
