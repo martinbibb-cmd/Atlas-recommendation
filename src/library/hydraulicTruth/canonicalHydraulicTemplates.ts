@@ -33,7 +33,8 @@ export const CANONICAL_HYDRAULIC_RULES: CanonicalHydraulicRuleSet = {
     'Unvented safety discharge (D2) must route with continuous fall away from the cylinder.',
   ],
   pumpPlacementRules: [
-    'Circulation pumps stay inline with return path routing in canonical closed-loop renderings.',
+    'Open-vented templates place the pump on primary flow downstream of the close-coupled vent/feed pair.',
+    'Closed-loop templates keep circulation pumps inline with the primary circulation path.',
   ],
   abvPlacementRules: [
     'ABV sits after pump circulation drive and before flow restrictions to protect minimum circulation.',
@@ -126,7 +127,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.open_vented,
     featureFlags: [
       'close_coupled_open_vent_and_cold_feed',
-      'pump_inline_on_return',
+      'open_vented_pump_on_primary_flow_downstream_vent_feed',
       'no_top_fed_radiator_connections',
       'no_decorative_crossover_pipework',
     ],
@@ -152,6 +153,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
       'pressure_controlled_loop',
       'filling_loop_disconnected_default',
       'unvented_standard_storage_visual',
+      'expansion_vessel_on_primary_return',
       'd2_continuous_fall',
       'no_top_fed_radiator_connections',
       'no_decorative_crossover_pipework',
