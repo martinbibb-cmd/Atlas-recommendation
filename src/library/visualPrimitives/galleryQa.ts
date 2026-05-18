@@ -151,16 +151,17 @@ export function buildVisualPrimitiveQaSummary(
    *
    * Any `immediately_recognisable` primitive whose id is in
    * NO_LABEL_ARIA_REQUIRED_IDS must supply a non-empty `aria-label` even
-   * when rendered with `showLabel={false}`.  This audit flags entries whose
-   * id is in the required set but whose registry `qaNote` does not confirm
-   * the aria attribute is present (a lightweight static check — the
-   * definitive assertion lives in VisualPrimitiveGalleryQa.test.tsx).
+   * when rendered with `showLabel={false}`. The definitive per-component
+   * assertion lives in VisualPrimitiveGalleryQa.test.tsx.
+   *
+   * This summary entry flags primitives that are in the required set but whose
+   * registry entry has `recognisability !== 'immediately_recognisable'` —
+   * meaning the set and the registry have diverged and need reconciliation.
    */
   const noLabelAriaViolations = entries.filter(
     entry =>
       NO_LABEL_ARIA_REQUIRED_IDS.has(entry.id) &&
-      entry.recognisability === 'immediately_recognisable' &&
-      !entry.motionSafe, // motionSafe=false is a proxy canary — if any IR entry has motionSafe=false it has likely been edited without audit
+      entry.recognisability !== 'immediately_recognisable',
   );
 
   return {

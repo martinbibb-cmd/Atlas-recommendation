@@ -165,10 +165,8 @@ describe('topology layout zone regression', () => {
   it('KNOWN_OUT_OF_ZONE entries are actually present in the source file', () => {
     // Prevents stale whitelist entries from silently hiding real violations.
     for (const key of KNOWN_OUT_OF_ZONE) {
-      const [, xStr, yStr] = key.split(':');
       const found = calls.some(c => `${c.component}:${c.x}:${c.y}` === key);
       expect(found, `KNOWN_OUT_OF_ZONE entry "${key}" does not appear in visualTopologies.tsx — remove it`).toBe(true);
-      void xStr; void yStr; // referenced via key, suppress unused var warning
     }
   });
 });

@@ -21,7 +21,7 @@
  * • Cylinder SVG  — CYLINDER_SVG_W / CYLINDER_SVG_H are the shared viewBox
  *                   dimensions used by both CylinderPrimitive and
  *                   MixergyCylinderPrimitive so they remain pixel-aligned
- *                   when placed side-by-side in topologies.
+ *                   when placed side by side in topologies.
  * ────────────────────────────────────────────────────────────────────────────
  *
  * Canonical equipment heights at `md` scale (viewBox height × scale 1.0):

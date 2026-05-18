@@ -23,7 +23,7 @@
 
 | Equipment | Zone | x range | y range (top-left corner) |
 |---|---|---|---|
-| Boiler (any variant) | Left | 50–170 | 140–220 |
+| Boiler (any variant) | Left | 44–175 | 140–225 |
 | Cylinder (vented/unvented/Mixergy) | Right | 500–720 | 140–220 |
 | Radiators | Top-centre band | 240–720 | 60–130 |
 | Pumps | Return leg, left of centre | 140–220 | 230–290 |
