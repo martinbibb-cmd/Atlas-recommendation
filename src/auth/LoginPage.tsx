@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAtlasAuth } from './useAtlasAuth';
+import { GOOGLE_AUTH_DISABLED } from './firebaseAuthClient';
 
 export function LoginPage() {
   const { continueWithGoogle, isDevMockAuthEnabled } = useAtlasAuth();
@@ -46,25 +47,34 @@ export function LoginPage() {
           Sign in to access your workspace and visits.
         </p>
 
-        <button
-          type="button"
-          onClick={() => { void handleContinue(); }}
-          disabled={busy}
-          style={{
-            width: '100%',
-            padding: '0.72rem 1rem',
-            background: '#2563eb',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            fontSize: '0.95rem',
-            fontWeight: 600,
-            cursor: busy ? 'not-allowed' : 'pointer',
-            opacity: busy ? 0.75 : 1,
-          }}
-        >
-          {busy ? 'Signing in…' : 'Continue with Google'}
-        </button>
+        {GOOGLE_AUTH_DISABLED ? (
+          <p
+            role="status"
+            style={{ margin: 0, fontSize: '0.92rem', color: '#64748b', padding: '0.72rem 0' }}
+          >
+            Sign-in is not available at the moment. Please contact your administrator.
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { void handleContinue(); }}
+            disabled={busy}
+            style={{
+              width: '100%',
+              padding: '0.72rem 1rem',
+              background: '#2563eb',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: '0.95rem',
+              fontWeight: 600,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              opacity: busy ? 0.75 : 1,
+            }}
+          >
+            {busy ? 'Signing in…' : 'Continue with Google'}
+          </button>
+        )}
 
         {isDevMockAuthEnabled && (
           <p style={{ margin: '0.75rem 0 0', fontSize: '0.78rem', color: '#64748b' }}>

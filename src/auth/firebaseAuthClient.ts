@@ -11,6 +11,14 @@ import {
   type Unsubscribe,
 } from 'firebase/auth';
 
+/**
+ * Set VITE_GOOGLE_AUTH_DISABLED=1 to disable Google sign-in across all surfaces.
+ * When disabled, `firebaseSignInWithGoogle` throws and the login UI shows an
+ * unavailable state instead of the sign-in button.
+ */
+export const GOOGLE_AUTH_DISABLED =
+  import.meta.env.VITE_GOOGLE_AUTH_DISABLED === '1';
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? import.meta.env.FIREBASE_API_KEY_FALLBACK,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -58,6 +66,9 @@ export async function initializeFirebaseAnalytics(): Promise<Analytics | null> {
 }
 
 export async function firebaseSignInWithGoogle(): Promise<User> {
+  if (GOOGLE_AUTH_DISABLED) {
+    throw new Error('Google sign-in is currently disabled.');
+  }
   const auth = getFirebaseAuth();
   const provider = new GoogleAuthProvider();
   const result = await signInWithPopup(auth, provider);
