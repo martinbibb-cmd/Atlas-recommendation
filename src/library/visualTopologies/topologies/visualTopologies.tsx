@@ -159,8 +159,18 @@ function OpenVentedVentedCylinderTopology({ options }: { options: VisualTopology
         {/* Primary flow ring */}
         <line x1={120} y1={140} x2={560} y2={140} stroke={flow} strokeWidth={w} />
         <line x1={560} y1={140} x2={560} y2={205} stroke={flow} strokeWidth={w} />
-        <line x1={560} y1={300} x2={120} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={120} y1={300} x2={120} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/*
+          Return pipe — routes through pump (inline).
+          Right segment: from cylinder/rads rightward to pump outlet (x=223).
+          Vertical jog down to pump pipe centre y=267.
+          Pump handles x=159–223 at y=267.
+          Left segment: pump inlet (x=159) to boiler column (x=120).
+          Vertical rise to boiler connection.
+        */}
+        <line x1={560} y1={300} x2={223} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={223} y1={300} x2={223} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
+        <line x1={159} y1={267} x2={120} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={120} y1={267} x2={120} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
         <line x1={348} y1={140} x2={348} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -211,8 +221,15 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         {/* Primary flow ring */}
         <line x1={120} y1={140} x2={520} y2={140} stroke={flow} strokeWidth={w} />
         <line x1={520} y1={140} x2={520} y2={300} stroke={flow} strokeWidth={w} />
-        <line x1={520} y1={300} x2={120} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={120} y1={300} x2={120} y2={205} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/*
+          Return pipe — routes through pump (inline).
+          Right segment to pump outlet (x=223), jog to pump y=267,
+          pump handles x=159–223, left segment to boiler column.
+        */}
+        <line x1={520} y1={300} x2={223} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={223} y1={300} x2={223} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
+        <line x1={159} y1={267} x2={120} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={120} y1={267} x2={120} y2={205} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
         <line x1={340} y1={140} x2={340} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -308,7 +325,16 @@ function MixergyStratifiedTopology({ options }: { options: VisualTopologyRenderO
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary charging loop */}
         <line x1={130} y1={190} x2={370} y2={190} stroke={flow} strokeWidth={w} />
-        <line x1={130} y1={290} x2={370} y2={290} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/*
+          Return pipe — routes through pump (inline).
+          Pump at (170,256): inlet x=173, outlet x=237, centre y=277.
+          Return from cylinder (right) to pump outlet, jog to y=277,
+          pump handles x=173–237, left segment to boiler column.
+        */}
+        <line x1={370} y1={290} x2={237} y2={290} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={237} y1={290} x2={237} y2={277} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
+        <line x1={173} y1={277} x2={130} y2={277} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={130} y1={277} x2={130} y2={248} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Cylinder charging stubs */}
         <line x1={370} y1={190} x2={480} y2={190} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -347,13 +373,30 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
   return (
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
-        {/* Primary water loop */}
-        <line x1={132} y1={176} x2={420} y2={176} stroke={flow} strokeWidth={w} />
-        <line x1={132} y1={286} x2={420} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/*
+          PRIMARY water loop — system/boiler water stored in vessel body (amber).
+          Flow from boiler → store primary-in (left-top of store).
+          Return from store primary-out (left-bottom) → pump → boiler.
+        */}
+        <line x1={132} y1={176} x2={420} y2={176} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
+        {/*
+          Return pipe — routes through pump (inline).
+          Pump at (170,252): inlet x=173, outlet x=237, centre y=273.
+          Return from store to pump outlet, jog to y=273,
+          pump handles x=173–237, left segment to boiler column.
+        */}
+        <line x1={420} y1={286} x2={237} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
+        <line x1={237} y1={286} x2={237} y2={273} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
+        <line x1={173} y1={273} x2={132} y2={273} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={132} y1={273} x2={132} y2={232} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
-        {/* DHW stubs from thermal store coil */}
-        <line x1={518} y1={226} x2={676} y2={226} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={518} y1={162} x2={676} y2={162} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        {/*
+          POTABLE water path — cold mains enters coil (bottom-right of store),
+          heated by primary water, exits as hot DHW (top-right of store).
+          Separate from primary loop — no shared pipe segments.
+        */}
+        <line x1={518} y1={226} x2={676} y2={226} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-potable-pipe" />
+        <line x1={518} y1={162} x2={676} y2={162} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} data-testid="thermal-store-potable-pipe" />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
@@ -439,8 +482,16 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
         {/* Primary ring */}
         <line x1={130} y1={140} x2={620} y2={140} stroke={flow} strokeWidth={w} />
         <line x1={620} y1={140} x2={620} y2={300} stroke={flow} strokeWidth={w} />
-        <line x1={620} y1={300} x2={130} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={130} y1={300} x2={130} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/*
+          Return pipe — routes through pump (inline).
+          Pump at (165,248): inlet x=168, outlet x=232, centre y=269.
+          Right segment to pump outlet, jog to y=269,
+          pump handles x=168–232, left segment to boiler column.
+        */}
+        <line x1={620} y1={300} x2={232} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={232} y1={300} x2={232} y2={269} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
+        <line x1={168} y1={269} x2={130} y2={269} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={130} y1={269} x2={130} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
         <line x1={348} y1={140} x2={348} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />

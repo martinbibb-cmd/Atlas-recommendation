@@ -85,6 +85,7 @@ export function MixergyCylinderPrimitive({
             height={hotH - 1}
             rx={2}
             fill={printSafe ? '#888' : '#fca5a5'}
+            data-testid="mixergy-stratification-hot-zone"
           />
         )}
 
@@ -97,6 +98,7 @@ export function MixergyCylinderPrimitive({
             height={coldH - 1}
             rx={2}
             fill={printSafe ? '#ddd' : '#bfdbfe'}
+            data-testid="mixergy-stratification-cold-zone"
           />
         )}
 
@@ -109,6 +111,7 @@ export function MixergyCylinderPrimitive({
             y2={thermoclineY}
             stroke={printSafe ? '#000' : '#dc2626'}
             strokeWidth={2}
+            data-testid="mixergy-thermocline"
           />
         )}
 
