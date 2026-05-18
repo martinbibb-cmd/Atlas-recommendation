@@ -20,6 +20,7 @@ export const CONTEXTUAL_RECOGNISABILITY_ALLOWED_IDS = new Set([
 export const GALLERY_RENDERED_REGISTRY_IDS = new Set([
   'combi_boiler',
   'system_boiler',
+  'regular_boiler',
   'unvented_cylinder',
   'vented_cylinder',
   'mixergy_cylinder',
@@ -39,6 +40,7 @@ export const GALLERY_RENDERED_REGISTRY_IDS = new Set([
 export const VISUAL_PRIMITIVE_GALLERY_COVERAGE: Record<string, PrimitiveGalleryCoverageEntry> = {
   combi_boiler: { status: 'rendered' },
   system_boiler: { status: 'rendered' },
+  regular_boiler: { status: 'rendered' },
   unvented_cylinder: { status: 'rendered' },
   vented_cylinder: { status: 'rendered' },
   mixergy_cylinder: { status: 'rendered' },

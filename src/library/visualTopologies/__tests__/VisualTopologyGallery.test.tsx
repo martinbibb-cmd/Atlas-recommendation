@@ -42,7 +42,7 @@ describe('VisualTopologyGallery', () => {
     expect(screen.getByText(/Primary fixture — no-label view first/i)).toBeTruthy();
 
     for (const topology of VISUAL_TOPOLOGY_REGISTRY) {
-      expect(screen.getByTestId(`vt-gallery-card-${topology.id}`)).toBeTruthy();
+      expect(screen.getAllByTestId(`vt-gallery-card-${topology.id}`)).toHaveLength(2);
     }
   });
 

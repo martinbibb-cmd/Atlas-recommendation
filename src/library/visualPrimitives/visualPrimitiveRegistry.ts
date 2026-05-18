@@ -143,6 +143,22 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     printSafe: true,
     motionSafe: true,
   },
+  {
+    id: 'regular_boiler',
+    category: 'boiler',
+    displayName: 'Regular Boiler',
+    canonicalPurpose:
+      'Heat-only wall-mounted boiler serving heating flow/return with a separate cylinder and external pump arrangement.',
+    sourceLocations: [
+      'public/images/systems/regular-boiler.svg',
+      'src/library/visualPrimitives/primitives/BoilerPrimitive.tsx',
+    ],
+    reuseStatus: 'canonical_extracted',
+    abstractionLevel: 'physical_schematic',
+    recognisability: 'immediately_recognisable',
+    printSafe: true,
+    motionSafe: true,
+  },
 
   // ── Cylinders ───────────────────────────────────────────────────────────────
 
