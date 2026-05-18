@@ -1,0 +1,331 @@
+.atlas-physics-visual-card {
+  border-radius: 22px;
+  border: 1px solid #dbe4f0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.atlas-physics-visual-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.atlas-physics-visual-card__eyebrow,
+.atlas-story-panel__label,
+.atlas-system-state-graphic__label,
+.atlas-heat-flow-graphic__phase-label,
+.atlas-water-reserve-graphic__event,
+.atlas-water-reserve-graphic__annotation,
+.atlas-water-reserve-graphic__mode,
+.atlas-library-storyboard__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+}
+
+.atlas-physics-visual-card__title {
+  margin: 0.2rem 0 0;
+  color: #0f172a;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.atlas-physics-visual-card__status {
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.atlas-physics-visual-card--good .atlas-physics-visual-card__status {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.atlas-physics-visual-card--warn .atlas-physics-visual-card__status {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.atlas-physics-visual-card--danger .atlas-physics-visual-card__status {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.atlas-physics-visual-card--neutral .atlas-physics-visual-card__status {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.atlas-physics-visual-card__takeaway {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.atlas-physics-visual-card__detail {
+  margin: 0;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.atlas-story-panel {
+  display: grid;
+  gap: 0.55rem;
+  border-radius: 18px;
+  padding: 0.85rem;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid #dbe4f0;
+}
+
+.atlas-story-panel__summary {
+  margin: 0;
+  color: #0f172a;
+  line-height: 1.45;
+}
+
+.atlas-story-panel__bullets {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+  color: #334155;
+}
+
+.atlas-system-state-graphic {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.atlas-system-state-graphic__rail {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+
+.atlas-system-state-graphic__node {
+  border-radius: 18px;
+  border: 1px solid #dbe4f0;
+  padding: 0.8rem;
+  background: #fff;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.atlas-system-state-graphic__node--active {
+  border-color: #94a3b8;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.atlas-system-state-graphic__value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.atlas-system-state-graphic__detail,
+.atlas-heat-flow-graphic__phase-copy,
+.atlas-water-reserve-graphic__copy,
+.atlas-library-storyboard__copy {
+  margin: 0;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.atlas-heat-flow-graphic {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.atlas-heat-flow-graphic__lane {
+  display: flex;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 78px;
+}
+
+.atlas-heat-flow-graphic__phase {
+  min-width: 84px;
+  padding: 0.8rem 0.7rem;
+  border-radius: 18px;
+  display: grid;
+  gap: 0.35rem;
+  color: #0f172a;
+}
+
+.atlas-heat-flow-graphic__phase--good {
+  background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+.atlas-heat-flow-graphic__phase--warn {
+  background: linear-gradient(180deg, #ffedd5 0%, #fed7aa 100%);
+}
+
+.atlas-heat-flow-graphic__phase--danger {
+  background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+}
+
+.atlas-heat-flow-graphic__phase--neutral {
+  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+}
+
+.atlas-heat-flow-graphic__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.atlas-water-reserve-graphic {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.atlas-water-reserve-graphic__scene {
+  display: grid;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.atlas-water-reserve-graphic__tank-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.atlas-water-reserve-graphic__tank {
+  position: relative;
+  width: 148px;
+  height: 244px;
+  border-radius: 74px;
+  border: 2px solid #cbd5e1;
+  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.atlas-water-reserve-graphic__usable,
+.atlas-water-reserve-graphic__recharge,
+.atlas-water-reserve-graphic__cool {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  border-radius: 60px;
+}
+
+.atlas-water-reserve-graphic__usable {
+  top: 10px;
+  background: linear-gradient(180deg, #fb923c 0%, #fdba74 100%);
+}
+
+.atlas-water-reserve-graphic__recharge {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.95) 0%, rgba(249, 115, 22, 0.75) 100%);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.2);
+}
+
+.atlas-water-reserve-graphic__cool {
+  bottom: 10px;
+  background: linear-gradient(180deg, #bfdbfe 0%, #7dd3fc 100%);
+}
+
+.atlas-water-reserve-graphic__reserve-line {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 2px;
+  background: rgba(15, 23, 42, 0.7);
+}
+
+.atlas-water-reserve-graphic__reserve-label,
+.atlas-water-reserve-graphic__recharge-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0.18rem 0.4rem;
+  border-radius: 999px;
+}
+
+.atlas-water-reserve-graphic__mode {
+  position: absolute;
+  top: 16px;
+  right: 14px;
+  color: #0f172a;
+}
+
+.atlas-water-reserve-graphic__events {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.atlas-water-reserve-graphic__event-card {
+  border-radius: 16px;
+  border: 1px solid #dbe4f0;
+  background: #fff;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.atlas-water-reserve-graphic__annotations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.atlas-water-reserve-graphic__annotation {
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 0.24rem 0.5rem;
+}
+
+.atlas-library-storyboard {
+  border-radius: 22px;
+  border: 1px solid #dbe4f0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.atlas-library-storyboard__preview {
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid #dbe4f0;
+  padding: 0.75rem;
+}
+
+.atlas-library-storyboard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.atlas-library-storyboard__meta-chip {
+  padding: 0.24rem 0.55rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+@media (min-width: 720px) {
+  .atlas-water-reserve-graphic__scene {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+}

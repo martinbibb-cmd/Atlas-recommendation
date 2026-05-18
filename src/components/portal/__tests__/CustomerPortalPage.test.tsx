@@ -176,6 +176,21 @@ describe('CustomerPortalPage', () => {
     expect(screen.queryByText('Stored hot water recovery timeline')).toBeNull();
   });
 
+  it('renders storytelling-led customer visuals for ageing and scenario comparison', async () => {
+    mockFetchSuccess({
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        surveyData: STORED_HOT_WATER_INPUT as unknown as ReportDetail['payload']['surveyData'],
+        engineInput: STORED_HOT_WATER_INPUT,
+      },
+    });
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
+    expect(screen.getByText('Boiler ageing and response')).toBeTruthy();
+    expect(screen.getByText('What each route would feel like at home')).toBeTruthy();
+  });
+
   it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {
     render(
       <CustomerPortalPage
