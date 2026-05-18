@@ -154,6 +154,7 @@ import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import { LibraryExplorerPage } from './library/dev/LibraryExplorerPage';
 import { VisualEducationLibraryQaHubPage } from './library/dev/VisualEducationLibraryQaHubPage';
 import { DiagramFixturePage } from './library/dev/DiagramFixturePage';
+import { SealedUnventedExplainerSlicePage } from './library/dev/SealedUnventedExplainerSlicePage';
 import { VisualPrimitiveGallery } from './library/visualPrimitives/VisualPrimitiveGallery';
 import { VisualTopologyGallery } from './library/visualTopologies/VisualTopologyGallery';
 import { AnalogyOverlayGallery } from './library/analogyOverlays/AnalogyOverlayGallery';
@@ -2297,6 +2298,19 @@ function AppInner() {
           </button>
         </div>
         <AnalogyOverlayGallery />
+      </div>
+    );
+  }
+
+  if (ACTIVE_VISUAL_EDUCATION_LIBRARY_SURFACE?.codeName === 'SealedUnventedExplainerSlicePage') {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/dev/devmenu'; }}>
+            ← Back
+          </button>
+        </div>
+        <SealedUnventedExplainerSlicePage />
       </div>
     );
   }

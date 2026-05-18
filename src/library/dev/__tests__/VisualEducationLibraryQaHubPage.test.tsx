@@ -5,13 +5,14 @@ import { DEV_UI_REGISTRY } from '../../../dev/devUiRegistry';
 import { VisualEducationLibraryQaHubPage } from '../VisualEducationLibraryQaHubPage';
 
 describe('VisualEducationLibraryQaHubPage', () => {
-  it('renders direct links to the three visual galleries and the legacy diagram fixture', () => {
+  it('renders direct links to the visual galleries, including the customer explainer slice', () => {
     render(<VisualEducationLibraryQaHubPage />);
 
     expect(screen.getByTestId('visual-education-library-qa-hub')).toBeTruthy();
     expect(screen.getByText(/Visual Primitive Gallery/i)).toBeTruthy();
     expect(screen.getByText(/Visual Topology Gallery/i)).toBeTruthy();
     expect(screen.getByText(/Analogy Overlay Gallery/i)).toBeTruthy();
+    expect(screen.getByText(/Sealed \+ Unvented Explainer Slice/i)).toBeTruthy();
     expect(screen.getByText(/Legacy Diagram Fixture/i)).toBeTruthy();
   });
 

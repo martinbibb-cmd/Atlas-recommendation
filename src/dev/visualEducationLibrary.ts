@@ -1,15 +1,17 @@
 export interface VisualEducationLibrarySurface {
-  id: 'visual-primitive-gallery' | 'visual-topology-gallery' | 'analogy-overlay-gallery';
-  codeName: 'VisualPrimitiveGallery' | 'VisualTopologyGallery' | 'AnalogyOverlayGallery';
-  commonName: 'Visual Primitive Gallery' | 'Visual Topology Gallery' | 'Analogy Overlay Gallery';
+  id: 'visual-primitive-gallery' | 'visual-topology-gallery' | 'analogy-overlay-gallery' | 'sealed-unvented-explainer-slice';
+  codeName: 'VisualPrimitiveGallery' | 'VisualTopologyGallery' | 'AnalogyOverlayGallery' | 'SealedUnventedExplainerSlicePage';
+  commonName: 'Visual Primitive Gallery' | 'Visual Topology Gallery' | 'Analogy Overlay Gallery' | 'Sealed + Unvented Explainer Slice';
   routePath:
     | '/dev/visual-primitive-gallery'
     | '/dev/visual-topology-gallery'
-    | '/dev/analogy-overlay-gallery';
+    | '/dev/analogy-overlay-gallery'
+    | '/dev/sealed-unvented-explainer-slice';
   queryFlag:
     | 'visual-primitive-gallery=1'
     | 'visual-topology-gallery=1'
-    | 'analogy-overlay-gallery=1';
+    | 'analogy-overlay-gallery=1'
+    | 'sealed-unvented-explainer-slice=1';
   description: string;
 }
 
@@ -66,6 +68,15 @@ export const VISUAL_EDUCATION_LIBRARY_SURFACES: readonly VisualEducationLibraryS
     queryFlag: 'analogy-overlay-gallery=1',
     description:
       'Anchored overlay QA gallery showing narration modes without hiding the baseline physical topology.',
+  },
+  {
+    id: 'sealed-unvented-explainer-slice',
+    codeName: 'SealedUnventedExplainerSlicePage',
+    commonName: 'Sealed + Unvented Explainer Slice',
+    routePath: '/dev/sealed-unvented-explainer-slice',
+    queryFlag: 'sealed-unvented-explainer-slice=1',
+    description:
+      'Single customer explainer slice proving hydraulic truth → physical topology → optional analogy overlays with mobile and print-safe previews.',
   },
 ] as const;
 
