@@ -34,3 +34,15 @@ export type { PumpPrimitiveProps } from './PumpPrimitive';
 
 export { ABVPrimitive } from './ABVPrimitive';
 export type { ABVPrimitiveProps } from './ABVPrimitive';
+
+export { HeaderTankPrimitive } from './HeaderTankPrimitive';
+export type { HeaderTankPrimitiveProps } from './HeaderTankPrimitive';
+
+export { FillingLoopPrimitive } from './FillingLoopPrimitive';
+export type { FillingLoopPrimitiveProps } from './FillingLoopPrimitive';
+
+export { ThermalStorePrimitive } from './ThermalStorePrimitive';
+export type { ThermalStorePrimitiveProps } from './ThermalStorePrimitive';
+
+export { PowerflushMachinePrimitive } from './PowerflushMachinePrimitive';
+export type { PowerflushMachinePrimitiveProps } from './PowerflushMachinePrimitive';

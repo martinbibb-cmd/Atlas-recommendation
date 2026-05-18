@@ -94,7 +94,7 @@ export function ExpansionVesselPrimitive({
         {/* Connection pipe stub at bottom */}
         <line
           x1={40} y1={80}
-          x2={40} y2={92}
+          x2={40} y2={94}
           stroke="#374151"
           strokeWidth={3}
         />
