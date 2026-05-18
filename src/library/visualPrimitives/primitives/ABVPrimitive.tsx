@@ -11,12 +11,12 @@
  * Visual convention:
  *   - Flow pipe horizontal at top (red / solid)
  *   - Return pipe horizontal at bottom (blue / dashed in printSafe)
- *   - Bypass spur connecting flow to return on the right side
- *   - Valve body: small diamond/rectangle on the bypass spur
+ *   - Bypass bridge connecting flow to return
+ *   - Compact inline valve body on the bridge
+ *   - Angled adjustment cap/head cue
  *   - Arrow on the bypass spur showing relief direction (flow → return)
  *
- * No existing rendering was found in the codebase; this is a net-new
- * canonical primitive.
+ * Canonical primitive for realistic ABV depiction in topology overlays.
  */
 
 import type { PrimitiveSize } from './BoilerPrimitive';
@@ -43,76 +43,86 @@ export function ABVPrimitive({
       aria-label="Automatic bypass valve"
     >
       <svg
-        width={Math.round(160 * scale)}
-        height={Math.round(80 * scale)}
-        viewBox="0 0 160 80"
+        width={Math.round(120 * scale)}
+        height={Math.round(84 * scale)}
+        viewBox="0 0 120 84"
         role="img"
         aria-hidden="true"
         focusable="false"
       >
-        {/* Flow pipe — top (hot) */}
+        {/* Flow header stub */}
         <line
-          x1={4} y1={20}
-          x2={156} y2={20}
+          x1={8} y1={20}
+          x2={112} y2={20}
           stroke={printSafe ? '#000' : '#ef4444'}
           strokeWidth={3}
         />
 
-        {/* Return pipe — bottom (cool) */}
+        {/* Return header stub */}
         <line
-          x1={4} y1={60}
-          x2={156} y2={60}
+          x1={8} y1={64}
+          x2={112} y2={64}
           stroke={printSafe ? '#555' : '#3b82f6'}
           strokeWidth={3}
           strokeDasharray={printSafe ? '6 3' : undefined}
         />
 
-        {/* Bypass spur — vertical, right side */}
+        {/* Bypass bridge between flow and return */}
         <line
-          x1={120} y1={20}
-          x2={120} y2={60}
+          x1={78} y1={20}
+          x2={78} y2={40}
           stroke="#374151"
           strokeWidth={2.5}
         />
-
-        {/* Bypass flow arrow */}
-        <polygon
-          points="116,44 120,52 124,44"
-          fill="#374151"
+        <line
+          x1={94} y1={44}
+          x2={94} y2={64}
+          stroke="#374151"
+          strokeWidth={2.5}
         />
+        <line x1={78} y1={40} x2={94} y2={44} stroke="#374151" strokeWidth={2.5} />
 
-        {/* Valve body — diamond on spur */}
+        {/* Inline valve body */}
         <rect
-          x={112} y={34}
-          width={16} height={12}
-          rx={2}
-          fill={printSafe ? '#d1d5db' : '#fef9c3'}
+          x={78}
+          y={37}
+          width={16}
+          height={10}
+          rx={3}
+          fill={printSafe ? '#d1d5db' : '#fde68a'}
           stroke="#374151"
           strokeWidth={1.5}
-          transform="rotate(45 120 40)"
         />
 
-        {/* ABV label on valve body */}
-        <text
-          x={120} y={43}
-          textAnchor="middle"
-          fontSize={6}
-          fontFamily="system-ui"
-          fontWeight="bold"
+        {/* Angled adjustment cap/head cue */}
+        <rect
+          x={87}
+          y={29}
+          width={9}
+          height={7}
+          rx={1.5}
+          transform="rotate(-45 91.5 32.5)"
+          fill={printSafe ? '#6b7280' : '#dc2626'}
+          stroke={printSafe ? '#111827' : '#7f1d1d'}
+          strokeWidth={1}
+          data-testid="abv-angled-cap"
+        />
+
+        {/* Bypass relief direction */}
+        <polygon
+          points="84,52 90,56 84,60"
           fill="#374151"
-        >
-          ABV
-        </text>
+        />
 
         {/* Pipe labels */}
-        <text x={72} y={14} textAnchor="middle" fontSize={7} fontFamily="system-ui" fill={printSafe ? '#000' : '#ef4444'}>
+        <text x={36} y={14} textAnchor="middle" fontSize={7} fontFamily="system-ui" fill={printSafe ? '#000' : '#ef4444'}>
           Flow
         </text>
-        <text x={72} y={72} textAnchor="middle" fontSize={7} fontFamily="system-ui" fill={printSafe ? '#555' : '#3b82f6'}>
+        <text x={42} y={78} textAnchor="middle" fontSize={7} fontFamily="system-ui" fill={printSafe ? '#555' : '#3b82f6'}>
           Return
         </text>
-        <text x={138} y={42} fontSize={7} fontFamily="system-ui" fill="#374151">
-          Bypass
+        <text x={100} y={42} fontSize={7} fontFamily="system-ui" fill="#374151">
+          ABV
         </text>
       </svg>
 

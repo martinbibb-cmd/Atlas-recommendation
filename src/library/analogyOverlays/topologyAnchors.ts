@@ -8,7 +8,7 @@ export interface TopologyAnchorPoint {
 
 const ANCHORS_BY_TOPOLOGY: Partial<Record<VisualTopologyId, readonly TopologyAnchorPoint[]>> = {
   abv_protected_heating_loop: [
-    { id: 'abv', x: 556, y: 214 },
+    { id: 'abv', x: 530, y: 205 },
     { id: 'pump', x: 190, y: 272 },
     { id: 'flow_header', x: 430, y: 140 },
     { id: 'return_header', x: 430, y: 300 },

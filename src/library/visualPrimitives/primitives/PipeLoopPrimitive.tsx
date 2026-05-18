@@ -126,18 +126,53 @@ export function PipeLoopPrimitive({
         <line x1={MID_X - 4} y1={B} x2={MID_X + 4} y2={B} stroke="#334155" strokeWidth={1} />
         <line x1={MID_X} y1={B - 4} x2={MID_X} y2={B + 4} stroke="#334155" strokeWidth={1} />
 
-        {/* Radiator stubs — top */}
-        {[60, 90, 120].map(x => (
-          <rect
-            key={x}
-            x={x - 8} y={T - 12}
-            width={16} height={12}
-            rx={2}
-            fill={printSafe ? '#d1d5db' : '#fca5a5'}
-            stroke={printSafe ? '#374151' : '#ef4444'}
-            strokeWidth={1}
-          />
-        ))}
+        {/* Radiators with bottom connections */}
+        {[58, 88, 118].map((x) => {
+          const radTop = 4;
+          const radBottom = 18;
+          const leftPort = x - 6;
+          const rightPort = x + 6;
+          return (
+            <g key={x}>
+              <rect
+                x={x - 8}
+                y={radTop}
+                width={16}
+                height={12}
+                rx={2}
+                fill={printSafe ? '#d1d5db' : '#fca5a5'}
+                stroke={printSafe ? '#374151' : '#ef4444'}
+                strokeWidth={1}
+              />
+              <line x1={rightPort} y1={radBottom} x2={rightPort} y2={T} stroke={flowColor} strokeWidth={1.7} />
+              <line
+                x1={leftPort}
+                y1={radBottom}
+                x2={leftPort}
+                y2={B}
+                stroke={returnColor}
+                strokeWidth={1.7}
+                strokeDasharray={printSafe ? '3 2' : undefined}
+              />
+              <rect
+                x={rightPort - 2.5}
+                y={radBottom - 1}
+                width={5}
+                height={3}
+                rx={1}
+                fill={printSafe ? '#9ca3af' : '#dc2626'}
+              />
+              <rect
+                x={leftPort - 2}
+                y={radBottom - 1}
+                width={4}
+                height={3}
+                rx={1}
+                fill={printSafe ? '#9ca3af' : '#94a3b8'}
+              />
+            </g>
+          );
+        })}
 
         {/* Flow direction arrows */}
         {showArrows && (

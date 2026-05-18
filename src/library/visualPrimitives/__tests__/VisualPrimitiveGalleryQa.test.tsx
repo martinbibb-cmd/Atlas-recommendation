@@ -39,6 +39,7 @@ describe('VisualPrimitiveGallery QA surface', () => {
 
     expect(screen.getByTestId('vp-gallery-primary-no-label-fixture')).toBeTruthy();
     expect(screen.getByText(/Primary fixture — no-label recognisability/i)).toBeTruthy();
+    expect(screen.getByTestId('vp-gallery-physical-fidelity-callouts').textContent).toContain('Primitive fidelity rule');
   });
 
   it('shows fail and warn states in QA banner when failing/warning primitives exist', () => {

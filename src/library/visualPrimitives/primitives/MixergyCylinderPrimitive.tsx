@@ -24,7 +24,7 @@ export interface MixergyCylinderPrimitiveProps {
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
-// SVG authored at 80×130
+// SVG authored at 84×132
 const BODY_X = 10;
 const BODY_Y = 14;
 const BODY_W = 60;
@@ -48,9 +48,9 @@ export function MixergyCylinderPrimitive({
       aria-label={`Mixergy cylinder — hot zone ${soc}% from top`}
     >
       <svg
-        width={Math.round(80 * scale)}
-        height={Math.round(130 * scale)}
-        viewBox="0 0 80 130"
+        width={Math.round(84 * scale)}
+        height={Math.round(132 * scale)}
+        viewBox="0 0 84 132"
         role="img"
         aria-hidden="true"
         focusable="false"
@@ -101,63 +101,39 @@ export function MixergyCylinderPrimitive({
           />
         )}
 
-        {/* SoC label */}
-        <text
-          x={BODY_X + BODY_W / 2}
-          y={BODY_Y + BODY_H / 2 + 4}
-          textAnchor="middle"
-          fontSize={10}
-          fontWeight="bold"
-          fontFamily="system-ui, sans-serif"
-          fill={printSafe ? '#000' : '#7f1d1d'}
-        >
-          {soc}%
-        </text>
-
-        {/* Top-down charge indicator */}
-        <text
-          x={BODY_X + BODY_W / 2}
-          y={BODY_Y + 10}
-          textAnchor="middle"
-          fontSize={7}
-          fontFamily="system-ui, sans-serif"
-          fill={printSafe ? '#000' : '#dc2626'}
-        >
-          ↓ Top-down
-        </text>
+        {/* Subtle upper-side charging point cue for Mixergy top-charge behaviour */}
+        <circle
+          cx={BODY_X + 8}
+          cy={BODY_Y + 10}
+          r={2}
+          fill={printSafe ? '#6b7280' : '#f97316'}
+          opacity={0.8}
+        />
 
         {/* Hot draw-off — top right */}
         <line
           x1={BODY_X + BODY_W} y1={BODY_Y + 20}
-          x2={78} y2={BODY_Y + 20}
+          x2={82} y2={BODY_Y + 20}
           stroke={printSafe ? '#000' : '#ef4444'}
           strokeWidth={2.5}
+          data-testid="mixergy-hot-draw-off"
         />
         <polygon
-          points={`72,${BODY_Y + 16} 78,${BODY_Y + 20} 72,${BODY_Y + 24}`}
+          points={`76,${BODY_Y + 16} 82,${BODY_Y + 20} 76,${BODY_Y + 24}`}
           fill={printSafe ? '#000' : '#ef4444'}
         />
 
-        {/* Cold inlet with diffuser — bottom left */}
+        {/* Cold mains inlet — low entry */}
         <line
           x1={0} y1={BODY_Y + BODY_H - 14}
           x2={BODY_X} y2={BODY_Y + BODY_H - 14}
           stroke={printSafe ? '#555' : '#3b82f6'}
           strokeWidth={2.5}
+          data-testid="mixergy-cold-entry"
         />
         <polygon
           points={`${BODY_X - 6},${BODY_Y + BODY_H - 18} ${BODY_X},${BODY_Y + BODY_H - 14} ${BODY_X - 6},${BODY_Y + BODY_H - 10}`}
           fill={printSafe ? '#555' : '#3b82f6'}
-        />
-        {/* Diffuser whiskers */}
-        <path
-          d={`M ${BODY_X + 1} ${BODY_Y + BODY_H - 18}
-              C ${BODY_X + 8} ${BODY_Y + BODY_H - 18},
-                ${BODY_X + 12} ${BODY_Y + BODY_H - 10},
-                ${BODY_X + 4} ${BODY_Y + BODY_H - 8}`}
-          stroke="#64748b"
-          strokeWidth={1}
-          fill="none"
         />
       </svg>
 

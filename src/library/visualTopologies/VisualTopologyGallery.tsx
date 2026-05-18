@@ -106,6 +106,13 @@ export function VisualTopologyGallery() {
         <p style={{ margin: '0 0 0.75rem', fontSize: 12, color: '#713f12', background: '#fef9c3', border: '1px solid #fde047', borderRadius: 8, padding: '0.5rem 0.75rem' }}>
           Labels hidden for recognisability QA. Pipework must remain physically readable without text.
         </p>
+        <div
+          data-testid="vt-gallery-physical-realism-callouts"
+          style={{ margin: '0 0 0.75rem', fontSize: 12, color: '#1e3a8a', background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 8, padding: '0.5rem 0.75rem', display: 'grid', gap: 2 }}
+        >
+          <span>QA checks: bottom-based radiator connections, ABV shape realism, Mixergy simplicity, and Mixergy vs thermal-store separation.</span>
+          <span>Warn on excessive hose/loop routing; flow and return should be traceable by eye to real component ports.</span>
+        </div>
         <section data-testid="vt-gallery-grid-no-label" style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
           {VISUAL_TOPOLOGY_REGISTRY.map((entry) => (
             <TopologyCard
