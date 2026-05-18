@@ -19,15 +19,11 @@ export interface FillingLoopPrimitiveProps {
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 const FLOW_PIPE_Y = 20;
 const RETURN_PIPE_Y = 52;
-const LEFT_GHOST_LINK_START_X = 48;
-const LEFT_GHOST_LINK_JOIN_X = 72;
-const RIGHT_GHOST_LINK_JOIN_X = 78;
-const RIGHT_GHOST_LINK_END_X = 102;
+const LEFT_GHOST_LINK_GEOMETRY = { startX: 48, joinX: 72, controlX: 58 } as const;
+const RIGHT_GHOST_LINK_GEOMETRY = { joinX: 78, endX: 102, controlX: 92 } as const;
 const GHOST_LINK_CURVE_Y = 47;
 const DISCONNECT_GAP_START_X = 73;
 const DISCONNECT_GAP_END_X = 77;
-const LEFT_GHOST_CURVE_CONTROL_X = 58;
-const RIGHT_GHOST_CURVE_CONTROL_X = 92;
 
 export function FillingLoopPrimitive({
   showLabel = true,
@@ -68,7 +64,7 @@ export function FillingLoopPrimitive({
         />
 
         <path
-          d={`M ${LEFT_GHOST_LINK_START_X} ${FLOW_PIPE_Y} C ${LEFT_GHOST_CURVE_CONTROL_X} ${FLOW_PIPE_Y}, ${LEFT_GHOST_CURVE_CONTROL_X} ${GHOST_LINK_CURVE_Y}, ${LEFT_GHOST_LINK_JOIN_X} ${GHOST_LINK_CURVE_Y}`}
+          d={`M ${LEFT_GHOST_LINK_GEOMETRY.startX} ${FLOW_PIPE_Y} C ${LEFT_GHOST_LINK_GEOMETRY.controlX} ${FLOW_PIPE_Y}, ${LEFT_GHOST_LINK_GEOMETRY.controlX} ${GHOST_LINK_CURVE_Y}, ${LEFT_GHOST_LINK_GEOMETRY.joinX} ${GHOST_LINK_CURVE_Y}`}
           stroke="#374151"
           strokeWidth={2.5}
           strokeDasharray="3 2"
@@ -77,7 +73,7 @@ export function FillingLoopPrimitive({
           fill="none"
         />
         <path
-          d={`M ${RIGHT_GHOST_LINK_JOIN_X} ${GHOST_LINK_CURVE_Y} C ${RIGHT_GHOST_CURVE_CONTROL_X} ${GHOST_LINK_CURVE_Y}, ${RIGHT_GHOST_CURVE_CONTROL_X} ${FLOW_PIPE_Y}, ${RIGHT_GHOST_LINK_END_X} ${FLOW_PIPE_Y}`}
+          d={`M ${RIGHT_GHOST_LINK_GEOMETRY.joinX} ${GHOST_LINK_CURVE_Y} C ${RIGHT_GHOST_LINK_GEOMETRY.controlX} ${GHOST_LINK_CURVE_Y}, ${RIGHT_GHOST_LINK_GEOMETRY.controlX} ${FLOW_PIPE_Y}, ${RIGHT_GHOST_LINK_GEOMETRY.endX} ${FLOW_PIPE_Y}`}
           stroke="#374151"
           strokeWidth={2.5}
           strokeDasharray="3 2"
