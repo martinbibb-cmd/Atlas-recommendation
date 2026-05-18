@@ -75,7 +75,7 @@ export function VisualEducationLibraryQaHubPage() {
         <div>
           <h1 style={{ margin: '0 0 0.35rem', fontSize: 24 }}>{VISUAL_EDUCATION_LIBRARY_QA_HUB.commonName}</h1>
           <p style={{ margin: 0, color: '#475569', fontSize: 13, maxWidth: '78ch' }}>
-            This is the front door for the visual QA work. Use it to reach the PR 1 primitive gallery, PR 2 topology gallery, PR 3 overlay gallery, and the older diagram fixture without guessing hidden URLs.
+            This is the front door for the visual QA work. Use it to reach the primitive, topology, overlay, and customer explainer galleries, plus the older comparison fixtures, without guessing hidden URLs.
           </p>
         </div>
         <section

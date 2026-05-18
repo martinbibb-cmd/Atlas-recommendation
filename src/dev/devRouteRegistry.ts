@@ -265,6 +265,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: getVisualEducationLibrarySurface('SealedUnventedExplainerSlicePage').codeName,
+    routePath: getVisualEducationLibrarySurface('SealedUnventedExplainerSlicePage').routePath,
+    queryFlags: [getVisualEducationLibrarySurface('SealedUnventedExplainerSlicePage').queryFlag],
+    fullRouteExample: getVisualEducationLibrarySurface('SealedUnventedExplainerSlicePage').routePath,
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
     codeName: 'LibraryCoverageAuditPanel',
     fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
     routeKind: 'derived',
