@@ -37,6 +37,30 @@ export const GALLERY_RENDERED_REGISTRY_IDS = new Set([
   'expansion_vessel',
 ]);
 
+/**
+ * No-label aria-label rule:
+ *
+ * Every primitive with `immediately_recognisable` status must pass the
+ * no-label comprehension test: when rendered with `showLabel={false}`, the
+ * root element must still carry an `aria-label` attribute whose value is
+ * non-empty so screen readers can identify the equipment without the visual
+ * label below the SVG.
+ *
+ * This set lists all primitive IDs that are subject to this rule. Extend it
+ * whenever a new `immediately_recognisable` primitive is registered.
+ */
+export const NO_LABEL_ARIA_REQUIRED_IDS = new Set([
+  'combi_boiler',
+  'system_boiler',
+  'regular_boiler',
+  'unvented_cylinder',
+  'vented_cylinder',
+  'panel_radiator',
+  'powerflush_machine',
+  'pressure_gauge',
+  'cold_water_storage_tank',
+]);
+
 export const VISUAL_PRIMITIVE_GALLERY_COVERAGE: Record<string, PrimitiveGalleryCoverageEntry> = {
   combi_boiler: { status: 'rendered' },
   system_boiler: { status: 'rendered' },
@@ -94,6 +118,7 @@ export interface VisualPrimitiveQaSummary {
   criticalRecognisabilityFailures: VisualPrimitiveEntry[];
   contextualWithoutQaNote: VisualPrimitiveEntry[];
   contextualOutsideAllowedSet: VisualPrimitiveEntry[];
+  noLabelAriaViolations: VisualPrimitiveEntry[];
 }
 
 export function buildVisualPrimitiveQaSummary(
@@ -121,6 +146,24 @@ export function buildVisualPrimitiveQaSummary(
     entry => !CONTEXTUAL_RECOGNISABILITY_ALLOWED_IDS.has(entry.id),
   );
 
+  /**
+   * No-label aria-label violations:
+   *
+   * Any `immediately_recognisable` primitive whose id is in
+   * NO_LABEL_ARIA_REQUIRED_IDS must supply a non-empty `aria-label` even
+   * when rendered with `showLabel={false}`. The definitive per-component
+   * assertion lives in VisualPrimitiveGalleryQa.test.tsx.
+   *
+   * This summary entry flags primitives that are in the required set but whose
+   * registry entry has `recognisability !== 'immediately_recognisable'` —
+   * meaning the set and the registry have diverged and need reconciliation.
+   */
+  const noLabelAriaViolations = entries.filter(
+    entry =>
+      NO_LABEL_ARIA_REQUIRED_IDS.has(entry.id) &&
+      entry.recognisability !== 'immediately_recognisable',
+  );
+
   return {
     needsRebuildEntries,
     abstractPlaceholderEntries,
@@ -128,5 +171,6 @@ export function buildVisualPrimitiveQaSummary(
     criticalRecognisabilityFailures,
     contextualWithoutQaNote,
     contextualOutsideAllowedSet,
+    noLabelAriaViolations,
   };
 }

@@ -13,6 +13,7 @@
  * Connection stub at the base shows the pipe connection back to the circuit.
  */
 
+import { LABEL_FONT_SIZE } from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
 export interface ExpansionVesselPrimitiveProps {
@@ -107,7 +108,7 @@ export function ExpansionVesselPrimitive({
       </svg>
 
       {showLabel && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+        <span style={{ fontSize: LABEL_FONT_SIZE, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
           Expansion vessel
         </span>
       )}
