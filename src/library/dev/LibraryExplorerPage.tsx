@@ -151,6 +151,9 @@ export function LibraryExplorerPage() {
             <span className="atlas-library-storyboard__meta-chip">{`Concepts ${audit.readinessScore.projectionSafeCount}/${audit.readinessScore.totalConcepts}`}</span>
             <span className="atlas-library-storyboard__meta-chip">{`Backlog ${backlog.backlogItems.length}`}</span>
           </div>
+          <p className="atlas-library-storyboard__copy">
+            <a href="/dev/diagram-fixture">Open Diagram Fixture →</a>
+          </p>
         </section>
       </header>
 

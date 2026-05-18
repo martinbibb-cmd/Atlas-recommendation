@@ -9,10 +9,14 @@ import {
 } from '../demoJourneys';
 import {
   FlowRestrictionBottleneckDiagram,
+  MagneticFilterDiagram,
   OpenVentedToUnventedDiagram,
+  PowerflushConditionLedDiagram,
   PressureVsStorageDiagram,
+  StratifiedCylinderMixergyDiagram,
   StoredHotWaterRecoveryTimelineDiagram,
   SystemFitDecisionMapDiagram,
+  SystemPressureWindowDiagram,
   WarmVsHotRadiatorsDiagram,
   WarmRadiatorEmitterSizingDiagram,
   WaterMainLimitationDiagram,
@@ -69,6 +73,26 @@ describe('educationalDiagramSystem', () => {
 
     it('WeatherCompensationCurveDiagram renders data-print-safe when printSafe=true', () => {
       const { container } = render(<WeatherCompensationCurveDiagram printSafe />);
+      expect(container.querySelector('[data-print-safe="true"]')).toBeInTheDocument();
+    });
+
+    it('StratifiedCylinderMixergyDiagram renders data-print-safe when printSafe=true', () => {
+      const { container } = render(<StratifiedCylinderMixergyDiagram printSafe />);
+      expect(container.querySelector('[data-print-safe="true"]')).toBeInTheDocument();
+    });
+
+    it('PowerflushConditionLedDiagram renders data-print-safe when printSafe=true', () => {
+      const { container } = render(<PowerflushConditionLedDiagram printSafe />);
+      expect(container.querySelector('[data-print-safe="true"]')).toBeInTheDocument();
+    });
+
+    it('MagneticFilterDiagram renders data-print-safe when printSafe=true', () => {
+      const { container } = render(<MagneticFilterDiagram printSafe />);
+      expect(container.querySelector('[data-print-safe="true"]')).toBeInTheDocument();
+    });
+
+    it('SystemPressureWindowDiagram renders data-print-safe when printSafe=true', () => {
+      const { container } = render(<SystemPressureWindowDiagram printSafe />);
       expect(container.querySelector('[data-print-safe="true"]')).toBeInTheDocument();
     });
 
@@ -143,6 +167,26 @@ describe('educationalDiagramSystem', () => {
       expect(container.querySelector('.atlas-edu-diagram__screen-reader-summary')).toBeInTheDocument();
     });
 
+    it('StratifiedCylinderMixergyDiagram has screen-reader summary', () => {
+      const { container } = render(<StratifiedCylinderMixergyDiagram />);
+      expect(container.querySelector('.atlas-edu-diagram__screen-reader-summary')).toBeInTheDocument();
+    });
+
+    it('PowerflushConditionLedDiagram has screen-reader summary', () => {
+      const { container } = render(<PowerflushConditionLedDiagram />);
+      expect(container.querySelector('.atlas-edu-diagram__screen-reader-summary')).toBeInTheDocument();
+    });
+
+    it('MagneticFilterDiagram has screen-reader summary', () => {
+      const { container } = render(<MagneticFilterDiagram />);
+      expect(container.querySelector('.atlas-edu-diagram__screen-reader-summary')).toBeInTheDocument();
+    });
+
+    it('SystemPressureWindowDiagram has screen-reader summary', () => {
+      const { container } = render(<SystemPressureWindowDiagram />);
+      expect(container.querySelector('.atlas-edu-diagram__screen-reader-summary')).toBeInTheDocument();
+    });
+
     it('each diagram has an aria-label', () => {
       const { container: c1 } = render(<PressureVsStorageDiagram />);
       expect(c1.querySelector('[aria-label]')).toBeInTheDocument();
@@ -170,6 +214,18 @@ describe('educationalDiagramSystem', () => {
 
       const { container: c9 } = render(<WeatherCompensationCurveDiagram />);
       expect(c9.querySelector('[aria-label]')).toBeInTheDocument();
+
+      const { container: c10 } = render(<StratifiedCylinderMixergyDiagram />);
+      expect(c10.querySelector('[aria-label]')).toBeInTheDocument();
+
+      const { container: c11 } = render(<PowerflushConditionLedDiagram />);
+      expect(c11.querySelector('[aria-label]')).toBeInTheDocument();
+
+      const { container: c12 } = render(<MagneticFilterDiagram />);
+      expect(c12.querySelector('[aria-label]')).toBeInTheDocument();
+
+      const { container: c13 } = render(<SystemPressureWindowDiagram />);
+      expect(c13.querySelector('[aria-label]')).toBeInTheDocument();
     });
   });
 
@@ -246,8 +302,15 @@ describe('educationalDiagramSystem', () => {
       }
     });
 
-    it('registry has exactly nine entries', () => {
-      expect(diagramExplanationRegistry).toHaveLength(9);
+    it('registry includes first-class maintenance and pressure explainers', () => {
+      const ids = diagramExplanationRegistry.map((entry) => entry.diagramId);
+      expect(ids).toContain('stratified_cylinder_mixergy');
+      expect(ids).toContain('powerflush_condition_led');
+      expect(ids).toContain('magnetic_filter_capture');
+      expect(ids).toContain('system_pressure_window');
+      // Intentional contract change: avoid hard-locking the registry to a fixed
+      // count so first-class explainer additions do not require brittle test rewrites.
+      expect(diagramExplanationRegistry.length).toBeGreaterThan(9);
     });
   });
 

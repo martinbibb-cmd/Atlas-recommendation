@@ -65,9 +65,8 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'open_vented_to_unvented',
     title: 'Open-vented to sealed + unvented',
-    visualStatus: 'draft',
-    customerReady: false,
-    replacementNeededReason: 'Needs a clearer customer-facing before-and-after illustration.',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['open_vented_to_unvented_upgrade', 'sealed_system_conversion', 'pressure_vs_storage'],
     misconceptionsTargeted: [
       'Removing loft tanks weakens the heating.',
@@ -76,9 +75,77 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
     ],
     journeyIds: ['open_vented_to_sealed_unvented'],
     screenReaderSummary:
-      'Side-by-side diagram. Left: open-vented system with cold water storage tank in loft and vented hot water cylinder. Right: sealed system with unvented cylinder fed directly by mains. Loft tanks are removed. Heating circuit remains unchanged.',
+      'Two-panel comparison. Left: open-vented setup with loft cold-water storage tank, vented cylinder, boiler, pump, and open vent path. Right: sealed system with boiler, pump, sealed-system cylinder, expansion vessel cutaway, filling-loop cue, and pressure gauge in the normal operating zone.',
     whatThisMeans:
-      'Switching to a sealed system with an unvented cylinder removes loft tanks and brings mains pressure to hot water outlets. The heating circuit and radiators remain unchanged.',
+      'The upgrade changes heating from an open vented path with loft-tank dependence to a sealed pressure-managed loop with expansion-vessel protection and controlled top-up practice.',
+  },
+  {
+    diagramId: 'stratified_cylinder_mixergy',
+    title: 'Stratified cylinder (Mixergy) cutaway',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['STR-01', 'stored_hot_water_efficiency', 'premium_hot_water_performance'],
+    misconceptionsTargeted: [
+      'A hot-water cylinder heats uniformly from top to bottom.',
+      'Stratification is just marketing language.',
+      'Useful draw-off only improves if the full cylinder is heated.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'regular_to_regular_unvented'],
+    screenReaderSummary:
+      'Side-by-side cylinder cutaway. Traditional cylinder shows broader blending and lukewarm middle water. Stratified Mixergy cylinder keeps a clear hot top layer, cold lower layer, and a sharper thermocline during draw-off.',
+    whatThisMeans:
+      'A stratified cylinder protects a usable hot layer at the top instead of blending the full store lukewarm, so household draw-off stays more predictable.',
+  },
+  {
+    diagramId: 'powerflush_condition_led',
+    title: 'Condition-led Powerflush',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['MNT-01', 'MNT-02', 'flow_restriction', 'system_work_explainer'],
+    misconceptionsTargeted: [
+      'Powerflushing is always required regardless of circuit condition.',
+      'Cleaning is cosmetic rather than hydraulic.',
+      'Dirty circuit water has no effect on radiator balance or pump load.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Before and after heating-loop diagram. Before shows dirty return path and patchy radiator heating. After shows a flushing machine with dirty water extraction and clean return path restoring more even heat.',
+    whatThisMeans:
+      'Powerflushing is condition-led: when contamination restricts flow, targeted cleaning can restore circulation and radiator performance.',
+  },
+  {
+    diagramId: 'magnetic_filter_capture',
+    title: 'Magnetic filter capture path',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['MNT-01', 'MNT-02', 'HYD-03'],
+    misconceptionsTargeted: [
+      'A magnetic filter is optional decoration.',
+      'Debris stays harmless once the system is running.',
+      'Filter position does not matter.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Return pipe passes through a magnetic filter body before the boiler. A removable magnetic core captures dark magnetite particles while cleaner return water continues to the boiler.',
+    whatThisMeans:
+      'A magnetic filter on the return helps protect the boiler and pump by capturing iron debris before it circulates through sensitive components.',
+  },
+  {
+    diagramId: 'system_pressure_window',
+    title: 'Sealed-system pressure window',
+    visualStatus: 'production_ready',
+    customerReady: true,
+    conceptIds: ['HYD-02', 'SAF-02'],
+    misconceptionsTargeted: [
+      'Higher pressure always means better heating.',
+      'Repeated top-up is normal and harmless.',
+      'Gauge movement between hot and cold means immediate failure.',
+    ],
+    journeyIds: ['open_vented_to_sealed_unvented', 'water_constraint_reality'],
+    screenReaderSummary:
+      'Pressure gauge with low, healthy, and high zones. The healthy band is centred around normal cold-fill values while warning zones call out low-circulation and high-pressure discharge risks.',
+    whatThisMeans:
+      'Stable pressure in the healthy zone supports reliable circulation; persistent low or high readings should be checked rather than ignored.',
   },
   {
     diagramId: 'system_fit_decision_map',
@@ -165,9 +232,8 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
   {
     diagramId: 'weather_compensation_curve',
     title: 'Weather compensation curve',
-    visualStatus: 'draft',
-    customerReady: false,
-    replacementNeededReason: 'Needs a customer-facing comfort expectation visual rather than a raw curve.',
+    visualStatus: 'production_ready',
+    customerReady: true,
     conceptIds: ['weather_compensation', 'control_strategy', 'flow_temperature'],
     misconceptionsTargeted: [
       'Flow temperature should stay fixed all day in all weather.',
@@ -176,9 +242,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
     ],
     journeyIds: ['heat_pump_reality'],
     screenReaderSummary:
-      'Line chart showing weather compensation: as outdoor temperature falls, target flow temperature rises along a smooth curve; as outdoor temperature rises, target flow temperature falls.',
+      'Two-part diagram with sections labelled Weather vs load compensation and Automatic bypass valve (ABV). The first section compares compensation behaviour on boiler-and-radiator systems; the second shows TRVs closing while ABV opens between flow and return to protect boiler circulation.',
     whatThisMeans:
-      'Weather compensation changes flow temperature automatically with outdoor conditions. Small day-to-day flow-temperature shifts are normal and help maintain stable comfort.',
+      'Weather compensation helps the boiler run gently before the home gets cold, while the automatic bypass valve protects flow through the boiler when radiator valves close.',
   },
 ];
 

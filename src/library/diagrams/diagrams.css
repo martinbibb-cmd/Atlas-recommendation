@@ -212,3 +212,310 @@
     border-right-color: #333333;
   }
 }
+
+.atlas-ukheating__svg {
+  width: 100%;
+  height: auto;
+  max-width: 360px;
+  color: #132238;
+}
+
+.atlas-ukheating__svg--wide {
+  max-width: 520px;
+}
+
+.atlas-ukheating__pipe,
+.atlas-ukheating__loop,
+.atlas-ukheating__curve,
+.atlas-ukheating__zone {
+  stroke: currentColor;
+  stroke-width: 3;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.atlas-ukheating__tank,
+.atlas-ukheating__cylinder,
+.atlas-ukheating__cylinder-shell,
+.atlas-ukheating__panel,
+.atlas-ukheating__boiler,
+.atlas-ukheating__gauge-face,
+.atlas-ukheating__vessel,
+.atlas-ukheating__filter-body {
+  fill: #eaf2fb;
+  stroke: #7b92ad;
+  stroke-width: 2;
+}
+
+.atlas-ukheating__rad,
+.atlas-ukheating__radiator {
+  fill: #f2d89c;
+  stroke: #7b92ad;
+  stroke-width: 1.5;
+}
+
+.atlas-ukheating__rad-cold {
+  fill: #dbe7f5;
+}
+
+.atlas-ukheating__rad-cool {
+  fill: #e1edf8;
+}
+
+.atlas-ukheating__rad-warm {
+  fill: #f6dca6;
+}
+
+.atlas-ukheating__rad-hot {
+  fill: #f1bf71;
+}
+
+.atlas-ukheating__gauge-band {
+  stroke: #3f9b62;
+  stroke-width: 5;
+  fill: none;
+}
+
+.atlas-ukheating__gauge-needle {
+  stroke: #1a2f4a;
+  stroke-width: 3;
+  transform-origin: center;
+}
+
+.atlas-ukheating__gauge-needle--healthy {
+  transform: rotate(0deg);
+}
+
+.atlas-ukheating__vent {
+  stroke-dasharray: 4 4;
+}
+
+.atlas-ukheating__vent-dot {
+  fill: #7b92ad;
+}
+
+.atlas-ukheating__diaphragm {
+  fill: #d8e6f7;
+  stroke: #466487;
+  stroke-width: 1.5;
+  transform-origin: center;
+}
+
+.atlas-ukheating__sensor {
+  fill: #d8e6f7;
+  stroke: #466487;
+  stroke-width: 2;
+}
+
+.atlas-ukheating__stat,
+.atlas-ukheating__flush-unit,
+.atlas-ukheating__filter-cap,
+.atlas-ukheating__impact-icon {
+  fill: #eef4fb;
+  stroke: #466487;
+  stroke-width: 2;
+}
+
+.atlas-ukheating__curve--steady {
+  stroke: #3f9b62;
+}
+
+.atlas-ukheating__curve--burst {
+  stroke: #b9722b;
+}
+
+.atlas-ukheating__pump {
+  fill: #eaf2fb;
+  stroke: #466487;
+  stroke-width: 2;
+}
+
+.atlas-ukheating__pump-stressed {
+  fill: #f7dfcb;
+}
+
+.atlas-ukheating__trv-closed {
+  fill: #d7dce5;
+}
+
+.atlas-ukheating__abv-path {
+  stroke: #3f9b62;
+  stroke-width: 2.5;
+  fill: none;
+  stroke-dasharray: 6 5;
+}
+
+.atlas-ukheating__abv {
+  fill: #d8f0df;
+  stroke: #2f7d4f;
+  stroke-width: 2;
+}
+
+.atlas-ukheating__filling-loop {
+  stroke-dasharray: 4 3;
+}
+
+.atlas-ukheating__valve-dot {
+  fill: #466487;
+}
+
+.atlas-ukheating__mixing-zone {
+  fill: #e1cfab;
+  stroke: #7b92ad;
+  stroke-width: 1.2;
+}
+
+.atlas-ukheating__hot-layer {
+  fill: #f2c06d;
+}
+
+.atlas-ukheating__cold-layer {
+  fill: #cfe0f2;
+}
+
+.atlas-ukheating__thermocline {
+  stroke: #4d6787;
+  stroke-width: 2;
+  fill: none;
+}
+
+.atlas-ukheating__thermocline--blur {
+  stroke-dasharray: 4 4;
+}
+
+.atlas-ukheating__thermocline--sharp {
+  stroke-width: 2.8;
+}
+
+.atlas-ukheating__diffuser {
+  stroke: #7f95af;
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 3 4;
+}
+
+.atlas-ukheating__draw-off-arrow,
+.atlas-ukheating__mains-arrow,
+.atlas-ukheating__flush-hose {
+  stroke: #466487;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.atlas-ukheating__flush-hose--return {
+  stroke-dasharray: 4 3;
+}
+
+.atlas-ukheating__dirty-loop {
+  stroke: #6f6f6f;
+}
+
+.atlas-ukheating__dirty-path {
+  stroke: #6f6f6f;
+  stroke-width: 2.6;
+  fill: none;
+  stroke-dasharray: 5 3;
+}
+
+.atlas-ukheating__clean-path {
+  stroke: #3f9b62;
+  stroke-width: 2.6;
+  fill: none;
+}
+
+.atlas-ukheating__filter-magnet {
+  stroke: #213852;
+  stroke-width: 3;
+}
+
+.atlas-ukheating__particle {
+  fill: #3a3a3a;
+}
+
+.atlas-ukheating__zone--low {
+  stroke: #4c6a8f;
+}
+
+.atlas-ukheating__zone--healthy {
+  stroke: #3f9b62;
+}
+
+.atlas-ukheating__zone--high {
+  stroke: #b9722b;
+}
+
+.atlas-ukheating__impact-mark {
+  stroke: #1e3553;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.atlas-ukheating__svg--animated .atlas-ukheating__gauge-needle {
+  animation: atlas-ukheating-gauge 6s ease-in-out infinite;
+}
+
+.atlas-ukheating__svg--animated .atlas-ukheating__diaphragm {
+  animation: atlas-ukheating-diaphragm 5s ease-in-out infinite;
+}
+
+.atlas-ukheating__svg--animated .atlas-ukheating__abv-path {
+  animation: atlas-ukheating-flow 2.2s linear infinite;
+}
+
+.atlas-ukheating__svg--animated .atlas-ukheating__particle {
+  animation: atlas-ukheating-capture 2.6s ease-in-out infinite;
+}
+
+@keyframes atlas-ukheating-gauge {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(6deg); }
+}
+
+@keyframes atlas-ukheating-diaphragm {
+  0%, 100% { transform: scaleX(1); }
+  50% { transform: scaleX(0.9); }
+}
+
+@keyframes atlas-ukheating-flow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -22; }
+}
+
+@keyframes atlas-ukheating-capture {
+  0%, 100% { transform: translateX(0); opacity: 0.95; }
+  50% { transform: translateX(6px); opacity: 0.55; }
+}
+
+[data-motion='off'] .atlas-ukheating__svg--animated *,
+[data-motion='reduce'] .atlas-ukheating__svg--animated * {
+  animation: none !important;
+}
+
+@media print {
+  .atlas-ukheating__tank,
+  .atlas-ukheating__cylinder,
+  .atlas-ukheating__cylinder-shell,
+  .atlas-ukheating__panel,
+  .atlas-ukheating__boiler,
+  .atlas-ukheating__gauge-face,
+  .atlas-ukheating__vessel,
+  .atlas-ukheating__filter-body,
+  .atlas-ukheating__rad,
+  .atlas-ukheating__radiator,
+  .atlas-ukheating__hot-layer,
+  .atlas-ukheating__cold-layer {
+    fill: #ffffff;
+    stroke: #333333;
+  }
+
+  .atlas-ukheating__curve--steady,
+  .atlas-ukheating__curve--burst,
+  .atlas-ukheating__zone--low,
+  .atlas-ukheating__zone--healthy,
+  .atlas-ukheating__zone--high,
+  .atlas-ukheating__abv-path {
+    stroke: #333333;
+  }
+}

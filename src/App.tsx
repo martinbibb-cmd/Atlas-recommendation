@@ -148,6 +148,7 @@ import {
 } from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import { LibraryExplorerPage } from './library/dev/LibraryExplorerPage';
+import { DiagramFixturePage } from './library/dev/DiagramFixturePage';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import CustomerPortalPreviewPage from './dev/CustomerPortalPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
@@ -697,6 +698,17 @@ const LIBRARY_EXPLORER_DEV_PATH =
   (
     window.location.pathname === '/dev/library-explorer'
     || new URLSearchParams(window.location.search).get('library-explorer') === '1'
+  );
+
+/**
+ * Detect /dev/diagram-fixture or ?diagram-fixture=1 —
+ * renders side-by-side mobile and print diagram QA fixtures.
+ */
+const DIAGRAM_FIXTURE_DEV_PATH =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/dev/diagram-fixture'
+    || new URLSearchParams(window.location.search).get('diagram-fixture') === '1'
   );
 
 /** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
@@ -2199,6 +2211,20 @@ function AppInner() {
           </button>
         </div>
         <LibraryExplorerPage />
+      </div>
+    );
+  }
+
+  // /dev/diagram-fixture (or ?diagram-fixture=1) — visual QA fixture for physical diagram recognisability.
+  if (DIAGRAM_FIXTURE_DEV_PATH) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/dev/devmenu'; }}>
+            ← Back
+          </button>
+        </div>
+        <DiagramFixturePage />
       </div>
     );
   }
