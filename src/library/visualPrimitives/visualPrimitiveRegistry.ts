@@ -210,6 +210,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
       'Large insulated vessel that stores primary heating water at high temperature (75–85 °C). Domestic hot water is produced via an internal heat exchanger coil — the stored water is never directly consumed.',
     sourceLocations: [
       'src/components/physics-visuals/visuals/ThermalStoreVisual.tsx',
+      'src/library/visualPrimitives/primitives/ThermalStorePrimitive.tsx',
     ],
     reuseStatus: 'canonical_extracted',
     abstractionLevel: 'physical_schematic',
@@ -260,6 +261,21 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     qaNote:
       'The P&ID circle-with-arrow convention is recognisable to engineers but may need a brief label for homeowners.',
   },
+  {
+    id: 'powerflush_machine',
+    category: 'pump',
+    displayName: 'Powerflush Machine',
+    canonicalPurpose:
+      'Service pump-and-reservoir unit used to circulate cleaning fluid through a heating circuit during condition-led flushing work.',
+    sourceLocations: [
+      'src/library/visualPrimitives/primitives/PowerflushMachinePrimitive.tsx',
+    ],
+    reuseStatus: 'canonical_extracted',
+    abstractionLevel: 'physical_schematic',
+    recognisability: 'immediately_recognisable',
+    printSafe: true,
+    motionSafe: true,
+  },
 
   // ── Pipework ────────────────────────────────────────────────────────────────
 
@@ -306,6 +322,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
       'Temporary connection between mains cold supply and sealed heating circuit used to re-pressurise. Two isolation valve dots show it is closed when not in use.',
     sourceLocations: [
       'src/library/diagrams/OpenVentedToUnventedDiagram.tsx (filling-loop and valve-dot elements)',
+      'src/library/visualPrimitives/primitives/FillingLoopPrimitive.tsx',
     ],
     reuseStatus: 'canonical_extracted',
     abstractionLevel: 'physical_schematic',
@@ -392,10 +409,11 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     category: 'tank',
     displayName: 'Cold Water Storage Tank (Loft)',
     canonicalPurpose:
-      'Rectangular loft tank that gravity-feeds a vented cylinder. Present in open-vented / tank-fed hot water systems. Sometimes two linked tanks.',
+      'Rectangular loft tank that provides tank-fed supply to a vented cylinder. Present in open-vented / tank-fed hot water systems.',
     sourceLocations: [
       'src/library/diagrams/OpenVentedToUnventedDiagram.tsx (tank rect in open-vented panel)',
       'src/library/diagrams/primitives/WaterStoreTank.tsx',
+      'src/library/visualPrimitives/primitives/HeaderTankPrimitive.tsx',
     ],
     reuseStatus: 'canonical_extracted',
     abstractionLevel: 'physical_schematic',

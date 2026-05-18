@@ -9,8 +9,10 @@ export interface PrimitiveGalleryCoverageEntry {
 
 export const CONTEXTUAL_RECOGNISABILITY_ALLOWED_IDS = new Set([
   'mixergy_cylinder',
+  'thermal_store',
   'expansion_vessel',
   'circulation_pump',
+  'filling_loop_valve',
   'abv',
   'magnetic_filter',
 ]);
@@ -21,12 +23,16 @@ export const GALLERY_RENDERED_REGISTRY_IDS = new Set([
   'unvented_cylinder',
   'vented_cylinder',
   'mixergy_cylinder',
+  'thermal_store',
   'panel_radiator',
   'circulation_pump',
+  'powerflush_machine',
   'pipe_loop',
+  'filling_loop_valve',
   'abv',
   'magnetic_filter',
   'pressure_gauge',
+  'cold_water_storage_tank',
   'expansion_vessel',
 ]);
 
@@ -36,21 +42,16 @@ export const VISUAL_PRIMITIVE_GALLERY_COVERAGE: Record<string, PrimitiveGalleryC
   unvented_cylinder: { status: 'rendered' },
   vented_cylinder: { status: 'rendered' },
   mixergy_cylinder: { status: 'rendered' },
-  thermal_store: {
-    status: 'missing',
-    note: 'No standalone primitive card yet; tracked for a follow-up gallery pass.',
-  },
+  thermal_store: { status: 'rendered' },
   panel_radiator: { status: 'rendered' },
   circulation_pump: { status: 'rendered' },
+  powerflush_machine: { status: 'rendered' },
   flow_pipe: {
     status: 'missing',
     note: 'Pipe segment primitive exists in diagrams but does not have a dedicated gallery card yet.',
   },
   pipe_loop: { status: 'rendered' },
-  filling_loop_valve: {
-    status: 'missing',
-    note: 'Filling-loop valve dots are diagram-inline and need a dedicated primitive fixture.',
-  },
+  filling_loop_valve: { status: 'rendered' },
   abv: { status: 'rendered' },
   magnetic_filter: { status: 'rendered' },
   pressure_gauge: { status: 'rendered' },
@@ -58,10 +59,7 @@ export const VISUAL_PRIMITIVE_GALLERY_COVERAGE: Record<string, PrimitiveGalleryC
     status: 'missing',
     note: 'Linear gauge is a readout control and has no dedicated physical-equipment fixture card.',
   },
-  cold_water_storage_tank: {
-    status: 'missing',
-    note: 'Cold-water storage tank is tracked but not yet represented in the gallery cards.',
-  },
+  cold_water_storage_tank: { status: 'rendered' },
   expansion_vessel: { status: 'rendered' },
   heat_flow_arrow: {
     status: 'missing',

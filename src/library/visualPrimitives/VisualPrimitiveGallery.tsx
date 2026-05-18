@@ -31,6 +31,10 @@ import {
   MagneticFilterPrimitive,
   PumpPrimitive,
   ABVPrimitive,
+  HeaderTankPrimitive,
+  FillingLoopPrimitive,
+  ThermalStorePrimitive,
+  PowerflushMachinePrimitive,
 } from './primitives';
 import { VISUAL_PRIMITIVE_REGISTRY } from './visualPrimitiveRegistry';
 import type { VisualPrimitiveEntry } from './visualPrimitiveRegistry';
@@ -102,6 +106,20 @@ const PRIMITIVES: PrimitiveRenderConfig[] = [
     ),
   },
   {
+    id: 'thermal_store',
+    label: 'Thermal Store',
+    render: (showLabel, printSafe) => (
+      <ThermalStorePrimitive showLabel={showLabel} printSafe={printSafe} size="md" />
+    ),
+  },
+  {
+    id: 'cold_water_storage_tank',
+    label: 'Header Tank',
+    render: (showLabel, printSafe) => (
+      <HeaderTankPrimitive showLabel={showLabel} printSafe={printSafe} size="md" />
+    ),
+  },
+  {
     id: 'panel_radiator_hot',
     label: 'Radiator (hot)',
     render: (showLabel, printSafe) => (
@@ -155,6 +173,20 @@ const PRIMITIVES: PrimitiveRenderConfig[] = [
     label: 'Circulation Pump',
     render: (showLabel, printSafe) => (
       <PumpPrimitive showLabel={showLabel} printSafe={printSafe} size="md" />
+    ),
+  },
+  {
+    id: 'powerflush_machine',
+    label: 'Powerflush Machine',
+    render: (showLabel, printSafe) => (
+      <PowerflushMachinePrimitive showLabel={showLabel} printSafe={printSafe} size="md" />
+    ),
+  },
+  {
+    id: 'filling_loop_valve',
+    label: 'Filling Loop',
+    render: (showLabel, printSafe) => (
+      <FillingLoopPrimitive showLabel={showLabel} printSafe={printSafe} size="md" />
     ),
   },
   {

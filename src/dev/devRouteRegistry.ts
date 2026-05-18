@@ -237,6 +237,14 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'VisualTopologyGallery',
+    routePath: '/dev/visual-topology-gallery',
+    queryFlags: ['visual-topology-gallery=1'],
+    fullRouteExample: '/dev/visual-topology-gallery',
+    routeKind: 'path',
+    access: 'dev_only',
+  },
+  {
     codeName: 'LibraryCoverageAuditPanel',
     fullRouteExample: '/dev/welcome-pack → Diagnostics · /dev/portal-fixtures → workflow',
     routeKind: 'derived',

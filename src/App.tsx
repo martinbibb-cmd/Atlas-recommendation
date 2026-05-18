@@ -150,6 +150,7 @@ import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
 import { LibraryExplorerPage } from './library/dev/LibraryExplorerPage';
 import { DiagramFixturePage } from './library/dev/DiagramFixturePage';
 import { VisualPrimitiveGallery } from './library/visualPrimitives/VisualPrimitiveGallery';
+import { VisualTopologyGallery } from './library/visualTopologies/VisualTopologyGallery';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import CustomerPortalPreviewPage from './dev/CustomerPortalPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
@@ -721,6 +722,17 @@ const VISUAL_PRIMITIVE_GALLERY_DEV_PATH =
   (
     window.location.pathname === '/dev/visual-primitive-gallery'
     || new URLSearchParams(window.location.search).get('visual-primitive-gallery') === '1'
+  );
+
+/**
+ * Detect /dev/visual-topology-gallery or ?visual-topology-gallery=1 —
+ * renders the PR 2 canonical physical topology QA gallery.
+ */
+const VISUAL_TOPOLOGY_GALLERY_DEV_PATH =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/dev/visual-topology-gallery'
+    || new URLSearchParams(window.location.search).get('visual-topology-gallery') === '1'
   );
 
 /** Detect /dev/inspector or /dev/component-discovery — renders Component Discovery utility directly. */
@@ -2251,6 +2263,20 @@ function AppInner() {
           </button>
         </div>
         <VisualPrimitiveGallery />
+      </div>
+    );
+  }
+
+  // /dev/visual-topology-gallery (or ?visual-topology-gallery=1) — PR 2 canonical visual topology QA gallery.
+  if (VISUAL_TOPOLOGY_GALLERY_DEV_PATH) {
+    return (
+      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+        <div style={{ padding: '0.5rem 1rem' }}>
+          <button className="back-btn" onClick={() => { window.location.href = '/dev/devmenu'; }}>
+            ← Back
+          </button>
+        </div>
+        <VisualTopologyGallery />
       </div>
     );
   }
