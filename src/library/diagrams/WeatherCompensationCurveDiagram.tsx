@@ -6,6 +6,13 @@ const SCREEN_READER_SUMMARY =
 const WHAT_THIS_MEANS =
   'Weather compensation helps the boiler run gently before the home gets cold, while the automatic bypass valve protects flow through the boiler when radiator valves close.';
 
+const CURVE_POINTS = [
+  { outdoor: '-2°C', flow: '50°C' },
+  { outdoor: '4°C', flow: '45°C' },
+  { outdoor: '10°C', flow: '38°C' },
+  { outdoor: '16°C', flow: '32°C' },
+];
+
 export interface WeatherCompensationCurveDiagramProps {
   printSafe?: boolean;
 }
@@ -16,7 +23,7 @@ export function WeatherCompensationCurveDiagram({
   return (
     <div
       className="atlas-edu-diagram__wrapper atlas-edu-diagram-primitives atlas-ukheating"
-      aria-label="Weather compensation, load compensation, and automatic bypass valve diagram"
+      aria-label="Two-part diagram: weather and load compensation comparison, then automatic bypass valve behaviour"
       data-print-safe={printSafe ? 'true' : undefined}
     >
       <p className="atlas-edu-diagram__screen-reader-summary">{SCREEN_READER_SUMMARY}</p>
@@ -29,6 +36,7 @@ export function WeatherCompensationCurveDiagram({
             role="img"
             aria-hidden="true"
             focusable="false"
+            aria-describedby="atlas-ukheating-weather-comp-labels"
             className={`atlas-ukheating__svg${printSafe ? '' : ' atlas-ukheating__svg--animated'}`}
           >
             <rect x="18" y="18" width="132" height="160" rx="10" className="atlas-ukheating__panel" />
@@ -44,8 +52,10 @@ export function WeatherCompensationCurveDiagram({
             <rect x="230" y="112" width="18" height="30" className="atlas-ukheating__rad" />
             <rect x="262" y="118" width="18" height="24" className="atlas-ukheating__rad" />
           </svg>
-          <p className="atlas-edu-diagram__label">Weather compensation: proactive warm and steady radiator flow</p>
-          <p className="atlas-edu-diagram__label">Load compensation: reacts after room temperature falls</p>
+          <div id="atlas-ukheating-weather-comp-labels" style={{ display: 'grid', gap: '0.35rem' }}>
+            <p className="atlas-edu-diagram__label">Weather compensation: proactive warm and steady radiator flow</p>
+            <p className="atlas-edu-diagram__label">Load compensation: reacts after room temperature falls</p>
+          </div>
         </section>
 
         <section className="atlas-edu-diagram__before-after-panel" aria-label="Automatic bypass valve behaviour">
@@ -55,6 +65,7 @@ export function WeatherCompensationCurveDiagram({
             role="img"
             aria-hidden="true"
             focusable="false"
+            aria-describedby="atlas-ukheating-abv-labels"
             className={`atlas-ukheating__svg${printSafe ? '' : ' atlas-ukheating__svg--animated'}`}
           >
             <path d="M 34 56 H 284 V 154 H 34 Z" className="atlas-ukheating__loop" />
@@ -66,10 +77,20 @@ export function WeatherCompensationCurveDiagram({
             <path d="M 142 134 C 172 112, 206 112, 236 134" className="atlas-ukheating__abv-path" />
             <circle cx="188" cy="124" r="8" className="atlas-ukheating__abv" />
           </svg>
-          <p className="atlas-edu-diagram__label">When TRVs close, radiator flow reduces</p>
-          <p className="atlas-edu-diagram__label">ABV opens to provide a safe bypass back to return</p>
+          <div id="atlas-ukheating-abv-labels" style={{ display: 'grid', gap: '0.35rem' }}>
+            <p className="atlas-edu-diagram__label">When TRVs close, radiator flow reduces</p>
+            <p className="atlas-edu-diagram__label">ABV opens to provide a safe bypass back to return</p>
+          </div>
         </section>
       </div>
+
+      <ul className="atlas-edu-diagram__timeline-phases-descriptions">
+        {CURVE_POINTS.map((point) => (
+          <li key={point.outdoor} className="atlas-edu-diagram__timeline-phase-desc">
+            <strong>{point.outdoor} outside:</strong> target flow around {point.flow}
+          </li>
+        ))}
+      </ul>
 
       <p className="atlas-edu-diagram__caption">{WHAT_THIS_MEANS}</p>
     </div>

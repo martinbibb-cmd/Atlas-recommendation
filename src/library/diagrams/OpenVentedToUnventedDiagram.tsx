@@ -27,14 +27,14 @@ export function OpenVentedToUnventedDiagram({
   return (
     <div
       className="atlas-edu-diagram__wrapper atlas-edu-diagram-primitives atlas-ukheating"
-      aria-label="Open-vented and sealed heating system comparison"
+      aria-label="Open-vented to sealed and unvented diagram"
       data-print-safe={printSafe ? 'true' : undefined}
     >
       <p className="atlas-edu-diagram__screen-reader-summary">{SCREEN_READER_SUMMARY}</p>
 
       <div className="atlas-edu-diagram__before-after">
         <section className="atlas-edu-diagram__before-after-panel" aria-label="Open-vented system">
-          <p className="atlas-edu-diagram__before-after-panel-label">Open-vented system</p>
+          <p className="atlas-edu-diagram__before-after-panel-label">Before: open-vented</p>
           <svg viewBox="0 0 320 210" role="img" aria-hidden="true" focusable="false" className="atlas-ukheating__svg">
             <rect x="24" y="18" width="62" height="36" rx="6" className="atlas-ukheating__tank" />
             <line x1="86" y1="36" x2="112" y2="36" className="atlas-ukheating__pipe" />
@@ -55,7 +55,7 @@ export function OpenVentedToUnventedDiagram({
         </section>
 
         <section className="atlas-edu-diagram__before-after-panel" aria-label="Sealed system">
-          <p className="atlas-edu-diagram__before-after-panel-label">Sealed system</p>
+          <p className="atlas-edu-diagram__before-after-panel-label">After: sealed + unvented</p>
           <svg
             viewBox="0 0 320 210"
             role="img"
