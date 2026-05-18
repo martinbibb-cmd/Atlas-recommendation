@@ -7,6 +7,7 @@ import {
 import { renderVisualTopology } from './topologies';
 import { VISUAL_PRIMITIVE_REGISTRY } from '../visualPrimitives/visualPrimitiveRegistry';
 import { HumanVisualReviewChecklist } from '../dev/HumanVisualReviewChecklist';
+import { assessTopologyHydraulicTruth } from '../hydraulicTruth';
 
 type SupplementalViewMode = 'mobile' | 'pipe_trace' | 'print_safe';
 
@@ -35,6 +36,11 @@ function TopologyCard({
   pipeTrace: boolean;
   mobileWidth: boolean;
 }) {
+  const installerReview = assessTopologyHydraulicTruth(entry.id);
+  const failingFlags = Object.entries(installerReview.flags)
+    .filter(([, value]) => value)
+    .map(([flag]) => flag);
+
   return (
     <article
       data-testid={`vt-gallery-card-${entry.id}`}
@@ -76,6 +82,41 @@ function TopologyCard({
             QA note: {entry.qaNote}
           </p>
         )}
+      </div>
+
+      <div
+        data-testid={`vt-installer-review-${entry.id}`}
+        style={{
+          fontSize: 11,
+          border: '1px solid #cbd5e1',
+          borderRadius: 8,
+          background: '#f8fafc',
+          padding: '0.5rem 0.6rem',
+          display: 'grid',
+          gap: 4,
+        }}
+      >
+        <p style={{ margin: 0, fontWeight: 600 }}>
+          Installer review mode · Plausibility score: {installerReview.plausibilityScore}%
+        </p>
+        <p style={{ margin: 0 }}>
+          <strong>Hydraulic intent:</strong> {installerReview.hydraulicIntentSummary}
+        </p>
+        <p style={{ margin: 0 }}>
+          <strong>Safety notes:</strong> {installerReview.safetyNotes.join(' · ')}
+        </p>
+        <p style={{ margin: 0 }}>
+          <strong>Regulatory notes:</strong> {installerReview.regulatoryNotes.join(' · ')}
+        </p>
+        <p style={{ margin: 0 }}>
+          <strong>Known simplifications:</strong> {installerReview.knownSimplifications.join(' · ')}
+        </p>
+        <p style={{ margin: 0 }}>
+          <strong>QA state:</strong>{' '}
+          {failingFlags.length === 0
+            ? 'PASS — no hydraulic-truth flags'
+            : `FLAGGED — ${failingFlags.join(', ')}`}
+        </p>
       </div>
     </article>
   );
@@ -207,6 +248,13 @@ export function VisualTopologyGallery() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section data-testid="vt-gallery-installer-review-summary" style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: 16, margin: '0 0 0.5rem' }}>Hydraulic truth installer review summary</h2>
+        <p style={{ margin: 0, fontSize: 12, color: '#334155' }}>
+          Topologies are now checked against canonical hydraulic truth constraints (hydraulic intent, safety, regulation, and simplification boundaries).
+        </p>
       </section>
 
       <section data-testid="vt-gallery-missing-primitive-warning">

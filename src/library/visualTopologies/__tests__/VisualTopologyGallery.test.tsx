@@ -43,9 +43,12 @@ describe('VisualTopologyGallery', () => {
     expect(screen.getByTestId('vt-gallery-primary-no-label')).toBeTruthy();
     expect(screen.getByText(/Primary fixture — no-label view first/i)).toBeTruthy();
     expect(screen.getByTestId('vt-gallery-physical-realism-callouts').textContent).toContain('bottom-based radiator connections');
+    expect(screen.getByTestId('vt-gallery-installer-review-summary')).toBeTruthy();
+    expect(screen.getByText(/Hydraulic truth installer review summary/i)).toBeTruthy();
 
     for (const topology of VISUAL_TOPOLOGY_REGISTRY) {
       expect(screen.getAllByTestId(`vt-gallery-card-${topology.id}`)).toHaveLength(2);
+      expect(screen.getAllByTestId(`vt-installer-review-${topology.id}`)).toHaveLength(2);
     }
   });
 
