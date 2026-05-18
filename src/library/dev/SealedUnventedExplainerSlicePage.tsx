@@ -27,7 +27,7 @@ const ANCHORS = new Map([
 const OVERLAYS: Record<AnalogyMode, ExplainerOverlay> = {
   basic_household: {
     summary: 'Think of the expansion vessel as a cushion: when heating water expands, that cushion absorbs the extra push so pressure stays controlled.',
-    accessibilitySummary: 'The diagram marks the expansion vessel, pressure gauge, filling loop, and safety discharge route on the physical system.',
+    accessibilitySummary: 'This view highlights the expansion vessel, pressure gauge, filling loop, and safety discharge route on the physical system.',
     elements: [
       { id: 'basic-vessel', type: 'callout', anchorId: 'expansion_vessel', label: 'Expansion cushion', offsetX: 100, offsetY: 20 },
       { id: 'basic-gauge', type: 'callout', anchorId: 'pressure_gauge', label: 'Normal pressure check', offsetX: 100, offsetY: -18 },
@@ -152,7 +152,7 @@ export function SealedUnventedExplainerSlicePage() {
   return (
     <main
       data-testid="sealed-unvented-explainer-slice"
-      style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a', padding: '1rem', display: 'grid', gap: '1.5rem', maxWidth: 920, margin: '0 auto' }}
+      style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a', padding: '1rem', display: 'grid', gap: '1.5rem', maxWidth: 920 /* ~70ch at 13px — comfortable reading width */, margin: '0 auto' }}
     >
       <header style={{ display: 'grid', gap: 6 }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>Sealed heating and stored hot water — what it means for your home</h1>
@@ -163,7 +163,7 @@ export function SealedUnventedExplainerSlicePage() {
 
       <article
         data-testid="sealed-unvented-customer-card"
-        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#f0fdf4', padding: '1rem 1.1rem', display: 'grid', gap: 10 }}
+        style={{ border: '1px solid #cbd5e1', borderRadius: 10, background: '#f0fdf4' /* green-50: reassuring, signals a positive change */, padding: '1rem 1.1rem', display: 'grid', gap: 10 }}
       >
         <h2 style={{ margin: 0, fontSize: 17, color: '#166534' }}>What changes — and why it's better</h2>
         <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8, fontSize: 14, lineHeight: 1.55 }}>
