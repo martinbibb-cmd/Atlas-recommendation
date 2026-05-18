@@ -34,15 +34,19 @@ import {
 } from './primitives';
 import { VISUAL_PRIMITIVE_REGISTRY } from './visualPrimitiveRegistry';
 import type { VisualPrimitiveEntry } from './visualPrimitiveRegistry';
+import {
+  VISUAL_PRIMITIVE_GALLERY_COVERAGE,
+  buildVisualPrimitiveQaSummary,
+} from './galleryQa';
 
 // ─── View mode ────────────────────────────────────────────────────────────────
 
 type GalleryViewMode = 'mobile' | 'print' | 'no_labels' | 'print_safe';
+type SupplementalViewMode = Exclude<GalleryViewMode, 'no_labels'>;
 
-const VIEW_MODE_LABELS: Record<GalleryViewMode, string> = {
+const SUPPLEMENTAL_VIEW_MODE_LABELS: Record<SupplementalViewMode, string> = {
   mobile: '📱 Mobile (320px)',
   print: '🖨 Print width (720px)',
-  no_labels: '🔍 No labels (homeowner ID test)',
   print_safe: '⬛ Print-safe (no colour cues)',
 };
 
@@ -283,16 +287,25 @@ function PrimitiveCard({
 // ─── Main gallery ─────────────────────────────────────────────────────────────
 
 export function VisualPrimitiveGallery() {
-  const [viewMode, setViewMode] = useState<GalleryViewMode>('mobile');
+  const [supplementalViewMode, setSupplementalViewMode] = useState<SupplementalViewMode>('mobile');
+  const supplementalContainerWidth = supplementalViewMode === 'print' ? 680 : 300;
+  const noLabelContainerWidth = 300;
 
-  const containerWidth = viewMode === 'print' ? 680 : 300;
+  const qaSummary = buildVisualPrimitiveQaSummary(VISUAL_PRIMITIVE_REGISTRY);
+  const failCount =
+    qaSummary.needsRebuildEntries.length +
+    qaSummary.abstractPlaceholderEntries.length +
+    qaSummary.criticalRecognisabilityFailures.length +
+    qaSummary.contextualWithoutQaNote.length +
+    qaSummary.contextualOutsideAllowedSet.length;
+  const warnCount = qaSummary.recognisableWithContextEntries.length;
+  const bannerState = failCount > 0 ? 'fail' : warnCount > 0 ? 'warn' : 'pass';
 
-  const needsRebuildCount = VISUAL_PRIMITIVE_REGISTRY.filter(
-    p => p.recognisability === 'needs_rebuild',
-  ).length;
-  const abstractCount = VISUAL_PRIMITIVE_REGISTRY.filter(
-    p => p.recognisability === 'abstract_placeholder',
-  ).length;
+  const bannerStyles: Record<'fail' | 'warn' | 'pass', { background: string; border: string; color: string }> = {
+    fail: { background: '#fee2e2', border: '#fca5a5', color: '#7f1d1d' },
+    warn: { background: '#fef9c3', border: '#fde047', color: '#713f12' },
+    pass: { background: '#dcfce7', border: '#86efac', color: '#166534' },
+  };
 
   return (
     <main
@@ -306,56 +319,51 @@ export function VisualPrimitiveGallery() {
         </h1>
         <p style={{ margin: '0 0 0.5rem', color: '#475569', fontSize: 13, maxWidth: '72ch' }}>
           Canonical heating-system physical object primitives. Physical truth layer only — no analogies, no
-          metaphors. A homeowner must be able to identify each object without labels.
+          metaphors. Primary fixture is no-label mode so recognisability can be reviewed first.
         </p>
 
         {/* Acceptance test banner */}
         <div
+          data-testid="vp-gallery-qa-banner"
           style={{
-            background: needsRebuildCount > 0 ? '#fee2e2' : '#dcfce7',
-            border: `1px solid ${needsRebuildCount > 0 ? '#fca5a5' : '#86efac'}`,
+            background: bannerStyles[bannerState].background,
+            border: `1px solid ${bannerStyles[bannerState].border}`,
             borderRadius: 8,
             padding: '0.5rem 0.75rem',
             fontSize: 12,
-            color: needsRebuildCount > 0 ? '#7f1d1d' : '#166534',
+            color: bannerStyles[bannerState].color,
             marginBottom: '0.75rem',
+            display: 'grid',
+            gap: 4,
           }}
         >
-          {needsRebuildCount > 0
-            ? `⚠ ${needsRebuildCount} primitive(s) marked "needs_rebuild" — must be redrawn before customer exposure.`
-            : '✓ No primitives marked needs_rebuild.'}
-          {abstractCount > 0 && (
-            <> · {abstractCount} abstract placeholder(s) — acceptable for concept explainers only, not as equipment symbols.</>
+          {failCount > 0 ? (
+            <>
+              <span>
+                ✖ FAIL — {qaSummary.needsRebuildEntries.length} needs_rebuild and{' '}
+                {qaSummary.abstractPlaceholderEntries.length} abstract_placeholder primitive(s) are present.
+              </span>
+              {(qaSummary.criticalRecognisabilityFailures.length > 0 ||
+                qaSummary.contextualOutsideAllowedSet.length > 0 ||
+                qaSummary.contextualWithoutQaNote.length > 0) && (
+                <span>
+                  Additional recognisability rule failures: {qaSummary.criticalRecognisabilityFailures.length} critical not
+                  immediately recognisable, {qaSummary.contextualOutsideAllowedSet.length} contextual item(s) outside
+                  allowed set, {qaSummary.contextualWithoutQaNote.length} allowed contextual item(s) missing QA note.
+                </span>
+              )}
+            </>
+          ) : (
+            <span>✓ PASS — No needs_rebuild or abstract_placeholder primitives.</span>
           )}
-        </div>
-
-        {/* View mode tabs */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {(Object.keys(VIEW_MODE_LABELS) as GalleryViewMode[]).map(mode => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              style={{
-                padding: '5px 12px',
-                borderRadius: 6,
-                border: '1px solid',
-                borderColor: viewMode === mode ? '#3b82f6' : '#cbd5e1',
-                background: viewMode === mode ? '#eff6ff' : '#fff',
-                color: viewMode === mode ? '#1d4ed8' : '#374151',
-                fontSize: 12,
-                fontWeight: viewMode === mode ? 600 : 400,
-                cursor: 'pointer',
-              }}
-              aria-pressed={viewMode === mode}
-            >
-              {VIEW_MODE_LABELS[mode]}
-            </button>
-          ))}
+          {warnCount > 0 && (
+            <span>⚠ WARN — {warnCount} primitive(s) marked recognisable_with_context.</span>
+          )}
         </div>
       </header>
 
-      {/* No-label test instruction */}
-      {viewMode === 'no_labels' && (
+      <section data-testid="vp-gallery-primary-no-label-fixture" style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: 16, margin: '0 0 0.5rem' }}>Primary fixture — no-label recognisability</h2>
         <div
           style={{
             background: '#fef9c3',
@@ -370,25 +378,119 @@ export function VisualPrimitiveGallery() {
           <strong>Homeowner ID test:</strong> Labels are hidden. Can you identify each piece of equipment?
           Boiler, cylinder, radiator, pump, gauge, filter and valve must all be identifiable without text.
         </div>
-      )}
+        <section
+          data-testid="vp-gallery-grid-no-labels"
+          style={{
+            display: 'grid',
+            gap: '1rem',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          }}
+        >
+          {PRIMITIVES.map(config => (
+            <PrimitiveCard
+              key={`no-label-${config.id}`}
+              config={config}
+              viewMode="no_labels"
+              containerWidth={noLabelContainerWidth}
+            />
+          ))}
+        </section>
+      </section>
 
-      {/* Grid */}
-      <section
-        data-testid="vp-gallery-grid"
-        style={{
-          display: 'grid',
-          gap: '1rem',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-        }}
-      >
-        {PRIMITIVES.map(config => (
-          <PrimitiveCard
-            key={config.id}
-            config={config}
-            viewMode={viewMode}
-            containerWidth={containerWidth}
-          />
-        ))}
+      <section style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: 16, margin: '0 0 0.5rem' }}>Supplemental labelled fixtures</h2>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: '1rem' }}>
+          {(Object.keys(SUPPLEMENTAL_VIEW_MODE_LABELS) as SupplementalViewMode[]).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setSupplementalViewMode(mode)}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 6,
+                border: '1px solid',
+                borderColor: supplementalViewMode === mode ? '#3b82f6' : '#cbd5e1',
+                background: supplementalViewMode === mode ? '#eff6ff' : '#fff',
+                color: supplementalViewMode === mode ? '#1d4ed8' : '#374151',
+                fontSize: 12,
+                fontWeight: supplementalViewMode === mode ? 600 : 400,
+                cursor: 'pointer',
+              }}
+              aria-pressed={supplementalViewMode === mode}
+            >
+              {SUPPLEMENTAL_VIEW_MODE_LABELS[mode]}
+            </button>
+          ))}
+        </div>
+        <section
+          data-testid="vp-gallery-grid-supplemental"
+          style={{
+            display: 'grid',
+            gap: '1rem',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          }}
+        >
+          {PRIMITIVES.map(config => (
+            <PrimitiveCard
+              key={`supplemental-${config.id}`}
+              config={config}
+              viewMode={supplementalViewMode}
+              containerWidth={supplementalContainerWidth}
+            />
+          ))}
+        </section>
+      </section>
+
+      <section style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: 16, margin: '0 0 0.75rem' }}>Gallery render coverage</h2>
+        <p style={{ margin: '0 0 0.75rem', fontSize: 12, color: '#475569' }}>
+          Every registry entry is explicitly marked as rendered or missing for PR 1.
+        </p>
+        <div style={{ overflowX: 'auto' }}>
+          <table
+            style={{
+              borderCollapse: 'collapse',
+              width: '100%',
+              fontSize: 11,
+              minWidth: 540,
+            }}
+          >
+            <thead>
+              <tr style={{ background: '#f1f5f9' }}>
+                {['ID', 'Coverage', 'Notes'].map(h => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign: 'left',
+                      padding: '6px 8px',
+                      border: '1px solid #cbd5e1',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {VISUAL_PRIMITIVE_REGISTRY.map(entry => {
+                const coverage = VISUAL_PRIMITIVE_GALLERY_COVERAGE[entry.id];
+                return (
+                  <tr key={`coverage-${entry.id}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '5px 8px', border: '1px solid #e2e8f0' }}>
+                      <code style={{ fontSize: 10 }}>{entry.id}</code>
+                    </td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #e2e8f0' }}>
+                      {coverage?.status ?? 'missing'}
+                    </td>
+                    <td style={{ padding: '5px 8px', border: '1px solid #e2e8f0' }}>
+                      {coverage?.note ?? 'Rendered in gallery'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Registry summary */}
