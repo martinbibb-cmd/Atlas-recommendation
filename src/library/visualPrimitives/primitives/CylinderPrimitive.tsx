@@ -50,6 +50,9 @@ const VARIANT_LABELS: Record<CylinderVariant, string> = {
 };
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
+const CYLINDER_FILL_UNVENTED = '#fed7aa';
+const CYLINDER_FILL_VENTED = '#fdba74';
+const CYLINDER_CHARGE_TEXT_COLOUR = '#7c2d12';
 
 export function CylinderPrimitive({
   variant = 'unvented',
@@ -60,7 +63,7 @@ export function CylinderPrimitive({
   animateFlow = false,
 }: CylinderPrimitiveProps) {
   const scale = SCALE[size];
-  void fillLevel;
+  const chargePct = Math.round(Math.max(0, Math.min(1, fillLevel)) * 100);
   const coldInY = CYLINDER_BODY_Y + CYLINDER_BODY_H - 12;
   const hotOutY = CYLINDER_BODY_Y + 14;
   const coilInY = CYLINDER_BODY_Y + Math.round(CYLINDER_BODY_H * 0.68);
@@ -71,7 +74,7 @@ export function CylinderPrimitive({
   return (
     <div
       style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
-      aria-label={VARIANT_LABELS[variant]}
+      aria-label={`${VARIANT_LABELS[variant]}, ${chargePct}% charged`}
     >
       <svg
         width={Math.round(CYLINDER_SVG_W * scale)}
@@ -98,8 +101,19 @@ export function CylinderPrimitive({
           width={CYLINDER_BODY_W - 2}
           height={CYLINDER_BODY_H - 2}
           rx={13}
-          fill={printSafe ? '#d1d5db' : (variant === 'unvented' ? '#fed7aa' : '#fdba74')}
+          fill={printSafe ? '#d1d5db' : (variant === 'unvented' ? CYLINDER_FILL_UNVENTED : CYLINDER_FILL_VENTED)}
         />
+        <text
+          x={CYLINDER_BODY_X + CYLINDER_BODY_W / 2}
+          y={CYLINDER_BODY_Y + CYLINDER_BODY_H / 2 + 4}
+          textAnchor="middle"
+          fontSize={9}
+          fontWeight="bold"
+          fontFamily="system-ui, sans-serif"
+          fill={printSafe ? '#111827' : CYLINDER_CHARGE_TEXT_COLOUR}
+        >
+          {chargePct}%
+        </text>
 
         {/* PRV symbol — only on unvented variant */}
         {variant === 'unvented' && (
@@ -179,7 +193,6 @@ export function CylinderPrimitive({
           x2={CYLINDER_SVG_W} y2={coilOutY}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
-          strokeDasharray={printSafe ? undefined : undefined}
           data-testid="cylinder-coil-flow-out-port"
           data-port-position="right"
           data-port-role="cylinder_coil_flow_out"
@@ -192,7 +205,7 @@ export function CylinderPrimitive({
           data-testid="cylinder-control-valve"
         />
         {variant === 'unvented' && (
-          <text x={12} y={coilInY - 7} fontSize={5} fontFamily="system-ui" fill={printSafe ? '#111827' : '#334155'}>
+          <text x={12} y={coilInY - 7} fontSize={7} fontFamily="system-ui" fill={printSafe ? '#111827' : '#334155'}>
             2-port
           </text>
         )}

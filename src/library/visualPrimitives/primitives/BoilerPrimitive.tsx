@@ -51,6 +51,7 @@ const VARIANT_LABELS: Record<BoilerVariant, string> = {
 };
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
+const BOILER_BODY_FILL = '#ffffff';
 
 export function BoilerPrimitive({
   variant = 'combi',
@@ -82,7 +83,7 @@ export function BoilerPrimitive({
           x={20} y={4}
           width={60} height={86}
           rx={5}
-          fill="#ffffff"
+          fill={BOILER_BODY_FILL}
           stroke="#1e3a8a"
           strokeWidth={2}
           strokeDasharray={printSafe ? '4 2' : undefined}
