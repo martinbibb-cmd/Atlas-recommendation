@@ -514,7 +514,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <a className="chip-btn" href={VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath}>Open canonical hub</a>
             {goldenReferenceSurface != null && (
-              <a className="chip-btn" href={goldenReferenceSurface.routePath}>Open golden reference system</a>
+              <a className="chip-btn" href={goldenReferenceSurface.routePath}>{goldenReferenceSurface.actionLabel ?? 'Open golden reference'}</a>
             )}
           </div>
         </div>
@@ -1905,7 +1905,7 @@ const STYLES: Record<string, CSSProperties> = {
   },
   featuredCardSummary: {
     margin: 0,
-    fontSize: '0.82rem',
+    fontSize: '0.8125rem',
     color: '#475569',
     maxWidth: '48rem',
   },
