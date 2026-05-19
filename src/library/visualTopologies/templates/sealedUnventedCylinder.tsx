@@ -21,6 +21,7 @@ import {
 } from '../../visualPrimitives/primitives';
 import {
   AUX_COLOUR,
+  BOILER_SYSTEM_SM_PORTS,
   CYLINDER_SM_PORTS,
   MidPipeArrow,
   PIPE_STROKE_BRANCH,
@@ -31,6 +32,7 @@ import {
   offsetPoint,
   pipeDash,
   pipeLabelProps,
+  portAttachPoint,
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
@@ -47,12 +49,14 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
   const d2LabelY          = rails.returnY + 18;                       // label y along discharge pipe
   const dhwLabelX         = cylinderDhwNearX + 2;                     // label x for cold/hot stubs
   const d2LabelX          = positions.unvented_cylinder.left + 126;   // label x for D2 discharge
-  const midFlowX          = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
-  const midReturnX        = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
 
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryReturn),
+    primaryFlow: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow),
+  };
   const cylinderPorts = {
     hotOut:          offsetPoint(positions.unvented_cylinder.left, positions.unvented_cylinder.top, CYLINDER_SM_PORTS.hotOut),
     coldIn:          offsetPoint(positions.unvented_cylinder.left, positions.unvented_cylinder.top, CYLINDER_SM_PORTS.coldIn),
@@ -60,16 +64,21 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
     coilFlowOut:     offsetPoint(positions.unvented_cylinder.left, positions.unvented_cylinder.top, CYLINDER_SM_PORTS.coilFlowOut),
     safetyDischarge: offsetPoint(positions.unvented_cylinder.left, positions.unvented_cylinder.top, CYLINDER_SM_PORTS.safetyDischarge),
   };
+  const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
+  const midFlowX = Math.round((boilerFlowAttach.x + pipe.flowRailEndX) / 2);
+  const midReturnX = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   return (
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={cylinderPorts.coilFlowIn.y} stroke={flow} strokeWidth={w} />
         {/* Return pipe — system boiler internal pump assumed */}
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* Radiator branch spurs — rad 1 */}
         {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (

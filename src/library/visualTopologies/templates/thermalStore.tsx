@@ -19,6 +19,8 @@ import {
   ThermalStorePrimitive,
 } from '../../visualPrimitives/primitives';
 import {
+  BOILER_SYSTEM_SM_PORTS,
+  PUMP_SM_PORTS,
   MidPipeArrow,
   PIPE_STROKE_BRANCH,
   PIPE_STROKE_MAIN,
@@ -26,7 +28,9 @@ import {
   PipeLayer,
   TopologyNode,
   TopologyShell,
+  dropOrRiseSegment,
   offsetPoint,
+  portAttachPoint,
   pipeDash,
   pipeLabelProps,
   pipeStroke,
@@ -39,12 +43,6 @@ export function ThermalStoreTopology({ options }: { options: VisualTopologyRende
   const { positions, rails, pipe } = layout;
 
   // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
-  const PUMP_SM_W                  = Math.round(100 * 0.7);   // pump rendered width at sm scale
-  const pumpLeft                   = positions.pump.left;
-  const pumpFlowInX                = pumpLeft + 3;             // pipe enters pump body
-  const pumpFlowOutX               = pumpLeft + PUMP_SM_W - 3; // pipe exits pump body
-  const TS_STORE_ENTRY_X_OFFSET    = 10;                        // x gap between store entry and store left edge
-  const storeEntryX                = positions.thermal_store.left - TS_STORE_ENTRY_X_OFFSET;
   const POTABLE_HOT_Y_OFFSET       = 14;                        // potable hot y above flow rail
   const POTABLE_COLD_Y_OFFSET      = 50;                        // potable cold y below flow rail
   const POTABLE_STUB_RIGHT_OFFSET  = 246;                       // potable stubs extend this far right of store left
@@ -53,18 +51,34 @@ export function ThermalStoreTopology({ options }: { options: VisualTopologyRende
   const potableColdY               = rails.flowY + POTABLE_COLD_Y_OFFSET;
   const potableStubRightX          = positions.thermal_store.left + POTABLE_STUB_RIGHT_OFFSET;
   const tsPotableLabelX            = positions.thermal_store.left + TS_POTABLE_LABEL_X_OFFSET;
-  const midFlowX                   = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
-  const midReturnX                 = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
 
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryReturn),
+    primaryFlow: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow),
+  };
+  const pumpPorts = {
+    flowIn: offsetPoint(positions.pump.left, positions.pump.top, PUMP_SM_PORTS.flowIn),
+    flowOut: offsetPoint(positions.pump.left, positions.pump.top, PUMP_SM_PORTS.flowOut),
+  };
   const storePorts = {
     primaryIn:     offsetPoint(positions.thermal_store.left, positions.thermal_store.top, THERMAL_STORE_SM_PORTS.primaryIn),
     primaryOut:    offsetPoint(positions.thermal_store.left, positions.thermal_store.top, THERMAL_STORE_SM_PORTS.primaryOut),
     potableHotOut: offsetPoint(positions.thermal_store.left, positions.thermal_store.top, THERMAL_STORE_SM_PORTS.potableHotOut),
     potableColdIn: offsetPoint(positions.thermal_store.left, positions.thermal_store.top, THERMAL_STORE_SM_PORTS.potableColdIn),
   };
+  const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
+  const pumpInAttach = portAttachPoint(pumpPorts.flowIn);
+  const pumpOutAttach = portAttachPoint(pumpPorts.flowOut);
+  const storePrimaryInAttach = portAttachPoint(storePorts.primaryIn);
+  const storePrimaryOutAttach = portAttachPoint(storePorts.primaryOut);
+  const storePotableColdAttach = portAttachPoint(storePorts.potableColdIn);
+  const storePotableHotAttach = portAttachPoint(storePorts.potableHotOut);
+  const midFlowX = Math.round((boilerFlowAttach.x + pipe.flowRailEndX) / 2);
+  const midReturnX = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   return (
     <TopologyShell options={options}>
@@ -75,25 +89,30 @@ export function ThermalStoreTopology({ options }: { options: VisualTopologyRende
           Return from store primary-out (left-bottom) → pump → boiler.
         */}
         {/* Flow passes through external pump on primary flow (regular boiler layout). */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pumpFlowInX} y2={rails.flowY} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
-        <line x1={pumpFlowOutX} y1={rails.flowY} x2={storeEntryX} y2={rails.flowY} stroke={flow} strokeWidth={w} data-testid="pump-topology-circuit" />
-        <line x1={storeEntryX} y1={rails.flowY} x2={storePorts.primaryIn.x} y2={rails.flowY} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
-        <line x1={storePorts.primaryIn.x} y1={rails.flowY} x2={storePorts.primaryIn.x} y2={storePorts.primaryIn.y} stroke={flow} strokeWidth={w} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pumpInAttach.x} y2={rails.flowY} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
+        <line x1={pumpOutAttach.x} y1={rails.flowY} x2={storePrimaryInAttach.x} y2={rails.flowY} stroke={flow} strokeWidth={w} data-testid="pump-topology-circuit" />
+        <line x1={storePrimaryInAttach.x} y1={rails.flowY} x2={storePrimaryInAttach.x} y2={storePrimaryInAttach.y} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
         {/* Return path back to boiler (no pump on return). */}
-        <line x1={storePorts.primaryOut.x} y1={storePorts.primaryOut.y} x2={storePorts.primaryOut.x} y2={rails.returnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={storeEntryX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
-        <line x1={storePorts.primaryOut.x} y1={rails.returnY} x2={storeEntryX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={storePrimaryOutAttach.x} y1={storePrimaryOutAttach.y} x2={storePrimaryOutAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={storePrimaryOutAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
+        <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        {dropOrRiseSegment(pumpInAttach.x, rails.flowY, pumpInAttach.y).map((seg, i) => (
+          <line key={`pump-in-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
+        {dropOrRiseSegment(pumpOutAttach.x, rails.flowY, pumpOutAttach.y).map((seg, i) => (
+          <line key={`pump-out-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
 
         {/*
           POTABLE water path — cold mains enters coil (bottom-right of store),
           heated by primary water, exits as hot DHW (top-right of store).
           Separate from primary loop — no shared pipe segments.
         */}
-        <line x1={storePorts.potableColdIn.x} y1={storePorts.potableColdIn.y} x2={storePorts.potableColdIn.x} y2={potableColdY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={storePorts.potableColdIn.x} y1={potableColdY} x2={potableStubRightX} y2={potableColdY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-potable-pipe" />
-        <line x1={storePorts.potableHotOut.x} y1={storePorts.potableHotOut.y} x2={storePorts.potableHotOut.x} y2={potableHotY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={storePorts.potableHotOut.x} y1={potableHotY} x2={potableStubRightX} y2={potableHotY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} data-testid="thermal-store-potable-pipe" />
+        <line x1={storePotableColdAttach.x} y1={storePotableColdAttach.y} x2={storePotableColdAttach.x} y2={potableColdY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={storePotableColdAttach.x} y1={potableColdY} x2={potableStubRightX} y2={potableColdY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-potable-pipe" />
+        <line x1={storePotableHotAttach.x} y1={storePotableHotAttach.y} x2={storePotableHotAttach.x} y2={potableHotY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={storePotableHotAttach.x} y1={potableHotY} x2={potableStubRightX} y2={potableHotY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} data-testid="thermal-store-potable-pipe" />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
