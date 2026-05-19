@@ -155,6 +155,89 @@ const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   phoneQa:   '📱 Phone customer QA',
 };
 
+const VISUAL_EDUCATION_LIBRARY_ENTRY_IDS = new Set([
+  VISUAL_EDUCATION_LIBRARY_QA_HUB.id,
+  ...VISUAL_EDUCATION_LIBRARY_SURFACES.map(surface => surface.id),
+]);
+
+const CUSTOMER_FACING_ENTRY_ORDER = [
+  'customer-portal-preview-page',
+  'customer-portal-page',
+  'house-simulator-page',
+  'explainers-hub',
+  'canonical-presentation',
+  'portal-journey-print-pack',
+] as const;
+
+const CUSTOMER_FACING_ENTRY_IDS = new Set<string>(CUSTOMER_FACING_ENTRY_ORDER);
+
+const INTERNAL_WORKFLOW_ENTRY_IDS = new Set<string>([
+  'fast-choice-stepper',
+  'full-survey-stepper',
+  'lab-shell',
+  'visit-workspace-home',
+  'visit-workspace-detail',
+  'visit-home-dashboard',
+  'workspace-settings-page',
+  'dev-portal-fixture-page',
+  'workspace-visit-lifecycle-harness',
+]);
+
+const LEGACY_TOOL_IDS = new Set<string>([
+  'lifestyle-interactive',
+  'lifestyle-interactive-compare',
+  'efficiency-curve',
+  'footprint-xray',
+  'diagram-fixture-page',
+  'library-explorer-page',
+]);
+
+const CUSTOMER_FACING_SUMMARIES: Partial<Record<string, string>> = {
+  'customer-portal-preview-page': 'Production-like preview of the calm customer journey using fixture data.',
+  'customer-portal-page': 'Canonical customer recommendation journey used for live visit outputs.',
+  'house-simulator-page': 'Home-level simulator used to explain likely system performance in visit review.',
+  'explainers-hub': 'Main simulator and explainer experience for understanding heat, water, and system response.',
+  'canonical-presentation': 'Customer presentation deck for reviewing the recommendation in a guided format.',
+  'portal-journey-print-pack': 'Supporting PDF output paired with the portal and visit review journey.',
+};
+
+const VISUAL_LANGUAGE_SURFACE_ORDER = [
+  'sealed-unvented-explainer-slice',
+  'visual-primitive-gallery',
+  'visual-topology-gallery',
+  'analogy-overlay-gallery',
+] as const;
+
+function isLegacyInventoryItem(item: DevUiRegistryItem): boolean {
+  return (
+    item.status === 'deprecated'
+    || item.status === 'remove'
+    || item.access === 'legacy_dev_only'
+    || item.access === 'retired'
+    || LEGACY_TOOL_IDS.has(item.id)
+  );
+}
+
+function sortByPreferredIds(items: DevUiRegistryItem[], preferredIds: readonly string[]): DevUiRegistryItem[] {
+  const order = new Map(preferredIds.map((id, index) => [id, index]));
+  return [...items].sort((left, right) => {
+    const leftIndex = order.get(left.id) ?? Number.MAX_SAFE_INTEGER;
+    const rightIndex = order.get(right.id) ?? Number.MAX_SAFE_INTEGER;
+    if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+    return left.commonName.localeCompare(right.commonName);
+  });
+}
+
+function resolveDirectRouteHref(item: Pick<DevUiRegistryItem, 'routePath' | 'queryFlags'>): string | null {
+  if (item.routePath != null && !item.routePath.includes(':')) {
+    return item.routePath;
+  }
+  if (item.queryFlags != null && item.queryFlags.length > 0) {
+    return `/?${item.queryFlags[0]}`;
+  }
+  return null;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
@@ -162,6 +245,9 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
   const [filters, setFilters] = useState<DevUiFilterState>(INITIAL_FILTER_STATE);
   const [selectedItem, setSelectedItem] = useState<DevUiRegistryItem | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [showDevTools, setShowDevTools] = useState(false);
+  const [showInternalWorkflows, setShowInternalWorkflows] = useState(false);
+  const [showLegacyTools, setShowLegacyTools] = useState(false);
 
   const [copyFormat, setCopyFormat] = useState<CopyFormat>('text');
   const [copyBoxCopied, setCopyBoxCopied] = useState(false);
@@ -198,6 +284,58 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         } => entry.registryItem != null,
       ),
     [],
+  );
+  const orderedVisualEducationLibraryItems = useMemo(
+    () =>
+      [...visualEducationLibraryItems].sort((left, right) => {
+        const leftIndex = VISUAL_LANGUAGE_SURFACE_ORDER.indexOf(left.surface.id);
+        const rightIndex = VISUAL_LANGUAGE_SURFACE_ORDER.indexOf(right.surface.id);
+        return leftIndex - rightIndex;
+      }),
+    [visualEducationLibraryItems],
+  );
+  const inventorySections = useMemo(() => {
+    const customerFacing: DevUiRegistryItem[] = [];
+    const internalWorkflows: DevUiRegistryItem[] = [];
+    const developmentQa: DevUiRegistryItem[] = [];
+    const deprecatedLegacy: DevUiRegistryItem[] = [];
+
+    for (const item of filtered) {
+      if (VISUAL_EDUCATION_LIBRARY_ENTRY_IDS.has(item.id)) continue;
+
+      if (CUSTOMER_FACING_ENTRY_IDS.has(item.id)) {
+        customerFacing.push(item);
+        continue;
+      }
+
+      if (isLegacyInventoryItem(item)) {
+        deprecatedLegacy.push(item);
+        continue;
+      }
+
+      if (INTERNAL_WORKFLOW_ENTRY_IDS.has(item.id)) {
+        internalWorkflows.push(item);
+        continue;
+      }
+
+      developmentQa.push(item);
+    }
+
+    return {
+      customerFacing: sortByPreferredIds(customerFacing, CUSTOMER_FACING_ENTRY_ORDER),
+      internalWorkflows,
+      developmentQa,
+      deprecatedLegacy,
+    };
+  }, [filtered]);
+  const hasActiveInventoryFilters = (
+    filters.search.trim() !== ''
+    || filters.viewMode !== INITIAL_FILTER_STATE.viewMode
+    || filters.statusFilter !== INITIAL_FILTER_STATE.statusFilter
+    || filters.categoryFilter !== INITIAL_FILTER_STATE.categoryFilter
+    || filters.accessFilter !== INITIAL_FILTER_STATE.accessFilter
+    || filters.routeKindFilter !== INITIAL_FILTER_STATE.routeKindFilter
+    || filters.copyBoxOnly !== INITIAL_FILTER_STATE.copyBoxOnly
   );
 
   const handleToggleExpand = useCallback((id: string) => {
@@ -340,7 +478,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         </div>
         <p style={STYLES.subtitle}>
           Atlas UI surface registry — {DEV_UI_REGISTRY.length} surfaces registered.
-          Inspect every UI surface with route details, hierarchy, and access type.
+          Default view now prioritises customer-facing entry points and the canonical visual-language front door.
           Access via <code>/dev/devmenu</code> (or <code>?devmenu=1</code>).
         </p>
         {activeUser !== null && (
@@ -365,107 +503,23 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         ))}
       </div>
 
-      {/* Search */}
-      <div style={STYLES.controls}>
-        <input
-          type="search"
-          placeholder="Search by name, file, route, query flag, access…"
-          value={filters.search}
-          onChange={e => updateFilter('search', e.target.value)}
-          style={STYLES.searchInput}
-          aria-label="Search components"
-        />
-      </div>
-
-      {/* View mode */}
-      <div style={STYLES.filterRow}>
-        <span style={STYLES.filterLabel}>View:</span>
-        {(Object.keys(VIEW_MODE_LABELS) as DevUiViewMode[]).map(m => (
-          <button
-            key={m}
-            className={`chip-btn${filters.viewMode === m ? ' chip-btn--active' : ''}`}
-            onClick={() => updateFilter('viewMode', m)}
-          >
-            {VIEW_MODE_LABELS[m]}
-          </button>
-        ))}
-      </div>
-
-      {/* Status filter chips */}
-      <div style={STYLES.filterRow}>
-        <span style={STYLES.filterLabel}>Status:</span>
-        {(['canonical', 'active', 'experimental', 'review', 'duplicate', 'deprecated', 'remove'] as DevUiStatus[]).map(s => (
-          <button
-            key={s}
-            className={`chip-btn${filters.statusFilter === s ? ' chip-btn--active' : ''}`}
-            onClick={() => updateFilter('statusFilter', filters.statusFilter === s ? null : s)}
-          >
-            {STATUS_LABELS[s]}
-          </button>
-        ))}
-      </div>
-
-      {/* Category filter chips */}
-      <div style={STYLES.filterRow}>
-        <span style={STYLES.filterLabel}>Category:</span>
-        {(Object.keys(CATEGORY_LABELS) as DevUiCategory[]).map(c => (
-          <button
-            key={c}
-            className={`chip-btn${filters.categoryFilter === c ? ' chip-btn--active' : ''}`}
-            onClick={() => updateFilter('categoryFilter', filters.categoryFilter === c ? null : c)}
-          >
-            {CATEGORY_LABELS[c]}
-          </button>
-        ))}
-      </div>
-
-      {/* Access filter chips */}
-      <div style={STYLES.filterRow}>
-        <span style={STYLES.filterLabel}>Access:</span>
-        {(['production', 'dev_only', 'fallback', 'review', 'retired'] as DevUiAccess[]).map(a => (
-          <button
-            key={a}
-            className={`chip-btn${filters.accessFilter === a ? ' chip-btn--active' : ''}`}
-            onClick={() => updateFilter('accessFilter', filters.accessFilter === a ? null : a)}
-          >
-            {ACCESS_LABELS[a]}
-          </button>
-        ))}
-      </div>
-
-      <div style={STYLES.filterRow}>
-        <span style={STYLES.filterLabel}>Dev QA links:</span>
-        <button className="chip-btn" onClick={() => { window.location.href = '/dev/portal-fixtures'; }}>Portal fixtures</button>
-        <button className="chip-btn" onClick={() => { window.location.href = '/dev/welcome-pack'; }}>Welcome pack diagnostics</button>
-        <button className="chip-btn" onClick={() => { window.location.href = '/?workspace-lifecycle-qa=1'; }}>Workspace lifecycle QA</button>
-        <button className="chip-btn" onClick={() => setPageMode('phoneQa')}>Phone customer QA</button>
-        <button className="chip-btn" onClick={() => { window.location.href = '/dev/inspector'; }}>Component discovery</button>
-        <button className="chip-btn" onClick={() => { window.location.href = '/dev/workspace-settings'; }}>Workspace settings</button>
-      </div>
-
       <section
         data-testid="devmenu-visual-education-library"
-        style={{
-          background: '#eff6ff',
-          border: '1px solid #93c5fd',
-          borderRadius: 12,
-          padding: '0.9rem 1rem',
-          display: 'grid',
-          gap: '0.85rem',
-        }}
+        style={STYLES.visualAuthorityPanel}
       >
         <div style={{ display: 'grid', gap: 4 }}>
-          <h2 style={{ margin: 0, fontSize: '1rem', color: '#1e3a8a' }}>Visual Education Library</h2>
+          <h2 style={{ margin: 0, fontSize: '1rem', color: '#1e3a8a' }}>Atlas Visual Language Authority</h2>
           <p style={{ margin: 0, fontSize: '0.8125rem', color: '#1d4ed8' }}>
-            Direct dev-menu links for the visual QA galleries so the primitive, topology, and overlay reviews are never trapped behind dead routes.
+            Use the Visual Education Library as the single front door for canonical heating visuals.
+            The sealed + unvented explainer slice is the golden reference system for layout, pipe grammar, and customer calm.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <a className="chip-btn" href={VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath}>Open QA hub</a>
-            <a className="chip-btn" href={`/?${VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag}`}>Open QA hub via query flag</a>
+            <a className="chip-btn" href={VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath}>Open canonical hub</a>
+            <a className="chip-btn" href="/dev/sealed-unvented-explainer-slice">Open golden reference system</a>
           </div>
         </div>
         <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-          {visualEducationLibraryItems.map(({ surface, registryItem }) => {
+          {orderedVisualEducationLibraryItems.map(({ surface, registryItem }) => {
             const routeKind = registryItem.routeKind ?? 'unknown';
             const access = registryItem.access ?? 'dev_only';
             return (
@@ -496,40 +550,144 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
                   {STATUS_LABELS[registryItem.status]}
                 </span>
               </div>
-              <div style={{ display: 'grid', gap: 4, fontSize: '0.75rem', color: '#334155' }}>
-                <span><strong>Route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
-                <span><strong>Query flag:</strong> <code style={STYLES.code}>?{surface.queryFlag}</code></span>
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <a className="chip-btn" href={surface.routePath}>Open route</a>
-                <a className="chip-btn" href={`/?${surface.queryFlag}`}>Open query flag</a>
-              </div>
-            </article>
+               <div style={{ display: 'grid', gap: 4, fontSize: '0.75rem', color: '#334155' }}>
+                 <span><strong>Primary route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
+               </div>
+               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                 <a className="chip-btn" href={surface.routePath}>
+                   {surface.id === 'sealed-unvented-explainer-slice' ? 'Open golden reference' : 'Open surface'}
+                 </a>
+               </div>
+             </article>
             );
           })}
         </div>
       </section>
 
-      {/* Route kind filter chips */}
-      <div style={STYLES.filterRow}>
-        <span style={STYLES.filterLabel}>Route:</span>
-        {(['path', 'query_flag', 'derived', 'unknown'] as DevUiRouteKind[]).map(r => (
-          <button
-            key={r}
-            className={`chip-btn${filters.routeKindFilter === r ? ' chip-btn--active' : ''}`}
-            onClick={() => updateFilter('routeKindFilter', filters.routeKindFilter === r ? null : r)}
-          >
-            {ROUTE_KIND_LABELS[r]}
-          </button>
-        ))}
+      <InventorySection
+        title="Customer-facing tools"
+        description="Start here for the product surfaces that matter most in demos, reviews, and editorial sign-off."
+        items={inventorySections.customerFacing}
+        emptyMessage="No customer-facing tools match the current filters."
+        renderItem={(item) => (
+          <FeaturedEntryCard
+            key={item.id}
+            item={item}
+            summary={CUSTOMER_FACING_SUMMARIES[item.id] ?? item.notes ?? 'Customer-facing Atlas surface.'}
+            onPreview={() => setSelectedItem(item)}
+          />
+        )}
+      />
+
+      <details style={STYLES.devControlsPanel} open={hasActiveInventoryFilters || showDevTools || showInternalWorkflows || showLegacyTools}>
+        <summary style={STYLES.devControlsSummary}>Developer inventory filters and route shortcuts</summary>
+
+        <div style={STYLES.controls}>
+          <input
+            type="search"
+            placeholder="Search by name, file, route, query flag, access…"
+            value={filters.search}
+            onChange={e => updateFilter('search', e.target.value)}
+            style={STYLES.searchInput}
+            aria-label="Search components"
+          />
+        </div>
+
+        <div style={STYLES.filterRow}>
+          <span style={STYLES.filterLabel}>View:</span>
+          {(Object.keys(VIEW_MODE_LABELS) as DevUiViewMode[]).map(m => (
+            <button
+              key={m}
+              className={`chip-btn${filters.viewMode === m ? ' chip-btn--active' : ''}`}
+              onClick={() => updateFilter('viewMode', m)}
+            >
+              {VIEW_MODE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+
+        <div style={STYLES.filterRow}>
+          <span style={STYLES.filterLabel}>Status:</span>
+          {(['canonical', 'active', 'experimental', 'review', 'duplicate', 'deprecated', 'remove'] as DevUiStatus[]).map(s => (
+            <button
+              key={s}
+              className={`chip-btn${filters.statusFilter === s ? ' chip-btn--active' : ''}`}
+              onClick={() => updateFilter('statusFilter', filters.statusFilter === s ? null : s)}
+            >
+              {STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
+
+        <div style={STYLES.filterRow}>
+          <span style={STYLES.filterLabel}>Category:</span>
+          {(Object.keys(CATEGORY_LABELS) as DevUiCategory[]).map(c => (
+            <button
+              key={c}
+              className={`chip-btn${filters.categoryFilter === c ? ' chip-btn--active' : ''}`}
+              onClick={() => updateFilter('categoryFilter', filters.categoryFilter === c ? null : c)}
+            >
+              {CATEGORY_LABELS[c]}
+            </button>
+          ))}
+        </div>
+
+        <div style={STYLES.filterRow}>
+          <span style={STYLES.filterLabel}>Access:</span>
+          {(['production', 'dev_only', 'fallback', 'review', 'retired'] as DevUiAccess[]).map(a => (
+            <button
+              key={a}
+              className={`chip-btn${filters.accessFilter === a ? ' chip-btn--active' : ''}`}
+              onClick={() => updateFilter('accessFilter', filters.accessFilter === a ? null : a)}
+            >
+              {ACCESS_LABELS[a]}
+            </button>
+          ))}
+        </div>
+
+        <div style={STYLES.filterRow}>
+          <span style={STYLES.filterLabel}>Route:</span>
+          {(['path', 'query_flag', 'derived', 'unknown'] as DevUiRouteKind[]).map(r => (
+            <button
+              key={r}
+              className={`chip-btn${filters.routeKindFilter === r ? ' chip-btn--active' : ''}`}
+              onClick={() => updateFilter('routeKindFilter', filters.routeKindFilter === r ? null : r)}
+            >
+              {ROUTE_KIND_LABELS[r]}
+            </button>
+          ))}
+        </div>
+
+        <div style={STYLES.filterRow}>
+          <span style={STYLES.filterLabel}>Dev QA links:</span>
+          <button className="chip-btn" onClick={() => { window.location.href = '/dev/portal-fixtures'; }}>Portal fixtures</button>
+          <button className="chip-btn" onClick={() => { window.location.href = '/dev/welcome-pack'; }}>Welcome pack diagnostics</button>
+          <button className="chip-btn" onClick={() => { window.location.href = '/?workspace-lifecycle-qa=1'; }}>Workspace lifecycle QA</button>
+          <button className="chip-btn" onClick={() => setPageMode('phoneQa')}>Phone customer QA</button>
+          <button className="chip-btn" onClick={() => { window.location.href = '/dev/inspector'; }}>Component discovery</button>
+          <button className="chip-btn" onClick={() => { window.location.href = '/dev/workspace-settings'; }}>Workspace settings</button>
+        </div>
+      </details>
+
+      <div style={STYLES.sectionToggleRow}>
+        <button className={`chip-btn${showInternalWorkflows ? ' chip-btn--active' : ''}`} onClick={() => setShowInternalWorkflows(prev => !prev)}>
+          {showInternalWorkflows ? 'Hide internal workflows' : 'Show internal workflows'} ({inventorySections.internalWorkflows.length})
+        </button>
+        <button className={`chip-btn${showDevTools ? ' chip-btn--active' : ''}`} onClick={() => setShowDevTools(prev => !prev)}>
+          {showDevTools ? 'Hide dev & QA tools' : 'Show dev & QA tools'} ({inventorySections.developmentQa.length})
+        </button>
+        <button className={`chip-btn${showLegacyTools ? ' chip-btn--active' : ''}`} onClick={() => setShowLegacyTools(prev => !prev)}>
+          {showLegacyTools ? 'Hide legacy tools' : 'Show legacy tools'} ({inventorySections.deprecatedLegacy.length})
+        </button>
       </div>
 
-      {/* Registry list */}
-      <div style={STYLES.list} role="list">
-        {filtered.length === 0 ? (
-          <p style={STYLES.empty}>No components match these filters.</p>
-        ) : (
-          filtered.map(item => (
+      {showInternalWorkflows && (
+        <InventorySection
+          title="Internal workflows"
+          description="Operational journeys and workspace flows used by the team, not the main educational entry points."
+          items={inventorySections.internalWorkflows}
+          emptyMessage="No internal workflows match the current filters."
+          renderItem={(item) => (
             <RegistryCard
               key={item.id}
               item={item}
@@ -538,9 +696,53 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
               onPreview={() => setSelectedItem(item)}
               onToggleExpand={() => handleToggleExpand(item.id)}
             />
-          ))
-        )}
-      </div>
+          )}
+        />
+      )}
+
+      {showDevTools && (
+        <InventorySection
+          title="Development and QA tools"
+          description="Diagnostics, audits, and engineering-only surfaces kept out of the default customer-focused view."
+          items={inventorySections.developmentQa}
+          emptyMessage="No dev or QA tools match the current filters."
+          renderItem={(item) => (
+            <RegistryCard
+              key={item.id}
+              item={item}
+              expanded={expandedIds.has(item.id)}
+              viewMode={filters.viewMode}
+              onPreview={() => setSelectedItem(item)}
+              onToggleExpand={() => handleToggleExpand(item.id)}
+            />
+          )}
+        />
+      )}
+
+      {showLegacyTools && (
+        <InventorySection
+          title="Deprecated and legacy tools"
+          description="Archived or superseded surfaces kept only for explicit comparison, diagnostics, or migration support."
+          items={inventorySections.deprecatedLegacy}
+          emptyMessage="No legacy tools match the current filters."
+          renderItem={(item) => (
+            <RegistryCard
+              key={item.id}
+              item={item}
+              expanded={expandedIds.has(item.id)}
+              viewMode={filters.viewMode}
+              onPreview={() => setSelectedItem(item)}
+              onToggleExpand={() => handleToggleExpand(item.id)}
+            />
+          )}
+        />
+      )}
+
+      {!showInternalWorkflows && !showDevTools && !showLegacyTools && (
+        <p style={STYLES.hiddenSectionsHint}>
+          Dev, QA, and legacy surfaces are hidden by default so this page behaves like an entry-point hub instead of a historical dump.
+        </p>
+      )}
 
       {/* Copy box */}
       <CopyBox
@@ -1087,6 +1289,83 @@ function LibraryBrowserPanel({
 
 // ─── Registry card ────────────────────────────────────────────────────────────
 
+function InventorySection({
+  title,
+  description,
+  items,
+  emptyMessage,
+  renderItem,
+}: {
+  title: string;
+  description: string;
+  items: DevUiRegistryItem[];
+  emptyMessage: string;
+  renderItem: (item: DevUiRegistryItem) => ReactNode;
+}) {
+  return (
+    <section style={STYLES.inventorySection}>
+      <div style={STYLES.inventorySectionHeader}>
+        <div>
+          <h2 style={STYLES.inventorySectionTitle}>{title}</h2>
+          <p style={STYLES.inventorySectionDescription}>{description}</p>
+        </div>
+        <span style={STYLES.inventorySectionCount}>{items.length}</span>
+      </div>
+
+      <div style={STYLES.list} role="list">
+        {items.length === 0 ? (
+          <p style={STYLES.empty}>{emptyMessage}</p>
+        ) : (
+          items.map(item => renderItem(item))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function FeaturedEntryCard({
+  item,
+  summary,
+  onPreview,
+}: {
+  item: DevUiRegistryItem;
+  summary: string;
+  onPreview: () => void;
+}) {
+  const href = resolveDirectRouteHref(item);
+  const actionLabel = href != null ? 'Open tool' : 'Preview surface';
+
+  return (
+    <article role="listitem" style={STYLES.featuredCard}>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <strong style={STYLES.featuredCardTitle}>{item.commonName}</strong>
+          <p style={STYLES.featuredCardSummary}>{summary}</p>
+        </div>
+        <div style={STYLES.badgeRow}>
+          {item.access != null && (
+            <span style={{ ...STYLES.badge, color: ACCESS_COLORS[item.access], borderColor: ACCESS_COLORS[item.access] }}>
+              {ACCESS_LABELS[item.access]}
+            </span>
+          )}
+          <span style={{ ...STYLES.badge, color: STATUS_COLORS[item.status], borderColor: STATUS_COLORS[item.status] }}>
+            {STATUS_LABELS[item.status]}
+          </span>
+          <span style={{ ...STYLES.badge, ...STYLES.categoryBadge }}>
+            {CATEGORY_LABELS[item.category]}
+          </span>
+        </div>
+      </div>
+
+      {href != null ? (
+        <a className="chip-btn" href={href}>{actionLabel}</a>
+      ) : (
+        <button className="chip-btn" onClick={onPreview}>{actionLabel}</button>
+      )}
+    </article>
+  );
+}
+
 function RegistryCard({
   item,
   expanded,
@@ -1510,6 +1789,20 @@ const STYLES: Record<string, CSSProperties> = {
   controls: {
     marginBottom: '0.75rem',
   },
+  devControlsPanel: {
+    marginTop: '1.25rem',
+    marginBottom: '1rem',
+    padding: '0.9rem 1rem',
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '12px',
+  },
+  devControlsSummary: {
+    cursor: 'pointer',
+    fontWeight: 600,
+    color: '#334155',
+    marginBottom: '0.75rem',
+  },
   searchInput: {
     width: '100%',
     maxWidth: '560px',
@@ -1535,6 +1828,53 @@ const STYLES: Record<string, CSSProperties> = {
     marginRight: '0.25rem',
     whiteSpace: 'nowrap',
   },
+  visualAuthorityPanel: {
+    background: '#eff6ff',
+    border: '1px solid #93c5fd',
+    borderRadius: 12,
+    padding: '0.9rem 1rem',
+    display: 'grid',
+    gap: '0.85rem',
+  },
+  sectionToggleRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.5rem',
+    marginTop: '1rem',
+    marginBottom: '1rem',
+  },
+  inventorySection: {
+    marginTop: '1.25rem',
+  },
+  inventorySectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '1rem',
+    marginBottom: '0.75rem',
+  },
+  inventorySectionTitle: {
+    margin: 0,
+    fontSize: '1rem',
+    color: '#1e293b',
+  },
+  inventorySectionDescription: {
+    margin: '0.25rem 0 0',
+    fontSize: '0.8125rem',
+    color: '#64748b',
+  },
+  inventorySectionCount: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '2rem',
+    padding: '0.2rem 0.55rem',
+    borderRadius: '999px',
+    background: '#e2e8f0',
+    color: '#334155',
+    fontSize: '0.75rem',
+    fontWeight: 700,
+  },
   list: {
     marginTop: '1rem',
     display: 'flex',
@@ -1545,6 +1885,31 @@ const STYLES: Record<string, CSSProperties> = {
     color: '#64748b',
     padding: '1rem 0',
     margin: 0,
+  },
+  hiddenSectionsHint: {
+    margin: '0.25rem 0 0',
+    color: '#64748b',
+    fontSize: '0.8125rem',
+  },
+  featuredCard: {
+    borderRadius: '12px',
+    border: '1px solid #dbeafe',
+    background: '#fff',
+    padding: '1rem',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: '1rem',
+  },
+  featuredCardTitle: {
+    fontSize: '1rem',
+    color: '#0f172a',
+  },
+  featuredCardSummary: {
+    margin: 0,
+    fontSize: '0.82rem',
+    color: '#475569',
+    maxWidth: '48rem',
   },
   summaryText: {
     color: '#334155',
