@@ -173,4 +173,11 @@ export interface TopologyLayoutDeclaration {
   readonly flowRailMode: FlowRailMode;
   readonly nodes: readonly NodePlacementDecl[];
   readonly pipe: PipeRailDecl;
+  /**
+   * When true, the topology intentionally has no emitter-zone nodes.
+   * Examples: thermal_store_layout (no discrete radiators in the diagram),
+   * system_pressure_layout (uses PipeLoopPrimitive instead of emitters).
+   * The validation engine skips the floating-equipment check for these.
+   */
+  readonly isEmitterless?: boolean;
 }

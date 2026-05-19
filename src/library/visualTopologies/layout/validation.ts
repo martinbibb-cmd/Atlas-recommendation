@@ -81,11 +81,7 @@ export function validateLayout(
   //    the full circuit differently — they still pass because powerflush
   //    has three radiators and system_pressure has a pipe_loop).
   const hasEmitter = decl.nodes.some(n => n.zone === 'emitters');
-  const isEmitterless = decl.topologyId === 'mixergy_stratified_cylinder' ||
-                        decl.topologyId === 'thermal_store_layout' ||
-                        // system_pressure_layout uses PipeLoopPrimitive to represent
-                        // the circuit; no discrete emitters are declared.
-                        decl.topologyId === 'system_pressure_layout';
+  const isEmitterless = decl.isEmitterless === true;
 
   if (!hasEmitter && !isEmitterless) {
     violations.push({

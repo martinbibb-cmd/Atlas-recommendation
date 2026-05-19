@@ -114,8 +114,8 @@ const sealedUnventedDeclaration: TopologyLayoutDeclaration = {
     flowRailEndX: SEALED_UNVENTED_CYLINDER_LEFT,           // 520
     // Return vertical x = same as flow spur x
     heatSourceReturnX: SEALED_UNVENTED_BOILER_LEFT + 64,   // 120
-    // Return vertical stops at mid-body of boiler
-    heatSourceReturnY: (SEALED_UNVENTED_BOILER_LEFT === 56 ? 156 : 156) + Math.round(BOILER_SM_H / 2), // 205
+    // Return vertical stops at mid-body of boiler (boilerTop + BOILER_SM_H/2)
+    heatSourceReturnY: 156 + Math.round(BOILER_SM_H / 2), // 205
   },
 };
 
@@ -154,7 +154,7 @@ const combiDeclaration: TopologyLayoutDeclaration = {
     flowRailStartX: COMBI_BOILER_LEFT + 78,   // 220
     flowRailEndX: 620,
     heatSourceReturnX: COMBI_BOILER_LEFT + 78, // 220
-    heatSourceReturnY: (COMBI_BOILER_LEFT === 142 ? 164 : 164) + Math.round(BOILER_SM_H / 2), // 220
+    heatSourceReturnY: 164 + Math.round(BOILER_SM_H / 2), // 213
   },
 };
 
@@ -232,6 +232,7 @@ const MX_CYLINDER_LEFT = 470;
 const mixergyDeclaration: TopologyLayoutDeclaration = {
   topologyId: 'mixergy_stratified_cylinder',
   flowRailMode: 'elevated_mixergy',
+  isEmitterless: true,
   nodes: [
     {
       role: 'boiler',
@@ -250,7 +251,7 @@ const mixergyDeclaration: TopologyLayoutDeclaration = {
     flowRailStartX: MX_BOILER_LEFT + 64,  // 130
     flowRailEndX: MX_CYLINDER_LEFT,       // 470
     heatSourceReturnX: MX_BOILER_LEFT + 64, // 130
-    heatSourceReturnY: 170 + Math.round(BOILER_SM_H / 2), // ~218 → use 248 (template uses 248)
+    heatSourceReturnY: 170 + Math.round(BOILER_SM_H / 2), // 219
   },
 };
 
@@ -266,6 +267,7 @@ const TS_STORE_LEFT = 430;
 const thermalStoreDeclaration: TopologyLayoutDeclaration = {
   topologyId: 'thermal_store_layout',
   flowRailMode: 'elevated_thermal',
+  isEmitterless: true,
   nodes: [
     {
       role: 'boiler',
@@ -291,7 +293,7 @@ const thermalStoreDeclaration: TopologyLayoutDeclaration = {
     flowRailStartX: TS_BOILER_LEFT + 68,   // 132
     flowRailEndX: TS_STORE_LEFT,           // 430 (store primary-in connection)
     heatSourceReturnX: TS_BOILER_LEFT + 68, // 132
-    heatSourceReturnY: 154 + Math.round(BOILER_SM_H / 2), // 203 → 232 (template uses 232)
+    heatSourceReturnY: 154 + Math.round(BOILER_SM_H / 2), // 203
   },
 };
 
@@ -351,7 +353,7 @@ const powerflushDeclaration: TopologyLayoutDeclaration = {
     flowRailStartX: 260,   // powerflush circuit — flow rail starts at machine exit
     flowRailEndX: PF_BOILER_LEFT,
     heatSourceReturnX: 260,
-    heatSourceReturnY: 168 + Math.round(BOILER_SM_H / 2), // 217 → 170 (template uses 170)
+    heatSourceReturnY: 168 + Math.round(BOILER_SM_H / 2), // 217
   },
 };
 
@@ -455,6 +457,7 @@ const SP_BOILER_LEFT = 46;
 const systemPressureDeclaration: TopologyLayoutDeclaration = {
   topologyId: 'system_pressure_layout',
   flowRailMode: 'standard',
+  isEmitterless: true,
   nodes: [
     {
       role: 'boiler',
