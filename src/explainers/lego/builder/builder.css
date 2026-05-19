@@ -345,6 +345,20 @@
   opacity: 0.9;
 }
 
+/* Gas rail — slate dashed */
+.pipe-line--gas {
+  stroke: #64748b;
+  stroke-dasharray: 12 8;
+  opacity: 0.85;
+}
+
+/* D2 discharge rail — amber dashed */
+.pipe-line--d2 {
+  stroke: #d97706;
+  stroke-dasharray: 8 8;
+  opacity: 0.9;
+}
+
 .pipe-line.softwarn {
   opacity: 0.18;
   stroke-dasharray: 10 8;

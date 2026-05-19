@@ -1,7 +1,7 @@
 /**
  * LegoBuildingSetPage.tsx
  *
- * Top-level page for the Lego Building Set — the interactive drag-and-drop
+ * Top-level page for the Atlas System Composer — the interactive drag-and-drop
  * workbench for assembling heating system diagrams from first principles.
  *
  * Wraps BuilderShell with a minimal chrome (back button + title) so it can
@@ -44,7 +44,7 @@ export default function LegoBuildingSetPage({ onBack }: Props) {
         </button>
         <span style={{ width: 1, height: '1.25rem', background: '#e2e8f0' }} aria-hidden />
         <span style={{ fontSize: '1rem', fontWeight: 600, color: '#1e293b' }}>
-          🧱 Lego Building Set
+          🧱 Atlas System Composer
         </span>
       </div>
       <div style={{ flex: 1, overflow: 'hidden' }}>

@@ -1,5 +1,6 @@
 import type { BuildGraph, PartKind, PortDef, PortRef } from './types'
 import { getPortDefs } from './portDefs'
+import { ROUTING_RAILS, type RoutingRail } from '../../../library/visualPrimitives/primitiveTokens'
 
 export interface GraphWarning {
   id: string
@@ -96,7 +97,48 @@ function anyPortConnected(graph: BuildGraph, nodeId: string) {
 function portRole(graph: BuildGraph, nodeId: string, portId: string): PortDef['role'] {
   const node = graph.nodes.find(n => n.id === nodeId)
   if (!node) return 'unknown'
+  if (node.ports?.[portId]?.role) return node.ports[portId].role
   return getPortDefs(node.kind).find(p => p.id === portId)?.role ?? 'unknown'
+}
+
+function hasRealPort(graph: BuildGraph, nodeId: string, portId: string): boolean {
+  const node = graph.nodes.find(n => n.id === nodeId)
+  if (!node) return false
+  if (node.ports && node.ports[portId]) return true
+  return getPortDefs(node.kind).some(p => p.id === portId)
+}
+
+function isTopologyPlacementNode(graph: BuildGraph, nodeId: string): boolean {
+  const node = graph.nodes.find(n => n.id === nodeId)
+  // A topology placement node must have primitive identity + explicit port map.
+  // componentRole is validated separately (missing-role warning).
+  return Boolean(node?.primitiveId && node?.ports)
+}
+
+function nodePortsForDisconnectedCheck(graph: BuildGraph, nodeId: string): string[] {
+  const node = graph.nodes.find(n => n.id === nodeId)
+  if (!node) return []
+  if (node.ports) return Object.keys(node.ports)
+  return getPortDefs(node.kind).map(p => p.id)
+}
+
+function allowedRailsForRoles(a: PortDef['role'], b: PortDef['role']): RoutingRail[] {
+  if ((a === 'hot' && b === 'cold') || (a === 'cold' && b === 'hot')) return []
+  // Same-domain pairings (hot↔hot, cold↔cold) are intentionally allowed here.
+  // The next two guards implicitly accept those pairings by role domain.
+  if (a === 'hot' || b === 'hot') return [ROUTING_RAILS.DHW]
+  if (a === 'cold' || b === 'cold') return [ROUTING_RAILS.CW_MAINS]
+  // Return-dominant pairs are constrained to CH_RETURN so a return terminal
+  // cannot be explicitly labeled as a supply/flow rail.
+  if (a === 'return' || b === 'return') return [ROUTING_RAILS.CH_RETURN]
+  // Flow/store pairs allow either CH rail because role-level validation in this
+  // builder currently treats flow/return/store as a shared hydronic family.
+  if (a === 'flow' || b === 'flow' || a === 'store' || b === 'store') {
+    return [ROUTING_RAILS.CH_FLOW, ROUTING_RAILS.CH_RETURN]
+  }
+  // Fallback (unknown/outlet/undefined role pairings): keep permissive so
+  // incomplete draft topology states don't get hard-blocked by rail mapping.
+  return [ROUTING_RAILS.CH_FLOW, ROUTING_RAILS.CH_RETURN, ROUTING_RAILS.DHW, ROUTING_RAILS.CW_MAINS]
 }
 
 function roleCompatible(a: PortDef['role'], b: PortDef['role']) {
@@ -119,6 +161,20 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
   const warnings: GraphWarning[] = []
 
   for (const edge of graph.edges) {
+    const fromExists = hasRealPort(graph, edge.from.nodeId, edge.from.portId)
+    const toExists = hasRealPort(graph, edge.to.nodeId, edge.to.portId)
+    if (!fromExists || !toExists) {
+      warnings.push({
+        id: `port_endpoint_missing_${edge.id}`,
+        level: 'error',
+        title: 'Pipe endpoint not connected to a real port',
+        message: `Connection endpoint references a missing port (${edge.from.nodeId}:${edge.from.portId} ↔ ${edge.to.nodeId}:${edge.to.portId}).`,
+        hint: 'Reconnect this pipe endpoint to an existing component port.',
+        edgeId: edge.id,
+      })
+      continue
+    }
+
     const fromRole = portRole(graph, edge.from.nodeId, edge.from.portId)
     const toRole = portRole(graph, edge.to.nodeId, edge.to.portId)
 
@@ -131,6 +187,20 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
         hint: 'Reconnect so hot links to hot/cold to cold, or use CH flow/return ports for heating loops.',
         edgeId: edge.id,
       })
+    }
+
+    if (edge.rail) {
+      const allowedRails = allowedRailsForRoles(fromRole, toRole)
+      if (!allowedRails.includes(edge.rail)) {
+        warnings.push({
+          id: `rail_impossible_${edge.id}`,
+          level: 'warn',
+          title: 'Impossible rail type for connection',
+          message: `Rail "${edge.rail}" does not match this port pairing (${fromRole} ↔ ${toRole}).`,
+          hint: `Use one of: ${allowedRails.join(', ')}.`,
+          edgeId: edge.id,
+        })
+      }
     }
   }
 
@@ -299,6 +369,35 @@ export function validateGraph(graph: BuildGraph): GraphWarning[] {
           })
         }
       }
+    }
+  }
+
+  for (const node of graph.nodes) {
+    if (!isTopologyPlacementNode(graph, node.id)) continue
+
+    if (!node.componentRole || node.componentRole.trim().length === 0) {
+      warnings.push({
+        id: `missing_component_role_${node.id}`,
+        level: 'warn',
+        title: 'Missing component role',
+        message: 'Topology component is missing a component role.',
+        hint: 'Assign a canonical role so topology templates remain render-agnostic.',
+        nodeId: node.id,
+      })
+    }
+
+    const portIds = nodePortsForDisconnectedCheck(graph, node.id)
+    for (const portId of portIds) {
+      const key = `${node.id}:${portId}`
+      if ((adjacency.get(key) ?? []).length > 0) continue
+      warnings.push({
+        id: `disconnected_port_${node.id}_${portId}`,
+        level: 'warn',
+        title: 'Disconnected port',
+        message: `Port ${portId} on ${node.id} is not connected.`,
+        hint: 'Connect this port or remove the component/port from the topology model.',
+        nodeId: node.id,
+      })
     }
   }
 

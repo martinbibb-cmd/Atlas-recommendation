@@ -15,6 +15,7 @@ import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
 import { normalizeGraph } from './normalizeGraph'
 import { PRESETS, CONCEPT_PRESETS, resolveConceptPreset } from './presets'
+import { spawnTopologyGraph, type SpawnTopologyId } from './topologyComposerFoundation'
 import { smartAdd } from './smartAttach'
 import { portAbs, isTopologyAllowed } from './snapConnect'
 import { insertTee } from './tee'
@@ -451,6 +452,13 @@ export default function BuilderShell({
     const patch = (resolved.controlsPatch ?? {}) as Partial<LabControls>
     setSavedControlsPatch(patch)
     onControlsPatch?.(patch as Record<string, unknown>)
+  }
+
+  const spawnTopology = (topologyId: SpawnTopologyId) => {
+    setGraph(cloneGraph(spawnTopologyGraph(topologyId)))
+    setSelectedId(null)
+    setPendingPort(null)
+    setSavedControlsPatch({})
   }
 
   const clearSlot = (slot: string) => {
@@ -904,7 +912,7 @@ export default function BuilderShell({
       {/* Desktop side panel — only shown on wide screens (≥1200px) */}
       {paletteOpen && !isNarrow && (
         <div className="builder-left">
-          <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} />
+          <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} onSpawnTopology={spawnTopology} />
           <PalettePanel onPick={pickFromPalette} />
         </div>
       )}
@@ -1104,9 +1112,9 @@ export default function BuilderShell({
               </div>
               <div className="palette-tray__body">
                 {/* Prebuilt setups and concept presets — restored alongside palette */}
-                <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} />
-                <PalettePanel onPick={pickFromPalette} />
-              </div>
+          <PresetPanel onLoad={loadPreset} onLoadConcept={loadConceptPreset} onSpawnTopology={spawnTopology} />
+          <PalettePanel onPick={pickFromPalette} />
+        </div>
             </div>
           )}
         </div>
