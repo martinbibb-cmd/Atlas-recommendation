@@ -959,6 +959,29 @@
   color: #c05621;
 }
 
+.build-topology-debug-panel {
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.build-topology-debug-panel__title {
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.build-topology-debug-panel__warnings {
+  margin: 4px 0 0 0;
+  padding-left: 16px;
+}
+
 /* Play button variant — blocked state (errors present) */
 .builder-btn--play-blocked {
   border-color: #fc8181 !important;

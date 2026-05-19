@@ -108,6 +108,7 @@ export interface PortRef {
 export interface EdgeMeta {
   roleFrom?: PortDef['role'];
   roleTo?: PortDef['role'];
+  pipeRoute?: readonly import('../../../library/visualTopologies/layout').PipeSegment[];
 }
 
 export interface BuildEdge {
@@ -132,6 +133,7 @@ export interface TopologyConnectionModel {
   source: TopologyConnectionRef;
   target: TopologyConnectionRef;
   rail: import('../../../library/visualPrimitives/primitiveTokens').RoutingRail;
+  pipeRoute?: readonly import('../../../library/visualTopologies/layout').PipeSegment[];
 }
 
 export interface TopologyComponentPlacementModel {
@@ -150,6 +152,13 @@ export interface TopologyComponentPlacementModel {
 export interface TopologyPlacementModel {
   components: TopologyComponentPlacementModel[];
   connections: TopologyConnectionModel[];
+  topologyMetadata?: {
+    selectedTopology: string;
+    layoutDeclarationId: string;
+    railMode: string;
+    ready: boolean;
+    validationWarnings: string[];
+  };
 }
 
 export interface PortDef {
