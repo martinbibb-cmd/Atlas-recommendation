@@ -7,8 +7,8 @@
  * a hot/cold fill indicator, inlet/outlet pipe stubs, and optional PRV symbol.
  *
  * Variants:
- *   variant="vented"    — tank-fed, low pressure, vent pipe at top
- *   variant="unvented"  — mains-pressure, PRV at top, expansion vessel stub
+ *   variant="vented"    — tank-fed supply, vent pipe at top
+ *   variant="unvented"  — mains-fed supply, inlet group and safety discharge
  *
  * fillLevel (0–1) controls how much of the body is shown as heated.
  */
@@ -69,6 +69,11 @@ export function CylinderPrimitive({
   const coilReturnY = CYLINDER_BODY_Y + Math.round(CYLINDER_BODY_H * 0.82);
   const coilLeftX = CYLINDER_BODY_X + 8;
   const coilRightX = CYLINDER_BODY_X + CYLINDER_BODY_W - 8;
+  const hotDrawOffTeeY = topY - 4;
+  const coldInletDiffuserY = bodyBottomY - 10;
+  const safetySetX = CYLINDER_BODY_X + CYLINDER_BODY_W + 5;
+  const safetySetY = CYLINDER_BODY_Y + 58;
+  const tundishY = safetySetY + 18;
 
   return (
     <div
@@ -132,24 +137,59 @@ export function CylinderPrimitive({
           strokeWidth={1}
         />
         {variant === 'unvented' && (
-          <circle
-            cx={CYLINDER_BODY_X + CYLINDER_BODY_W - 7}
-            cy={CYLINDER_BODY_Y + 6}
-            r={2}
-            fill={printSafe ? '#374151' : '#64748b'}
-          />
+          <>
+            <rect
+              x={topX - 8}
+              y={CYLINDER_BODY_Y - 6}
+              width={16}
+              height={6}
+              rx={2}
+              fill={printSafe ? '#d1d5db' : '#cbd5e1'}
+              stroke="#64748b"
+              strokeWidth={1}
+            />
+            <circle
+              cx={CYLINDER_BODY_X + CYLINDER_BODY_W - 7}
+              cy={CYLINDER_BODY_Y + 6}
+              r={2}
+              fill={printSafe ? '#374151' : '#64748b'}
+            />
+          </>
         )}
 
-        {/* Internal heating coil — tight coil in lower third (flow in / flow out). */}
+        {/* Internal lower heating coil — visually explicit heat-exchanger path. */}
         <path
           d={`M ${coilLeftX} ${coilFlowY}
-              C ${coilLeftX + 7} ${coilFlowY - 8}, ${coilLeftX + 13} ${coilFlowY + 6}, ${coilLeftX + 20} ${coilFlowY}
-              C ${coilLeftX + 27} ${coilFlowY - 5}, ${coilLeftX + 31} ${coilReturnY - 3}, ${coilLeftX + 36} ${coilReturnY}
-              C ${coilLeftX + 40} ${coilReturnY + 3}, ${coilRightX - 5} ${coilReturnY - 2}, ${coilRightX} ${coilReturnY}`}
+              C ${coilLeftX + 6} ${coilFlowY - 10}, ${coilLeftX + 12} ${coilFlowY - 10}, ${coilLeftX + 16} ${coilFlowY}
+              S ${coilLeftX + 27} ${coilFlowY + 10}, ${coilLeftX + 32} ${coilFlowY}
+              S ${coilLeftX + 43} ${coilFlowY - 10}, ${coilLeftX + 48} ${coilFlowY}
+              S ${coilRightX - 3} ${coilReturnY - 4}, ${coilRightX} ${coilReturnY}`}
           stroke={printSafe ? '#111827' : '#b45309'}
           strokeWidth={2}
           fill="none"
           data-testid="cylinder-internal-coil"
+        />
+        <line
+          x1={topX}
+          y1={hotDrawOffTeeY}
+          x2={topX + 10}
+          y2={hotDrawOffTeeY}
+          stroke={printSafe ? '#9ca3af' : '#94a3b8'}
+          strokeWidth={1.5}
+        />
+        <line
+          x1={topX}
+          y1={bodyBottomY}
+          x2={topX - 9}
+          y2={bodyBottomY}
+          stroke={printSafe ? '#9ca3af' : '#94a3b8'}
+          strokeWidth={1.5}
+        />
+        <path
+          d={`M ${topX - 8} ${coldInletDiffuserY} L ${topX} ${bodyBottomY - 2} L ${topX + 8} ${coldInletDiffuserY}`}
+          stroke={printSafe ? '#4b5563' : '#64748b'}
+          strokeWidth={1.5}
+          fill="none"
         />
 
         {/* Top DHW draw-off */}
@@ -211,6 +251,52 @@ export function CylinderPrimitive({
           data-port-position="right"
           data-port-role="cylinder_coil_flow_out"
         />
+        {variant === 'vented' && (
+          <path
+            d={`M ${topX + 8} ${CYLINDER_BODY_Y + 2} C ${topX + 18} ${CYLINDER_BODY_Y - 6}, ${topX + 20} ${CYLINDER_BODY_Y - 16}, ${topX + 20} 0`}
+            stroke={printSafe ? '#6b7280' : '#475569'}
+            strokeWidth={1.8}
+            fill="none"
+          />
+        )}
+        {variant === 'unvented' && (
+          <>
+            <rect
+              x={safetySetX}
+              y={safetySetY}
+              width={8}
+              height={14}
+              rx={2}
+              fill={printSafe ? '#d1d5db' : '#f8fafc'}
+              stroke="#475569"
+              strokeWidth={1.2}
+            />
+            <path
+              d={`M ${CYLINDER_BODY_X + CYLINDER_BODY_W} ${safetySetY + 3} H ${safetySetX} V ${tundishY - 4}`}
+              stroke={printSafe ? '#6b7280' : '#475569'}
+              strokeWidth={1.8}
+              fill="none"
+              data-testid="cylinder-safety-discharge-port"
+              data-port-position="right"
+              data-port-role="cylinder_safety_discharge"
+            />
+            <path
+              d={`M ${safetySetX - 2} ${tundishY - 2} L ${safetySetX + 10} ${tundishY - 2} L ${safetySetX + 7} ${tundishY + 5} L ${safetySetX + 1} ${tundishY + 5} Z`}
+              fill={printSafe ? '#f3f4f6' : '#e2e8f0'}
+              stroke="#475569"
+              strokeWidth={1}
+              data-testid="cylinder-tundish"
+            />
+            <line
+              x1={safetySetX + 4}
+              y1={tundishY + 5}
+              x2={CYLINDER_SVG_W - 1}
+              y2={CYLINDER_SVG_H - 10}
+              stroke={printSafe ? '#6b7280' : '#475569'}
+              strokeWidth={1.8}
+            />
+          </>
+        )}
       </svg>
 
       {showLabel && (

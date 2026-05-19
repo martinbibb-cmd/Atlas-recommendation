@@ -4,12 +4,11 @@
  * Canonical physical primitive for an in-line magnetic filter.
  *
  * Shows:
- *   - A cylindrical filter body on the heating return pipe
- *   - A vertical magnet core running through the body
- *   - A removable top cap (for service/clean)
- *   - Magnetite particle dots clustered around the magnet core
- *   - Inlet pipe (dirty — dark) on the left
- *   - Outlet pipe (cleaner) on the right
+ *   - A laminar-flow in-line separator body on the heating return pipe
+ *   - A service canister / magnet assembly above the body
+ *   - A dirt collection bowl below the body
+ *   - Magnetite particle dots trapped in the lower chamber
+ *   - Inlet pipe on the left and outlet pipe on the right
  *
  * Source: src/library/diagrams/MagneticFilterDiagram.tsx
  */
@@ -53,9 +52,9 @@ export function MagneticFilterPrimitive({
         {/* Return pipe — left inlet */}
         <line
           x1={4}
-          y1={82}
-          x2={48}
-          y2={82}
+          y1={52}
+          x2={44}
+          y2={52}
           stroke={printSafe ? '#000' : AUX_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           data-testid="magnetic-filter-return-in-port"
@@ -64,41 +63,64 @@ export function MagneticFilterPrimitive({
         />
 
         {/* Isolation valve (inlet side) */}
-        <rect x={46} y={76} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#64748b'} data-testid="magnetic-filter-isolation-valve-left" />
+        <rect x={38} y={46} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#64748b'} data-testid="magnetic-filter-isolation-valve-left" />
 
-        {/* Vertical service body */}
+        {/* Main separator body */}
         <rect
-          x={64}
-          y={20}
-          width={32}
-          height={62}
-          rx={8}
+          x={48}
+          y={36}
+          width={64}
+          height={24}
+          rx={10}
           fill={printSafe ? '#e5e7eb' : '#f1f5f9'}
           stroke="#334155"
           strokeWidth={2}
           data-testid="magnetic-filter-service-body"
         />
+        <path
+          d="M 58 48 H 102"
+          stroke={printSafe ? '#9ca3af' : '#94a3b8'}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+        <path
+          d="M 70 42 C 76 39, 84 39, 90 42"
+          stroke={printSafe ? '#9ca3af' : '#60a5fa'}
+          strokeWidth={2}
+          fill="none"
+          strokeLinecap="round"
+        />
 
-        {/* Service cap */}
-        <rect x={68} y={10} width={24} height={12} rx={4} fill="#374151" stroke="#1f2937" strokeWidth={1} />
+        {/* Service canister / magnet head */}
+        <rect x={69} y={8} width={22} height={24} rx={6} fill={printSafe ? '#d1d5db' : '#e2e8f0'} stroke="#334155" strokeWidth={1.5} />
+        <rect x={72} y={4} width={16} height={7} rx={3} fill="#374151" stroke="#1f2937" strokeWidth={1} />
 
         {/* Magnet core */}
         <line
           x1={80}
-          y1={24}
+          y1={12}
           x2={80}
-          y2={74}
+          y2={76}
           stroke={printSafe ? '#000' : '#7c3aed'}
           strokeWidth={3}
         />
 
+        {/* Dirt bowl / service sump */}
+        <path
+          d="M 64 60 H 96 L 92 84 H 68 Z"
+          fill={printSafe ? '#e5e7eb' : '#dbeafe'}
+          stroke="#334155"
+          strokeWidth={2}
+        />
+        <circle cx={80} cy={84} r={3} fill={printSafe ? '#6b7280' : '#475569'} />
+
         {/* Magnetite particle dots */}
         {[
-          { cx: 72, cy: 50 },
-          { cx: 74, cy: 58 },
-          { cx: 86, cy: 46 },
-          { cx: 88, cy: 62 },
-          { cx: 76, cy: 68 },
+          { cx: 72, cy: 70 },
+          { cx: 76, cy: 76 },
+          { cx: 84, cy: 68 },
+          { cx: 88, cy: 76 },
+          { cx: 80, cy: 72 },
         ].map((p, i) => (
           <circle
             key={i}
@@ -113,14 +135,14 @@ export function MagneticFilterPrimitive({
         ))}
 
         {/* Isolation valve (outlet side) */}
-        <rect x={104} y={76} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#64748b'} data-testid="magnetic-filter-isolation-valve-right" />
+        <rect x={112} y={46} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#64748b'} data-testid="magnetic-filter-isolation-valve-right" />
 
         {/* Return pipe outlet toward boiler */}
         <line
-          x1={112}
-          y1={82}
+          x1={116}
+          y1={52}
           x2={156}
-          y2={82}
+          y2={52}
           stroke={printSafe ? '#555' : AUX_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           data-testid="magnetic-filter-return-out-port"

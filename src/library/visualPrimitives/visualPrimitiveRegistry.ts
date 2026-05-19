@@ -74,6 +74,10 @@ export type VisualPrimitiveAbstractionLevel =
   | 'iconic'              // icon-level simplification, still recognisable
   | 'abstract';           // purely conceptual — shape conveys no equipment identity
 
+export type HumanVisualReviewState =
+  | 'passed'
+  | 'human_visual_review_required';
+
 // ─── Registry entry ───────────────────────────────────────────────────────────
 
 export interface VisualPrimitiveEntry {
@@ -102,6 +106,10 @@ export interface VisualPrimitiveEntry {
    * must be fixed before this primitive is marked customer-ready.
    */
   qaNote?: string;
+  /** Manual no-label recognition gate that can override metadata-only compliance. */
+  humanVisualReviewState: HumanVisualReviewState;
+  /** Why human review is still required, even if automated checks are green. */
+  humanVisualReviewNote?: string;
 }
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
@@ -127,6 +135,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'passed',
   },
   {
     id: 'system_boiler',
@@ -142,6 +151,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'passed',
   },
   {
     id: 'regular_boiler',
@@ -158,6 +168,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'passed',
   },
 
   // ── Cylinders ───────────────────────────────────────────────────────────────
@@ -179,6 +190,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Lower coil, tundish/discharge cue, and connected topology ports still need manual no-label review before this can be trusted as customer-ready.',
   },
   {
     id: 'vented_cylinder',
@@ -195,6 +209,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Vented cylinder still needs manual no-label review for tank-fed venting and coil readability before it can override the gate.',
   },
   {
     id: 'mixergy_cylinder',
@@ -214,6 +231,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Keep a clean smart-cylinder silhouette with a sharp horizontal thermocline, top-heating cue, and bottom diffuser; avoid hose-heavy external pipework.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Mixergy remains blocked until a reviewer confirms it is distinguishable from a standard cylinder without labels.',
   },
 
   // ── Thermal store ──────────────────────────────────────────────────────────
@@ -235,6 +255,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Must remain distinct from Mixergy by showing primary-water storage with a dedicated potable separation path (coil/heat exchanger).',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Thermal store remains blocked until a reviewer confirms the separate potable heat-exchange path reads without labels.',
   },
 
   // ── Radiators ───────────────────────────────────────────────────────────────
@@ -256,6 +279,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'passed',
   },
 
   // ── Pumps ───────────────────────────────────────────────────────────────────
@@ -276,6 +300,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Render as an inline Grundfos/Wilo-style circulator body with visible pipe entry/exit; avoid P&ID-only circle symbols.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Pump still needs human confirmation that the inline circulator reads as equipment without context labels.',
   },
   {
     id: 'powerflush_machine',
@@ -291,6 +318,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'passed',
   },
 
   // ── Pipework ────────────────────────────────────────────────────────────────
@@ -311,6 +339,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'recognisable_with_context',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Pipe-only visuals are schematic cues, not standalone no-label equipment drawings.',
   },
   {
     id: 'pipe_loop',
@@ -326,6 +357,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'recognisable_with_context',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Loop-only visuals remain contextual and cannot pass the human no-label recognition gate on their own.',
   },
 
   // ── Valves ──────────────────────────────────────────────────────────────────
@@ -347,6 +381,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Show a braided flexible hose with two isolation valves in a default disconnected/ghosted service state.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Filling loop remains blocked until a reviewer confirms the disconnected service state is recognisable without its label.',
   },
   {
     id: 'abv',
@@ -362,6 +399,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Render as a compact bypass valve body with an angled adjustment head on a flow-to-return bridge, not a generic valve icon.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'ABV remains blocked until a reviewer confirms the bypass body reads as a real valve rather than a generic symbol.',
   },
 
   // ── Filters ─────────────────────────────────────────────────────────────────
@@ -380,6 +420,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'recognisable_with_context',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Magnetic filter remains blocked pending human review of the serviceable filter body in no-label mode.',
   },
 
   // ── Gauges ──────────────────────────────────────────────────────────────────
@@ -399,6 +442,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'passed',
   },
   {
     id: 'linear_flow_gauge',
@@ -416,6 +460,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Abstract progress-bar form — does not look like a physical gauge. Acceptable for numeric data readout contexts. Do not use as an equipment symbol.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Abstract data readout must stay blocked from visual compliance because it is not a physical object drawing.',
   },
 
   // ── Tanks ───────────────────────────────────────────────────────────────────
@@ -436,6 +483,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'immediately_recognisable',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'passed',
   },
 
   // ── Expansion vessel ────────────────────────────────────────────────────────
@@ -457,6 +505,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Render as a red/grey pressure vessel silhouette with diaphragm split and mounting/bracket cue so it does not read as a generic tank.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Expansion vessel remains blocked until a reviewer confirms the vessel silhouette is recognisable without text.',
   },
 
   // ── Heat flow ───────────────────────────────────────────────────────────────
@@ -479,6 +530,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'printSafe=false because colour-only coding (red/blue) loses meaning in monochrome print. A dashed/solid line pattern must be used as a secondary cue.',
+    humanVisualReviewState: 'passed',
   },
   {
     id: 'thermocline_boundary',
@@ -495,6 +547,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'recognisable_with_context',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Thermocline marker is a contextual internal cue and cannot satisfy no-label equipment review on its own.',
   },
 
   // ── Water flow ──────────────────────────────────────────────────────────────
@@ -514,6 +569,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     recognisability: 'recognisable_with_context',
     printSafe: true,
     motionSafe: true,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Flow-split graphic is still a contextual explainer, not a self-sufficient no-label equipment drawing.',
   },
 
   // ── Controls ────────────────────────────────────────────────────────────────
@@ -535,6 +593,9 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     motionSafe: true,
     qaNote:
       'Abstract bar pattern — not a physical object. Appropriate as a concept explainer but should always accompany a physical boiler visual in customer-facing contexts.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Cycling bars are a behaviour explainer and must stay blocked by the human visual review gate.',
   },
 ];
 

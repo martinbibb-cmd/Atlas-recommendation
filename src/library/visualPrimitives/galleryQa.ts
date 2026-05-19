@@ -115,6 +115,7 @@ export interface VisualPrimitiveQaSummary {
   needsRebuildEntries: VisualPrimitiveEntry[];
   abstractPlaceholderEntries: VisualPrimitiveEntry[];
   recognisableWithContextEntries: VisualPrimitiveEntry[];
+  humanVisualReviewRequiredEntries: VisualPrimitiveEntry[];
   criticalRecognisabilityFailures: VisualPrimitiveEntry[];
   contextualWithoutQaNote: VisualPrimitiveEntry[];
   contextualOutsideAllowedSet: VisualPrimitiveEntry[];
@@ -130,6 +131,9 @@ export function buildVisualPrimitiveQaSummary(
   );
   const recognisableWithContextEntries = entries.filter(
     entry => entry.recognisability === 'recognisable_with_context',
+  );
+  const humanVisualReviewRequiredEntries = entries.filter(
+    entry => entry.humanVisualReviewState === 'human_visual_review_required',
   );
 
   const criticalRecognisabilityFailures = entries.filter(
@@ -168,6 +172,7 @@ export function buildVisualPrimitiveQaSummary(
     needsRebuildEntries,
     abstractPlaceholderEntries,
     recognisableWithContextEntries,
+    humanVisualReviewRequiredEntries,
     criticalRecognisabilityFailures,
     contextualWithoutQaNote,
     contextualOutsideAllowedSet,
