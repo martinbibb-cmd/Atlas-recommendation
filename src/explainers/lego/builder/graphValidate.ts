@@ -123,16 +123,11 @@ function nodePortsForDisconnectedCheck(graph: BuildGraph, nodeId: string): strin
 }
 
 function allowedRailsForRoles(a: PortDef['role'], b: PortDef['role']): RoutingRail[] {
-  // Same-domain pairings (hot↔hot, cold↔cold) are intentionally allowed here
-  // because branch/manifold-style layouts can legitimately connect them.
-  if (a === 'hot' || b === 'hot') {
-    if (a === 'cold' || b === 'cold') return []
-    return [ROUTING_RAILS.DHW]
-  }
-  if (a === 'cold' || b === 'cold') {
-    if (a === 'hot' || b === 'hot') return []
-    return [ROUTING_RAILS.CW_MAINS]
-  }
+  if ((a === 'hot' && b === 'cold') || (a === 'cold' && b === 'hot')) return []
+  // Same-domain pairings (hot↔hot, cold↔cold) are intentionally allowed here.
+  // The next two guards implicitly accept those pairings by role domain.
+  if (a === 'hot' || b === 'hot') return [ROUTING_RAILS.DHW]
+  if (a === 'cold' || b === 'cold') return [ROUTING_RAILS.CW_MAINS]
   // Return-dominant pairs are constrained to CH_RETURN so a return terminal
   // cannot be explicitly labeled as a supply/flow rail.
   if (a === 'return' || b === 'return') return [ROUTING_RAILS.CH_RETURN]
@@ -141,6 +136,8 @@ function allowedRailsForRoles(a: PortDef['role'], b: PortDef['role']): RoutingRa
   if (a === 'flow' || b === 'flow' || a === 'store' || b === 'store') {
     return [ROUTING_RAILS.CH_FLOW, ROUTING_RAILS.CH_RETURN]
   }
+  // Fallback (unknown/outlet/undefined role pairings): keep permissive so
+  // incomplete draft topology states don't get hard-blocked by rail mapping.
   return [ROUTING_RAILS.CH_FLOW, ROUTING_RAILS.CH_RETURN, ROUTING_RAILS.DHW, ROUTING_RAILS.CW_MAINS]
 }
 
