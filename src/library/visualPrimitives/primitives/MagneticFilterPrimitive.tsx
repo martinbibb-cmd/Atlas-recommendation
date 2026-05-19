@@ -44,73 +44,61 @@ export function MagneticFilterPrimitive({
     >
       <svg
         width={Math.round(160 * scale)}
-        height={Math.round(90 * scale)}
-        viewBox="0 0 160 90"
+        height={Math.round(100 * scale)}
+        viewBox="0 0 160 100"
         role="img"
         aria-hidden="true"
         focusable="false"
       >
-        {/* Return pipe — left (inlet, dirty flow) */}
+        {/* Return pipe — left inlet */}
         <line
-          x1={4} y1={50}
-          x2={48} y2={50}
+          x1={4}
+          y1={82}
+          x2={48}
+          y2={82}
           stroke={printSafe ? '#000' : AUX_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
+          data-testid="magnetic-filter-return-in-port"
+          data-port-position="left"
+          data-port-role="magnetic_filter_return_in"
         />
 
-        {/* Dirty flow — dark particles hint */}
-        {!printSafe && (
-          <line
-            x1={4} y1={50}
-            x2={36} y2={50}
-            stroke="#78350f"
-            strokeWidth={2}
-            opacity={0.35}
-          />
-        )}
+        {/* Isolation valve (inlet side) */}
+        <rect x={46} y={76} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#64748b'} data-testid="magnetic-filter-isolation-valve-left" />
 
-        {/* Filter body (rectangle) */}
+        {/* Vertical service body */}
         <rect
-          x={48} y={22}
-          width={64} height={56}
+          x={64}
+          y={20}
+          width={32}
+          height={62}
           rx={8}
           fill={printSafe ? '#e5e7eb' : '#f1f5f9'}
           stroke="#334155"
           strokeWidth={2}
+          data-testid="magnetic-filter-service-body"
         />
 
-        {/* Magnet core — vertical line through centre */}
+        {/* Service cap */}
+        <rect x={68} y={10} width={24} height={12} rx={4} fill="#374151" stroke="#1f2937" strokeWidth={1} />
+
+        {/* Magnet core */}
         <line
-          x1={80} y1={30}
-          x2={80} y2={70}
+          x1={80}
+          y1={24}
+          x2={80}
+          y2={74}
           stroke={printSafe ? '#000' : '#7c3aed'}
           strokeWidth={3}
         />
 
-        {/* Removable cap at top */}
-        <rect
-          x={70} y={14}
-          width={20} height={9}
-          rx={3}
-          fill="#374151"
-          stroke="#1f2937"
-          strokeWidth={1}
-        />
-        <text
-          x={80} y={21}
-          textAnchor="middle"
-          fontSize={5}
-          fontFamily="system-ui"
-          fill="#fff"
-        >CAP</text>
-
         {/* Magnetite particle dots */}
         {[
-          { cx: 72, cy: 46 },
-          { cx: 76, cy: 55 },
-          { cx: 84, cy: 42 },
-          { cx: 88, cy: 58 },
-          { cx: 78, cy: 64 },
+          { cx: 72, cy: 50 },
+          { cx: 74, cy: 58 },
+          { cx: 86, cy: 46 },
+          { cx: 88, cy: 62 },
+          { cx: 76, cy: 68 },
         ].map((p, i) => (
           <circle
             key={i}
@@ -124,30 +112,21 @@ export function MagneticFilterPrimitive({
           />
         ))}
 
-        {/* Outlet pipe — right (cleaner flow) */}
+        {/* Isolation valve (outlet side) */}
+        <rect x={104} y={76} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#64748b'} data-testid="magnetic-filter-isolation-valve-right" />
+
+        {/* Return pipe outlet toward boiler */}
         <line
-          x1={112} y1={50}
-          x2={156} y2={50}
+          x1={112}
+          y1={82}
+          x2={156}
+          y2={82}
           stroke={printSafe ? '#555' : AUX_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
+          data-testid="magnetic-filter-return-out-port"
+          data-port-position="right"
+          data-port-role="magnetic_filter_return_out"
         />
-
-        {/* Pipe labels */}
-        <text x={24} y={44} textAnchor="middle" fontSize={7} fontFamily="system-ui" fill="#64748b">
-          Return in
-        </text>
-        <text x={134} y={44} textAnchor="middle" fontSize={7} fontFamily="system-ui" fill="#64748b">
-          To boiler
-        </text>
-        <text
-          x={80} y={83}
-          textAnchor="middle"
-          fontSize={7}
-          fontFamily="system-ui"
-          fill={printSafe ? '#374151' : '#7c3aed'}
-        >
-          Magnet core
-        </text>
       </svg>
 
       {showLabel && (

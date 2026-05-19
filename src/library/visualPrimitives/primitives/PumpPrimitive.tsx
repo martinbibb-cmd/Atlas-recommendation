@@ -39,10 +39,7 @@ export function PumpPrimitive({
   size = 'md',
 }: PumpPrimitiveProps) {
   const scale = SCALE[size];
-  // SVG authored at 100×60
-  const cx = 50;
-  const cy = 30;
-  const r = 20;
+  const cy = 34;
 
   return (
     <div
@@ -50,27 +47,31 @@ export function PumpPrimitive({
       aria-label="Circulation pump"
     >
       <svg
-        width={Math.round(100 * scale)}
-        height={Math.round(60 * scale)}
-        viewBox="0 0 100 60"
+        width={Math.round(130 * scale)}
+        height={Math.round(72 * scale)}
+        viewBox="0 0 130 72"
         role="img"
         aria-hidden="true"
         focusable="false"
       >
-        {/* Inlet pipe (primary flow) */}
+        {/* Inlet pipe */}
         <line
-          x1={4} y1={cy}
-          x2={cx - r} y2={cy}
+          x1={4}
+          y1={cy}
+          x2={34}
+          y2={cy}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           data-testid="pump-inlet-pipe"
           data-port-position="left"
           data-port-role="pump_primary_flow_in"
         />
-        {/* Outlet pipe (primary flow) */}
+        {/* Outlet pipe */}
         <line
-          x1={cx + r} y1={cy}
-          x2={96} y2={cy}
+          x1={96}
+          y1={cy}
+          x2={126}
+          y2={cy}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           data-testid="pump-outlet-pipe"
@@ -78,47 +79,30 @@ export function PumpPrimitive({
           data-port-role="pump_primary_flow_out"
         />
 
-        {/* Pump body circle */}
+        {/* Inline unions/flanges */}
+        <rect x={34} y={28} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#94a3b8'} data-testid="pump-inline-flange-left" />
+        <rect x={86} y={28} width={10} height={12} rx={2} fill={printSafe ? '#9ca3af' : '#94a3b8'} data-testid="pump-inline-flange-right" />
+
+        {/* Circulator housing */}
         <circle
-          cx={cx} cy={cy}
-          r={r}
+          cx={65}
+          cy={34}
+          r={24}
           fill={printSafe ? '#f3f4f6' : '#e0f2fe'}
           stroke="#334155"
           strokeWidth={2}
+          data-testid="pump-circulator-body"
         />
-
-        {/* Impeller — arrow inside */}
-        {/* Blades as crossed lines */}
-        <line
-          x1={cx - 11} y1={cy}
-          x2={cx + 11} y2={cy}
-          stroke="#334155"
-          strokeWidth={1.5}
-        />
-        <line
-          x1={cx} y1={cy - 11}
-          x2={cx} y2={cy + 11}
-          stroke="#334155"
-          strokeWidth={1.5}
-        />
-        {/* Rotation direction hint arrow */}
+        <circle cx={65} cy={34} r={12} fill={printSafe ? '#e5e7eb' : '#bfdbfe'} stroke="#475569" strokeWidth={1.5} />
+        <rect x={61} y={20} width={8} height={7} rx={2} fill={printSafe ? '#6b7280' : '#334155'} />
         <path
-          d={`M ${cx + 12} ${cy - 8} A 14 14 0 0 0 ${cx - 12} ${cy - 8}`}
+          d="M 74 31 A 9 9 0 0 0 56 31"
           stroke="#334155"
           strokeWidth={1.5}
           fill="none"
           strokeLinecap="round"
         />
-        <polygon
-          points={`${cx + 10},${cy - 14} ${cx + 16},${cy - 7} ${cx + 5},${cy - 11}`}
-          fill="#334155"
-        />
-
-        {/* Flow direction arrow on outlet */}
-        <polygon
-          points={`${cx + r + 6},${cy - 4} ${cx + r + 14},${cy} ${cx + r + 6},${cy + 4}`}
-          fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
-        />
+        <polygon points="73,26 78,31 70,30" fill="#334155" />
       </svg>
 
       {showLabel && (

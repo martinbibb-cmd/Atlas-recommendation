@@ -45,25 +45,41 @@ export function ExpansionVesselPrimitive({
         aria-hidden="true"
         focusable="false"
       >
-        {/* Vessel shell — ellipse */}
+        {/* Wall bracket cue */}
+        <rect
+          x={8}
+          y={18}
+          width={8}
+          height={34}
+          rx={2}
+          fill={printSafe ? '#9ca3af' : '#6b7280'}
+          data-testid="expansion-vessel-bracket"
+        />
+        <line x1={16} y1={36} x2={20} y2={36} stroke="#475569" strokeWidth={2} />
+
+        {/* Vessel shell */}
         <ellipse
           cx={40} cy={44}
           rx={34} ry={38}
-          fill={printSafe ? '#e5e7eb' : '#d1d5db'}
+          fill={printSafe ? '#d1d5db' : '#ef4444'}
           stroke="#374151"
           strokeWidth={2}
+          data-testid="expansion-vessel-shell"
         />
 
-        {/* Air charge side (left) — lighter */}
+        {/* Grey lower shell cue */}
+        <path d="M 8 44 C 8 64, 24 80, 40 80 C 56 80, 72 64, 72 44 Z" fill={printSafe ? '#9ca3af' : '#9ca3af'} opacity={0.8} />
+
+        {/* Air charge side */}
         <path
           d="M 40 8 C 22 8, 8 24, 8 44 C 8 64, 22 78, 40 80 Z"
-          fill={printSafe ? '#f9fafb' : '#f0f9ff'}
+          fill={printSafe ? '#f3f4f6' : '#fee2e2'}
         />
 
-        {/* Water side (right) — slightly darker */}
+        {/* Water side */}
         <path
           d="M 40 8 C 58 8, 72 24, 72 44 C 72 64, 58 78, 40 80 Z"
-          fill={printSafe ? '#d1d5db' : '#bfdbfe'}
+          fill={printSafe ? '#d1d5db' : '#fecaca'}
         />
 
         {/* Diaphragm — S-curve split */}
@@ -72,25 +88,8 @@ export function ExpansionVesselPrimitive({
           stroke={printSafe ? '#000' : '#1f2937'}
           strokeWidth={2.5}
           fill="none"
+          data-testid="expansion-vessel-diaphragm"
         />
-
-        {/* Air label */}
-        <text
-          x={24} y={46}
-          textAnchor="middle"
-          fontSize={8}
-          fontFamily="system-ui, sans-serif"
-          fill={printSafe ? '#374151' : '#1e40af'}
-        >Air</text>
-
-        {/* Water label */}
-        <text
-          x={56} y={46}
-          textAnchor="middle"
-          fontSize={8}
-          fontFamily="system-ui, sans-serif"
-          fill={printSafe ? '#374151' : '#1d4ed8'}
-        >Water</text>
 
         {/* Connection pipe stub at bottom */}
         <line
@@ -98,6 +97,8 @@ export function ExpansionVesselPrimitive({
           x2={40} y2={94}
           stroke="#374151"
           strokeWidth={3}
+          data-port-position="bottom"
+          data-port-role="expansion_vessel_connection"
         />
         <rect
           x={32} y={90}

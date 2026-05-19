@@ -116,12 +116,12 @@ export const GAUGE_TICK_FONT_SIZE = 6;
 /**
  * Shared viewBox dimensions for CylinderPrimitive and MixergyCylinderPrimitive.
  *
- * Both cylinders use the same 60×96 body inside a 84×132 viewBox so they
+ * Both cylinders use the same 46×110 body (≈ 1:2.4) inside a 84×132 viewBox so they
  * occupy exactly the same space when placed in topology layouts.
  */
 export const CYLINDER_SVG_W = 84;
 export const CYLINDER_SVG_H = 132;
-export const CYLINDER_BODY_X = 10;
-export const CYLINDER_BODY_Y = 14;
-export const CYLINDER_BODY_W = 60;
-export const CYLINDER_BODY_H = 96;
+export const CYLINDER_BODY_X = 19;
+export const CYLINDER_BODY_Y = 10;
+export const CYLINDER_BODY_W = 46;
+export const CYLINDER_BODY_H = 110;

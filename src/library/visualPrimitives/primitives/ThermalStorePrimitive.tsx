@@ -47,7 +47,7 @@ export function ThermalStorePrimitive({
 }: ThermalStorePrimitiveProps) {
   const scale = SCALE[size];
 
-  const primaryBodyFill = printSafe ? '#d1d5db' : '#fde68a';
+  const vesselBodyFill = printSafe ? '#d1d5db' : '#f59e0b';
   const coilColour = printSafe ? '#374151' : '#2563eb';
 
   return (
@@ -63,14 +63,14 @@ export function ThermalStorePrimitive({
         aria-hidden="true"
         focusable="false"
       >
-        {/* Vessel body — contains primary/system water (not potable) */}
+        {/* Heavier vessel body — intentionally distinct from smart-cylinder styling */}
         <rect
           x={16}
           y={12}
           width={60}
           height={120}
           rx={16}
-          fill={printSafe ? '#e5e7eb' : '#e2e8f0'}
+          fill={printSafe ? '#e5e7eb' : '#dbeafe'}
           stroke="#334155"
           strokeWidth={2}
           data-testid="thermal-store-primary-body"
@@ -83,32 +83,9 @@ export function ThermalStorePrimitive({
           width={56}
           height={116}
           rx={14}
-          fill={primaryBodyFill}
+          fill={vesselBodyFill}
           opacity={0.7}
         />
-
-        {/* "Primary" label inside body */}
-        <text
-          x={46}
-          y={50}
-          textAnchor="middle"
-          fontSize={7}
-          fontFamily="system-ui, sans-serif"
-          fontWeight="bold"
-          fill={printSafe ? '#374151' : '#92400e'}
-        >
-          Primary
-        </text>
-        <text
-          x={46}
-          y={60}
-          textAnchor="middle"
-          fontSize={7}
-          fontFamily="system-ui, sans-serif"
-          fill={printSafe ? '#374151' : '#92400e'}
-        >
-          water
-        </text>
 
         {/*
           Internal heat-exchanger coil — potable water path.
@@ -124,19 +101,17 @@ export function ThermalStorePrimitive({
           strokeLinecap="round"
           data-testid="thermal-store-coil"
         />
-
-        {/* "Coil" label */}
-        <text
-          x={46}
-          y={96}
-          textAnchor="middle"
-          fontSize={6}
-          fontFamily="system-ui, sans-serif"
-          fill={coilColour}
-          opacity={0.85}
-        >
-          Coil
-        </text>
+        <rect
+          x={58}
+          y={62}
+          width={12}
+          height={22}
+          rx={2}
+          fill={printSafe ? '#e5e7eb' : '#f8fafc'}
+          stroke={coilColour}
+          strokeWidth={1.5}
+          data-testid="thermal-store-plate-hex"
+        />
 
         {/* PRIMARY stubs — left side */}
         <line
@@ -146,6 +121,7 @@ export function ThermalStorePrimitive({
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="thermal-store-primary-in"
           data-port-position="left-top"
+          data-port-role="thermal_store_primary_in"
         />
         <line
           x1={16} y1={108}
@@ -154,6 +130,7 @@ export function ThermalStorePrimitive({
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="thermal-store-primary-out"
           data-port-position="left-bottom"
+          data-port-role="thermal_store_primary_out"
         />
 
         {/* POTABLE stubs — right side */}
@@ -164,6 +141,7 @@ export function ThermalStorePrimitive({
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="thermal-store-potable-hot-out"
           data-port-position="right-top"
+          data-port-role="thermal_store_potable_hot_out"
         />
         <line
           x1={76} y1={108}
@@ -172,6 +150,7 @@ export function ThermalStorePrimitive({
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="thermal-store-potable-cold-in"
           data-port-position="right-bottom"
+          data-port-role="thermal_store_potable_cold_in"
         />
       </svg>
 

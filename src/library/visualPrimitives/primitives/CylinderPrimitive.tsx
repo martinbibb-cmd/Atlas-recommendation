@@ -14,7 +14,6 @@
  */
 
 import {
-  AUX_COLOUR,
   CYLINDER_BODY_H,
   CYLINDER_BODY_W,
   CYLINDER_BODY_X,
@@ -50,9 +49,8 @@ const VARIANT_LABELS: Record<CylinderVariant, string> = {
 };
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
-const CYLINDER_FILL_UNVENTED = '#fed7aa';
-const CYLINDER_FILL_VENTED = '#fdba74';
-const CYLINDER_CHARGE_TEXT_COLOUR = '#7c2d12';
+const CYLINDER_FILL_UNVENTED = '#e5e7eb';
+const CYLINDER_FILL_VENTED = '#d6d3d1';
 
 export function CylinderPrimitive({
   variant = 'unvented',
@@ -64,12 +62,13 @@ export function CylinderPrimitive({
 }: CylinderPrimitiveProps) {
   const scale = SCALE[size];
   const chargePct = Math.round(Math.max(0, Math.min(1, fillLevel)) * 100);
-  const coldInY = CYLINDER_BODY_Y + CYLINDER_BODY_H - 12;
-  const hotOutY = CYLINDER_BODY_Y + 14;
-  const coilInY = CYLINDER_BODY_Y + Math.round(CYLINDER_BODY_H * 0.68);
-  const coilOutY = CYLINDER_BODY_Y + Math.round(CYLINDER_BODY_H * 0.84);
-  const coilLeftX = CYLINDER_BODY_X + 15;
-  const coilRightX = CYLINDER_BODY_X + CYLINDER_BODY_W - 15;
+  const topX = CYLINDER_BODY_X + CYLINDER_BODY_W / 2;
+  const topY = CYLINDER_BODY_Y;
+  const bodyBottomY = CYLINDER_BODY_Y + CYLINDER_BODY_H;
+  const coilFlowY = CYLINDER_BODY_Y + Math.round(CYLINDER_BODY_H * 0.7);
+  const coilReturnY = CYLINDER_BODY_Y + Math.round(CYLINDER_BODY_H * 0.82);
+  const coilLeftX = CYLINDER_BODY_X + 8;
+  const coilRightX = CYLINDER_BODY_X + CYLINDER_BODY_W - 8;
 
   return (
     <div
@@ -84,104 +83,117 @@ export function CylinderPrimitive({
         aria-hidden="true"
         focusable="false"
       >
-        {/* Body outline */}
+        {/* Vertical cylinder body */}
         <rect
-          x={CYLINDER_BODY_X} y={CYLINDER_BODY_Y}
-          width={CYLINDER_BODY_W} height={CYLINDER_BODY_H}
+          x={CYLINDER_BODY_X}
+          y={CYLINDER_BODY_Y}
+          width={CYLINDER_BODY_W}
+          height={CYLINDER_BODY_H}
           rx={14}
-          fill="#e2e8f0"
+          fill={printSafe ? '#f9fafb' : '#f1f5f9'}
           stroke="#334155"
           strokeWidth={2}
+          data-testid="cylinder-vertical-body"
+        />
+        <ellipse
+          cx={topX}
+          cy={topY + 3}
+          rx={Math.round(CYLINDER_BODY_W / 2) - 1}
+          ry={6}
+          fill={printSafe ? '#f3f4f6' : '#e2e8f0'}
+          stroke="#94a3b8"
+          strokeWidth={1}
+          data-testid="cylinder-domed-top"
+        />
+        <ellipse
+          cx={topX}
+          cy={bodyBottomY - 2}
+          rx={Math.round(CYLINDER_BODY_W / 2) - 1}
+          ry={5}
+          fill={printSafe ? '#e5e7eb' : '#cbd5e1'}
+          opacity={0.55}
         />
 
-        {/* Standard cylinders render as evenly heated storage with no blue-bottom stratification. */}
+        {/* Uniform warm fill; no stratification/thermocline. */}
         <rect
           x={CYLINDER_BODY_X + 1}
           y={CYLINDER_BODY_Y + 1}
           width={CYLINDER_BODY_W - 2}
           height={CYLINDER_BODY_H - 2}
           rx={13}
-          fill={printSafe ? '#d1d5db' : (variant === 'unvented' ? CYLINDER_FILL_UNVENTED : CYLINDER_FILL_VENTED)}
+          fill={printSafe ? '#d1d5db' : variant === 'unvented' ? CYLINDER_FILL_UNVENTED : CYLINDER_FILL_VENTED}
         />
-        <text
-          x={CYLINDER_BODY_X + CYLINDER_BODY_W / 2}
-          y={CYLINDER_BODY_Y + CYLINDER_BODY_H / 2 + 4}
-          textAnchor="middle"
-          fontSize={9}
-          fontWeight="bold"
-          fontFamily="system-ui, sans-serif"
-          fill={printSafe ? '#111827' : CYLINDER_CHARGE_TEXT_COLOUR}
-        >
-          {chargePct}%
-        </text>
-
-        {/* PRV symbol — only on unvented variant */}
+        <line
+          x1={CYLINDER_BODY_X + 5}
+          y1={CYLINDER_BODY_Y + 18}
+          x2={CYLINDER_BODY_X + CYLINDER_BODY_W - 5}
+          y2={CYLINDER_BODY_Y + 18}
+          stroke="#cbd5e1"
+          strokeWidth={1}
+        />
         {variant === 'unvented' && (
-          <>
-            <rect
-              x={56} y={CYLINDER_BODY_Y - 10}
-              width={12} height={8}
-              rx={2}
-              fill="#374151" stroke="#1f2937" strokeWidth={1}
-            />
-            <line x1={62} y1={CYLINDER_BODY_Y - 10} x2={62} y2={CYLINDER_BODY_Y - 2} stroke="#374151" strokeWidth={1.5} />
-            <text
-              x={70} y={CYLINDER_BODY_Y - 3}
-              fontSize={5}
-              fontFamily="system-ui"
-              fill="#6b7280"
-            >PRV</text>
-          </>
+          <circle
+            cx={CYLINDER_BODY_X + CYLINDER_BODY_W - 7}
+            cy={CYLINDER_BODY_Y + 6}
+            r={2}
+            fill={printSafe ? '#374151' : '#64748b'}
+          />
         )}
 
         {/* Internal heating coil — tight coil in lower third (flow in / flow out). */}
         <path
-          d={`M ${coilLeftX} ${coilInY}
-              C ${coilLeftX + 8} ${coilInY - 6}, ${coilLeftX + 12} ${coilInY + 8}, ${coilLeftX + 20} ${coilInY + 2}
-              C ${coilLeftX + 28} ${coilInY - 4}, ${coilLeftX + 30} ${coilOutY - 4}, ${coilLeftX + 38} ${coilOutY}
-              C ${coilLeftX + 46} ${coilOutY + 4}, ${coilRightX - 2} ${coilOutY - 4}, ${coilRightX} ${coilOutY}`}
+          d={`M ${coilLeftX} ${coilFlowY}
+              C ${coilLeftX + 7} ${coilFlowY - 8}, ${coilLeftX + 13} ${coilFlowY + 6}, ${coilLeftX + 20} ${coilFlowY}
+              C ${coilLeftX + 27} ${coilFlowY - 5}, ${coilLeftX + 31} ${coilReturnY - 3}, ${coilLeftX + 36} ${coilReturnY}
+              C ${coilLeftX + 40} ${coilReturnY + 3}, ${coilRightX - 5} ${coilReturnY - 2}, ${coilRightX} ${coilReturnY}`}
           stroke={printSafe ? '#111827' : '#b45309'}
           strokeWidth={2}
           fill="none"
           data-testid="cylinder-internal-coil"
         />
 
-        {/* Cold inlet (bottom) */}
+        {/* Top DHW draw-off */}
         <line
-          x1={0} y1={coldInY}
-          x2={CYLINDER_BODY_X} y2={coldInY}
-          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
-          strokeWidth={PIPE_STROKE_BRANCH}
-          data-testid="cylinder-cold-in-port"
-          data-port-position="left"
-          data-port-role="cylinder_cold_in"
-        />
-        <polygon
-          points={`${CYLINDER_BODY_X - 6},${coldInY - 4} ${CYLINDER_BODY_X},${coldInY} ${CYLINDER_BODY_X - 6},${coldInY + 4}`}
-          fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
-        />
-
-        {/* Hot draw-off (top) */}
-        <line
-          x1={CYLINDER_BODY_X + CYLINDER_BODY_W} y1={hotOutY}
-          x2={CYLINDER_SVG_W} y2={hotOutY}
+          x1={topX}
+          y1={0}
+          x2={topX}
+          y2={topY}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
           className={animateFlow && !printSafe ? DRAW_OFF_PULSE_CLASS : undefined}
           data-testid="cylinder-hot-out-port"
-          data-port-position="right"
+          data-port-position="top"
           data-port-role="cylinder_hot_draw_off"
         />
         <polygon
-          points={`${CYLINDER_SVG_W - 6},${hotOutY - 4} ${CYLINDER_SVG_W},${hotOutY} ${CYLINDER_SVG_W - 6},${hotOutY + 4}`}
+          points={`${topX - 4},2 ${topX},0 ${topX + 4},2`}
           fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           className={animateFlow && !printSafe ? DRAW_OFF_PULSE_CLASS : undefined}
         />
 
-        {/* Coil flow-in / flow-out ports */}
+        {/* Bottom mains cold inlet */}
         <line
-          x1={0} y1={coilInY}
-          x2={coilLeftX} y2={coilInY}
+          x1={topX}
+          y1={bodyBottomY}
+          x2={topX}
+          y2={CYLINDER_SVG_H}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="cylinder-cold-in-port"
+          data-port-position="bottom"
+          data-port-role="cylinder_cold_in"
+        />
+        <polygon
+          points={`${topX - 4},${CYLINDER_SVG_H - 2} ${topX},${CYLINDER_SVG_H} ${topX + 4},${CYLINDER_SVG_H - 2}`}
+          fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+        />
+
+        {/* Lower-third coil flow/return side ports */}
+        <line
+          x1={0}
+          y1={coilFlowY}
+          x2={coilLeftX}
+          y2={coilFlowY}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="cylinder-coil-flow-in-port"
@@ -189,26 +201,16 @@ export function CylinderPrimitive({
           data-port-role="cylinder_coil_flow_in"
         />
         <line
-          x1={coilRightX} y1={coilOutY}
-          x2={CYLINDER_SVG_W} y2={coilOutY}
+          x1={coilRightX}
+          y1={coilReturnY}
+          x2={CYLINDER_SVG_W}
+          y2={coilReturnY}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="cylinder-coil-flow-out-port"
           data-port-position="right"
           data-port-role="cylinder_coil_flow_out"
         />
-
-        {/* Control-valve cue before cylinder coil (unvented shown as 2-port valve). */}
-        <polygon
-          points={`5,${coilInY - 5} 10,${coilInY} 5,${coilInY + 5} 0,${coilInY}`}
-          fill={printSafe ? '#111827' : AUX_COLOUR}
-          data-testid="cylinder-control-valve"
-        />
-        {variant === 'unvented' && (
-          <text x={12} y={coilInY - 7} fontSize={7} fontFamily="system-ui" fill={printSafe ? '#111827' : '#334155'}>
-            2-port
-          </text>
-        )}
       </svg>
 
       {showLabel && (

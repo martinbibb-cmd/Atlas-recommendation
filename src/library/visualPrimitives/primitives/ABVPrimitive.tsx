@@ -44,6 +44,13 @@ export interface ABVPrimitiveProps {
 }
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
+const ABV_BRIDGE_LEFT_X = 76;
+const ABV_BRIDGE_RIGHT_X = 88 + 4;
+const ABV_BRIDGE_UPPER_Y = 40;
+const ABV_BRIDGE_LOWER_Y = 44;
+const ABV_CAP_ROTATION_DEG = -40;
+const ABV_CAP_ROTATION_CX = 88.5;
+const ABV_CAP_ROTATION_CY = 32.5;
 
 export function ABVPrimitive({
   showLabel = true,
@@ -84,42 +91,48 @@ export function ABVPrimitive({
           strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
 
-        {/* Bypass bridge between flow and return */}
+        {/* Flow-return bridge */}
         <line
-          x1={78} y1={20}
-          x2={78} y2={40}
+          x1={ABV_BRIDGE_LEFT_X}
+          y1={20}
+          x2={ABV_BRIDGE_LEFT_X}
+          y2={ABV_BRIDGE_UPPER_Y}
           stroke={AUX_COLOUR}
           strokeWidth={2.5}
         />
         <line
-          x1={94} y1={44}
-          x2={94} y2={64}
+          x1={ABV_BRIDGE_RIGHT_X}
+          y1={ABV_BRIDGE_LOWER_Y}
+          x2={ABV_BRIDGE_RIGHT_X}
+          y2={64}
           stroke={AUX_COLOUR}
           strokeWidth={2.5}
         />
-        <line x1={78} y1={40} x2={94} y2={44} stroke={AUX_COLOUR} strokeWidth={2.5} />
+        <line x1={ABV_BRIDGE_LEFT_X} y1={ABV_BRIDGE_UPPER_Y} x2={ABV_BRIDGE_RIGHT_X} y2={ABV_BRIDGE_LOWER_Y} stroke={AUX_COLOUR} strokeWidth={2.5} />
 
-        {/* Inline valve body — canonical VALVE_W × VALVE_H (5:3) */}
+        {/* Compact brass bypass body */}
         <rect
-          x={78}
-          y={37}
-          width={VALVE_W + 6}
-          height={VALVE_H + 4}
+          x={75}
+          y={36}
+          width={VALVE_W + 4}
+          height={VALVE_H + 3}
           rx={3}
-          fill={printSafe ? '#d1d5db' : '#fde68a'}
+          fill={printSafe ? '#d1d5db' : '#fbbf24'}
           stroke="#374151"
           strokeWidth={1.5}
           className={animateFlow && !printSafe ? BYPASS_ACTIVATION_CLASS : undefined}
+          data-testid="abv-brass-body"
+          data-port-role="abv_bypass_body"
         />
 
         {/* Angled adjustment cap/head cue */}
         <rect
-          x={87}
+          x={84}
           y={29}
           width={VALVE_W - 1}
           height={VALVE_H + 1}
           rx={1.5}
-          transform="rotate(-45 91.5 32.5)"
+          transform={`rotate(${ABV_CAP_ROTATION_DEG} ${ABV_CAP_ROTATION_CX} ${ABV_CAP_ROTATION_CY})`}
           fill={printSafe ? '#6b7280' : '#dc2626'}
           stroke={printSafe ? '#111827' : '#7f1d1d'}
           strokeWidth={1}
@@ -128,7 +141,7 @@ export function ABVPrimitive({
 
         {/* Bypass relief direction — colour-coded to flow for accessibility */}
         <polygon
-          points="84,52 90,56 84,60"
+          points="82,52 88,56 82,60"
           fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
         />
 
@@ -138,9 +151,6 @@ export function ABVPrimitive({
         </text>
         <text x={42} y={78} textAnchor="middle" fontSize={7} fontFamily="system-ui" fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}>
           Return
-        </text>
-        <text x={100} y={42} fontSize={7} fontFamily="system-ui" fill={AUX_COLOUR}>
-          ABV
         </text>
       </svg>
 

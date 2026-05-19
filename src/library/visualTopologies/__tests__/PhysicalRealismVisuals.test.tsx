@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
 import { renderVisualTopology } from '../topologies';
-import { ABVPrimitive, CylinderPrimitive, MixergyCylinderPrimitive, RadiatorPrimitive } from '../../visualPrimitives/primitives';
+import {
+  ABVPrimitive,
+  BoilerPrimitive,
+  CylinderPrimitive,
+  ExpansionVesselPrimitive,
+  FillingLoopPrimitive,
+  MagneticFilterPrimitive,
+  MixergyCylinderPrimitive,
+  PumpPrimitive,
+  RadiatorPrimitive,
+} from '../../visualPrimitives/primitives';
 import { VISUAL_TOPOLOGY_REGISTRY } from '../visualTopologyRegistry';
 
 const DEFAULT_OPTIONS = { showLabels: false, printSafe: false, pipeTrace: false, mobileWidth: false } as const;
@@ -14,7 +24,33 @@ describe('physical realism regression guards', () => {
 
     expect(flow?.getAttribute('data-port-position')).toBe('bottom');
     expect(ret?.getAttribute('data-port-position')).toBe('bottom');
+    expect(flow?.getAttribute('data-port-role')).toBe('radiator_trv_flow_in');
+    expect(ret?.getAttribute('data-port-role')).toBe('radiator_lockshield_return_out');
     expect(container.querySelector('[data-port-position="top"]')).toBeNull();
+    expect(container.querySelector('[data-testid="radiator-panel-body"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="radiator-trv-body"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="radiator-lockshield-body"]')).toBeTruthy();
+  });
+
+  it('boiler primitive exposes variant-correct bottom-only service ports and product markers', () => {
+    const { container: combi } = render(<BoilerPrimitive variant="combi" showLabel={false} />);
+    expect(combi.querySelectorAll('[data-port-position="bottom"]').length).toBe(5);
+    expect(combi.querySelector('[data-port-role="boiler_primary_return"]')).toBeTruthy();
+    expect(combi.querySelector('[data-port-role="boiler_cold_mains_in"]')).toBeTruthy();
+    expect(combi.querySelector('[data-port-role="boiler_gas_supply"]')).toBeTruthy();
+    expect(combi.querySelector('[data-port-role="boiler_dhw_out"]')).toBeTruthy();
+    expect(combi.querySelector('[data-port-role="boiler_primary_flow"]')).toBeTruthy();
+    expect(combi.querySelector('[data-testid="boiler-wall-hung-body"]')).toBeTruthy();
+    expect(combi.querySelector('[data-testid="boiler-fascia-panel"]')).toBeTruthy();
+    expect(combi.querySelector('[data-port-position="top"], [data-port-position="left"], [data-port-position="right"]')).toBeNull();
+
+    const { container: system } = render(<BoilerPrimitive variant="system" showLabel={false} />);
+    expect(system.querySelectorAll('[data-port-position="bottom"]').length).toBe(3);
+    expect(system.querySelector('[data-port-role="boiler_primary_return"]')).toBeTruthy();
+    expect(system.querySelector('[data-port-role="boiler_gas_supply"]')).toBeTruthy();
+    expect(system.querySelector('[data-port-role="boiler_primary_flow"]')).toBeTruthy();
+    expect(system.querySelector('[data-port-role="boiler_cold_mains_in"]')).toBeNull();
+    expect(system.querySelector('[data-port-role="boiler_dhw_out"]')).toBeNull();
   });
 
   it('keeps normal topologies free from top-fed radiator cues', () => {
@@ -27,7 +63,8 @@ describe('physical realism regression guards', () => {
     );
 
     expect(container.querySelectorAll('[data-testid="radiator-flow-connection"][data-port-position="bottom"]').length).toBeGreaterThan(0);
-    expect(container.querySelector('[data-port-position="top"]')).toBeNull();
+    expect(container.querySelector('[data-testid="radiator-flow-connection"][data-port-position="top"]')).toBeNull();
+    expect(container.querySelector('[data-testid="radiator-return-connection"][data-port-position="top"]')).toBeNull();
   });
 
   it('renders ABV with an angled cap/head cue', () => {
@@ -52,8 +89,13 @@ describe('physical realism regression guards', () => {
   // ─── Pump inline regression guards ────────────────────────────────────────
 
   it('pump primitive exposes inlet and outlet pipe markers', () => {
-    // PumpPrimitive always renders data-testid stubs regardless of topology.
-    // This is the base assertion that the primitive is correctly wired.
+    const primitive = render(<PumpPrimitive showLabel={false} />);
+    expect(primitive.container.querySelector('[data-testid="pump-circulator-body"]')).toBeTruthy();
+    expect(primitive.container.querySelector('[data-testid="pump-inline-flange-left"]')).toBeTruthy();
+    expect(primitive.container.querySelector('[data-testid="pump-inline-flange-right"]')).toBeTruthy();
+    expect(primitive.container.querySelector('[data-testid="pump-inlet-pipe"]')?.getAttribute('data-port-role')).toBe('pump_primary_flow_in');
+    expect(primitive.container.querySelector('[data-testid="pump-outlet-pipe"]')?.getAttribute('data-port-role')).toBe('pump_primary_flow_out');
+
     const topologyIds = [
       'open_vented_vented_cylinder',
       'thermal_store_layout',
@@ -102,6 +144,12 @@ describe('physical realism regression guards', () => {
     expect(container.querySelector('[data-testid="cylinder-coil-flow-in-port"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="cylinder-coil-flow-out-port"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="cylinder-internal-coil"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="cylinder-vertical-body"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="cylinder-domed-top"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="cylinder-hot-out-port"]')?.getAttribute('data-port-position')).toBe('top');
+    expect(container.querySelector('[data-testid="cylinder-cold-in-port"]')?.getAttribute('data-port-position')).toBe('bottom');
+    expect(container.querySelector('[data-testid="cylinder-coil-flow-in-port"]')?.getAttribute('data-port-role')).toBe('cylinder_coil_flow_in');
+    expect(container.querySelector('[data-testid="cylinder-coil-flow-out-port"]')?.getAttribute('data-port-role')).toBe('cylinder_coil_flow_out');
   });
 
   it('sealed unvented cylinder topology contains no stratification zone elements', () => {
@@ -116,9 +164,11 @@ describe('physical realism regression guards', () => {
     expect(container.querySelector('[data-testid="mixergy-thermocline"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="mixergy-stratification-hot-zone"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="mixergy-stratification-cold-zone"]')).toBeTruthy();
-    expect(container.querySelector('[data-testid="mixergy-coil-flow-in-port"]')).toBeTruthy();
-    expect(container.querySelector('[data-testid="mixergy-coil-flow-out-port"]')).toBeTruthy();
-    expect(container.querySelector('[data-testid="mixergy-top-coil"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="mixergy-smart-body"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="mixergy-top-heating-cue"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="mixergy-bottom-diffuser"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="mixergy-hot-draw-off"]')?.getAttribute('data-port-position')).toBe('top');
+    expect(container.querySelector('[data-testid="mixergy-cold-entry"]')?.getAttribute('data-port-position')).toBe('bottom');
   });
 
   it('Mixergy topology renders stratification elements', () => {
@@ -153,6 +203,7 @@ describe('physical realism regression guards', () => {
     expect(container.querySelector('[data-testid="thermal-store-potable-hot-out"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="thermal-store-potable-cold-in"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="thermal-store-coil"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="thermal-store-plate-hex"]')).toBeTruthy();
   });
 
   it('thermal store topology does not contain Mixergy-specific markers', () => {
@@ -165,5 +216,33 @@ describe('physical realism regression guards', () => {
     expect(container.querySelector('[data-testid="mixergy-stratification-cold-zone"]')).toBeNull();
     expect(container.querySelector('[data-testid="mixergy-hot-draw-off"]')).toBeNull();
     expect(container.querySelector('[data-testid="mixergy-cold-entry"]')).toBeNull();
+  });
+
+  it('magnetic filter primitive reads as a vertical service body on return with isolation valves', () => {
+    const { container } = render(<MagneticFilterPrimitive showLabel={false} />);
+    expect(container.querySelector('[data-testid="magnetic-filter-service-body"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="magnetic-filter-isolation-valve-left"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="magnetic-filter-isolation-valve-right"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="magnetic-filter-return-in-port"]')?.getAttribute('data-port-role')).toBe('magnetic_filter_return_in');
+    expect(container.querySelector('[data-testid="magnetic-filter-return-out-port"]')?.getAttribute('data-port-role')).toBe('magnetic_filter_return_out');
+  });
+
+  it('filling loop primitive shows braided disconnected hose with two isolation valves', () => {
+    const { container } = render(<FillingLoopPrimitive showLabel={false} />);
+    expect(container.querySelector('[data-testid="filling-loop-braided-hose"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="filling-loop-isolation-valve-left"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="filling-loop-isolation-valve-right"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="filling-loop-disconnect-gap"]')).toBeTruthy();
+  });
+
+  it('ABV and expansion vessel primitives expose product-shape markers', () => {
+    const abv = render(<ABVPrimitive showLabel={false} />);
+    expect(abv.container.querySelector('[data-testid="abv-brass-body"]')).toBeTruthy();
+    expect(abv.container.querySelector('[data-testid="abv-angled-cap"]')).toBeTruthy();
+
+    const vessel = render(<ExpansionVesselPrimitive showLabel={false} />);
+    expect(vessel.container.querySelector('[data-testid="expansion-vessel-shell"]')).toBeTruthy();
+    expect(vessel.container.querySelector('[data-testid="expansion-vessel-diaphragm"]')).toBeTruthy();
+    expect(vessel.container.querySelector('[data-testid="expansion-vessel-bracket"]')).toBeTruthy();
   });
 });
