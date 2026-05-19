@@ -150,6 +150,8 @@ describe('physical realism regression guards', () => {
     expect(container.querySelector('[data-testid="cylinder-cold-in-port"]')?.getAttribute('data-port-position')).toBe('bottom');
     expect(container.querySelector('[data-testid="cylinder-coil-flow-in-port"]')?.getAttribute('data-port-role')).toBe('cylinder_coil_flow_in');
     expect(container.querySelector('[data-testid="cylinder-coil-flow-out-port"]')?.getAttribute('data-port-role')).toBe('cylinder_coil_flow_out');
+    expect(container.querySelector('[data-testid="cylinder-safety-discharge-port"]')?.getAttribute('data-port-role')).toBe('cylinder_safety_discharge');
+    expect(container.querySelector('[data-testid="cylinder-tundish"]')).toBeTruthy();
   });
 
   it('sealed unvented cylinder topology contains no stratification zone elements', () => {
@@ -218,7 +220,7 @@ describe('physical realism regression guards', () => {
     expect(container.querySelector('[data-testid="mixergy-cold-entry"]')).toBeNull();
   });
 
-  it('magnetic filter primitive reads as a vertical service body on return with isolation valves', () => {
+  it('magnetic filter primitive reads as a serviceable in-line filter body on return with isolation valves', () => {
     const { container } = render(<MagneticFilterPrimitive showLabel={false} />);
     expect(container.querySelector('[data-testid="magnetic-filter-service-body"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="magnetic-filter-isolation-valve-left"]')).toBeTruthy();

@@ -95,31 +95,12 @@ function offsetPoint(left: number, top: number, point: PortPoint): PortPoint {
   return { x: left + point.x, y: top + point.y };
 }
 
-const BOILER_SM_PORTS = {
-  flow: scaledPoint(80, 136),
-  return: scaledPoint(32, 136),
-  dhwOut: scaledPoint(70, 136),
-  coldIn: scaledPoint(42, 136),
-};
-
-const PUMP_SM_PORTS = {
-  inlet: scaledPoint(4, 34),
-  outlet: scaledPoint(126, 34),
-};
-
 const CYLINDER_SM_PORTS = {
   hotOut: scaledPoint(42, 0),
   coldIn: scaledPoint(42, 132),
   coilFlowIn: scaledPoint(0, 87),
   coilFlowOut: scaledPoint(84, 100),
   safetyDischarge: scaledPoint(70, 90),
-};
-
-const MIXERGY_SM_PORTS = {
-  hotOut: scaledPoint(42, 0),
-  coldIn: scaledPoint(42, 132),
-  chargeIn: scaledPoint(0, 88),
-  chargeOut: scaledPoint(84, 100),
 };
 
 const THERMAL_STORE_SM_PORTS = {
@@ -636,6 +617,10 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
+  const filterPorts = {
+    inlet: offsetPoint(188, 246, MAGNETIC_FILTER_SM_PORTS.inlet),
+    outlet: offsetPoint(188, 246, MAGNETIC_FILTER_SM_PORTS.outlet),
+  };
 
   return (
     <TopologyShell options={options}>
@@ -643,7 +628,10 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
         {/* Primary ring */}
         <line x1={140} y1={140} x2={560} y2={140} stroke={flow} strokeWidth={w} />
         <line x1={560} y1={140} x2={560} y2={300} stroke={flow} strokeWidth={w} />
-        <line x1={560} y1={300} x2={140} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={560} y1={300} x2={filterPorts.outlet.x} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterPorts.outlet.x} y1={300} x2={filterPorts.outlet.x} y2={filterPorts.outlet.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterPorts.inlet.x} y1={filterPorts.inlet.y} x2={filterPorts.inlet.x} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterPorts.inlet.x} y1={300} x2={140} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={140} y1={300} x2={140} y2={220} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
@@ -663,9 +651,9 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
         {/* Pipe label */}
         <text {...pipeLabelProps(590, 300, 'above', ret)}>Clean return into boiler</text>
         <line
-          x1={260}
+          x1={filterPorts.inlet.x}
           y1={300}
-          x2={140}
+          x2={filterPorts.outlet.x}
           y2={300}
           stroke="transparent"
           strokeWidth={PIPE_STROKE_BRANCH}

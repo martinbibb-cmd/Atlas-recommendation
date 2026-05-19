@@ -21,7 +21,17 @@ describe('SealedUnventedExplainerSlicePage', () => {
     expect(statusBadges.textContent).toContain('candidate');
     expect(statusBadges.textContent).toContain('under visual correction');
     expect(statusBadges.textContent).toContain('not yet canonical');
+    expect(statusBadges.textContent).toContain('human review required');
+    expect(statusBadges.textContent).toContain('screenshot review required');
     expect(screen.getByText(/Candidate Golden Reference \/ Sealed \+ Unvented Visual Workbench\./i)).toBeInTheDocument();
+  });
+
+  it('shows the Atlas Visual Review Board gate copy before customer-facing promotion', () => {
+    render(<SealedUnventedExplainerSlicePage />);
+
+    expect(screen.getByTestId('sealed-unvented-human-review-gate')).toBeInTheDocument();
+    expect(screen.getByText(/Atlas Visual Review Board gate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Human screenshot review overrides all green badges/i)).toBeInTheDocument();
   });
 
   it('defaults to physical baseline with overlay off and keeps all required analogy modes available', () => {

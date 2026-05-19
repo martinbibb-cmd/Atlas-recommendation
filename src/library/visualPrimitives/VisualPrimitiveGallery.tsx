@@ -391,6 +391,9 @@ export function VisualPrimitiveGallery() {
           Canonical heating-system physical object primitives. Physical truth layer only — no analogies, no
           metaphors. Primary fixture is no-label mode so recognisability can be reviewed first.
         </p>
+        <p style={{ margin: '0 0 0.5rem', color: '#991b1b', fontSize: 12, maxWidth: '72ch' }}>
+          All visual QA statuses are provisional until Atlas Visual Review Board screenshot review confirms the SVG reads correctly without labels.
+        </p>
 
         {/* Acceptance test banner */}
         <div

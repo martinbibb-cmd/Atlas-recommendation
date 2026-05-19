@@ -82,6 +82,7 @@ describe('VisualPrimitiveGallery QA surface', () => {
     expect(banner.textContent).toContain('FAIL');
     expect(banner.textContent).toContain('needs_rebuild');
     expect(banner.textContent).toContain('abstract_placeholder');
+    expect(banner.textContent).toContain('Human review gate still active');
     expect(banner.textContent).toContain('WARN');
     expect(banner.textContent).toContain('recognisable_with_context');
   });

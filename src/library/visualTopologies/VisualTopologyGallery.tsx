@@ -104,6 +104,9 @@ export function VisualTopologyGallery() {
         <p style={{ margin: 0, color: '#475569', fontSize: 13, maxWidth: '74ch' }}>
           Canonical connected heating-system layouts composed from PR 1 primitives only.
         </p>
+        <p style={{ margin: '0.35rem 0 0', color: '#991b1b', fontSize: 12, maxWidth: '74ch' }}>
+          All topology compliance badges are provisional until Atlas Visual Review Board screenshot review confirms the no-label drawing is genuinely understandable.
+        </p>
       </header>
 
       <HumanVisualReviewChecklist

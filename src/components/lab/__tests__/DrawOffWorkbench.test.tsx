@@ -110,6 +110,11 @@ describe('DrawOffWorkbench — structure', () => {
     expect(screen.getByRole('group', { name: 'System regime' })).toBeTruthy();
   });
 
+  it('shows a human-review gate banner before customer-facing use', () => {
+    render(<DrawOffWorkbench />);
+    expect(screen.getByTestId('draw-off-workbench-human-review-gate').textContent).toContain('blocked for customer-facing use');
+  });
+
   it('renders all four regime buttons', () => {
     render(<DrawOffWorkbench />);
     expect(screen.getByRole('button', { name: 'Combi' })).toBeTruthy();
@@ -176,6 +181,13 @@ describe('DrawOffWorkbench — regime switching', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mixergy cylinder' }));
     expect(screen.getByRole('img', { name: /Cylinder schematic/ })).toBeTruthy();
     expect(screen.getByRole('img', { name: /cool reserve/ })).toBeTruthy();
+  });
+
+  it('disables the customer-facing report button until human review passes', () => {
+    render(<DrawOffWorkbench onOpenReport={() => undefined} />);
+    const button = screen.getByRole('button', { name: /view report unavailable pending human visual review/i });
+    expect(button).toBeDisabled();
+    expect(button.textContent).toContain('Customer use blocked');
   });
 });
 
