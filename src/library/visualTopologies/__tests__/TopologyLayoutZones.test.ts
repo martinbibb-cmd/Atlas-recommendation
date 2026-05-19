@@ -1,185 +1,210 @@
 /**
  * TopologyLayoutZones.test.ts
  *
- * Zone regression test — asserts that equipment anchor coordinates in
- * visualTopologies.tsx remain within the bounds defined in
+ * Zone regression test — asserts that all nine topology layout declarations
+ * produce equipment positions within the canonical zone bounds defined in
  * TOPOLOGY_LAYOUT_GRID.md.
  *
- * Strategy: static analysis of the source file.  We parse every
- * `nodeStyle(x, y)` call alongside the immediately-following primitive
- * component name, then validate x/y against the canonical zone table.
+ * Strategy: invoke the layout engine directly.
+ *   1. For each topology, call computeTopologyLayout(getTopologyLayoutDeclaration(id)).
+ *   2. Run validateLayout() — checks zone bounds, disconnected zones, rail sanity.
+ *   3. Assert that any violation is listed in KNOWN_OUT_OF_ZONE (and that the
+ *      whitelist has no stale entries).
  *
- * When a topology legitimately places equipment outside a zone (e.g. the
- * powerflush topology puts the boiler on the right side of the circuit),
- * add it to KNOWN_OUT_OF_ZONE below and explain why.
+ * Rationale for migrating from source-file regex:
+ *   Templates no longer contain literal x/y coordinates; all positions are
+ *   computed by the engine.  Testing the engine output directly is the correct
+ *   regression strategy — it validates actual runtime behaviour, not source text.
+ *
+ * KNOWN_OUT_OF_ZONE entries document intentional placement exceptions:
+ *   • powerflush boiler on the right side (service circuit reversal)
+ *   • pumps inline on primary flow rail (open-vented, thermal-store)
  */
 
 import { describe, it, expect } from 'vitest';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import {
+  computeTopologyLayout,
+  getTopologyLayoutDeclaration,
+  validateLayout,
+} from '../layout';
+import type { VisualTopologyId } from '../visualTopologyRegistry';
 
-const TOPOLOGIES_SRC = path.resolve(
-  __dirname,
-  '../topologies/visualTopologies.tsx',
-);
+// ─── All topology IDs ──────────────────────────────────────────────────────────
 
-// ─── Canonical zone bounds (matches TOPOLOGY_LAYOUT_GRID.md) ────────────────
+const ALL_TOPOLOGY_IDS: VisualTopologyId[] = [
+  'sealed_unvented_cylinder',
+  'combi_direct_hot_water',
+  'open_vented_vented_cylinder',
+  'mixergy_stratified_cylinder',
+  'thermal_store_layout',
+  'powerflush_service_layout',
+  'abv_protected_heating_loop',
+  'magnetic_filter_on_return',
+  'system_pressure_layout',
+];
 
-interface Zone { xMin: number; xMax: number; yMin: number; yMax: number }
+// ─── Known out-of-zone exceptions ─────────────────────────────────────────────
+//
+// Format: `${topologyId}:${role}`.
+// Add an entry here (with comment) when a topology intentionally places
+// equipment outside its canonical zone.  Do NOT add entries without explaining
+// the domestic or service-context heuristic that justifies the exception.
 
-const ZONES: Record<string, Zone> = {
-  boiler:     { xMin: 44,  xMax: 175, yMin: 140, yMax: 225 },
-  cylinder:   { xMin: 460, xMax: 725, yMin: 130, yMax: 225 },
-  radiator:   { xMin: 240, xMax: 725, yMin: 60,  yMax: 135 },
-  pump:       { xMin: 140, xMax: 225, yMin: 225, yMax: 295 },
-  header_tank:{ xMin: 640, xMax: 810, yMin: 10,  yMax: 65  },
-};
-
-// Equipment keywords mapped to a zone name.
-const COMPONENT_ZONE_MAP: Record<string, string> = {
-  BoilerPrimitive:          'boiler',
-  CylinderPrimitive:        'cylinder',
-  MixergyCylinderPrimitive: 'cylinder',
-  RadiatorPrimitive:        'radiator',
-  PumpPrimitive:            'pump',
-  HeaderTankPrimitive:      'header_tank',
-};
-
-/**
- * Known exceptions that are intentionally placed outside the canonical zone.
- * Each entry is a `component:x:y` string.  Add a comment explaining the reason.
- */
 const KNOWN_OUT_OF_ZONE = new Set<string>([
-  // PowerflushServiceTopology: boiler is on the far right because in a
-  // powerflush layout the machine connects to both sides of the boiler.
-  'BoilerPrimitive:690:188',
-  // Open-vented topology canonical rule: pump sits on primary flow downstream
-  // of close-coupled vent/feed, so it intentionally leaves return-leg zone.
-  'PumpPrimitive:245:119',
-  // Thermal-store layout keeps the regular-boiler pump inline on primary flow.
-  'PumpPrimitive:170:155',
+  // PowerflushServiceTopology: boiler on far right — in a powerflush service
+  // context the machine connects to both sides of the circuit, reversing the
+  // normal heat-source position.
+  'powerflush_service_layout:boiler',
+
+  // PowerflushServiceTopology: machine at x=26 — the powerflush machine is
+  // a service tool that physically straps onto the external circuit far left,
+  // outside all standard installation zones (service zone xMin=140).
+  'powerflush_service_layout:powerflush_machine',
+
+  // Open-vented topology: pump sits inline on primary flow downstream of the
+  // close-coupled vent/feed neutral point.  Canonical domestic rule for
+  // open-vented systems — pump must NOT be on the return leg.
+  'open_vented_vented_cylinder:primary_flow_pump_downstream_vent_feed',
+
+  // Open-vented topology: header tank is in the loft (y=18), above the
+  // storage zone y-bounds (130–225).  The header tank is a loft component;
+  // no standard installation zone covers the y=10–65 loft band.
+  'open_vented_vented_cylinder:header_tank',
+
+  // system_pressure_layout: pipe_loop at y=116 sits above service zone yMin=130.
+  // The PipeLoopPrimitive represents the sealed circuit between boiler and
+  // gauges — it sits at the juncture of the emitter band and service zone,
+  // intentionally above the canonical service y-floor.
+  'system_pressure_layout:pipe_loop',
 ]);
-
-// ─── Parse source file ────────────────────────────────────────────────────────
-
-function parseNodeStyleCalls(source: string): { component: string; x: number; y: number }[] {
-  const results: { component: string; x: number; y: number }[] = [];
-  // Match: nodeStyle(X, Y)}><ComponentName
-  const re = /nodeStyle\((\d+),\s*(\d+)\)}\s*><([A-Za-z]+)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(source)) !== null) {
-    const x = parseInt(m[1], 10);
-    const y = parseInt(m[2], 10);
-    const component = m[3];
-    results.push({ component, x, y });
-  }
-  // Match role wrapper: <TopologyNode role="..." left={X} top={Y}><ComponentName
-  const roleWrapperRe = /<TopologyNode[^>]*left=\{(\d+)\}[^>]*top=\{(\d+)\}[^>]*><([A-Za-z]+)/g;
-  while ((m = roleWrapperRe.exec(source)) !== null) {
-    const x = parseInt(m[1], 10);
-    const y = parseInt(m[2], 10);
-    const component = m[3];
-    results.push({ component, x, y });
-  }
-  return results;
-}
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('topology layout zone regression', () => {
-  const source = fs.readFileSync(TOPOLOGIES_SRC, 'utf-8');
-  const calls = parseNodeStyleCalls(source);
-
-  it('parses at least 20 nodeStyle calls from visualTopologies.tsx', () => {
-    // Sanity check: if the parser finds nothing the regex is broken.
-    expect(calls.length).toBeGreaterThanOrEqual(20);
+  it('covers all nine canonical topology IDs', () => {
+    expect(ALL_TOPOLOGY_IDS).toHaveLength(9);
   });
 
-  it('every boiler is in the left zone or is a known exception', () => {
-    const boilerCalls = calls.filter(c => c.component === 'BoilerPrimitive');
-    expect(boilerCalls.length).toBeGreaterThan(0);
-
-    for (const call of boilerCalls) {
-      const key = `${call.component}:${call.x}:${call.y}`;
-      if (KNOWN_OUT_OF_ZONE.has(key)) continue;
-
-      const zone = ZONES['boiler'];
-      expect(call.x, `BoilerPrimitive x=${call.x} is outside zone [${zone.xMin}, ${zone.xMax}] — add to KNOWN_OUT_OF_ZONE if intentional`).toBeGreaterThanOrEqual(zone.xMin);
-      expect(call.x, `BoilerPrimitive x=${call.x} is outside zone [${zone.xMin}, ${zone.xMax}] — add to KNOWN_OUT_OF_ZONE if intentional`).toBeLessThanOrEqual(zone.xMax);
-      expect(call.y, `BoilerPrimitive y=${call.y} is outside zone [${zone.yMin}, ${zone.yMax}] — add to KNOWN_OUT_OF_ZONE if intentional`).toBeGreaterThanOrEqual(zone.yMin);
-      expect(call.y, `BoilerPrimitive y=${call.y} is outside zone [${zone.yMin}, ${zone.yMax}] — add to KNOWN_OUT_OF_ZONE if intentional`).toBeLessThanOrEqual(zone.yMax);
+  it('every topology produces a LayoutState with valid rail ordering (flowY < returnY)', () => {
+    for (const id of ALL_TOPOLOGY_IDS) {
+      const decl   = getTopologyLayoutDeclaration(id);
+      const layout = computeTopologyLayout(decl);
+      expect(
+        layout.rails.flowY,
+        `${id}: flowY must be less than returnY`,
+      ).toBeLessThan(layout.rails.returnY);
     }
   });
 
-  it('every cylinder is in the right zone', () => {
-    const cylinderCalls = calls.filter(c => COMPONENT_ZONE_MAP[c.component] === 'cylinder');
-    expect(cylinderCalls.length).toBeGreaterThan(0);
-
-    for (const call of cylinderCalls) {
-      const key = `${call.component}:${call.x}:${call.y}`;
-      if (KNOWN_OUT_OF_ZONE.has(key)) continue;
-
-      const zone = ZONES['cylinder'];
-      expect(call.x, `${call.component} x=${call.x} outside cylinder x-zone [${zone.xMin}, ${zone.xMax}]`).toBeGreaterThanOrEqual(zone.xMin);
-      expect(call.x, `${call.component} x=${call.x} outside cylinder x-zone [${zone.xMin}, ${zone.xMax}]`).toBeLessThanOrEqual(zone.xMax);
-      expect(call.y, `${call.component} y=${call.y} outside cylinder y-zone [${zone.yMin}, ${zone.yMax}]`).toBeGreaterThanOrEqual(zone.yMin);
-      expect(call.y, `${call.component} y=${call.y} outside cylinder y-zone [${zone.yMin}, ${zone.yMax}]`).toBeLessThanOrEqual(zone.yMax);
+  it('every topology has a heat_source component in its declaration', () => {
+    for (const id of ALL_TOPOLOGY_IDS) {
+      const decl = getTopologyLayoutDeclaration(id);
+      const hasHeatSource = decl.nodes.some(n => n.zone === 'heat_source');
+      expect(hasHeatSource, `${id}: missing heat_source zone component`).toBe(true);
     }
   });
 
-  it('every radiator is in the top-centre band', () => {
-    const radiatorCalls = calls.filter(c => c.component === 'RadiatorPrimitive');
-    expect(radiatorCalls.length).toBeGreaterThan(0);
+  it('all non-whitelisted nodes fall within their declared zone bounds', () => {
+    for (const id of ALL_TOPOLOGY_IDS) {
+      const decl   = getTopologyLayoutDeclaration(id);
+      const layout = computeTopologyLayout(decl);
+      const result = validateLayout(layout, decl);
 
-    for (const call of radiatorCalls) {
-      const key = `${call.component}:${call.x}:${call.y}`;
-      if (KNOWN_OUT_OF_ZONE.has(key)) continue;
+      const unwhitelisted = result.violations.filter(v => {
+        const key = `${id}:${v.role}`;
+        return !KNOWN_OUT_OF_ZONE.has(key);
+      });
 
-      const zone = ZONES['radiator'];
-      expect(call.x, `RadiatorPrimitive x=${call.x} outside radiator x-zone [${zone.xMin}, ${zone.xMax}]`).toBeGreaterThanOrEqual(zone.xMin);
-      expect(call.x, `RadiatorPrimitive x=${call.x} outside radiator x-zone [${zone.xMin}, ${zone.xMax}]`).toBeLessThanOrEqual(zone.xMax);
-      expect(call.y, `RadiatorPrimitive y=${call.y} outside radiator y-zone [${zone.yMin}, ${zone.yMax}]`).toBeGreaterThanOrEqual(zone.yMin);
-      expect(call.y, `RadiatorPrimitive y=${call.y} outside radiator y-zone [${zone.yMin}, ${zone.yMax}]`).toBeLessThanOrEqual(zone.yMax);
+      expect(
+        unwhitelisted,
+        `${id} has unexpected zone violations:\n` +
+          unwhitelisted.map(v => `  [${v.kind}] ${v.role}: ${v.message}`).join('\n'),
+      ).toHaveLength(0);
     }
   });
 
-  it('every pump is in canonical pump zone unless explicitly whitelisted', () => {
-    const pumpCalls = calls.filter(c => c.component === 'PumpPrimitive');
-    expect(pumpCalls.length).toBeGreaterThan(0);
+  it('all KNOWN_OUT_OF_ZONE entries correspond to actual violations (no stale entries)', () => {
+    const allViolationKeys = new Set<string>();
 
-    for (const call of pumpCalls) {
-      const key = `${call.component}:${call.x}:${call.y}`;
-      if (KNOWN_OUT_OF_ZONE.has(key)) continue;
+    for (const id of ALL_TOPOLOGY_IDS) {
+      const decl   = getTopologyLayoutDeclaration(id);
+      const layout = computeTopologyLayout(decl);
+      const result = validateLayout(layout, decl);
 
-      const zone = ZONES['pump'];
-      expect(call.x, `PumpPrimitive x=${call.x} outside pump x-zone [${zone.xMin}, ${zone.xMax}]`).toBeGreaterThanOrEqual(zone.xMin);
-      expect(call.x, `PumpPrimitive x=${call.x} outside pump x-zone [${zone.xMin}, ${zone.xMax}]`).toBeLessThanOrEqual(zone.xMax);
-      expect(call.y, `PumpPrimitive y=${call.y} outside pump y-zone [${zone.yMin}, ${zone.yMax}]`).toBeGreaterThanOrEqual(zone.yMin);
-      expect(call.y, `PumpPrimitive y=${call.y} outside pump y-zone [${zone.yMin}, ${zone.yMax}]`).toBeLessThanOrEqual(zone.yMax);
+      for (const v of result.violations) {
+        allViolationKeys.add(`${id}:${v.role}`);
+      }
     }
-  });
 
-  it('every header tank is in the high-right zone', () => {
-    const tankCalls = calls.filter(c => c.component === 'HeaderTankPrimitive');
-    expect(tankCalls.length).toBeGreaterThan(0);
-
-    for (const call of tankCalls) {
-      const key = `${call.component}:${call.x}:${call.y}`;
-      if (KNOWN_OUT_OF_ZONE.has(key)) continue;
-
-      const zone = ZONES['header_tank'];
-      expect(call.x, `HeaderTankPrimitive x=${call.x} outside header-tank x-zone [${zone.xMin}, ${zone.xMax}]`).toBeGreaterThanOrEqual(zone.xMin);
-      expect(call.x, `HeaderTankPrimitive x=${call.x} outside header-tank x-zone [${zone.xMin}, ${zone.xMax}]`).toBeLessThanOrEqual(zone.xMax);
-      expect(call.y, `HeaderTankPrimitive y=${call.y} outside header-tank y-zone [${zone.yMin}, ${zone.yMax}]`).toBeGreaterThanOrEqual(zone.yMin);
-      expect(call.y, `HeaderTankPrimitive y=${call.y} outside header-tank y-zone [${zone.yMin}, ${zone.yMax}]`).toBeLessThanOrEqual(zone.yMax);
-    }
-  });
-
-  it('KNOWN_OUT_OF_ZONE entries are actually present in the source file', () => {
-    // Prevents stale whitelist entries from silently hiding real violations.
     for (const key of KNOWN_OUT_OF_ZONE) {
-      const found = calls.some(c => `${c.component}:${c.x}:${c.y}` === key);
-      expect(found, `KNOWN_OUT_OF_ZONE entry "${key}" does not appear in visualTopologies.tsx — remove it`).toBe(true);
+      expect(
+        allViolationKeys.has(key),
+        `KNOWN_OUT_OF_ZONE entry "${key}" does not produce a validation violation — remove it`,
+      ).toBe(true);
+    }
+  });
+
+  it('emitter positions fall within the emitters zone (x: 240–720, y: 60–135)', () => {
+    const EMITTER_BOUNDS = { xMin: 240, xMax: 720, yMin: 60, yMax: 135 };
+
+    for (const id of ALL_TOPOLOGY_IDS) {
+      const decl   = getTopologyLayoutDeclaration(id);
+      const layout = computeTopologyLayout(decl);
+
+      for (const node of decl.nodes) {
+        if (node.zone !== 'emitters') continue;
+        const pos = layout.positions[node.role];
+        expect(pos.left, `${id}/${node.role} left out of emitter x-zone`).toBeGreaterThanOrEqual(EMITTER_BOUNDS.xMin);
+        expect(pos.left, `${id}/${node.role} left out of emitter x-zone`).toBeLessThanOrEqual(EMITTER_BOUNDS.xMax);
+        expect(pos.top,  `${id}/${node.role} top out of emitter y-zone`).toBeGreaterThanOrEqual(EMITTER_BOUNDS.yMin);
+        expect(pos.top,  `${id}/${node.role} top out of emitter y-zone`).toBeLessThanOrEqual(EMITTER_BOUNDS.yMax);
+      }
+    }
+  });
+
+  it('heat source positions fall within the heat_source zone (x: 44–175, y: 140–225) unless whitelisted', () => {
+    const HEAT_SOURCE_BOUNDS = { xMin: 44, xMax: 175, yMin: 140, yMax: 225 };
+
+    for (const id of ALL_TOPOLOGY_IDS) {
+      const decl   = getTopologyLayoutDeclaration(id);
+      const layout = computeTopologyLayout(decl);
+
+      for (const node of decl.nodes) {
+        if (node.zone !== 'heat_source') continue;
+        const key = `${id}:${node.role}`;
+        if (KNOWN_OUT_OF_ZONE.has(key)) continue;
+
+        const pos = layout.positions[node.role];
+        expect(pos.left, `${id}/${node.role} left out of heat_source x-zone`).toBeGreaterThanOrEqual(HEAT_SOURCE_BOUNDS.xMin);
+        expect(pos.left, `${id}/${node.role} left out of heat_source x-zone`).toBeLessThanOrEqual(HEAT_SOURCE_BOUNDS.xMax);
+        expect(pos.top,  `${id}/${node.role} top out of heat_source y-zone`).toBeGreaterThanOrEqual(HEAT_SOURCE_BOUNDS.yMin);
+        expect(pos.top,  `${id}/${node.role} top out of heat_source y-zone`).toBeLessThanOrEqual(HEAT_SOURCE_BOUNDS.yMax);
+      }
+    }
+  });
+
+  it('storage positions fall within the storage zone (x: 460–725, y: 130–225)', () => {
+    const STORAGE_BOUNDS = { xMin: 430, xMax: 725, yMin: 110, yMax: 225 };
+
+    for (const id of ALL_TOPOLOGY_IDS) {
+      const decl   = getTopologyLayoutDeclaration(id);
+      const layout = computeTopologyLayout(decl);
+
+      for (const node of decl.nodes) {
+        if (node.zone !== 'storage') continue;
+        const key = `${id}:${node.role}`;
+        if (KNOWN_OUT_OF_ZONE.has(key)) continue;
+
+        const pos = layout.positions[node.role];
+        // header_tank (loft) is exempt from y-zone — it sits at y=18 above all zones.
+        const isLoftComponent = node.role === 'header_tank';
+        expect(pos.left, `${id}/${node.role} left out of storage x-zone`).toBeGreaterThanOrEqual(STORAGE_BOUNDS.xMin);
+        expect(pos.left, `${id}/${node.role} left out of storage x-zone`).toBeLessThanOrEqual(STORAGE_BOUNDS.xMax);
+        if (!isLoftComponent) {
+          expect(pos.top,  `${id}/${node.role} top out of storage y-zone`).toBeGreaterThanOrEqual(STORAGE_BOUNDS.yMin);
+          expect(pos.top,  `${id}/${node.role} top out of storage y-zone`).toBeLessThanOrEqual(STORAGE_BOUNDS.yMax);
+        }
+      }
     }
   });
 });

@@ -27,8 +27,23 @@ import {
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
+import { computeTopologyLayout, getTopologyLayoutDeclaration, routeEmitterSpurs } from '../layout';
 
 export function CombiDirectHotWaterTopology({ options }: { options: VisualTopologyRenderOptions }) {
+  const layout = computeTopologyLayout(getTopologyLayoutDeclaration('combi_direct_hot_water'));
+  const { positions, rails, pipe } = layout;
+
+  // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
+  const dhwStubX          = positions.combi_boiler.left + 46;   // DHW stub x at boiler side port
+  const dhwFlowY          = positions.combi_boiler.top  + 46;   // hot water outlet y
+  const dhwReturnY        = positions.combi_boiler.top  + 86;   // cold mains inlet y
+  const dhwEndX           = positions.combi_boiler.left - 62;   // stub extends to the left
+  const dhwLabelX         = dhwEndX + 6;                         // label x for DHW stubs
+  const chFlowLabelX      = pipe.flowRailEndX - 100;             // label x for CH flow
+  const chReturnLabelX    = pipe.flowRailEndX - 120;             // label x for CH return
+  const midFlowX          = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
+  const midReturnX        = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
+
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
@@ -37,39 +52,54 @@ export function CombiDirectHotWaterTopology({ options }: { options: VisualTopolo
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary CH ring */}
-        <line x1={220} y1={140} x2={620} y2={140} stroke={flow} strokeWidth={w} />
-        <line x1={620} y1={140} x2={620} y2={300} stroke={flow} strokeWidth={w} />
-        <line x1={620} y1={300} x2={220} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={220} y1={300} x2={220} y2={220} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.returnY} stroke={flow} strokeWidth={w} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
-        {/* Radiator branch spurs */}
-        <line x1={414} y1={140} x2={414} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={350} y1={112} x2={350} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={570} y1={140} x2={570} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={506} y1={112} x2={506} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/* Radiator branch spurs — rad 1 */}
+        {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (
+          <line
+            key={`em1-${i}`}
+            x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+            stroke={seg.rail === 'ch_flow' ? flow : ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+          />
+        ))}
+        {/* Radiator branch spurs — rad 2 */}
+        {routeEmitterSpurs(positions.radiator_branch_2.left, rails).map((seg, i) => (
+          <line
+            key={`em2-${i}`}
+            x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+            stroke={seg.rail === 'ch_flow' ? flow : ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+          />
+        ))}
 
         {/* DHW stubs from combi */}
-        <line x1={188} y1={250} x2={80} y2={250} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={188} y1={210} x2={80} y2={210} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={dhwStubX} y1={dhwReturnY} x2={dhwEndX} y2={dhwReturnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={dhwStubX} y1={dhwFlowY} x2={dhwEndX} y2={dhwFlowY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
           <>
-            <MidPipeArrow midX={420} y={140} direction="right" color={flow} />
-            <MidPipeArrow midX={420} y={300} direction="left" color={ret} />
+            <MidPipeArrow midX={midFlowX} y={rails.flowY} direction="right" color={flow} />
+            <MidPipeArrow midX={midReturnX} y={rails.returnY} direction="left" color={ret} />
           </>
         )}
 
         {/* Pipe labels */}
-        <text {...pipeLabelProps(86, 210, 'above', flow)}>Hot water out</text>
-        <text {...pipeLabelProps(86, 250, 'below', ret)}>Mains cold in</text>
-        <text {...pipeLabelProps(520, 140, 'above', flow)}>CH flow</text>
-        <text {...pipeLabelProps(500, 300, 'below', ret)}>CH return</text>
+        <text {...pipeLabelProps(dhwLabelX, dhwFlowY, 'above', flow)}>Hot water out</text>
+        <text {...pipeLabelProps(dhwLabelX, dhwReturnY, 'below', ret)}>Mains cold in</text>
+        <text {...pipeLabelProps(chFlowLabelX, rails.flowY, 'above', flow)}>CH flow</text>
+        <text {...pipeLabelProps(chReturnLabelX, rails.returnY, 'below', ret)}>CH return</text>
       </PipeLayer>
 
-      <TopologyNode role="combi_boiler" left={142} top={164}><BoilerPrimitive variant="combi" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="radiator_branch_1" left={340} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="radiator_branch_2" left={496} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="combi_boiler" left={positions.combi_boiler.left} top={positions.combi_boiler.top}><BoilerPrimitive variant="combi" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_1" left={positions.radiator_branch_1.left} top={positions.radiator_branch_1.top}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_2" left={positions.radiator_branch_2.left} top={positions.radiator_branch_2.top}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       {options.showLabels && <div style={noCylinderNoteStyle()}>No cylinder</div>}
     </TopologyShell>
   );

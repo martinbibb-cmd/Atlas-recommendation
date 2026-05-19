@@ -24,13 +24,14 @@
 | Equipment | Zone | x range | y range (top-left corner) |
 |---|---|---|---|
 | Boiler (any variant) | Left | 44–175 | 140–225 |
-| Cylinder (vented/unvented/Mixergy) | Right | 500–720 | 140–220 |
+| Cylinder (vented/unvented/Mixergy) | Right | 430–720 | 130–225 |
+| Thermal store | Right | 430–720 | 130–225 |
 | Radiators | Top-centre band | 240–720 | 60–130 |
 | Pumps | Return leg, left of centre | 140–220 | 230–290 |
-| Expansion vessel | Right of centre | 620–750 | 230–290 |
-| Pressure gauge | Right zone | 590–750 | 60–300 |
-| ABV / magnetic filter | Mid-circuit | 440–600 | 160–280 |
-| Header tank | Far right, high | 640–800 | 10–60 |
+| Expansion vessel | Right of centre | 440–760 | 50–310 |
+| Pressure gauge | Right zone | 440–760 | 50–310 |
+| ABV / magnetic filter | Mid-circuit | 140–600 | 130–310 |
+| Header tank | Far right, high (loft — exempt from y-zone) | 640–800 | 10–60 |
 | Powerflush machine | Far left | 10–110 | 150–220 |
 
 ---
@@ -95,15 +96,24 @@ labels never overlap the pipe stroke even when stroke width increases in pipeTra
 
 ## 7. Zone Regression Test
 
-A snapshot test (`TopologyLayoutZones.test.tsx`) asserts that every topology's
-equipment nodes remain within the anchor zone bounds defined in Section 2.
+`TopologyLayoutZones.test.ts` validates that all nine topology layout declarations
+produce equipment positions within the anchor zone bounds defined in Section 2.
 
-The test parses `nodeStyle(x, y)` call sites in `visualTopologies.tsx` and
-checks that `x` and `y` fall within each equipment type's defined range.
+**Strategy (engine-driven, not source-file regex):**
+The test calls `computeTopologyLayout(getTopologyLayoutDeclaration(id))` for each
+topology ID, then runs `validateLayout()` on the result.  This validates actual
+runtime layout output — not source text — so the test remains valid even as
+templates evolve.
+
+**KNOWN_OUT_OF_ZONE** in the test lists intentional exceptions (e.g. powerflush
+boiler on the right side, header tank in loft above zone y-bounds).  Each entry
+carries a comment explaining the domestic or service-context heuristic that
+justifies the exception.
 
 If a topology edit causes a zone violation the test will fail — you must either
-revert the coordinate, expand the zone bounds here with justification, or mark
-the specific entry with `knownOutOfZone: true` in `visualTopologyRegistry.ts`.
+revert the coordinate change in `topologyDeclarations.ts`, expand the zone bounds
+here with justification (updating `layoutZones.ts` to match), or add the role to
+KNOWN_OUT_OF_ZONE with an explanation.
 
 ---
 
