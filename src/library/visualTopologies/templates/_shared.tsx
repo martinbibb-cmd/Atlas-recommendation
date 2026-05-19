@@ -148,6 +148,7 @@ export const BOILER_SYSTEM_SM_PORTS = {
 
 // ─── Connection geometry helpers ────────────────────────────────────────────────
 
+// Internal-only utility: normalizes composite side labels for attach helpers.
 function normalizePortSide(side?: PortSide): 'top' | 'bottom' | 'left' | 'right' | undefined {
   if (!side) return undefined;
   if (side.startsWith('left')) return 'left';
