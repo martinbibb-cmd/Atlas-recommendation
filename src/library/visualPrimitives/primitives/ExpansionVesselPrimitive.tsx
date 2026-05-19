@@ -22,6 +22,17 @@ export interface ExpansionVesselPrimitiveProps {
   size?: PrimitiveSize;
 }
 
+/** Canonical bounding box of the ExpansionVesselPrimitive SVG at md scale (viewBox units). */
+export const EXPANSION_VESSEL_FOOTPRINT = { width: 80, height: 96 } as const;
+
+/**
+ * Canonical port coordinates for ExpansionVesselPrimitive (viewBox units, md scale).
+ * Single bottom connection stub back to the sealed circuit.
+ */
+export const EXPANSION_VESSEL_PORTS = {
+  circuit_connection: { x: 40, y: 94, side: 'bottom' as const },
+} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
 export function ExpansionVesselPrimitive({

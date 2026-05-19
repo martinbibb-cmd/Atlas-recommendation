@@ -43,6 +43,27 @@ export interface RadiatorPrimitiveProps {
   animateFlow?: boolean;
 }
 
+/** Canonical bounding box of the RadiatorPrimitive SVG at md scale (viewBox units). */
+export const RADIATOR_FOOTPRINT = { width: 120, height: 68 } as const;
+
+/**
+ * Canonical port coordinates for RadiatorPrimitive (viewBox units, md scale).
+ * Both connections exit at the bottom of the panel.
+ *
+ * For 'opposite_ends_bottom' (default UK): flow on right (TRV side), return on left (lockshield).
+ * For 'same_side_bottom': both on right side.
+ */
+export const RADIATOR_PORTS = {
+  opposite_ends_bottom: {
+    trv_flow_in:          { x: 103, y: 68, side: 'bottom' as const },
+    lockshield_return_out:{ x: 17,  y: 68, side: 'bottom' as const },
+  },
+  same_side_bottom: {
+    trv_flow_in:          { x: 103, y: 68, side: 'bottom' as const },
+    lockshield_return_out:{ x: 91,  y: 68, side: 'bottom' as const },
+  },
+} as const;
+
 const TONE_FILL: Record<RadiatorTemperatureTone, string> = {
   hot: '#fca5a5',
   warm: '#fed7aa',

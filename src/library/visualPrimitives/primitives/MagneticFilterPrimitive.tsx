@@ -25,6 +25,18 @@ export interface MagneticFilterPrimitiveProps {
   animateFlow?: boolean;
 }
 
+/** Canonical bounding box of the MagneticFilterPrimitive SVG at md scale (viewBox units). */
+export const MAGNETIC_FILTER_FOOTPRINT = { width: 160, height: 100 } as const;
+
+/**
+ * Canonical port coordinates for MagneticFilterPrimitive (viewBox units, md scale).
+ * Inline on the heating return pipe — inlet on left, outlet on right.
+ */
+export const MAGNETIC_FILTER_PORTS = {
+  return_in:  { x: 4,   y: 52, side: 'left'  as const },
+  return_out: { x: 156, y: 52, side: 'right' as const },
+} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
 export function MagneticFilterPrimitive({

@@ -125,3 +125,59 @@ export const CYLINDER_BODY_X = 19;
 export const CYLINDER_BODY_Y = 10;
 export const CYLINDER_BODY_W = 46;
 export const CYLINDER_BODY_H = 110;
+
+// ─── Routing rails ────────────────────────────────────────────────────────────
+
+/**
+ * Canonical pipe routing rail identifiers.
+ *
+ * Each rail maps to a specific pipe function in a domestic heating system.
+ * Pipe segments must be annotated with one of these roles so topology
+ * validation can verify hydraulic connectivity.
+ *
+ * Usage: assign to `data-pipe-rail` on SVG <line> elements.
+ */
+export const ROUTING_RAILS = {
+  /** Central heating flow (hot, from boiler to emitters). */
+  CH_FLOW: 'ch_flow',
+  /** Central heating return (cooled, from emitters back to boiler). */
+  CH_RETURN: 'ch_return',
+  /** Domestic hot water distribution (to DHW outlets). */
+  DHW: 'dhw',
+  /** Cold water mains supply. */
+  CW_MAINS: 'cw_mains',
+  /** Gas supply to boiler burner. */
+  GAS: 'gas',
+  /** Discharge pipe to tundish and external air (safety/D2). */
+  D2_DISCHARGE: 'd2_discharge',
+} as const;
+
+export type RoutingRail = (typeof ROUTING_RAILS)[keyof typeof ROUTING_RAILS];
+
+// ─── Installation zones ───────────────────────────────────────────────────────
+
+/**
+ * Canonical installation zone identifiers for the topology layout grid.
+ *
+ * Equipment anchors in every topology template must be assigned to one of
+ * these zones.  The zone assignment drives visual placement and
+ * templateCompliance.ts validation.
+ *
+ * Corresponds to the zones defined in TOPOLOGY_LAYOUT_GRID.md.
+ */
+export const INSTALLATION_ZONES = {
+  /** Primary heat source (boiler, heat pump, hybrid unit). */
+  HEAT_SOURCE: 'heat_source',
+  /** Hot water storage (cylinder, thermal store, buffer). */
+  STORAGE: 'storage',
+  /** Heat emitters (radiators, underfloor loops). */
+  EMITTERS: 'emitters',
+  /** Controls (programmer, thermostat, zone valves, weather comp). */
+  CONTROLS: 'controls',
+  /** System protection (expansion vessel, ABV, pressure gauge, PRV). */
+  PROTECTION: 'protection',
+  /** Service access (filling loop, magnetic filter, powerflush ports). */
+  SERVICE: 'service',
+} as const;
+
+export type InstallationZone = (typeof INSTALLATION_ZONES)[keyof typeof INSTALLATION_ZONES];

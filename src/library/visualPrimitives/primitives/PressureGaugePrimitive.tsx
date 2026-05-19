@@ -30,6 +30,15 @@ export interface PressureGaugePrimitiveProps {
   size?: PrimitiveSize;
 }
 
+/** Canonical bounding box of the PressureGaugePrimitive SVG at md scale (viewBox units). */
+export const PRESSURE_GAUGE_FOOTPRINT = { width: 80, height: 90 } as const;
+
+/**
+ * PressureGaugePrimitive has no pipe ports — it is read-only instrumentation
+ * that connects via a spur off the return pipe, not inline.
+ */
+export const PRESSURE_GAUGE_PORTS = {} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
 // SVG authored at 80×90

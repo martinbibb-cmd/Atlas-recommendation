@@ -43,6 +43,20 @@ export interface ABVPrimitiveProps {
   animateFlow?: boolean;
 }
 
+/** Canonical bounding box of the ABVPrimitive SVG at md scale (viewBox units). */
+export const ABV_FOOTPRINT = { width: 120, height: 84 } as const;
+
+/**
+ * Canonical port coordinates for ABVPrimitive (viewBox units, md scale).
+ * Flow and return are both horizontal, with inlet on the left and outlet on the right.
+ */
+export const ABV_PORTS = {
+  flow_in:    { x: 8,   y: 20, side: 'left'  as const },
+  flow_out:   { x: 112, y: 20, side: 'right' as const },
+  return_in:  { x: 8,   y: 64, side: 'left'  as const },
+  return_out: { x: 112, y: 64, side: 'right' as const },
+} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 const ABV_BRIDGE_LEFT_X = 76;
 const ABV_BRIDGE_RIGHT_X = 88 + 4;
