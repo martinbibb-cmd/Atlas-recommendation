@@ -479,7 +479,7 @@ export default function BuilderShell({
     setSavedControlsPatch({})
     setTopologyComposerDebug({
       selectedTopology: topologyId,
-      layoutDeclarationId: placement.topologyMetadata?.layoutDeclarationId ?? topologyId,
+      layoutDeclarationId: placement.topologyMetadata?.layoutDeclarationId ?? 'unknown_layout_declaration',
       componentsCount: placement.components.length,
       connectionsCount: placement.connections.length,
       validationWarnings: placement.topologyMetadata?.validationWarnings ?? [],
