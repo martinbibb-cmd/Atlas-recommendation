@@ -63,7 +63,8 @@ describe('physical realism regression guards', () => {
     );
 
     expect(container.querySelectorAll('[data-testid="radiator-flow-connection"][data-port-position="bottom"]').length).toBeGreaterThan(0);
-    expect(container.querySelector('[data-port-position="top"]')).toBeNull();
+    expect(container.querySelector('[data-testid="radiator-flow-connection"][data-port-position="top"]')).toBeNull();
+    expect(container.querySelector('[data-testid="radiator-return-connection"][data-port-position="top"]')).toBeNull();
   });
 
   it('renders ABV with an angled cap/head cue', () => {

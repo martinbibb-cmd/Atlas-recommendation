@@ -37,6 +37,10 @@ export interface MixergyCylinderPrimitiveProps {
 }
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
+const MIXERGY_DIFFUSER_HALF_WIDTH = 7;
+const MIXERGY_DIFFUSER_TOP_OFFSET = 5;
+const MIXERGY_DIFFUSER_CONTROL_X_OFFSET = 2;
+const MIXERGY_DIFFUSER_CONTROL_Y_OFFSET = 1;
 
 // Uses CYLINDER_SVG_W / CYLINDER_SVG_H / CYLINDER_BODY_* from primitiveTokens
 // so CylinderPrimitive and MixergyCylinderPrimitive are pixel-aligned in topologies.
@@ -165,7 +169,7 @@ export function MixergyCylinderPrimitive({
           fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
         />
         <path
-          d={`M ${topX - 7} ${bodyBottomY - 5} C ${topX - 2} ${bodyBottomY - 1}, ${topX + 2} ${bodyBottomY - 1}, ${topX + 7} ${bodyBottomY - 5}`}
+          d={`M ${topX - MIXERGY_DIFFUSER_HALF_WIDTH} ${bodyBottomY - MIXERGY_DIFFUSER_TOP_OFFSET} C ${topX - MIXERGY_DIFFUSER_CONTROL_X_OFFSET} ${bodyBottomY - MIXERGY_DIFFUSER_CONTROL_Y_OFFSET}, ${topX + MIXERGY_DIFFUSER_CONTROL_X_OFFSET} ${bodyBottomY - MIXERGY_DIFFUSER_CONTROL_Y_OFFSET}, ${topX + MIXERGY_DIFFUSER_HALF_WIDTH} ${bodyBottomY - MIXERGY_DIFFUSER_TOP_OFFSET}`}
           stroke={printSafe ? '#111827' : '#0ea5e9'}
           strokeWidth={2}
           fill="none"

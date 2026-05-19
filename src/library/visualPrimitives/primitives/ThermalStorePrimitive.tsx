@@ -47,7 +47,7 @@ export function ThermalStorePrimitive({
 }: ThermalStorePrimitiveProps) {
   const scale = SCALE[size];
 
-  const primaryBodyFill = printSafe ? '#d1d5db' : '#f59e0b';
+  const vesselBodyFill = printSafe ? '#d1d5db' : '#f59e0b';
   const coilColour = printSafe ? '#374151' : '#2563eb';
 
   return (
@@ -83,7 +83,7 @@ export function ThermalStorePrimitive({
           width={56}
           height={116}
           rx={14}
-          fill={primaryBodyFill}
+          fill={vesselBodyFill}
           opacity={0.7}
         />
 

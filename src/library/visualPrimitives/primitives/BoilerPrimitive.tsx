@@ -51,8 +51,10 @@ const VARIANT_LABELS: Record<BoilerVariant, string> = {
 };
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
-const BODY_BOTTOM_Y = 108;
-const PORT_END_Y = 136;
+const BOILER_BODY_X = 20;
+const BOILER_BODY_W = 72;
+const BOILER_BODY_BOTTOM_Y = 108;
+const BOILER_PORT_END_Y = 136;
 
 interface BoilerPortSpec {
   id: string;
@@ -159,9 +161,9 @@ export function BoilerPrimitive({
       >
         {/* Wall-mounted body */}
         <rect
-          x={20}
+          x={BOILER_BODY_X}
           y={6}
-          width={72}
+          width={BOILER_BODY_W}
           height={102}
           rx={6}
           fill={printSafe ? '#f9fafb' : '#ffffff'}
@@ -171,7 +173,7 @@ export function BoilerPrimitive({
         />
 
         {/* Subtle casing seam */}
-        <line x1={20} y1={24} x2={92} y2={24} stroke="#cbd5e1" strokeWidth={1} />
+        <line x1={BOILER_BODY_X} y1={24} x2={BOILER_BODY_X + BOILER_BODY_W} y2={24} stroke="#cbd5e1" strokeWidth={1} />
 
         {/* Subtle control fascia */}
         <rect
@@ -193,9 +195,9 @@ export function BoilerPrimitive({
           <line
             key={port.id}
             x1={port.x}
-            y1={BODY_BOTTOM_Y}
+            y1={BOILER_BODY_BOTTOM_Y}
             x2={port.x}
-            y2={PORT_END_Y}
+            y2={BOILER_PORT_END_Y}
             stroke={port.stroke}
             strokeWidth={port.strokeWidth}
             strokeDasharray={

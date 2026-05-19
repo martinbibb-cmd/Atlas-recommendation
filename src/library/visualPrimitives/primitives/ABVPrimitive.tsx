@@ -44,6 +44,13 @@ export interface ABVPrimitiveProps {
 }
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
+const ABV_BRIDGE_LEFT_X = 76;
+const ABV_BRIDGE_RIGHT_X = 88 + 4;
+const ABV_BRIDGE_UPPER_Y = 40;
+const ABV_BRIDGE_LOWER_Y = 44;
+const ABV_CAP_ROTATION_DEG = -40;
+const ABV_CAP_ROTATION_CX = 88.5;
+const ABV_CAP_ROTATION_CY = 32.5;
 
 export function ABVPrimitive({
   showLabel = true,
@@ -86,22 +93,22 @@ export function ABVPrimitive({
 
         {/* Flow-return bridge */}
         <line
-          x1={76}
+          x1={ABV_BRIDGE_LEFT_X}
           y1={20}
-          x2={76}
-          y2={40}
+          x2={ABV_BRIDGE_LEFT_X}
+          y2={ABV_BRIDGE_UPPER_Y}
           stroke={AUX_COLOUR}
           strokeWidth={2.5}
         />
         <line
-          x1={92}
-          y1={44}
-          x2={92}
+          x1={ABV_BRIDGE_RIGHT_X}
+          y1={ABV_BRIDGE_LOWER_Y}
+          x2={ABV_BRIDGE_RIGHT_X}
           y2={64}
           stroke={AUX_COLOUR}
           strokeWidth={2.5}
         />
-        <line x1={76} y1={40} x2={92} y2={44} stroke={AUX_COLOUR} strokeWidth={2.5} />
+        <line x1={ABV_BRIDGE_LEFT_X} y1={ABV_BRIDGE_UPPER_Y} x2={ABV_BRIDGE_RIGHT_X} y2={ABV_BRIDGE_LOWER_Y} stroke={AUX_COLOUR} strokeWidth={2.5} />
 
         {/* Compact brass bypass body */}
         <rect
@@ -125,7 +132,7 @@ export function ABVPrimitive({
           width={VALVE_W - 1}
           height={VALVE_H + 1}
           rx={1.5}
-          transform="rotate(-40 88.5 32.5)"
+          transform={`rotate(${ABV_CAP_ROTATION_DEG} ${ABV_CAP_ROTATION_CX} ${ABV_CAP_ROTATION_CY})`}
           fill={printSafe ? '#6b7280' : '#dc2626'}
           stroke={printSafe ? '#111827' : '#7f1d1d'}
           strokeWidth={1}
