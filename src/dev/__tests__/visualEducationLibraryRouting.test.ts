@@ -10,7 +10,7 @@ import {
 } from '../visualEducationLibrary';
 
 describe('visual education library routing smoke coverage', () => {
-  it('registers all three visual gallery routes in the dev route registry', () => {
+  it('registers all visual education library routes in the dev route registry', () => {
     for (const surface of VISUAL_EDUCATION_LIBRARY_SURFACES) {
       const route = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === surface.codeName);
       expect(route, `${surface.codeName} must exist in DEV_ROUTE_REGISTRY`).toBeDefined();
@@ -33,7 +33,7 @@ describe('visual education library routing smoke coverage', () => {
     });
   });
 
-  it('exposes all three visual gallery routes as visible dev UI registry items', () => {
+  it('exposes all visual education library routes as visible dev UI registry items', () => {
     const visibleItems = applyFilters(DEV_UI_REGISTRY, INITIAL_FILTER_STATE);
 
     for (const surface of VISUAL_EDUCATION_LIBRARY_SURFACES) {
@@ -64,6 +64,7 @@ describe('visual education library routing smoke coverage', () => {
         'visual-primitive-gallery',
         'visual-topology-gallery',
         'analogy-overlay-gallery',
+        'sealed-unvented-explainer-slice',
         'diagram-fixture-page',
       ],
     });

@@ -11,8 +11,10 @@ export interface VisualEducationLibrarySurface {
     | 'visual-primitive-gallery=1'
     | 'visual-topology-gallery=1'
     | 'analogy-overlay-gallery=1'
-    | 'sealed-unvented-explainer-slice=1';
+      | 'sealed-unvented-explainer-slice=1';
   description: string;
+  isGoldenReference?: boolean;
+  actionLabel?: string;
 }
 
 export interface VisualEducationLibraryHubRoute {
@@ -77,6 +79,8 @@ export const VISUAL_EDUCATION_LIBRARY_SURFACES: readonly VisualEducationLibraryS
     queryFlag: 'sealed-unvented-explainer-slice=1',
     description:
       'Single customer explainer slice proving hydraulic truth → physical topology → optional analogy overlays with mobile and print-safe previews.',
+    isGoldenReference: true,
+    actionLabel: 'Open golden reference',
   },
 ] as const;
 
