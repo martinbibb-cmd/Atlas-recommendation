@@ -553,7 +553,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
                   {STATUS_LABELS[registryItem.status]}
                 </span>
                 {surface.statusBadges?.map((statusBadge) => (
-                  <span key={`${surface.id}-${statusBadge}`} style={STYLES.badge}>
+                  <span key={statusBadge} style={STYLES.badge}>
                     {statusBadge}
                   </span>
                 ))}

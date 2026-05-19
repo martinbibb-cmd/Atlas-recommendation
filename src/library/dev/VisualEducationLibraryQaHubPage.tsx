@@ -48,7 +48,7 @@ function RouteCard({
           </span>
           {statusBadges?.map((statusBadge) => (
             <span
-              key={`${title}-${statusBadge}`}
+              key={statusBadge}
               style={{
                 fontSize: 11,
                 color: '#92400e',
