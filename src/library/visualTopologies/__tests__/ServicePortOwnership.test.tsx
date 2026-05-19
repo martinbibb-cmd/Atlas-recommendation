@@ -245,6 +245,8 @@ describe('service-port endpoint ownership', () => {
         expect(container.querySelector('[data-topology-component-role="pressure_gauge_low"]')).toBeTruthy();
         expect(container.querySelector('[data-topology-component-role="pressure_gauge_normal"]')).toBeTruthy();
         expect(container.querySelector('[data-topology-component-role="pressure_gauge_high"]')).toBeTruthy();
+        // Intentional: this educational pressure-window topology currently has no
+        // explicit PipeLayer connection lines; it composes conceptual components only.
         expect(lines.length).toBe(0);
         return;
       }

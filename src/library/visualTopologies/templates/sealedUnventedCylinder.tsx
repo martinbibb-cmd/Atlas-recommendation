@@ -71,14 +71,14 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
   const cylinderColdInAttach = portAttachPoint(cylinderPorts.coldIn);
   const cylinderHotOutAttach = portAttachPoint(cylinderPorts.hotOut);
   const cylinderSafetyDischargeAttach = portAttachPoint(cylinderPorts.safetyDischarge);
-  const midFlowX = Math.round((boilerFlowAttach.x + pipe.flowRailEndX) / 2);
+  const midFlowX = Math.round((boilerFlowAttach.x + cylinderCoilFlowInAttach.x) / 2);
   const midReturnX = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   return (
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
-        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={cylinderCoilFlowInAttach.x} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={cylinderCoilFlowInAttach.x} y1={rails.flowY} x2={cylinderCoilFlowInAttach.x} y2={cylinderCoilFlowInAttach.y} stroke={flow} strokeWidth={w} />
         {/* Return pipe — system boiler internal pump assumed */}
         <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />

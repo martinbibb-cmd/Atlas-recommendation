@@ -61,7 +61,7 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
   const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
   const pfDirtyY                   = pfInAttach.y;
   const pfCleanY                   = pfOutAttach.y;
-  const midFlowX                   = Math.round((pipe.flowRailStartX + boilerFlowAttach.x) / 2);
+  const midFlowX                   = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
   const midReturnX                 = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
