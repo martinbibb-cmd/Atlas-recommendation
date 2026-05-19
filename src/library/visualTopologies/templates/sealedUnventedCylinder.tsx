@@ -66,6 +66,11 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
   };
   const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
   const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
+  const cylinderCoilFlowInAttach = portAttachPoint(cylinderPorts.coilFlowIn);
+  const cylinderCoilFlowOutAttach = portAttachPoint(cylinderPorts.coilFlowOut);
+  const cylinderColdInAttach = portAttachPoint(cylinderPorts.coldIn);
+  const cylinderHotOutAttach = portAttachPoint(cylinderPorts.hotOut);
+  const cylinderSafetyDischargeAttach = portAttachPoint(cylinderPorts.safetyDischarge);
   const midFlowX = Math.round((boilerFlowAttach.x + pipe.flowRailEndX) / 2);
   const midReturnX = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
@@ -74,7 +79,7 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
         <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
-        <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={cylinderPorts.coilFlowIn.y} stroke={flow} strokeWidth={w} />
+        <line x1={cylinderCoilFlowInAttach.x} y1={rails.flowY} x2={cylinderCoilFlowInAttach.x} y2={cylinderCoilFlowInAttach.y} stroke={flow} strokeWidth={w} />
         {/* Return pipe — system boiler internal pump assumed */}
         <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
@@ -103,22 +108,22 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
 
         {/* Cylinder DHW stubs */}
         <line
-          x1={cylinderPorts.coilFlowOut.x}
-          y1={cylinderPorts.coilFlowOut.y}
+          x1={cylinderCoilFlowOutAttach.x}
+          y1={cylinderCoilFlowOutAttach.y}
           x2={cylinderDhwNearX}
-          y2={cylinderPorts.coilFlowOut.y}
+          y2={cylinderCoilFlowOutAttach.y}
           stroke={ret}
           strokeWidth={PIPE_STROKE_BRANCH}
           strokeDasharray={pipeDash(options.printSafe, false)}
           data-testid="sealed-unvented-expansion-vessel-return-branch"
         />
-        <line x1={pipe.flowRailEndX} y1={cylinderPorts.coilFlowIn.y} x2={cylinderDhwNearX} y2={cylinderPorts.coilFlowIn.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={cylinderPorts.coldIn.x} y1={cylinderPorts.coldIn.y} x2={cylinderDhwFarX} y2={cylinderPorts.coldIn.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={cylinderPorts.hotOut.x} y1={cylinderPorts.hotOut.y} x2={cylinderDhwFarX} y2={cylinderPorts.hotOut.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={cylinderCoilFlowInAttach.x} y1={cylinderCoilFlowInAttach.y} x2={cylinderDhwNearX} y2={cylinderCoilFlowInAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={cylinderColdInAttach.x} y1={cylinderColdInAttach.y} x2={cylinderDhwFarX} y2={cylinderColdInAttach.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={cylinderHotOutAttach.x} y1={cylinderHotOutAttach.y} x2={cylinderDhwFarX} y2={cylinderHotOutAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         {/* G3 D2 discharge route — continuous fall away from cylinder */}
         <line
-          x1={cylinderPorts.safetyDischarge.x}
-          y1={cylinderPorts.safetyDischarge.y}
+          x1={cylinderSafetyDischargeAttach.x}
+          y1={cylinderSafetyDischargeAttach.y}
           x2={cylinderDhwFarX}
           y2={d2EndY}
           stroke={AUX_COLOUR}
