@@ -77,6 +77,17 @@ const OVERLAYS: Record<AnalogyMode, ExplainerOverlay> = {
   },
 };
 
+const CANDIDATE_STATUS_BADGES = ['candidate', 'under visual correction', 'not yet canonical'] as const;
+
+const GOLDEN_REFERENCE_ACCEPTANCE_CRITERIA = [
+  'Boiler, cylinder, pressure gauge, filling loop, expansion vessel, and discharge route are recognisable without labels.',
+  'System/combi layouts do not show external pumps unless explicitly required.',
+  'Standard unvented cylinder has no thermocline.',
+  'Cylinder ports and coil path are physically plausible.',
+  'Primary heating, cold mains, hot draw-off, and discharge routes are visually distinct.',
+  'The diagram feels like a heating system in a home, not objects on a whiteboard.',
+] as const;
+
 function renderOverlayElement(element: AnalogyOverlayElement, printSafe: boolean) {
   if (element.type === 'link') return null;
   const anchor = ANCHORS.get(element.anchorId);
@@ -155,11 +166,45 @@ export function SealedUnventedExplainerSlicePage() {
       style={{ fontFamily: 'system-ui, sans-serif', color: '#0f172a', padding: '1rem', display: 'grid', gap: '1.5rem', maxWidth: 920 /* ~70ch at 13px — comfortable reading width */, margin: '0 auto' }}
     >
       <header style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }} data-testid="sealed-unvented-reference-status-badges">
+          {CANDIDATE_STATUS_BADGES.map((badge) => (
+            <span
+              key={badge}
+              style={{
+                border: '1px solid #f59e0b',
+                background: '#fffbeb',
+                color: '#92400e',
+                borderRadius: 999,
+                padding: '2px 8px',
+                fontSize: 11,
+                fontWeight: 600,
+                textTransform: 'lowercase',
+              }}
+            >
+              {badge}
+            </span>
+          ))}
+        </div>
         <h1 style={{ margin: 0, fontSize: 24 }}>Sealed heating and stored hot water — what it means for your home</h1>
+        <p style={{ margin: 0, fontSize: 14, color: '#475569', maxWidth: '72ch' }}>
+          Candidate Golden Reference / Sealed + Unvented Visual Workbench. This page is under visual correction and is not yet canonical.
+        </p>
         <p style={{ margin: 0, fontSize: 14, color: '#475569', maxWidth: '72ch' }}>
           This upgrade removes the cold-water tanks from your loft and delivers hot water at mains pressure. Your heating stays exactly as it is.
         </p>
       </header>
+
+      <section
+        data-testid="sealed-unvented-golden-reference-acceptance"
+        style={{ border: '1px solid #fcd34d', borderRadius: 10, background: '#fffbeb', padding: '0.9rem 1rem', display: 'grid', gap: 8 }}
+      >
+        <h2 style={{ margin: 0, fontSize: 16, color: '#92400e' }}>Acceptance for true golden reference</h2>
+        <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13, lineHeight: 1.5, color: '#713f12' }}>
+          {GOLDEN_REFERENCE_ACCEPTANCE_CRITERIA.map((criterion) => (
+            <li key={criterion}>{criterion}</li>
+          ))}
+        </ul>
+      </section>
 
       <article
         data-testid="sealed-unvented-customer-card"

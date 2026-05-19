@@ -10,12 +10,14 @@ function RouteCard({
   routePath,
   queryFlag,
   badge,
+  statusBadges,
 }: {
   title: string;
   description: string;
   routePath: string;
   queryFlag: string;
   badge: string;
+  statusBadges?: readonly string[];
 }) {
   return (
     <article
@@ -44,6 +46,23 @@ function RouteCard({
           >
             {badge}
           </span>
+          {statusBadges?.map((statusBadge) => (
+            <span
+              key={`${title}-${statusBadge}`}
+              style={{
+                fontSize: 11,
+                color: '#92400e',
+                background: '#fffbeb',
+                border: '1px solid #f59e0b',
+                borderRadius: 999,
+                padding: '2px 8px',
+                fontWeight: 600,
+                textTransform: 'lowercase',
+              }}
+            >
+              {statusBadge}
+            </span>
+          ))}
         </div>
         <p style={{ margin: 0, fontSize: 13, color: '#475569' }}>{description}</p>
       </div>
@@ -106,6 +125,7 @@ export function VisualEducationLibraryQaHubPage() {
               routePath={surface.routePath}
               queryFlag={surface.queryFlag}
               badge={`PR ${index + 1}`}
+              statusBadges={surface.statusBadges}
             />
           ))}
         </div>

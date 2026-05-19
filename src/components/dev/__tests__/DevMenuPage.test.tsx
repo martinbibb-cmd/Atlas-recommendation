@@ -14,7 +14,7 @@ describe('DevMenuPage inventory curation', () => {
     expect(screen.getByTestId('devmenu-visual-education-library')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Atlas Visual Language Authority' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open canonical hub' })).toHaveAttribute('href', '/dev/visual-education-library');
-    expect(screen.getAllByRole('link', { name: 'Open golden reference' })[0]).toHaveAttribute('href', '/dev/sealed-unvented-explainer-slice');
+    expect(screen.getAllByRole('link', { name: 'Open candidate reference' })[0]).toHaveAttribute('href', '/dev/sealed-unvented-explainer-slice');
 
     expect(screen.getByTestId('devmenu-visual-education-library-sealed-unvented-explainer-slice').textContent)
       .toContain('/dev/sealed-unvented-explainer-slice');
@@ -25,7 +25,7 @@ describe('DevMenuPage inventory curation', () => {
     expect(screen.getByTestId('devmenu-visual-education-library-analogy-overlay-gallery').textContent)
       .toContain('/dev/analogy-overlay-gallery');
 
-    expect(screen.getAllByRole('link', { name: /Open (surface|golden reference)/i })).toHaveLength(5);
+    expect(screen.getAllByRole('link', { name: /Open (surface|candidate reference)/i })).toHaveLength(5);
   });
 
   it('hides dev and legacy inventory items by default and reveals them only when toggled', async () => {

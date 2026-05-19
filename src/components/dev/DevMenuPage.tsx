@@ -297,8 +297,8 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
       }),
     [visualEducationLibraryItems],
   );
-  const goldenReferenceSurface = useMemo(
-    () => orderedVisualEducationLibraryItems.find((entry) => entry.surface.isGoldenReference)?.surface ?? null,
+  const candidateReferenceSurface = useMemo(
+    () => orderedVisualEducationLibraryItems.find((entry) => entry.surface.isCandidateReference)?.surface ?? null,
     [orderedVisualEducationLibraryItems],
   );
   const inventorySections = useMemo(() => {
@@ -509,12 +509,12 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           <h2 style={{ margin: 0, fontSize: '1rem', color: '#1e3a8a' }}>Atlas Visual Language Authority</h2>
           <p style={{ margin: 0, fontSize: '0.8125rem', color: '#1d4ed8' }}>
             Use the Visual Education Library as the single front door for canonical heating visuals.
-            The sealed + unvented explainer slice is the golden reference system for layout, pipe grammar, and customer calm.
+            The sealed + unvented visual workbench is currently a candidate reference under visual correction, not yet canonical.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <a className="chip-btn" href={VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath}>Open canonical hub</a>
-            {goldenReferenceSurface != null && (
-              <a className="chip-btn" href={goldenReferenceSurface.routePath}>{goldenReferenceSurface.actionLabel ?? 'Open golden reference'}</a>
+            {candidateReferenceSurface != null && (
+              <a className="chip-btn" href={candidateReferenceSurface.routePath}>{candidateReferenceSurface.actionLabel ?? 'Open candidate reference'}</a>
             )}
           </div>
         </div>
@@ -549,6 +549,11 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
                 <span style={{ ...STYLES.badge, color: STATUS_COLORS[registryItem.status], borderColor: STATUS_COLORS[registryItem.status] }}>
                   {STATUS_LABELS[registryItem.status]}
                 </span>
+                {surface.statusBadges?.map((statusBadge) => (
+                  <span key={`${surface.id}-${statusBadge}`} style={STYLES.badge}>
+                    {statusBadge}
+                  </span>
+                ))}
               </div>
                <div style={{ display: 'grid', gap: 4, fontSize: '0.75rem', color: '#334155' }}>
                  <span><strong>Primary route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
