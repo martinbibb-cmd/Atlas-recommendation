@@ -76,6 +76,16 @@ export type { CylinderModel, StorageKind, SupplyKind, HeatSourceKind, Structural
 
 export interface BuildNode {
   id: string;
+  /** Canonical topology component role (e.g. 'system_boiler', 'unvented_cylinder'). */
+  componentRole?: string;
+  /** Primitive identifier used by topology-composer placement model. */
+  primitiveId?: string;
+  /** Primitive footprint at md scale (viewBox units). */
+  footprint?: { width: number; height: number };
+  /** Orientation keyword for topology-composer placement model. */
+  orientation?: 'up' | 'right' | 'down' | 'left';
+  /** Primitive-exported ports keyed by builder-facing port id. */
+  ports?: Record<string, { x: number; y: number; side: 'left' | 'right' | 'top' | 'bottom'; role?: PortDef['role'] }>;
   kind: PartKind;
   x: number;
   y: number;
@@ -104,10 +114,42 @@ export interface BuildEdge {
   id: string;
   from: PortRef;
   to: PortRef;
+  /** Canonical routing rail assignment for this pipe segment. */
+  rail?: import('../../../library/visualPrimitives/primitiveTokens').RoutingRail;
   /** Explicit circuit domain for this edge.  When omitted, buildGraphToLabGraph()
    *  infers the domain from the port IDs as a migration fallback. */
   domain?: import('../types/graph').CircuitDomain;
   meta?: EdgeMeta;
+}
+
+export interface TopologyConnectionRef {
+  componentId: string;
+  portId: string;
+}
+
+export interface TopologyConnectionModel {
+  id: string;
+  source: TopologyConnectionRef;
+  target: TopologyConnectionRef;
+  rail: import('../../../library/visualPrimitives/primitiveTokens').RoutingRail;
+}
+
+export interface TopologyComponentPlacementModel {
+  componentId: string;
+  componentRole: string;
+  kind: PartKind;
+  primitiveId: string;
+  footprint: { width: number; height: number };
+  x: number;
+  y: number;
+  rotation: number;
+  orientation: 'up' | 'right' | 'down' | 'left';
+  ports: Record<string, { x: number; y: number; side: 'left' | 'right' | 'top' | 'bottom'; role?: PortDef['role'] }>;
+}
+
+export interface TopologyPlacementModel {
+  components: TopologyComponentPlacementModel[];
+  connections: TopologyConnectionModel[];
 }
 
 export interface PortDef {

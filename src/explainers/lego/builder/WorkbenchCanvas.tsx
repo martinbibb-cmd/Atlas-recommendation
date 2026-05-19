@@ -112,6 +112,13 @@ function kindLabel(kind: PartKind) {
  *   heating/primary return → pipe-line--return (green)
  */
 function pipeDomainClass(edge: BuildEdge, graph: BuildGraph): string {
+  if (edge.rail === 'ch_flow') return 'pipe-line--flow';
+  if (edge.rail === 'ch_return') return 'pipe-line--return';
+  if (edge.rail === 'dhw') return 'pipe-line--dhw';
+  if (edge.rail === 'cw_mains') return 'pipe-line--cold';
+  if (edge.rail === 'gas') return 'pipe-line--gas';
+  if (edge.rail === 'd2_discharge') return 'pipe-line--d2';
+
   const fromNode = graph.nodes.find(n => n.id === edge.from.nodeId);
   const toNode = graph.nodes.find(n => n.id === edge.to.nodeId);
   const fromPort = fromNode ? getPortDefs(fromNode.kind).find(p => p.id === edge.from.portId) : null;

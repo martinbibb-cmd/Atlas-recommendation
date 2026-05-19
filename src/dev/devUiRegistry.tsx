@@ -221,17 +221,17 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     render: () => <HouseSimulatorPage onBack={() => undefined} surveyData={DEV_DEMO_INPUT} />,
   },
 
-  // ── Lego Building Set ──────────────────────────────────────────────────────
+  // ── Atlas System Composer ──────────────────────────────────────────────────
   {
     id: 'lego-building-set',
-    commonName: 'Lego Building Set',
+    commonName: 'Atlas System Composer',
     codeName: 'LegoBuildingSetPage',
     fileName: 'LegoBuildingSetPage.tsx',
     filePath: 'src/explainers/lego/LegoBuildingSetPage.tsx',
     category: 'simulator',
     status: 'active',
     notes:
-      'Interactive drag-and-drop workbench for assembling heating systems from ' +
+      'Interactive drag-and-drop workbench for assembling constrained heating topologies from ' +
       'first-principles blocks — boilers, cylinders, emitters and controls. ' +
       'Accessible from the main landing page.',
     routeKind: 'derived',

@@ -3856,9 +3856,9 @@ function AppInner() {
               onClick={() => setJourney('lego-set')}
             >
               <div className="card-icon">🧱</div>
-              <h2>Lego Building Set</h2>
-              <p>Assemble heating systems from first-principles blocks — boilers, cylinders, emitters and controls.</p>
-              <button className="cta-btn">Open Lego Set →</button>
+              <h2>Atlas System Composer</h2>
+              <p>Assemble constrained heating topologies from components, ports, and rail-bound connections.</p>
+              <button className="cta-btn">Open System Composer →</button>
             </div>
             {/* Physics Visual Library — dev review surface */}
             <div
