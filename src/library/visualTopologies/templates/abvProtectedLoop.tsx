@@ -22,8 +22,18 @@ import {
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
+import { computeTopologyLayout, getTopologyLayoutDeclaration, routeEmitterSpurs } from '../layout';
 
 export function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOptions }) {
+  const layout = computeTopologyLayout(getTopologyLayoutDeclaration('abv_protected_heating_loop'));
+  const { positions, rails, pipe } = layout;
+
+  // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
+  const ABV_BRIDGE_X_OFFSET = 86;   // bridge x relative to ABV component left edge
+  const abvBridgeX          = positions.abv_after_boiler_before_restrictions.left + ABV_BRIDGE_X_OFFSET;
+  const midFlowX            = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
+  const midReturnX          = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
+
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
@@ -32,31 +42,46 @@ export function AbvProtectedLoopTopology({ options }: { options: VisualTopologyR
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary ring */}
-        <line x1={130} y1={140} x2={620} y2={140} stroke={flow} strokeWidth={w} />
+        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line
-          x1={620}
-          y1={140}
-          x2={620}
-          y2={300}
+          x1={pipe.flowRailEndX}
+          y1={rails.flowY}
+          x2={pipe.flowRailEndX}
+          y2={rails.returnY}
           stroke={flow}
           strokeWidth={w}
           data-testid="abv-restriction-boundary"
         />
         {/* Return path — system boiler internal pump assumed */}
-        <line x1={620} y1={300} x2={130} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={130} y1={300} x2={130} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
-        <line x1={348} y1={140} x2={348} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={284} y1={112} x2={284} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={494} y1={140} x2={494} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={430} y1={112} x2={430} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {routeEmitterSpurs(positions.restriction_radiator_branch_1.left, rails).map((seg, i) => (
+          <line
+            key={`em1-${i}`}
+            x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+            stroke={seg.rail === 'ch_flow' ? flow : ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+          />
+        ))}
+        {routeEmitterSpurs(positions.restriction_radiator_branch_2.left, rails).map((seg, i) => (
+          <line
+            key={`em2-${i}`}
+            x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+            stroke={seg.rail === 'ch_flow' ? flow : ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+          />
+        ))}
+
         {/* ABV bridge — maintains PIPE_STROKE_BRANCH (AUX path) */}
         <line
-          x1={556}
-          y1={140}
-          x2={556}
-          y2={300}
+          x1={abvBridgeX}
+          y1={rails.flowY}
+          x2={abvBridgeX}
+          y2={rails.returnY}
           stroke={AUX_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="abv-downstream-boiler-upstream-restrictions-bridge"
@@ -65,16 +90,16 @@ export function AbvProtectedLoopTopology({ options }: { options: VisualTopologyR
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
           <>
-            <MidPipeArrow midX={375} y={140} direction="right" color={flow} />
-            <MidPipeArrow midX={375} y={300} direction="left" color={ret} />
+            <MidPipeArrow midX={midFlowX} y={rails.flowY} direction="right" color={flow} />
+            <MidPipeArrow midX={midReturnX} y={rails.returnY} direction="left" color={ret} />
           </>
         )}
       </PipeLayer>
 
-      <TopologyNode role="boiler" left={60} top={164}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="restriction_radiator_branch_1" left={274} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="restriction_radiator_branch_2" left={420} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="abv_after_boiler_before_restrictions" left={470} top={176}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="boiler" left={positions.boiler.left} top={positions.boiler.top}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="restriction_radiator_branch_1" left={positions.restriction_radiator_branch_1.left} top={positions.restriction_radiator_branch_1.top}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="restriction_radiator_branch_2" left={positions.restriction_radiator_branch_2.left} top={positions.restriction_radiator_branch_2.top}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="abv_after_boiler_before_restrictions" left={positions.abv_after_boiler_before_restrictions.left} top={positions.abv_after_boiler_before_restrictions.top}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }

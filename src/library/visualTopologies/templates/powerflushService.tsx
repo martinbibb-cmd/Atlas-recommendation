@@ -23,8 +23,26 @@ import {
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
+import { computeTopologyLayout, getTopologyLayoutDeclaration, routeEmitterSpurs } from '../layout';
 
 export function PowerflushServiceTopology({ options }: { options: VisualTopologyRenderOptions }) {
+  const layout = computeTopologyLayout(getTopologyLayoutDeclaration('powerflush_service_layout'));
+  const { positions, rails, pipe } = layout;
+
+  // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
+  const PF_HOSE_CONNECT_X_OFFSET   = 30;   // hose connect x is just left of flow rail start
+  const PF_MACHINE_HOSE_X_OFFSET   = 120;  // machine hose exits this far left of flow rail start
+  const PF_DIRTY_Y_OFFSET          = 6;    // dirty return y offset from machine top
+  const PF_CLEAN_Y_OFFSET          = 84;   // clean return y offset from machine top
+  const PF_LABEL_X_OFFSET          = 36;   // label x offset from machine left
+  const pipeConnectX               = pipe.flowRailStartX - PF_HOSE_CONNECT_X_OFFSET;
+  const machineHoseX               = pipe.flowRailStartX - PF_MACHINE_HOSE_X_OFFSET;
+  const pfDirtyY                   = positions.powerflush_machine.top + PF_DIRTY_Y_OFFSET;
+  const pfCleanY                   = positions.powerflush_machine.top + PF_CLEAN_Y_OFFSET;
+  const pfLabelX                   = positions.powerflush_machine.left + PF_LABEL_X_OFFSET;
+  const midFlowX                   = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
+  const midReturnX                 = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
+
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
@@ -35,42 +53,65 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
-        <line x1={260} y1={140} x2={690} y2={140} stroke={flow} strokeWidth={w} />
-        <line x1={690} y1={140} x2={690} y2={290} stroke={flow} strokeWidth={w} />
-        <line x1={690} y1={290} x2={260} y2={290} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={260} y1={290} x2={260} y2={170} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.returnY} stroke={flow} strokeWidth={w} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
-        {/* Radiator branch spurs */}
-        <line x1={390} y1={140} x2={390} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={326} y1={112} x2={326} y2={290} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={542} y1={140} x2={542} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={478} y1={112} x2={478} y2={290} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={694} y1={140} x2={694} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={630} y1={112} x2={630} y2={290} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/* Radiator branch spurs — rad 1 */}
+        {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (
+          <line
+            key={`em1-${i}`}
+            x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+            stroke={seg.rail === 'ch_flow' ? flow : ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+          />
+        ))}
+        {/* Radiator branch spurs — rad 2 */}
+        {routeEmitterSpurs(positions.radiator_branch_2.left, rails).map((seg, i) => (
+          <line
+            key={`em2-${i}`}
+            x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+            stroke={seg.rail === 'ch_flow' ? flow : ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+          />
+        ))}
+        {/* Radiator branch spurs — rad 3 */}
+        {routeEmitterSpurs(positions.radiator_branch_3.left, rails).map((seg, i) => (
+          <line
+            key={`em3-${i}`}
+            x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+            stroke={seg.rail === 'ch_flow' ? flow : ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+          />
+        ))}
 
         {/* Powerflush machine hose connections */}
-        <line x1={230} y1={174} x2={140} y2={174} stroke={dirty} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray="6 3" />
-        <line x1={230} y1={252} x2={140} y2={252} stroke={clean} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={pipeConnectX} y1={pfDirtyY} x2={machineHoseX} y2={pfDirtyY} stroke={dirty} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray="6 3" />
+        <line x1={pipeConnectX} y1={pfCleanY} x2={machineHoseX} y2={pfCleanY} stroke={clean} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
           <>
-            <MidPipeArrow midX={475} y={140} direction="right" color={flow} />
-            <MidPipeArrow midX={475} y={290} direction="left" color={ret} />
+            <MidPipeArrow midX={midFlowX} y={rails.flowY} direction="right" color={flow} />
+            <MidPipeArrow midX={midReturnX} y={rails.returnY} direction="left" color={ret} />
           </>
         )}
 
         {/* Pipe labels */}
-        <text {...pipeLabelProps(62, 174, 'above', dirty)}>Dirty return path</text>
-        <text {...pipeLabelProps(62, 252, 'below', clean)}>Clean return path</text>
+        <text {...pipeLabelProps(pfLabelX, pfDirtyY, 'above', dirty)}>Dirty return path</text>
+        <text {...pipeLabelProps(pfLabelX, pfCleanY, 'below', clean)}>Clean return path</text>
       </PipeLayer>
 
-      <TopologyNode role="powerflush_machine" left={26} top={168}><PowerflushMachinePrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="radiator_branch_1" left={316} top={70}><RadiatorPrimitive size="sm" temperatureTone="cool" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="radiator_branch_2" left={468} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="radiator_branch_3" left={620} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="boiler" left={690} top={188}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="magnetic_filter_return_before_boiler" left={560} top={248}><MagneticFilterPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="powerflush_machine" left={positions.powerflush_machine.left} top={positions.powerflush_machine.top}><PowerflushMachinePrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_1" left={positions.radiator_branch_1.left} top={positions.radiator_branch_1.top}><RadiatorPrimitive size="sm" temperatureTone="cool" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_2" left={positions.radiator_branch_2.left} top={positions.radiator_branch_2.top}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="radiator_branch_3" left={positions.radiator_branch_3.left} top={positions.radiator_branch_3.top}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="boiler" left={positions.boiler.left} top={positions.boiler.top}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="magnetic_filter_return_before_boiler" left={positions.magnetic_filter_return_before_boiler.left} top={positions.magnetic_filter_return_before_boiler.top}><MagneticFilterPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }
