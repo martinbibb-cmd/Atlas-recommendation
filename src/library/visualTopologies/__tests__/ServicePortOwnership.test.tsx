@@ -230,6 +230,12 @@ describe('service-port endpoint ownership', () => {
       const lines = getPipeLines(id);
 
       if (id === 'system_pressure_layout') {
+        const { container } = render(renderVisualTopology(id, DEFAULT_OPTIONS));
+        expect(container.querySelector('[data-topology-component-role="boiler"]')).toBeTruthy();
+        expect(container.querySelector('[data-topology-component-role="expansion_vessel"]')).toBeTruthy();
+        expect(container.querySelector('[data-topology-component-role="pressure_gauge_low"]')).toBeTruthy();
+        expect(container.querySelector('[data-topology-component-role="pressure_gauge_normal"]')).toBeTruthy();
+        expect(container.querySelector('[data-topology-component-role="pressure_gauge_high"]')).toBeTruthy();
         expect(lines.length).toBe(0);
         return;
       }
