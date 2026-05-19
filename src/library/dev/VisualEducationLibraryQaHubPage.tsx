@@ -114,8 +114,52 @@ export function VisualEducationLibraryQaHubPage() {
           <p style={{ margin: 0, fontSize: 12, color: '#1d4ed8' }}>
             Mechanical drawing source of truth: <code>docs/atlas-canonical-mechanical-primitive-spec.md</code>.
           </p>
+          <p style={{ margin: 0, fontSize: 12, color: '#1d4ed8' }}>
+            Visual reference extraction pack: <code>docs/visual-reference/</code>.
+          </p>
+          <p style={{ margin: 0, fontSize: 12, color: '#1d4ed8' }}>
+            screenshot-first rule: compare current primitive, target silhouette, and real-world reference before any visual promotion.
+          </p>
         </section>
       </header>
+
+      <section
+        style={{
+          background: '#f8fafc',
+          border: '1px solid #cbd5e1',
+          borderRadius: 12,
+          padding: '0.85rem',
+          display: 'grid',
+          gap: 8,
+        }}
+      >
+        <h2 style={{ margin: 0, fontSize: 18 }}>Atlas Visual Reference Extraction Pass</h2>
+        <p style={{ margin: 0, fontSize: 13, color: '#475569' }}>
+          The review artifact is now screenshot-first evidence. Metadata tables are traceability support only.
+        </p>
+        <ul style={{ margin: 0, paddingLeft: '1.15rem', display: 'grid', gap: 4, fontSize: 12, color: '#334155' }}>
+          <li>
+            Primitive reference packs:{' '}
+            <code>docs/visual-reference/primitive-reference-packs.md</code>
+          </li>
+          <li>
+            Canonical silhouette sheets:{' '}
+            <code>docs/visual-reference/canonical-silhouette-sheets.md</code>
+          </li>
+          <li>
+            Installed-system visual language rules:{' '}
+            <code>docs/visual-reference/installed-system-visual-language-rules.md</code>
+          </li>
+          <li>
+            Primitive redesign target briefs:{' '}
+            <code>docs/visual-reference/primitive-redesign-targets.md</code>
+          </li>
+          <li>
+            Screenshot-first review protocol:{' '}
+            <code>docs/visual-reference/screenshot-first-review.md</code>
+          </li>
+        </ul>
+      </section>
 
       <section style={{ display: 'grid', gap: '0.75rem' }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>Current visual QA galleries</h2>
