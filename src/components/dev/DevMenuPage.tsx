@@ -288,9 +288,18 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
       [...visualEducationLibraryItems].sort((left, right) => {
         const leftIndex = VISUAL_LANGUAGE_SURFACE_ORDER.indexOf(left.surface.id);
         const rightIndex = VISUAL_LANGUAGE_SURFACE_ORDER.indexOf(right.surface.id);
+        if (leftIndex === -1 && rightIndex === -1) {
+          return left.surface.commonName.localeCompare(right.surface.commonName);
+        }
+        if (leftIndex === -1) return 1;
+        if (rightIndex === -1) return -1;
         return leftIndex - rightIndex;
       }),
     [visualEducationLibraryItems],
+  );
+  const goldenReferenceSurface = useMemo(
+    () => orderedVisualEducationLibraryItems.find((entry) => entry.surface.isGoldenReference)?.surface ?? null,
+    [orderedVisualEducationLibraryItems],
   );
   const inventorySections = useMemo(() => {
     const customerFacing: DevUiRegistryItem[] = [];
@@ -326,15 +335,6 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
       deprecatedLegacy,
     };
   }, [filtered]);
-  const hasActiveInventoryFilters = (
-    filters.search.trim() !== ''
-    || filters.viewMode !== INITIAL_FILTER_STATE.viewMode
-    || filters.statusFilter !== INITIAL_FILTER_STATE.statusFilter
-    || filters.categoryFilter !== INITIAL_FILTER_STATE.categoryFilter
-    || filters.accessFilter !== INITIAL_FILTER_STATE.accessFilter
-    || filters.routeKindFilter !== INITIAL_FILTER_STATE.routeKindFilter
-    || filters.copyBoxOnly !== INITIAL_FILTER_STATE.copyBoxOnly
-  );
 
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedIds(prev => {
@@ -513,7 +513,9 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <a className="chip-btn" href={VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath}>Open canonical hub</a>
-            <a className="chip-btn" href="/dev/sealed-unvented-explainer-slice">Open golden reference system</a>
+            {goldenReferenceSurface != null && (
+              <a className="chip-btn" href={goldenReferenceSurface.routePath}>Open golden reference system</a>
+            )}
           </div>
         </div>
         <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
@@ -552,10 +554,8 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
                  <span><strong>Primary route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
                </div>
                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                 <a className="chip-btn" href={surface.routePath}>
-                   {surface.id === 'sealed-unvented-explainer-slice' ? 'Open golden reference' : 'Open surface'}
-                 </a>
-               </div>
+                 <a className="chip-btn" href={surface.routePath}>{surface.actionLabel ?? 'Open surface'}</a>
+                </div>
              </article>
             );
           })}
@@ -577,7 +577,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
         )}
       />
 
-      <details style={STYLES.devControlsPanel} open={hasActiveInventoryFilters || showDevTools || showInternalWorkflows || showLegacyTools}>
+      <details style={STYLES.devControlsPanel}>
         <summary style={STYLES.devControlsSummary}>Developer inventory filters and route shortcuts</summary>
 
         <div style={STYLES.controls}>
