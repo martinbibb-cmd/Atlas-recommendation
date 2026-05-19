@@ -74,7 +74,7 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={boilerFlowAttach.x} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.returnY} stroke={flow} strokeWidth={w} />
         {inlineServiceSegments(pipe.flowRailEndX, boilerReturnAttach.x, rails.returnY, filterOutAttach.x, filterInAttach.x).map((seg, i) => (
           <line

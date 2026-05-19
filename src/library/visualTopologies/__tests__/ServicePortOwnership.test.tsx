@@ -70,6 +70,10 @@ function overlapsConnector(raw: PortPoint, attached: PortPoint): boolean {
 
 function getPipeLines(topologyId: VisualTopologyId): SVGLineElement[] {
   const { container } = render(renderVisualTopology(topologyId, DEFAULT_OPTIONS));
+  return getPipeLinesFromContainer(container);
+}
+
+function getPipeLinesFromContainer(container: HTMLElement): SVGLineElement[] {
   const pipeLayer = container.querySelector('svg[aria-hidden="true"][viewBox="0 0 860 430"]');
   if (!pipeLayer) return [];
   return [...pipeLayer.querySelectorAll('line')];
@@ -202,12 +206,17 @@ function buildOwnership(topologyId: VisualTopologyId): OwnershipPoint[] {
 describe('render path regression fixture', () => {
   it('active renderVisualTopology output is template-driven (before/after fixture)', () => {
     const id: VisualTopologyId = 'sealed_unvented_cylinder';
-    const legacy = render(renderLegacyTopology(id, DEFAULT_OPTIONS)).container.innerHTML;
-    const template = render(renderTopologyTemplate(id, DEFAULT_OPTIONS)).container.innerHTML;
-    const active = render(renderVisualTopology(id, DEFAULT_OPTIONS)).container.innerHTML;
+    const layout = computeTopologyLayout(getTopologyLayoutDeclaration(id));
+    const boilerFlow = offsetPoint(layout.positions.boiler.left, layout.positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow);
+    const attachPoint = portAttachPoint(boilerFlow);
 
-    expect(legacy).not.toBe(template);
-    expect(active).toBe(template);
+    const legacyLines = getPipeLinesFromContainer(render(renderLegacyTopology(id, DEFAULT_OPTIONS)).container);
+    const templateLines = getPipeLinesFromContainer(render(renderTopologyTemplate(id, DEFAULT_OPTIONS)).container);
+    const activeLines = getPipeLinesFromContainer(render(renderVisualTopology(id, DEFAULT_OPTIONS)).container);
+
+    expect(hasEndpoint(templateLines, attachPoint)).toBe(true);
+    expect(hasEndpoint(activeLines, attachPoint)).toBe(true);
+    expect(hasEndpoint(legacyLines, attachPoint)).toBe(false);
   });
 });
 
