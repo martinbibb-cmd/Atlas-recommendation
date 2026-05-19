@@ -5,12 +5,22 @@ import {
   CYLINDER_PORTS,
   EXPANSION_VESSEL_FOOTPRINT,
   EXPANSION_VESSEL_PORTS,
-  PUMP_FOOTPRINT,
-  PUMP_PORTS,
   RADIATOR_FOOTPRINT,
   RADIATOR_PORTS,
 } from '../../../library/visualPrimitives/primitives';
 import { ROUTING_RAILS, type RoutingRail } from '../../../library/visualPrimitives/primitiveTokens';
+import {
+  computeTopologyLayout,
+  getTopologyLayoutDeclaration,
+  routeEmitterSpurs,
+  routeFlowRail,
+  routeReturnRail,
+  routeVertical,
+  validateLayout,
+  type LayoutState,
+  type PipeSegment,
+} from '../../../library/visualTopologies/layout';
+import type { VisualTopologyId } from '../../../library/visualTopologies/visualTopologyRegistry';
 import type {
   BuildEdge,
   BuildGraph,
@@ -19,11 +29,55 @@ import type {
   TopologyComponentPlacementModel,
   TopologyConnectionModel,
   TopologyPlacementModel,
+  PortDef,
 } from './types';
 
 export type SpawnTopologyId = 'sealed_unvented' | 'combi_direct_hot_water';
 
 type PlacementPort = TopologyComponentPlacementModel['ports'][string];
+
+interface ComponentSpec {
+  componentId: string;
+  componentRole: string;
+  kind: PartKind;
+  primitiveId: string;
+  orientation?: TopologyComponentPlacementModel['orientation'];
+  footprint: { width: number; height: number };
+  ports: TopologyComponentPlacementModel['ports'];
+}
+
+interface ConnectionSpec {
+  id: string;
+  sourceComponentId: string;
+  sourcePortId: string;
+  targetComponentId: string;
+  targetPortId: string;
+  rail: RoutingRail;
+}
+
+const TOPOLOGY_PRIMITIVE_SCALE = 0.7;
+
+function scaleCoord(value: number): number {
+  return Math.round(value * TOPOLOGY_PRIMITIVE_SCALE);
+}
+
+function scaleFootprint(footprint: { width: number; height: number }): { width: number; height: number } {
+  return {
+    width: scaleCoord(footprint.width),
+    height: scaleCoord(footprint.height),
+  };
+}
+
+function scalePorts(
+  ports: Record<string, { x: number; y: number; side: 'left' | 'right' | 'top' | 'bottom' }>,
+): Record<string, { x: number; y: number; side: 'left' | 'right' | 'top' | 'bottom' }> {
+  return Object.fromEntries(
+    Object.entries(ports).map(([id, port]) => [
+      id,
+      { x: scaleCoord(port.x), y: scaleCoord(port.y), side: port.side },
+    ]),
+  );
+}
 
 function assignPortRoles(
   ports: Record<string, { x: number; y: number; side: 'left' | 'right' | 'top' | 'bottom' }>,
@@ -34,285 +88,483 @@ function assignPortRoles(
   );
 }
 
-const MIXED_OUTLET_PORTS: TopologyComponentPlacementModel['ports'] = {
-  hot_in: { x: 0, y: 18, side: 'left', role: 'hot' },
-  cold_in: { x: 0, y: 56, side: 'left', role: 'cold' },
-};
+const SEALED_COMPONENT_SPECS: readonly ComponentSpec[] = [
+  {
+    componentId: 'boiler',
+    componentRole: 'boiler',
+    kind: 'heat_source_system_boiler',
+    primitiveId: 'boiler_system',
+    footprint: scaleFootprint(BOILER_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        flow_out: BOILER_PORTS.system.primary_flow,
+        return_in: BOILER_PORTS.system.primary_return,
+      }),
+      { flow_out: 'flow', return_in: 'return' },
+    ),
+  },
+  {
+    componentId: 'radiator_branch_1',
+    componentRole: 'radiator_branch_1',
+    kind: 'radiator_loop',
+    primitiveId: 'radiator_panel_1',
+    footprint: scaleFootprint(RADIATOR_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
+        return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
+      }),
+      { flow_in: 'flow', return_out: 'return' },
+    ),
+  },
+  {
+    componentId: 'radiator_branch_2',
+    componentRole: 'radiator_branch_2',
+    kind: 'radiator_loop',
+    primitiveId: 'radiator_panel_2',
+    footprint: scaleFootprint(RADIATOR_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
+        return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
+      }),
+      { flow_in: 'flow', return_out: 'return' },
+    ),
+  },
+  {
+    componentId: 'unvented_cylinder',
+    componentRole: 'unvented_cylinder',
+    kind: 'dhw_unvented_cylinder',
+    primitiveId: 'cylinder_unvented',
+    footprint: scaleFootprint(CYLINDER_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        coil_flow: CYLINDER_PORTS.coil_flow_in,
+        coil_return: CYLINDER_PORTS.coil_return_out,
+        hot_out: CYLINDER_PORTS.hot_draw_off,
+        cold_in: CYLINDER_PORTS.cold_inlet,
+      }),
+      { coil_flow: 'flow', coil_return: 'return', hot_out: 'hot', cold_in: 'cold' },
+    ),
+  },
+  {
+    componentId: 'expansion_vessel_on_primary_return',
+    componentRole: 'expansion_vessel_on_primary_return',
+    kind: 'sealed_system_kit',
+    primitiveId: 'expansion_vessel',
+    footprint: scaleFootprint(EXPANSION_VESSEL_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        circuit_in: EXPANSION_VESSEL_PORTS.circuit_connection,
+      }),
+      { circuit_in: 'return' },
+    ),
+  },
+];
 
-function createComponentPlacement(params: {
-  componentId: string;
-  componentRole: string;
-  kind: PartKind;
-  primitiveId: string;
-  x: number;
-  y: number;
-  rotation?: number;
-  orientation?: TopologyComponentPlacementModel['orientation'];
-  footprint: { width: number; height: number };
-  ports: TopologyComponentPlacementModel['ports'];
-}): TopologyComponentPlacementModel {
-  return {
-    componentId: params.componentId,
-    componentRole: params.componentRole,
-    kind: params.kind,
-    primitiveId: params.primitiveId,
-    x: params.x,
-    y: params.y,
-    rotation: params.rotation ?? 0,
-    orientation: params.orientation ?? 'right',
-    footprint: params.footprint,
-    ports: params.ports,
-  };
-}
+const COMBI_COMPONENT_SPECS: readonly ComponentSpec[] = [
+  {
+    componentId: 'combi_boiler',
+    componentRole: 'combi_boiler',
+    kind: 'heat_source_combi',
+    primitiveId: 'boiler_combi',
+    footprint: scaleFootprint(BOILER_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        flow_out: BOILER_PORTS.combi.primary_flow,
+        return_in: BOILER_PORTS.combi.primary_return,
+        cold_in: BOILER_PORTS.combi.cold_mains_in,
+        hot_out: BOILER_PORTS.combi.dhw_out,
+      }),
+      { flow_out: 'flow', return_in: 'return', cold_in: 'cold', hot_out: 'hot' },
+    ),
+  },
+  {
+    componentId: 'radiator_branch_1',
+    componentRole: 'radiator_branch_1',
+    kind: 'radiator_loop',
+    primitiveId: 'radiator_panel_1',
+    footprint: scaleFootprint(RADIATOR_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
+        return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
+      }),
+      { flow_in: 'flow', return_out: 'return' },
+    ),
+  },
+  {
+    componentId: 'radiator_branch_2',
+    componentRole: 'radiator_branch_2',
+    kind: 'radiator_loop',
+    primitiveId: 'radiator_panel_2',
+    footprint: scaleFootprint(RADIATOR_FOOTPRINT),
+    ports: assignPortRoles(
+      scalePorts({
+        flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
+        return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
+      }),
+      { flow_in: 'flow', return_out: 'return' },
+    ),
+  },
+];
 
-function createConnection(
-  id: string,
-  sourceComponentId: string,
-  sourcePortId: string,
-  targetComponentId: string,
-  targetPortId: string,
-  rail: RoutingRail,
-): TopologyConnectionModel {
-  return {
-    id,
-    source: { componentId: sourceComponentId, portId: sourcePortId },
-    target: { componentId: targetComponentId, portId: targetPortId },
-    rail,
-  };
-}
+const SEALED_CONNECTION_SPECS: readonly ConnectionSpec[] = [
+  {
+    id: 'e_boiler_to_cylinder_flow',
+    sourceComponentId: 'boiler',
+    sourcePortId: 'flow_out',
+    targetComponentId: 'unvented_cylinder',
+    targetPortId: 'coil_flow',
+    rail: ROUTING_RAILS.CH_FLOW,
+  },
+  {
+    id: 'e_cylinder_to_boiler_return',
+    sourceComponentId: 'unvented_cylinder',
+    sourcePortId: 'coil_return',
+    targetComponentId: 'boiler',
+    targetPortId: 'return_in',
+    rail: ROUTING_RAILS.CH_RETURN,
+  },
+  {
+    id: 'e_boiler_to_rad1_flow',
+    sourceComponentId: 'boiler',
+    sourcePortId: 'flow_out',
+    targetComponentId: 'radiator_branch_1',
+    targetPortId: 'flow_in',
+    rail: ROUTING_RAILS.CH_FLOW,
+  },
+  {
+    id: 'e_boiler_to_rad2_flow',
+    sourceComponentId: 'boiler',
+    sourcePortId: 'flow_out',
+    targetComponentId: 'radiator_branch_2',
+    targetPortId: 'flow_in',
+    rail: ROUTING_RAILS.CH_FLOW,
+  },
+  {
+    id: 'e_rad1_to_boiler_return',
+    sourceComponentId: 'radiator_branch_1',
+    sourcePortId: 'return_out',
+    targetComponentId: 'boiler',
+    targetPortId: 'return_in',
+    rail: ROUTING_RAILS.CH_RETURN,
+  },
+  {
+    id: 'e_rad2_to_boiler_return',
+    sourceComponentId: 'radiator_branch_2',
+    sourcePortId: 'return_out',
+    targetComponentId: 'boiler',
+    targetPortId: 'return_in',
+    rail: ROUTING_RAILS.CH_RETURN,
+  },
+  {
+    id: 'e_expansion_to_boiler_return',
+    sourceComponentId: 'expansion_vessel_on_primary_return',
+    sourcePortId: 'circuit_in',
+    targetComponentId: 'boiler',
+    targetPortId: 'return_in',
+    rail: ROUTING_RAILS.CH_RETURN,
+  },
+];
 
-function buildSealedUnventedModel(): TopologyPlacementModel {
-  const boilerSystemPorts = assignPortRoles(
-    {
-      flow_out: BOILER_PORTS.system.primary_flow,
-      return_in: BOILER_PORTS.system.primary_return,
-    },
-    { flow_out: 'flow', return_in: 'return' },
-  );
+const COMBI_CONNECTION_SPECS: readonly ConnectionSpec[] = [
+  {
+    id: 'e_combi_to_rad1_flow',
+    sourceComponentId: 'combi_boiler',
+    sourcePortId: 'flow_out',
+    targetComponentId: 'radiator_branch_1',
+    targetPortId: 'flow_in',
+    rail: ROUTING_RAILS.CH_FLOW,
+  },
+  {
+    id: 'e_combi_to_rad2_flow',
+    sourceComponentId: 'combi_boiler',
+    sourcePortId: 'flow_out',
+    targetComponentId: 'radiator_branch_2',
+    targetPortId: 'flow_in',
+    rail: ROUTING_RAILS.CH_FLOW,
+  },
+  {
+    id: 'e_rad1_to_combi_return',
+    sourceComponentId: 'radiator_branch_1',
+    sourcePortId: 'return_out',
+    targetComponentId: 'combi_boiler',
+    targetPortId: 'return_in',
+    rail: ROUTING_RAILS.CH_RETURN,
+  },
+  {
+    id: 'e_rad2_to_combi_return',
+    sourceComponentId: 'radiator_branch_2',
+    sourcePortId: 'return_out',
+    targetComponentId: 'combi_boiler',
+    targetPortId: 'return_in',
+    rail: ROUTING_RAILS.CH_RETURN,
+  },
+];
 
-  return {
-    components: [
-      createComponentPlacement({
-        componentId: 'boiler',
-        componentRole: 'system_boiler',
-        kind: 'heat_source_system_boiler',
-        primitiveId: 'boiler_system',
-        x: 130,
-        y: 290,
-        footprint: BOILER_FOOTPRINT,
-        ports: boilerSystemPorts,
-      }),
-      createComponentPlacement({
-        componentId: 'pump',
-        componentRole: 'primary_pump',
-        kind: 'pump',
-        primitiveId: 'pump_primary',
-        x: 330,
-        y: 304,
-        footprint: PUMP_FOOTPRINT,
-        ports: assignPortRoles({ in: PUMP_PORTS.flow_in, out: PUMP_PORTS.flow_out }, { in: 'flow', out: 'flow' }),
-      }),
-      createComponentPlacement({
-        componentId: 'cylinder',
-        componentRole: 'unvented_cylinder',
-        kind: 'dhw_unvented_cylinder',
-        primitiveId: 'cylinder_unvented',
-        x: 560,
-        y: 170,
-        footprint: CYLINDER_FOOTPRINT,
-        ports: assignPortRoles(
-          {
-            coil_flow: CYLINDER_PORTS.coil_flow_in,
-            coil_return: CYLINDER_PORTS.coil_return_out,
-            hot_out: CYLINDER_PORTS.hot_draw_off,
-            cold_in: CYLINDER_PORTS.cold_inlet,
-          },
-          { coil_flow: 'flow', coil_return: 'return', hot_out: 'hot', cold_in: 'cold' },
-        ),
-      }),
-      createComponentPlacement({
-        componentId: 'rad_1',
-        componentRole: 'radiator_branch_1',
-        kind: 'radiator_loop',
-        primitiveId: 'radiator_panel_1',
-        x: 520,
-        y: 60,
-        footprint: RADIATOR_FOOTPRINT,
-        ports: assignPortRoles(
-          {
-            flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
-            return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
-          },
-          { flow_in: 'flow', return_out: 'return' },
-        ),
-      }),
-      createComponentPlacement({
-        componentId: 'rad_2',
-        componentRole: 'radiator_branch_2',
-        kind: 'radiator_loop',
-        primitiveId: 'radiator_panel_2',
-        x: 710,
-        y: 60,
-        footprint: RADIATOR_FOOTPRINT,
-        ports: assignPortRoles(
-          {
-            flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
-            return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
-          },
-          { flow_in: 'flow', return_out: 'return' },
-        ),
-      }),
-      createComponentPlacement({
-        componentId: 'expansion',
-        componentRole: 'expansion_vessel',
-        kind: 'sealed_system_kit',
-        primitiveId: 'expansion_vessel',
-        x: 650,
-        y: 300,
-        footprint: EXPANSION_VESSEL_FOOTPRINT,
-        ports: assignPortRoles(
-          { circuit_in: EXPANSION_VESSEL_PORTS.circuit_connection },
-          { circuit_in: 'return' },
-        ),
-      }),
-      createComponentPlacement({
-        componentId: 'shower',
-        componentRole: 'dhw_outlet_shower',
-        kind: 'shower_outlet',
-        primitiveId: 'fixture_shower',
-        x: 870,
-        y: 170,
-        footprint: { width: 100, height: 74 },
-        ports: MIXED_OUTLET_PORTS,
-      }),
-      createComponentPlacement({
-        componentId: 'bath',
-        componentRole: 'dhw_outlet_bath',
-        kind: 'bath_outlet',
-        primitiveId: 'fixture_bath',
-        x: 870,
-        y: 300,
-        footprint: { width: 100, height: 74 },
-        ports: MIXED_OUTLET_PORTS,
-      }),
-    ],
-    connections: [
-      createConnection('e_boiler_pump', 'boiler', 'flow_out', 'pump', 'in', ROUTING_RAILS.CH_FLOW),
-      createConnection('e_pump_cyl', 'pump', 'out', 'cylinder', 'coil_flow', ROUTING_RAILS.CH_FLOW),
-      createConnection('e_cyl_return', 'cylinder', 'coil_return', 'boiler', 'return_in', ROUTING_RAILS.CH_RETURN),
-      createConnection('e_pump_rad1', 'pump', 'out', 'rad_1', 'flow_in', ROUTING_RAILS.CH_FLOW),
-      createConnection('e_pump_rad2', 'pump', 'out', 'rad_2', 'flow_in', ROUTING_RAILS.CH_FLOW),
-      createConnection('e_rad1_return', 'rad_1', 'return_out', 'boiler', 'return_in', ROUTING_RAILS.CH_RETURN),
-      createConnection('e_rad2_return', 'rad_2', 'return_out', 'boiler', 'return_in', ROUTING_RAILS.CH_RETURN),
-      createConnection('e_expand_return', 'expansion', 'circuit_in', 'boiler', 'return_in', ROUTING_RAILS.CH_RETURN),
-      createConnection('e_cyl_hot_shower', 'cylinder', 'hot_out', 'shower', 'hot_in', ROUTING_RAILS.DHW),
-      createConnection('e_cyl_hot_bath', 'cylinder', 'hot_out', 'bath', 'hot_in', ROUTING_RAILS.DHW),
-      createConnection('e_cyl_cold_shower', 'cylinder', 'cold_in', 'shower', 'cold_in', ROUTING_RAILS.CW_MAINS),
-      createConnection('e_cyl_cold_bath', 'cylinder', 'cold_in', 'bath', 'cold_in', ROUTING_RAILS.CW_MAINS),
-    ],
-  };
-}
-
-function buildCombiDirectModel(): TopologyPlacementModel {
-  const combiPorts = assignPortRoles(
-    {
-      flow_out: BOILER_PORTS.combi.primary_flow,
-      return_in: BOILER_PORTS.combi.primary_return,
-      cold_in: BOILER_PORTS.combi.cold_mains_in,
-      hot_out: BOILER_PORTS.combi.dhw_out,
-    },
-    { flow_out: 'flow', return_in: 'return', cold_in: 'cold', hot_out: 'hot' },
-  );
-
-  return {
-    components: [
-      createComponentPlacement({
-        componentId: 'boiler',
-        componentRole: 'combi_boiler',
-        kind: 'heat_source_combi',
-        primitiveId: 'boiler_combi',
-        x: 210,
-        y: 260,
-        footprint: BOILER_FOOTPRINT,
-        ports: combiPorts,
-      }),
-      createComponentPlacement({
-        componentId: 'rad_1',
-        componentRole: 'radiator_branch_1',
-        kind: 'radiator_loop',
-        primitiveId: 'radiator_panel_1',
-        x: 520,
-        y: 90,
-        footprint: RADIATOR_FOOTPRINT,
-        ports: assignPortRoles(
-          {
-            flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
-            return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
-          },
-          { flow_in: 'flow', return_out: 'return' },
-        ),
-      }),
-      createComponentPlacement({
-        componentId: 'rad_2',
-        componentRole: 'radiator_branch_2',
-        kind: 'radiator_loop',
-        primitiveId: 'radiator_panel_2',
-        x: 700,
-        y: 90,
-        footprint: RADIATOR_FOOTPRINT,
-        ports: assignPortRoles(
-          {
-            flow_in: RADIATOR_PORTS.opposite_ends_bottom.trv_flow_in,
-            return_out: RADIATOR_PORTS.opposite_ends_bottom.lockshield_return_out,
-          },
-          { flow_in: 'flow', return_out: 'return' },
-        ),
-      }),
-      createComponentPlacement({
-        componentId: 'shower',
-        componentRole: 'dhw_outlet_shower',
-        kind: 'shower_outlet',
-        primitiveId: 'fixture_shower',
-        x: 900,
-        y: 180,
-        footprint: { width: 100, height: 74 },
-        ports: MIXED_OUTLET_PORTS,
-      }),
-      createComponentPlacement({
-        componentId: 'tap',
-        componentRole: 'dhw_outlet_tap',
-        kind: 'tap_outlet',
-        primitiveId: 'fixture_tap',
-        x: 900,
-        y: 300,
-        footprint: { width: 100, height: 74 },
-        ports: MIXED_OUTLET_PORTS,
-      }),
-    ],
-    connections: [
-      createConnection('e_flow_rad1', 'boiler', 'flow_out', 'rad_1', 'flow_in', ROUTING_RAILS.CH_FLOW),
-      createConnection('e_flow_rad2', 'boiler', 'flow_out', 'rad_2', 'flow_in', ROUTING_RAILS.CH_FLOW),
-      createConnection('e_return_rad1', 'rad_1', 'return_out', 'boiler', 'return_in', ROUTING_RAILS.CH_RETURN),
-      createConnection('e_return_rad2', 'rad_2', 'return_out', 'boiler', 'return_in', ROUTING_RAILS.CH_RETURN),
-      createConnection('e_hot_shower', 'boiler', 'hot_out', 'shower', 'hot_in', ROUTING_RAILS.DHW),
-      createConnection('e_hot_tap', 'boiler', 'hot_out', 'tap', 'hot_in', ROUTING_RAILS.DHW),
-      createConnection('e_cold_shower', 'boiler', 'cold_in', 'shower', 'cold_in', ROUTING_RAILS.CW_MAINS),
-      createConnection('e_cold_tap', 'boiler', 'cold_in', 'tap', 'cold_in', ROUTING_RAILS.CW_MAINS),
-    ],
-  };
-}
-
-export function spawnTopologyPlacementModel(topologyId: SpawnTopologyId): TopologyPlacementModel {
+function resolveVisualTopologyId(topologyId: SpawnTopologyId): VisualTopologyId {
   switch (topologyId) {
     case 'sealed_unvented':
-      return buildSealedUnventedModel();
+      return 'sealed_unvented_cylinder';
     case 'combi_direct_hot_water':
-      return buildCombiDirectModel();
+      return 'combi_direct_hot_water';
     default: {
       const exhaustiveCheck: never = topologyId;
       throw new Error(`Unsupported topology id: ${String(exhaustiveCheck)}`);
     }
   }
+}
+
+function resolveSpecs(topologyId: SpawnTopologyId): {
+  components: readonly ComponentSpec[];
+  connections: readonly ConnectionSpec[];
+} {
+  switch (topologyId) {
+    case 'sealed_unvented':
+      return { components: SEALED_COMPONENT_SPECS, connections: SEALED_CONNECTION_SPECS };
+    case 'combi_direct_hot_water':
+      return { components: COMBI_COMPONENT_SPECS, connections: COMBI_CONNECTION_SPECS };
+    default: {
+      const exhaustiveCheck: never = topologyId;
+      throw new Error(`Unsupported topology id: ${String(exhaustiveCheck)}`);
+    }
+  }
+}
+
+function createComponentPlacement(
+  spec: ComponentSpec,
+  layout: LayoutState,
+): TopologyComponentPlacementModel {
+  const position = layout.positions[spec.componentRole] ?? { left: 0, top: 0 };
+  return {
+    componentId: spec.componentId,
+    componentRole: spec.componentRole,
+    kind: spec.kind,
+    primitiveId: spec.primitiveId,
+    x: position.left,
+    y: position.top,
+    rotation: 0,
+    orientation: spec.orientation ?? 'right',
+    footprint: spec.footprint,
+    ports: spec.ports,
+  };
+}
+
+function getAbsPortPoint(
+  component: TopologyComponentPlacementModel,
+  portId: string,
+): { x: number; y: number } | null {
+  const port = component.ports[portId];
+  if (!port) return null;
+  return { x: component.x + port.x, y: component.y + port.y };
+}
+
+function buildFallbackOrthogonalRoute(
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+  rail: RoutingRail,
+): readonly PipeSegment[] {
+  return [
+    { x1: source.x, y1: source.y, x2: target.x, y2: source.y, rail, strokeKind: 'branch' },
+    { x1: target.x, y1: source.y, x2: target.x, y2: target.y, rail, strokeKind: 'branch' },
+  ];
+}
+
+function buildConnectionPipeRoute(
+  spec: ConnectionSpec,
+  layout: LayoutState,
+  componentsById: Map<string, TopologyComponentPlacementModel>,
+): readonly PipeSegment[] {
+  const sourceComponent = componentsById.get(spec.sourceComponentId);
+  const targetComponent = componentsById.get(spec.targetComponentId);
+  if (!sourceComponent || !targetComponent) return [];
+
+  const sourcePortPoint = getAbsPortPoint(sourceComponent, spec.sourcePortId);
+  const targetPortPoint = getAbsPortPoint(targetComponent, spec.targetPortId);
+  if (!sourcePortPoint || !targetPortPoint) return [];
+
+  if (
+    spec.rail === ROUTING_RAILS.CH_FLOW &&
+    targetComponent.kind === 'radiator_loop' &&
+    spec.targetPortId === 'flow_in'
+  ) {
+    const flowSpur = routeEmitterSpurs(targetComponent.x, layout.rails).find(
+      segment => segment.rail === ROUTING_RAILS.CH_FLOW,
+    );
+    if (!flowSpur) return [];
+    return [
+      routeVertical(
+        sourcePortPoint.x,
+        sourcePortPoint.y,
+        layout.rails.flowY,
+        ROUTING_RAILS.CH_FLOW,
+        'branch',
+        `${spec.id}_source_up`,
+      ),
+      routeFlowRail(sourcePortPoint.x, flowSpur.x1, layout.rails, `${spec.id}_flow_rail`),
+      flowSpur,
+    ];
+  }
+
+  if (
+    spec.rail === ROUTING_RAILS.CH_RETURN &&
+    sourceComponent.kind === 'radiator_loop' &&
+    spec.sourcePortId === 'return_out'
+  ) {
+    const returnSpur = routeEmitterSpurs(sourceComponent.x, layout.rails).find(
+      segment => segment.rail === ROUTING_RAILS.CH_RETURN,
+    );
+    if (!returnSpur) return [];
+    return [
+      returnSpur,
+      routeReturnRail(returnSpur.x1, targetPortPoint.x, layout.rails, `${spec.id}_return_rail`),
+      routeVertical(
+        targetPortPoint.x,
+        layout.rails.returnY,
+        targetPortPoint.y,
+        ROUTING_RAILS.CH_RETURN,
+        'branch',
+        `${spec.id}_target_down`,
+      ),
+    ];
+  }
+
+  if (spec.rail === ROUTING_RAILS.CH_FLOW) {
+    return [
+      routeVertical(
+        sourcePortPoint.x,
+        sourcePortPoint.y,
+        layout.rails.flowY,
+        ROUTING_RAILS.CH_FLOW,
+        'branch',
+        `${spec.id}_source_to_flow`,
+      ),
+      routeFlowRail(sourcePortPoint.x, targetPortPoint.x, layout.rails, `${spec.id}_flow`),
+      routeVertical(
+        targetPortPoint.x,
+        layout.rails.flowY,
+        targetPortPoint.y,
+        ROUTING_RAILS.CH_FLOW,
+        'branch',
+        `${spec.id}_flow_to_target`,
+      ),
+    ];
+  }
+
+  if (spec.rail === ROUTING_RAILS.CH_RETURN) {
+    return [
+      routeVertical(
+        sourcePortPoint.x,
+        sourcePortPoint.y,
+        layout.rails.returnY,
+        ROUTING_RAILS.CH_RETURN,
+        'branch',
+        `${spec.id}_source_to_return`,
+      ),
+      routeReturnRail(sourcePortPoint.x, targetPortPoint.x, layout.rails, `${spec.id}_return`),
+      routeVertical(
+        targetPortPoint.x,
+        layout.rails.returnY,
+        targetPortPoint.y,
+        ROUTING_RAILS.CH_RETURN,
+        'branch',
+        `${spec.id}_return_to_target`,
+      ),
+    ];
+  }
+
+  return buildFallbackOrthogonalRoute(sourcePortPoint, targetPortPoint, spec.rail);
+}
+
+function createConnection(
+  spec: ConnectionSpec,
+  pipeRoute: readonly PipeSegment[],
+): TopologyConnectionModel {
+  return {
+    id: spec.id,
+    source: { componentId: spec.sourceComponentId, portId: spec.sourcePortId },
+    target: { componentId: spec.targetComponentId, portId: spec.targetPortId },
+    rail: spec.rail,
+    pipeRoute,
+  };
+}
+
+function roleCompatible(a: PortDef['role'], b: PortDef['role']): boolean {
+  if (a === 'unknown' || b === 'unknown') return true;
+  if (a === b) return true;
+  const flowish = new Set<PortDef['role']>(['flow', 'return', 'store']);
+  if (flowish.has(a) && flowish.has(b)) return true;
+  if ((a === 'hot' && b === 'cold') || (a === 'cold' && b === 'hot')) return false;
+  return false;
+}
+
+export function validateTopologyPlacementModel(args: {
+  model: TopologyPlacementModel;
+  layout: LayoutState;
+  declaration: ReturnType<typeof getTopologyLayoutDeclaration>;
+}): { ready: boolean; warnings: string[] } {
+  const { model, layout, declaration } = args;
+  const warnings: string[] = [];
+
+  const layoutValidation = validateLayout(layout, declaration);
+  for (const violation of layoutValidation.violations) {
+    warnings.push(`layout:${violation.kind}:${violation.message}`);
+  }
+
+  for (const connection of model.connections) {
+    const sourceComponent = model.components.find(c => c.componentId === connection.source.componentId);
+    const targetComponent = model.components.find(c => c.componentId === connection.target.componentId);
+
+    if (!sourceComponent || !targetComponent) {
+      warnings.push(`connection:missing_component:${connection.id}`);
+      continue;
+    }
+
+    const sourcePort = sourceComponent.ports[connection.source.portId];
+    const targetPort = targetComponent.ports[connection.target.portId];
+
+    if (!sourcePort || !targetPort) {
+      warnings.push(`connection:missing_port:${connection.id}`);
+      continue;
+    }
+
+    if (!connection.pipeRoute || connection.pipeRoute.length === 0) {
+      warnings.push(`connection:missing_route:${connection.id}`);
+    }
+
+    if (!roleCompatible(sourcePort.role ?? 'unknown', targetPort.role ?? 'unknown')) {
+      warnings.push(`port_compatibility:incompatible_roles:${connection.id}`);
+    }
+  }
+
+  return { ready: warnings.length === 0, warnings };
+}
+
+export function spawnTopologyPlacementModel(topologyId: SpawnTopologyId): TopologyPlacementModel {
+  const visualTopologyId = resolveVisualTopologyId(topologyId);
+  const declaration = getTopologyLayoutDeclaration(visualTopologyId);
+  const layout = computeTopologyLayout(declaration);
+  const { components: specs, connections: connectionSpecs } = resolveSpecs(topologyId);
+
+  const components = specs.map(spec => createComponentPlacement(spec, layout));
+  const componentsById = new Map(components.map(component => [component.componentId, component]));
+  const connections = connectionSpecs.map(spec =>
+    createConnection(spec, buildConnectionPipeRoute(spec, layout, componentsById)),
+  );
+
+  const model: TopologyPlacementModel = { components, connections };
+  const validation = validateTopologyPlacementModel({ model, layout, declaration });
+
+  model.topologyMetadata = {
+    selectedTopology: topologyId,
+    layoutDeclarationId: declaration.topologyId,
+    railMode: declaration.flowRailMode,
+    ready: validation.ready,
+    validationWarnings: validation.warnings,
+  };
+
+  return model;
 }
 
 function toNode(component: TopologyComponentPlacementModel): BuildNode {
@@ -340,7 +592,11 @@ function toEdge(connection: TopologyConnectionModel, model: TopologyPlacementMod
     from: { nodeId: connection.source.componentId, portId: connection.source.portId },
     to: { nodeId: connection.target.componentId, portId: connection.target.portId },
     rail: connection.rail,
-    meta: { roleFrom, roleTo },
+    meta: {
+      roleFrom,
+      roleTo,
+      pipeRoute: connection.pipeRoute,
+    },
   };
 }
 

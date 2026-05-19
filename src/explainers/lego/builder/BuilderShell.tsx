@@ -15,7 +15,11 @@ import { validateGraph, type GraphWarning } from './graphValidate'
 import { deriveFacts } from './graphDerive'
 import { normalizeGraph } from './normalizeGraph'
 import { PRESETS, CONCEPT_PRESETS, resolveConceptPreset } from './presets'
-import { spawnTopologyGraph, type SpawnTopologyId } from './topologyComposerFoundation'
+import {
+  buildGraphFromTopologyPlacementModel,
+  spawnTopologyPlacementModel,
+  type SpawnTopologyId,
+} from './topologyComposerFoundation'
 import { smartAdd } from './smartAttach'
 import { portAbs, isTopologyAllowed } from './snapConnect'
 import { insertTee } from './tee'
@@ -44,6 +48,16 @@ import './builder.css'
 
 /** The two phases of the lab experience. */
 type LabMode = 'build' | 'play'
+
+interface TopologyComposerDebugState {
+  selectedTopology: SpawnTopologyId
+  layoutDeclarationId: string
+  componentsCount: number
+  connectionsCount: number
+  validationWarnings: string[]
+  railMode: string
+  ready: boolean
+}
 
 /** Minimum flow rate (L/min) applied when a previously-off outlet is toggled on
  *  without an active preset, to avoid immediately jumping to 0 L/min. */
@@ -128,6 +142,7 @@ export default function BuilderShell({
    * Cleared when Play is successfully entered or when the user dismisses.
    */
   const [labGraphValidation, setLabGraphValidation] = useState<GraphValidationResult | null>(null)
+  const [topologyComposerDebug, setTopologyComposerDebug] = useState<TopologyComposerDebugState | null>(null)
 
   // ── Floating palette tray (narrow screens) ────────────────────────────────
   /** Top-left position of the floating palette tray, in px relative to the
@@ -434,6 +449,7 @@ export default function BuilderShell({
     const patch = (preset.controlsPatch ?? {}) as Partial<LabControls>
     setSavedControlsPatch(patch)
     onControlsPatch?.(patch as Record<string, unknown>)
+    setTopologyComposerDebug(null)
   }
 
   /**
@@ -452,13 +468,24 @@ export default function BuilderShell({
     const patch = (resolved.controlsPatch ?? {}) as Partial<LabControls>
     setSavedControlsPatch(patch)
     onControlsPatch?.(patch as Record<string, unknown>)
+    setTopologyComposerDebug(null)
   }
 
   const spawnTopology = (topologyId: SpawnTopologyId) => {
-    setGraph(cloneGraph(spawnTopologyGraph(topologyId)))
+    const placement = spawnTopologyPlacementModel(topologyId)
+    setGraph(cloneGraph(buildGraphFromTopologyPlacementModel(placement)))
     setSelectedId(null)
     setPendingPort(null)
     setSavedControlsPatch({})
+    setTopologyComposerDebug({
+      selectedTopology: topologyId,
+      layoutDeclarationId: placement.topologyMetadata?.layoutDeclarationId ?? topologyId,
+      componentsCount: placement.components.length,
+      connectionsCount: placement.connections.length,
+      validationWarnings: placement.topologyMetadata?.validationWarnings ?? [],
+      railMode: placement.topologyMetadata?.railMode ?? 'standard',
+      ready: placement.topologyMetadata?.ready ?? false,
+    })
   }
 
   const clearSlot = (slot: string) => {
@@ -492,6 +519,18 @@ export default function BuilderShell({
    * In production the app proceeds but still shows the banner.
    */
   const enterPlay = useCallback(() => {
+    if (topologyComposerDebug && !topologyComposerDebug.ready) {
+      setLabGraphValidation({
+        ok: false,
+        issues: topologyComposerDebug.validationWarnings.map((warning, index) => ({
+          code: `TOPOLOGY_LAYOUT_VALIDATION_${index}`,
+          severity: 'error',
+          message: warning,
+        })),
+      })
+      return
+    }
+
     // Deep-clone the normalised editor graph — Play must never rebuild topology.
     const snapshot = structuredClone(normalizedGraph)
 
@@ -539,7 +578,7 @@ export default function BuilderShell({
         })
       }
     }
-  }, [normalizedGraph, warnings, editorGraph])
+  }, [normalizedGraph, warnings, editorGraph, topologyComposerDebug])
 
   // ── Play-mode outlet control callbacks ────────────────────────────────────
 
@@ -677,6 +716,8 @@ export default function BuilderShell({
   }, [playControls])
 
   // ── Play mode render ───────────────────────────────────────────────────────
+
+  const topologyReadyBlocked = Boolean(topologyComposerDebug && !topologyComposerDebug.ready)
 
   if (mode === 'play') {
     // Resolve the correct SystemType to pass to determineOperatingMode.
@@ -930,15 +971,17 @@ export default function BuilderShell({
             💾 Save
           </button>
           <button
-            className={`builder-btn builder-btn--play${labGraphValidation && !labGraphValidation.ok ? ' builder-btn--play-blocked' : ''}`}
+            className={`builder-btn builder-btn--play${(labGraphValidation && !labGraphValidation.ok) || topologyReadyBlocked ? ' builder-btn--play-blocked' : ''}`}
             onClick={enterPlay}
             title={
-              labGraphValidation && !labGraphValidation.ok
+              topologyReadyBlocked
+                ? `Topology layout validation has ${topologyComposerDebug?.validationWarnings.length ?? 0} issue(s) — fix before playing`
+                : labGraphValidation && !labGraphValidation.ok
                 ? `Graph has ${labGraphValidation.issues.filter(i => i.severity === 'error').length} error(s) — fix before playing`
                 : 'Save and switch to Play mode'
             }
           >
-            ▶ Play{labGraphValidation && !labGraphValidation.ok ? ' ✖' : ''}
+            ▶ Play{(labGraphValidation && !labGraphValidation.ok) || topologyReadyBlocked ? ' ✖' : ''}
           </button>
           <button
             className="toolbox-btn"
@@ -977,6 +1020,25 @@ export default function BuilderShell({
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {import.meta.env.DEV && topologyComposerDebug && (
+          <div className="build-topology-debug-panel" role="status">
+            <div className="build-topology-debug-panel__title">Topology composer debug</div>
+            <div>Selected topology: {topologyComposerDebug.selectedTopology}</div>
+            <div>Layout declaration ID: {topologyComposerDebug.layoutDeclarationId}</div>
+            <div>Components: {topologyComposerDebug.componentsCount}</div>
+            <div>Connections: {topologyComposerDebug.connectionsCount}</div>
+            <div>Rail mode: {topologyComposerDebug.railMode}</div>
+            <div>Ready: {topologyComposerDebug.ready ? 'yes' : 'no'}</div>
+            {topologyComposerDebug.validationWarnings.length > 0 && (
+              <ul className="build-topology-debug-panel__warnings">
+                {topologyComposerDebug.validationWarnings.map((warning, index) => (
+                  <li key={`${warning}-${index}`}>{warning}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
