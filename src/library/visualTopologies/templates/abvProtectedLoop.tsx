@@ -12,13 +12,16 @@ import {
 } from '../../visualPrimitives/primitives';
 import {
   AUX_COLOUR,
+  BOILER_SYSTEM_SM_PORTS,
   MidPipeArrow,
   PIPE_STROKE_BRANCH,
   PIPE_STROKE_MAIN,
   PipeLayer,
   TopologyNode,
   TopologyShell,
+  offsetPoint,
   pipeDash,
+  portAttachPoint,
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
@@ -31,8 +34,14 @@ export function AbvProtectedLoopTopology({ options }: { options: VisualTopologyR
   // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
   const ABV_BRIDGE_X_OFFSET = 86;   // bridge x relative to ABV component left edge
   const abvBridgeX          = positions.abv_after_boiler_before_restrictions.left + ABV_BRIDGE_X_OFFSET;
-  const midFlowX            = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
-  const midReturnX          = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryReturn),
+    primaryFlow: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow),
+  };
+  const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
+  const midFlowX            = Math.round((boilerFlowAttach.x + pipe.flowRailEndX) / 2);
+  const midReturnX          = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
@@ -42,7 +51,7 @@ export function AbvProtectedLoopTopology({ options }: { options: VisualTopologyR
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary ring */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line
           x1={pipe.flowRailEndX}
           y1={rails.flowY}
@@ -53,8 +62,9 @@ export function AbvProtectedLoopTopology({ options }: { options: VisualTopologyR
           data-testid="abv-restriction-boundary"
         />
         {/* Return path — system boiler internal pump assumed */}
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* Radiator branch spurs */}
         {routeEmitterSpurs(positions.restriction_radiator_branch_1.left, rails).map((seg, i) => (

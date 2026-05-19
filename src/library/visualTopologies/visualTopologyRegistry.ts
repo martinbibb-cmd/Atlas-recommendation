@@ -44,7 +44,6 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
       'cold_water_storage_tank',
       'vented_cylinder',
       'flow_pipe',
-      'pipe_loop',
     ],
     physicalPurpose:
       'Shows a tank-fed hot-water layout with feed-and-expansion/header tank, vent pipe, vented cylinder, and connected primary flow/return loop.',
@@ -70,7 +69,6 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
       'filling_loop_valve',
       'unvented_cylinder',
       'flow_pipe',
-      'pipe_loop',
     ],
     physicalPurpose:
       'Shows a pressure-managed sealed loop with expansion vessel, pressure gauge, filling loop cue, and unvented cylinder with mains cold in/hot draw-off out.',
@@ -88,7 +86,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     id: 'combi_direct_hot_water',
     title: 'Combi boiler direct hot water',
     systemType: 'combi',
-    primitivesUsed: ['combi_boiler', 'panel_radiator', 'flow_pipe', 'pipe_loop'],
+    primitivesUsed: ['combi_boiler', 'panel_radiator', 'flow_pipe'],
     physicalPurpose:
       'Shows combi on-demand hot water with mains cold in, hot water out, and central heating flow/return with no cylinder in circuit.',
     recognisability: 'immediately_recognisable',
@@ -139,7 +137,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     id: 'powerflush_service_layout',
     title: 'Powerflush service layout',
     systemType: 'service_powerflush',
-    primitivesUsed: ['powerflush_machine', 'panel_radiator', 'regular_boiler', 'magnetic_filter', 'flow_pipe', 'pipe_loop'],
+    primitivesUsed: ['powerflush_machine', 'panel_radiator', 'regular_boiler', 'magnetic_filter', 'flow_pipe'],
     physicalPurpose:
       'Shows flushing machine hoses connected into heating circuit/radiator loop with dirty and clean return paths and optional downstream magnetic filter protection.',
     recognisability: 'immediately_recognisable',
@@ -156,7 +154,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     id: 'abv_protected_heating_loop',
     title: 'ABV protected heating loop',
     systemType: 'sealed_abv',
-    primitivesUsed: ['system_boiler', 'panel_radiator', 'abv', 'flow_pipe', 'pipe_loop'],
+    primitivesUsed: ['system_boiler', 'panel_radiator', 'abv', 'flow_pipe'],
     physicalPurpose:
       'Shows flow pipe, return pipe, TRV radiator loop, and ABV bridge between flow and return protecting minimum circulation.',
     recognisability: 'immediately_recognisable',
@@ -173,7 +171,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     id: 'magnetic_filter_on_return',
     title: 'Magnetic filter on return',
     systemType: 'system_protection',
-    primitivesUsed: ['system_boiler', 'magnetic_filter', 'panel_radiator', 'flow_pipe', 'pipe_loop'],
+    primitivesUsed: ['system_boiler', 'magnetic_filter', 'panel_radiator', 'flow_pipe'],
     physicalPurpose:
       'Shows return path through magnetic filter before boiler with captured magnetite cue and cleaner return entering boiler.',
     recognisability: 'immediately_recognisable',
@@ -189,7 +187,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     id: 'system_pressure_layout',
     title: 'System pressure layout',
     systemType: 'sealed_pressure_window',
-    primitivesUsed: ['system_boiler', 'pipe_loop', 'pressure_gauge', 'expansion_vessel'],
+    primitivesUsed: ['system_boiler', 'pressure_gauge', 'expansion_vessel', 'flow_pipe'],
     physicalPurpose:
       'Shows sealed heating loop with pressure gauge and expansion vessel, including low/normal/high pressure states.',
     recognisability: 'immediately_recognisable',
