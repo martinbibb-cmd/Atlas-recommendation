@@ -12,7 +12,8 @@ describe('VisualEducationLibraryQaHubPage', () => {
     expect(screen.getByText(/Visual Primitive Gallery/i)).toBeTruthy();
     expect(screen.getByText(/Visual Topology Gallery/i)).toBeTruthy();
     expect(screen.getByText(/Analogy Overlay Gallery/i)).toBeTruthy();
-    expect(screen.getByText(/Sealed \+ Unvented Explainer Slice/i)).toBeTruthy();
+    expect(screen.getByText(/Sealed \+ Unvented Visual Workbench/i)).toBeTruthy();
+    expect(screen.getByText(/docs\/atlas-canonical-mechanical-primitive-spec\.md/i)).toBeTruthy();
     expect(screen.getByText(/Legacy Diagram Fixture/i)).toBeTruthy();
   });
 

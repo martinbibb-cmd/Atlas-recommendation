@@ -1,7 +1,7 @@
 export interface VisualEducationLibrarySurface {
   id: 'visual-primitive-gallery' | 'visual-topology-gallery' | 'analogy-overlay-gallery' | 'sealed-unvented-explainer-slice';
   codeName: 'VisualPrimitiveGallery' | 'VisualTopologyGallery' | 'AnalogyOverlayGallery' | 'SealedUnventedExplainerSlicePage';
-  commonName: 'Visual Primitive Gallery' | 'Visual Topology Gallery' | 'Analogy Overlay Gallery' | 'Sealed + Unvented Explainer Slice';
+  commonName: 'Visual Primitive Gallery' | 'Visual Topology Gallery' | 'Analogy Overlay Gallery' | 'Sealed + Unvented Visual Workbench';
   routePath:
     | '/dev/visual-primitive-gallery'
     | '/dev/visual-topology-gallery'
@@ -13,7 +13,8 @@ export interface VisualEducationLibrarySurface {
     | 'analogy-overlay-gallery=1'
       | 'sealed-unvented-explainer-slice=1';
   description: string;
-  isGoldenReference?: boolean;
+  isCandidateReference?: boolean;
+  statusBadges?: readonly ('candidate' | 'under visual correction' | 'not yet canonical')[];
   actionLabel?: string;
 }
 
@@ -74,13 +75,14 @@ export const VISUAL_EDUCATION_LIBRARY_SURFACES: readonly VisualEducationLibraryS
   {
     id: 'sealed-unvented-explainer-slice',
     codeName: 'SealedUnventedExplainerSlicePage',
-    commonName: 'Sealed + Unvented Explainer Slice',
+    commonName: 'Sealed + Unvented Visual Workbench',
     routePath: '/dev/sealed-unvented-explainer-slice',
     queryFlag: 'sealed-unvented-explainer-slice=1',
     description:
-      'Single customer explainer slice proving hydraulic truth → physical topology → optional analogy overlays with mobile and print-safe previews.',
-    isGoldenReference: true,
-    actionLabel: 'Open golden reference',
+      'Candidate Golden Reference: single customer explainer slice proving hydraulic truth → physical topology → optional analogy overlays with mobile and print-safe previews.',
+    isCandidateReference: true,
+    statusBadges: ['candidate', 'under visual correction', 'not yet canonical'],
+    actionLabel: 'Open candidate reference',
   },
 ] as const;
 

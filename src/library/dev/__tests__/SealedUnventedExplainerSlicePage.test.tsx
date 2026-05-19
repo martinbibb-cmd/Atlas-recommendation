@@ -14,6 +14,16 @@ describe('SealedUnventedExplainerSlicePage', () => {
     expect(screen.getByTestId('sealed-unvented-print-preview')).toBeInTheDocument();
   });
 
+  it('shows candidate visual status badges and marks the page as not yet canonical', () => {
+    render(<SealedUnventedExplainerSlicePage />);
+
+    const statusBadges = screen.getByTestId('sealed-unvented-reference-status-badges');
+    expect(statusBadges.textContent).toContain('candidate');
+    expect(statusBadges.textContent).toContain('under visual correction');
+    expect(statusBadges.textContent).toContain('not yet canonical');
+    expect(screen.getByText(/Candidate Golden Reference \/ Sealed \+ Unvented Visual Workbench\./i)).toBeInTheDocument();
+  });
+
   it('defaults to physical baseline with overlay off and keeps all required analogy modes available', () => {
     render(<SealedUnventedExplainerSlicePage />);
 
@@ -45,6 +55,19 @@ describe('SealedUnventedExplainerSlicePage', () => {
     expect(screen.queryByText(/gravity system|low pressure system|high pressure system|instantaneous hot water/i)).toBeNull();
     expect(screen.queryByText(/sealed_unvented_cylinder|sealed_unvented|CON_/i)).toBeNull();
     expect(container.innerHTML).not.toMatch(/gravity system|low pressure system|high pressure system|instantaneous hot water|sealed_unvented_cylinder|sealed_unvented|CON_/i);
+  });
+
+  it('lists acceptance criteria required before true golden reference status', () => {
+    render(<SealedUnventedExplainerSlicePage />);
+
+    expect(screen.getByTestId('sealed-unvented-golden-reference-acceptance')).toBeInTheDocument();
+    expect(screen.getByText(/docs\/atlas-canonical-mechanical-primitive-spec\.md/i)).toBeInTheDocument();
+    expect(screen.getByText(/boiler, cylinder, pressure gauge, filling loop, expansion vessel, and discharge route are recognisable without labels/i)).toBeInTheDocument();
+    expect(screen.getByText(/system\/combi layouts do not show external pumps unless explicitly required/i)).toBeInTheDocument();
+    expect(screen.getByText(/standard unvented cylinder has no thermocline/i)).toBeInTheDocument();
+    expect(screen.getByText(/cylinder ports and coil path are physically plausible/i)).toBeInTheDocument();
+    expect(screen.getByText(/primary heating, cold mains, hot draw-off, and discharge routes are visually distinct/i)).toBeInTheDocument();
+    expect(screen.getByText(/not objects on a whiteboard/i)).toBeInTheDocument();
   });
 
   it('is registered as a dev-only route and UI surface', () => {
