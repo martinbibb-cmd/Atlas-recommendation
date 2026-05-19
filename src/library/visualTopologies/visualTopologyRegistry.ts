@@ -71,16 +71,30 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
       'flow_pipe',
     ],
     physicalPurpose:
-      'Shows a pressure-managed sealed loop with expansion vessel, pressure gauge, filling loop cue, and unvented cylinder with mains cold in/hot draw-off out.',
-    recognisability: 'immediately_recognisable',
+      'Shows a system boiler feeding a sealed primary circuit (radiators) and an unvented cylinder via coil. ' +
+      'DHW hot draw-off exits cylinder top; mains cold supply enters cylinder bottom. ' +
+      'Expansion vessel on primary return. Filling loop and pressure gauge as service items.',
+    // SCENE COMPOSITION RETHINK — template rebuilt as an installed-system scene (2026-05-19):
+    //   • DHW hot draw-off routes vertically upward from cylinder top.
+    //   • Cold mains routes vertically downward into cylinder bottom.
+    //   • Return circuit closed: coil-out drops to return rail then runs left to boiler.
+    //   • Expansion vessel spur branches from the coil-out return drop.
+    //   Recognition is BLOCKED pending human screenshot review — do NOT promote.
+    recognisability: 'recognisable_with_context',
     pipeTraceability: 'clear',
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
-    qaNote: 'Radiator branches should read as bottom-connected emitters on a plausible sealed flow/return route.',
+    qaNote:
+      'No-label view must read as: system boiler (left) feeding heating circuit and floor-standing unvented cylinder (right). ' +
+      'DHW rises from cylinder top; cold mains drops in from below. ' +
+      'Return circuit must form a visible closed loop back to the boiler.',
     humanVisualReviewState: 'human_visual_review_required',
     humanVisualReviewNote:
-      'Still blocked until a reviewer confirms the no-label layout reads as a plausible sealed heating + mains-fed stored hot-water system.',
+      'VISUALLY BLOCKED — scene composition rethink applied (2026-05-19). ' +
+      'Do not promote recognisability, remove candidate status, or mark compliant until a human reviewer ' +
+      'confirms the no-label drawing reads as "system boiler feeding heating circuit and unvented cylinder" ' +
+      'and NOT as abstract rails. Screenshot review is the authority; metadata checks are not sufficient.',
   },
   {
     id: 'combi_direct_hot_water',

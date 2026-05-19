@@ -146,6 +146,11 @@ export const BOILER_SYSTEM_SM_PORTS = {
   primaryFlow: scaledPoint(80, 136, 'bottom'),
 };
 
+export const EXPANSION_VESSEL_SM_PORTS = {
+  /** Single circuit connection stub at the base of the vessel (bottom port). */
+  circuitConnection: scaledPoint(40, 94, 'bottom'),
+};
+
 // ─── Connection geometry helpers ────────────────────────────────────────────────
 
 // Internal-only utility: normalizes composite side labels for attach helpers.

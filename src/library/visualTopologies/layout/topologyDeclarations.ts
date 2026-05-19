@@ -98,7 +98,7 @@ const sealedUnventedDeclaration: TopologyLayoutDeclaration = {
       role: 'expansion_vessel_on_primary_return',
       zone: INSTALLATION_ZONES.PROTECTION,
       leftRule: { kind: 'zone_anchor', x: 635 },
-      topRule: { kind: 'return_offset', offset: -50 }, // 300 - 50 = 250
+      topRule: { kind: 'return_offset', offset: -105 }, // 300 - 105 = 195 — connection stub above return rail
     },
     {
       role: 'pressure_gauge',
