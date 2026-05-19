@@ -51,6 +51,7 @@ const VARIANT_LABELS: Record<CylinderVariant, string> = {
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 const CYLINDER_FILL_UNVENTED = '#e5e7eb';
 const CYLINDER_FILL_VENTED = '#d6d3d1';
+const VENT_PIPE_TOP_Y = 0;
 
 export function CylinderPrimitive({
   variant = 'unvented',
@@ -253,7 +254,7 @@ export function CylinderPrimitive({
         />
         {variant === 'vented' && (
           <path
-            d={`M ${topX + 8} ${CYLINDER_BODY_Y + 2} C ${topX + 18} ${CYLINDER_BODY_Y - 6}, ${topX + 20} ${CYLINDER_BODY_Y - 16}, ${topX + 20} 0`}
+            d={`M ${topX + 8} ${CYLINDER_BODY_Y + 2} C ${topX + 18} ${CYLINDER_BODY_Y - 6}, ${topX + 20} ${CYLINDER_BODY_Y - 16}, ${topX + 20} ${VENT_PIPE_TOP_Y}`}
             stroke={printSafe ? '#6b7280' : '#475569'}
             strokeWidth={1.8}
             fill="none"

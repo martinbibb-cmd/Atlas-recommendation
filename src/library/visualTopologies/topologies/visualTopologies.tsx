@@ -467,7 +467,7 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
         <line x1={132} y1={176} x2={173} y2={176} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
         <line x1={237} y1={176} x2={420} y2={176} stroke={flow} strokeWidth={w} data-testid="pump-topology-circuit" />
         <line x1={420} y1={176} x2={storePorts.primaryIn.x} y2={176} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
-        <line x1={storePorts.primaryIn.x} y1={176} x2={storePorts.primaryIn.x} y2={storePorts.primaryIn.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={storePorts.primaryIn.x} y1={176} x2={storePorts.primaryIn.x} y2={storePorts.primaryIn.y} stroke={flow} strokeWidth={w} />
         {/* Return path back to boiler (no pump on return). */}
         <line x1={storePorts.primaryOut.x} y1={storePorts.primaryOut.y} x2={storePorts.primaryOut.x} y2={286} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={420} y1={286} x2={132} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
@@ -651,9 +651,9 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
         {/* Pipe label */}
         <text {...pipeLabelProps(590, 300, 'above', ret)}>Clean return into boiler</text>
         <line
-          x1={filterPorts.inlet.x}
+          x1={Math.min(filterPorts.inlet.x, filterPorts.outlet.x)}
           y1={300}
-          x2={filterPorts.outlet.x}
+          x2={Math.max(filterPorts.inlet.x, filterPorts.outlet.x)}
           y2={300}
           stroke="transparent"
           strokeWidth={PIPE_STROKE_BRANCH}
