@@ -33,6 +33,22 @@ import type { PrimitiveSize } from './BoilerPrimitive';
 
 export type CylinderVariant = 'vented' | 'unvented';
 
+/** Canonical bounding box of the CylinderPrimitive SVG at md scale (viewBox units). */
+export const CYLINDER_FOOTPRINT = { width: 84, height: 132 } as const;
+
+/**
+ * Canonical port coordinates for CylinderPrimitive (viewBox units, md scale).
+ * Port positions are the same for both variants; visual cues differ.
+ */
+export const CYLINDER_PORTS = {
+  hot_draw_off:     { x: 42, y: 0,   side: 'top'    as const },
+  cold_inlet:       { x: 42, y: 132, side: 'bottom' as const },
+  coil_flow_in:     { x: 0,  y: 87,  side: 'left'   as const },
+  coil_return_out:  { x: 84, y: 100, side: 'right'  as const },
+  /** Unvented only — safety discharge to tundish. */
+  safety_discharge: { x: 84, y: 78,  side: 'right'  as const },
+} as const;
+
 export interface CylinderPrimitiveProps {
   variant?: CylinderVariant;
   /** 0–1 fraction of cylinder that is at hot temperature. */

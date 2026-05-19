@@ -16,6 +16,20 @@ export interface FillingLoopPrimitiveProps {
   size?: PrimitiveSize;
 }
 
+/** Canonical bounding box of the FillingLoopPrimitive SVG at md scale (viewBox units). */
+export const FILLING_LOOP_FOOTPRINT = { width: 150, height: 70 } as const;
+
+/**
+ * Canonical port coordinates for FillingLoopPrimitive (viewBox units, md scale).
+ * The filling loop bridges the cold mains (return) to the sealed circuit (flow).
+ */
+export const FILLING_LOOP_PORTS = {
+  flow_in:    { x: 8,   y: 20, side: 'left'  as const },
+  flow_out:   { x: 142, y: 20, side: 'right' as const },
+  return_in:  { x: 8,   y: 52, side: 'left'  as const },
+  return_out: { x: 142, y: 52, side: 'right' as const },
+} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 const FLOW_PIPE_Y = 20;
 const RETURN_PIPE_Y = 52;

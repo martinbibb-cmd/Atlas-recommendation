@@ -36,6 +36,21 @@ export interface MixergyCylinderPrimitiveProps {
   size?: PrimitiveSize;
 }
 
+/** Canonical bounding box of the MixergyCylinderPrimitive SVG at md scale (viewBox units). */
+export const MIXERGY_CYLINDER_FOOTPRINT = { width: 84, height: 132 } as const;
+
+/**
+ * Canonical port coordinates for MixergyCylinderPrimitive (viewBox units, md scale).
+ * Shares the same footprint and port positions as CylinderPrimitive so the two
+ * remain pixel-aligned in topology layouts.
+ */
+export const MIXERGY_CYLINDER_PORTS = {
+  hot_draw_off:      { x: 42, y: 0,   side: 'top'    as const },
+  cold_inlet:        { x: 42, y: 132, side: 'bottom' as const },
+  primary_flow_in:   { x: 0,  y: 87,  side: 'left'   as const },
+  primary_return_out:{ x: 84, y: 100, side: 'right'  as const },
+} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 const MIXERGY_DIFFUSER_HALF_WIDTH = 7;
 const MIXERGY_DIFFUSER_TOP_OFFSET = 5;

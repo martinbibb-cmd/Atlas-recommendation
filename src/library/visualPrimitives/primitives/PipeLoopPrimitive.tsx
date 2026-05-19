@@ -39,6 +39,15 @@ export interface PipeLoopPrimitiveProps {
   size?: PrimitiveSize;
 }
 
+/** Canonical bounding box of the PipeLoopPrimitive SVG at md scale (viewBox units). */
+export const PIPE_LOOP_FOOTPRINT = { width: 160, height: 90 } as const;
+
+/**
+ * PipeLoopPrimitive has no external pipe ports — it is a self-contained
+ * sealed circuit loop used for conceptual illustration only.
+ */
+export const PIPE_LOOP_PORTS = {} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
 // SVG authored at 160×90

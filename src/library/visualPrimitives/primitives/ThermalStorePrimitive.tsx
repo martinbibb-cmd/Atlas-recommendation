@@ -14,6 +14,27 @@ export interface ThermalStorePrimitiveProps {
   size?: PrimitiveSize;
 }
 
+/** Canonical bounding box of the ThermalStorePrimitive SVG at md scale (viewBox units). */
+export const THERMAL_STORE_FOOTPRINT = { width: 94, height: 144 } as const;
+
+/**
+ * Canonical port coordinates for ThermalStorePrimitive (viewBox units, md scale).
+ *
+ * Left side — PRIMARY / heating circuit water:
+ *   primary_in  (top-left)  — hot from boiler
+ *   primary_out (btm-left)  — cooled return to boiler
+ *
+ * Right side — POTABLE / DHW circuit (separate, no mixing):
+ *   potable_hot_out  (top-right) — hot DHW to taps
+ *   cold_mains_in    (btm-right) — cold mains enters coil
+ */
+export const THERMAL_STORE_PORTS = {
+  primary_in:      { x: 4,  y: 36,  side: 'left'  as const },
+  primary_out:     { x: 4,  y: 108, side: 'left'  as const },
+  potable_hot_out: { x: 88, y: 36,  side: 'right' as const },
+  cold_mains_in:   { x: 88, y: 108, side: 'right' as const },
+} as const;
+
 // Coil path anchor Y positions (in viewBox units).
 // The coil path traces cold-in (bottom) to hot-out (top) through the vessel.
 const COIL_COLD_Y = 104; // bottom entry — cold mains connection

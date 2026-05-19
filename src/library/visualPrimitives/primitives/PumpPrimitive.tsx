@@ -31,6 +31,18 @@ export interface PumpPrimitiveProps {
   size?: PrimitiveSize;
 }
 
+/** Canonical bounding box of the PumpPrimitive SVG at md scale (viewBox units). */
+export const PUMP_FOOTPRINT = { width: 130, height: 72 } as const;
+
+/**
+ * Canonical port coordinates for PumpPrimitive (viewBox units, md scale).
+ * Inline on the heating circuit — flow enters left, exits right.
+ */
+export const PUMP_PORTS = {
+  flow_in:  { x: 4,   y: 34, side: 'left'  as const },
+  flow_out: { x: 126, y: 34, side: 'right' as const },
+} as const;
+
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 
 export function PumpPrimitive({

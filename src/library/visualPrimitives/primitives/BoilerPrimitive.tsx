@@ -35,6 +35,33 @@ import { FLOW_PULSE_CLASS } from '../primitiveMotion';
 export type BoilerVariant = 'combi' | 'system' | 'regular';
 export type PrimitiveSize = 'sm' | 'md' | 'lg';
 
+/** Canonical bounding box of the BoilerPrimitive SVG at md scale (viewBox units). */
+export const BOILER_FOOTPRINT = { width: 112, height: 138 } as const;
+
+/**
+ * Canonical port coordinates for each BoilerVariant (viewBox units, md scale).
+ * All ports exit at the bottom of the casing (side: 'bottom').
+ */
+export const BOILER_PORTS = {
+  combi: {
+    primary_return:  { x: 28, y: 136, side: 'bottom' as const },
+    cold_mains_in:   { x: 42, y: 136, side: 'bottom' as const },
+    gas_supply:      { x: 56, y: 136, side: 'bottom' as const },
+    dhw_out:         { x: 70, y: 136, side: 'bottom' as const },
+    primary_flow:    { x: 84, y: 136, side: 'bottom' as const },
+  },
+  system: {
+    primary_return:  { x: 32, y: 136, side: 'bottom' as const },
+    gas_supply:      { x: 56, y: 136, side: 'bottom' as const },
+    primary_flow:    { x: 80, y: 136, side: 'bottom' as const },
+  },
+  regular: {
+    primary_return:  { x: 32, y: 136, side: 'bottom' as const },
+    gas_supply:      { x: 56, y: 136, side: 'bottom' as const },
+    primary_flow:    { x: 80, y: 136, side: 'bottom' as const },
+  },
+} as const;
+
 export interface BoilerPrimitiveProps {
   variant?: BoilerVariant;
   showLabel?: boolean;
