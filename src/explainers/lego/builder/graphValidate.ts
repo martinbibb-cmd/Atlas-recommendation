@@ -110,7 +110,9 @@ function hasRealPort(graph: BuildGraph, nodeId: string, portId: string): boolean
 
 function isTopologyPlacementNode(graph: BuildGraph, nodeId: string): boolean {
   const node = graph.nodes.find(n => n.id === nodeId)
-  return Boolean(node?.primitiveId || node?.componentRole || node?.ports)
+  // A topology placement node must have primitive identity + explicit port map.
+  // componentRole is validated separately (missing-role warning).
+  return Boolean(node?.primitiveId && node?.ports)
 }
 
 function nodePortsForDisconnectedCheck(graph: BuildGraph, nodeId: string): string[] {
@@ -121,9 +123,21 @@ function nodePortsForDisconnectedCheck(graph: BuildGraph, nodeId: string): strin
 }
 
 function allowedRailsForRoles(a: PortDef['role'], b: PortDef['role']): RoutingRail[] {
-  if (a === 'hot' || b === 'hot') return [ROUTING_RAILS.DHW]
-  if (a === 'cold' || b === 'cold') return [ROUTING_RAILS.CW_MAINS]
+  // Same-domain pairings (hot↔hot, cold↔cold) are intentionally allowed here
+  // because branch/manifold-style layouts can legitimately connect them.
+  if (a === 'hot' || b === 'hot') {
+    if (a === 'cold' || b === 'cold') return []
+    return [ROUTING_RAILS.DHW]
+  }
+  if (a === 'cold' || b === 'cold') {
+    if (a === 'hot' || b === 'hot') return []
+    return [ROUTING_RAILS.CW_MAINS]
+  }
+  // Return-dominant pairs are constrained to CH_RETURN so a return terminal
+  // cannot be explicitly labeled as a supply/flow rail.
   if (a === 'return' || b === 'return') return [ROUTING_RAILS.CH_RETURN]
+  // Flow/store pairs allow either CH rail because role-level validation in this
+  // builder currently treats flow/return/store as a shared hydronic family.
   if (a === 'flow' || b === 'flow' || a === 'store' || b === 'store') {
     return [ROUTING_RAILS.CH_FLOW, ROUTING_RAILS.CH_RETURN]
   }
