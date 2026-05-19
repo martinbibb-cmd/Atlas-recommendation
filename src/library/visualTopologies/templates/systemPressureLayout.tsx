@@ -18,16 +18,19 @@ import {
   pressureStateLabelStyle,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
+import { computeTopologyLayout, getTopologyLayoutDeclaration } from '../layout';
 
 export function SystemPressureLayoutTopology({ options }: { options: VisualTopologyRenderOptions }) {
+  const { positions } = computeTopologyLayout(getTopologyLayoutDeclaration('system_pressure_layout'));
+
   return (
     <TopologyShell options={options}>
-      <TopologyNode role="boiler" left={46} top={154}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pipe_loop" left={190} top={116}><PipeLoopPrimitive size="md" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="expansion_vessel" left={468} top={210}><ExpansionVesselPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pressure_gauge_low" left={612} top={58}><PressureGaugePrimitive pressureBar={0.5} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pressure_gauge_normal" left={612} top={170}><PressureGaugePrimitive pressureBar={1.3} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pressure_gauge_high" left={612} top={282}><PressureGaugePrimitive pressureBar={2.8} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="boiler" left={positions.boiler.left} top={positions.boiler.top}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pipe_loop" left={positions.pipe_loop.left} top={positions.pipe_loop.top}><PipeLoopPrimitive size="md" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="expansion_vessel" left={positions.expansion_vessel.left} top={positions.expansion_vessel.top}><ExpansionVesselPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pressure_gauge_low" left={positions.pressure_gauge_low.left} top={positions.pressure_gauge_low.top}><PressureGaugePrimitive pressureBar={0.5} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pressure_gauge_normal" left={positions.pressure_gauge_normal.left} top={positions.pressure_gauge_normal.top}><PressureGaugePrimitive pressureBar={1.3} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pressure_gauge_high" left={positions.pressure_gauge_high.left} top={positions.pressure_gauge_high.top}><PressureGaugePrimitive pressureBar={2.8} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       {options.showLabels && (
         <div style={pressureStateLabelStyle()}>
           <span>Low state</span>
