@@ -118,7 +118,7 @@ export function VisualEducationLibraryQaHubPage() {
             Visual reference extraction pack: <code>docs/visual-reference/</code>.
           </p>
           <p style={{ margin: 0, fontSize: 12, color: '#1d4ed8' }}>
-            Screenshot-first rule: compare current primitive, target silhouette, and real-world reference before any visual promotion.
+            screenshot-first rule: compare current primitive, target silhouette, and real-world reference before any visual promotion.
           </p>
         </section>
       </header>

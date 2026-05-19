@@ -14,7 +14,7 @@ describe('VisualEducationLibraryQaHubPage', () => {
     expect(screen.getByText(/Analogy Overlay Gallery/i)).toBeTruthy();
     expect(screen.getByText(/Sealed \+ Unvented Visual Workbench/i)).toBeTruthy();
     expect(screen.getByText(/docs\/atlas-canonical-mechanical-primitive-spec\.md/i)).toBeTruthy();
-    expect(screen.getByText(/docs\/visual-reference\//i)).toBeTruthy();
+    expect(screen.getByText('docs/visual-reference/')).toBeTruthy();
     expect(screen.getByText(/screenshot-first evidence/i)).toBeTruthy();
     expect(screen.getByText(/docs\/visual-reference\/primitive-reference-packs\.md/i)).toBeTruthy();
     expect(screen.getByText(/Legacy Diagram Fixture/i)).toBeTruthy();
