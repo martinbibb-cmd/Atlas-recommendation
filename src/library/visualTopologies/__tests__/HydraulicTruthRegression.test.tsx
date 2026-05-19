@@ -43,21 +43,21 @@ describe('hydraulic truth regression checks', () => {
     expect(expansion).toBeTruthy();
   });
 
-  it('ABV stays downstream of pump and upstream of restrictions in ABV-protected layout', () => {
+  it('ABV stays downstream of boiler and upstream of restrictions in ABV-protected layout', () => {
     const { container } = render(renderVisualTopology('abv_protected_heating_loop', DEFAULT_OPTIONS));
-    const pump = container.querySelector('[data-topology-component-role="pump"]');
-    const abv = container.querySelector('[data-topology-component-role="abv_after_pump_before_restrictions"]');
+    const boiler = container.querySelector('[data-topology-component-role="boiler"]');
+    const abv = container.querySelector('[data-topology-component-role="abv_after_boiler_before_restrictions"]');
     const restrictionBoundary = container.querySelector('[data-testid="abv-restriction-boundary"]');
-    const abvBridge = container.querySelector('[data-testid="abv-downstream-pump-upstream-restrictions-bridge"]');
-    expect(pump).toBeTruthy();
+    const abvBridge = container.querySelector('[data-testid="abv-downstream-boiler-upstream-restrictions-bridge"]');
+    expect(boiler).toBeTruthy();
     expect(abv).toBeTruthy();
     expect(restrictionBoundary).toBeTruthy();
     expect(abvBridge).toBeTruthy();
 
-    const pumpLeft = Number.parseFloat((pump as HTMLElement).style.left ?? '0');
+    const boilerLeft = Number.parseFloat((boiler as HTMLElement).style.left ?? '0');
     const abvLeft = Number.parseFloat((abv as HTMLElement).style.left ?? '0');
     const boundaryX = Number.parseFloat(restrictionBoundary?.getAttribute('x1') ?? '0');
-    expect(abvLeft).toBeGreaterThan(pumpLeft);
+    expect(abvLeft).toBeGreaterThan(boilerLeft);
     expect(abvLeft).toBeLessThan(boundaryX);
   });
 

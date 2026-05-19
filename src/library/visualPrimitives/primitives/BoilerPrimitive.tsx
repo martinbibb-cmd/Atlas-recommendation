@@ -61,8 +61,8 @@ export function BoilerPrimitive({
 }: BoilerPrimitiveProps) {
   const scale = SCALE[size];
   const w = Math.round(100 * scale);
-  const h = Math.round(110 * scale);
-  // SVG is authored at 100×110; we scale via viewBox + explicit dimensions.
+  const h = Math.round(120 * scale);
+  // SVG is authored at 100×120; we scale via viewBox + explicit dimensions.
 
   return (
     <div
@@ -72,26 +72,26 @@ export function BoilerPrimitive({
       <svg
         width={w}
         height={h}
-        viewBox="0 0 100 110"
+        viewBox="0 0 100 120"
         role="img"
         aria-hidden="true"
         focusable="false"
       >
         {/* Boiler body */}
         <rect
-          x={10} y={4}
-          width={80} height={76}
+          x={20} y={4}
+          width={60} height={86}
           rx={5}
-          fill={printSafe ? '#f3f4f6' : '#1e40af'}
-          stroke={printSafe ? '#1e3a8a' : '#1e3a8a'}
+          fill="#ffffff"
+          stroke="#1e3a8a"
           strokeWidth={2}
           strokeDasharray={printSafe ? '4 2' : undefined}
         />
 
         {/* Viewing panel */}
         <rect
-          x={22} y={14}
-          width={56} height={42}
+          x={30} y={16}
+          width={40} height={46}
           rx={3}
           fill={printSafe ? '#fff' : '#eff6ff'}
           stroke="#93c5fd"
@@ -111,7 +111,7 @@ export function BoilerPrimitive({
 
         {/* Variant badge */}
         <text
-          x={50} y={68}
+          x={50} y={78}
           textAnchor="middle"
           fontSize={7}
           fontFamily="system-ui, sans-serif"
@@ -123,33 +123,42 @@ export function BoilerPrimitive({
 
         {/* Flow pipe (hot — red/dark) */}
         <line
-          x1={30} y1={80}
-          x2={30} y2={104}
+          x1={32} y1={90}
+          x2={32} y2={116}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.flow : undefined}
+          data-testid="boiler-primary-flow-port"
+          data-port-position="bottom"
+          data-port-role="boiler_primary_flow"
         />
         {/* Return pipe (cool — blue/dashed for colour-blind safety) */}
         <line
-          x1={70} y1={80}
-          x2={70} y2={104}
+          x1={68} y1={90}
+          x2={68} y2={116}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
           strokeDasharray={animateFlow && !printSafe ? undefined : (printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH)}
           className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.return : undefined}
+          data-testid="boiler-primary-return-port"
+          data-port-position="bottom"
+          data-port-role="boiler_primary_return"
         />
         {/* Gas supply stub (grey dashed) */}
         <line
-          x1={50} y1={80}
-          x2={50} y2={104}
+          x1={50} y1={90}
+          x2={50} y2={116}
           stroke={AUX_COLOUR}
           strokeWidth={PIPE_STROKE_GAS}
           strokeDasharray="4 2"
+          data-testid="boiler-gas-port"
+          data-port-position="bottom"
+          data-port-role="boiler_gas_supply"
         />
 
         {/* Pipe foot labels */}
-        <text x={30} y={109} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}>Flow</text>
-        <text x={70} y={109} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}>Return</text>
+        <text x={32} y={119} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}>Flow</text>
+        <text x={68} y={119} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}>Return</text>
       </svg>
 
       {showLabel && (

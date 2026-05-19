@@ -58,8 +58,8 @@ const TOPOLOGY_RENDER_ASSERTIONS: Record<VisualTopologyId, TopologyRenderAsserti
   ],
   abv_protected_heating_loop: [
     {
-      id: 'abv_downstream_of_pump_upstream_of_restrictions',
-      description: 'ABV is downstream of pump and upstream of branch restrictions.',
+      id: 'abv_downstream_of_boiler_upstream_of_restrictions',
+      description: 'ABV is downstream of boiler and upstream of branch restrictions.',
     },
   ],
   magnetic_filter_on_return: [
@@ -103,4 +103,3 @@ export function evaluateTopologyTemplateCompliance(topologyId: VisualTopologyId)
     knownSimplification,
   };
 }
-

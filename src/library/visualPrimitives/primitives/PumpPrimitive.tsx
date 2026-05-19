@@ -22,10 +22,6 @@ import {
   LABEL_FONT_SIZE,
   PIPE_STROKE_MAIN,
   PRINT_FLOW_COLOUR,
-  PRINT_RETURN_COLOUR,
-  RETURN_COLOUR,
-  RETURN_PIPE_DASH,
-  PRINT_RETURN_DASH,
 } from '../primitiveTokens';
 import type { PrimitiveSize } from './BoilerPrimitive';
 
@@ -61,17 +57,17 @@ export function PumpPrimitive({
         aria-hidden="true"
         focusable="false"
       >
-        {/* Inlet pipe */}
+        {/* Inlet pipe (primary flow) */}
         <line
           x1={4} y1={cy}
           x2={cx - r} y2={cy}
-          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_MAIN}
-          strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
           data-testid="pump-inlet-pipe"
           data-port-position="left"
+          data-port-role="pump_primary_flow_in"
         />
-        {/* Outlet pipe */}
+        {/* Outlet pipe (primary flow) */}
         <line
           x1={cx + r} y1={cy}
           x2={96} y2={cy}
@@ -79,6 +75,7 @@ export function PumpPrimitive({
           strokeWidth={PIPE_STROKE_MAIN}
           data-testid="pump-outlet-pipe"
           data-port-position="right"
+          data-port-role="pump_primary_flow_out"
         />
 
         {/* Pump body circle */}

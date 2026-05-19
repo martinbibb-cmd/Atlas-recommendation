@@ -13,6 +13,7 @@
  */
 
 import {
+  AUX_COLOUR,
   CYLINDER_BODY_H,
   CYLINDER_BODY_W,
   CYLINDER_BODY_X,
@@ -52,6 +53,12 @@ export function MixergyCylinderPrimitive({
   const hotH = (soc / 100) * CYLINDER_BODY_H;
   const coldH = CYLINDER_BODY_H - hotH;
   const thermoclineY = CYLINDER_BODY_Y + hotH;
+  const coldInY = CYLINDER_BODY_Y + CYLINDER_BODY_H - 14;
+  const hotOutY = CYLINDER_BODY_Y + 20;
+  const topCoilInY = CYLINDER_BODY_Y + 26;
+  const topCoilOutY = CYLINDER_BODY_Y + 38;
+  const topCoilLeftX = CYLINDER_BODY_X + 14;
+  const topCoilRightX = CYLINDER_BODY_X + CYLINDER_BODY_W - 12;
 
   return (
     <div
@@ -126,28 +133,71 @@ export function MixergyCylinderPrimitive({
 
         {/* Hot draw-off — top right */}
         <line
-          x1={CYLINDER_BODY_X + CYLINDER_BODY_W} y1={CYLINDER_BODY_Y + 20}
-          x2={CYLINDER_SVG_W - 2} y2={CYLINDER_BODY_Y + 20}
+          x1={CYLINDER_BODY_X + CYLINDER_BODY_W} y1={hotOutY}
+          x2={CYLINDER_SVG_W - 2} y2={hotOutY}
           stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="mixergy-hot-draw-off"
+          data-port-position="right"
+          data-port-role="mixergy_hot_draw_off"
         />
         <polygon
-          points={`${CYLINDER_SVG_W - 8},${CYLINDER_BODY_Y + 16} ${CYLINDER_SVG_W - 2},${CYLINDER_BODY_Y + 20} ${CYLINDER_SVG_W - 8},${CYLINDER_BODY_Y + 24}`}
+          points={`${CYLINDER_SVG_W - 8},${hotOutY - 4} ${CYLINDER_SVG_W - 2},${hotOutY} ${CYLINDER_SVG_W - 8},${hotOutY + 4}`}
           fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
         />
 
         {/* Cold mains inlet — low entry */}
         <line
-          x1={0} y1={CYLINDER_BODY_Y + CYLINDER_BODY_H - 14}
-          x2={CYLINDER_BODY_X} y2={CYLINDER_BODY_Y + CYLINDER_BODY_H - 14}
+          x1={0} y1={coldInY}
+          x2={CYLINDER_BODY_X} y2={coldInY}
           stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
           data-testid="mixergy-cold-entry"
+          data-port-position="left"
+          data-port-role="mixergy_cold_in"
         />
         <polygon
-          points={`${CYLINDER_BODY_X - 6},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 18} ${CYLINDER_BODY_X},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 14} ${CYLINDER_BODY_X - 6},${CYLINDER_BODY_Y + CYLINDER_BODY_H - 10}`}
+          points={`${CYLINDER_BODY_X - 6},${coldInY - 4} ${CYLINDER_BODY_X},${coldInY} ${CYLINDER_BODY_X - 6},${coldInY + 4}`}
           fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+        />
+
+        {/* Top-heating coil in upper section (Mixergy top-charge signature). */}
+        <path
+          d={`M ${topCoilLeftX} ${topCoilInY}
+              C ${topCoilLeftX + 8} ${topCoilInY - 6}, ${topCoilLeftX + 12} ${topCoilInY + 8}, ${topCoilLeftX + 20} ${topCoilInY + 2}
+              C ${topCoilLeftX + 28} ${topCoilInY - 4}, ${topCoilLeftX + 30} ${topCoilOutY - 4}, ${topCoilLeftX + 38} ${topCoilOutY}
+              C ${topCoilLeftX + 46} ${topCoilOutY + 4}, ${topCoilRightX - 2} ${topCoilOutY - 4}, ${topCoilRightX} ${topCoilOutY}`}
+          stroke={printSafe ? '#111827' : '#b45309'}
+          strokeWidth={2}
+          fill="none"
+          data-testid="mixergy-top-coil"
+        />
+        <line
+          x1={0}
+          y1={topCoilInY}
+          x2={topCoilLeftX}
+          y2={topCoilInY}
+          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="mixergy-coil-flow-in-port"
+          data-port-position="left"
+          data-port-role="mixergy_coil_flow_in"
+        />
+        <line
+          x1={topCoilRightX}
+          y1={topCoilOutY}
+          x2={CYLINDER_SVG_W}
+          y2={topCoilOutY}
+          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          data-testid="mixergy-coil-flow-out-port"
+          data-port-position="right"
+          data-port-role="mixergy_coil_flow_out"
+        />
+        <polygon
+          points={`5,${topCoilInY - 5} 10,${topCoilInY} 5,${topCoilInY + 5} 0,${topCoilInY}`}
+          fill={printSafe ? '#111827' : AUX_COLOUR}
+          data-testid="mixergy-control-valve"
         />
       </svg>
 

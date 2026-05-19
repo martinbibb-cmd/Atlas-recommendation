@@ -34,10 +34,11 @@ export const CANONICAL_HYDRAULIC_RULES: CanonicalHydraulicRuleSet = {
   ],
   pumpPlacementRules: [
     'Open-vented templates place the pump on primary flow downstream of the close-coupled vent/feed pair.',
-    'Closed-loop templates keep circulation pumps inline with the primary circulation path.',
+    'Where an external pump is shown, it stays inline with the primary circulation path.',
+    'Combi and system-boiler templates should not show an external primary pump.',
   ],
   abvPlacementRules: [
-    'ABV sits after pump circulation drive and before flow restrictions to protect minimum circulation.',
+    'ABV sits after the primary circulation drive and before flow restrictions to protect minimum circulation.',
   ],
   magneticFilterPlacementRules: [
     'Magnetic filters remain on return before boiler entry for debris interception.',
@@ -128,6 +129,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     featureFlags: [
       'close_coupled_open_vent_and_cold_feed',
       'open_vented_pump_on_primary_flow_downstream_vent_feed',
+      'external_primary_pump',
       'no_top_fed_radiator_connections',
       'no_decorative_crossover_pipework',
     ],
@@ -157,7 +159,6 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
       'd2_continuous_fall',
       'no_top_fed_radiator_connections',
       'no_decorative_crossover_pipework',
-      'pump_inline_on_return',
     ],
     accessibilityCompatibility: {
       noLabelMode: true,
@@ -190,7 +191,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     regulatoryNotes: ['Stratification cue is mandatory for this template.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.mixergy.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.mixergy,
-    featureFlags: ['thermocline_visualisation', 'mixergy_stratification', 'pump_inline_on_return', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
+    featureFlags: ['thermocline_visualisation', 'mixergy_stratification', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
     accessibilityCompatibility: {
       noLabelMode: true,
       monochromePrintSafeMode: true,
@@ -206,7 +207,7 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
     regulatoryNotes: ['Diagram keeps potable and primary paths independent.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.thermal_store.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.thermal_store,
-    featureFlags: ['thermal_store_potable_primary_separation', 'pump_inline_on_return', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
+    featureFlags: ['thermal_store_potable_primary_separation', 'external_primary_pump', 'no_top_fed_radiator_connections', 'no_decorative_crossover_pipework'],
     accessibilityCompatibility: {
       noLabelMode: true,
       monochromePrintSafeMode: true,
@@ -233,14 +234,13 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
   {
     topologyId: 'abv_protected_heating_loop',
     templateId: 'abv_protected_loop',
-    hydraulicIntentSummary: 'ABV-protected loop where bypass valve bridges flow/return after pump to preserve circulation.',
+    hydraulicIntentSummary: 'ABV-protected loop where bypass valve bridges flow/return after boiler circulation drive to preserve circulation.',
     safetyNotes: ['ABV stays before restrictions to maintain minimum circulation path.'],
     regulatoryNotes: ['ABV placement follows minimum-circulation safeguarding intent.'],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.abv_protected_loop.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.abv_protected_loop,
     featureFlags: [
-      'abv_after_pump_before_restrictions',
-      'pump_inline_on_return',
+      'abv_after_boiler_before_restrictions',
       'no_top_fed_radiator_connections',
       'no_decorative_crossover_pipework',
     ],
