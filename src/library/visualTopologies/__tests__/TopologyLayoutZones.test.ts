@@ -56,6 +56,8 @@ const KNOWN_OUT_OF_ZONE = new Set<string>([
   // Open-vented topology canonical rule: pump sits on primary flow downstream
   // of close-coupled vent/feed, so it intentionally leaves return-leg zone.
   'PumpPrimitive:245:119',
+  // Thermal-store layout keeps the regular-boiler pump inline on primary flow.
+  'PumpPrimitive:170:155',
 ]);
 
 // ─── Parse source file ────────────────────────────────────────────────────────

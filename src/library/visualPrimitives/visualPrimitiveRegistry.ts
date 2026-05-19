@@ -165,7 +165,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
   {
     id: 'unvented_cylinder',
     category: 'cylinder',
-    displayName: 'Unvented (Mains-Pressure) Cylinder',
+    displayName: 'Unvented (Mains-fed) Cylinder',
     canonicalPurpose:
       'Sealed hot-water cylinder fed directly from the mains cold supply. Stores and delivers hot water at mains pressure. Requires PRV and expansion vessel.',
     sourceLocations: [
@@ -185,7 +185,7 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     category: 'cylinder',
     displayName: 'Vented (Tank-Fed) Cylinder',
     canonicalPurpose:
-      'Hot-water cylinder fed from a cold-water storage tank in the loft. Open to atmosphere via vent pipe. Low-pressure supply — gravity-fed.',
+      'Hot-water cylinder fed from a cold-water storage tank in the loft. Open to atmosphere via vent pipe with tank-fed supply.',
     sourceLocations: [
       'public/images/systems/vented-cylinder.svg',
       'src/library/diagrams/OpenVentedToUnventedDiagram.tsx (open-vented panel, cylinder rect)',

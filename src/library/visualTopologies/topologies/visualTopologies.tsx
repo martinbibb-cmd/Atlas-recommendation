@@ -256,15 +256,9 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         {/* Primary flow ring */}
         <line x1={120} y1={140} x2={520} y2={140} stroke={flow} strokeWidth={w} />
         <line x1={520} y1={140} x2={520} y2={300} stroke={flow} strokeWidth={w} />
-        {/*
-          Return pipe — routes through pump (inline).
-          Right segment to pump outlet (x=223), jog UP from y=300 to pump y=267,
-          pump handles x=159–223, left segment to boiler column.
-        */}
-        <line x1={520} y1={300} x2={223} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={223} y1={300} x2={223} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
-        <line x1={159} y1={267} x2={120} y2={267} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={120} y1={267} x2={120} y2={205} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/* Return pipe — system boiler internal pump assumed; no external pump primitive. */}
+        <line x1={520} y1={300} x2={120} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={120} y1={300} x2={120} y2={205} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
         <line x1={340} y1={140} x2={340} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -312,7 +306,6 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
       </PipeLayer>
 
       <TopologyNode role="boiler" left={56} top={156}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pump" left={156} top={246}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       <TopologyNode role="radiator_branch_1" left={266} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       <TopologyNode role="radiator_branch_2" left={410} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       <TopologyNode role="unvented_cylinder" left={520} top={160}><CylinderPrimitive variant="unvented" fillLevel={0.75} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
@@ -380,16 +373,9 @@ function MixergyStratifiedTopology({ options }: { options: VisualTopologyRenderO
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary charging loop */}
         <line x1={130} y1={190} x2={370} y2={190} stroke={flow} strokeWidth={w} />
-        {/*
-          Return pipe — routes through pump (inline).
-          Pump at (170,256): inlet x=173, outlet x=237, centre y=277.
-          Return from cylinder (right) to pump outlet, jog UP from y=290 to y=277,
-          pump handles x=173–237, left segment to boiler column.
-        */}
-        <line x1={370} y1={290} x2={237} y2={290} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={237} y1={290} x2={237} y2={277} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
-        <line x1={173} y1={277} x2={130} y2={277} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={130} y1={277} x2={130} y2={248} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/* Return pipe — system boiler internal pump assumed; no external pump primitive. */}
+        <line x1={370} y1={290} x2={130} y2={290} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={130} y1={290} x2={130} y2={248} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Cylinder charging stubs */}
         <line x1={370} y1={190} x2={480} y2={190} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -414,7 +400,6 @@ function MixergyStratifiedTopology({ options }: { options: VisualTopologyRenderO
       </PipeLayer>
 
       <TopologyNode role="boiler" left={66} top={170}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pump" left={170} top={256}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       <TopologyNode role="mixergy_cylinder" left={470} top={140}><MixergyCylinderPrimitive stateOfChargePct={70} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
@@ -433,17 +418,12 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
           Flow from boiler → store primary-in (left-top of store).
           Return from store primary-out (left-bottom) → pump → boiler.
         */}
-        <line x1={132} y1={176} x2={420} y2={176} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
-        {/*
-          Return pipe — routes through pump (inline).
-          Pump at (170,252): inlet x=173, outlet x=237, centre y=273.
-          Return from store to pump outlet, jog UP from y=286 to y=273,
-          pump handles x=173–237, left segment to boiler column.
-        */}
-        <line x1={420} y1={286} x2={237} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
-        <line x1={237} y1={286} x2={237} y2={273} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
-        <line x1={173} y1={273} x2={132} y2={273} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={132} y1={273} x2={132} y2={232} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/* Flow passes through external pump on primary flow (regular boiler layout). */}
+        <line x1={132} y1={176} x2={173} y2={176} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
+        <line x1={237} y1={176} x2={420} y2={176} stroke={flow} strokeWidth={w} data-testid="pump-topology-circuit" />
+        {/* Return path back to boiler (no pump on return). */}
+        <line x1={420} y1={286} x2={132} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
+        <line x1={132} y1={286} x2={132} y2={232} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/*
           POTABLE water path — cold mains enters coil (bottom-right of store),
@@ -469,7 +449,7 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
       </PipeLayer>
 
       <TopologyNode role="boiler" left={64} top={154}><BoilerPrimitive variant="regular" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pump" left={170} top={252}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="pump" left={170} top={155}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       <TopologyNode role="thermal_store" left={430} top={114}><ThermalStorePrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
@@ -545,16 +525,9 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
           strokeWidth={w}
           data-testid="abv-restriction-boundary"
         />
-        {/*
-          Return pipe — routes through pump (inline).
-          Pump at (165,248): inlet x=168, outlet x=232, centre y=269.
-          Right segment to pump outlet, jog UP from y=300 to y=269,
-          pump handles x=168–232, left segment to boiler column.
-        */}
-        <line x1={620} y1={300} x2={232} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={232} y1={300} x2={232} y2={269} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="pump-topology-circuit" />
-        <line x1={168} y1={269} x2={130} y2={269} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={130} y1={269} x2={130} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {/* Return path — system boiler internal pump assumed; no external pump primitive. */}
+        <line x1={620} y1={300} x2={130} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={130} y1={300} x2={130} y2={210} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
         <line x1={348} y1={140} x2={348} y2={112} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
@@ -569,7 +542,7 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
           y2={300}
           stroke={AUX_COLOUR}
           strokeWidth={PIPE_STROKE_BRANCH}
-          data-testid="abv-downstream-pump-upstream-restrictions-bridge"
+          data-testid="abv-downstream-boiler-upstream-restrictions-bridge"
         />
 
         {/* pipeTrace directional arrows */}
@@ -582,10 +555,9 @@ function AbvProtectedLoopTopology({ options }: { options: VisualTopologyRenderOp
       </PipeLayer>
 
       <TopologyNode role="boiler" left={60} top={164}><BoilerPrimitive variant="system" size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="pump" left={165} top={248}><PumpPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       <TopologyNode role="restriction_radiator_branch_1" left={274} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
       <TopologyNode role="restriction_radiator_branch_2" left={420} top={70}><RadiatorPrimitive size="sm" temperatureTone="warm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
-      <TopologyNode role="abv_after_pump_before_restrictions" left={470} top={176}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
+      <TopologyNode role="abv_after_boiler_before_restrictions" left={470} top={176}><ABVPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} /></TopologyNode>
     </TopologyShell>
   );
 }

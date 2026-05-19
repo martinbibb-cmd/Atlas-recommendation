@@ -56,10 +56,7 @@ describe('physical realism regression guards', () => {
     // This is the base assertion that the primitive is correctly wired.
     const topologyIds = [
       'open_vented_vented_cylinder',
-      'sealed_unvented_cylinder',
-      'mixergy_stratified_cylinder',
       'thermal_store_layout',
-      'abv_protected_heating_loop',
     ] as const;
 
     for (const id of topologyIds) {
@@ -78,10 +75,7 @@ describe('physical realism regression guards', () => {
   it('every pump topology renders a circuit-connection pipe segment (pump is inline)', () => {
     const topologyIds = [
       'open_vented_vented_cylinder',
-      'sealed_unvented_cylinder',
-      'mixergy_stratified_cylinder',
       'thermal_store_layout',
-      'abv_protected_heating_loop',
     ] as const;
 
     for (const id of topologyIds) {
@@ -101,6 +95,15 @@ describe('physical realism regression guards', () => {
     expect(container.querySelectorAll('[data-testid="cylinder-stratification-zone"]').length).toBe(0);
   });
 
+  it('standard cylinder primitive exposes four physical ports and internal lower coil', () => {
+    const { container } = render(<CylinderPrimitive variant="unvented" showLabel={false} />);
+    expect(container.querySelector('[data-testid="cylinder-cold-in-port"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="cylinder-hot-out-port"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="cylinder-coil-flow-in-port"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="cylinder-coil-flow-out-port"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="cylinder-internal-coil"]')).toBeTruthy();
+  });
+
   it('sealed unvented cylinder topology contains no stratification zone elements', () => {
     const { container } = render(
       renderVisualTopology('sealed_unvented_cylinder', DEFAULT_OPTIONS),
@@ -113,6 +116,9 @@ describe('physical realism regression guards', () => {
     expect(container.querySelector('[data-testid="mixergy-thermocline"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="mixergy-stratification-hot-zone"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="mixergy-stratification-cold-zone"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="mixergy-coil-flow-in-port"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="mixergy-coil-flow-out-port"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="mixergy-top-coil"]')).toBeTruthy();
   });
 
   it('Mixergy topology renders stratification elements', () => {

@@ -58,7 +58,6 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     systemType: 'sealed_unvented',
     primitivesUsed: [
       'system_boiler',
-      'circulation_pump',
       'panel_radiator',
       'expansion_vessel',
       'pressure_gauge',
@@ -94,7 +93,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     id: 'mixergy_stratified_cylinder',
     title: 'Stratified cylinder / Mixergy layout',
     systemType: 'mixergy',
-    primitivesUsed: ['mixergy_cylinder', 'system_boiler', 'circulation_pump', 'flow_pipe'],
+    primitivesUsed: ['mixergy_cylinder', 'system_boiler', 'flow_pipe'],
     physicalPurpose:
       'Shows Mixergy cylinder with hot top layer, cooler lower layer, cold mains entry, hot draw-off from top, and charging input cue.',
     recognisability: 'recognisable_with_context',
@@ -136,7 +135,7 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     id: 'abv_protected_heating_loop',
     title: 'ABV protected heating loop',
     systemType: 'sealed_abv',
-    primitivesUsed: ['system_boiler', 'circulation_pump', 'panel_radiator', 'abv', 'flow_pipe', 'pipe_loop'],
+    primitivesUsed: ['system_boiler', 'panel_radiator', 'abv', 'flow_pipe', 'pipe_loop'],
     physicalPurpose:
       'Shows flow pipe, return pipe, TRV radiator loop, and ABV bridge between flow and return protecting minimum circulation.',
     recognisability: 'immediately_recognisable',
