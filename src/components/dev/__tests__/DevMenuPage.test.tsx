@@ -25,7 +25,7 @@ describe('DevMenuPage inventory curation', () => {
     expect(screen.getByTestId('devmenu-visual-education-library-analogy-overlay-gallery').textContent)
       .toContain('/dev/analogy-overlay-gallery');
 
-    expect(screen.getAllByRole('link', { name: /Open (surface|golden reference)/i })).toHaveLength(4);
+    expect(screen.getAllByRole('link', { name: /Open (surface|golden reference)/i })).toHaveLength(5);
   });
 
   it('hides dev and legacy inventory items by default and reveals them only when toggled', async () => {

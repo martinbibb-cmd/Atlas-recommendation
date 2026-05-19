@@ -155,7 +155,7 @@ const PAGE_MODE_LABELS: Record<DevMenuPageMode, string> = {
   phoneQa:   '📱 Phone customer QA',
 };
 
-const VISUAL_EDUCATION_LIBRARY_ENTRY_IDS = new Set([
+const VISUAL_EDUCATION_LIBRARY_ENTRY_IDS = new Set<string>([
   VISUAL_EDUCATION_LIBRARY_QA_HUB.id,
   ...VISUAL_EDUCATION_LIBRARY_SURFACES.map(surface => surface.id),
 ]);
@@ -179,8 +179,6 @@ const INTERNAL_WORKFLOW_ENTRY_IDS = new Set<string>([
   'visit-workspace-detail',
   'visit-home-dashboard',
   'workspace-settings-page',
-  'dev-portal-fixture-page',
-  'workspace-visit-lifecycle-harness',
 ]);
 
 const LEGACY_TOOL_IDS = new Set<string>([
