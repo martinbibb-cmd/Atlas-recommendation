@@ -476,6 +476,24 @@ export default function DrawOffWorkbench({ onOpenReport }: { onOpenReport?: () =
 
   return (
     <div className="draw-off-workbench" data-testid="draw-off-workbench">
+      <div
+        data-testid="draw-off-workbench-human-review-gate"
+        style={{
+          marginBottom: 12,
+          padding: '0.75rem 0.9rem',
+          borderRadius: 10,
+          border: '1px solid #fca5a5',
+          background: '#fef2f2',
+          color: '#7f1d1d',
+          display: 'grid',
+          gap: 4,
+        }}
+      >
+        <strong style={{ fontSize: 13 }}>Human visual review required</strong>
+        <span style={{ fontSize: 12 }}>
+          This workbench is blocked for customer-facing use until screenshot review confirms the visuals read as real installed equipment.
+        </span>
+      </div>
 
       {/* ── Regime selector ────────────────────────────────────────────────── */}
       <div className="draw-off-workbench__regime-bar" role="group" aria-label="System regime">
@@ -493,10 +511,11 @@ export default function DrawOffWorkbench({ onOpenReport }: { onOpenReport?: () =
         {onOpenReport && (
           <button
             className="draw-off-workbench__report-btn"
-            onClick={onOpenReport}
-            aria-label="View report"
+            aria-label="View report unavailable pending human visual review"
+            disabled
+            title="Blocked until human visual review passes"
           >
-            View report
+            Customer use blocked
           </button>
         )}
       </div>

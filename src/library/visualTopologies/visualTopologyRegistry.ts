@@ -14,6 +14,7 @@ export type VisualTopologyRecognisability =
   | 'recognisable_with_context';
 
 export type PipeTraceability = 'clear' | 'adequate' | 'unclear';
+export type TopologyVisualReviewState = 'passed' | 'human_visual_review_required';
 
 export interface VisualTopologyEntry {
   id: VisualTopologyId;
@@ -27,6 +28,8 @@ export interface VisualTopologyEntry {
   motionSafe: boolean;
   allowedCustomerUse: boolean;
   qaNote?: string;
+  humanVisualReviewState: TopologyVisualReviewState;
+  humanVisualReviewNote?: string;
 }
 
 export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
@@ -51,6 +54,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote: 'No-label view must keep vent pipe/tank-fed path obvious and radiator branches bottom-connected and traceable.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the open-vented tank-fed path reads as a believable system without labels.',
   },
   {
     id: 'sealed_unvented_cylinder',
@@ -74,6 +80,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote: 'Radiator branches should read as bottom-connected emitters on a plausible sealed flow/return route.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the no-label layout reads as a plausible sealed heating + mains-fed stored hot-water system.',
   },
   {
     id: 'combi_direct_hot_water',
@@ -88,6 +97,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote: 'Emitter branches should remain bottom-connected with no decorative crossovers.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the no-label combi layout reads as a real system rather than symbolic rails.',
   },
   {
     id: 'mixergy_stratified_cylinder',
@@ -102,6 +114,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote: 'Keep this visually clean and stratified with minimal pipework; do not describe or present this as a thermal store.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the no-label view is clearly Mixergy and not a generic cylinder or thermal store.',
   },
   {
     id: 'thermal_store_layout',
@@ -116,6 +131,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote: 'Primary stored water and potable water paths must remain visibly separate via internal heat-exchanger representation.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the primary body and separate DHW heat-exchange path are obvious without labels.',
   },
   {
     id: 'powerflush_service_layout',
@@ -130,6 +148,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote: 'ABV should read as a compact bypass valve with angled adjustment head bridging flow and return.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the service layout looks like connected equipment rather than stretched symbolic strips.',
   },
   {
     id: 'abv_protected_heating_loop',
@@ -144,6 +165,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote: 'Return filtering should stay physically traceable with radiator branches connected to plausible emitter ports.',
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the ABV bridge and emitter routing read as a believable circuit in no-label mode.',
   },
   {
     id: 'magnetic_filter_on_return',
@@ -157,6 +181,9 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the return filter sits on believable connected pipework entering the real product ports.',
   },
   {
     id: 'system_pressure_layout',
@@ -170,5 +197,8 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     printSafe: true,
     motionSafe: true,
     allowedCustomerUse: false,
+    humanVisualReviewState: 'human_visual_review_required',
+    humanVisualReviewNote:
+      'Still blocked until a reviewer confirms the pressure-window layout reads as a believable sealed-system presentation without labels.',
   },
 ];

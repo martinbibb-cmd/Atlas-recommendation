@@ -104,6 +104,9 @@ export function VisualTopologyGallery() {
         <p style={{ margin: 0, color: '#475569', fontSize: 13, maxWidth: '74ch' }}>
           Canonical connected heating-system layouts composed from PR 1 primitives only.
         </p>
+        <p style={{ margin: '0.35rem 0 0', color: '#991b1b', fontSize: 12, maxWidth: '74ch' }}>
+          All topology compliance badges are provisional until Atlas Visual Review Board screenshot review confirms the no-label drawing is genuinely understandable.
+        </p>
       </header>
 
       <HumanVisualReviewChecklist
@@ -131,6 +134,7 @@ export function VisualTopologyGallery() {
         >
           <span>QA checks: bottom-based radiator connections, ABV shape realism, Mixergy simplicity, and Mixergy vs thermal-store separation.</span>
           <span>Warn on excessive hose/loop routing; flow and return should be traceable by eye to real component ports.</span>
+          <span>Human visual review overrides metadata-only compliance: a topology stays blocked until the no-label drawing is genuinely understandable.</span>
         </div>
         <section data-testid="vt-gallery-grid-no-label" style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))' }}>
           {VISUAL_TOPOLOGY_REGISTRY.map((entry) => (
@@ -231,6 +235,11 @@ export function VisualTopologyGallery() {
             const truth = getHydraulicTruthModel(entry.id);
             const compliance = evaluateTopologyTemplateCompliance(entry.id);
             const plausible = qa.passed && compliance.passed;
+            const statusLabel = !qa.passed
+              ? 'Blocked'
+              : compliance.humanVisualReviewRequired
+                ? 'Human review required'
+                : 'Plausible';
             return (
               <article
                 key={`installer-review-${entry.id}`}
@@ -246,17 +255,22 @@ export function VisualTopologyGallery() {
                       padding: '2px 8px',
                       border: `1px solid ${plausible ? '#86efac' : '#fca5a5'}`,
                       background: plausible ? '#dcfce7' : '#fee2e2',
-                      color: plausible ? '#166534' : '#991b1b',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {plausible ? 'Plausible' : 'Blocked'} · Score: {qa.plausibilityScore}
-                  </span>
-                </div>
+                       color: plausible ? '#166534' : '#991b1b',
+                       fontWeight: 600,
+                     }}
+                   >
+                     {statusLabel} · Score: {qa.plausibilityScore}
+                   </span>
+                 </div>
                 <p style={{ margin: 0, fontSize: 12 }}><strong>Hydraulic intent summary:</strong> {truth.hydraulicIntentSummary}</p>
                 <p style={{ margin: 0, fontSize: 12 }}><strong>Safety notes:</strong> {truth.safetyNotes.join(' ')}</p>
                 <p style={{ margin: 0, fontSize: 12 }}><strong>Regulatory notes:</strong> {truth.regulatoryNotes.join(' ')}</p>
                 <p style={{ margin: 0, fontSize: 12 }}><strong>Known simplifications:</strong> {truth.knownSimplifications.join(' ')}</p>
+                {entry.humanVisualReviewNote && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#991b1b' }}>
+                    <strong>Human review gate:</strong> {entry.humanVisualReviewNote}
+                  </p>
+                )}
                 {qa.issues.length > 0 && (
                   <ul style={{ margin: '2px 0 0', paddingLeft: 18, fontSize: 11, color: '#7f1d1d' }}>
                     {qa.issues.map((issue) => (
@@ -275,7 +289,7 @@ export function VisualTopologyGallery() {
       <section data-testid="vt-gallery-template-compliance-panel" style={{ marginBottom: '2rem', display: 'grid', gap: '0.85rem' }}>
         <h2 style={{ fontSize: 16, margin: 0 }}>Template compliance panel</h2>
         <p style={{ margin: 0, fontSize: 12, color: '#475569' }}>
-          Topologies remain plausible only when canonical template compliance and installer review checks both stay clear.
+          Canonical template compliance alone is not enough: human visual review can block any topology whose no-label drawing is still not understandable.
         </p>
         {VISUAL_TOPOLOGY_REGISTRY.map((entry) => {
           const compliance = evaluateTopologyTemplateCompliance(entry.id);
@@ -292,18 +306,24 @@ export function VisualTopologyGallery() {
                     fontSize: 11,
                     borderRadius: 999,
                     padding: '2px 8px',
-                    border: `1px solid ${compliance.passed ? '#86efac' : '#fca5a5'}`,
-                    background: compliance.passed ? '#dcfce7' : '#fee2e2',
-                    color: compliance.passed ? '#166534' : '#991b1b',
+                    border: `1px solid ${compliance.statusLabel === 'Compliant' ? '#86efac' : '#fca5a5'}`,
+                    background: compliance.statusLabel === 'Compliant' ? '#dcfce7' : '#fee2e2',
+                    color: compliance.statusLabel === 'Compliant' ? '#166534' : '#991b1b',
                     fontWeight: 600,
                   }}
                 >
-                  {compliance.passed ? 'Compliant' : 'Blocked'}
+                  {compliance.statusLabel}
                 </span>
               </div>
               <p style={{ margin: 0, fontSize: 12 }}><strong>Topology ID:</strong> <code>{compliance.topologyId}</code></p>
               <p style={{ margin: 0, fontSize: 12 }}><strong>Template:</strong> <code>{compliance.templateId}</code></p>
+              <p style={{ margin: 0, fontSize: 12 }}><strong>Metadata template check:</strong> {compliance.templatePassed ? 'pass' : 'fail'}</p>
               <p style={{ margin: 0, fontSize: 12 }}><strong>Known simplification:</strong> {compliance.knownSimplification}</p>
+              {entry.humanVisualReviewNote && (
+                <p style={{ margin: 0, fontSize: 12, color: '#991b1b' }}>
+                  <strong>Human review gate:</strong> {entry.humanVisualReviewNote}
+                </p>
+              )}
               <ul style={{ margin: '2px 0 0', paddingLeft: 18, fontSize: 11, color: '#334155' }}>
                 {compliance.renderAssertions.map((assertion) => (
                   <li key={`${entry.id}-${assertion.id}`}>

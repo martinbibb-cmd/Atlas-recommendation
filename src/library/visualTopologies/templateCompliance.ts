@@ -1,4 +1,4 @@
-import type { VisualTopologyId } from './visualTopologyRegistry';
+import { VISUAL_TOPOLOGY_REGISTRY, type VisualTopologyId } from './visualTopologyRegistry';
 import { getHydraulicTruthModel, runHydraulicTopologyQa } from '../hydraulicTruth';
 
 export interface TopologyRenderAssertionDefinition {
@@ -10,6 +10,10 @@ export interface TopologyTemplateComplianceResult {
   topologyId: VisualTopologyId;
   templateId: string;
   passed: boolean;
+  templatePassed: boolean;
+  humanVisualReviewRequired: boolean;
+  humanVisualReviewNote?: string;
+  statusLabel: 'Compliant' | 'Blocked' | 'Human review required';
   blockingIssues: string[];
   renderAssertions: TopologyRenderAssertionDefinition[];
   knownSimplification: string;
@@ -83,6 +87,7 @@ export function getTopologyRenderAssertions(topologyId: VisualTopologyId): Topol
 export function evaluateTopologyTemplateCompliance(topologyId: VisualTopologyId): TopologyTemplateComplianceResult {
   const hydraulicQa = runHydraulicTopologyQa(topologyId);
   const truthModel = getHydraulicTruthModel(topologyId);
+  const topologyEntry = VISUAL_TOPOLOGY_REGISTRY.find((entry) => entry.id === topologyId);
   const knownSimplification = truthModel.knownSimplifications[0] ?? 'No known simplification declared.';
   const renderAssertions = getTopologyRenderAssertions(topologyId);
   const blockingIssues = [
@@ -93,11 +98,29 @@ export function evaluateTopologyTemplateCompliance(topologyId: VisualTopologyId)
   if (renderAssertions.length === 0) {
     blockingIssues.push('No render assertions registered for topology template compliance.');
   }
+  const templatePassed = blockingIssues.length === 0;
+  const humanVisualReviewRequired = topologyEntry?.humanVisualReviewState === 'human_visual_review_required';
+  if (humanVisualReviewRequired) {
+    blockingIssues.push(
+      topologyEntry?.humanVisualReviewNote
+        ?? 'Human visual review is still required because metadata-only checks cannot prove the drawing is understandable without labels.',
+    );
+  }
+  const passed = blockingIssues.length === 0;
+  const statusLabel = !templatePassed
+    ? 'Blocked'
+    : humanVisualReviewRequired
+      ? 'Human review required'
+      : 'Compliant';
 
   return {
     topologyId,
     templateId: hydraulicQa.templateId,
-    passed: blockingIssues.length === 0,
+    passed,
+    templatePassed,
+    humanVisualReviewRequired,
+    humanVisualReviewNote: topologyEntry?.humanVisualReviewNote,
+    statusLabel,
     blockingIssues,
     renderAssertions,
     knownSimplification,

@@ -77,7 +77,13 @@ const OVERLAYS: Record<AnalogyMode, ExplainerOverlay> = {
   },
 };
 
-const CANDIDATE_STATUS_BADGES = ['candidate', 'under visual correction', 'not yet canonical'] as const;
+const CANDIDATE_STATUS_BADGES = [
+  'candidate',
+  'under visual correction',
+  'not yet canonical',
+  'human review required',
+  'screenshot review required',
+] as const;
 
 const GOLDEN_REFERENCE_ACCEPTANCE_CRITERIA = [
   'Boiler, cylinder, pressure gauge, filling loop, expansion vessel, and discharge route are recognisable without labels.',
@@ -138,6 +144,22 @@ function TopologyPreview({
           pipeTrace: false,
           mobileWidth,
         })}
+        <div
+          style={{
+            position: 'absolute',
+            right: 12,
+            top: 12,
+            padding: '6px 10px',
+            borderRadius: 999,
+            background: 'rgba(127, 29, 29, 0.92)',
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 0.2,
+          }}
+        >
+          Human review required
+        </div>
         {overlay != null && !mobileWidth && (
           <svg
             width={860}
@@ -190,12 +212,27 @@ export function SealedUnventedExplainerSlicePage() {
           Candidate Golden Reference / Sealed + Unvented Visual Workbench. This page is under visual correction and is not yet canonical.
         </p>
         <p style={{ margin: 0, fontSize: 13, color: '#64748b', maxWidth: '72ch' }}>
-          Workbench fixtures use the canonical mechanically specified primitives from <code>docs/atlas-canonical-mechanical-primitive-spec.md</code>; promotion to golden reference remains blocked pending no-label review.
+          Workbench fixtures use the canonical mechanically specified primitives from <code>docs/atlas-canonical-mechanical-primitive-spec.md</code>; promotion to golden reference remains blocked pending Atlas Visual Review Board screenshot review.
         </p>
         <p style={{ margin: 0, fontSize: 14, color: '#475569', maxWidth: '72ch' }}>
           This upgrade removes the cold-water tanks from your loft and delivers hot water at mains pressure. Your heating stays exactly as it is.
         </p>
       </header>
+
+      <section
+        data-testid="sealed-unvented-human-review-gate"
+        style={{ border: '1px solid #fca5a5', borderRadius: 10, background: '#fef2f2', padding: '0.9rem 1rem', display: 'grid', gap: 8 }}
+      >
+        <h2 style={{ margin: 0, fontSize: 16, color: '#991b1b' }}>Atlas Visual Review Board gate</h2>
+        <p style={{ margin: 0, fontSize: 13, color: '#7f1d1d' }}>
+          This workbench is not approved for customer-facing use. Visual promotions stay provisional until human screenshot review says the no-label drawing is believable.
+        </p>
+        <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13, color: '#7f1d1d' }}>
+          <li>Copilot cannot promote recognisability, compliance, or golden-reference status from metadata alone.</li>
+          <li>Human screenshot review overrides all green badges.</li>
+          <li>If the drawing still feels like placeholder geometry, it stays blocked.</li>
+        </ul>
+      </section>
 
       <section
         data-testid="sealed-unvented-golden-reference-acceptance"

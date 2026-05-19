@@ -72,6 +72,14 @@ describe('VisualTopologyGallery', () => {
     }
   });
 
+  it('keeps template compliance provisional when human visual review is still required', () => {
+    render(<VisualTopologyGallery />);
+    const panel = screen.getByTestId('vt-gallery-template-compliance-panel');
+
+    expect(panel.textContent).toContain('Human review required');
+    expect(panel.textContent).toContain('Metadata template check: pass');
+  });
+
   it('is registered as a dev-only route and UI surface', () => {
     const routeEntry = DEV_ROUTE_REGISTRY.find((entry) => entry.codeName === 'VisualTopologyGallery');
     const uiEntry = DEV_UI_REGISTRY.find((entry) => entry.codeName === 'VisualTopologyGallery');

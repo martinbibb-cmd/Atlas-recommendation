@@ -14,7 +14,13 @@ export interface VisualEducationLibrarySurface {
       | 'sealed-unvented-explainer-slice=1';
   description: string;
   isCandidateReference?: boolean;
-  statusBadges?: readonly ('candidate' | 'under visual correction' | 'not yet canonical')[];
+  statusBadges?: readonly (
+    'candidate'
+    | 'under visual correction'
+    | 'not yet canonical'
+    | 'human review required'
+    | 'screenshot review required'
+  )[];
   actionLabel?: string;
 }
 
@@ -81,7 +87,13 @@ export const VISUAL_EDUCATION_LIBRARY_SURFACES: readonly VisualEducationLibraryS
     description:
       'Candidate Golden Reference: single customer explainer slice proving hydraulic truth → physical topology → optional analogy overlays with mobile and print-safe previews.',
     isCandidateReference: true,
-    statusBadges: ['candidate', 'under visual correction', 'not yet canonical'],
+    statusBadges: [
+      'candidate',
+      'under visual correction',
+      'not yet canonical',
+      'human review required',
+      'screenshot review required',
+    ],
     actionLabel: 'Open candidate reference',
   },
 ] as const;

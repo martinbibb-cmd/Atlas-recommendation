@@ -232,6 +232,25 @@ function RecognisabilityBadge({ entry }: { entry: VisualPrimitiveEntry }) {
   );
 }
 
+function HumanReviewBadge({ entry }: { entry: VisualPrimitiveEntry }) {
+  if (entry.humanVisualReviewState !== 'human_visual_review_required') return null;
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        background: '#fee2e2',
+        color: '#991b1b',
+        borderRadius: 4,
+        padding: '2px 6px',
+        fontSize: 10,
+        fontWeight: 600,
+      }}
+    >
+      human visual review required
+    </span>
+  );
+}
+
 // ─── Gallery card ─────────────────────────────────────────────────────────────
 
 function PrimitiveCard({
@@ -265,7 +284,10 @@ function PrimitiveCard({
           <h3 style={{ margin: '0 0 2px', fontSize: 14 }}>{config.label}</h3>
           <code style={{ fontSize: 10, color: '#64748b' }}>{config.id}</code>
         </div>
-        {registryEntry && <RecognisabilityBadge entry={registryEntry} />}
+        <div style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
+          {registryEntry && <RecognisabilityBadge entry={registryEntry} />}
+          {registryEntry && <HumanReviewBadge entry={registryEntry} />}
+        </div>
       </div>
 
       {/* Primitive render */}
@@ -311,6 +333,20 @@ function PrimitiveCard({
               QA note: {registryEntry.qaNote}
             </p>
           )}
+          {registryEntry.humanVisualReviewNote && (
+            <p
+              style={{
+                margin: 0,
+                color: '#991b1b',
+                background: '#fef2f2',
+                border: '1px solid #fca5a5',
+                borderRadius: 6,
+                padding: '4px 8px',
+              }}
+            >
+              Human review gate: {registryEntry.humanVisualReviewNote}
+            </p>
+          )}
         </div>
       )}
     </article>
@@ -331,8 +367,9 @@ export function VisualPrimitiveGallery() {
     qaSummary.criticalRecognisabilityFailures.length +
     qaSummary.contextualWithoutQaNote.length +
     qaSummary.contextualOutsideAllowedSet.length;
+  const humanReviewRequiredCount = qaSummary.humanVisualReviewRequiredEntries.length;
   const warnCount = qaSummary.recognisableWithContextEntries.length;
-  const bannerState = failCount > 0 ? 'fail' : warnCount > 0 ? 'warn' : 'pass';
+  const bannerState = failCount > 0 || humanReviewRequiredCount > 0 ? 'fail' : warnCount > 0 ? 'warn' : 'pass';
 
   const bannerStyles: Record<'fail' | 'warn' | 'pass', { background: string; border: string; color: string }> = {
     fail: { background: '#fee2e2', border: '#fca5a5', color: '#7f1d1d' },
@@ -354,6 +391,9 @@ export function VisualPrimitiveGallery() {
           Canonical heating-system physical object primitives. Physical truth layer only — no analogies, no
           metaphors. Primary fixture is no-label mode so recognisability can be reviewed first.
         </p>
+        <p style={{ margin: '0 0 0.5rem', color: '#991b1b', fontSize: 12, maxWidth: '72ch' }}>
+          All visual QA statuses are provisional until Atlas Visual Review Board screenshot review confirms the SVG reads correctly without labels.
+        </p>
 
         {/* Acceptance test banner */}
         <div
@@ -370,12 +410,17 @@ export function VisualPrimitiveGallery() {
             gap: 4,
           }}
         >
-          {failCount > 0 ? (
+          {failCount > 0 || humanReviewRequiredCount > 0 ? (
             <>
               <span>
                 ✖ FAIL — {qaSummary.needsRebuildEntries.length} needs_rebuild and{' '}
                 {qaSummary.abstractPlaceholderEntries.length} abstract_placeholder primitive(s) are present.
               </span>
+              {humanReviewRequiredCount > 0 && (
+                <span>
+                  Human review gate still active on {humanReviewRequiredCount} primitive(s), so green metadata badges cannot mark the gallery as visually ready.
+                </span>
+              )}
               {(qaSummary.criticalRecognisabilityFailures.length > 0 ||
                 qaSummary.contextualOutsideAllowedSet.length > 0 ||
                 qaSummary.contextualWithoutQaNote.length > 0) && (
@@ -387,7 +432,7 @@ export function VisualPrimitiveGallery() {
               )}
             </>
           ) : (
-            <span>✓ PASS — No needs_rebuild or abstract_placeholder primitives.</span>
+            <span>✓ PASS — No needs_rebuild, abstract_placeholder, or human-review-blocked primitives remain.</span>
           )}
           {warnCount > 0 && (
             <span>⚠ WARN — {warnCount} primitive(s) marked recognisable_with_context.</span>

@@ -83,6 +83,38 @@ function pipeDash(printSafe: boolean, flow: boolean): string | undefined {
   return printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH;
 }
 
+const SM_SCALE = 0.7;
+
+type PortPoint = { x: number; y: number };
+
+function scaledPoint(x: number, y: number): PortPoint {
+  return { x: x * SM_SCALE, y: y * SM_SCALE };
+}
+
+function offsetPoint(left: number, top: number, point: PortPoint): PortPoint {
+  return { x: left + point.x, y: top + point.y };
+}
+
+const CYLINDER_SM_PORTS = {
+  hotOut: scaledPoint(42, 0),
+  coldIn: scaledPoint(42, 132),
+  coilFlowIn: scaledPoint(0, 87),
+  coilFlowOut: scaledPoint(84, 100),
+  safetyDischarge: scaledPoint(70, 90),
+};
+
+const THERMAL_STORE_SM_PORTS = {
+  primaryIn: scaledPoint(4, 36),
+  primaryOut: scaledPoint(4, 108),
+  potableHotOut: scaledPoint(88, 36),
+  potableColdIn: scaledPoint(88, 108),
+};
+
+const MAGNETIC_FILTER_SM_PORTS = {
+  inlet: scaledPoint(4, 52),
+  outlet: scaledPoint(156, 52),
+};
+
 /**
  * Returns SVG text props with a canonical 8px standoff from the pipe line.
  * direction: 'above' places label above (y offset = -standoff),
@@ -249,13 +281,20 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
+  const cylinderPorts = {
+    hotOut: offsetPoint(520, 160, CYLINDER_SM_PORTS.hotOut),
+    coldIn: offsetPoint(520, 160, CYLINDER_SM_PORTS.coldIn),
+    coilFlowIn: offsetPoint(520, 160, CYLINDER_SM_PORTS.coilFlowIn),
+    coilFlowOut: offsetPoint(520, 160, CYLINDER_SM_PORTS.coilFlowOut),
+    safetyDischarge: offsetPoint(520, 160, CYLINDER_SM_PORTS.safetyDischarge),
+  };
 
   return (
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
         <line x1={120} y1={140} x2={520} y2={140} stroke={flow} strokeWidth={w} />
-        <line x1={520} y1={140} x2={520} y2={300} stroke={flow} strokeWidth={w} />
+        <line x1={520} y1={140} x2={520} y2={cylinderPorts.coilFlowIn.y} stroke={flow} strokeWidth={w} />
         {/* Return pipe — system boiler internal pump assumed; no external pump primitive. */}
         <line x1={520} y1={300} x2={120} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={120} y1={300} x2={120} y2={205} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
@@ -268,22 +307,22 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
 
         {/* Cylinder DHW stubs */}
         <line
-          x1={576}
-          y1={250}
+          x1={cylinderPorts.coilFlowOut.x}
+          y1={cylinderPorts.coilFlowOut.y}
           x2={680}
-          y2={250}
+          y2={cylinderPorts.coilFlowOut.y}
           stroke={ret}
           strokeWidth={PIPE_STROKE_BRANCH}
           strokeDasharray={pipeDash(options.printSafe, false)}
           data-testid="sealed-unvented-expansion-vessel-return-branch"
         />
-        <line x1={576} y1={185} x2={680} y2={185} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={676} y1={170} x2={760} y2={170} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={676} y1={130} x2={760} y2={130} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={520} y1={cylinderPorts.coilFlowIn.y} x2={680} y2={cylinderPorts.coilFlowIn.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={cylinderPorts.coldIn.x} y1={cylinderPorts.coldIn.y} x2={760} y2={cylinderPorts.coldIn.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={cylinderPorts.hotOut.x} y1={cylinderPorts.hotOut.y} x2={760} y2={cylinderPorts.hotOut.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         {/* G3 D2 discharge route — continuous fall away from cylinder */}
         <line
-          x1={590}
-          y1={282}
+          x1={cylinderPorts.safetyDischarge.x}
+          y1={cylinderPorts.safetyDischarge.y}
           x2={760}
           y2={334}
           stroke={AUX_COLOUR}
@@ -300,8 +339,8 @@ function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRe
         )}
 
         {/* Pipe labels */}
-        <text {...pipeLabelProps(682, 170, 'above', ret)}>Mains cold in</text>
-        <text {...pipeLabelProps(682, 130, 'above', flow)}>Hot draw-off out</text>
+        <text {...pipeLabelProps(682, cylinderPorts.coldIn.y, 'above', ret)}>Mains cold in</text>
+        <text {...pipeLabelProps(682, cylinderPorts.hotOut.y, 'above', flow)}>Hot draw-off out</text>
         <text {...pipeLabelProps(646, 318, 'below', AUX_COLOUR)}>D2 safety discharge</text>
       </PipeLayer>
 
@@ -409,6 +448,12 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
+  const storePorts = {
+    primaryIn: offsetPoint(430, 114, THERMAL_STORE_SM_PORTS.primaryIn),
+    primaryOut: offsetPoint(430, 114, THERMAL_STORE_SM_PORTS.primaryOut),
+    potableHotOut: offsetPoint(430, 114, THERMAL_STORE_SM_PORTS.potableHotOut),
+    potableColdIn: offsetPoint(430, 114, THERMAL_STORE_SM_PORTS.potableColdIn),
+  };
 
   return (
     <TopologyShell options={options}>
@@ -421,8 +466,12 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
         {/* Flow passes through external pump on primary flow (regular boiler layout). */}
         <line x1={132} y1={176} x2={173} y2={176} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
         <line x1={237} y1={176} x2={420} y2={176} stroke={flow} strokeWidth={w} data-testid="pump-topology-circuit" />
+        <line x1={420} y1={176} x2={storePorts.primaryIn.x} y2={176} stroke={flow} strokeWidth={w} data-testid="thermal-store-primary-pipe" />
+        <line x1={storePorts.primaryIn.x} y1={176} x2={storePorts.primaryIn.x} y2={storePorts.primaryIn.y} stroke={flow} strokeWidth={w} />
         {/* Return path back to boiler (no pump on return). */}
+        <line x1={storePorts.primaryOut.x} y1={storePorts.primaryOut.y} x2={storePorts.primaryOut.x} y2={286} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={420} y1={286} x2={132} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
+        <line x1={storePorts.primaryOut.x} y1={286} x2={420} y2={286} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
         <line x1={132} y1={286} x2={132} y2={232} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/*
@@ -430,8 +479,10 @@ function ThermalStoreTopology({ options }: { options: VisualTopologyRenderOption
           heated by primary water, exits as hot DHW (top-right of store).
           Separate from primary loop — no shared pipe segments.
         */}
-        <line x1={518} y1={226} x2={676} y2={226} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-potable-pipe" />
-        <line x1={518} y1={162} x2={676} y2={162} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} data-testid="thermal-store-potable-pipe" />
+        <line x1={storePorts.potableColdIn.x} y1={storePorts.potableColdIn.y} x2={storePorts.potableColdIn.x} y2={226} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={storePorts.potableColdIn.x} y1={226} x2={676} y2={226} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-potable-pipe" />
+        <line x1={storePorts.potableHotOut.x} y1={storePorts.potableHotOut.y} x2={storePorts.potableHotOut.x} y2={162} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={storePorts.potableHotOut.x} y1={162} x2={676} y2={162} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} data-testid="thermal-store-potable-pipe" />
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (
@@ -566,6 +617,10 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret = pipeStroke(options.printSafe, false);
+  const filterPorts = {
+    inlet: offsetPoint(188, 246, MAGNETIC_FILTER_SM_PORTS.inlet),
+    outlet: offsetPoint(188, 246, MAGNETIC_FILTER_SM_PORTS.outlet),
+  };
 
   return (
     <TopologyShell options={options}>
@@ -573,7 +628,10 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
         {/* Primary ring */}
         <line x1={140} y1={140} x2={560} y2={140} stroke={flow} strokeWidth={w} />
         <line x1={560} y1={140} x2={560} y2={300} stroke={flow} strokeWidth={w} />
-        <line x1={560} y1={300} x2={140} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={560} y1={300} x2={filterPorts.outlet.x} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterPorts.outlet.x} y1={300} x2={filterPorts.outlet.x} y2={filterPorts.outlet.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterPorts.inlet.x} y1={filterPorts.inlet.y} x2={filterPorts.inlet.x} y2={300} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterPorts.inlet.x} y1={300} x2={140} y2={300} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={140} y1={300} x2={140} y2={220} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs */}
@@ -593,9 +651,9 @@ function MagneticFilterOnReturnTopology({ options }: { options: VisualTopologyRe
         {/* Pipe label */}
         <text {...pipeLabelProps(590, 300, 'above', ret)}>Clean return into boiler</text>
         <line
-          x1={260}
+          x1={Math.min(filterPorts.inlet.x, filterPorts.outlet.x)}
           y1={300}
-          x2={140}
+          x2={Math.max(filterPorts.inlet.x, filterPorts.outlet.x)}
           y2={300}
           stroke="transparent"
           strokeWidth={PIPE_STROKE_BRANCH}
