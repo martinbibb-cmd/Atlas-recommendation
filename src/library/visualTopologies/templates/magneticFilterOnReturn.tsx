@@ -11,6 +11,7 @@ import {
   RadiatorPrimitive,
 } from '../../visualPrimitives/primitives';
 import {
+  BOILER_SYSTEM_SM_PORTS,
   MAGNETIC_FILTER_SM_PORTS,
   MidPipeArrow,
   PIPE_STROKE_BRANCH,
@@ -21,6 +22,7 @@ import {
   offsetPoint,
   pipeDash,
   pipeLabelProps,
+  portAttachPoint,
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
@@ -43,18 +45,27 @@ export function MagneticFilterOnReturnTopology({ options }: { options: VisualTop
     inlet:  offsetPoint(positions.magnetic_filter_return_final_before_boiler.left, positions.magnetic_filter_return_final_before_boiler.top, MAGNETIC_FILTER_SM_PORTS.inlet),
     outlet: offsetPoint(positions.magnetic_filter_return_final_before_boiler.left, positions.magnetic_filter_return_final_before_boiler.top, MAGNETIC_FILTER_SM_PORTS.outlet),
   };
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryReturn),
+    primaryFlow: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow),
+  };
+  const filterInAttach = portAttachPoint(filterPorts.inlet);
+  const filterOutAttach = portAttachPoint(filterPorts.outlet);
+  const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
 
   return (
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary ring */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.returnY} stroke={flow} strokeWidth={w} />
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={filterPorts.outlet.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={filterPorts.outlet.x} y1={rails.returnY} x2={filterPorts.outlet.x} y2={filterPorts.outlet.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={filterPorts.inlet.x} y1={filterPorts.inlet.y} x2={filterPorts.inlet.x} y2={rails.returnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={filterPorts.inlet.x} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={filterOutAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterOutAttach.x} y1={rails.returnY} x2={filterOutAttach.x} y2={filterOutAttach.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterInAttach.x} y1={filterInAttach.y} x2={filterInAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterInAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* Radiator branch spurs */}
         {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (
@@ -87,9 +98,9 @@ export function MagneticFilterOnReturnTopology({ options }: { options: VisualTop
         {/* Pipe label */}
         <text {...pipeLabelProps(mfFilterLabelX, rails.returnY, 'above', ret)}>Clean return into boiler</text>
         <line
-          x1={Math.min(filterPorts.inlet.x, filterPorts.outlet.x)}
+          x1={Math.min(filterInAttach.x, filterOutAttach.x)}
           y1={rails.returnY}
-          x2={Math.max(filterPorts.inlet.x, filterPorts.outlet.x)}
+          x2={Math.max(filterInAttach.x, filterOutAttach.x)}
           y2={rails.returnY}
           stroke="transparent"
           strokeWidth={PIPE_STROKE_BRANCH}

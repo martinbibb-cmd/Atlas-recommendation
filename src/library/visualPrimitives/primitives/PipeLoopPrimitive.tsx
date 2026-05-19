@@ -1,7 +1,7 @@
 /**
  * PipeLoopPrimitive.tsx
  *
- * Canonical physical primitive for a sealed central heating circuit loop.
+ * Educational topology concept for a sealed central heating circuit loop.
  *
  * Shows a simplified rectangular loop representing the sealed circuit:
  * boiler (flow) → radiators → return → pump → boiler.
@@ -16,6 +16,10 @@
  *   - Sealed system topology
  *   - Flow direction around the circuit
  *   - Position of pump, expansion vessel, filling loop relative to the circuit
+ *
+ * NOTE:
+ *   This is intentionally not a mechanical primitive and must not be listed in
+ *   visualPrimitiveRegistry. It is a topology/state teaching aid only.
  */
 
 import {

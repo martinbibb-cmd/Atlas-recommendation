@@ -12,6 +12,7 @@ import {
   RadiatorPrimitive,
 } from '../../visualPrimitives/primitives';
 import {
+  BOILER_SYSTEM_SM_PORTS,
   MidPipeArrow,
   MAGNETIC_FILTER_SM_PORTS,
   PIPE_STROKE_BRANCH,
@@ -48,14 +49,20 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
     inlet: offsetPoint(positions.magnetic_filter_return_before_boiler.left, positions.magnetic_filter_return_before_boiler.top, MAGNETIC_FILTER_SM_PORTS.inlet),
     outlet: offsetPoint(positions.magnetic_filter_return_before_boiler.left, positions.magnetic_filter_return_before_boiler.top, MAGNETIC_FILTER_SM_PORTS.outlet),
   };
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryReturn),
+    primaryFlow: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow),
+  };
   const pfInAttach = portAttachPoint(powerflushPorts.systemInlet);
   const pfOutAttach = portAttachPoint(powerflushPorts.systemOutlet);
   const filterInAttach = portAttachPoint(filterPorts.inlet);
   const filterOutAttach = portAttachPoint(filterPorts.outlet);
+  const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
   const pfDirtyY                   = pfInAttach.y;
   const pfCleanY                   = pfOutAttach.y;
   const midFlowX                   = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
-  const midReturnX                 = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
+  const midReturnX                 = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
@@ -69,7 +76,7 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
         {/* Primary flow ring */}
         <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.returnY} stroke={flow} strokeWidth={w} />
-        {inlineServiceSegments(pipe.flowRailEndX, pipe.heatSourceReturnX, rails.returnY, filterOutAttach.x, filterInAttach.x).map((seg, i) => (
+        {inlineServiceSegments(pipe.flowRailEndX, boilerReturnAttach.x, rails.returnY, filterOutAttach.x, filterInAttach.x).map((seg, i) => (
           <line
             key={`filter-inline-${i}`}
             x1={seg.x1}
@@ -83,7 +90,8 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
         ))}
         <line x1={filterOutAttach.x} y1={rails.returnY} x2={filterOutAttach.x} y2={filterOutAttach.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={filterInAttach.x} y1={rails.returnY} x2={filterInAttach.x} y2={filterInAttach.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* Radiator branch spurs — rad 1 */}
         {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (

@@ -27,7 +27,6 @@ import {
   RadiatorPrimitive,
   ExpansionVesselPrimitive,
   PressureGaugePrimitive,
-  PipeLoopPrimitive,
   MagneticFilterPrimitive,
   PumpPrimitive,
   ABVPrimitive,
@@ -153,13 +152,6 @@ const PRIMITIVES: PrimitiveRenderConfig[] = [
     label: 'Pressure Gauge (low)',
     render: (showLabel, printSafe) => (
       <PressureGaugePrimitive pressureBar={0.5} showLabel={showLabel} printSafe={printSafe} size="md" />
-    ),
-  },
-  {
-    id: 'pipe_loop',
-    label: 'Sealed Circuit Loop',
-    render: (showLabel, printSafe) => (
-      <PipeLoopPrimitive showLabel={showLabel} printSafe={printSafe} size="md" />
     ),
   },
   {

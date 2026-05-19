@@ -343,25 +343,6 @@ export const VISUAL_PRIMITIVE_REGISTRY: VisualPrimitiveEntry[] = [
     humanVisualReviewNote:
       'Pipe-only visuals are schematic cues, not standalone no-label equipment drawings.',
   },
-  {
-    id: 'pipe_loop',
-    category: 'pipework',
-    displayName: 'Heating Circuit Loop',
-    canonicalPurpose:
-      'Closed loop showing the full central heating circuit: boiler → flow → emitters → return → boiler. Communicates sealed vs open-vented topology.',
-    sourceLocations: [
-      'src/library/diagrams/OpenVentedToUnventedDiagram.tsx (loop path)',
-    ],
-    reuseStatus: 'canonical_extracted',
-    abstractionLevel: 'physical_schematic',
-    recognisability: 'recognisable_with_context',
-    printSafe: true,
-    motionSafe: true,
-    humanVisualReviewState: 'human_visual_review_required',
-    humanVisualReviewNote:
-      'Loop-only visuals remain contextual and cannot pass the human no-label recognition gate on their own.',
-  },
-
   // ── Valves ──────────────────────────────────────────────────────────────────
 
   {
