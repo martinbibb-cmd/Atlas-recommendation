@@ -189,6 +189,9 @@ export function SealedUnventedExplainerSlicePage() {
         <p style={{ margin: 0, fontSize: 14, color: '#475569', maxWidth: '72ch' }}>
           Candidate Golden Reference / Sealed + Unvented Visual Workbench. This page is under visual correction and is not yet canonical.
         </p>
+        <p style={{ margin: 0, fontSize: 13, color: '#64748b', maxWidth: '72ch' }}>
+          Workbench fixtures use the canonical mechanically specified primitives from <code>docs/atlas-canonical-mechanical-primitive-spec.md</code>; promotion to golden reference remains blocked pending no-label review.
+        </p>
         <p style={{ margin: 0, fontSize: 14, color: '#475569', maxWidth: '72ch' }}>
           This upgrade removes the cold-water tanks from your loft and delivers hot water at mains pressure. Your heating stays exactly as it is.
         </p>

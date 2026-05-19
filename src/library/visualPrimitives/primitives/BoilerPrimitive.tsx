@@ -51,7 +51,86 @@ const VARIANT_LABELS: Record<BoilerVariant, string> = {
 };
 
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
-const BOILER_BODY_FILL = '#ffffff';
+const BODY_BOTTOM_Y = 108;
+const PORT_END_Y = 136;
+
+interface BoilerPortSpec {
+  id: string;
+  x: number;
+  role: string;
+  stroke: string;
+  strokeWidth: number;
+  returnDash?: boolean;
+}
+
+function buildPortSpec(variant: BoilerVariant, printSafe: boolean): BoilerPortSpec[] {
+  if (variant === 'combi') {
+    return [
+      {
+        id: 'boiler-primary-return-port',
+        x: 28,
+        role: 'boiler_primary_return',
+        stroke: printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR,
+        strokeWidth: PIPE_STROKE_MAIN,
+        returnDash: true,
+      },
+      {
+        id: 'boiler-cold-mains-port',
+        x: 42,
+        role: 'boiler_cold_mains_in',
+        stroke: printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR,
+        strokeWidth: PIPE_STROKE_MAIN,
+        returnDash: true,
+      },
+      {
+        id: 'boiler-gas-port',
+        x: 56,
+        role: 'boiler_gas_supply',
+        stroke: AUX_COLOUR,
+        strokeWidth: PIPE_STROKE_GAS,
+      },
+      {
+        id: 'boiler-dhw-out-port',
+        x: 70,
+        role: 'boiler_dhw_out',
+        stroke: printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR,
+        strokeWidth: PIPE_STROKE_MAIN,
+      },
+      {
+        id: 'boiler-primary-flow-port',
+        x: 84,
+        role: 'boiler_primary_flow',
+        stroke: printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR,
+        strokeWidth: PIPE_STROKE_MAIN,
+      },
+    ];
+  }
+
+  return [
+    {
+      id: 'boiler-primary-return-port',
+      x: 32,
+      role: 'boiler_primary_return',
+      stroke: printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR,
+      strokeWidth: PIPE_STROKE_MAIN,
+      returnDash: true,
+    },
+    {
+      id: 'boiler-gas-port',
+      x: 56,
+      role: 'boiler_gas_supply',
+      stroke: AUX_COLOUR,
+      strokeWidth: PIPE_STROKE_GAS,
+    },
+    {
+      id: 'boiler-primary-flow-port',
+      x: 80,
+      role: 'boiler_primary_flow',
+      stroke: printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR,
+      strokeWidth: PIPE_STROKE_MAIN,
+    },
+  ];
+}
 
 export function BoilerPrimitive({
   variant = 'combi',
@@ -61,9 +140,9 @@ export function BoilerPrimitive({
   animateFlow = false,
 }: BoilerPrimitiveProps) {
   const scale = SCALE[size];
-  const w = Math.round(100 * scale);
-  const h = Math.round(120 * scale);
-  // SVG is authored at 100×120; we scale via viewBox + explicit dimensions.
+  const ports = buildPortSpec(variant, printSafe);
+  const w = Math.round(112 * scale);
+  const h = Math.round(138 * scale);
 
   return (
     <div
@@ -73,93 +152,74 @@ export function BoilerPrimitive({
       <svg
         width={w}
         height={h}
-        viewBox="0 0 100 120"
+        viewBox="0 0 112 138"
         role="img"
         aria-hidden="true"
         focusable="false"
       >
-        {/* Boiler body */}
+        {/* Wall-mounted body */}
         <rect
-          x={20} y={4}
-          width={60} height={86}
-          rx={5}
-          fill={BOILER_BODY_FILL}
-          stroke="#1e3a8a"
+          x={20}
+          y={6}
+          width={72}
+          height={102}
+          rx={6}
+          fill={printSafe ? '#f9fafb' : '#ffffff'}
+          stroke="#334155"
           strokeWidth={2}
-          strokeDasharray={printSafe ? '4 2' : undefined}
+          data-testid="boiler-wall-hung-body"
         />
 
-        {/* Viewing panel */}
+        {/* Subtle casing seam */}
+        <line x1={20} y1={24} x2={92} y2={24} stroke="#cbd5e1" strokeWidth={1} />
+
+        {/* Subtle control fascia */}
         <rect
-          x={30} y={16}
-          width={40} height={46}
-          rx={3}
-          fill={printSafe ? '#fff' : '#eff6ff'}
-          stroke="#93c5fd"
+          x={24}
+          y={84}
+          width={64}
+          height={20}
+          rx={4}
+          fill={printSafe ? '#e5e7eb' : '#f1f5f9'}
+          stroke="#94a3b8"
           strokeWidth={1}
+          data-testid="boiler-fascia-panel"
         />
+        <circle cx={77} cy={94} r={2.2} fill={variant === 'combi' ? '#10b981' : '#94a3b8'} />
+        <circle cx={31} cy={94} r={1.6} fill={variant === 'regular' ? '#f59e0b' : '#94a3b8'} />
 
-        {/* Flame — left lobe */}
-        <path
-          d="M50 50 C46 42 54 36 50 28 C47 34 43 32 45 40 C42 36 40 32 42 26 C36 34 38 46 44 50 Z"
-          fill={printSafe ? '#000' : '#f97316'}
-        />
-        {/* Flame — right lobe */}
-        <path
-          d="M50 50 C54 42 46 36 50 28 C53 34 57 32 55 40 C58 36 60 32 58 26 C64 34 62 46 56 50 Z"
-          fill={printSafe ? '#666' : '#fbbf24'}
-        />
+        {/* Bottom-only service connections */}
+        {ports.map((port) => (
+          <line
+            key={port.id}
+            x1={port.x}
+            y1={BODY_BOTTOM_Y}
+            x2={port.x}
+            y2={PORT_END_Y}
+            stroke={port.stroke}
+            strokeWidth={port.strokeWidth}
+            strokeDasharray={
+              port.id === 'boiler-gas-port'
+                ? '4 2'
+                : port.returnDash
+                  ? (printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH)
+                  : undefined
+            }
+            className={
+              animateFlow && !printSafe && port.role === 'boiler_primary_flow'
+                ? FLOW_PULSE_CLASS.flow
+                : animateFlow && !printSafe && port.role === 'boiler_primary_return'
+                  ? FLOW_PULSE_CLASS.return
+                  : undefined
+            }
+            data-testid={port.id}
+            data-port-position="bottom"
+            data-port-role={port.role}
+          />
+        ))}
 
-        {/* Variant badge */}
-        <text
-          x={50} y={78}
-          textAnchor="middle"
-          fontSize={7}
-          fontFamily="system-ui, sans-serif"
-          fontWeight="bold"
-          fill={printSafe ? '#000' : '#1e3a8a'}
-        >
-          {variant === 'combi' ? 'COMBI' : variant === 'system' ? 'SYSTEM' : 'REGULAR'}
-        </text>
-
-        {/* Flow pipe (hot — red/dark) */}
-        <line
-          x1={32} y1={90}
-          x2={32} y2={116}
-          stroke={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}
-          strokeWidth={PIPE_STROKE_MAIN}
-          className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.flow : undefined}
-          data-testid="boiler-primary-flow-port"
-          data-port-position="bottom"
-          data-port-role="boiler_primary_flow"
-        />
-        {/* Return pipe (cool — blue/dashed for colour-blind safety) */}
-        <line
-          x1={68} y1={90}
-          x2={68} y2={116}
-          stroke={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}
-          strokeWidth={PIPE_STROKE_MAIN}
-          strokeDasharray={animateFlow && !printSafe ? undefined : (printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH)}
-          className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.return : undefined}
-          data-testid="boiler-primary-return-port"
-          data-port-position="bottom"
-          data-port-role="boiler_primary_return"
-        />
-        {/* Gas supply stub (grey dashed) */}
-        <line
-          x1={50} y1={90}
-          x2={50} y2={116}
-          stroke={AUX_COLOUR}
-          strokeWidth={PIPE_STROKE_GAS}
-          strokeDasharray="4 2"
-          data-testid="boiler-gas-port"
-          data-port-position="bottom"
-          data-port-role="boiler_gas_supply"
-        />
-
-        {/* Pipe foot labels */}
-        <text x={32} y={119} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_FLOW_COLOUR : FLOW_COLOUR}>Flow</text>
-        <text x={68} y={119} textAnchor="middle" fontSize={6} fontFamily="system-ui" fill={printSafe ? PRINT_RETURN_COLOUR : RETURN_COLOUR}>Return</text>
+        {/* Wall bracket cue */}
+        <rect x={14} y={12} width={4} height={18} rx={2} fill="#94a3b8" />
       </svg>
 
       {showLabel && (

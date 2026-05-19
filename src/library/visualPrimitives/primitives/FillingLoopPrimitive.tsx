@@ -19,9 +19,10 @@ export interface FillingLoopPrimitiveProps {
 const SCALE: Record<PrimitiveSize, number> = { sm: 0.7, md: 1, lg: 1.4 };
 const FLOW_PIPE_Y = 20;
 const RETURN_PIPE_Y = 52;
-const LEFT_GHOST_LINK_GEOMETRY = { startX: 48, joinX: 72, controlX: 58 } as const;
-const RIGHT_GHOST_LINK_GEOMETRY = { joinX: 78, endX: 102, controlX: 91 } as const;
-const GHOST_LINK_CURVE_Y = 47;
+const HOSE_LEFT_X = 54;
+const HOSE_RIGHT_X = 96;
+const HOSE_TOP_Y = 28;
+const HOSE_BOTTOM_Y = 44;
 const DISCONNECT_GAP_START_X = 73;
 const DISCONNECT_GAP_END_X = 77;
 
@@ -63,32 +64,58 @@ export function FillingLoopPrimitive({
           strokeDasharray={printSafe ? PRINT_RETURN_DASH : RETURN_PIPE_DASH}
         />
 
-        <path
-          d={`M ${LEFT_GHOST_LINK_GEOMETRY.startX} ${FLOW_PIPE_Y} C ${LEFT_GHOST_LINK_GEOMETRY.controlX} ${FLOW_PIPE_Y}, ${LEFT_GHOST_LINK_GEOMETRY.controlX} ${GHOST_LINK_CURVE_Y}, ${LEFT_GHOST_LINK_GEOMETRY.joinX} ${GHOST_LINK_CURVE_Y}`}
-          stroke="#374151"
-          strokeWidth={2.5}
-          strokeDasharray="3 2"
-          opacity={0.7}
-          data-testid="filling-loop-ghost-link-left"
-          fill="none"
+        {/* Isolation valves */}
+        <rect
+          x={HOSE_LEFT_X - 6}
+          y={FLOW_PIPE_Y + 1}
+          width={12}
+          height={8}
+          rx={2}
+          fill={printSafe ? '#9ca3af' : '#64748b'}
+          data-testid="filling-loop-isolation-valve-left"
         />
-        <path
-          d={`M ${RIGHT_GHOST_LINK_GEOMETRY.joinX} ${GHOST_LINK_CURVE_Y} C ${RIGHT_GHOST_LINK_GEOMETRY.controlX} ${GHOST_LINK_CURVE_Y}, ${RIGHT_GHOST_LINK_GEOMETRY.controlX} ${FLOW_PIPE_Y}, ${RIGHT_GHOST_LINK_GEOMETRY.endX} ${FLOW_PIPE_Y}`}
-          stroke="#374151"
-          strokeWidth={2.5}
-          strokeDasharray="3 2"
-          opacity={0.7}
-          data-testid="filling-loop-ghost-link-right"
-          fill="none"
+        <rect
+          x={HOSE_RIGHT_X - 6}
+          y={FLOW_PIPE_Y + 1}
+          width={12}
+          height={8}
+          rx={2}
+          fill={printSafe ? '#9ca3af' : '#64748b'}
+          data-testid="filling-loop-isolation-valve-right"
         />
 
-        <circle cx={56} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
-        <circle cx={94} cy={26} r={3.5} fill={printSafe ? '#000' : '#111827'} />
+        {/* Braided flexible hose (ghosted/disconnected default) */}
+        <path
+          d={`M ${HOSE_LEFT_X} ${FLOW_PIPE_Y + 8} C ${HOSE_LEFT_X + 4} ${HOSE_TOP_Y}, ${HOSE_LEFT_X + 8} ${HOSE_BOTTOM_Y}, ${DISCONNECT_GAP_START_X} ${HOSE_BOTTOM_Y}`}
+          stroke={printSafe ? '#374151' : '#6b7280'}
+          strokeWidth={3}
+          strokeDasharray="2 2"
+          opacity={0.65}
+          fill="none"
+          data-testid="filling-loop-ghost-link-left"
+        />
+        <path
+          d={`M ${DISCONNECT_GAP_END_X} ${HOSE_BOTTOM_Y} C ${HOSE_RIGHT_X - 8} ${HOSE_BOTTOM_Y}, ${HOSE_RIGHT_X - 4} ${HOSE_TOP_Y}, ${HOSE_RIGHT_X} ${FLOW_PIPE_Y + 8}`}
+          stroke={printSafe ? '#374151' : '#6b7280'}
+          strokeWidth={3}
+          strokeDasharray="2 2"
+          opacity={0.65}
+          fill="none"
+          data-testid="filling-loop-ghost-link-right"
+        />
+        <path
+          d={`M ${HOSE_LEFT_X} ${FLOW_PIPE_Y + 8} C ${HOSE_LEFT_X + 3} ${HOSE_TOP_Y}, ${HOSE_LEFT_X + 8} ${HOSE_BOTTOM_Y}, ${DISCONNECT_GAP_START_X} ${HOSE_BOTTOM_Y} M ${DISCONNECT_GAP_END_X} ${HOSE_BOTTOM_Y} C ${HOSE_RIGHT_X - 8} ${HOSE_BOTTOM_Y}, ${HOSE_RIGHT_X - 3} ${HOSE_TOP_Y}, ${HOSE_RIGHT_X} ${FLOW_PIPE_Y + 8}`}
+          stroke={printSafe ? '#111827' : '#94a3b8'}
+          strokeWidth={1}
+          strokeDasharray="1 5"
+          fill="none"
+          data-testid="filling-loop-braided-hose"
+        />
         <line
           x1={DISCONNECT_GAP_START_X}
-          y1={GHOST_LINK_CURVE_Y}
+          y1={HOSE_BOTTOM_Y}
           x2={DISCONNECT_GAP_END_X}
-          y2={GHOST_LINK_CURVE_Y}
+          y2={HOSE_BOTTOM_Y}
           stroke={printSafe ? '#000' : '#9ca3af'}
           strokeWidth={2}
           data-testid="filling-loop-disconnect-gap"

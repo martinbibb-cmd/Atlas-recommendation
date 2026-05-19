@@ -77,10 +77,10 @@ export function RadiatorPrimitive({
 
   // SVG authored at 120×60
   const svgW = 120;
-  const svgH = 60;
-  const bodyX = 4;
-  const bodyY = 4;
-  const bodyW = 112;
+  const svgH = 68;
+  const bodyX = 7;
+  const bodyY = 8;
+  const bodyW = 106;
   const bodyH = 44;
   const finStep = bodyW / clampedSections;
   const portY = bodyY + bodyH;
@@ -112,16 +112,30 @@ export function RadiatorPrimitive({
         aria-hidden="true"
         focusable="false"
       >
-        {/* Panel body */}
+        {/* UK panel body */}
         <rect
           x={bodyX} y={bodyY}
           width={bodyW} height={bodyH}
-          rx={4}
+          rx={3}
           fill={fill}
           stroke={stroke}
           strokeWidth={2}
           className={animateFlow && !printSafe ? COOLING_TRANSITION_CLASS : undefined}
+          data-testid="radiator-panel-body"
         />
+        {/* Type-22 depth cue */}
+        <rect
+          x={bodyX + 3}
+          y={bodyY + 3}
+          width={bodyW - 6}
+          height={bodyH - 6}
+          rx={2}
+          fill={printSafe ? '#f9fafb' : '#ffffff'}
+          stroke={printSafe ? '#9ca3af' : '#cbd5e1'}
+          strokeWidth={1}
+          opacity={0.75}
+        />
+        <line x1={bodyX + 2} y1={bodyY - 1} x2={bodyX + bodyW - 2} y2={bodyY - 1} stroke="#94a3b8" strokeWidth={1.5} />
 
         {/* Fin dividers */}
         {Array.from({ length: clampedSections - 1 }).map((_, i) => {
@@ -147,6 +161,7 @@ export function RadiatorPrimitive({
           className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.flow : undefined}
           data-testid="radiator-flow-connection"
           data-port-position="bottom"
+          data-port-role="radiator_trv_flow_in"
         />
         {/* Bottom return connection (lockshield side) */}
         <line
@@ -158,6 +173,7 @@ export function RadiatorPrimitive({
           className={animateFlow && !printSafe ? FLOW_PULSE_CLASS.return : undefined}
           data-testid="radiator-return-connection"
           data-port-position="bottom"
+          data-port-role="radiator_lockshield_return_out"
         />
 
         {/* TRV body (flow side, bottom-mounted) — canonical VALVE_W × VALVE_H */}
@@ -168,6 +184,7 @@ export function RadiatorPrimitive({
           fill={printSafe ? '#9ca3af' : '#dc2626'}
           stroke={printSafe ? '#374151' : '#7f1d1d'}
           strokeWidth={1}
+          data-testid="radiator-trv-body"
         />
         {/* Lockshield cap (return side, bottom-mounted) — 80% of canonical valve */}
         <rect
@@ -177,6 +194,7 @@ export function RadiatorPrimitive({
           fill={printSafe ? '#d1d5db' : '#94a3b8'}
           stroke="#4b5563"
           strokeWidth={1}
+          data-testid="radiator-lockshield-body"
         />
       </svg>
 
