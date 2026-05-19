@@ -156,6 +156,10 @@ function normalizePortSide(side?: PortSide): 'top' | 'bottom' | 'left' | 'right'
   return undefined;
 }
 
+/**
+ * Nudges an external route endpoint slightly inside connector geometry.
+ * `depth` is the in-port overlap in SVG units to avoid floating pipe terminations.
+ */
 export function portAttachPoint(port: PortPoint, depth = 2): PortPoint {
   const side = normalizePortSide(port.side);
   switch (side) {
@@ -172,6 +176,10 @@ export function portAttachPoint(port: PortPoint, depth = 2): PortPoint {
   }
 }
 
+/**
+ * Builds a two-segment L-shaped route between two points.
+ * `mode` controls whether the first leg is horizontal or vertical.
+ */
 export function elbowSegments(
   from: PortPoint,
   to: PortPoint,
@@ -206,6 +214,10 @@ export function teeSegments(
   ] as const;
 }
 
+/**
+ * Splits a horizontal rail into two segments around an inline service body.
+ * The gap between `serviceInX` and `serviceOutX` is reserved for the component.
+ */
 export function inlineServiceSegments(
   lineStartX: number,
   lineEndX: number,

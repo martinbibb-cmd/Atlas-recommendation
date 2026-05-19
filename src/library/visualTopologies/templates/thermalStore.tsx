@@ -28,7 +28,7 @@ import {
   PipeLayer,
   TopologyNode,
   TopologyShell,
-  elbowSegments,
+  dropOrRiseSegment,
   offsetPoint,
   portAttachPoint,
   pipeDash,
@@ -97,10 +97,10 @@ export function ThermalStoreTopology({ options }: { options: VisualTopologyRende
         <line x1={storePrimaryOutAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} data-testid="thermal-store-primary-pipe" />
         <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        {elbowSegments({ x: pumpInAttach.x, y: rails.flowY }, pumpInAttach, 'vertical-first').map((seg, i) => (
+        {dropOrRiseSegment(pumpInAttach.x, rails.flowY, pumpInAttach.y).map((seg, i) => (
           <line key={`pump-in-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         ))}
-        {elbowSegments({ x: pumpOutAttach.x, y: rails.flowY }, pumpOutAttach, 'vertical-first').map((seg, i) => (
+        {dropOrRiseSegment(pumpOutAttach.x, rails.flowY, pumpOutAttach.y).map((seg, i) => (
           <line key={`pump-out-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
         ))}
 
