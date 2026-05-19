@@ -4,7 +4,7 @@
  * Canonical physical primitive for an in-line magnetic filter.
  *
  * Shows:
- *   - A laminar-flow in-line separator body on the heating return pipe
+ *   - A laminar flow in-line separator body on the heating return pipe
  *   - A service canister / magnet assembly above the body
  *   - A dirt collection bowl below the body
  *   - Magnetite particle dots trapped in the lower chamber

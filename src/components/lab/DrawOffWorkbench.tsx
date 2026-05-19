@@ -511,7 +511,6 @@ export default function DrawOffWorkbench({ onOpenReport }: { onOpenReport?: () =
         {onOpenReport && (
           <button
             className="draw-off-workbench__report-btn"
-            onClick={undefined}
             aria-label="View report unavailable pending human visual review"
             disabled
             title="Blocked until human visual review passes"
