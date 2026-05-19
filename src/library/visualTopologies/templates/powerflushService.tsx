@@ -13,13 +13,19 @@ import {
 } from '../../visualPrimitives/primitives';
 import {
   MidPipeArrow,
+  MAGNETIC_FILTER_SM_PORTS,
   PIPE_STROKE_BRANCH,
   PIPE_STROKE_MAIN,
+  POWERFLUSH_SM_PORTS,
   PipeLayer,
   TopologyNode,
   TopologyShell,
+  elbowSegments,
+  inlineServiceSegments,
+  offsetPoint,
   pipeDash,
   pipeLabelProps,
+  portAttachPoint,
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
@@ -31,15 +37,23 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
 
   // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
   const PF_HOSE_CONNECT_X_OFFSET   = 30;   // hose connect x is just left of flow rail start
-  const PF_MACHINE_HOSE_X_OFFSET   = 120;  // machine hose exits this far left of flow rail start
-  const PF_DIRTY_Y_OFFSET          = 6;    // dirty return y offset from machine top
-  const PF_CLEAN_Y_OFFSET          = 84;   // clean return y offset from machine top
   const PF_LABEL_X_OFFSET          = 36;   // label x offset from machine left
   const pipeConnectX               = pipe.flowRailStartX - PF_HOSE_CONNECT_X_OFFSET;
-  const machineHoseX               = pipe.flowRailStartX - PF_MACHINE_HOSE_X_OFFSET;
-  const pfDirtyY                   = positions.powerflush_machine.top + PF_DIRTY_Y_OFFSET;
-  const pfCleanY                   = positions.powerflush_machine.top + PF_CLEAN_Y_OFFSET;
   const pfLabelX                   = positions.powerflush_machine.left + PF_LABEL_X_OFFSET;
+  const powerflushPorts = {
+    systemInlet: offsetPoint(positions.powerflush_machine.left, positions.powerflush_machine.top, POWERFLUSH_SM_PORTS.systemInlet),
+    systemOutlet: offsetPoint(positions.powerflush_machine.left, positions.powerflush_machine.top, POWERFLUSH_SM_PORTS.systemOutlet),
+  };
+  const filterPorts = {
+    inlet: offsetPoint(positions.magnetic_filter_return_before_boiler.left, positions.magnetic_filter_return_before_boiler.top, MAGNETIC_FILTER_SM_PORTS.inlet),
+    outlet: offsetPoint(positions.magnetic_filter_return_before_boiler.left, positions.magnetic_filter_return_before_boiler.top, MAGNETIC_FILTER_SM_PORTS.outlet),
+  };
+  const pfInAttach = portAttachPoint(powerflushPorts.systemInlet);
+  const pfOutAttach = portAttachPoint(powerflushPorts.systemOutlet);
+  const filterInAttach = portAttachPoint(filterPorts.inlet);
+  const filterOutAttach = portAttachPoint(filterPorts.outlet);
+  const pfDirtyY                   = pfInAttach.y;
+  const pfCleanY                   = pfOutAttach.y;
   const midFlowX                   = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
   const midReturnX                 = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
 
@@ -55,7 +69,20 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
         {/* Primary flow ring */}
         <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.returnY} stroke={flow} strokeWidth={w} />
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {inlineServiceSegments(pipe.flowRailEndX, pipe.heatSourceReturnX, rails.returnY, filterOutAttach.x, filterInAttach.x).map((seg, i) => (
+          <line
+            key={`filter-inline-${i}`}
+            x1={seg.x1}
+            y1={seg.y1}
+            x2={seg.x2}
+            y2={seg.y2}
+            stroke={ret}
+            strokeWidth={w}
+            strokeDasharray={pipeDash(options.printSafe, false)}
+          />
+        ))}
+        <line x1={filterOutAttach.x} y1={rails.returnY} x2={filterOutAttach.x} y2={filterOutAttach.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={filterInAttach.x} y1={rails.returnY} x2={filterInAttach.x} y2={filterInAttach.y} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
         <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
 
         {/* Radiator branch spurs — rad 1 */}
@@ -90,8 +117,21 @@ export function PowerflushServiceTopology({ options }: { options: VisualTopology
         ))}
 
         {/* Powerflush machine hose connections */}
-        <line x1={pipeConnectX} y1={pfDirtyY} x2={machineHoseX} y2={pfDirtyY} stroke={dirty} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray="6 3" />
-        <line x1={pipeConnectX} y1={pfCleanY} x2={machineHoseX} y2={pfCleanY} stroke={clean} strokeWidth={PIPE_STROKE_BRANCH} />
+        {elbowSegments({ x: pipeConnectX, y: rails.returnY }, pfInAttach, 'vertical-first').map((seg, i) => (
+          <line
+            key={`pf-dirty-${i}`}
+            x1={seg.x1}
+            y1={seg.y1}
+            x2={seg.x2}
+            y2={seg.y2}
+            stroke={dirty}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray="6 3"
+          />
+        ))}
+        {elbowSegments({ x: pipeConnectX, y: rails.flowY }, pfOutAttach, 'vertical-first').map((seg, i) => (
+          <line key={`pf-clean-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={clean} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (

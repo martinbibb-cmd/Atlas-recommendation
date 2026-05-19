@@ -15,15 +15,20 @@ import {
   RadiatorPrimitive,
 } from '../../visualPrimitives/primitives';
 import {
+  BOILER_COMBI_SM_PORTS,
   MidPipeArrow,
   PIPE_STROKE_BRANCH,
   PIPE_STROKE_MAIN,
   PipeLayer,
   TopologyNode,
   TopologyShell,
+  dropOrRiseSegment,
+  elbowSegments,
   noCylinderNoteStyle,
+  offsetPoint,
   pipeDash,
   pipeLabelProps,
+  portAttachPoint,
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
@@ -34,7 +39,17 @@ export function CombiDirectHotWaterTopology({ options }: { options: VisualTopolo
   const { positions, rails, pipe } = layout;
 
   // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
-  const dhwStubX          = positions.combi_boiler.left + 46;   // DHW stub x at boiler side port
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.combi_boiler.left, positions.combi_boiler.top, BOILER_COMBI_SM_PORTS.primaryReturn),
+    coldMainsIn: offsetPoint(positions.combi_boiler.left, positions.combi_boiler.top, BOILER_COMBI_SM_PORTS.coldMainsIn),
+    dhwOut: offsetPoint(positions.combi_boiler.left, positions.combi_boiler.top, BOILER_COMBI_SM_PORTS.dhwOut),
+    primaryFlow: offsetPoint(positions.combi_boiler.left, positions.combi_boiler.top, BOILER_COMBI_SM_PORTS.primaryFlow),
+  };
+  const primaryFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const primaryReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
+  const dhwHotAttach = portAttachPoint(boilerPorts.dhwOut);
+  const dhwColdAttach = portAttachPoint(boilerPorts.coldMainsIn);
+
   const dhwFlowY          = positions.combi_boiler.top  + 46;   // hot water outlet y
   const dhwReturnY        = positions.combi_boiler.top  + 86;   // cold mains inlet y
   const dhwEndX           = positions.combi_boiler.left - 62;   // stub extends to the left
@@ -52,10 +67,24 @@ export function CombiDirectHotWaterTopology({ options }: { options: VisualTopolo
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary CH ring */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={primaryFlowAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.returnY} stroke={flow} strokeWidth={w} />
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={primaryReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {dropOrRiseSegment(primaryFlowAttach.x, rails.flowY, primaryFlowAttach.y).map((seg, i) => (
+          <line key={`boiler-flow-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
+        {dropOrRiseSegment(primaryReturnAttach.x, rails.returnY, primaryReturnAttach.y).map((seg, i) => (
+          <line
+            key={`boiler-return-${i}`}
+            x1={seg.x1}
+            y1={seg.y1}
+            x2={seg.x2}
+            y2={seg.y2}
+            stroke={ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={pipeDash(options.printSafe, false)}
+          />
+        ))}
 
         {/* Radiator branch spurs — rad 1 */}
         {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (
@@ -79,8 +108,21 @@ export function CombiDirectHotWaterTopology({ options }: { options: VisualTopolo
         ))}
 
         {/* DHW stubs from combi */}
-        <line x1={dhwStubX} y1={dhwReturnY} x2={dhwEndX} y2={dhwReturnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={dhwStubX} y1={dhwFlowY} x2={dhwEndX} y2={dhwFlowY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        {elbowSegments(dhwColdAttach, { x: dhwEndX, y: dhwReturnY }, 'vertical-first').map((seg, i) => (
+          <line
+            key={`dhw-cold-${i}`}
+            x1={seg.x1}
+            y1={seg.y1}
+            x2={seg.x2}
+            y2={seg.y2}
+            stroke={ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={pipeDash(options.printSafe, false)}
+          />
+        ))}
+        {elbowSegments(dhwHotAttach, { x: dhwEndX, y: dhwFlowY }, 'vertical-first').map((seg, i) => (
+          <line key={`dhw-hot-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
 
         {/* pipeTrace directional arrows */}
         {options.pipeTrace && (

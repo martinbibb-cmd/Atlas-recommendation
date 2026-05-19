@@ -14,14 +14,20 @@ import {
   MixergyCylinderPrimitive,
 } from '../../visualPrimitives/primitives';
 import {
+  BOILER_SYSTEM_SM_PORTS,
+  MIXERGY_SM_PORTS,
   MidPipeArrow,
   PIPE_STROKE_BRANCH,
   PIPE_STROKE_MAIN,
   PipeLayer,
   TopologyNode,
   TopologyShell,
+  dropOrRiseSegment,
+  elbowSegments,
+  offsetPoint,
   pipeDash,
   pipeLabelProps,
+  portAttachPoint,
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
@@ -32,20 +38,33 @@ export function MixergyStratifiedTopology({ options }: { options: VisualTopology
   const { positions, rails, pipe } = layout;
 
   // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
-  const MX_CYL_PORT_X_OFFSET      = 10;   // cylinder primary port x inset from left edge
-  const MX_DHW_X_OFFSET           = 70;   // DHW stub x offset from cylinder left
-  const MX_DHW_FLOW_Y_OFFSET      = 12;   // DHW hot-out y offset above flow rail
   const MX_DHW_STUB_RIGHT_OFFSET  = 120;  // DHW stub extends this far right of mxDhwX
   const MX_DHW_LABEL_OFFSET       = 6;    // label x standoff from stub end
   const MX_CHARGE_LABEL_OFFSET    = 8;    // label x standoff from flow rail end
-  const mxCylPortX                = pipe.flowRailEndX + MX_CYL_PORT_X_OFFSET;
-  const mxDhwX                    = positions.mixergy_cylinder.left + MX_DHW_X_OFFSET;
-  const mxDhwFlowY                = rails.flowY - MX_DHW_FLOW_Y_OFFSET;
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryReturn),
+    primaryFlow: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow),
+  };
+  const mixergyPorts = {
+    hotDrawOff: offsetPoint(positions.mixergy_cylinder.left, positions.mixergy_cylinder.top, MIXERGY_SM_PORTS.hotDrawOff),
+    coldInlet: offsetPoint(positions.mixergy_cylinder.left, positions.mixergy_cylinder.top, MIXERGY_SM_PORTS.coldInlet),
+    primaryFlowIn: offsetPoint(positions.mixergy_cylinder.left, positions.mixergy_cylinder.top, MIXERGY_SM_PORTS.primaryFlowIn),
+    primaryReturnOut: offsetPoint(positions.mixergy_cylinder.left, positions.mixergy_cylinder.top, MIXERGY_SM_PORTS.primaryReturnOut),
+  };
+  const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
+  const mxFlowAttach = portAttachPoint(mixergyPorts.primaryFlowIn);
+  const mxReturnAttach = portAttachPoint(mixergyPorts.primaryReturnOut);
+  const mxHotAttach = portAttachPoint(mixergyPorts.hotDrawOff);
+  const mxColdAttach = portAttachPoint(mixergyPorts.coldInlet);
+
+  const mxDhwX                    = mixergyPorts.hotDrawOff.x;
+  const mxDhwFlowY                = mixergyPorts.hotDrawOff.y - 12;
   const mxDhwStubRightX           = mxDhwX + MX_DHW_STUB_RIGHT_OFFSET;
   const mxDhwLabelX               = mxDhwStubRightX + MX_DHW_LABEL_OFFSET;
   const mxChargeLabelX            = pipe.flowRailEndX + MX_CHARGE_LABEL_OFFSET;
-  const midFlowX                  = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
-  const midReturnX                = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
+  const midFlowX                  = Math.round((boilerFlowAttach.x + pipe.flowRailEndX) / 2);
+  const midReturnX                = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
@@ -55,17 +74,58 @@ export function MixergyStratifiedTopology({ options }: { options: VisualTopology
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary charging loop */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         {/* Return pipe — system boiler internal pump assumed */}
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {dropOrRiseSegment(boilerFlowAttach.x, rails.flowY, boilerFlowAttach.y).map((seg, i) => (
+          <line key={`boiler-flow-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
+        {dropOrRiseSegment(boilerReturnAttach.x, rails.returnY, boilerReturnAttach.y).map((seg, i) => (
+          <line
+            key={`boiler-return-${i}`}
+            x1={seg.x1}
+            y1={seg.y1}
+            x2={seg.x2}
+            y2={seg.y2}
+            stroke={ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={pipeDash(options.printSafe, false)}
+          />
+        ))}
 
         {/* Cylinder charging stubs */}
-        <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={mxCylPortX} y2={rails.flowY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={mxCylPortX} y2={rails.returnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {elbowSegments({ x: pipe.flowRailEndX, y: rails.flowY }, mxFlowAttach).map((seg, i) => (
+          <line key={`mx-flow-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
+        {elbowSegments({ x: pipe.flowRailEndX, y: rails.returnY }, mxReturnAttach).map((seg, i) => (
+          <line
+            key={`mx-return-${i}`}
+            x1={seg.x1}
+            y1={seg.y1}
+            x2={seg.x2}
+            y2={seg.y2}
+            stroke={ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={pipeDash(options.printSafe, false)}
+          />
+        ))}
 
         {/* DHW stubs */}
-        <line x1={mxDhwX} y1={rails.returnY} x2={mxDhwStubRightX} y2={rails.returnY} stroke={ret} strokeWidth={PIPE_STROKE_BRANCH} strokeDasharray={pipeDash(options.printSafe, false)} />
+        {elbowSegments(mxColdAttach, { x: mxDhwStubRightX, y: rails.returnY }, 'vertical-first').map((seg, i) => (
+          <line
+            key={`mx-cold-${i}`}
+            x1={seg.x1}
+            y1={seg.y1}
+            x2={seg.x2}
+            y2={seg.y2}
+            stroke={ret}
+            strokeWidth={PIPE_STROKE_BRANCH}
+            strokeDasharray={pipeDash(options.printSafe, false)}
+          />
+        ))}
+        {elbowSegments(mxHotAttach, { x: mxDhwX, y: mxDhwFlowY }, 'vertical-first').map((seg, i) => (
+          <line key={`mx-hot-rise-${i}`} x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        ))}
         <line x1={mxDhwX} y1={mxDhwFlowY} x2={mxDhwStubRightX} y2={mxDhwFlowY} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* pipeTrace directional arrows */}

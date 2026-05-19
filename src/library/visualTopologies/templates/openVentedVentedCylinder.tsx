@@ -19,14 +19,18 @@ import {
 } from '../../visualPrimitives/primitives';
 import {
   AUX_COLOUR,
+  BOILER_SYSTEM_SM_PORTS,
   MidPipeArrow,
   PIPE_STROKE_BRANCH,
   PIPE_STROKE_MAIN,
+  PUMP_SM_PORTS,
   PipeLayer,
   TopologyNode,
   TopologyShell,
+  offsetPoint,
   pipeDash,
   pipeLabelProps,
+  portAttachPoint,
   pipeStroke,
 } from './_shared';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
@@ -37,10 +41,18 @@ export function OpenVentedVentedCylinderTopology({ options }: { options: VisualT
   const { positions, rails, pipe } = layout;
 
   // Derived coordinate constants — all absolute positions expressed as layout-state + named offset
-  const PUMP_SM_W                  = Math.round(100 * 0.7);   // pump rendered width at sm scale
-  const pumpLeft                   = positions.primary_flow_pump_downstream_vent_feed.left;
-  const pumpFlowInX                = pumpLeft + 3;             // pipe enters pump body
-  const pumpFlowOutX               = pumpLeft + PUMP_SM_W - 3; // pipe exits pump body
+  const boilerPorts = {
+    primaryReturn: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryReturn),
+    primaryFlow: offsetPoint(positions.boiler.left, positions.boiler.top, BOILER_SYSTEM_SM_PORTS.primaryFlow),
+  };
+  const pumpPorts = {
+    flowIn: offsetPoint(positions.primary_flow_pump_downstream_vent_feed.left, positions.primary_flow_pump_downstream_vent_feed.top, PUMP_SM_PORTS.flowIn),
+    flowOut: offsetPoint(positions.primary_flow_pump_downstream_vent_feed.left, positions.primary_flow_pump_downstream_vent_feed.top, PUMP_SM_PORTS.flowOut),
+  };
+  const boilerFlowAttach = portAttachPoint(boilerPorts.primaryFlow);
+  const boilerReturnAttach = portAttachPoint(boilerPorts.primaryReturn);
+  const pumpFlowInAttach = portAttachPoint(pumpPorts.flowIn);
+  const pumpFlowOutAttach = portAttachPoint(pumpPorts.flowOut);
   const ventX                      = pipe.flowRailStartX + 56; // open vent at neutral point
   const coldFeedX                  = pipe.flowRailStartX + 72; // cold feed close-coupled to vent
   const ventRunY                   = rails.emitterTopY - 10;   // vent rises to loft level
@@ -50,8 +62,8 @@ export function OpenVentedVentedCylinderTopology({ options }: { options: VisualT
   const primaryFlowLabelX          = pipe.flowRailEndX + 58;   // label x for primary flow
   const primaryReturnLabelX        = pipe.heatSourceReturnX + 240; // label x for primary return
   const ventFeedLabelX             = ventEndX + 6;              // label x for close-coupled annotation
-  const midFlowX                   = Math.round((pipe.flowRailStartX + pipe.flowRailEndX) / 2);
-  const midReturnX                 = Math.round((pipe.heatSourceReturnX + pipe.flowRailEndX) / 2);
+  const midFlowX                   = Math.round((boilerFlowAttach.x + pipe.flowRailEndX) / 2);
+  const midReturnX                 = Math.round((boilerReturnAttach.x + pipe.flowRailEndX) / 2);
 
   const w = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
@@ -61,21 +73,24 @@ export function OpenVentedVentedCylinderTopology({ options }: { options: VisualT
     <TopologyShell options={options}>
       <PipeLayer mobileWidth={options.mobileWidth}>
         {/* Primary flow ring */}
-        <line x1={pipe.flowRailStartX} y1={rails.flowY} x2={pumpFlowInX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={pumpFlowInAttach.x} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line
-          x1={pumpFlowInX}
+          x1={pumpFlowInAttach.x}
           y1={rails.flowY}
-          x2={pumpFlowOutX}
+          x2={pumpFlowOutAttach.x}
           y2={rails.flowY}
           stroke={flow}
           strokeWidth={w}
           data-testid="pump-topology-circuit"
         />
-        <line x1={pumpFlowOutX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line x1={pumpFlowOutAttach.x} y1={rails.flowY} x2={pipe.flowRailEndX} y2={rails.flowY} stroke={flow} strokeWidth={w} />
         <line x1={pipe.flowRailEndX} y1={rails.flowY} x2={pipe.flowRailEndX} y2={ventedCylFlowY} stroke={flow} strokeWidth={w} />
         {/* Return rail for primary loop */}
-        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
-        <line x1={pipe.heatSourceReturnX} y1={rails.returnY} x2={pipe.heatSourceReturnX} y2={pipe.heatSourceReturnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={pipe.flowRailEndX} y1={rails.returnY} x2={boilerReturnAttach.x} y2={rails.returnY} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerReturnAttach.x} y1={rails.returnY} x2={boilerReturnAttach.x} y2={boilerReturnAttach.y} stroke={ret} strokeWidth={w} strokeDasharray={pipeDash(options.printSafe, false)} />
+        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={pumpFlowInAttach.x} y1={rails.flowY} x2={pumpFlowInAttach.x} y2={pumpFlowInAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line x1={pumpFlowOutAttach.x} y1={rails.flowY} x2={pumpFlowOutAttach.x} y2={pumpFlowOutAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
 
         {/* Radiator branch spurs — rad 1 */}
         {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (
