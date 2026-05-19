@@ -522,8 +522,8 @@ export default function BuilderShell({
     if (topologyComposerDebug && !topologyComposerDebug.ready) {
       setLabGraphValidation({
         ok: false,
-        issues: topologyComposerDebug.validationWarnings.map((warning, index) => ({
-          code: `TOPOLOGY_LAYOUT_VALIDATION_${index}`,
+        issues: topologyComposerDebug.validationWarnings.map(warning => ({
+          code: `TOPOLOGY_LAYOUT_VALIDATION_${warning.replace(/[^a-z0-9]+/gi, '_').toUpperCase()}`,
           severity: 'error',
           message: warning,
         })),

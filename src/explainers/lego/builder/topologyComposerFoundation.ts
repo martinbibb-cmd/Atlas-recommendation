@@ -493,8 +493,8 @@ function createConnection(
 function roleCompatible(a: PortDef['role'], b: PortDef['role']): boolean {
   if (a === 'unknown' || b === 'unknown') return true;
   if (a === b) return true;
-  const flowish = new Set<PortDef['role']>(['flow', 'return', 'store']);
-  if (flowish.has(a) && flowish.has(b)) return true;
+  const primaryCircuitRoles = new Set<PortDef['role']>(['flow', 'return', 'store']);
+  if (primaryCircuitRoles.has(a) && primaryCircuitRoles.has(b)) return true;
   if ((a === 'hot' && b === 'cold') || (a === 'cold' && b === 'hot')) return false;
   return false;
 }

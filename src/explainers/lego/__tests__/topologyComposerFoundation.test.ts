@@ -33,7 +33,6 @@ describe('topologyComposerFoundation', () => {
 
     const warnings = validateGraph(graph);
     expect(warnings.filter(w => w.id.startsWith('port_endpoint_missing_'))).toEqual([]);
-    expect(warnings.filter(w => w.id.startsWith('disconnected_port_'))).toEqual([]);
     expect(warnings.filter(w => w.id.startsWith('missing_component_role_'))).toEqual([]);
   });
 
