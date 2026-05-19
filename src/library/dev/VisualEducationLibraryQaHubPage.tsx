@@ -111,6 +111,9 @@ export function VisualEducationLibraryQaHubPage() {
           <p style={{ margin: 0, fontSize: 12, color: '#1d4ed8' }}>
             If a PDF or screenshot capture still opens the concept backlog room first, start here instead and choose the exact gallery you want to capture.
           </p>
+          <p style={{ margin: 0, fontSize: 12, color: '#1d4ed8' }}>
+            Mechanical drawing source of truth: <code>docs/atlas-canonical-mechanical-primitive-spec.md</code>.
+          </p>
         </section>
       </header>
 

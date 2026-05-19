@@ -15,6 +15,7 @@ describe('DevMenuPage inventory curation', () => {
     expect(screen.getByRole('heading', { name: 'Atlas Visual Language Authority' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Open canonical hub' })).toHaveAttribute('href', '/dev/visual-education-library');
     expect(screen.getAllByRole('link', { name: 'Open candidate reference' })[0]).toHaveAttribute('href', '/dev/sealed-unvented-explainer-slice');
+    expect(screen.getByText(/docs\/atlas-canonical-mechanical-primitive-spec\.md/i)).toBeInTheDocument();
 
     expect(screen.getByTestId('devmenu-visual-education-library-sealed-unvented-explainer-slice').textContent)
       .toContain('/dev/sealed-unvented-explainer-slice');

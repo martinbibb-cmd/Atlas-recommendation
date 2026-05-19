@@ -61,6 +61,7 @@ describe('SealedUnventedExplainerSlicePage', () => {
     render(<SealedUnventedExplainerSlicePage />);
 
     expect(screen.getByTestId('sealed-unvented-golden-reference-acceptance')).toBeInTheDocument();
+    expect(screen.getByText(/docs\/atlas-canonical-mechanical-primitive-spec\.md/i)).toBeInTheDocument();
     expect(screen.getByText(/boiler, cylinder, pressure gauge, filling loop, expansion vessel, and discharge route are recognisable without labels/i)).toBeInTheDocument();
     expect(screen.getByText(/system\/combi layouts do not show external pumps unless explicitly required/i)).toBeInTheDocument();
     expect(screen.getByText(/standard unvented cylinder has no thermocline/i)).toBeInTheDocument();

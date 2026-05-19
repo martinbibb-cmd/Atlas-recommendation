@@ -199,6 +199,9 @@ export function SealedUnventedExplainerSlicePage() {
         style={{ border: '1px solid #fcd34d', borderRadius: 10, background: '#fffbeb', padding: '0.9rem 1rem', display: 'grid', gap: 8 }}
       >
         <h2 style={{ margin: 0, fontSize: 16, color: '#92400e' }}>Acceptance for true golden reference</h2>
+        <p style={{ margin: 0, fontSize: 12, color: '#92400e' }}>
+          Mechanical drawing source of truth: <code>docs/atlas-canonical-mechanical-primitive-spec.md</code>.
+        </p>
         <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6, fontSize: 13, lineHeight: 1.5, color: '#713f12' }}>
           {GOLDEN_REFERENCE_ACCEPTANCE_CRITERIA.map((criterion) => (
             <li key={criterion}>{criterion}</li>

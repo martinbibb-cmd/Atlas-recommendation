@@ -511,6 +511,9 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
             Use the Visual Education Library as the single front door for canonical heating visuals.
             The sealed + unvented visual workbench is currently a candidate reference under visual correction, not yet canonical.
           </p>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#1d4ed8' }}>
+            Mechanical drawing source of truth: <code style={STYLES.code}>docs/atlas-canonical-mechanical-primitive-spec.md</code>.
+          </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <a className="chip-btn" href={VISUAL_EDUCATION_LIBRARY_QA_HUB.routePath}>Open canonical hub</a>
             {candidateReferenceSurface != null && (
