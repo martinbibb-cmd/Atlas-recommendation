@@ -51,7 +51,6 @@ const BODY_X = 18;
 const BODY_Y = 10;
 const BODY_W = 88;
 const BODY_H = 70;
-const BODY_MID_Y = BODY_Y + BODY_H / 2;   // 45
 const PORT_Y = 56;  // horizontal port exit height
 
 export function PowerflushMachinePrimitive({
@@ -61,7 +60,6 @@ export function PowerflushMachinePrimitive({
 }: PowerflushMachinePrimitiveProps) {
   const scale = SCALE[size];
   const bodyFill = printSafe ? '#f3f4f6' : '#f0fdf4';
-  const accentFill = printSafe ? '#d1d5db' : '#dcfce7';
 
   return (
     <div
