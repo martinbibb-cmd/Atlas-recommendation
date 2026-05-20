@@ -15,6 +15,28 @@ describe('computeVisitHydrationState lifecycle authority', () => {
     expect(state).toBe('survey-in-progress');
   });
 
+  it('treats draft_started and survey_ready as survey-in-progress hydration', () => {
+    expect(computeVisitHydrationState({
+      hasVisit: true,
+      lifecycleState: 'draft_started',
+      hasRecommendation: false,
+      hasAcceptedScenario: false,
+      hasSurveyModel: true,
+      hasHandoffReview: false,
+      hasExportPackage: false,
+    })).toBe('survey-in-progress');
+
+    expect(computeVisitHydrationState({
+      hasVisit: true,
+      lifecycleState: 'survey_ready',
+      hasRecommendation: false,
+      hasAcceptedScenario: false,
+      hasSurveyModel: true,
+      hasHandoffReview: false,
+      hasExportPackage: false,
+    })).toBe('survey-in-progress');
+  });
+
   it('returns recommendation-ready when canonical lifecycle is recommendation_ready', () => {
     const state = computeVisitHydrationState({
       hasVisit: true,
@@ -28,10 +50,10 @@ describe('computeVisitHydrationState lifecycle authority', () => {
     expect(state).toBe('recommendation-ready');
   });
 
-  it('returns review-in-progress when canonical lifecycle is outputs_generated', () => {
+  it('returns review-in-progress when canonical lifecycle is presentation_ready', () => {
     const state = computeVisitHydrationState({
       hasVisit: true,
-      lifecycleState: 'outputs_generated',
+      lifecycleState: 'presentation_ready',
       hasRecommendation: false,
       hasAcceptedScenario: false,
       hasSurveyModel: false,
@@ -40,5 +62,26 @@ describe('computeVisitHydrationState lifecycle authority', () => {
     });
     expect(state).toBe('review-in-progress');
   });
-});
 
+  it('treats handoff-ready and exported lifecycle states as handover-ready hydration', () => {
+    expect(computeVisitHydrationState({
+      hasVisit: true,
+      lifecycleState: 'handoff_ready',
+      hasRecommendation: false,
+      hasAcceptedScenario: false,
+      hasSurveyModel: false,
+      hasHandoffReview: false,
+      hasExportPackage: false,
+    })).toBe('handover-ready');
+
+    expect(computeVisitHydrationState({
+      hasVisit: true,
+      lifecycleState: 'exported',
+      hasRecommendation: false,
+      hasAcceptedScenario: false,
+      hasSurveyModel: false,
+      hasHandoffReview: false,
+      hasExportPackage: false,
+    })).toBe('handover-ready');
+  });
+});

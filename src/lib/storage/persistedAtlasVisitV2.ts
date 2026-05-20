@@ -8,7 +8,7 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import {
   deriveLifecycleStateFromSnapshot,
   isRecommendationReadyForLifecycle,
-  isLifecycleState,
+  normaliseVisitReviewLifecycleState,
   normaliseGeneratedOutputs,
   type GeneratedOutputsV1,
   type VisitReviewLifecycleState,
@@ -203,8 +203,9 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       engineRecommendationPrimary: engine?.recommendation?.primary,
     });
     const persistedLifecycleState = parsed.lifecycleState ?? canonical?.presentationHandoff?.lifecycleState;
-    const lifecycleState = isLifecycleState(persistedLifecycleState)
-      ? persistedLifecycleState
+    const lifecycleState = normaliseVisitReviewLifecycleState(persistedLifecycleState);
+    const resolvedLifecycleState = lifecycleState != null
+      ? lifecycleState
       : deriveLifecycleStateFromSnapshot({
         recommendationReady,
         generatedOutputs,
@@ -220,7 +221,7 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       scenarios,
       customerSummary,
       acceptedScenarioId,
-      lifecycleState,
+      lifecycleState: resolvedLifecycleState,
       generatedOutputs,
       portalVisitContext,
       scanCapture: coalesceValue(parsed.scanCapture, canonical?.scanEvidenceReferences),

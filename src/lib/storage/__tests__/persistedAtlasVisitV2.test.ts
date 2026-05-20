@@ -72,7 +72,7 @@ describe('persistedAtlasVisitV2', () => {
   it('persists lifecycle state and generated outputs registry', () => {
     const visit = makeVisit('visit_outputs');
     const now = '2026-05-10T10:00:00.000Z';
-    visit.lifecycleState = 'outputs_generated';
+    visit.lifecycleState = 'presentation_ready';
     visit.generatedOutputs = {
       ...createEmptyGeneratedOutputs(),
       portal: {
@@ -92,7 +92,7 @@ describe('persistedAtlasVisitV2', () => {
     saveVisitAtomically(visit);
 
     const restored = readPersistedAtlasVisitV2('visit_outputs');
-    expect(restored.visit?.lifecycleState).toBe('outputs_generated');
+    expect(restored.visit?.lifecycleState).toBe('presentation_ready');
     expect(restored.visit?.generatedOutputs?.portal.generated).toBe(true);
     expect(restored.visit?.generatedOutputs?.portal.renderer).toBe('library_customer_portal');
     expect(restored.visit?.generatedOutputs?.pdf.generated).toBe(true);
@@ -183,7 +183,7 @@ describe('persistedAtlasVisitV2', () => {
     expect(restored.visit?.generatedOutputs?.portal.url).toBe('https://atlas.test/portal/demo?token=canonical');
     expect(restored.visit?.generatedOutputs?.portal.renderer).toBe('library_customer_portal');
     expect(restored.visit?.portalVisitContext?.addressSummary).toBe('1 Canonical Road');
-    expect(restored.visit?.lifecycleState).toBe('outputs_generated');
+    expect(restored.visit?.lifecycleState).toBe('presentation_ready');
   });
 
   it('persists canonical payload slices for visit identity, survey, recommendation, and handoff', () => {
@@ -198,7 +198,7 @@ describe('persistedAtlasVisitV2', () => {
         occupancyCount: 3,
       } as unknown as EngineInputV2_3,
       acceptedScenarioId: 'scenario_mixergy_upgrade',
-      lifecycleState: 'outputs_generated',
+      lifecycleState: 'presentation_ready',
       generatedOutputs: {
         ...createEmptyGeneratedOutputs(),
         portal: {
