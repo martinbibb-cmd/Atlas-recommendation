@@ -94,7 +94,7 @@ function asCanonicalScanEvidenceRefs(raw: unknown): CanonicalScanEvidenceRefsV1 
   const mergeCount = typeof mergeCountRaw === 'number' && Number.isFinite(mergeCountRaw) ? mergeCountRaw : 0;
   const sources = asStringArray(asRecord(record?.['attribution'])?.['sources']);
 
-  const mapWithAttribution = <T extends { [k: string]: unknown }>(input: unknown[]): T[] =>
+  const mapWithAttribution = <T extends object>(input: unknown[]): T[] =>
     input
       .map((entry) => asRecord(entry))
       .filter((entry): entry is Record<string, unknown> => entry != null)
@@ -131,7 +131,7 @@ function asCanonicalScanEvidenceRefs(raw: unknown): CanonicalScanEvidenceRefsV1 
   };
 }
 
-function mergeById<T extends { [key: string]: unknown; _meta: ScanRecordAttributionV1 }>(
+function mergeById<T extends object & { _meta: ScanRecordAttributionV1 }>(
   existing: readonly T[],
   incoming: readonly Omit<T, '_meta'>[] | undefined,
   idKey: keyof Omit<T, '_meta'>,
@@ -205,7 +205,7 @@ function mergeSurveyDraft(
     };
   }
 
-  return next as CanonicalVisitPackageV1['surveyDraft'];
+  return next as unknown as CanonicalVisitPackageV1['surveyDraft'];
 }
 
 export function mergeScanReturnIntoCanonicalVisitPackage(
