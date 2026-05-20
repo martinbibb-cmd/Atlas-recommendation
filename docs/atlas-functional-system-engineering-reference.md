@@ -78,7 +78,7 @@ Where \Delta T_{actual} is the Mean Water Temperature minus Room Temperature, an
 
 When specific data is unavailable, Atlas should use these defaults, derived from CIBSE and standard UK practice:
 
-- **Mains cold water temperature:** 10°C (winter baseline).
+- **Mains cold water temperature:** 10°C (winter baseline and default year-round customer-facing assumption unless a seasonal model is explicitly enabled).
 - **Stored DHW setpoint:** 60°C (Legionella prevention standard).
 - **Target mixed draw-off (shower) temperature:** 40°C.
 - **Standard shower flow rate:** 9 L/min.
@@ -225,7 +225,8 @@ The engine must throw an error if a topology violates these rules:
 
 - Mains cold water connected to a closed primary circuit without a filling loop and double check valve.
 - Unvented cylinder drawn without a G3 discharge path (Tundish).
-- Heat pump connected to microbore (10mm) pipework where the required design flow exceeds the microbore screening limit, unless a low-loss header/buffer and secondary pump isolate the high-flow primary circuit; even then, Atlas should still warn if the emitter-side branch remains flow-limited.
+- Heat pump connected directly to microbore (10mm) pipework where the required design flow exceeds the microbore screening limit.
+- Heat pump systems using a low-loss header/buffer and secondary pump must still warn if the downstream emitter-side microbore branches remain flow-limited.
 - Primary flow temperature set lower than DHW target temperature for an indirect cylinder.
 
 ## 13. Customer-Safe Explanation Boundaries
