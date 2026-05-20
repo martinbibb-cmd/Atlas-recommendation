@@ -114,6 +114,78 @@ describe('persistedAtlasVisitV2', () => {
     expect(restored.visit?.generatedOutputs?.pdf.generated).toBe(false);
   });
 
+  it('restores engineInputSnapshot from canonical when absent in flat fields', () => {
+    const canonicalEngineInput = {
+      postcode: 'EC1A 1BB',
+      bathroomCount: 2,
+      occupancyCount: 4,
+    } as unknown as EngineInputV2_3;
+
+    // Payload has a valid canonical.engineInputSnapshot but no top-level engineInputSnapshot.
+    const rawPayload = {
+      schemaVersion: 2,
+      visitId: 'visit_ei_canonical',
+      updatedAt: '2026-05-12T09:00:00.000Z',
+      survey: { postcode: 'EC1A 1BB' },
+      canonical: {
+        schemaVersion: '1.0',
+        visitIdentity: { visitId: 'visit_ei_canonical', updatedAt: '2026-05-12T09:00:00.000Z' },
+        surveyDraftInput: { postcode: 'EC1A 1BB' },
+        engineInputSnapshot: canonicalEngineInput,
+      },
+    };
+
+    localStorage.setItem('atlas_visit_visit_ei_canonical', JSON.stringify(rawPayload));
+    const restored = readPersistedAtlasVisitV2('visit_ei_canonical');
+    expect(restored.visit).not.toBeNull();
+    const restoredInput = restored.visit?.engineInputSnapshot as { occupancyCount?: number; bathroomCount?: number } | undefined;
+    expect(restoredInput?.occupancyCount).toBe(4);
+    expect(restoredInput?.bathroomCount).toBe(2);
+  });
+
+  it('restores generatedOutputs and portalVisitContext from canonical when absent in flat fields', () => {
+    const now = '2026-05-12T10:00:00.000Z';
+
+    // Payload omits flat generatedOutputs and portalVisitContext; values live only in canonical.
+    const rawPayload = {
+      schemaVersion: 2,
+      visitId: 'visit_portal_canonical',
+      updatedAt: now,
+      survey: { postcode: 'W1A 0AX' },
+      canonical: {
+        schemaVersion: '1.0',
+        visitIdentity: { visitId: 'visit_portal_canonical', updatedAt: now },
+        surveyDraftInput: { postcode: 'W1A 0AX' },
+        presentationHandoff: {
+          lifecycleState: 'outputs_generated',
+          generatedOutputs: {
+            portal: {
+              generated: true,
+              generatedAt: now,
+              url: 'https://atlas.test/portal/demo?token=canonical',
+              version: '1.0',
+              renderer: 'library_customer_portal',
+            },
+            pdf: { generated: false },
+          },
+          portalVisitContext: {
+            addressSummary: '1 Canonical Road',
+            personalDataMode: 'customer_safe',
+          },
+        },
+      },
+    };
+
+    localStorage.setItem('atlas_visit_visit_portal_canonical', JSON.stringify(rawPayload));
+    const restored = readPersistedAtlasVisitV2('visit_portal_canonical');
+    expect(restored.visit).not.toBeNull();
+    expect(restored.visit?.generatedOutputs?.portal.generated).toBe(true);
+    expect(restored.visit?.generatedOutputs?.portal.url).toBe('https://atlas.test/portal/demo?token=canonical');
+    expect(restored.visit?.generatedOutputs?.portal.renderer).toBe('library_customer_portal');
+    expect(restored.visit?.portalVisitContext?.addressSummary).toBe('1 Canonical Road');
+    expect(restored.visit?.lifecycleState).toBe('outputs_generated');
+  });
+
   it('persists canonical payload slices for visit identity, survey, recommendation, and handoff', () => {
     const visit = buildPersistedAtlasVisitV2({
       visitId: 'visit_canonical_1',
