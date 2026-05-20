@@ -73,6 +73,11 @@ function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function isIsoDate(value: unknown): value is string {
+  if (!hasText(value)) return false;
+  return Number.isFinite(new Date(value).getTime());
+}
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
 }
@@ -128,8 +133,8 @@ export function validateScanReturnPayload(raw: unknown): ScanReturnPayloadValida
     return { ok: false, errors: ['visitIdentity must include visitId or visitReference.'] };
   }
 
-  if (!hasText(raw['returnedAt'])) {
-    return { ok: false, errors: ['returnedAt must be a non-empty string.'] };
+  if (!isIsoDate(raw['returnedAt'])) {
+    return { ok: false, errors: ['returnedAt must be a valid ISO-8601 timestamp string.'] };
   }
 
   if (!isRecord(raw['source'])) {

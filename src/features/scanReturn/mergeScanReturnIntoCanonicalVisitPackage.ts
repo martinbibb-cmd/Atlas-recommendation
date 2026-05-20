@@ -167,7 +167,7 @@ function mergeById<T extends object & { _meta: ScanRecordAttributionV1 }>(
     if (Number.isFinite(existingTs) && Number.isFinite(returnedTs) && existingTs > returnedTs) {
       conflicts.push({
         path: `${path}.${idValue}`,
-        reason: `Incoming update skipped because canonical entry is newer (${existingItem._meta.updatedAt}).`,
+        reason: `Incoming update (${returnedAt}) skipped because canonical entry is newer (${existingItem._meta.updatedAt}).`,
       });
       continue;
     }
@@ -279,7 +279,7 @@ export function mergeScanReturnIntoCanonicalVisitPackage(
     if (Number.isFinite(existingTs) && Number.isFinite(returnedTs) && existingTs > returnedTs) {
       conflicts.push({
         path: `scanEvidenceRefs.captureMetadata.${key}`,
-        reason: `Incoming metadata update skipped because canonical metadata is newer (${existingAttribution.updatedAt}).`,
+        reason: `Incoming metadata update (${payload.returnedAt}) skipped because canonical metadata is newer (${existingAttribution.updatedAt}).`,
       });
       continue;
     }
