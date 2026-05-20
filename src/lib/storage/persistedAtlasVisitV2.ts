@@ -157,11 +157,11 @@ function readCanonicalPayload(parsed: Partial<PersistedAtlasVisitV2>): Canonical
   return canonical;
 }
 
-function fallback<T>(primary: T | undefined, secondary: T | undefined): T | undefined {
+function coalesceValue<T>(primary: T | undefined, secondary: T | undefined): T | undefined {
   return primary ?? secondary;
 }
 
-function withLastExportedAt(
+function updateCanonicalExportStatus(
   canonical: CanonicalVisitPayloadV1 | undefined,
   lastExportedAt: string | undefined,
 ): CanonicalVisitPayloadV1 | undefined {
@@ -184,17 +184,17 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
     if (typeof parsed.visitId !== 'string' || parsed.visitId.trim().length === 0) return null;
     if (typeof parsed.updatedAt !== 'string' || parsed.updatedAt.trim().length === 0) return null;
     const canonical = readCanonicalPayload(parsed);
-    const survey = fallback(parsed.survey, canonical?.surveyDraftInput);
+    const survey = coalesceValue(parsed.survey, canonical?.surveyDraftInput);
     if (!survey || typeof survey !== 'object') return null;
-    const engineInputSnapshot = fallback(parsed.engineInputSnapshot, canonical?.engineInputSnapshot);
-    const engine = fallback(parsed.engine, canonical?.recommendationResult?.engineOutput);
-    const decision = fallback(parsed.decision, canonical?.recommendationResult?.decision);
-    const scenarios = fallback(parsed.scenarios, canonical?.recommendationResult?.scenarios);
-    const customerSummary = fallback(parsed.customerSummary, canonical?.recommendationResult?.customerSummary);
-    const acceptedScenarioId = fallback(parsed.acceptedScenarioId, canonical?.recommendationResult?.selectedRecommendationId);
-    const portalVisitContext = fallback(parsed.portalVisitContext, canonical?.presentationHandoff?.portalVisitContext);
+    const engineInputSnapshot = coalesceValue(parsed.engineInputSnapshot, canonical?.engineInputSnapshot);
+    const engine = coalesceValue(parsed.engine, canonical?.recommendationResult?.engineOutput);
+    const decision = coalesceValue(parsed.decision, canonical?.recommendationResult?.decision);
+    const scenarios = coalesceValue(parsed.scenarios, canonical?.recommendationResult?.scenarios);
+    const customerSummary = coalesceValue(parsed.customerSummary, canonical?.recommendationResult?.customerSummary);
+    const acceptedScenarioId = coalesceValue(parsed.acceptedScenarioId, canonical?.recommendationResult?.selectedRecommendationId);
+    const portalVisitContext = coalesceValue(parsed.portalVisitContext, canonical?.presentationHandoff?.portalVisitContext);
     const generatedOutputs = normaliseGeneratedOutputs(
-      fallback(parsed.generatedOutputs, canonical?.presentationHandoff?.generatedOutputs),
+      coalesceValue(parsed.generatedOutputs, canonical?.presentationHandoff?.generatedOutputs),
     );
     const recommendationReady = isRecommendationReadyForLifecycle({
       decision,
@@ -211,7 +211,7 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       });
     const normalised = buildPersistedAtlasVisitV2({
       visitId: parsed.visitId,
-      visitReference: fallback(parsed.visitReference, canonical?.visitIdentity.visitReference),
+      visitReference: coalesceValue(parsed.visitReference, canonical?.visitIdentity.visitReference),
       updatedAt: parsed.updatedAt,
       survey,
       engineInputSnapshot,
@@ -223,10 +223,10 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       lifecycleState,
       generatedOutputs,
       portalVisitContext,
-      scanCapture: fallback(parsed.scanCapture, canonical?.scanEvidenceReferences),
+      scanCapture: coalesceValue(parsed.scanCapture, canonical?.scanEvidenceReferences),
       quotePlan: parsed.quotePlan,
     });
-    normalised.canonical = withLastExportedAt(
+    normalised.canonical = updateCanonicalExportStatus(
       normalised.canonical,
       canonical?.saveExportStatus?.lastExportedAt,
     );
