@@ -1,18 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  buildPersistedAtlasVisitV2,
   saveVisitAtomically,
   readPersistedAtlasVisitV2,
 } from '../persistedAtlasVisitV2';
 import type { PersistedAtlasVisitV2 } from '../persistedAtlasVisitV2';
+import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import { createEmptyGeneratedOutputs } from '../visitReviewLifecycle';
 
 function makeVisit(visitId = 'visit_test_1'): PersistedAtlasVisitV2 {
-  return {
-    schemaVersion: 2,
+  return buildPersistedAtlasVisitV2({
     visitId,
+    visitReference: visitId.slice(-8).toUpperCase(),
     updatedAt: '2026-05-08T10:00:00.000Z',
-    lifecycleState: 'survey_in_progress',
-    generatedOutputs: createEmptyGeneratedOutputs(),
     survey: {
       postcode: 'SW1A 1AA',
       dynamicMainsPressure: 2,
@@ -27,7 +27,9 @@ function makeVisit(visitId = 'visit_test_1'): PersistedAtlasVisitV2 {
       highOccupancy: false,
       preferCombi: true,
     },
-  };
+    lifecycleState: 'survey_in_progress',
+    generatedOutputs: createEmptyGeneratedOutputs(),
+  });
 }
 
 describe('persistedAtlasVisitV2', () => {
@@ -110,5 +112,44 @@ describe('persistedAtlasVisitV2', () => {
     expect(restored.visit?.lifecycleState).toBe('survey_in_progress');
     expect(restored.visit?.generatedOutputs?.portal.generated).toBe(false);
     expect(restored.visit?.generatedOutputs?.pdf.generated).toBe(false);
+  });
+
+  it('persists canonical payload slices for visit identity, survey, recommendation, and handoff', () => {
+    const visit = buildPersistedAtlasVisitV2({
+      visitId: 'visit_canonical_1',
+      visitReference: 'CANON001',
+      updatedAt: '2026-05-12T08:30:00.000Z',
+      survey: { postcode: 'SW1A 1AA' },
+      engineInputSnapshot: {
+        postcode: 'SW1A 1AA',
+        bathroomCount: 1,
+        occupancyCount: 3,
+      } as unknown as EngineInputV2_3,
+      acceptedScenarioId: 'scenario_mixergy_upgrade',
+      lifecycleState: 'outputs_generated',
+      generatedOutputs: {
+        ...createEmptyGeneratedOutputs(),
+        portal: {
+          generated: true,
+          generatedAt: '2026-05-12T08:30:00.000Z',
+          url: 'https://atlas.test/portal/demo',
+          renderer: 'library_customer_portal',
+        },
+      },
+      portalVisitContext: {
+        addressSummary: '1 Test Street',
+        personalDataMode: 'customer_safe',
+      },
+    });
+
+    saveVisitAtomically(visit);
+    const restored = readPersistedAtlasVisitV2('visit_canonical_1');
+
+    expect(restored.visit?.engineInputSnapshot?.occupancyCount).toBe(3);
+    expect(restored.visit?.canonical?.visitIdentity.visitId).toBe('visit_canonical_1');
+    expect(restored.visit?.canonical?.surveyDraftInput.postcode).toBe('SW1A 1AA');
+    expect(restored.visit?.canonical?.recommendationResult?.selectedRecommendationId).toBe('scenario_mixergy_upgrade');
+    expect(restored.visit?.canonical?.presentationHandoff?.portalVisitContext?.addressSummary).toBe('1 Test Street');
+    expect(restored.visit?.canonical?.saveExportStatus?.lastSavedAt).toBe('2026-05-12T08:30:00.000Z');
   });
 });
