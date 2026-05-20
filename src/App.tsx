@@ -1765,7 +1765,7 @@ function AppInner() {
       portalVisitContext,
       generatedAt: pkg.importExportMetadata.exportedAt,
     });
-    const hydratedGeneratedOutputs = generatedOutputs.portal.url == null
+    const hydratedGeneratedOutputs = generatedOutputs.portal.url === undefined || generatedOutputs.portal.url === null
       ? generatedOutputs
       : {
           ...generatedOutputs,

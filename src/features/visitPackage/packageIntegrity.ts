@@ -21,7 +21,7 @@ function stableStringify(value: unknown): string {
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.map((entry) => stableStringify(entry ?? null)).join(',')}]`;
+    return `[${value.map((entry) => stableStringify(entry === undefined ? null : entry)).join(',')}]`;
   }
   if (typeof value !== 'object') return 'null';
 
