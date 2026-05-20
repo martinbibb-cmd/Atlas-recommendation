@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildCustomerJourneyPack,
   buildPortalJourneyPrintModel,
+  CUSTOMER_JOURNEY_PACK_SCHEMA,
+  CUSTOMER_JOURNEY_PACK_VERSION,
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
 
@@ -319,5 +322,24 @@ describe('buildPortalJourneyPrintModel — generic recommendation fallback journ
       journeyType: 'stored_hot_water',
     });
     expect(model.sections.map((section) => section.heading)).toContain('What this recommendation means');
+  });
+});
+
+describe('buildCustomerJourneyPack — shared journey model', () => {
+  it('builds a versioned customer journey pack with static PDF and portal deep-dive variants', () => {
+    const pack = buildCustomerJourneyPack(BASE_INPUT);
+    expect(pack.schema).toBe(CUSTOMER_JOURNEY_PACK_SCHEMA);
+    expect(pack.version).toBe(CUSTOMER_JOURNEY_PACK_VERSION);
+    expect(pack.staticPdf.cover.summary).toBe(BASE_INPUT.recommendationSummary);
+    expect(pack.portalDeepDive.recommendationSummary).toBe(BASE_INPUT.recommendationSummary);
+    expect(pack.portalDeepDive.nextSteps.length).toBeGreaterThan(0);
+  });
+
+  it('keeps portal library explainers aligned to the same section content IDs as static PDF output', () => {
+    const pack = buildCustomerJourneyPack(BASE_INPUT);
+    const sectionIds = new Set(pack.staticPdf.sections.map((section) => section.contentId));
+    for (const explainer of pack.portalDeepDive.librarySupportedExplainers) {
+      expect(sectionIds.has(explainer.contentId)).toBe(true);
+    }
   });
 });

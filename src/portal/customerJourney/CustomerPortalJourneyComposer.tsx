@@ -11,6 +11,7 @@ import { AtlasPhysicsVisualCard } from '../visualLanguage/AtlasPhysicsVisualCard
 import { AtlasStoryPanel } from '../visualLanguage/AtlasStoryPanel';
 import { AtlasSystemStateGraphic } from '../visualLanguage/AtlasSystemStateGraphic';
 import { AtlasWaterReserveGraphic } from '../visualLanguage/AtlasWaterReserveGraphic';
+import { buildCustomerJourneyPack } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 import { CustomerPortalJourneySectionV1 } from './CustomerPortalJourneySectionV1';
 import './customerPortalJourney.css';
 
@@ -96,16 +97,14 @@ function buildPreparationItems(decision: AtlasDecisionV1, scenario: ScenarioResu
   return [...new Set(items)].slice(0, 4);
 }
 
-function buildNextSteps(decision: AtlasDecisionV1): string[] {
-  const steps = [
-    'Atlas confirms the final installation plan around the recommendation.',
-    'The install team prepares the protection, controls, and handover items included in your route.',
-    'You receive a handover that explains day-to-day use and the first checks to expect.',
-  ];
-  if (decision.futureUpgradePaths.length > 0) {
-    steps.push(`Future-ready option: ${decision.futureUpgradePaths[0]}.`);
+function inferJourneyTypeForPack(
+  input: EngineInputV2_3,
+): 'open_vented' | 'heat_pump' | 'generic_recommendation_summary' {
+  if (input.currentHeatSourceType === 'ashp') return 'heat_pump';
+  if (input.currentSystem?.heatingSystemType === 'open_vented' || input.dhwStorageType === 'vented') {
+    return 'open_vented';
   }
-  return steps.slice(0, 4);
+  return 'generic_recommendation_summary';
 }
 
 function describeSupply(input: EngineInputV2_3): string {
@@ -645,12 +644,30 @@ export function CustomerPortalJourneyComposer({
   const shouldRenderPressureDiagram = isStoredWaterSystem && isPressureDiagramReady;
   const protectionItems = buildPreparationItems(decision, recommendedScenario).slice(0, 3);
   const familiarPoints = buildFamiliarPoints(engineInput, recommendedScenario);
-  const nextSteps = buildNextSteps(decision);
   const shouldShowStoredWaterVisual = isStoredWaterSystem;
   const shouldShowWarmRadiatorExpectation = recommendedScenario?.system.type === 'ashp';
   const journeyTitle = getScenarioTitle(recommendedScenario);
   const recommendationSummary = recommendedScenario?.system.summary ?? decision.summary;
-  const dailyUseSummary = engineResult.engineOutput.showerCompatibilityNote?.customerSummary ?? decision.dayToDayOutcomes[0] ?? decision.summary;
+  const journeyPack = buildCustomerJourneyPack({
+    selectedSectionIds: [],
+    journeyType: inferJourneyTypeForPack(engineInput),
+    recommendationSummary,
+    customerFacts: [
+      `${engineInput.occupancyCount ?? 0} people`,
+      formatBathroomCount(engineInput.bathroomCount ?? 0),
+    ],
+    liveExperienceExplanations: [
+      engineResult.engineOutput.showerCompatibilityNote?.customerSummary,
+      decision.dayToDayOutcomes[0],
+      decision.summary,
+    ].filter((value): value is string => value != null && value.trim().length > 0),
+  });
+  const sharedRecommendationSummary = journeyPack.portalDeepDive.recommendationSummary;
+  const liveExperienceSummary = journeyPack.portalDeepDive.liveExperienceExplanations[0]
+    ?? engineResult.engineOutput.showerCompatibilityNote?.customerSummary
+    ?? decision.dayToDayOutcomes[0]
+    ?? decision.summary;
+  const nextSteps = journeyPack.portalDeepDive.nextSteps.map((step) => `${step.label}: ${step.body}`);
   const scenarioById = new Map(scenarios.map((scenario) => [scenario.scenarioId, scenario]));
   const comparisonStoryCards = viewModel.verdictData.comparisonCards
     .slice(0, 3)
@@ -689,7 +706,7 @@ export function CustomerPortalJourneyComposer({
             </div>
             <SystemCard
               title={journeyTitle}
-              summary={recommendationSummary}
+              summary={sharedRecommendationSummary}
               bullets={decision.keyReasons.slice(0, 3)}
               badge="Recommended route"
               testId="customer-portal-recommended-system-card"
@@ -757,7 +774,7 @@ export function CustomerPortalJourneyComposer({
           <div className="customer-portal-journey__two-column">
             <SystemCard
               title={journeyTitle}
-              summary={recommendationSummary}
+              summary={sharedRecommendationSummary}
               bullets={recommendedScenario?.keyBenefits.slice(0, 3) ?? decision.keyReasons.slice(0, 3)}
               badge="Recommended system card"
               testId="customer-portal-recommended-route-card"
@@ -844,9 +861,20 @@ export function CustomerPortalJourneyComposer({
           sectionId="daily-use"
           eyebrow="Daily-use proof"
           title="How day-to-day use should feel"
-          intro={dailyUseSummary}
+          intro={liveExperienceSummary}
         >
           <DailyUseTeaser viewModel={viewModel} />
+          {journeyPack.portalDeepDive.librarySupportedExplainers.length > 0 ? (
+            <div className="customer-portal-journey__insight-grid">
+              {journeyPack.portalDeepDive.librarySupportedExplainers.slice(0, 3).map((explainer) => (
+                <article key={explainer.contentId} className="customer-portal-journey__insight-card">
+                  <p className="customer-portal-journey__summary-label">Library-supported explainer</p>
+                  <strong>{explainer.title}</strong>
+                  <p className="customer-portal-journey__card-copy">{explainer.summary}</p>
+                </article>
+              ))}
+            </div>
+          ) : null}
         </CustomerPortalJourneySectionV1>
 
         <CustomerPortalJourneySectionV1
@@ -864,9 +892,9 @@ export function CustomerPortalJourneyComposer({
           title="The path from recommendation to install"
           intro="Atlas keeps the next steps clear so you know what happens before installation day and at handover."
         >
-          <ol className="customer-portal-journey__ordered-list">
-            {nextSteps.map((step) => (
-              <li key={step}>{step}</li>
+            <ol className="customer-portal-journey__ordered-list">
+              {nextSteps.map((step) => (
+                <li key={step}>{step}</li>
             ))}
           </ol>
         </CustomerPortalJourneySectionV1>
