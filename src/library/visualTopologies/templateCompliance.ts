@@ -28,12 +28,20 @@ const TOPOLOGY_RENDER_ASSERTIONS: Record<VisualTopologyId, TopologyRenderAsserti
   ],
   sealed_unvented_cylinder: [
     {
+      id: 'sealed_unvented_cylinder_zone_valve_control_cue',
+      description: 'Cylinder primary flow shows an S-plan style two-port zone valve control cue.',
+    },
+    {
       id: 'sealed_unvented_expansion_vessel_on_primary_return',
       description: 'Expansion vessel is shown on primary return in sealed/unvented layout.',
     },
     {
       id: 'filling_loop_disconnected_default',
       description: 'Filling loop is shown disconnected/ghosted in normal state.',
+    },
+    {
+      id: 'sealed_unvented_primary_potable_path_separation',
+      description: 'Primary flow/return, mains cold, hot draw-off, and D2 discharge remain visually distinct.',
     },
   ],
   combi_direct_hot_water: [

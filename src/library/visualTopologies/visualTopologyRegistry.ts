@@ -71,8 +71,10 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
       'flow_pipe',
     ],
     physicalPurpose:
-      'Shows a system boiler feeding a sealed primary circuit (radiators) and an unvented cylinder via coil. ' +
+      'Shows a system boiler feeding a sealed primary circuit (radiators) and an unvented cylinder via coil, ' +
+      'with an S-plan style cylinder zone valve on the cylinder primary flow. ' +
       'DHW hot draw-off exits cylinder top; mains cold supply enters cylinder bottom. ' +
+      'Primary flow, primary return, mains cold, DHW hot, and D2 discharge remain visually distinct. ' +
       'Expansion vessel on primary return. Filling loop and pressure gauge as service items.',
     // SCENE COMPOSITION RETHINK — template rebuilt as an installed-system scene (2026-05-19):
     //   • DHW hot draw-off routes vertically upward from cylinder top.
@@ -86,9 +88,8 @@ export const VISUAL_TOPOLOGY_REGISTRY: VisualTopologyEntry[] = [
     motionSafe: true,
     allowedCustomerUse: false,
     qaNote:
-      'No-label view must read as: system boiler (left) feeding heating circuit and floor-standing unvented cylinder (right). ' +
-      'DHW rises from cylinder top; cold mains drops in from below. ' +
-      'Return circuit must form a visible closed loop back to the boiler.',
+      'No-label view must read as: system boiler (left), S-plan style cylinder zone valve, closed primary coil circuit, ' +
+      'and separate mains-fed hot-water cylinder. Cold mains must not read as the primary return.',
     humanVisualReviewState: 'human_visual_review_required',
     humanVisualReviewNote:
       'VISUALLY BLOCKED — scene composition rethink applied (2026-05-19). ' +

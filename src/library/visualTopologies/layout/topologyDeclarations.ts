@@ -89,6 +89,12 @@ const sealedUnventedDeclaration: TopologyLayoutDeclaration = {
       topRule: { kind: 'flow_offset', offset: SEALED_UNVENTED_CYLINDER_TOP_FLOW_OFFSET },
     },
     {
+      role: 'cylinder_zone_valve',
+      zone: INSTALLATION_ZONES.CONTROLS,
+      leftRule: { kind: 'zone_anchor', x: 468 },
+      topRule: { kind: 'const', value: 108 },
+    },
+    {
       role: 'filling_loop_disconnected_default',
       zone: INSTALLATION_ZONES.SERVICE,
       leftRule: { kind: 'zone_anchor', x: 364 },

@@ -46,8 +46,79 @@ import {
   portAttachPoint,
   pipeStroke,
 } from './_shared';
+import { ROUTING_RAILS } from '../../visualPrimitives/primitiveTokens';
 import type { VisualTopologyRenderOptions } from '../topologies/types';
 import { computeTopologyLayout, getTopologyLayoutDeclaration, routeEmitterSpurs } from '../layout';
+
+type PipeSemanticStyle = {
+  stroke: string;
+  strokeDasharray?: string;
+  rail: string;
+  waterKind: 'primary_flow' | 'primary_return' | 'mains_cold' | 'dhw_hot' | 'd2_safety';
+};
+
+function buildPipeSemanticProps(style: PipeSemanticStyle, testId?: string) {
+  return {
+    stroke: style.stroke,
+    strokeDasharray: style.strokeDasharray,
+    'data-pipe-rail': style.rail,
+    'data-water-kind': style.waterKind,
+    ...(testId ? { 'data-testid': testId } : {}),
+  };
+}
+
+function CylinderZoneValveCue({
+  showLabel,
+  printSafe,
+}: {
+  showLabel: boolean;
+  printSafe: boolean;
+}) {
+  const lineStroke = printSafe ? '#111827' : '#dc2626';
+  const actuatorFill = printSafe ? '#e5e7eb' : '#dbeafe';
+  const actuatorStroke = printSafe ? '#111827' : '#1d4ed8';
+
+  return (
+    <div
+      style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}
+      aria-label="Cylinder zone valve"
+    >
+      <svg width={40} height={40} viewBox="0 0 40 40" role="img" aria-hidden="true" focusable="false">
+        <line x1={0} y1={32} x2={6} y2={32} stroke={lineStroke} strokeWidth={2.5} />
+        <line x1={34} y1={32} x2={40} y2={32} stroke={lineStroke} strokeWidth={2.5} />
+        <rect
+          x={6}
+          y={26}
+          width={28}
+          height={12}
+          rx={2}
+          fill={printSafe ? '#f8fafc' : '#fff'}
+          stroke={lineStroke}
+          strokeWidth={1.8}
+          data-testid="sealed-unvented-cylinder-zone-valve-body"
+        />
+        <path d="M 12 32 L 20 28 L 28 32 L 20 36 Z" fill={printSafe ? '#d1d5db' : '#fecaca'} stroke={lineStroke} strokeWidth={1.2} />
+        <rect
+          x={13}
+          y={9}
+          width={14}
+          height={11}
+          rx={2}
+          fill={actuatorFill}
+          stroke={actuatorStroke}
+          strokeWidth={1.4}
+          data-testid="sealed-unvented-cylinder-zone-valve-actuator"
+        />
+        <line x1={20} y1={20} x2={20} y2={26} stroke={actuatorStroke} strokeWidth={1.4} />
+      </svg>
+      {showLabel && (
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#1e293b', textAlign: 'center' }}>
+          Cylinder zone valve
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function SealedUnventedCylinderTopology({ options }: { options: VisualTopologyRenderOptions }) {
   const layout = computeTopologyLayout(getTopologyLayoutDeclaration('sealed_unvented_cylinder'));
@@ -92,11 +163,44 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
   const d2EndY         = rails.returnY + 34;     // D2 terminus y — continuous fall
   const d2LabelY       = rails.returnY + 18;     // label y along D2 route
   const d2LabelX       = positions.unvented_cylinder.left + 126;  // label x for D2 route
+  const dhwHotRunEndX  = cylinderHotOutAttach.x + 96;
+  const cwMainsRunEndX = cylinderColdInAttach.x + 84;
+  const zoneValveInlineLeft  = positions.cylinder_zone_valve.left + 6;
+  const zoneValveInlineRight = positions.cylinder_zone_valve.left + 34;
 
   // ─── Stroke helpers ───────────────────────────────────────────────────────────
   const w    = options.pipeTrace ? 5 : PIPE_STROKE_MAIN;
   const flow = pipeStroke(options.printSafe, true);
   const ret  = pipeStroke(options.printSafe, false);
+  const primaryFlowStyle: PipeSemanticStyle = {
+    stroke: flow,
+    rail: ROUTING_RAILS.CH_FLOW,
+    waterKind: 'primary_flow',
+  };
+  const primaryReturnStyle: PipeSemanticStyle = {
+    stroke: ret,
+    strokeDasharray: pipeDash(options.printSafe, false),
+    rail: ROUTING_RAILS.CH_RETURN,
+    waterKind: 'primary_return',
+  };
+  const mainsColdStyle: PipeSemanticStyle = {
+    stroke: options.printSafe ? '#6b7280' : '#0f766e',
+    strokeDasharray: options.printSafe ? '7 2 1.5 2' : '10 4',
+    rail: ROUTING_RAILS.CW_MAINS,
+    waterKind: 'mains_cold',
+  };
+  const dhwHotStyle: PipeSemanticStyle = {
+    stroke: options.printSafe ? '#111827' : '#f97316',
+    strokeDasharray: options.printSafe ? '2 2' : undefined,
+    rail: ROUTING_RAILS.DHW,
+    waterKind: 'dhw_hot',
+  };
+  const d2Style: PipeSemanticStyle = {
+    stroke: AUX_COLOUR,
+    strokeDasharray: options.printSafe ? '3 2' : '4 2',
+    rail: ROUTING_RAILS.D2_DISCHARGE,
+    waterKind: 'd2_safety',
+  };
 
   // ─── Pipe-trace arrow midpoints ───────────────────────────────────────────────
   const midFlowX   = Math.round((boilerFlowAttach.x + cylinderCoilFlowInAttach.x) / 2);
@@ -108,29 +212,56 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
 
         {/* ── PRIMARY FLOW ──────────────────────────────────────────────────── */}
         {/* Flow rail: boiler flow port → cylinder coil-in (horizontal run) */}
-        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={cylinderCoilFlowInAttach.x} y2={rails.flowY} stroke={flow} strokeWidth={w} />
+        <line
+          x1={boilerFlowAttach.x}
+          y1={rails.flowY}
+          x2={zoneValveInlineLeft}
+          y2={rails.flowY}
+          strokeWidth={w}
+          {...buildPipeSemanticProps(primaryFlowStyle, 'sealed-unvented-primary-flow-rail-left')}
+        />
+        <line
+          x1={zoneValveInlineRight}
+          y1={rails.flowY}
+          x2={cylinderCoilFlowInAttach.x}
+          y2={rails.flowY}
+          strokeWidth={w}
+          {...buildPipeSemanticProps(primaryFlowStyle, 'sealed-unvented-primary-flow-rail-right')}
+        />
         {/* Flow drop: rail → cylinder coil-in port */}
-        <line x1={cylinderCoilFlowInAttach.x} y1={rails.flowY} x2={cylinderCoilFlowInAttach.x} y2={cylinderCoilFlowInAttach.y} stroke={flow} strokeWidth={w} />
+        <line
+          x1={cylinderCoilFlowInAttach.x}
+          y1={rails.flowY}
+          x2={cylinderCoilFlowInAttach.x}
+          y2={cylinderCoilFlowInAttach.y}
+          strokeWidth={w}
+          {...buildPipeSemanticProps(primaryFlowStyle, 'sealed-unvented-cylinder-primary-flow-drop')}
+        />
         {/* Boiler flow spur: rail → boiler flow port */}
-        <line x1={boilerFlowAttach.x} y1={rails.flowY} x2={boilerFlowAttach.x} y2={boilerFlowAttach.y} stroke={flow} strokeWidth={PIPE_STROKE_BRANCH} />
+        <line
+          x1={boilerFlowAttach.x}
+          y1={rails.flowY}
+          x2={boilerFlowAttach.x}
+          y2={boilerFlowAttach.y}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(primaryFlowStyle, 'sealed-unvented-boiler-primary-flow-spur')}
+        />
 
         {/* ── RADIATOR BRANCH SPURS ────────────────────────────────────────── */}
         {routeEmitterSpurs(positions.radiator_branch_1.left, rails).map((seg, i) => (
           <line
             key={`em1-${i}`}
             x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
-            stroke={seg.rail === 'ch_flow' ? flow : ret}
             strokeWidth={PIPE_STROKE_BRANCH}
-            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+            {...buildPipeSemanticProps(seg.rail === ROUTING_RAILS.CH_FLOW ? primaryFlowStyle : primaryReturnStyle)}
           />
         ))}
         {routeEmitterSpurs(positions.radiator_branch_2.left, rails).map((seg, i) => (
           <line
             key={`em2-${i}`}
             x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
-            stroke={seg.rail === 'ch_flow' ? flow : ret}
             strokeWidth={PIPE_STROKE_BRANCH}
-            strokeDasharray={seg.rail === 'ch_return' ? pipeDash(options.printSafe, false) : undefined}
+            {...buildPipeSemanticProps(seg.rail === ROUTING_RAILS.CH_FLOW ? primaryFlowStyle : primaryReturnStyle)}
           />
         ))}
 
@@ -139,37 +270,36 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
         <line
           x1={cylinderCoilFlowOutAttach.x} y1={cylinderCoilFlowOutAttach.y}
           x2={cylinderCoilFlowOutAttach.x} y2={evPortAttach.y}
-          stroke={ret} strokeWidth={PIPE_STROKE_BRANCH}
-          strokeDasharray={pipeDash(options.printSafe, false)}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(primaryReturnStyle, 'sealed-unvented-cylinder-primary-return-upper-drop')}
         />
         {/* Expansion vessel return spur — branches from return drop to vessel connection port */}
         <line
           x1={cylinderCoilFlowOutAttach.x} y1={evPortAttach.y}
           x2={evPortAttach.x}              y2={evPortAttach.y}
-          stroke={ret} strokeWidth={PIPE_STROKE_BRANCH}
-          strokeDasharray={pipeDash(options.printSafe, false)}
-          data-testid="sealed-unvented-expansion-vessel-return-branch"
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(primaryReturnStyle, 'sealed-unvented-expansion-vessel-return-branch')}
         />
         {/* Coil-out lower drop: expansion vessel spur level → return rail */}
         <line
           x1={cylinderCoilFlowOutAttach.x} y1={evPortAttach.y}
           x2={cylinderCoilFlowOutAttach.x} y2={rails.returnY}
-          stroke={ret} strokeWidth={w}
-          strokeDasharray={pipeDash(options.printSafe, false)}
+          strokeWidth={w}
+          {...buildPipeSemanticProps(primaryReturnStyle, 'sealed-unvented-cylinder-primary-return-lower-drop')}
         />
         {/* Return rail: cylinder coil-out x → boiler return port x */}
         <line
           x1={cylinderCoilFlowOutAttach.x} y1={rails.returnY}
           x2={boilerReturnAttach.x}         y2={rails.returnY}
-          stroke={ret} strokeWidth={w}
-          strokeDasharray={pipeDash(options.printSafe, false)}
+          strokeWidth={w}
+          {...buildPipeSemanticProps(primaryReturnStyle, 'sealed-unvented-primary-return-rail')}
         />
         {/* Boiler return spur: return rail → boiler return port */}
         <line
           x1={boilerReturnAttach.x} y1={rails.returnY}
           x2={boilerReturnAttach.x} y2={boilerReturnAttach.y}
-          stroke={ret} strokeWidth={w}
-          strokeDasharray={pipeDash(options.printSafe, false)}
+          strokeWidth={w}
+          {...buildPipeSemanticProps(primaryReturnStyle, 'sealed-unvented-boiler-primary-return-spur')}
         />
 
         {/* ── DHW CONNECTIONS ───────────────────────────────────────────────── */}
@@ -177,14 +307,31 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
         <line
           x1={cylinderHotOutAttach.x} y1={cylinderHotOutAttach.y}
           x2={cylinderHotOutAttach.x} y2={dhwHotRiseToY}
-          stroke={flow} strokeWidth={PIPE_STROKE_BRANCH}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(dhwHotStyle, 'sealed-unvented-dhw-hot-rise')}
+        />
+        <line
+          x1={cylinderHotOutAttach.x}
+          y1={dhwHotRiseToY}
+          x2={dhwHotRunEndX}
+          y2={dhwHotRiseToY}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(dhwHotStyle, 'sealed-unvented-dhw-hot-run')}
         />
         {/* Cold mains in: drops vertically into cylinder bottom — mains supply */}
         <line
           x1={cylinderColdInAttach.x} y1={cylinderColdInAttach.y}
           x2={cylinderColdInAttach.x} y2={cwMainsDropToY}
-          stroke={ret} strokeWidth={PIPE_STROKE_BRANCH}
-          strokeDasharray={pipeDash(options.printSafe, false)}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(mainsColdStyle, 'sealed-unvented-mains-cold-drop')}
+        />
+        <line
+          x1={cylinderColdInAttach.x}
+          y1={cwMainsDropToY}
+          x2={cwMainsRunEndX}
+          y2={cwMainsDropToY}
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(mainsColdStyle, 'sealed-unvented-mains-cold-run')}
         />
 
         {/* ── G3 D2 DISCHARGE ───────────────────────────────────────────────── */}
@@ -192,8 +339,8 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
         <line
           x1={cylinderSafetyDischargeAttach.x} y1={cylinderSafetyDischargeAttach.y}
           x2={d2TermX}                          y2={d2EndY}
-          stroke={AUX_COLOUR} strokeWidth={PIPE_STROKE_BRANCH}
-          data-testid="d2-discharge-pipe"
+          strokeWidth={PIPE_STROKE_BRANCH}
+          {...buildPipeSemanticProps(d2Style, 'd2-discharge-pipe')}
         />
 
         {/* ── PIPE-TRACE DIRECTIONAL ARROWS ────────────────────────────────── */}
@@ -205,24 +352,13 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
         )}
 
         {/* ── PIPE LABELS ────────────────────────────────────────────────────── */}
-        {/* Hot draw-off label — beside vertical stub near canvas top */}
-        <text
-          x={cylinderHotOutAttach.x + 6}
-          y={dhwHotRiseToY + 12}
-          fontSize={11} fontFamily="system-ui, sans-serif" fill={flow}
-        >
-          Hot draw-off out
-        </text>
-        {/* Cold mains label — beside vertical stub near canvas bottom */}
-        <text
-          x={cylinderColdInAttach.x + 6}
-          y={cwMainsDropToY - 8}
-          fontSize={11} fontFamily="system-ui, sans-serif" fill={ret}
-        >
-          Mains cold in
-        </text>
-        {/* D2 discharge label — along the continuous fall route */}
-        <text {...pipeLabelProps(d2LabelX, d2LabelY, 'below', AUX_COLOUR)}>D2 safety discharge</text>
+        {options.showLabels && (
+          <>
+            <text {...pipeLabelProps(dhwHotRunEndX - 54, dhwHotRiseToY, 'below', dhwHotStyle.stroke)}>Hot draw-off out</text>
+            <text {...pipeLabelProps(cwMainsRunEndX - 52, cwMainsDropToY, 'above', mainsColdStyle.stroke)}>Mains cold in</text>
+            <text {...pipeLabelProps(d2LabelX, d2LabelY, 'below', d2Style.stroke)}>D2 safety discharge</text>
+          </>
+        )}
 
       </PipeLayer>
 
@@ -238,6 +374,9 @@ export function SealedUnventedCylinderTopology({ options }: { options: VisualTop
       </TopologyNode>
       <TopologyNode role="unvented_cylinder" left={positions.unvented_cylinder.left} top={positions.unvented_cylinder.top}>
         <CylinderPrimitive variant="unvented" fillLevel={0.75} size="sm" showLabel={options.showLabels} printSafe={options.printSafe} />
+      </TopologyNode>
+      <TopologyNode role="cylinder_zone_valve" left={positions.cylinder_zone_valve.left} top={positions.cylinder_zone_valve.top}>
+        <CylinderZoneValveCue showLabel={options.showLabels} printSafe={options.printSafe} />
       </TopologyNode>
       <TopologyNode role="filling_loop_disconnected_default" left={positions.filling_loop_disconnected_default.left} top={positions.filling_loop_disconnected_default.top}>
         <FillingLoopPrimitive size="sm" showLabel={options.showLabels} printSafe={options.printSafe} />
