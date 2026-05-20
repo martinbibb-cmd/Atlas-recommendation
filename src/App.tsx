@@ -237,6 +237,19 @@ function toSafeDownloadBaseName(value: string): string {
   return safe.length > 0 ? safe : 'atlas-visit';
 }
 
+function buildImportedVisitId(visitReference: string | undefined): string {
+  const importSuffix =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : Date.now().toString(36);
+  return `imported_${toSafeDownloadBaseName(visitReference ?? 'visit').toLowerCase()}_${importSuffix}`;
+}
+
+const IMPORT_SURFACE_LABELS: Record<'app_home_import' | 'visit_home_import', string> = {
+  app_home_import: 'App Home',
+  visit_home_import: 'Visit Home',
+};
+
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
 type LocalSessionStatusTone = 'success' | 'error';
 type PortalPdfJourneyType =
@@ -1593,12 +1606,8 @@ function AppInner() {
     const visitIdentity = pkg.visitIdentity;
     const rawVisitId = hasText(visitIdentity.visitId) ? visitIdentity.visitId : undefined;
     const rawVisitReference = hasText(visitIdentity.visitReference) ? visitIdentity.visitReference : undefined;
-    const importSuffix =
-      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-        ? crypto.randomUUID()
-        : Date.now().toString(36);
     const resolvedVisitId = rawVisitId
-      ?? `imported_${toSafeDownloadBaseName(rawVisitReference ?? 'visit').toLowerCase()}_${importSuffix}`;
+      ?? buildImportedVisitId(rawVisitReference);
     const resolvedVisitReference = rawVisitReference ?? formatVisitReference(resolvedVisitId);
     const recommendationSummary =
       pkg.proposalTruth?.customerSummary
@@ -1662,7 +1671,7 @@ function AppInner() {
     setLastOpenedFromHome(null);
     setLocalSessionStatus({
       tone: 'success',
-      message: `Imported visit package ${resolvedVisitReference} from ${importSurface === 'app_home_import' ? 'App Home' : 'Visit Home'}.`,
+      message: `Imported visit package ${resolvedVisitReference} from ${IMPORT_SURFACE_LABELS[importSurface]}.`,
     });
     setJourney('visit-home');
   }
@@ -1676,7 +1685,7 @@ function AppInner() {
       if (!parsed.ok) {
         setLocalSessionStatus({
           tone: 'error',
-          message: `Package import failed: ${parsed.errors.slice(0, 3).join(' ')}`,
+          message: `Package import failed: ${parsed.errors.slice(0, 3).join('; ')}`,
         });
         return;
       }
@@ -1736,7 +1745,7 @@ function AppInner() {
       },
     });
     const json = serialiseCanonicalVisitPackage(pkg);
-    const filename = `${toSafeDownloadBaseName(visitReference || activeVisitId)}.atlasvisit.json`;
+    const filename = `${toSafeDownloadBaseName(visitReference ?? activeVisitId)}.atlasvisit.json`;
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
