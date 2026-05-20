@@ -142,14 +142,16 @@ import {
   type PersistedAtlasVisitV2,
 } from './lib/storage/persistedAtlasVisitV2';
 import {
+  DEFAULT_ATLAS_VISIT_JOURNEY_STATE,
   createEmptyGeneratedOutputs,
   deriveLifecycleStateFromSnapshot,
+  isLifecycleAtLeast,
   isRecommendationReadyForLifecycle,
   normaliseGeneratedOutputs,
   transitionAtlasVisitJourney,
   withGeneratedPortalOutput,
-  type AtlasVisitJourneyEvent,
   type GeneratedOutputsV1,
+  type VisitReviewLifecycleEvent,
   type VisitReviewLifecycleState,
 } from './lib/storage/visitReviewLifecycle';
 import { WelcomePackDevPreview } from './library/dev/WelcomePackDevPreview';
@@ -851,12 +853,13 @@ function RetiredRouteNotice({
 
 function dispatchVisitJourneyEvent(
   currentState: VisitReviewLifecycleState | undefined,
-  event: AtlasVisitJourneyEvent,
+  event: VisitReviewLifecycleEvent,
 ): VisitReviewLifecycleState {
-  const transition = transitionAtlasVisitJourney(currentState ?? 'draft_started', event);
+  const effectiveCurrentState = currentState ?? DEFAULT_ATLAS_VISIT_JOURNEY_STATE;
+  const transition = transitionAtlasVisitJourney(effectiveCurrentState, event);
   if (!transition.accepted && import.meta.env.DEV) {
     console.warn('[Atlas] Rejected visit journey event', {
-      currentState: currentState ?? 'draft_started',
+      currentState: effectiveCurrentState,
       event: event.type,
     });
   }
@@ -1843,7 +1846,10 @@ function AppInner() {
           })
         : undefined;
       const customerSummary = decision != null ? buildCustomerSummary(decision, scenarios) : undefined;
-      const lifecycleState = dispatchVisitJourneyEvent(undefined, { type: 'recommendation_generated' });
+      const lifecycleState = dispatchVisitJourneyEvent(
+        DEFAULT_ATLAS_VISIT_JOURNEY_STATE,
+        { type: 'recommendation_generated' },
+      );
       const generatedOutputs = createEmptyGeneratedOutputs();
       setVisitRecommendationSnapshot({
         visitId: demoVisitId,
@@ -2974,7 +2980,7 @@ function AppInner() {
               hasPortalOutput={generatedOutputs.portal.generated}
               hasSupportingPdfOutput={generatedOutputs.pdf.generated}
               hasHandoffOutput={generatedOutputs.handoff.generated}
-              hasExportPackageOutput={lifecycleState === 'exported' || lifecycleState === 'archived'}
+              hasReachedExportedState={isLifecycleAtLeast(lifecycleState, 'exported')}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}

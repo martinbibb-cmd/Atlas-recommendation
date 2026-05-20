@@ -8,6 +8,8 @@ export type AtlasVisitJourneyState =
   | 'exported'
   | 'archived';
 
+export const DEFAULT_ATLAS_VISIT_JOURNEY_STATE: AtlasVisitJourneyState = 'draft_started';
+
 export type AtlasVisitJourneyEvent =
   | { readonly type: 'draft_saved' }
   | { readonly type: 'survey_completed' }
@@ -50,8 +52,8 @@ const LEGACY_ATLAS_VISIT_JOURNEY_STATE_MAP: Record<LegacyAtlasVisitJourneyState,
 
 export function isAtlasVisitJourneyState(value: unknown): value is AtlasVisitJourneyState {
   return (
-    typeof value === 'string'
-    && ATLAS_VISIT_JOURNEY_ORDER.includes(value as AtlasVisitJourneyState)
+    typeof value === 'string' &&
+    ATLAS_VISIT_JOURNEY_ORDER.includes(value as AtlasVisitJourneyState)
   );
 }
 

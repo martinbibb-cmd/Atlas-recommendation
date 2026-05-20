@@ -13,7 +13,10 @@
  *   handover-ready      — delivery outputs are available
  */
 
-import type { VisitReviewLifecycleState } from '../../lib/storage/visitReviewLifecycle';
+import {
+  isLifecycleAtLeast,
+  type VisitReviewLifecycleState,
+} from '../../lib/storage/visitReviewLifecycle';
 
 export type VisitHydrationState =
   | 'no-visit'
@@ -37,14 +40,14 @@ export function computeVisitHydrationState(
 ): VisitHydrationState {
   if (!input.hasVisit) return 'no-visit';
   if (input.lifecycleState != null) {
-    if (input.lifecycleState === 'draft_started' || input.lifecycleState === 'survey_in_progress' || input.lifecycleState === 'survey_ready') {
+    if (!isLifecycleAtLeast(input.lifecycleState, 'recommendation_ready')) {
       return 'survey-in-progress';
     }
     if (input.lifecycleState === 'recommendation_ready') return 'recommendation-ready';
     if (input.lifecycleState === 'presentation_ready') {
       return 'review-in-progress';
     }
-    if (input.lifecycleState === 'handoff_ready' || input.lifecycleState === 'exported' || input.lifecycleState === 'archived') {
+    if (isLifecycleAtLeast(input.lifecycleState, 'handoff_ready')) {
       return 'handover-ready';
     }
   }

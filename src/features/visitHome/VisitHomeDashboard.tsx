@@ -88,7 +88,7 @@ export interface VisitHomeDashboardProps {
   hasPortalOutput?: boolean;
   hasSupportingPdfOutput?: boolean;
   hasHandoffOutput?: boolean;
-  hasExportPackageOutput?: boolean;
+  hasReachedExportedState?: boolean;
   /**
    * Number of installation specification options saved for this visit.
    * When > 0 the Implementation Workflow card shows 'ready'.
@@ -357,7 +357,7 @@ export function VisitHomeDashboard({
   hasPortalOutput,
   hasSupportingPdfOutput,
   hasHandoffOutput,
-  hasExportPackageOutput,
+  hasReachedExportedState,
   installationSpecOptionCount = 0,
   workspaceRole,
   workspacePermissions,
@@ -402,7 +402,7 @@ export function VisitHomeDashboard({
   const portalOutputAvailable = hasPortalOutput ?? (portalUrl != null);
   const supportingPdfOutputAvailable = hasSupportingPdfOutput ?? (onPrintSummary != null);
   const handoffOutputAvailable = hasHandoffOutput ?? (onOpenHandoffReview != null);
-  const exportOutputAvailable = hasExportPackageOutput ?? (onExportPackage != null);
+  const exportOutputAvailable = hasReachedExportedState ?? (onExportPackage != null);
   const viewModel = buildVisitHomeViewModel({
     engineResult: engineOutput,
     acceptedScenario,

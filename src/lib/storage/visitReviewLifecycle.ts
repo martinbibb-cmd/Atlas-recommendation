@@ -1,4 +1,5 @@
 import {
+  DEFAULT_ATLAS_VISIT_JOURNEY_STATE,
   isAtlasVisitJourneyAtLeast,
   isAtlasVisitJourneyState,
   normaliseAtlasVisitJourneyState,
@@ -9,11 +10,7 @@ import {
 
 export type VisitReviewLifecycleState = AtlasVisitJourneyState;
 export type VisitReviewLifecycleEvent = AtlasVisitJourneyEvent;
-export {
-  transitionAtlasVisitJourney,
-  type AtlasVisitJourneyEvent,
-  type AtlasVisitJourneyState,
-};
+export { DEFAULT_ATLAS_VISIT_JOURNEY_STATE, transitionAtlasVisitJourney };
 
 export type GeneratedOutputRendererV1 = 'library_customer_portal' | 'legacy_dev_only';
 export const CANONICAL_PORTAL_RENDERER: GeneratedOutputRendererV1 = 'library_customer_portal';
@@ -112,8 +109,9 @@ export function deriveLifecycleStateFromSnapshot(input: {
 }): VisitReviewLifecycleState {
   const outputs = normaliseGeneratedOutputs(input.generatedOutputs);
   if (outputs.handoff.generated) return 'handoff_ready';
-  if (outputs.simulatorReview.generated) return 'presentation_ready';
-  if (outputs.portal.generated || outputs.pdf.generated) return 'presentation_ready';
+  if (outputs.simulatorReview.generated || outputs.portal.generated || outputs.pdf.generated) {
+    return 'presentation_ready';
+  }
   if (input.recommendationReady) return 'recommendation_ready';
   return 'survey_in_progress';
 }
