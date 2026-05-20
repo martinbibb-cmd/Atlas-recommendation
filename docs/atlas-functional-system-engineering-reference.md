@@ -72,7 +72,7 @@ $$
 P_{actual} = P_{\Delta T50} \left( \frac{\Delta T_{actual}}{50} \right)^n
 $$
 
-Where \Delta T_{actual} is the Mean Water Temperature minus Room Temperature, and n is the radiator exponent (default engineering assumption **1.3** if manufacturer data is missing and no model-specific correction curve is available).
+Where \Delta T_{actual} is the Mean Water Temperature minus Room Temperature, and n is the radiator exponent (default engineering assumption **1.3** from common UK radiator derating practice when manufacturer data is missing and no model-specific correction curve is available).
 
 ## 4. Recommended Atlas Default Values
 
@@ -92,7 +92,7 @@ When specific data is unavailable, Atlas should use these defaults, derived from
 | Value Category | Examples | Source / Treatment |
 | --- | --- | --- |
 | **User-Entered** | Property heat loss, number of bathrooms, incoming mains static pressure/flow rate, boiler model. | Hard constraints. Atlas must validate but not overwrite. |
-| **Estimated** | Pipework primary volume, system friction loss, standing thermal losses, typical cylinder coil kW rating. | Derived via algorithms. Present with confidence intervals. |
+| **Estimated** | Pipework primary volume, system friction loss, standing thermal losses, typical cylinder coil kW rating. | Derived via algorithms. Present as estimate bands unless calibrated data supports a stronger statistical confidence claim. |
 | **Manufacturer** | Boiler modulation ratio, Heat pump SCOP/COP at specific flow temps, Mixergy stratification profiles. | Lookup tables. Do not guess; fail gracefully if missing. |
 
 ## 6. Component Function Graph Reference
@@ -138,9 +138,9 @@ Model primary water as the storage medium. Mains cold water passes through an in
 Atlas can estimate total system volume to size expansion vessels:
 
 - Boiler/Heat Pump: Check manufacturer data.
-- Radiators: ~1.5 Litres per kW of output.
-- Underfloor Heating (16mm pipe): ~2 Litres per m².
-- Distribution pipework: Add 10% to the total emitter volume.
+- Radiators: ~1.5 litres per kW of output.
+- Underfloor Heating (16mm pipe): ~2 litres per m².
+- Distribution pipework: Add 10% to the total emitter volume as a conservative engineering assumption when measured pipe inventory is unavailable.
 
 ### Flow Rates
 
@@ -225,7 +225,7 @@ The engine must throw an error if a topology violates these rules:
 
 - Mains cold water connected to a closed primary circuit without a filling loop and double check valve.
 - Unvented cylinder drawn without a G3 discharge path (Tundish).
-- Heat pump connected directly to microbore (10mm) pipework where the required design flow exceeds the microbore screening limit.
+- **Error:** Heat pump connected directly to microbore (10mm) pipework where the required design flow exceeds the microbore screening limit.
 - Heat pump systems using a low-loss header/buffer and secondary pump must still warn if the downstream emitter-side microbore branches remain flow-limited.
 - Primary flow temperature set lower than DHW target temperature for an indirect cylinder.
 
