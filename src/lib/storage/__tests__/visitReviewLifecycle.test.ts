@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CANONICAL_PORTAL_RENDERER,
+  buildVisitEnvelopeReadinessProjection,
   buildGeneratedPortalArtifact,
   createEmptyGeneratedOutputs,
   isVisitEnvelopeDeliveryReady,
@@ -9,6 +10,7 @@ import {
   type VisitEnvelopeReadinessProjectionV1,
   withGeneratedPortalOutput,
 } from '../visitReviewLifecycle';
+import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 
 function buildProposalReadyEnvelope(
   overrides: Partial<VisitEnvelopeReadinessProjectionV1> = {},
@@ -25,6 +27,28 @@ function buildProposalReadyEnvelope(
     customerSummary: { headline: 'Combi replacement' },
     generatedOutputs: createEmptyGeneratedOutputs(),
     ...overrides,
+  };
+}
+
+function buildScenario(
+  scenarioId: string,
+  type: ScenarioResult['system']['type'] = 'combi',
+): ScenarioResult {
+  return {
+    scenarioId,
+    system: { type, summary: 'Summary' },
+    performance: {
+      hotWater: 'good',
+      heating: 'good',
+      efficiency: 'good',
+      reliability: 'good',
+    },
+    keyBenefits: [],
+    keyConstraints: [],
+    dayToDayOutcomes: [],
+    requiredWorks: [],
+    upgradePaths: [],
+    physicsFlags: {},
   };
 }
 
@@ -144,5 +168,78 @@ describe('visitReviewLifecycle', () => {
       ...createEmptyGeneratedOutputs(),
       portal: { generated: true },
     })).toBe(false);
+  });
+
+  it('buildVisitEnvelopeReadinessProjection resolves selected scenario from accepted scenario first', () => {
+    const envelope = buildVisitEnvelopeReadinessProjection({
+      visitId: 'visit_1',
+      acceptedScenario: buildScenario('system_unvented', 'system'),
+      selectedScenarioId: 'combi',
+      generatedOutputs: createEmptyGeneratedOutputs(),
+    });
+
+    expect(envelope?.selectedScenario?.scenarioId).toBe('system_unvented');
+    expect(envelope?.selectedScenarioId).toBe('system_unvented');
+  });
+
+  it('buildVisitEnvelopeReadinessProjection maps topology from selected scenario', () => {
+    const envelope = buildVisitEnvelopeReadinessProjection({
+      visitId: 'visit_1',
+      acceptedScenario: buildScenario('system_unvented', 'system'),
+      generatedOutputs: createEmptyGeneratedOutputs(),
+    });
+
+    expect(envelope?.topology?.topologyId).toBe('sealed_system_unvented');
+  });
+
+  it('buildVisitEnvelopeReadinessProjection missing topology fails proposal readiness', () => {
+    const envelope = buildVisitEnvelopeReadinessProjection({
+      visitId: 'visit_1',
+      surveySnapshot: { postcode: 'SW1A 1AA' },
+      engineInputSnapshot: { postcode: 'SW1A 1AA' },
+      selectedScenarioId: 'unknown_scenario',
+      recommendationResult: { primary: 'unknown' },
+      customerSummary: { headline: 'Unknown option' },
+      generatedOutputs: createEmptyGeneratedOutputs(),
+    });
+
+    expect(envelope?.topology).toBeUndefined();
+    expect(isVisitEnvelopeProposalReady(envelope)).toBe(false);
+  });
+
+  it('buildVisitEnvelopeReadinessProjection preserves generated output refs', () => {
+    const envelope = buildVisitEnvelopeReadinessProjection({
+      visitId: 'visit_1',
+      generatedOutputs: {
+        ...createEmptyGeneratedOutputs(),
+        portal: {
+          generated: true,
+          generatedAt: '2026-05-20T10:00:00.000Z',
+          url: 'https://atlas.test/portal/demo?token=abc',
+          version: '1.0',
+          renderer: CANONICAL_PORTAL_RENDERER,
+        },
+      },
+    });
+
+    expect(envelope?.generatedOutputs?.portal.generated).toBe(true);
+    expect(envelope?.generatedOutputs?.portal.url).toContain('/portal/demo?token=');
+  });
+
+  it('buildVisitEnvelopeReadinessProjection keeps legacy recommendation shape compatible', () => {
+    const legacyRecommendation = { primary: 'combi' };
+    const envelope = buildVisitEnvelopeReadinessProjection({
+      visitId: 'visit_1',
+      surveySnapshot: { postcode: 'SW1A 1AA' },
+      engineInputSnapshot: { postcode: 'SW1A 1AA' },
+      recommendation: legacyRecommendation,
+      selectedScenarioId: 'combi',
+      customerSummary: { headline: 'Combi replacement' },
+      generatedOutputs: createEmptyGeneratedOutputs(),
+    });
+
+    expect(envelope?.recommendationResult).toEqual(legacyRecommendation);
+    expect(envelope?.recommendation).toEqual(legacyRecommendation);
+    expect(isVisitEnvelopeProposalReady(envelope)).toBe(true);
   });
 });
