@@ -445,10 +445,12 @@ export function VisitHomeDashboard({
     mergedOutputs,
     lifecycleState,
   );
+  const legacyReadinessMode = isLegacyVisitReadinessMode(visitEnvelope, lifecycleState);
   const portalOutputAvailable = projectedReadiness.portalOutputAvailable;
   const supportingPdfOutputAvailable = projectedReadiness.supportingPdfOutputAvailable;
-  const handoffOutputAvailable = mergedOutputs.handoff.generated;
-  const exportOutputAvailable = hasReachedExportedState ?? projectedReadiness.exportOutputAvailable;
+  const handoffOutputAvailable = projectedReadiness.handoffOutputAvailable
+    || (legacyReadinessMode && mergedOutputs.handoff.generated);
+  const exportOutputAvailable = projectedReadiness.exportOutputAvailable || hasReachedExportedState === true;
   const viewModel = buildVisitHomeViewModel({
     engineResult: engineOutput,
     acceptedScenario,
@@ -482,7 +484,6 @@ export function VisitHomeDashboard({
   const implementationStatus: CardStatus = viewModel.implementationStatus;
   const handoffStatus: CardStatus = viewModel.handoffStatus;
   const exportStatus: CardStatus = viewModel.exportStatus;
-  const legacyReadinessMode = isLegacyVisitReadinessMode(visitEnvelope, lifecycleState);
   const deliverySurfacesUnlocked = projectedReadiness.deliverySurfacesUnlocked
     || (legacyReadinessMode && viewModel.hasRecommendation);
 
