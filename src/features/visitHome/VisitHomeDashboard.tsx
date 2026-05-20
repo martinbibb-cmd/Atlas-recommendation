@@ -153,7 +153,7 @@ export interface VisitHomeDashboardProps {
   /** Trigger Atlas Scan package import (routes to receive-scan). */
   onImportScanPackage?: () => void;
   /**
-   * Import a JSON workflow export package from a file.
+   * Import a canonical Atlas visit package from a file.
    * Called with the File chosen by the user from the hidden file input.
    */
   onImportWorkflowPackage?: (file: File) => void;
@@ -425,7 +425,7 @@ export function VisitHomeDashboard({
   onExportPackage,
   onBack,
 }: VisitHomeDashboardProps) {
-  // ── Hidden file input ref for workflow package import ─────────────────────
+  // ── Hidden file input ref for visit package import ────────────────────────
   const workflowFileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Derive card statuses from available data ───────────────────────────────
@@ -695,7 +695,7 @@ export function VisitHomeDashboard({
     ? () => { window.open(portalUrl, '_blank', 'noopener,noreferrer'); }
     : undefined;
 
-  // ── Workflow package file input handler ───────────────────────────────────
+  // ── Visit package file input handler ──────────────────────────────────────
 
   function handleWorkflowFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -814,12 +814,12 @@ export function VisitHomeDashboard({
                   onClick={() => workflowFileInputRef.current?.click()}
                   data-testid="visit-home-import-workflow-cta"
                 >
-                  📂 Open workflow export package
+                  📂 Open visit package
                 </button>
-                <input
+                  <input
                   ref={workflowFileInputRef}
                   type="file"
-                  accept=".json,application/json"
+                  accept=".atlasvisit.json"
                   style={{ display: 'none' }}
                   aria-hidden="true"
                   data-testid="visit-home-workflow-file-input"
@@ -1160,14 +1160,14 @@ export function VisitHomeDashboard({
                       onClick={() => workflowFileInputRef.current?.click()}
                       data-testid="visit-home-import-workflow-controls-cta"
                     >
-                      📂 Open workflow package
+                      📂 Open visit package
                     </button>
                     {/* File input is shared with the empty-state one; only render if not already rendered */}
                     {hydrationState !== 'no-visit' && (
                       <input
                         ref={workflowFileInputRef}
                         type="file"
-                        accept=".json,application/json"
+                        accept=".atlasvisit.json"
                         style={{ display: 'none' }}
                         aria-hidden="true"
                         data-testid="visit-home-workflow-file-input-controls"

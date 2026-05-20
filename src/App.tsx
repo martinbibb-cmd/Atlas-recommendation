@@ -1593,8 +1593,12 @@ function AppInner() {
     const visitIdentity = pkg.visitIdentity;
     const rawVisitId = hasText(visitIdentity.visitId) ? visitIdentity.visitId : undefined;
     const rawVisitReference = hasText(visitIdentity.visitReference) ? visitIdentity.visitReference : undefined;
+    const importSuffix =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : Date.now().toString(36);
     const resolvedVisitId = rawVisitId
-      ?? `imported_${toSafeDownloadBaseName(rawVisitReference ?? 'visit').toLowerCase()}_${Date.now().toString(36)}`;
+      ?? `imported_${toSafeDownloadBaseName(rawVisitReference ?? 'visit').toLowerCase()}_${importSuffix}`;
     const resolvedVisitReference = rawVisitReference ?? formatVisitReference(resolvedVisitId);
     const recommendationSummary =
       pkg.proposalTruth?.customerSummary
@@ -1658,7 +1662,7 @@ function AppInner() {
     setLastOpenedFromHome(null);
     setLocalSessionStatus({
       tone: 'success',
-      message: `Imported ${resolvedVisitReference}.atlasvisit.json from ${importSurface === 'app_home_import' ? 'App Home' : 'Visit Home'}.`,
+      message: `Imported visit package ${resolvedVisitReference} from ${importSurface === 'app_home_import' ? 'App Home' : 'Visit Home'}.`,
     });
     setJourney('visit-home');
   }
@@ -2303,7 +2307,7 @@ function AppInner() {
       seen.add(key);
       entries.push({
         visitId,
-        label: `Imported package ${formatVisitReference(visitId)}`,
+        label: `Imported .atlasvisit ${formatVisitReference(visitId)}`,
         source: 'workflow',
       });
     }
@@ -3905,7 +3909,7 @@ function AppInner() {
           <input
             ref={appHomePackageInputRef}
             type="file"
-            accept=".atlasvisit.json,.json,application/json"
+            accept=".atlasvisit.json"
             style={{ display: 'none' }}
             aria-hidden="true"
             data-testid="app-home-import-package-input"
