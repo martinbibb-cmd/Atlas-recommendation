@@ -17,6 +17,26 @@ export {
 } from './buildCanonicalVisitPackage';
 
 export {
+  VISIT_PACKAGE_PDF_ENVELOPE_SCHEMA,
+  VISIT_PACKAGE_PDF_ENVELOPE_VERSION,
+  type VisitPackagePdfEnvelopeV1,
+  type VisitPackagePdfVisibleContentV1,
+} from './VisitPackagePdfEnvelopeV1';
+
+export {
+  buildVisitPackagePdfEnvelope,
+  type BuildVisitPackagePdfEnvelopeInput,
+} from './buildVisitPackagePdfEnvelope';
+
+export {
+  VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER,
+  VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER,
+  renderVisitPackagePdfDocument,
+  extractVisitPackagePdfEnvelope,
+  parseCanonicalVisitPackageFromPdfEnvelope,
+} from './visitPackagePdfEnvelopeTransport';
+
+export {
   parseCanonicalVisitPackage,
   validateCanonicalVisitPackage,
   type CanonicalVisitPackageValidationResult,
