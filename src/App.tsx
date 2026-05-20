@@ -3413,8 +3413,17 @@ function AppInner() {
                 const payload = buildPortalLaunchPayload(activeCanonicalPackage);
                 setActivePortalLaunchPayload(payload);
                 if (payload.generatedOutputMetadata.hasPortalUrl && payload.generatedOutputMetadata.portalUrl != null) {
-                  window.open(payload.generatedOutputMetadata.portalUrl, '_blank', 'noopener,noreferrer');
-                  return;
+                  // Validate that the URL is a safe absolute HTTP/HTTPS URL before opening it.
+                  // This prevents javascript: URLs or other injected schemes from compromised packages.
+                  try {
+                    const parsed = new URL(payload.generatedOutputMetadata.portalUrl);
+                    if (parsed.protocol === 'https:' || (import.meta.env.DEV && parsed.protocol === 'http:')) {
+                      window.open(payload.generatedOutputMetadata.portalUrl, '_blank', 'noopener,noreferrer');
+                      return;
+                    }
+                  } catch {
+                    // URL parse failure — fall through to in-app journey
+                  }
                 }
                 if (labEngineInput != null) {
                   setLastOpenedFromHome({ label: 'Customer portal (package)', journey: 'portal-from-package' });
@@ -3802,15 +3811,17 @@ function AppInner() {
           prioritiesState={labPrioritiesState}
         />
       )}
-      {journey === 'portal-from-package' && labEngineInput == null && (
-        <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Portal unavailable">
-          <p style={{ color: '#475569', marginBottom: 0 }}>
-            {activePortalLaunchPayload?.rebuildRequired === true
-              ? `Rebuild required: ${activePortalLaunchPayload.rebuildWarning ?? 'Re-import the visit package to restore portal content.'}`
-              : 'No recommendation data is available for this visit. Re-import the package to restore portal content.'}
-          </p>
-        </RetiredRouteNotice>
-      )}
+      {journey === 'portal-from-package' && labEngineInput == null && (() => {
+        const reimportNote = 'Re-import the visit package to restore portal content.';
+        const unavailableMessage = activePortalLaunchPayload?.rebuildRequired === true
+          ? `Rebuild required: ${activePortalLaunchPayload.rebuildWarning ?? reimportNote}`
+          : `No recommendation data is available for this visit. ${reimportNote}`;
+        return (
+          <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Portal unavailable">
+            <p style={{ color: '#475569', marginBottom: 0 }}>{unavailableMessage}</p>
+          </RetiredRouteNotice>
+        );
+      })()}
       {journey === 'printout' && (
         <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('library-pdf')}>
           <p style={{ color: '#475569', marginBottom: 0 }}>
