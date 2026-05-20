@@ -62,7 +62,7 @@ export interface VisitHomeViewModel {
   };
 }
 
-function deriveGeneratedOutputsFromAvailability(
+function availabilityToGeneratedOutputs(
   availability: BuildVisitHomeViewModelInput['outputAvailability'],
 ): Partial<GeneratedOutputsV1> {
   return {
@@ -100,7 +100,7 @@ function resolveSelectedSystem(
 export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): VisitHomeViewModel {
   const projectedReadiness = projectVisitReadiness(
     input.visitEnvelope,
-    input.generatedOutputs ?? deriveGeneratedOutputsFromAvailability(input.outputAvailability),
+    input.generatedOutputs ?? availabilityToGeneratedOutputs(input.outputAvailability),
     input.lifecycleState,
   );
   const legacyReadinessMode = isLegacyVisitReadinessMode(input.visitEnvelope, input.lifecycleState);

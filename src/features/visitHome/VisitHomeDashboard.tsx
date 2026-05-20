@@ -273,7 +273,7 @@ function buildSimulatorHighlights(
   ];
 }
 
-function mergeOutputsWithLegacyProps(input: {
+function normaliseGeneratedOutputsWithLegacyFlags(input: {
   generatedOutputs?: Partial<GeneratedOutputsV1>;
   hasPortalOutput?: boolean;
   hasSupportingPdfOutput?: boolean;
@@ -431,7 +431,7 @@ export function VisitHomeDashboard({
   // ── Derive card statuses from available data ───────────────────────────────
 
   const hasVisit = visitId != null;
-  const mergedOutputs = mergeOutputsWithLegacyProps({
+  const mergedOutputs = normaliseGeneratedOutputsWithLegacyFlags({
     generatedOutputs,
     hasPortalOutput,
     hasSupportingPdfOutput,

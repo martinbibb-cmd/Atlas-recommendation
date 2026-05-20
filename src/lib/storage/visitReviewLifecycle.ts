@@ -149,6 +149,8 @@ export function projectVisitReadiness(
   const hasEnvelopeRecommendationTruth = hasRecommendationPayload && hasTopologyPayload;
   const hasRecommendationByJourney =
     journeyState != null && isLifecycleAtLeast(journeyState, 'recommendation_ready');
+  // Envelope payload truth is canonical when present; journey state alone must not
+  // assert recommendation/topology truth in that mode.
   const recommendationReady = envelope != null
     ? hasEnvelopeRecommendationTruth
     : hasRecommendationByJourney;
