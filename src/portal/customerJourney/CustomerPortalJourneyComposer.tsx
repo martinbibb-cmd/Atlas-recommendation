@@ -650,9 +650,13 @@ export function CustomerPortalJourneyComposer({
     }),
     recommendationSummary,
     customerFacts: [
-      `${engineInput.occupancyCount ?? 0}-person household`,
-      formatBathroomCount(engineInput.bathroomCount ?? 0),
-    ],
+      engineInput.occupancyCount != null && engineInput.occupancyCount > 0
+        ? `${engineInput.occupancyCount}-person household`
+        : null,
+      engineInput.bathroomCount != null && engineInput.bathroomCount > 0
+        ? formatBathroomCount(engineInput.bathroomCount)
+        : null,
+    ].filter((value): value is string => value != null),
     liveExperienceExplanations: [
       engineResult.engineOutput.showerCompatibilityNote?.customerSummary,
       decision.dayToDayOutcomes[0],
