@@ -171,8 +171,10 @@ import type { VisitSelectorEntry } from './features/visitHome/VisitHomeDashboard
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import {
   buildCanonicalVisitPackage,
+  buildVisitPackagePdfEnvelope,
+  parseCanonicalVisitPackageFromPdfEnvelope,
   parseCanonicalVisitPackage,
-  serialiseCanonicalVisitPackage,
+  renderVisitPackagePdfDocument,
   type CanonicalVisitPackageV1,
 } from './features/visitPackage';
 import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
@@ -1681,7 +1683,10 @@ function AppInner() {
     importSurface: 'app_home_import' | 'visit_home_import',
   ) {
     try {
-      const parsed = parseCanonicalVisitPackage(await file.text());
+      const fileText = await file.text();
+      const parsed = file.name.toLowerCase().endsWith('.pdf')
+        ? parseCanonicalVisitPackageFromPdfEnvelope(fileText)
+        : parseCanonicalVisitPackage(fileText);
       if (!parsed.ok) {
         setLocalSessionStatus({
           tone: 'error',
@@ -1744,9 +1749,13 @@ function AppInner() {
         },
       },
     });
-    const json = serialiseCanonicalVisitPackage(pkg);
-    const filename = `${toSafeDownloadBaseName(visitReference ?? activeVisitId)}.atlasvisit.json`;
-    const blob = new Blob([json], { type: 'application/json' });
+    const pdfEnvelope = buildVisitPackagePdfEnvelope({
+      packagePayload: pkg,
+      generatedAt: now,
+    });
+    const pdf = renderVisitPackagePdfDocument(pdfEnvelope);
+    const filename = `${toSafeDownloadBaseName(visitReference ?? activeVisitId)}.atlasvisit.pdf`;
+    const blob = new Blob([pdf], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1768,7 +1777,7 @@ function AppInner() {
     }
     setLocalSessionStatus({
       tone: 'success',
-      message: `Exported ${filename}.`,
+      message: `Exported customer-safe package ${filename}.`,
     });
   }
 
@@ -3889,7 +3898,7 @@ function AppInner() {
             >
               <span className="app-entry-tile__title">Import package</span>
               <span className="app-entry-tile__copy">
-                Import a <code>.atlasvisit.json</code> package exported from Visit Home.
+                Import a <code>.atlasvisit.json</code> or <code>.atlasvisit.pdf</code> package exported from Visit Home.
               </span>
             </button>
             <button
@@ -3918,7 +3927,7 @@ function AppInner() {
           <input
             ref={appHomePackageInputRef}
             type="file"
-            accept=".atlasvisit.json"
+            accept=".atlasvisit.json,.atlasvisit.pdf,application/pdf"
             style={{ display: 'none' }}
             aria-hidden="true"
             data-testid="app-home-import-package-input"

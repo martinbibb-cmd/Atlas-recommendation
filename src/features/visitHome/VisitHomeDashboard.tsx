@@ -819,7 +819,7 @@ export function VisitHomeDashboard({
                   <input
                   ref={workflowFileInputRef}
                   type="file"
-                  accept=".atlasvisit.json"
+                  accept=".atlasvisit.json,.atlasvisit.pdf,application/pdf"
                   style={{ display: 'none' }}
                   aria-hidden="true"
                   data-testid="visit-home-workflow-file-input"
@@ -1167,7 +1167,7 @@ export function VisitHomeDashboard({
                       <input
                         ref={workflowFileInputRef}
                         type="file"
-                        accept=".atlasvisit.json"
+                        accept=".atlasvisit.json,.atlasvisit.pdf,application/pdf"
                         style={{ display: 'none' }}
                         aria-hidden="true"
                         data-testid="visit-home-workflow-file-input-controls"
