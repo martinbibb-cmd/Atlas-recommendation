@@ -188,6 +188,10 @@ import {
 import type { SurveySystemConditionV1 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import { assessLibraryPdfCustomerReadiness } from './library/portal/pdf/assessLibraryPdfCustomerReadiness';
 import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from './library/pdfQa';
+import {
+  buildPortalLaunchPayload,
+  type PortalLaunchPayloadV1,
+} from './features/portalLaunch';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -666,7 +670,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'portal-from-package' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 interface VisitRecommendationSnapshot {
   visitId: string;
@@ -1195,6 +1199,18 @@ function AppInner() {
   const appHomePackageInputRef = useRef<HTMLInputElement>(null);
   const [localSessionStatus, setLocalSessionStatus] = useState<{ tone: LocalSessionStatusTone; message: string } | null>(null);
   const [importedWorkflowVisitIds, setImportedWorkflowVisitIds] = useState<string[]>([]);
+  /**
+   * Canonical visit package most recently imported. Retained so the
+   * portal-from-package journey can build a PortalLaunchPayloadV1 without
+   * re-parsing the file. Cleared when the review session is cleared.
+   */
+  const [activeCanonicalPackage, setActiveCanonicalPackage] = useState<CanonicalVisitPackageV1 | null>(null);
+  /**
+   * Active portal launch payload constructed from the canonical package.
+   * Set by the onOpenPortalFromPackage handler and consumed by the
+   * 'portal-from-package' journey rendering. Cleared with the session.
+   */
+  const [activePortalLaunchPayload, setActivePortalLaunchPayload] = useState<PortalLaunchPayloadV1 | null>(null);
 
   /**
    * Resolves the active workspace from the browser host once on mount.
@@ -1769,6 +1785,8 @@ function AppInner() {
       portalVisitContext,
     });
     setLastOpenedFromHome(null);
+    setActiveCanonicalPackage(pkg);
+    setActivePortalLaunchPayload(null);
     setLocalSessionStatus({
       tone: 'success',
       message: `Imported visit package ${resolvedVisitReference} from ${IMPORT_SURFACE_LABELS[importSurface]}.`,
@@ -3382,6 +3400,8 @@ function AppInner() {
                 setLabPortalVisitContext(undefined);
                 setLabPortalUrl(undefined);
                 setLocalSessionStatus(null);
+                setActiveCanonicalPackage(null);
+                setActivePortalLaunchPayload(null);
                 setJourney('app-home');
               }}
               onOpenExistingVisit={() => setJourney('app-home')}
@@ -3389,6 +3409,25 @@ function AppInner() {
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
               onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
               onGenerateSupportingPdf={activeVisitId != null ? () => { void handleGenerateSupportingPdf(); } : undefined}
+              onOpenPortalFromPackage={activeCanonicalPackage != null ? () => {
+                const payload = buildPortalLaunchPayload(activeCanonicalPackage);
+                setActivePortalLaunchPayload(payload);
+                if (payload.generatedOutputMetadata.hasPortalUrl && payload.generatedOutputMetadata.portalUrl != null) {
+                  window.open(payload.generatedOutputMetadata.portalUrl, '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                if (labEngineInput != null) {
+                  setLastOpenedFromHome({ label: 'Customer portal (package)', journey: 'portal-from-package' });
+                  setJourney('portal-from-package');
+                } else {
+                  setLocalSessionStatus({
+                    tone: 'error',
+                    message: payload.rebuildRequired
+                      ? `Portal rebuild required: ${payload.rebuildWarning ?? 'Journey content unavailable.'}`
+                      : 'Portal content is packaged but engine input is missing. Re-import the package to restore it.',
+                  });
+                }
+              } : undefined}
               onStartDemoReview={import.meta.env.DEV ? handleStartDemoReview : undefined}
               onOpenDemoFixtures={import.meta.env.DEV ? () => setJourney('app-home') : undefined}
               visitSelectorEntries={visitSelectorEntries}
@@ -3750,6 +3789,27 @@ function AppInner() {
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}
         />
+      )}
+      {/* Portal from package — opens the portal experience using the packaged CustomerJourneyPackV1.
+          Renders via CanonicalPresentationRoute so the packaged content is consumed by the portal
+          journey composer. Back returns to visit-home. */}
+      {journey === 'portal-from-package' && labEngineInput != null && (
+        <CanonicalPresentationRoute
+          engineInput={labEngineInput}
+          onBack={() => setJourney('visit-home')}
+          onPrint={() => setJourney('library-pdf')}
+          heatLossState={labHeatLossState}
+          prioritiesState={labPrioritiesState}
+        />
+      )}
+      {journey === 'portal-from-package' && labEngineInput == null && (
+        <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Portal unavailable">
+          <p style={{ color: '#475569', marginBottom: 0 }}>
+            {activePortalLaunchPayload?.rebuildRequired === true
+              ? `Rebuild required: ${activePortalLaunchPayload.rebuildWarning ?? 'Re-import the visit package to restore portal content.'}`
+              : 'No recommendation data is available for this visit. Re-import the package to restore portal content.'}
+          </p>
+        </RetiredRouteNotice>
       )}
       {journey === 'printout' && (
         <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('library-pdf')}>

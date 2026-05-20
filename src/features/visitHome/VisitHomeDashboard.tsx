@@ -205,6 +205,13 @@ export interface VisitHomeDashboardProps {
    * When absent the Export package card is still shown but its CTA is disabled.
    */
   onExportPackage?: () => void;
+  /**
+   * Open the customer portal using the packaged CustomerJourneyPackV1.
+   * When provided and the packaged journey content is available (customerJourneyPack.generated),
+   * the portal card shows "Open customer portal →" and calls this handler instead of
+   * opening a portal URL or generating a new portal artifact.
+   */
+  onOpenPortalFromPackage?: () => void;
   /** Navigate back (typically to workspace-dashboard). */
   onBack: () => void;
 }
@@ -423,6 +430,7 @@ export function VisitHomeDashboard({
   onOpenHandoffReview,
   onOpenEngineerRoute,
   onExportPackage,
+  onOpenPortalFromPackage,
   onBack,
 }: VisitHomeDashboardProps) {
   // ── Hidden file input ref for visit package import ────────────────────────
@@ -699,6 +707,21 @@ export function VisitHomeDashboard({
   const handleOpenPortal = portalUrl != null
     ? () => { window.open(portalUrl, '_blank', 'noopener,noreferrer'); }
     : undefined;
+
+  // ── Packaged portal availability ──────────────────────────────────────────
+  // When the customerJourneyPack artifact is generated we can open the portal
+  // directly from the packaged content rather than requiring a fresh portal URL.
+
+  const packagedPortalAvailable = mergedOutputs.customerJourneyPack?.generated === true;
+  const effectivePortalCtaLabel = portalOutputAvailable || packagedPortalAvailable
+    ? 'Open customer portal →'
+    : 'Generate customer portal →';
+  const effectivePortalCta = (() => {
+    if (!canTriggerAction('customer-portal', portalStatus, 'not-blocked')) return undefined;
+    if (portalOutputAvailable) return handleOpenPortal;
+    if (packagedPortalAvailable && onOpenPortalFromPackage != null) return onOpenPortalFromPackage;
+    return onGenerateCustomerPortal;
+  })();
 
   // ── Visit package file input handler ──────────────────────────────────────
 
@@ -998,10 +1021,8 @@ export function VisitHomeDashboard({
                   actionableState={actionableStateFor('customer-portal', portalStatus)}
                   audience={['customer']}
                   source="workflow"
-                  ctaLabel={portalOutputAvailable ? 'Open customer portal →' : 'Generate customer portal →'}
-                  onCta={canTriggerAction('customer-portal', portalStatus, 'not-blocked')
-                    ? (portalOutputAvailable ? handleOpenPortal : onGenerateCustomerPortal)
-                    : undefined}
+                  ctaLabel={effectivePortalCtaLabel}
+                  onCta={effectivePortalCta}
                 />
               )}
 
