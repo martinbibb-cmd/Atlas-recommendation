@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense, useMemo, useRef } from 'react';
-import type { ReactNode } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -169,7 +169,12 @@ import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
 import type { VisitSelectorEntry } from './features/visitHome/VisitHomeDashboard';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
-import { readWorkflowPackageFile } from './features/visitHome/importVisitWorkflowPackage';
+import {
+  buildCanonicalVisitPackage,
+  parseCanonicalVisitPackage,
+  serialiseCanonicalVisitPackage,
+  type CanonicalVisitPackageV1,
+} from './features/visitPackage';
 import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import type { SurveySystemConditionV1 } from './library/portal/pdf/buildPortalJourneyPrintModel';
@@ -221,6 +226,29 @@ function formatVisitReference(visitId: string): string {
   if (normalized.length >= 8) return normalized.slice(-8);
   return normalized.padStart(8, '0');
 }
+
+function hasText(value: string | undefined): value is string {
+  return value != null && value.trim().length > 0;
+}
+
+function toSafeDownloadBaseName(value: string): string {
+  const trimmed = value.trim();
+  const safe = trimmed.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
+  return safe.length > 0 ? safe : 'atlas-visit';
+}
+
+function buildImportedVisitId(visitReference: string | undefined): string {
+  const importSuffix =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : Date.now().toString(36);
+  return `imported_${toSafeDownloadBaseName(visitReference ?? 'visit').toLowerCase()}_${importSuffix}`;
+}
+
+const IMPORT_SURFACE_LABELS: Record<'app_home_import' | 'visit_home_import', string> = {
+  app_home_import: 'App Home',
+  visit_home_import: 'Visit Home',
+};
 
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
 type LocalSessionStatusTone = 'success' | 'error';
@@ -1104,6 +1132,7 @@ function AppInner() {
   // that intentionally do not depend on the full snapshot object.
   const visitRecommendationSnapshotRef = useRef<VisitRecommendationSnapshot | null>(null);
   const pdfDocumentCounterRef = useRef(0);
+  const appHomePackageInputRef = useRef<HTMLInputElement>(null);
   const [localSessionStatus, setLocalSessionStatus] = useState<{ tone: LocalSessionStatusTone; message: string } | null>(null);
   const [importedWorkflowVisitIds, setImportedWorkflowVisitIds] = useState<string[]>([]);
 
@@ -1570,6 +1599,179 @@ function AppInner() {
     });
   }
 
+  function hydrateStateFromCanonicalVisitPackage(
+    pkg: CanonicalVisitPackageV1,
+    importSurface: 'app_home_import' | 'visit_home_import',
+  ) {
+    const visitIdentity = pkg.visitIdentity;
+    const rawVisitId = hasText(visitIdentity.visitId) ? visitIdentity.visitId : undefined;
+    const rawVisitReference = hasText(visitIdentity.visitReference) ? visitIdentity.visitReference : undefined;
+    const resolvedVisitId = rawVisitId
+      ?? buildImportedVisitId(rawVisitReference);
+    const resolvedVisitReference = rawVisitReference ?? formatVisitReference(resolvedVisitId);
+    const recommendationSummary =
+      pkg.proposalTruth?.customerSummary
+      ?? pkg.customerPropertyDetails.customerSummary;
+    const generatedOutputs = normaliseGeneratedOutputs(pkg.generatedOutputStatus?.generatedOutputs);
+    const recommendationReady = isRecommendationReadyForLifecycle({
+      decision: pkg.proposalTruth?.decision,
+      customerSummary: recommendationSummary,
+      acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
+      engineRecommendationPrimary: undefined,
+    });
+    const lifecycleState =
+      pkg.generatedOutputStatus?.lifecycleState
+      ?? deriveLifecycleStateFromSnapshot({
+        recommendationReady,
+        generatedOutputs,
+      });
+    const portalVisitContext = pkg.customerPropertyDetails.portalVisitContext != null
+      ? {
+          addressSummary: pkg.customerPropertyDetails.portalVisitContext.addressSummary,
+          personalDataMode: pkg.customerPropertyDetails.portalVisitContext.personalDataMode,
+        }
+      : undefined;
+    const importedAt = new Date().toISOString();
+
+    saveVisitAtomically(buildPersistedAtlasVisitV2({
+      visitId: resolvedVisitId,
+      visitReference: resolvedVisitReference,
+      updatedAt: importedAt,
+      survey: pkg.surveyDraft,
+      engineInputSnapshot: pkg.engineInputSnapshot,
+      decision: pkg.proposalTruth?.decision,
+      customerSummary: recommendationSummary,
+      acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
+      lifecycleState,
+      generatedOutputs,
+      portalVisitContext,
+    }));
+
+    setImportedWorkflowVisitIds((prev) =>
+      prev.includes(resolvedVisitId) ? prev : [...prev, resolvedVisitId],
+    );
+    setActiveVisitId(resolvedVisitId);
+    setLabEngineInput(pkg.engineInputSnapshot);
+    setLabFullSurveyModel(pkg.surveyDraft);
+    if (pkg.surveyDraft.fullSurvey?.heatLoss) setLabHeatLossState(pkg.surveyDraft.fullSurvey.heatLoss);
+    if (pkg.surveyDraft.fullSurvey?.priorities) setLabPrioritiesState(pkg.surveyDraft.fullSurvey.priorities);
+    if (pkg.surveyDraft.fullSurvey?.quotes) setLabQuotes(pkg.surveyDraft.fullSurvey.quotes);
+    setLabPortalVisitContext(portalVisitContext);
+    setLabPortalUrl(generatedOutputs.portal.url);
+    setVisitRecommendationSnapshot({
+      visitId: resolvedVisitId,
+      visitReference: resolvedVisitReference,
+      decision: pkg.proposalTruth?.decision,
+      customerSummary: recommendationSummary,
+      acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
+      lifecycleState,
+      generatedOutputs,
+      portalVisitContext,
+    });
+    setLastOpenedFromHome(null);
+    setLocalSessionStatus({
+      tone: 'success',
+      message: `Imported visit package ${resolvedVisitReference} from ${IMPORT_SURFACE_LABELS[importSurface]}.`,
+    });
+    setJourney('visit-home');
+  }
+
+  async function handleImportCanonicalVisitPackage(
+    file: File,
+    importSurface: 'app_home_import' | 'visit_home_import',
+  ) {
+    try {
+      const parsed = parseCanonicalVisitPackage(await file.text());
+      if (!parsed.ok) {
+        setLocalSessionStatus({
+          tone: 'error',
+          message: `Package import failed: ${parsed.errors.slice(0, 3).join('; ')}`,
+        });
+        return;
+      }
+      hydrateStateFromCanonicalVisitPackage(parsed.pkg, importSurface);
+    } catch {
+      setLocalSessionStatus({
+        tone: 'error',
+        message: `Package import failed: unable to read ${file.name}.`,
+      });
+    }
+  }
+
+  function handleExportCanonicalVisitPackage() {
+    if (activeVisitId == null || labFullSurveyModel == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Unable to export: no active visit survey in memory.' });
+      return;
+    }
+    const now = new Date().toISOString();
+    const currentSnapshot =
+      visitRecommendationSnapshot?.visitId === activeVisitId
+        ? visitRecommendationSnapshot
+        : null;
+    const visitReference = currentSnapshot?.visitReference ?? formatVisitReference(activeVisitId);
+    const pkg = buildCanonicalVisitPackage({
+      packageData: {
+        visitIdentity: {
+          visitId: activeVisitId,
+          visitReference,
+          updatedAt: now,
+        },
+        workspaceBrandReference: {
+          workspaceId: currentWorkspace?.workspaceId,
+          workspaceName: currentWorkspace?.name,
+          brandId: activeAtlasVisit?.brandId ?? workspaceBrandSession.activeBrandId,
+        },
+        customerPropertyDetails: {
+          customerSummary: currentSnapshot?.customerSummary,
+        },
+        surveyDraft: labFullSurveyModel,
+        engineInputSnapshot: labEngineInput,
+        proposalTruth: {
+          decision: currentSnapshot?.decision,
+          selectedScenarioId: currentSnapshot?.acceptedScenarioId,
+          customerSummary: currentSnapshot?.customerSummary,
+        },
+        generatedOutputStatus: {
+          lifecycleState: currentSnapshot?.lifecycleState,
+          generatedOutputs: currentSnapshot?.generatedOutputs,
+        },
+        importExportMetadata: {
+          exportedAt: now,
+          source: {
+            target: 'local_only',
+            surface: 'visit_home_export',
+          },
+        },
+      },
+    });
+    const json = serialiseCanonicalVisitPackage(pkg);
+    const filename = `${toSafeDownloadBaseName(visitReference ?? activeVisitId)}.atlasvisit.json`;
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (currentSnapshot != null) {
+      const nextSnapshot: VisitRecommendationSnapshot = {
+        ...currentSnapshot,
+        lifecycleState: dispatchVisitJourneyEvent(
+          currentSnapshot.lifecycleState,
+          { type: 'visit_exported' },
+        ),
+      };
+      persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
+    }
+    setLocalSessionStatus({
+      tone: 'success',
+      message: `Exported ${filename}.`,
+    });
+  }
+
   async function handleGenerateRecommendation() {
     if (activeVisitId == null) {
       setLocalSessionStatus({ tone: 'error', message: 'Cannot generate recommendation: no active visit.' });
@@ -1906,6 +2108,14 @@ function AppInner() {
     return [...visitIds];
   }
 
+  function handleAppHomeVisitPackageFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file != null) {
+      void handleImportCanonicalVisitPackage(file, 'app_home_import');
+    }
+    e.target.value = '';
+  }
+
   /**
    * View recommendation for a completed visit.
    *
@@ -2106,7 +2316,7 @@ function AppInner() {
       seen.add(key);
       entries.push({
         visitId,
-        label: `Workflow package ${formatVisitReference(visitId)}`,
+        label: `Imported .atlasvisit ${formatVisitReference(visitId)}`,
         source: 'workflow',
       });
     }
@@ -3005,16 +3215,7 @@ function AppInner() {
               hasSavedLocalVisit={hasSavedLocalVisit}
               onImportScanPackage={() => setJourney('receive-scan')}
               onImportWorkflowPackage={(file) => {
-                void readWorkflowPackageFile(file).then((result) => {
-                  if (result.status !== 'imported') return;
-                  setImportedWorkflowVisitIds((prev) =>
-                    prev.includes(result.visitId) ? prev : [...prev, result.visitId],
-                  );
-                  setActiveVisitId(result.visitId);
-                  if (result.engineInput != null) setLabEngineInput(result.engineInput);
-                  if (result.surveyModel != null) setLabFullSurveyModel(result.surveyModel);
-                  setJourney('visit-home');
-                });
+                void handleImportCanonicalVisitPackage(file, 'visit_home_import');
               }}
               onSaveLocally={activeVisitId != null && labFullSurveyModel != null ? handleSaveVisitLocally : undefined}
               onResumeLocalVisit={activeVisitId != null ? handleResumeLocalVisit : undefined}
@@ -3173,43 +3374,7 @@ function AppInner() {
                 setLastOpenedFromHome({ label: 'Engineer Route', journey: 'engineer' });
                 setJourney('engineer');
               } : undefined}
-              onExportPackage={(activeVisitId != null && labEngineInput != null) ? () => {
-                const visitRef = activeVisitId.slice(-8).toUpperCase();
-                const exportedAt = new Date().toISOString();
-                const filename = `atlas-visit-pack-${visitRef}-${exportedAt.slice(0, 10)}.json`;
-                const pack = {
-                  visitId: activeVisitId,
-                  visitReference: visitRef,
-                  exportedAt,
-                  engineInput: labEngineInput,
-                  surveyModel: labFullSurveyModel,
-                };
-                const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                if (labFullSurveyModel != null) {
-                  const currentSnapshot =
-                    visitRecommendationSnapshot?.visitId === activeVisitId
-                      ? visitRecommendationSnapshot
-                      : null;
-                  if (currentSnapshot != null) {
-                    const nextSnapshot: VisitRecommendationSnapshot = {
-                      ...currentSnapshot,
-                      lifecycleState: dispatchVisitJourneyEvent(
-                        currentSnapshot.lifecycleState,
-                        { type: 'visit_exported' },
-                      ),
-                    };
-                    persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
-                  }
-                }
-              } : undefined}
+              onExportPackage={activeVisitId != null && labFullSurveyModel != null ? handleExportCanonicalVisitPackage : undefined}
               onBack={() => setJourney('app-home')}
             />
           );
@@ -3720,6 +3885,16 @@ function AppInner() {
             <button
               type="button"
               className="app-entry-tile"
+              onClick={() => appHomePackageInputRef.current?.click()}
+            >
+              <span className="app-entry-tile__title">Import package</span>
+              <span className="app-entry-tile__copy">
+                Import a <code>.atlasvisit.json</code> package exported from Visit Home.
+              </span>
+            </button>
+            <button
+              type="button"
+              className="app-entry-tile"
               onClick={() => setJourney('user-profile')}
             >
               <span className="app-entry-tile__title">Profile</span>
@@ -3740,6 +3915,23 @@ function AppInner() {
               </button>
             )}
           </div>
+          <input
+            ref={appHomePackageInputRef}
+            type="file"
+            accept=".atlasvisit.json"
+            style={{ display: 'none' }}
+            aria-hidden="true"
+            data-testid="app-home-import-package-input"
+            onChange={handleAppHomeVisitPackageFileChange}
+          />
+          {localSessionStatus != null && (
+            <p
+              data-testid="app-home-import-package-status"
+              className={`app-entry-status app-entry-status--${localSessionStatus.tone}`}
+            >
+              {localSessionStatus.message}
+            </p>
+          )}
         </div>
       )}
       {/* Workspace Dashboard — the primary landing page for each workspace.
