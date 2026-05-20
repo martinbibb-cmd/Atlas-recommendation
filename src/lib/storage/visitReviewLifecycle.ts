@@ -104,7 +104,7 @@ export function isLifecycleAtLeast(
   return isAtlasVisitJourneyAtLeast(lifecycleState, threshold);
 }
 
-export type VisitEnvelopeReadinessProjectionV1 = Pick<VisitEnvelopeV1, 'recommendation' | 'topology' | 'pdfPayload'>;
+export type VisitEnvelopeReadinessProjectionV1 = Pick<VisitEnvelopeV1, 'recommendation' | 'topology'>;
 
 export interface VisitReadinessProjectionV1 {
   readonly recommendationReady: boolean;

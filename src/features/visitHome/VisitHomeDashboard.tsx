@@ -493,13 +493,13 @@ export function VisitHomeDashboard({
   const actionProjection = buildVisitHomeActionProjection({
     workspaceRole,
     workspacePermissions,
-      visitReadiness: {
-        hasVisit,
-        hasRecommendation: viewModel.hasRecommendation,
-        hasAcceptedScenario: viewModel.hasAcceptedScenario,
-        hasSurveyModel: viewModel.hasSurveyModel,
-        deliverySurfacesUnlocked,
-      },
+    visitReadiness: {
+      hasVisit,
+      hasRecommendation: viewModel.hasRecommendation,
+      hasAcceptedScenario: viewModel.hasAcceptedScenario,
+      hasSurveyModel: viewModel.hasSurveyModel,
+      deliverySurfacesUnlocked,
+    },
     libraryProjectionSafety: {
       unsafe: libraryUnsafe,
       reasons: libraryBlockReasons,
@@ -511,12 +511,12 @@ export function VisitHomeDashboard({
       unsafe: supportingPdfUnsafe,
       reasons: supportingPdfBlockReasons,
     },
-      availableOutputs: {
-        hasPortalUrl: projectedReadiness.portalOutputAvailable,
-        hasSupportingPdf: projectedReadiness.supportingPdfOutputAvailable,
-        hasHandoffReview: handoffOutputAvailable,
-        hasExportPackage: exportOutputAvailable,
-      },
+    availableOutputs: {
+      hasPortalUrl: projectedReadiness.portalOutputAvailable,
+      hasSupportingPdf: projectedReadiness.supportingPdfOutputAvailable,
+      hasHandoffReview: handoffOutputAvailable,
+      hasExportPackage: exportOutputAvailable,
+    },
   });
   const actionStateById = new Map(
     actionProjection.visibleActions.map((action) => [action.actionId, action]),

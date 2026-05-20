@@ -104,13 +104,14 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
     input.lifecycleState,
   );
   const legacyReadinessMode = isLegacyVisitReadinessMode(input.visitEnvelope, input.lifecycleState);
-  const hasRecommendation = input.lifecycleState != null || input.visitEnvelope != null
-    ? projectedReadiness.recommendationReady
-    : (
+  const hasRecommendation = legacyReadinessMode
+    ? (
+      projectedReadiness.recommendationReady ||
       input.acceptedScenario != null ||
       input.recommendationSummary != null ||
       input.engineResult?.recommendation?.primary != null
-    );
+    )
+    : projectedReadiness.recommendationReady;
   const hasAcceptedScenario = input.acceptedScenario != null;
   const hasSurveyModel = input.surveyModel != null;
   const hasVisit = input.workflowReadiness.hasVisit;
