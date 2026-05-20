@@ -7,6 +7,9 @@ import {
   type AtlasVisitJourneyEvent,
   type AtlasVisitJourneyState,
 } from './atlasVisitJourney';
+import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
+import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { ScenarioResult } from '../../contracts/ScenarioResult';
 
 export type VisitReviewLifecycleState = AtlasVisitJourneyState;
 export type VisitReviewLifecycleEvent = AtlasVisitJourneyEvent;
@@ -143,6 +146,97 @@ export interface VisitReadinessProjectionV1 {
   readonly supportingPdfOutputAvailable: boolean;
   readonly handoffOutputAvailable: boolean;
   readonly exportOutputAvailable: boolean;
+}
+
+export interface BuildVisitEnvelopeReadinessProjectionInputV1 {
+  readonly visitId: string;
+  readonly visitReference?: string;
+  readonly surveySnapshot?: unknown;
+  /** Legacy alias consumed by older callers; prefer surveySnapshot. */
+  readonly survey?: unknown;
+  readonly engineInputSnapshot?: unknown;
+  readonly acceptedScenario?: ScenarioResult;
+  /** Explicit selected scenario override; decision.recommendedScenarioId is used as fallback. */
+  readonly selectedScenarioId?: string;
+  readonly decision?: AtlasDecisionV1;
+  readonly customerSummary?: unknown;
+  readonly engineOutput?: EngineOutputV1;
+  readonly recommendationResult?: unknown;
+  /** Legacy alias consumed by older callers; prefer recommendationResult. */
+  readonly recommendation?: unknown;
+  readonly generatedOutputs?: Partial<GeneratedOutputsV1>;
+}
+
+function resolveVisitEnvelopeTopologyFromScenario(
+  acceptedScenario: ScenarioResult | undefined,
+  fallbackScenarioId: string | undefined,
+  engineOutput: EngineOutputV1 | undefined,
+): VisitEnvelopeReadinessProjectionV1['topology'] | undefined {
+  const topologyByScenarioId: Record<string, string> = {
+    combi: 'combi',
+    system: 'sealed_system_unvented',
+    system_unvented: 'sealed_system_unvented',
+    regular: 'open_vented',
+    open_vented: 'open_vented',
+    ashp: 'heat_pump',
+    heat_pump: 'heat_pump',
+    mixergy: 'mixergy',
+    system_mixergy: 'mixergy',
+    thermal_store: 'thermal_store',
+  };
+  const selectedScenarioId = acceptedScenario?.scenarioId ?? fallbackScenarioId;
+  if (selectedScenarioId != null) {
+    const normalized = selectedScenarioId.toLowerCase();
+    const mapped = topologyByScenarioId[normalized];
+    if (mapped != null) return { topologyId: mapped };
+  }
+  const scenarioType = acceptedScenario?.system.type;
+  if (scenarioType === 'combi') return { topologyId: 'combi' };
+  if (scenarioType === 'system') return { topologyId: 'sealed_system_unvented' };
+  if (scenarioType === 'regular') return { topologyId: 'open_vented' };
+  if (scenarioType === 'ashp') return { topologyId: 'heat_pump' };
+  const recommendationPrimary = engineOutput?.recommendation?.primary?.toLowerCase();
+  if (recommendationPrimary === 'combi') return { topologyId: 'combi' };
+  if (recommendationPrimary === 'system') return { topologyId: 'sealed_system_unvented' };
+  if (recommendationPrimary === 'regular') return { topologyId: 'open_vented' };
+  if (recommendationPrimary === 'ashp') return { topologyId: 'heat_pump' };
+  return undefined;
+}
+
+export function buildVisitEnvelopeReadinessProjection(
+  input: BuildVisitEnvelopeReadinessProjectionInputV1 | undefined,
+): VisitEnvelopeReadinessProjectionV1 | undefined {
+  if (input == null) return undefined;
+  const selectedScenarioId =
+    input.acceptedScenario?.scenarioId
+    ?? input.selectedScenarioId
+    ?? input.decision?.recommendedScenarioId;
+  const recommendationPayload =
+    input.recommendationResult
+    ?? input.recommendation
+    ?? input.decision
+    ?? input.customerSummary
+    ?? input.engineOutput;
+  return {
+    identity: {
+      visitId: input.visitId,
+      visitReference: input.visitReference,
+    },
+    surveySnapshot: input.surveySnapshot ?? input.survey,
+    survey: input.survey ?? input.surveySnapshot,
+    engineInputSnapshot: input.engineInputSnapshot,
+    recommendationResult: recommendationPayload,
+    recommendation: recommendationPayload,
+    selectedScenario: hasText(selectedScenarioId) ? { scenarioId: selectedScenarioId } : undefined,
+    selectedScenarioId,
+    topology: resolveVisitEnvelopeTopologyFromScenario(
+      input.acceptedScenario,
+      selectedScenarioId,
+      input.engineOutput,
+    ),
+    customerSummary: input.customerSummary,
+    generatedOutputs: normaliseGeneratedOutputs(input.generatedOutputs),
+  };
 }
 
 export function isLegacyVisitReadinessMode(
