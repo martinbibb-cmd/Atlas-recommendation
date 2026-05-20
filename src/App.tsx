@@ -150,6 +150,7 @@ import {
   transitionAtlasVisitJourney,
   withGeneratedPortalOutput,
   type GeneratedOutputsV1,
+  type VisitEnvelopeReadinessProjectionV1,
   type VisitReviewLifecycleEvent,
   type VisitReviewLifecycleState,
 } from './lib/storage/visitReviewLifecycle';
@@ -219,6 +220,30 @@ function formatVisitReference(visitId: string): string {
   const normalized = visitId.trim().toUpperCase();
   if (normalized.length >= 8) return normalized.slice(-8);
   return normalized.padStart(8, '0');
+}
+
+function resolveVisitTopologyFromScenario(
+  acceptedScenario: ScenarioResult | undefined,
+  fallbackScenarioId: string | undefined,
+  engineOutput: EngineOutputV1 | undefined,
+): VisitEnvelopeReadinessProjectionV1['topology'] | undefined {
+  const selectedScenarioId = acceptedScenario?.scenarioId ?? fallbackScenarioId;
+  if (selectedScenarioId != null) {
+    const normalized = selectedScenarioId.toLowerCase();
+    if (normalized.includes('mixergy')) return { topologyId: 'mixergy' };
+    if (normalized.includes('thermal')) return { topologyId: 'thermal_store' };
+  }
+  const scenarioType = acceptedScenario?.system.type;
+  if (scenarioType === 'combi') return { topologyId: 'combi' };
+  if (scenarioType === 'system') return { topologyId: 'sealed_system_unvented' };
+  if (scenarioType === 'regular') return { topologyId: 'open_vented' };
+  if (scenarioType === 'ashp') return { topologyId: 'heat_pump' };
+  const recommendationPrimary = engineOutput?.recommendation?.primary?.toLowerCase();
+  if (recommendationPrimary === 'combi') return { topologyId: 'combi' };
+  if (recommendationPrimary === 'system') return { topologyId: 'sealed_system_unvented' };
+  if (recommendationPrimary === 'regular') return { topologyId: 'open_vented' };
+  if (recommendationPrimary === 'ashp') return { topologyId: 'heat_pump' };
+  return undefined;
 }
 
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
@@ -2949,6 +2974,41 @@ function AppInner() {
             scenarios: visitHomeScenarios,
             portalVisitContext: canonicalSnapshot?.portalVisitContext ?? labPortalVisitContext,
           });
+          const visitEnvelope: VisitEnvelopeReadinessProjectionV1 | undefined =
+            canonicalSnapshot == null
+              ? undefined
+              : {
+                  identity: {
+                    visitId: canonicalSnapshot.visitId,
+                    visitReference: canonicalSnapshot.visitReference,
+                  },
+                  surveySnapshot: labFullSurveyModel,
+                  engineInputSnapshot: labEngineInput,
+                  recommendationResult:
+                    canonicalSnapshot.decision
+                    ?? canonicalSnapshot.customerSummary
+                    ?? canonicalSnapshot.engineOutput,
+                  recommendation:
+                    canonicalSnapshot.decision
+                    ?? canonicalSnapshot.customerSummary
+                    ?? canonicalSnapshot.engineOutput,
+                  selectedScenario:
+                    acceptedScenario != null
+                      ? { scenarioId: acceptedScenario.scenarioId }
+                      : canonicalSnapshot.acceptedScenarioId != null
+                      ? { scenarioId: canonicalSnapshot.acceptedScenarioId }
+                      : undefined,
+                  selectedScenarioId:
+                    canonicalSnapshot.acceptedScenarioId
+                    ?? canonicalSnapshot.decision?.recommendedScenarioId,
+                  topology: resolveVisitTopologyFromScenario(
+                    acceptedScenario,
+                    canonicalSnapshot.acceptedScenarioId ?? canonicalSnapshot.decision?.recommendedScenarioId,
+                    canonicalSnapshot.engineOutput,
+                  ),
+                  customerSummary: canonicalSnapshot.customerSummary,
+                  generatedOutputs,
+                };
 
           // ── Local save check — whether this visitId has a localStorage snapshot ──
           const hasSavedLocalVisit =
@@ -2975,6 +3035,7 @@ function AppInner() {
               recommendationSummary={visitHomeRecommendationSummary}
               surveyModel={labFullSurveyModel}
               lifecycleState={lifecycleState}
+              visitEnvelope={visitEnvelope}
               generatedOutputs={generatedOutputs}
               portalUrl={generatedOutputs.portal.url ?? labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}

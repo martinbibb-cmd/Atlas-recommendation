@@ -3,9 +3,30 @@ import {
   CANONICAL_PORTAL_RENDERER,
   buildGeneratedPortalArtifact,
   createEmptyGeneratedOutputs,
+  isVisitEnvelopeDeliveryReady,
+  isVisitEnvelopeProposalReady,
   projectVisitReadiness,
+  type VisitEnvelopeReadinessProjectionV1,
   withGeneratedPortalOutput,
 } from '../visitReviewLifecycle';
+
+function buildProposalReadyEnvelope(
+  overrides: Partial<VisitEnvelopeReadinessProjectionV1> = {},
+): VisitEnvelopeReadinessProjectionV1 {
+  return {
+    identity: { visitId: 'visit_1' },
+    surveySnapshot: { postcode: 'SW1A 1AA' },
+    engineInputSnapshot: { postcode: 'SW1A 1AA' },
+    recommendationResult: { primary: 'combi' },
+    recommendation: { primary: 'combi' },
+    selectedScenario: { scenarioId: 'combi' },
+    selectedScenarioId: 'combi',
+    topology: { topologyId: 'combi' },
+    customerSummary: { headline: 'Combi replacement' },
+    generatedOutputs: createEmptyGeneratedOutputs(),
+    ...overrides,
+  };
+}
 
 describe('visitReviewLifecycle', () => {
   it('buildGeneratedPortalArtifact uses the canonical customer portal renderer', () => {
@@ -45,10 +66,7 @@ describe('visitReviewLifecycle', () => {
 
   it('presentation_ready without portal output keeps portal generation required', () => {
     const projection = projectVisitReadiness(
-      {
-        recommendation: {} as never,
-        topology: { topologyId: 'combi' },
-      },
+      buildProposalReadyEnvelope(),
       createEmptyGeneratedOutputs(),
       'presentation_ready',
     );
@@ -59,10 +77,7 @@ describe('visitReviewLifecycle', () => {
 
   it('recommendation_ready does not unlock delivery surfaces', () => {
     const projection = projectVisitReadiness(
-      {
-        recommendation: {} as never,
-        topology: { topologyId: 'combi' },
-      },
+      buildProposalReadyEnvelope(),
       createEmptyGeneratedOutputs(),
       'recommendation_ready',
     );
@@ -73,10 +88,7 @@ describe('visitReviewLifecycle', () => {
 
   it('legacy-normalised presentation_ready preserves generated output semantics', () => {
     const projection = projectVisitReadiness(
-      {
-        recommendation: {} as never,
-        topology: { topologyId: 'combi' },
-      },
+      buildProposalReadyEnvelope(),
       {
         ...createEmptyGeneratedOutputs(),
         portal: { generated: true },
@@ -91,16 +103,12 @@ describe('visitReviewLifecycle', () => {
 
   it('journey state cannot override missing envelope recommendation/topology payloads', () => {
     const missingRecommendationProjection = projectVisitReadiness(
-      {
-        topology: { topologyId: 'combi' },
-      } as never,
+      buildProposalReadyEnvelope({ recommendationResult: undefined, recommendation: undefined }),
       createEmptyGeneratedOutputs(),
       'presentation_ready',
     );
     const missingTopologyProjection = projectVisitReadiness(
-      {
-        recommendation: {} as never,
-      } as never,
+      buildProposalReadyEnvelope({ topology: undefined }),
       createEmptyGeneratedOutputs(),
       'presentation_ready',
     );
@@ -109,5 +117,32 @@ describe('visitReviewLifecycle', () => {
     expect(missingRecommendationProjection.presentationSurfacesUnlocked).toBe(false);
     expect(missingTopologyProjection.recommendationReady).toBe(false);
     expect(missingTopologyProjection.presentationSurfacesUnlocked).toBe(false);
+  });
+
+  it('isVisitEnvelopeProposalReady returns false for incomplete envelopes', () => {
+    expect(isVisitEnvelopeProposalReady(undefined)).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ identity: undefined }))).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ surveySnapshot: undefined, survey: undefined }))).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ engineInputSnapshot: undefined }))).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ recommendationResult: undefined, recommendation: undefined }))).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ selectedScenario: undefined, selectedScenarioId: undefined }))).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ topology: undefined }))).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ customerSummary: undefined }))).toBe(false);
+    expect(isVisitEnvelopeProposalReady(buildProposalReadyEnvelope({ generatedOutputs: undefined }))).toBe(false);
+  });
+
+  it('isVisitEnvelopeDeliveryReady requires proposal truth plus generated artifacts', () => {
+    const proposalReady = buildProposalReadyEnvelope();
+    expect(isVisitEnvelopeDeliveryReady(proposalReady, createEmptyGeneratedOutputs())).toBe(false);
+    expect(
+      isVisitEnvelopeDeliveryReady(proposalReady, {
+        ...createEmptyGeneratedOutputs(),
+        portal: { generated: true },
+      }),
+    ).toBe(true);
+    expect(isVisitEnvelopeDeliveryReady(buildProposalReadyEnvelope({ topology: undefined }), {
+      ...createEmptyGeneratedOutputs(),
+      portal: { generated: true },
+    })).toBe(false);
   });
 });
