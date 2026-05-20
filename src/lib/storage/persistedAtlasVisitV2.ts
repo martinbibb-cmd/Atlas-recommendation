@@ -155,6 +155,24 @@ function readCanonicalPayload(parsed: Partial<PersistedAtlasVisitV2>): Canonical
   return canonical;
 }
 
+function fallback<T>(primary: T | undefined, secondary: T | undefined): T | undefined {
+  return primary ?? secondary;
+}
+
+function withLastExportedAt(
+  canonical: CanonicalVisitPayloadV1 | undefined,
+  lastExportedAt: string | undefined,
+): CanonicalVisitPayloadV1 | undefined {
+  if (canonical == null || lastExportedAt == null) return canonical;
+  return {
+    ...canonical,
+    saveExportStatus: {
+      lastSavedAt: canonical.saveExportStatus?.lastSavedAt ?? canonical.visitIdentity.updatedAt,
+      lastExportedAt,
+    },
+  };
+}
+
 function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
   if (!raw) return null;
   try {
@@ -164,21 +182,17 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
     if (typeof parsed.visitId !== 'string' || parsed.visitId.trim().length === 0) return null;
     if (typeof parsed.updatedAt !== 'string' || parsed.updatedAt.trim().length === 0) return null;
     const canonical = readCanonicalPayload(parsed);
-    const survey = parsed.survey ?? canonical?.surveyDraftInput;
+    const survey = fallback(parsed.survey, canonical?.surveyDraftInput);
     if (!survey || typeof survey !== 'object') return null;
-    const engineInputSnapshot = parsed.engineInputSnapshot ?? canonical?.engineInputSnapshot;
-    const engine = parsed.engine ?? canonical?.recommendationResult?.engineOutput;
-    const decision = parsed.decision ?? canonical?.recommendationResult?.decision;
-    const scenarios = parsed.scenarios ?? canonical?.recommendationResult?.scenarios;
-    const customerSummary = parsed.customerSummary ?? canonical?.recommendationResult?.customerSummary;
-    const acceptedScenarioId =
-      parsed.acceptedScenarioId
-      ?? canonical?.recommendationResult?.selectedRecommendationId;
-    const portalVisitContext =
-      parsed.portalVisitContext
-      ?? canonical?.presentationHandoff?.portalVisitContext;
+    const engineInputSnapshot = fallback(parsed.engineInputSnapshot, canonical?.engineInputSnapshot);
+    const engine = fallback(parsed.engine, canonical?.recommendationResult?.engineOutput);
+    const decision = fallback(parsed.decision, canonical?.recommendationResult?.decision);
+    const scenarios = fallback(parsed.scenarios, canonical?.recommendationResult?.scenarios);
+    const customerSummary = fallback(parsed.customerSummary, canonical?.recommendationResult?.customerSummary);
+    const acceptedScenarioId = fallback(parsed.acceptedScenarioId, canonical?.recommendationResult?.selectedRecommendationId);
+    const portalVisitContext = fallback(parsed.portalVisitContext, canonical?.presentationHandoff?.portalVisitContext);
     const generatedOutputs = normaliseGeneratedOutputs(
-      parsed.generatedOutputs ?? canonical?.presentationHandoff?.generatedOutputs,
+      fallback(parsed.generatedOutputs, canonical?.presentationHandoff?.generatedOutputs),
     );
     const recommendationReady = isRecommendationReadyForLifecycle({
       decision,
@@ -195,7 +209,7 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       });
     const normalised = buildPersistedAtlasVisitV2({
       visitId: parsed.visitId,
-      visitReference: parsed.visitReference ?? canonical?.visitIdentity.visitReference,
+      visitReference: fallback(parsed.visitReference, canonical?.visitIdentity.visitReference),
       updatedAt: parsed.updatedAt,
       survey,
       engineInputSnapshot,
@@ -207,31 +221,13 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       lifecycleState,
       generatedOutputs,
       portalVisitContext,
-      scanCapture: parsed.scanCapture ?? canonical?.scanEvidenceReferences,
+      scanCapture: fallback(parsed.scanCapture, canonical?.scanEvidenceReferences),
       quotePlan: parsed.quotePlan,
     });
-    if (canonical?.saveExportStatus?.lastExportedAt != null) {
-      const existingSaveExportStatus = normalised.canonical?.saveExportStatus;
-      const existingCanonical = normalised.canonical;
-      normalised.canonical = {
-        schemaVersion: '1.0',
-        visitIdentity: existingCanonical?.visitIdentity ?? {
-          visitId: parsed.visitId,
-          visitReference: parsed.visitReference,
-          updatedAt: parsed.updatedAt,
-        },
-        customerPropertyFacts: existingCanonical?.customerPropertyFacts,
-        surveyDraftInput: existingCanonical?.surveyDraftInput ?? survey,
-        scanEvidenceReferences: existingCanonical?.scanEvidenceReferences,
-        engineInputSnapshot: existingCanonical?.engineInputSnapshot,
-        recommendationResult: existingCanonical?.recommendationResult,
-        presentationHandoff: existingCanonical?.presentationHandoff,
-        saveExportStatus: {
-          lastSavedAt: existingSaveExportStatus?.lastSavedAt ?? parsed.updatedAt,
-          lastExportedAt: canonical.saveExportStatus.lastExportedAt,
-        },
-      };
-    }
+    normalised.canonical = withLastExportedAt(
+      normalised.canonical,
+      canonical?.saveExportStatus?.lastExportedAt,
+    );
     return {
       ...normalised,
       // preserve any unknown top-level fields for migration-safe reads
