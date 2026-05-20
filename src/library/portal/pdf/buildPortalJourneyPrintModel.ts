@@ -28,6 +28,8 @@ import type { AtlasMvpContentEntryV1 } from '../../content/atlasMvpContentMapReg
 import { getEducationalAnimationById, resolveEducationalAnimationId } from '../../animations';
 import type { LibraryContentProjectionV1 } from '../../projections/LibraryContentProjectionV1';
 import type { PortalVisitContextV1 } from '../../../contracts/PortalVisitContextV1';
+import type { VisitEnvelopeV1 } from '../../../contracts/VisitEnvelopeV1';
+import type { CanonicalVisitPackageV1 } from '../../../features/visitPackage/CanonicalVisitPackageV1';
 import { resolvePortalAddressSummary } from '../../../lib/portal/portalVisitContext';
 import {
   buildSystemProtectionSummary,
@@ -137,6 +139,36 @@ export interface BuildPortalJourneyPrintModelInputV1 {
    * included in the model as systemProtection.
    */
   surveyCondition?: SurveySystemConditionV1;
+}
+
+export const CUSTOMER_JOURNEY_PACK_SCHEMA = 'atlas.customer-journey-pack' as const;
+export const CUSTOMER_JOURNEY_PACK_VERSION = '1.0' as const;
+
+export interface CustomerJourneyLibraryExplainerV1 {
+  contentId: string;
+  title: string;
+  summary: string;
+}
+
+export interface CustomerJourneyPortalDeepDiveV1 {
+  recommendationSummary: string;
+  liveExperienceExplanations: string[];
+  librarySupportedExplainers: CustomerJourneyLibraryExplainerV1[];
+  nextSteps: PortalJourneyPrintNextStepV1[];
+  sections: PortalJourneyPrintSectionV1[];
+}
+
+export interface CustomerJourneyPackV1 {
+  schema: typeof CUSTOMER_JOURNEY_PACK_SCHEMA;
+  version: typeof CUSTOMER_JOURNEY_PACK_VERSION;
+  staticPdf: PortalJourneyPrintModelV1;
+  portalDeepDive: CustomerJourneyPortalDeepDiveV1;
+}
+
+export interface BuildCustomerJourneyPackInputV1 extends Partial<BuildPortalJourneyPrintModelInputV1> {
+  canonicalVisitPackage?: CanonicalVisitPackageV1;
+  visitEnvelope?: VisitEnvelopeV1;
+  liveExperienceExplanations?: readonly string[];
 }
 
 // ─── Living-with-your-system static content ───────────────────────────────────
@@ -492,16 +524,95 @@ function buildHeatPumpSectionsAndNextSteps(
   return { sections, nextSteps, qrDestinations };
 }
 
-// ─── Builder ──────────────────────────────────────────────────────────────────
+function hasText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
 
-/**
- * buildPortalJourneyPrintModel
- *
- * Produces a PortalJourneyPrintModelV1 for the open-vented → sealed + unvented
- * path.  All content is sourced from atlasMvpContentMapRegistry so the PDF
- * stays in sync with the portal journey sections.
- */
-export function buildPortalJourneyPrintModel(
+function inferRecommendationSummary(input: BuildCustomerJourneyPackInputV1): string {
+  if (hasText(input.recommendationSummary)) return input.recommendationSummary;
+  const customerSummary = input.canonicalVisitPackage?.proposalTruth?.customerSummary;
+  if (customerSummary != null && hasText(customerSummary.recommendedSystemLabel) && hasText(customerSummary.headline)) {
+    return `${customerSummary.recommendedSystemLabel}: ${customerSummary.headline}`;
+  }
+  const visitRecommendation = input.visitEnvelope?.recommendation;
+  if (visitRecommendation != null && visitRecommendation.reasons.length > 0) {
+    return visitRecommendation.reasons[0].text;
+  }
+  return 'Your recommendation is based on surveyed home conditions and Atlas evidence.';
+}
+
+function inferCustomerFacts(input: BuildCustomerJourneyPackInputV1): string[] {
+  if (Array.isArray(input.customerFacts)) return [...input.customerFacts];
+  const fromPackage = input.canonicalVisitPackage;
+  if (fromPackage != null) {
+    const facts: string[] = [];
+    const survey = fromPackage.surveyDraft;
+    if (survey.occupancyCount != null && survey.occupancyCount > 0) {
+      facts.push(`${survey.occupancyCount}-person household`);
+    }
+    if (survey.bathroomCount != null && survey.bathroomCount > 0) {
+      facts.push(`${survey.bathroomCount} bathroom${survey.bathroomCount === 1 ? '' : 's'}`);
+    }
+    for (const fact of fromPackage.customerPropertyDetails.propertyFacts ?? []) {
+      if (hasText(fact)) facts.push(fact);
+    }
+    return facts.slice(0, 3);
+  }
+  return [];
+}
+
+export function inferCustomerJourneyTypeFromSystemContext(input: {
+  currentHeatSourceType?: string;
+  currentSystemHeatingType?: string;
+  dhwStorageType?: string;
+}): NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']> {
+  if (input.currentHeatSourceType === 'ashp') return 'heat_pump';
+  if (input.currentSystemHeatingType === 'open_vented' || input.dhwStorageType === 'vented') {
+    return 'open_vented';
+  }
+  return 'generic_recommendation_summary';
+}
+
+function inferJourneyType(input: BuildCustomerJourneyPackInputV1): NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']> {
+  if (input.journeyType != null) return input.journeyType;
+  return inferCustomerJourneyTypeFromSystemContext({
+    currentHeatSourceType: input.canonicalVisitPackage?.engineInputSnapshot?.currentHeatSourceType,
+    currentSystemHeatingType: input.canonicalVisitPackage?.surveyDraft?.currentSystem?.heatingSystemType,
+    dhwStorageType: input.canonicalVisitPackage?.engineInputSnapshot?.dhwStorageType,
+  });
+}
+
+function inferLibrarySupportedExplainers(sections: readonly PortalJourneyPrintSectionV1[]): CustomerJourneyLibraryExplainerV1[] {
+  const explainers: CustomerJourneyLibraryExplainerV1[] = [];
+  const seen = new Set<string>();
+  for (const section of sections) {
+    if (seen.has(section.contentId)) continue;
+    seen.add(section.contentId);
+    const entry = atlasMvpContentMapRegistry.find((candidate) => candidate.id === section.contentId);
+    if (entry == null) continue;
+    explainers.push({
+      contentId: entry.id,
+      title: entry.title,
+      summary: entry.oneLineSummary,
+    });
+  }
+  return explainers;
+}
+
+function inferLiveExperienceExplanations(
+  input: BuildCustomerJourneyPackInputV1,
+  staticPdfModel: PortalJourneyPrintModelV1,
+): string[] {
+  if (input.liveExperienceExplanations != null) {
+    return [...input.liveExperienceExplanations].filter(hasText).slice(0, 4);
+  }
+  return staticPdfModel.sections
+    .map((section) => section.keyTakeaway)
+    .filter(hasText)
+    .slice(0, 4);
+}
+
+function buildPortalJourneyPrintModelCore(
   input: BuildPortalJourneyPrintModelInputV1,
 ): PortalJourneyPrintModelV1 {
   const {
@@ -521,7 +632,6 @@ export function buildPortalJourneyPrintModel(
     includeInPrint: includeAddressSummaryInPrint,
   });
 
-  // ── Cover ──────────────────────────────────────────────────────────────────
   const MAX_COVER_CUSTOMER_FACTS = 3;
   const cover: PortalJourneyPrintCoverV1 = {
     title: 'Your recommendation',
@@ -538,10 +648,6 @@ export function buildPortalJourneyPrintModel(
       ? buildOpenVentedSectionsAndNextSteps(selectedSet)
       : buildGenericRecommendationContent();
 
-  // When an audience projection is provided, suppress any section whose
-  // contentId is not in visibleConcepts.  Static-content sections (e.g.
-  // 'living_with_your_system') that do not correspond to a registry concept
-  // are always retained.
   const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
   const sections = audienceProjection != null
     ? rawSections.filter((section) => {
@@ -550,11 +656,7 @@ export function buildPortalJourneyPrintModel(
       })
     : rawSections;
 
-  // ── Page estimate ──────────────────────────────────────────────────────────
-  // Cover (1) + one page per section + next steps (with QR area) = estimated pages
   const usedPages = Math.min(1 + sections.length + 1, 7);
-
-  // ── System protection ──────────────────────────────────────────────────────
   const systemProtection = surveyCondition != null
     ? buildSystemProtectionSummary(surveyCondition)
     : undefined;
@@ -570,4 +672,48 @@ export function buildPortalJourneyPrintModel(
       maxPages: 7,
     },
   };
+}
+
+export function buildCustomerJourneyPack(
+  input: BuildCustomerJourneyPackInputV1,
+): CustomerJourneyPackV1 {
+  const staticPdf = buildPortalJourneyPrintModelCore({
+    selectedSectionIds: input.selectedSectionIds ?? [],
+    recommendationSummary: inferRecommendationSummary(input),
+    customerFacts: inferCustomerFacts(input),
+    brandProfile: input.brandProfile,
+    journeyType: inferJourneyType(input),
+    audienceProjection: input.audienceProjection,
+    visitContext: input.visitContext,
+    includeAddressSummaryInPrint: input.includeAddressSummaryInPrint,
+    surveyCondition: input.surveyCondition,
+  });
+
+  return {
+    schema: CUSTOMER_JOURNEY_PACK_SCHEMA,
+    version: CUSTOMER_JOURNEY_PACK_VERSION,
+    staticPdf,
+    portalDeepDive: {
+      recommendationSummary: staticPdf.cover.summary,
+      liveExperienceExplanations: inferLiveExperienceExplanations(input, staticPdf),
+      librarySupportedExplainers: inferLibrarySupportedExplainers(staticPdf.sections),
+      nextSteps: staticPdf.nextSteps,
+      sections: staticPdf.sections,
+    },
+  };
+}
+
+// ─── Builder ──────────────────────────────────────────────────────────────────
+
+/**
+ * buildPortalJourneyPrintModel
+ *
+ * Produces a PortalJourneyPrintModelV1 for the open-vented → sealed + unvented
+ * path.  All content is sourced from atlasMvpContentMapRegistry so the PDF
+ * stays in sync with the portal journey sections.
+ */
+export function buildPortalJourneyPrintModel(
+  input: BuildPortalJourneyPrintModelInputV1,
+): PortalJourneyPrintModelV1 {
+  return buildCustomerJourneyPack(input).staticPdf;
 }

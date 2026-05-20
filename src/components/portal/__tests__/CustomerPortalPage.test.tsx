@@ -59,6 +59,14 @@ const STORED_HOT_WATER_INPUT: EngineInputV2_3 = {
   peakConcurrentOutlets: 2,
 };
 
+const OPEN_VENTED_EXPLAINER_INPUT: EngineInputV2_3 = {
+  ...STUB_ENGINE_INPUT,
+  currentHeatSourceType: 'regular',
+  dhwStorageType: 'vented',
+  bathroomCount: 2,
+  occupancyCount: 4,
+};
+
 function mockFetchSuccess(report: ReportDetail) {
   global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: () => Promise.resolve({ ok: true, report }) } as unknown as Response);
 }
@@ -189,6 +197,34 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
     expect(screen.getByText('Boiler ageing and response')).toBeTruthy();
     expect(screen.getByText('What each route would feel like at home')).toBeTruthy();
+  });
+
+  it('renders library-supported explainers in the daily-use section', async () => {
+    mockFetchSuccess({
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        surveyData: OPEN_VENTED_EXPLAINER_INPUT as unknown as ReportDetail['payload']['surveyData'],
+        engineInput: OPEN_VENTED_EXPLAINER_INPUT,
+      },
+    });
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
+    expect(screen.getAllByText('Library-supported explainer').length).toBeGreaterThan(0);
+  });
+
+  it('caps rendered library-supported explainers at three cards', async () => {
+    mockFetchSuccess({
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        surveyData: OPEN_VENTED_EXPLAINER_INPUT as unknown as ReportDetail['payload']['surveyData'],
+        engineInput: OPEN_VENTED_EXPLAINER_INPUT,
+      },
+    });
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
+    expect(screen.getAllByText('Library-supported explainer').length).toBeLessThanOrEqual(3);
   });
 
   it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {
