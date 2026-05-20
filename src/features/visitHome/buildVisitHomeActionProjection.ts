@@ -34,6 +34,7 @@ export interface BuildVisitHomeActionProjectionInput {
     readonly hasRecommendation: boolean;
     readonly hasAcceptedScenario: boolean;
     readonly hasSurveyModel: boolean;
+    readonly deliverySurfacesUnlocked?: boolean;
   };
   readonly libraryProjectionSafety: {
     readonly unsafe: boolean;
@@ -58,6 +59,7 @@ const BLOCK_REASON_LIBRARY_SAFETY = 'Library safety needs review';
 const BLOCK_REASON_PDF_SAFETY = 'Library PDF readiness blocked';
 const BLOCK_REASON_VISIT_MISSING = 'Visit data missing';
 const BLOCK_REASON_RECOMMENDATION_MISSING = 'Recommendation not available';
+const BLOCK_REASON_PRESENTATION_NOT_READY = 'Presentation not ready';
 
 const ALL_ACTION_IDS: readonly VisitHomeActionId[] = [
   'review-survey',
@@ -133,6 +135,7 @@ function buildStatusAndReason(
   const hasVisit = input.visitReadiness.hasVisit;
   const hasAcceptedScenario = input.visitReadiness.hasAcceptedScenario;
   const hasSurveyModel = input.visitReadiness.hasSurveyModel;
+  const deliverySurfacesUnlocked = input.visitReadiness.deliverySurfacesUnlocked ?? hasRecommendation;
   const libraryUnsafe = input.libraryProjectionSafety.unsafe;
   const supportingPdfUnsafe = input.supportingPdfReadiness?.unsafe === true;
   const supportingPdfReasons = input.supportingPdfReadiness?.reasons ?? [];
@@ -179,11 +182,13 @@ function buildStatusAndReason(
     case 'resolve-follow-ups':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!deliverySurfacesUnlocked) return { status: 'blocked', reasonLabel: BLOCK_REASON_PRESENTATION_NOT_READY };
       if (input.availableOutputs.hasHandoffReview) return { status: 'ready' };
       return { status: 'needs-review' };
     case 'export-handover-package':
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
+      if (!deliverySurfacesUnlocked) return { status: 'blocked', reasonLabel: BLOCK_REASON_PRESENTATION_NOT_READY };
       return input.availableOutputs.hasExportPackage
         ? { status: 'ready' }
         : { status: 'needs-review' };

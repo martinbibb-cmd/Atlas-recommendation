@@ -145,7 +145,6 @@ import {
   DEFAULT_ATLAS_VISIT_JOURNEY_STATE,
   createEmptyGeneratedOutputs,
   deriveLifecycleStateFromSnapshot,
-  isLifecycleAtLeast,
   isRecommendationReadyForLifecycle,
   normaliseGeneratedOutputs,
   transitionAtlasVisitJourney,
@@ -2976,11 +2975,8 @@ function AppInner() {
               recommendationSummary={visitHomeRecommendationSummary}
               surveyModel={labFullSurveyModel}
               lifecycleState={lifecycleState}
+              generatedOutputs={generatedOutputs}
               portalUrl={generatedOutputs.portal.url ?? labPortalUrl}
-              hasPortalOutput={generatedOutputs.portal.generated}
-              hasSupportingPdfOutput={generatedOutputs.pdf.generated}
-              hasHandoffOutput={generatedOutputs.handoff.generated}
-              hasReachedExportedState={isLifecycleAtLeast(lifecycleState, 'exported')}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}

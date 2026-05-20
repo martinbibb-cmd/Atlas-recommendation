@@ -7,6 +7,7 @@ import {
   type AtlasVisitJourneyEvent,
   type AtlasVisitJourneyState,
 } from './atlasVisitJourney';
+import type { VisitEnvelopeV1 } from '../../contracts/VisitEnvelopeV1';
 
 export type VisitReviewLifecycleState = AtlasVisitJourneyState;
 export type VisitReviewLifecycleEvent = AtlasVisitJourneyEvent;
@@ -101,6 +102,77 @@ export function isLifecycleAtLeast(
   threshold: VisitReviewLifecycleState,
 ): boolean {
   return isAtlasVisitJourneyAtLeast(lifecycleState, threshold);
+}
+
+export type VisitEnvelopeReadinessProjectionV1 = Pick<VisitEnvelopeV1, 'recommendation' | 'topology'>;
+
+export interface VisitReadinessProjectionV1 {
+  readonly recommendationReady: boolean;
+  readonly hasRecommendationPayload: boolean;
+  readonly hasTopologyPayload: boolean;
+  readonly presentationSurfacesUnlocked: boolean;
+  readonly deliverySurfacesUnlocked: boolean;
+  readonly portalOutputAvailable: boolean;
+  readonly supportingPdfOutputAvailable: boolean;
+  readonly handoffOutputAvailable: boolean;
+  readonly exportOutputAvailable: boolean;
+}
+
+export function isLegacyVisitReadinessMode(
+  envelope: VisitEnvelopeReadinessProjectionV1 | undefined,
+  journeyState: VisitReviewLifecycleState | undefined,
+): boolean {
+  return envelope == null && journeyState == null;
+}
+
+/**
+ * Projects visit workflow readiness from three canonical inputs:
+ * - `envelope`: visit truth payloads (recommendation/topology/pdf payload),
+ * - `generatedOutputs`: produced artifact registry,
+ * - `journeyState`: lifecycle position in the state machine.
+ *
+ * Precedence:
+ * - If `envelope` is provided, recommendation truth is derived strictly from
+ *   envelope payloads (recommendation + topology), never from journey state.
+ * - Artifact availability is always derived from `generatedOutputs`.
+ * - Journey state controls progression unlocks (presentation/delivery/export),
+ *   but does not invent missing envelope payload truth.
+ */
+export function projectVisitReadiness(
+  envelope: VisitEnvelopeReadinessProjectionV1 | undefined,
+  generatedOutputs: Partial<GeneratedOutputsV1> | undefined,
+  journeyState: VisitReviewLifecycleState | undefined,
+): VisitReadinessProjectionV1 {
+  const outputs = normaliseGeneratedOutputs(generatedOutputs);
+  const hasRecommendationPayload = envelope?.recommendation != null;
+  const hasTopologyPayload = envelope?.topology != null;
+  const hasEnvelopeRecommendationTruth = hasRecommendationPayload && hasTopologyPayload;
+  const hasRecommendationByJourney =
+    journeyState != null && isLifecycleAtLeast(journeyState, 'recommendation_ready');
+  // Envelope payload truth is canonical when present; journey state alone must not
+  // assert recommendation/topology truth in that mode.
+  const recommendationReady = envelope != null
+    ? hasEnvelopeRecommendationTruth
+    : hasRecommendationByJourney;
+  const presentationSurfacesUnlocked = recommendationReady && (
+    journeyState == null
+      || isLifecycleAtLeast(journeyState, 'recommendation_ready')
+  );
+  const deliverySurfacesUnlocked = recommendationReady && (
+    journeyState != null
+      && isLifecycleAtLeast(journeyState, 'presentation_ready')
+  );
+  return {
+    recommendationReady,
+    hasRecommendationPayload,
+    hasTopologyPayload,
+    presentationSurfacesUnlocked,
+    deliverySurfacesUnlocked,
+    portalOutputAvailable: outputs.portal.generated,
+    supportingPdfOutputAvailable: outputs.pdf.generated,
+    handoffOutputAvailable: deliverySurfacesUnlocked && outputs.handoff.generated,
+    exportOutputAvailable: journeyState != null && isLifecycleAtLeast(journeyState, 'exported'),
+  };
 }
 
 export function deriveLifecycleStateFromSnapshot(input: {

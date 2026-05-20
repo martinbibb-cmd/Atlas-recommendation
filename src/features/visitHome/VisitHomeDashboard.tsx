@@ -31,7 +31,15 @@ import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { WorkspaceMemberPermission } from '../../auth/profile';
-import type { VisitReviewLifecycleState } from '../../lib/storage/visitReviewLifecycle';
+import {
+  createEmptyGeneratedOutputs,
+  isLegacyVisitReadinessMode,
+  normaliseGeneratedOutputs,
+  projectVisitReadiness,
+  type GeneratedOutputsV1,
+  type VisitEnvelopeReadinessProjectionV1,
+  type VisitReviewLifecycleState,
+} from '../../lib/storage/visitReviewLifecycle';
 import {
   buildVisitHomeActionProjection,
   type VisitHomeActionId,
@@ -84,6 +92,10 @@ export interface VisitHomeDashboardProps {
   portalUrl?: string;
   /** Canonical lifecycle state restored from persisted visit snapshot. */
   lifecycleState?: VisitReviewLifecycleState;
+  /** Optional visit envelope readiness payload slice (recommendation/topology/pdfPayload). */
+  visitEnvelope?: VisitEnvelopeReadinessProjectionV1;
+  /** Canonical generated output registry restored from persisted visit snapshot. */
+  generatedOutputs?: Partial<GeneratedOutputsV1>;
   /** Canonical generated output flags restored from persisted visit snapshot. */
   hasPortalOutput?: boolean;
   hasSupportingPdfOutput?: boolean;
@@ -261,6 +273,24 @@ function buildSimulatorHighlights(
   ];
 }
 
+function normaliseGeneratedOutputsWithLegacyFlags(input: {
+  generatedOutputs?: Partial<GeneratedOutputsV1>;
+  hasPortalOutput?: boolean;
+  hasSupportingPdfOutput?: boolean;
+  hasHandoffOutput?: boolean;
+  portalUrl?: string;
+  hasPrintSummary: boolean;
+  hasHandoffHandler: boolean;
+}): GeneratedOutputsV1 {
+  const fallbackOutputs = createEmptyGeneratedOutputs();
+  return normaliseGeneratedOutputs({
+    ...(input.generatedOutputs ?? fallbackOutputs),
+    portal: input.generatedOutputs?.portal ?? { generated: input.hasPortalOutput ?? (input.portalUrl != null) },
+    pdf: input.generatedOutputs?.pdf ?? { generated: input.hasSupportingPdfOutput ?? input.hasPrintSummary },
+    handoff: input.generatedOutputs?.handoff ?? { generated: input.hasHandoffOutput ?? input.hasHandoffHandler },
+  });
+}
+
 function DashboardCard({
   'data-testid': testId,
   icon,
@@ -354,6 +384,8 @@ export function VisitHomeDashboard({
   surveyModel,
   portalUrl,
   lifecycleState,
+  visitEnvelope,
+  generatedOutputs,
   hasPortalOutput,
   hasSupportingPdfOutput,
   hasHandoffOutput,
@@ -399,10 +431,26 @@ export function VisitHomeDashboard({
   // ── Derive card statuses from available data ───────────────────────────────
 
   const hasVisit = visitId != null;
-  const portalOutputAvailable = hasPortalOutput ?? (portalUrl != null);
-  const supportingPdfOutputAvailable = hasSupportingPdfOutput ?? (onPrintSummary != null);
-  const handoffOutputAvailable = hasHandoffOutput ?? (onOpenHandoffReview != null);
-  const exportOutputAvailable = hasReachedExportedState ?? (onExportPackage != null);
+  const mergedOutputs = normaliseGeneratedOutputsWithLegacyFlags({
+    generatedOutputs,
+    hasPortalOutput,
+    hasSupportingPdfOutput,
+    hasHandoffOutput,
+    portalUrl,
+    hasPrintSummary: onPrintSummary != null,
+    hasHandoffHandler: onOpenHandoffReview != null,
+  });
+  const projectedReadiness = projectVisitReadiness(
+    visitEnvelope,
+    mergedOutputs,
+    lifecycleState,
+  );
+  const legacyReadinessMode = isLegacyVisitReadinessMode(visitEnvelope, lifecycleState);
+  const portalOutputAvailable = projectedReadiness.portalOutputAvailable;
+  const supportingPdfOutputAvailable = projectedReadiness.supportingPdfOutputAvailable;
+  const handoffOutputAvailable = projectedReadiness.handoffOutputAvailable
+    || (legacyReadinessMode && mergedOutputs.handoff.generated);
+  const exportOutputAvailable = projectedReadiness.exportOutputAvailable || hasReachedExportedState === true;
   const viewModel = buildVisitHomeViewModel({
     engineResult: engineOutput,
     acceptedScenario,
@@ -410,6 +458,8 @@ export function VisitHomeDashboard({
     surveyModel,
     recommendationSummary,
     lifecycleState,
+    visitEnvelope,
+    generatedOutputs: mergedOutputs,
     workflowReadiness: {
       hasVisit,
       libraryUnsafe,
@@ -417,8 +467,8 @@ export function VisitHomeDashboard({
       installationSpecOptionCount,
     },
     outputAvailability: {
-      hasPortalOutput: portalOutputAvailable,
-      hasSupportingPdfOutput: supportingPdfOutputAvailable,
+      hasPortalOutput: projectedReadiness.portalOutputAvailable,
+      hasSupportingPdfOutput: projectedReadiness.supportingPdfOutputAvailable,
       hasHandoffReview: handoffOutputAvailable,
       hasExportPackage: exportOutputAvailable,
     },
@@ -434,6 +484,8 @@ export function VisitHomeDashboard({
   const implementationStatus: CardStatus = viewModel.implementationStatus;
   const handoffStatus: CardStatus = viewModel.handoffStatus;
   const exportStatus: CardStatus = viewModel.exportStatus;
+  const deliverySurfacesUnlocked = projectedReadiness.deliverySurfacesUnlocked
+    || (legacyReadinessMode && viewModel.hasRecommendation);
 
   const portalDescription = viewModel.portalMissingMessage
     ?? 'Customer-safe portal for review before sharing.';
@@ -447,6 +499,7 @@ export function VisitHomeDashboard({
       hasRecommendation: viewModel.hasRecommendation,
       hasAcceptedScenario: viewModel.hasAcceptedScenario,
       hasSurveyModel: viewModel.hasSurveyModel,
+      deliverySurfacesUnlocked,
     },
     libraryProjectionSafety: {
       unsafe: libraryUnsafe,
@@ -460,8 +513,8 @@ export function VisitHomeDashboard({
       reasons: supportingPdfBlockReasons,
     },
     availableOutputs: {
-      hasPortalUrl: portalOutputAvailable,
-      hasSupportingPdf: supportingPdfOutputAvailable,
+      hasPortalUrl: projectedReadiness.portalOutputAvailable,
+      hasSupportingPdf: projectedReadiness.supportingPdfOutputAvailable,
       hasHandoffReview: handoffOutputAvailable,
       hasExportPackage: exportOutputAvailable,
     },

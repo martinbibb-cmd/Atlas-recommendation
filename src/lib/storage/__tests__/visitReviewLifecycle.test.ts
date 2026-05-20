@@ -3,6 +3,7 @@ import {
   CANONICAL_PORTAL_RENDERER,
   buildGeneratedPortalArtifact,
   createEmptyGeneratedOutputs,
+  projectVisitReadiness,
   withGeneratedPortalOutput,
 } from '../visitReviewLifecycle';
 
@@ -40,5 +41,73 @@ describe('visitReviewLifecycle', () => {
     expect(outputs.portal.url).toContain('/portal/demo?token=');
     expect(outputs.pdf.generated).toBe(true);
     expect(outputs.pdf.documentId).toBe('pdf-123');
+  });
+
+  it('presentation_ready without portal output keeps portal generation required', () => {
+    const projection = projectVisitReadiness(
+      {
+        recommendation: {} as never,
+        topology: { topologyId: 'combi' },
+      },
+      createEmptyGeneratedOutputs(),
+      'presentation_ready',
+    );
+
+    expect(projection.presentationSurfacesUnlocked).toBe(true);
+    expect(projection.portalOutputAvailable).toBe(false);
+  });
+
+  it('recommendation_ready does not unlock delivery surfaces', () => {
+    const projection = projectVisitReadiness(
+      {
+        recommendation: {} as never,
+        topology: { topologyId: 'combi' },
+      },
+      createEmptyGeneratedOutputs(),
+      'recommendation_ready',
+    );
+
+    expect(projection.deliverySurfacesUnlocked).toBe(false);
+    expect(projection.exportOutputAvailable).toBe(false);
+  });
+
+  it('legacy-normalised presentation_ready preserves generated output semantics', () => {
+    const projection = projectVisitReadiness(
+      {
+        recommendation: {} as never,
+        topology: { topologyId: 'combi' },
+      },
+      {
+        ...createEmptyGeneratedOutputs(),
+        portal: { generated: true },
+        pdf: { generated: true },
+      },
+      'presentation_ready',
+    );
+
+    expect(projection.portalOutputAvailable).toBe(true);
+    expect(projection.supportingPdfOutputAvailable).toBe(true);
+  });
+
+  it('journey state cannot override missing envelope recommendation/topology payloads', () => {
+    const missingRecommendationProjection = projectVisitReadiness(
+      {
+        topology: { topologyId: 'combi' },
+      } as never,
+      createEmptyGeneratedOutputs(),
+      'presentation_ready',
+    );
+    const missingTopologyProjection = projectVisitReadiness(
+      {
+        recommendation: {} as never,
+      } as never,
+      createEmptyGeneratedOutputs(),
+      'presentation_ready',
+    );
+
+    expect(missingRecommendationProjection.recommendationReady).toBe(false);
+    expect(missingRecommendationProjection.presentationSurfacesUnlocked).toBe(false);
+    expect(missingTopologyProjection.recommendationReady).toBe(false);
+    expect(missingTopologyProjection.presentationSurfacesUnlocked).toBe(false);
   });
 });
