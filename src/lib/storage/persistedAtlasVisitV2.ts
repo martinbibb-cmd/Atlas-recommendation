@@ -21,8 +21,10 @@ export interface CanonicalVisitPayloadV1 {
     visitReference?: string;
     updatedAt: string;
   };
+  /** Stable customer/property facts captured for recommendation and handoff projections. */
   customerPropertyFacts?: unknown;
   surveyDraftInput: FullSurveyModelV1;
+  /** References to captured scan/media evidence linked to this visit. */
   scanEvidenceReferences?: unknown;
   engineInputSnapshot?: EngineInputV2_3;
   recommendationResult?: {
@@ -229,19 +231,9 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       canonical?.saveExportStatus?.lastExportedAt,
     );
     return {
-      ...normalised,
-      // preserve any unknown top-level fields for migration-safe reads
+      // preserve unknown top-level fields for migration-safe reads
       ...(parsed as PersistedAtlasVisitV2),
-      survey,
-      engineInputSnapshot,
-      engine,
-      decision,
-      scenarios,
-      customerSummary,
-      acceptedScenarioId,
-      lifecycleState,
-      generatedOutputs,
-      portalVisitContext,
+      ...normalised,
       canonical: normalised.canonical,
     };
   } catch {
