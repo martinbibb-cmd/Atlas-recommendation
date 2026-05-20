@@ -33,6 +33,7 @@ import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { WorkspaceMemberPermission } from '../../auth/profile';
 import {
   createEmptyGeneratedOutputs,
+  isLegacyVisitReadinessMode,
   normaliseGeneratedOutputs,
   projectVisitReadiness,
   type GeneratedOutputsV1,
@@ -272,6 +273,24 @@ function buildSimulatorHighlights(
   ];
 }
 
+function mergeOutputsWithLegacyProps(input: {
+  generatedOutputs?: Partial<GeneratedOutputsV1>;
+  hasPortalOutput?: boolean;
+  hasSupportingPdfOutput?: boolean;
+  hasHandoffOutput?: boolean;
+  portalUrl?: string;
+  hasPrintSummary: boolean;
+  hasHandoffHandler: boolean;
+}): GeneratedOutputsV1 {
+  const fallbackOutputs = createEmptyGeneratedOutputs();
+  return normaliseGeneratedOutputs({
+    ...(input.generatedOutputs ?? fallbackOutputs),
+    portal: input.generatedOutputs?.portal ?? { generated: input.hasPortalOutput ?? (input.portalUrl != null) },
+    pdf: input.generatedOutputs?.pdf ?? { generated: input.hasSupportingPdfOutput ?? input.hasPrintSummary },
+    handoff: input.generatedOutputs?.handoff ?? { generated: input.hasHandoffOutput ?? input.hasHandoffHandler },
+  });
+}
+
 function DashboardCard({
   'data-testid': testId,
   icon,
@@ -412,12 +431,14 @@ export function VisitHomeDashboard({
   // ── Derive card statuses from available data ───────────────────────────────
 
   const hasVisit = visitId != null;
-  const fallbackOutputs = createEmptyGeneratedOutputs();
-  const mergedOutputs = normaliseGeneratedOutputs({
-    ...(generatedOutputs ?? fallbackOutputs),
-    portal: generatedOutputs?.portal ?? { generated: hasPortalOutput ?? (portalUrl != null) },
-    pdf: generatedOutputs?.pdf ?? { generated: hasSupportingPdfOutput ?? (onPrintSummary != null) },
-    handoff: generatedOutputs?.handoff ?? { generated: hasHandoffOutput ?? (onOpenHandoffReview != null) },
+  const mergedOutputs = mergeOutputsWithLegacyProps({
+    generatedOutputs,
+    hasPortalOutput,
+    hasSupportingPdfOutput,
+    hasHandoffOutput,
+    portalUrl,
+    hasPrintSummary: onPrintSummary != null,
+    hasHandoffHandler: onOpenHandoffReview != null,
   });
   const projectedReadiness = projectVisitReadiness(
     visitEnvelope,
@@ -461,8 +482,9 @@ export function VisitHomeDashboard({
   const implementationStatus: CardStatus = viewModel.implementationStatus;
   const handoffStatus: CardStatus = viewModel.handoffStatus;
   const exportStatus: CardStatus = viewModel.exportStatus;
+  const legacyReadinessMode = isLegacyVisitReadinessMode(visitEnvelope, lifecycleState);
   const deliverySurfacesUnlocked = projectedReadiness.deliverySurfacesUnlocked
-    || (lifecycleState == null && visitEnvelope == null && viewModel.hasRecommendation);
+    || (legacyReadinessMode && viewModel.hasRecommendation);
 
   const portalDescription = viewModel.portalMissingMessage
     ?? 'Customer-safe portal for review before sharing.';

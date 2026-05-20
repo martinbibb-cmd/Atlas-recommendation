@@ -118,6 +118,26 @@ export interface VisitReadinessProjectionV1 {
   readonly exportOutputAvailable: boolean;
 }
 
+export function isLegacyVisitReadinessMode(
+  envelope: VisitEnvelopeReadinessProjectionV1 | undefined,
+  journeyState: VisitReviewLifecycleState | undefined,
+): boolean {
+  return envelope == null && journeyState == null;
+}
+
+/**
+ * Projects visit workflow readiness from three canonical inputs:
+ * - `envelope`: visit truth payloads (recommendation/topology/pdf payload),
+ * - `generatedOutputs`: produced artifact registry,
+ * - `journeyState`: lifecycle position in the state machine.
+ *
+ * Precedence:
+ * - If `envelope` is provided, recommendation truth is derived strictly from
+ *   envelope payloads (recommendation + topology), never from journey state.
+ * - Artifact availability is always derived from `generatedOutputs`.
+ * - Journey state controls progression unlocks (presentation/delivery/export),
+ *   but does not invent missing envelope payload truth.
+ */
 export function projectVisitReadiness(
   envelope: VisitEnvelopeReadinessProjectionV1 | undefined,
   generatedOutputs: Partial<GeneratedOutputsV1> | undefined,

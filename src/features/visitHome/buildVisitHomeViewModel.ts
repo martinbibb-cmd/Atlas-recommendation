@@ -3,6 +3,7 @@ import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import {
+  isLegacyVisitReadinessMode,
   projectVisitReadiness,
   type GeneratedOutputsV1,
   type VisitEnvelopeReadinessProjectionV1,
@@ -61,6 +62,17 @@ export interface VisitHomeViewModel {
   };
 }
 
+function deriveGeneratedOutputsFromAvailability(
+  availability: BuildVisitHomeViewModelInput['outputAvailability'],
+): Partial<GeneratedOutputsV1> {
+  return {
+    portal: { generated: availability.hasPortalOutput },
+    pdf: { generated: availability.hasSupportingPdfOutput },
+    handoff: { generated: availability.hasHandoffReview },
+    simulatorReview: { generated: false },
+  };
+}
+
 function titleCaseRecommendation(systemId: string): string {
   const normalized = systemId
     .replace(/[_-]+/g, ' ')
@@ -88,14 +100,10 @@ function resolveSelectedSystem(
 export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): VisitHomeViewModel {
   const projectedReadiness = projectVisitReadiness(
     input.visitEnvelope,
-    input.generatedOutputs ?? {
-      portal: { generated: input.outputAvailability.hasPortalOutput },
-      pdf: { generated: input.outputAvailability.hasSupportingPdfOutput },
-      handoff: { generated: input.outputAvailability.hasHandoffReview },
-      simulatorReview: { generated: false },
-    },
+    input.generatedOutputs ?? deriveGeneratedOutputsFromAvailability(input.outputAvailability),
     input.lifecycleState,
   );
+  const legacyReadinessMode = isLegacyVisitReadinessMode(input.visitEnvelope, input.lifecycleState);
   const hasRecommendation = input.lifecycleState != null || input.visitEnvelope != null
     ? projectedReadiness.recommendationReady
     : (
@@ -118,12 +126,12 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
   // even if the full recommendation pipeline has not completed.
   const canUnlockReviewSurfaces = hasVisit && (
     projectedReadiness.presentationSurfacesUnlocked
-    || (input.lifecycleState == null && input.visitEnvelope == null && hasAcceptedScenario)
+    || (legacyReadinessMode && hasAcceptedScenario)
   );
   const deliverySurfacesUnlocked = projectedReadiness.deliverySurfacesUnlocked
-    || (input.lifecycleState == null && input.visitEnvelope == null && hasRecommendation);
+    || (legacyReadinessMode && hasRecommendation);
   const handoffOutputAvailable = projectedReadiness.handoffOutputAvailable
-    || (input.lifecycleState == null && input.visitEnvelope == null && input.outputAvailability.hasHandoffReview);
+    || (legacyReadinessMode && input.outputAvailability.hasHandoffReview);
 
   const recommendationStatus: VisitHomeSurfaceStatus = hasRecommendation
     ? 'ready'
