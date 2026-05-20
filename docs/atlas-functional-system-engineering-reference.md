@@ -83,8 +83,8 @@ When specific data is unavailable, Atlas should use these defaults, derived from
 - **Target mixed draw-off (shower) temperature:** 40°C.
 - **Standard shower flow rate:** 9 L/min.
 - **Standard bath draw-off:** 100 litres at 40°C.
-- **Primary \Delta T (Gas Boiler):** 20°C.
-- **Primary \Delta T (Heat Pump):** 5°C.
+- **Primary \Delta T (Gas Boiler):** 20°C at typical design/full-load conditions.
+- **Primary \Delta T (Heat Pump):** 5°C as a typical low-temperature design baseline; actual operating \Delta T may vary with emitter type and control strategy.
 - **Property heat loss:** 50 W/m² (post-2000 build) to 100 W/m² (pre-1970 uninsulated).
 
 ## 5. User-Entered vs Estimated vs Manufacturer Values
@@ -166,7 +166,7 @@ Recommended Level 3 screening defaults for domestic checks:
 - **22mm primary pipework:** use **0.30 L/s** as the default screening threshold.
 - **28mm primary pipework:** use **0.50 L/s** as the default screening threshold.
 
-These values are conservative screening assumptions only. Exact hydraulic acceptance still depends on actual internal bore, pipe length, fittings, and allowable velocity.
+These values are conservative screening assumptions only and broadly assume a domestic design velocity close to **1.0 m/s** once nominal bore allowances are applied. Exact hydraulic acceptance still depends on actual internal bore, pipe length, fittings, and allowable velocity.
 
 ## 9. Expansion, Pressure, and Safety Modelling
 
@@ -225,7 +225,7 @@ The engine must throw an error if a topology violates these rules:
 
 - Mains cold water connected to a closed primary circuit without a filling loop and double check valve.
 - Unvented cylinder drawn without a G3 discharge path (Tundish).
-- **Error:** Heat pump connected directly to microbore (10mm) pipework where the required design flow exceeds the microbore screening limit.
+- **Error:** Heat pump primary distribution pipework, or any branch expected to carry the full heat-pump design flow, is microbore (10mm) and exceeds the microbore screening limit.
 - Heat pump systems using a low-loss header/buffer and secondary pump must still warn if the downstream emitter-side microbore branches remain flow-limited.
 - Primary flow temperature set lower than DHW target temperature for an indirect cylinder.
 
