@@ -10,6 +10,7 @@ import {
 
 export const VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_BEGIN';
 export const VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_END';
+const MAX_PDF_CONTENT_LINES = 42;
 
 type VisitPackagePdfEnvelopeExtractionResult =
   | { readonly ok: true; readonly envelope: VisitPackagePdfEnvelopeV1 }
@@ -77,7 +78,7 @@ function buildPdfContentLines(envelope: VisitPackagePdfEnvelopeV1): readonly str
   }
   lines.push('', envelope.visibleContent.generatedOutputStatus, '', 'Open with Atlas');
   lines.push(...envelope.visibleContent.openWithAtlasInstructions.map((line) => `- ${line}`));
-  return lines.slice(0, 42);
+  return lines.slice(0, MAX_PDF_CONTENT_LINES);
 }
 
 export function renderVisitPackagePdfDocument(envelope: VisitPackagePdfEnvelopeV1): string {
