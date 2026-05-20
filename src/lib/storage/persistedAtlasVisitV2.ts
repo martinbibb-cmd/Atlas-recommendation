@@ -211,10 +211,23 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       quotePlan: parsed.quotePlan,
     });
     if (canonical?.saveExportStatus?.lastExportedAt != null) {
+      const existingSaveExportStatus = normalised.canonical?.saveExportStatus;
+      const existingCanonical = normalised.canonical;
       normalised.canonical = {
-        ...normalised.canonical,
+        schemaVersion: '1.0',
+        visitIdentity: existingCanonical?.visitIdentity ?? {
+          visitId: parsed.visitId,
+          visitReference: parsed.visitReference,
+          updatedAt: parsed.updatedAt,
+        },
+        customerPropertyFacts: existingCanonical?.customerPropertyFacts,
+        surveyDraftInput: existingCanonical?.surveyDraftInput ?? survey,
+        scanEvidenceReferences: existingCanonical?.scanEvidenceReferences,
+        engineInputSnapshot: existingCanonical?.engineInputSnapshot,
+        recommendationResult: existingCanonical?.recommendationResult,
+        presentationHandoff: existingCanonical?.presentationHandoff,
         saveExportStatus: {
-          ...normalised.canonical.saveExportStatus,
+          lastSavedAt: existingSaveExportStatus?.lastSavedAt ?? parsed.updatedAt,
           lastExportedAt: canonical.saveExportStatus.lastExportedAt,
         },
       };
