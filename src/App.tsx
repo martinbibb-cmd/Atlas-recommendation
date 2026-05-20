@@ -1704,15 +1704,11 @@ function AppInner() {
           updatedAt: now,
         },
         workspaceBrandReference: {
-          ownership: currentWorkspace != null && atlasUserProfile != null
-            ? { workspaceId: currentWorkspace.id, createdByUserId: atlasUserProfile.uid }
-            : undefined,
-          workspaceId: currentWorkspace?.id,
+          workspaceId: currentWorkspace?.workspaceId,
           workspaceName: currentWorkspace?.name,
           brandId: activeAtlasVisit?.brandId ?? workspaceBrandSession.activeBrandId,
         },
         customerPropertyDetails: {
-          portalVisitContext: labPortalVisitContext,
           customerSummary: currentSnapshot?.customerSummary,
         },
         surveyDraft: labFullSurveyModel,
