@@ -11,9 +11,9 @@ This report defines the mathematical models, terminology, and topological constr
 Atlas must strictly categorize mass and energy flows into isolated domains. Mixing these domains in the logic graph constitutes a critical validation failure.
 
 - **Primary heating water:** Chemically treated (inhibited) water circulating through boilers, heat pumps, radiators, and underfloor heating (UFH). Never mixes with domestic water.
-- **Mains cold water:** Pressurised potable water supplied by the water undertaker.
+- **Mains cold water:** Pressurised potable water supplied by the water undertaker at the point of entry to the dwelling.
 - **Stored domestic hot water:** Mains-fed or tank-fed water that has been heated for draw-off (taps, showers).
-- **Tank-fed domestic water:** Cold water supplied from a cold-water storage cistern. **Rule:** Never refer to this as "potable" or "drinking water" unless verified; cisterns often lack proper insect/rodent screening and turnover rates for safe consumption.
+- **Tank-fed domestic water:** Cold water supplied from a cold-water storage cistern. **Rule:** Never refer to this as "potable" or "drinking water" unless verified; Atlas must treat storage in a cistern as losing potable status unless compliance and turnover are explicitly confirmed.
 - **Safety discharge water:** High-temperature or high-pressure water expelled via pressure relief valves (PRV) or temperature and pressure relief valves (T&PRV) to a tundish.
 - **Condensate:** Mildly acidic water produced by condensing gas boilers; must be routed to a suitable drain.
 - **Gas supply:** Natural gas or LPG routed to a combustion appliance.
@@ -28,7 +28,7 @@ Atlas should hard-code the following constants and utilize these established for
 - **Specific Heat Capacity (c):** 4.18 kJ/(kg·K)
 - **Useful Conversion:** 1.16 Wh/(L·K) — use this for rapid domestic kWh storage calculations.
 - **Density (ρ):** For domestic modelling, assume 1 kg/L for volume/mass equivalence. In detailed engineering calculations, density varies from 999.7 kg/m³ at 10°C to 971.8 kg/m³ at 80°C.
-- **Thermal Expansion:** Water volume increases by approximately 2.89% from 10°C to 80°C. For sealed system expansion vessel sizing, a safe multiplier of **4%** (0.04) is the industry standard boundary.
+- **Thermal Expansion:** Water volume increases by approximately 2.89% from 10°C to 80°C. For sealed system expansion vessel sizing, Atlas should use **4%** (0.04) as the engineering boundary to reflect normal design allowance beyond the pure water-expansion figure.
 
 ### Energy and Power Formulas
 
@@ -64,7 +64,7 @@ $$
 P_{actual} = P_{\Delta T50} \left( \frac{\Delta T_{actual}}{50} \right)^n
 $$
 
-Where \Delta T_{actual} is the Mean Water Temperature minus Room Temperature, and n is the radiator exponent (default assumption **1.3** if manufacturer data is missing).
+Where \Delta T_{actual} is the Mean Water Temperature minus Room Temperature, and n is the radiator exponent (default engineering assumption **1.3** if manufacturer data is missing and no model-specific correction curve is available).
 
 ## 4. Recommended Atlas Default Values
 
@@ -144,6 +144,14 @@ $$
 
 Atlas must check if the required flow rate for a heat pump (\Delta T = 5^\circ\text{C}) exceeds the capacity of standard 22mm or 28mm domestic pipework compared to a boiler (\Delta T = 20^\circ\text{C}).
 
+For Level 3 screening, pipe capacity must be derived from the nominal pipe size, assumed internal bore, and a declared maximum design velocity:
+
+$$
+\dot{V}_{pipe} = A_{internal} \cdot v_{max}
+$$
+
+Atlas must store these assumed bores and velocity limits in an explicit engineering lookup so the screening threshold is versioned and auditable rather than implied.
+
 ## 9. Expansion, Pressure, and Safety Modelling
 
 ### Sealed Primary Expansion
@@ -195,7 +203,7 @@ The engine must throw an error if a topology violates these rules:
 
 - Mains cold water connected to a closed primary circuit without a filling loop and double check valve.
 - Unvented cylinder drawn without a G3 discharge path (Tundish).
-- Heat pump connected to microbore (10mm) pipework without a low-loss header/buffer and secondary pump (flags a high-risk hydraulic bottleneck warning).
+- Heat pump connected to microbore (10mm) pipework where the required design flow exceeds the microbore screening limit, unless a low-loss header/buffer and secondary pump isolate the high-flow primary circuit; even then, Atlas should still warn if the emitter-side branch remains flow-limited.
 - Primary flow temperature set lower than DHW target temperature for an indirect cylinder.
 
 ## 13. Customer-Safe Explanation Boundaries
