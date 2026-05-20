@@ -10,6 +10,7 @@ export const CANONICAL_HYDRAULIC_RULES: CanonicalHydraulicRuleSet = {
   componentPlacementRules: [
     'Heat source starts left; emitters and storage sit right to preserve left-to-right hydraulic readability.',
     'Radiator branches connect at lower radiator ports for service-realistic flow and return stubs.',
+    'Sealed/unvented cylinder primary flow shows a dedicated two-port zone valve control cue rather than a default Y-plan branch.',
   ],
   flowReturnRules: [
     'Flow rail runs left-to-right on the top path and return rail runs right-to-left on the lower path.',
@@ -28,6 +29,7 @@ export const CANONICAL_HYDRAULIC_RULES: CanonicalHydraulicRuleSet = {
   ],
   potablePrimarySeparationRules: [
     'Thermal stores must separate primary circuit water from potable water through internal exchange.',
+    'Sealed/unvented layouts must keep primary return, cylinder coil return, mains cold, and DHW draw-off visually distinct.',
   ],
   g3SafetyRoutingRules: [
     'Unvented safety discharge (D2) must route with continuous fall away from the cylinder.',
@@ -143,12 +145,16 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
   {
     topologyId: 'sealed_unvented_cylinder',
     templateId: 'sealed_unvented',
-    hydraulicIntentSummary: 'Sealed heating loop with unvented hot water storage, pressure controls, and explicit G3 discharge fall.',
+    hydraulicIntentSummary: 'System boiler with an S-plan style cylinder zone valve feeding a closed primary coil circuit and separate mains-fed unvented hot-water storage.',
     safetyNotes: [
       'D2 safety discharge is shown as continuously falling pipework.',
       'Filling loop defaults to disconnected/ghosted service state.',
+      'Cylinder primary coil circuit remains separate from mains-fed stored hot-water pipework.',
     ],
-    regulatoryNotes: ['G3 safety routing is represented as a continuous-fall D2 path.'],
+    regulatoryNotes: [
+      'G3 safety routing is represented as a continuous-fall D2 path.',
+      'Cylinder primary flow includes an S-plan style two-port zone valve cue.',
+    ],
     knownSimplifications: CANONICAL_DIAGRAM_SIMPLIFICATIONS.sealed_unvented.intentionallySimplified,
     simplificationRules: CANONICAL_DIAGRAM_SIMPLIFICATIONS.sealed_unvented,
     featureFlags: [
@@ -157,6 +163,10 @@ export const HYDRAULIC_TRUTH_MODELS: TopologyHydraulicTruthModel[] = [
       'unvented_standard_storage_visual',
       'expansion_vessel_on_primary_return',
       'd2_continuous_fall',
+      'cylinder_zone_valve_control_cue',
+      'mains_cold_visually_distinct_from_primary_return',
+      'coil_return_visually_distinct_from_mains_cold',
+      'system_boiler_primary_only_ports',
       'no_top_fed_radiator_connections',
       'no_decorative_crossover_pipework',
     ],

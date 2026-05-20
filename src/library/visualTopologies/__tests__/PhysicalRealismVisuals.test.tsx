@@ -161,6 +161,23 @@ describe('physical realism regression guards', () => {
     expect(container.querySelectorAll('[data-testid="cylinder-stratification-zone"]').length).toBe(0);
   });
 
+  it('sealed unvented topology keeps system-boiler ports primary-only and separate from cylinder potable ports', () => {
+    const { container } = render(
+      renderVisualTopology('sealed_unvented_cylinder', DEFAULT_OPTIONS),
+    );
+    const boiler = container.querySelector('[data-topology-component-role="boiler"]');
+
+    expect(boiler?.querySelector('[data-port-role="boiler_primary_return"]')).toBeTruthy();
+    expect(boiler?.querySelector('[data-port-role="boiler_gas_supply"]')).toBeTruthy();
+    expect(boiler?.querySelector('[data-port-role="boiler_primary_flow"]')).toBeTruthy();
+    expect(boiler?.querySelector('[data-port-role="boiler_cold_mains_in"]')).toBeNull();
+    expect(boiler?.querySelector('[data-port-role="boiler_dhw_out"]')).toBeNull();
+
+    expect(container.querySelector('[data-testid="sealed-unvented-dhw-hot-run"]')?.getAttribute('data-water-kind')).toBe('dhw_hot');
+    expect(container.querySelector('[data-testid="sealed-unvented-mains-cold-run"]')?.getAttribute('data-water-kind')).toBe('mains_cold');
+    expect(container.querySelector('[data-testid="sealed-unvented-primary-return-rail"]')?.getAttribute('data-water-kind')).toBe('primary_return');
+  });
+
   it('Mixergy primitive renders stratification and thermocline markers', () => {
     const { container } = render(<MixergyCylinderPrimitive stateOfChargePct={70} showLabel={false} />);
     expect(container.querySelector('[data-testid="mixergy-thermocline"]')).toBeTruthy();

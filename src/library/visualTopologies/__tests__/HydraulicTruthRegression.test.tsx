@@ -43,6 +43,36 @@ describe('hydraulic truth regression checks', () => {
     expect(expansion).toBeTruthy();
   });
 
+  it('sealed/unvented template shows a dedicated cylinder zone valve on cylinder primary flow', () => {
+    const { container } = render(renderVisualTopology('sealed_unvented_cylinder', DEFAULT_OPTIONS));
+    expect(container.querySelector('[data-topology-component-role="cylinder_zone_valve"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="sealed-unvented-cylinder-zone-valve-body"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="sealed-unvented-cylinder-zone-valve-actuator"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="sealed-unvented-primary-flow-rail-left"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="sealed-unvented-primary-flow-rail-right"]')).toBeTruthy();
+  });
+
+  it('sealed/unvented template keeps potable and primary routes visually distinct', () => {
+    const { container } = render(renderVisualTopology('sealed_unvented_cylinder', DEFAULT_OPTIONS));
+    const primaryReturn = container.querySelector('[data-testid="sealed-unvented-primary-return-rail"]');
+    const coilReturn = container.querySelector('[data-testid="sealed-unvented-cylinder-primary-return-upper-drop"]');
+    const mainsCold = container.querySelector('[data-testid="sealed-unvented-mains-cold-drop"]');
+    const dhwHot = container.querySelector('[data-testid="sealed-unvented-dhw-hot-rise"]');
+    const d2 = container.querySelector('[data-testid="d2-discharge-pipe"]');
+
+    expect(primaryReturn?.getAttribute('data-pipe-rail')).toBe('ch_return');
+    expect(coilReturn?.getAttribute('data-pipe-rail')).toBe('ch_return');
+    expect(mainsCold?.getAttribute('data-pipe-rail')).toBe('cw_mains');
+    expect(dhwHot?.getAttribute('data-pipe-rail')).toBe('dhw');
+    expect(d2?.getAttribute('data-pipe-rail')).toBe('d2_discharge');
+
+    expect(mainsCold?.getAttribute('stroke')).not.toBe(primaryReturn?.getAttribute('stroke'));
+    expect(dhwHot?.getAttribute('stroke')).not.toBe(
+      container.querySelector('[data-testid="sealed-unvented-primary-flow-rail-left"]')?.getAttribute('stroke'),
+    );
+    expect(mainsCold?.getAttribute('x1')).not.toBe(coilReturn?.getAttribute('x1'));
+  });
+
   it('ABV stays downstream of boiler and upstream of restrictions in ABV-protected layout', () => {
     const { container } = render(renderVisualTopology('abv_protected_heating_loop', DEFAULT_OPTIONS));
     const boiler = container.querySelector('[data-topology-component-role="boiler"]');
