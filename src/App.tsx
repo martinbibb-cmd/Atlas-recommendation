@@ -227,11 +227,23 @@ function resolveVisitTopologyFromScenario(
   fallbackScenarioId: string | undefined,
   engineOutput: EngineOutputV1 | undefined,
 ): VisitEnvelopeReadinessProjectionV1['topology'] | undefined {
+  const topologyByScenarioId: Record<string, string> = {
+    'combi': 'combi',
+    'system': 'sealed_system_unvented',
+    'system_unvented': 'sealed_system_unvented',
+    'regular': 'open_vented',
+    'open_vented': 'open_vented',
+    'ashp': 'heat_pump',
+    'heat_pump': 'heat_pump',
+    'mixergy': 'mixergy',
+    'system_mixergy': 'mixergy',
+    'thermal_store': 'thermal_store',
+  };
   const selectedScenarioId = acceptedScenario?.scenarioId ?? fallbackScenarioId;
   if (selectedScenarioId != null) {
     const normalized = selectedScenarioId.toLowerCase();
-    if (normalized.includes('mixergy')) return { topologyId: 'mixergy' };
-    if (normalized.includes('thermal')) return { topologyId: 'thermal_store' };
+    const mapped = topologyByScenarioId[normalized];
+    if (mapped != null) return { topologyId: mapped };
   }
   const scenarioType = acceptedScenario?.system.type;
   if (scenarioType === 'combi') return { topologyId: 'combi' };
@@ -2974,6 +2986,17 @@ function AppInner() {
             scenarios: visitHomeScenarios,
             portalVisitContext: canonicalSnapshot?.portalVisitContext ?? labPortalVisitContext,
           });
+          const selectedScenarioId =
+            canonicalSnapshot?.acceptedScenarioId
+            ?? canonicalSnapshot?.decision?.recommendedScenarioId;
+          // Proposal truth precedence:
+          // 1) decision (explicit selected recommendation authority),
+          // 2) customerSummary (derived recommendation narrative),
+          // 3) engineOutput (lowest-level fallback when other proposal slices are absent).
+          const recommendationPayload =
+            canonicalSnapshot?.decision
+            ?? canonicalSnapshot?.customerSummary
+            ?? canonicalSnapshot?.engineOutput;
           const visitEnvelope: VisitEnvelopeReadinessProjectionV1 | undefined =
             canonicalSnapshot == null
               ? undefined
@@ -2984,26 +3007,18 @@ function AppInner() {
                   },
                   surveySnapshot: labFullSurveyModel,
                   engineInputSnapshot: labEngineInput,
-                  recommendationResult:
-                    canonicalSnapshot.decision
-                    ?? canonicalSnapshot.customerSummary
-                    ?? canonicalSnapshot.engineOutput,
-                  recommendation:
-                    canonicalSnapshot.decision
-                    ?? canonicalSnapshot.customerSummary
-                    ?? canonicalSnapshot.engineOutput,
+                  recommendationResult: recommendationPayload,
+                  recommendation: recommendationPayload,
                   selectedScenario:
                     acceptedScenario != null
                       ? { scenarioId: acceptedScenario.scenarioId }
-                      : canonicalSnapshot.acceptedScenarioId != null
-                      ? { scenarioId: canonicalSnapshot.acceptedScenarioId }
+                      : selectedScenarioId != null
+                      ? { scenarioId: selectedScenarioId }
                       : undefined,
-                  selectedScenarioId:
-                    canonicalSnapshot.acceptedScenarioId
-                    ?? canonicalSnapshot.decision?.recommendedScenarioId,
+                  selectedScenarioId,
                   topology: resolveVisitTopologyFromScenario(
                     acceptedScenario,
-                    canonicalSnapshot.acceptedScenarioId ?? canonicalSnapshot.decision?.recommendedScenarioId,
+                    selectedScenarioId,
                     canonicalSnapshot.engineOutput,
                   ),
                   customerSummary: canonicalSnapshot.customerSummary,

@@ -119,11 +119,14 @@ export interface VisitEnvelopeTopologyProjectionV1 {
 export interface VisitEnvelopeReadinessProjectionV1 {
   readonly identity?: VisitEnvelopeIdentityProjectionV1;
   readonly surveySnapshot?: unknown;
+  /** Legacy alias consumed by older callers; prefer surveySnapshot. */
   readonly survey?: unknown;
   readonly engineInputSnapshot?: unknown;
   readonly recommendationResult?: unknown;
+  /** Legacy alias consumed by older callers; prefer recommendationResult. */
   readonly recommendation?: unknown;
   readonly selectedScenario?: VisitEnvelopeSelectedScenarioProjectionV1;
+  /** Legacy alias consumed by older callers; prefer selectedScenario.scenarioId. */
   readonly selectedScenarioId?: string;
   readonly topology?: VisitEnvelopeTopologyProjectionV1;
   readonly customerSummary?: unknown;
@@ -187,7 +190,7 @@ export function isVisitEnvelopeDeliveryReady(
   generatedOutputs: Partial<GeneratedOutputsV1> | undefined,
 ): boolean {
   if (!isVisitEnvelopeProposalReady(envelope)) return false;
-  const outputs = normaliseGeneratedOutputs(generatedOutputs ?? envelope?.generatedOutputs);
+  const outputs = normaliseGeneratedOutputs(generatedOutputs);
   return outputs.portal.generated || outputs.pdf.generated || outputs.handoff.generated || outputs.simulatorReview.generated;
 }
 
