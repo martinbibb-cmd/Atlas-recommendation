@@ -102,6 +102,20 @@ body {
   line-height: 1.45;
 }
 
+.app-entry-status {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.app-entry-status--success {
+  color: #166534;
+}
+
+.app-entry-status--error {
+  color: #991b1b;
+}
+
 @media (max-width: 720px) {
   .app-entry-tiles {
     grid-template-columns: 1fr;
