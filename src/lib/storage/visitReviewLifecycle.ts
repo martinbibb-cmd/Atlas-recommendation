@@ -7,7 +7,6 @@ import {
   type AtlasVisitJourneyEvent,
   type AtlasVisitJourneyState,
 } from './atlasVisitJourney';
-import type { VisitEnvelopeV1 } from '../../contracts/VisitEnvelopeV1';
 
 export type VisitReviewLifecycleState = AtlasVisitJourneyState;
 export type VisitReviewLifecycleEvent = AtlasVisitJourneyEvent;
@@ -104,7 +103,35 @@ export function isLifecycleAtLeast(
   return isAtlasVisitJourneyAtLeast(lifecycleState, threshold);
 }
 
-export type VisitEnvelopeReadinessProjectionV1 = Pick<VisitEnvelopeV1, 'recommendation' | 'topology'>;
+export interface VisitEnvelopeIdentityProjectionV1 {
+  readonly visitId?: string;
+  readonly visitReference?: string;
+}
+
+export interface VisitEnvelopeSelectedScenarioProjectionV1 {
+  readonly scenarioId?: string;
+}
+
+export interface VisitEnvelopeTopologyProjectionV1 {
+  readonly topologyId?: string;
+}
+
+export interface VisitEnvelopeReadinessProjectionV1 {
+  readonly identity?: VisitEnvelopeIdentityProjectionV1;
+  readonly surveySnapshot?: unknown;
+  /** Legacy alias consumed by older callers; prefer surveySnapshot. */
+  readonly survey?: unknown;
+  readonly engineInputSnapshot?: unknown;
+  readonly recommendationResult?: unknown;
+  /** Legacy alias consumed by older callers; prefer recommendationResult. */
+  readonly recommendation?: unknown;
+  readonly selectedScenario?: VisitEnvelopeSelectedScenarioProjectionV1;
+  /** Legacy alias consumed by older callers; prefer selectedScenario.scenarioId. */
+  readonly selectedScenarioId?: string;
+  readonly topology?: VisitEnvelopeTopologyProjectionV1;
+  readonly customerSummary?: unknown;
+  readonly generatedOutputs?: Partial<GeneratedOutputsV1>;
+}
 
 export interface VisitReadinessProjectionV1 {
   readonly recommendationReady: boolean;
@@ -125,6 +152,48 @@ export function isLegacyVisitReadinessMode(
   return envelope == null && journeyState == null;
 }
 
+function hasText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function hasValue(value: unknown): boolean {
+  return value != null;
+}
+
+export function isVisitEnvelopeProposalReady(
+  envelope: VisitEnvelopeReadinessProjectionV1 | undefined,
+): boolean {
+  if (envelope == null) return false;
+  const hasVisitIdentity = hasText(envelope.identity?.visitId);
+  const hasSurveySnapshot = hasValue(envelope.surveySnapshot) || hasValue(envelope.survey);
+  const hasEngineInputSnapshot = hasValue(envelope.engineInputSnapshot);
+  const hasRecommendationResult = hasValue(envelope.recommendationResult) || hasValue(envelope.recommendation);
+  const hasSelectedScenario =
+    hasText(envelope.selectedScenario?.scenarioId) || hasText(envelope.selectedScenarioId);
+  const hasTopologyPayload = hasText(envelope.topology?.topologyId);
+  const hasCustomerSummary = hasValue(envelope.customerSummary);
+  const hasGeneratedOutputRefsStatus = hasValue(envelope.generatedOutputs);
+  return (
+    hasVisitIdentity
+    && hasSurveySnapshot
+    && hasEngineInputSnapshot
+    && hasRecommendationResult
+    && hasSelectedScenario
+    && hasTopologyPayload
+    && hasCustomerSummary
+    && hasGeneratedOutputRefsStatus
+  );
+}
+
+export function isVisitEnvelopeDeliveryReady(
+  envelope: VisitEnvelopeReadinessProjectionV1 | undefined,
+  generatedOutputs: Partial<GeneratedOutputsV1> | undefined,
+): boolean {
+  if (!isVisitEnvelopeProposalReady(envelope)) return false;
+  const outputs = normaliseGeneratedOutputs(generatedOutputs);
+  return outputs.portal.generated || outputs.pdf.generated || outputs.handoff.generated || outputs.simulatorReview.generated;
+}
+
 /**
  * Projects visit workflow readiness from three canonical inputs:
  * - `envelope`: visit truth payloads (recommendation/topology/pdf payload),
@@ -133,7 +202,7 @@ export function isLegacyVisitReadinessMode(
  *
  * Precedence:
  * - If `envelope` is provided, recommendation truth is derived strictly from
- *   envelope payloads (recommendation + topology), never from journey state.
+ *   proposal-ready envelope payloads, never from journey state.
  * - Artifact availability is always derived from `generatedOutputs`.
  * - Journey state controls progression unlocks (presentation/delivery/export),
  *   but does not invent missing envelope payload truth.
@@ -144,9 +213,9 @@ export function projectVisitReadiness(
   journeyState: VisitReviewLifecycleState | undefined,
 ): VisitReadinessProjectionV1 {
   const outputs = normaliseGeneratedOutputs(generatedOutputs);
-  const hasRecommendationPayload = envelope?.recommendation != null;
-  const hasTopologyPayload = envelope?.topology != null;
-  const hasEnvelopeRecommendationTruth = hasRecommendationPayload && hasTopologyPayload;
+  const hasRecommendationPayload = envelope?.recommendationResult != null || envelope?.recommendation != null;
+  const hasTopologyPayload = hasText(envelope?.topology?.topologyId);
+  const hasEnvelopeRecommendationTruth = isVisitEnvelopeProposalReady(envelope);
   const hasRecommendationByJourney =
     journeyState != null && isLifecycleAtLeast(journeyState, 'recommendation_ready');
   // Envelope payload truth is canonical when present; journey state alone must not
@@ -162,6 +231,7 @@ export function projectVisitReadiness(
     journeyState != null
       && isLifecycleAtLeast(journeyState, 'presentation_ready')
   );
+  const deliveryReady = isVisitEnvelopeDeliveryReady(envelope, outputs);
   return {
     recommendationReady,
     hasRecommendationPayload,
@@ -170,7 +240,7 @@ export function projectVisitReadiness(
     deliverySurfacesUnlocked,
     portalOutputAvailable: outputs.portal.generated,
     supportingPdfOutputAvailable: outputs.pdf.generated,
-    handoffOutputAvailable: deliverySurfacesUnlocked && outputs.handoff.generated,
+    handoffOutputAvailable: deliverySurfacesUnlocked && deliveryReady && outputs.handoff.generated,
     exportOutputAvailable: journeyState != null && isLifecycleAtLeast(journeyState, 'exported'),
   };
 }

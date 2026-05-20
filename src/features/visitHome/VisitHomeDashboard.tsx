@@ -92,7 +92,7 @@ export interface VisitHomeDashboardProps {
   portalUrl?: string;
   /** Canonical lifecycle state restored from persisted visit snapshot. */
   lifecycleState?: VisitReviewLifecycleState;
-  /** Optional visit envelope readiness payload slice (recommendation/topology/pdfPayload). */
+  /** Optional canonical VisitEnvelope proposal boundary projection. */
   visitEnvelope?: VisitEnvelopeReadinessProjectionV1;
   /** Canonical generated output registry restored from persisted visit snapshot. */
   generatedOutputs?: Partial<GeneratedOutputsV1>;
