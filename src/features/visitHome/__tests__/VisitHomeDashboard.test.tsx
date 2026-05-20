@@ -392,6 +392,13 @@ describe('VisitHomeDashboard', () => {
     vi.unstubAllGlobals();
   });
 
+  it('scan launch CTA in capture/import panel calls onOpenScanFromPackage', () => {
+    const onOpenScanFromPackage = vi.fn();
+    render(<VisitHomeDashboard {...makeProps({ onOpenScanFromPackage })} />);
+    fireEvent.click(screen.getByTestId('visit-home-scan-launch-cta'));
+    expect(onOpenScanFromPackage).toHaveBeenCalledOnce();
+  });
+
   it('supporting PDF card exposes generate CTA when output is missing and generation handler is provided', () => {
     const onGenerateSupportingPdf = vi.fn();
     render(
