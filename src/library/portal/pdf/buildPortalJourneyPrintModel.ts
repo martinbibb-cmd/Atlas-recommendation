@@ -547,10 +547,10 @@ function inferCustomerFacts(input: BuildCustomerJourneyPackInputV1): string[] {
   if (fromPackage != null) {
     const facts: string[] = [];
     const survey = fromPackage.surveyDraft;
-    if (survey.occupancyCount != null) {
+    if (survey.occupancyCount != null && survey.occupancyCount > 0) {
       facts.push(`${survey.occupancyCount}-person household`);
     }
-    if (survey.bathroomCount != null) {
+    if (survey.bathroomCount != null && survey.bathroomCount > 0) {
       facts.push(`${survey.bathroomCount} bathroom${survey.bathroomCount === 1 ? '' : 's'}`);
     }
     for (const fact of fromPackage.customerPropertyDetails.propertyFacts ?? []) {
