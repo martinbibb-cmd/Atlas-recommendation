@@ -38,7 +38,7 @@ $$
 E = V \cdot c_{Wh} \cdot \Delta T
 $$
 
-Where E is energy in Wh, V is volume in Litres, c_{Wh} is 1.16, and \Delta T is the temperature rise.
+Where E is energy in Wh, V is volume in litres, c_{Wh} is 1.16, and \Delta T is the temperature rise.
 
 **Continuous Power (Flowing Water):**
 
@@ -46,7 +46,7 @@ $$
 P = \dot{V} \cdot c \cdot \Delta T
 $$
 
-Where P is power in kW, \dot{V} is flow rate in kg/s (or L/s), c is 4.18, and \Delta T is the flow/return temperature difference.
+Where P is power in kW, \dot{V} is flow rate in kg/s (or L/s), c is 4.18 kJ/(kg·K), and \Delta T is the flow/return temperature difference.
 
 **Hot/Cold Blending (Usable Hot Water):**
 
@@ -55,6 +55,14 @@ To calculate the volume of usable water at a target shower temperature (T_m) giv
 $$
 V_h = V_m \left( \frac{T_m - T_c}{T_h - T_c} \right)
 $$
+
+Where:
+
+- V_h is the stored hot-water volume required.
+- V_m is the delivered mixed-water volume at the target temperature.
+- T_m is the target mixed-water temperature.
+- T_h is the stored hot-water temperature.
+- T_c is the incoming cold-water temperature.
 
 ### Radiator Output Correction
 
@@ -74,7 +82,7 @@ When specific data is unavailable, Atlas should use these defaults, derived from
 - **Stored DHW setpoint:** 60°C (Legionella prevention standard).
 - **Target mixed draw-off (shower) temperature:** 40°C.
 - **Standard shower flow rate:** 9 L/min.
-- **Standard bath draw-off:** 100 Litres at 40°C.
+- **Standard bath draw-off:** 100 litres at 40°C.
 - **Primary \Delta T (Gas Boiler):** 20°C.
 - **Primary \Delta T (Heat Pump):** 5°C.
 - **Property heat loss:** 50 W/m² (post-2000 build) to 100 W/m² (pre-1970 uninsulated).
@@ -152,6 +160,14 @@ $$
 
 Atlas must store these assumed bores and velocity limits in an explicit engineering lookup so the screening threshold is versioned and auditable rather than implied.
 
+Recommended Level 3 screening defaults for domestic checks:
+
+- **10mm microbore:** treat sustained flow requirements above **0.06 L/s** as high risk.
+- **22mm primary pipework:** use **0.30 L/s** as the default screening threshold.
+- **28mm primary pipework:** use **0.50 L/s** as the default screening threshold.
+
+These values are conservative screening assumptions only. Exact hydraulic acceptance still depends on actual internal bore, pipe length, fittings, and allowable velocity.
+
 ## 9. Expansion, Pressure, and Safety Modelling
 
 ### Sealed Primary Expansion
@@ -164,7 +180,13 @@ $$
 V_v = \frac{e \cdot V_s}{1 - \frac{P_i}{P_f}}
 $$
 
-Where V_v is vessel volume, e is expansion coefficient (0.04), V_s is total system volume, P_i is initial pre-charge absolute pressure (typically 2.0 bar absolute / 1.0 bar gauge), and P_f is final PRV absolute pressure (typically 4.0 bar absolute / 3.0 bar gauge).
+Where:
+
+- V_v is vessel volume.
+- e is expansion coefficient (0.04).
+- V_s is total system volume.
+- P_i is initial pre-charge absolute pressure (typically 2.0 bar absolute / 1.0 bar gauge).
+- P_f is final PRV absolute pressure (typically 4.0 bar absolute / 3.0 bar gauge).
 
 ### Open-Vented Primary Systems
 
