@@ -19,6 +19,10 @@ import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 import type { CustomerSummaryV1 } from '../../../contracts/CustomerSummaryV1';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
+import {
+  buildCustomerJourneyPack,
+  buildCustomerJourneyPackGeneratedOutput,
+} from '../../../library/portal/pdf/buildPortalJourneyPrintModel';
 
 // ─── Minimal fixtures ─────────────────────────────────────────────────────────
 
@@ -235,6 +239,34 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByText('Export handover package →')).toBeInTheDocument();
     expect(screen.getByTestId('visit-home-scan-entry-note')).toHaveTextContent(
       'Atlas Scan remains the capture/import entry point for survey evidence, photos, pins, and notes.',
+    );
+  });
+
+  it('shows packaged customer journey readiness in the readiness summary', () => {
+    const customerJourneyPack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Combi boiler is the right fit.',
+      customerFacts: ['3-person household', '1 bathroom'],
+      journeyType: 'generic_recommendation_summary',
+    });
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          generatedOutputs: {
+            portal: { generated: false },
+            pdf: { generated: false },
+            customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+              customerJourneyPack,
+              generatedAt: '2026-05-20T10:00:00.000Z',
+            }),
+            simulatorReview: { generated: false },
+            handoff: { generated: false },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByTestId('visit-home-customer-journey-pack-status')).toHaveTextContent(
+      'Customer journey pack: Ready',
     );
   });
 

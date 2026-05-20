@@ -10,6 +10,7 @@ import {
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
+import type { CustomerJourneyPackV1 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 
 export type VisitReviewLifecycleState = AtlasVisitJourneyState;
 export type VisitReviewLifecycleEvent = AtlasVisitJourneyEvent;
@@ -18,7 +19,7 @@ export { DEFAULT_ATLAS_VISIT_JOURNEY_STATE, transitionAtlasVisitJourney };
 export type GeneratedOutputRendererV1 = 'library_customer_portal' | 'legacy_dev_only';
 export const CANONICAL_PORTAL_RENDERER: GeneratedOutputRendererV1 = 'library_customer_portal';
 
-export interface GeneratedOutputArtifactV1 {
+export interface GeneratedOutputArtifactV1<TPayload = unknown> {
   readonly generated: boolean;
   readonly generatedAt?: string;
   readonly url?: string;
@@ -26,16 +27,20 @@ export interface GeneratedOutputArtifactV1 {
   readonly documentId?: string;
   /** Which renderer this artifact targets. Canonical portal artifacts must use 'library_customer_portal'. */
   readonly renderer?: GeneratedOutputRendererV1;
+  readonly schema?: string;
+  readonly status?: string;
+  readonly payload?: TPayload;
 }
 
 export interface GeneratedOutputsV1 {
   readonly portal: GeneratedOutputArtifactV1;
   readonly pdf: GeneratedOutputArtifactV1;
+  readonly customerJourneyPack?: GeneratedOutputArtifactV1<CustomerJourneyPackV1>;
   readonly simulatorReview: GeneratedOutputArtifactV1;
   readonly handoff: GeneratedOutputArtifactV1;
 }
 
-function createEmptyOutputArtifact(): GeneratedOutputArtifactV1 {
+function createEmptyOutputArtifact<TPayload = unknown>(): GeneratedOutputArtifactV1<TPayload> {
   return { generated: false };
 }
 
@@ -57,6 +62,7 @@ export function createEmptyGeneratedOutputs(): GeneratedOutputsV1 {
   return {
     portal: createEmptyOutputArtifact(),
     pdf: createEmptyOutputArtifact(),
+    customerJourneyPack: createEmptyOutputArtifact(),
     simulatorReview: createEmptyOutputArtifact(),
     handoff: createEmptyOutputArtifact(),
   };
@@ -70,6 +76,7 @@ export function normaliseGeneratedOutputs(
   return {
     portal: outputs.portal ?? base.portal,
     pdf: outputs.pdf ?? base.pdf,
+    customerJourneyPack: outputs.customerJourneyPack ?? base.customerJourneyPack,
     simulatorReview: outputs.simulatorReview ?? base.simulatorReview,
     handoff: outputs.handoff ?? base.handoff,
   };

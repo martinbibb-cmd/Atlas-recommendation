@@ -9,8 +9,18 @@ import {
   VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER,
 } from '..';
 import type { CanonicalVisitPackageV1 } from '../CanonicalVisitPackageV1';
+import {
+  buildCustomerJourneyPack,
+  buildCustomerJourneyPackGeneratedOutput,
+} from '../../../library/portal/pdf/buildPortalJourneyPrintModel';
 
 function makePackage() {
+  const customerJourneyPack = buildCustomerJourneyPack({
+    selectedSectionIds: [],
+    recommendationSummary: 'System boiler with cylinder: Best fit for this home',
+    customerFacts: ['3-person household', '2 bathrooms'],
+    journeyType: 'open_vented',
+  });
   return buildCanonicalVisitPackage({
     packageData: {
       visitIdentity: {
@@ -50,6 +60,16 @@ function makePackage() {
       },
       generatedOutputStatus: {
         lifecycleState: 'recommendation_ready',
+        generatedOutputs: {
+          portal: { generated: false },
+          pdf: { generated: false },
+          customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+            customerJourneyPack,
+            generatedAt: '2026-05-20T10:02:00.000Z',
+          }),
+          simulatorReview: { generated: false },
+          handoff: { generated: false },
+        },
       },
       importExportMetadata: {
         exportedAt: '2026-05-20T10:02:00.000Z',
@@ -94,6 +114,15 @@ describe('visit package PDF envelope', () => {
 
     const parsed = parseCanonicalVisitPackageFromPdfEnvelope(pdf);
     expect(parsed.ok).toBe(true);
+  });
+
+  it('preserves packaged customer journey availability through PDF import parsing', () => {
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
+    const parsed = parseCanonicalVisitPackageFromPdfEnvelope(pdf);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.generated).toBe(true);
+    expect(parsed.pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.status).toBe('packaged');
   });
 
   it('returns parse errors when PDF does not include payload markers', () => {

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildCustomerJourneyPack,
+  buildCustomerJourneyPackGeneratedOutput,
   buildPortalJourneyPrintModel,
   CUSTOMER_JOURNEY_PACK_SCHEMA,
   CUSTOMER_JOURNEY_PACK_VERSION,
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
+import { buildCanonicalVisitPackage } from '../../../../features/visitPackage';
 
 const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
   journeyType: 'open_vented',
@@ -341,5 +343,59 @@ describe('buildCustomerJourneyPack — shared journey model', () => {
     for (const explainer of pack.portalDeepDive.librarySupportedExplainers) {
       expect(sectionIds.has(explainer.contentId)).toBe(true);
     }
+  });
+
+  it('prefers an explicitly packaged customer journey pack for PDF output', () => {
+    const packaged = buildCustomerJourneyPack(BASE_INPUT);
+    const model = buildPortalJourneyPrintModel({
+      ...HEAT_PUMP_INPUT,
+      customerJourneyPack: packaged,
+    });
+    expect(model).toEqual(packaged.staticPdf);
+  });
+
+  it('reuses packaged customer journey pack from canonical visit package before rebuilding', () => {
+    const packaged = buildCustomerJourneyPack(BASE_INPUT);
+    const canonicalVisitPackage = buildCanonicalVisitPackage({
+      packageData: {
+        visitIdentity: {
+          visitId: 'visit-001',
+          updatedAt: '2026-05-20T10:00:00.000Z',
+        },
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          postcode: 'SW1A 1AA',
+          occupancyCount: 4,
+          bathroomCount: 2,
+        } as never,
+        generatedOutputStatus: {
+          generatedOutputs: {
+            portal: { generated: false },
+            pdf: { generated: false },
+            customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+              customerJourneyPack: packaged,
+              generatedAt: '2026-05-20T10:01:00.000Z',
+            }),
+            simulatorReview: { generated: false },
+            handoff: { generated: false },
+          },
+        },
+        importExportMetadata: {
+          exportedAt: '2026-05-20T10:02:00.000Z',
+          source: {
+            target: 'local_only',
+            surface: 'visit_home_export',
+          },
+        },
+      },
+    });
+
+    const pack = buildCustomerJourneyPack({
+      ...HEAT_PUMP_INPUT,
+      canonicalVisitPackage,
+    });
+
+    expect(pack).toEqual(packaged);
   });
 });

@@ -657,6 +657,11 @@ export function VisitHomeDashboard({
   const readyCount = readinessCounts.ready;
   const needsReviewCount = readinessCounts.needsReview;
   const blockedCount = readinessCounts.blocked;
+  const customerJourneyPackStatus: CardStatus = mergedOutputs.customerJourneyPack?.generated
+    ? 'ready'
+    : viewModel.hasRecommendation
+    ? 'needs-review'
+    : 'blocked';
   const journeyInfo = viewModel.journeyInfo;
   const keyExpectationDelta = viewModel.hero.keyExpectationDelta;
   const recommendationHeroVisible = viewModel.hasRecommendation || viewModel.hasAcceptedScenario;
@@ -916,6 +921,9 @@ export function VisitHomeDashboard({
               <li><strong>{readyCount}</strong> ready</li>
               <li><strong>{needsReviewCount}</strong> needs review</li>
               <li><strong>{blockedCount}</strong> blocked</li>
+              <li data-testid="visit-home-customer-journey-pack-status">
+                <strong>Customer journey pack:</strong> {STATUS_STYLES[customerJourneyPackStatus].label}
+              </li>
             </ul>
           </div>
 
