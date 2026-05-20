@@ -2,7 +2,12 @@ import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
-import { isLifecycleAtLeast, type VisitReviewLifecycleState } from '../../lib/storage/visitReviewLifecycle';
+import {
+  projectVisitReadiness,
+  type GeneratedOutputsV1,
+  type VisitEnvelopeReadinessProjectionV1,
+  type VisitReviewLifecycleState,
+} from '../../lib/storage/visitReviewLifecycle';
 import { detectVisitJourney, type VisitJourneyInfo } from './detectVisitJourney';
 
 export type VisitHomeSurfaceStatus = 'ready' | 'needs-review' | 'blocked';
@@ -14,6 +19,8 @@ export interface BuildVisitHomeViewModelInput {
   readonly surveyModel?: FullSurveyModelV1;
   readonly recommendationSummary?: CustomerSummaryV1;
   readonly lifecycleState?: VisitReviewLifecycleState;
+  readonly visitEnvelope?: VisitEnvelopeReadinessProjectionV1;
+  readonly generatedOutputs?: Partial<GeneratedOutputsV1>;
   readonly workflowReadiness: {
     readonly hasVisit: boolean;
     readonly libraryUnsafe: boolean;
@@ -79,8 +86,18 @@ function resolveSelectedSystem(
 }
 
 export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): VisitHomeViewModel {
-  const hasRecommendation = input.lifecycleState != null
-    ? isLifecycleAtLeast(input.lifecycleState, 'recommendation_ready')
+  const projectedReadiness = projectVisitReadiness(
+    input.visitEnvelope,
+    input.generatedOutputs ?? {
+      portal: { generated: input.outputAvailability.hasPortalOutput },
+      pdf: { generated: input.outputAvailability.hasSupportingPdfOutput },
+      handoff: { generated: input.outputAvailability.hasHandoffReview },
+      simulatorReview: { generated: false },
+    },
+    input.lifecycleState,
+  );
+  const hasRecommendation = input.lifecycleState != null || input.visitEnvelope != null
+    ? projectedReadiness.recommendationReady
     : (
       input.acceptedScenario != null ||
       input.recommendationSummary != null ||
@@ -99,7 +116,14 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
 
   // Visit has enough data to unlock review surfaces (simulator, portal, pdf)
   // even if the full recommendation pipeline has not completed.
-  const canUnlockReviewSurfaces = hasVisit && (hasRecommendation || hasAcceptedScenario);
+  const canUnlockReviewSurfaces = hasVisit && (
+    projectedReadiness.presentationSurfacesUnlocked
+    || (input.lifecycleState == null && input.visitEnvelope == null && hasAcceptedScenario)
+  );
+  const deliverySurfacesUnlocked = projectedReadiness.deliverySurfacesUnlocked
+    || (input.lifecycleState == null && input.visitEnvelope == null && hasRecommendation);
+  const handoffOutputAvailable = projectedReadiness.handoffOutputAvailable
+    || (input.lifecycleState == null && input.visitEnvelope == null && input.outputAvailability.hasHandoffReview);
 
   const recommendationStatus: VisitHomeSurfaceStatus = hasRecommendation
     ? 'ready'
@@ -109,7 +133,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
 
   const portalStatus: VisitHomeSurfaceStatus = libraryUnsafe
     ? 'blocked'
-    : input.outputAvailability.hasPortalOutput
+    : projectedReadiness.portalOutputAvailable
     ? 'ready'
     : canUnlockReviewSurfaces
     ? 'needs-review'
@@ -117,7 +141,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
 
   const supportingPdfStatus: VisitHomeSurfaceStatus = supportingPdfUnsafe || libraryUnsafe
     ? 'blocked'
-    : input.outputAvailability.hasSupportingPdfOutput
+    : projectedReadiness.supportingPdfOutputAvailable
     ? 'ready'
     : canUnlockReviewSurfaces
     ? 'needs-review'
@@ -139,13 +163,13 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
       : 'blocked';
 
   let handoffStatus: VisitHomeSurfaceStatus = 'blocked';
-  if (hasVisit && hasRecommendation) {
-    handoffStatus = input.outputAvailability.hasHandoffReview ? 'ready' : 'needs-review';
+  if (hasVisit && deliverySurfacesUnlocked) {
+    handoffStatus = handoffOutputAvailable ? 'ready' : 'needs-review';
   }
 
   let exportStatus: VisitHomeSurfaceStatus = 'blocked';
-  if (hasVisit && hasRecommendation) {
-    exportStatus = input.outputAvailability.hasExportPackage ? 'ready' : 'needs-review';
+  if (hasVisit && deliverySurfacesUnlocked) {
+    exportStatus = projectedReadiness.exportOutputAvailable ? 'ready' : 'needs-review';
   }
 
   const keyExpectationDelta =

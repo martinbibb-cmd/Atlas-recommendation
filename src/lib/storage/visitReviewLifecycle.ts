@@ -7,6 +7,7 @@ import {
   type AtlasVisitJourneyEvent,
   type AtlasVisitJourneyState,
 } from './atlasVisitJourney';
+import type { VisitEnvelopeV1 } from '../../contracts/VisitEnvelopeV1';
 
 export type VisitReviewLifecycleState = AtlasVisitJourneyState;
 export type VisitReviewLifecycleEvent = AtlasVisitJourneyEvent;
@@ -101,6 +102,55 @@ export function isLifecycleAtLeast(
   threshold: VisitReviewLifecycleState,
 ): boolean {
   return isAtlasVisitJourneyAtLeast(lifecycleState, threshold);
+}
+
+export type VisitEnvelopeReadinessProjectionV1 = Pick<VisitEnvelopeV1, 'recommendation' | 'topology' | 'pdfPayload'>;
+
+export interface VisitReadinessProjectionV1 {
+  readonly recommendationReady: boolean;
+  readonly hasRecommendationPayload: boolean;
+  readonly hasTopologyPayload: boolean;
+  readonly presentationSurfacesUnlocked: boolean;
+  readonly deliverySurfacesUnlocked: boolean;
+  readonly portalOutputAvailable: boolean;
+  readonly supportingPdfOutputAvailable: boolean;
+  readonly handoffOutputAvailable: boolean;
+  readonly exportOutputAvailable: boolean;
+}
+
+export function projectVisitReadiness(
+  envelope: VisitEnvelopeReadinessProjectionV1 | undefined,
+  generatedOutputs: Partial<GeneratedOutputsV1> | undefined,
+  journeyState: VisitReviewLifecycleState | undefined,
+): VisitReadinessProjectionV1 {
+  const outputs = normaliseGeneratedOutputs(generatedOutputs);
+  const hasRecommendationPayload = envelope?.recommendation != null;
+  const hasTopologyPayload = envelope?.topology != null;
+  const hasEnvelopeRecommendationTruth = hasRecommendationPayload && hasTopologyPayload;
+  const hasRecommendationByJourney =
+    journeyState != null && isLifecycleAtLeast(journeyState, 'recommendation_ready');
+  const recommendationReady = envelope != null
+    ? hasEnvelopeRecommendationTruth
+    : hasRecommendationByJourney;
+  const presentationSurfacesUnlocked = recommendationReady && (
+    journeyState == null
+      || isLifecycleAtLeast(journeyState, 'recommendation_ready')
+  );
+  const deliverySurfacesUnlocked = recommendationReady && (
+    journeyState != null
+      && isLifecycleAtLeast(journeyState, 'presentation_ready')
+  );
+  return {
+    recommendationReady,
+    hasRecommendationPayload,
+    hasTopologyPayload,
+    presentationSurfacesUnlocked,
+    deliverySurfacesUnlocked,
+    portalOutputAvailable: outputs.portal.generated,
+    supportingPdfOutputAvailable: outputs.pdf.generated,
+    handoffOutputAvailable: deliverySurfacesUnlocked && outputs.handoff.generated,
+    exportOutputAvailable: journeyState != null && isLifecycleAtLeast(journeyState, 'exported'),
+  };
 }
 
 export function deriveLifecycleStateFromSnapshot(input: {

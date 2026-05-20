@@ -120,6 +120,21 @@ describe('buildVisitHomeActionProjection', () => {
     expect(exportAction?.status).toBe('needs-review');
   });
 
+  it('blocks handoff/export until presentation surfaces are unlocked', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'owner',
+      visitReadiness: {
+        ...BASE_INPUT.visitReadiness,
+        deliverySurfacesUnlocked: false,
+      },
+    });
+    const handoff = projection.visibleActions.find((item) => item.actionId === 'resolve-follow-ups');
+    const exportAction = projection.visibleActions.find((item) => item.actionId === 'export-handover-package');
+    expect(handoff?.status).toBe('blocked');
+    expect(exportAction?.status).toBe('blocked');
+  });
+
   it('marks missing supporting PDF output as needs-review instead of blocked', () => {
     const projection = buildVisitHomeActionProjection({
       ...BASE_INPUT,
