@@ -92,7 +92,7 @@ function validateRootShape(rawPackage: unknown): CanonicalVisitPackageValidation
   return {
     ok: true,
     pkg: rawPackage as unknown as CanonicalVisitPackageV1,
-    integrity: verifyCanonicalVisitPackageIntegrity(rawPackage as CanonicalVisitPackageV1),
+    integrity: verifyCanonicalVisitPackageIntegrity(rawPackage as unknown as CanonicalVisitPackageV1),
   };
 }
 
