@@ -11,7 +11,10 @@ import { AtlasPhysicsVisualCard } from '../visualLanguage/AtlasPhysicsVisualCard
 import { AtlasStoryPanel } from '../visualLanguage/AtlasStoryPanel';
 import { AtlasSystemStateGraphic } from '../visualLanguage/AtlasSystemStateGraphic';
 import { AtlasWaterReserveGraphic } from '../visualLanguage/AtlasWaterReserveGraphic';
-import { buildCustomerJourneyPack } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
+import {
+  buildCustomerJourneyPack,
+  inferCustomerJourneyTypeFromSystemContext,
+} from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 import { CustomerPortalJourneySectionV1 } from './CustomerPortalJourneySectionV1';
 import './customerPortalJourney.css';
 
@@ -95,16 +98,6 @@ function buildPreparationItems(decision: AtlasDecisionV1, scenario: ScenarioResu
     ...(scenario?.requiredWorks ?? []),
   ];
   return [...new Set(items)].slice(0, 4);
-}
-
-function inferJourneyTypeForPack(
-  input: EngineInputV2_3,
-): 'open_vented' | 'heat_pump' | 'generic_recommendation_summary' {
-  if (input.currentHeatSourceType === 'ashp') return 'heat_pump';
-  if (input.currentSystem?.heatingSystemType === 'open_vented' || input.dhwStorageType === 'vented') {
-    return 'open_vented';
-  }
-  return 'generic_recommendation_summary';
 }
 
 function describeSupply(input: EngineInputV2_3): string {
@@ -650,10 +643,14 @@ export function CustomerPortalJourneyComposer({
   const recommendationSummary = recommendedScenario?.system.summary ?? decision.summary;
   const journeyPack = buildCustomerJourneyPack({
     selectedSectionIds: [],
-    journeyType: inferJourneyTypeForPack(engineInput),
+    journeyType: inferCustomerJourneyTypeFromSystemContext({
+      currentHeatSourceType: engineInput.currentHeatSourceType,
+      currentSystemHeatingType: engineInput.currentSystem?.heatingSystemType,
+      dhwStorageType: engineInput.dhwStorageType,
+    }),
     recommendationSummary,
     customerFacts: [
-      `${engineInput.occupancyCount ?? 0} people`,
+      `${engineInput.occupancyCount ?? 0}-person household`,
       formatBathroomCount(engineInput.bathroomCount ?? 0),
     ],
     liveExperienceExplanations: [
@@ -664,9 +661,7 @@ export function CustomerPortalJourneyComposer({
   });
   const sharedRecommendationSummary = journeyPack.portalDeepDive.recommendationSummary;
   const liveExperienceSummary = journeyPack.portalDeepDive.liveExperienceExplanations[0]
-    ?? engineResult.engineOutput.showerCompatibilityNote?.customerSummary
-    ?? decision.dayToDayOutcomes[0]
-    ?? decision.summary;
+    ?? 'Atlas has prepared day-to-day expectations for your home based on surveyed conditions.';
   const nextSteps = journeyPack.portalDeepDive.nextSteps.map((step) => `${step.label}: ${step.body}`);
   const scenarioById = new Map(scenarios.map((scenario) => [scenario.scenarioId, scenario]));
   const comparisonStoryCards = viewModel.verdictData.comparisonCards

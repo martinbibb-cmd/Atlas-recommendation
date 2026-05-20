@@ -561,13 +561,25 @@ function inferCustomerFacts(input: BuildCustomerJourneyPackInputV1): string[] {
   return [];
 }
 
+export function inferCustomerJourneyTypeFromSystemContext(input: {
+  currentHeatSourceType?: string;
+  currentSystemHeatingType?: string;
+  dhwStorageType?: string;
+}): NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']> {
+  if (input.currentHeatSourceType === 'ashp') return 'heat_pump';
+  if (input.currentSystemHeatingType === 'open_vented' || input.dhwStorageType === 'vented') {
+    return 'open_vented';
+  }
+  return 'generic_recommendation_summary';
+}
+
 function inferJourneyType(input: BuildCustomerJourneyPackInputV1): NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']> {
   if (input.journeyType != null) return input.journeyType;
-  const heatSourceType = input.canonicalVisitPackage?.engineInputSnapshot?.currentHeatSourceType;
-  if (heatSourceType === 'ashp') return 'heat_pump';
-  const currentSystemType = input.canonicalVisitPackage?.surveyDraft?.currentSystem?.heatingSystemType;
-  if (currentSystemType === 'open_vented') return 'open_vented';
-  return 'generic_recommendation_summary';
+  return inferCustomerJourneyTypeFromSystemContext({
+    currentHeatSourceType: input.canonicalVisitPackage?.engineInputSnapshot?.currentHeatSourceType,
+    currentSystemHeatingType: input.canonicalVisitPackage?.surveyDraft?.currentSystem?.heatingSystemType,
+    dhwStorageType: input.canonicalVisitPackage?.engineInputSnapshot?.dhwStorageType,
+  });
 }
 
 function inferLibrarySupportedExplainers(sections: readonly PortalJourneyPrintSectionV1[]): CustomerJourneyLibraryExplainerV1[] {
