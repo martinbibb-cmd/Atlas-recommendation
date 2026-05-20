@@ -7,8 +7,18 @@ import {
   serialiseCanonicalVisitPackage,
   validateCanonicalVisitPackage,
 } from '..';
+import {
+  buildCustomerJourneyPack,
+  buildCustomerJourneyPackGeneratedOutput,
+} from '../../../library/portal/pdf/buildPortalJourneyPrintModel';
 
 function makePackage() {
+  const customerJourneyPack = buildCustomerJourneyPack({
+    selectedSectionIds: [],
+    recommendationSummary: 'System boiler with cylinder: Best fit for this home',
+    customerFacts: ['3-person household', '2 bathrooms'],
+    journeyType: 'open_vented',
+  });
   return buildCanonicalVisitPackage({
     packageData: {
       visitIdentity: {
@@ -45,6 +55,10 @@ function makePackage() {
         generatedOutputs: {
           portal: { generated: true, generatedAt: '2026-05-20T10:01:00.000Z' },
           pdf: { generated: false },
+          customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+            customerJourneyPack,
+            generatedAt: '2026-05-20T10:01:00.000Z',
+          }),
           simulatorReview: { generated: false },
           handoff: { generated: false },
         },
@@ -83,6 +97,14 @@ describe('CanonicalVisitPackageV1', () => {
     const validated = validateCanonicalVisitPackage(pkg);
 
     expect(validated.ok).toBe(true);
+  });
+
+  it('preserves customer journey pack metadata in generated outputs', () => {
+    const pkg = makePackage();
+    expect(pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.generated).toBe(true);
+    expect(pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.schema).toBe('atlas.customer-journey-pack');
+    expect(pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.version).toBe('1.0');
+    expect(pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.status).toBe('packaged');
   });
 
   it('rejects invalid schema', () => {

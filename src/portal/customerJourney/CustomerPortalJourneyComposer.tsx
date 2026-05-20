@@ -14,6 +14,7 @@ import { AtlasWaterReserveGraphic } from '../visualLanguage/AtlasWaterReserveGra
 import {
   buildCustomerJourneyPack,
   inferCustomerJourneyTypeFromSystemContext,
+  type CustomerJourneyPackV1,
 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 import { CustomerPortalJourneySectionV1 } from './CustomerPortalJourneySectionV1';
 import './customerPortalJourney.css';
@@ -25,6 +26,7 @@ interface CustomerPortalJourneyComposerProps {
   engineInput: EngineInputV2_3;
   engineResult: FullEngineResult;
   propertyTitle: string;
+  customerJourneyPack?: CustomerJourneyPackV1;
 }
 
 type VisualTone = 'good' | 'warn' | 'danger' | 'neutral';
@@ -625,6 +627,7 @@ export function CustomerPortalJourneyComposer({
   engineInput,
   engineResult,
   propertyTitle,
+  customerJourneyPack,
 }: CustomerPortalJourneyComposerProps) {
   const recommendedScenario = getRecommendedScenario(decision, scenarios);
   const currentSystem = humanizeCurrentSystem(engineInput);
@@ -642,6 +645,7 @@ export function CustomerPortalJourneyComposer({
   const journeyTitle = getScenarioTitle(recommendedScenario);
   const recommendationSummary = recommendedScenario?.system.summary ?? decision.summary;
   const journeyPack = buildCustomerJourneyPack({
+    customerJourneyPack,
     selectedSectionIds: [],
     journeyType: inferCustomerJourneyTypeFromSystemContext({
       currentHeatSourceType: engineInput.currentHeatSourceType,

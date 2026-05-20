@@ -30,6 +30,7 @@ import type { LibraryContentProjectionV1 } from '../../projections/LibraryConten
 import type { PortalVisitContextV1 } from '../../../contracts/PortalVisitContextV1';
 import type { VisitEnvelopeV1 } from '../../../contracts/VisitEnvelopeV1';
 import type { CanonicalVisitPackageV1 } from '../../../features/visitPackage/CanonicalVisitPackageV1';
+import type { GeneratedOutputsV1 } from '../../../lib/storage/visitReviewLifecycle';
 import { resolvePortalAddressSummary } from '../../../lib/portal/portalVisitContext';
 import {
   buildSystemProtectionSummary,
@@ -139,6 +140,8 @@ export interface BuildPortalJourneyPrintModelInputV1 {
    * included in the model as systemProtection.
    */
   surveyCondition?: SurveySystemConditionV1;
+  /** Preferred packaged customer journey pack; used instead of rebuilding when present. */
+  customerJourneyPack?: CustomerJourneyPackV1;
 }
 
 export const CUSTOMER_JOURNEY_PACK_SCHEMA = 'atlas.customer-journey-pack' as const;
@@ -169,6 +172,40 @@ export interface BuildCustomerJourneyPackInputV1 extends Partial<BuildPortalJour
   canonicalVisitPackage?: CanonicalVisitPackageV1;
   visitEnvelope?: VisitEnvelopeV1;
   liveExperienceExplanations?: readonly string[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isCustomerJourneyPack(value: unknown): value is CustomerJourneyPackV1 {
+  if (!isRecord(value)) return false;
+  return value['schema'] === CUSTOMER_JOURNEY_PACK_SCHEMA
+    && value['version'] === CUSTOMER_JOURNEY_PACK_VERSION
+    && isRecord(value['staticPdf'])
+    && isRecord(value['portalDeepDive']);
+}
+
+export function readCustomerJourneyPackFromGeneratedOutputs(
+  generatedOutputs: Partial<GeneratedOutputsV1> | undefined,
+): CustomerJourneyPackV1 | undefined {
+  const payload = generatedOutputs?.customerJourneyPack?.payload;
+  return isCustomerJourneyPack(payload) ? payload : undefined;
+}
+
+export function buildCustomerJourneyPackGeneratedOutput(input: {
+  readonly customerJourneyPack: CustomerJourneyPackV1;
+  readonly generatedAt: string;
+  readonly status?: string;
+}): NonNullable<GeneratedOutputsV1['customerJourneyPack']> {
+  return {
+    generated: true,
+    generatedAt: input.generatedAt,
+    schema: input.customerJourneyPack.schema,
+    version: input.customerJourneyPack.version,
+    status: input.status ?? 'packaged',
+    payload: input.customerJourneyPack,
+  };
 }
 
 // ─── Living-with-your-system static content ───────────────────────────────────
@@ -677,6 +714,14 @@ function buildPortalJourneyPrintModelCore(
 export function buildCustomerJourneyPack(
   input: BuildCustomerJourneyPackInputV1,
 ): CustomerJourneyPackV1 {
+  const packagedPack =
+    input.customerJourneyPack
+    ?? readCustomerJourneyPackFromGeneratedOutputs(
+      input.canonicalVisitPackage?.generatedOutputStatus?.generatedOutputs,
+    );
+  if (packagedPack != null) {
+    return packagedPack;
+  }
   const staticPdf = buildPortalJourneyPrintModelCore({
     selectedSectionIds: input.selectedSectionIds ?? [],
     recommendationSummary: inferRecommendationSummary(input),
