@@ -1,9 +1,19 @@
-export type VisitReviewLifecycleState =
-  | 'survey_in_progress'
-  | 'recommendation_ready'
-  | 'outputs_generated'
-  | 'review_in_progress'
-  | 'handover_ready';
+import {
+  isAtlasVisitJourneyAtLeast,
+  isAtlasVisitJourneyState,
+  normaliseAtlasVisitJourneyState,
+  transitionAtlasVisitJourney,
+  type AtlasVisitJourneyEvent,
+  type AtlasVisitJourneyState,
+} from './atlasVisitJourney';
+
+export type VisitReviewLifecycleState = AtlasVisitJourneyState;
+export type VisitReviewLifecycleEvent = AtlasVisitJourneyEvent;
+export {
+  transitionAtlasVisitJourney,
+  type AtlasVisitJourneyEvent,
+  type AtlasVisitJourneyState,
+};
 
 export type GeneratedOutputRendererV1 = 'library_customer_portal' | 'legacy_dev_only';
 export const CANONICAL_PORTAL_RENDERER: GeneratedOutputRendererV1 = 'library_customer_portal';
@@ -79,26 +89,21 @@ export function withGeneratedPortalOutput(
   };
 }
 
-const LIFECYCLE_ORDER: readonly VisitReviewLifecycleState[] = [
-  'survey_in_progress',
-  'recommendation_ready',
-  'outputs_generated',
-  'review_in_progress',
-  'handover_ready',
-];
-
 export function isLifecycleState(value: unknown): value is VisitReviewLifecycleState {
-  return (
-    typeof value === 'string' &&
-    LIFECYCLE_ORDER.includes(value as VisitReviewLifecycleState)
-  );
+  return isAtlasVisitJourneyState(value);
+}
+
+export function normaliseVisitReviewLifecycleState(
+  value: unknown,
+): VisitReviewLifecycleState | undefined {
+  return normaliseAtlasVisitJourneyState(value);
 }
 
 export function isLifecycleAtLeast(
   lifecycleState: VisitReviewLifecycleState,
   threshold: VisitReviewLifecycleState,
 ): boolean {
-  return LIFECYCLE_ORDER.indexOf(lifecycleState) >= LIFECYCLE_ORDER.indexOf(threshold);
+  return isAtlasVisitJourneyAtLeast(lifecycleState, threshold);
 }
 
 export function deriveLifecycleStateFromSnapshot(input: {
@@ -106,9 +111,9 @@ export function deriveLifecycleStateFromSnapshot(input: {
   readonly generatedOutputs?: Partial<GeneratedOutputsV1>;
 }): VisitReviewLifecycleState {
   const outputs = normaliseGeneratedOutputs(input.generatedOutputs);
-  if (outputs.handoff.generated) return 'handover_ready';
-  if (outputs.simulatorReview.generated) return 'review_in_progress';
-  if (outputs.portal.generated || outputs.pdf.generated) return 'outputs_generated';
+  if (outputs.handoff.generated) return 'handoff_ready';
+  if (outputs.simulatorReview.generated) return 'presentation_ready';
+  if (outputs.portal.generated || outputs.pdf.generated) return 'presentation_ready';
   if (input.recommendationReady) return 'recommendation_ready';
   return 'survey_in_progress';
 }

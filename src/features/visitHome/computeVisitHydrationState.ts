@@ -37,12 +37,16 @@ export function computeVisitHydrationState(
 ): VisitHydrationState {
   if (!input.hasVisit) return 'no-visit';
   if (input.lifecycleState != null) {
-    if (input.lifecycleState === 'survey_in_progress') return 'survey-in-progress';
+    if (input.lifecycleState === 'draft_started' || input.lifecycleState === 'survey_in_progress' || input.lifecycleState === 'survey_ready') {
+      return 'survey-in-progress';
+    }
     if (input.lifecycleState === 'recommendation_ready') return 'recommendation-ready';
-    if (input.lifecycleState === 'outputs_generated' || input.lifecycleState === 'review_in_progress') {
+    if (input.lifecycleState === 'presentation_ready') {
       return 'review-in-progress';
     }
-    if (input.lifecycleState === 'handover_ready') return 'handover-ready';
+    if (input.lifecycleState === 'handoff_ready' || input.lifecycleState === 'exported' || input.lifecycleState === 'archived') {
+      return 'handover-ready';
+    }
   }
   if (input.hasAcceptedScenario && input.hasSurveyModel) {
     if (input.hasHandoffReview || input.hasExportPackage) return 'handover-ready';

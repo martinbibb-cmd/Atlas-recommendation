@@ -144,10 +144,11 @@ import {
 import {
   createEmptyGeneratedOutputs,
   deriveLifecycleStateFromSnapshot,
-  isLifecycleAtLeast,
   isRecommendationReadyForLifecycle,
   normaliseGeneratedOutputs,
+  transitionAtlasVisitJourney,
   withGeneratedPortalOutput,
+  type AtlasVisitJourneyEvent,
   type GeneratedOutputsV1,
   type VisitReviewLifecycleState,
 } from './lib/storage/visitReviewLifecycle';
@@ -848,6 +849,20 @@ function RetiredRouteNotice({
   );
 }
 
+function dispatchVisitJourneyEvent(
+  currentState: VisitReviewLifecycleState | undefined,
+  event: AtlasVisitJourneyEvent,
+): VisitReviewLifecycleState {
+  const transition = transitionAtlasVisitJourney(currentState ?? 'draft_started', event);
+  if (!transition.accepted && import.meta.env.DEV) {
+    console.warn('[Atlas] Rejected visit journey event', {
+      currentState: currentState ?? 'draft_started',
+      event: event.type,
+    });
+  }
+  return transition.state;
+}
+
 function buildSupportingPdfReadinessGate(input: {
   readonly surveyModel?: FullSurveyModelV1;
   readonly engineOutput?: EngineOutputV1;
@@ -1360,7 +1375,10 @@ function AppInner() {
         ? visitRecommendationSnapshotRef.current
         : null;
     const generatedOutputs = normaliseGeneratedOutputs(existingSnapshot?.generatedOutputs);
-    const lifecycleState = existingSnapshot?.lifecycleState ?? 'survey_in_progress';
+    const lifecycleState = dispatchVisitJourneyEvent(
+      existingSnapshot?.lifecycleState,
+      { type: 'draft_saved' },
+    );
     const persisted: PersistedAtlasVisitV2 = buildPersistedAtlasVisitV2({
       visitId: activeVisitId,
       visitReference: formatVisitReference(activeVisitId),
@@ -1450,7 +1468,10 @@ function AppInner() {
         ? visitRecommendationSnapshot
         : null;
     const generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
-    const lifecycleState = currentSnapshot?.lifecycleState ?? 'survey_in_progress';
+    const lifecycleState = dispatchVisitJourneyEvent(
+      currentSnapshot?.lifecycleState,
+      { type: 'draft_saved' },
+    );
     const snapshot: PersistedAtlasVisitV2 = buildPersistedAtlasVisitV2({
       visitId: activeVisitId,
       visitReference: formatVisitReference(activeVisitId),
@@ -1590,7 +1611,10 @@ function AppInner() {
         ? visitRecommendationSnapshot
         : null;
     let generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
-    let lifecycleState: VisitReviewLifecycleState = 'recommendation_ready';
+    let lifecycleState = dispatchVisitJourneyEvent(
+      currentSnapshot?.lifecycleState,
+      { type: 'recommendation_generated' },
+    );
     let portalUrl: string | undefined;
     let statusMessage = 'Recommendation generated and visit snapshot refreshed.';
 
@@ -1628,7 +1652,7 @@ function AppInner() {
         generatedAt: new Date().toISOString(),
         url: portalUrl,
       });
-      lifecycleState = 'outputs_generated';
+      lifecycleState = dispatchVisitJourneyEvent(lifecycleState, { type: 'presentation_generated' });
       statusMessage = 'Recommendation generated, portal link refreshed, and customer outputs updated.';
     } catch (err) {
       console.warn('[Atlas] Recommendation generated, but portal output refresh failed:', err);
@@ -1733,10 +1757,10 @@ function AppInner() {
         generatedAt: now,
         url: portalUrl,
       });
-      const priorLifecycle = currentSnapshot?.lifecycleState ?? 'recommendation_ready';
-      const lifecycleState: VisitReviewLifecycleState = isLifecycleAtLeast(priorLifecycle, 'review_in_progress')
-        ? priorLifecycle
-        : 'outputs_generated';
+      const lifecycleState = dispatchVisitJourneyEvent(
+        currentSnapshot?.lifecycleState,
+        { type: 'presentation_generated' },
+      );
       const nextSnapshot: VisitRecommendationSnapshot = {
         visitId: activeVisitId,
         visitReference: formatVisitReference(activeVisitId),
@@ -1778,10 +1802,10 @@ function AppInner() {
         version: '1.0',
       },
     };
-    const priorLifecycle = currentSnapshot?.lifecycleState ?? 'recommendation_ready';
-    const lifecycleState: VisitReviewLifecycleState = isLifecycleAtLeast(priorLifecycle, 'review_in_progress')
-      ? priorLifecycle
-      : 'outputs_generated';
+    const lifecycleState = dispatchVisitJourneyEvent(
+      currentSnapshot?.lifecycleState,
+      { type: 'presentation_generated' },
+    );
     const nextSnapshot: VisitRecommendationSnapshot = {
       visitId: activeVisitId,
       visitReference: formatVisitReference(activeVisitId),
@@ -1819,7 +1843,7 @@ function AppInner() {
           })
         : undefined;
       const customerSummary = decision != null ? buildCustomerSummary(decision, scenarios) : undefined;
-      const lifecycleState: VisitReviewLifecycleState = 'recommendation_ready';
+      const lifecycleState = dispatchVisitJourneyEvent(undefined, { type: 'recommendation_generated' });
       const generatedOutputs = createEmptyGeneratedOutputs();
       setVisitRecommendationSnapshot({
         visitId: demoVisitId,
@@ -2950,6 +2974,7 @@ function AppInner() {
               hasPortalOutput={generatedOutputs.portal.generated}
               hasSupportingPdfOutput={generatedOutputs.pdf.generated}
               hasHandoffOutput={generatedOutputs.handoff.generated}
+              hasExportPackageOutput={lifecycleState === 'exported' || lifecycleState === 'archived'}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}
@@ -3060,9 +3085,10 @@ function AppInner() {
                     decision: currentSnapshot?.decision,
                     customerSummary: currentSnapshot?.customerSummary,
                     acceptedScenarioId: currentSnapshot?.acceptedScenarioId,
-                    lifecycleState: isLifecycleAtLeast(currentSnapshot?.lifecycleState ?? 'recommendation_ready', 'outputs_generated')
-                      ? 'review_in_progress'
-                      : currentSnapshot?.lifecycleState ?? 'recommendation_ready',
+                    lifecycleState: dispatchVisitJourneyEvent(
+                      currentSnapshot?.lifecycleState,
+                      { type: 'presentation_generated' },
+                    ),
                     generatedOutputs: {
                       ...currentOutputs,
                       simulatorReview: {
@@ -3104,7 +3130,10 @@ function AppInner() {
                     decision: currentSnapshot?.decision,
                     customerSummary: currentSnapshot?.customerSummary,
                     acceptedScenarioId: currentSnapshot?.acceptedScenarioId,
-                    lifecycleState: 'handover_ready',
+                    lifecycleState: dispatchVisitJourneyEvent(
+                      currentSnapshot?.lifecycleState,
+                      { type: 'handoff_prepared' },
+                    ),
                     generatedOutputs: {
                       ...currentOutputs,
                       handoff: {
@@ -3144,6 +3173,22 @@ function AppInner() {
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+                if (labFullSurveyModel != null) {
+                  const currentSnapshot =
+                    visitRecommendationSnapshot?.visitId === activeVisitId
+                      ? visitRecommendationSnapshot
+                      : null;
+                  if (currentSnapshot != null) {
+                    const nextSnapshot: VisitRecommendationSnapshot = {
+                      ...currentSnapshot,
+                      lifecycleState: dispatchVisitJourneyEvent(
+                        currentSnapshot.lifecycleState,
+                        { type: 'visit_exported' },
+                      ),
+                    };
+                    persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
+                  }
+                }
               } : undefined}
               onBack={() => setJourney('workspace-dashboard')}
             />

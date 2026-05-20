@@ -28,10 +28,10 @@ describe('computeVisitHydrationState lifecycle authority', () => {
     expect(state).toBe('recommendation-ready');
   });
 
-  it('returns review-in-progress when canonical lifecycle is outputs_generated', () => {
+  it('returns review-in-progress when canonical lifecycle is presentation_ready', () => {
     const state = computeVisitHydrationState({
       hasVisit: true,
-      lifecycleState: 'outputs_generated',
+      lifecycleState: 'presentation_ready',
       hasRecommendation: false,
       hasAcceptedScenario: false,
       hasSurveyModel: false,
@@ -41,4 +41,3 @@ describe('computeVisitHydrationState lifecycle authority', () => {
     expect(state).toBe('review-in-progress');
   });
 });
-
