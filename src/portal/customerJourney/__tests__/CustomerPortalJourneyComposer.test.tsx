@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { runEngine } from '../../../engine/Engine';
 import { buildDecisionFromScenarios } from '../../../engine/modules/buildDecisionFromScenarios';
 import { buildPortalViewModel } from '../../../engine/modules/buildPortalViewModel';
@@ -65,7 +65,10 @@ describe('CustomerPortalJourneyComposer', () => {
       />,
     );
 
-    expect(screen.getAllByText('Packaged import summary').length).toBeGreaterThan(0);
+    const recommendedSystemCard = screen.getByTestId('customer-portal-recommended-system-card');
+    const rebuiltSummary = scenarios[0]?.system.summary ?? decision.summary;
+    expect(within(recommendedSystemCard).getByText('Packaged import summary')).toBeInTheDocument();
+    expect(within(recommendedSystemCard).queryByText(rebuiltSummary)).toBeNull();
     expect(screen.getByText('Packaged live experience line')).toBeInTheDocument();
   });
 });
