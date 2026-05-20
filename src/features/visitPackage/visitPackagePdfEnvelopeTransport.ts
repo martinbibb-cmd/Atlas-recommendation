@@ -143,7 +143,7 @@ export function extractVisitPackagePdfEnvelope(
     }
     return {
       ok: true,
-      envelope: raw as VisitPackagePdfEnvelopeV1,
+      envelope: raw as unknown as VisitPackagePdfEnvelopeV1,
     };
   } catch {
     return { ok: false, errors: ['Embedded Atlas visit package payload is not valid.'] };
