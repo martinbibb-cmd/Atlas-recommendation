@@ -192,6 +192,10 @@ import {
   buildPortalLaunchPayload,
   type PortalLaunchPayloadV1,
 } from './features/portalLaunch';
+import {
+  buildScanLaunchPayload,
+  prepareScanLaunchRoute,
+} from './features/scanLaunch';
 
 // Lazy-load InstallationSpecificationPage so that any runtime crash during import
 // or render is caught by SpecificationErrorBoundary rather than blanking the app.
@@ -2285,6 +2289,22 @@ function AppInner() {
     e.target.value = '';
   }
 
+  function handleOpenScanFromCanonicalPackage(source: 'app-home' | 'visit-home') {
+    if (activeCanonicalPackage == null) {
+      setLocalSessionStatus({
+        tone: 'error',
+        message: 'Open in Atlas Scan is only available after importing a canonical visit package.',
+      });
+      return;
+    }
+    const payload = buildScanLaunchPayload(activeCanonicalPackage);
+    const prepared = prepareScanLaunchRoute(payload);
+    if (source === 'visit-home') {
+      setLastOpenedFromHome({ label: 'Atlas Scan launch', journey: 'visit-home' });
+    }
+    window.location.href = prepared.deepLink;
+  }
+
   /**
    * View recommendation for a completed visit.
    *
@@ -3437,6 +3457,9 @@ function AppInner() {
                   });
                 }
               } : undefined}
+              onOpenScanFromPackage={activeCanonicalPackage != null ? () => {
+                handleOpenScanFromCanonicalPackage('visit-home');
+              } : undefined}
               onStartDemoReview={import.meta.env.DEV ? handleStartDemoReview : undefined}
               onOpenDemoFixtures={import.meta.env.DEV ? () => setJourney('app-home') : undefined}
               visitSelectorEntries={visitSelectorEntries}
@@ -4125,6 +4148,17 @@ function AppInner() {
               <span className="app-entry-tile__title">Import package</span>
               <span className="app-entry-tile__copy">
                 Import a <code>.atlasvisit.json</code> or <code>.atlasvisit.pdf</code> package exported from Visit Home.
+              </span>
+            </button>
+            <button
+              type="button"
+              className="app-entry-tile"
+              onClick={() => handleOpenScanFromCanonicalPackage('app-home')}
+              disabled={activeCanonicalPackage == null}
+            >
+              <span className="app-entry-tile__title">Open in Atlas Scan</span>
+              <span className="app-entry-tile__copy">
+                Launch Atlas Scan with packaged visit identity, workspace context, and survey draft.
               </span>
             </button>
             <button

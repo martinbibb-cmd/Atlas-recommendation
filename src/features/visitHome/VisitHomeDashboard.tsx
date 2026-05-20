@@ -212,6 +212,8 @@ export interface VisitHomeDashboardProps {
    * opening a portal URL or generating a new portal artifact.
    */
   onOpenPortalFromPackage?: () => void;
+  /** Open Atlas Scan using packaged canonical visit launch payload. */
+  onOpenScanFromPackage?: () => void;
   /** Navigate back (typically to workspace-dashboard). */
   onBack: () => void;
 }
@@ -431,6 +433,7 @@ export function VisitHomeDashboard({
   onOpenEngineerRoute,
   onExportPackage,
   onOpenPortalFromPackage,
+  onOpenScanFromPackage,
   onBack,
 }: VisitHomeDashboardProps) {
   // ── Hidden file input ref for visit package import ────────────────────────
@@ -1152,6 +1155,17 @@ export function VisitHomeDashboard({
                 data-testid="visit-home-scan-import-cta"
               >
                 Import Atlas Scan package →
+              </button>
+            )}
+            {onOpenScanFromPackage != null && (
+              <button
+                type="button"
+                className="vhd-inline-action"
+                style={{ marginTop: '0.5rem' }}
+                onClick={onOpenScanFromPackage}
+                data-testid="visit-home-scan-launch-cta"
+              >
+                Open in Atlas Scan →
               </button>
             )}
           </div>
