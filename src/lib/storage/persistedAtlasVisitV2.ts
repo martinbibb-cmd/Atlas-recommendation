@@ -3,6 +3,7 @@ import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
 import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
+import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import {
   deriveLifecycleStateFromSnapshot,
@@ -13,12 +14,67 @@ import {
   type VisitReviewLifecycleState,
 } from './visitReviewLifecycle';
 
+export interface CanonicalVisitPayloadV1 {
+  schemaVersion: '1.0';
+  visitIdentity: {
+    visitId: string;
+    visitReference?: string;
+    updatedAt: string;
+  };
+  customerPropertyFacts?: unknown;
+  surveyDraftInput: FullSurveyModelV1;
+  scanEvidenceReferences?: unknown;
+  engineInputSnapshot?: EngineInputV2_3;
+  recommendationResult?: {
+    engineOutput?: EngineOutputV1;
+    decision?: AtlasDecisionV1;
+    scenarios?: ScenarioResult[];
+    customerSummary?: CustomerSummaryV1;
+    selectedRecommendationId?: string;
+  };
+  presentationHandoff?: {
+    lifecycleState?: VisitReviewLifecycleState;
+    generatedOutputs?: GeneratedOutputsV1;
+    portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
+  };
+  saveExportStatus?: {
+    lastSavedAt: string;
+    lastExportedAt?: string;
+  };
+}
+
 export interface PersistedAtlasVisitV2 {
   schemaVersion: 2;
   visitId: string;
   visitReference?: string;
   updatedAt: string;
   survey: FullSurveyModelV1;
+  engineInputSnapshot?: EngineInputV2_3;
+  engine?: EngineOutputV1;
+  decision?: AtlasDecisionV1;
+  scenarios?: ScenarioResult[];
+  customerSummary?: CustomerSummaryV1;
+  acceptedScenarioId?: string;
+  lifecycleState?: VisitReviewLifecycleState;
+  generatedOutputs?: GeneratedOutputsV1;
+  portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
+  scanCapture?: unknown;
+  quotePlan?: unknown;
+  canonical?: CanonicalVisitPayloadV1;
+}
+
+interface PersistedAtlasVisitReadResult {
+  visit: PersistedAtlasVisitV2 | null;
+  restoredFromTemp: boolean;
+  schemaMismatch: boolean;
+}
+
+export interface PersistedAtlasVisitV2Input {
+  visitId: string;
+  visitReference?: string;
+  updatedAt: string;
+  survey: FullSurveyModelV1;
+  engineInputSnapshot?: EngineInputV2_3;
   engine?: EngineOutputV1;
   decision?: AtlasDecisionV1;
   scenarios?: ScenarioResult[];
@@ -31,18 +87,72 @@ export interface PersistedAtlasVisitV2 {
   quotePlan?: unknown;
 }
 
-interface PersistedAtlasVisitReadResult {
-  visit: PersistedAtlasVisitV2 | null;
-  restoredFromTemp: boolean;
-  schemaMismatch: boolean;
-}
-
 function mainKey(visitId: string): string {
   return `atlas_visit_${visitId}`;
 }
 
 function tempKey(visitId: string): string {
   return `atlas_visit_${visitId}_tmp`;
+}
+
+function buildCanonicalVisitPayload(input: PersistedAtlasVisitV2Input): CanonicalVisitPayloadV1 {
+  return {
+    schemaVersion: '1.0',
+    visitIdentity: {
+      visitId: input.visitId,
+      visitReference: input.visitReference,
+      updatedAt: input.updatedAt,
+    },
+    surveyDraftInput: input.survey,
+    scanEvidenceReferences: input.scanCapture,
+    engineInputSnapshot: input.engineInputSnapshot,
+    recommendationResult: {
+      engineOutput: input.engine,
+      decision: input.decision,
+      scenarios: input.scenarios,
+      customerSummary: input.customerSummary,
+      selectedRecommendationId: input.acceptedScenarioId,
+    },
+    presentationHandoff: {
+      lifecycleState: input.lifecycleState,
+      generatedOutputs: input.generatedOutputs,
+      portalVisitContext: input.portalVisitContext,
+    },
+    saveExportStatus: {
+      lastSavedAt: input.updatedAt,
+    },
+  };
+}
+
+export function buildPersistedAtlasVisitV2(input: PersistedAtlasVisitV2Input): PersistedAtlasVisitV2 {
+  return {
+    schemaVersion: 2,
+    visitId: input.visitId,
+    visitReference: input.visitReference,
+    updatedAt: input.updatedAt,
+    survey: input.survey,
+    engineInputSnapshot: input.engineInputSnapshot,
+    engine: input.engine,
+    decision: input.decision,
+    scenarios: input.scenarios,
+    customerSummary: input.customerSummary,
+    acceptedScenarioId: input.acceptedScenarioId,
+    lifecycleState: input.lifecycleState,
+    generatedOutputs: input.generatedOutputs,
+    portalVisitContext: input.portalVisitContext,
+    scanCapture: input.scanCapture,
+    quotePlan: input.quotePlan,
+    canonical: buildCanonicalVisitPayload(input),
+  };
+}
+
+function readCanonicalPayload(parsed: Partial<PersistedAtlasVisitV2>): CanonicalVisitPayloadV1 | null {
+  const canonical = parsed.canonical;
+  if (!canonical || typeof canonical !== 'object') return null;
+  if (canonical.schemaVersion !== '1.0') return null;
+  if (!canonical.visitIdentity || canonical.visitIdentity.visitId !== parsed.visitId) return null;
+  if (!canonical.surveyDraftInput || typeof canonical.surveyDraftInput !== 'object') return null;
+  return canonical;
 }
 
 function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
@@ -53,24 +163,77 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
     if (parsed.schemaVersion !== 2) return null;
     if (typeof parsed.visitId !== 'string' || parsed.visitId.trim().length === 0) return null;
     if (typeof parsed.updatedAt !== 'string' || parsed.updatedAt.trim().length === 0) return null;
-    if (!parsed.survey || typeof parsed.survey !== 'object') return null;
+    const canonical = readCanonicalPayload(parsed);
+    const survey = parsed.survey ?? canonical?.surveyDraftInput;
+    if (!survey || typeof survey !== 'object') return null;
+    const engineInputSnapshot = parsed.engineInputSnapshot ?? canonical?.engineInputSnapshot;
+    const engine = parsed.engine ?? canonical?.recommendationResult?.engineOutput;
+    const decision = parsed.decision ?? canonical?.recommendationResult?.decision;
+    const scenarios = parsed.scenarios ?? canonical?.recommendationResult?.scenarios;
+    const customerSummary = parsed.customerSummary ?? canonical?.recommendationResult?.customerSummary;
+    const acceptedScenarioId =
+      parsed.acceptedScenarioId
+      ?? canonical?.recommendationResult?.selectedRecommendationId;
+    const portalVisitContext =
+      parsed.portalVisitContext
+      ?? canonical?.presentationHandoff?.portalVisitContext;
+    const generatedOutputs = normaliseGeneratedOutputs(
+      parsed.generatedOutputs ?? canonical?.presentationHandoff?.generatedOutputs,
+    );
     const recommendationReady = isRecommendationReadyForLifecycle({
-      decision: parsed.decision,
-      customerSummary: parsed.customerSummary,
-      acceptedScenarioId: parsed.acceptedScenarioId,
-      engineRecommendationPrimary: parsed.engine?.recommendation?.primary,
+      decision,
+      customerSummary,
+      acceptedScenarioId,
+      engineRecommendationPrimary: engine?.recommendation?.primary,
     });
-    const generatedOutputs = normaliseGeneratedOutputs(parsed.generatedOutputs);
-    const lifecycleState = isLifecycleState(parsed.lifecycleState)
-      ? parsed.lifecycleState
+    const persistedLifecycleState = parsed.lifecycleState ?? canonical?.presentationHandoff?.lifecycleState;
+    const lifecycleState = isLifecycleState(persistedLifecycleState)
+      ? persistedLifecycleState
       : deriveLifecycleStateFromSnapshot({
         recommendationReady,
         generatedOutputs,
       });
-    return {
-      ...(parsed as PersistedAtlasVisitV2),
+    const normalised = buildPersistedAtlasVisitV2({
+      visitId: parsed.visitId,
+      visitReference: parsed.visitReference ?? canonical?.visitIdentity.visitReference,
+      updatedAt: parsed.updatedAt,
+      survey,
+      engineInputSnapshot,
+      engine,
+      decision,
+      scenarios,
+      customerSummary,
+      acceptedScenarioId,
       lifecycleState,
       generatedOutputs,
+      portalVisitContext,
+      scanCapture: parsed.scanCapture ?? canonical?.scanEvidenceReferences,
+      quotePlan: parsed.quotePlan,
+    });
+    if (canonical?.saveExportStatus?.lastExportedAt != null) {
+      normalised.canonical = {
+        ...normalised.canonical,
+        saveExportStatus: {
+          ...normalised.canonical.saveExportStatus,
+          lastExportedAt: canonical.saveExportStatus.lastExportedAt,
+        },
+      };
+    }
+    return {
+      ...normalised,
+      // preserve any unknown top-level fields for migration-safe reads
+      ...(parsed as PersistedAtlasVisitV2),
+      survey,
+      engineInputSnapshot,
+      engine,
+      decision,
+      scenarios,
+      customerSummary,
+      acceptedScenarioId,
+      lifecycleState,
+      generatedOutputs,
+      portalVisitContext,
+      canonical: normalised.canonical,
     };
   } catch {
     return null;
