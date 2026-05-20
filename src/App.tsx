@@ -580,7 +580,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 interface VisitRecommendationSnapshot {
   visitId: string;
@@ -966,7 +966,7 @@ function AppInner() {
     if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-home';
     // ?visit-home=1: open visit home dashboard directly.
     if (VISIT_HOME_ENABLED)              return 'visit-home';
-    const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'workspace-dashboard';
+    const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'app-home';
     // 'presentation' and 'printout' require labEngineInput which is not persisted.
     // 'framework-print', 'library-pdf', and legacy journeys should not be restored as entry points.
     // Restoring any of these without the necessary data would result in a white screen — fall back to 'workspace-dashboard'.
@@ -978,12 +978,12 @@ function AppInner() {
       || restored === 'insight-pack'
       || restored === 'unified-simulator'
     ) {
-      return 'workspace-dashboard';
+      return 'app-home';
     }
     // 'visit-home' and 'visit' require an active visit ID.
     // If the visit cache is absent, fall back to 'workspace-dashboard' to avoid a white screen.
     if ((restored === 'visit-hub' || restored === 'visit' || restored === 'visit-home') && !_restoredVisit?.value?.visitId) {
-      return 'workspace-dashboard';
+      return 'app-home';
     }
     if (restored === 'visit-hub') return 'visit-home';
     return restored;
@@ -1135,6 +1135,7 @@ function AppInner() {
     canEditBranding,
     effectiveRole,
   } = useRolePermissions();
+  const canAccessWorkspaceSettings = effectiveRole === 'owner' || effectiveRole === 'admin';
 
   const workspaceSettingsRole = useMemo<WorkspaceMemberRole>(() => {
     switch (effectiveRole) {
@@ -3028,15 +3029,15 @@ function AppInner() {
                 setLabPortalVisitContext(undefined);
                 setLabPortalUrl(undefined);
                 setLocalSessionStatus(null);
-                setJourney('workspace-dashboard');
+                setJourney('app-home');
               }}
-              onOpenExistingVisit={() => setJourney('workspace-dashboard')}
+              onOpenExistingVisit={() => setJourney('app-home')}
               onContinueSurvey={activeVisitId != null ? () => setJourney('visit') : undefined}
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
               onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
               onGenerateSupportingPdf={activeVisitId != null ? () => { void handleGenerateSupportingPdf(); } : undefined}
               onStartDemoReview={import.meta.env.DEV ? handleStartDemoReview : undefined}
-              onOpenDemoFixtures={import.meta.env.DEV ? () => setJourney('workspace-dashboard') : undefined}
+              onOpenDemoFixtures={import.meta.env.DEV ? () => setJourney('app-home') : undefined}
               visitSelectorEntries={visitSelectorEntries}
               onSelectVisit={(visitId) => {
                 setActiveVisitId(visitId);
@@ -3209,7 +3210,7 @@ function AppInner() {
                   }
                 }
               } : undefined}
-              onBack={() => setJourney('workspace-dashboard')}
+              onBack={() => setJourney('app-home')}
             />
           );
         })()}
@@ -3667,11 +3668,77 @@ function AppInner() {
             zIndex: 2000,
           }}
           onClick={(e) => {
-            if (e.target === e.currentTarget) setJourney('workspace-dashboard');
+            if (e.target === e.currentTarget) setJourney('app-home');
           }}
         >
           <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxWidth: 520, width: '100%', margin: '0 1rem' }}>
-            <UserProfilePanel onClose={() => setJourney('workspace-dashboard')} />
+            <UserProfilePanel onClose={() => setJourney('app-home')} />
+          </div>
+        </div>
+      )}
+      {journey === 'app-home' && (
+        <div className="app-entry-home">
+          <div className="app-entry-hero">
+            <h1>Atlas</h1>
+            <p className="app-entry-tagline">
+              Start a visit, load a saved record, and continue through the canonical Atlas journey.
+            </p>
+            <div className="app-entry-context">
+              <span>
+                <strong>Profile:</strong> {activeUser?.displayName ?? 'No local profile set'}
+              </span>
+              <span>
+                <strong>Workspace:</strong> {workspaceSession.activeWorkspace?.name ?? 'No active workspace'}
+              </span>
+            </div>
+          </div>
+          <div className="app-entry-tiles">
+            <button
+              type="button"
+              className="app-entry-tile"
+              onClick={handleStartNewVisit}
+              disabled={!canCreateVisit || workspaceSession.status === 'authenticated_no_workspace'}
+            >
+              <span className="app-entry-tile__title">New visit</span>
+              <span className="app-entry-tile__copy">
+                Create visit identity, capture customer/property basics, then continue to manual survey and next actions.
+              </span>
+            </button>
+            <button
+              type="button"
+              className="app-entry-tile"
+              onClick={() => {
+                setActiveVisitId(undefined);
+                setJourney('visit-home');
+              }}
+            >
+              <span className="app-entry-tile__title">Load visit</span>
+              <span className="app-entry-tile__copy">
+                Open existing local/canonical persisted visit records.
+              </span>
+            </button>
+            <button
+              type="button"
+              className="app-entry-tile"
+              onClick={() => setJourney('user-profile')}
+            >
+              <span className="app-entry-tile__title">Profile</span>
+              <span className="app-entry-tile__copy">
+                View signed-in user, profile, and workspace context.
+              </span>
+            </button>
+            {canAccessWorkspaceSettings && (
+              <button
+                type="button"
+                className="app-entry-tile"
+                onClick={() => { window.location.href = '/workspace/settings'; }}
+              >
+                <span className="app-entry-tile__title">Workspace settings</span>
+                <span className="app-entry-tile__copy">
+                  Admin/owner controls using existing workspace, brand, and profile foundations.
+                </span>
+              </button>
+            )}
           </div>
         </div>
       )}
