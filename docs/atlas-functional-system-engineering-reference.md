@@ -25,7 +25,7 @@ Atlas should hard-code the following constants and utilize these established for
 
 ### Water Constants
 
-- **Specific Heat Capacity (c):** 4.18 kJ/(kg·K)
+- **Specific Heat Capacity (c):** 4.18 kJ/(kg·K) at typical domestic heating temperatures (approximately 10°C to 80°C).
 - **Useful Conversion:** 1.16 Wh/(L·K) — use this for rapid domestic kWh storage calculations.
 - **Density (ρ):** For domestic modelling, assume 1 kg/L for volume/mass equivalence. In detailed engineering calculations, density varies from 999.7 kg/m³ at 10°C to 971.8 kg/m³ at 80°C.
 - **Thermal Expansion:** Water volume increases by approximately 2.89% from 10°C to 80°C. For sealed system expansion vessel sizing, Atlas should use **4%** (0.04) as the engineering boundary to reflect normal design allowance beyond the pure water-expansion figure.
@@ -78,7 +78,7 @@ Where \Delta T_{actual} is the Mean Water Temperature minus Room Temperature, an
 
 When specific data is unavailable, Atlas should use these defaults, derived from CIBSE and standard UK practice:
 
-- **Mains cold water temperature:** 10°C (winter baseline and default year-round customer-facing assumption unless a seasonal model is explicitly enabled).
+- **Mains cold water temperature:** 10°C (winter baseline and default year-round customer-facing assumption unless a seasonal model is explicitly enabled; actual UK mains temperatures vary materially by season and region).
 - **Stored DHW setpoint:** 60°C (Legionella prevention standard).
 - **Target mixed draw-off (shower) temperature:** 40°C.
 - **Standard shower flow rate:** 9 L/min.
@@ -225,7 +225,7 @@ The engine must throw an error if a topology violates these rules:
 
 - Mains cold water connected to a closed primary circuit without a filling loop and double check valve.
 - Unvented cylinder drawn without a G3 discharge path (Tundish).
-- **Error:** Heat pump primary distribution pipework, or any branch expected to carry the full heat-pump design flow, is microbore (10mm) and exceeds the microbore screening limit.
+- **Error:** Heat pump primary distribution pipework, or any branch expected to carry the full heat-pump design flow, is microbore (10mm) and exceeds the **0.06 L/s** microbore screening limit.
 - Heat pump systems using a low-loss header/buffer and secondary pump must still warn if the downstream emitter-side microbore branches remain flow-limited.
 - Primary flow temperature set lower than DHW target temperature for an indirect cylinder.
 
