@@ -3,9 +3,17 @@ import {
   CANONICAL_VISIT_PACKAGE_VERSION,
   type CanonicalVisitPackageV1,
 } from './CanonicalVisitPackageV1';
+import {
+  verifyCanonicalVisitPackageIntegrity,
+  type CanonicalVisitPackageIntegrityResult,
+} from './packageIntegrity';
 
 export type CanonicalVisitPackageValidationResult =
-  | { readonly ok: true; readonly pkg: CanonicalVisitPackageV1 }
+  | {
+    readonly ok: true;
+    readonly pkg: CanonicalVisitPackageV1;
+    readonly integrity: CanonicalVisitPackageIntegrityResult;
+  }
   | { readonly ok: false; readonly errors: readonly string[] };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -84,6 +92,7 @@ function validateRootShape(rawPackage: unknown): CanonicalVisitPackageValidation
   return {
     ok: true,
     pkg: rawPackage as unknown as CanonicalVisitPackageV1,
+    integrity: verifyCanonicalVisitPackageIntegrity(rawPackage as CanonicalVisitPackageV1),
   };
 }
 

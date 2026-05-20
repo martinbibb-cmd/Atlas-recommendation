@@ -233,11 +233,11 @@ describe('PortalLaunchPayloadV1 — imported PDF can hydrate portal launch conte
     expect(payload.visitIdentity.visitReference).toBe('REF-LAUNCH-001');
   });
 
-  it('exposes portal URL availability from generated output metadata', () => {
+  it('does not trust portal URLs packaged inside imported artifacts', () => {
     const pkg = makePackageWithJourneyPack();
     const payload = buildPortalLaunchPayload(pkg);
-    expect(payload.generatedOutputMetadata.hasPortalUrl).toBe(true);
-    expect(payload.generatedOutputMetadata.portalUrl).toBe('https://portal.example.com/portal/ref-001');
+    expect(payload.generatedOutputMetadata.hasPortalUrl).toBe(false);
+    expect(payload.generatedOutputMetadata.portalUrl).toBeUndefined();
   });
 
   it('exposes lifecycle state from the source package', () => {

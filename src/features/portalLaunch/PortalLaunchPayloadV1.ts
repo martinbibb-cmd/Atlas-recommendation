@@ -28,9 +28,9 @@ export interface PortalLaunchVisitIdentityV1 {
 }
 
 export interface PortalLaunchGeneratedOutputMetadataV1 {
-  /** Whether a portal URL artifact is present and has a URL value in the package. */
+  /** Package-carried portal URLs are intentionally not trusted during import. */
   readonly hasPortalUrl: boolean;
-  /** The portal URL from the artifact, if present. */
+  /** Reserved for already-validated portal URLs; package imports leave this undefined. */
   readonly portalUrl?: string;
   /** Whether a supporting PDF artifact is present in the package. */
   readonly hasSupportingPdf: boolean;

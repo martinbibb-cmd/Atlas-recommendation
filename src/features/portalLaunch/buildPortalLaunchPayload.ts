@@ -26,8 +26,6 @@ export function buildPortalLaunchPayload(pkg: CanonicalVisitPackageV1): PortalLa
   const generatedOutputs = pkg.generatedOutputStatus?.generatedOutputs;
   const customerJourneyPack = readCustomerJourneyPackFromGeneratedOutputs(generatedOutputs);
   const hasCustomerJourneyPack = customerJourneyPack != null;
-  const portalArtifact = generatedOutputs?.portal;
-  const hasPortalUrl = portalArtifact?.generated === true && typeof portalArtifact.url === 'string';
 
   return {
     schema: PORTAL_LAUNCH_PAYLOAD_SCHEMA,
@@ -43,8 +41,8 @@ export function buildPortalLaunchPayload(pkg: CanonicalVisitPackageV1): PortalLa
     selectedScenarioId: pkg.proposalTruth?.selectedScenarioId,
     portalVisitContext: pkg.customerPropertyDetails.portalVisitContext,
     generatedOutputMetadata: {
-      hasPortalUrl,
-      portalUrl: hasPortalUrl ? (portalArtifact?.url as string) : undefined,
+      hasPortalUrl: false,
+      portalUrl: undefined,
       hasSupportingPdf: generatedOutputs?.pdf?.generated === true,
       lifecycleState: pkg.generatedOutputStatus?.lifecycleState,
     },

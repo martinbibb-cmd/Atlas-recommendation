@@ -1,6 +1,7 @@
 export {
   CANONICAL_VISIT_PACKAGE_SCHEMA,
   CANONICAL_VISIT_PACKAGE_VERSION,
+  CANONICAL_VISIT_PACKAGE_INTEGRITY_ALGORITHM,
   type CanonicalVisitPackageV1,
   type CanonicalVisitIdentityV1,
   type CanonicalVisitWorkspaceBrandReferenceV1,
@@ -8,6 +9,7 @@ export {
   type CanonicalVisitProposalTruthV1,
   type CanonicalVisitGeneratedOutputStatusV1,
   type CanonicalVisitImportExportMetadataV1,
+  type CanonicalVisitPackageIntegrityV1,
 } from './CanonicalVisitPackageV1';
 
 export {
@@ -41,3 +43,10 @@ export {
   validateCanonicalVisitPackage,
   type CanonicalVisitPackageValidationResult,
 } from './parseCanonicalVisitPackage';
+
+export {
+  buildCanonicalVisitPackageIntegrity,
+  verifyCanonicalVisitPackageIntegrity,
+  type CanonicalVisitPackageIntegrityStatus,
+  type CanonicalVisitPackageIntegrityResult,
+} from './packageIntegrity';

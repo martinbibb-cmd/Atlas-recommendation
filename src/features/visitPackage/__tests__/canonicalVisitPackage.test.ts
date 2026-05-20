@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CANONICAL_VISIT_PACKAGE_INTEGRITY_ALGORITHM,
   CANONICAL_VISIT_PACKAGE_SCHEMA,
   CANONICAL_VISIT_PACKAGE_VERSION,
   buildCanonicalVisitPackage,
@@ -79,6 +80,8 @@ describe('CanonicalVisitPackageV1', () => {
     const pkg = makePackage();
     expect(pkg.schema).toBe(CANONICAL_VISIT_PACKAGE_SCHEMA);
     expect(pkg.version).toBe(CANONICAL_VISIT_PACKAGE_VERSION);
+    expect(pkg.packageIntegrity?.algorithm).toBe(CANONICAL_VISIT_PACKAGE_INTEGRITY_ALGORITHM);
+    expect(pkg.packageIntegrity?.hash).toMatch(/^[0-9a-f]{16}$/);
   });
 
   it('roundtrips through save/load JSON parse', () => {
@@ -90,6 +93,7 @@ describe('CanonicalVisitPackageV1', () => {
     if (!parsed.ok) return;
 
     expect(parsed.pkg).toEqual(original);
+    expect(parsed.integrity.status).toBe('verified');
   });
 
   it('validates a pre-parsed package object', () => {
@@ -97,6 +101,8 @@ describe('CanonicalVisitPackageV1', () => {
     const validated = validateCanonicalVisitPackage(pkg);
 
     expect(validated.ok).toBe(true);
+    if (!validated.ok) return;
+    expect(validated.integrity.status).toBe('verified');
   });
 
   it('preserves customer journey pack metadata in generated outputs', () => {
@@ -132,5 +138,34 @@ describe('CanonicalVisitPackageV1', () => {
   it('rejects malformed JSON input', () => {
     const parsed = parseCanonicalVisitPackage('{invalid json');
     expect(parsed.ok).toBe(false);
+  });
+
+  it('warns when package contents change after export', () => {
+    const pkg = makePackage();
+    const tampered = {
+      ...pkg,
+      surveyDraft: {
+        ...pkg.surveyDraft,
+        occupancyCount: 4,
+      },
+    };
+
+    const validated = validateCanonicalVisitPackage(tampered);
+    expect(validated.ok).toBe(true);
+    if (!validated.ok) return;
+    expect(validated.integrity.status).toBe('modified');
+    expect(validated.integrity.warnings[0]).toMatch(/changed after export/i);
+  });
+
+  it('treats missing integrity metadata as legacy and unverified', () => {
+    const pkg = makePackage();
+    const legacyPackage = { ...pkg };
+    delete (legacyPackage as { packageIntegrity?: unknown }).packageIntegrity;
+
+    const validated = validateCanonicalVisitPackage(legacyPackage);
+    expect(validated.ok).toBe(true);
+    if (!validated.ok) return;
+    expect(validated.integrity.status).toBe('unverified');
+    expect(validated.integrity.warnings[0]).toMatch(/legacy\/unverified/i);
   });
 });

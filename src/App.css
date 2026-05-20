@@ -112,6 +112,10 @@ body {
   color: #166534;
 }
 
+.app-entry-status--warning {
+  color: #92400e;
+}
+
 .app-entry-status--error {
   color: #991b1b;
 }

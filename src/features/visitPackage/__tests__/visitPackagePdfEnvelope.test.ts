@@ -114,15 +114,39 @@ describe('visit package PDF envelope', () => {
 
     const parsed = parseCanonicalVisitPackageFromPdfEnvelope(pdf);
     expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.integrity.status).toBe('verified');
   });
 
   it('preserves packaged customer journey availability through PDF import parsing', () => {
-    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
+    const pkg = makePackage();
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
     const parsed = parseCanonicalVisitPackageFromPdfEnvelope(pdf);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.generated).toBe(true);
     expect(parsed.pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.status).toBe('packaged');
+    expect(parsed.pkg.packageIntegrity?.hash).toBe(pkg.packageIntegrity?.hash);
+  });
+
+  it('warns when embedded package payload was modified after export', () => {
+    const envelope = buildVisitPackagePdfEnvelope({ packagePayload: makePackage() });
+    const tamperedEnvelope = {
+      ...envelope,
+      canonicalVisitPackage: {
+        ...envelope.canonicalVisitPackage,
+        visitIdentity: {
+          ...envelope.canonicalVisitPackage.visitIdentity,
+          visitReference: 'REF-TAMPERED-001',
+        },
+      },
+    };
+    const pdf = renderVisitPackagePdfDocument(tamperedEnvelope);
+    const parsed = parseCanonicalVisitPackageFromPdfEnvelope(pdf);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.integrity.status).toBe('modified');
   });
 
   it('returns parse errors when PDF does not include payload markers', () => {

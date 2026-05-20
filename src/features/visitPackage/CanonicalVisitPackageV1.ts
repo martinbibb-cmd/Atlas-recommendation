@@ -11,6 +11,7 @@ import type { GeneratedOutputsV1, VisitReviewLifecycleState } from '../../lib/st
 
 export const CANONICAL_VISIT_PACKAGE_SCHEMA = 'atlas.canonical-visit-package' as const;
 export const CANONICAL_VISIT_PACKAGE_VERSION = '1.0' as const;
+export const CANONICAL_VISIT_PACKAGE_INTEGRITY_ALGORITHM = 'fnv1a64-stable-json-v1' as const;
 
 export interface CanonicalVisitIdentityV1 {
   readonly visitId?: string;
@@ -56,9 +57,15 @@ export interface CanonicalVisitImportExportMetadataV1 {
   readonly importSource?: string;
 }
 
+export interface CanonicalVisitPackageIntegrityV1 {
+  readonly algorithm: typeof CANONICAL_VISIT_PACKAGE_INTEGRITY_ALGORITHM;
+  readonly hash: string;
+}
+
 export interface CanonicalVisitPackageV1 {
   readonly schema: typeof CANONICAL_VISIT_PACKAGE_SCHEMA;
   readonly version: typeof CANONICAL_VISIT_PACKAGE_VERSION;
+  readonly packageIntegrity?: CanonicalVisitPackageIntegrityV1;
   readonly visitIdentity: CanonicalVisitIdentityV1;
   readonly workspaceBrandReference: CanonicalVisitWorkspaceBrandReferenceV1;
   readonly customerPropertyDetails: CanonicalVisitCustomerPropertyDetailsV1;

@@ -182,7 +182,7 @@ export interface VisitHomeDashboardProps {
   /** Open a selected visit from the lightweight browser. */
   onSelectVisit?: (visitId: string) => void;
   /** Optional session save/resume status surface shown in the session controls panel. */
-  localSessionStatus?: { tone: 'success' | 'error'; message: string } | null;
+  localSessionStatus?: { tone: 'success' | 'warning' | 'error'; message: string } | null;
   /** Dev-only build marker shown in the header when provided. */
   devBuildMarker?: string;
 
