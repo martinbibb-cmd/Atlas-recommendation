@@ -83,6 +83,56 @@
   min-width: 0;
 }
 
+.customer-portal-journey__reason-card {
+  border-left: 4px solid #1e40af;
+}
+
+.customer-portal-journey__reason-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #0f172a;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.customer-portal-journey__reason-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.customer-portal-journey__reason-rows {
+  margin: 0.7rem 0 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.customer-portal-journey__reason-row {
+  margin: 0;
+}
+
+.customer-portal-journey__reason-row dt {
+  margin: 0;
+  color: #1e3a5f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.customer-portal-journey__reason-row dd {
+  margin: 0.2rem 0 0;
+  color: #334155;
+}
+
+.customer-portal-journey__reason-row--outcome {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  padding: 0.55rem 0.6rem;
+}
+
 .customer-portal-journey__reason-detail {
   margin-top: 0.7rem;
   border-top: 1px solid #e2e8f0;

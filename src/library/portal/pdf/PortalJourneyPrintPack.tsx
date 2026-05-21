@@ -37,6 +37,17 @@ const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
   'diagram-pressure-window': 'system_pressure_window',
 };
 
+const REASON_ICON_BY_CATEGORY: Record<RecommendationReasonBlockV1['category'], string> = {
+  household_demand: '👥',
+  bathroom_count: '🚿',
+  mains_flow_pressure: '💧',
+  current_system_constraint: '🛠',
+  loft_cylinder_location_constraint: '📐',
+  simultaneous_hot_water_use: '⚖️',
+  protection_system_condition: '🛡',
+  future_upgrade_readiness: '🔭',
+};
+
 function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string | null {
   // Prefer explicit section.diagramRendererId for new journeys, but keep
   // legacy registry-id mapping so existing models continue to render.
@@ -179,13 +190,29 @@ function PrintRecommendationReasons({ reasons, pageNumber }: PrintRecommendation
         Why this recommendation fits your home
       </h2>
       <p className="pjpp-section__summary">
-        Atlas links your survey facts to practical day-to-day meaning so the recommended route is clear.
+        Scan each card from home fact to practical day-to-day outcome.
       </p>
       <ul className="pjpp-reason-list" data-testid="pjpp-reason-list">
         {reasons.slice(0, 5).map((reason) => (
           <li key={reason.id} className="pjpp-reason-card" data-testid={`pjpp-reason-${reason.category}`}>
-            <h3 className="pjpp-reason-card__title">{reason.title}</h3>
-            <p className="pjpp-reason-card__summary">{reason.summary}</p>
+            <h3 className="pjpp-reason-card__title">
+              <span className="pjpp-reason-card__icon" aria-hidden="true">{REASON_ICON_BY_CATEGORY[reason.category]}</span>
+              <span>{reason.homeFact}</span>
+            </h3>
+            <dl className="pjpp-reason-card__rows">
+              <div className="pjpp-reason-card__row">
+                <dt>Why it matters</dt>
+                <dd>{reason.whyItMatters}</dd>
+              </div>
+              <div className="pjpp-reason-card__row">
+                <dt>Atlas chose</dt>
+                <dd>{reason.atlasRecommendationOutcome}</dd>
+              </div>
+              <div className="pjpp-reason-card__row">
+                <dt>What you will notice</dt>
+                <dd>{reason.practicalEffect}</dd>
+              </div>
+            </dl>
             {reason.detail ? <p className="pjpp-reason-card__detail">{reason.detail}</p> : null}
           </li>
         ))}
