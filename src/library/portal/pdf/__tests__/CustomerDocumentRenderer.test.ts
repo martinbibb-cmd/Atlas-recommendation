@@ -23,4 +23,42 @@ describe('CustomerDocumentRenderer', () => {
     expect(printable.packageEmbedded).toBe(false);
     expect(embedded.packageEmbedded).toBe(true);
   });
+
+  it('renders packageEmbedded mode when recommendation reasons are missing', () => {
+    const legacyLikeModel = {
+      ...model,
+      recommendationReasons: undefined,
+    } as unknown as Parameters<typeof buildCustomerDocumentModel>[0]['model'];
+
+    const build = () => buildCustomerDocumentModel({ model: legacyLikeModel, mode: 'packageEmbedded' });
+
+    expect(build).not.toThrow();
+    expect(build().recommendationReasons).toEqual([]);
+    expect(build().packageEmbedded).toBe(true);
+  });
+
+  it('renders printable mode with older model fields and missing arrays', () => {
+    const oldModel = {
+      cover: {
+        title: 'Legacy recommendation',
+      },
+      recommendationSummary: 'Legacy summary fallback',
+      customerFacts: ['Legacy home fact'],
+      deepDiveDestinations: [{ heading: 'Legacy deep dive', note: 'More detail' }],
+      recommendationReasons: undefined,
+      sections: undefined,
+      nextSteps: undefined,
+      qrDestinations: undefined,
+      systemProtection: undefined,
+    } as unknown as Parameters<typeof buildCustomerDocumentModel>[0]['model'];
+
+    const build = () => buildCustomerDocumentModel({ model: oldModel, mode: 'printable' });
+
+    expect(build).not.toThrow();
+    expect(build().cover.summary).toBe('Legacy summary fallback');
+    expect(build().cover.customerFacts).toEqual(['Legacy home fact']);
+    expect(build().sections).toEqual([]);
+    expect(build().nextSteps).toEqual([]);
+    expect(build().qrDestinations).toEqual([{ heading: 'Legacy deep dive', note: 'More detail' }]);
+  });
 });
