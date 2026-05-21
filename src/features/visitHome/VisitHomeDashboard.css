@@ -579,6 +579,72 @@
   line-height: 1.45;
 }
 
+.vhd-recovery-center,
+.vhd-workflow-qa {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.vhd-recovery-center__section {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.vhd-recovery-center__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.vhd-recovery-center__list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #334155;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.vhd-workflow-qa__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.vhd-workflow-qa__item {
+  border: 1px solid #dbe7f5;
+  border-radius: 0.625rem;
+  background: #f8fafc;
+  padding: 0.55rem 0.65rem;
+}
+
+.vhd-workflow-qa__item--complete {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.vhd-workflow-qa__item--pending {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.vhd-workflow-qa__item--blocked {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.vhd-workflow-qa__label,
+.vhd-workflow-qa__detail {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #334155;
+  line-height: 1.35;
+}
+
 .vhd-mobile-fallback-note {
   margin: 0 1.25rem 1.25rem;
   padding: 0.625rem 0.75rem;

@@ -74,6 +74,33 @@ export interface VisitHomeExportResultSummary {
   readonly includedItems: readonly string[];
 }
 
+export interface VisitPackageOpenHistoryEntry {
+  readonly visitReference: string;
+  readonly importedAt: string;
+  readonly sourceLabel: string;
+  readonly integrityStatus: VisitPackageIntegrityStatus;
+}
+
+export interface WorkflowImportFailureDiagnostic {
+  readonly occurredAt: string;
+  readonly filename?: string;
+  readonly errors: readonly string[];
+}
+
+export type WorkflowQaChecklistStatus = 'complete' | 'pending' | 'blocked';
+
+export interface WorkflowQaChecklistItem {
+  readonly id:
+    | 'import_package'
+    | 'open_scan'
+    | 'receive_scan_return'
+    | 'regenerate_delivery_outputs'
+    | 'export_package_again';
+  readonly label: string;
+  readonly status: WorkflowQaChecklistStatus;
+  readonly detail: string;
+}
+
 export interface VisitHomeSessionStatus {
   readonly tone: 'success' | 'warning' | 'error';
   readonly message: string;
@@ -201,6 +228,16 @@ export interface VisitHomeDashboardProps {
   onSelectVisit?: (visitId: string) => void;
   /** Optional session save/resume status surface shown in the session controls panel. */
   localSessionStatus?: VisitHomeSessionStatus | null;
+  /** Recent package open/import history for workflow recovery. */
+  packageOpenHistory?: readonly VisitPackageOpenHistoryEntry[];
+  /** Last package import failure details to aid retry with diagnostics. */
+  lastImportFailure?: WorkflowImportFailureDiagnostic | null;
+  /** Indicates a scan return handoff exists but recovery still needs user action. */
+  hasInterruptedScanReturn?: boolean;
+  /** Trigger recovery path for interrupted scan return. */
+  onRecoverInterruptedScanReturn?: () => void;
+  /** Deterministic workflow QA checklist for critical Scan ↔ Mind ↔ PDF transitions. */
+  workflowQaChecklist?: readonly WorkflowQaChecklistItem[];
   /** Dev-only build marker shown in the header when provided. */
   devBuildMarker?: string;
 
@@ -483,6 +520,11 @@ export function VisitHomeDashboard({
   visitSelectorEntries = [],
   onSelectVisit,
   localSessionStatus = null,
+  packageOpenHistory = [],
+  lastImportFailure = null,
+  hasInterruptedScanReturn = false,
+  onRecoverInterruptedScanReturn,
+  workflowQaChecklist = [],
   devBuildMarker,
   onOpenSimulator,
   onOpenPresentation,
@@ -794,6 +836,12 @@ export function VisitHomeDashboard({
     }
     // Reset so the same file can be re-selected after a rejection
     e.target.value = '';
+  }
+
+  function formatEventTimestamp(value: string): string {
+    const timestamp = new Date(value);
+    if (Number.isNaN(timestamp.getTime())) return value;
+    return timestamp.toLocaleString();
   }
 
   return (
@@ -1336,6 +1384,109 @@ export function VisitHomeDashboard({
                   ) : null}
                 </div>
               ) : null}
+            </div>
+          )}
+
+          <div className="vhd-readiness-panel vhd-recovery-center" data-testid="visit-home-recovery-center">
+            <h2 className="vhd-panel-title">Recovery center</h2>
+            <div className="vhd-recovery-center__section">
+              <p className="vhd-recovery-center__title">Package/open history</p>
+              {packageOpenHistory.length > 0 ? (
+                <ul className="vhd-recovery-center__list" data-testid="visit-home-package-history-list">
+                  {packageOpenHistory.map((entry, index) => (
+                    <li key={`${entry.importedAt}-${entry.visitReference}-${index}`}>
+                      <strong>{entry.visitReference}</strong> · {entry.sourceLabel} · {entry.integrityStatus} · {formatEventTimestamp(entry.importedAt)}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="vhd-panel-copy" data-testid="visit-home-package-history-empty">
+                  No package history yet. Import a package to start a deterministic workflow trail.
+                </p>
+              )}
+            </div>
+            <div className="vhd-recovery-center__section">
+              <p className="vhd-recovery-center__title">Failed import recovery</p>
+              {lastImportFailure != null ? (
+                <div className="vhd-session-status vhd-session-status--error" data-testid="visit-home-import-failure-diagnostics">
+                  <p className="vhd-session-status__message">
+                    Last failure: {lastImportFailure.filename ?? 'Unknown file'} · {formatEventTimestamp(lastImportFailure.occurredAt)}
+                  </p>
+                  {lastImportFailure.errors.length > 0 && (
+                    <ul className="vhd-session-status__list">
+                      {lastImportFailure.errors.slice(0, 3).map((error) => (
+                        <li key={error}>{error}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {onImportWorkflowPackage != null && (
+                    <button
+                      type="button"
+                      className="vhd-inline-action"
+                      onClick={() => workflowFileInputRef.current?.click()}
+                      data-testid="visit-home-import-retry-cta"
+                    >
+                      Retry import with package file →
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="vhd-panel-copy" data-testid="visit-home-import-failure-empty">
+                  No blocked imports in this session.
+                </p>
+              )}
+            </div>
+            <div className="vhd-recovery-center__section">
+              <p className="vhd-recovery-center__title">Interrupted scan return</p>
+              {hasInterruptedScanReturn ? (
+                <div className="vhd-session-status vhd-session-status--warning" data-testid="visit-home-scan-return-recovery">
+                  <p className="vhd-session-status__message">
+                    Scan handoff evidence exists for this visit, but handoff output is not marked complete yet.
+                  </p>
+                  {onRecoverInterruptedScanReturn != null && (
+                    <button
+                      type="button"
+                      className="vhd-inline-action"
+                      onClick={onRecoverInterruptedScanReturn}
+                      data-testid="visit-home-recover-scan-return-cta"
+                    >
+                      Resume scan return recovery →
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="vhd-panel-copy" data-testid="visit-home-scan-return-clear">
+                  No interrupted scan return detected.
+                </p>
+              )}
+            </div>
+            <div className="vhd-recovery-center__section">
+              <p className="vhd-recovery-center__title">Local snapshot recovery</p>
+              <p className="vhd-panel-copy" data-testid="visit-home-local-snapshot-status">
+                {hasSavedLocalVisit
+                  ? 'A saved local snapshot is available. Use “Resume saved visit” if your session was interrupted.'
+                  : 'No saved local snapshot detected for this visit yet.'}
+              </p>
+            </div>
+          </div>
+
+          {workflowQaChecklist.length > 0 && (
+            <div className="vhd-readiness-panel vhd-workflow-qa" data-testid="visit-home-workflow-qa-checklist">
+              <h2 className="vhd-panel-title">Workflow QA checklist</h2>
+              <ul className="vhd-workflow-qa__list">
+                {workflowQaChecklist.map((item) => (
+                  <li
+                    key={item.id}
+                    className={`vhd-workflow-qa__item vhd-workflow-qa__item--${item.status}`}
+                    data-testid={`visit-home-workflow-qa-${item.id}`}
+                  >
+                    <p className="vhd-workflow-qa__label">
+                      <strong>{item.label}</strong> · {item.status === 'complete' ? 'Complete' : item.status === 'pending' ? 'Pending' : 'Blocked'}
+                    </p>
+                    <p className="vhd-workflow-qa__detail">{item.detail}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
