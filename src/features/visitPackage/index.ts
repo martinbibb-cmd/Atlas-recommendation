@@ -31,6 +31,7 @@ export {
 } from './buildVisitPackagePdfEnvelope';
 
 export {
+  VISIT_PACKAGE_PDF_NO_MARKER_ERROR,
   VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER,
   VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER,
   renderVisitPackagePdfDocument,

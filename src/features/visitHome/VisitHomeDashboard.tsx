@@ -602,7 +602,7 @@ export function VisitHomeDashboard({
   const portalDescription = viewModel.portalMissingMessage
     ?? 'Customer-safe portal for review before sharing.';
   const supportingPdfDescription = viewModel.supportingPdfMissingMessage
-    ?? 'Customer-facing print pack with recommendation, scenarios, and explainers.';
+    ?? 'Printable customer-facing supporting PDF for review and handover. Not an Atlas visit package import file.';
   const actionProjection = buildVisitHomeActionProjection({
     workspaceRole,
     workspacePermissions,
@@ -1147,7 +1147,7 @@ export function VisitHomeDashboard({
                   actionableState={actionableStateFor('supporting-pdf', pdfStatus)}
                   audience={['customer', 'office']}
                   source="library"
-                  ctaLabel={supportingPdfOutputAvailable ? 'Print summary →' : 'Generate supporting PDF →'}
+                  ctaLabel={supportingPdfOutputAvailable ? 'Print / save supporting PDF →' : 'Generate supporting PDF →'}
                   onCta={canTriggerAction('supporting-pdf', pdfStatus, 'not-blocked')
                     ? (supportingPdfOutputAvailable ? onPrintSummary : onGenerateSupportingPdf)
                     : undefined}
@@ -1278,7 +1278,7 @@ export function VisitHomeDashboard({
           </div>
 
           {/* ── Local visit controls ──────────────────────────────────────── */}
-          {(onSaveLocally != null || onResumeLocalVisit != null || onClearSession != null || onImportWorkflowPackage != null) && (
+          {(onSaveLocally != null || onResumeLocalVisit != null || onClearSession != null || onImportWorkflowPackage != null || onExportPackage != null) && (
             <div className="vhd-readiness-panel vhd-local-controls" data-testid="visit-home-local-controls">
               <h2 className="vhd-panel-title">Visit session</h2>
               <div className="vhd-local-controls__actions">
@@ -1325,6 +1325,16 @@ export function VisitHomeDashboard({
                       />
                     )}
                   </>
+                )}
+                {onExportPackage != null && (
+                  <button
+                    type="button"
+                    className="vhd-inline-action"
+                    onClick={onExportPackage}
+                    data-testid="visit-home-export-package"
+                  >
+                    📦 Export visit package
+                  </button>
                 )}
                 {onClearSession != null && (
                   <button
