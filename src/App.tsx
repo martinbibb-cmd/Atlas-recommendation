@@ -167,7 +167,10 @@ import CustomerPortalPreviewPage from './dev/CustomerPortalPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
-import type { VisitSelectorEntry } from './features/visitHome/VisitHomeDashboard';
+import type {
+  VisitHomeSessionStatus,
+  VisitSelectorEntry,
+} from './features/visitHome/VisitHomeDashboard';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import {
   buildCanonicalVisitPackage,
@@ -269,6 +272,7 @@ const IMPORT_SURFACE_LABELS: Record<'app_home_import' | 'visit_home_import', str
 
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
 type LocalSessionStatusTone = 'success' | 'warning' | 'error';
+type LocalSessionStatus = VisitHomeSessionStatus & { tone: LocalSessionStatusTone };
 type PortalPdfJourneyType =
   | 'open_vented'
   | 'stored_hot_water'
@@ -290,23 +294,108 @@ function buildPackageImportStatusMessage(
   visitReference: string,
   importSurface: 'app_home_import' | 'visit_home_import',
   integrity: CanonicalVisitPackageIntegrityResult,
-): { tone: LocalSessionStatusTone; message: string } {
+): LocalSessionStatus {
   const importedMessage = `Imported visit package ${visitReference} from ${IMPORT_SURFACE_LABELS[importSurface]}.`;
   if (integrity.status === 'verified') {
     return {
       tone: 'success',
-      message: `${importedMessage} Integrity verified.`,
+      type: 'import',
+      message: `${importedMessage} Integrity checks passed. Atlas does not store this package in cloud storage.`,
+      importSummary: {
+        integrityStatus: 'verified',
+      },
     };
   }
   if (integrity.status === 'modified') {
     return {
       tone: 'warning',
-      message: `${importedMessage} Warning: package contents appear changed after export. Packaged portal URLs were ignored.`,
+      type: 'import',
+      message: `${importedMessage} Atlas imported it with warnings. Package contents appear to have changed after export, so packaged portal URLs were ignored.`,
+      importSummary: {
+        integrityStatus: 'modified',
+        warnings: integrity.warnings,
+      },
     };
   }
   return {
     tone: 'warning',
-    message: `${importedMessage} Warning: package integrity could not be verified. Imported as legacy/unverified and packaged portal URLs were ignored.`,
+    type: 'import',
+    message: `${importedMessage} Atlas imported it as unverified. This package is missing verification metadata, so packaged portal URLs were ignored.`,
+    importSummary: {
+      integrityStatus: 'unverified',
+      warnings: integrity.warnings,
+    },
+  };
+}
+
+function buildImportFailureStatus(
+  errors: readonly string[],
+): LocalSessionStatus {
+  if (errors.length === 0) {
+    return {
+      tone: 'error',
+      type: 'session',
+      message: 'Package import blocked: the file could not be validated as an Atlas visit package.',
+    };
+  }
+  const primaryError = errors[0]!;
+  if (primaryError.toLowerCase().includes('schema mismatch')) {
+    return {
+      tone: 'error',
+      type: 'session',
+      message: 'Package import blocked: this file is not a supported Atlas visit package schema.',
+    };
+  }
+  if (primaryError.toLowerCase().includes('version mismatch')) {
+    return {
+      tone: 'error',
+      type: 'session',
+      message: 'Package import blocked: this Atlas visit package version is not supported by this build.',
+    };
+  }
+  if (primaryError.toLowerCase().includes('not valid json')) {
+    return {
+      tone: 'error',
+      type: 'session',
+      message: 'Package import blocked: this file is not a valid Atlas visit package export.',
+    };
+  }
+  return {
+    tone: 'error',
+    type: 'session',
+    message: `Package import blocked: ${errors.slice(0, 2).join('; ')}`,
+  };
+}
+
+function hasPackagedRecommendationSummary(pkg: CanonicalVisitPackageV1): boolean {
+  return pkg.proposalTruth?.customerSummary != null || pkg.customerPropertyDetails.customerSummary != null;
+}
+
+function buildExportConfirmationStatus(
+  filename: string,
+  pkg: CanonicalVisitPackageV1,
+): LocalSessionStatus {
+  const includedItems: string[] = [
+    'Survey draft',
+    'Visit identity and export metadata',
+  ];
+  if (pkg.engineInputSnapshot != null) includedItems.push('Engine input snapshot');
+  if (hasPackagedRecommendationSummary(pkg)) {
+    includedItems.push('Recommendation summary');
+  }
+  if (pkg.customerPropertyDetails.portalVisitContext != null) {
+    includedItems.push('Customer portal context');
+  }
+  if (pkg.generatedOutputStatus?.generatedOutputs != null) {
+    includedItems.push('Generated output state');
+  }
+  return {
+    tone: 'success',
+    type: 'export',
+    message: `Exported customer-safe package ${filename}. Downloaded to your device only.`,
+    exportSummary: {
+      includedItems,
+    },
   };
 }
 
@@ -1226,7 +1315,7 @@ function AppInner() {
   const visitRecommendationSnapshotRef = useRef<VisitRecommendationSnapshot | null>(null);
   const pdfDocumentCounterRef = useRef(0);
   const appHomePackageInputRef = useRef<HTMLInputElement>(null);
-  const [localSessionStatus, setLocalSessionStatus] = useState<{ tone: LocalSessionStatusTone; message: string } | null>(null);
+  const [localSessionStatus, setLocalSessionStatus] = useState<LocalSessionStatus | null>(null);
   const [importedWorkflowVisitIds, setImportedWorkflowVisitIds] = useState<string[]>([]);
   /**
    * Canonical visit package most recently imported. Retained so the
@@ -1840,17 +1929,15 @@ function AppInner() {
         ? parseCanonicalVisitPackageFromPdfEnvelope(fileText)
         : parseCanonicalVisitPackage(fileText);
       if (!parsed.ok) {
-        setLocalSessionStatus({
-          tone: 'error',
-          message: `Package import failed: ${parsed.errors.slice(0, 3).join('; ')}`,
-        });
+        setLocalSessionStatus(buildImportFailureStatus(parsed.errors));
         return;
       }
       hydrateStateFromCanonicalVisitPackage(parsed.pkg, importSurface, parsed.integrity);
     } catch {
       setLocalSessionStatus({
         tone: 'error',
-        message: `Package import failed: unable to read ${file.name}.`,
+        type: 'session',
+        message: `Package import blocked: unable to read ${file.name}.`,
       });
     }
   }
@@ -1936,10 +2023,7 @@ function AppInner() {
       };
       persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
     }
-    setLocalSessionStatus({
-      tone: 'success',
-      message: `Exported customer-safe package ${filename}.`,
-    });
+    setLocalSessionStatus(buildExportConfirmationStatus(filename, pkg));
   }
 
   async function handleGenerateRecommendation() {

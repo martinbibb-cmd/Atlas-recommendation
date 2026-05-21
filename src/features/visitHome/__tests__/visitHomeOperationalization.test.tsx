@@ -446,6 +446,52 @@ describe('VisitHomeDashboard local visit controls', () => {
     );
   });
 
+  it('shows import integrity badge and review step for imported visit packages', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onSaveLocally: vi.fn(),
+          localSessionStatus: {
+            tone: 'warning',
+            type: 'import',
+            message: 'Imported visit package ABC12345 from Visit Home.',
+            importSummary: {
+              integrityStatus: 'modified',
+              warnings: ['Package contents appear to have changed after export.'],
+            },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByTestId('visit-home-import-result-badge')).toHaveTextContent('Modified');
+    expect(screen.getByTestId('visit-home-import-warning-list')).toHaveTextContent(
+      'Package contents appear to have changed after export.',
+    );
+    expect(screen.getByTestId('visit-home-local-session-status')).toHaveTextContent(
+      'Review imported visit details before continuing to customer-facing outputs.',
+    );
+  });
+
+  it('shows export include list after package export', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onSaveLocally: vi.fn(),
+          localSessionStatus: {
+            tone: 'success',
+            type: 'export',
+            message: 'Exported customer-safe package abc.atlasvisit.pdf.',
+            exportSummary: {
+              includedItems: ['Survey draft', 'Recommendation summary'],
+            },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByTestId('visit-home-export-include-list')).toHaveTextContent('Survey draft');
+    expect(screen.getByTestId('visit-home-export-include-list')).toHaveTextContent('Recommendation summary');
+  });
+
   it('resume saved visit CTA is shown and calls onResumeLocalVisit when hasSavedLocalVisit is true', () => {
     const onResumeLocalVisit = vi.fn();
     render(
