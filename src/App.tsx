@@ -300,7 +300,7 @@ function buildPackageImportStatusMessage(
     return {
       tone: 'success',
       type: 'import',
-      message: `${importedMessage} Integrity checks passed. Atlas did not keep this package in cloud storage.`,
+      message: `${importedMessage} Integrity checks passed. Atlas does not store this package in cloud storage.`,
       importSummary: {
         integrityStatus: 'verified',
       },
@@ -338,7 +338,14 @@ function buildImportFailureStatus(
       message: 'Package import blocked: the file could not be validated as an Atlas visit package.',
     };
   }
-  const primaryError = errors[0] ?? '';
+  const primaryError = errors[0];
+  if (primaryError == null) {
+    return {
+      tone: 'error',
+      type: 'session',
+      message: 'Package import blocked: the file could not be validated as an Atlas visit package.',
+    };
+  }
   if (primaryError.toLowerCase().includes('schema mismatch')) {
     return {
       tone: 'error',

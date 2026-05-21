@@ -1331,7 +1331,7 @@ export function VisitHomeDashboard({
                       )}
                     </>
                   ) : null}
-                  {(localSessionStatus.type == null || localSessionStatus.type === 'session') ? (
+                  {(localSessionStatus.type === undefined || localSessionStatus.type === 'session') ? (
                     <p className="vhd-session-status__message">{localSessionStatus.message}</p>
                   ) : null}
                 </div>
