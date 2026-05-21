@@ -39,6 +39,7 @@ import { ReadingAssistOverlay } from '../../accessibility/readingAssist/ReadingA
 import { PersistentJourneyHeader } from './PersistentJourneyHeader';
 import { buildCustomerSafeAiFallback } from '../../ai/buildCustomerSafeAiFallback';
 import { CustomerPortalJourneyComposer } from '../../portal/customerJourney/CustomerPortalJourneyComposer';
+import type { CustomerJourneyPackV1 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 import './CustomerPortalPage.css';
 
 interface Props {
@@ -58,6 +59,12 @@ interface Props {
    * Runs the canonical portal shell without fixture-mode renderer toggles.
    */
   productionPreviewInput?: EngineInputV2_3;
+  /**
+   * Optional packaged CustomerJourneyPackV1 to use in the portal journey.
+   * When provided with productionPreviewInput, passes the pack to
+   * CustomerPortalJourneyComposer so portal content matches the exported package.
+   */
+  productionPreviewCustomerJourneyPack?: CustomerJourneyPackV1;
   /**
    * Dev-only: when set, skips the choice screen and opens the portal directly
    * in the given view mode. Only respected when devFixtureInput is also set.
@@ -181,6 +188,7 @@ function CustomerPortalContent({
   showDevTraceLabelsOverride,
   devFixtureInput,
   productionPreviewInput,
+  productionPreviewCustomerJourneyPack,
   devInitialViewMode,
   portalVisitContextOverride,
 }: Omit<Props, 'brandId'>) {
@@ -433,6 +441,7 @@ function CustomerPortalContent({
         engineInput={portalData.engineInput}
         engineResult={engineResult}
         propertyTitle={portalHomeLabel}
+        customerJourneyPack={productionPreviewCustomerJourneyPack}
       />
     );
   }
