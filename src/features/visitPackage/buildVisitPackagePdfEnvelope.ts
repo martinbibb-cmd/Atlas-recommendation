@@ -69,12 +69,18 @@ export function buildVisitPackagePdfEnvelope(
   const pkg = input.packagePayload;
   const generatedAt = input.generatedAt ?? new Date().toISOString();
   const visitReference = pkg.visitIdentity.visitReference ?? pkg.visitIdentity.visitId ?? 'atlas-visit';
+  const recommendationTitle = isProposalReady(pkg)
+    ? pkg.proposalTruth?.customerSummary?.recommendedSystemLabel
+    : undefined;
+  const title = hasText(recommendationTitle)
+    ? `Atlas Recommendation: ${recommendationTitle}`
+    : 'Atlas Recommendation Summary';
   return {
     schema: VISIT_PACKAGE_PDF_ENVELOPE_SCHEMA,
     version: VISIT_PACKAGE_PDF_ENVELOPE_VERSION,
     generatedAt,
     visitReference,
-    title: 'Atlas visit package (customer-safe PDF wrapper)',
+    title,
     visibleContent: {
       customerPropertySummary: buildCustomerPropertySummary(pkg),
       recommendationSummary: buildRecommendationSummary(pkg),

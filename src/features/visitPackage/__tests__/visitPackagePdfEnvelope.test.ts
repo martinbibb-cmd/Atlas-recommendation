@@ -14,6 +14,10 @@ import {
   buildCustomerJourneyPackGeneratedOutput,
 } from '../../../library/portal/pdf/buildPortalJourneyPrintModel';
 
+function hasText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 function makePackage() {
   const customerJourneyPack = buildCustomerJourneyPack({
     selectedSectionIds: [],
@@ -152,5 +156,79 @@ describe('visit package PDF envelope', () => {
   it('returns parse errors when PDF does not include payload markers', () => {
     const parsed = parseCanonicalVisitPackageFromPdfEnvelope('%PDF-1.4\n1 0 obj\n<<>>\nendobj');
     expect(parsed.ok).toBe(false);
+  });
+});
+
+describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload alignment)', () => {
+  it('PDF title reflects the packaged recommendation system label', () => {
+    const pkg = makePackage();
+    const envelope = buildVisitPackagePdfEnvelope({ packagePayload: pkg });
+    // Envelope title should contain the system label, not a generic wrapper message
+    expect(envelope.title).toContain('System boiler with cylinder');
+    expect(envelope.title).not.toContain('wrapper');
+  });
+
+  it('PDF visible recommendation summary matches packaged CustomerJourneyPackV1 recommendation', () => {
+    const pkg = makePackage();
+    const envelope = buildVisitPackagePdfEnvelope({ packagePayload: pkg });
+    const pdf = renderVisitPackagePdfDocument(envelope);
+
+    // The visible PDF content must contain the recommendation summary from the pack
+    const packCoverTitle = pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack
+      ?.payload?.staticPdf?.cover?.title as string | undefined;
+
+    expect(packCoverTitle).toBeDefined();
+    if (packCoverTitle) {
+      // The rendered PDF pages should contain the pack cover title text
+      // (ASCII-safe comparison — non-ASCII chars are replaced with '?')
+      const asciiTitle = packCoverTitle.replace(/[^\x20-\x7E]/g, '?');
+      expect(pdf).toContain(asciiTitle);
+    }
+
+    // The visible recommendation summary in the envelope must match what is in
+    // the packaged CustomerJourneyPackV1 (same recommendation label source)
+    const packRecommendationLabel =
+      pkg.proposalTruth?.customerSummary?.recommendedSystemLabel;
+    if (hasText(packRecommendationLabel)) {
+      expect(envelope.visibleContent.recommendationSummary).toContain(packRecommendationLabel);
+    }
+  });
+
+  it('embedded payload recommendation matches envelope visible summary after round-trip', () => {
+    const pkg = makePackage();
+    const envelope = buildVisitPackagePdfEnvelope({ packagePayload: pkg });
+    const pdf = renderVisitPackagePdfDocument(envelope);
+
+    const parsed = parseCanonicalVisitPackageFromPdfEnvelope(pdf);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    // Embedded payload must carry the same recommendation label as the visible envelope summary
+    const embeddedLabel = parsed.pkg.proposalTruth?.customerSummary?.recommendedSystemLabel;
+    const visibleSummary = envelope.visibleContent.recommendationSummary;
+
+    if (hasText(embeddedLabel) && hasText(visibleSummary)) {
+      expect(visibleSummary).toContain(embeddedLabel);
+    }
+  });
+
+  it('PDF is a valid multi-page PDF-1.4 document when CustomerJourneyPackV1 is present', () => {
+    const pkg = makePackage();
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
+
+    // Must start with PDF header
+    expect(pdf.startsWith('%PDF-1.4')).toBe(true);
+    // Must end with %%EOF
+    expect(pdf.endsWith('%%EOF')).toBe(true);
+    // Must have more than one page object (cover + sections + next steps)
+    const pageMatches = pdf.match(/\/Type \/Page[^s]/g);
+    expect(pageMatches).not.toBeNull();
+    expect((pageMatches ?? []).length).toBeGreaterThan(1);
+    // Catalog must reference Pages
+    expect(pdf).toContain('/Type /Catalog');
+    expect(pdf).toContain('/Type /Pages');
+    // Both fonts must be declared
+    expect(pdf).toContain('/BaseFont /Helvetica ');
+    expect(pdf).toContain('/BaseFont /Helvetica-Bold ');
   });
 });

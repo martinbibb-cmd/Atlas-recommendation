@@ -1342,7 +1342,7 @@ function AppInner() {
   // Print/lab/dev-only routes are excluded to avoid polluting the cache with
   // transient states that are not meaningful to restore.
   const PERSISTED_JOURNEYS: Journey[] = [
-    'visit', 'visit-home', 'remote-survey', 'simulator', 'presentation',
+    'visit', 'visit-home', 'remote-survey', 'simulator',
   ];
 
   useEffect(() => {
@@ -1720,6 +1720,9 @@ function AppInner() {
       tone: 'success',
       message: `Resumed saved visit ${persisted.visitReference ?? formatVisitReference(persisted.visitId)}.`,
     });
+    // Suppress the auto-hydration effect so it does not re-show the recovery
+    // prompt immediately after an explicit resume action.
+    setHydratedPersistedVisitId(activeVisitId);
   }
 
   function hydrateStateFromCanonicalVisitPackage(
@@ -1822,6 +1825,9 @@ function AppInner() {
       }),
     );
     setLocalSessionStatus(buildPackageImportStatusMessage(resolvedVisitReference, importSurface, integrity));
+    // Suppress the auto-hydration effect so it does not re-show the visit
+    // recovery prompt immediately after a canonical package import.
+    setHydratedPersistedVisitId(resolvedVisitId);
     setJourney('visit-home');
   }
 
@@ -3864,18 +3870,31 @@ function AppInner() {
           prioritiesState={labPrioritiesState}
         />
       )}
-      {/* Portal from package — opens the portal experience using the packaged CustomerJourneyPackV1.
-          Renders via CanonicalPresentationRoute so the packaged content is consumed by the portal
-          journey composer. Back returns to visit-home. */}
-      {journey === 'portal-from-package' && labEngineInput != null && (
-        <CanonicalPresentationRoute
-          engineInput={labEngineInput}
-          onBack={() => setJourney('visit-home')}
-          onPrint={() => setJourney('library-pdf')}
-          heatLossState={labHeatLossState}
-          prioritiesState={labPrioritiesState}
-        />
-      )}
+      {/* Portal from package — opens the canonical portal experience (CustomerPortalPage)
+          using the packaged engine input and CustomerJourneyPackV1 content.
+          This consumes the packaged CustomerJourneyPackV1 directly so the portal
+          shows the same content that was embedded in the exported PDF.
+          Back returns to visit-home. */}
+      {journey === 'portal-from-package' && labEngineInput != null && (() => {
+        const packagedCustomerJourneyPack =
+          activeCanonicalPackage != null
+            ? readCustomerJourneyPackFromGeneratedOutputs(
+                activeCanonicalPackage.generatedOutputStatus?.generatedOutputs,
+              )
+            : undefined;
+        return (
+          <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+            <div style={{ padding: '0.5rem 1rem' }}>
+              <button className="back-btn" onClick={() => setJourney('visit-home')}>← Back</button>
+            </div>
+            <CustomerPortalPage
+              reference={visitRecommendationSnapshot?.visitReference ?? formatVisitReference(activeVisitId ?? '')}
+              productionPreviewInput={labEngineInput}
+              productionPreviewCustomerJourneyPack={packagedCustomerJourneyPack}
+            />
+          </div>
+        );
+      })()}
       {journey === 'portal-from-package' && labEngineInput == null && (() => {
         const reimportNote = 'Re-import the visit package to restore portal content.';
         const unavailableMessage = activePortalLaunchPayload?.rebuildRequired === true
