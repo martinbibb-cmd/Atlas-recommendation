@@ -165,7 +165,7 @@ function buildFallbackPrintModel(envelope: VisitPackagePdfEnvelopeV1): PortalJou
     cover: {
       title: envelope.title,
       summary: fallbackSummary,
-      customerFacts: envelope.visibleContent.customerPropertySummary,
+      customerFacts: [...envelope.visibleContent.customerPropertySummary],
     },
     recommendationReasons: [],
     sections: [],

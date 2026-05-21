@@ -109,7 +109,7 @@ interface PrintSectionProps {
 }
 
 interface PrintRecommendationReasonsProps {
-  reasons: RecommendationReasonBlockV1[];
+  reasons: readonly RecommendationReasonBlockV1[];
   pageNumber: number;
 }
 
