@@ -250,7 +250,7 @@ function buildRecommendationReasonsItems(documentModel: CustomerDocumentModelV1)
     for (const line of wordWrap(`Why it matters: ${reason.whyItMatters}`, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
-    for (const line of wordWrap(`Atlas chose: ${reason.atlasRecommendationOutcome}`, wrapWidth(11))) {
+    for (const line of wordWrap(`Atlas recommendation: ${reason.atlasRecommendationOutcome}`, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
     for (const line of wordWrap(`What you will notice: ${reason.practicalEffect}`, wrapWidth(11))) {
