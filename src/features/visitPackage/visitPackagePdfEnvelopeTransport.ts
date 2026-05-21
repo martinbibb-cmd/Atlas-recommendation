@@ -244,10 +244,16 @@ function buildRecommendationReasonsItems(documentModel: CustomerDocumentModelV1)
   items.push(headingItem('Why this recommendation fits your home'));
   items.push(gapItem(8));
   for (const reason of documentModel.recommendationReasons) {
-    for (const line of wordWrap(reason.title, wrapWidth(11))) {
+    for (const line of wordWrap(reason.homeFact, wrapWidth(11))) {
       items.push(subHeadingItem(line));
     }
-    for (const line of wordWrap(reason.summary, wrapWidth(11))) {
+    for (const line of wordWrap(`Why it matters: ${reason.whyItMatters}`, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+    for (const line of wordWrap(`Atlas recommendation: ${reason.atlasRecommendationOutcome}`, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+    for (const line of wordWrap(`What you will notice: ${reason.practicalEffect}`, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
     if (hasText(reason.detail)) {

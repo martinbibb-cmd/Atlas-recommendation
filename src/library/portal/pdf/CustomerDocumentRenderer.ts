@@ -37,6 +37,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function isRecommendationReasonBlock(value: unknown): value is RecommendationReasonBlockV1 {
+  return isRecord(value)
+    && hasText(value.id)
+    && hasText(value.category)
+    && hasText(value.homeFact)
+    && hasText(value.whyItMatters)
+    && hasText(value.atlasRecommendationOutcome)
+    && hasText(value.practicalEffect);
+}
+
 interface LegacyPortalJourneyPrintModelInput extends Partial<PortalJourneyPrintModelV1> {
   recommendationSummary?: unknown;
   customerFacts?: unknown;
@@ -54,7 +64,7 @@ export function buildCustomerDocumentModel(
 ): CustomerDocumentModelV1 {
   const inputModel: LegacyPortalJourneyPrintModelInput = input.model;
   const recommendationReasons = (Array.isArray(inputModel.recommendationReasons) ? inputModel.recommendationReasons : [])
-    .filter((reason) => isRecord(reason) && hasText(reason.title) && hasText(reason.summary))
+    .filter(isRecommendationReasonBlock)
     .slice(0, MAX_CUSTOMER_RECOMMENDATION_REASONS);
   const coverCustomerFacts = Array.isArray(inputModel.cover?.customerFacts)
     ? inputModel.cover.customerFacts
