@@ -234,7 +234,8 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     const pdf = renderVisitPackagePdfDocument(envelope);
     expect(pdf).not.toContain('This document contains an embedded Atlas package for digital import.');
     expect(pdf).toContain('Why this recommendation fits your home');
-    expect(pdf).toContain('Your home has 3 people and 2 bathrooms.');
+    expect(pdf).toContain('3-person household');
+    expect(pdf).toContain('Why it matters:');
     expect(pdf).toContain('What happens next');
   });
 
@@ -260,7 +261,8 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     });
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: packageWithoutJourney }));
     expect(pdf).toContain('Why this recommendation fits your home');
-    expect(pdf).toContain('Your home has 3 people and 2 bathrooms.');
+    expect(pdf).toContain('3-person household');
+    expect(pdf).toContain('Atlas recommendation:');
     expect(pdf).toContain(VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER);
   });
 
