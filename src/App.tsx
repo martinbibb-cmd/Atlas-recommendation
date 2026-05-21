@@ -3415,7 +3415,7 @@ function AppInner() {
             hasScanReturn: activeScanCapture != null,
             hasRegeneratedDeliveryOutputs:
               generatedOutputs.portal.generated || generatedOutputs.pdf.generated,
-            hasExportedPackageAgain: generatedOutputs.export.generated,
+            hasExportedPackageAgain: lifecycleState === 'exported',
           });
 
           return (
