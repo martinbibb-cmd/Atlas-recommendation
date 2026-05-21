@@ -24,6 +24,20 @@ describe('CustomerDocumentRenderer', () => {
     expect(embedded.packageEmbedded).toBe(true);
   });
 
+  it('preserves structured recommendation reasons from the current print model', () => {
+    const documentModel = buildCustomerDocumentModel({ model, mode: 'printable' });
+
+    expect(documentModel.recommendationReasons.length).toBeGreaterThan(0);
+    expect(documentModel.recommendationReasons[0]).toMatchObject({
+      id: expect.any(String),
+      category: expect.any(String),
+      homeFact: expect.any(String),
+      whyItMatters: expect.any(String),
+      atlasRecommendationOutcome: expect.any(String),
+      practicalEffect: expect.any(String),
+    });
+  });
+
   it('renders packageEmbedded mode when recommendation reasons are missing', () => {
     const legacyLikeModel = {
       ...model,
