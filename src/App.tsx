@@ -1889,6 +1889,7 @@ function AppInner() {
       currentSnapshot?.portalVisitContext
       ?? activeCanonicalPackage?.customerPropertyDetails.portalVisitContext
       ?? labPortalVisitContext;
+    const packagedPortalVisitContext = activeCanonicalPackage?.customerPropertyDetails.portalVisitContext;
     const selectedScenarioId =
       currentSnapshot?.acceptedScenarioId
       ?? activeCanonicalPackage?.proposalTruth?.selectedScenarioId;
@@ -1919,7 +1920,7 @@ function AppInner() {
         },
         customerPropertyDetails: {
           customerSummary: exportCustomerSummary,
-          portalVisitContext: exportPortalVisitContext,
+          portalVisitContext: packagedPortalVisitContext,
         },
         surveyDraft: exportSurveyModel,
         engineInputSnapshot: exportEngineInput,
@@ -3697,7 +3698,6 @@ function AppInner() {
                 setLastOpenedFromHome({ label: 'Engineer Route', journey: 'engineer' });
                 setJourney('engineer');
               } : undefined}
-              onExportPackage={activeVisitId != null && labFullSurveyModel != null ? handleExportCanonicalVisitPackage : undefined}
               onBack={() => setJourney('app-home')}
             />
           );
