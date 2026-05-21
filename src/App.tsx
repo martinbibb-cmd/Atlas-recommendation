@@ -1868,7 +1868,7 @@ function AppInner() {
   function handleExportCanonicalVisitPackage() {
     const exportVisitId =
       activeVisitId
-      ?? (hasText(activeCanonicalPackage?.visitIdentity.visitId) ? activeCanonicalPackage.visitIdentity.visitId : undefined);
+      ?? activeCanonicalPackage?.visitIdentity.visitId;
     const exportSurveyModel = labFullSurveyModel ?? activeCanonicalPackage?.surveyDraft;
     if (exportVisitId == null || exportSurveyModel == null) {
       setLocalSessionStatus({ tone: 'error', message: 'Unable to export: no active visit survey in memory.' });
@@ -1889,7 +1889,7 @@ function AppInner() {
       currentSnapshot?.portalVisitContext
       ?? activeCanonicalPackage?.customerPropertyDetails.portalVisitContext
       ?? labPortalVisitContext;
-    const packagedPortalVisitContext = activeCanonicalPackage?.customerPropertyDetails.portalVisitContext;
+    const canonicalPackagePortalVisitContext = activeCanonicalPackage?.customerPropertyDetails.portalVisitContext;
     const selectedScenarioId =
       currentSnapshot?.acceptedScenarioId
       ?? activeCanonicalPackage?.proposalTruth?.selectedScenarioId;
@@ -1920,7 +1920,7 @@ function AppInner() {
         },
         customerPropertyDetails: {
           customerSummary: exportCustomerSummary,
-          portalVisitContext: packagedPortalVisitContext,
+          portalVisitContext: canonicalPackagePortalVisitContext,
         },
         surveyDraft: exportSurveyModel,
         engineInputSnapshot: exportEngineInput,
