@@ -18,6 +18,8 @@ export interface CustomerDocumentModelV1 {
   readonly packageEmbedded: boolean;
 }
 
+export type CustomerDocumentSectionV1 = CustomerDocumentModelV1['sections'][number];
+
 export interface BuildCustomerDocumentModelInputV1 {
   readonly model: PortalJourneyPrintModelV1;
   readonly mode: CustomerDocumentRendererMode;

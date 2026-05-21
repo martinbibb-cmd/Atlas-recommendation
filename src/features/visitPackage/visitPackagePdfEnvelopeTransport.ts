@@ -10,6 +10,7 @@ import {
 import {
   buildCustomerDocumentModel,
   type CustomerDocumentModelV1,
+  type CustomerDocumentSectionV1,
 } from '../../library/portal/pdf/CustomerDocumentRenderer';
 import {
   readCustomerJourneyPackFromGeneratedOutputs,
@@ -160,7 +161,7 @@ function gapItem(height: number): PdfGapItem {
 function buildFallbackPrintModel(envelope: VisitPackagePdfEnvelopeV1): PortalJourneyPrintModelV1 {
   const fallbackSummary = hasText(envelope.visibleContent.recommendationSummary)
     ? envelope.visibleContent.recommendationSummary
-    : 'Recommendation content is unavailable for this package export.';
+    : 'Unable to load recommendation details for this export package. Please regenerate the visit package.';
   return {
     cover: {
       title: envelope.title,
@@ -257,7 +258,7 @@ function buildRecommendationReasonsItems(documentModel: CustomerDocumentModelV1)
   return items;
 }
 
-function buildSectionItems(section: CustomerDocumentModelV1['sections'][number]): PdfLayoutItem[] {
+function buildSectionItems(section: CustomerDocumentSectionV1): PdfLayoutItem[] {
   const items: PdfLayoutItem[] = [];
 
   for (const line of wordWrap(section.heading, wrapWidth(13))) {
