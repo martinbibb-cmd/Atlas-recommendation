@@ -33,13 +33,14 @@ export interface HeaderTankPrimitiveProps {
 
 /** Canonical bounding box of the HeaderTankPrimitive SVG at md scale (viewBox units). */
 export const HEADER_TANK_FOOTPRINT = { width: 120, height: 100 } as const;
+const HEADER_TANK_VENT_X = HEADER_TANK_FOOTPRINT.width - 28;
 
 /**
  * Canonical port coordinates for HeaderTankPrimitive (viewBox units, md scale).
  */
 export const HEADER_TANK_PORTS = {
   cold_feed:    { x: 28,  y: 100, side: 'bottom' as const },
-  vent_in:      { x: 92,  y: 100, side: 'bottom' as const },
+  vent_in:      { x: HEADER_TANK_VENT_X,  y: 100, side: 'bottom' as const },
   overflow_out: { x: 4,   y: 44,  side: 'left'   as const },
 } as const;
 
@@ -167,9 +168,9 @@ export function HeaderTankPrimitive({
 
         {/* Vent/expansion pipe stub — bottom-right, open vent from primary circuit */}
         <line
-          x1={92}
+          x1={HEADER_TANK_VENT_X}
           y1={BODY_BOTTOM}
-          x2={92}
+          x2={HEADER_TANK_VENT_X}
           y2={100}
           stroke={printSafe ? '#374151' : '#334155'}
           strokeWidth={PIPE_STROKE_MAIN}
