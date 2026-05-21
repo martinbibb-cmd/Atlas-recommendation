@@ -175,6 +175,7 @@ import {
   parseCanonicalVisitPackageFromPdfEnvelope,
   parseCanonicalVisitPackage,
   renderVisitPackagePdfDocument,
+  type CanonicalVisitPackageIntegrityResult,
   type CanonicalVisitPackageV1,
 } from './features/visitPackage';
 import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintPack';
@@ -267,7 +268,7 @@ const IMPORT_SURFACE_LABELS: Record<'app_home_import' | 'visit_home_import', str
 };
 
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
-type LocalSessionStatusTone = 'success' | 'error';
+type LocalSessionStatusTone = 'success' | 'warning' | 'error';
 type PortalPdfJourneyType =
   | 'open_vented'
   | 'stored_hot_water'
@@ -283,6 +284,30 @@ function isLegacyJourney(journey: Journey): boolean {
     || journey === 'framework-print'
     || journey === 'unified-simulator'
   );
+}
+
+function buildPackageImportStatusMessage(
+  visitReference: string,
+  importSurface: 'app_home_import' | 'visit_home_import',
+  integrity: CanonicalVisitPackageIntegrityResult,
+): { tone: LocalSessionStatusTone; message: string } {
+  const importedMessage = `Imported visit package ${visitReference} from ${IMPORT_SURFACE_LABELS[importSurface]}.`;
+  if (integrity.status === 'verified') {
+    return {
+      tone: 'success',
+      message: `${importedMessage} Integrity verified.`,
+    };
+  }
+  if (integrity.status === 'modified') {
+    return {
+      tone: 'warning',
+      message: `${importedMessage} Warning: package contents appear changed after export. Packaged portal URLs were ignored.`,
+    };
+  }
+  return {
+    tone: 'warning',
+    message: `${importedMessage} Warning: package integrity could not be verified. Imported as legacy/unverified and packaged portal URLs were ignored.`,
+  };
 }
 
 function buildSurveySystemConditionFromModel(
@@ -1714,6 +1739,7 @@ function AppInner() {
   function hydrateStateFromCanonicalVisitPackage(
     pkg: CanonicalVisitPackageV1,
     importSurface: 'app_home_import' | 'visit_home_import',
+    integrity: CanonicalVisitPackageIntegrityResult,
   ) {
     const visitIdentity = pkg.visitIdentity;
     const rawVisitId = hasText(visitIdentity.visitId) ? visitIdentity.visitId : undefined;
@@ -1739,6 +1765,15 @@ function AppInner() {
       portalVisitContext,
       generatedAt: pkg.importExportMetadata.exportedAt,
     });
+    const hydratedGeneratedOutputs = generatedOutputs.portal.url === undefined || generatedOutputs.portal.url === null
+      ? generatedOutputs
+      : {
+          ...generatedOutputs,
+          portal: {
+            ...generatedOutputs.portal,
+            url: undefined,
+          },
+        };
     const recommendationReady = isRecommendationReadyForLifecycle({
       decision: pkg.proposalTruth?.decision,
       customerSummary: recommendationSummary,
@@ -1759,13 +1794,13 @@ function AppInner() {
       updatedAt: importedAt,
       survey: pkg.surveyDraft,
       engineInputSnapshot: pkg.engineInputSnapshot,
-      decision: pkg.proposalTruth?.decision,
-      customerSummary: recommendationSummary,
-      acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
-      lifecycleState,
-      generatedOutputs,
-      portalVisitContext,
-    }));
+        decision: pkg.proposalTruth?.decision,
+        customerSummary: recommendationSummary,
+        acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
+        lifecycleState,
+        generatedOutputs: hydratedGeneratedOutputs,
+        portalVisitContext,
+      }));
 
     setImportedWorkflowVisitIds((prev) =>
       prev.includes(resolvedVisitId) ? prev : [...prev, resolvedVisitId],
@@ -1777,7 +1812,7 @@ function AppInner() {
     if (pkg.surveyDraft.fullSurvey?.priorities) setLabPrioritiesState(pkg.surveyDraft.fullSurvey.priorities);
     if (pkg.surveyDraft.fullSurvey?.quotes) setLabQuotes(pkg.surveyDraft.fullSurvey.quotes);
     setLabPortalVisitContext(portalVisitContext);
-    setLabPortalUrl(generatedOutputs.portal.url);
+    setLabPortalUrl(undefined);
     setVisitRecommendationSnapshot({
       visitId: resolvedVisitId,
       visitReference: resolvedVisitReference,
@@ -1785,16 +1820,13 @@ function AppInner() {
       customerSummary: recommendationSummary,
       acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
       lifecycleState,
-      generatedOutputs,
+      generatedOutputs: hydratedGeneratedOutputs,
       portalVisitContext,
     });
     setLastOpenedFromHome(null);
     setActiveCanonicalPackage(pkg);
     setActivePortalLaunchPayload(null);
-    setLocalSessionStatus({
-      tone: 'success',
-      message: `Imported visit package ${resolvedVisitReference} from ${IMPORT_SURFACE_LABELS[importSurface]}.`,
-    });
+    setLocalSessionStatus(buildPackageImportStatusMessage(resolvedVisitReference, importSurface, integrity));
     setJourney('visit-home');
   }
 
@@ -1814,7 +1846,7 @@ function AppInner() {
         });
         return;
       }
-      hydrateStateFromCanonicalVisitPackage(parsed.pkg, importSurface);
+      hydrateStateFromCanonicalVisitPackage(parsed.pkg, importSurface, parsed.integrity);
     } catch {
       setLocalSessionStatus({
         tone: 'error',
