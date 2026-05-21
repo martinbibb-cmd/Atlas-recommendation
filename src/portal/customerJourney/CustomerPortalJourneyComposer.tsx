@@ -668,6 +668,7 @@ export function CustomerPortalJourneyComposer({
     ].filter((value): value is string => value != null && value.trim().length > 0),
   });
   const sharedRecommendationSummary = journeyPack.portalDeepDive.recommendationSummary;
+  const recommendationReasons = (journeyPack.portalDeepDive.recommendationReasons ?? []).slice(0, 5);
   const liveExperienceSummary = journeyPack.portalDeepDive.liveExperienceExplanations[0]
     ?? 'Atlas has prepared day-to-day expectations for your home based on surveyed conditions.';
   const nextSteps = journeyPack.portalDeepDive.nextSteps.map((step) => `${step.label}: ${step.body}`);
@@ -716,6 +717,30 @@ export function CustomerPortalJourneyComposer({
             />
           </div>
         </CustomerPortalJourneySectionV1>
+
+        {recommendationReasons.length > 0 ? (
+          <CustomerPortalJourneySectionV1
+            sectionId="recommendation-reasons"
+            eyebrow="Why this recommendation fits your home"
+            title="How survey facts shaped the route"
+            intro="Atlas links measured home conditions to practical day-to-day outcomes, so the recommendation is explained in plain language."
+          >
+            <div className="customer-portal-journey__reason-grid" data-testid="customer-portal-reason-grid">
+              {recommendationReasons.map((reason) => (
+                <article key={reason.id} className="customer-portal-journey__reason-card">
+                  <p className="customer-portal-journey__summary-label">{reason.title}</p>
+                  <p className="customer-portal-journey__card-copy">{reason.summary}</p>
+                  {reason.detail ? (
+                    <details className="customer-portal-journey__reason-detail">
+                      <summary>Show me why</summary>
+                      <p>{reason.detail}</p>
+                    </details>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </CustomerPortalJourneySectionV1>
+        ) : null}
 
         <CustomerPortalJourneySectionV1
           sectionId="home-pattern"

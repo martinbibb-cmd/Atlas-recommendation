@@ -55,11 +55,16 @@ function collectCustomerFacingText(model: PortalJourneyPrintModelV1): string[] {
     ...(section.diagramCaption ? [section.diagramCaption] : []),
     ...section.items,
   ]);
+  const recommendationReasonText = model.recommendationReasons.flatMap((reason) => [
+    reason.title,
+    reason.summary,
+    ...(reason.detail ? [reason.detail] : []),
+  ]);
 
   const nextStepText = model.nextSteps.flatMap((step) => [step.label, step.body]);
   const qrText = model.qrDestinations.flatMap((dest) => [dest.heading, dest.note]);
 
-  return [...coverText, ...sectionText, ...nextStepText, ...qrText].map((line) => line.trim());
+  return [...coverText, ...recommendationReasonText, ...sectionText, ...nextStepText, ...qrText].map((line) => line.trim());
 }
 
 function hasPendingContent(lines: string[]): boolean {

@@ -14,7 +14,11 @@
  *     the portal journey sections
  */
 
-import type { PortalJourneyPrintModelV1, PortalJourneyPrintSectionV1 } from './buildPortalJourneyPrintModel';
+import type {
+  PortalJourneyPrintModelV1,
+  PortalJourneyPrintSectionV1,
+  RecommendationReasonBlockV1,
+} from './buildPortalJourneyPrintModel';
 import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
 import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
@@ -103,6 +107,11 @@ interface PrintSectionProps {
   pageNumber: number;
 }
 
+interface PrintRecommendationReasonsProps {
+  reasons: RecommendationReasonBlockV1[];
+  pageNumber: number;
+}
+
 function PrintSection({ section, pageNumber }: PrintSectionProps) {
   const rendererDiagramId = resolveRendererDiagramId(section);
 
@@ -154,6 +163,33 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
       <aside className="pjpp-reassurance" data-testid={`pjpp-reassurance-${section.sectionId}`} data-reading-region="true">
         {section.reassurance}
       </aside>
+    </section>
+  );
+}
+
+function PrintRecommendationReasons({ reasons, pageNumber }: PrintRecommendationReasonsProps) {
+  return (
+    <section
+      className="pjpp-page pjpp-section pjpp-section--recommendation-reasons"
+      aria-labelledby="pjpp-recommendation-reasons-heading"
+      data-testid="pjpp-recommendation-reasons"
+      data-page={pageNumber}
+    >
+      <h2 id="pjpp-recommendation-reasons-heading" className="pjpp-section__heading">
+        Why this recommendation fits your home
+      </h2>
+      <p className="pjpp-section__summary">
+        Atlas links your survey facts to practical day-to-day meaning so the recommended route is clear.
+      </p>
+      <ul className="pjpp-reason-list" data-testid="pjpp-reason-list">
+        {reasons.slice(0, 5).map((reason) => (
+          <li key={reason.id} className="pjpp-reason-card" data-testid={`pjpp-reason-${reason.category}`}>
+            <h3 className="pjpp-reason-card__title">{reason.title}</h3>
+            <p className="pjpp-reason-card__summary">{reason.summary}</p>
+            {reason.detail ? <p className="pjpp-reason-card__detail">{reason.detail}</p> : null}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -276,6 +312,10 @@ export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
     >
       <ReadingAssistOverlay />
       <PrintCover cover={model.cover} pageNumber={pageCounter++} />
+
+      {model.recommendationReasons.length > 0 ? (
+        <PrintRecommendationReasons reasons={model.recommendationReasons} pageNumber={pageCounter++} />
+      ) : null}
 
       {model.sections.map((section) => (
         <PrintSection

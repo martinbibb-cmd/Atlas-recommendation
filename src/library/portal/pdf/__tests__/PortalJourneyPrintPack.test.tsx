@@ -41,6 +41,12 @@ describe('PortalJourneyPrintPack — document structure', () => {
     expect(screen.getByTestId('pjpp-next-steps')).toBeInTheDocument();
   });
 
+  it('renders recommendation reason cards section', () => {
+    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    expect(screen.getByTestId('pjpp-recommendation-reasons')).toBeInTheDocument();
+    expect(screen.getByTestId('pjpp-reason-list')).toBeInTheDocument();
+  });
+
   it('renders QR destinations section', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(screen.getByTestId('pjpp-qr-list')).toBeInTheDocument();
@@ -238,6 +244,7 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
     );
     expect(titles).toEqual([
       'Your recommendation',
+      'Why this recommendation fits your home',
       'What changes in your home',
       'Why stored hot water helps',
       'What stays familiar',
