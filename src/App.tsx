@@ -310,7 +310,7 @@ function buildPackageImportStatusMessage(
     return {
       tone: 'warning',
       type: 'import',
-      message: `${importedMessage} Atlas imported it with warnings. Package contents look changed after export, so packaged portal URLs were ignored.`,
+      message: `${importedMessage} Atlas imported it with warnings. Package contents appear to have changed after export, so packaged portal URLs were ignored.`,
       importSummary: {
         integrityStatus: 'modified',
         warnings: integrity.warnings,
@@ -338,14 +338,7 @@ function buildImportFailureStatus(
       message: 'Package import blocked: the file could not be validated as an Atlas visit package.',
     };
   }
-  const primaryError = errors[0];
-  if (primaryError == null) {
-    return {
-      tone: 'error',
-      type: 'session',
-      message: 'Package import blocked: the file could not be validated as an Atlas visit package.',
-    };
-  }
+  const primaryError = errors[0]!;
   if (primaryError.toLowerCase().includes('schema mismatch')) {
     return {
       tone: 'error',
@@ -399,7 +392,7 @@ function buildExportConfirmationStatus(
   return {
     tone: 'success',
     type: 'export',
-    message: `Exported customer-safe package ${filename}. Saved to your device only.`,
+    message: `Exported customer-safe package ${filename}. Downloaded to your device only.`,
     exportSummary: {
       includedItems,
     },
