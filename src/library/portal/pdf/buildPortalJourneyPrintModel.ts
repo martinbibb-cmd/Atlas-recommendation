@@ -713,6 +713,70 @@ function isSuitableMainsSupply(mains: { pressureBar?: number; flowLpm?: number; 
   return pressureOk && flowOk;
 }
 
+function inferHomeFactFromEngineReason(
+  text: string,
+  category: RecommendationReasonCategoryV1,
+): string {
+  const lower = text.toLowerCase();
+  if (category === 'bathroom_count') return 'Bathroom layout and hot-water overlap risk';
+  if (category === 'mains_flow_pressure') return 'Measured mains-fed supply conditions';
+  if (category === 'protection_system_condition') return 'System condition and protection signals';
+  if (category === 'future_upgrade_readiness') return 'Future home-change demand signals';
+  if (lower.includes('occupancy') || lower.includes('household')) return 'Household demand profile';
+  return 'Survey and engine constraints for this home';
+}
+
+function inferOutcomeFromEngineReason(category: RecommendationReasonCategoryV1): string {
+  if (category === 'bathroom_count') return 'Atlas matched the route to bathroom concurrency demand.';
+  if (category === 'mains_flow_pressure') return 'Atlas gated route confidence using measured supply limits.';
+  if (category === 'protection_system_condition') return 'Atlas included system protection actions in the route.';
+  if (category === 'future_upgrade_readiness') return 'Atlas checked the route against likely future demand.';
+  return 'Atlas used this signal in route selection checks.';
+}
+
+function inferPracticalEffectFromEngineReason(category: RecommendationReasonCategoryV1): string {
+  if (category === 'bathroom_count') return 'Hot-water overlap is less likely to disrupt routine use.';
+  if (category === 'mains_flow_pressure') return 'Expected outlet performance stays grounded in measured supply reality.';
+  if (category === 'protection_system_condition') return 'Long-term efficiency and reliability risk is reduced.';
+  if (category === 'future_upgrade_readiness') return 'The recommendation remains useful if demand grows later.';
+  return 'The recommendation remains aligned with your home constraints.';
+}
+
+function inferReasonFromCustomerFact(fact: string): Omit<RecommendationReasonBlockV1, 'id' | 'category' | 'detail'> {
+  const lower = fact.toLowerCase();
+  if (lower.includes('bathroom')) {
+    return {
+      homeFact: fact,
+      whyItMatters: 'Bathroom count affects overlap risk during busy periods.',
+      atlasRecommendationOutcome: 'Atlas checked route suitability against bathroom-driven demand.',
+      practicalEffect: 'Daily shower and tap use is less likely to clash.',
+    };
+  }
+  if (lower.includes('person') || lower.includes('household') || lower.includes('occupancy')) {
+    return {
+      homeFact: fact,
+      whyItMatters: 'Occupancy level changes hot-water and heating demand profiles.',
+      atlasRecommendationOutcome: 'Atlas sized the route around your household usage level.',
+      practicalEffect: 'Day-to-day comfort and hot-water delivery are better matched to your home.',
+    };
+  }
+  if (lower.includes('mains') || lower.includes('pressure') || lower.includes('flow')) {
+    return {
+      homeFact: fact,
+      whyItMatters: 'Mains-fed supply quality affects outlet confidence and concurrency.',
+      atlasRecommendationOutcome: 'Atlas used these supply signals in route confidence checks.',
+      practicalEffect: 'Performance expectations stay realistic for your measured supply.',
+    };
+  }
+
+  return {
+    homeFact: fact,
+    whyItMatters: 'This affects demand and installation constraints for the route.',
+    atlasRecommendationOutcome: 'Atlas used this fact directly in route and sizing checks.',
+    practicalEffect: 'The selected recommendation is shaped by your surveyed home profile.',
+  };
+}
+
 function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1): RecommendationReasonBlockV1[] {
   const surveyInput = resolveSurveyInput(input);
   const visitEnvelope = resolveVisitEnvelope(input);
@@ -929,10 +993,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
       pushReason({
         id: `engine-reason-${reasons.length + 1}`,
         category,
-        homeFact: 'Survey and engine checks identified a key constraint',
+        homeFact: inferHomeFactFromEngineReason(reason.text, category),
         whyItMatters: reason.text,
-        atlasRecommendationOutcome: 'Atlas accounted for this in the chosen route.',
-        practicalEffect: 'The recommendation is matched to your measured home conditions.',
+        atlasRecommendationOutcome: inferOutcomeFromEngineReason(category),
+        practicalEffect: inferPracticalEffectFromEngineReason(category),
       });
     }
   }
@@ -942,13 +1006,11 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
       if (reasons.length >= 5) break;
       if (!hasText(fact)) continue;
       if (/^\s*0(\D|$)/.test(fact)) continue;
+      const factReason = inferReasonFromCustomerFact(fact);
       pushReason({
         id: `customer-fact-${reasons.length + 1}`,
         category: 'household_demand',
-        homeFact: fact,
-        whyItMatters: 'This measured home fact changes demand or installation constraints.',
-        atlasRecommendationOutcome: 'Atlas used it directly in route and sizing checks.',
-        practicalEffect: 'The selected recommendation fits how your home is actually used.',
+        ...factReason,
       });
     }
   }

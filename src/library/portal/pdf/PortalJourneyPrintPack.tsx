@@ -23,6 +23,7 @@ import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
 import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
 import { PrintableComparisonCard, PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
+import { REASON_ICON_BY_CATEGORY } from './recommendationReasonVisuals';
 import './portalJourneyPrintPack.css';
 
 // ─── Diagram ID mapping ───────────────────────────────────────────────────────
@@ -35,17 +36,6 @@ const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
   'diagram-cleaning-method': 'powerflush_condition_led',
   'diagram-filter-location': 'magnetic_filter_capture',
   'diagram-pressure-window': 'system_pressure_window',
-};
-
-const REASON_ICON_BY_CATEGORY: Record<RecommendationReasonBlockV1['category'], string> = {
-  household_demand: '👥',
-  bathroom_count: '🚿',
-  mains_flow_pressure: '💧',
-  current_system_constraint: '🛠',
-  loft_cylinder_location_constraint: '📐',
-  simultaneous_hot_water_use: '⚖️',
-  protection_system_condition: '🛡',
-  future_upgrade_readiness: '🔭',
 };
 
 function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string | null {

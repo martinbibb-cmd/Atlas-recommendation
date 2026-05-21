@@ -16,6 +16,7 @@ import {
   inferCustomerJourneyTypeFromSystemContext,
   type CustomerJourneyPackV1,
 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
+import { REASON_ICON_BY_CATEGORY } from '../../library/portal/pdf/recommendationReasonVisuals';
 import { CustomerPortalJourneySectionV1 } from './CustomerPortalJourneySectionV1';
 import './customerPortalJourney.css';
 
@@ -32,16 +33,6 @@ interface CustomerPortalJourneyComposerProps {
 type VisualTone = 'good' | 'warn' | 'danger' | 'neutral';
 const MAX_VISUAL_FILL_PCT = 90 + 2;
 const MAX_LIFECYCLE_AGE_SHARE = 1.2;
-const REASON_ICON_BY_CATEGORY = {
-  household_demand: '👥',
-  bathroom_count: '🚿',
-  mains_flow_pressure: '💧',
-  current_system_constraint: '🛠',
-  loft_cylinder_location_constraint: '📐',
-  simultaneous_hot_water_use: '⚖️',
-  protection_system_condition: '🛡',
-  future_upgrade_readiness: '🔭',
-} as const;
 
 function humanizeCurrentSystem(input: EngineInputV2_3): string {
   switch (input.currentHeatSourceType) {
