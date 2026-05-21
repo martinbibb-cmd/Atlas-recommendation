@@ -1,4 +1,8 @@
-import type { CanonicalVisitPackageIntegrityResult, CanonicalVisitPackageV1 } from '../visitPackage';
+import {
+  VISIT_PACKAGE_PDF_NO_MARKER_ERROR,
+  type CanonicalVisitPackageIntegrityResult,
+  type CanonicalVisitPackageV1,
+} from '../visitPackage';
 import type { VisitHomeSessionStatus } from './VisitHomeDashboard';
 
 export type WorkflowImportSurface = 'app_home_import' | 'visit_home_import';
@@ -120,6 +124,13 @@ export function buildImportFailureStatus(
       message: 'Package import blocked: this file is not a valid Atlas visit package export.',
     };
   }
+  if (primaryError === VISIT_PACKAGE_PDF_NO_MARKER_ERROR) {
+    return {
+      tone: 'error',
+      type: 'session',
+      message: 'Package import blocked: this PDF is a printable supporting PDF, not an Atlas visit package. Use “Export visit package” to create a .atlasvisit.pdf file with embedded package data.',
+    };
+  }
   return {
     tone: 'error',
     type: 'session',
@@ -152,7 +163,7 @@ export function buildExportConfirmationStatus(
   return {
     tone: 'success',
     type: 'export',
-    message: `Exported customer-safe package ${filename}. Downloaded to your device only.`,
+    message: `Exported Atlas visit package ${filename}. Printable content and embedded package data were downloaded to your device only.`,
     exportSummary: {
       includedItems,
     },

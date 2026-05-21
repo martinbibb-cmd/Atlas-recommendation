@@ -10,6 +10,8 @@ import {
 
 export const VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_BEGIN';
 export const VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_END';
+export const VISIT_PACKAGE_PDF_NO_MARKER_ERROR =
+  'No Atlas visit package payload marker found in PDF. This PDF is printable Atlas output only, not an importable visit package. Use Export visit package to create a .atlasvisit.pdf file.';
 
 // ─── PDF layout constants ──────────────────────────────────────────────────────
 
@@ -528,7 +530,7 @@ export function extractVisitPackagePdfEnvelope(
   const begin = input.indexOf(VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER);
   const end = input.indexOf(VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER);
   if (begin < 0 || end < 0 || end <= begin) {
-    return { ok: false, errors: ['No Atlas visit package payload marker found in PDF.'] };
+    return { ok: false, errors: [VISIT_PACKAGE_PDF_NO_MARKER_ERROR] };
   }
   const payloadBase64 = input
     .slice(begin + VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER.length, end)

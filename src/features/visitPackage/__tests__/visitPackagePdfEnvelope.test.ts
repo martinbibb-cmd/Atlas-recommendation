@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  VISIT_PACKAGE_PDF_NO_MARKER_ERROR,
   buildCanonicalVisitPackage,
   buildVisitPackagePdfEnvelope,
   extractVisitPackagePdfEnvelope,
@@ -156,6 +157,29 @@ describe('visit package PDF envelope', () => {
   it('returns parse errors when PDF does not include payload markers', () => {
     const parsed = parseCanonicalVisitPackageFromPdfEnvelope('%PDF-1.4\n1 0 obj\n<<>>\nendobj');
     expect(parsed.ok).toBe(false);
+    if (parsed.ok) return;
+    expect(parsed.errors).toContain(VISIT_PACKAGE_PDF_NO_MARKER_ERROR);
+  });
+
+  it('rejects printable supporting PDFs because they are not Atlas visit packages', () => {
+    const printableSupportingPdf = [
+      '%PDF-1.4',
+      '1 0 obj',
+      '<<>>',
+      'stream',
+      'Library supporting PDF — review workspace',
+      'Heating System Recommendation',
+      'Print / Save as PDF',
+      'endstream',
+      'endobj',
+      '%%EOF',
+    ].join('\n');
+
+    const parsed = parseCanonicalVisitPackageFromPdfEnvelope(printableSupportingPdf);
+    expect(parsed.ok).toBe(false);
+    if (parsed.ok) return;
+    expect(parsed.errors[0]).toContain('not an importable visit package');
+    expect(parsed.errors[0]).toContain('.atlasvisit.pdf');
   });
 });
 

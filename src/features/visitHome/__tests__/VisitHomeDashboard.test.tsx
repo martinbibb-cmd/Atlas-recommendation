@@ -260,6 +260,20 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('visit-home-import-retry-cta')).toBeInTheDocument();
   });
 
+  it('shows export visit package action in the Visit session panel when export is available', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onSaveLocally: vi.fn(),
+          onImportWorkflowPackage: vi.fn(),
+          onExportPackage: vi.fn(),
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('visit-home-export-package')).toHaveTextContent('Export visit package');
+  });
+
   it('shows package history entries and workflow QA checklist states', () => {
     render(
       <VisitHomeDashboard
@@ -388,7 +402,7 @@ describe('VisitHomeDashboard', () => {
       [
         "Review recommendation →",
         "Open customer portal →",
-        "Print summary →",
+        "Print / save supporting PDF →",
       ]
     `);
     fireEvent.click(screen.getByTestId('card-recommendation-cta'));
