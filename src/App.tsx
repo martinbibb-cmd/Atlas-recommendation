@@ -183,6 +183,7 @@ import {
   type WorkflowImportFailureDiagnostic,
   type WorkflowImportSurface,
 } from './features/visitHome/workflowStabilisation';
+import { canShowVisitHomeExportPackageAction } from './features/visitHome/visitHomeExportAvailability';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import {
   buildCanonicalVisitPackage,
@@ -1865,29 +1866,49 @@ function AppInner() {
   }
 
   function handleExportCanonicalVisitPackage() {
-    if (activeVisitId == null || labFullSurveyModel == null) {
+    const exportVisitId =
+      activeVisitId
+      ?? (hasText(activeCanonicalPackage?.visitIdentity.visitId) ? activeCanonicalPackage.visitIdentity.visitId : undefined);
+    const exportSurveyModel = labFullSurveyModel ?? activeCanonicalPackage?.surveyDraft;
+    if (exportVisitId == null || exportSurveyModel == null) {
       setLocalSessionStatus({ tone: 'error', message: 'Unable to export: no active visit survey in memory.' });
       return;
     }
     const now = new Date().toISOString();
     const currentSnapshot =
-      visitRecommendationSnapshot?.visitId === activeVisitId
+      visitRecommendationSnapshot?.visitId === exportVisitId
         ? visitRecommendationSnapshot
         : null;
-    const visitReference = currentSnapshot?.visitReference ?? formatVisitReference(activeVisitId);
+    const exportEngineInput = labEngineInput ?? activeCanonicalPackage?.engineInputSnapshot;
+    const exportCustomerSummary =
+      currentSnapshot?.customerSummary
+      ?? activeCanonicalPackage?.proposalTruth?.customerSummary
+      ?? activeCanonicalPackage?.customerPropertyDetails.customerSummary;
+    const exportDecision = currentSnapshot?.decision ?? activeCanonicalPackage?.proposalTruth?.decision;
+    const exportPortalVisitContext =
+      currentSnapshot?.portalVisitContext
+      ?? activeCanonicalPackage?.customerPropertyDetails.portalVisitContext
+      ?? labPortalVisitContext;
+    const selectedScenarioId =
+      currentSnapshot?.acceptedScenarioId
+      ?? activeCanonicalPackage?.proposalTruth?.selectedScenarioId;
+    const visitReference =
+      currentSnapshot?.visitReference
+      ?? activeCanonicalPackage?.visitIdentity.visitReference
+      ?? formatVisitReference(exportVisitId);
     const generatedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
-      generatedOutputs: currentSnapshot?.generatedOutputs,
-      surveyModel: labFullSurveyModel,
-      engineInput: labEngineInput,
-      customerSummary: currentSnapshot?.customerSummary,
-      decision: currentSnapshot?.decision,
-      portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
+      generatedOutputs: currentSnapshot?.generatedOutputs ?? activeCanonicalPackage?.generatedOutputStatus?.generatedOutputs,
+      surveyModel: exportSurveyModel,
+      engineInput: exportEngineInput,
+      customerSummary: exportCustomerSummary,
+      decision: exportDecision,
+      portalVisitContext: exportPortalVisitContext,
       generatedAt: now,
     });
     const pkg = buildCanonicalVisitPackage({
       packageData: {
         visitIdentity: {
-          visitId: activeVisitId,
+          visitId: exportVisitId,
           visitReference,
           updatedAt: now,
         },
@@ -1897,14 +1918,15 @@ function AppInner() {
           brandId: activeAtlasVisit?.brandId ?? workspaceBrandSession.activeBrandId,
         },
         customerPropertyDetails: {
-          customerSummary: currentSnapshot?.customerSummary,
+          customerSummary: exportCustomerSummary,
+          portalVisitContext: exportPortalVisitContext,
         },
-        surveyDraft: labFullSurveyModel,
-        engineInputSnapshot: labEngineInput,
+        surveyDraft: exportSurveyModel,
+        engineInputSnapshot: exportEngineInput,
         proposalTruth: {
-          decision: currentSnapshot?.decision,
-          selectedScenarioId: currentSnapshot?.acceptedScenarioId,
-          customerSummary: currentSnapshot?.customerSummary,
+          decision: exportDecision,
+          selectedScenarioId,
+          customerSummary: exportCustomerSummary,
         },
         generatedOutputStatus: {
           lifecycleState: currentSnapshot?.lifecycleState,
@@ -1924,7 +1946,7 @@ function AppInner() {
       generatedAt: now,
     });
     const pdf = renderVisitPackagePdfDocument(pdfEnvelope);
-    const filename = `${toSafeDownloadBaseName(visitReference ?? activeVisitId)}.atlasvisit.pdf`;
+    const filename = `${toSafeDownloadBaseName(visitReference ?? exportVisitId)}.atlasvisit.pdf`;
     const blob = new Blob([pdf], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1935,6 +1957,16 @@ function AppInner() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
+    setActiveCanonicalPackage(pkg);
+    setPackageOpenHistory((prev) =>
+      appendPackageOpenHistory(prev, {
+        visitReference,
+        importedAt: now,
+        sourceLabel: 'Visit Home export',
+        integrityStatus: 'verified',
+      }),
+    );
+
     if (currentSnapshot != null) {
       const nextSnapshot: VisitRecommendationSnapshot = {
         ...currentSnapshot,
@@ -1943,7 +1975,7 @@ function AppInner() {
           { type: 'visit_exported' },
         ),
       };
-      persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
+      persistActiveVisitSnapshot(nextSnapshot, exportSurveyModel);
     }
     setLocalSessionStatus(buildExportConfirmationStatus(filename, pkg));
   }
@@ -3423,6 +3455,17 @@ function AppInner() {
               generatedOutputs.portal.generated || generatedOutputs.pdf.generated,
             hasExportedPackageAgain: lifecycleState === 'exported',
           });
+          const canExportVisitPackage = canShowVisitHomeExportPackageAction({
+            hasResolvedVisitId:
+              activeVisitId != null || hasText(activeCanonicalPackage?.visitIdentity.visitId),
+            hasExportableSurvey:
+              labFullSurveyModel != null || activeCanonicalPackage?.surveyDraft != null,
+            hasActiveCanonicalPackage: activeCanonicalPackage != null,
+            hasActiveVisitId: activeVisitId != null,
+            hasCanonicalSnapshot: canonicalSnapshot != null,
+            hasRegeneratedDeliveryOutputs:
+              generatedOutputs.portal.generated || generatedOutputs.pdf.generated,
+          });
 
           return (
             <VisitHomeDashboard
@@ -3449,6 +3492,7 @@ function AppInner() {
               onImportWorkflowPackage={(file) => {
                 void handleImportCanonicalVisitPackage(file, 'visit_home_import');
               }}
+              onExportPackage={canExportVisitPackage ? handleExportCanonicalVisitPackage : undefined}
               onSaveLocally={activeVisitId != null && labFullSurveyModel != null ? handleSaveVisitLocally : undefined}
               onResumeLocalVisit={activeVisitId != null ? handleResumeLocalVisit : undefined}
               localSessionStatus={localSessionStatus}
