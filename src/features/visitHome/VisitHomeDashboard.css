@@ -517,6 +517,68 @@
   gap: 0.25rem;
 }
 
+.vhd-session-status {
+  margin-top: 0.65rem;
+  border: 1px solid;
+  border-radius: 0.625rem;
+  padding: 0.7rem 0.8rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.vhd-session-status--success {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.vhd-session-status--warning {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.vhd-session-status--error {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.vhd-session-status__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.vhd-import-result-badge {
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.vhd-session-status__message {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.vhd-session-status__next-step {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.vhd-session-status__list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
 .vhd-mobile-fallback-note {
   margin: 0 1.25rem 1.25rem;
   padding: 0.625rem 0.75rem;

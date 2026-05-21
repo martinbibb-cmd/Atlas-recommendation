@@ -58,11 +58,29 @@ export type CardStatus = 'ready' | 'needs-review' | 'blocked' | 'dev-only';
 export type CardAudience = 'customer' | 'surveyor' | 'office' | 'engineer';
 export type CardSource = 'engine' | 'library' | 'workflow' | 'simulator';
 export type VisitSelectorSource = 'local' | 'workflow' | 'demo';
+export type VisitPackageIntegrityStatus = 'verified' | 'modified' | 'unverified';
 type ActionableState = {
   why: string;
   actionDescription: string;
   nextStep: string;
 };
+
+export interface VisitHomeImportResultSummary {
+  readonly integrityStatus: VisitPackageIntegrityStatus;
+  readonly warnings?: readonly string[];
+}
+
+export interface VisitHomeExportResultSummary {
+  readonly includedItems: readonly string[];
+}
+
+export interface VisitHomeSessionStatus {
+  readonly tone: 'success' | 'warning' | 'error';
+  readonly message: string;
+  readonly type?: 'import' | 'export' | 'session';
+  readonly importSummary?: VisitHomeImportResultSummary;
+  readonly exportSummary?: VisitHomeExportResultSummary;
+}
 
 export interface VisitSelectorEntry {
   readonly visitId: string;
@@ -182,7 +200,7 @@ export interface VisitHomeDashboardProps {
   /** Open a selected visit from the lightweight browser. */
   onSelectVisit?: (visitId: string) => void;
   /** Optional session save/resume status surface shown in the session controls panel. */
-  localSessionStatus?: { tone: 'success' | 'warning' | 'error'; message: string } | null;
+  localSessionStatus?: VisitHomeSessionStatus | null;
   /** Dev-only build marker shown in the header when provided. */
   devBuildMarker?: string;
 
@@ -247,6 +265,47 @@ function StatusBadge({ status }: { status: CardStatus }) {
       style={{ background: s.background, color: s.color, borderColor: s.borderColor as string }}
     >
       {s.label}
+    </span>
+  );
+}
+
+const IMPORT_RESULT_BADGE_STYLES: Record<
+VisitPackageIntegrityStatus,
+{ readonly label: string; readonly background: string; readonly borderColor: string; readonly color: string }
+> = {
+  verified: {
+    label: 'Verified',
+    background: '#f0fdf4',
+    borderColor: '#86efac',
+    color: '#166534',
+  },
+  modified: {
+    label: 'Modified',
+    background: '#fff7ed',
+    borderColor: '#fdba74',
+    color: '#9a3412',
+  },
+  unverified: {
+    label: 'Unverified',
+    background: '#fffbeb',
+    borderColor: '#fcd34d',
+    color: '#92400e',
+  },
+};
+
+function ImportResultBadge({ integrityStatus }: { integrityStatus: VisitPackageIntegrityStatus }) {
+  const style = IMPORT_RESULT_BADGE_STYLES[integrityStatus];
+  return (
+    <span
+      className="vhd-import-result-badge"
+      style={{
+        background: style.background,
+        borderColor: style.borderColor,
+        color: style.color,
+      }}
+      data-testid="visit-home-import-result-badge"
+    >
+      {style.label}
     </span>
   );
 }
@@ -803,8 +862,8 @@ export function VisitHomeDashboard({
           </p>
           <p className="vhd-empty-state__copy">
             {hydrationState === 'no-visit'
-              ? 'Import a scan package, open an existing visit, or start with a demo to load recommendation data.'
-              : 'Continue survey capture, resume Atlas Scan import, or generate recommendation to hydrate this workspace.'}
+              ? 'Import an Atlas Scan package or Atlas visit package, open an existing visit, or start with a demo to load review data.'
+              : 'Continue survey capture, resume Atlas Scan import, or generate recommendation to hydrate this review workspace.'}
           </p>
           <div className="vhd-empty-state__actions">
             {hydrationState === 'survey-in-progress' && onContinueSurvey != null && (
@@ -845,7 +904,7 @@ export function VisitHomeDashboard({
                   onClick={() => workflowFileInputRef.current?.click()}
                   data-testid="visit-home-import-workflow-cta"
                 >
-                  📂 Open visit package
+                  📂 Import visit package
                 </button>
                   <input
                   ref={workflowFileInputRef}
@@ -1203,7 +1262,7 @@ export function VisitHomeDashboard({
                       onClick={() => workflowFileInputRef.current?.click()}
                       data-testid="visit-home-import-workflow-controls-cta"
                     >
-                      📂 Open visit package
+                      📂 Import visit package
                     </button>
                     {/* File input is shared with the empty-state one; only render if not already rendered */}
                     {hydrationState !== 'no-visit' && (
@@ -1231,17 +1290,51 @@ export function VisitHomeDashboard({
                 )}
               </div>
               {localSessionStatus != null ? (
-                <p
+                <div
                   data-testid="visit-home-local-session-status"
-                  style={{
-                    marginTop: '0.65rem',
-                    marginBottom: 0,
-                    color: localSessionStatus.tone === 'success' ? '#166534' : '#991b1b',
-                    fontWeight: 600,
-                  }}
+                  className={`vhd-session-status vhd-session-status--${localSessionStatus.tone}`}
                 >
-                  {localSessionStatus.message}
-                </p>
+                  {localSessionStatus.type === 'import' && localSessionStatus.importSummary != null ? (
+                    <>
+                      <div className="vhd-session-status__header">
+                        <strong>Import result</strong>
+                        <ImportResultBadge integrityStatus={localSessionStatus.importSummary.integrityStatus} />
+                      </div>
+                      <p className="vhd-session-status__message">{localSessionStatus.message}</p>
+                      {localSessionStatus.importSummary.warnings != null && localSessionStatus.importSummary.warnings.length > 0 && (
+                        <ul className="vhd-session-status__list" data-testid="visit-home-import-warning-list">
+                          {localSessionStatus.importSummary.warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="vhd-session-status__next-step">
+                        Next step: Review imported visit details before continuing to customer outputs.
+                      </p>
+                    </>
+                  ) : null}
+                  {localSessionStatus.type === 'export' && localSessionStatus.exportSummary != null ? (
+                    <>
+                      <div className="vhd-session-status__header">
+                        <strong>Export complete</strong>
+                      </div>
+                      <p className="vhd-session-status__message">{localSessionStatus.message}</p>
+                      {localSessionStatus.exportSummary.includedItems.length > 0 && (
+                        <>
+                          <p className="vhd-session-status__next-step">Package includes:</p>
+                          <ul className="vhd-session-status__list" data-testid="visit-home-export-include-list">
+                            {localSessionStatus.exportSummary.includedItems.map((item) => (
+                              <li key={item}>{item}</li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </>
+                  ) : null}
+                  {(localSessionStatus.type == null || localSessionStatus.type === 'session') ? (
+                    <p className="vhd-session-status__message">{localSessionStatus.message}</p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           )}
