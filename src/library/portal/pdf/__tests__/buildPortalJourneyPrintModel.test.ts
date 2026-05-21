@@ -399,3 +399,147 @@ describe('buildCustomerJourneyPack — shared journey model', () => {
     expect(pack).toEqual(packaged);
   });
 });
+
+describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
+  it('adds a stored hot-water reason when two bathrooms and suitable mains supply are present', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with mains-fed cylinder.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        schema: 'atlas.canonical-visit-package',
+        version: '1.0',
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          bathroomCount: 2,
+          occupancySignature: 'steady',
+          highOccupancy: false,
+          dynamicMainsPressure: 2.4,
+          mainsDynamicFlowLpm: 16,
+          dhwStorageType: 'unvented',
+        } as never,
+        importExportMetadata: {
+          exportedAt: '2026-05-21T12:00:00.000Z',
+          source: { target: 'local_only', surface: 'test' },
+        },
+      },
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'bathroom_count' && /stored hot water/i.test(reason.summary),
+    )).toBe(true);
+  });
+
+  it('adds a mains constraint reason when pressure is too low for unvented confidence', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Stored route with measured supply constraints.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        schema: 'atlas.canonical-visit-package',
+        version: '1.0',
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          bathroomCount: 2,
+          occupancySignature: 'steady',
+          highOccupancy: false,
+          dynamicMainsPressure: 1.2,
+          mainsDynamicFlowLpm: 9,
+          dhwStorageType: 'unvented',
+        } as never,
+        importExportMetadata: {
+          exportedAt: '2026-05-21T12:01:00.000Z',
+          source: { target: 'local_only', surface: 'test' },
+        },
+      },
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'mains_flow_pressure' && /unvented hot-water confidence/i.test(reason.summary),
+    )).toBe(true);
+  });
+
+  it('adds a loft tank space limitation reason when open-vented tanks are not feasible', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Route selected with loft constraints in mind.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        schema: 'atlas.canonical-visit-package',
+        version: '1.0',
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          bathroomCount: 1,
+          occupancySignature: 'steady',
+          highOccupancy: false,
+          loftTankSpace: 'none',
+        } as never,
+        importExportMetadata: {
+          exportedAt: '2026-05-21T12:02:00.000Z',
+          source: { target: 'local_only', surface: 'test' },
+        },
+      },
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'loft_cylinder_location_constraint' && /open-vented hot-water routes are limited/i.test(reason.summary),
+    )).toBe(true);
+  });
+
+  it('adds a protection reason when sludge signals are present', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Route selected with protection works included.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        schema: 'atlas.canonical-visit-package',
+        version: '1.0',
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          bathroomCount: 1,
+          occupancySignature: 'steady',
+          highOccupancy: false,
+          fullSurvey: {
+            heatingCondition: {
+              bleedWaterColour: 'black',
+              radiatorsColdAtBottom: true,
+              magneticDebrisEvidence: true,
+            },
+          },
+        } as never,
+        importExportMetadata: {
+          exportedAt: '2026-05-21T12:03:00.000Z',
+          source: { target: 'local_only', surface: 'test' },
+        },
+      },
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'protection_system_condition' && /protection/i.test(reason.title),
+    )).toBe(true);
+  });
+
+  it('does not emit zero-value survey facts as recommendation reasons', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Baseline recommendation summary.',
+      customerFacts: ['0 bathrooms', '0 people'],
+      journeyType: 'generic_recommendation_summary',
+    });
+
+    const text = pack.staticPdf.recommendationReasons
+      .flatMap((reason) => [reason.title, reason.summary, reason.detail ?? ''])
+      .join(' ')
+      .toLowerCase();
+    expect(text).not.toContain('0 bathrooms');
+    expect(text).not.toContain('0 people');
+  });
+});

@@ -63,7 +63,8 @@
 .customer-portal-journey__hero-grid,
 .customer-portal-journey__two-column,
 .customer-portal-journey__insight-grid,
-.customer-portal-journey__teaser-grid {
+.customer-portal-journey__teaser-grid,
+.customer-portal-journey__reason-grid {
   display: grid;
   gap: 0.85rem;
   min-width: 0;
@@ -73,12 +74,31 @@
 .customer-portal-journey__visual-card,
 .customer-portal-journey__system-card,
 .customer-portal-journey__insight-card,
-.customer-portal-journey__teaser-card {
+.customer-portal-journey__teaser-card,
+.customer-portal-journey__reason-card {
   border-radius: 20px;
   background: #fff;
   border: 1px solid #e2e8f0;
   padding: 1rem;
   min-width: 0;
+}
+
+.customer-portal-journey__reason-detail {
+  margin-top: 0.7rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.55rem;
+  color: #475569;
+  font-size: 0.85rem;
+}
+
+.customer-portal-journey__reason-detail summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #1e40af;
+}
+
+.customer-portal-journey__reason-detail p {
+  margin: 0.45rem 0 0;
 }
 
 .customer-portal-journey__hero-property {
@@ -215,7 +235,8 @@
 }
 
 .customer-portal-journey__insight-grid,
-.customer-portal-journey__teaser-grid {
+.customer-portal-journey__teaser-grid,
+.customer-portal-journey__reason-grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
 }
 

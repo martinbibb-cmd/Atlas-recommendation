@@ -70,5 +70,7 @@ describe('CustomerPortalJourneyComposer', () => {
     expect(within(recommendedSystemCard).getByText('Packaged import summary')).toBeInTheDocument();
     expect(within(recommendedSystemCard).queryByText(rebuiltSummary)).toBeNull();
     expect(screen.getByText('Packaged live experience line')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How survey facts shaped the route' })).toBeInTheDocument();
+    expect(screen.getByTestId('customer-portal-reason-grid')).toBeInTheDocument();
   });
 });

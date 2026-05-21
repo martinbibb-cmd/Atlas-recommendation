@@ -30,6 +30,7 @@ import type { LibraryContentProjectionV1 } from '../../projections/LibraryConten
 import type { PortalVisitContextV1 } from '../../../contracts/PortalVisitContextV1';
 import type { VisitEnvelopeV1 } from '../../../contracts/VisitEnvelopeV1';
 import type { CanonicalVisitPackageV1 } from '../../../features/visitPackage/CanonicalVisitPackageV1';
+import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type { GeneratedOutputsV1 } from '../../../lib/storage/visitReviewLifecycle';
 import { resolvePortalAddressSummary } from '../../../lib/portal/portalVisitContext';
 import {
@@ -47,6 +48,24 @@ export interface PortalJourneyPrintCoverV1 {
   customerFacts: string[];
   brandName?: string;
   addressSummary?: string;
+}
+
+export type RecommendationReasonCategoryV1 =
+  | 'household_demand'
+  | 'bathroom_count'
+  | 'mains_flow_pressure'
+  | 'current_system_constraint'
+  | 'loft_cylinder_location_constraint'
+  | 'simultaneous_hot_water_use'
+  | 'protection_system_condition'
+  | 'future_upgrade_readiness';
+
+export interface RecommendationReasonBlockV1 {
+  id: string;
+  category: RecommendationReasonCategoryV1;
+  title: string;
+  summary: string;
+  detail?: string;
 }
 
 export interface PortalJourneyPrintSectionV1 {
@@ -87,6 +106,7 @@ export interface PortalJourneyPrintQrDestinationV1 {
 
 export interface PortalJourneyPrintModelV1 {
   cover: PortalJourneyPrintCoverV1;
+  recommendationReasons: RecommendationReasonBlockV1[];
   sections: PortalJourneyPrintSectionV1[];
   nextSteps: PortalJourneyPrintNextStepV1[];
   qrDestinations: PortalJourneyPrintQrDestinationV1[];
@@ -140,6 +160,8 @@ export interface BuildPortalJourneyPrintModelInputV1 {
    * included in the model as systemProtection.
    */
   surveyCondition?: SurveySystemConditionV1;
+  /** Causal recommendation reasons for customer-facing “why this fits” cards. */
+  recommendationReasons?: RecommendationReasonBlockV1[];
   /** Preferred packaged customer journey pack; used instead of rebuilding when present. */
   customerJourneyPack?: CustomerJourneyPackV1;
 }
@@ -155,6 +177,7 @@ export interface CustomerJourneyLibraryExplainerV1 {
 
 export interface CustomerJourneyPortalDeepDiveV1 {
   recommendationSummary: string;
+  recommendationReasons: RecommendationReasonBlockV1[];
   liveExperienceExplanations: string[];
   librarySupportedExplainers: CustomerJourneyLibraryExplainerV1[];
   nextSteps: PortalJourneyPrintNextStepV1[];
@@ -649,6 +672,257 @@ function inferLiveExperienceExplanations(
     .slice(0, 4);
 }
 
+function formatHouseholdCount(occupancyCount: number): string {
+  return `${occupancyCount}-person household`;
+}
+
+function formatBathroomCount(bathroomCount: number): string {
+  return `${bathroomCount} bathroom${bathroomCount === 1 ? '' : 's'}`;
+}
+
+function resolveSurveyInput(input: BuildCustomerJourneyPackInputV1): EngineInputV2_3 | undefined {
+  return input.canonicalVisitPackage?.surveyDraft ?? input.canonicalVisitPackage?.engineInputSnapshot;
+}
+
+function resolveVisitEnvelope(input: BuildCustomerJourneyPackInputV1): VisitEnvelopeV1 | undefined {
+  return input.visitEnvelope ?? input.canonicalVisitPackage?.proposalTruth?.visitEnvelope;
+}
+
+function resolveMainsSignals(surveyInput: EngineInputV2_3 | undefined): {
+  pressureBar?: number;
+  flowLpm?: number;
+  pressureRecorded: boolean;
+} {
+  return {
+    pressureBar: surveyInput?.dynamicMainsPressure,
+    flowLpm: surveyInput?.mainsDynamicFlowLpm,
+    pressureRecorded: surveyInput?.mainsPressureRecorded !== false,
+  };
+}
+
+function isPoorMainsSupply(mains: { pressureBar?: number; flowLpm?: number; pressureRecorded: boolean }): boolean {
+  if (mains.pressureRecorded && mains.pressureBar != null && mains.pressureBar < 1.5) return true;
+  return mains.flowLpm != null && mains.flowLpm < 10;
+}
+
+function isSuitableMainsSupply(mains: { pressureBar?: number; flowLpm?: number; pressureRecorded: boolean }): boolean {
+  const pressureOk = !mains.pressureRecorded || mains.pressureBar == null || mains.pressureBar >= 1.5;
+  const flowOk = mains.flowLpm == null || mains.flowLpm >= 12;
+  return pressureOk && flowOk;
+}
+
+function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1): RecommendationReasonBlockV1[] {
+  const surveyInput = resolveSurveyInput(input);
+  const visitEnvelope = resolveVisitEnvelope(input);
+  const recommendation = visitEnvelope?.recommendation;
+  const mains = resolveMainsSignals(surveyInput);
+  const reasons: RecommendationReasonBlockV1[] = [];
+  const seenCategory = new Set<RecommendationReasonCategoryV1>();
+
+  const pushReason = (reason: RecommendationReasonBlockV1) => {
+    if (seenCategory.has(reason.category)) return;
+    if (!hasText(reason.title) || !hasText(reason.summary)) return;
+    seenCategory.add(reason.category);
+    reasons.push(reason);
+  };
+
+  const occupancyCount = surveyInput?.occupancyCount;
+  const bathroomCount = surveyInput?.bathroomCount;
+  const peakConcurrentOutlets = surveyInput?.peakConcurrentOutlets;
+  const poorMains = isPoorMainsSupply(mains);
+  const suitableMains = isSuitableMainsSupply(mains);
+  const hasStoredHotWaterRecommendation =
+    recommendation?.hotWaterArrangement === 'stored_unvented'
+    || recommendation?.hotWaterArrangement === 'stored_vented'
+    || recommendation?.hotWaterArrangement === 'mixergy'
+    || recommendation?.hotWaterArrangement === 'thermal_store'
+    || surveyInput?.dhwStorageType === 'unvented'
+    || surveyInput?.dhwStorageType === 'vented'
+    || surveyInput?.dhwStorageType === 'mixergy'
+    || surveyInput?.dhwStorageType === 'thermal_store';
+
+  if (occupancyCount != null && occupancyCount >= 3) {
+    pushReason({
+      id: 'household-demand',
+      category: 'household_demand',
+      title: 'Household demand profile',
+      summary: `Atlas sized the route for a ${formatHouseholdCount(occupancyCount)} so normal hot-water demand stays practical through busy periods.`,
+      detail: 'The recommendation uses household demand as the baseline, rather than assuming one-user usage only.',
+    });
+  }
+
+  if (
+    bathroomCount != null
+    && bathroomCount >= 2
+    && suitableMains
+    && hasStoredHotWaterRecommendation
+  ) {
+    pushReason({
+      id: 'bathrooms-stored-hot-water',
+      category: 'bathroom_count',
+      title: 'Bathroom layout support',
+      summary: `Because this home has ${formatBathroomCount(bathroomCount)} and mains-fed supply is suitable, Atlas recommends stored hot water so daily routines are less likely to clash.`,
+      detail: 'Stored hot water keeps a reserve ready for overlapping outlet use instead of relying on a single on-demand stream.',
+    });
+  } else if (bathroomCount != null && bathroomCount > 0) {
+    pushReason({
+      id: 'bathroom-count',
+      category: 'bathroom_count',
+      title: 'Bathroom count impact',
+      summary: `${formatBathroomCount(bathroomCount)} were included directly in Atlas sizing checks so hot-water service matches day-to-day use.`,
+    });
+  }
+
+  if (poorMains) {
+    pushReason({
+      id: 'mains-limited',
+      category: 'mains_flow_pressure',
+      title: 'Mains-fed supply boundary',
+      summary: 'Measured mains-fed supply is limited, so Atlas does not treat unvented hot-water confidence as automatic.',
+      detail: 'The recommendation avoids over-promising outlet performance where dynamic pressure or flow is constrained.',
+    });
+  } else if ((mains.pressureBar != null && mains.pressureBar > 0) || (mains.flowLpm != null && mains.flowLpm > 0)) {
+    pushReason({
+      id: 'mains-suitable',
+      category: 'mains_flow_pressure',
+      title: 'Mains-fed supply confidence',
+      summary: 'Measured mains-fed supply supports Atlas confidence in practical hot-water delivery for this home.',
+      detail: 'Survey measurements were used directly in the hot-water route checks.',
+    });
+  }
+
+  if (
+    surveyInput?.currentSystem?.heatingSystemType === 'open_vented'
+    || surveyInput?.currentHeatSourceType === 'regular'
+  ) {
+    pushReason({
+      id: 'current-system-constraint',
+      category: 'current_system_constraint',
+      title: 'Current system constraint',
+      summary: 'The current heating layout sets practical limits, so Atlas favours a route that removes known pressure and reliability weak points.',
+      detail: 'This recommendation is targeted at real constraints in the existing setup, not just a like-for-like replacement.',
+    });
+  }
+
+  if (surveyInput?.loftTankSpace === 'none') {
+    pushReason({
+      id: 'loft-space-limit',
+      category: 'loft_cylinder_location_constraint',
+      title: 'Loft space constraint',
+      summary: 'There is no usable loft tank space, so open-vented hot-water routes are limited for this property.',
+      detail: 'Atlas prioritises routes that do not depend on loft tank capacity.',
+    });
+  } else if (surveyInput?.availableSpace === 'none') {
+    pushReason({
+      id: 'cylinder-space-limit',
+      category: 'loft_cylinder_location_constraint',
+      title: 'Cylinder location constraint',
+      summary: 'Cylinder space is currently constrained, so Atlas highlighted only layouts that remain feasible for the surveyed location.',
+    });
+  }
+
+  if (peakConcurrentOutlets != null && peakConcurrentOutlets >= 2) {
+    pushReason({
+      id: 'simultaneous-draw',
+      category: 'simultaneous_hot_water_use',
+      title: 'Simultaneous hot-water use',
+      summary: `Peak use indicates ${peakConcurrentOutlets} outlets can overlap, so Atlas favours a route with stronger concurrency resilience.`,
+      detail: 'This lowers the chance of routine overlap causing abrupt temperature or flow drop-offs.',
+    });
+  }
+
+  const heatingCondition = (surveyInput as unknown as {
+    fullSurvey?: {
+      heatingCondition?: {
+        radiatorsColdAtBottom?: boolean;
+        magneticDebrisEvidence?: boolean;
+        bleedWaterColour?: string;
+      };
+      waterQuality?: {
+        confidenceNote?: string | null;
+      };
+    };
+  })?.fullSurvey?.heatingCondition;
+  const currentConditionSignals = surveyInput?.currentSystem?.conditionSignals;
+  const hasSludgeSignals =
+    heatingCondition?.radiatorsColdAtBottom === true
+    || heatingCondition?.magneticDebrisEvidence === true
+    || heatingCondition?.bleedWaterColour === 'brown'
+    || heatingCondition?.bleedWaterColour === 'black'
+    || currentConditionSignals?.bleedWaterColour === 'dark'
+    || currentConditionSignals?.bleedWaterColour === 'sludge'
+    || currentConditionSignals?.radiatorPerformance === 'many_cold';
+  const hasProtectionSignals =
+    hasSludgeSignals
+    || surveyInput?.hasMagneticFilter === false
+    || currentConditionSignals?.magneticFilter === 'not_fitted'
+    || recommendation?.requiredWork.some((item) => /flush|filter|inhibitor|corrosion|metallurgy|mixed metal/i.test(`${item.label} ${item.detail ?? ''}`))
+    || recommendation?.reasons.some((item) => /metallurgy|mixed metal|corrosion|sludge|filter|inhibitor/i.test(item.text));
+  if (hasProtectionSignals) {
+    pushReason({
+      id: 'protection-condition',
+      category: 'protection_system_condition',
+      title: 'Protection and system condition',
+      summary: 'Survey condition signals show protection work is important, so Atlas includes cleaning and long-term circuit protection in the route.',
+      detail: 'Where sludge or mixed-metal risk is present, the recommendation includes actions that protect efficiency and reliability after installation.',
+    });
+  }
+
+  if (
+    surveyInput?.futureAddBathroom === true
+    || surveyInput?.futureLoftConversion === true
+    || recommendation?.futureReady.length
+  ) {
+    pushReason({
+      id: 'future-ready',
+      category: 'future_upgrade_readiness',
+      title: 'Future upgrade readiness',
+      summary: 'Atlas included future-home plans so the recommendation stays practical if demand increases later.',
+      detail: 'This helps avoid a near-term rework when planned household changes happen.',
+    });
+  }
+
+  if (reasons.length < 3 && recommendation != null) {
+    for (const reason of recommendation.reasons) {
+      if (reasons.length >= 5) break;
+      if (!hasText(reason.text)) continue;
+      const lower = reason.text.toLowerCase();
+      const category: RecommendationReasonCategoryV1 =
+        lower.includes('bathroom')
+          ? 'bathroom_count'
+          : lower.includes('mains') || lower.includes('pressure') || lower.includes('flow')
+            ? 'mains_flow_pressure'
+            : lower.includes('sludge') || lower.includes('filter') || lower.includes('inhibitor')
+              ? 'protection_system_condition'
+              : lower.includes('future')
+                ? 'future_upgrade_readiness'
+                : 'current_system_constraint';
+      pushReason({
+        id: `engine-reason-${reasons.length + 1}`,
+        category,
+        title: 'Recommendation reason',
+        summary: reason.text,
+      });
+    }
+  }
+
+  if (reasons.length < 3) {
+    for (const fact of inferCustomerFacts(input)) {
+      if (reasons.length >= 5) break;
+      if (!hasText(fact)) continue;
+      if (/^\s*0(\D|$)/.test(fact)) continue;
+      pushReason({
+        id: `customer-fact-${reasons.length + 1}`,
+        category: 'household_demand',
+        title: 'Survey fact used in recommendation',
+        summary: `${fact} directly shaped Atlas system checks for this home.`,
+      });
+    }
+  }
+
+  return reasons.slice(0, 5);
+}
+
 function buildPortalJourneyPrintModelCore(
   input: BuildPortalJourneyPrintModelInputV1,
 ): PortalJourneyPrintModelV1 {
@@ -662,6 +936,7 @@ function buildPortalJourneyPrintModelCore(
     visitContext,
     includeAddressSummaryInPrint = false,
     surveyCondition,
+    recommendationReasons,
   } = input;
 
   const selectedSet = new Set(selectedSectionIds);
@@ -693,13 +968,17 @@ function buildPortalJourneyPrintModelCore(
       })
     : rawSections;
 
-  const usedPages = Math.min(1 + sections.length + 1, 7);
+  const normalizedRecommendationReasons = (recommendationReasons ?? [])
+    .filter((reason) => hasText(reason.title) && hasText(reason.summary))
+    .slice(0, 5);
+  const usedPages = Math.min(1 + (normalizedRecommendationReasons.length > 0 ? 1 : 0) + sections.length + 1, 7);
   const systemProtection = surveyCondition != null
     ? buildSystemProtectionSummary(surveyCondition)
     : undefined;
 
   return {
     cover,
+    recommendationReasons: normalizedRecommendationReasons,
     sections,
     nextSteps,
     qrDestinations,
@@ -722,6 +1001,7 @@ export function buildCustomerJourneyPack(
   if (packagedPack != null) {
     return packagedPack;
   }
+  const recommendationReasons = inferRecommendationReasonBlocks(input);
   const staticPdf = buildPortalJourneyPrintModelCore({
     selectedSectionIds: input.selectedSectionIds ?? [],
     recommendationSummary: inferRecommendationSummary(input),
@@ -732,6 +1012,7 @@ export function buildCustomerJourneyPack(
     visitContext: input.visitContext,
     includeAddressSummaryInPrint: input.includeAddressSummaryInPrint,
     surveyCondition: input.surveyCondition,
+    recommendationReasons,
   });
 
   return {
@@ -740,6 +1021,7 @@ export function buildCustomerJourneyPack(
     staticPdf,
     portalDeepDive: {
       recommendationSummary: staticPdf.cover.summary,
+      recommendationReasons: staticPdf.recommendationReasons,
       liveExperienceExplanations: inferLiveExperienceExplanations(input, staticPdf),
       librarySupportedExplainers: inferLibrarySupportedExplainers(staticPdf.sections),
       nextSteps: staticPdf.nextSteps,
