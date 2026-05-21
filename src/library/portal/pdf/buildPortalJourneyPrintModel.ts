@@ -794,7 +794,6 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
   if (
     surveyInput?.currentSystem?.heatingSystemType === 'open_vented'
     || surveyInput?.currentHeatSourceType === 'regular'
-    || surveyInput?.currentHeatSourceType === 'back_boiler'
   ) {
     pushReason({
       id: 'current-system-constraint',
