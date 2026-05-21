@@ -29,6 +29,9 @@ const PDF_PAGE_H = 792;
 const PDF_MARGIN_L = 50;
 const PDF_TEXT_TOP_Y = 755;
 const PDF_MIN_Y = 55; // Page bottom boundary
+const REASSURANCE_HEADING = 'Reassurance';
+const INSTALLER_CHECK_HEADING = 'Installer check';
+const DEEP_DIVE_LINKS_HEADING = 'Deep dive links (optional)';
 
 type VisitPackagePdfEnvelopeExtractionResult =
   | { readonly ok: true; readonly envelope: VisitPackagePdfEnvelopeV1 }
@@ -161,7 +164,7 @@ function gapItem(height: number): PdfGapItem {
 function buildFallbackPrintModel(envelope: VisitPackagePdfEnvelopeV1): PortalJourneyPrintModelV1 {
   const fallbackSummary = hasText(envelope.visibleContent.recommendationSummary)
     ? envelope.visibleContent.recommendationSummary
-    : 'Unable to load recommendation details for this export package. Please regenerate the visit package.';
+    : 'Journey recommendation details are missing or incomplete in this export package. Please regenerate the visit package so all customer guidance is included.';
   return {
     cover: {
       title: envelope.title,
@@ -287,7 +290,7 @@ function buildSectionItems(section: CustomerDocumentSectionV1): PdfLayoutItem[] 
 
   if (hasText(section.reassurance)) {
     items.push(gapItem(10));
-    items.push(subHeadingItem('Reassurance'));
+    items.push(subHeadingItem(REASSURANCE_HEADING));
     for (const line of wordWrap(section.reassurance, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
@@ -313,7 +316,7 @@ function buildSystemProtectionItems(documentModel: CustomerDocumentModelV1): Pdf
   }
   if (hasText(documentModel.systemProtection.whatInstallerWillCheck)) {
     items.push(gapItem(10));
-    items.push(subHeadingItem('Installer check'));
+    items.push(subHeadingItem(INSTALLER_CHECK_HEADING));
     for (const line of wordWrap(documentModel.systemProtection.whatInstallerWillCheck, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
@@ -338,7 +341,7 @@ function buildNextStepsItems(documentModel: CustomerDocumentModelV1): PdfLayoutI
     items.push(gapItem(10));
   }
   if (documentModel.qrDestinations.length > 0) {
-    items.push(subHeadingItem('Deep dive links (optional)'));
+    items.push(subHeadingItem(DEEP_DIVE_LINKS_HEADING));
     items.push(gapItem(6));
     for (const destination of documentModel.qrDestinations) {
       if (hasText(destination.heading)) {

@@ -25,6 +25,8 @@ export interface BuildCustomerDocumentModelInputV1 {
   readonly mode: CustomerDocumentRendererMode;
 }
 
+const MAX_CUSTOMER_RECOMMENDATION_REASONS = 5;
+
 function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -34,7 +36,7 @@ export function buildCustomerDocumentModel(
 ): CustomerDocumentModelV1 {
   const recommendationReasons = input.model.recommendationReasons
     .filter((reason) => hasText(reason.title) && hasText(reason.summary))
-    .slice(0, 5);
+    .slice(0, MAX_CUSTOMER_RECOMMENDATION_REASONS);
 
   return {
     mode: input.mode,
