@@ -3883,17 +3883,15 @@ function AppInner() {
               )
             : undefined;
         return (
-          <div style={{ position: 'fixed', inset: 0, background: '#f8fafc', display: 'flex', flexDirection: 'column', zIndex: 10 }}>
-            <div style={{ padding: '0.5rem 1rem', flexShrink: 0 }}>
+          <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
+            <div style={{ padding: '0.5rem 1rem' }}>
               <button className="back-btn" onClick={() => setJourney('visit-home')}>← Back</button>
             </div>
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <CustomerPortalPage
-                reference={visitRecommendationSnapshot?.visitReference ?? formatVisitReference(activeVisitId ?? '')}
-                productionPreviewInput={labEngineInput}
-                productionPreviewCustomerJourneyPack={packagedCustomerJourneyPack}
-              />
-            </div>
+            <CustomerPortalPage
+              reference={visitRecommendationSnapshot?.visitReference ?? formatVisitReference(activeVisitId ?? '')}
+              productionPreviewInput={labEngineInput}
+              productionPreviewCustomerJourneyPack={packagedCustomerJourneyPack}
+            />
           </div>
         );
       })()}

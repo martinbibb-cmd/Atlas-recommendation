@@ -246,8 +246,8 @@ function buildCoverItems(envelope: VisitPackagePdfEnvelopeV1, pack?: MinimalStat
   items.push(gapItem(16));
 
   // Address summary from pack cover
-  if (hasText(pack?.cover.addressSummary)) {
-    for (const line of wordWrap(pack!.cover.addressSummary!, wrapWidth(11))) {
+  if (pack != null && hasText(pack.cover.addressSummary)) {
+    for (const line of wordWrap(pack.cover.addressSummary, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
     items.push(gapItem(12));
@@ -279,8 +279,8 @@ function buildCoverItems(envelope: VisitPackagePdfEnvelopeV1, pack?: MinimalStat
   }
 
   // Pack cover summary (the full explanation paragraph)
-  if (hasText(pack?.cover.summary)) {
-    for (const line of wordWrap(pack!.cover.summary, wrapWidth(11))) {
+  if (pack != null && hasText(pack.cover.summary)) {
+    for (const line of wordWrap(pack.cover.summary, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
     items.push(gapItem(14));
