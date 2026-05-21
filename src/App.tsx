@@ -1210,7 +1210,6 @@ function AppInner() {
   // Ref mirror prevents stale-closure reads inside persistence effects and callbacks
   // that intentionally do not depend on the full snapshot object.
   const visitRecommendationSnapshotRef = useRef<VisitRecommendationSnapshot | null>(null);
-  const pdfDocumentCounterRef = useRef(0);
   const [localSessionStatus, setLocalSessionStatus] = useState<LocalSessionStatus | null>(null);
   const [packageOpenHistory, setPackageOpenHistory] = useState<VisitPackageOpenHistoryEntry[]>([]);
   const [lastImportFailure, setLastImportFailure] = useState<WorkflowImportFailureDiagnostic | null>(null);
@@ -2214,57 +2213,6 @@ function AppInner() {
       console.error('[Atlas] Could not generate customer portal output', err);
       setLocalSessionStatus({ tone: 'error', message: 'Customer portal generation failed. Please retry.' });
     }
-  }
-
-  function handleGenerateSupportingPdf() {
-    if (activeVisitId == null || labFullSurveyModel == null) {
-      setLocalSessionStatus({ tone: 'error', message: 'Cannot generate supporting PDF: visit survey is missing.' });
-      return;
-    }
-    const now = new Date().toISOString();
-    const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
-    const generatedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
-      generatedOutputs: currentSnapshot?.generatedOutputs,
-      surveyModel: labFullSurveyModel,
-      engineInput: labEngineInput,
-      customerSummary: currentSnapshot?.customerSummary,
-      decision: currentSnapshot?.decision,
-      portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
-      generatedAt: now,
-    });
-    pdfDocumentCounterRef.current += 1;
-    const documentId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? `supporting-pdf-${crypto.randomUUID()}`
-      : `supporting-pdf-${formatVisitReference(activeVisitId)}-${Date.now()}-${pdfDocumentCounterRef.current}`;
-    const nextOutputs: GeneratedOutputsV1 = {
-      ...generatedOutputs,
-      pdf: {
-        generated: true,
-        generatedAt: now,
-        documentId,
-        version: '1.0',
-      },
-    };
-    const lifecycleState = dispatchVisitJourneyEvent(
-      currentSnapshot?.lifecycleState,
-      { type: 'presentation_generated' },
-    );
-    const nextSnapshot: VisitRecommendationSnapshot = {
-      visitId: activeVisitId,
-      visitReference: formatVisitReference(activeVisitId),
-      engineOutput: currentSnapshot?.engineOutput,
-      scenarios: currentSnapshot?.scenarios,
-      decision: currentSnapshot?.decision,
-      customerSummary: currentSnapshot?.customerSummary,
-      acceptedScenarioId: currentSnapshot?.acceptedScenarioId,
-      lifecycleState,
-      generatedOutputs: nextOutputs,
-      portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
-    };
-    persistActiveVisitSnapshot(nextSnapshot, labFullSurveyModel);
-    setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
-    setJourney('library-pdf');
-    setLocalSessionStatus({ tone: 'success', message: 'Supporting PDF marked as generated for this visit.' });
   }
 
   function handleStartDemoReview(demoVisitId: string = DEMO_VISIT_IDS.completed_won) {
@@ -3467,6 +3415,34 @@ function AppInner() {
             hasRegeneratedDeliveryOutputs:
               generatedOutputs.portal.generated || generatedOutputs.pdf.generated,
           });
+          const customerPdfMissingRequirements: string[] = [];
+          const canonicalVisitId = activeCanonicalPackage?.visitIdentity.visitId;
+          const hasCanonicalVisitId = hasText(canonicalVisitId);
+          const hasAnyRecommendationData =
+            activeCanonicalPackage != null
+            || activeVisitId != null
+            || canonicalSnapshot != null
+            || generatedOutputs.portal.generated
+            || generatedOutputs.pdf.generated;
+          if (activeVisitId == null && !hasCanonicalVisitId) {
+            customerPdfMissingRequirements.push('Visit identity is missing.');
+          }
+          if (labFullSurveyModel == null && activeCanonicalPackage?.surveyDraft == null) {
+            customerPdfMissingRequirements.push('Visit survey data is missing.');
+          }
+          if (!hasAnyRecommendationData) {
+            customerPdfMissingRequirements.push('Recommendation output is missing.');
+          }
+          const customerPdfUnavailableReasons =
+            canExportVisitPackage
+              ? []
+              : customerPdfMissingRequirements.length > 0
+                ? customerPdfMissingRequirements
+                : ['Customer PDF package cannot be prepared from the current visit session.'];
+          const supportingPdfBlockingReasons = [
+            ...(supportingPdfReadinessGate?.blockingReasons ?? []),
+            ...customerPdfUnavailableReasons,
+          ];
 
           return (
             <VisitHomeDashboard
@@ -3484,8 +3460,11 @@ function AppInner() {
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}
-              supportingPdfUnsafe={supportingPdfReadinessGate != null && !supportingPdfReadinessGate.readyForCustomer}
-              supportingPdfBlockReasons={supportingPdfReadinessGate?.blockingReasons}
+              supportingPdfUnsafe={
+                (supportingPdfReadinessGate != null && !supportingPdfReadinessGate.readyForCustomer)
+                || !canExportVisitPackage
+              }
+              supportingPdfBlockReasons={supportingPdfBlockingReasons.length > 0 ? supportingPdfBlockingReasons : undefined}
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               hasSavedLocalVisit={hasSavedLocalVisit}
@@ -3521,7 +3500,7 @@ function AppInner() {
               onContinueSurvey={activeVisitId != null ? () => setJourney('visit') : undefined}
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
               onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
-              onGenerateSupportingPdf={activeVisitId != null ? () => { void handleGenerateSupportingPdf(); } : undefined}
+              onDownloadCustomerPdf={canExportVisitPackage ? handleExportCanonicalVisitPackage : undefined}
               onOpenPortalFromPackage={activeCanonicalPackage != null ? () => {
                 const payload = buildPortalLaunchPayload(activeCanonicalPackage);
                 setActivePortalLaunchPayload(payload);

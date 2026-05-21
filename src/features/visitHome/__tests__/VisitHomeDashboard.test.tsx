@@ -129,7 +129,7 @@ function makeProps(
     installationSpecOptionCount: 0,
     onOpenSimulator: vi.fn(),
     onOpenPresentation: vi.fn(),
-    onPrintSummary: vi.fn(),
+    onDownloadCustomerPdf: vi.fn(),
     onOpenInstallationSpecification: vi.fn(),
     onOpenHandoffReview: vi.fn(),
     onOpenEngineerRoute: vi.fn(),
@@ -260,7 +260,7 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('visit-home-import-retry-cta')).toBeInTheDocument();
   });
 
-  it('shows export visit package action in the Visit session panel when export is available', () => {
+  it('does not show a separate export visit package action in the Visit session panel', () => {
     render(
       <VisitHomeDashboard
         {...makeProps({
@@ -271,7 +271,7 @@ describe('VisitHomeDashboard', () => {
       />,
     );
 
-    expect(screen.getByTestId('visit-home-export-package')).toHaveTextContent('Export visit package');
+    expect(screen.queryByTestId('visit-home-export-package')).not.toBeInTheDocument();
   });
 
   it('shows package history entries and workflow QA checklist states', () => {
@@ -358,24 +358,24 @@ describe('VisitHomeDashboard', () => {
     expect(onOpenInstallationSpecification).toHaveBeenCalledOnce();
   });
 
-  it('calls onPrintSummary when supporting PDF CTA is clicked', () => {
-    const onPrintSummary = vi.fn();
+  it('calls onDownloadCustomerPdf when customer PDF CTA is clicked', () => {
+    const onDownloadCustomerPdf = vi.fn();
     render(
       <VisitHomeDashboard
         {...makeProps({
-          onPrintSummary,
+          onDownloadCustomerPdf,
         })}
       />,
     );
 
     fireEvent.click(screen.getByTestId('card-pdf-cta'));
-    expect(onPrintSummary).toHaveBeenCalledOnce();
+    expect(onDownloadCustomerPdf).toHaveBeenCalledOnce();
   });
 
-  it('supporting PDF card title is "Library supporting PDF" — library-backed output label', () => {
+  it('customer PDF card title is "Customer PDF"', () => {
     render(<VisitHomeDashboard {...makeProps()} />);
     const card = screen.getByTestId('card-pdf');
-    expect(card).toHaveTextContent('Library supporting PDF');
+    expect(card).toHaveTextContent('Customer PDF');
   });
 
   it('validates production customer-review CTAs exclude retired surfaces', () => {
@@ -390,10 +390,10 @@ describe('VisitHomeDashboard', () => {
 
   it('validates visit-home customer-review routes resolve to canonical surfaces', () => {
     const onOpenPresentation = vi.fn();
-    const onPrintSummary = vi.fn();
+    const onDownloadCustomerPdf = vi.fn();
     const mockWindowOpen = vi.fn();
     vi.stubGlobal('open', mockWindowOpen);
-    render(<VisitHomeDashboard {...makeProps({ portalUrl: 'https://portal.example.com', onOpenPresentation, onPrintSummary })} />);
+    render(<VisitHomeDashboard {...makeProps({ portalUrl: 'https://portal.example.com', onOpenPresentation, onDownloadCustomerPdf })} />);
     const customerReview = screen.getByTestId('visit-home-section-customer-review');
     const ctaLabels = within(customerReview)
       .getAllByRole('button')
@@ -402,7 +402,7 @@ describe('VisitHomeDashboard', () => {
       [
         "Review recommendation →",
         "Open customer portal →",
-        "Print / save supporting PDF →",
+        "Download customer PDF →",
       ]
     `);
     fireEvent.click(screen.getByTestId('card-recommendation-cta'));
@@ -410,7 +410,7 @@ describe('VisitHomeDashboard', () => {
     fireEvent.click(screen.getByTestId('card-pdf-cta'));
     expect(onOpenPresentation).toHaveBeenCalledOnce();
     expect(mockWindowOpen).toHaveBeenCalledOnce();
-    expect(onPrintSummary).toHaveBeenCalledOnce();
+    expect(onDownloadCustomerPdf).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();
   });
 
@@ -467,21 +467,20 @@ describe('VisitHomeDashboard', () => {
     expect(onOpenScanFromPackage).toHaveBeenCalledOnce();
   });
 
-  it('supporting PDF card exposes generate CTA when output is missing and generation handler is provided', () => {
-    const onGenerateSupportingPdf = vi.fn();
+  it('customer PDF card CTA stays download-labelled when output is missing', () => {
+    const onDownloadCustomerPdf = vi.fn();
     render(
       <VisitHomeDashboard
         {...makeProps({
-          onPrintSummary: undefined,
+          onDownloadCustomerPdf,
           hasSupportingPdfOutput: false,
-          onGenerateSupportingPdf,
         })}
       />,
     );
     const cta = screen.getByTestId('card-pdf-cta');
-    expect(cta).toHaveTextContent('Generate supporting PDF →');
+    expect(cta).toHaveTextContent('Download customer PDF →');
     fireEvent.click(cta);
-    expect(onGenerateSupportingPdf).toHaveBeenCalledOnce();
+    expect(onDownloadCustomerPdf).toHaveBeenCalledOnce();
   });
 
   describe('journey card', () => {
@@ -564,7 +563,7 @@ describe('VisitHomeDashboard', () => {
           {...makeProps({
             engineInput: undefined,
             engineOutput: undefined,
-            onPrintSummary: undefined,
+            onDownloadCustomerPdf: undefined,
           })}
         />,
       );
@@ -580,7 +579,7 @@ describe('VisitHomeDashboard', () => {
       <VisitHomeDashboard
         {...makeProps({
           portalUrl: undefined,
-          onPrintSummary: undefined,
+          onDownloadCustomerPdf: undefined,
         })}
       />,
     );
@@ -588,7 +587,7 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('card-portal')).toHaveAttribute('data-status', 'needs-review');
     expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'needs-review');
     expect(screen.getByText('Customer portal not generated yet.')).toBeInTheDocument();
-    expect(screen.getByText('Supporting PDF not generated yet.')).toBeInTheDocument();
+    expect(screen.getByText('Customer PDF not generated yet.')).toBeInTheDocument();
     expect(screen.queryByText('Recommendation not available')).not.toBeInTheDocument();
   });
 

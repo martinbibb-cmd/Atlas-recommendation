@@ -480,7 +480,7 @@ describe('VisitHomeDashboard local visit controls', () => {
           localSessionStatus: {
             tone: 'success',
             type: 'export',
-            message: 'Exported Atlas visit package abc.atlasvisit.pdf.',
+            message: 'Downloaded customer PDF abc.atlasvisit.pdf.',
             exportSummary: {
               includedItems: ['Survey draft', 'Recommendation summary'],
             },

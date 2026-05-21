@@ -218,7 +218,7 @@ export function buildVisitHomeViewModel(input: BuildVisitHomeViewModelInput): Vi
         : undefined,
     supportingPdfMissingMessage:
       hasRecommendation && supportingPdfStatus === 'needs-review'
-        ? 'Supporting PDF not generated yet.'
+        ? 'Customer PDF not generated yet.'
         : undefined,
     journeyInfo,
     hero: {
