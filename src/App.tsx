@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense, useMemo, useRef } from 'react';
-import type { ChangeEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import FastChoiceStepper from './components/stepper/FastChoiceStepper';
 import FullSurveyStepper from './components/stepper/FullSurveyStepper';
 import Footer from './components/Footer';
@@ -73,6 +73,7 @@ import ScanPackageImportFlow from './features/scanImport/ui/ScanPackageImportFlo
 import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
 import ScanSessionListPage from './features/scanImport/ui/ScanSessionListPage';
 import { ScanHandoffReceivePage } from './features/scanHandoff';
+import { getScanCapture } from './features/scanHandoff/scanHandoffStore';
 import { resetDemoData, DEMO_VISIT_IDS } from './dev/demoSeed';
 import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
 import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
@@ -168,9 +169,20 @@ import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
 import type {
-  VisitHomeSessionStatus,
   VisitSelectorEntry,
 } from './features/visitHome/VisitHomeDashboard';
+import {
+  appendPackageOpenHistory,
+  buildExportConfirmationStatus,
+  buildImportFailureStatus,
+  buildPackageImportStatusMessage,
+  buildWorkflowQaChecklist,
+  toImportSurfaceLabel,
+  type LocalSessionStatus,
+  type VisitPackageOpenHistoryEntry,
+  type WorkflowImportFailureDiagnostic,
+  type WorkflowImportSurface,
+} from './features/visitHome/workflowStabilisation';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import {
   buildCanonicalVisitPackage,
@@ -265,14 +277,7 @@ function buildImportedVisitId(visitReference: string | undefined): string {
   return `imported_${toSafeDownloadBaseName(visitReference ?? 'visit').toLowerCase()}_${importSuffix}`;
 }
 
-const IMPORT_SURFACE_LABELS: Record<'app_home_import' | 'visit_home_import', string> = {
-  app_home_import: 'App Home',
-  visit_home_import: 'Visit Home',
-};
-
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
-type LocalSessionStatusTone = 'success' | 'warning' | 'error';
-type LocalSessionStatus = VisitHomeSessionStatus & { tone: LocalSessionStatusTone };
 type PortalPdfJourneyType =
   | 'open_vented'
   | 'stored_hot_water'
@@ -288,115 +293,6 @@ function isLegacyJourney(journey: Journey): boolean {
     || journey === 'framework-print'
     || journey === 'unified-simulator'
   );
-}
-
-function buildPackageImportStatusMessage(
-  visitReference: string,
-  importSurface: 'app_home_import' | 'visit_home_import',
-  integrity: CanonicalVisitPackageIntegrityResult,
-): LocalSessionStatus {
-  const importedMessage = `Imported visit package ${visitReference} from ${IMPORT_SURFACE_LABELS[importSurface]}.`;
-  if (integrity.status === 'verified') {
-    return {
-      tone: 'success',
-      type: 'import',
-      message: `${importedMessage} Integrity checks passed. Atlas does not store this package in cloud storage.`,
-      importSummary: {
-        integrityStatus: 'verified',
-      },
-    };
-  }
-  if (integrity.status === 'modified') {
-    return {
-      tone: 'warning',
-      type: 'import',
-      message: `${importedMessage} Atlas imported it with warnings. Package contents appear to have changed after export, so packaged portal URLs were ignored.`,
-      importSummary: {
-        integrityStatus: 'modified',
-        warnings: integrity.warnings,
-      },
-    };
-  }
-  return {
-    tone: 'warning',
-    type: 'import',
-    message: `${importedMessage} Atlas imported it as unverified. This package is missing verification metadata, so packaged portal URLs were ignored.`,
-    importSummary: {
-      integrityStatus: 'unverified',
-      warnings: integrity.warnings,
-    },
-  };
-}
-
-function buildImportFailureStatus(
-  errors: readonly string[],
-): LocalSessionStatus {
-  if (errors.length === 0) {
-    return {
-      tone: 'error',
-      type: 'session',
-      message: 'Package import blocked: the file could not be validated as an Atlas visit package.',
-    };
-  }
-  const primaryError = errors[0]!;
-  if (primaryError.toLowerCase().includes('schema mismatch')) {
-    return {
-      tone: 'error',
-      type: 'session',
-      message: 'Package import blocked: this file is not a supported Atlas visit package schema.',
-    };
-  }
-  if (primaryError.toLowerCase().includes('version mismatch')) {
-    return {
-      tone: 'error',
-      type: 'session',
-      message: 'Package import blocked: this Atlas visit package version is not supported by this build.',
-    };
-  }
-  if (primaryError.toLowerCase().includes('not valid json')) {
-    return {
-      tone: 'error',
-      type: 'session',
-      message: 'Package import blocked: this file is not a valid Atlas visit package export.',
-    };
-  }
-  return {
-    tone: 'error',
-    type: 'session',
-    message: `Package import blocked: ${errors.slice(0, 2).join('; ')}`,
-  };
-}
-
-function hasPackagedRecommendationSummary(pkg: CanonicalVisitPackageV1): boolean {
-  return pkg.proposalTruth?.customerSummary != null || pkg.customerPropertyDetails.customerSummary != null;
-}
-
-function buildExportConfirmationStatus(
-  filename: string,
-  pkg: CanonicalVisitPackageV1,
-): LocalSessionStatus {
-  const includedItems: string[] = [
-    'Survey draft',
-    'Visit identity and export metadata',
-  ];
-  if (pkg.engineInputSnapshot != null) includedItems.push('Engine input snapshot');
-  if (hasPackagedRecommendationSummary(pkg)) {
-    includedItems.push('Recommendation summary');
-  }
-  if (pkg.customerPropertyDetails.portalVisitContext != null) {
-    includedItems.push('Customer portal context');
-  }
-  if (pkg.generatedOutputStatus?.generatedOutputs != null) {
-    includedItems.push('Generated output state');
-  }
-  return {
-    tone: 'success',
-    type: 'export',
-    message: `Exported customer-safe package ${filename}. Downloaded to your device only.`,
-    exportSummary: {
-      includedItems,
-    },
-  };
 }
 
 function buildSurveySystemConditionFromModel(
@@ -1314,8 +1210,9 @@ function AppInner() {
   // that intentionally do not depend on the full snapshot object.
   const visitRecommendationSnapshotRef = useRef<VisitRecommendationSnapshot | null>(null);
   const pdfDocumentCounterRef = useRef(0);
-  const appHomePackageInputRef = useRef<HTMLInputElement>(null);
   const [localSessionStatus, setLocalSessionStatus] = useState<LocalSessionStatus | null>(null);
+  const [packageOpenHistory, setPackageOpenHistory] = useState<VisitPackageOpenHistoryEntry[]>([]);
+  const [lastImportFailure, setLastImportFailure] = useState<WorkflowImportFailureDiagnostic | null>(null);
   const [importedWorkflowVisitIds, setImportedWorkflowVisitIds] = useState<string[]>([]);
   /**
    * Canonical visit package most recently imported. Retained so the
@@ -1827,7 +1724,7 @@ function AppInner() {
 
   function hydrateStateFromCanonicalVisitPackage(
     pkg: CanonicalVisitPackageV1,
-    importSurface: 'app_home_import' | 'visit_home_import',
+    importSurface: WorkflowImportSurface,
     integrity: CanonicalVisitPackageIntegrityResult,
   ) {
     const visitIdentity = pkg.visitIdentity;
@@ -1915,13 +1812,22 @@ function AppInner() {
     setLastOpenedFromHome(null);
     setActiveCanonicalPackage(pkg);
     setActivePortalLaunchPayload(null);
+    setLastImportFailure(null);
+    setPackageOpenHistory((prev) =>
+      appendPackageOpenHistory(prev, {
+        visitReference: resolvedVisitReference,
+        importedAt,
+        sourceLabel: toImportSurfaceLabel(importSurface),
+        integrityStatus: integrity.status,
+      }),
+    );
     setLocalSessionStatus(buildPackageImportStatusMessage(resolvedVisitReference, importSurface, integrity));
     setJourney('visit-home');
   }
 
   async function handleImportCanonicalVisitPackage(
     file: File,
-    importSurface: 'app_home_import' | 'visit_home_import',
+    importSurface: WorkflowImportSurface,
   ) {
     try {
       const fileText = await file.text();
@@ -1929,11 +1835,21 @@ function AppInner() {
         ? parseCanonicalVisitPackageFromPdfEnvelope(fileText)
         : parseCanonicalVisitPackage(fileText);
       if (!parsed.ok) {
+        setLastImportFailure({
+          occurredAt: new Date().toISOString(),
+          filename: file.name,
+          errors: parsed.errors,
+        });
         setLocalSessionStatus(buildImportFailureStatus(parsed.errors));
         return;
       }
       hydrateStateFromCanonicalVisitPackage(parsed.pkg, importSurface, parsed.integrity);
     } catch {
+      setLastImportFailure({
+        occurredAt: new Date().toISOString(),
+        filename: file.name,
+        errors: [`unable to read ${file.name}`],
+      });
       setLocalSessionStatus({
         tone: 'error',
         type: 'session',
@@ -2395,14 +2311,6 @@ function AppInner() {
       return [];
     }
     return [...visitIds];
-  }
-
-  function handleAppHomeVisitPackageFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file != null) {
-      void handleImportCanonicalVisitPackage(file, 'app_home_import');
-    }
-    e.target.value = '';
   }
 
   function handleOpenScanFromCanonicalPackage(source: 'app-home' | 'visit-home') {
@@ -3497,6 +3405,18 @@ function AppInner() {
           const hasSurveyForSupportingPdf =
             labFullSurveyModel != null
             || hasSavedLocalVisit;
+          const activeScanCapture =
+            activeVisitId != null
+              ? getScanCapture(activeVisitId)
+              : null;
+          const workflowQaChecklist = buildWorkflowQaChecklist({
+            hasImportedPackage: activeCanonicalPackage != null,
+            canOpenScan: activeCanonicalPackage != null,
+            hasScanReturn: activeScanCapture != null,
+            hasRegeneratedDeliveryOutputs:
+              generatedOutputs.portal.generated || generatedOutputs.pdf.generated,
+            hasExportedPackageAgain: generatedOutputs.export.generated,
+          });
 
           return (
             <VisitHomeDashboard
@@ -3526,6 +3446,11 @@ function AppInner() {
               onSaveLocally={activeVisitId != null && labFullSurveyModel != null ? handleSaveVisitLocally : undefined}
               onResumeLocalVisit={activeVisitId != null ? handleResumeLocalVisit : undefined}
               localSessionStatus={localSessionStatus}
+              packageOpenHistory={packageOpenHistory}
+              lastImportFailure={lastImportFailure}
+              hasInterruptedScanReturn={activeScanCapture != null && !generatedOutputs.handoff.generated}
+              onRecoverInterruptedScanReturn={activeVisitId != null ? () => setJourney('receive-scan') : undefined}
+              workflowQaChecklist={workflowQaChecklist}
               devBuildMarker={import.meta.env.DEV ? `Dev build · ${new Date().toISOString().slice(0, 10)}` : undefined}
               onClearSession={() => {
                 setActiveVisitId(undefined);
@@ -3536,6 +3461,7 @@ function AppInner() {
                 setLabPortalVisitContext(undefined);
                 setLabPortalUrl(undefined);
                 setLocalSessionStatus(null);
+                setLastImportFailure(null);
                 setActiveCanonicalPackage(null);
                 setActivePortalLaunchPayload(null);
                 setJourney('app-home');
@@ -4259,11 +4185,18 @@ function AppInner() {
             <button
               type="button"
               className="app-entry-tile"
-              onClick={() => appHomePackageInputRef.current?.click()}
+              onClick={() => {
+                setLocalSessionStatus({
+                  tone: 'warning',
+                  type: 'session',
+                  message: 'Use Visit Home → Visit session → Import visit package to keep import and recovery in one flow.',
+                });
+                setJourney('visit-home');
+              }}
             >
               <span className="app-entry-tile__title">Import package</span>
               <span className="app-entry-tile__copy">
-                Import a <code>.atlasvisit.json</code> or <code>.atlasvisit.pdf</code> package exported from Visit Home.
+                Open Visit Home and import a <code>.atlasvisit.json</code> or <code>.atlasvisit.pdf</code> package from one canonical flow.
               </span>
             </button>
             <button
@@ -4300,23 +4233,6 @@ function AppInner() {
               </button>
             )}
           </div>
-          <input
-            ref={appHomePackageInputRef}
-            type="file"
-            accept=".atlasvisit.json,.atlasvisit.pdf,application/pdf"
-            style={{ display: 'none' }}
-            aria-hidden="true"
-            data-testid="app-home-import-package-input"
-            onChange={handleAppHomeVisitPackageFileChange}
-          />
-          {localSessionStatus != null && (
-            <p
-              data-testid="app-home-import-package-status"
-              className={`app-entry-status app-entry-status--${localSessionStatus.tone}`}
-            >
-              {localSessionStatus.message}
-            </p>
-          )}
         </div>
       )}
       {/* Workspace Dashboard — the primary landing page for each workspace.

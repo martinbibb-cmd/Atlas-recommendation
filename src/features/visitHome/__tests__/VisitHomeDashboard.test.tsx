@@ -242,6 +242,60 @@ describe('VisitHomeDashboard', () => {
     );
   });
 
+  it('shows recovery center diagnostics and retry CTA when import failure is present', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onImportWorkflowPackage: vi.fn(),
+          lastImportFailure: {
+            occurredAt: '2026-05-21T05:00:00.000Z',
+            filename: 'broken.atlasvisit.pdf',
+            errors: ['schema mismatch: expected atlas.visit-package.v1'],
+          },
+        })}
+      />,
+    );
+    expect(screen.getByTestId('visit-home-recovery-center')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-import-failure-diagnostics')).toHaveTextContent('broken.atlasvisit.pdf');
+    expect(screen.getByTestId('visit-home-import-retry-cta')).toBeInTheDocument();
+  });
+
+  it('shows package history entries and workflow QA checklist states', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          packageOpenHistory: [
+            {
+              visitReference: 'REF-1234',
+              importedAt: '2026-05-21T05:00:00.000Z',
+              sourceLabel: 'Visit Home',
+              integrityStatus: 'verified',
+            },
+          ],
+          workflowQaChecklist: [
+            {
+              id: 'import_package',
+              label: 'Import package',
+              status: 'complete',
+              detail: 'Loaded.',
+            },
+            {
+              id: 'receive_scan_return',
+              label: 'Receive scan return',
+              status: 'pending',
+              detail: 'Pending return.',
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('visit-home-package-history-list')).toHaveTextContent('REF-1234');
+    expect(screen.getByTestId('visit-home-workflow-qa-checklist')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-workflow-qa-import_package')).toHaveTextContent('Complete');
+    expect(screen.getByTestId('visit-home-workflow-qa-receive_scan_return')).toHaveTextContent('Pending');
+  });
+
   it('shows packaged customer journey readiness in the readiness summary', () => {
     const customerJourneyPack = buildCustomerJourneyPack({
       selectedSectionIds: [],
