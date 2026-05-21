@@ -468,7 +468,7 @@ describe('VisitHomeDashboard local visit controls', () => {
       'Package contents appear to have changed after export.',
     );
     expect(screen.getByTestId('visit-home-local-session-status')).toHaveTextContent(
-      'Review imported visit details before continuing to customer outputs.',
+      'Review imported visit details before continuing to customer-facing outputs.',
     );
   });
 

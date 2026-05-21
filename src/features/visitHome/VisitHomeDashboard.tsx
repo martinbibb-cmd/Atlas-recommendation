@@ -1309,7 +1309,7 @@ export function VisitHomeDashboard({
                         </ul>
                       )}
                       <p className="vhd-session-status__next-step">
-                        Next step: Review imported visit details before continuing to customer outputs.
+                        Next step: Review imported visit details before continuing to customer-facing outputs.
                       </p>
                     </>
                   ) : null}

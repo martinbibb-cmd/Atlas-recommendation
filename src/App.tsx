@@ -331,6 +331,13 @@ function buildPackageImportStatusMessage(
 function buildImportFailureStatus(
   errors: readonly string[],
 ): LocalSessionStatus {
+  if (errors.length === 0) {
+    return {
+      tone: 'error',
+      type: 'session',
+      message: 'Package import blocked: the file could not be validated as an Atlas visit package.',
+    };
+  }
   const primaryError = errors[0] ?? '';
   if (primaryError.toLowerCase().includes('schema mismatch')) {
     return {
@@ -360,6 +367,10 @@ function buildImportFailureStatus(
   };
 }
 
+function hasPackagedRecommendationSummary(pkg: CanonicalVisitPackageV1): boolean {
+  return pkg.proposalTruth?.customerSummary != null || pkg.customerPropertyDetails.customerSummary != null;
+}
+
 function buildExportConfirmationStatus(
   filename: string,
   pkg: CanonicalVisitPackageV1,
@@ -369,7 +380,7 @@ function buildExportConfirmationStatus(
     'Visit identity and export metadata',
   ];
   if (pkg.engineInputSnapshot != null) includedItems.push('Engine input snapshot');
-  if (pkg.proposalTruth?.customerSummary != null || pkg.customerPropertyDetails.customerSummary != null) {
+  if (hasPackagedRecommendationSummary(pkg)) {
     includedItems.push('Recommendation summary');
   }
   if (pkg.customerPropertyDetails.portalVisitContext != null) {
