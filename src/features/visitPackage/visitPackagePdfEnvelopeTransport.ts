@@ -13,6 +13,7 @@ import {
   type CustomerDocumentSectionV1,
 } from '../../library/portal/pdf/CustomerDocumentRenderer';
 import {
+  buildCustomerJourneyPack,
   readCustomerJourneyPackFromGeneratedOutputs,
   type PortalJourneyPrintModelV1,
 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
@@ -183,11 +184,23 @@ function buildFallbackPrintModel(envelope: VisitPackagePdfEnvelopeV1): PortalJou
 }
 
 function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerDocumentModelV1 {
+  const canonicalVisitPackage = envelope.canonicalVisitPackage;
   const packagedJourney = readCustomerJourneyPackFromGeneratedOutputs(
-    envelope.canonicalVisitPackage.generatedOutputStatus?.generatedOutputs,
+    canonicalVisitPackage.generatedOutputStatus?.generatedOutputs,
   );
+  const hasRecommendationContext =
+    canonicalVisitPackage.proposalTruth?.decision != null
+    || hasText(canonicalVisitPackage.proposalTruth?.selectedScenarioId)
+    || hasText(canonicalVisitPackage.proposalTruth?.customerSummary?.headline)
+    || hasText(canonicalVisitPackage.proposalTruth?.customerSummary?.recommendedSystemLabel);
+  const staticPdfModel = (packagedJourney != null || hasRecommendationContext)
+    ? buildCustomerJourneyPack({
+        canonicalVisitPackage,
+        customerJourneyPack: packagedJourney,
+      }).staticPdf
+    : buildFallbackPrintModel(envelope);
   return buildCustomerDocumentModel({
-    model: packagedJourney?.staticPdf ?? buildFallbackPrintModel(envelope),
+    model: staticPdfModel,
     mode: 'packageEmbedded',
   });
 }

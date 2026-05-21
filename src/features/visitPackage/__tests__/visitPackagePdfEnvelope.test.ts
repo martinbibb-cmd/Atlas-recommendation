@@ -25,6 +25,16 @@ function makePackage() {
     recommendationSummary: 'System boiler with cylinder: Best fit for this home',
     customerFacts: ['3-person household', '2 bathrooms'],
     journeyType: 'open_vented',
+    recommendationReasons: [
+      {
+        id: 'household-demand',
+        category: 'household_demand',
+        homeFact: 'Your home has 3 people and 2 bathrooms.',
+        whyItMatters: 'Hot water demand can overlap during busy periods.',
+        atlasRecommendationOutcome: 'A system boiler with unvented cylinder supports simultaneous use.',
+        practicalEffect: 'Showers and taps stay consistent at peak times.',
+      },
+    ],
   });
   return buildCanonicalVisitPackage({
     packageData: {
@@ -224,7 +234,63 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     const pdf = renderVisitPackagePdfDocument(envelope);
     expect(pdf).not.toContain('This document contains an embedded Atlas package for digital import.');
     expect(pdf).toContain('Why this recommendation fits your home');
+    expect(pdf).toContain('3-person household');
+    expect(pdf).toContain('Why it matters:');
     expect(pdf).toContain('What happens next');
+  });
+
+  it('rebuilds customer journey content from canonical package when packaged journey is absent', () => {
+    const pkg = makePackage();
+    const packageWithoutJourney = buildCanonicalVisitPackage({
+      packageData: {
+        visitIdentity: pkg.visitIdentity,
+        workspaceBrandReference: pkg.workspaceBrandReference,
+        customerPropertyDetails: pkg.customerPropertyDetails,
+        surveyDraft: pkg.surveyDraft,
+        engineInputSnapshot: pkg.engineInputSnapshot,
+        proposalTruth: pkg.proposalTruth,
+        generatedOutputStatus: {
+          ...pkg.generatedOutputStatus,
+          generatedOutputs: {
+            ...pkg.generatedOutputStatus?.generatedOutputs,
+            customerJourneyPack: undefined,
+          },
+        },
+        importExportMetadata: pkg.importExportMetadata,
+      },
+    });
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: packageWithoutJourney }));
+    expect(pdf).toContain('Why this recommendation fits your home');
+    expect(pdf).toContain('3-person household');
+    expect(pdf).toContain('Atlas recommendation:');
+    expect(pdf).toContain(VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER);
+  });
+
+  it('uses fallback document copy only when recommendation and packaged journey are both missing', () => {
+    const pkg = makePackage();
+    const packageWithoutJourneyOrRecommendation = buildCanonicalVisitPackage({
+      packageData: {
+        visitIdentity: pkg.visitIdentity,
+        workspaceBrandReference: pkg.workspaceBrandReference,
+        customerPropertyDetails: pkg.customerPropertyDetails,
+        surveyDraft: pkg.surveyDraft,
+        engineInputSnapshot: pkg.engineInputSnapshot,
+        proposalTruth: undefined,
+        generatedOutputStatus: {
+          ...pkg.generatedOutputStatus,
+          generatedOutputs: {
+            ...pkg.generatedOutputStatus?.generatedOutputs,
+            customerJourneyPack: undefined,
+          },
+        },
+        importExportMetadata: pkg.importExportMetadata,
+      },
+    });
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({
+      packagePayload: packageWithoutJourneyOrRecommendation,
+    }));
+    expect(pdf).toContain('Journey recommendation details are missing or incomplete in this export package.');
+    expect(pdf).not.toContain('Why this recommendation fits your home');
   });
 
   it('embedded payload recommendation matches envelope visible summary after round-trip', () => {
