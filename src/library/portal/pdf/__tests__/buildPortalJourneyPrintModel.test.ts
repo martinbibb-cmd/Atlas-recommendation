@@ -428,7 +428,7 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
     });
 
     expect(pack.staticPdf.recommendationReasons.some((reason) =>
-      reason.category === 'bathroom_count' && /stored hot water/i.test(reason.summary),
+      reason.category === 'bathroom_count' && /stored hot water/i.test(reason.atlasRecommendationOutcome),
     )).toBe(true);
   });
 
@@ -459,7 +459,7 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
     });
 
     expect(pack.staticPdf.recommendationReasons.some((reason) =>
-      reason.category === 'mains_flow_pressure' && /unvented hot-water confidence/i.test(reason.summary),
+      reason.category === 'mains_flow_pressure' && /mains-fed stored hot water confidence/i.test(reason.atlasRecommendationOutcome),
     )).toBe(true);
   });
 
@@ -488,7 +488,7 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
     });
 
     expect(pack.staticPdf.recommendationReasons.some((reason) =>
-      reason.category === 'loft_cylinder_location_constraint' && /open-vented hot-water routes are limited/i.test(reason.summary),
+      reason.category === 'loft_cylinder_location_constraint' && /open-vented routes depend on loft tank capacity/i.test(reason.whyItMatters),
     )).toBe(true);
   });
 
@@ -523,7 +523,7 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
     });
 
     expect(pack.staticPdf.recommendationReasons.some((reason) =>
-      reason.category === 'protection_system_condition' && /protection/i.test(reason.title),
+      reason.category === 'protection_system_condition' && /protection/i.test(reason.homeFact),
     )).toBe(true);
   });
 
@@ -536,7 +536,13 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
     });
 
     const text = pack.staticPdf.recommendationReasons
-      .flatMap((reason) => [reason.title, reason.summary, reason.detail ?? ''])
+      .flatMap((reason) => [
+        reason.homeFact,
+        reason.whyItMatters,
+        reason.atlasRecommendationOutcome,
+        reason.practicalEffect,
+        reason.detail ?? '',
+      ])
       .join(' ')
       .toLowerCase();
     expect(text).not.toContain('0 bathrooms');

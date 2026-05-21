@@ -63,8 +63,10 @@ export type RecommendationReasonCategoryV1 =
 export interface RecommendationReasonBlockV1 {
   id: string;
   category: RecommendationReasonCategoryV1;
-  title: string;
-  summary: string;
+  homeFact: string;
+  whyItMatters: string;
+  atlasRecommendationOutcome: string;
+  practicalEffect: string;
   detail?: string;
 }
 
@@ -711,6 +713,70 @@ function isSuitableMainsSupply(mains: { pressureBar?: number; flowLpm?: number; 
   return pressureOk && flowOk;
 }
 
+function inferHomeFactFromEngineReason(
+  text: string,
+  category: RecommendationReasonCategoryV1,
+): string {
+  const lower = text.toLowerCase();
+  if (category === 'bathroom_count') return 'Bathroom layout and hot-water overlap risk';
+  if (category === 'mains_flow_pressure') return 'Measured mains-fed supply conditions';
+  if (category === 'protection_system_condition') return 'System condition and protection signals';
+  if (category === 'future_upgrade_readiness') return 'Future home-change demand signals';
+  if (lower.includes('occupancy') || lower.includes('household')) return 'Household demand profile';
+  return 'Survey and engine constraints for this home';
+}
+
+function inferOutcomeFromEngineReason(category: RecommendationReasonCategoryV1): string {
+  if (category === 'bathroom_count') return 'Atlas matched the route to bathroom concurrency demand.';
+  if (category === 'mains_flow_pressure') return 'Atlas gated route confidence using measured supply limits.';
+  if (category === 'protection_system_condition') return 'Atlas included system protection actions in the route.';
+  if (category === 'future_upgrade_readiness') return 'Atlas checked the route against likely future demand.';
+  return 'Atlas used this signal in route selection checks.';
+}
+
+function inferPracticalEffectFromEngineReason(category: RecommendationReasonCategoryV1): string {
+  if (category === 'bathroom_count') return 'Hot-water overlap is less likely to disrupt routine use.';
+  if (category === 'mains_flow_pressure') return 'Expected outlet performance stays grounded in measured supply reality.';
+  if (category === 'protection_system_condition') return 'Long-term efficiency and reliability risk is reduced.';
+  if (category === 'future_upgrade_readiness') return 'The recommendation remains useful if demand grows later.';
+  return 'The recommendation remains aligned with your home constraints.';
+}
+
+function inferReasonFromCustomerFact(fact: string): Omit<RecommendationReasonBlockV1, 'id' | 'category' | 'detail'> {
+  const lower = fact.toLowerCase();
+  if (lower.includes('bathroom')) {
+    return {
+      homeFact: fact,
+      whyItMatters: 'Bathroom count affects overlap risk during busy periods.',
+      atlasRecommendationOutcome: 'Atlas checked route suitability against bathroom-driven demand.',
+      practicalEffect: 'Daily shower and tap use is less likely to clash.',
+    };
+  }
+  if (lower.includes('person') || lower.includes('household') || lower.includes('occupancy')) {
+    return {
+      homeFact: fact,
+      whyItMatters: 'Occupancy level changes hot-water and heating demand profiles.',
+      atlasRecommendationOutcome: 'Atlas sized the route around your household usage level.',
+      practicalEffect: 'Day-to-day comfort and hot-water delivery are better matched to your home.',
+    };
+  }
+  if (lower.includes('mains') || lower.includes('pressure') || lower.includes('flow')) {
+    return {
+      homeFact: fact,
+      whyItMatters: 'Mains-fed supply quality affects outlet confidence and concurrency.',
+      atlasRecommendationOutcome: 'Atlas used these supply signals in route confidence checks.',
+      practicalEffect: 'Performance expectations stay realistic for your measured supply.',
+    };
+  }
+
+  return {
+    homeFact: fact,
+    whyItMatters: 'This affects demand and installation constraints for the route.',
+    atlasRecommendationOutcome: 'Atlas used this fact directly in route and sizing checks.',
+    practicalEffect: 'The selected recommendation is shaped by your surveyed home profile.',
+  };
+}
+
 function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1): RecommendationReasonBlockV1[] {
   const surveyInput = resolveSurveyInput(input);
   const visitEnvelope = resolveVisitEnvelope(input);
@@ -721,7 +787,12 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
 
   const pushReason = (reason: RecommendationReasonBlockV1) => {
     if (seenCategory.has(reason.category)) return;
-    if (!hasText(reason.title) || !hasText(reason.summary)) return;
+    if (
+      !hasText(reason.homeFact)
+      || !hasText(reason.whyItMatters)
+      || !hasText(reason.atlasRecommendationOutcome)
+      || !hasText(reason.practicalEffect)
+    ) return;
     seenCategory.add(reason.category);
     reasons.push(reason);
   };
@@ -745,8 +816,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'household-demand',
       category: 'household_demand',
-      title: 'Household demand profile',
-      summary: `Atlas sized the route for a ${formatHouseholdCount(occupancyCount)} so normal hot-water demand stays practical through busy periods.`,
+      homeFact: formatHouseholdCount(occupancyCount),
+      whyItMatters: 'More occupants increase overlapping hot-water demand during busy periods.',
+      atlasRecommendationOutcome: 'Atlas sized the route for this household demand profile.',
+      practicalEffect: 'Busy-period hot-water use stays more consistent day to day.',
       detail: 'The recommendation uses household demand as the baseline, rather than assuming one-user usage only.',
     });
   }
@@ -760,16 +833,20 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'bathrooms-stored-hot-water',
       category: 'bathroom_count',
-      title: 'Bathroom layout support',
-      summary: `Because this home has ${formatBathroomCount(bathroomCount)} and mains-fed supply is suitable, Atlas recommends stored hot water so daily routines are less likely to clash.`,
+      homeFact: formatBathroomCount(bathroomCount),
+      whyItMatters: 'Hot-water demand can overlap across bathrooms at peak times.',
+      atlasRecommendationOutcome: 'Atlas selected stored hot water with suitable mains-fed supply checks.',
+      practicalEffect: 'One person can shower while another outlet is used with less temperature drop risk.',
       detail: 'Stored hot water keeps a reserve ready for overlapping outlet use instead of relying on a single on-demand stream.',
     });
   } else if (bathroomCount != null && bathroomCount > 0) {
     pushReason({
       id: 'bathroom-count',
       category: 'bathroom_count',
-      title: 'Bathroom count impact',
-      summary: `${formatBathroomCount(bathroomCount)} were included directly in Atlas sizing checks so hot-water service matches day-to-day use.`,
+      homeFact: formatBathroomCount(bathroomCount),
+      whyItMatters: 'Bathroom count changes expected daily hot-water demand patterns.',
+      atlasRecommendationOutcome: 'Atlas included bathroom demand directly in sizing checks.',
+      practicalEffect: 'Hot-water service is matched to normal household routines.',
     });
   }
 
@@ -777,16 +854,20 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'mains-limited',
       category: 'mains_flow_pressure',
-      title: 'Mains-fed supply boundary',
-      summary: 'Measured mains-fed supply is limited, so Atlas does not treat unvented hot-water confidence as automatic.',
+      homeFact: 'Measured mains-fed supply is limited',
+      whyItMatters: 'Lower flow or pressure reduces confidence in peak outlet performance.',
+      atlasRecommendationOutcome: 'Atlas did not treat mains-fed stored hot water confidence as automatic.',
+      practicalEffect: 'The route avoids over-promising performance where supply is constrained.',
       detail: 'The recommendation avoids over-promising outlet performance where dynamic pressure or flow is constrained.',
     });
   } else if ((mains.pressureBar != null && mains.pressureBar > 0) || (mains.flowLpm != null && mains.flowLpm > 0)) {
     pushReason({
       id: 'mains-suitable',
       category: 'mains_flow_pressure',
-      title: 'Mains-fed supply confidence',
-      summary: 'Measured mains-fed supply supports Atlas confidence in practical hot-water delivery for this home.',
+      homeFact: 'Measured mains-fed supply is suitable',
+      whyItMatters: 'Healthy flow and pressure support stable hot-water delivery expectations.',
+      atlasRecommendationOutcome: 'Atlas used the measured supply values in route confidence checks.',
+      practicalEffect: 'Day-to-day outlet performance is backed by survey measurements.',
       detail: 'Survey measurements were used directly in the hot-water route checks.',
     });
   }
@@ -798,8 +879,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'current-system-constraint',
       category: 'current_system_constraint',
-      title: 'Current system constraint',
-      summary: 'The current heating layout sets practical limits, so Atlas favours a route that removes known pressure and reliability weak points.',
+      homeFact: 'Current system layout has open-vented constraints',
+      whyItMatters: 'Existing pressure and reliability limits affect upgrade feasibility.',
+      atlasRecommendationOutcome: 'Atlas favoured a route that removes known weak points.',
+      practicalEffect: 'The upgrade is targeted to your existing system limits, not a generic swap.',
       detail: 'This recommendation is targeted at real constraints in the existing setup, not just a like-for-like replacement.',
     });
   }
@@ -808,16 +891,20 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'loft-space-limit',
       category: 'loft_cylinder_location_constraint',
-      title: 'Loft space constraint',
-      summary: 'There is no usable loft tank space, so open-vented hot-water routes are limited for this property.',
+      homeFact: 'No usable loft tank space',
+      whyItMatters: 'Open-vented routes depend on loft tank capacity.',
+      atlasRecommendationOutcome: 'Atlas prioritised routes that do not rely on loft tank storage.',
+      practicalEffect: 'The recommendation stays feasible for this property layout.',
       detail: 'Atlas prioritises routes that do not depend on loft tank capacity.',
     });
   } else if (surveyInput?.availableSpace === 'none') {
     pushReason({
       id: 'cylinder-space-limit',
       category: 'loft_cylinder_location_constraint',
-      title: 'Cylinder location constraint',
-      summary: 'Cylinder space is currently constrained, so Atlas highlighted only layouts that remain feasible for the surveyed location.',
+      homeFact: 'Cylinder location space is constrained',
+      whyItMatters: 'Layout limits can rule out otherwise suitable routes.',
+      atlasRecommendationOutcome: 'Atlas highlighted only feasible layouts for the surveyed location.',
+      practicalEffect: 'You avoid recommendations that are difficult to install in your home.',
     });
   }
 
@@ -825,8 +912,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'simultaneous-draw',
       category: 'simultaneous_hot_water_use',
-      title: 'Simultaneous hot-water use',
-      summary: `Peak use indicates ${peakConcurrentOutlets} outlets can overlap, so Atlas favours a route with stronger concurrency resilience.`,
+      homeFact: `Peak overlap: ${peakConcurrentOutlets} outlets`,
+      whyItMatters: 'Overlapping outlets increase the chance of pressure and temperature dips.',
+      atlasRecommendationOutcome: 'Atlas favoured a route with stronger concurrent-use resilience.',
+      practicalEffect: 'Routine overlap is less likely to cause abrupt hot-water drop-offs.',
       detail: 'This lowers the chance of routine overlap causing abrupt temperature or flow drop-offs.',
     });
   }
@@ -862,8 +951,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'protection-condition',
       category: 'protection_system_condition',
-      title: 'Protection and system condition',
-      summary: 'Survey condition signals show protection work is important, so Atlas includes cleaning and long-term circuit protection in the route.',
+      homeFact: 'Survey condition signals show circuit protection risk',
+      whyItMatters: 'Sludge and mixed-metal indicators can reduce efficiency and reliability.',
+      atlasRecommendationOutcome: 'Atlas included cleaning and long-term protection steps in the route.',
+      practicalEffect: 'The system is more likely to run efficiently and reliably after installation.',
       detail: 'Where sludge or mixed-metal risk is present, the recommendation includes actions that protect efficiency and reliability after installation.',
     });
   }
@@ -876,8 +967,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     pushReason({
       id: 'future-ready',
       category: 'future_upgrade_readiness',
-      title: 'Future upgrade readiness',
-      summary: 'Atlas included future-home plans so the recommendation stays practical if demand increases later.',
+      homeFact: 'Future home changes are planned',
+      whyItMatters: 'Future bathrooms or loft conversion can increase demand.',
+      atlasRecommendationOutcome: 'Atlas included future-demand checks in the selected route.',
+      practicalEffect: 'You are less likely to need near-term rework when plans happen.',
       detail: 'This helps avoid a near-term rework when planned household changes happen.',
     });
   }
@@ -900,8 +993,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
       pushReason({
         id: `engine-reason-${reasons.length + 1}`,
         category,
-        title: 'Recommendation reason',
-        summary: reason.text,
+        homeFact: inferHomeFactFromEngineReason(reason.text, category),
+        whyItMatters: reason.text,
+        atlasRecommendationOutcome: inferOutcomeFromEngineReason(category),
+        practicalEffect: inferPracticalEffectFromEngineReason(category),
       });
     }
   }
@@ -911,11 +1006,11 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
       if (reasons.length >= 5) break;
       if (!hasText(fact)) continue;
       if (/^\s*0(\D|$)/.test(fact)) continue;
+      const factReason = inferReasonFromCustomerFact(fact);
       pushReason({
         id: `customer-fact-${reasons.length + 1}`,
         category: 'household_demand',
-        title: 'Survey fact used in recommendation',
-        summary: `${fact} directly shaped Atlas system checks for this home.`,
+        ...factReason,
       });
     }
   }
@@ -969,7 +1064,11 @@ function buildPortalJourneyPrintModelCore(
     : rawSections;
 
   const normalizedRecommendationReasons = (recommendationReasons ?? [])
-    .filter((reason) => hasText(reason.title) && hasText(reason.summary))
+    .filter((reason) =>
+      hasText(reason.homeFact)
+      && hasText(reason.whyItMatters)
+      && hasText(reason.atlasRecommendationOutcome)
+      && hasText(reason.practicalEffect))
     .slice(0, 5);
   const usedPages = Math.min(1 + (normalizedRecommendationReasons.length > 0 ? 1 : 0) + sections.length + 1, 7);
   const systemProtection = surveyCondition != null

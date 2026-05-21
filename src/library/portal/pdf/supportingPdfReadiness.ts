@@ -56,8 +56,10 @@ function collectCustomerFacingText(model: PortalJourneyPrintModelV1): string[] {
     ...section.items,
   ]);
   const recommendationReasonText = model.recommendationReasons.flatMap((reason) => [
-    reason.title,
-    reason.summary,
+    reason.homeFact,
+    reason.whyItMatters,
+    reason.atlasRecommendationOutcome,
+    reason.practicalEffect,
     ...(reason.detail ? [reason.detail] : []),
   ]);
 

@@ -16,6 +16,7 @@ import {
   inferCustomerJourneyTypeFromSystemContext,
   type CustomerJourneyPackV1,
 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
+import { REASON_ICON_BY_CATEGORY } from '../../library/portal/pdf/recommendationReasonVisuals';
 import { CustomerPortalJourneySectionV1 } from './CustomerPortalJourneySectionV1';
 import './customerPortalJourney.css';
 
@@ -723,13 +724,31 @@ export function CustomerPortalJourneyComposer({
             sectionId="recommendation-reasons"
             eyebrow="Why this recommendation fits your home"
             title="How survey facts shaped the route"
-            intro="Atlas links measured home conditions to practical day-to-day outcomes, so the recommendation is explained in plain language."
+            intro="Scan each card: home fact, why it matters, Atlas choice, and what you will notice."
           >
             <div className="customer-portal-journey__reason-grid" data-testid="customer-portal-reason-grid">
               {recommendationReasons.map((reason) => (
                 <article key={reason.id} className="customer-portal-journey__reason-card">
-                  <p className="customer-portal-journey__summary-label">{reason.title}</p>
-                  <p className="customer-portal-journey__card-copy">{reason.summary}</p>
+                  <h3 className="customer-portal-journey__reason-title">
+                    <span aria-hidden="true" className="customer-portal-journey__reason-icon">
+                      {REASON_ICON_BY_CATEGORY[reason.category]}
+                    </span>
+                    <span>{reason.homeFact}</span>
+                  </h3>
+                  <dl className="customer-portal-journey__reason-rows">
+                    <div className="customer-portal-journey__reason-row">
+                      <dt>Why it matters</dt>
+                      <dd>{reason.whyItMatters}</dd>
+                    </div>
+                    <div className="customer-portal-journey__reason-row">
+                      <dt>Atlas chose</dt>
+                      <dd>{reason.atlasRecommendationOutcome}</dd>
+                    </div>
+                    <div className="customer-portal-journey__reason-row customer-portal-journey__reason-row--outcome">
+                      <dt>What you will notice</dt>
+                      <dd>{reason.practicalEffect}</dd>
+                    </div>
+                  </dl>
                   {reason.detail ? (
                     <details className="customer-portal-journey__reason-detail">
                       <summary>Show me why</summary>
