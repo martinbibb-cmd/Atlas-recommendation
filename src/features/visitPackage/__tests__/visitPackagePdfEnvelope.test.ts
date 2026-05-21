@@ -218,6 +218,15 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     }
   });
 
+  it('keeps packageEmbedded visible journey content free of wrapper-only import copy', () => {
+    const pkg = makePackage();
+    const envelope = buildVisitPackagePdfEnvelope({ packagePayload: pkg });
+    const pdf = renderVisitPackagePdfDocument(envelope);
+    expect(pdf).not.toContain('This document contains an embedded Atlas package for digital import.');
+    expect(pdf).toContain('Why this recommendation fits your home');
+    expect(pdf).toContain('What happens next');
+  });
+
   it('embedded payload recommendation matches envelope visible summary after round-trip', () => {
     const pkg = makePackage();
     const envelope = buildVisitPackagePdfEnvelope({ packagePayload: pkg });

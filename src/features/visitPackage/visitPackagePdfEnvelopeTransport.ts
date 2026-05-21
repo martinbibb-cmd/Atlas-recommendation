@@ -7,6 +7,15 @@ import {
   VISIT_PACKAGE_PDF_ENVELOPE_VERSION,
   type VisitPackagePdfEnvelopeV1,
 } from './VisitPackagePdfEnvelopeV1';
+import {
+  buildCustomerDocumentModel,
+  type CustomerDocumentModelV1,
+  type CustomerDocumentSectionV1,
+} from '../../library/portal/pdf/CustomerDocumentRenderer';
+import {
+  readCustomerJourneyPackFromGeneratedOutputs,
+  type PortalJourneyPrintModelV1,
+} from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 
 export const VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_BEGIN';
 export const VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_END';
@@ -20,38 +29,13 @@ const PDF_PAGE_H = 792;
 const PDF_MARGIN_L = 50;
 const PDF_TEXT_TOP_Y = 755;
 const PDF_MIN_Y = 55; // Page bottom boundary
+const REASSURANCE_HEADING = 'Reassurance';
+const INSTALLER_CHECK_HEADING = 'Installer check';
+const DEEP_DIVE_LINKS_HEADING = 'Deep dive links (optional)';
 
 type VisitPackagePdfEnvelopeExtractionResult =
   | { readonly ok: true; readonly envelope: VisitPackagePdfEnvelopeV1 }
   | { readonly ok: false; readonly errors: readonly string[] };
-
-// ─── Minimal CustomerJourneyPackV1 shape (avoids circular import) ─────────────
-
-interface MinimalPrintSection {
-  readonly heading: string;
-  readonly summary: string;
-  readonly keyTakeaway: string;
-  readonly items: readonly string[];
-}
-
-interface MinimalPrintNextStep {
-  readonly label: string;
-  readonly body: string;
-}
-
-interface MinimalPrintCover {
-  readonly title: string;
-  readonly summary: string;
-  readonly customerFacts: readonly string[];
-  readonly brandName?: string;
-  readonly addressSummary?: string;
-}
-
-interface MinimalStaticPdf {
-  readonly cover: MinimalPrintCover;
-  readonly sections: readonly MinimalPrintSection[];
-  readonly nextSteps: readonly MinimalPrintNextStep[];
-}
 
 // ─── Layout item types ────────────────────────────────────────────────────────
 
@@ -151,10 +135,6 @@ function wordWrap(text: string, maxChars: number): readonly string[] {
   return lines.length > 0 ? lines : [text.slice(0, maxChars)];
 }
 
-function textItem(font: PdfFont, size: number, text: string): PdfTextItem {
-  return { kind: 'text', font, size, lineHeight: Math.round(size * 1.35), text };
-}
-
 function titleItem(text: string): PdfTextItem {
   return { kind: 'text', font: 'F2', size: 16, lineHeight: 22, text };
 }
@@ -181,88 +161,73 @@ function gapItem(height: number): PdfGapItem {
 
 // ─── Customer journey content extraction ──────────────────────────────────────
 
-function extractCustomerJourneyPack(envelope: VisitPackagePdfEnvelopeV1): MinimalStaticPdf | undefined {
-  try {
-    const pkgAsUnknown = envelope.canonicalVisitPackage as unknown;
-    const pkgRecord = isRecord(pkgAsUnknown) ? pkgAsUnknown : undefined;
-    if (!pkgRecord) return undefined;
-    const outputStatus = isRecord(pkgRecord['generatedOutputStatus']) ? pkgRecord['generatedOutputStatus'] : undefined;
-    if (!outputStatus) return undefined;
-    const generatedOutputs = isRecord(outputStatus['generatedOutputs']) ? outputStatus['generatedOutputs'] : undefined;
-    if (!generatedOutputs) return undefined;
-    const journeyPackEntry = isRecord(generatedOutputs['customerJourneyPack']) ? generatedOutputs['customerJourneyPack'] : undefined;
-    if (!journeyPackEntry) return undefined;
-    const payload = isRecord(journeyPackEntry['payload']) ? journeyPackEntry['payload'] : undefined;
-    if (!isRecord(payload)) return undefined;
-    if (!isRecord(payload['staticPdf'])) return undefined;
-    const sp = payload['staticPdf'] as Record<string, unknown>;
-    if (!isRecord(sp['cover'])) return undefined;
-    const cover = sp['cover'] as Record<string, unknown>;
-    return {
-      cover: {
-        title: hasText(cover['title']) ? cover['title'] : '',
-        summary: hasText(cover['summary']) ? cover['summary'] : '',
-        customerFacts: Array.isArray(cover['customerFacts'])
-          ? (cover['customerFacts'] as unknown[]).filter((f): f is string => hasText(f))
-          : [],
-        brandName: hasText(cover['brandName']) ? cover['brandName'] : undefined,
-        addressSummary: hasText(cover['addressSummary']) ? cover['addressSummary'] : undefined,
-      },
-      sections: Array.isArray(sp['sections'])
-        ? (sp['sections'] as unknown[]).filter(isRecord).map((s) => ({
-            heading: hasText(s['heading']) ? s['heading'] : '',
-            summary: hasText(s['summary']) ? s['summary'] : '',
-            keyTakeaway: hasText(s['keyTakeaway']) ? s['keyTakeaway'] : '',
-            items: Array.isArray(s['items'])
-              ? (s['items'] as unknown[]).filter((i): i is string => hasText(i))
-              : [],
-          }))
-        : [],
-      nextSteps: Array.isArray(sp['nextSteps'])
-        ? (sp['nextSteps'] as unknown[]).filter(isRecord).map((n) => ({
-            label: hasText(n['label']) ? n['label'] : '',
-            body: hasText(n['body']) ? n['body'] : '',
-          }))
-        : [],
-    };
-  } catch {
-    return undefined;
-  }
+function buildFallbackPrintModel(envelope: VisitPackagePdfEnvelopeV1): PortalJourneyPrintModelV1 {
+  const fallbackSummary = hasText(envelope.visibleContent.recommendationSummary)
+    ? envelope.visibleContent.recommendationSummary
+    : 'Journey recommendation details are missing or incomplete in this export package. Please regenerate the visit package so all customer guidance is included.';
+  return {
+    cover: {
+      title: envelope.title,
+      summary: fallbackSummary,
+      customerFacts: [...envelope.visibleContent.customerPropertySummary],
+    },
+    recommendationReasons: [],
+    sections: [],
+    nextSteps: [],
+    qrDestinations: [],
+    pageEstimate: {
+      usedPages: 1,
+      maxPages: 7,
+    },
+  };
+}
+
+function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerDocumentModelV1 {
+  const packagedJourney = readCustomerJourneyPackFromGeneratedOutputs(
+    envelope.canonicalVisitPackage.generatedOutputStatus?.generatedOutputs,
+  );
+  return buildCustomerDocumentModel({
+    model: packagedJourney?.staticPdf ?? buildFallbackPrintModel(envelope),
+    mode: 'packageEmbedded',
+  });
 }
 
 // ─── Layout item builders ─────────────────────────────────────────────────────
 
-function buildCoverItems(envelope: VisitPackagePdfEnvelopeV1, pack?: MinimalStaticPdf): PdfLayoutItem[] {
+function buildCoverItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
   const items: PdfLayoutItem[] = [];
 
-  // Title: use pack cover title (real recommendation label) if available
-  const titleText = pack?.cover.title ?? envelope.title;
+  const titleText = documentModel.cover.title;
   for (const line of wordWrap(titleText, wrapWidth(16))) {
     items.push(titleItem(line));
   }
   items.push(gapItem(8));
 
-  // Visit metadata
-  items.push(smallItem(`Visit reference: ${envelope.visitReference}`));
-  items.push(smallItem(`Generated: ${envelope.generatedAt}`));
-  items.push(gapItem(16));
+  if (hasText(documentModel.cover.brandName)) {
+    for (const line of wordWrap(documentModel.cover.brandName, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+    items.push(gapItem(8));
+  }
 
-  // Address summary from pack cover
-  if (pack != null && hasText(pack.cover.addressSummary)) {
-    for (const line of wordWrap(pack.cover.addressSummary, wrapWidth(11))) {
+  if (hasText(documentModel.cover.summary)) {
+    for (const line of wordWrap(documentModel.cover.summary, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+    items.push(gapItem(10));
+  }
+
+  if (hasText(documentModel.cover.addressSummary)) {
+    for (const line of wordWrap(documentModel.cover.addressSummary, wrapWidth(11))) {
       items.push(bodyItem(line));
     }
     items.push(gapItem(12));
   }
 
-  // Customer facts
-  const facts = pack?.cover.customerFacts?.length
-    ? pack.cover.customerFacts
-    : envelope.visibleContent.customerPropertySummary;
-  if (facts.length > 0) {
+  if (documentModel.cover.customerFacts.length > 0) {
     items.push(headingItem('Your home'));
     items.push(gapItem(5));
-    for (const fact of facts) {
+    for (const fact of documentModel.cover.customerFacts) {
       for (const line of wordWrap(`- ${fact}`, wrapWidth(11))) {
         items.push(bodyItem(line));
       }
@@ -270,38 +235,33 @@ function buildCoverItems(envelope: VisitPackagePdfEnvelopeV1, pack?: MinimalStat
     items.push(gapItem(14));
   }
 
-  // Recommendation summary
-  if (hasText(envelope.visibleContent.recommendationSummary)) {
-    items.push(headingItem('What Atlas recommends'));
-    items.push(gapItem(5));
-    for (const line of wordWrap(envelope.visibleContent.recommendationSummary, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    items.push(gapItem(14));
-  }
-
-  // Pack cover summary (the full explanation paragraph)
-  if (pack != null && hasText(pack.cover.summary)) {
-    for (const line of wordWrap(pack.cover.summary, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    items.push(gapItem(14));
-  }
-
-  // Status
-  items.push(smallItem(envelope.visibleContent.generatedOutputStatus));
-  items.push(gapItem(12));
-
-  // Atlas import instructions
-  items.push(subHeadingItem('Open with Atlas'));
-  for (const inst of envelope.visibleContent.openWithAtlasInstructions) {
-    items.push(smallItem(`- ${inst}`));
-  }
-
   return items;
 }
 
-function buildSectionItems(section: MinimalPrintSection): PdfLayoutItem[] {
+function buildRecommendationReasonsItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
+  if (documentModel.recommendationReasons.length === 0) return [];
+  const items: PdfLayoutItem[] = [];
+  items.push(headingItem('Why this recommendation fits your home'));
+  items.push(gapItem(8));
+  for (const reason of documentModel.recommendationReasons) {
+    for (const line of wordWrap(reason.title, wrapWidth(11))) {
+      items.push(subHeadingItem(line));
+    }
+    for (const line of wordWrap(reason.summary, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+    if (hasText(reason.detail)) {
+      for (const line of wordWrap(reason.detail, wrapWidth(11))) {
+        items.push(bodyItem(line));
+      }
+    }
+    items.push(gapItem(10));
+  }
+  items.push(gapItem(10));
+  return items;
+}
+
+function buildSectionItems(section: CustomerDocumentSectionV1): PdfLayoutItem[] {
   const items: PdfLayoutItem[] = [];
 
   for (const line of wordWrap(section.heading, wrapWidth(13))) {
@@ -328,15 +288,48 @@ function buildSectionItems(section: MinimalPrintSection): PdfLayoutItem[] {
     }
   }
 
+  if (hasText(section.reassurance)) {
+    items.push(gapItem(10));
+    items.push(subHeadingItem(REASSURANCE_HEADING));
+    for (const line of wordWrap(section.reassurance, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+  }
+
   items.push(gapItem(20));
   return items;
 }
 
-function buildNextStepsItems(nextSteps: readonly MinimalPrintNextStep[]): PdfLayoutItem[] {
+function buildSystemProtectionItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
+  if (documentModel.systemProtection == null) return [];
+  const items: PdfLayoutItem[] = [];
+  items.push(headingItem(documentModel.systemProtection.title));
+  items.push(gapItem(8));
+  for (const line of wordWrap(documentModel.systemProtection.customerSummary, wrapWidth(11))) {
+    items.push(bodyItem(line));
+  }
+  items.push(gapItem(8));
+  for (const bullet of documentModel.systemProtection.customerVisibleBullets) {
+    for (const line of wordWrap(`- ${bullet}`, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+  }
+  if (hasText(documentModel.systemProtection.whatInstallerWillCheck)) {
+    items.push(gapItem(10));
+    items.push(subHeadingItem(INSTALLER_CHECK_HEADING));
+    for (const line of wordWrap(documentModel.systemProtection.whatInstallerWillCheck, wrapWidth(11))) {
+      items.push(bodyItem(line));
+    }
+  }
+  items.push(gapItem(20));
+  return items;
+}
+
+function buildNextStepsItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
   const items: PdfLayoutItem[] = [];
   items.push(headingItem('What happens next'));
   items.push(gapItem(8));
-  for (const step of nextSteps) {
+  for (const step of documentModel.nextSteps) {
     if (hasText(step.label)) {
       items.push(subHeadingItem(step.label));
     }
@@ -347,8 +340,23 @@ function buildNextStepsItems(nextSteps: readonly MinimalPrintNextStep[]): PdfLay
     }
     items.push(gapItem(10));
   }
-  items.push(gapItem(14));
-  items.push(smallItem('This document contains an embedded Atlas package for digital import.'));
+  if (documentModel.qrDestinations.length > 0) {
+    items.push(subHeadingItem(DEEP_DIVE_LINKS_HEADING));
+    items.push(gapItem(6));
+    for (const destination of documentModel.qrDestinations) {
+      if (hasText(destination.heading)) {
+        for (const line of wordWrap(destination.heading, wrapWidth(11))) {
+          items.push(bodyItem(line));
+        }
+      }
+      if (hasText(destination.note)) {
+        for (const line of wordWrap(destination.note, wrapWidth(11))) {
+          items.push(smallItem(line));
+        }
+      }
+      items.push(gapItem(8));
+    }
+  }
   return items;
 }
 
@@ -497,27 +505,19 @@ export function renderVisitPackagePdfDocument(envelope: VisitPackagePdfEnvelopeV
   const payloadBase64 = encodeBase64Utf8(JSON.stringify(envelope));
   const payloadStream = `${VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER}\n${payloadBase64}\n${VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER}`;
 
-  const pack = extractCustomerJourneyPack(envelope);
+  const customerDocument = resolveCustomerDocument(envelope);
 
   // Build layout items for all pages
   const allItems: PdfLayoutItem[] = [
-    ...buildCoverItems(envelope, pack),
+    ...buildCoverItems(customerDocument),
+    ...buildRecommendationReasonsItems(customerDocument),
   ];
 
-  if (pack != null) {
-    for (const section of pack.sections) {
-      allItems.push(...buildSectionItems(section));
-    }
-    if (pack.nextSteps.length > 0) {
-      allItems.push(...buildNextStepsItems(pack.nextSteps));
-    } else {
-      allItems.push(...buildNextStepsItems([]));
-    }
-  } else {
-    // Fallback: no pack, minimal footer
-    allItems.push(gapItem(20));
-    allItems.push(textItem('F1', 9, 'This document contains an embedded Atlas package for digital import.'));
+  for (const section of customerDocument.sections) {
+    allItems.push(...buildSectionItems(section));
   }
+  allItems.push(...buildSystemProtectionItems(customerDocument));
+  allItems.push(...buildNextStepsItems(customerDocument));
 
   const pages = paginateItems(allItems);
   const contentStreams = pages.map(renderPageContentStream);

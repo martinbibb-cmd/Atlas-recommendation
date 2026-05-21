@@ -20,6 +20,7 @@ import type {
   RecommendationReasonBlockV1,
 } from './buildPortalJourneyPrintModel';
 import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
+import { buildCustomerDocumentModel, type CustomerDocumentRendererMode } from './CustomerDocumentRenderer';
 import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
 import { PrintableComparisonCard, PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
@@ -108,7 +109,7 @@ interface PrintSectionProps {
 }
 
 interface PrintRecommendationReasonsProps {
-  reasons: RecommendationReasonBlockV1[];
+  reasons: readonly RecommendationReasonBlockV1[];
   pageNumber: number;
 }
 
@@ -288,6 +289,7 @@ function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStep
 
 export interface PortalJourneyPrintPackProps {
   model: PortalJourneyPrintModelV1;
+  mode?: CustomerDocumentRendererMode;
 }
 
 /**
@@ -300,7 +302,11 @@ export interface PortalJourneyPrintPackProps {
  *   - Diagrams in print-safe mode
  *   - Page budget respected (max 7 pages)
  */
-export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
+export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJourneyPrintPackProps) {
+  const customerDocument = buildCustomerDocumentModel({
+    model,
+    mode,
+  });
   let pageCounter = 1;
 
   return (
@@ -308,16 +314,16 @@ export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
       className="pjpp-document atlas-reading-surface"
       data-testid="pjpp-document"
       data-print-safe="true"
-      aria-label="Supporting Insight PDF"
+      aria-label="Customer document"
     >
       <ReadingAssistOverlay />
-      <PrintCover cover={model.cover} pageNumber={pageCounter++} />
+      <PrintCover cover={customerDocument.cover} pageNumber={pageCounter++} />
 
-      {model.recommendationReasons.length > 0 ? (
-        <PrintRecommendationReasons reasons={model.recommendationReasons} pageNumber={pageCounter++} />
+      {customerDocument.recommendationReasons.length > 0 ? (
+        <PrintRecommendationReasons reasons={customerDocument.recommendationReasons} pageNumber={pageCounter++} />
       ) : null}
 
-      {model.sections.map((section) => (
+      {customerDocument.sections.map((section) => (
         <PrintSection
           key={section.sectionId}
           section={section}
@@ -325,16 +331,16 @@ export function PortalJourneyPrintPack({ model }: PortalJourneyPrintPackProps) {
         />
       ))}
 
-      {model.systemProtection != null ? (
+      {customerDocument.systemProtection != null ? (
         <PrintSystemProtection
-          systemProtection={model.systemProtection}
+          systemProtection={customerDocument.systemProtection}
           pageNumber={pageCounter++}
         />
       ) : null}
 
       <PrintNextSteps
-        nextSteps={model.nextSteps}
-        qrDestinations={model.qrDestinations}
+        nextSteps={customerDocument.nextSteps}
+        qrDestinations={customerDocument.qrDestinations}
         pageNumber={pageCounter++}
       />
     </article>
