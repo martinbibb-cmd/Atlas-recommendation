@@ -20,7 +20,7 @@ import {
 export const VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_BEGIN';
 export const VISIT_PACKAGE_PDF_PAYLOAD_END_MARKER = 'ATLAS_VISIT_PACKAGE_ENVELOPE_END';
 export const VISIT_PACKAGE_PDF_NO_MARKER_ERROR =
-  'No Atlas visit package payload marker found in PDF. This PDF is printable Atlas output only, not an importable visit package. Use Export visit package to create a .atlasvisit.pdf file.';
+  'No Atlas visit package payload marker found in PDF. This PDF is printable Atlas output only, not an importable visit package. Use Download customer PDF to create a .atlasvisit.pdf file.';
 
 // ─── PDF layout constants ──────────────────────────────────────────────────────
 

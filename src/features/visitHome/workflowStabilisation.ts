@@ -128,7 +128,7 @@ export function buildImportFailureStatus(
     return {
       tone: 'error',
       type: 'session',
-      message: 'Package import blocked: this PDF is a printable supporting PDF, not an Atlas visit package. Use “Export visit package” to create a .atlasvisit.pdf file with embedded package data.',
+      message: 'Package import blocked: this customer PDF is missing embedded Atlas package data. Download the customer PDF from Atlas to generate an importable .atlasvisit.pdf file.',
     };
   }
   return {
@@ -163,7 +163,7 @@ export function buildExportConfirmationStatus(
   return {
     tone: 'success',
     type: 'export',
-    message: `Exported Atlas visit package ${filename}. Printable content and embedded package data were downloaded to your device only.`,
+    message: `Downloaded customer PDF ${filename}. Printable content and embedded package data were saved to your device only.`,
     exportSummary: {
       includedItems,
     },
@@ -208,7 +208,7 @@ export function buildWorkflowQaChecklist(input: {
       status: input.hasRegeneratedDeliveryOutputs ? 'complete' : 'pending',
       detail: input.hasRegeneratedDeliveryOutputs
         ? 'Customer delivery outputs were regenerated after roundtrip import.'
-        : 'Generate customer portal and supporting PDF to validate delivery outputs.',
+        : 'Generate customer portal and customer PDF to validate delivery outputs.',
     },
     {
       id: 'export_package_again',

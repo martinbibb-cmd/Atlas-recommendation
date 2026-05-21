@@ -7,7 +7,7 @@
  *   1. Recommendation summary     (customer · engine · ready/needs-review/blocked)
  *   2. Customer portal            (customer · workflow · ready/blocked)
  *   3. Daily hot-water simulator  (surveyor/engineer · simulator · ready)
- *   4. Supporting PDF             (customer/office · library · ready/blocked)
+ *   4. Customer PDF               (customer/office · library · ready/blocked)
  *   5. Implementation workflow    (engineer · workflow · ready/blocked)
  *   6. Follow-up / scan handoff   (engineer · workflow · ready/blocked)
  *   7. Export package             (office · workflow · ready/blocked)
@@ -220,8 +220,8 @@ export interface VisitHomeDashboardProps {
   onRunRecommendation?: () => void;
   /** Generate and persist customer portal output artifact for this visit. */
   onGenerateCustomerPortal?: () => void;
-  /** Generate and persist supporting PDF output artifact for this visit. */
-  onGenerateSupportingPdf?: () => void;
+  /** Download the canonical customer PDF (with embedded package payload when available). */
+  onDownloadCustomerPdf?: () => void;
   /** Optional visit selector entries shown in lifecycle entry states. */
   visitSelectorEntries?: readonly VisitSelectorEntry[];
   /** Open a selected visit from the lightweight browser. */
@@ -516,7 +516,7 @@ export function VisitHomeDashboard({
   onContinueSurvey,
   onRunRecommendation,
   onGenerateCustomerPortal,
-  onGenerateSupportingPdf,
+  onDownloadCustomerPdf,
   visitSelectorEntries = [],
   onSelectVisit,
   localSessionStatus = null,
@@ -559,7 +559,6 @@ export function VisitHomeDashboard({
   );
   const legacyReadinessMode = isLegacyVisitReadinessMode(visitEnvelope, lifecycleState);
   const portalOutputAvailable = projectedReadiness.portalOutputAvailable;
-  const supportingPdfOutputAvailable = projectedReadiness.supportingPdfOutputAvailable;
   const handoffOutputAvailable = projectedReadiness.handoffOutputAvailable
     || (legacyReadinessMode && mergedOutputs.handoff.generated);
   const exportOutputAvailable = projectedReadiness.exportOutputAvailable || hasReachedExportedState === true;
@@ -602,7 +601,7 @@ export function VisitHomeDashboard({
   const portalDescription = viewModel.portalMissingMessage
     ?? 'Customer-safe portal for review before sharing.';
   const supportingPdfDescription = viewModel.supportingPdfMissingMessage
-    ?? 'Printable customer-facing supporting PDF for review and handover. Not an Atlas visit package import file.';
+    ?? 'Canonical customer PDF for sharing and printing. Includes embedded Atlas package payload when available.';
   const actionProjection = buildVisitHomeActionProjection({
     workspaceRole,
     workspacePermissions,
@@ -696,17 +695,17 @@ export function VisitHomeDashboard({
       case 'supporting-pdf':
         if (reason === REASON_LIBRARY_SAFETY_REVIEW || isPDFQABlocked(reason)) {
           return {
-            why: 'The supporting PDF is blocked by customer-readiness or library safety checks.',
-            actionDescription: 'Fix PDF readiness blockers',
-            nextStep: 'Fix PDF readiness blockers',
+            why: 'Customer PDF download is blocked by customer-readiness or library safety checks.',
+            actionDescription: 'Fix customer PDF blockers',
+            nextStep: 'Fix customer PDF blockers',
           };
         }
         return {
           why: status === 'needs-review'
-            ? 'A recommendation exists, but the supporting PDF has not been generated yet.'
-            : 'Recommendation output is not accepted or available for PDF generation.',
-          actionDescription: 'Generate supporting PDF',
-          nextStep: 'Generate supporting PDF',
+            ? 'A recommendation exists, but customer PDF download is not ready yet.'
+            : 'Recommendation output is not accepted or available for customer PDF download.',
+          actionDescription: 'Prepare customer PDF',
+          nextStep: 'Prepare customer PDF',
         };
       case 'run-simulator':
         return {
@@ -1140,16 +1139,16 @@ export function VisitHomeDashboard({
                 <DashboardCard
                   data-testid="card-pdf"
                   icon="📄"
-                  title="Library supporting PDF"
+                  title="Customer PDF"
                   description={supportingPdfDescription}
                   status={actionStatus('supporting-pdf', pdfStatus)}
                   blockedReason={actionReason('supporting-pdf')}
                   actionableState={actionableStateFor('supporting-pdf', pdfStatus)}
                   audience={['customer', 'office']}
                   source="library"
-                  ctaLabel={supportingPdfOutputAvailable ? 'Print / save supporting PDF →' : 'Generate supporting PDF →'}
+                  ctaLabel="Download customer PDF →"
                   onCta={canTriggerAction('supporting-pdf', pdfStatus, 'not-blocked')
-                    ? (supportingPdfOutputAvailable ? onPrintSummary : onGenerateSupportingPdf)
+                    ? onDownloadCustomerPdf
                     : undefined}
                 />
               )}
@@ -1278,7 +1277,7 @@ export function VisitHomeDashboard({
           </div>
 
           {/* ── Local visit controls ──────────────────────────────────────── */}
-          {(onSaveLocally != null || onResumeLocalVisit != null || onClearSession != null || onImportWorkflowPackage != null || onExportPackage != null) && (
+          {(onSaveLocally != null || onResumeLocalVisit != null || onClearSession != null || onImportWorkflowPackage != null) && (
             <div className="vhd-readiness-panel vhd-local-controls" data-testid="visit-home-local-controls">
               <h2 className="vhd-panel-title">Visit session</h2>
               <div className="vhd-local-controls__actions">
@@ -1325,16 +1324,6 @@ export function VisitHomeDashboard({
                       />
                     )}
                   </>
-                )}
-                {onExportPackage != null && (
-                  <button
-                    type="button"
-                    className="vhd-inline-action"
-                    onClick={onExportPackage}
-                    data-testid="visit-home-export-package"
-                  >
-                    📦 Export visit package
-                  </button>
                 )}
                 {onClearSession != null && (
                   <button
