@@ -22,17 +22,16 @@ This document defines the controlled build order for LegoTechnix.
 - No topology renderer replacement
 - No recommendation changes
 
-## PR2 — First functional system template
+## PR2 — Circuit/domain path validation
 
-- Regular boiler or system boiler
-- Pump
-- Combined feed/vent or sealed expansion
-- S-plan or Y-plan controls
-- Indirect cylinder coil
-- Stored domestic water
-- Radiators
-- Return
-- Filter
+- CircuitId registry
+- Active circuit path definitions
+- Primary source/sink role declarations
+- Return-path validation back to source
+- Branch/merge semantics checks
+- Inline continuity checks for pump/filter/valves
+- Exchanger boundary validation across domains
+- Domestic cold/store/hot separation from primary circuit
 - Validation only
 
 ## PR3 — Closed-loop evaluation skeleton

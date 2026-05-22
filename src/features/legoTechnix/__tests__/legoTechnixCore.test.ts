@@ -170,4 +170,86 @@ describe('validateLegoTechnixGraphV1', () => {
       expect(connection.physical.routingConfidence).not.toBe('unknown');
     }
   });
+
+  it('11. every connection circuitId resolves in circuit registry', () => {
+    const circuitIds = new Set((simpleRegularBoilerGraph.circuitRegistry ?? []).map((circuit) => circuit.id));
+    for (const connection of simpleRegularBoilerGraph.connections) {
+      expect(circuitIds.has(connection.circuitId)).toBe(true);
+    }
+  });
+
+  it('12. active primary path reaches loads and returns to boiler', () => {
+    const primaryPath = simpleRegularBoilerGraph.activeCircuitPaths?.find(
+      (path) => path.id === 'active_primary_heating_cycle',
+    );
+    expect(primaryPath).toBeDefined();
+    expect(primaryPath?.sourceComponentId).toBe('regular_boiler');
+    expect(primaryPath?.sinkComponentId).toBe('radiator_emitter');
+    expect(primaryPath?.returnConnectionIds?.length).toBeGreaterThan(0);
+
+    const result = validateLegoTechnixGraphV1(simpleRegularBoilerGraph);
+    expect(result.errors.some((issue) => issue.code === 'primary_load_not_reached_by_source_flow')).toBe(false);
+    expect(result.errors.some((issue) => issue.code === 'primary_path_missing_return_path')).toBe(false);
+  });
+
+  it('13. missing primary return path fails', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const primaryPath = graph.activeCircuitPaths?.find((path) => path.id === 'active_primary_heating_cycle');
+    if (!primaryPath) {
+      throw new Error('Fixture primary path missing.');
+    }
+    primaryPath.returnConnectionIds = [];
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'primary_path_missing_return_path')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('14. inline continuity break in active path fails', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const primaryPath = graph.activeCircuitPaths?.find((path) => path.id === 'active_primary_heating_cycle');
+    if (!primaryPath) {
+      throw new Error('Fixture primary path missing.');
+    }
+    primaryPath.forwardConnectionIds = primaryPath.forwardConnectionIds.filter(
+      (connectionId) => connectionId !== 'conn_pump_to_valve',
+    );
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'inline_component_breaks_continuity')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('15. exchanger cannot reuse one circuit across primary and domestic domains', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const transferConnection = graph.connections.find((connection) => connection.id === 'conn_coil_to_store');
+    if (!transferConnection) {
+      throw new Error('Fixture transfer connection missing.');
+    }
+    transferConnection.circuitId = 'primary_main_loop';
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'exchanger_circuit_crosses_domains')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('16. domestic cold → store → domestic hot path remains separate from primary', () => {
+    const coldPath = simpleRegularBoilerGraph.activeCircuitPaths?.find((path) => path.id === 'active_domestic_cold_fill');
+    const hotPath = simpleRegularBoilerGraph.activeCircuitPaths?.find((path) => path.id === 'active_domestic_hot_draw');
+    expect(coldPath?.domain).toBe('domestic_cold');
+    expect(hotPath?.domain).toBe('domestic_hot');
+
+    const primaryCircuitIds = new Set(
+      (simpleRegularBoilerGraph.circuitRegistry ?? [])
+        .filter((circuit) => circuit.domain === 'primary_heating')
+        .map((circuit) => circuit.id),
+    );
+
+    for (const circuitId of coldPath?.circuitIds ?? []) {
+      expect(primaryCircuitIds.has(circuitId)).toBe(false);
+    }
+    for (const circuitId of hotPath?.circuitIds ?? []) {
+      expect(primaryCircuitIds.has(circuitId)).toBe(false);
+    }
+  });
 });

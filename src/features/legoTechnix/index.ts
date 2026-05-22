@@ -16,6 +16,8 @@ export {
 } from './types';
 
 export type {
+  LegoTechnixActiveCircuitPathV1,
+  LegoTechnixCircuitDefinitionV1,
   HydraulicDomainV1,
   HydraulicPressureRegimeV1,
   LegoTechnixComponentV1,
