@@ -80,16 +80,16 @@ function buildProcessingContext(pkg: CanonicalVisitPackageV1): VisitPackagePdfPr
     notes.push(`Recommended system: ${recommendedSystemLabel}`);
   }
   if (hasText(customerSummary?.headline)) {
-    notes.push(`Recommendation headline: ${customerSummary!.headline}`);
+    notes.push(`Recommendation headline: ${customerSummary?.headline}`);
   }
   if (hasText(customerSummary?.plainEnglishDecision)) {
-    notes.push(`Plain English decision: ${customerSummary!.plainEnglishDecision}`);
+    notes.push(`Plain English decision: ${customerSummary?.plainEnglishDecision}`);
   }
   if (decision?.dayToDayOutcomes != null && decision.dayToDayOutcomes.length > 0) {
     notes.push(`Key day-to-day outcome: ${decision.dayToDayOutcomes[0]}`);
   }
   if (hasText(pkg.proposalTruth?.selectedScenarioId)) {
-    notes.push(`Selected scenario: ${pkg.proposalTruth!.selectedScenarioId}`);
+    notes.push(`Selected scenario: ${pkg.proposalTruth?.selectedScenarioId}`);
   }
   const engineInput = pkg.engineInputSnapshot;
   if (engineInput != null) {
