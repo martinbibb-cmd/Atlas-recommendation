@@ -56,6 +56,7 @@ describe('buildPortalJourneyPrintModel — content identity', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     const contentIds = model.sections.map((s) => s.contentId);
     expect(contentIds).toContain('CON_A01');
+    expect(contentIds.filter((id) => id === 'CON_A01')).toHaveLength(1);
     expect(contentIds).toContain('CON_C02');
     expect(contentIds).toContain('CON_C01');
   });
