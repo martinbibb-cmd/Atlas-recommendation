@@ -644,10 +644,7 @@ export function resolveRecommendationIntentCategory(
   if (isCombiRecommendation(ctx)) return 'combi_replacement';
   if (isVentedToUnvented(ctx)) return 'vented_to_unvented';
   const storedArrangements = ['stored_unvented', 'stored_vented', 'mixergy', 'thermal_store'];
-  if (
-    ctx.hotWaterArrangement != null
-    && storedArrangements.includes(ctx.hotWaterArrangement)
-  ) {
+  if (storedArrangements.includes(ctx.hotWaterArrangement ?? '')) {
     return 'stored_hot_water';
   }
   if (ctx.recommendedScenarioType === 'system' || ctx.recommendedScenarioType === 'regular') {
@@ -728,7 +725,6 @@ function inferRecommendationIntentFromInput(input: BuildCustomerJourneyPackInput
   const surveyInput = resolveSurveyInput(input);
   const proposalTruth = input.canonicalVisitPackage?.proposalTruth;
   return resolveRecommendationIntentCategory({
-    recommendedScenarioType: undefined,
     recommendedHeatSource: recommendation?.heatSource,
     recommendedScenarioId: proposalTruth?.selectedScenarioId ?? proposalTruth?.decision?.recommendedScenarioId,
     hotWaterArrangement: recommendation?.hotWaterArrangement,
