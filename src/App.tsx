@@ -1844,7 +1844,9 @@ function AppInner() {
     }
   }
 
-  function buildCanonicalVisitPackageForCurrentSession(): {
+  function buildCanonicalVisitPackageForCurrentSession(options?: {
+    readonly markPdfGenerated?: boolean;
+  }): {
     readonly pkg: CanonicalVisitPackageV1;
     readonly now: string;
     readonly visitReference: string;
@@ -1896,16 +1898,18 @@ function AppInner() {
       portalVisitContext: exportPortalVisitContext,
       generatedAt: now,
     });
-    const generatedOutputs: GeneratedOutputsV1 = {
-      ...generatedOutputsWithPack,
-      pdf: {
-        ...generatedOutputsWithPack.pdf,
-        generated: true,
-        generatedAt: now,
-        version: generatedOutputsWithPack.pdf.version ?? '1.0',
-        status: generatedOutputsWithPack.pdf.status ?? 'generated',
-      },
-    };
+    const generatedOutputs: GeneratedOutputsV1 = options?.markPdfGenerated === true
+      ? {
+          ...generatedOutputsWithPack,
+          pdf: {
+            ...generatedOutputsWithPack.pdf,
+            generated: true,
+            generatedAt: now,
+            version: generatedOutputsWithPack.pdf.version ?? '1.0',
+            status: generatedOutputsWithPack.pdf.status ?? 'generated',
+          },
+        }
+      : generatedOutputsWithPack;
     const pkg = buildCanonicalVisitPackage({
       packageData: {
         visitIdentity: {
@@ -1958,7 +1962,7 @@ function AppInner() {
   }
 
   function handleExportCanonicalVisitPackage() {
-    const prepared = buildCanonicalVisitPackageForCurrentSession();
+    const prepared = buildCanonicalVisitPackageForCurrentSession({ markPdfGenerated: true });
     if (prepared == null) {
       setLocalSessionStatus({ tone: 'error', message: 'Unable to export: no active visit survey in memory.' });
       return;
@@ -3461,8 +3465,8 @@ function AppInner() {
             hasRegeneratedDeliveryOutputs:
               generatedOutputs.portal.generated || generatedOutputs.pdf.generated || customerJourneyPackGenerated,
           });
-          const customerPdfReady = canExportVisitPackage && customerJourneyPackGenerated;
-          const canOpenPortalFromPackage = activeCanonicalPackage != null || customerPdfReady;
+          const customerPdfExportReady = canExportVisitPackage && customerJourneyPackGenerated;
+          const canOpenPortalFromPackage = activeCanonicalPackage != null || customerPdfExportReady;
           const customerPdfMissingRequirements: string[] = [];
           const canonicalVisitId = activeCanonicalPackage?.visitIdentity.visitId;
           const hasCanonicalVisitId = hasText(canonicalVisitId);
@@ -3504,13 +3508,8 @@ function AppInner() {
               surveyModel={labFullSurveyModel}
               lifecycleState={lifecycleState}
               visitEnvelope={visitEnvelope}
-              generatedOutputs={{
-                ...generatedOutputs,
-                pdf: {
-                  ...generatedOutputs.pdf,
-                  generated: generatedOutputs.pdf.generated || customerPdfReady,
-                },
-              }}
+              generatedOutputs={generatedOutputs}
+              hasSupportingPdfOutput={generatedOutputs.pdf.generated || customerPdfExportReady}
               portalUrl={generatedOutputs.portal.url ?? labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
@@ -3561,7 +3560,7 @@ function AppInner() {
                 if (sourcePackage == null) {
                   setLocalSessionStatus({
                     tone: 'error',
-                    message: 'Portal launch payload is not available. Re-open the visit and retry.',
+                    message: 'Unable to launch portal: visit data is incomplete. Please ensure recommendation outputs are ready.',
                   });
                   return;
                 }
