@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
@@ -601,6 +602,25 @@ function DailyUseTeaser({ viewModel }: { viewModel: PortalViewModel }) {
   );
 }
 
+function TechnicalDeepDive({
+  summary,
+  children,
+  testId,
+}: {
+  summary: string;
+  children: ReactNode;
+  testId: string;
+}) {
+  return (
+    <details className="customer-portal-journey__technical-detail" data-testid={testId}>
+      <summary>{summary}</summary>
+      <div className="customer-portal-journey__technical-detail-body">
+        {children}
+      </div>
+    </details>
+  );
+}
+
 export function CustomerPortalJourneyComposer({
   decision,
   scenarios,
@@ -651,7 +671,7 @@ export function CustomerPortalJourneyComposer({
   const recommendationReasons = (journeyPack.portalDeepDive.recommendationReasons ?? []).slice(0, 5);
   const liveExperienceSummary = journeyPack.portalDeepDive.liveExperienceExplanations[0]
     ?? 'Atlas has prepared day-to-day expectations for your home based on surveyed conditions.';
-  const nextSteps = journeyPack.portalDeepDive.nextSteps.map((step) => `${step.label}: ${step.body}`);
+  const nextSteps = journeyPack.portalDeepDive.nextSteps;
   const scenarioById = new Map(scenarios.map((scenario) => [scenario.scenarioId, scenario]));
   const comparisonStoryCards = viewModel.verdictData.comparisonCards
     .slice(0, 3)
@@ -682,6 +702,9 @@ export function CustomerPortalJourneyComposer({
             <div className="customer-portal-journey__hero-copy">
               <p className="customer-portal-journey__hero-property">{propertyTitle}</p>
               <p className="customer-portal-journey__hero-summary">{decision.headline}</p>
+              <p className="customer-portal-journey__hero-confidence" data-testid="customer-portal-hero-confidence">
+                Atlas recommendation confidence: strong fit to your surveyed home pattern.
+              </p>
               <div className="customer-portal-journey__chip-row">
                 <span className="customer-portal-journey__chip customer-portal-journey__chip--neutral">{`${engineInput.occupancyCount ?? 0} people`}</span>
                 <span className="customer-portal-journey__chip customer-portal-journey__chip--neutral">{formatBathroomCount(engineInput.bathroomCount ?? 0)}</span>
@@ -705,6 +728,9 @@ export function CustomerPortalJourneyComposer({
             title="How survey facts shaped the route"
             intro="Scan each card: home fact, why it matters, Atlas choice, and what you will notice."
           >
+            <p className="customer-portal-journey__visual-grammar" data-testid="customer-portal-visual-grammar">
+              Fact <span aria-hidden="true">→</span> Why it matters <span aria-hidden="true">→</span> Atlas chose <span aria-hidden="true">→</span> What you will notice
+            </p>
             <div className="customer-portal-journey__reason-grid" data-testid="customer-portal-reason-grid">
               {recommendationReasons.map((reason) => (
                 <article key={reason.id} className="customer-portal-journey__reason-card">
@@ -741,57 +767,6 @@ export function CustomerPortalJourneyComposer({
         ) : null}
 
         <CustomerPortalJourneySectionV1
-          sectionId="home-pattern"
-          eyebrow="Your home pattern"
-          title="How your home uses heat and hot water"
-          intro={describeDemandPattern(engineInput)}
-        >
-          <div className="customer-portal-journey__two-column">
-            <SystemCard
-              title="Current system card"
-              summary={currentSystem}
-              bullets={[
-                describeSupply(engineInput),
-                `${engineInput.occupancyCount ?? 0} people and ${formatBathroomCount(engineInput.bathroomCount ?? 0)} shaped the route.`,
-                `Peak heat demand is tracked at ${((engineInput.heatLossWatts ?? 0) / 1000).toFixed(1)} kW.`,
-              ]}
-              badge="Current system"
-              testId="customer-portal-current-system-card"
-            />
-            <PressureVsStorageVisual
-              shouldRenderDiagram={shouldRenderPressureDiagram}
-              input={engineInput}
-              scenario={recommendedScenario}
-            />
-          </div>
-        </CustomerPortalJourneySectionV1>
-
-        <CustomerPortalJourneySectionV1
-          sectionId="system-condition"
-          eyebrow="Current system condition"
-          title="Ageing and condition"
-          intro={decision.lifecycle.summary}
-        >
-          <BoilerAgeingVisual lifecycle={decision.lifecycle} />
-        </CustomerPortalJourneySectionV1>
-
-        <CustomerPortalJourneySectionV1
-          sectionId="main-issue"
-          eyebrow="Main issue affecting comfort and hot water"
-          title="What Atlas needed to solve"
-          intro={describeMainIssue(decision)}
-        >
-          <div className="customer-portal-journey__insight-grid">
-            {decision.avoidedRisks.slice(0, 3).map((risk) => (
-              <article key={risk} className="customer-portal-journey__insight-card">
-                <p className="customer-portal-journey__summary-label">Risk Atlas avoided</p>
-                <strong>{risk}</strong>
-              </article>
-            ))}
-          </div>
-        </CustomerPortalJourneySectionV1>
-
-        <CustomerPortalJourneySectionV1
           sectionId="recommended-route"
           eyebrow="Recommended route"
           title="The route Atlas is confident in"
@@ -821,55 +796,13 @@ export function CustomerPortalJourneyComposer({
           title="Upgrade impact at a glance"
           intro="Atlas keeps this focused on practical outcomes you will see at home."
         >
-          <article className="customer-portal-journey__visual-card">
-            <h3 className="customer-portal-journey__card-title">Practical outcomes</h3>
-            <ul className="customer-portal-journey__bullet-list">
-              {buildPreparationItems(decision, recommendedScenario).slice(0, 4).map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </article>
-        </CustomerPortalJourneySectionV1>
-
-        <CustomerPortalJourneySectionV1
-          sectionId="alternatives"
-          eyebrow="Scenario storytelling"
-          title="What each route would feel like at home"
-          intro="Each option is shown as a household moment, so the comparison is about lived behaviour rather than mystery lines on a chart."
-        >
-          <div className="customer-portal-journey__insight-grid">
-            {comparisonStoryCards.map(({ scenario, isRecommended }) => {
-              const story = buildScenarioStory(scenario, isRecommended, engineInput);
-              return (
-                <AtlasPhysicsVisualCard
-                  key={scenario.scenarioId}
-                  title={story.title}
-                  statusLabel={story.statusLabel}
-                  tone={story.tone}
-                  takeaway={story.takeaway}
-                  detail={story.detail}
-                >
-                  {story.graphic === 'water' ? (
-                    <AtlasWaterReserveGraphic
-                      usableReservePct={story.reserve}
-                      rechargePct={story.recharge}
-                      recoveryLabel="Recovery visible"
-                      modeLabel={story.modeLabel}
-                      eventCards={story.events}
-                      annotations={story.annotations}
-                    />
-                  ) : (
-                    <AtlasHeatFlowGraphic
-                      phases={story.phases}
-                      leftLabel="Start of event"
-                      rightLabel="After demand stacks up"
-                    />
-                  )}
-                  <AtlasStoryPanel summary={story.storySummary} bullets={story.bullets} />
-                  {'nodes' in story && story.nodes ? <AtlasSystemStateGraphic nodes={story.nodes} /> : null}
-                </AtlasPhysicsVisualCard>
-              );
-            })}
+          <div className="customer-portal-journey__insight-grid" data-testid="customer-portal-practical-outcome-cards">
+            {buildPreparationItems(decision, recommendedScenario).slice(0, 4).map((item) => (
+              <article key={item} className="customer-portal-journey__insight-card">
+                <p className="customer-portal-journey__summary-label">What you will notice</p>
+                <strong>{item}</strong>
+              </article>
+            ))}
           </div>
         </CustomerPortalJourneySectionV1>
 
@@ -894,25 +827,108 @@ export function CustomerPortalJourneyComposer({
         </CustomerPortalJourneySectionV1>
 
         <CustomerPortalJourneySectionV1
-          sectionId="installation-preparation"
-          eyebrow="Installation preparation"
-          title="What Atlas is preparing before the install"
-          intro="These are the practical items that protect comfort, commissioning quality, and handover clarity."
-        >
-          <ProtectionSummaryVisual items={protectionItems} testId="customer-portal-visual-system-protection-prep" />
-        </CustomerPortalJourneySectionV1>
-
-        <CustomerPortalJourneySectionV1
           sectionId="next-steps"
           eyebrow="What happens next"
           title="The path from recommendation to install"
           intro="Atlas keeps the next steps clear so you know what happens before installation day and at handover."
         >
-            <ol className="customer-portal-journey__ordered-list">
+            <ol className="customer-portal-journey__ordered-list" data-testid="customer-portal-next-steps-timeline">
               {nextSteps.map((step) => (
-                <li key={step}>{step}</li>
-            ))}
-          </ol>
+                <li key={step.label} className="customer-portal-journey__timeline-item">
+                  <article className="customer-portal-journey__teaser-card">
+                    <p className="customer-portal-journey__summary-label">{step.label}</p>
+                    <p className="customer-portal-journey__card-copy">{step.body}</p>
+                  </article>
+                </li>
+             ))}
+           </ol>
+        </CustomerPortalJourneySectionV1>
+
+        <CustomerPortalJourneySectionV1
+          sectionId="technical-deep-dive"
+          eyebrow="Optional technical detail"
+          title="How Atlas validated this route"
+          intro="Expanded sections below are optional and kept secondary for customers who want deeper technical context."
+        >
+          <TechnicalDeepDive summary="Home pattern and pressure vs storage" testId="customer-portal-technical-home-pattern">
+            <p className="customer-portal-journey__card-copy">{describeDemandPattern(engineInput)}</p>
+            <div className="customer-portal-journey__two-column">
+              <SystemCard
+                title="Current system card"
+                summary={currentSystem}
+                bullets={[
+                  describeSupply(engineInput),
+                  `${engineInput.occupancyCount ?? 0} people and ${formatBathroomCount(engineInput.bathroomCount ?? 0)} shaped the route.`,
+                  `Peak heat demand is tracked at ${((engineInput.heatLossWatts ?? 0) / 1000).toFixed(1)} kW.`,
+                ]}
+                badge="Current system"
+                testId="customer-portal-current-system-card"
+              />
+              <PressureVsStorageVisual
+                shouldRenderDiagram={shouldRenderPressureDiagram}
+                input={engineInput}
+                scenario={recommendedScenario}
+              />
+            </div>
+          </TechnicalDeepDive>
+
+          <TechnicalDeepDive summary="Current system condition and ageing" testId="customer-portal-technical-system-condition">
+            <p className="customer-portal-journey__card-copy">{decision.lifecycle.summary}</p>
+            <BoilerAgeingVisual lifecycle={decision.lifecycle} />
+          </TechnicalDeepDive>
+
+          <TechnicalDeepDive summary="Main issues Atlas avoided" testId="customer-portal-technical-main-issue">
+            <p className="customer-portal-journey__card-copy">{describeMainIssue(decision)}</p>
+            <div className="customer-portal-journey__insight-grid">
+              {decision.avoidedRisks.slice(0, 3).map((risk) => (
+                <article key={risk} className="customer-portal-journey__insight-card">
+                  <p className="customer-portal-journey__summary-label">Risk Atlas avoided</p>
+                  <strong>{risk}</strong>
+                </article>
+              ))}
+            </div>
+          </TechnicalDeepDive>
+
+          <TechnicalDeepDive summary="Scenario storytelling comparison" testId="customer-portal-technical-alternatives">
+            <div className="customer-portal-journey__insight-grid">
+              {comparisonStoryCards.map(({ scenario, isRecommended }) => {
+                const story = buildScenarioStory(scenario, isRecommended, engineInput);
+                return (
+                  <AtlasPhysicsVisualCard
+                    key={scenario.scenarioId}
+                    title={story.title}
+                    statusLabel={story.statusLabel}
+                    tone={story.tone}
+                    takeaway={story.takeaway}
+                    detail={story.detail}
+                  >
+                    {story.graphic === 'water' ? (
+                      <AtlasWaterReserveGraphic
+                        usableReservePct={story.reserve}
+                        rechargePct={story.recharge}
+                        recoveryLabel="Recovery visible"
+                        modeLabel={story.modeLabel}
+                        eventCards={story.events}
+                        annotations={story.annotations}
+                      />
+                    ) : (
+                      <AtlasHeatFlowGraphic
+                        phases={story.phases}
+                        leftLabel="Start of event"
+                        rightLabel="After demand stacks up"
+                      />
+                    )}
+                    <AtlasStoryPanel summary={story.storySummary} bullets={story.bullets} />
+                    {'nodes' in story && story.nodes ? <AtlasSystemStateGraphic nodes={story.nodes} /> : null}
+                  </AtlasPhysicsVisualCard>
+                );
+              })}
+            </div>
+          </TechnicalDeepDive>
+
+          <TechnicalDeepDive summary="Installation preparation and protection" testId="customer-portal-technical-installation">
+            <ProtectionSummaryVisual items={protectionItems} testId="customer-portal-visual-system-protection-prep" />
+          </TechnicalDeepDive>
         </CustomerPortalJourneySectionV1>
       </div>
     </main>

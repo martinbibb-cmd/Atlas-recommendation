@@ -23,7 +23,7 @@ import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
 import { buildCustomerDocumentModel, type CustomerDocumentRendererMode } from './CustomerDocumentRenderer';
 import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
-import { PrintableComparisonCard, PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
+import { PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
 import { REASON_ICON_BY_CATEGORY } from './recommendationReasonVisuals';
 import './portalJourneyPrintPack.css';
 
@@ -83,6 +83,9 @@ function PrintCover({ cover, pageNumber }: PrintCoverProps) {
             {cover.addressSummary}
           </p>
         ) : null}
+        <p className="pjpp-cover-confidence" data-testid="pjpp-cover-confidence">
+          Atlas recommendation confidence: strong fit to your surveyed home pattern.
+        </p>
       </header>
 
       <PrintableJourneySummary
@@ -98,6 +101,13 @@ function PrintCover({ cover, pageNumber }: PrintCoverProps) {
             summary={cover.addressSummary ?? 'Survey details used for this recommendation.'}
             facts={cover.customerFacts}
           />
+          <div className="pjpp-cover-chips" data-testid="pjpp-cover-fact-chips">
+            {cover.customerFacts.slice(0, 4).map((fact) => (
+              <span key={fact} className="pjpp-chip">
+                {fact}
+              </span>
+            ))}
+          </div>
         </aside>
       ) : null}
     </section>
@@ -133,13 +143,14 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
 
       <p className="pjpp-section__summary">{section.summary}</p>
 
-      <PrintableComparisonCard
-        heading="At a glance"
-        summary={section.summary}
-        items={section.items}
-        listTestId={`pjpp-items-${section.sectionId}`}
-        recommended={section.sectionId === 'practical_outcomes'}
-      />
+      <ul className="pjpp-outcome-cards" data-testid={`pjpp-items-${section.sectionId}`}>
+        {section.items.map((item, i) => (
+          <li key={`${section.sectionId}-${i}`} className="pjpp-outcome-card">
+            <p className="pjpp-outcome-card__label">What you will notice</p>
+            <p className="pjpp-outcome-card__copy">{item}</p>
+          </li>
+        ))}
+      </ul>
 
       <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
         <strong>Key takeaway:</strong> {section.keyTakeaway}
@@ -182,6 +193,9 @@ function PrintRecommendationReasons({ reasons, pageNumber }: PrintRecommendation
       </h2>
       <p className="pjpp-section__summary">
         Scan each card from home fact to practical day-to-day outcome.
+      </p>
+      <p className="pjpp-visual-grammar" data-testid="pjpp-visual-grammar">
+        Fact <span aria-hidden="true">→</span> Why it matters <span aria-hidden="true">→</span> Atlas chose <span aria-hidden="true">→</span> What you will notice
       </p>
       <ul className="pjpp-reason-list" data-testid="pjpp-reason-list">
         {reasons.slice(0, 5).map((reason) => (
@@ -274,7 +288,9 @@ function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStep
       <ol className="pjpp-next-steps__list" data-testid="pjpp-next-steps-list">
         {nextSteps.map((step, i) => (
           <li key={i} className="pjpp-next-steps__item">
-            <PrintableQuickWinCard heading={step.label} body={step.body} />
+            <article className="pjpp-next-steps__card">
+              <PrintableQuickWinCard heading={step.label} body={step.body} />
+            </article>
           </li>
         ))}
       </ol>

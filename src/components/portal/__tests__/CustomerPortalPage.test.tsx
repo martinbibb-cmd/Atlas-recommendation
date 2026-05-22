@@ -196,7 +196,7 @@ describe('CustomerPortalPage', () => {
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
     expect(screen.getByText('Boiler ageing and response')).toBeTruthy();
-    expect(screen.getByText('What each route would feel like at home')).toBeTruthy();
+    expect(screen.getByText('Scenario storytelling comparison')).toBeTruthy();
   });
 
   it('renders library-supported explainers in the daily-use section', async () => {
