@@ -182,16 +182,22 @@ export function resolveCustomerDocumentSourceV1(
       missingFields: consistencyIssues,
     };
   }
+  const resolvedVisitId = visitId as string;
+  const resolvedVisitReference = visitReference as string;
+  const resolvedAcceptedScenarioId = acceptedScenarioId as string;
+  const resolvedDhwStrategy = dhwStrategy as string;
+  const resolvedSelectedSystemLabel = selectedSystemLabel as string;
+  const resolvedTopologyType = topologyType as string;
 
   return {
     ok: true,
     source: {
-      visitId,
-      visitReference,
-      acceptedScenarioId,
-      selectedSystemLabel,
-      dhwStrategy,
-      topologyType,
+      visitId: resolvedVisitId,
+      visitReference: resolvedVisitReference,
+      acceptedScenarioId: resolvedAcceptedScenarioId,
+      selectedSystemLabel: resolvedSelectedSystemLabel,
+      dhwStrategy: resolvedDhwStrategy,
+      topologyType: resolvedTopologyType,
       customerJourneyPack,
       recommendationReasons: customerJourneyPack.staticPdf.recommendationReasons,
       generatedOutputs,

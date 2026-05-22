@@ -185,6 +185,7 @@ import {
 } from './features/visitHome/workflowStabilisation';
 import { canShowVisitHomeExportPackageAction } from './features/visitHome/visitHomeExportAvailability';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
+import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
 import {
   buildCanonicalVisitPackage,
   buildVisitPackagePdfEnvelope,
@@ -1177,6 +1178,10 @@ function AppInner() {
     effectiveRole,
   } = useRolePermissions();
   const canAccessWorkspaceSettings = effectiveRole === 'owner' || effectiveRole === 'admin';
+  const appHomeNewVisitState = buildAppHomeNewVisitEntryState({
+    canCreateVisit,
+    workspaceStatus: workspaceSession.status,
+  });
 
   const workspaceSettingsRole = useMemo<WorkspaceMemberRole>(() => {
     switch (effectiveRole) {
@@ -3980,9 +3985,6 @@ function AppInner() {
           activeVisitId != null
             ? readPersistedAtlasVisitV2(activeVisitId).visit
             : undefined;
-        const surveyForPdf =
-          labFullSurveyModel
-          ?? persistedCanonical?.survey;
         const engineOutput =
           canonicalSnapshot?.engineOutput
           ?? persistedCanonical?.engine;
@@ -4207,15 +4209,15 @@ function AppInner() {
               type="button"
               className="app-entry-tile"
               onClick={handleStartNewVisit}
-              disabled={!canCreateVisit}
+              disabled={appHomeNewVisitState.disabled}
             >
               <span className="app-entry-tile__title">New visit</span>
               <span className="app-entry-tile__copy">
                 Create visit identity, capture customer/property basics, then continue to manual survey and next actions.
               </span>
-              {workspaceSession.status === 'authenticated_no_workspace' && (
+              {appHomeNewVisitState.blockerReason != null && (
                 <span className="app-entry-tile__copy" data-testid="app-home-new-visit-workspace-blocker">
-                  Workspace required: create or join a workspace in the start dialog before creating a visit.
+                  {appHomeNewVisitState.blockerReason}
                 </span>
               )}
             </button>

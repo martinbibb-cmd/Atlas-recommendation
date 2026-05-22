@@ -36,6 +36,13 @@ describe('PortalJourneyPrintPack — document structure', () => {
     expect(screen.getByTestId('pjpp-cover')).toBeInTheDocument();
   });
 
+  it('first page starts at cover title cleanly', () => {
+    const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    const firstPage = container.querySelector('.pjpp-page[data-page="1"]');
+    expect(firstPage).not.toBeNull();
+    expect(within(firstPage as HTMLElement).getByTestId('pjpp-cover-title')).toBeInTheDocument();
+  });
+
   it('renders next-steps section', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(screen.getByTestId('pjpp-next-steps')).toBeInTheDocument();
