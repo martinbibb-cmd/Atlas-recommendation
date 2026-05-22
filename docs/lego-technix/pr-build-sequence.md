@@ -2,8 +2,12 @@
 
 This document defines the controlled build order for LegoTechnix.
 
-## PR1 — Core LegoTechnix types only
+## PR1 — Core graph contracts and validation skeleton
 
+- Core graph contracts (`LegoTechnixGraphV1`, component/port/connection/hydraulic-domain types)
+- Validation skeleton for structural integrity and domain separation rules
+- LegoTechnix engine laws
+- Tiny regular-boiler fixture graph for language proof
 - `LegoTechnixComponentV1`
 - `LegoTechnixPortV1`
 - `LegoTechnixConnectionV1`
@@ -12,7 +16,11 @@ This document defines the controlled build order for LegoTechnix.
 - Behaviour traits
 - Domains
 - Confidence/provenance model
-- No renderer beyond debug JSON or very simple block preview
+- No simulator
+- No visuals
+- No app route
+- No topology renderer replacement
+- No recommendation changes
 
 ## PR2 — First functional system template
 

@@ -14,5 +14,6 @@ Systems are assembled from functions, not drawn as monolithic diagrams. Graphics
 
 ## Contributor guardrails and sequencing
 
+- [LegoTechnix engine laws](./engine-laws.md)
 - [LegoTechnix contributing guardrails](./CONTRIBUTING.md)
 - [LegoTechnix PR build sequence](./pr-build-sequence.md)
