@@ -166,6 +166,8 @@ describe('validateLegoTechnixGraphV1', () => {
     for (const connection of simpleRegularBoilerGraph.connections) {
       expect(connection.confidence).toBeDefined();
       expect(connection.confidence).not.toBe('unknown');
+      expect(connection.physical.routingConfidence).toBeDefined();
+      expect(connection.physical.routingConfidence).not.toBe('unknown');
     }
   });
 });
