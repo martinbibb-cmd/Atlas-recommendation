@@ -1608,9 +1608,32 @@ function AppInner() {
     const resolvedVisitId = rawVisitId
       ?? buildImportedVisitId(rawVisitReference);
     const resolvedVisitReference = rawVisitReference ?? formatVisitReference(resolvedVisitId);
-    const recommendationSummary =
+    let recommendationSummary: CustomerSummaryV1 | undefined =
       pkg.proposalTruth?.customerSummary
       ?? pkg.customerPropertyDetails.customerSummary;
+    let derivedDecision: AtlasDecisionV1 | undefined = pkg.proposalTruth?.decision;
+    // If customerSummary is missing but engine input is available, run the engine
+    // synchronously so the customer portal can be auto-created immediately on load.
+    if (recommendationSummary == null && pkg.engineInputSnapshot != null && pkg.surveyDraft != null) {
+      try {
+        const sourceInput = pkg.engineInputSnapshot;
+        const { engineOutput } = runEngine(sourceInput);
+        const scenariosFromPkg = buildScenariosFromEngineOutput(engineOutput);
+        if (scenariosFromPkg.length > 0) {
+          derivedDecision = derivedDecision ?? buildDecisionFromScenarios({
+            scenarios: scenariosFromPkg,
+            boilerType: toLifecycleBoilerType(sourceInput.currentHeatSourceType),
+            ageYears: sourceInput.currentSystem?.boiler?.ageYears ?? 0,
+            occupancyCount: sourceInput.occupancyCount,
+            bathroomCount: sourceInput.bathroomCount,
+            showerCompatibilityNote: engineOutput.showerCompatibilityNote,
+          });
+          recommendationSummary = buildCustomerSummary(derivedDecision, scenariosFromPkg);
+        }
+      } catch {
+        // Engine failed — proceed with available data; effect 2 will retry.
+      }
+    }
     const portalVisitContext = pkg.customerPropertyDetails.portalVisitContext != null
       ? {
           addressSummary: pkg.customerPropertyDetails.portalVisitContext.addressSummary,
@@ -1622,7 +1645,7 @@ function AppInner() {
       surveyModel: pkg.surveyDraft,
       engineInput: pkg.engineInputSnapshot,
       customerSummary: recommendationSummary,
-      decision: pkg.proposalTruth?.decision,
+      decision: derivedDecision,
       portalVisitContext,
       generatedAt: pkg.importExportMetadata.exportedAt,
     });
@@ -1636,7 +1659,7 @@ function AppInner() {
           },
         };
     const recommendationReady = isRecommendationReadyForLifecycle({
-      decision: pkg.proposalTruth?.decision,
+      decision: derivedDecision,
       customerSummary: recommendationSummary,
       acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
       engineRecommendationPrimary: undefined,
@@ -1655,7 +1678,7 @@ function AppInner() {
       updatedAt: importedAt,
       survey: pkg.surveyDraft,
       engineInputSnapshot: pkg.engineInputSnapshot,
-        decision: pkg.proposalTruth?.decision,
+        decision: derivedDecision,
         customerSummary: recommendationSummary,
         acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
         lifecycleState,
@@ -1677,7 +1700,7 @@ function AppInner() {
     setVisitRecommendationSnapshot({
       visitId: resolvedVisitId,
       visitReference: resolvedVisitReference,
-      decision: pkg.proposalTruth?.decision,
+      decision: derivedDecision,
       customerSummary: recommendationSummary,
       acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
       lifecycleState,
@@ -1770,11 +1793,34 @@ function AppInner() {
         ? visitRecommendationSnapshot
         : null;
     const exportEngineInput = labEngineInput ?? activeCanonicalPackage?.engineInputSnapshot;
-    const exportCustomerSummary =
+    let exportCustomerSummary: CustomerSummaryV1 | undefined =
       currentSnapshot?.customerSummary
       ?? activeCanonicalPackage?.proposalTruth?.customerSummary
       ?? activeCanonicalPackage?.customerPropertyDetails.customerSummary;
-    const exportDecision = currentSnapshot?.decision ?? activeCanonicalPackage?.proposalTruth?.decision;
+    let exportDecision: AtlasDecisionV1 | undefined =
+      currentSnapshot?.decision ?? activeCanonicalPackage?.proposalTruth?.decision;
+    // If customerSummary is missing but engine input is available, compute it
+    // now so the PDF always renders the library customer document rather than
+    // the fallback metadata-only view.
+    if (exportCustomerSummary == null && exportEngineInput != null) {
+      try {
+        const { engineOutput } = runEngine(exportEngineInput);
+        const scenariosForExport = buildScenariosFromEngineOutput(engineOutput);
+        if (scenariosForExport.length > 0) {
+          exportDecision = exportDecision ?? buildDecisionFromScenarios({
+            scenarios: scenariosForExport,
+            boilerType: toLifecycleBoilerType(exportEngineInput.currentHeatSourceType),
+            ageYears: exportEngineInput.currentSystem?.boiler?.ageYears ?? 0,
+            occupancyCount: exportEngineInput.occupancyCount,
+            bathroomCount: exportEngineInput.bathroomCount,
+            showerCompatibilityNote: engineOutput.showerCompatibilityNote,
+          });
+          exportCustomerSummary = buildCustomerSummary(exportDecision, scenariosForExport);
+        }
+      } catch {
+        // Engine failed — export will use available data (may fall back to metadata view).
+      }
+    }
     const exportPortalVisitContext =
       currentSnapshot?.portalVisitContext
       ?? activeCanonicalPackage?.customerPropertyDetails.portalVisitContext
@@ -1881,6 +1927,10 @@ function AppInner() {
     const pdfEnvelope = buildVisitPackagePdfEnvelope({
       packagePayload: pkg,
       generatedAt: now,
+      scanPackages: (() => {
+        const scanCapture = getScanCapture(exportVisitId);
+        return scanCapture != null ? [scanCapture] : undefined;
+      })(),
     });
     const filename = `${toSafeDownloadBaseName(visitReference ?? exportVisitId)}.atlasvisit.pdf`;
     try {
