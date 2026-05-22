@@ -181,6 +181,7 @@ function createGapBlock(height: number): CustomerPdfDraftBlock {
     kind: 'gap',
     blockType: 'gap',
     font: 'F1',
+    // For gap blocks, `size` stores the intrinsic vertical gap height in points.
     size: height,
     lineHeight: 0,
     spacingBefore: 0,
@@ -282,9 +283,9 @@ function splitMeasuredTextBlockForPage(
     spacingAfter: 0,
     totalHeight: block.spacingBefore
       + (fitLines.length > 0 ? block.lineHeight : 0)
-      + (fitLines.length > 1 ? (fitLines.length - 1) * block.lineHeight : 0)
-      + 0,
+      + (fitLines.length > 1 ? (fitLines.length - 1) * block.lineHeight : 0),
   };
+  const fitTotalHeight = fit.spacingBefore + fit.intrinsicHeight + fit.wrappedHeight;
 
   const remainder: CustomerPdfMeasuredBlock = {
     ...block,
@@ -292,13 +293,22 @@ function splitMeasuredTextBlockForPage(
     intrinsicHeight: remainderLines.length > 0 ? block.lineHeight : 0,
     wrappedHeight: remainderLines.length > 1 ? (remainderLines.length - 1) * block.lineHeight : 0,
     spacingBefore: 0,
-    totalHeight: 0
-      + (remainderLines.length > 0 ? block.lineHeight : 0)
+    totalHeight: (remainderLines.length > 0 ? block.lineHeight : 0)
       + (remainderLines.length > 1 ? (remainderLines.length - 1) * block.lineHeight : 0)
       + block.spacingAfter,
   };
+  const remainderTotalHeight = remainder.spacingBefore + remainder.intrinsicHeight + remainder.wrappedHeight + remainder.spacingAfter;
 
-  return { fit, remainder };
+  return {
+    fit: {
+      ...fit,
+      totalHeight: fitTotalHeight,
+    },
+    remainder: {
+      ...remainder,
+      totalHeight: remainderTotalHeight,
+    },
+  };
 }
 
 class CustomerPdfBlockLayoutEngine {
