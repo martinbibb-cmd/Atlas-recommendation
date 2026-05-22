@@ -1,13 +1,18 @@
 import type { CanonicalVisitPackageV1 } from './CanonicalVisitPackageV1';
+import type { SessionCaptureV2 } from '../scanImport/contracts/sessionCaptureV2';
 import {
   VISIT_PACKAGE_PDF_ENVELOPE_SCHEMA,
   VISIT_PACKAGE_PDF_ENVELOPE_VERSION,
   type VisitPackagePdfEnvelopeV1,
+  type VisitPackagePdfProcessingContextV1,
 } from './VisitPackagePdfEnvelopeV1';
+import { ENGINE_VERSION } from '../../contracts/versions';
 
 export interface BuildVisitPackagePdfEnvelopeInput {
   readonly packagePayload: CanonicalVisitPackageV1;
   readonly generatedAt?: string;
+  /** Scan capture packages for this visit, when available. */
+  readonly scanPackages?: readonly SessionCaptureV2[];
 }
 
 function hasText(value: string | undefined): value is string {
@@ -63,6 +68,42 @@ function buildRecommendationSummary(pkg: CanonicalVisitPackageV1): string | unde
   return `${summary.recommendedSystemLabel}: ${summary.headline}`;
 }
 
+function buildProcessingContext(pkg: CanonicalVisitPackageV1): VisitPackagePdfProcessingContextV1 {
+  const decision = pkg.proposalTruth?.decision;
+  const customerSummary = pkg.proposalTruth?.customerSummary;
+  const recommendedSystemLabel = customerSummary?.recommendedSystemLabel;
+  const notes: string[] = [
+    `Atlas engine version: ${ENGINE_VERSION}`,
+    `Package exported at: ${pkg.importExportMetadata.exportedAt}`,
+  ];
+  if (hasText(recommendedSystemLabel)) {
+    notes.push(`Recommended system: ${recommendedSystemLabel}`);
+  }
+  if (hasText(customerSummary?.headline)) {
+    notes.push(`Recommendation headline: ${customerSummary!.headline}`);
+  }
+  if (hasText(customerSummary?.plainEnglishDecision)) {
+    notes.push(`Plain English decision: ${customerSummary!.plainEnglishDecision}`);
+  }
+  if (decision?.dayToDayOutcomes != null && decision.dayToDayOutcomes.length > 0) {
+    notes.push(`Key day-to-day outcome: ${decision.dayToDayOutcomes[0]}`);
+  }
+  if (hasText(pkg.proposalTruth?.selectedScenarioId)) {
+    notes.push(`Selected scenario: ${pkg.proposalTruth!.selectedScenarioId}`);
+  }
+  const engineInput = pkg.engineInputSnapshot;
+  if (engineInput != null) {
+    if (hasText(engineInput.currentHeatSourceType)) {
+      notes.push(`Current heat source: ${engineInput.currentHeatSourceType}`);
+    }
+  }
+  return {
+    atlasEngineVersion: ENGINE_VERSION,
+    recommendedSystemLabel: recommendedSystemLabel ?? undefined,
+    processingNotes: notes,
+  };
+}
+
 export function buildVisitPackagePdfEnvelope(
   input: BuildVisitPackagePdfEnvelopeInput,
 ): VisitPackagePdfEnvelopeV1 {
@@ -75,6 +116,10 @@ export function buildVisitPackagePdfEnvelope(
   const title = hasText(recommendationTitle)
     ? `Atlas Recommendation: ${recommendationTitle}`
     : 'Atlas Recommendation Summary';
+  const scanPackages =
+    input.scanPackages != null && input.scanPackages.length > 0
+      ? input.scanPackages
+      : undefined;
   return {
     schema: VISIT_PACKAGE_PDF_ENVELOPE_SCHEMA,
     version: VISIT_PACKAGE_PDF_ENVELOPE_VERSION,
@@ -91,5 +136,7 @@ export function buildVisitPackagePdfEnvelope(
       ],
     },
     canonicalVisitPackage: pkg,
+    scanPackages,
+    processingContext: buildProcessingContext(pkg),
   };
 }
