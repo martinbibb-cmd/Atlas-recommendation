@@ -163,7 +163,7 @@ function validateSealedPrimaryPreFlight(
 
   const hasExpansionAccommodation = graph.components.some((component) => (
     component.role === 'safety'
-    || component.behaviours?.includes('accepts_expansion')
+    && component.behaviours?.includes('accepts_expansion')
   ));
   if (!hasExpansionAccommodation) {
     addError(

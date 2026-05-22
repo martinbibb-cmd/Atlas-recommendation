@@ -347,11 +347,10 @@ describe('validateLegoTechnixGraphV1', () => {
     if (!openVented) {
       throw new Error('Fixture open vented domain missing.');
     }
-    openVented.availableStaticHeadM = 0.2;
-    openVented.minStaticHeadM = 1;
+    openVented.preFlightMarkers = ['pump_feed_vent_order_invalid'];
 
     const result = validateLegoTechnixGraphV1(graph);
-    expect(result.errors.some((issue) => issue.code === 'open_vented_static_head_below_min')).toBe(true);
+    expect(result.errors.some((issue) => issue.code === 'open_vented_invalid_pump_feed_vent_order')).toBe(true);
     expect(result.errors.some((issue) => issue.code === 'missing_source_component')).toBe(false);
     expect(result.errors.some((issue) => issue.code === 'primary_path_missing_return_path')).toBe(false);
     expect(result.isValid).toBe(false);
