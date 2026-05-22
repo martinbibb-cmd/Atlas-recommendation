@@ -10,7 +10,6 @@ import {
 import {
   buildCustomerDocumentModel,
   type CustomerDocumentModelV1,
-  type CustomerDocumentSectionV1,
 } from '../../library/portal/pdf/CustomerDocumentRenderer';
 import {
   buildCustomerJourneyPack,
@@ -30,7 +29,11 @@ const PDF_PAGE_H = 792;
 const PDF_MARGIN_L = 50;
 const PDF_TEXT_TOP_Y = 755;
 const PDF_MIN_Y = 55; // Page bottom boundary
-const REASSURANCE_HEADING = 'Reassurance';
+const SECTION_RECOMMENDATION_SUMMARY = 'Recommendation summary';
+const SECTION_WHY_THIS_FITS = 'Why this fits your home';
+const SECTION_PRACTICAL_OUTCOMES = 'Practical outcomes';
+const SECTION_PROTECTION_AND_CONDITION = 'Protection and system condition';
+const SECTION_NEXT_STEPS = 'What happens next';
 const INSTALLER_CHECK_HEADING = 'Installer check';
 const DEEP_DIVE_LINKS_HEADING = 'Deep dive links (optional)';
 
@@ -41,21 +44,33 @@ type VisitPackagePdfEnvelopeExtractionResult =
 // ─── Layout item types ────────────────────────────────────────────────────────
 
 type PdfFont = 'F1' | 'F2'; // F1 = Helvetica, F2 = Helvetica-Bold
+type CustomerPdfBlockType =
+  | 'section_heading'
+  | 'subheading'
+  | 'body'
+  | 'bullet'
+  | 'small'
+  | 'gap';
+type CustomerPdfPageBreakPolicy = 'auto' | 'avoid' | 'always';
 
-interface PdfTextItem {
-  readonly kind: 'text';
+interface CustomerPdfDraftBlock {
+  readonly kind: 'text' | 'gap';
+  readonly blockType: CustomerPdfBlockType;
+  readonly text?: string;
   readonly font: PdfFont;
   readonly size: number;
   readonly lineHeight: number;
-  readonly text: string;
+  readonly spacingBefore: number;
+  readonly spacingAfter: number;
+  readonly pageBreakPolicy: CustomerPdfPageBreakPolicy;
 }
 
-interface PdfGapItem {
-  readonly kind: 'gap';
-  readonly height: number;
+interface CustomerPdfMeasuredBlock extends CustomerPdfDraftBlock {
+  readonly lines: readonly string[];
+  readonly intrinsicHeight: number;
+  readonly wrappedHeight: number;
+  readonly totalHeight: number;
 }
-
-type PdfLayoutItem = PdfTextItem | PdfGapItem;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -136,28 +151,44 @@ function wordWrap(text: string, maxChars: number): readonly string[] {
   return lines.length > 0 ? lines : [text.slice(0, maxChars)];
 }
 
-function titleItem(text: string): PdfTextItem {
-  return { kind: 'text', font: 'F2', size: 16, lineHeight: 22, text };
+function createTextBlock(
+  blockType: Exclude<CustomerPdfBlockType, 'gap'>,
+  text: string,
+  options: {
+    readonly font?: PdfFont;
+    readonly size?: number;
+    readonly lineHeight?: number;
+    readonly spacingBefore?: number;
+    readonly spacingAfter?: number;
+    readonly pageBreakPolicy?: CustomerPdfPageBreakPolicy;
+  } = {},
+): CustomerPdfDraftBlock {
+  return {
+    kind: 'text',
+    blockType,
+    text,
+    font: options.font ?? (blockType === 'section_heading' || blockType === 'subheading' ? 'F2' : 'F1'),
+    size: options.size ?? (blockType === 'section_heading' ? 13 : blockType === 'small' ? 9 : 11),
+    lineHeight: options.lineHeight ?? (blockType === 'section_heading' ? 18 : blockType === 'small' ? 13 : 15),
+    spacingBefore: options.spacingBefore ?? 0,
+    spacingAfter: options.spacingAfter ?? 0,
+    pageBreakPolicy: options.pageBreakPolicy ?? 'auto',
+  };
 }
 
-function headingItem(text: string): PdfTextItem {
-  return { kind: 'text', font: 'F2', size: 13, lineHeight: 18, text };
-}
-
-function subHeadingItem(text: string): PdfTextItem {
-  return { kind: 'text', font: 'F2', size: 11, lineHeight: 16, text };
-}
-
-function bodyItem(text: string): PdfTextItem {
-  return { kind: 'text', font: 'F1', size: 11, lineHeight: 15, text };
-}
-
-function smallItem(text: string): PdfTextItem {
-  return { kind: 'text', font: 'F1', size: 9, lineHeight: 13, text };
-}
-
-function gapItem(height: number): PdfGapItem {
-  return { kind: 'gap', height };
+function createGapBlock(height: number): CustomerPdfDraftBlock {
+  return {
+    kind: 'gap',
+    blockType: 'gap',
+    font: 'F1',
+    // For gap blocks, `size` stores the intrinsic vertical gap height in points.
+    size: height,
+    lineHeight: 0,
+    spacingBefore: 0,
+    spacingAfter: 0,
+    pageBreakPolicy: 'auto',
+    text: undefined,
+  };
 }
 
 // ─── Customer journey content extraction ──────────────────────────────────────
@@ -205,240 +236,264 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
   });
 }
 
-// ─── Layout item builders ─────────────────────────────────────────────────────
+// ─── Deterministic customer PDF block layout engine ───────────────────────────
 
-function buildCoverItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
-  const items: PdfLayoutItem[] = [];
-
-  const titleText = documentModel.cover.title;
-  for (const line of wordWrap(titleText, wrapWidth(16))) {
-    items.push(titleItem(line));
-  }
-  items.push(gapItem(8));
-
-  if (hasText(documentModel.cover.brandName)) {
-    for (const line of wordWrap(documentModel.cover.brandName, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    items.push(gapItem(8));
+function measureBlock(block: CustomerPdfDraftBlock): CustomerPdfMeasuredBlock {
+  if (block.kind === 'gap') {
+    const intrinsicHeight = block.size;
+    return {
+      ...block,
+      lines: [],
+      intrinsicHeight,
+      wrappedHeight: 0,
+      totalHeight: block.spacingBefore + intrinsicHeight + block.spacingAfter,
+    };
   }
 
-  if (hasText(documentModel.cover.summary)) {
-    for (const line of wordWrap(documentModel.cover.summary, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    items.push(gapItem(10));
-  }
-
-  if (hasText(documentModel.cover.addressSummary)) {
-    for (const line of wordWrap(documentModel.cover.addressSummary, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    items.push(gapItem(12));
-  }
-
-  if (documentModel.cover.customerFacts.length > 0) {
-    items.push(headingItem('Your home'));
-    items.push(gapItem(5));
-    for (const fact of documentModel.cover.customerFacts) {
-      for (const line of wordWrap(`- ${fact}`, wrapWidth(11))) {
-        items.push(bodyItem(line));
-      }
-    }
-    items.push(gapItem(14));
-  }
-
-  return items;
+  const lines = wordWrap(block.text ?? '', wrapWidth(block.size));
+  const intrinsicHeight = lines.length > 0 ? block.lineHeight : 0;
+  const wrappedHeight = lines.length > 1 ? (lines.length - 1) * block.lineHeight : 0;
+  return {
+    ...block,
+    lines,
+    intrinsicHeight,
+    wrappedHeight,
+    totalHeight: block.spacingBefore + intrinsicHeight + wrappedHeight + block.spacingAfter,
+  };
 }
 
-function buildRecommendationReasonsItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
-  if (documentModel.recommendationReasons.length === 0) return [];
-  const items: PdfLayoutItem[] = [];
-  items.push(headingItem('Why this recommendation fits your home'));
-  items.push(gapItem(8));
-  for (const reason of documentModel.recommendationReasons) {
-    for (const line of wordWrap(reason.homeFact, wrapWidth(11))) {
-      items.push(subHeadingItem(line));
-    }
-    for (const line of wordWrap(`Why it matters: ${reason.whyItMatters}`, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    for (const line of wordWrap(`Atlas recommendation: ${reason.atlasRecommendationOutcome}`, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    for (const line of wordWrap(`What you will notice: ${reason.practicalEffect}`, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-    if (hasText(reason.detail)) {
-      for (const line of wordWrap(reason.detail, wrapWidth(11))) {
-        items.push(bodyItem(line));
-      }
-    }
-    items.push(gapItem(10));
-  }
-  items.push(gapItem(10));
-  return items;
+function splitMeasuredTextBlockForPage(
+  block: CustomerPdfMeasuredBlock,
+  availableHeight: number,
+): { readonly fit: CustomerPdfMeasuredBlock; readonly remainder: CustomerPdfMeasuredBlock } | null {
+  if (block.kind !== 'text' || block.lines.length < 2) return null;
+  const maxRenderableLines = Math.floor((availableHeight - block.spacingBefore) / block.lineHeight);
+  const fitLineCount = Math.max(1, Math.min(block.lines.length - 1, maxRenderableLines));
+  if (fitLineCount < 1) return null;
+
+  const fitLines = block.lines.slice(0, fitLineCount);
+  const remainderLines = block.lines.slice(fitLineCount);
+  if (remainderLines.length === 0) return null;
+
+  const fit: CustomerPdfMeasuredBlock = {
+    ...block,
+    lines: fitLines,
+    intrinsicHeight: fitLines.length > 0 ? block.lineHeight : 0,
+    wrappedHeight: fitLines.length > 1 ? (fitLines.length - 1) * block.lineHeight : 0,
+    spacingAfter: 0,
+    totalHeight: 0,
+  };
+  const fitTotalHeight = fit.spacingBefore + fit.intrinsicHeight + fit.wrappedHeight;
+
+  const remainder: CustomerPdfMeasuredBlock = {
+    ...block,
+    lines: remainderLines,
+    intrinsicHeight: remainderLines.length > 0 ? block.lineHeight : 0,
+    wrappedHeight: remainderLines.length > 1 ? (remainderLines.length - 1) * block.lineHeight : 0,
+    spacingBefore: 0,
+    totalHeight: 0,
+  };
+  const remainderTotalHeight = remainder.spacingBefore + remainder.intrinsicHeight + remainder.wrappedHeight + remainder.spacingAfter;
+
+  return {
+    fit: {
+      ...fit,
+      totalHeight: fitTotalHeight,
+    },
+    remainder: {
+      ...remainder,
+      totalHeight: remainderTotalHeight,
+    },
+  };
 }
 
-function buildSectionItems(section: CustomerDocumentSectionV1): PdfLayoutItem[] {
-  const items: PdfLayoutItem[] = [];
+class CustomerPdfBlockLayoutEngine {
+  private readonly measuredBlocks: readonly CustomerPdfMeasuredBlock[];
 
-  for (const line of wordWrap(section.heading, wrapWidth(13))) {
-    items.push(headingItem(line));
-  }
-  items.push(gapItem(6));
-
-  for (const line of wordWrap(section.summary, wrapWidth(11))) {
-    items.push(bodyItem(line));
-  }
-  items.push(gapItem(10));
-
-  for (const factItem of section.items) {
-    for (const line of wordWrap(`- ${factItem}`, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
+  constructor(blocks: readonly CustomerPdfDraftBlock[]) {
+    this.measuredBlocks = blocks.map(measureBlock);
   }
 
-  if (hasText(section.keyTakeaway)) {
-    items.push(gapItem(10));
-    items.push(subHeadingItem('Key takeaway'));
-    for (const line of wordWrap(section.keyTakeaway, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-  }
+  private paginate(): CustomerPdfMeasuredBlock[][] {
+    const pages: CustomerPdfMeasuredBlock[][] = [];
+    let currentPage: CustomerPdfMeasuredBlock[] = [];
+    let currentY = PDF_TEXT_TOP_Y;
+    const queue: CustomerPdfMeasuredBlock[] = [...this.measuredBlocks];
 
-  if (hasText(section.reassurance)) {
-    items.push(gapItem(10));
-    items.push(subHeadingItem(REASSURANCE_HEADING));
-    for (const line of wordWrap(section.reassurance, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-  }
+    while (queue.length > 0) {
+      const block = queue.shift() as CustomerPdfMeasuredBlock;
 
-  items.push(gapItem(20));
-  return items;
-}
-
-function buildSystemProtectionItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
-  if (documentModel.systemProtection == null) return [];
-  const items: PdfLayoutItem[] = [];
-  items.push(headingItem(documentModel.systemProtection.title));
-  items.push(gapItem(8));
-  for (const line of wordWrap(documentModel.systemProtection.customerSummary, wrapWidth(11))) {
-    items.push(bodyItem(line));
-  }
-  items.push(gapItem(8));
-  for (const bullet of documentModel.systemProtection.customerVisibleBullets) {
-    for (const line of wordWrap(`- ${bullet}`, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-  }
-  if (hasText(documentModel.systemProtection.whatInstallerWillCheck)) {
-    items.push(gapItem(10));
-    items.push(subHeadingItem(INSTALLER_CHECK_HEADING));
-    for (const line of wordWrap(documentModel.systemProtection.whatInstallerWillCheck, wrapWidth(11))) {
-      items.push(bodyItem(line));
-    }
-  }
-  items.push(gapItem(20));
-  return items;
-}
-
-function buildNextStepsItems(documentModel: CustomerDocumentModelV1): PdfLayoutItem[] {
-  const items: PdfLayoutItem[] = [];
-  items.push(headingItem('What happens next'));
-  items.push(gapItem(8));
-  for (const step of documentModel.nextSteps) {
-    if (hasText(step.label)) {
-      items.push(subHeadingItem(step.label));
-    }
-    if (hasText(step.body)) {
-      for (const line of wordWrap(step.body, wrapWidth(11))) {
-        items.push(bodyItem(line));
+      if (block.pageBreakPolicy === 'always' && currentPage.length > 0) {
+        pages.push(currentPage);
+        currentPage = [];
+        currentY = PDF_TEXT_TOP_Y;
       }
-    }
-    items.push(gapItem(10));
-  }
-  if (documentModel.qrDestinations.length > 0) {
-    items.push(subHeadingItem(DEEP_DIVE_LINKS_HEADING));
-    items.push(gapItem(6));
-    for (const destination of documentModel.qrDestinations) {
-      if (hasText(destination.heading)) {
-        for (const line of wordWrap(destination.heading, wrapWidth(11))) {
-          items.push(bodyItem(line));
-        }
+
+      const availableHeight = currentY - PDF_MIN_Y;
+      if (block.totalHeight <= availableHeight) {
+        currentPage.push(block);
+        currentY -= block.totalHeight;
+        continue;
       }
-      if (hasText(destination.note)) {
-        for (const line of wordWrap(destination.note, wrapWidth(11))) {
-          items.push(smallItem(line));
-        }
+
+      if (currentPage.length > 0) {
+        pages.push(currentPage);
+        currentPage = [];
+        currentY = PDF_TEXT_TOP_Y;
+        queue.unshift(block);
+        continue;
       }
-      items.push(gapItem(8));
-    }
-  }
-  return items;
-}
 
-// ─── Page breaking ────────────────────────────────────────────────────────────
+      const split = splitMeasuredTextBlockForPage(block, availableHeight);
+      if (split != null) {
+        currentPage.push(split.fit);
+        pages.push(currentPage);
+        currentPage = [];
+        currentY = PDF_TEXT_TOP_Y;
+        queue.unshift(split.remainder);
+        continue;
+      }
 
-/**
- * Splits a flat list of layout items into pages, respecting the page height.
- */
-function paginateItems(allItems: readonly PdfLayoutItem[]): PdfLayoutItem[][] {
-  const pages: PdfLayoutItem[][] = [];
-  let currentPage: PdfLayoutItem[] = [];
-  let currentY = PDF_TEXT_TOP_Y;
-
-  for (const item of allItems) {
-    const itemHeight = item.kind === 'gap' ? item.height : item.lineHeight;
-    if (currentY - itemHeight < PDF_MIN_Y && currentPage.length > 0) {
+      currentPage.push(block);
       pages.push(currentPage);
       currentPage = [];
       currentY = PDF_TEXT_TOP_Y;
     }
-    currentPage.push(item);
-    currentY -= itemHeight;
+
+    if (currentPage.length > 0) pages.push(currentPage);
+    return pages;
   }
-  if (currentPage.length > 0) pages.push(currentPage);
-  return pages;
+
+  private drawPageContentStream(pageBlocks: readonly CustomerPdfMeasuredBlock[]): string {
+    const cmds: string[] = [];
+    let y = PDF_TEXT_TOP_Y;
+    let currentFont: PdfFont | null = null;
+    let currentSize = 0;
+    let inBt = false;
+
+    const ensureFont = (font: PdfFont, size: number) => {
+      if (currentFont !== font || currentSize !== size) {
+        if (inBt) {
+          cmds.push('ET');
+          inBt = false;
+        }
+        currentFont = font;
+        currentSize = size;
+      }
+      if (!inBt) {
+        cmds.push(`BT\n/${currentFont} ${currentSize} Tf`);
+        inBt = true;
+      }
+    };
+
+    for (const block of pageBlocks) {
+      y -= block.spacingBefore;
+      if (block.kind === 'gap') {
+        y -= block.intrinsicHeight;
+        y -= block.spacingAfter;
+        continue;
+      }
+
+      ensureFont(block.font, block.size);
+      for (const line of block.lines) {
+        cmds.push(`${PDF_MARGIN_L} ${y} Td\n(${escapePdfText(line)}) Tj\n0 0 Td`);
+        y -= block.lineHeight;
+      }
+      y -= block.spacingAfter;
+    }
+
+    if (inBt) cmds.push('ET');
+    return cmds.join('\n');
+  }
+
+  layout(): readonly string[] {
+    const pages = this.paginate();
+    return pages.map((page) => this.drawPageContentStream(page));
+  }
 }
 
-// ─── Content stream renderer ──────────────────────────────────────────────────
+function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): CustomerPdfDraftBlock[] {
+  const blocks: CustomerPdfDraftBlock[] = [];
 
-function renderPageContentStream(pageItems: readonly PdfLayoutItem[]): string {
-  const cmds: string[] = [];
-  let y = PDF_TEXT_TOP_Y;
-  let currentFont: PdfFont | null = null;
-  let currentSize = 0;
-  let inBt = false;
+  blocks.push(createTextBlock('section_heading', SECTION_RECOMMENDATION_SUMMARY, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+  if (hasText(documentModel.cover.title)) {
+    blocks.push(createTextBlock('subheading', documentModel.cover.title, { spacingAfter: 4 }));
+  }
+  if (hasText(documentModel.cover.summary)) {
+    blocks.push(createTextBlock('body', documentModel.cover.summary, { spacingAfter: 6 }));
+  }
+  if (hasText(documentModel.cover.addressSummary)) {
+    blocks.push(createTextBlock('body', documentModel.cover.addressSummary, { spacingAfter: 6 }));
+  }
+  if (documentModel.cover.customerFacts.length > 0) {
+    blocks.push(createTextBlock('subheading', 'Your home', { spacingAfter: 4 }));
+    for (const fact of documentModel.cover.customerFacts) {
+      blocks.push(createTextBlock('bullet', `- ${fact}`, { spacingAfter: 2 }));
+    }
+  }
 
-  function ensureFont(font: PdfFont, size: number) {
-    if (currentFont !== font || currentSize !== size) {
-      if (inBt) {
-        cmds.push('ET');
-        inBt = false;
+  if (documentModel.recommendationReasons.length > 0) {
+    blocks.push(createTextBlock('section_heading', SECTION_WHY_THIS_FITS, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+    for (const reason of documentModel.recommendationReasons) {
+      blocks.push(createTextBlock('subheading', reason.homeFact, { spacingAfter: 3 }));
+      blocks.push(createTextBlock('body', `Why it matters: ${reason.whyItMatters}`, { spacingAfter: 2 }));
+      blocks.push(createTextBlock('body', `Atlas recommendation: ${reason.atlasRecommendationOutcome}`, { spacingAfter: 2 }));
+      blocks.push(createTextBlock('body', `What you will notice: ${reason.practicalEffect}`, { spacingAfter: 3 }));
+      if (hasText(reason.detail)) {
+        blocks.push(createTextBlock('body', reason.detail, { spacingAfter: 4 }));
       }
-      currentFont = font;
-      currentSize = size;
-    }
-    if (!inBt) {
-      cmds.push(`BT\n/${currentFont} ${currentSize} Tf`);
-      inBt = true;
     }
   }
 
-  for (const item of pageItems) {
-    if (item.kind === 'gap') {
-      y -= item.height;
-      continue;
-    }
-    ensureFont(item.font, item.size);
-    cmds.push(`${PDF_MARGIN_L} ${y} Td\n(${escapePdfText(item.text)}) Tj\n0 0 Td`);
-    y -= item.lineHeight;
+  if (documentModel.sections.length > 0) {
+    blocks.push(createTextBlock('section_heading', SECTION_PRACTICAL_OUTCOMES, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+    documentModel.sections.forEach((section) => {
+      blocks.push(createTextBlock('body', section.summary, { spacingAfter: 3 }));
+      if (hasText(section.keyTakeaway)) {
+        blocks.push(createTextBlock('body', `Key takeaway: ${section.keyTakeaway}`, { spacingAfter: 3 }));
+      }
+      for (const item of section.items) {
+        blocks.push(createTextBlock('bullet', `- ${item}`, { spacingAfter: 2 }));
+      }
+      blocks.push(createGapBlock(6));
+    });
   }
 
-  if (inBt) cmds.push('ET');
-  return cmds.join('\n');
+  if (documentModel.systemProtection != null) {
+    blocks.push(createTextBlock('section_heading', SECTION_PROTECTION_AND_CONDITION, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+    blocks.push(createTextBlock('subheading', documentModel.systemProtection.title, { spacingAfter: 3 }));
+    blocks.push(createTextBlock('body', documentModel.systemProtection.customerSummary, { spacingAfter: 3 }));
+    for (const bullet of documentModel.systemProtection.customerVisibleBullets) {
+      blocks.push(createTextBlock('bullet', `- ${bullet}`, { spacingAfter: 2 }));
+    }
+    if (hasText(documentModel.systemProtection.whatInstallerWillCheck)) {
+      blocks.push(createTextBlock('subheading', INSTALLER_CHECK_HEADING, { spacingBefore: 4, spacingAfter: 3 }));
+      blocks.push(createTextBlock('body', documentModel.systemProtection.whatInstallerWillCheck, { spacingAfter: 3 }));
+    }
+  }
+
+  blocks.push(createTextBlock('section_heading', SECTION_NEXT_STEPS, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+  for (const step of documentModel.nextSteps) {
+    if (hasText(step.label)) {
+      blocks.push(createTextBlock('subheading', step.label, { spacingAfter: 2 }));
+    }
+    if (hasText(step.body)) {
+      blocks.push(createTextBlock('body', step.body, { spacingAfter: 3 }));
+    }
+  }
+  if (documentModel.qrDestinations.length > 0) {
+    blocks.push(createTextBlock('subheading', DEEP_DIVE_LINKS_HEADING, { spacingBefore: 4, spacingAfter: 3 }));
+    for (const destination of documentModel.qrDestinations) {
+      if (hasText(destination.heading)) {
+        blocks.push(createTextBlock('body', destination.heading, { spacingAfter: 2 }));
+      }
+      if (hasText(destination.note)) {
+        blocks.push(createTextBlock('small', destination.note, { spacingAfter: 3 }));
+      }
+    }
+  }
+
+  return blocks;
 }
 
 // ─── Multi-page PDF assembly ──────────────────────────────────────────────────
@@ -526,20 +581,8 @@ export function renderVisitPackagePdfDocument(envelope: VisitPackagePdfEnvelopeV
 
   const customerDocument = resolveCustomerDocument(envelope);
 
-  // Build layout items for all pages
-  const allItems: PdfLayoutItem[] = [
-    ...buildCoverItems(customerDocument),
-    ...buildRecommendationReasonsItems(customerDocument),
-  ];
-
-  for (const section of customerDocument.sections) {
-    allItems.push(...buildSectionItems(section));
-  }
-  allItems.push(...buildSystemProtectionItems(customerDocument));
-  allItems.push(...buildNextStepsItems(customerDocument));
-
-  const pages = paginateItems(allItems);
-  const contentStreams = pages.map(renderPageContentStream);
+  const layoutEngine = new CustomerPdfBlockLayoutEngine(buildCustomerPdfDraftBlocks(customerDocument));
+  const contentStreams = layoutEngine.layout();
   return assemblePdf(contentStreams, payloadStream);
 }
 
