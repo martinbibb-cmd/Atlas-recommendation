@@ -28,6 +28,10 @@ without explicit approval.
 
 ### Diagram registries
 - No new standalone diagram pages may be added to `src/library/diagrams/`.
+- Old visual topology gallery is legacy and non-authoritative.
+- Existing SVG topology renderers must not be expanded.
+- New work belongs under `docs/lego-technix` and later `src/features/legoTechnix`.
+- No new educational diagram systems until the LegoTechnix graph foundation exists.
 
 ---
 
