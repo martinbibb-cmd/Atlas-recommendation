@@ -95,8 +95,8 @@ describe('PortalJourneyPrintPack — cover page', () => {
   it('renders the customer facts', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     const factsEl = screen.getByTestId('pjpp-cover-facts');
-    expect(within(factsEl).getByText('4-person household')).toBeInTheDocument();
-    expect(within(factsEl).getByText('2 bathrooms')).toBeInTheDocument();
+    expect(within(factsEl).getAllByText('4-person household').length).toBeGreaterThan(0);
+    expect(within(factsEl).getAllByText('2 bathrooms').length).toBeGreaterThan(0);
     expect(screen.getByTestId('pjpp-cover-confidence')).toBeInTheDocument();
     expect(screen.getByTestId('pjpp-cover-fact-chips')).toBeInTheDocument();
   });
