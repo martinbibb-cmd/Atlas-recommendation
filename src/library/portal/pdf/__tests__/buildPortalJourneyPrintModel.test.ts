@@ -543,3 +543,210 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
     expect(text).not.toContain('0 people');
   });
 });
+
+// ─── Recommendation intent filtering ─────────────────────────────────────────
+
+import {
+  resolveRecommendationIntentCategory,
+  inferCustomerJourneyTypeFromSystemContext,
+  type RecommendationIntentContextV1,
+} from '../buildPortalJourneyPrintModel';
+
+describe('resolveRecommendationIntentCategory', () => {
+  it('returns heat_pump_transition when recommendedScenarioType is ashp', () => {
+    const ctx: RecommendationIntentContextV1 = { recommendedScenarioType: 'ashp' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('heat_pump_transition');
+  });
+
+  it('returns heat_pump_transition when recommendedHeatSource is ashp', () => {
+    const ctx: RecommendationIntentContextV1 = { recommendedHeatSource: 'ashp' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('heat_pump_transition');
+  });
+
+  it('returns heat_pump_transition when recommendedScenarioId contains ashp', () => {
+    const ctx: RecommendationIntentContextV1 = { recommendedScenarioId: 'ashp-r290-standard' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('heat_pump_transition');
+  });
+
+  it('returns combi_replacement when recommendedScenarioType is combi', () => {
+    const ctx: RecommendationIntentContextV1 = { recommendedScenarioType: 'combi' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('combi_replacement');
+  });
+
+  it('returns combi_replacement when hotWaterArrangement is on_demand', () => {
+    const ctx: RecommendationIntentContextV1 = { hotWaterArrangement: 'on_demand' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('combi_replacement');
+  });
+
+  it('returns vented_to_unvented when current system is open-vented and recommended is stored', () => {
+    const ctx: RecommendationIntentContextV1 = {
+      dhwStorageType: 'vented',
+      hotWaterArrangement: 'stored_unvented',
+    };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('vented_to_unvented');
+  });
+
+  it('returns stored_hot_water when hotWaterArrangement is stored_unvented (no vented current)', () => {
+    const ctx: RecommendationIntentContextV1 = { hotWaterArrangement: 'stored_unvented' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('stored_hot_water');
+  });
+
+  it('returns sealed_system_conversion when recommendedScenarioType is system', () => {
+    const ctx: RecommendationIntentContextV1 = { recommendedScenarioType: 'system' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('sealed_system_conversion');
+  });
+
+  // Current-system fallback (no recommended-system signals)
+  it('returns vented_to_unvented from current system when dhwStorageType is vented and no recommendation present', () => {
+    const ctx: RecommendationIntentContextV1 = {
+      currentHeatSourceType: 'regular',
+      dhwStorageType: 'vented',
+    };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('vented_to_unvented');
+  });
+
+  it('returns heat_pump_transition from current system when currentHeatSourceType is ashp and no recommendation present', () => {
+    const ctx: RecommendationIntentContextV1 = { currentHeatSourceType: 'ashp' };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('heat_pump_transition');
+  });
+
+  it('preferred recommended signals override current-system fallback', () => {
+    // Even though current system is vented, a combi recommendation overrides
+    const ctx: RecommendationIntentContextV1 = {
+      currentHeatSourceType: 'regular',
+      dhwStorageType: 'vented',
+      hotWaterArrangement: 'on_demand',
+    };
+    expect(resolveRecommendationIntentCategory(ctx)).toBe('combi_replacement');
+  });
+});
+
+describe('inferCustomerJourneyTypeFromSystemContext', () => {
+  it('returns heat_pump when recommended heat source is ashp', () => {
+    expect(inferCustomerJourneyTypeFromSystemContext({
+      currentHeatSourceType: 'regular',
+      dhwStorageType: 'vented',
+      recommendedHeatSource: 'ashp',
+    })).toBe('heat_pump');
+  });
+
+  it('returns heat_pump when open-vented home gets ASHP (scenario ID signal)', () => {
+    expect(inferCustomerJourneyTypeFromSystemContext({
+      currentHeatSourceType: 'regular',
+      dhwStorageType: 'vented',
+      recommendedScenarioId: 'ashp-low-temp',
+    })).toBe('heat_pump');
+  });
+
+  it('returns generic_recommendation_summary for combi replacement', () => {
+    expect(inferCustomerJourneyTypeFromSystemContext({
+      currentHeatSourceType: 'combi',
+      recommendedScenarioType: 'combi',
+    })).toBe('generic_recommendation_summary');
+  });
+
+  it('returns open_vented for vented-to-unvented transition', () => {
+    expect(inferCustomerJourneyTypeFromSystemContext({
+      currentHeatSourceType: 'regular',
+      dhwStorageType: 'vented',
+      hotWaterArrangement: 'stored_unvented',
+    })).toBe('open_vented');
+  });
+
+  it('falls back to open_vented for legacy open-vented inputs with no recommendation signals', () => {
+    expect(inferCustomerJourneyTypeFromSystemContext({
+      currentHeatSourceType: 'regular',
+      dhwStorageType: 'vented',
+    })).toBe('open_vented');
+  });
+});
+
+describe('buildPortalJourneyPrintModel — ASHP intent prioritises heat-pump sections', () => {
+  it('ASHP recommendation produces heat-pump section IDs (warm_not_hot_radiators, steady_running, winter_behaviour)', () => {
+    const model = buildPortalJourneyPrintModel({
+      journeyType: 'heat_pump',
+      selectedSectionIds: [],
+      recommendationSummary: 'Air source heat pump — the right fit for this home.',
+      customerFacts: ['3-person household', '2 bathrooms'],
+    });
+    const sectionIds = model.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('warm_not_hot_radiators');
+    expect(sectionIds).toContain('steady_running');
+    expect(sectionIds).toContain('winter_behaviour');
+  });
+
+  it('ASHP recommendation does not include cylinder-only sections', () => {
+    const model = buildPortalJourneyPrintModel({
+      journeyType: 'heat_pump',
+      selectedSectionIds: [],
+      recommendationSummary: 'Air source heat pump — the right fit for this home.',
+      customerFacts: [],
+    });
+    const sectionIds = model.sections.map((s) => s.sectionId);
+    expect(sectionIds).not.toContain('pressure_vs_storage');
+    expect(sectionIds).not.toContain('unvented_safety');
+  });
+});
+
+describe('buildCustomerJourneyPack — recommendation intent via canonicalVisitPackage', () => {
+  it('ASHP scenario ID drives heat_pump journey type and excludes cylinder sections', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Air source heat pump.',
+      canonicalVisitPackage: {
+        visitIdentity: { visitId: 'v1', updatedAt: '2026-01-01T00:00:00.000Z' },
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {} as never,
+        proposalTruth: {
+          selectedScenarioId: 'ashp-r290',
+          decision: { recommendedScenarioId: 'ashp-r290', decidedAt: '2026-01-01T00:00:00.000Z' },
+        },
+      } as never,
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('warm_not_hot_radiators');
+    expect(sectionIds).not.toContain('pressure_vs_storage');
+    expect(sectionIds).not.toContain('unvented_safety');
+  });
+
+  it('combi recommendation excludes cylinder-only sections', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Combi boiler.',
+      canonicalVisitPackage: {
+        visitIdentity: { visitId: 'v2', updatedAt: '2026-01-01T00:00:00.000Z' },
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {} as never,
+        proposalTruth: {
+          selectedScenarioId: 'combi-high-output',
+          decision: { recommendedScenarioId: 'combi-high-output', decidedAt: '2026-01-01T00:00:00.000Z' },
+        },
+      } as never,
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).not.toContain('pressure_vs_storage');
+    expect(sectionIds).not.toContain('unvented_safety');
+  });
+
+  it('vented-to-unvented recommendation includes pressure/storage sections', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with unvented cylinder.',
+      canonicalVisitPackage: {
+        visitIdentity: { visitId: 'v3', updatedAt: '2026-01-01T00:00:00.000Z' },
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          postcode: 'SW1A 1AA',
+          dhwStorageType: 'vented',
+          currentHeatSourceType: 'regular',
+        } as never,
+      } as never,
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('pressure_vs_storage');
+    expect(sectionIds).toContain('unvented_safety');
+  });
+});

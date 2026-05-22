@@ -60,6 +60,30 @@ export type RecommendationReasonCategoryV1 =
   | 'protection_system_condition'
   | 'future_upgrade_readiness';
 
+/**
+ * Primary intent of the recommendation.
+ *
+ * Determines section priority, inclusion, and practical-outcome ordering in the
+ * customer-facing PDF.  The intent is resolved from the recommended system type
+ * and existing system context, not from the current (pre-install) setup alone.
+ *
+ * - heat_pump_transition   — ASHP/GSHP replacing a gas or oil system
+ * - stored_hot_water       — Sealed cylinder system without a topology change
+ * - sealed_system_conversion — Moving to a sealed heating circuit
+ * - combi_replacement      — Combi boiler; on-demand hot water, no cylinder
+ * - vented_to_unvented     — Open-vented layout upgrading to mains-pressure cylinder
+ * - protection_upgrade     — Primary focus is system condition / protection works
+ * - efficiency_upgrade     — Controls or efficiency-led route with no topology change
+ */
+export type RecommendationIntentCategoryV1 =
+  | 'heat_pump_transition'
+  | 'stored_hot_water'
+  | 'sealed_system_conversion'
+  | 'combi_replacement'
+  | 'vented_to_unvented'
+  | 'protection_upgrade'
+  | 'efficiency_upgrade';
+
 export interface RecommendationReasonBlockV1 {
   id: string;
   category: RecommendationReasonCategoryV1;
@@ -163,6 +187,12 @@ export interface BuildPortalJourneyPrintModelInputV1 {
   recommendationReasons?: RecommendationReasonBlockV1[];
   /** Preferred packaged customer journey pack; used instead of rebuilding when present. */
   customerJourneyPack?: CustomerJourneyPackV1;
+  /**
+   * Primary recommendation intent.  When supplied, overrides section
+   * inclusion and ordering regardless of journeyType.
+   * Resolved automatically by buildCustomerJourneyPack when not provided.
+   */
+  recommendationIntent?: RecommendationIntentCategoryV1;
 }
 
 export const CUSTOMER_JOURNEY_PACK_SCHEMA = 'atlas.customer-journey-pack' as const;
@@ -542,24 +572,169 @@ function inferCustomerFacts(input: BuildCustomerJourneyPackInputV1): string[] {
   return [];
 }
 
+// ─── Recommendation intent resolution ────────────────────────────────────────
+
+/**
+ * Context used to resolve the primary recommendation intent.
+ *
+ * Pass as much as is available; fields are checked in priority order.
+ * Recommended-system fields take precedence over current-system fields.
+ */
+export interface RecommendationIntentContextV1 {
+  /** Type of the recommended scenario — from ScenarioResult.system.type */
+  recommendedScenarioType?: string;
+  /** Heat source of the recommended system — from FinalPresentationPayload.heatSource */
+  recommendedHeatSource?: string;
+  /** Scenario ID of the accepted recommendation (may contain 'ashp', 'combi', etc.) */
+  recommendedScenarioId?: string;
+  /** Hot-water arrangement of the recommended system */
+  hotWaterArrangement?: string;
+  /** Current (pre-install) heat source type */
+  currentHeatSourceType?: string;
+  /** Current (pre-install) heating system topology */
+  currentSystemHeatingType?: string;
+  /** Current DHW storage type */
+  dhwStorageType?: string;
+}
+
+function isHeatPumpRecommendation(ctx: RecommendationIntentContextV1): boolean {
+  const hpSources = ['ashp', 'gshp'];
+  if (ctx.recommendedScenarioType != null && hpSources.includes(ctx.recommendedScenarioType)) return true;
+  if (ctx.recommendedHeatSource != null && hpSources.includes(ctx.recommendedHeatSource)) return true;
+  const scenarioId = ctx.recommendedScenarioId?.toLowerCase() ?? '';
+  return scenarioId.includes('ashp') || scenarioId.includes('heat_pump') || scenarioId.includes('gshp');
+}
+
+function isCombiRecommendation(ctx: RecommendationIntentContextV1): boolean {
+  if (ctx.recommendedScenarioType === 'combi') return true;
+  if (ctx.hotWaterArrangement === 'on_demand') return true;
+  const combiSources = ['gas_combi', 'oil_combi'];
+  if (ctx.recommendedHeatSource != null && combiSources.includes(ctx.recommendedHeatSource)) return true;
+  const scenarioId = ctx.recommendedScenarioId?.toLowerCase() ?? '';
+  return scenarioId.includes('combi');
+}
+
+function isVentedToUnvented(ctx: RecommendationIntentContextV1): boolean {
+  const wasOpenVented =
+    ctx.currentSystemHeatingType === 'open_vented' || ctx.dhwStorageType === 'vented';
+  const becomesStored =
+    ctx.hotWaterArrangement === 'stored_unvented'
+    || ctx.hotWaterArrangement === 'mixergy'
+    || ctx.hotWaterArrangement === 'thermal_store'
+    || ctx.recommendedScenarioType === 'system'
+    || ctx.recommendedScenarioType === 'regular';
+  return wasOpenVented && becomesStored;
+}
+
+/**
+ * resolveRecommendationIntentCategory
+ *
+ * Derives the primary recommendation intent from all available context.
+ * The intent determines section priority, inclusion, and practical-outcome
+ * ordering in the customer PDF.
+ *
+ * Recommended-system signals always take precedence over current-system signals
+ * so that, for example, an open-vented home getting an ASHP renders heat-pump
+ * outcomes first, not cylinder/tundish explainers.
+ */
+export function resolveRecommendationIntentCategory(
+  ctx: RecommendationIntentContextV1,
+): RecommendationIntentCategoryV1 {
+  if (isHeatPumpRecommendation(ctx)) return 'heat_pump_transition';
+  if (isCombiRecommendation(ctx)) return 'combi_replacement';
+  if (isVentedToUnvented(ctx)) return 'vented_to_unvented';
+  const storedArrangements = ['stored_unvented', 'stored_vented', 'mixergy', 'thermal_store'];
+  if (
+    ctx.hotWaterArrangement != null
+    && storedArrangements.includes(ctx.hotWaterArrangement)
+  ) {
+    return 'stored_hot_water';
+  }
+  if (ctx.recommendedScenarioType === 'system' || ctx.recommendedScenarioType === 'regular') {
+    return 'sealed_system_conversion';
+  }
+  // Current-system fallback: when no recommended-system signals are present, derive intent
+  // from the existing topology so that legacy inputs without a resolved scenario still
+  // produce the correct journey type (preserving backward compatibility).
+  const hasRecommendedSignal =
+    ctx.recommendedScenarioType != null
+    || ctx.recommendedHeatSource != null
+    || (ctx.recommendedScenarioId != null && ctx.recommendedScenarioId.length > 0)
+    || ctx.hotWaterArrangement != null;
+  if (!hasRecommendedSignal) {
+    const hpCurrentSources = ['ashp', 'gshp'];
+    if (ctx.currentHeatSourceType != null && hpCurrentSources.includes(ctx.currentHeatSourceType)) {
+      return 'heat_pump_transition';
+    }
+    if (ctx.dhwStorageType === 'vented' || ctx.currentSystemHeatingType === 'open_vented') {
+      return 'vented_to_unvented';
+    }
+  }
+  return 'efficiency_upgrade';
+}
+
+/** Maps a primary intent category to the journey type used for section selection. */
+function intentToJourneyType(
+  intent: RecommendationIntentCategoryV1,
+): NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']> {
+  switch (intent) {
+    case 'heat_pump_transition': return 'heat_pump';
+    case 'combi_replacement': return 'generic_recommendation_summary';
+    case 'vented_to_unvented': return 'open_vented';
+    case 'stored_hot_water': return 'stored_hot_water';
+    case 'sealed_system_conversion': return 'open_vented';
+    case 'protection_upgrade': return 'generic_recommendation_summary';
+    case 'efficiency_upgrade': return 'generic_recommendation_summary';
+  }
+}
+
+/**
+ * inferCustomerJourneyTypeFromSystemContext
+ *
+ * Resolves the journey type from system context.  Accepts both the current
+ * system signals and optional recommended-system signals.  When the recommended
+ * system can be identified, it takes precedence over the existing topology so
+ * that, for example, an open-vented home getting a heat pump renders heat-pump
+ * practical outcomes rather than open-vented cylinder sections.
+ *
+ * Pass recommendedScenarioType / recommendedHeatSource / recommendedScenarioId
+ * whenever the accepted scenario is known at the call site.
+ */
 export function inferCustomerJourneyTypeFromSystemContext(input: {
   currentHeatSourceType?: string;
   currentSystemHeatingType?: string;
   dhwStorageType?: string;
+  recommendedScenarioType?: string;
+  recommendedHeatSource?: string;
+  recommendedScenarioId?: string;
+  hotWaterArrangement?: string;
 }): NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']> {
-  if (input.currentHeatSourceType === 'ashp') return 'heat_pump';
-  if (input.currentSystemHeatingType === 'open_vented' || input.dhwStorageType === 'vented') {
-    return 'open_vented';
-  }
-  return 'generic_recommendation_summary';
+  const ctx: RecommendationIntentContextV1 = {
+    recommendedScenarioType: input.recommendedScenarioType,
+    recommendedHeatSource: input.recommendedHeatSource,
+    recommendedScenarioId: input.recommendedScenarioId,
+    hotWaterArrangement: input.hotWaterArrangement,
+    currentHeatSourceType: input.currentHeatSourceType,
+    currentSystemHeatingType: input.currentSystemHeatingType,
+    dhwStorageType: input.dhwStorageType,
+  };
+  return intentToJourneyType(resolveRecommendationIntentCategory(ctx));
 }
 
-function inferJourneyType(input: BuildCustomerJourneyPackInputV1): NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']> {
-  if (input.journeyType != null) return input.journeyType;
-  return inferCustomerJourneyTypeFromSystemContext({
-    currentHeatSourceType: input.canonicalVisitPackage?.engineInputSnapshot?.currentHeatSourceType,
+function inferRecommendationIntentFromInput(input: BuildCustomerJourneyPackInputV1): RecommendationIntentCategoryV1 {
+  if (input.recommendationIntent != null) return input.recommendationIntent;
+  const visitEnvelope = resolveVisitEnvelope(input);
+  const recommendation = visitEnvelope?.recommendation;
+  const surveyInput = resolveSurveyInput(input);
+  const proposalTruth = input.canonicalVisitPackage?.proposalTruth;
+  return resolveRecommendationIntentCategory({
+    recommendedScenarioType: undefined,
+    recommendedHeatSource: recommendation?.heatSource,
+    recommendedScenarioId: proposalTruth?.selectedScenarioId ?? proposalTruth?.decision?.recommendedScenarioId,
+    hotWaterArrangement: recommendation?.hotWaterArrangement,
+    currentHeatSourceType: surveyInput?.currentHeatSourceType,
     currentSystemHeatingType: input.canonicalVisitPackage?.surveyDraft?.currentSystem?.heatingSystemType,
-    dhwStorageType: input.canonicalVisitPackage?.engineInputSnapshot?.dhwStorageType,
+    dhwStorageType: surveyInput?.dhwStorageType,
   });
 }
 
@@ -937,6 +1112,25 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
   return reasons.slice(0, 5);
 }
 
+/**
+ * Section IDs that describe cylinder/unvented plumbing in detail.
+ * Excluded when the primary intent has no cylinder (e.g. combi_replacement).
+ */
+const CYLINDER_ONLY_SECTION_IDS: ReadonlySet<PortalJourneyPrintSectionV1['sectionId']> = new Set([
+  'pressure_vs_storage',
+  'unvented_safety',
+]);
+
+/**
+ * Returns true when the primary intent means a cylinder is not part of the
+ * recommended system and cylinder-specific sections should be suppressed.
+ */
+function shouldExcludeCylinderSections(
+  intent: RecommendationIntentCategoryV1 | undefined,
+): boolean {
+  return intent === 'combi_replacement';
+}
+
 function buildPortalJourneyPrintModelCore(
   input: BuildPortalJourneyPrintModelInputV1,
 ): PortalJourneyPrintModelV1 {
@@ -951,6 +1145,7 @@ function buildPortalJourneyPrintModelCore(
     includeAddressSummaryInPrint = false,
     surveyCondition,
     recommendationReasons,
+    recommendationIntent,
   } = input;
 
   const selectedSet = new Set(selectedSectionIds);
@@ -975,12 +1170,13 @@ function buildPortalJourneyPrintModelCore(
       : buildGenericRecommendationContent();
 
   const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
-  const sections = audienceProjection != null
-    ? rawSections.filter((section) => {
-        if (!registryConceptIdSet.has(section.contentId)) return true;
-        return audienceProjection.visibleConcepts.includes(section.contentId);
-      })
-    : rawSections;
+  const excludeCylinder = shouldExcludeCylinderSections(recommendationIntent);
+  const sections = rawSections.filter((section) => {
+    if (excludeCylinder && CYLINDER_ONLY_SECTION_IDS.has(section.sectionId)) return false;
+    if (audienceProjection == null) return true;
+    if (!registryConceptIdSet.has(section.contentId)) return true;
+    return audienceProjection.visibleConcepts.includes(section.contentId);
+  });
 
   const normalizedRecommendationReasons = (recommendationReasons ?? [])
     .filter((reason) =>
@@ -1020,17 +1216,19 @@ export function buildCustomerJourneyPack(
     return packagedPack;
   }
   const recommendationReasons = inferRecommendationReasonBlocks(input);
+  const resolvedIntent = inferRecommendationIntentFromInput(input);
   const staticPdf = buildPortalJourneyPrintModelCore({
     selectedSectionIds: input.selectedSectionIds ?? [],
     recommendationSummary: inferRecommendationSummary(input),
     customerFacts: inferCustomerFacts(input),
     brandProfile: input.brandProfile,
-    journeyType: inferJourneyType(input),
+    journeyType: input.journeyType ?? intentToJourneyType(resolvedIntent),
     audienceProjection: input.audienceProjection,
     visitContext: input.visitContext,
     includeAddressSummaryInPrint: input.includeAddressSummaryInPrint,
     surveyCondition: input.surveyCondition,
     recommendationReasons,
+    recommendationIntent: resolvedIntent,
   });
 
   return {
