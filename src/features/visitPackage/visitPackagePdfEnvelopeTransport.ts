@@ -426,7 +426,7 @@ function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): Cu
     blocks.push(createTextBlock('body', documentModel.cover.addressSummary, { spacingAfter: 6 }));
   }
   if (documentModel.cover.customerFacts.length > 0) {
-    blocks.push(createTextBlock('subheading', 'Home facts', { spacingAfter: 4 }));
+    blocks.push(createTextBlock('subheading', 'Your home', { spacingAfter: 4 }));
     for (const fact of documentModel.cover.customerFacts) {
       blocks.push(createTextBlock('bullet', `- ${fact}`, { spacingAfter: 2 }));
     }
@@ -447,8 +447,7 @@ function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): Cu
 
   if (documentModel.sections.length > 0) {
     blocks.push(createTextBlock('section_heading', SECTION_PRACTICAL_OUTCOMES, { pageBreakPolicy: 'always', spacingAfter: 6 }));
-    documentModel.sections.forEach((section, index) => {
-      blocks.push(createTextBlock('subheading', `Practical outcome ${index + 1}`, { spacingAfter: 3 }));
+    documentModel.sections.forEach((section) => {
       blocks.push(createTextBlock('body', section.summary, { spacingAfter: 3 }));
       if (hasText(section.keyTakeaway)) {
         blocks.push(createTextBlock('body', `Key takeaway: ${section.keyTakeaway}`, { spacingAfter: 3 }));

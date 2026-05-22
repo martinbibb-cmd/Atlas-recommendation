@@ -114,6 +114,7 @@ function countTextDrawCommands(pdf: string): number {
 }
 
 const LONG_TEXT_REPEAT_COUNT = 80;
+// Chosen to guarantee wrapped detail spans multiple lines/pages in this fixture.
 
 describe('visit package PDF envelope', () => {
   it('wraps canonical payload without changing package content', () => {
