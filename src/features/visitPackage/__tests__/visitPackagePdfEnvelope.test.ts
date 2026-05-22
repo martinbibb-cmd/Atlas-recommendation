@@ -110,7 +110,7 @@ function extractYCoordinates(stream: string): number[] {
 }
 
 function countTextDrawCommands(pdf: string): number {
-  return (pdf.match(/ Td\n\(/g) ?? []).length;
+  return (pdf.match(/ Td\r?\n\(/g) ?? []).length;
 }
 
 const LONG_TEXT_REPEAT_COUNT = 80;

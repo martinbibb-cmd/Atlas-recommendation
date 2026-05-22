@@ -281,9 +281,7 @@ function splitMeasuredTextBlockForPage(
     intrinsicHeight: fitLines.length > 0 ? block.lineHeight : 0,
     wrappedHeight: fitLines.length > 1 ? (fitLines.length - 1) * block.lineHeight : 0,
     spacingAfter: 0,
-    totalHeight: block.spacingBefore
-      + (fitLines.length > 0 ? block.lineHeight : 0)
-      + (fitLines.length > 1 ? (fitLines.length - 1) * block.lineHeight : 0),
+    totalHeight: 0,
   };
   const fitTotalHeight = fit.spacingBefore + fit.intrinsicHeight + fit.wrappedHeight;
 
@@ -293,9 +291,7 @@ function splitMeasuredTextBlockForPage(
     intrinsicHeight: remainderLines.length > 0 ? block.lineHeight : 0,
     wrappedHeight: remainderLines.length > 1 ? (remainderLines.length - 1) * block.lineHeight : 0,
     spacingBefore: 0,
-    totalHeight: (remainderLines.length > 0 ? block.lineHeight : 0)
-      + (remainderLines.length > 1 ? (remainderLines.length - 1) * block.lineHeight : 0)
-      + block.spacingAfter,
+    totalHeight: 0,
   };
   const remainderTotalHeight = remainder.spacingBefore + remainder.intrinsicHeight + remainder.wrappedHeight + remainder.spacingAfter;
 
@@ -452,7 +448,7 @@ function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): Cu
   if (documentModel.sections.length > 0) {
     blocks.push(createTextBlock('section_heading', SECTION_PRACTICAL_OUTCOMES, { pageBreakPolicy: 'always', spacingAfter: 6 }));
     documentModel.sections.forEach((section, index) => {
-      blocks.push(createTextBlock('subheading', `Outcome ${index + 1}`, { spacingAfter: 3 }));
+      blocks.push(createTextBlock('subheading', `Practical outcome ${index + 1}`, { spacingAfter: 3 }));
       blocks.push(createTextBlock('body', section.summary, { spacingAfter: 3 }));
       if (hasText(section.keyTakeaway)) {
         blocks.push(createTextBlock('body', `Key takeaway: ${section.keyTakeaway}`, { spacingAfter: 3 }));
