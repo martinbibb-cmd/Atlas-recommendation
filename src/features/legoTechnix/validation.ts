@@ -1,4 +1,6 @@
 import type {
+  LegoTechnixActiveCircuitPathV1,
+  LegoTechnixCircuitDefinitionV1,
   LegoTechnixComponentV1,
   LegoTechnixConnectionV1,
   LegoTechnixGraphV1,
@@ -46,11 +48,357 @@ function hasHydraulicLengthAndBoreData(connection: LegoTechnixConnectionV1): boo
   );
 }
 
+function isPrimaryDomain(domain: string): boolean {
+  return domain === 'primary_heating';
+}
+
+function collectPathConnections(
+  path: LegoTechnixActiveCircuitPathV1,
+  connectionById: Map<string, LegoTechnixConnectionV1>,
+  errors: LegoTechnixValidationIssueV1[],
+): {
+  forwardConnections: LegoTechnixConnectionV1[];
+  returnConnections: LegoTechnixConnectionV1[];
+} {
+  const forwardConnections: LegoTechnixConnectionV1[] = [];
+  const returnConnections: LegoTechnixConnectionV1[] = [];
+
+  for (const connectionId of path.forwardConnectionIds) {
+    const connection = connectionById.get(connectionId);
+    if (!connection) {
+      addError(
+        errors,
+        'active_path_missing_forward_connection',
+        `Active path "${path.id}" references missing forward connection "${connectionId}".`,
+      );
+      continue;
+    }
+    forwardConnections.push(connection);
+  }
+
+  for (const connectionId of path.returnConnectionIds ?? []) {
+    const connection = connectionById.get(connectionId);
+    if (!connection) {
+      addError(
+        errors,
+        'active_path_missing_return_connection',
+        `Active path "${path.id}" references missing return connection "${connectionId}".`,
+      );
+      continue;
+    }
+    returnConnections.push(connection);
+  }
+
+  return { forwardConnections, returnConnections };
+}
+
+function validateConnectionChainContinuity(
+  chainType: 'forward' | 'return',
+  path: LegoTechnixActiveCircuitPathV1,
+  connections: LegoTechnixConnectionV1[],
+  expectedStartComponentId: string,
+  expectedEndComponentId: string,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  if (connections.length === 0) {
+    addError(
+      errors,
+      `active_path_empty_${chainType}_chain`,
+      `Active path "${path.id}" must include at least one ${chainType} connection.`,
+    );
+    return;
+  }
+
+  const firstConnection = connections[0];
+  if (firstConnection.sourceComponentId !== expectedStartComponentId) {
+    addError(
+      errors,
+      `active_path_${chainType}_source_mismatch`,
+      `Active path "${path.id}" ${chainType} chain must start at component "${expectedStartComponentId}".`,
+    );
+  }
+
+  const lastConnection = connections[connections.length - 1];
+  if (lastConnection.targetComponentId !== expectedEndComponentId) {
+    addError(
+      errors,
+      `active_path_${chainType}_sink_mismatch`,
+      `Active path "${path.id}" ${chainType} chain must end at component "${expectedEndComponentId}".`,
+    );
+  }
+
+  for (let index = 0; index < connections.length - 1; index += 1) {
+    const currentConnection = connections[index];
+    const nextConnection = connections[index + 1];
+    if (currentConnection.targetComponentId !== nextConnection.sourceComponentId) {
+      addError(
+        errors,
+        `active_path_${chainType}_continuity_break`,
+        `Active path "${path.id}" ${chainType} chain breaks continuity between "${currentConnection.id}" and "${nextConnection.id}".`,
+      );
+    }
+  }
+}
+
+function validateActivePathConnectionMembership(
+  path: LegoTechnixActiveCircuitPathV1,
+  connections: LegoTechnixConnectionV1[],
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  for (const connection of connections) {
+    if (!path.circuitIds.includes(connection.circuitId)) {
+      addError(
+        errors,
+        'active_path_connection_outside_circuit_set',
+        `Connection "${connection.id}" in active path "${path.id}" is not in the allowed circuit set.`,
+      );
+    }
+    if (connection.domain !== path.domain) {
+      addError(
+        errors,
+        'active_path_domain_mismatch',
+        `Connection "${connection.id}" in active path "${path.id}" has domain "${connection.domain}" but path domain is "${path.domain}".`,
+      );
+    }
+  }
+}
+
+function validateInlineContinuity(
+  path: LegoTechnixActiveCircuitPathV1,
+  connections: LegoTechnixConnectionV1[],
+  graph: LegoTechnixGraphV1,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  const inlineComponents = graph.components.filter((component) => (
+    component.role === 'inline'
+    || component.role === 'control_actuator'
+  ));
+
+  for (const component of inlineComponents) {
+    const incomingCount = connections.filter(
+      (connection) => connection.targetComponentId === component.id,
+    ).length;
+    const outgoingCount = connections.filter(
+      (connection) => connection.sourceComponentId === component.id,
+    ).length;
+    const participatesInPath = incomingCount > 0 || outgoingCount > 0;
+
+    if (participatesInPath && (incomingCount === 0 || outgoingCount === 0)) {
+      addError(
+        errors,
+        'inline_component_breaks_continuity',
+        `Inline continuity failed in active path "${path.id}" for component "${component.id}".`,
+      );
+    }
+  }
+}
+
+function validateBranchMergeSemantics(
+  graph: LegoTechnixGraphV1,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  for (const component of graph.components) {
+    const incomingCount = graph.connections.filter(
+      (connection) => connection.targetComponentId === component.id,
+    ).length;
+    const outgoingCount = graph.connections.filter(
+      (connection) => connection.sourceComponentId === component.id,
+    ).length;
+
+    if (component.behaviours?.includes('splits') && outgoingCount < 2) {
+      addError(
+        errors,
+        'split_component_missing_branches',
+        `Component "${component.id}" declares splits behaviour but has fewer than two outgoing connections.`,
+      );
+    }
+
+    if (component.behaviours?.includes('merges') && incomingCount < 2) {
+      addError(
+        errors,
+        'merge_component_missing_inputs',
+        `Component "${component.id}" declares merges behaviour but has fewer than two incoming connections.`,
+      );
+    }
+  }
+}
+
+function validateExchangerBoundary(
+  graph: LegoTechnixGraphV1,
+  warnings: LegoTechnixValidationIssueV1[],
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  for (const component of graph.components) {
+    if (component.role !== 'exchanger') {
+      continue;
+    }
+
+    const connectedConnections = graph.connections.filter((connection) => (
+      connection.sourceComponentId === component.id
+      || connection.targetComponentId === component.id
+    ));
+
+    const domainsSeen = new Set(connectedConnections.map((connection) => connection.domain));
+    const circuitDomains = new Map<string, Set<string>>();
+    for (const connection of connectedConnections) {
+      if (!circuitDomains.has(connection.circuitId)) {
+        circuitDomains.set(connection.circuitId, new Set());
+      }
+      circuitDomains.get(connection.circuitId)?.add(connection.domain);
+    }
+
+    if (domainsSeen.size < 2) {
+      addWarning(
+        warnings,
+        'exchanger_single_domain_usage',
+        `Exchanger "${component.id}" currently connects to only one domain.`,
+      );
+    }
+
+    for (const [circuitId, domains] of circuitDomains) {
+      if (domains.size > 1) {
+        addError(
+          errors,
+          'exchanger_circuit_crosses_domains',
+          `Circuit "${circuitId}" crosses exchanger "${component.id}" across multiple domains.`,
+        );
+      }
+    }
+  }
+}
+
+function validatePrimaryPathSinkRole(
+  path: LegoTechnixActiveCircuitPathV1,
+  sinkComponent: LegoTechnixComponentV1 | undefined,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  if (!sinkComponent) {
+    return;
+  }
+
+  if (sinkComponent.role !== 'load' && sinkComponent.role !== 'exchanger') {
+    addError(
+      errors,
+      'primary_path_invalid_sink_role',
+      `Primary active path "${path.id}" sink component "${sinkComponent.id}" must be role load or exchanger.`,
+    );
+  }
+}
+
+function validatePrimaryLoadsReachability(
+  graph: LegoTechnixGraphV1,
+  primaryPaths: LegoTechnixActiveCircuitPathV1[],
+  connectionById: Map<string, LegoTechnixConnectionV1>,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  const primaryLoads = graph.components.filter((component) => (
+    component.domains?.includes('primary_heating')
+    && (component.role === 'load' || component.role === 'exchanger')
+  ));
+  const visitedLoadIds = new Set<string>();
+
+  for (const path of primaryPaths) {
+    for (const connectionId of path.forwardConnectionIds) {
+      const connection = connectionById.get(connectionId);
+      if (!connection) {
+        continue;
+      }
+      visitedLoadIds.add(connection.sourceComponentId);
+      visitedLoadIds.add(connection.targetComponentId);
+    }
+  }
+
+  for (const loadComponent of primaryLoads) {
+    if (!visitedLoadIds.has(loadComponent.id)) {
+      addError(
+        errors,
+        'primary_load_not_reached_by_source_flow',
+        `Primary load "${loadComponent.id}" is not reached by any primary active forward path.`,
+      );
+    }
+  }
+}
+
+function validateCircuitRoleAssignments(
+  circuitRegistry: LegoTechnixCircuitDefinitionV1[],
+  activePaths: LegoTechnixActiveCircuitPathV1[],
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  const primaryCircuitsInUse = new Set<string>();
+  for (const path of activePaths) {
+    if (!isPrimaryDomain(path.domain)) {
+      continue;
+    }
+    for (const circuitId of path.circuitIds) {
+      primaryCircuitsInUse.add(circuitId);
+    }
+  }
+
+  for (const circuit of circuitRegistry) {
+    if (!primaryCircuitsInUse.has(circuit.id)) {
+      continue;
+    }
+
+    if (circuit.sourceRole !== 'source') {
+      addError(
+        errors,
+        'primary_circuit_missing_source_role',
+        `Primary circuit "${circuit.id}" must declare sourceRole as "source".`,
+      );
+    }
+
+    if (!circuit.sinkRole || (circuit.sinkRole !== 'load' && circuit.sinkRole !== 'exchanger')) {
+      addError(
+        errors,
+        'primary_circuit_missing_sink_role',
+        `Primary circuit "${circuit.id}" must declare sinkRole as "load" or "exchanger".`,
+      );
+    }
+  }
+}
+
 export function validateLegoTechnixGraphV1(graph: LegoTechnixGraphV1): LegoTechnixValidationResultV1 {
   const errors: LegoTechnixValidationIssueV1[] = [];
   const warnings: LegoTechnixValidationIssueV1[] = [];
 
   const componentById = new Map(graph.components.map((component) => [component.id, component]));
+  const connectionById = new Map<string, LegoTechnixConnectionV1>();
+  for (const connection of graph.connections) {
+    if (connectionById.has(connection.id)) {
+      addError(
+        errors,
+        'duplicate_connection_id',
+        `Connection "${connection.id}" is duplicated.`,
+      );
+    }
+    connectionById.set(connection.id, connection);
+  }
+
+  if (!graph.circuitRegistry || graph.circuitRegistry.length === 0) {
+    addError(
+      errors,
+      'missing_circuit_registry',
+      'Graph must declare a circuitId registry.',
+    );
+  }
+
+  const circuitById = new Map<string, LegoTechnixCircuitDefinitionV1>();
+  for (const circuit of graph.circuitRegistry ?? []) {
+    if (circuitById.has(circuit.id)) {
+      addError(
+        errors,
+        'duplicate_circuit_id',
+        `Circuit "${circuit.id}" is duplicated in the circuit registry.`,
+      );
+    }
+    circuitById.set(circuit.id, circuit);
+  }
+
+  validateCircuitRoleAssignments(
+    graph.circuitRegistry ?? [],
+    graph.activeCircuitPaths ?? [],
+    errors,
+  );
 
   for (const component of graph.components) {
     if (!component.domains || component.domains.length === 0) {
@@ -135,6 +483,21 @@ export function validateLegoTechnixGraphV1(graph: LegoTechnixGraphV1): LegoTechn
       );
     }
 
+    const circuitDefinition = circuitById.get(connection.circuitId);
+    if (!circuitDefinition) {
+      addError(
+        errors,
+        'connection_unknown_circuit_id',
+        `Connection "${connection.id}" uses unknown circuitId "${connection.circuitId}".`,
+      );
+    } else if (circuitDefinition.domain !== connection.domain) {
+      addError(
+        errors,
+        'connection_circuit_domain_mismatch',
+        `Connection "${connection.id}" domain "${connection.domain}" does not match circuit "${connection.circuitId}" domain "${circuitDefinition.domain}".`,
+      );
+    }
+
     const sourceDomains = new Set(sourceComponent.domains ?? []);
     const targetDomains = new Set(targetComponent.domains ?? []);
     const sourceHasPrimary = sourceDomains.has('primary_heating');
@@ -179,6 +542,134 @@ export function validateLegoTechnixGraphV1(graph: LegoTechnixGraphV1): LegoTechn
       );
     }
   }
+
+  if (!graph.activeCircuitPaths || graph.activeCircuitPaths.length === 0) {
+    addError(
+      errors,
+      'missing_active_circuit_paths',
+      'Graph must declare active circuit paths.',
+    );
+  }
+
+  const primaryPaths: LegoTechnixActiveCircuitPathV1[] = [];
+  for (const path of graph.activeCircuitPaths ?? []) {
+    if (path.forwardConnectionIds.length === 0) {
+      addError(
+        errors,
+        'active_path_missing_forward_connections',
+        `Active path "${path.id}" must include forwardConnectionIds.`,
+      );
+      continue;
+    }
+
+    const sourceComponent = componentById.get(path.sourceComponentId);
+    if (!sourceComponent) {
+      addError(
+        errors,
+        'active_path_missing_source_component',
+        `Active path "${path.id}" references missing source component "${path.sourceComponentId}".`,
+      );
+    }
+
+    const sinkComponent = componentById.get(path.sinkComponentId);
+    if (!sinkComponent) {
+      addError(
+        errors,
+        'active_path_missing_sink_component',
+        `Active path "${path.id}" references missing sink component "${path.sinkComponentId}".`,
+      );
+    }
+
+    for (const circuitId of path.circuitIds) {
+      const circuitDefinition = circuitById.get(circuitId);
+      if (!circuitDefinition) {
+        addError(
+          errors,
+          'active_path_unknown_circuit',
+          `Active path "${path.id}" references unknown circuit "${circuitId}".`,
+        );
+        continue;
+      }
+      if (circuitDefinition.domain !== path.domain) {
+        addError(
+          errors,
+          'active_path_circuit_domain_mismatch',
+          `Active path "${path.id}" domain "${path.domain}" does not match circuit "${circuitId}" domain "${circuitDefinition.domain}".`,
+        );
+      }
+    }
+
+    const { forwardConnections, returnConnections } = collectPathConnections(
+      path,
+      connectionById,
+      errors,
+    );
+    validateActivePathConnectionMembership(path, forwardConnections, errors);
+    validateActivePathConnectionMembership(path, returnConnections, errors);
+    validateConnectionChainContinuity(
+      'forward',
+      path,
+      forwardConnections,
+      path.sourceComponentId,
+      path.sinkComponentId,
+      errors,
+    );
+
+    if (isPrimaryDomain(path.domain)) {
+      primaryPaths.push(path);
+
+      if (sourceComponent?.role !== 'source') {
+        addError(
+          errors,
+          'primary_path_invalid_source_role',
+          `Primary active path "${path.id}" source component "${path.sourceComponentId}" must have role "source".`,
+        );
+      }
+
+      validatePrimaryPathSinkRole(path, sinkComponent, errors);
+
+      if (!path.returnConnectionIds || path.returnConnectionIds.length === 0) {
+        addError(
+          errors,
+          'primary_path_missing_return_path',
+          `Primary active path "${path.id}" must include returnConnectionIds that close back to the source.`,
+        );
+      } else {
+        validateConnectionChainContinuity(
+          'return',
+          path,
+          returnConnections,
+          path.sinkComponentId,
+          path.sourceComponentId,
+          errors,
+        );
+      }
+
+      const pathConnections = [...forwardConnections, ...returnConnections];
+      validateInlineContinuity(path, pathConnections, graph, errors);
+
+      for (const connection of pathConnections) {
+        const source = componentById.get(connection.sourceComponentId);
+        const target = componentById.get(connection.targetComponentId);
+        const sourceIsDomesticStore = source?.role === 'store'
+          && (source.domains?.includes('domestic_hot') || source.domains?.includes('domestic_cold'));
+        const targetIsDomesticStore = target?.role === 'store'
+          && (target.domains?.includes('domestic_hot') || target.domains?.includes('domestic_cold'));
+
+        if (sourceIsDomesticStore || targetIsDomesticStore) {
+          addError(
+            errors,
+            'primary_path_enters_domestic_store',
+            `Primary active path "${path.id}" cannot pass through domestic store components.`,
+          );
+        }
+      }
+    }
+  }
+
+  validatePrimaryLoadsReachability(graph, primaryPaths, connectionById, errors);
+  validateBranchMergeSemantics(graph, errors);
+  validateExchangerBoundary(graph, warnings, errors);
 
   if (!graph.hydraulicDomains || graph.hydraulicDomains.length === 0) {
     addWarning(

@@ -67,6 +67,27 @@ export interface LegoTechnixConnectionV1 {
   physical: LegoTechnixConnectionPhysicalV1;
 }
 
+export interface LegoTechnixCircuitDefinitionV1 {
+  id: string;
+  label: string;
+  domain: LegoTechnixDomain;
+  description: string;
+  sourceRole?: LegoTechnixComponentRole;
+  sinkRole?: LegoTechnixComponentRole;
+}
+
+export interface LegoTechnixActiveCircuitPathV1 {
+  id: string;
+  label: string;
+  domain: LegoTechnixDomain;
+  sourceComponentId: string;
+  sinkComponentId: string;
+  circuitIds: string[];
+  forwardConnectionIds: string[];
+  returnConnectionIds?: string[];
+  description: string;
+}
+
 export interface HydraulicDomainV1 {
   id: string;
   pressureRegime: HydraulicPressureRegimeV1;
@@ -86,5 +107,7 @@ export interface LegoTechnixGraphV1 {
   confidence: LegoTechnixConfidence;
   components: LegoTechnixComponentV1[];
   connections: LegoTechnixConnectionV1[];
+  circuitRegistry?: LegoTechnixCircuitDefinitionV1[];
+  activeCircuitPaths?: LegoTechnixActiveCircuitPathV1[];
   hydraulicDomains?: HydraulicDomainV1[];
 }
