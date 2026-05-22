@@ -126,15 +126,8 @@ export function transitionAtlasVisitJourney(
       return reject(state);
 
     case 'visit_exported':
-      if (
-        state === 'recommendation_ready'
-        || state === 'presentation_ready'
-        || state === 'handoff_ready'
-      ) {
-        return accept('exported');
-      }
-      if (state === 'exported') return accept(state);
-      return reject(state);
+      if (state === 'archived') return reject(state);
+      return accept('exported');
 
     case 'visit_archived':
       return state === 'archived' ? accept(state) : accept('archived');
