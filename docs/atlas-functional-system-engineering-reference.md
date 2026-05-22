@@ -6,6 +6,13 @@ This document serves as the authoritative engineering reference for the Atlas Fu
 
 This report defines the mathematical models, terminology, and topological constraints for UK domestic heating and hot-water systems. It establishes what the engine can safely calculate for consumer-facing explanations, and what must remain constrained to engineering-only assumptions to avoid false precision.
 
+## Relationship to LegoTechnix
+
+- This engineering reference defines constants and modelling boundaries.
+- LegoTechnix defines executable graph architecture.
+- Visuals, PDF, portal, and simulator surfaces consume LegoTechnix outputs.
+- The recommendation engine remains separate.
+
 ## 2. Terminology and Water-Domain Definitions
 
 Atlas must strictly categorize mass and energy flows into isolated domains. Mixing these domains in the logic graph constitutes a critical validation failure.
