@@ -545,7 +545,7 @@ describe('VisitHomeDashboard', () => {
     expect(onDownloadCustomerPdf).toHaveBeenCalledOnce();
   });
 
-  it('customer PDF CTA delegates to the download handler without calling window.print', () => {
+  it('customer PDF CTA uses canonical package export instead of window.print', () => {
     const onDownloadCustomerPdf = vi.fn();
     const mockPrint = vi.fn();
     vi.stubGlobal('print', mockPrint);

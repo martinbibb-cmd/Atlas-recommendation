@@ -98,6 +98,15 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
     expect(state.customerPdfBlockReasons).toEqual(['Visit survey data is missing.']);
   });
 
+  it('leaves packaged portal payload undefined when no source package is available', () => {
+    const state = buildVisitHomeCustomerArtifactsState({
+      canExportVisitPackage: true,
+    });
+
+    expect(state.canOpenPortalFromPackage).toBe(false);
+    expect(state.portalLaunchPayload).toBeUndefined();
+  });
+
   it('unlocks the packaged portal when an imported PDF contains a customer journey pack', () => {
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({
       packagePayload: makePackage(),
