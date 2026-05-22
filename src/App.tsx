@@ -1073,27 +1073,7 @@ function AppInner() {
     if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-home';
     // ?visit-home=1: open visit home dashboard directly.
     if (VISIT_HOME_ENABLED)              return 'visit-home';
-    const restored = (_restoredSession?.value?.journey as Journey | undefined) ?? 'app-home';
-    // 'presentation' and 'printout' require labEngineInput which is not persisted.
-    // 'framework-print', 'library-pdf', and legacy journeys should not be restored as entry points.
-    // Restoring any of these without the necessary data would result in a white screen — fall back to 'workspace-dashboard'.
-    if (
-      restored === 'presentation'
-      || restored === 'printout'
-      || restored === 'framework-print'
-      || restored === 'library-pdf'
-      || restored === 'insight-pack'
-      || restored === 'unified-simulator'
-    ) {
-      return 'app-home';
-    }
-    // 'visit-home' and 'visit' require an active visit ID.
-    // If the visit cache is absent, fall back to 'workspace-dashboard' to avoid a white screen.
-    if ((restored === 'visit-hub' || restored === 'visit' || restored === 'visit-home') && !_restoredVisit?.value?.visitId) {
-      return 'app-home';
-    }
-    if (restored === 'visit-hub') return 'visit-home';
-    return restored;
+    return 'app-home';
   });
   /** Active report ID for the /report/:id route. */
   const [activeReportId, setActiveReportId] = useState<string | null>(INITIAL_REPORT_ID);
@@ -1864,14 +1844,33 @@ function AppInner() {
     }
   }
 
-  function handleExportCanonicalVisitPackage() {
+  function buildCanonicalVisitPackageForCurrentSession(options?: {
+    readonly markPdfGenerated?: boolean;
+  }): {
+    readonly pkg: CanonicalVisitPackageV1;
+    readonly now: string;
+    readonly visitReference: string;
+    readonly exportVisitId: string;
+    readonly exportSurveyModel: FullSurveyModelV1;
+    readonly currentSnapshot: VisitRecommendationSnapshot | null;
+    readonly generatedOutputs: GeneratedOutputsV1;
+    readonly exportDecision?: AtlasDecisionV1;
+    readonly exportCustomerSummary?: CustomerSummaryV1;
+    readonly selectedScenarioId?: string;
+    readonly exportPortalVisitContext?: PersistedPortalVisitContext;
+  } | undefined {
     const exportVisitId =
       activeVisitId
       ?? activeCanonicalPackage?.visitIdentity.visitId;
     const exportSurveyModel = labFullSurveyModel ?? activeCanonicalPackage?.surveyDraft;
     if (exportVisitId == null || exportSurveyModel == null) {
-      setLocalSessionStatus({ tone: 'error', message: 'Unable to export: no active visit survey in memory.' });
-      return;
+      if (import.meta.env.DEV) {
+        console.warn('[Atlas] Unable to build canonical visit package for current session', {
+          missingVisitId: exportVisitId == null,
+          missingSurveyModel: exportSurveyModel == null,
+        });
+      }
+      return undefined;
     }
     const now = new Date().toISOString();
     const currentSnapshot =
@@ -1896,7 +1895,7 @@ function AppInner() {
       currentSnapshot?.visitReference
       ?? activeCanonicalPackage?.visitIdentity.visitReference
       ?? formatVisitReference(exportVisitId);
-    const generatedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
+    const generatedOutputsWithPack = enrichGeneratedOutputsWithCustomerJourneyPack({
       generatedOutputs: currentSnapshot?.generatedOutputs ?? activeCanonicalPackage?.generatedOutputStatus?.generatedOutputs,
       surveyModel: exportSurveyModel,
       engineInput: exportEngineInput,
@@ -1905,6 +1904,18 @@ function AppInner() {
       portalVisitContext: exportPortalVisitContext,
       generatedAt: now,
     });
+    const generatedOutputs: GeneratedOutputsV1 = options?.markPdfGenerated === true
+      ? {
+          ...generatedOutputsWithPack,
+          pdf: {
+            ...generatedOutputsWithPack.pdf,
+            generated: true,
+            generatedAt: now,
+            version: generatedOutputsWithPack.pdf.version ?? '1.0',
+            status: generatedOutputsWithPack.pdf.status ?? 'generated',
+          },
+        }
+      : generatedOutputsWithPack;
     const pkg = buildCanonicalVisitPackage({
       packageData: {
         visitIdentity: {
@@ -1941,6 +1952,40 @@ function AppInner() {
         },
       },
     });
+    return {
+      pkg,
+      now,
+      visitReference,
+      exportVisitId,
+      exportSurveyModel,
+      currentSnapshot,
+      generatedOutputs,
+      exportDecision,
+      exportCustomerSummary,
+      selectedScenarioId,
+      exportPortalVisitContext,
+    };
+  }
+
+  function handleExportCanonicalVisitPackage() {
+    const prepared = buildCanonicalVisitPackageForCurrentSession({ markPdfGenerated: true });
+    if (prepared == null) {
+      setLocalSessionStatus({ tone: 'error', message: 'Unable to export: no active visit survey in memory.' });
+      return;
+    }
+    const {
+      pkg,
+      now,
+      visitReference,
+      exportVisitId,
+      exportSurveyModel,
+      currentSnapshot,
+      generatedOutputs,
+      exportDecision,
+      exportCustomerSummary,
+      selectedScenarioId,
+      exportPortalVisitContext,
+    } = prepared;
     const pdfEnvelope = buildVisitPackagePdfEnvelope({
       packagePayload: pkg,
       generatedAt: now,
@@ -1967,16 +2012,26 @@ function AppInner() {
       }),
     );
 
-    if (currentSnapshot != null) {
-      const nextSnapshot: VisitRecommendationSnapshot = {
-        ...currentSnapshot,
-        lifecycleState: dispatchVisitJourneyEvent(
-          currentSnapshot.lifecycleState,
-          { type: 'visit_exported' },
-        ),
-      };
-      persistActiveVisitSnapshot(nextSnapshot, exportSurveyModel);
-    }
+    const lifecycleAfterPresentation = dispatchVisitJourneyEvent(
+      currentSnapshot?.lifecycleState,
+      { type: 'presentation_generated' },
+    );
+    const nextSnapshot: VisitRecommendationSnapshot = {
+      visitId: exportVisitId,
+      visitReference,
+      engineOutput: currentSnapshot?.engineOutput,
+      scenarios: currentSnapshot?.scenarios,
+      decision: exportDecision ?? currentSnapshot?.decision,
+      customerSummary: exportCustomerSummary ?? currentSnapshot?.customerSummary,
+      acceptedScenarioId: selectedScenarioId ?? currentSnapshot?.acceptedScenarioId,
+      lifecycleState: dispatchVisitJourneyEvent(
+        lifecycleAfterPresentation,
+        { type: 'visit_exported' },
+      ),
+      generatedOutputs,
+      portalVisitContext: exportPortalVisitContext,
+    };
+    persistActiveVisitSnapshot(nextSnapshot, exportSurveyModel);
     setLocalSessionStatus(buildExportConfirmationStatus(filename, pkg));
   }
 
@@ -3201,11 +3256,11 @@ function AppInner() {
               type="button"
               className="next-btn"
               onClick={() => {
-                setJourney('visit');
+                setJourney('visit-home');
                 setVisitRecoveryPrompt(null);
               }}
             >
-              Resume
+              Resume saved visit
             </button>
             <button
               type="button"
@@ -3396,12 +3451,13 @@ function AppInner() {
             activeVisitId != null
               ? getScanCapture(activeVisitId)
               : null;
+          const customerJourneyPackGenerated = generatedOutputs.customerJourneyPack?.generated === true;
           const workflowQaChecklist = buildWorkflowQaChecklist({
             hasImportedPackage: activeCanonicalPackage != null,
             canOpenScan: activeCanonicalPackage != null,
             hasScanReturn: activeScanCapture != null,
             hasRegeneratedDeliveryOutputs:
-              generatedOutputs.portal.generated || generatedOutputs.pdf.generated,
+              generatedOutputs.portal.generated || generatedOutputs.pdf.generated || customerJourneyPackGenerated,
             hasExportedPackageAgain: lifecycleState === 'exported',
           });
           const canExportVisitPackage = canShowVisitHomeExportPackageAction({
@@ -3413,8 +3469,10 @@ function AppInner() {
             hasActiveVisitId: activeVisitId != null,
             hasCanonicalSnapshot: canonicalSnapshot != null,
             hasRegeneratedDeliveryOutputs:
-              generatedOutputs.portal.generated || generatedOutputs.pdf.generated,
+              generatedOutputs.portal.generated || generatedOutputs.pdf.generated || customerJourneyPackGenerated,
           });
+          const customerPdfExportReady = canExportVisitPackage && customerJourneyPackGenerated;
+          const canOpenPortalFromPackage = activeCanonicalPackage != null || customerPdfExportReady;
           const customerPdfMissingRequirements: string[] = [];
           const canonicalVisitId = activeCanonicalPackage?.visitIdentity.visitId;
           const hasCanonicalVisitId = hasText(canonicalVisitId);
@@ -3423,7 +3481,8 @@ function AppInner() {
             || activeVisitId != null
             || canonicalSnapshot != null
             || generatedOutputs.portal.generated
-            || generatedOutputs.pdf.generated;
+            || generatedOutputs.pdf.generated
+            || customerJourneyPackGenerated;
           if (activeVisitId == null && !hasCanonicalVisitId) {
             customerPdfMissingRequirements.push('Visit identity is missing.');
           }
@@ -3456,6 +3515,7 @@ function AppInner() {
               lifecycleState={lifecycleState}
               visitEnvelope={visitEnvelope}
               generatedOutputs={generatedOutputs}
+              hasSupportingPdfOutput={generatedOutputs.pdf.generated || customerPdfExportReady}
               portalUrl={generatedOutputs.portal.url ?? labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
@@ -3501,8 +3561,16 @@ function AppInner() {
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
               onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
               onDownloadCustomerPdf={canExportVisitPackage ? handleExportCanonicalVisitPackage : undefined}
-              onOpenPortalFromPackage={activeCanonicalPackage != null ? () => {
-                const payload = buildPortalLaunchPayload(activeCanonicalPackage);
+              onOpenPortalFromPackage={canOpenPortalFromPackage ? () => {
+                const sourcePackage = activeCanonicalPackage ?? buildCanonicalVisitPackageForCurrentSession()?.pkg;
+                if (sourcePackage == null) {
+                  setLocalSessionStatus({
+                    tone: 'error',
+                    message: 'Unable to launch portal: missing visit ID or survey data. Open Visit Home, generate recommendation, then retry.',
+                  });
+                  return;
+                }
+                const payload = buildPortalLaunchPayload(sourcePackage);
                 setActivePortalLaunchPayload(payload);
                 if (payload.generatedOutputMetadata.hasPortalUrl && payload.generatedOutputMetadata.portalUrl != null) {
                   // Validate that the URL is a safe absolute HTTP/HTTPS URL before opening it.
@@ -3888,7 +3956,7 @@ function AppInner() {
           engineInput={labEngineInput}
           onBack={() => setJourney(presentationFromJourney)}
           onOpenSimulator={() => setJourney('simulator')}
-          onPrint={() => setJourney('library-pdf')}
+          onPrint={handleExportCanonicalVisitPackage}
           heatLossState={labHeatLossState}
           prioritiesState={labPrioritiesState}
         />

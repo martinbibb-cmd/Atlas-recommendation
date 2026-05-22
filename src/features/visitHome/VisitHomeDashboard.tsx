@@ -388,11 +388,35 @@ function normaliseGeneratedOutputsWithLegacyFlags(input: {
   hasHandoffHandler: boolean;
 }): GeneratedOutputsV1 {
   const fallbackOutputs = createEmptyGeneratedOutputs();
+  const resolvedPortalGenerated = (
+    input.generatedOutputs?.portal?.generated
+    || input.hasPortalOutput
+    || input.portalUrl != null
+  ) === true;
+  const resolvedPdfGenerated = (
+    input.generatedOutputs?.pdf?.generated
+    || input.hasSupportingPdfOutput
+    || input.hasPrintSummary
+  ) === true;
+  const resolvedHandoffGenerated = (
+    input.generatedOutputs?.handoff?.generated
+    || input.hasHandoffOutput
+    || input.hasHandoffHandler
+  ) === true;
   return normaliseGeneratedOutputs({
     ...(input.generatedOutputs ?? fallbackOutputs),
-    portal: input.generatedOutputs?.portal ?? { generated: input.hasPortalOutput ?? (input.portalUrl != null) },
-    pdf: input.generatedOutputs?.pdf ?? { generated: input.hasSupportingPdfOutput ?? input.hasPrintSummary },
-    handoff: input.generatedOutputs?.handoff ?? { generated: input.hasHandoffOutput ?? input.hasHandoffHandler },
+    portal: {
+      ...(input.generatedOutputs?.portal ?? fallbackOutputs.portal),
+      generated: resolvedPortalGenerated,
+    },
+    pdf: {
+      ...(input.generatedOutputs?.pdf ?? fallbackOutputs.pdf),
+      generated: resolvedPdfGenerated,
+    },
+    handoff: {
+      ...(input.generatedOutputs?.handoff ?? fallbackOutputs.handoff),
+      generated: resolvedHandoffGenerated,
+    },
   });
 }
 
