@@ -2008,7 +2008,7 @@ function AppInner() {
       }
       setLocalSessionStatus({
         tone: 'error',
-        message: 'Customer PDF export failed. The package could not be rendered or downloaded.',
+        message: 'Customer PDF export failed. Please try again, or contact support if the problem persists.',
       });
       return;
     }

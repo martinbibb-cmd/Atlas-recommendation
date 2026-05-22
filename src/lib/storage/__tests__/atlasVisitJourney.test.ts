@@ -53,6 +53,7 @@ describe('atlasVisitJourney', () => {
   });
 
   it('allows visit_exported from any non-archived state', () => {
+    // All states defined in AtlasVisitJourneyState except 'archived'
     for (const state of [
       'draft_started',
       'survey_in_progress',
