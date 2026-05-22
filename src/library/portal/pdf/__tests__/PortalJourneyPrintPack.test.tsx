@@ -52,6 +52,9 @@ describe('PortalJourneyPrintPack — document structure', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(screen.getByTestId('pjpp-recommendation-reasons')).toBeInTheDocument();
     expect(screen.getByTestId('pjpp-reason-list')).toBeInTheDocument();
+    expect(screen.getByTestId('pjpp-visual-grammar')).toHaveTextContent(
+      'Fact → Why it matters → Atlas chose → What you will notice',
+    );
   });
 
   it('renders QR destinations section', () => {
@@ -94,6 +97,8 @@ describe('PortalJourneyPrintPack — cover page', () => {
     const factsEl = screen.getByTestId('pjpp-cover-facts');
     expect(within(factsEl).getByText('4-person household')).toBeInTheDocument();
     expect(within(factsEl).getByText('2 bathrooms')).toBeInTheDocument();
+    expect(screen.getByTestId('pjpp-cover-confidence')).toBeInTheDocument();
+    expect(screen.getByTestId('pjpp-cover-fact-chips')).toBeInTheDocument();
   });
 });
 
@@ -230,6 +235,11 @@ describe('PortalJourneyPrintPack — next steps and QR', () => {
     const list = screen.getByTestId('pjpp-qr-list');
     const items = within(list).getAllByRole('listitem');
     expect(items.length).toBeGreaterThan(0);
+  });
+
+  it('renders timeline cards for next steps', () => {
+    const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    expect(container.querySelectorAll('.pjpp-next-steps__card').length).toBeGreaterThan(0);
   });
 });
 

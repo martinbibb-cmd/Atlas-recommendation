@@ -72,5 +72,61 @@ describe('CustomerPortalJourneyComposer', () => {
     expect(screen.getByText('Packaged live experience line')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'How survey facts shaped the route' })).toBeInTheDocument();
     expect(screen.getByTestId('customer-portal-reason-grid')).toBeInTheDocument();
+    expect(screen.getByTestId('customer-portal-hero-confidence')).toBeInTheDocument();
+    expect(screen.getByTestId('customer-portal-visual-grammar')).toHaveTextContent(
+      'Fact → Why it matters → Atlas chose → What you will notice',
+    );
+    expect(screen.getByTestId('customer-portal-practical-outcome-cards')).toBeInTheDocument();
+    expect(screen.getByTestId('customer-portal-next-steps-timeline')).toBeInTheDocument();
+    expect(screen.getByTestId('customer-portal-technical-home-pattern')).toBeInTheDocument();
+  });
+
+  it('renders recommendation-first section order with technical detail moved later', () => {
+    const engineResult = runEngine(ENGINE_INPUT);
+    const scenarios = buildScenariosFromEngineOutput(engineResult.engineOutput);
+    const decision = buildDecisionFromScenarios({
+      scenarios,
+      boilerType: 'combi',
+      ageYears: ENGINE_INPUT.currentSystem?.boiler?.ageYears ?? 0,
+      occupancyCount: ENGINE_INPUT.occupancyCount,
+      bathroomCount: ENGINE_INPUT.bathroomCount,
+      showerCompatibilityNote: engineResult.engineOutput.showerCompatibilityNote,
+    });
+    const viewModel = buildPortalViewModel(
+      decision,
+      scenarios,
+      buildVisualBlocks(decision, scenarios, undefined, ENGINE_INPUT),
+    );
+    const packagedJourneyPack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Packaged import summary',
+      customerFacts: ['2-person household', '1 bathroom'],
+      journeyType: 'generic_recommendation_summary',
+      liveExperienceExplanations: ['Packaged live experience line'],
+    });
+
+    const { container } = render(
+      <CustomerPortalJourneyComposer
+        decision={decision}
+        scenarios={scenarios}
+        viewModel={viewModel}
+        engineInput={ENGINE_INPUT}
+        engineResult={engineResult}
+        propertyTitle="SW1A 1AA"
+        customerJourneyPack={packagedJourneyPack}
+      />,
+    );
+
+    const sectionIds = Array.from(container.querySelectorAll('[data-testid^="customer-portal-journey-section-"]'))
+      .map((el) => el.getAttribute('data-testid')?.replace('customer-portal-journey-section-', ''));
+    expect(sectionIds).toEqual([
+      'hero',
+      'recommendation-reasons',
+      'recommended-route',
+      'practical-outcomes',
+      'daily-use',
+      'next-steps',
+      'technical-deep-dive',
+    ]);
   });
 });
