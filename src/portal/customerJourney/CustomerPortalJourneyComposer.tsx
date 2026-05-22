@@ -74,26 +74,6 @@ function describeMainIssue(decision: AtlasDecisionV1): string {
     ?? decision.summary;
 }
 
-function buildFamiliarPoints(
-  input: EngineInputV2_3,
-  scenario: ScenarioResult | undefined,
-): string[] {
-  const points = ['Your room temperatures and daily routine stay the focus of the design.'];
-  if (scenario?.system.type !== 'ashp') {
-    points.push('Heating controls remain familiar once the new system is commissioned.');
-  } else {
-    points.push('Comfort stays steady even when radiators feel warm rather than very hot.');
-  }
-  if (input.currentHeatSourceType === scenario?.system.type) {
-    points.push('The main heating format stays familiar while the weak points are addressed.');
-  } else if (scenario?.system.type === 'combi') {
-    points.push('Hot water stays on-demand without adding stored hot-water equipment.');
-  } else {
-    points.push('Your taps and showers still work in the same places after the upgrade.');
-  }
-  return points.slice(0, 3);
-}
-
 function buildPreparationItems(decision: AtlasDecisionV1, scenario: ScenarioResult | undefined): string[] {
   const items = [
     ...decision.requiredWorks,
@@ -640,7 +620,6 @@ export function CustomerPortalJourneyComposer({
     || recommendedScenario?.dhwSubtype === 'mixergy';
   const shouldRenderPressureDiagram = isStoredWaterSystem && isPressureDiagramReady;
   const protectionItems = buildPreparationItems(decision, recommendedScenario).slice(0, 3);
-  const familiarPoints = buildFamiliarPoints(engineInput, recommendedScenario);
   const shouldShowStoredWaterVisual = isStoredWaterSystem;
   const shouldShowWarmRadiatorExpectation = recommendedScenario?.system.type === 'ashp';
   const journeyTitle = getScenarioTitle(recommendedScenario);
@@ -837,29 +816,19 @@ export function CustomerPortalJourneyComposer({
         </CustomerPortalJourneySectionV1>
 
         <CustomerPortalJourneySectionV1
-          sectionId="changes-and-familiar"
-          eyebrow="What changes and what stays familiar"
+          sectionId="practical-outcomes"
+          eyebrow="Practical outcomes"
           title="Upgrade impact at a glance"
-          intro="Atlas separates the work that changes from the parts of daily use that should still feel straightforward."
+          intro="Atlas keeps this focused on practical outcomes you will see at home."
         >
-          <div className="customer-portal-journey__two-column">
-            <article className="customer-portal-journey__visual-card">
-              <h3 className="customer-portal-journey__card-title">What changes</h3>
-              <ul className="customer-portal-journey__bullet-list">
-                {buildPreparationItems(decision, recommendedScenario).slice(0, 4).map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </article>
-            <article className="customer-portal-journey__visual-card">
-              <h3 className="customer-portal-journey__card-title">What stays familiar</h3>
-              <ul className="customer-portal-journey__bullet-list">
-                {familiarPoints.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </article>
-          </div>
+          <article className="customer-portal-journey__visual-card">
+            <h3 className="customer-portal-journey__card-title">Practical outcomes</h3>
+            <ul className="customer-portal-journey__bullet-list">
+              {buildPreparationItems(decision, recommendedScenario).slice(0, 4).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </article>
         </CustomerPortalJourneySectionV1>
 
         <CustomerPortalJourneySectionV1

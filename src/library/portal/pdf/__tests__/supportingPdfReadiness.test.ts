@@ -18,7 +18,7 @@ function makeReadinessInput() {
     model,
     expectedRecommendationSummary: model.cover.summary,
     maxCustomerPages: model.pageEstimate.maxPages,
-    requiredDiagramSectionIds: ['what_changes', 'pressure_vs_storage', 'unvented_safety'] as const,
+    requiredDiagramSectionIds: ['practical_outcomes', 'pressure_vs_storage', 'unvented_safety'] as const,
     printSafeLayoutPass: true,
     accessibilityBasicsPass: true,
     insightFallbackAvailable: true,

@@ -691,7 +691,7 @@ export default function DevPortalFixturePage({ onBack }: DevPortalFixturePagePro
         requiredDiagramSectionIds:
           supportingPdfJourneyType === 'heat_pump'
             ? ['warm_not_hot_radiators']
-            : ['what_changes', 'pressure_vs_storage', 'unvented_safety'],
+            : ['practical_outcomes', 'pressure_vs_storage', 'unvented_safety'],
         requiredDiagramRendererIds:
           supportingPdfJourneyType === 'heat_pump'
             ? ['warm_vs_hot_radiators', 'heat_pump_defrost']

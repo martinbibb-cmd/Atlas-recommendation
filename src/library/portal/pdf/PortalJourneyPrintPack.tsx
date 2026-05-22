@@ -138,7 +138,7 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
         summary={section.summary}
         items={section.items}
         listTestId={`pjpp-items-${section.sectionId}`}
-        recommended={section.sectionId === 'what_changes'}
+        recommended={section.sectionId === 'practical_outcomes'}
       />
 
       <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
