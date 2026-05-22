@@ -187,6 +187,10 @@ import { canShowVisitHomeExportPackageAction } from './features/visitHome/visitH
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
 import {
+  buildVisitHomeCustomerArtifactsState,
+  resolvePackagedPortalEngineInput,
+} from './features/visitHome/customerArtifactsState';
+import {
   buildCanonicalVisitPackage,
   buildVisitPackagePdfEnvelope,
   parseCanonicalVisitPackageFromPdfEnvelope,
@@ -204,12 +208,7 @@ import {
 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import type { SurveySystemConditionV1 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import { resolveCustomerDocumentSourceV1 } from './library/portal/pdf/CustomerDocumentSourceV1';
-import { assessLibraryPdfCustomerReadiness } from './library/portal/pdf/assessLibraryPdfCustomerReadiness';
-import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from './library/pdfQa';
-import {
-  buildPortalLaunchPayload,
-  type PortalLaunchPayloadV1,
-} from './features/portalLaunch';
+import type { PortalLaunchPayloadV1 } from './features/portalLaunch';
 import {
   buildScanLaunchPayload,
   prepareScanLaunchRoute,
@@ -922,58 +921,6 @@ function dispatchVisitJourneyEvent(
     });
   }
   return transition.state;
-}
-
-function buildSupportingPdfReadinessGate(input: {
-  readonly visitId?: string;
-  readonly visitReference?: string;
-  readonly surveyModel?: FullSurveyModelV1;
-  readonly engineInput?: EngineInputV2_3;
-  readonly engineOutput?: EngineOutputV1;
-  readonly acceptedScenario?: ScenarioResult;
-  readonly acceptedScenarioId?: string;
-  readonly decision?: AtlasDecisionV1;
-  readonly scenarios?: ScenarioResult[];
-  readonly customerSummary?: CustomerSummaryV1;
-  readonly generatedOutputs?: Partial<GeneratedOutputsV1>;
-}) {
-  const source = resolveCustomerDocumentSourceV1({
-    visitId: input.visitId,
-    visitReference: input.visitReference,
-    acceptedScenario: input.acceptedScenario,
-    acceptedScenarioId: input.acceptedScenarioId,
-    decision: input.decision,
-    scenarios: input.scenarios,
-    customerSummary: input.customerSummary,
-    engineInput: input.engineInput,
-    engineOutput: input.engineOutput,
-    generatedOutputs: input.generatedOutputs,
-  });
-  if (!source.ok) {
-    return {
-      readyForCustomer: false,
-      blockingReasons: source.missingFields.map((field) => `CustomerDocumentSourceV1 missing: ${field}`),
-      warnings: [],
-      leakageTerms: [],
-      missingRequiredContent: [],
-      comparisonMismatches: [],
-    };
-  }
-  const printModel = source.source.customerJourneyPack.staticPdf;
-  const pdfComparisonAudit = buildPdfComparisonAudit(
-    buildPdfComparisonScenarioFromPrintModel(printModel, 'Visit Home library supporting PDF'),
-  );
-  return assessLibraryPdfCustomerReadiness({
-    printModel,
-    projectionSafety: {
-      safeForCustomer: true,
-      blockingReasons: [],
-      warnings: [],
-      leakageTerms: [],
-      missingRequiredContent: [],
-    },
-    pdfComparisonAudit,
-  });
 }
 
 function AppInner() {
@@ -3363,21 +3310,6 @@ function AppInner() {
             );
           }
 
-          const supportingPdfReadinessGate = buildSupportingPdfReadinessGate({
-            visitId: canonicalSnapshot?.visitId ?? activeVisitId,
-            visitReference:
-              canonicalSnapshot?.visitReference
-              ?? (activeVisitId != null ? formatVisitReference(activeVisitId) : undefined),
-            surveyModel: labFullSurveyModel,
-            engineInput: labEngineInput,
-            engineOutput: visitHomeEngineOutput,
-            acceptedScenario,
-            acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId,
-            decision: canonicalSnapshot?.decision,
-            scenarios: visitHomeScenarios,
-            customerSummary: canonicalSnapshot?.customerSummary ?? visitHomeRecommendationSummary,
-            generatedOutputs,
-          });
           const visitEnvelope =
             canonicalSnapshot == null
               ? undefined
@@ -3432,8 +3364,6 @@ function AppInner() {
             hasRegeneratedDeliveryOutputs:
               generatedOutputs.portal.generated || generatedOutputs.pdf.generated || customerJourneyPackGenerated,
           });
-          const customerPdfExportReady = canExportVisitPackage && customerJourneyPackGenerated;
-          const canOpenPortalFromPackage = activeCanonicalPackage != null || customerPdfExportReady;
           const customerPdfMissingRequirements: string[] = [];
           const canonicalVisitId = activeCanonicalPackage?.visitIdentity.visitId;
           const hasCanonicalVisitId = hasText(canonicalVisitId);
@@ -3459,10 +3389,17 @@ function AppInner() {
               : customerPdfMissingRequirements.length > 0
                 ? customerPdfMissingRequirements
                 : ['Customer PDF package cannot be prepared from the current visit session.'];
-          const supportingPdfBlockingReasons = [
-            ...(supportingPdfReadinessGate?.blockingReasons ?? []),
-            ...customerPdfUnavailableReasons,
-          ];
+          const visitHomeSourcePackage = activeCanonicalPackage
+            ?? (canExportVisitPackage ? buildCanonicalVisitPackageForCurrentSession()?.pkg : undefined);
+          const customerArtifactsState = buildVisitHomeCustomerArtifactsState({
+            canExportVisitPackage,
+            sourcePackage: visitHomeSourcePackage,
+            unavailableReasons: customerPdfUnavailableReasons,
+          });
+          const packagedPortalEngineInput = resolvePackagedPortalEngineInput({
+            liveEngineInput: labEngineInput,
+            sourcePackage: visitHomeSourcePackage,
+          });
 
           return (
             <VisitHomeDashboard
@@ -3476,16 +3413,17 @@ function AppInner() {
               lifecycleState={lifecycleState}
               visitEnvelope={visitEnvelope}
               generatedOutputs={generatedOutputs}
-              hasSupportingPdfOutput={generatedOutputs.pdf.generated || customerPdfExportReady}
+              hasSupportingPdfOutput={generatedOutputs.pdf.generated || customerArtifactsState.customerPdfReady}
               portalUrl={generatedOutputs.portal.url ?? labPortalUrl}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}
-              supportingPdfUnsafe={
-                (supportingPdfReadinessGate != null && !supportingPdfReadinessGate.readyForCustomer)
-                || !canExportVisitPackage
+              supportingPdfUnsafe={!customerArtifactsState.customerPdfReady}
+              supportingPdfBlockReasons={
+                customerArtifactsState.customerPdfBlockReasons.length > 0
+                  ? customerArtifactsState.customerPdfBlockReasons
+                  : undefined
               }
-              supportingPdfBlockReasons={supportingPdfBlockingReasons.length > 0 ? supportingPdfBlockingReasons : undefined}
               lastSurface={lastOpenedFromHome?.label}
               onContinueLastSurface={lastOpenedFromHome != null ? () => setJourney(lastOpenedFromHome.journey) : undefined}
               hasSavedLocalVisit={hasSavedLocalVisit}
@@ -3521,20 +3459,17 @@ function AppInner() {
               onContinueSurvey={activeVisitId != null ? () => setJourney('visit') : undefined}
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
               onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
-              onDownloadCustomerPdf={visitHomeEngineOutput != null && hasSurveyForSupportingPdf ? () => {
-                setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
-                setJourney('library-pdf');
-              } : undefined}
-              onOpenPortalFromPackage={canOpenPortalFromPackage ? () => {
-                const sourcePackage = activeCanonicalPackage ?? buildCanonicalVisitPackageForCurrentSession()?.pkg;
-                if (sourcePackage == null) {
+              onDownloadCustomerPdf={customerArtifactsState.customerPdfReady ? handleExportCanonicalVisitPackage : undefined}
+              onOpenPortalFromPackage={customerArtifactsState.canOpenPortalFromPackage ? () => {
+                if (visitHomeSourcePackage == null || customerArtifactsState.portalLaunchPayload == null) {
                   setLocalSessionStatus({
                     tone: 'error',
                     message: 'Unable to launch portal: missing visit ID or survey data. Open Visit Home, generate recommendation, then retry.',
                   });
                   return;
                 }
-                const payload = buildPortalLaunchPayload(sourcePackage);
+                const payload = customerArtifactsState.portalLaunchPayload;
+                setActiveCanonicalPackage(visitHomeSourcePackage);
                 setActivePortalLaunchPayload(payload);
                 if (payload.generatedOutputMetadata.hasPortalUrl && payload.generatedOutputMetadata.portalUrl != null) {
                   // Validate that the URL is a safe absolute HTTP/HTTPS URL before opening it.
@@ -3549,7 +3484,7 @@ function AppInner() {
                     // URL parse failure — fall through to in-app journey
                   }
                 }
-                if (labEngineInput != null) {
+                if (packagedPortalEngineInput != null) {
                   setLastOpenedFromHome({ label: 'Customer portal (package)', journey: 'portal-from-package' });
                   setJourney('portal-from-package');
                 } else {
@@ -3930,7 +3865,14 @@ function AppInner() {
           This consumes the packaged CustomerJourneyPackV1 directly so the portal
           shows the same content that was embedded in the exported PDF.
           Back returns to visit-home. */}
-      {journey === 'portal-from-package' && labEngineInput != null && (() => {
+      {journey === 'portal-from-package' && (() => {
+        const portalEngineInput = resolvePackagedPortalEngineInput({
+          liveEngineInput: labEngineInput,
+          sourcePackage: activeCanonicalPackage ?? undefined,
+        });
+        if (portalEngineInput == null) {
+          return null;
+        }
         const packagedCustomerJourneyPack =
           activeCanonicalPackage != null
             ? readCustomerJourneyPackFromGeneratedOutputs(
@@ -3944,13 +3886,16 @@ function AppInner() {
             </div>
             <CustomerPortalPage
               reference={visitRecommendationSnapshot?.visitReference ?? formatVisitReference(activeVisitId ?? '')}
-              productionPreviewInput={labEngineInput}
+              productionPreviewInput={portalEngineInput}
               productionPreviewCustomerJourneyPack={packagedCustomerJourneyPack}
             />
           </div>
         );
       })()}
-      {journey === 'portal-from-package' && labEngineInput == null && (() => {
+      {journey === 'portal-from-package' && resolvePackagedPortalEngineInput({
+        liveEngineInput: labEngineInput,
+        sourcePackage: activeCanonicalPackage ?? undefined,
+      }) == null && (() => {
         const reimportNote = 'Re-import the visit package to restore portal content.';
         const unavailableMessage = activePortalLaunchPayload?.rebuildRequired === true
           ? `Rebuild required: ${activePortalLaunchPayload.rebuildWarning ?? reimportNote}`

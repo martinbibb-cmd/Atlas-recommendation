@@ -487,6 +487,41 @@ describe('VisitHomeDashboard', () => {
     vi.unstubAllGlobals();
   });
 
+  it('portal card opens packaged portal when customer journey content is available from an import', () => {
+    const onOpenPortalFromPackage = vi.fn();
+    const customerJourneyPack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with cylinder: Best fit for this home',
+      customerFacts: ['3-person household', '2 bathrooms'],
+      journeyType: 'open_vented',
+    });
+
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          portalUrl: undefined,
+          hasPortalOutput: false,
+          generatedOutputs: {
+            portal: { generated: false },
+            pdf: { generated: false },
+            customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+              customerJourneyPack,
+              generatedAt: '2026-05-20T10:02:00.000Z',
+            }),
+            simulatorReview: { generated: false },
+            handoff: { generated: false },
+          },
+          onOpenPortalFromPackage,
+        })}
+      />,
+    );
+
+    const cta = screen.getByTestId('card-portal-cta');
+    expect(cta).toHaveTextContent('Open customer portal →');
+    fireEvent.click(cta);
+    expect(onOpenPortalFromPackage).toHaveBeenCalledOnce();
+  });
+
   it('scan launch CTA in capture/import panel calls onOpenScanFromPackage', () => {
     const onOpenScanFromPackage = vi.fn();
     render(<VisitHomeDashboard {...makeProps({ onOpenScanFromPackage })} />);
@@ -508,6 +543,26 @@ describe('VisitHomeDashboard', () => {
     expect(cta).toHaveTextContent('Download customer PDF →');
     fireEvent.click(cta);
     expect(onDownloadCustomerPdf).toHaveBeenCalledOnce();
+  });
+
+  it('customer PDF CTA uses canonical package export instead of window.print', () => {
+    const onDownloadCustomerPdf = vi.fn();
+    const mockPrint = vi.fn();
+    vi.stubGlobal('print', mockPrint);
+
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onDownloadCustomerPdf,
+          hasSupportingPdfOutput: false,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('card-pdf-cta'));
+    expect(onDownloadCustomerPdf).toHaveBeenCalledOnce();
+    expect(mockPrint).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   describe('journey card', () => {

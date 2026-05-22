@@ -233,6 +233,7 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     const envelope = buildVisitPackagePdfEnvelope({ packagePayload: pkg });
     const pdf = renderVisitPackagePdfDocument(envelope);
     expect(pdf).not.toContain('This document contains an embedded Atlas package for digital import.');
+    expect(pdf).not.toContain('Library supporting PDF — review');
     expect(pdf).toContain('Why this recommendation fits your home');
     expect(pdf).toContain('3-person household');
     expect(pdf).toContain('Why it matters:');
