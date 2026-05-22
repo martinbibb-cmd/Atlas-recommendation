@@ -1864,6 +1864,12 @@ function AppInner() {
       ?? activeCanonicalPackage?.visitIdentity.visitId;
     const exportSurveyModel = labFullSurveyModel ?? activeCanonicalPackage?.surveyDraft;
     if (exportVisitId == null || exportSurveyModel == null) {
+      if (import.meta.env.DEV) {
+        console.warn('[Atlas] Unable to build canonical visit package for current session', {
+          missingVisitId: exportVisitId == null,
+          missingSurveyModel: exportSurveyModel == null,
+        });
+      }
       return undefined;
     }
     const now = new Date().toISOString();
@@ -3560,7 +3566,7 @@ function AppInner() {
                 if (sourcePackage == null) {
                   setLocalSessionStatus({
                     tone: 'error',
-                    message: 'Unable to launch portal: visit data is incomplete. Please ensure recommendation outputs are ready.',
+                    message: 'Unable to launch portal: missing visit ID or survey data. Open Visit Home, generate recommendation, then retry.',
                   });
                   return;
                 }
