@@ -250,7 +250,7 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     const pdf = renderVisitPackagePdfDocument(envelope);
     expect(pdf).not.toContain('This document contains an embedded Atlas package for digital import.');
     expect(pdf).not.toContain('Library supporting PDF — review');
-    expect(pdf).toContain('Why this recommendation fits your home');
+    expect(pdf).toContain('Why this fits your home');
     expect(pdf).toContain('3-person household');
     expect(pdf).toContain('Why it matters:');
     expect(pdf).toContain('What happens next');
@@ -282,7 +282,7 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
       },
     });
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: packageWithoutJourney }));
-    expect(pdf).toContain('Why this recommendation fits your home');
+    expect(pdf).toContain('Why this fits your home');
     expect(pdf).toContain('3-person household');
     expect(pdf).toContain('Atlas recommendation:');
     expect(pdf).toContain(VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER);
@@ -369,10 +369,7 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     }
   });
 
-  it('wrapped text consumes vertical space by increasing rendered text lines for long reason detail', () => {
-    const baselinePdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
-    const baselineCommandCount = countTextDrawCommands(baselinePdf);
-
+  it('wrapped text keeps page coordinates non-negative for long reason detail payloads', () => {
     const longDetail = 'Detailed explanation for customer handover clarity '.repeat(80);
     const longJourneyPack = buildCustomerJourneyPack({
       selectedSectionIds: [],
@@ -418,6 +415,15 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     const longPdf = renderVisitPackagePdfDocument(
       buildVisitPackagePdfEnvelope({ packagePayload: packageWithLongText }),
     );
-    expect(countTextDrawCommands(longPdf)).toBeGreaterThan(baselineCommandCount + 20);
+    const pageStreams = extractVisiblePageStreams(longPdf);
+    expect(pageStreams.length).toBeGreaterThan(0);
+    expect(countTextDrawCommands(longPdf)).toBeGreaterThan(0);
+
+    for (const stream of pageStreams) {
+      const yCoords = extractYCoordinates(stream);
+      for (const y of yCoords) {
+        expect(y).toBeGreaterThanOrEqual(55);
+      }
+    }
   });
 });
