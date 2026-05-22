@@ -310,6 +310,33 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('visit-home-workflow-qa-receive_scan_return')).toHaveTextContent('Pending');
   });
 
+  it('PDF card shows ready and workflow QA export step is complete after a successful export', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          generatedOutputs: {
+            portal: { generated: false },
+            pdf: { generated: true },
+            customerJourneyPack: undefined,
+            simulatorReview: { generated: false },
+            handoff: { generated: false },
+          },
+          workflowQaChecklist: [
+            {
+              id: 'export_package_again',
+              label: 'Export package again',
+              status: 'complete',
+              detail: 'Exported.',
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'ready');
+    expect(screen.getByTestId('visit-home-workflow-qa-export_package_again')).toHaveTextContent('Complete');
+  });
+
   it('shows packaged customer journey readiness in the readiness summary', () => {
     const customerJourneyPack = buildCustomerJourneyPack({
       selectedSectionIds: [],

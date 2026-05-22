@@ -1990,17 +1990,28 @@ function AppInner() {
       packagePayload: pkg,
       generatedAt: now,
     });
-    const pdf = renderVisitPackagePdfDocument(pdfEnvelope);
     const filename = `${toSafeDownloadBaseName(visitReference ?? exportVisitId)}.atlasvisit.pdf`;
-    const blob = new Blob([pdf], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const pdf = renderVisitPackagePdfDocument(pdfEnvelope);
+      const blob = new Blob([pdf], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.error('[Atlas] Customer PDF export failed', err);
+      }
+      setLocalSessionStatus({
+        tone: 'error',
+        message: 'Customer PDF export failed. The package could not be rendered or downloaded.',
+      });
+      return;
+    }
 
     setActiveCanonicalPackage(pkg);
     setPackageOpenHistory((prev) =>

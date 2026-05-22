@@ -38,8 +38,8 @@ describe('atlasVisitJourney', () => {
     ).toEqual({ state: 'survey_in_progress', accepted: false });
 
     expect(
-      transitionAtlasVisitJourney('survey_ready', { type: 'visit_exported' }),
-    ).toEqual({ state: 'survey_ready', accepted: false });
+      transitionAtlasVisitJourney('archived', { type: 'visit_exported' }),
+    ).toEqual({ state: 'archived', accepted: false });
 
     expect(
       transitionAtlasVisitJourney('archived', { type: 'recommendation_generated' }),
@@ -50,5 +50,22 @@ describe('atlasVisitJourney', () => {
     expect(normaliseAtlasVisitJourneyState('outputs_generated')).toBe('presentation_ready');
     expect(normaliseAtlasVisitJourneyState('review_in_progress')).toBe('presentation_ready');
     expect(normaliseAtlasVisitJourneyState('handover_ready')).toBe('handoff_ready');
+  });
+
+  it('allows visit_exported from any non-archived state', () => {
+    for (const state of [
+      'draft_started',
+      'survey_in_progress',
+      'survey_ready',
+      'recommendation_ready',
+      'presentation_ready',
+      'handoff_ready',
+      'exported',
+    ] as const) {
+      expect(transitionAtlasVisitJourney(state, { type: 'visit_exported' })).toEqual({
+        state: 'exported',
+        accepted: true,
+      });
+    }
   });
 });
