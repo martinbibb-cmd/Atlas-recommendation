@@ -97,6 +97,22 @@ function makePackage() {
   });
 }
 
+function extractVisiblePageStreams(pdf: string): string[] {
+  const streams = [...pdf.matchAll(/stream\n([\s\S]*?)\nendstream/g)]
+    .map((match) => match[1])
+    .filter((stream) => stream.includes('\nBT\n') || stream.includes('\nBT\r\n'));
+  return streams;
+}
+
+function extractYCoordinates(stream: string): number[] {
+  return [...stream.matchAll(/50 ([0-9]+(?:\.[0-9]+)?) Td/g)]
+    .map((match) => Number.parseFloat(match[1]));
+}
+
+function countTextDrawCommands(pdf: string): number {
+  return (pdf.match(/ Td\n\(/g) ?? []).length;
+}
+
 describe('visit package PDF envelope', () => {
   it('wraps canonical payload without changing package content', () => {
     const pkg = makePackage();
@@ -238,6 +254,11 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     expect(pdf).toContain('3-person household');
     expect(pdf).toContain('Why it matters:');
     expect(pdf).toContain('What happens next');
+    expect(pdf).not.toContain('What stays familiar');
+    expect(pdf).not.toContain('Living with the system');
+    expect(pdf).not.toContain('Reassurance');
+    expect(pdf).toContain('Recommendation summary');
+    expect(pdf).toContain('Practical outcomes');
   });
 
   it('rebuilds customer journey content from canonical package when packaged journey is absent', () => {
@@ -330,5 +351,73 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     // Both fonts must be declared
     expect(pdf).toContain('/BaseFont /Helvetica ');
     expect(pdf).toContain('/BaseFont /Helvetica-Bold ');
+  });
+
+  it('layout keeps text Y positions positive and strictly descending within each page stream', () => {
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
+    const pageStreams = extractVisiblePageStreams(pdf);
+    expect(pageStreams.length).toBeGreaterThan(0);
+
+    for (const stream of pageStreams) {
+      const yCoords = extractYCoordinates(stream);
+      for (const y of yCoords) {
+        expect(y).toBeGreaterThanOrEqual(55);
+      }
+      for (let i = 1; i < yCoords.length; i += 1) {
+        expect(yCoords[i]).toBeLessThan(yCoords[i - 1]);
+      }
+    }
+  });
+
+  it('wrapped text consumes vertical space by increasing rendered text lines for long reason detail', () => {
+    const baselinePdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
+    const baselineCommandCount = countTextDrawCommands(baselinePdf);
+
+    const longDetail = 'Detailed explanation for customer handover clarity '.repeat(80);
+    const longJourneyPack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with cylinder: Best fit for this home',
+      customerFacts: ['3-person household', '2 bathrooms'],
+      journeyType: 'open_vented',
+      recommendationReasons: [
+        {
+          id: 'household-demand',
+          category: 'household_demand',
+          homeFact: 'Your home has 3 people and 2 bathrooms.',
+          whyItMatters: 'Hot water demand can overlap during busy periods.',
+          atlasRecommendationOutcome: 'A system boiler with unvented cylinder supports simultaneous use.',
+          practicalEffect: 'Showers and taps stay consistent at peak times.',
+          detail: longDetail,
+        },
+      ],
+    });
+
+    const basePackage = makePackage();
+    const packageWithLongText = buildCanonicalVisitPackage({
+      packageData: {
+        visitIdentity: basePackage.visitIdentity,
+        workspaceBrandReference: basePackage.workspaceBrandReference,
+        customerPropertyDetails: basePackage.customerPropertyDetails,
+        surveyDraft: basePackage.surveyDraft,
+        engineInputSnapshot: basePackage.engineInputSnapshot,
+        proposalTruth: basePackage.proposalTruth,
+        generatedOutputStatus: {
+          ...basePackage.generatedOutputStatus,
+          generatedOutputs: {
+            ...basePackage.generatedOutputStatus?.generatedOutputs,
+            customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+              customerJourneyPack: longJourneyPack,
+              generatedAt: '2026-05-20T10:03:00.000Z',
+            }),
+          },
+        },
+        importExportMetadata: basePackage.importExportMetadata,
+      },
+    });
+
+    const longPdf = renderVisitPackagePdfDocument(
+      buildVisitPackagePdfEnvelope({ packagePayload: packageWithLongText }),
+    );
+    expect(countTextDrawCommands(longPdf)).toBeGreaterThan(baselineCommandCount + 20);
   });
 });
