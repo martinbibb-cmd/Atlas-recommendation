@@ -19,8 +19,8 @@
  * Output
  * ──────
  *   PortalJourneyPrintModelV1 — compact, flat model for PortalJourneyPrintPack
- *     cover summary · what changes · pressure vs storage · what stays familiar
- *     unvented safety · living with your system · next steps (+ QR deeper detail)
+ *     cover summary · practical outcomes · pressure vs storage
+ *     unvented safety · next steps (+ QR deeper detail)
  */
 
 import { atlasMvpContentMapRegistry } from '../../content/atlasMvpContentMapRegistry';
@@ -75,11 +75,9 @@ export interface PortalJourneyPrintSectionV1 {
   contentId: string;
   /** Stable section key for layout mapping */
   sectionId:
-    | 'what_changes'
-    | 'what_stays_familiar'
+    | 'practical_outcomes'
     | 'pressure_vs_storage'
     | 'unvented_safety'
-    | 'living_with_your_system'
     | 'warm_not_hot_radiators'
     | 'steady_running'
     | 'winter_behaviour';
@@ -115,7 +113,7 @@ export interface PortalJourneyPrintModelV1 {
   /**
    * Survey-informed system protection summary.
    * Present when surveyCondition is supplied to buildPortalJourneyPrintModel.
-   * Rendered as a small section after "What stays familiar".
+   * Rendered as a small section after practical outcomes.
    */
   systemProtection?: SystemProtectionSummaryV1;
   pageEstimate: {
@@ -148,8 +146,7 @@ export interface BuildPortalJourneyPrintModelInputV1 {
   /**
    * Optional audience projection.  When supplied, only sections whose
    * contentId appears in `audienceProjection.visibleConcepts` are included
-   * in the PDF output.  Sections with static content IDs (e.g.
-   * `living_with_your_system`) are always included.
+   * in the PDF output.
    */
   audienceProjection?: LibraryContentProjectionV1;
   /** Optional visit-scoped portal context for safe display metadata. */
@@ -233,20 +230,6 @@ export function buildCustomerJourneyPackGeneratedOutput(input: {
   };
 }
 
-// ─── Living-with-your-system static content ───────────────────────────────────
-
-const LIVING_WITH_ITEMS = [
-  'Morning showers draw from stored hot water, so the first demand feels ready.',
-  'Back-to-back use is steadier because the cylinder stores a reserve.',
-  'Heating controls and day-to-day habits stay familiar.',
-] as const;
-
-const HEAT_PUMP_LIVING_ITEMS = [
-  'Keep settings steady for day-to-day comfort before making large manual changes.',
-  'Weather and load compensation can adjust flow temperature gradually through the day.',
-  'Warm radiators and steady running can be normal signs of correct operation.',
-] as const;
-
 function resolvePrintDiagramFromContentEntry(entry: AtlasMvpContentEntryV1): string | undefined {
   // Precedence: first suggested animation with a canonical printFallback wins.
   // If no mapped animation provides a print fallback, use the first diagram ID.
@@ -265,8 +248,8 @@ function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 's
   const sections: PortalJourneyPrintSectionV1[] = [
     {
       contentId: 'generic_recommendation_summary',
-      sectionId: 'what_changes',
-      heading: 'What this recommendation means',
+      sectionId: 'practical_outcomes',
+      heading: 'Practical outcomes',
       summary: 'Your recommendation focuses on stable comfort, dependable hot water, and a practical installation path.',
       keyTakeaway: 'Your installer will tailor final setup details to your surveyed home conditions.',
       reassurance: 'You will receive a clear handover explaining controls and expected day-to-day behaviour.',
@@ -274,32 +257,6 @@ function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 's
         'Your recommendation is based on survey findings from your home.',
         'The final setup is confirmed during installer checks before works start.',
         'Daily operation remains straightforward with familiar comfort targets.',
-      ],
-    },
-    {
-      contentId: 'generic_recommendation_summary',
-      sectionId: 'what_stays_familiar',
-      heading: 'What stays familiar',
-      summary: 'Your household routines remain central to the final setup and handover.',
-      keyTakeaway: 'Comfort and hot water expectations stay aligned with your normal routine.',
-      reassurance: 'Your installer confirms any preparation and setup steps before work begins.',
-      items: [
-        'Heating schedules and preferred room temperatures stay under your control.',
-        'Hot water usage guidance is explained at handover in plain language.',
-        'Your installer remains the first point of contact for follow-up questions.',
-      ],
-    },
-    {
-      contentId: 'living_with_your_system',
-      sectionId: 'living_with_your_system',
-      heading: 'Living with the system',
-      summary: 'Day-to-day use should feel consistent, with clear guidance provided at handover.',
-      keyTakeaway: 'The recommendation is designed for practical, stable day-to-day operation.',
-      reassurance: 'Your installer will confirm any preparation method and final controls setup.',
-      items: [
-        'Use your controls as guided at handover for best day-to-day comfort.',
-        'Bring this summary to your appointment if you want extra walkthrough detail.',
-        'Contact your installer if performance does not match expected handover behaviour.',
       ],
     },
   ];
@@ -354,8 +311,8 @@ function buildOpenVentedSectionsAndNextSteps(
   if (selectedSet.has('CON_A01') || selectedSet.size === 0) {
     sections.push({
       contentId: 'CON_A01',
-      sectionId: 'what_changes',
-      heading: 'What changes in your home',
+      sectionId: 'practical_outcomes',
+      heading: 'Practical outcomes',
       summary:
         'You move from tank-fed hot water to a sealed heating circuit with an unvented cylinder.',
       keyTakeaway: 'The upgrade changes hardware, not your comfort goals.',
@@ -391,22 +348,6 @@ function buildOpenVentedSectionsAndNextSteps(
     });
   }
 
-  if (selectedSet.has('CON_A01') || selectedSet.size === 0) {
-    sections.push({
-      contentId: 'CON_A01',
-      sectionId: 'what_stays_familiar',
-      heading: 'What stays familiar',
-      summary: 'Your daily heating routine and comfort targets stay familiar after the upgrade.',
-      keyTakeaway: 'New hardware, familiar day-to-day use.',
-      reassurance: 'You still control temperature and schedules in the same way.',
-      items: [
-        conA01.whatStaysFamiliar,
-        'Radiators and room comfort continue to behave as expected.',
-        'You do not need to relearn how to run your home.',
-      ],
-    });
-  }
-
   if (selectedSet.has('CON_C01') || selectedSet.size === 0) {
     sections.push({
       contentId: 'CON_C01',
@@ -426,17 +367,6 @@ function buildOpenVentedSectionsAndNextSteps(
       diagramRendererId: 'open_vented_to_unvented',
     });
   }
-
-  sections.push({
-    contentId: 'living_with_your_system',
-    sectionId: 'living_with_your_system',
-    heading: 'Living with the system',
-    summary:
-      'Day-to-day life should feel calm: ready mornings, steadier overlap use, and quiet background recovery.',
-    keyTakeaway: 'The system is designed to support peak family routines more smoothly.',
-    reassurance: 'Your installer remains your first point of contact for questions after handover.',
-    items: [...LIVING_WITH_ITEMS],
-  });
 
   const nextSteps: PortalJourneyPrintNextStepV1[] = [
     {
@@ -478,11 +408,10 @@ function buildHeatPumpSectionsAndNextSteps(
   const conH01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_H01');
   const conH04 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_H04');
   const conG01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_G01');
-  const conI01DayToDay = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_I01_DAY_TO_DAY');
 
-  if (!conE02 || !conH01 || !conH04 || !conG01 || !conI01DayToDay) {
+  if (!conE02 || !conH01 || !conH04 || !conG01) {
     throw new Error(
-      'buildPortalJourneyPrintModel: required content entries CON_E02, CON_H01, CON_H04, CON_G01, CON_I01_DAY_TO_DAY missing from registry',
+      'buildPortalJourneyPrintModel: required content entries CON_E02, CON_H01, CON_H04, CON_G01 missing from registry',
     );
   }
 
@@ -542,16 +471,6 @@ function buildHeatPumpSectionsAndNextSteps(
       diagramRendererId: 'heat_pump_defrost',
     });
   }
-
-  sections.push({
-    contentId: 'CON_I01_DAY_TO_DAY',
-    sectionId: 'living_with_your_system',
-    heading: 'Living with the system',
-    summary: conI01DayToDay.oneLineSummary,
-    keyTakeaway: 'Small, evidence-led adjustments usually work better than repeated manual overrides.',
-    reassurance: conI01DayToDay.whatNotToWorryAbout,
-    items: [...HEAT_PUMP_LIVING_ITEMS],
-  });
 
   const nextSteps: PortalJourneyPrintNextStepV1[] = [
     {

@@ -19,7 +19,7 @@ const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
 
 const HEAT_PUMP_INPUT: BuildPortalJourneyPrintModelInputV1 = {
   journeyType: 'heat_pump',
-  selectedSectionIds: ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'],
+  selectedSectionIds: ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01'],
   recommendationSummary: 'Heat pump with low-temperature radiators — a steady comfort fit for this home.',
   customerFacts: ['3-person household', '2 bathrooms', 'Heat pump with low-temperature radiators'],
 };
@@ -55,23 +55,22 @@ describe('buildPortalJourneyPrintModel — content identity', () => {
   it('includes a section for each selected content ID', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     const contentIds = model.sections.map((s) => s.contentId);
-    // CON_A01 produces two sections (what_changes + what_stays_familiar)
     expect(contentIds).toContain('CON_A01');
     expect(contentIds).toContain('CON_C02');
     expect(contentIds).toContain('CON_C01');
   });
 
-  it('always includes living_with_your_system section', () => {
+  it('includes practical_outcomes section', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     const sectionIds = model.sections.map((s) => s.sectionId);
-    expect(sectionIds).toContain('living_with_your_system');
+    expect(sectionIds).toContain('practical_outcomes');
   });
 
   it('uses the same content IDs as the portal journey sections', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     const uniqueContentIds = [...new Set(model.sections.map((s) => s.contentId))];
     // Must only reference content we know the portal journey uses
-    const knownPortalContentIds = ['CON_A01', 'CON_C01', 'CON_C02', 'living_with_your_system'];
+    const knownPortalContentIds = ['CON_A01', 'CON_C01', 'CON_C02'];
     for (const id of uniqueContentIds) {
       expect(knownPortalContentIds).toContain(id);
     }
@@ -234,11 +233,9 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
   it('model with empty selectedSectionIds still includes all core sections', () => {
     const model = buildPortalJourneyPrintModel({ ...BASE_INPUT, selectedSectionIds: [] });
     expect(model.sections.map((s) => s.sectionId)).toEqual([
-      'what_changes',
+      'practical_outcomes',
       'pressure_vs_storage',
-      'what_stays_familiar',
       'unvented_safety',
-      'living_with_your_system',
     ]);
   });
 });
@@ -248,11 +245,9 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     expect(model.cover.title).toBe('Your recommendation');
     expect(model.sections.map((s) => s.heading)).toEqual([
-      'What changes in your home',
+      'Practical outcomes',
       'Why stored hot water helps',
-      'What stays familiar',
       'How the cylinder keeps itself safe',
-      'Living with the system',
     ]);
   });
 
@@ -274,7 +269,6 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
       'Why radiators may feel warm, not hot',
       'How steady running works',
       'What happens in winter',
-      'Living with the system',
     ]);
   });
 
@@ -284,7 +278,6 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
       'CON_E02',
       'CON_H04',
       'CON_H01',
-      'CON_I01_DAY_TO_DAY',
     ]);
   });
 
@@ -312,7 +305,7 @@ describe('buildPortalJourneyPrintModel — generic recommendation fallback journ
       journeyType: 'generic_recommendation_summary',
     });
     const headings = model.sections.map((section) => section.heading);
-    expect(headings).toContain('What this recommendation means');
+    expect(headings).toContain('Practical outcomes');
     expect(headings).not.toContain('What changes in your home');
   });
 
@@ -323,7 +316,7 @@ describe('buildPortalJourneyPrintModel — generic recommendation fallback journ
       customerFacts: ['3-person household'],
       journeyType: 'stored_hot_water',
     });
-    expect(model.sections.map((section) => section.heading)).toContain('What this recommendation means');
+    expect(model.sections.map((section) => section.heading)).toContain('Practical outcomes');
   });
 });
 

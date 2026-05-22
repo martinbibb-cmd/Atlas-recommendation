@@ -13,7 +13,7 @@ const BASE_MODEL = buildPortalJourneyPrintModel({
 
 const HEAT_PUMP_MODEL = buildPortalJourneyPrintModel({
   journeyType: 'heat_pump',
-  selectedSectionIds: ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01', 'CON_I01_DAY_TO_DAY'],
+  selectedSectionIds: ['CON_E02', 'CON_H01', 'CON_H04', 'CON_G01'],
   recommendationSummary: 'Heat pump with low-temperature radiators — a steady comfort fit for this home.',
   customerFacts: ['3-person household', '2 bathrooms', 'Heat pump with low-temperature radiators'],
 });
@@ -100,14 +100,9 @@ describe('PortalJourneyPrintPack — cover page', () => {
 // ─── Content sections ─────────────────────────────────────────────────────────
 
 describe('PortalJourneyPrintPack — content sections', () => {
-  it('renders what_changes section', () => {
+  it('renders practical_outcomes section', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
-    expect(screen.getByTestId('pjpp-section-what_changes')).toBeInTheDocument();
-  });
-
-  it('renders what_stays_familiar section', () => {
-    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
-    expect(screen.getByTestId('pjpp-section-what_stays_familiar')).toBeInTheDocument();
+    expect(screen.getByTestId('pjpp-section-practical_outcomes')).toBeInTheDocument();
   });
 
   it('renders pressure_vs_storage section', () => {
@@ -118,11 +113,6 @@ describe('PortalJourneyPrintPack — content sections', () => {
   it('renders unvented_safety section', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(screen.getByTestId('pjpp-section-unvented_safety')).toBeInTheDocument();
-  });
-
-  it('renders living_with_your_system section', () => {
-    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
-    expect(screen.getByTestId('pjpp-section-living_with_your_system')).toBeInTheDocument();
   });
 
   it('each section has a heading', () => {
@@ -252,11 +242,9 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
     expect(titles).toEqual([
       'Your recommendation',
       'Why this recommendation fits your home',
-      'What changes in your home',
+      'Practical outcomes',
       'Why stored hot water helps',
-      'What stays familiar',
       'How the cylinder keeps itself safe',
-      'Living with the system',
       'What happens next',
     ]);
   });
@@ -297,7 +285,6 @@ describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
     expect(screen.getByRole('heading', { name: 'Why radiators may feel warm, not hot' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'How steady running works' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What happens in winter' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Living with the system' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What happens next' })).toBeInTheDocument();
   });
 
