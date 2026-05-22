@@ -113,6 +113,8 @@ function countTextDrawCommands(pdf: string): number {
   return (pdf.match(/ Td\n\(/g) ?? []).length;
 }
 
+const LONG_TEXT_REPEAT_COUNT = 80;
+
 describe('visit package PDF envelope', () => {
   it('wraps canonical payload without changing package content', () => {
     const pkg = makePackage();
@@ -370,7 +372,7 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
   });
 
   it('wrapped text keeps page coordinates non-negative for long reason detail payloads', () => {
-    const longDetail = 'Detailed explanation for customer handover clarity '.repeat(80);
+    const longDetail = 'Detailed explanation for customer handover clarity '.repeat(LONG_TEXT_REPEAT_COUNT);
     const longJourneyPack = buildCustomerJourneyPack({
       selectedSectionIds: [],
       recommendationSummary: 'System boiler with cylinder: Best fit for this home',

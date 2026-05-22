@@ -277,20 +277,24 @@ function splitMeasuredTextBlockForPage(
   const fit: CustomerPdfMeasuredBlock = {
     ...block,
     lines: fitLines,
+    intrinsicHeight: fitLines.length > 0 ? block.lineHeight : 0,
     wrappedHeight: fitLines.length > 1 ? (fitLines.length - 1) * block.lineHeight : 0,
     spacingAfter: 0,
     totalHeight: block.spacingBefore
-      + (fitLines.length * block.lineHeight)
+      + (fitLines.length > 0 ? block.lineHeight : 0)
+      + (fitLines.length > 1 ? (fitLines.length - 1) * block.lineHeight : 0)
       + 0,
   };
 
   const remainder: CustomerPdfMeasuredBlock = {
     ...block,
     lines: remainderLines,
+    intrinsicHeight: remainderLines.length > 0 ? block.lineHeight : 0,
     wrappedHeight: remainderLines.length > 1 ? (remainderLines.length - 1) * block.lineHeight : 0,
     spacingBefore: 0,
     totalHeight: 0
-      + (remainderLines.length * block.lineHeight)
+      + (remainderLines.length > 0 ? block.lineHeight : 0)
+      + (remainderLines.length > 1 ? (remainderLines.length - 1) * block.lineHeight : 0)
       + block.spacingAfter,
   };
 
