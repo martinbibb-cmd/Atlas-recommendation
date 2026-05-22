@@ -52,7 +52,7 @@ function hasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function resolveAcceptedScenarioId(input: ResolveCustomerDocumentSourceInputV1): string | undefined {
+function resolveScenarioId(input: ResolveCustomerDocumentSourceInputV1): string | undefined {
   return input.acceptedScenario?.scenarioId
     ?? input.acceptedScenarioId
     ?? input.decision?.recommendedScenarioId;
@@ -66,7 +66,7 @@ function resolveSelectedSystemLabel(input: ResolveCustomerDocumentSourceInputV1)
 }
 
 function resolveTopologyType(input: ResolveCustomerDocumentSourceInputV1): string | undefined {
-  const acceptedScenarioId = resolveAcceptedScenarioId(input)?.toLowerCase();
+  const acceptedScenarioId = resolveScenarioId(input)?.toLowerCase();
   const acceptedScenarioType = input.acceptedScenario?.system.type;
   const recommendationPrimary = input.engineOutput?.recommendation?.primary?.toLowerCase();
 
@@ -148,7 +148,7 @@ export function resolveCustomerDocumentSourceV1(
 ): ResolveCustomerDocumentSourceResultV1 {
   const visitId = hasText(input.visitId) ? input.visitId : undefined;
   const visitReference = hasText(input.visitReference) ? input.visitReference : undefined;
-  const acceptedScenarioId = resolveAcceptedScenarioId(input);
+  const acceptedScenarioId = resolveScenarioId(input);
   const selectedSystemLabel = resolveSelectedSystemLabel(input);
   const topologyType = resolveTopologyType(input);
   const dhwStrategy = resolveDhwStrategy(input, topologyType);

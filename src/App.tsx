@@ -4210,13 +4210,18 @@ function AppInner() {
               className="app-entry-tile"
               onClick={handleStartNewVisit}
               disabled={appHomeNewVisitState.disabled}
+              aria-describedby={appHomeNewVisitState.blockerReason != null ? 'app-home-new-visit-workspace-blocker' : undefined}
             >
               <span className="app-entry-tile__title">New visit</span>
               <span className="app-entry-tile__copy">
                 Create visit identity, capture customer/property basics, then continue to manual survey and next actions.
               </span>
               {appHomeNewVisitState.blockerReason != null && (
-                <span className="app-entry-tile__copy" data-testid="app-home-new-visit-workspace-blocker">
+                <span
+                  id="app-home-new-visit-workspace-blocker"
+                  className="app-entry-tile__copy"
+                  data-testid="app-home-new-visit-workspace-blocker"
+                >
                   {appHomeNewVisitState.blockerReason}
                 </span>
               )}
