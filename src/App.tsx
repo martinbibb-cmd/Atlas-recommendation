@@ -185,6 +185,7 @@ import {
 } from './features/visitHome/workflowStabilisation';
 import { canShowVisitHomeExportPackageAction } from './features/visitHome/visitHomeExportAvailability';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
+import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
 import {
   buildCanonicalVisitPackage,
   buildVisitPackagePdfEnvelope,
@@ -198,11 +199,11 @@ import { PortalJourneyPrintPack } from './library/portal/pdf/PortalJourneyPrintP
 import {
   buildCustomerJourneyPack,
   buildCustomerJourneyPackGeneratedOutput,
-  buildPortalJourneyPrintModel,
   inferCustomerJourneyTypeFromSystemContext,
   readCustomerJourneyPackFromGeneratedOutputs,
 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import type { SurveySystemConditionV1 } from './library/portal/pdf/buildPortalJourneyPrintModel';
+import { resolveCustomerDocumentSourceV1 } from './library/portal/pdf/CustomerDocumentSourceV1';
 import { assessLibraryPdfCustomerReadiness } from './library/portal/pdf/assessLibraryPdfCustomerReadiness';
 import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from './library/pdfQa';
 import {
@@ -279,13 +280,6 @@ function buildImportedVisitId(visitReference: string | undefined): string {
 }
 
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
-type PortalPdfJourneyType =
-  | 'open_vented'
-  | 'stored_hot_water'
-  | 'heat_pump'
-  | 'water_constraint'
-  | 'regular_unvented'
-  | 'generic_recommendation_summary';
 
 function isLegacyJourney(journey: Journey): boolean {
   return (
@@ -316,47 +310,6 @@ function buildSurveySystemConditionFromModel(
     recentlyCleaned: currentSystem?.conditionSignals?.cleaningHistory === 'recently_cleaned',
   };
   return surveyCondition;
-}
-
-function resolvePdfJourneyType(
-  acceptedScenario: ScenarioResult | undefined,
-  decision: AtlasDecisionV1 | undefined,
-  scenarios: ScenarioResult[] | undefined,
-  engineOutput: EngineOutputV1 | undefined,
-  surveyModel: FullSurveyModelV1 | undefined,
-): PortalPdfJourneyType {
-  const decisionScenarioId = decision?.recommendedScenarioId?.toLowerCase();
-  const selectedScenario =
-    acceptedScenario
-    ?? (decisionScenarioId != null ? scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === decisionScenarioId) : undefined);
-  const scenarioId = selectedScenario?.scenarioId?.toLowerCase() ?? decisionScenarioId ?? '';
-  const scenarioType = selectedScenario?.system.type;
-  const primary = engineOutput?.recommendation?.primary?.toLowerCase() ?? '';
-  const systemCircuit = surveyModel?.fullSurvey?.heatingCondition?.systemCircuitType
-    ?? surveyModel?.currentSystem?.heatingSystemType;
-  const hasWaterConstraint =
-    selectedScenario?.physicsFlags?.pressureConstraint === true
-    || selectedScenario?.physicsFlags?.hydraulicLimit === true
-    || scenarioId.includes('water_constraint')
-    || scenarioId.includes('pressure')
-    || scenarioId.includes('flow');
-
-  if (scenarioType === 'ashp' || primary === 'ashp' || scenarioId.includes('ashp')) {
-    return 'heat_pump';
-  }
-  if (hasWaterConstraint) {
-    return 'water_constraint';
-  }
-  if (scenarioId.includes('regular_unvented') || scenarioId.includes('regular_vented') || scenarioType === 'regular') {
-    return 'regular_unvented';
-  }
-  if (scenarioId.includes('system_unvented') || scenarioType === 'system') {
-    return systemCircuit === 'open_vented' ? 'open_vented' : 'stored_hot_water';
-  }
-  if (scenarioId.includes('open_vented')) {
-    return 'open_vented';
-  }
-  return 'generic_recommendation_summary';
 }
 
 function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
@@ -972,52 +925,41 @@ function dispatchVisitJourneyEvent(
 }
 
 function buildSupportingPdfReadinessGate(input: {
+  readonly visitId?: string;
+  readonly visitReference?: string;
   readonly surveyModel?: FullSurveyModelV1;
+  readonly engineInput?: EngineInputV2_3;
   readonly engineOutput?: EngineOutputV1;
-  readonly recommendationHeadline?: string;
   readonly acceptedScenario?: ScenarioResult;
+  readonly acceptedScenarioId?: string;
   readonly decision?: AtlasDecisionV1;
   readonly scenarios?: ScenarioResult[];
-  readonly portalVisitContext?: PersistedPortalVisitContext;
+  readonly customerSummary?: CustomerSummaryV1;
   readonly generatedOutputs?: Partial<GeneratedOutputsV1>;
 }) {
-  const engineInput = (() => {
-    if (input.surveyModel == null) return undefined;
-    try {
-      return toEngineInput(sanitiseModelForEngine(input.surveyModel));
-    } catch {
-      return undefined;
-    }
-  })();
-  if (engineInput == null || input.engineOutput == null) return undefined;
-  const recommendationSummary =
-    input.recommendationHeadline
-    ?? 'Generic recommendation summary for your home.';
-  const journeyType = resolvePdfJourneyType(
-    input.acceptedScenario,
-    input.decision,
-    input.scenarios,
-    input.engineOutput,
-    input.surveyModel,
-  );
-  const customerFacts = [
-    engineInput.occupancyCount != null
-      ? `${engineInput.occupancyCount} ${engineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
-      : null,
-    engineInput.bathroomCount != null
-      ? `${engineInput.bathroomCount} bathroom${engineInput.bathroomCount === 1 ? '' : 's'}`
-      : null,
-    engineInput.postcode ? `Property: ${engineInput.postcode}` : null,
-  ].filter((fact): fact is string => fact != null);
-  const printModel = buildPortalJourneyPrintModel({
-    selectedSectionIds: [],
-    recommendationSummary,
-    customerFacts,
-    journeyType,
-    customerJourneyPack: readCustomerJourneyPackFromGeneratedOutputs(input.generatedOutputs),
-    visitContext: input.portalVisitContext,
-    surveyCondition: buildSurveySystemConditionFromModel(input.surveyModel),
+  const source = resolveCustomerDocumentSourceV1({
+    visitId: input.visitId,
+    visitReference: input.visitReference,
+    acceptedScenario: input.acceptedScenario,
+    acceptedScenarioId: input.acceptedScenarioId,
+    decision: input.decision,
+    scenarios: input.scenarios,
+    customerSummary: input.customerSummary,
+    engineInput: input.engineInput,
+    engineOutput: input.engineOutput,
+    generatedOutputs: input.generatedOutputs,
   });
+  if (!source.ok) {
+    return {
+      readyForCustomer: false,
+      blockingReasons: source.missingFields.map((field) => `CustomerDocumentSourceV1 missing: ${field}`),
+      warnings: [],
+      leakageTerms: [],
+      missingRequiredContent: [],
+      comparisonMismatches: [],
+    };
+  }
+  const printModel = source.source.customerJourneyPack.staticPdf;
   const pdfComparisonAudit = buildPdfComparisonAudit(
     buildPdfComparisonScenarioFromPrintModel(printModel, 'Visit Home library supporting PDF'),
   );
@@ -1236,6 +1178,10 @@ function AppInner() {
     effectiveRole,
   } = useRolePermissions();
   const canAccessWorkspaceSettings = effectiveRole === 'owner' || effectiveRole === 'admin';
+  const appHomeNewVisitState = buildAppHomeNewVisitEntryState({
+    canCreateVisit,
+    workspaceStatus: workspaceSession.status,
+  });
 
   const workspaceSettingsRole = useMemo<WorkspaceMemberRole>(() => {
     switch (effectiveRole) {
@@ -1539,7 +1485,6 @@ function AppInner() {
    * Brand selection and visit creation are handled by StartVisitPanel.
    */
   function handleStartNewVisit() {
-    if (workspaceSession.status === 'authenticated_no_workspace') return;
     setShowNewVisitDialog(true);
   }
 
@@ -3419,13 +3364,18 @@ function AppInner() {
           }
 
           const supportingPdfReadinessGate = buildSupportingPdfReadinessGate({
+            visitId: canonicalSnapshot?.visitId ?? activeVisitId,
+            visitReference:
+              canonicalSnapshot?.visitReference
+              ?? (activeVisitId != null ? formatVisitReference(activeVisitId) : undefined),
             surveyModel: labFullSurveyModel,
+            engineInput: labEngineInput,
             engineOutput: visitHomeEngineOutput,
-            recommendationHeadline: canonicalSnapshot?.customerSummary?.headline,
             acceptedScenario,
+            acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId,
             decision: canonicalSnapshot?.decision,
             scenarios: visitHomeScenarios,
-            portalVisitContext: canonicalSnapshot?.portalVisitContext ?? labPortalVisitContext,
+            customerSummary: canonicalSnapshot?.customerSummary ?? visitHomeRecommendationSummary,
             generatedOutputs,
           });
           const visitEnvelope =
@@ -3571,7 +3521,10 @@ function AppInner() {
               onContinueSurvey={activeVisitId != null ? () => setJourney('visit') : undefined}
               onRunRecommendation={activeVisitId != null ? handleGenerateRecommendation : undefined}
               onGenerateCustomerPortal={activeVisitId != null ? () => { void handleGenerateCustomerPortal(); } : undefined}
-              onDownloadCustomerPdf={canExportVisitPackage ? handleExportCanonicalVisitPackage : undefined}
+              onDownloadCustomerPdf={visitHomeEngineOutput != null && hasSurveyForSupportingPdf ? () => {
+                setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
+                setJourney('library-pdf');
+              } : undefined}
               onOpenPortalFromPackage={canOpenPortalFromPackage ? () => {
                 const sourcePackage = activeCanonicalPackage ?? buildCanonicalVisitPackageForCurrentSession()?.pkg;
                 if (sourcePackage == null) {
@@ -4032,9 +3985,6 @@ function AppInner() {
           activeVisitId != null
             ? readPersistedAtlasVisitV2(activeVisitId).visit
             : undefined;
-        const surveyForPdf =
-          labFullSurveyModel
-          ?? persistedCanonical?.survey;
         const engineOutput =
           canonicalSnapshot?.engineOutput
           ?? persistedCanonical?.engine;
@@ -4052,60 +4002,36 @@ function AppInner() {
           preferredScenarioId == null
             ? undefined
             : scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === preferredScenarioId);
-
-        if (surveyForPdf == null || engineOutput == null) {
-          return (
-            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
-              <p style={{ color: '#475569', marginBottom: 0 }}>
-                Recommendation data is unavailable for this visit. Open or resume the visit snapshot, then try again.
-              </p>
-            </RetiredRouteNotice>
-          );
-        }
-
-        let engineInput: EngineInputV2_3;
-        try {
-          engineInput = toEngineInput(sanitiseModelForEngine(surveyForPdf));
-        } catch {
-          return (
-            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
-              <p style={{ color: '#475569', marginBottom: 0 }}>
-                Saved survey data could not be prepared for the supporting PDF. Please review the visit survey and retry.
-              </p>
-            </RetiredRouteNotice>
-          );
-        }
-        const recommendationSummary =
-          customerSummary?.headline
-          ?? 'Generic recommendation summary for your home.';
-        const journeyType = resolvePdfJourneyType(
+        const source = resolveCustomerDocumentSourceV1({
+          visitId: canonicalSnapshot?.visitId ?? persistedCanonical?.visitId ?? activeVisitId,
+          visitReference:
+            canonicalSnapshot?.visitReference
+            ?? persistedCanonical?.visitReference
+            ?? (activeVisitId != null ? formatVisitReference(activeVisitId) : undefined),
           acceptedScenario,
+          acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId ?? persistedCanonical?.acceptedScenarioId,
           decision,
           scenarios,
+          customerSummary,
+          engineInput: labEngineInput ?? persistedCanonical?.engineInputSnapshot,
           engineOutput,
-          surveyForPdf,
-        );
-        const customerFacts = [
-          engineInput.occupancyCount != null
-            ? `${engineInput.occupancyCount} ${engineInput.occupancyCount === 1 ? 'person' : 'people'} in the home`
-            : null,
-          engineInput.bathroomCount != null
-            ? `${engineInput.bathroomCount} bathroom${engineInput.bathroomCount === 1 ? '' : 's'}`
-            : null,
-          engineInput.postcode ? `Property: ${engineInput.postcode}` : null,
-        ].filter((fact): fact is string => fact != null);
-        const customerJourneyPack = readCustomerJourneyPackFromGeneratedOutputs(
-          canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
-        );
-        const printModel = buildPortalJourneyPrintModel({
-          selectedSectionIds: [],
-          recommendationSummary,
-          customerFacts,
-          journeyType,
-          customerJourneyPack,
-          visitContext: canonicalSnapshot?.portalVisitContext ?? labPortalVisitContext,
-          surveyCondition: buildSurveySystemConditionFromModel(surveyForPdf),
+          generatedOutputs: canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
         });
+        if (!source.ok) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
+              <p style={{ color: '#475569', marginBottom: '0.5rem' }}>
+                CustomerDocumentSourceV1 could not be built for this visit.
+              </p>
+              <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#475569' }}>
+                {source.missingFields.map((field) => (
+                  <li key={field}>{field}</li>
+                ))}
+              </ul>
+            </RetiredRouteNotice>
+          );
+        }
+        const printModel = source.source.customerJourneyPack.staticPdf;
         return (
           <div
             style={{ background: '#f8fafc', minHeight: '100vh' }}
@@ -4283,12 +4209,22 @@ function AppInner() {
               type="button"
               className="app-entry-tile"
               onClick={handleStartNewVisit}
-              disabled={!canCreateVisit || workspaceSession.status === 'authenticated_no_workspace'}
+              disabled={appHomeNewVisitState.disabled}
+              aria-describedby={appHomeNewVisitState.blockerReason != null ? 'app-home-new-visit-workspace-blocker' : undefined}
             >
               <span className="app-entry-tile__title">New visit</span>
               <span className="app-entry-tile__copy">
                 Create visit identity, capture customer/property basics, then continue to manual survey and next actions.
               </span>
+              {appHomeNewVisitState.blockerReason != null && (
+                <span
+                  id="app-home-new-visit-workspace-blocker"
+                  className="app-entry-tile__copy"
+                  data-testid="app-home-new-visit-workspace-blocker"
+                >
+                  {appHomeNewVisitState.blockerReason}
+                </span>
+              )}
             </button>
             <button
               type="button"

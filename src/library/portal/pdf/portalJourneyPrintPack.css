@@ -26,11 +26,17 @@
   min-height: 26cm;
   border-bottom: 1px solid #e2e8f0;
   page-break-after: always;
+  break-inside: auto;
+  overflow: visible;
 }
 
 .pjpp-page:last-child {
   border-bottom: none;
   page-break-after: avoid;
+}
+
+.pjpp-page > :first-child {
+  margin-top: 0 !important;
 }
 
 /* ─── Cover page ──────────────────────────────────────────────────────────── */
@@ -143,6 +149,8 @@
   background: #f8fbff;
   border-left: 4px solid #1e40af;
   padding: 0.8rem 0.9rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .pjpp-reason-card__title {
@@ -207,6 +215,8 @@
   border-radius: 6px;
   padding: 1rem;
   background: #fafafa;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .pjpp-section__diagram-caption {
@@ -241,6 +251,8 @@
   counter-increment: next-steps-counter;
   position: relative;
   padding-left: 2.25rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .pjpp-next-steps__item::before {
@@ -295,6 +307,8 @@
   display: flex;
   align-items: flex-start;
   gap: 1rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .pjpp-qr-destination__placeholder {
