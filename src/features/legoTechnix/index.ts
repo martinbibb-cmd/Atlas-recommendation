@@ -133,3 +133,15 @@ export {
   runLegoTechnixScenarioV1,
   runLegoTechnixTickV1,
 } from './simulation';
+
+export {
+  buildHydraulicConfidenceReportV1,
+  HYDRAULIC_CONFIDENCE_EXPLANATIONS_V1,
+} from './hydraulicConfidenceReport';
+export type {
+  HydraulicConfidenceBucketV1,
+  HydraulicConfidenceReportV1,
+  HydraulicDiagnosticV1,
+  HydraulicInputEvidenceV1,
+  HydraulicScenarioEvidenceV1,
+} from './hydraulicConfidenceReport';
