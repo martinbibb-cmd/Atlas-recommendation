@@ -60,24 +60,31 @@ function roleColumn(role: LegoTechnixGraphV1['components'][number]['role']): num
   switch (role) {
     case 'source':
       return 0;
+    case 'inline':
+      return 1;
     case 'control_sensor':
     case 'control_logic':
-      return 1;
-    case 'control_actuator':
-    case 'pump':
       return 2;
-    case 'junction':
+    case 'control_actuator':
       return 3;
-    case 'emitter':
+    case 'branch':
       return 4;
-    case 'store':
+    case 'load':
+      return 4;
+    case 'exchanger':
       return 5;
-    case 'sink':
+    case 'store':
       return 6;
-    case 'safety':
+    case 'meter':
       return 7;
-    default:
+    case 'safety':
       return 8;
+    case 'environment':
+      return 9;
+    case 'pipe_edge':
+      return 10;
+    default:
+      return 11;
   }
 }
 
@@ -240,7 +247,7 @@ function buildExplainabilityEntries(
 }
 
 function warningForConnection(
-  warnings: readonly ScenarioResultV1['timelineSamples'][number]['warnings'],
+  warnings: ScenarioResultV1['timelineSamples'][number]['warnings'],
   connectionId: string,
 ): readonly string[] {
   return warnings
@@ -249,7 +256,7 @@ function warningForConnection(
 }
 
 function warningForComponent(
-  warnings: readonly ScenarioResultV1['timelineSamples'][number]['warnings'],
+  warnings: ScenarioResultV1['timelineSamples'][number]['warnings'],
   componentId: string,
 ): readonly string[] {
   return warnings
@@ -389,7 +396,7 @@ export function buildDebugProjectionTimelineV1(
         label: `${edge.connectionId} ${edge.active ? 'active' : 'inactive'}`,
         targetType: 'edge' as const,
         targetId: edge.connectionId,
-        status: edge.active ? 'active' : 'inactive',
+        status: edge.active ? ('active' as const) : ('inactive' as const),
         metadata: {
           flowRiskBand: finalEdgeById.get(edge.connectionId)?.flowRiskBand,
         },
@@ -439,7 +446,7 @@ export function buildDebugProjectionTimelineV1(
           status: edge.active ? 'active' as const : 'inactive' as const,
         })),
       ...nodes
-        .filter((node) => node.role === 'emitter' && node.temperatures.length > 0)
+        .filter((node) => node.role === 'load' && node.temperatures.length > 0)
         .map((node) => ({
           id: `thermal:emitter:${node.componentId}`,
           label: `${node.label} heat rejection evidence`,

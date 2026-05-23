@@ -1,6 +1,7 @@
 import type { LegoTechnixConfidence } from '../confidence';
 import type { LegoTechnixDomain } from '../domains';
-import type { LegoTechnixComponentRole, LegoTechnixPortDirection } from '../types';
+import type { LegoTechnixComponentRole } from '../roles';
+import type { LegoTechnixPortDirection } from '../types';
 import type { ComponentOperatingModeV1, FlowRiskBandV1 } from '../simulation';
 
 export type ProjectionDemandStateV1 = 'none' | 'demanding' | 'unknown';
