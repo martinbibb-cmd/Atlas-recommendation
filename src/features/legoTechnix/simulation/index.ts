@@ -48,6 +48,15 @@ export type {
   DhwRecoveryMetricsV1,
   DhwRecoveryTimelinePointV1,
 } from './buildDhwRecoveryMetricsV1';
+export { buildLegoTechnixExplainabilityReportV1 } from './buildLegoTechnixExplainabilityReportV1';
+export type {
+  BuildLegoTechnixExplainabilityReportV1Input,
+} from './buildLegoTechnixExplainabilityReportV1';
+export type {
+  LegoTechnixCausalNoteV1,
+  LegoTechnixExplainabilityReportV1,
+  LegoTechnixExplainabilitySectionV1,
+} from './LegoTechnixExplainabilityReportV1';
 
 export { ACTIVE_PATH_REASONS_V1, resolveActivePathsV1 } from './resolveActivePathsV1';
 export type {

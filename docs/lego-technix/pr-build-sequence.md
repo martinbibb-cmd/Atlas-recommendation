@@ -77,6 +77,16 @@ This document defines the controlled build order for LegoTechnix.
 - Cycling risk
 - Simple dashboard/debug view
 
+## PR21 — Engine explainability/report layer
+
+- Engine explainability report layer over scenario/confidence/DHW outputs
+- Structured non-visual “what happened and why” wording for future tooling
+- No visuals
+- No UI/routes
+- No recommendation changes
+- Bridge to future portal/PDF/simulator wording
+- The explainability report is the first sanctioned source for future customer-facing explanatory copy, but it must not decide recommendations
+
 ## Later phases
 
 - Visuals
