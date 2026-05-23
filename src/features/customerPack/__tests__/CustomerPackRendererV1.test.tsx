@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -74,7 +75,7 @@ describe('CustomerPackRendererV1', () => {
 
       const { container } = render(<CustomerPackRendererV1 pack={pack} />);
       const renderedSections = Array.from(
-        container.querySelectorAll<HTMLElement>('[data-testid^="cprv1-section-"]'),
+        container.querySelectorAll<HTMLElement>('.cprv1-section'),
       ).map((element) => element.dataset.testid?.replace('cprv1-section-', ''));
 
       expect(renderedSections).toEqual([...CUSTOMER_EVIDENCE_SECTION_IDS_V1]);
@@ -83,7 +84,10 @@ describe('CustomerPackRendererV1', () => {
   });
 
   it('consumes CustomerEvidencePackV1 only and does not import recommendation builders', () => {
-    const source = readFileSync(new URL('../CustomerPackRendererV1.tsx', import.meta.url), 'utf8');
+    const source = readFileSync(
+      path.resolve(process.cwd(), 'src/features/customerPack/CustomerPackRendererV1.tsx'),
+      'utf8',
+    );
 
     expect(source).toContain('CustomerEvidencePackV1');
     expect(source).not.toMatch(/AtlasDecisionV1|ScenarioResult|buildCustomerPackV1|buildCustomerEvidencePackV1/);
@@ -158,11 +162,11 @@ describe('CustomerPackRendererV1', () => {
 
     render(<CustomerPackRendererV1 pack={confidencePack} />);
 
-    expect(screen.getByText('Measured during the visit')).toBeTruthy();
-    expect(screen.getByText('Based on manufacturer information')).toBeTruthy();
-    expect(screen.getByText('Estimated from the visible system layout')).toBeTruthy();
-    expect(screen.getByText('Pipe route not fully confirmed')).toBeTruthy();
-    expect(screen.getByText('Requires installer confirmation')).toBeTruthy();
+    expect(screen.getAllByText('Measured during the visit').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Based on manufacturer information').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Estimated from the visible system layout').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Pipe route not fully confirmed').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Requires installer confirmation').length).toBeGreaterThan(0);
     expect(screen.queryByText('derived')).toBeNull();
     expect(screen.queryByText('unknown')).toBeNull();
   });

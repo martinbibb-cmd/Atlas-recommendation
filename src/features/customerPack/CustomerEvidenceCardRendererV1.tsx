@@ -28,8 +28,11 @@ export function CustomerEvidenceCardRendererV1({ card }: CustomerEvidenceCardRen
 
       {card.metrics.length > 0 ? (
         <dl className="cprv1-metrics" data-testid="cprv1-card-metrics">
-          {card.metrics.map((metric) => (
-            <div key={`${metric.label}-${metric.value}-${metric.unit ?? 'none'}`} className="cprv1-metrics__item">
+          {card.metrics.map((metric, metricIndex) => (
+            <div
+              key={`${metric.label}-${metricIndex}`}
+              className="cprv1-metrics__item"
+            >
               <dt className="cprv1-metrics__label">{metric.label}</dt>
               <dd className="cprv1-metrics__value">{formatMetricValue(metric)}</dd>
               <dd className="cprv1-metrics__confidence">
