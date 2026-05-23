@@ -4,6 +4,10 @@ import {
   simpleRegularBoilerGraph,
   simpleRegularBoilerInitialStateV1,
 } from '../fixtures/simpleRegularBoilerGraph';
+import {
+  sPlanControlGraph,
+  sPlanControlInitialStateV1,
+} from '../fixtures/sPlanControlGraph';
 import type { LegoTechnixGraphV1 } from '../types';
 import type { LegoTechnixSimulationStateV1 } from '../simulation/LegoTechnixSimulationStateV1';
 import type { LegoTechnixTickInputV1 } from '../simulation/LegoTechnixTickInputV1';
@@ -26,6 +30,14 @@ function makeInitialState(wallClockMs = 0): LegoTechnixSimulationStateV1 {
 
 function makeSimpleInitialState(wallClockMs = 0): LegoTechnixSimulationStateV1 {
   const base = JSON.parse(JSON.stringify(simpleRegularBoilerInitialStateV1)) as LegoTechnixSimulationStateV1;
+  return {
+    ...base,
+    wallClockMs,
+  };
+}
+
+function makeSPlanInitialState(wallClockMs = 0): LegoTechnixSimulationStateV1 {
+  const base = JSON.parse(JSON.stringify(sPlanControlInitialStateV1)) as LegoTechnixSimulationStateV1;
   return {
     ...base,
     wallClockMs,
@@ -105,6 +117,125 @@ describe('runLegoTechnixTickV1 — tick lifecycle', () => {
       makeTickInput(),
     );
     expect(result.nextState.schemaVersion).toBe('1.0');
+  });
+
+  describe('runLegoTechnixTickV1 — PR12 controls and S-plan demand', () => {
+    it('21. room below target opens heating valve and calls boiler', () => {
+      const initial = makeSPlanInitialState();
+      const stored = findComponentState(initial, 'stored_dhw_volume');
+      if (!stored) throw new Error('Stored DHW state missing.');
+      stored.currentTemperatureC = 60;
+
+      const result = runLegoTechnixTickV1(
+        sPlanControlGraph,
+        initial,
+        makeTickInput(1000, undefined, 30),
+      );
+
+      expect(findComponentState(result.nextState, 'room_thermostat')?.controlDemandState).toBe('demanding');
+      expect(findComponentState(result.nextState, 'heating_zone_valve')?.actuatorPosition).toBe('open');
+      expect(findComponentState(result.nextState, 'cylinder_zone_valve')?.actuatorPosition).toBe('closed');
+      expect(findComponentState(result.nextState, 'regular_boiler')?.operatingMode).toBe('running');
+    });
+
+    it('22. room above target closes heating demand', () => {
+      const initial = makeSPlanInitialState();
+      const room = findComponentState(initial, 'living_room');
+      const stored = findComponentState(initial, 'stored_dhw_volume');
+      if (!room || !stored) throw new Error('Expected room and cylinder state.');
+      room.currentTemperatureC = 21;
+      stored.currentTemperatureC = 60;
+
+      const result = runLegoTechnixTickV1(
+        sPlanControlGraph,
+        initial,
+        makeTickInput(1000, undefined, 30),
+      );
+
+      expect(findComponentState(result.nextState, 'room_thermostat')?.controlDemandState).toBe('none');
+      expect(findComponentState(result.nextState, 'heating_zone_valve')?.actuatorPosition).toBe('closed');
+      expect(findComponentState(result.nextState, 'regular_boiler')?.operatingMode).toBe('idle');
+    });
+
+    it('23. cylinder below target opens cylinder valve and calls boiler', () => {
+      const initial = makeSPlanInitialState();
+      const room = findComponentState(initial, 'living_room');
+      if (!room) throw new Error('Room state missing.');
+      room.currentTemperatureC = 20;
+
+      const result = runLegoTechnixTickV1(
+        sPlanControlGraph,
+        initial,
+        makeTickInput(1000, undefined, 30),
+      );
+
+      expect(findComponentState(result.nextState, 'cylinder_thermostat')?.controlDemandState).toBe('demanding');
+      expect(findComponentState(result.nextState, 'cylinder_zone_valve')?.actuatorPosition).toBe('open');
+      expect(findComponentState(result.nextState, 'heating_zone_valve')?.actuatorPosition).toBe('closed');
+      expect(findComponentState(result.nextState, 'regular_boiler')?.operatingMode).toBe('running');
+    });
+
+    it('24. cylinder at target closes DHW demand', () => {
+      const initial = makeSPlanInitialState();
+      const room = findComponentState(initial, 'living_room');
+      const stored = findComponentState(initial, 'stored_dhw_volume');
+      if (!room || !stored) throw new Error('Expected room and cylinder state.');
+      room.currentTemperatureC = 20;
+      stored.currentTemperatureC = 60;
+
+      const result = runLegoTechnixTickV1(
+        sPlanControlGraph,
+        initial,
+        makeTickInput(1000, undefined, 30),
+      );
+
+      expect(findComponentState(result.nextState, 'cylinder_thermostat')?.controlDemandState).toBe('none');
+      expect(findComponentState(result.nextState, 'cylinder_zone_valve')?.actuatorPosition).toBe('closed');
+    });
+
+    it('25. both calls can coexist in S-plan', () => {
+      const result = runLegoTechnixTickV1(
+        sPlanControlGraph,
+        makeSPlanInitialState(),
+        makeTickInput(1000, undefined, 30),
+      );
+
+      expect(findComponentState(result.nextState, 'heating_zone_valve')?.actuatorPosition).toBe('open');
+      expect(findComponentState(result.nextState, 'cylinder_zone_valve')?.actuatorPosition).toBe('open');
+      expect(findComponentState(result.nextState, 'regular_boiler')?.operatingMode).toBe('running');
+      expect(
+        result.nextState.edgeStates.some((edgeState) => (
+          edgeState.connectionId === 'conn_heating_valve_to_radiator' && edgeState.isActive
+        )),
+      ).toBe(true);
+      expect(
+        result.nextState.edgeStates.some((edgeState) => (
+          edgeState.connectionId === 'conn_cylinder_valve_to_coil' && edgeState.isActive
+        )),
+      ).toBe(true);
+    });
+
+    it('26. heat source demand comes from resolved control demand, not hardcoded model state', () => {
+      const graph = cloneGraph(sPlanControlGraph);
+      if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+      graph.heatSourceModels[0].controlDemandState = 'demanding';
+
+      const initial = makeSPlanInitialState();
+      const room = findComponentState(initial, 'living_room');
+      const stored = findComponentState(initial, 'stored_dhw_volume');
+      if (!room || !stored) throw new Error('Expected room and cylinder state.');
+      room.currentTemperatureC = 21;
+      stored.currentTemperatureC = 60;
+
+      const result = runLegoTechnixTickV1(
+        graph,
+        initial,
+        makeTickInput(1000, undefined, 30),
+      );
+
+      expect(findComponentState(result.nextState, 'regular_boiler')?.controlDemandState).toBe('none');
+      expect(findComponentState(result.nextState, 'regular_boiler')?.operatingMode).toBe('idle');
+    });
   });
 
   it('5. tickIndex increments by 1 each tick', () => {

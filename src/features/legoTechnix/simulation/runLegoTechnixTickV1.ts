@@ -11,6 +11,7 @@ import type { HeatTransferEvaluationResultV1 } from './evaluateHeatTransfersV1';
 import { evaluateHeatTransfersV1 } from './evaluateHeatTransfersV1';
 import type { HeatSourceEvaluationResultV1 } from './evaluateHeatSourcesV1';
 import { evaluateHeatSourcesV1 } from './evaluateHeatSourcesV1';
+import { evaluateControlsV1 } from './evaluateControlsV1';
 import { integrateThermalStateV1 } from './integrateThermalStateV1';
 import type {
   LegoTechnixSimulationEventV1,
@@ -25,18 +26,17 @@ import { resolveActivePathsV1 } from './resolveActivePathsV1';
 // ---------------------------------------------------------------------------
 
 interface SensorPollResult {
+  readonly componentStateById: Readonly<Record<string, Partial<ComponentStateV1>>>;
   readonly events: readonly LegoTechnixSimulationEventV1[];
   readonly warnings: readonly LegoTechnixSimulationWarningV1[];
 }
 
 function runControlSensorPoll(
-  _graph: LegoTechnixGraphV1,
-  _previousState: LegoTechnixSimulationStateV1,
-  _tickInput: LegoTechnixTickInputV1,
+  graph: LegoTechnixGraphV1,
+  previousState: LegoTechnixSimulationStateV1,
+  tickInput: LegoTechnixTickInputV1,
 ): SensorPollResult {
-  // Stage 1 placeholder: a future PR will interrogate control_sensor components
-  // and apply tickInput.controlOverrides to produce updated setpoints / readings.
-  return { events: [], warnings: [] };
+  return evaluateControlsV1(graph, previousState, tickInput);
 }
 
 // ---------------------------------------------------------------------------
@@ -205,6 +205,7 @@ function buildComponentStates(
       rampRateCPerSecond: thermalPatch?.rampRateCPerSecond ?? prev?.rampRateCPerSecond,
       modulationStrategy: thermalPatch?.modulationStrategy ?? prev?.modulationStrategy,
       controlDemandState: thermalPatch?.controlDemandState ?? prev?.controlDemandState,
+      actuatorPosition: thermalPatch?.actuatorPosition ?? prev?.actuatorPosition,
       condensingLikely: thermalPatch?.condensingLikely ?? prev?.condensingLikely,
       cyclingRisk: thermalPatch?.cyclingRisk ?? prev?.cyclingRisk,
     };
@@ -306,7 +307,12 @@ export function runLegoTechnixTickV1(
   }
 
   // Stage 3 — active path resolution
-  const pathResult = resolveActivePathsV1(graph, previousState, tickInput);
+  const pathResult = resolveActivePathsV1(
+    graph,
+    previousState,
+    tickInput,
+    pollResult.componentStateById,
+  );
   events.push(...pathResult.events);
   warnings.push(...pathResult.warnings);
 
@@ -324,6 +330,7 @@ export function runLegoTechnixTickV1(
     pathResult,
     edgeStatesAfterFlow,
     tickInput,
+    pollResult.componentStateById,
   );
   events.push(...heatSourceResult.events);
   warnings.push(...heatSourceResult.warnings);
@@ -344,6 +351,7 @@ export function runLegoTechnixTickV1(
   warnings.push(...envResult.warnings);
 
   const mergedThermalStateByComponentId: Record<string, Partial<ComponentStateV1>> = {
+    ...pollResult.componentStateById,
     ...heatSourceResult.thermalStateByComponentId,
   };
   for (const [componentId, patch] of Object.entries(envResult.thermalStateByComponentId)) {

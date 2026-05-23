@@ -141,6 +141,7 @@ export function evaluateHeatSourcesV1(
   activePathResolution: ActivePathResolutionV1,
   edgeStates: readonly EdgeStateV1[],
   tickInput: LegoTechnixTickInputV1,
+  stagedComponentStateById?: Readonly<Record<string, Partial<ComponentStateV1>>>,
 ): HeatSourceEvaluationResultV1 {
   const events: LegoTechnixSimulationEventV1[] = [];
   const warnings: LegoTechnixSimulationWarningV1[] = [];
@@ -162,9 +163,10 @@ export function evaluateHeatSourcesV1(
 
   for (const model of graph.heatSourceModels ?? []) {
     const demandOverride = parseControlDemand(tickInput.controlOverrides?.[model.componentId]);
-    const controlDemandState = demandOverride === true
-      ? 'demanding'
-      : (model.controlDemandState ?? 'none');
+    const stagedDemandState = stagedComponentStateById?.[model.componentId]?.controlDemandState;
+    const controlDemandState = typeof demandOverride === 'boolean'
+      ? (demandOverride ? 'demanding' : 'none')
+      : (stagedDemandState ?? model.controlDemandState ?? 'none');
     const hasActivePrimaryPath = (graph.activeCircuitPaths ?? []).some((path) => (
       activeResolvedPathIds.has(path.id)
       && path.domain === model.primaryDomain

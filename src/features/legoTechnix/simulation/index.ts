@@ -1,5 +1,9 @@
-export { COMPONENT_OPERATING_MODES_V1 } from './ComponentStateV1';
-export type { ComponentOperatingModeV1, ComponentStateV1 } from './ComponentStateV1';
+export { COMPONENT_OPERATING_MODES_V1, CONTROL_ACTUATOR_POSITIONS_V1 } from './ComponentStateV1';
+export type {
+  ComponentOperatingModeV1,
+  ComponentStateV1,
+  ControlActuatorPositionV1,
+} from './ComponentStateV1';
 
 export type { DomainStateV1 } from './DomainStateV1';
 
@@ -34,6 +38,9 @@ export type {
 
 export { evaluateHeatSourcesV1 } from './evaluateHeatSourcesV1';
 export type { HeatSourceEvaluationResultV1 } from './evaluateHeatSourcesV1';
+
+export { evaluateControlsV1 } from './evaluateControlsV1';
+export type { ControlEvaluationResultV1 } from './evaluateControlsV1';
 
 export { integrateThermalStateV1 } from './integrateThermalStateV1';
 export type { ThermalIntegrationResultV1 } from './integrateThermalStateV1';
