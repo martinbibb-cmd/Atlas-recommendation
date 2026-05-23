@@ -1,4 +1,5 @@
 import type { CustomerEvidenceMetricV1 } from './CustomerEvidenceMetricV1';
+import type { CustomerEvidenceTimelineV1 } from './CustomerEvidenceTimelineV1';
 import type { CustomerEvidenceWarningV1 } from './CustomerEvidenceWarningV1';
 
 export const CUSTOMER_EVIDENCE_CARD_TYPES_V1 = [
@@ -21,4 +22,6 @@ export interface CustomerEvidenceCardV1 {
   readonly summary: string;
   readonly metrics: readonly CustomerEvidenceMetricV1[];
   readonly warnings: readonly CustomerEvidenceWarningV1[];
+  readonly confidenceWording?: string;
+  readonly timelineEntries?: readonly CustomerEvidenceTimelineV1[];
 }

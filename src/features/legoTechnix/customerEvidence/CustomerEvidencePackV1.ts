@@ -4,5 +4,6 @@ export interface CustomerEvidencePackV1 {
   readonly schemaVersion: '1.0';
   readonly systemLabel: string;
   readonly systemType: string;
+  readonly recommendationSummary: string;
   readonly sections: readonly CustomerEvidenceSectionV1[];
 }
