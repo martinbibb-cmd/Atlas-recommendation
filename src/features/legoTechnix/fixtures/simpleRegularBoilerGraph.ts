@@ -360,6 +360,7 @@ export const simpleRegularBoilerGraph: LegoTechnixGraphV1 = {
         waterVolumeLitres: 0.25,
         estimatedResistanceIndex: 0.1,
         routingConfidence: 'assumed',
+        insulationState: 'insulated',
       },
     },
     {
@@ -417,6 +418,9 @@ export const simpleRegularBoilerGraph: LegoTechnixGraphV1 = {
         waterVolumeLitres: 0.9,
         estimatedResistanceIndex: 0.4,
         routingConfidence: 'estimated',
+        insulationState: 'partial',
+        ambientDomainId: 'outside_environment',
+        simpleHeatLossWPerM: 8,
       },
     },
     {
