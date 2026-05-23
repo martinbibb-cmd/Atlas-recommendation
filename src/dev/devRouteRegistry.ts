@@ -167,6 +167,13 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'LegoTechnixDebugProjectionPage',
+    queryFlags: ['lego-technix-debug=1'],
+    fullRouteExample: '/?lego-technix-debug=1',
+    routeKind: 'query_flag',
+    access: 'dev_only',
+  },
+  {
     codeName: 'PhysicsVisualGallery',
     queryFlags: ['gallery=1'],
     fullRouteExample: '/?gallery=1',
