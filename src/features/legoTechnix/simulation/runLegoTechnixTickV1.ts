@@ -99,6 +99,7 @@ interface ThermalEvalResult {
   }>>;
   readonly roomHeatGainKw: number;
   readonly storedWaterHeatGainKw: number;
+  readonly transferByComponentId: HeatTransferEvaluationResultV1['transferByComponentId'];
   readonly events: readonly LegoTechnixSimulationEventV1[];
   readonly warnings: readonly LegoTechnixSimulationWarningV1[];
 }
