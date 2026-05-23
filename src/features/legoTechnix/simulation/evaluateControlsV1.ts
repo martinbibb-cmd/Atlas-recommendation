@@ -4,7 +4,7 @@ import type {
   ControlSensorV1,
   LegoTechnixGraphV1,
 } from '../types';
-import type { ComponentStateV1, ComponentOperatingModeV1 } from './ComponentStateV1';
+import type { ComponentStateV1 } from './ComponentStateV1';
 import type { LegoTechnixSimulationStateV1 } from './LegoTechnixSimulationStateV1';
 import type { LegoTechnixTickInputV1 } from './LegoTechnixTickInputV1';
 import type {
@@ -124,7 +124,6 @@ function evaluateThermostatDemand(
 }
 
 function buildSensorState(
-  sensor: ControlSensorV1,
   isDemanding: boolean,
   measuredTemperatureC: number,
   setpointTemperatureC: number,
@@ -221,7 +220,6 @@ export function evaluateControlsV1(
     );
     sensorDemandByComponentId.set(sensor.componentId, isDemanding);
     componentStateById[sensor.componentId] = buildSensorState(
-      sensor,
       isDemanding,
       measuredTemperatureC,
       setpointTemperatureC,

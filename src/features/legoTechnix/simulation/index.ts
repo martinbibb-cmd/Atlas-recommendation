@@ -39,6 +39,9 @@ export type {
 export { evaluateHeatSourcesV1 } from './evaluateHeatSourcesV1';
 export type { HeatSourceEvaluationResultV1 } from './evaluateHeatSourcesV1';
 
+export { evaluateControlsV1 } from './evaluateControlsV1';
+export type { ControlEvaluationResultV1 } from './evaluateControlsV1';
+
 export { integrateThermalStateV1 } from './integrateThermalStateV1';
 export type { ThermalIntegrationResultV1 } from './integrateThermalStateV1';
 

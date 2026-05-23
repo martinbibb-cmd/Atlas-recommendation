@@ -224,9 +224,6 @@ export function resolveActivePathsV1(
   const connectionById = new Map(graph.connections.map((connection) => [connection.id, connection]));
   const previousStateById = new Map(previousState.componentStates.map((state) => [state.componentId, state]));
 
-  const evaluatedPaths = (graph.activeCircuitPaths ?? []).map((path) => (
-    evaluatePath(path, componentById, connectionById, previousStateById, tickInput)
-  )).map((evaluatedPath) => evaluatedPath);
   const stagedEvaluatedPaths = (graph.activeCircuitPaths ?? []).map((path) => (
     evaluatePath(
       path,
