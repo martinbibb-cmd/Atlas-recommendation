@@ -1222,9 +1222,11 @@ describe('runLegoTechnixTickV1 — PR19 heat pump and weather compensation', () 
 
     const result = runDemandTick(graph);
     const boilerState = findComponentState(result.nextState, 'regular_boiler');
-    const fallbackCondensingLikely = (graph.heatSourceModels[0].targetFlowTemperatureC - 20) < 55;
+    const fallbackReturnTemperatureC = graph.heatSourceModels[0].targetFlowTemperatureC - 20;
+    const fallbackCondensingLikely = fallbackReturnTemperatureC < 55;
     expect(fallbackCondensingLikely).toBe(false);
-    expect(boilerState?.condensingLikely).toBe(true);
+    expect(boilerState?.returnTemperatureC).not.toBeCloseTo(fallbackReturnTemperatureC, 3);
+    expect(boilerState?.condensingLikely).toBe((boilerState?.returnTemperatureC ?? 0) < 55);
     expect(boilerState?.condensingConfidence).toBe('derived');
   });
 
@@ -1569,7 +1571,9 @@ describe('runLegoTechnixTickV1 — PR15 return-temperature propagation', () => {
       inactiveInitial,
       makeTickInput(1000, undefined, 30),
     );
-    expect(findComponentState(inactiveResult.nextState, 'regular_boiler')?.condensingLikely).toBe(false);
+    const inactiveBoilerState = findComponentState(inactiveResult.nextState, 'regular_boiler');
+    expect(inactiveBoilerState?.condensingLikely).toBe(true);
+    expect(inactiveBoilerState?.condensingConfidence).toBe('assumed');
 
     const activeInitial = makeSPlanInitialState();
     const activeStore = findComponentState(activeInitial, 'stored_dhw_volume');
@@ -1583,6 +1587,7 @@ describe('runLegoTechnixTickV1 — PR15 return-temperature propagation', () => {
     const boilerState = findComponentState(activeResult.nextState, 'regular_boiler');
     expect(boilerState?.returnTemperatureC).not.toBeCloseTo(65, 3);
     expect(boilerState?.condensingLikely).toBe((boilerState?.returnTemperatureC ?? 0) < 55);
+    expect(boilerState?.condensingConfidence).toBe('derived');
   });
 });
 
