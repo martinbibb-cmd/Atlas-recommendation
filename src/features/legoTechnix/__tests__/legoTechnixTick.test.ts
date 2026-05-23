@@ -331,7 +331,7 @@ describe('runLegoTechnixTickV1 — active hydraulic path resolution', () => {
     ))).toBe(true);
   });
 
-  it('24. active-path resolution does not populate temperatures or mutate graph structure', () => {
+  it('24. active-path resolution keeps graph immutable and component temperatures unset', () => {
     const graph = cloneGraph(branchingBypassGraph);
     const frozenGraph = JSON.stringify(graph);
 
@@ -345,10 +345,6 @@ describe('runLegoTechnixTickV1 — active hydraulic path resolution', () => {
     );
 
     expect(JSON.stringify(graph)).toBe(frozenGraph);
-    expect(result.nextState.edgeStates.every((edgeState) => (
-      edgeState.estimatedInletTemperatureC === undefined
-      && edgeState.estimatedOutletTemperatureC === undefined
-    ))).toBe(true);
     expect(result.nextState.componentStates.every((componentState) => (
       componentState.measuredTemperatureC === undefined
     ))).toBe(true);
@@ -433,7 +429,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
     expect(mergeFlow).toBeCloseTo(heatingReturnFlow + bypassReturnFlow, 3);
   });
 
-  it('30. flow allocation still does not calculate temperatures', () => {
+  it('30. no heat-transfer contracts keeps edge temperatures unset', () => {
     const result = runLegoTechnixTickV1(
       branchingBypassGraph,
       makeInitialState(),
@@ -447,5 +443,107 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
       edgeState.estimatedInletTemperatureC === undefined
       && edgeState.estimatedOutletTemperatureC === undefined
     ))).toBe(true);
+  });
+
+  describe('runLegoTechnixTickV1 — thermal evaluation skeleton', () => {
+    it('31. active radiator and cylinder coil transfer heat into room and stored water placeholders', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeInitialState(),
+        makeTickInput(1000, {
+          zone_valve: true,
+        }),
+      );
+
+      const radiatorEvent = result.events.find((event) => (
+        event.type === 'heat_transfer_evaluated' && event.componentId === 'radiator_emitter'
+      ));
+      const coilEvent = result.events.find((event) => (
+        event.type === 'heat_transfer_evaluated' && event.componentId === 'cylinder_coil_exchanger'
+      ));
+      const roomGainEvent = result.events.find((event) => event.type === 'room_heat_gain_placeholder');
+      const storedWaterGainEvent = result.events.find((event) => (
+        event.type === 'stored_water_heat_gain_placeholder'
+      ));
+
+      expect(radiatorEvent?.message).toContain('removed 3.2kW');
+      expect(radiatorEvent?.message).toContain('delivered 3.2kW');
+      expect(coilEvent?.message).toContain('removed 2.1kW');
+      expect(coilEvent?.message).toContain('delivered 2.1kW');
+      expect(roomGainEvent?.message).toContain('3.2kW');
+      expect(storedWaterGainEvent?.message).toContain('2.1kW');
+    });
+
+    it('32. inactive primary branch transfers 0kW for radiator and cylinder coil', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeInitialState(),
+        makeTickInput(1000, {
+          zone_valve: false,
+        }),
+      );
+
+      const radiatorInactiveEvent = result.events.find((event) => (
+        event.type === 'heat_transfer_inactive' && event.componentId === 'radiator_emitter'
+      ));
+      const coilInactiveEvent = result.events.find((event) => (
+        event.type === 'heat_transfer_inactive' && event.componentId === 'cylinder_coil_exchanger'
+      ));
+      const roomGainEvent = result.events.find((event) => event.type === 'room_heat_gain_placeholder');
+      const storedWaterGainEvent = result.events.find((event) => (
+        event.type === 'stored_water_heat_gain_placeholder'
+      ));
+
+      expect(radiatorInactiveEvent?.message).toContain('0kW');
+      expect(coilInactiveEvent?.message).toContain('0kW');
+      expect(roomGainEvent?.message).toContain('0kW');
+      expect(storedWaterGainEvent?.message).toContain('0kW');
+    });
+
+    it('33. radiator outlet temperature drops consistently with heat transfer and flow', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeInitialState(),
+        makeTickInput(1000, {
+          zone_valve: true,
+        }),
+      );
+
+      const radiatorOutlet = findEdgeState(result.nextState, 'conn_radiator_to_filter');
+      expect(radiatorOutlet?.estimatedInletTemperatureC).toBeDefined();
+      expect(radiatorOutlet?.estimatedOutletTemperatureC).toBeDefined();
+      expect((radiatorOutlet?.estimatedInletTemperatureC ?? 0)).toBeGreaterThan(
+        radiatorOutlet?.estimatedOutletTemperatureC ?? 0,
+      );
+
+      const flowKgPerS = radiatorOutlet?.estimatedFlowKgPerS ?? 0;
+      const expectedDeltaC = 3.2 / (flowKgPerS * 4.186);
+      const observedDeltaC = (radiatorOutlet?.estimatedInletTemperatureC ?? 0)
+        - (radiatorOutlet?.estimatedOutletTemperatureC ?? 0);
+      expect(observedDeltaC).toBeCloseTo(expectedDeltaC, 3);
+    });
+
+    it('34. cylinder coil outlet temperature drops consistently with heat transfer and flow', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeInitialState(),
+        makeTickInput(1000, {
+          zone_valve: true,
+        }),
+      );
+
+      const coilOutlet = findEdgeState(result.nextState, 'conn_coil_to_radiator');
+      expect(coilOutlet?.estimatedInletTemperatureC).toBeDefined();
+      expect(coilOutlet?.estimatedOutletTemperatureC).toBeDefined();
+      expect((coilOutlet?.estimatedInletTemperatureC ?? 0)).toBeGreaterThan(
+        coilOutlet?.estimatedOutletTemperatureC ?? 0,
+      );
+
+      const flowKgPerS = coilOutlet?.estimatedFlowKgPerS ?? 0;
+      const expectedDeltaC = 2.1 / (flowKgPerS * 4.186);
+      const observedDeltaC = (coilOutlet?.estimatedInletTemperatureC ?? 0)
+        - (coilOutlet?.estimatedOutletTemperatureC ?? 0);
+      expect(observedDeltaC).toBeCloseTo(expectedDeltaC, 3);
+    });
   });
 });

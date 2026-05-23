@@ -7,6 +7,8 @@ import type { LegoTechnixSimulationStateV1 } from './LegoTechnixSimulationStateV
 import type { LegoTechnixTickInputV1 } from './LegoTechnixTickInputV1';
 import type { MassFlowAllocationResultV1 } from './allocateMassFlowV1';
 import { allocateMassFlowV1 } from './allocateMassFlowV1';
+import type { HeatTransferEvaluationResultV1 } from './evaluateHeatTransfersV1';
+import { evaluateHeatTransfersV1 } from './evaluateHeatTransfersV1';
 import type {
   LegoTechnixSimulationEventV1,
   LegoTechnixSimulationWarningV1,
@@ -90,18 +92,28 @@ function runMassFlowAllocation(
 // ---------------------------------------------------------------------------
 
 interface ThermalEvalResult {
+  readonly edgeTemperatureByConnectionId: Readonly<Record<string, {
+    readonly estimatedInletTemperatureC?: number;
+    readonly estimatedOutletTemperatureC?: number;
+  }>>;
+  readonly roomHeatGainKw: number;
+  readonly storedWaterHeatGainKw: number;
   readonly events: readonly LegoTechnixSimulationEventV1[];
   readonly warnings: readonly LegoTechnixSimulationWarningV1[];
 }
 
 function runThermalComponentEvaluation(
-  _graph: LegoTechnixGraphV1,
-  _previousState: LegoTechnixSimulationStateV1,
-  _tickInput: LegoTechnixTickInputV1,
+  graph: LegoTechnixGraphV1,
+  activePathResolution: ActivePathResolutionV1,
+  edgeStates: readonly EdgeStateV1[],
 ): ThermalEvalResult {
-  // Stage 4 placeholder: a future PR will evaluate heatTransferComponents and
-  // update per-component temperatures using the heat-transfer contracts.
-  return { events: [], warnings: [] };
+  const evaluation: HeatTransferEvaluationResultV1 = evaluateHeatTransfersV1(
+    graph,
+    activePathResolution,
+    edgeStates,
+  );
+
+  return evaluation;
 }
 
 // ---------------------------------------------------------------------------
@@ -152,12 +164,17 @@ function buildEdgeStates(
   previous: LegoTechnixSimulationStateV1,
   activePathResolution: ActivePathResolutionV1,
   massFlowAllocation: MassFlowAllocationResultV1,
+  edgeTemperatureByConnectionId?: Readonly<Record<string, {
+    readonly estimatedInletTemperatureC?: number;
+    readonly estimatedOutletTemperatureC?: number;
+  }>>,
 ): readonly EdgeStateV1[] {
   const previousById = new Map(previous.edgeStates.map((s) => [s.connectionId, s]));
   const activeConnectionIds = new Set(activePathResolution.activeConnectionIds);
 
   return graph.connections.map((connection): EdgeStateV1 => {
     const prev = previousById.get(connection.id);
+    const thermalEstimate = edgeTemperatureByConnectionId?.[connection.id];
     const edgeFlow = massFlowAllocation.edgeFlowByConnectionId[connection.id];
     const isActive = activeConnectionIds.has(connection.id);
     const estimatedFlowLps = isActive ? (edgeFlow?.estimatedFlowLps ?? 0) : 0;
@@ -168,8 +185,10 @@ function buildEdgeStates(
       estimatedFlowKgPerS: estimatedFlowLps,
       estimatedVelocityMps: isActive ? edgeFlow?.estimatedVelocityMps : undefined,
       flowRiskBand: isActive ? edgeFlow?.flowRiskBand : undefined,
-      estimatedInletTemperatureC: prev?.estimatedInletTemperatureC,
-      estimatedOutletTemperatureC: prev?.estimatedOutletTemperatureC,
+      estimatedInletTemperatureC: thermalEstimate?.estimatedInletTemperatureC
+        ?? prev?.estimatedInletTemperatureC,
+      estimatedOutletTemperatureC: thermalEstimate?.estimatedOutletTemperatureC
+        ?? prev?.estimatedOutletTemperatureC,
     };
   });
 }
@@ -244,8 +263,10 @@ export function runLegoTechnixTickV1(
   events.push(...flowResult.allocation.events);
   warnings.push(...flowResult.allocation.warnings);
 
+  const edgeStatesAfterFlow = buildEdgeStates(graph, previousState, pathResult, flowResult.allocation);
+
   // Stage 4 — thermal/component evaluation
-  const thermalResult = runThermalComponentEvaluation(graph, previousState, tickInput);
+  const thermalResult = runThermalComponentEvaluation(graph, pathResult, edgeStatesAfterFlow);
   events.push(...thermalResult.events);
   warnings.push(...thermalResult.warnings);
 
@@ -260,7 +281,13 @@ export function runLegoTechnixTickV1(
     tickIndex: previousState.tickIndex + 1,
     wallClockMs: tickInput.wallClockMs,
     componentStates: buildComponentStates(graph, previousState, pathResult),
-    edgeStates: buildEdgeStates(graph, previousState, pathResult, flowResult.allocation),
+    edgeStates: buildEdgeStates(
+      graph,
+      previousState,
+      pathResult,
+      flowResult.allocation,
+      thermalResult.edgeTemperatureByConnectionId,
+    ),
     domainStates: buildDomainStates(graph, previousState),
   };
 
