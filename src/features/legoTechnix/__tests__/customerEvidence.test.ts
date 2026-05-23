@@ -50,6 +50,7 @@ function buildPackFromTemplate(templateId: string): CustomerEvidencePackV1 {
     lockedRecommendation: {
       systemLabel: template.label,
       systemType: template.systemType,
+      recommendationSummary: `Locked summary for ${template.label}`,
     },
     explainabilityReport,
     hydraulicConfidenceReport,
@@ -68,6 +69,7 @@ describe('evidence pack builds from canonical templates', () => {
       expect(pack.schemaVersion).toBe('1.0');
       expect(pack.systemLabel).toBe(template.label);
       expect(pack.systemType).toBe(template.systemType);
+      expect(pack.recommendationSummary).toBe(`Locked summary for ${template.label}`);
       expect(pack.sections).toHaveLength(CUSTOMER_EVIDENCE_SECTION_IDS_V1.length);
 
       const sectionIds = pack.sections.map((s) => s.id);
@@ -109,7 +111,11 @@ describe('recommendation text is not regenerated inside the evidence builder', (
 
     const customLabel = 'Locked: Air Source Heat Pump — Chosen by recommendation engine';
     const pack = buildCustomerEvidencePackV1({
-      lockedRecommendation: { systemLabel: customLabel, systemType: 'heat_pump_custom' },
+      lockedRecommendation: {
+        systemLabel: customLabel,
+        systemType: 'heat_pump_custom',
+        recommendationSummary: 'Locked custom recommendation summary.',
+      },
       explainabilityReport,
       hydraulicConfidenceReport,
       dhwRecoveryMetrics,
@@ -118,6 +124,7 @@ describe('recommendation text is not regenerated inside the evidence builder', (
 
     expect(pack.systemLabel).toBe(customLabel);
     expect(pack.systemType).toBe('heat_pump_custom');
+    expect(pack.recommendationSummary).toBe('Locked custom recommendation summary.');
   });
 });
 
@@ -154,9 +161,6 @@ describe('evidence cards consume explainability and projection outputs only', ()
     );
 
     for (const cardType of CUSTOMER_EVIDENCE_CARD_TYPES_V1) {
-      if (cardType === 'timeline_story') {
-        continue;
-      }
       expect(allCardTypes.has(cardType)).toBe(true);
     }
   });
@@ -386,6 +390,7 @@ describe('no physics calculations occur inside evidence builders', () => {
       lockedRecommendation: {
         systemLabel: template.label,
         systemType: template.systemType,
+        recommendationSummary: `Locked summary for ${template.label}`,
       },
       explainabilityReport,
       hydraulicConfidenceReport,
@@ -414,6 +419,7 @@ describe('no physics calculations occur inside evidence builders', () => {
       lockedRecommendation: {
         systemLabel: template.label,
         systemType: template.systemType,
+        recommendationSummary: `Locked summary for ${template.label}`,
       },
       explainabilityReport,
       hydraulicConfidenceReport,

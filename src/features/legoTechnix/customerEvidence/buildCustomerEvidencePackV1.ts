@@ -23,6 +23,7 @@ import { getCustomerConfidenceWording } from './customerEvidenceConfidenceWordin
 export interface CustomerEvidenceLockedRecommendationSummaryV1 {
   readonly systemLabel: string;
   readonly systemType: string;
+  readonly recommendationSummary: string;
 }
 
 export interface BuildCustomerEvidencePackV1Input {
@@ -220,6 +221,7 @@ function buildSystemBehaviourCard(
       }),
     ),
     warnings: [],
+    confidenceWording: getCustomerConfidenceWording('derived'),
   };
 }
 
@@ -246,6 +248,7 @@ function buildWhatAtlasFoundCard(
       }),
     ),
     warnings: [],
+    confidenceWording: getCustomerConfidenceWording('derived'),
   };
 }
 
@@ -286,6 +289,7 @@ function buildThermalStoryCard(
     summary,
     metrics,
     warnings: [],
+    confidenceWording: getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
   };
 }
 
@@ -350,6 +354,7 @@ function buildHotWaterStoryCard(
     summary,
     metrics,
     warnings: [],
+    confidenceWording,
   };
 }
 
@@ -368,6 +373,9 @@ function buildStratifiedOrMixedCard(
         'Your cylinder stores hot water in layers — the top section stays hottest and is used first. This means you can start a shower sooner, even while the cylinder is still recovering.',
       metrics: [],
       warnings: [],
+      confidenceWording: getCustomerConfidenceWording(
+        dhwRecoveryMetrics.recoveryConfidence,
+      ),
     };
   }
 
@@ -378,6 +386,9 @@ function buildStratifiedOrMixedCard(
         'Your cylinder mixes hot water throughout its volume. Estimates for shower availability and recovery time reflect this whole-cylinder behaviour.',
     metrics: [],
     warnings: [],
+    confidenceWording: getCustomerConfidenceWording(
+      dhwRecoveryMetrics.recoveryConfidence,
+    ),
   };
 }
 
@@ -421,6 +432,7 @@ function buildComfortCard(
       }),
     ),
     warnings,
+    confidenceWording: getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
   };
 }
 
@@ -448,6 +460,7 @@ function buildEfficiencyCard(
       }),
     ),
     warnings: [],
+    confidenceWording: getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
   };
 }
 
@@ -482,6 +495,7 @@ function buildConfidenceCard(
     summary: overallWording,
     metrics,
     warnings: [],
+    confidenceWording: overallWording,
   };
 }
 
@@ -509,6 +523,10 @@ function buildAssumptionCard(
     summary,
     metrics,
     warnings: [],
+    confidenceWording:
+      assumptions.length > 0
+        ? getCustomerConfidenceWording('assumed')
+        : getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
   };
 }
 
@@ -545,6 +563,7 @@ function buildEngineerConfirmationCard(
           },
         ]
       : [],
+    confidenceWording: getCustomerConfidenceWording('unknown'),
   };
 }
 
@@ -569,6 +588,8 @@ function buildWarningCard(
     summary,
     metrics: [],
     warnings: customerWarnings.slice(0, 6),
+    confidenceWording:
+      customerWarnings.length > 0 ? getCustomerConfidenceWording('estimated') : undefined,
   };
 }
 
@@ -594,6 +615,8 @@ function buildSafetyCard(
     summary,
     metrics: [],
     warnings: safetyWarnings,
+    confidenceWording:
+      safetyWarnings.length > 0 ? getCustomerConfidenceWording('unknown') : undefined,
   };
 }
 
@@ -615,6 +638,28 @@ function buildFutureFlexibilityCard(
       }),
     ),
     warnings: [],
+    confidenceWording: getCustomerConfidenceWording('derived'),
+  };
+}
+
+function buildTimelineCard(
+  heading: string,
+  summary: string,
+  timelineEntries: readonly CustomerEvidenceTimelineV1[],
+  confidenceWording?: string,
+): CustomerEvidenceCardV1 | null {
+  if (timelineEntries.length === 0) {
+    return null;
+  }
+
+  return {
+    type: 'timeline_story',
+    heading,
+    summary,
+    metrics: [],
+    warnings: [],
+    confidenceWording,
+    timelineEntries,
   };
 }
 
@@ -683,6 +728,43 @@ export function buildCustomerEvidencePackV1(
     hotWaterCards.push(stratifiedCard);
   }
 
+  const heatingTimelineEntries = timelineSummaries.filter(
+    (entry) =>
+      entry.label === 'Heating stabilising' || entry.label === 'Efficient operation',
+  );
+  const hotWaterTimelineEntries = timelineSummaries.filter(
+    (entry) =>
+      entry.label === 'Hot water in use' ||
+      entry.label === 'Cylinder recovering' ||
+      entry.label === 'Hot water depleted',
+  );
+
+  const heatingTimelineCard = buildTimelineCard(
+    'Heating timeline',
+    'Key moments from the heating simulation.',
+    heatingTimelineEntries,
+    getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
+  );
+
+  const hotWaterTimelineCard = buildTimelineCard(
+    'Hot water timeline',
+    'Key moments from the hot-water recovery timeline.',
+    hotWaterTimelineEntries,
+    getCustomerConfidenceWording(
+      dhwRecoveryMetrics?.recoveryConfidence ?? hydraulicConfidenceReport.overallConfidence,
+    ),
+  );
+  if (hotWaterTimelineCard) {
+    hotWaterCards.push(hotWaterTimelineCard);
+  }
+
+  const heatingCards: CustomerEvidenceCardV1[] = [
+    buildThermalStoryCard(explainabilityReport, hydraulicConfidenceReport),
+  ];
+  if (heatingTimelineCard) {
+    heatingCards.push(heatingTimelineCard);
+  }
+
   const sections: CustomerEvidenceSectionV1[] = [
     buildSection(
       'home_understanding',
@@ -707,12 +789,9 @@ export function buildCustomerEvidencePackV1(
       'heating_behaviour',
       'How your heating system behaves',
       'Evidence from the system assessment of how your heating circuits operate.',
-      [buildThermalStoryCard(explainabilityReport, hydraulicConfidenceReport)],
+      heatingCards,
       [],
-      timelineSummaries.filter(
-        (entry) =>
-          entry.label === 'Heating stabilising' || entry.label === 'Efficient operation',
-      ),
+      heatingTimelineEntries,
     ),
     buildSection(
       'hot_water_behaviour',
@@ -720,12 +799,7 @@ export function buildCustomerEvidencePackV1(
       'Evidence from the system assessment of how your hot water cylinder performs.',
       hotWaterCards,
       hotWaterWarnings,
-      timelineSummaries.filter(
-        (entry) =>
-          entry.label === 'Hot water in use' ||
-          entry.label === 'Cylinder recovering' ||
-          entry.label === 'Hot water depleted',
-      ),
+      hotWaterTimelineEntries,
     ),
     buildSection(
       'comfort_expectations',
@@ -781,6 +855,7 @@ export function buildCustomerEvidencePackV1(
     schemaVersion: '1.0',
     systemLabel: lockedRecommendation.systemLabel,
     systemType: lockedRecommendation.systemType,
+    recommendationSummary: lockedRecommendation.recommendationSummary,
     sections,
   };
 }

@@ -56,6 +56,7 @@ interface CustomerEvidencePackV1 {
   schemaVersion: '1.0';
   systemLabel: string;   // verbatim from locked recommendation — never regenerated here
   systemType: string;
+  recommendationSummary: string; // verbatim locked summary from recommendation engine
   sections: readonly CustomerEvidenceSectionV1[];
 }
 ```
@@ -101,6 +102,8 @@ interface CustomerEvidenceCardV1 {
   summary: string;
   metrics: readonly CustomerEvidenceMetricV1[];
   warnings: readonly CustomerEvidenceWarningV1[];
+  confidenceWording?: string;
+  timelineEntries?: readonly CustomerEvidenceTimelineV1[];
 }
 ```
 
@@ -194,6 +197,7 @@ const pack = buildCustomerEvidencePackV1({
   lockedRecommendation: {
     systemLabel: 'Heat pump + unvented cylinder',   // from recommendation engine
     systemType: 'heat_pump_unvented_weather_comp',
+    recommendationSummary: 'This is the locked recommendation summary shown to the customer.',
   },
   explainabilityReport,        // LegoTechnixExplainabilityReportV1
   hydraulicConfidenceReport,   // HydraulicConfidenceReportV1
@@ -225,7 +229,8 @@ Future renderers (PDF, portal, simulator) **must not** derive physics or confide
 2. Render only what the pack provides
 3. Treat `confidenceWording` as opaque strings — never substitute their own
 4. Treat `systemLabel` as opaque — it was chosen by the recommendation engine
-5. Never add engineering context not present in the pack
+5. Treat `recommendationSummary` as opaque locked copy from the recommendation engine
+6. Never add engineering context not present in the pack
 
 This ensures the recommendation engine and LegoTechnix remain the single sources of truth. Customer surface changes (styling, layout, copy polish) never silently change what evidence is presented.
 

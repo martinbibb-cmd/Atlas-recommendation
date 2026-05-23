@@ -1,0 +1,254 @@
+.cprv1-document {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 21cm;
+  margin: 0 auto;
+  padding: 1.25rem;
+  background: #f3f4f6;
+  color: #1f2937;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.cprv1-cover,
+.cprv1-section {
+  background: #fff;
+  border: 1px solid #dbe1e8;
+  border-radius: 14px;
+  padding: 1.25rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.cprv1-cover {
+  margin-bottom: 1rem;
+}
+
+.cprv1-cover__eyebrow,
+.cprv1-section__eyebrow,
+.cprv1-timeline__heading,
+.cprv1-metrics__label,
+.cprv1-warning-chip__severity {
+  margin: 0;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cprv1-cover__title,
+.cprv1-section__heading,
+.cprv1-card__title {
+  margin: 0;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.cprv1-cover__title {
+  margin-top: 0.5rem;
+  font-size: 1.8rem;
+}
+
+.cprv1-cover__summary,
+.cprv1-section__summary,
+.cprv1-card__summary,
+.cprv1-timeline__description,
+.cprv1-section__empty {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.cprv1-sections {
+  display: grid;
+  gap: 1rem;
+}
+
+.cprv1-section__header {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.cprv1-card-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.cprv1-card {
+  border: 1px solid #dbe1e8;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fcfcfd;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.cprv1-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.cprv1-card__title {
+  font-size: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.cprv1-confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  color: #334155;
+  background: #f8fafc;
+  font-size: 0.73rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.cprv1-confidence-badge--measured {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.cprv1-confidence-badge--manufacturer,
+.cprv1-confidence-badge--installer {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.cprv1-confidence-badge--estimated,
+.cprv1-confidence-badge--generic {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.cprv1-confidence-badge--assumed,
+.cprv1-confidence-badge--unknown {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.cprv1-metrics {
+  margin: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.cprv1-metrics__item {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.cprv1-metrics__value,
+.cprv1-metrics__confidence {
+  margin: 0;
+}
+
+.cprv1-metrics__value {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.cprv1-warning-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cprv1-warning-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #dbe1e8;
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  color: #334155;
+  background: #fff;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.cprv1-warning-chip--info {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.cprv1-warning-chip--attention {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.cprv1-warning-chip--important {
+  border-color: #fdba74;
+  background: #fff7ed;
+}
+
+.cprv1-timeline {
+  margin-top: 0.9rem;
+}
+
+.cprv1-timeline__list {
+  list-style: none;
+  padding: 0;
+  margin: 0.55rem 0 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.cprv1-timeline__item {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.cprv1-timeline__offset,
+.cprv1-timeline__label {
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.cprv1-timeline__content {
+  min-width: 0;
+}
+
+.cprv1-timeline__label {
+  margin: 0 0 0.15rem;
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  .cprv1-document {
+    max-width: none;
+    padding: 0;
+    background: #fff;
+  }
+
+  .cprv1-cover,
+  .cprv1-section,
+  .cprv1-card,
+  .cprv1-metrics__item {
+    box-shadow: none;
+    border-color: #d1d5db;
+  }
+}
