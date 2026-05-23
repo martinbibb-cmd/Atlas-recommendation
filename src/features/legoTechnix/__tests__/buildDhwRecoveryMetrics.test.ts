@@ -37,7 +37,7 @@ describe('buildDhwRecoveryMetricsV1', () => {
     const scenarioResult = runLegoTechnixScenarioV1({
       graph: sPlanControlGraph,
       initialState,
-      durationSeconds: 3600,
+      durationSeconds: 7200,
       timestepSeconds: 60,
       sampleSelectors: {
         roomComponentId: 'living_room',
@@ -111,9 +111,9 @@ describe('buildDhwRecoveryMetricsV1', () => {
         {
           type: 'dhw_draw_off',
           atSecond: 600,
-          durationSeconds: 2400,
+          durationSeconds: 3000,
           drawOffComponentId: 'domestic_hot_draw_off',
-          drawOffFlowLpm: 20,
+          drawOffFlowLpm: 30,
           mixedOutletTargetTemperatureC: 40,
           coldInletTemperatureC: 10,
         },
