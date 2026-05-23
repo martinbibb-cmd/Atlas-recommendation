@@ -78,22 +78,32 @@ function withSealedPrimaryAndUnventedDhw(baseGraph: LegoTechnixGraphV1): LegoTec
 
 function buildStratifiedInitialState(baseState: LegoTechnixSimulationStateV1): LegoTechnixSimulationStateV1 {
   const state = clone(baseState);
-  const store = state.componentStates.find((entry) => entry.componentId === 'stored_dhw_volume');
+  const storeIndex = state.componentStates.findIndex((entry) => entry.componentId === 'stored_dhw_volume');
+  const store = storeIndex >= 0 ? state.componentStates[storeIndex] : undefined;
   if (!store || typeof store.volumeLitres !== 'number' || store.volumeLitres <= 0) {
     return state;
   }
 
   const layerTemperatures = [61, 57, 49, 39, 28];
   const layerVolume = store.volumeLitres / layerTemperatures.length;
-  store.storageModel = 'stratified';
-  store.chargingMode = 'top_down';
-  store.stratificationLayers = layerTemperatures.map((temperatureC, layerIndex) => ({
-    layerIndex,
-    volumeLitres: layerVolume,
-    temperatureC,
-    usableAtTargetTemperature: temperatureC >= 40,
-    confidence: 'derived',
-  }));
+  const stratifiedStore = {
+    ...store,
+    storageModel: 'stratified' as const,
+    chargingMode: 'top_down' as const,
+    stratificationLayers: layerTemperatures.map((temperatureC, layerIndex) => ({
+      layerIndex,
+      volumeLitres: layerVolume,
+      temperatureC,
+      usableAtTargetTemperature: temperatureC >= 40,
+      confidence: 'derived' as const,
+    })),
+  };
+
+  state.componentStates = [
+    ...state.componentStates.slice(0, storeIndex),
+    stratifiedStore,
+    ...state.componentStates.slice(storeIndex + 1),
+  ];
 
   return state;
 }
