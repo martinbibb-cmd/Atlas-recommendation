@@ -22,6 +22,19 @@ export type {
   LegoTechnixTickResultV1,
 } from './LegoTechnixTickResultV1';
 
+export type {
+  ScenarioActiveBranchV1,
+  ScenarioControlOverrideEventV1,
+  ScenarioDhwDrawOffEventV1,
+  ScenarioInputV1,
+  ScenarioOutsideTemperatureChangeEventV1,
+  ScenarioResultV1,
+  ScenarioSampleSelectorsV1,
+  ScenarioScheduledEventV1,
+  ScenarioThermostatChangeEventV1,
+  ScenarioTimelineSampleV1,
+} from './runLegoTechnixScenarioV1';
+
 export { ACTIVE_PATH_REASONS_V1, resolveActivePathsV1 } from './resolveActivePathsV1';
 export type {
   ActivePathResolutionReasonV1,
@@ -54,3 +67,4 @@ export { aggregateReturnTemperatureV1 } from './aggregateReturnTemperatureV1';
 export type { AggregateReturnTemperatureResultV1 } from './aggregateReturnTemperatureV1';
 
 export { runLegoTechnixTickV1 } from './runLegoTechnixTickV1';
+export { runLegoTechnixScenarioV1 } from './runLegoTechnixScenarioV1';
