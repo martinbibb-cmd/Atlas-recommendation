@@ -156,3 +156,22 @@ export type {
   HydraulicInputEvidenceV1,
   HydraulicScenarioEvidenceV1,
 } from './hydraulicConfidenceReport';
+
+export {
+  LegoTechnixDebugProjectionPage,
+  buildDebugProjectionTimelineV1,
+  getVisibleOverlayEntries,
+} from './debug';
+export type {
+  BuildDebugProjectionTimelineV1Input,
+  ProjectionDemandStateV1,
+  ProjectionEdgeV1,
+  ProjectionFrameV1,
+  ProjectionInferredVsMeasuredStateV1,
+  ProjectionNodeTemperatureV1,
+  ProjectionNodeV1,
+  ProjectionOverlayEntryV1,
+  ProjectionOverlayV1,
+  ProjectionPortV1,
+  ProjectionTimelineV1,
+} from './debug';

@@ -74,6 +74,7 @@ import ReceiveScanPage from './features/scanImport/ui/ReceiveScanPage';
 import ScanSessionListPage from './features/scanImport/ui/ScanSessionListPage';
 import { ScanHandoffReceivePage } from './features/scanHandoff';
 import { getScanCapture } from './features/scanHandoff/scanHandoffStore';
+import { LegoTechnixDebugProjectionPage } from './features/legoTechnix/debug';
 import { resetDemoData, DEMO_VISIT_IDS } from './dev/demoSeed';
 import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
 import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
@@ -465,6 +466,14 @@ const WORKSPACE_LIFECYCLE_QA_ENABLED =
 const PHONE_CUSTOMER_QA_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('phone-customer-qa') === '1';
+
+/**
+ * Detect ?lego-technix-debug=1 — renders the sanctioned LegoTechnix
+ * projection/debug surface for deterministic engine inspection.
+ */
+const LEGO_TECHNIX_DEBUG_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('lego-technix-debug') === '1';
 
 /**
  * Detect ?scan-package=1 — renders the Atlas Scan package import flow.
@@ -2919,6 +2928,11 @@ function AppInner() {
   // ?phone-customer-qa=1 — deterministic phone-first customer QA harness.
   if (PHONE_CUSTOMER_QA_ENABLED) {
     return <PhoneFirstQaHarness onBack={() => { window.location.href = window.location.pathname; }} />;
+  }
+
+  // ?lego-technix-debug=1 — deterministic LegoTechnix projection debug renderer.
+  if (LEGO_TECHNIX_DEBUG_ENABLED) {
+    return <LegoTechnixDebugProjectionPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
   // ?handoff=1 — render canonical AtlasPropertyV1 handoff arrival page.
