@@ -18,6 +18,7 @@ export interface DhwRecoveryTimelinePointV1 {
   readonly storedDhwTemperatureC?: number;
   readonly targetTemperatureC?: number;
   readonly usableHotWaterLitresAt40C?: number;
+  readonly usableTopLayerHotWaterLitresAt40C?: number;
   readonly recoveryGainKw?: number;
   readonly sourceHeatOutputKw?: number;
   readonly drawOffFlowLpm?: number;
@@ -36,7 +37,9 @@ export interface DhwRecoveryMetricsV1 {
   readonly recoveryRateKw?: number;
   readonly recoveryConfidence: LegoTechnixConfidence;
   readonly provenance: readonly string[];
-  readonly mixedCylinderApproximation: true;
+  readonly storageModel: 'mixed' | 'stratified';
+  readonly mixedCylinderApproximation: boolean;
+  readonly stratifiedCylinderApproximation: boolean;
   readonly targetTemperatureC?: number;
 }
 
@@ -66,18 +69,28 @@ function buildTargetTemperatureC(
 function buildTimeline(
   result: ScenarioResultV1,
   exhaustionThresholdLitres: number,
+  storageModel: 'mixed' | 'stratified',
 ): readonly DhwRecoveryTimelinePointV1[] {
   return result.timelineSamples.map((sample) => ({
     offsetSeconds: sample.offsetSeconds,
     storedDhwTemperatureC: sample.storedDhwTemperatureC,
     targetTemperatureC: sample.storedDhwTargetTemperatureC,
     usableHotWaterLitresAt40C: sample.usableHotWaterLitresAt40C,
+    usableTopLayerHotWaterLitresAt40C: sample.usableTopLayerHotWaterLitresAt40C,
     recoveryGainKw: sample.storedDhwRecoveryKw,
     sourceHeatOutputKw: sample.sourceHeatOutputKw,
     drawOffFlowLpm: sample.dhwDrawOffFlowLpm,
     drawOffTargetTemperatureC: sample.dhwDrawOffTargetTemperatureC,
-    exhausted: (sample.usableHotWaterLitresAt40C ?? Number.POSITIVE_INFINITY) <= exhaustionThresholdLitres,
+    exhausted: (
+      storageModel === 'stratified'
+        ? (sample.usableTopLayerHotWaterLitresAt40C ?? Number.POSITIVE_INFINITY)
+        : (sample.usableHotWaterLitresAt40C ?? Number.POSITIVE_INFINITY)
+    ) <= exhaustionThresholdLitres,
   }));
+}
+
+function resolveStorageModel(result: ScenarioResultV1): 'mixed' | 'stratified' {
+  return findStoredDhwState(result)?.storageModel ?? 'mixed';
 }
 
 function findTargetReachOffsetSeconds(
@@ -195,7 +208,8 @@ export function buildDhwRecoveryMetricsV1(
   const exhaustionThresholdLitres = options.exhaustionThresholdLitres ?? DEFAULT_EXHAUSTION_THRESHOLD_LITRES;
   const showerTargetTemperatureC = options.showerTargetTemperatureC ?? DEFAULT_SHOWER_TARGET_TEMPERATURE_C;
   const targetTemperatureC = buildTargetTemperatureC(result, options);
-  const usableHotWaterTimeline = buildTimeline(result, exhaustionThresholdLitres);
+  const storageModel = resolveStorageModel(result);
+  const usableHotWaterTimeline = buildTimeline(result, exhaustionThresholdLitres, storageModel);
   const timeToTargetTemperature = findTargetReachOffsetSeconds(usableHotWaterTimeline, targetTemperatureC);
   const exhaustionPoint = findExhaustionPoint(usableHotWaterTimeline);
   const recoveryWindowStartOffsetSeconds = findRecoveryWindowStartOffsetSeconds(usableHotWaterTimeline);
@@ -228,9 +242,13 @@ export function buildDhwRecoveryMetricsV1(
     provenance: [
       'Derived from ScenarioResultV1 timeline samples and final stored-water state.',
       'Recovery rate uses actual per-tick stored-water gains, with source output telemetry retained for provenance.',
-      'Mixed-cylinder approximation: stored water is treated as fully mixed with no stratification layer modelling.',
+      storageModel === 'stratified'
+        ? 'Stratified-cylinder approximation: usable hot water and exhaustion are derived from top-layer availability and blending potential.'
+        : 'Mixed-cylinder approximation: stored water is treated as fully mixed with no stratification layer modelling.',
     ],
-    mixedCylinderApproximation: true,
+    storageModel,
+    mixedCylinderApproximation: storageModel === 'mixed',
+    stratifiedCylinderApproximation: storageModel === 'stratified',
     targetTemperatureC,
   };
 }

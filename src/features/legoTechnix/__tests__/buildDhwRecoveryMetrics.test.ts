@@ -128,4 +128,53 @@ describe('buildDhwRecoveryMetricsV1', () => {
       metrics.usableHotWaterTimeline.some((sample) => sample.exhausted),
     ).toBe(true);
   });
+
+  it('labels stratified-cylinder outputs separately from mixed-cylinder approximation', () => {
+    const initialState = cloneState(simpleRegularBoilerInitialStateV1);
+    setComponentTemperature(initialState, 'living_room', 21);
+    const storeState = initialState.componentStates.find((state) => state.componentId === 'stored_dhw_volume');
+    if (!storeState || typeof storeState.volumeLitres !== 'number') {
+      throw new Error('Stored water fixture state missing.');
+    }
+    storeState.storageModel = 'stratified';
+    storeState.chargingMode = 'top_down';
+    const layerVolume = storeState.volumeLitres / 5;
+    storeState.stratificationLayers = [60, 56, 48, 36, 24].map((temperatureC, layerIndex) => ({
+      layerIndex,
+      volumeLitres: layerVolume,
+      temperatureC,
+      usableAtTargetTemperature: temperatureC >= 40,
+      confidence: 'derived',
+    }));
+
+    const scenarioResult = runLegoTechnixScenarioV1({
+      graph: simpleRegularBoilerGraph,
+      initialState,
+      durationSeconds: 1800,
+      timestepSeconds: 60,
+      sampleSelectors: {
+        roomComponentId: 'living_room',
+        storedDhwComponentId: 'stored_dhw_volume',
+        sourceComponentId: 'regular_boiler',
+      },
+      scheduledEvents: [
+        {
+          type: 'dhw_draw_off',
+          atSecond: 600,
+          durationSeconds: 900,
+          drawOffComponentId: 'domestic_hot_draw_off',
+          drawOffFlowLpm: 12,
+          mixedOutletTargetTemperatureC: 40,
+          coldInletTemperatureC: 10,
+        },
+      ],
+    });
+
+    const metrics = buildDhwRecoveryMetricsV1(scenarioResult);
+
+    expect(metrics.storageModel).toBe('stratified');
+    expect(metrics.mixedCylinderApproximation).toBe(false);
+    expect(metrics.stratifiedCylinderApproximation).toBe(true);
+    expect(metrics.provenance.some((line) => line.includes('Stratified-cylinder approximation'))).toBe(true);
+  });
 });

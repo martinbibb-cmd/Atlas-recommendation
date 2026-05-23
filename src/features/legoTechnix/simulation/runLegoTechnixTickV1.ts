@@ -193,6 +193,13 @@ function buildComponentStates(
         thermalPatch?.usableHotWaterLitresAt40C
         ?? prev?.usableHotWaterLitresAt40C
       ),
+      usableTopLayerHotWaterLitresAt40C: (
+        thermalPatch?.usableTopLayerHotWaterLitresAt40C
+        ?? prev?.usableTopLayerHotWaterLitresAt40C
+      ),
+      storageModel: thermalPatch?.storageModel ?? prev?.storageModel,
+      chargingMode: thermalPatch?.chargingMode ?? prev?.chargingMode,
+      stratificationLayers: thermalPatch?.stratificationLayers ?? prev?.stratificationLayers,
       lastTransferKw: thermalPatch?.lastTransferKw ?? prev?.lastTransferKw,
       lastPrimaryInletTemperatureC: (
         thermalPatch?.lastPrimaryInletTemperatureC

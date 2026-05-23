@@ -92,6 +92,32 @@ function findEdgeState(
   return state.edgeStates.find((edgeState) => edgeState.connectionId === connectionId);
 }
 
+function configureStratifiedStore(
+  state: LegoTechnixSimulationStateV1,
+  layerTemperaturesC: readonly number[],
+  chargingMode: 'top_down' | 'bottom_coil' | 'mixed' = 'top_down',
+): void {
+  const store = findComponentState(state, 'stored_dhw_volume');
+  if (!store || typeof store.volumeLitres !== 'number' || !(store.volumeLitres > 0)) {
+    throw new Error('Stored water state missing volume.');
+  }
+
+  const layerVolumeLitres = store.volumeLitres / layerTemperaturesC.length;
+  store.storageModel = 'stratified';
+  store.chargingMode = chargingMode;
+  store.stratificationLayers = layerTemperaturesC.map((temperatureC, layerIndex) => ({
+    layerIndex,
+    volumeLitres: layerVolumeLitres,
+    temperatureC,
+    usableAtTargetTemperature: temperatureC >= 40,
+    confidence: 'derived',
+  }));
+  store.currentTemperatureC = (
+    layerTemperaturesC.reduce((sum, temperatureC) => sum + temperatureC, 0)
+    / layerTemperaturesC.length
+  );
+}
+
 describe('runLegoTechnixTickV1 — state containers', () => {
   it('1. ComponentStateV1 is created for every graph component', () => {
     const result = runLegoTechnixTickV1(
@@ -1309,5 +1335,214 @@ describe('runLegoTechnixTickV1 — PR15 return-temperature propagation', () => {
     const boilerState = findComponentState(activeResult.nextState, 'regular_boiler');
     expect(boilerState?.returnTemperatureC).not.toBeCloseTo(65, 3);
     expect(boilerState?.condensingLikely).toBe((boilerState?.returnTemperatureC ?? 0) < 55);
+  });
+});
+
+describe('runLegoTechnixTickV1 — stratified stored-water model', () => {
+  it('keeps mixed model behaviour unchanged', () => {
+    const baseline = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      makeSimpleInitialState(),
+      makeTickInput(
+        1000,
+        undefined,
+        600,
+        [{
+          drawOffComponentId: 'domestic_hot_draw_off',
+          drawOffFlowLpm: 10,
+          mixedOutletTargetTemperatureC: 40,
+          coldInletTemperatureC: 10,
+        }],
+      ),
+    );
+    const explicitMixedInitial = makeSimpleInitialState();
+    const explicitStore = findComponentState(explicitMixedInitial, 'stored_dhw_volume');
+    if (!explicitStore) throw new Error('Stored water state missing.');
+    explicitStore.storageModel = 'mixed';
+    const explicitMixed = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      explicitMixedInitial,
+      makeTickInput(
+        1000,
+        undefined,
+        600,
+        [{
+          drawOffComponentId: 'domestic_hot_draw_off',
+          drawOffFlowLpm: 10,
+          mixedOutletTargetTemperatureC: 40,
+          coldInletTemperatureC: 10,
+        }],
+      ),
+    );
+
+    expect(findComponentState(explicitMixed.nextState, 'stored_dhw_volume')?.currentTemperatureC)
+      .toBeCloseTo(findComponentState(baseline.nextState, 'stored_dhw_volume')?.currentTemperatureC ?? 0, 3);
+    expect(findComponentState(explicitMixed.nextState, 'stored_dhw_volume')?.usableHotWaterLitresAt40C)
+      .toBeCloseTo(findComponentState(baseline.nextState, 'stored_dhw_volume')?.usableHotWaterLitresAt40C ?? 0, 3);
+  });
+
+  it('draw-off depletes usable top-layer capacity and cold replenishment cools the bottom first', () => {
+    const initial = makeSimpleInitialState();
+    configureStratifiedStore(initial, [62, 56, 46, 36, 26], 'top_down');
+
+    const noDrawBaseline = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      JSON.parse(JSON.stringify(initial)) as LegoTechnixSimulationStateV1,
+      makeTickInput(1000, undefined, 600),
+    );
+    const resultWithDraw = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      initial,
+      makeTickInput(
+        1000,
+        undefined,
+        600,
+        [{
+          drawOffComponentId: 'domestic_hot_draw_off',
+          drawOffFlowLpm: 10,
+          mixedOutletTargetTemperatureC: 40,
+          coldInletTemperatureC: 10,
+        }],
+      ),
+    );
+
+    const baselineStore = findComponentState(noDrawBaseline.nextState, 'stored_dhw_volume');
+    const afterStore = findComponentState(resultWithDraw.nextState, 'stored_dhw_volume');
+    const baselineLayers = baselineStore?.stratificationLayers;
+    const afterLayers = afterStore?.stratificationLayers;
+    expect((afterStore?.usableTopLayerHotWaterLitresAt40C ?? 0))
+      .toBeLessThan((baselineStore?.usableTopLayerHotWaterLitresAt40C ?? Number.POSITIVE_INFINITY));
+    expect((afterLayers?.[afterLayers.length - 1]?.temperatureC ?? 0))
+      .toBeLessThan((baselineLayers?.[baselineLayers.length - 1]?.temperatureC ?? Number.POSITIVE_INFINITY));
+  });
+
+  it('top-down charging heats upper layers before lower layers', () => {
+    const initial = makeSimpleInitialState();
+    configureStratifiedStore(initial, [35, 34, 33, 32, 31], 'top_down');
+
+    const result = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      initial,
+      makeTickInput(1000, {
+        zone_valve: true,
+        regular_boiler: { demand: true },
+      }, 600),
+    );
+
+    const beforeLayers = findComponentState(initial, 'stored_dhw_volume')?.stratificationLayers;
+    const afterLayers = findComponentState(result.nextState, 'stored_dhw_volume')?.stratificationLayers;
+    expect((afterLayers?.[0]?.temperatureC ?? 0) - (beforeLayers?.[0]?.temperatureC ?? 0))
+      .toBeGreaterThanOrEqual(
+        (afterLayers?.[afterLayers.length - 1]?.temperatureC ?? 0)
+        - (beforeLayers?.[beforeLayers.length - 1]?.temperatureC ?? 0),
+      );
+  });
+
+  it('usable hot-water for stratified storage is not based on average tank temperature alone', () => {
+    const mixedInitial = makeSimpleInitialState();
+    const stratifiedInitial = makeSimpleInitialState();
+    const mixedStore = findComponentState(mixedInitial, 'stored_dhw_volume');
+    if (!mixedStore) throw new Error('Stored water state missing.');
+    mixedStore.currentTemperatureC = 45;
+
+    configureStratifiedStore(stratifiedInitial, [60, 60, 35, 35, 35], 'top_down');
+
+    const mixedResult = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      mixedInitial,
+      makeTickInput(1000, undefined, 60),
+    );
+    const stratifiedResult = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      stratifiedInitial,
+      makeTickInput(1000, undefined, 60),
+    );
+
+    expect(findComponentState(mixedResult.nextState, 'stored_dhw_volume')?.usableHotWaterLitresAt40C)
+      .not.toBe(findComponentState(stratifiedResult.nextState, 'stored_dhw_volume')?.usableHotWaterLitresAt40C);
+  });
+
+  it('heavy draw-off can exhaust top usable layers', () => {
+    const initial = makeSimpleInitialState();
+    configureStratifiedStore(initial, [55, 52, 45, 30, 20], 'top_down');
+
+    const result = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      initial,
+      makeTickInput(
+        1000,
+        undefined,
+        2400,
+        [{
+          drawOffComponentId: 'domestic_hot_draw_off',
+          drawOffFlowLpm: 18,
+          mixedOutletTargetTemperatureC: 40,
+          coldInletTemperatureC: 10,
+        }],
+      ),
+    );
+
+    expect(findComponentState(result.nextState, 'stored_dhw_volume')?.usableTopLayerHotWaterLitresAt40C)
+      .toBeLessThanOrEqual(0.5);
+  });
+
+  it('neighbour smoothing reduces extreme inter-layer temperature differences over time', () => {
+    const initial = makeSimpleInitialState();
+    configureStratifiedStore(initial, [80, 20, 20, 20, 20], 'top_down');
+    const beforeLayers = findComponentState(initial, 'stored_dhw_volume')?.stratificationLayers;
+
+    const result = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      initial,
+      makeTickInput(1000, undefined, 300),
+    );
+    const afterLayers = findComponentState(result.nextState, 'stored_dhw_volume')?.stratificationLayers;
+
+    const beforeDelta = (beforeLayers?.[0]?.temperatureC ?? 0) - (beforeLayers?.[1]?.temperatureC ?? 0);
+    const afterDelta = (afterLayers?.[0]?.temperatureC ?? 0) - (afterLayers?.[1]?.temperatureC ?? 0);
+    expect(afterDelta).toBeLessThan(beforeDelta);
+  });
+
+  it('warns when stratified layer volumes do not match component volume', () => {
+    const initial = makeSimpleInitialState();
+    const store = findComponentState(initial, 'stored_dhw_volume');
+    if (!store) throw new Error('Stored water state missing.');
+    store.storageModel = 'stratified';
+    store.chargingMode = 'top_down';
+    store.stratificationLayers = [
+      { layerIndex: 0, volumeLitres: 50, temperatureC: 60, usableAtTargetTemperature: true, confidence: 'derived' },
+      { layerIndex: 1, volumeLitres: 50, temperatureC: 55, usableAtTargetTemperature: true, confidence: 'derived' },
+      { layerIndex: 2, volumeLitres: 40, temperatureC: 45, usableAtTargetTemperature: true, confidence: 'derived' },
+    ];
+
+    const result = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      initial,
+      makeTickInput(1000, undefined, 60),
+    );
+
+    expect(result.warnings.some((warning) => warning.code === 'stratified_layer_volume_mismatch')).toBe(true);
+  });
+
+  it('keeps previousState immutable with stratified layers', () => {
+    const initial = makeSimpleInitialState();
+    configureStratifiedStore(initial, [60, 55, 45, 35, 25], 'top_down');
+    const frozen = JSON.stringify(initial);
+    runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      initial,
+      makeTickInput(
+        1000,
+        undefined,
+        600,
+        [{
+          drawOffComponentId: 'domestic_hot_draw_off',
+          drawOffFlowLpm: 8,
+          mixedOutletTargetTemperatureC: 40,
+          coldInletTemperatureC: 10,
+        }],
+      ),
+    );
+    expect(JSON.stringify(initial)).toBe(frozen);
   });
 });
