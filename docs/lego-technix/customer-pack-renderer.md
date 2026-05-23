@@ -21,12 +21,15 @@ The renderer is intentionally calm, low-ink, and A4-safe.
 
 Current layout priorities:
 - deterministic section order
-- clean separation between sections and cards
+- shared visual tokens for spacing, typography, borders, and low-ink colour
+- clean section/card hierarchy with consistent spacing rhythm
 - long-text wrapping without overflow
 - break-inside avoidance for cards and timeline blocks
+- print-safe confidence badges, warning chips, and simple metric tiles
+- responsive layout hooks compatible with both print and portal/mobile surfaces
 - no heavy graphics, motion, or decorative marketing elements
 
-This is the first stable rendering skeleton, not the final visual design.
+This remains a restrained foundation layer, not final visual language or diagram work.
 
 ## Evidence-only rendering
 

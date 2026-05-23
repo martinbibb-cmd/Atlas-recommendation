@@ -11,7 +11,12 @@ export function CustomerPackRendererV1({ pack }: CustomerPackRendererV1Props) {
   const recommendationEvidence = buildCustomerRecommendationEvidenceV1(pack);
 
   return (
-    <article className="cprv1-document" data-testid="cprv1-document">
+    <article
+      className="cprv1-document"
+      data-testid="cprv1-document"
+      data-visual-tokens="customer-pack-v1"
+      data-layout-mode="print-and-portal"
+    >
       <header className="cprv1-cover" data-testid="cprv1-cover">
         <p className="cprv1-cover__eyebrow">Homeowner heating summary</p>
         <h1 className="cprv1-cover__title">{pack.systemLabel}</h1>
