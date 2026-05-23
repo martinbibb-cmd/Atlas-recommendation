@@ -11,6 +11,7 @@ import {
 import type { LegoTechnixGraphV1 } from '../types';
 import type { LegoTechnixSimulationStateV1 } from '../simulation/LegoTechnixSimulationStateV1';
 import type { LegoTechnixTickInputV1 } from '../simulation/LegoTechnixTickInputV1';
+import { evaluatePipeEdgesV1 } from '../simulation/evaluatePipeEdgesV1';
 import { runLegoTechnixTickV1 } from '../simulation/runLegoTechnixTickV1';
 
 function cloneGraph(graph: LegoTechnixGraphV1): LegoTechnixGraphV1 {
@@ -41,6 +42,24 @@ function makeSPlanInitialState(wallClockMs = 0): LegoTechnixSimulationStateV1 {
   return {
     ...base,
     wallClockMs,
+  };
+}
+
+function makeSimpleInitialStateWithEdgeTemperature(
+  graph: LegoTechnixGraphV1,
+  temperatureC: number,
+  wallClockMs = 0,
+): LegoTechnixSimulationStateV1 {
+  const state = makeSimpleInitialState(wallClockMs);
+  return {
+    ...state,
+    edgeStates: graph.connections.map((connection) => ({
+      connectionId: connection.id,
+      isActive: false,
+      estimatedInletTemperatureC: temperatureC,
+      estimatedOutletTemperatureC: temperatureC,
+      transitDelayQueueC: [],
+    })),
   };
 }
 
@@ -825,5 +844,210 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
       expect(boilerState?.cyclingRisk).toBe(true);
       expect(result.warnings.some((warning) => warning.code === 'heat_source_cycling_risk')).toBe(true);
     });
+  });
+});
+
+describe('runLegoTechnixTickV1 — PR13 pipe transit delay and heat loss', () => {
+  it('46. long primary pipe delays heat arrival versus short pipe', () => {
+    const shortGraph = cloneGraph(simpleRegularBoilerGraph);
+    const longGraph = cloneGraph(simpleRegularBoilerGraph);
+    const shortEdge = shortGraph.connections.find((connection) => connection.id === 'conn_boiler_to_pump');
+    const longEdge = longGraph.connections.find((connection) => connection.id === 'conn_boiler_to_pump');
+    if (!shortEdge || !longEdge) {
+      throw new Error('Fixture pipe edge missing.');
+    }
+    shortEdge.physical.lengthM = 0.1;
+    longEdge.physical.lengthM = 30;
+
+    const shortResult = runLegoTechnixTickV1(
+      shortGraph,
+      makeSimpleInitialStateWithEdgeTemperature(shortGraph, 20),
+      makeTickInput(1000, {
+        zone_valve: true,
+        regular_boiler: { demand: true },
+      }, 3600),
+    );
+    const longResult = runLegoTechnixTickV1(
+      longGraph,
+      makeSimpleInitialStateWithEdgeTemperature(longGraph, 20),
+      makeTickInput(1000, {
+        zone_valve: true,
+        regular_boiler: { demand: true },
+      }, 3600),
+    );
+
+    const shortCoil = findComponentState(shortResult.nextState, 'cylinder_coil_exchanger');
+    const longCoil = findComponentState(longResult.nextState, 'cylinder_coil_exchanger');
+    expect(shortCoil?.lastPrimaryInletTemperatureC ?? 0).toBeGreaterThan(longCoil?.lastPrimaryInletTemperatureC ?? 0);
+  });
+
+  it('47. uninsulated pipe loses more heat than insulated pipe at exchanger inlet', () => {
+    const insulatedGraph = cloneGraph(simpleRegularBoilerGraph);
+    const uninsulatedGraph = cloneGraph(simpleRegularBoilerGraph);
+    insulatedGraph.heatTransferComponents = (insulatedGraph.heatTransferComponents ?? [])
+      .filter((contract) => contract.componentId !== 'cylinder_coil_exchanger');
+    uninsulatedGraph.heatTransferComponents = (uninsulatedGraph.heatTransferComponents ?? [])
+      .filter((contract) => contract.componentId !== 'cylinder_coil_exchanger');
+
+    for (const graph of [insulatedGraph, uninsulatedGraph]) {
+      for (const connection of graph.connections) {
+        if (connection.domain === 'primary_heating') {
+          connection.physical.lengthM = 0.1;
+        }
+      }
+    }
+
+    const insulatedEdge = insulatedGraph.connections.find((connection) => connection.id === 'conn_coil_to_radiator');
+    const uninsulatedEdge = uninsulatedGraph.connections.find((connection) => connection.id === 'conn_coil_to_radiator');
+    if (!insulatedEdge || !uninsulatedEdge) {
+      throw new Error('Fixture coil-to-radiator edge missing.');
+    }
+    insulatedEdge.physical.lengthM = 10;
+    insulatedEdge.physical.insulationState = 'insulated';
+    insulatedEdge.physical.simpleHeatLossWPerM = 2;
+    uninsulatedEdge.physical.lengthM = 10;
+    uninsulatedEdge.physical.insulationState = 'uninsulated';
+    uninsulatedEdge.physical.simpleHeatLossWPerM = 20;
+
+    const insulatedResult = runLegoTechnixTickV1(
+      insulatedGraph,
+      makeSimpleInitialStateWithEdgeTemperature(insulatedGraph, 20),
+      makeTickInput(1000, {
+        zone_valve: true,
+        regular_boiler: { demand: true },
+      }, 3600),
+    );
+    const uninsulatedResult = runLegoTechnixTickV1(
+      uninsulatedGraph,
+      makeSimpleInitialStateWithEdgeTemperature(uninsulatedGraph, 20),
+      makeTickInput(1000, {
+        zone_valve: true,
+        regular_boiler: { demand: true },
+      }, 3600),
+    );
+
+    const insulatedRadiator = findComponentState(insulatedResult.nextState, 'radiator_emitter');
+    const uninsulatedRadiator = findComponentState(uninsulatedResult.nextState, 'radiator_emitter');
+    expect(insulatedRadiator?.lastPrimaryInletTemperatureC ?? 0)
+      .toBeGreaterThan(uninsulatedRadiator?.lastPrimaryInletTemperatureC ?? 0);
+  });
+
+  it('48. inactive edge does not advance thermal queue', () => {
+    const connectionId = 'conn_boiler_to_pump';
+    const result = evaluatePipeEdgesV1(
+      simpleRegularBoilerGraph,
+      [],
+      [
+        {
+          connectionId,
+          isActive: false,
+          estimatedInletTemperatureC: 30,
+          estimatedOutletTemperatureC: 29,
+          transitDelayQueueC: [50, 49],
+        },
+      ],
+      [
+        {
+          connectionId,
+          isActive: false,
+          estimatedFlowKgPerS: 0,
+          estimatedVelocityMps: 0.5,
+        },
+      ],
+      {
+        activeConnectionIds: [],
+        activeComponentIds: [],
+        componentOperatingModes: {},
+        deadheadedComponentIds: [],
+        resolvedPaths: [],
+        events: [],
+        warnings: [],
+      },
+      1,
+    );
+
+    const edgeState = result.edgeThermalStateByConnectionId[connectionId];
+    expect(edgeState?.transitDelayQueueC).toEqual([50, 49]);
+  });
+
+  it('49. zero-flow active edge retains previous thermal state', () => {
+    const connectionId = 'conn_boiler_to_pump';
+    const result = evaluatePipeEdgesV1(
+      simpleRegularBoilerGraph,
+      [],
+      [
+        {
+          connectionId,
+          isActive: true,
+          estimatedInletTemperatureC: 30,
+          estimatedOutletTemperatureC: 29,
+          transitDelayQueueC: [45],
+        },
+      ],
+      [
+        {
+          connectionId,
+          isActive: true,
+          estimatedFlowKgPerS: 0,
+          estimatedVelocityMps: 0.5,
+        },
+      ],
+      {
+        activeConnectionIds: [connectionId],
+        activeComponentIds: [],
+        componentOperatingModes: {},
+        deadheadedComponentIds: [],
+        resolvedPaths: [],
+        events: [],
+        warnings: [],
+      },
+      1,
+    );
+
+    expect(result.edgeTemperatureByConnectionId[connectionId]?.estimatedOutletTemperatureC).toBe(29);
+    expect(result.edgeThermalStateByConnectionId[connectionId]?.transitDelayQueueC).toEqual([45]);
+  });
+
+  it('50. missing pipe geometry falls back to pass-through with warning', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const edge = graph.connections.find((connection) => connection.id === 'conn_boiler_to_pump');
+    if (!edge) throw new Error('Fixture edge missing.');
+    delete edge.physical.lengthM;
+
+    const result = evaluatePipeEdgesV1(
+      graph,
+      [],
+      [],
+      [
+        {
+          connectionId: edge.id,
+          isActive: true,
+          estimatedFlowKgPerS: 0.2,
+          estimatedVelocityMps: 0.8,
+        },
+      ],
+      {
+        activeConnectionIds: [edge.id],
+        activeComponentIds: [],
+        componentOperatingModes: {},
+        deadheadedComponentIds: [],
+        resolvedPaths: [],
+        events: [],
+        warnings: [],
+      },
+      1,
+      {
+        initialEdgeTemperatureByConnectionId: {
+          [edge.id]: {
+            estimatedInletTemperatureC: 60,
+            estimatedOutletTemperatureC: 60,
+          },
+        },
+      },
+    );
+
+    expect(result.edgeTemperatureByConnectionId[edge.id]?.estimatedInletTemperatureC).toBe(60);
+    expect(result.edgeTemperatureByConnectionId[edge.id]?.estimatedOutletTemperatureC).toBe(60);
+    expect(result.warnings.some((warning) => warning.code === 'pipe_geometry_missing')).toBe(true);
   });
 });

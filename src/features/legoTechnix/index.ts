@@ -95,6 +95,7 @@ export type {
   LegoTechnixTickInputV1,
   LegoTechnixTickResultV1,
   MassFlowAllocationResultV1,
+  PipeEdgeEvaluationResultV1,
   ResolvedActivePathV1,
   ThermalIntegrationResultV1,
 } from './simulation';
@@ -103,6 +104,7 @@ export {
   FLOW_RISK_BANDS_V1,
   allocateMassFlowV1,
   evaluateControlsV1,
+  evaluatePipeEdgesV1,
   evaluateHeatTransfersV1,
   evaluateHeatSourcesV1,
   integrateThermalStateV1,
