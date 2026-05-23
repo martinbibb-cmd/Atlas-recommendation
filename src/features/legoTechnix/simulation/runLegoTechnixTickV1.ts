@@ -230,10 +230,28 @@ function buildComponentStates(
       returnTemperatureC: thermalPatch?.returnTemperatureC ?? prev?.returnTemperatureC,
       rampRateCPerSecond: thermalPatch?.rampRateCPerSecond ?? prev?.rampRateCPerSecond,
       modulationStrategy: thermalPatch?.modulationStrategy ?? prev?.modulationStrategy,
+      heatSourceType: thermalPatch?.heatSourceType ?? prev?.heatSourceType,
       controlDemandState: thermalPatch?.controlDemandState ?? prev?.controlDemandState,
       actuatorPosition: thermalPatch?.actuatorPosition ?? prev?.actuatorPosition,
       condensingLikely: thermalPatch?.condensingLikely ?? prev?.condensingLikely,
+      condensingConfidence: thermalPatch?.condensingConfidence ?? prev?.condensingConfidence,
       cyclingRisk: thermalPatch?.cyclingRisk ?? prev?.cyclingRisk,
+      designOutsideTemperatureC: thermalPatch?.designOutsideTemperatureC ?? prev?.designOutsideTemperatureC,
+      mildOutsideTemperatureC: thermalPatch?.mildOutsideTemperatureC ?? prev?.mildOutsideTemperatureC,
+      targetFlowAtDesignC: thermalPatch?.targetFlowAtDesignC ?? prev?.targetFlowAtDesignC,
+      targetFlowAtMildC: thermalPatch?.targetFlowAtMildC ?? prev?.targetFlowAtMildC,
+      calculatedTargetFlowTemperatureC: (
+        thermalPatch?.calculatedTargetFlowTemperatureC ?? prev?.calculatedTargetFlowTemperatureC
+      ),
+      estimatedCop: thermalPatch?.estimatedCop ?? prev?.estimatedCop,
+      estimatedCopBand: thermalPatch?.estimatedCopBand ?? prev?.estimatedCopBand,
+      lowTemperatureEmitterSuitability: (
+        thermalPatch?.lowTemperatureEmitterSuitability ?? prev?.lowTemperatureEmitterSuitability
+      ),
+      weatherCompensationEnabled: (
+        thermalPatch?.weatherCompensationEnabled ?? prev?.weatherCompensationEnabled
+      ),
+      loadCompensationEnabled: thermalPatch?.loadCompensationEnabled ?? prev?.loadCompensationEnabled,
     };
   });
 }
@@ -407,6 +425,7 @@ export function runLegoTechnixTickV1(
     pathResult,
     edgeStatesAfterFlow,
     thermalResult,
+    heatSourceResult.thermalStateByComponentId,
   );
   events.push(...returnTemperatureResult.events);
   warnings.push(...returnTemperatureResult.warnings);

@@ -1,6 +1,9 @@
 import type {
+  EstimatedCopBandV1,
   HeatSourceControlDemandStateV1,
   HeatSourceModulationStrategyV1,
+  HeatSourceTypeV1,
+  LowTemperatureEmitterSuitabilityV1,
 } from '../types';
 import type { LegoTechnixConfidence } from '../confidence';
 
@@ -80,8 +83,20 @@ export interface ComponentStateV1 {
   readonly returnTemperatureC?: number;
   readonly rampRateCPerSecond?: number;
   readonly modulationStrategy?: HeatSourceModulationStrategyV1;
+  readonly heatSourceType?: HeatSourceTypeV1;
   readonly controlDemandState?: HeatSourceControlDemandStateV1;
   readonly actuatorPosition?: ControlActuatorPositionV1;
   readonly condensingLikely?: boolean;
+  readonly condensingConfidence?: LegoTechnixConfidence;
   readonly cyclingRisk?: boolean;
+  readonly designOutsideTemperatureC?: number;
+  readonly mildOutsideTemperatureC?: number;
+  readonly targetFlowAtDesignC?: number;
+  readonly targetFlowAtMildC?: number;
+  readonly calculatedTargetFlowTemperatureC?: number;
+  readonly estimatedCop?: number;
+  readonly estimatedCopBand?: EstimatedCopBandV1;
+  readonly lowTemperatureEmitterSuitability?: LowTemperatureEmitterSuitabilityV1;
+  readonly weatherCompensationEnabled?: boolean;
+  readonly loadCompensationEnabled?: boolean;
 }

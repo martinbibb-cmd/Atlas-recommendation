@@ -107,6 +107,7 @@ export function aggregateReturnTemperatureV1(
   activePathResolution: ActivePathResolutionV1,
   edgeStates: readonly EdgeStateV1[],
   heatTransferResult: HeatTransferEvaluationResultV1,
+  stagedThermalStateByComponentId?: Readonly<Record<string, Partial<ComponentStateV1>>>,
 ): AggregateReturnTemperatureResultV1 {
   const thermalStateByComponentId: Record<string, Partial<ComponentStateV1>> = {};
   const events: LegoTechnixSimulationEventV1[] = [];
@@ -125,14 +126,29 @@ export function aggregateReturnTemperatureV1(
       edgeStateByConnectionId,
       heatTransferResult.edgeTemperatureByConnectionId,
     );
-    const fallbackReturnTemperatureC = previousByComponentId.get(model.componentId)?.returnTemperatureC
-      ?? model.returnTemperatureC
-      ?? (model.targetFlowTemperatureC - 20);
+    const staged = stagedThermalStateByComponentId?.[model.componentId];
+    const stagedTargetFlowTemperatureC = staged?.targetFlowTemperatureC
+      ?? staged?.calculatedTargetFlowTemperatureC;
+    const fallbackTargetFlowTemperatureC = stagedTargetFlowTemperatureC
+      ?? previousByComponentId.get(model.componentId)?.targetFlowTemperatureC
+      ?? model.calculatedTargetFlowTemperatureC
+      ?? model.targetFlowTemperatureC;
+    const fallbackReturnTemperatureC = model.heatSourceType === 'gas_boiler'
+      ? (fallbackTargetFlowTemperatureC - 20)
+      : (
+        previousByComponentId.get(model.componentId)?.returnTemperatureC
+        ?? model.returnTemperatureC
+        ?? (fallbackTargetFlowTemperatureC - 20)
+      );
     const resolvedReturnTemperatureC = round3(runtimeReturnTemperatureC ?? fallbackReturnTemperatureC);
+    const condensingConfidence = typeof runtimeReturnTemperatureC === 'number'
+      ? 'derived'
+      : 'assumed';
 
     thermalStateByComponentId[model.componentId] = {
       returnTemperatureC: resolvedReturnTemperatureC,
       condensingLikely: resolvedReturnTemperatureC < CONDENSING_RETURN_THRESHOLD_C,
+      condensingConfidence,
       lastPrimaryInletTemperatureC: resolvedReturnTemperatureC,
     };
 

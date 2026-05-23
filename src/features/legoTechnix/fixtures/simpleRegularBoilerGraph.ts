@@ -714,6 +714,7 @@ export const simpleRegularBoilerGraph: LegoTechnixGraphV1 = {
       id: 'regular_boiler_heat_source',
       componentId: 'regular_boiler',
       primaryDomain: 'primary_heating',
+      heatSourceType: 'gas_boiler',
       nominalOutputKw: 24,
       minStableOutputKw: 6,
       maxOutputKw: 30,
