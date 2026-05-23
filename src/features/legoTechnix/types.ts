@@ -121,6 +121,69 @@ export interface HydraulicDomainV1 {
   confidence: LegoTechnixConfidence;
 }
 
+export const HEAT_TRANSFER_COMPONENT_FAMILIES_V1 = [
+  'radiator',
+  'ufh',
+  'towel_rail',
+  'cylinder_coil',
+  'plate_hex',
+  'thermal_store_hex',
+] as const;
+
+export type HeatTransferComponentFamilyV1 = (typeof HEAT_TRANSFER_COMPONENT_FAMILIES_V1)[number];
+
+export const SECONDARY_THERMAL_MEDIUMS_V1 = [
+  'room_air',
+  'stored_domestic_water',
+  'moving_fluid',
+  'thermal_store',
+] as const;
+
+export type SecondaryThermalMediumV1 = (typeof SECONDARY_THERMAL_MEDIUMS_V1)[number];
+
+export interface PrimaryFluidStateV1 {
+  domain: LegoTechnixDomain;
+  isMovingFluid: boolean;
+  inletTemperatureC?: number;
+  outletTemperatureC?: number;
+  massFlowKgPerS?: number;
+}
+
+export interface SecondaryThermalStateV1 {
+  domain: LegoTechnixDomain;
+  medium: SecondaryThermalMediumV1;
+  isMovingFluid: boolean;
+  inletTemperatureC?: number;
+  outletTemperatureC?: number;
+}
+
+export interface EnergyTransferResultV1 {
+  primaryEnergyRemovedKw: number;
+  secondaryEnergyGainedKw: number;
+  declaredLossesKw?: number;
+}
+
+export interface HeatTransferInputV1 {
+  primary: PrimaryFluidStateV1;
+  secondary: SecondaryThermalStateV1;
+  timestepSeconds?: number;
+}
+
+export interface HeatTransferOutputV1 {
+  energyTransfer: EnergyTransferResultV1;
+}
+
+export interface HeatTransferComponentV1 {
+  id: string;
+  componentId: string;
+  family: HeatTransferComponentFamilyV1;
+  primaryDomain: LegoTechnixDomain;
+  secondaryDomain: LegoTechnixDomain;
+  input: HeatTransferInputV1;
+  output: HeatTransferOutputV1;
+  notes?: string;
+}
+
 export interface LegoTechnixGraphV1 {
   id: string;
   label: string;
@@ -130,4 +193,5 @@ export interface LegoTechnixGraphV1 {
   circuitRegistry?: LegoTechnixCircuitDefinitionV1[];
   activeCircuitPaths?: LegoTechnixActiveCircuitPathV1[];
   hydraulicDomains?: HydraulicDomainV1[];
+  heatTransferComponents?: HeatTransferComponentV1[];
 }

@@ -11,12 +11,19 @@ export { LEGO_TECHNIX_COMPONENT_ROLES } from './roles';
 export type { LegoTechnixComponentRole } from './roles';
 
 export {
+  HEAT_TRANSFER_COMPONENT_FAMILIES_V1,
   HYDRAULIC_PRESSURE_REGIMES_V1,
   HYDRAULIC_PRE_FLIGHT_MARKERS_V1,
   LEGO_TECHNIX_PORT_DIRECTIONS,
+  SECONDARY_THERMAL_MEDIUMS_V1,
 } from './types';
 
 export type {
+  EnergyTransferResultV1,
+  HeatTransferComponentFamilyV1,
+  HeatTransferComponentV1,
+  HeatTransferInputV1,
+  HeatTransferOutputV1,
   LegoTechnixActiveCircuitPathV1,
   LegoTechnixCircuitDefinitionV1,
   HydraulicDomainV1,
@@ -28,6 +35,9 @@ export type {
   LegoTechnixGraphV1,
   LegoTechnixPortDirection,
   LegoTechnixPortV1,
+  PrimaryFluidStateV1,
+  SecondaryThermalMediumV1,
+  SecondaryThermalStateV1,
 } from './types';
 
 export type {
