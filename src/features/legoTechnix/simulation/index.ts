@@ -15,4 +15,11 @@ export type {
   LegoTechnixTickResultV1,
 } from './LegoTechnixTickResultV1';
 
+export { ACTIVE_PATH_REASONS_V1, resolveActivePathsV1 } from './resolveActivePathsV1';
+export type {
+  ActivePathResolutionReasonV1,
+  ActivePathResolutionV1,
+  ResolvedActivePathV1,
+} from './resolveActivePathsV1';
+
 export { runLegoTechnixTickV1 } from './runLegoTechnixTickV1';

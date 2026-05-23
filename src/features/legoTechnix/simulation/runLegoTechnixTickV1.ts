@@ -10,6 +10,8 @@ import type {
   LegoTechnixSimulationWarningV1,
   LegoTechnixTickResultV1,
 } from './LegoTechnixTickResultV1';
+import type { ActivePathResolutionV1 } from './resolveActivePathsV1';
+import { resolveActivePathsV1 } from './resolveActivePathsV1';
 
 // ---------------------------------------------------------------------------
 // Stage 1 — control/sensor poll (placeholder)
@@ -60,22 +62,8 @@ function runPressurePreFlight(graph: LegoTechnixGraphV1): PressurePreFlightResul
 }
 
 // ---------------------------------------------------------------------------
-// Stage 3 — active path resolution (placeholder)
+// Stage 3 — active path resolution
 // ---------------------------------------------------------------------------
-
-interface ActivePathResult {
-  readonly events: readonly LegoTechnixSimulationEventV1[];
-  readonly warnings: readonly LegoTechnixSimulationWarningV1[];
-}
-
-function runActivePathResolution(
-  _graph: LegoTechnixGraphV1,
-  _previousState: LegoTechnixSimulationStateV1,
-): ActivePathResult {
-  // Stage 3 placeholder: a future PR will walk activeCircuitPaths to mark
-  // which edges carry flow this tick.
-  return { events: [], warnings: [] };
-}
 
 // ---------------------------------------------------------------------------
 // Stage 4 — thermal/component evaluation (placeholder)
@@ -122,15 +110,17 @@ function runEnvironmentIntegration(
 function buildComponentStates(
   graph: LegoTechnixGraphV1,
   previous: LegoTechnixSimulationStateV1,
+  activePathResolution: ActivePathResolutionV1,
 ): readonly ComponentStateV1[] {
   const previousById = new Map(previous.componentStates.map((s) => [s.componentId, s]));
+  const activeComponentIds = new Set(activePathResolution.activeComponentIds);
 
   return graph.components.map((component): ComponentStateV1 => {
     const prev = previousById.get(component.id);
     return {
       componentId: component.id,
-      isActive: prev?.isActive ?? false,
-      operatingMode: prev?.operatingMode ?? 'idle',
+      isActive: activeComponentIds.has(component.id),
+      operatingMode: activePathResolution.componentOperatingModes[component.id] ?? 'idle',
       measuredTemperatureC: prev?.measuredTemperatureC,
       setpointTemperatureC: prev?.setpointTemperatureC,
     };
@@ -140,14 +130,16 @@ function buildComponentStates(
 function buildEdgeStates(
   graph: LegoTechnixGraphV1,
   previous: LegoTechnixSimulationStateV1,
+  activePathResolution: ActivePathResolutionV1,
 ): readonly EdgeStateV1[] {
   const previousById = new Map(previous.edgeStates.map((s) => [s.connectionId, s]));
+  const activeConnectionIds = new Set(activePathResolution.activeConnectionIds);
 
   return graph.connections.map((connection): EdgeStateV1 => {
     const prev = previousById.get(connection.id);
     return {
       connectionId: connection.id,
-      isActive: prev?.isActive ?? false,
+      isActive: activeConnectionIds.has(connection.id),
       estimatedFlowKgPerS: prev?.estimatedFlowKgPerS,
       estimatedInletTemperatureC: prev?.estimatedInletTemperatureC,
       estimatedOutletTemperatureC: prev?.estimatedOutletTemperatureC,
@@ -215,7 +207,7 @@ export function runLegoTechnixTickV1(
   }
 
   // Stage 3 — active path resolution
-  const pathResult = runActivePathResolution(graph, previousState);
+  const pathResult = resolveActivePathsV1(graph, previousState, tickInput);
   events.push(...pathResult.events);
   warnings.push(...pathResult.warnings);
 
@@ -234,8 +226,8 @@ export function runLegoTechnixTickV1(
     schemaVersion: '1.0',
     tickIndex: previousState.tickIndex + 1,
     wallClockMs: tickInput.wallClockMs,
-    componentStates: buildComponentStates(graph, previousState),
-    edgeStates: buildEdgeStates(graph, previousState),
+    componentStates: buildComponentStates(graph, previousState, pathResult),
+    edgeStates: buildEdgeStates(graph, previousState, pathResult),
     domainStates: buildDomainStates(graph, previousState),
   };
 

@@ -60,6 +60,8 @@ export { simpleRegularBoilerGraph } from './fixtures/simpleRegularBoilerGraph';
 
 export { COMPONENT_OPERATING_MODES_V1 } from './simulation';
 export type {
+  ActivePathResolutionReasonV1,
+  ActivePathResolutionV1,
   ComponentOperatingModeV1,
   ComponentStateV1,
   DomainStateV1,
@@ -69,5 +71,10 @@ export type {
   LegoTechnixSimulationWarningV1,
   LegoTechnixTickInputV1,
   LegoTechnixTickResultV1,
+  ResolvedActivePathV1,
 } from './simulation';
-export { runLegoTechnixTickV1 } from './simulation';
+export {
+  ACTIVE_PATH_REASONS_V1,
+  resolveActivePathsV1,
+  runLegoTechnixTickV1,
+} from './simulation';
