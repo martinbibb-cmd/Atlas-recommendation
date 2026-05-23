@@ -3,7 +3,8 @@ export type { ComponentOperatingModeV1, ComponentStateV1 } from './ComponentStat
 
 export type { DomainStateV1 } from './DomainStateV1';
 
-export type { EdgeStateV1 } from './EdgeStateV1';
+export { FLOW_RISK_BANDS_V1 } from './EdgeStateV1';
+export type { EdgeStateV1, FlowRiskBandV1 } from './EdgeStateV1';
 
 export type { LegoTechnixSimulationStateV1 } from './LegoTechnixSimulationStateV1';
 
@@ -21,5 +22,8 @@ export type {
   ActivePathResolutionV1,
   ResolvedActivePathV1,
 } from './resolveActivePathsV1';
+
+export { allocateMassFlowV1 } from './allocateMassFlowV1';
+export type { EdgeFlowEstimateV1, MassFlowAllocationResultV1 } from './allocateMassFlowV1';
 
 export { runLegoTechnixTickV1 } from './runLegoTechnixTickV1';

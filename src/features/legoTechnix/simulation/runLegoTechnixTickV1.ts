@@ -5,6 +5,8 @@ import type { DomainStateV1 } from './DomainStateV1';
 import type { EdgeStateV1 } from './EdgeStateV1';
 import type { LegoTechnixSimulationStateV1 } from './LegoTechnixSimulationStateV1';
 import type { LegoTechnixTickInputV1 } from './LegoTechnixTickInputV1';
+import type { MassFlowAllocationResultV1 } from './allocateMassFlowV1';
+import { allocateMassFlowV1 } from './allocateMassFlowV1';
 import type {
   LegoTechnixSimulationEventV1,
   LegoTechnixSimulationWarningV1,
@@ -64,6 +66,24 @@ function runPressurePreFlight(graph: LegoTechnixGraphV1): PressurePreFlightResul
 // ---------------------------------------------------------------------------
 // Stage 3 — active path resolution
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Stage 3b — mass-flow allocation
+// ---------------------------------------------------------------------------
+
+interface MassFlowAllocationStageResult {
+  readonly allocation: MassFlowAllocationResultV1;
+}
+
+function runMassFlowAllocation(
+  graph: LegoTechnixGraphV1,
+  activePathResolution: ActivePathResolutionV1,
+  tickInput: LegoTechnixTickInputV1,
+): MassFlowAllocationStageResult {
+  return {
+    allocation: allocateMassFlowV1(graph, activePathResolution, tickInput),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Stage 4 — thermal/component evaluation (placeholder)
@@ -131,16 +151,23 @@ function buildEdgeStates(
   graph: LegoTechnixGraphV1,
   previous: LegoTechnixSimulationStateV1,
   activePathResolution: ActivePathResolutionV1,
+  massFlowAllocation: MassFlowAllocationResultV1,
 ): readonly EdgeStateV1[] {
   const previousById = new Map(previous.edgeStates.map((s) => [s.connectionId, s]));
   const activeConnectionIds = new Set(activePathResolution.activeConnectionIds);
 
   return graph.connections.map((connection): EdgeStateV1 => {
     const prev = previousById.get(connection.id);
+    const edgeFlow = massFlowAllocation.edgeFlowByConnectionId[connection.id];
+    const isActive = activeConnectionIds.has(connection.id);
+    const estimatedFlowLps = isActive ? (edgeFlow?.estimatedFlowLps ?? 0) : 0;
     return {
       connectionId: connection.id,
-      isActive: activeConnectionIds.has(connection.id),
-      estimatedFlowKgPerS: prev?.estimatedFlowKgPerS,
+      isActive,
+      estimatedFlowLps,
+      estimatedFlowKgPerS: estimatedFlowLps,
+      estimatedVelocityMps: isActive ? edgeFlow?.estimatedVelocityMps : undefined,
+      flowRiskBand: isActive ? edgeFlow?.flowRiskBand : undefined,
       estimatedInletTemperatureC: prev?.estimatedInletTemperatureC,
       estimatedOutletTemperatureC: prev?.estimatedOutletTemperatureC,
     };
@@ -174,6 +201,7 @@ function buildDomainStates(
  *   1. control/sensor poll
  *   2. pressure pre-flight check  ← blocks tick on failure
  *   3. active path resolution
+ *   3b. mass-flow allocation
  *   4. thermal/component evaluation
  *   5. environment integration
  *   6. state commit
@@ -211,6 +239,11 @@ export function runLegoTechnixTickV1(
   events.push(...pathResult.events);
   warnings.push(...pathResult.warnings);
 
+  // Stage 3b — mass-flow allocation
+  const flowResult = runMassFlowAllocation(graph, pathResult, tickInput);
+  events.push(...flowResult.allocation.events);
+  warnings.push(...flowResult.allocation.warnings);
+
   // Stage 4 — thermal/component evaluation
   const thermalResult = runThermalComponentEvaluation(graph, previousState, tickInput);
   events.push(...thermalResult.events);
@@ -227,7 +260,7 @@ export function runLegoTechnixTickV1(
     tickIndex: previousState.tickIndex + 1,
     wallClockMs: tickInput.wallClockMs,
     componentStates: buildComponentStates(graph, previousState, pathResult),
-    edgeStates: buildEdgeStates(graph, previousState, pathResult),
+    edgeStates: buildEdgeStates(graph, previousState, pathResult, flowResult.allocation),
     domainStates: buildDomainStates(graph, previousState),
   };
 
