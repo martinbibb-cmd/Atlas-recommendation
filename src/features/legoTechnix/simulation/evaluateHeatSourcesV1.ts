@@ -1,4 +1,5 @@
-import type { LegoTechnixDomain, LegoTechnixGraphV1 } from '../types';
+import type { LegoTechnixDomain } from '../domains';
+import type { LegoTechnixGraphV1 } from '../types';
 import type { ComponentStateV1, ComponentOperatingModeV1 } from './ComponentStateV1';
 import type { EdgeStateV1 } from './EdgeStateV1';
 import type { ActivePathResolutionV1 } from './resolveActivePathsV1';
@@ -8,7 +9,6 @@ import type {
   LegoTechnixSimulationWarningV1,
 } from './LegoTechnixTickResultV1';
 
-const DEFAULT_RETURN_TEMPERATURE_C = 45;
 const CONDENSING_RETURN_THRESHOLD_C = 55;
 
 interface EdgeTemperatureEstimateV1 {
@@ -154,16 +154,21 @@ export function evaluateHeatSourcesV1(
 
   const requiredLoadByDomainKw = sumRequiredLoadByDomainKw(graph, activePathResolution, edgeStateByConnectionId);
   const timestepSeconds = Math.max(tickInput.timestepSeconds, 0);
+  const activeResolvedPathIds = new Set(
+    activePathResolution.resolvedPaths
+      .filter((path) => path.isActive)
+      .map((path) => path.pathId),
+  );
 
   for (const model of graph.heatSourceModels ?? []) {
     const demandOverride = parseControlDemand(tickInput.controlOverrides?.[model.componentId]);
     const controlDemandState = demandOverride === true
       ? 'demanding'
       : (model.controlDemandState ?? 'none');
-    const hasActivePrimaryPath = activePathResolution.resolvedPaths.some((path) => (
-      path.isActive
+    const hasActivePrimaryPath = (graph.activeCircuitPaths ?? []).some((path) => (
+      activeResolvedPathIds.has(path.id)
       && path.domain === model.primaryDomain
-      && path.driverComponentId === model.componentId
+      && path.sourceComponentId === model.componentId
     ));
     const isDeadheaded = activePathResolution.deadheadedComponentIds.includes(model.componentId);
     const shouldFire = controlDemandState === 'demanding' && hasActivePrimaryPath && !isDeadheaded;
@@ -183,8 +188,7 @@ export function evaluateHeatSourcesV1(
       inferredReturnTemperatureC
       ?? previous?.returnTemperatureC
       ?? model.returnTemperatureC
-      ?? (model.targetFlowTemperatureC - 20)
-      ?? DEFAULT_RETURN_TEMPERATURE_C,
+      ?? (model.targetFlowTemperatureC - 20),
     );
 
     const previousFlowTemperatureC = previous?.currentTemperatureC

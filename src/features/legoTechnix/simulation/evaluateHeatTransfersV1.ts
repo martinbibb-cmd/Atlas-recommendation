@@ -1,4 +1,5 @@
-import type { HeatTransferComponentV1, LegoTechnixDomain, LegoTechnixGraphV1 } from '../types';
+import type { LegoTechnixDomain } from '../domains';
+import type { HeatTransferComponentV1, LegoTechnixGraphV1 } from '../types';
 import type { ActivePathResolutionV1 } from './resolveActivePathsV1';
 import type { EdgeStateV1 } from './EdgeStateV1';
 import type {
