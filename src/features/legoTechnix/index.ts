@@ -68,6 +68,7 @@ export type {
   EdgeFlowEstimateV1,
   EdgeStateV1,
   FlowRiskBandV1,
+  HeatTransferEvaluationResultV1,
   LegoTechnixSimulationEventV1,
   LegoTechnixSimulationStateV1,
   LegoTechnixSimulationWarningV1,
@@ -80,6 +81,7 @@ export {
   ACTIVE_PATH_REASONS_V1,
   FLOW_RISK_BANDS_V1,
   allocateMassFlowV1,
+  evaluateHeatTransfersV1,
   resolveActivePathsV1,
   runLegoTechnixTickV1,
 } from './simulation';
