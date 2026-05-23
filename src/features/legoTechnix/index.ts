@@ -175,3 +175,27 @@ export type {
   ProjectionPortV1,
   ProjectionTimelineV1,
 } from './debug';
+
+export {
+  CUSTOMER_EVIDENCE_CARD_TYPES_V1,
+  CUSTOMER_EVIDENCE_CONFIDENCE_WORDING_V1,
+  CUSTOMER_EVIDENCE_SECTION_IDS_V1,
+  CUSTOMER_EVIDENCE_WARNING_CATEGORIES_V1,
+  CUSTOMER_EVIDENCE_WARNING_SEVERITIES_V1,
+  buildCustomerEvidencePackV1,
+  getCustomerConfidenceWording,
+} from './customerEvidence';
+export type {
+  BuildCustomerEvidencePackV1Input,
+  CustomerEvidenceCardTypeV1,
+  CustomerEvidenceCardV1,
+  CustomerEvidenceLockedRecommendationSummaryV1,
+  CustomerEvidenceMetricV1,
+  CustomerEvidencePackV1,
+  CustomerEvidenceSectionIdV1,
+  CustomerEvidenceSectionV1,
+  CustomerEvidenceTimelineV1,
+  CustomerEvidenceWarningCategoryV1,
+  CustomerEvidenceWarningSeverityV1,
+  CustomerEvidenceWarningV1,
+} from './customerEvidence';
