@@ -99,13 +99,14 @@ function buildStratifiedInitialState(baseState: LegoTechnixSimulationStateV1): L
     })),
   };
 
-  state.componentStates = [
-    ...state.componentStates.slice(0, storeIndex),
-    stratifiedStore,
-    ...state.componentStates.slice(storeIndex + 1),
-  ];
-
-  return state;
+  return {
+    ...state,
+    componentStates: [
+      ...state.componentStates.slice(0, storeIndex),
+      stratifiedStore,
+      ...state.componentStates.slice(storeIndex + 1),
+    ],
+  };
 }
 
 function buildWeatherCompHeatPumpGraph(baseGraph: LegoTechnixGraphV1): LegoTechnixGraphV1 {
