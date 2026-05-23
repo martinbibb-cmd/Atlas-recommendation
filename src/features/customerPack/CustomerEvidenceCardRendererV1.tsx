@@ -2,6 +2,7 @@ import type { CustomerEvidenceMetricV1 } from '../legoTechnix/customerEvidence/C
 import type { CustomerEvidenceCardV1 } from '../legoTechnix/customerEvidence/CustomerEvidenceCardV1';
 import { CustomerConfidenceBadgeV1 } from './CustomerConfidenceBadgeV1';
 import { CustomerTimelineRendererV1 } from './CustomerTimelineRendererV1';
+import { buildCustomerCardCopyV1 } from './customerPackCopyBuildersV1';
 
 export interface CustomerEvidenceCardRendererV1Props {
   readonly card: CustomerEvidenceCardV1;
@@ -13,6 +14,8 @@ function formatMetricValue(metric: CustomerEvidenceMetricV1): string {
 }
 
 export function CustomerEvidenceCardRendererV1({ card }: CustomerEvidenceCardRendererV1Props) {
+  const copy = buildCustomerCardCopyV1(card);
+
   return (
     <article
       className={`cprv1-card cprv1-card--${card.type}`}
@@ -20,8 +23,8 @@ export function CustomerEvidenceCardRendererV1({ card }: CustomerEvidenceCardRen
     >
       <header className="cprv1-card__header">
         <div>
-          <h3 className="cprv1-card__title">{card.heading}</h3>
-          <p className="cprv1-card__summary">{card.summary}</p>
+          <h3 className="cprv1-card__title">{copy.title}</h3>
+          <p className="cprv1-card__summary">{copy.takeaway}</p>
         </div>
         {card.confidenceWording ? <CustomerConfidenceBadgeV1 wording={card.confidenceWording} /> : null}
       </header>
@@ -57,6 +60,18 @@ export function CustomerEvidenceCardRendererV1({ card }: CustomerEvidenceCardRen
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {copy.practicalImplication ? (
+        <p className="cprv1-card__implication" data-testid="cprv1-card-implication">
+          <strong>What this means for you:</strong> {copy.practicalImplication}
+        </p>
+      ) : null}
+
+      {copy.engineerConfirmationNote ? (
+        <p className="cprv1-card__engineer-note" data-testid="cprv1-card-engineer-note">
+          <strong>To confirm on the visit:</strong> {copy.engineerConfirmationNote}
+        </p>
       ) : null}
 
       {card.timelineEntries?.length ? (

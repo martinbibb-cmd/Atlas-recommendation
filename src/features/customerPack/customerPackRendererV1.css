@@ -10,6 +10,7 @@
 }
 
 .cprv1-cover,
+.cprv1-recommendation-evidence,
 .cprv1-section {
   background: #fff;
   border: 1px solid #dbe1e8;
@@ -20,6 +21,10 @@
 }
 
 .cprv1-cover {
+  margin-bottom: 1rem;
+}
+
+.cprv1-recommendation-evidence {
   margin-bottom: 1rem;
 }
 
@@ -52,6 +57,8 @@
 .cprv1-cover__summary,
 .cprv1-section__summary,
 .cprv1-card__summary,
+.cprv1-card__implication,
+.cprv1-card__engineer-note,
 .cprv1-timeline__description,
 .cprv1-section__empty {
   margin: 0;
@@ -63,6 +70,24 @@
 .cprv1-sections {
   display: grid;
   gap: 1rem;
+}
+
+.cprv1-recommendation-evidence__list {
+  margin: 0.75rem 0 0;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.cprv1-recommendation-evidence__list div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.cprv1-recommendation-evidence__list dd {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 .cprv1-section__header {
@@ -96,6 +121,11 @@
 .cprv1-card__title {
   font-size: 1rem;
   margin-bottom: 0.35rem;
+}
+
+.cprv1-card__implication,
+.cprv1-card__engineer-note {
+  margin-top: 0.75rem;
 }
 
 .cprv1-confidence-badge {

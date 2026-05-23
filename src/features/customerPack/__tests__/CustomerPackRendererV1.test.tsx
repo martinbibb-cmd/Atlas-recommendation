@@ -62,6 +62,8 @@ function buildPackFromTemplate(
   });
 }
 
+const CANONICAL_TEMPLATES = [...LEGO_TECHNIX_CANONICAL_SYSTEM_TEMPLATES_V1];
+
 describe('CustomerPackRendererV1', () => {
   it('renders all 10 canonical sections deterministically for every canonical template', () => {
     for (const template of LEGO_TECHNIX_CANONICAL_SYSTEM_TEMPLATES_V1) {
@@ -106,6 +108,19 @@ describe('CustomerPackRendererV1', () => {
 
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(lockedPack.systemLabel);
     expect(screen.getByTestId('cprv1-recommendation-summary').textContent).toBe(verbatimSummary);
+    expect(screen.getByText('Chosen system label').nextElementSibling?.textContent).toBe(
+      lockedPack.systemLabel,
+    );
+  });
+
+  it('renders recommendation evidence blocks for fit, simulation, and confirmation', () => {
+    const pack = buildPackFromTemplate('template_heat_pump_unvented_weather_comp');
+    render(<CustomerPackRendererV1 pack={pack} />);
+
+    const evidence = screen.getByTestId('cprv1-recommendation-evidence');
+    expect(within(evidence).getByText('Why it fits this household')).toBeTruthy();
+    expect(within(evidence).getByText('What Atlas simulated')).toBeTruthy();
+    expect(within(evidence).getByText('What remains to be confirmed')).toBeTruthy();
   });
 
   it('contains no recommendation logic and renders inconsistent evidence verbatim', () => {
@@ -127,7 +142,9 @@ describe('CustomerPackRendererV1', () => {
     render(<CustomerPackRendererV1 pack={lockedPack} />);
 
     expect(screen.getByText('Chosen elsewhere. Renderer must not second-guess this text.')).toBeTruthy();
-    expect(screen.getByText('Home understanding remains evidence-only even when recommendation copy changes.')).toBeTruthy();
+    expect(
+      screen.getAllByText('Home understanding remains evidence-only even when recommendation copy changes.'),
+    ).toHaveLength(2);
   });
 
   it('renders customer-safe confidence wording strings only', () => {
@@ -227,6 +244,29 @@ describe('CustomerPackRendererV1', () => {
 
     rerender(<CustomerPackRendererV1 pack={mixedPack} />);
     expect(screen.getByText(/mixes hot water throughout its volume/i)).toBeTruthy();
+  });
+
+  it('renders customer-safe deterministic snapshots for all six canonical templates', () => {
+    expect(CANONICAL_TEMPLATES).toHaveLength(6);
+
+    for (const template of CANONICAL_TEMPLATES) {
+      const pack = buildPackFromTemplate(template.id, `Locked summary for ${template.label}`);
+      const first = render(<CustomerPackRendererV1 pack={pack} />).container.innerHTML;
+      cleanup();
+      const second = render(<CustomerPackRendererV1 pack={pack} />).container.innerHTML;
+
+      expect(second).toBe(first);
+      expect(second).toMatchSnapshot(template.id);
+      expect(second).not.toMatch(/template_[a-z0-9_]+/i);
+      expect(second).not.toMatch(
+        /unknown_static_head|unknown_safety_markers|missing_pipe_geometry|low_confidence|scenario_velocity_warning/i,
+      );
+      expect(second).not.toMatch(/\bbased on survey findings\b/i);
+      expect(second).not.toMatch(/\bdaily operation remains straightforward\b/i);
+      expect(second).not.toMatch(/\bbehavior|color|favorite|optimize\b/i);
+      expect(second).not.toContain('buildCustomerEvidencePackV1');
+      cleanup();
+    }
   });
 
   it('handles missing optional sections gracefully', () => {

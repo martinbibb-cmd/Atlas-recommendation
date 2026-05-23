@@ -8,3 +8,11 @@ export { CustomerTimelineRendererV1 } from './CustomerTimelineRendererV1';
 export type { CustomerTimelineRendererV1Props } from './CustomerTimelineRendererV1';
 export { CustomerConfidenceBadgeV1 } from './CustomerConfidenceBadgeV1';
 export type { CustomerConfidenceBadgeV1Props } from './CustomerConfidenceBadgeV1';
+export {
+  buildCustomerCardCopyV1,
+  buildCustomerRecommendationEvidenceV1,
+} from './customerPackCopyBuildersV1';
+export type {
+  CustomerCardCopyV1,
+  CustomerRecommendationEvidenceV1,
+} from './customerPackCopyBuildersV1';
