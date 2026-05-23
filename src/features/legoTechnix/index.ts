@@ -80,6 +80,12 @@ export {
   simpleRegularBoilerGraph,
   simpleRegularBoilerInitialStateV1,
 } from './fixtures/simpleRegularBoilerGraph';
+export {
+  LEGO_TECHNIX_CANONICAL_SYSTEM_TEMPLATES_V1,
+} from './fixtures/canonicalSystemTemplates';
+export type {
+  LegoTechnixCanonicalSystemTemplateV1,
+} from './fixtures/canonicalSystemTemplates';
 
 export { COMPONENT_OPERATING_MODES_V1 } from './simulation';
 export type {
