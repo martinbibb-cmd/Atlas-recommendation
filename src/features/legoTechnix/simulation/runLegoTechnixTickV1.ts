@@ -7,6 +7,7 @@ import type { LegoTechnixSimulationStateV1 } from './LegoTechnixSimulationStateV
 import type { LegoTechnixTickInputV1 } from './LegoTechnixTickInputV1';
 import type { MassFlowAllocationResultV1 } from './allocateMassFlowV1';
 import { allocateMassFlowV1 } from './allocateMassFlowV1';
+import { aggregateReturnTemperatureV1 } from './aggregateReturnTemperatureV1';
 import type { HeatTransferEvaluationResultV1 } from './evaluateHeatTransfersV1';
 import { evaluateHeatTransfersV1 } from './evaluateHeatTransfersV1';
 import type { HeatSourceEvaluationResultV1 } from './evaluateHeatSourcesV1';
@@ -202,6 +203,19 @@ function buildComponentStates(
         ?? prev?.lastPrimaryOutletTemperatureC
       ),
       lastSecondaryGainKw: thermalPatch?.lastSecondaryGainKw ?? prev?.lastSecondaryGainKw,
+      primaryCoilInletTemperatureC: (
+        thermalPatch?.primaryCoilInletTemperatureC
+        ?? prev?.primaryCoilInletTemperatureC
+      ),
+      primaryCoilOutletTemperatureC: (
+        thermalPatch?.primaryCoilOutletTemperatureC
+        ?? prev?.primaryCoilOutletTemperatureC
+      ),
+      lastRecoveryKw: thermalPatch?.lastRecoveryKw ?? prev?.lastRecoveryKw,
+      radiatorPrimaryReturnTemperatureC: (
+        thermalPatch?.radiatorPrimaryReturnTemperatureC
+        ?? prev?.radiatorPrimaryReturnTemperatureC
+      ),
       nominalOutputKw: thermalPatch?.nominalOutputKw ?? prev?.nominalOutputKw,
       minStableOutputKw: thermalPatch?.minStableOutputKw ?? prev?.minStableOutputKw,
       maxOutputKw: thermalPatch?.maxOutputKw ?? prev?.maxOutputKw,
@@ -380,11 +394,27 @@ export function runLegoTechnixTickV1(
   events.push(...envResult.events);
   warnings.push(...envResult.warnings);
 
+  const returnTemperatureResult = aggregateReturnTemperatureV1(
+    graph,
+    previousState,
+    pathResult,
+    edgeStatesAfterFlow,
+    thermalResult,
+  );
+  events.push(...returnTemperatureResult.events);
+  warnings.push(...returnTemperatureResult.warnings);
+
   const mergedThermalStateByComponentId: Record<string, Partial<ComponentStateV1>> = {
     ...pollResult.componentStateById,
     ...heatSourceResult.thermalStateByComponentId,
   };
   for (const [componentId, patch] of Object.entries(envResult.thermalStateByComponentId)) {
+    mergedThermalStateByComponentId[componentId] = {
+      ...(mergedThermalStateByComponentId[componentId] ?? {}),
+      ...patch,
+    };
+  }
+  for (const [componentId, patch] of Object.entries(returnTemperatureResult.thermalStateByComponentId)) {
     mergedThermalStateByComponentId[componentId] = {
       ...(mergedThermalStateByComponentId[componentId] ?? {}),
       ...patch,
