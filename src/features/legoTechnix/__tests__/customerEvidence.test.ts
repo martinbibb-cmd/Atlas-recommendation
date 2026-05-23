@@ -139,7 +139,7 @@ describe('evidence cards consume explainability and projection outputs only', ()
 
     const thermalCard = heatingSection!.cards.find((c) => c.type === 'thermal_story');
     expect(thermalCard).toBeDefined();
-    expect(thermalCard!.heading).toBe('How your heating behaves');
+    expect(thermalCard!.heading).toBe('How your heating performs day to day');
   });
 
   it('hot_water_story cards are sourced from dhwSummary and recovery metrics', () => {
@@ -150,7 +150,7 @@ describe('evidence cards consume explainability and projection outputs only', ()
 
     const hotWaterCard = hotWaterSection!.cards.find((c) => c.type === 'hot_water_story');
     expect(hotWaterCard).toBeDefined();
-    expect(hotWaterCard!.heading).toBe('Your hot water');
+    expect(hotWaterCard!.heading).toBe('How your hot water performs');
   });
 
   it('all expected card types are represented in packs', () => {

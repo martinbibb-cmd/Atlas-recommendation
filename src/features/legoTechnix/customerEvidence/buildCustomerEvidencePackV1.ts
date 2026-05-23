@@ -68,7 +68,7 @@ const ENGINEERING_CODE_TO_CUSTOMER_WARNING: Readonly<
   unknown_heat_source_modulation_range: {
     category: 'uncertainty',
     severity: 'attention',
-    message: 'The heat source output range could not be fully confirmed — installer will verify on site.',
+    message: 'The heat source output range could not be fully confirmed and will be checked on the installation visit.',
   },
   low_confidence_condensing_estimate: {
     category: 'efficiency',
@@ -83,7 +83,7 @@ const ENGINEERING_CODE_TO_CUSTOMER_WARNING: Readonly<
   scenario_velocity_warning: {
     category: 'hydraulic_risk',
     severity: 'attention',
-    message: 'Flow conditions in part of your pipework may need review — your installer will assess during commissioning.',
+    message: 'Flow conditions in part of your pipework may need review during commissioning checks.',
   },
   scenario_pipe_heat_loss_warning: {
     category: 'efficiency',
@@ -108,7 +108,7 @@ const ENGINEERING_CODE_TO_CUSTOMER_WARNING: Readonly<
   low_temperature_emitter_output_shortfall: {
     category: 'comfort',
     severity: 'attention',
-    message: 'Some emitters may produce slightly less heat at lower flow temperatures — your installer can assess during commissioning.',
+    message: 'Some emitters may produce slightly less heat at lower flow temperatures and may need adjustment during commissioning.',
   },
 };
 
@@ -211,11 +211,11 @@ function buildSystemBehaviourCard(
 
   return {
     type: 'system_behaviour_story',
-    heading: 'About your heating system',
+    heading: 'How your current heating is set up',
     summary,
     metrics: circuitPoints.slice(0, 3).map(
       (point): CustomerEvidenceMetricV1 => ({
-        label: 'Circuit behaviour',
+        label: 'Heating circuit evidence',
         value: point,
         confidenceWording: getCustomerConfidenceWording('derived'),
       }),
@@ -234,15 +234,15 @@ function buildWhatAtlasFoundCard(
   const summary =
     controlPoints.length > 0
       ? controlPoints[0]
-      : 'Atlas has assessed your system configuration.';
+      : 'Atlas reviewed your controls and heating setup from the survey evidence.';
 
   return {
     type: 'system_behaviour_story',
-    heading: 'What Atlas assessed',
+    heading: 'What Atlas found from your survey',
     summary,
     metrics: heatSourcePoints.slice(0, 2).map(
       (point): CustomerEvidenceMetricV1 => ({
-        label: 'Heat source observation',
+        label: 'Heat source evidence',
         value: point,
         confidenceWording: getCustomerConfidenceWording('derived'),
       }),
@@ -263,13 +263,13 @@ function buildThermalStoryCard(
   const summary =
     roomPoints.length > 0
       ? roomPoints[0]
-      : 'Heating behaviour has been assessed from the system survey.';
+      : 'We modelled how your heating circuits respond through a typical day.';
 
   const metrics: CustomerEvidenceMetricV1[] = [];
 
   for (const point of returnPoints.slice(0, 2)) {
     metrics.push({
-      label: 'Return temperature behaviour',
+      label: 'Return temperature evidence',
       value: point,
       confidenceWording: getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
     });
@@ -277,7 +277,7 @@ function buildThermalStoryCard(
 
   for (const point of condensingPoints.slice(0, 1)) {
     metrics.push({
-      label: 'Condensing efficiency observation',
+      label: 'Condensing efficiency evidence',
       value: point,
       confidenceWording: getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
     });
@@ -285,7 +285,7 @@ function buildThermalStoryCard(
 
   return {
     type: 'thermal_story',
-    heading: 'How your heating behaves',
+    heading: 'How your heating performs day to day',
     summary,
     metrics,
     warnings: [],
@@ -303,7 +303,7 @@ function buildHotWaterStoryCard(
   const summary =
     dhwPoints.length > 0
       ? dhwPoints[0]
-      : 'Hot water behaviour has been assessed from the system survey.';
+      : 'We modelled your hot water usage and recovery over time.';
 
   const metrics: CustomerEvidenceMetricV1[] = [];
   const confidenceWording = getCustomerConfidenceWording(
@@ -350,7 +350,7 @@ function buildHotWaterStoryCard(
 
   return {
     type: 'hot_water_story',
-    heading: 'Your hot water',
+    heading: 'How your hot water performs',
     summary,
     metrics,
     warnings: [],
@@ -422,11 +422,11 @@ function buildComfortCard(
 
   return {
     type: 'comfort_story',
-    heading: 'Comfort expectations',
+    heading: 'What comfort to expect',
     summary,
     metrics: roomPoints.slice(1, 3).map(
       (point): CustomerEvidenceMetricV1 => ({
-        label: 'Room heating observation',
+        label: 'Room comfort evidence',
         value: point,
         confidenceWording: getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
       }),
@@ -450,11 +450,11 @@ function buildEfficiencyCard(
 
   return {
     type: 'efficiency_story',
-    heading: 'Energy and efficiency',
+    heading: 'How efficiently your system can run',
     summary,
     metrics: condensingPoints.slice(0, 2).map(
       (point): CustomerEvidenceMetricV1 => ({
-        label: 'Efficiency observation',
+        label: 'Efficiency evidence',
         value: point,
         confidenceWording: getCustomerConfidenceWording(hydraulicConfidenceReport.overallConfidence),
       }),
@@ -491,8 +491,8 @@ function buildConfidenceCard(
 
   return {
     type: 'confidence_story',
-    heading: 'How confident are these estimates?',
-    summary: overallWording,
+    heading: 'What we measured',
+    summary: 'These details were measured on site or taken from confirmed manufacturer records.',
     metrics,
     warnings: [],
     confidenceWording: overallWording,
@@ -506,8 +506,8 @@ function buildAssumptionCard(
 
   const summary =
     assumptions.length === 0
-      ? 'No significant assumptions were required for this assessment.'
-      : `${assumptions.length} assumption${assumptions.length > 1 ? 's were' : ' was'} made during the assessment — these will be confirmed by your engineer.`;
+      ? 'No key assumptions were needed for this home.'
+      : `${assumptions.length} assumption${assumptions.length > 1 ? 's were' : ' was'} used where full access or data was not available.`;
 
   const metrics: CustomerEvidenceMetricV1[] = assumptions.slice(0, 4).map(
     (assumption): CustomerEvidenceMetricV1 => ({
@@ -519,7 +519,7 @@ function buildAssumptionCard(
 
   return {
     type: 'assumption_story',
-    heading: 'Assumptions made during the assessment',
+    heading: 'What we estimated',
     summary,
     metrics,
     warnings: [],
@@ -550,18 +550,17 @@ function buildEngineerConfirmationCard(
 
   return {
     type: 'assumption_story',
-    heading: 'Items for engineer confirmation',
+    heading: 'What the installer will confirm',
     summary,
     metrics,
     warnings: unknowns.length > 0
       ? [
-          {
-            category: 'uncertainty',
-            severity: 'info',
-            message:
-              'These items are flagged for your installer to confirm — they are not safety issues.',
-          },
-        ]
+        {
+          category: 'uncertainty',
+          severity: 'info',
+          message: 'These are routine checks to finalise settings and confirm fit on site.',
+        },
+      ]
       : [],
     confidenceWording: getCustomerConfidenceWording('unknown'),
   };
@@ -584,7 +583,7 @@ function buildWarningCard(
 
   return {
     type: 'warning_story',
-    heading: 'Observations from the assessment',
+    heading: 'Points to keep in mind',
     summary,
     metrics: [],
     warnings: customerWarnings.slice(0, 6),
@@ -611,7 +610,7 @@ function buildSafetyCard(
 
   return {
     type: 'warning_story',
-    heading: 'Safety and protection',
+    heading: 'Safety and protection checks',
     summary,
     metrics: [],
     warnings: safetyWarnings,
@@ -627,7 +626,7 @@ function buildFutureFlexibilityCard(
 
   return {
     type: 'system_behaviour_story',
-    heading: 'Future flexibility and upgrades',
+    heading: 'Options for future upgrades',
     summary:
       'Your system has been assessed for compatibility with future upgrades. Specific upgrade readiness will be confirmed with your installer.',
     metrics: systemPoints.slice(0, 2).map(
@@ -768,16 +767,16 @@ export function buildCustomerEvidencePackV1(
   const sections: CustomerEvidenceSectionV1[] = [
     buildSection(
       'home_understanding',
-      'About your home and heating system',
-      'This section explains the key characteristics of your heating system as surveyed.',
+      'Your home and current heating setup',
+      'A clear overview of how your current system is configured and how it currently operates.',
       [buildSystemBehaviourCard(explainabilityReport)],
       [],
       [],
     ),
     buildSection(
       'what_atlas_found',
-      'What Atlas found during the survey',
-      'A summary of the system configuration and operational characteristics identified.',
+      'What Atlas found',
+      'The main findings Atlas identified from your survey and system evidence.',
       [
         buildWhatAtlasFoundCard(explainabilityReport),
         buildWarningCard(explainabilityReport, hydraulicConfidenceReport),
@@ -787,64 +786,64 @@ export function buildCustomerEvidencePackV1(
     ),
     buildSection(
       'heating_behaviour',
-      'How your heating system behaves',
-      'Evidence from the system assessment of how your heating circuits operate.',
+      'How your heating runs',
+      'Evidence from Atlas simulations showing how your heating responds through the day.',
       heatingCards,
       [],
       heatingTimelineEntries,
     ),
     buildSection(
       'hot_water_behaviour',
-      'Your hot water',
-      'Evidence from the system assessment of how your hot water cylinder performs.',
+      'How your hot water runs',
+      'Evidence from Atlas simulations showing expected hot water use and recovery.',
       hotWaterCards,
       hotWaterWarnings,
       hotWaterTimelineEntries,
     ),
     buildSection(
       'comfort_expectations',
-      'Comfort expectations',
-      'What you can expect in terms of room warmth and response time based on the system assessment.',
+      'What comfort to expect',
+      'What this setup means for warmth, heat-up speed, and day-to-day comfort in your rooms.',
       [buildComfortCard(explainabilityReport, hydraulicConfidenceReport)],
       comfortWarnings,
       [],
     ),
     buildSection(
       'energy_efficiency',
-      'Energy and efficiency observations',
-      'Efficiency characteristics observed from the system layout and simulation.',
+      'Energy use and efficiency',
+      'Evidence on how efficiently your system can run based on layout and simulation outputs.',
       [buildEfficiencyCard(explainabilityReport, hydraulicConfidenceReport)],
       efficiencyWarnings,
       [],
     ),
     buildSection(
       'confidence_and_assumptions',
-      'Confidence and assumptions',
-      'How the evidence behind these estimates was gathered, and where assumptions were made.',
+      'How certain each part is',
+      'We separate what we measured, what we estimated, and what still needs installer confirmation.',
       [buildConfidenceCard(hydraulicConfidenceReport), buildAssumptionCard(hydraulicConfidenceReport)],
       [],
       [],
     ),
     buildSection(
       'engineer_confirmation',
-      'What may need engineer confirmation',
-      'Items that will be reviewed or confirmed by your engineer before or during installation.',
+      'What the installer will confirm',
+      'Routine on-site checks that finalise settings and verify any remaining unknowns.',
       [buildEngineerConfirmationCard(hydraulicConfidenceReport)],
       [],
       [],
     ),
     buildSection(
       'future_flexibility',
-      'Future flexibility and upgrade readiness',
-      'How your system is positioned for potential future improvements or changes.',
+      'Future options',
+      'How this setup supports practical future upgrades when you decide to make changes.',
       [buildFutureFlexibilityCard(explainabilityReport)],
       [],
       [],
     ),
     buildSection(
       'safety_protection',
-      'Safety and protection observations',
-      'Safety-related observations from the system assessment.',
+      'Safety and protection',
+      'Safety-related checks identified from survey evidence and simulation context.',
       [buildSafetyCard(hydraulicConfidenceReport)],
       allCustomerWarnings.filter((warning) => warning.category === 'hydraulic_risk'),
       [],
