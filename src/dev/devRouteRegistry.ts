@@ -216,6 +216,16 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     access: 'dev_only',
   },
   {
+    codeName: 'CustomerPackPreviewPage',
+    routePath: '/dev/customer-pack-preview',
+    queryFlags: ['customer-pack-preview=1'],
+    fullRouteExample: '/dev/customer-pack-preview',
+    routeKind: 'path',
+    access: 'dev_only',
+    lifecycle: 'active',
+    canonicalOwner: 'customer-pack',
+  },
+  {
     codeName: 'CustomerPortalPreviewPage',
     routePath: '/dev/customer-portal-preview',
     queryFlags: ['customer-portal-preview=1'],
