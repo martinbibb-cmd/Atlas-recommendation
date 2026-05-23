@@ -77,9 +77,14 @@ export interface ScenarioTimelineSampleV1 {
   readonly tickIndex: number;
   readonly roomTemperatureC?: number;
   readonly storedDhwTemperatureC?: number;
+  readonly storedDhwTargetTemperatureC?: number;
   readonly usableHotWaterLitresAt40C?: number;
+  readonly storedDhwRecoveryKw?: number;
   readonly sourceFlowTemperatureC?: number;
   readonly sourceReturnTemperatureC?: number;
+  readonly sourceHeatOutputKw?: number;
+  readonly dhwDrawOffFlowLpm?: number;
+  readonly dhwDrawOffTargetTemperatureC?: number;
   readonly condensingLikely?: boolean;
   readonly cyclingRisk?: boolean;
   readonly activeBranches: readonly ScenarioActiveBranchV1[];
@@ -267,6 +272,27 @@ function buildActiveBranches(
     }));
 }
 
+function sumDrawOffFlowLpm(
+  drawOffDemands: readonly DomesticDrawOffDemandV1[],
+): number | undefined {
+  const totalFlowLpm = drawOffDemands.reduce((sum, demand) => sum + demand.drawOffFlowLpm, 0);
+  return totalFlowLpm > 0 ? totalFlowLpm : undefined;
+}
+
+function buildWeightedDrawOffTargetTemperatureC(
+  drawOffDemands: readonly DomesticDrawOffDemandV1[],
+): number | undefined {
+  const totalFlowLpm = sumDrawOffFlowLpm(drawOffDemands);
+  if (typeof totalFlowLpm !== 'number' || totalFlowLpm <= 0) {
+    return undefined;
+  }
+
+  return drawOffDemands.reduce(
+    (weightedSum, demand) => weightedSum + (demand.mixedOutletTargetTemperatureC * demand.drawOffFlowLpm),
+    0,
+  ) / totalFlowLpm;
+}
+
 export function runLegoTechnixScenarioV1(input: ScenarioInputV1): ScenarioResultV1 {
   if (!(input.timestepSeconds > 0) || !Number.isFinite(input.timestepSeconds)) {
     throw new Error('Scenario timestepSeconds must be a positive finite number.');
@@ -423,9 +449,14 @@ export function runLegoTechnixScenarioV1(input: ScenarioInputV1): ScenarioResult
       tickIndex: nextState.tickIndex,
       roomTemperatureC: roomState?.currentTemperatureC,
       storedDhwTemperatureC: storedDhwState?.currentTemperatureC,
+      storedDhwTargetTemperatureC: storedDhwState?.targetTemperatureC,
       usableHotWaterLitresAt40C: storedDhwState?.usableHotWaterLitresAt40C,
+      storedDhwRecoveryKw: storedDhwState?.heatGainKw,
       sourceFlowTemperatureC: sourceState?.currentTemperatureC,
       sourceReturnTemperatureC: sourceState?.returnTemperatureC,
+      sourceHeatOutputKw: sourceState?.heatGainKw,
+      dhwDrawOffFlowLpm: sumDrawOffFlowLpm(tickDrawOffDemands),
+      dhwDrawOffTargetTemperatureC: buildWeightedDrawOffTargetTemperatureC(tickDrawOffDemands),
       condensingLikely: sourceState?.condensingLikely,
       cyclingRisk: sourceState?.cyclingRisk,
       activeBranches: buildActiveBranches(input.graph, nextState, tickInput),
