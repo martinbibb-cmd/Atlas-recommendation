@@ -50,4 +50,7 @@ export type { ControlEvaluationResultV1 } from './evaluateControlsV1';
 export { integrateThermalStateV1 } from './integrateThermalStateV1';
 export type { ThermalIntegrationResultV1 } from './integrateThermalStateV1';
 
+export { aggregateReturnTemperatureV1 } from './aggregateReturnTemperatureV1';
+export type { AggregateReturnTemperatureResultV1 } from './aggregateReturnTemperatureV1';
+
 export { runLegoTechnixTickV1 } from './runLegoTechnixTickV1';

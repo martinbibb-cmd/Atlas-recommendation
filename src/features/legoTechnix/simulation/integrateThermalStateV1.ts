@@ -320,6 +320,16 @@ export function integrateThermalStateV1(
       lastPrimaryInletTemperatureC: transfer.lastPrimaryInletTemperatureC,
       lastPrimaryOutletTemperatureC: transfer.lastPrimaryOutletTemperatureC,
       lastSecondaryGainKw: transfer.lastSecondaryGainKw,
+      primaryCoilInletTemperatureC: transfer.family === 'cylinder_coil'
+        ? transfer.lastPrimaryInletTemperatureC
+        : undefined,
+      primaryCoilOutletTemperatureC: transfer.family === 'cylinder_coil'
+        ? transfer.lastPrimaryOutletTemperatureC
+        : undefined,
+      lastRecoveryKw: transfer.family === 'cylinder_coil' ? transfer.lastSecondaryGainKw : undefined,
+      radiatorPrimaryReturnTemperatureC: transfer.family === 'radiator'
+        ? transfer.lastPrimaryOutletTemperatureC
+        : undefined,
     };
   }
 

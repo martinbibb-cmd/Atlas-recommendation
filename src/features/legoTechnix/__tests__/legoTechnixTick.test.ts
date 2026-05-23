@@ -1189,3 +1189,125 @@ describe('runLegoTechnixTickV1 — PR13 pipe transit delay and heat loss', () =>
     expect(result.warnings.some((warning) => warning.code === 'pipe_geometry_missing')).toBe(true);
   });
 });
+
+describe('runLegoTechnixTickV1 — PR15 return-temperature propagation', () => {
+  it('51. active radiator branch lowers source return temperature versus active cylinder branch', () => {
+    const radiatorOnlyInitial = makeSPlanInitialState();
+    const radiatorOnlyStore = findComponentState(radiatorOnlyInitial, 'stored_dhw_volume');
+    if (!radiatorOnlyStore) throw new Error('Stored water state missing.');
+    radiatorOnlyStore.currentTemperatureC = 60;
+
+    const cylinderOnlyInitial = makeSPlanInitialState();
+    const cylinderOnlyRoom = findComponentState(cylinderOnlyInitial, 'living_room');
+    if (!cylinderOnlyRoom) throw new Error('Room state missing.');
+    cylinderOnlyRoom.currentTemperatureC = 21;
+
+    const radiatorOnlyResult = runLegoTechnixTickV1(
+      sPlanControlGraph,
+      radiatorOnlyInitial,
+      makeTickInput(1000, undefined, 30),
+    );
+    const cylinderOnlyResult = runLegoTechnixTickV1(
+      sPlanControlGraph,
+      cylinderOnlyInitial,
+      makeTickInput(1000, undefined, 30),
+    );
+
+    const radiatorReturn = findComponentState(radiatorOnlyResult.nextState, 'regular_boiler')?.returnTemperatureC ?? 0;
+    const cylinderReturn = findComponentState(cylinderOnlyResult.nextState, 'regular_boiler')?.returnTemperatureC ?? 0;
+    expect(radiatorReturn).toBeLessThan(cylinderReturn);
+  });
+
+  it('52. active cylinder branch contributes dedicated coil telemetry and runtime source return', () => {
+    const initial = makeSPlanInitialState();
+    const room = findComponentState(initial, 'living_room');
+    if (!room) throw new Error('Room state missing.');
+    room.currentTemperatureC = 21;
+
+    const result = runLegoTechnixTickV1(
+      sPlanControlGraph,
+      initial,
+      makeTickInput(1000, undefined, 30),
+    );
+
+    const coilState = findComponentState(result.nextState, 'cylinder_coil_exchanger');
+    const boilerState = findComponentState(result.nextState, 'regular_boiler');
+    expect(coilState?.primaryCoilInletTemperatureC).toBeDefined();
+    expect(coilState?.primaryCoilOutletTemperatureC).toBeDefined();
+    expect(coilState?.lastRecoveryKw).toBeGreaterThan(0);
+    expect(boilerState?.returnTemperatureC).toBeCloseTo(coilState?.primaryCoilOutletTemperatureC ?? 0, 3);
+  });
+
+  it('53. simultaneous radiator and cylinder branches merge return by mass flow weighting', () => {
+    const result = runLegoTechnixTickV1(
+      sPlanControlGraph,
+      makeSPlanInitialState(),
+      makeTickInput(1000, undefined, 30),
+    );
+
+    const boilerReturn = findComponentState(result.nextState, 'regular_boiler')?.returnTemperatureC;
+    const radiatorReturn = findComponentState(result.nextState, 'radiator_emitter')?.radiatorPrimaryReturnTemperatureC;
+    const coilReturn = findComponentState(result.nextState, 'cylinder_coil_exchanger')?.primaryCoilOutletTemperatureC;
+    const radiatorFlow = findEdgeState(result.nextState, 'conn_radiator_to_merge')?.estimatedFlowKgPerS ?? 0;
+    const coilFlow = findEdgeState(result.nextState, 'conn_coil_to_merge')?.estimatedFlowKgPerS ?? 0;
+    const expected = (radiatorFlow + coilFlow) > 0
+      ? ((radiatorFlow * (radiatorReturn ?? 0)) + (coilFlow * (coilReturn ?? 0))) / (radiatorFlow + coilFlow)
+      : undefined;
+
+    expect(expected).toBeDefined();
+    expect(boilerReturn).toBeCloseTo(expected ?? 0, 3);
+  });
+
+  it('54. inactive branch does not affect return-temperature aggregation', () => {
+    const initial = makeSPlanInitialState();
+    const room = findComponentState(initial, 'living_room');
+    if (!room) throw new Error('Room state missing.');
+    room.currentTemperatureC = 21;
+
+    const result = runLegoTechnixTickV1(
+      sPlanControlGraph,
+      initial,
+      makeTickInput(1000, undefined, 30),
+    );
+
+    expect(findEdgeState(result.nextState, 'conn_heating_valve_to_radiator')?.isActive).toBe(false);
+    const radiatorState = findComponentState(result.nextState, 'radiator_emitter');
+    const coilState = findComponentState(result.nextState, 'cylinder_coil_exchanger');
+    const boilerState = findComponentState(result.nextState, 'regular_boiler');
+    expect(radiatorState?.radiatorPrimaryReturnTemperatureC).toBeUndefined();
+    expect(boilerState?.returnTemperatureC).toBeCloseTo(coilState?.primaryCoilOutletTemperatureC ?? 0, 3);
+  });
+
+  it('55. condensing flag updates from runtime return temperature before configured fallback', () => {
+    const graph = cloneGraph(sPlanControlGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].returnTemperatureC = 65;
+
+    const inactiveInitial = makeSPlanInitialState();
+    const inactiveRoom = findComponentState(inactiveInitial, 'living_room');
+    const inactiveStore = findComponentState(inactiveInitial, 'stored_dhw_volume');
+    if (!inactiveRoom || !inactiveStore) throw new Error('Fixture state missing.');
+    inactiveRoom.currentTemperatureC = 21;
+    inactiveStore.currentTemperatureC = 60;
+
+    const inactiveResult = runLegoTechnixTickV1(
+      graph,
+      inactiveInitial,
+      makeTickInput(1000, undefined, 30),
+    );
+    expect(findComponentState(inactiveResult.nextState, 'regular_boiler')?.condensingLikely).toBe(false);
+
+    const activeInitial = makeSPlanInitialState();
+    const activeStore = findComponentState(activeInitial, 'stored_dhw_volume');
+    if (!activeStore) throw new Error('Stored water state missing.');
+    activeStore.currentTemperatureC = 60;
+    const activeResult = runLegoTechnixTickV1(
+      graph,
+      activeInitial,
+      makeTickInput(1000, undefined, 30),
+    );
+    const boilerState = findComponentState(activeResult.nextState, 'regular_boiler');
+    expect(boilerState?.returnTemperatureC).not.toBeCloseTo(65, 3);
+    expect(boilerState?.condensingLikely).toBe((boilerState?.returnTemperatureC ?? 0) < 55);
+  });
+});

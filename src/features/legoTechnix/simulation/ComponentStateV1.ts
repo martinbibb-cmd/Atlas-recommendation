@@ -41,6 +41,10 @@ export interface ComponentStateV1 {
   readonly lastPrimaryInletTemperatureC?: number;
   readonly lastPrimaryOutletTemperatureC?: number;
   readonly lastSecondaryGainKw?: number;
+  readonly primaryCoilInletTemperatureC?: number;
+  readonly primaryCoilOutletTemperatureC?: number;
+  readonly lastRecoveryKw?: number;
+  readonly radiatorPrimaryReturnTemperatureC?: number;
   readonly nominalOutputKw?: number;
   readonly minStableOutputKw?: number;
   readonly maxOutputKw?: number;
