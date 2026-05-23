@@ -652,6 +652,58 @@ export const simpleRegularBoilerGraph: LegoTechnixGraphV1 = {
       description: 'Stored domestic volume serves domestic hot draw-off.',
     },
   ],
+  heatTransferComponents: [
+    {
+      id: 'ht_radiator_emitter',
+      componentId: 'radiator_emitter',
+      family: 'radiator',
+      primaryDomain: 'primary_heating',
+      secondaryDomain: 'room_air',
+      input: {
+        primary: {
+          domain: 'primary_heating',
+          isMovingFluid: true,
+        },
+        secondary: {
+          domain: 'room_air',
+          medium: 'room_air',
+          isMovingFluid: false,
+        },
+      },
+      output: {
+        energyTransfer: {
+          primaryEnergyRemovedKw: 3.2,
+          secondaryEnergyGainedKw: 3.2,
+        },
+      },
+      notes: 'Radiator emits from primary_heating into room_air.',
+    },
+    {
+      id: 'ht_cylinder_coil',
+      componentId: 'cylinder_coil_exchanger',
+      family: 'cylinder_coil',
+      primaryDomain: 'primary_heating',
+      secondaryDomain: 'domestic_hot',
+      input: {
+        primary: {
+          domain: 'primary_heating',
+          isMovingFluid: true,
+        },
+        secondary: {
+          domain: 'domestic_hot',
+          medium: 'stored_domestic_water',
+          isMovingFluid: false,
+        },
+      },
+      output: {
+        energyTransfer: {
+          primaryEnergyRemovedKw: 2.1,
+          secondaryEnergyGainedKw: 2.1,
+        },
+      },
+      notes: 'Cylinder coil transfers into stored domestic water without domain merge.',
+    },
+  ],
   hydraulicDomains: [
     {
       id: 'primary_open_vented',

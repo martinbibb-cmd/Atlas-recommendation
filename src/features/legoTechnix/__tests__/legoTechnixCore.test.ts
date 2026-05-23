@@ -355,4 +355,59 @@ describe('validateLegoTechnixGraphV1', () => {
     expect(result.errors.some((issue) => issue.code === 'primary_path_missing_return_path')).toBe(false);
     expect(result.isValid).toBe(false);
   });
+
+  it('23. radiator heat-transfer contract conserves energy', () => {
+    const radiatorContract = simpleRegularBoilerGraph.heatTransferComponents?.find(
+      (contract) => contract.id === 'ht_radiator_emitter',
+    );
+    expect(radiatorContract).toBeDefined();
+    expect(radiatorContract?.primaryDomain).toBe('primary_heating');
+    expect(radiatorContract?.secondaryDomain).toBe('room_air');
+
+    const result = validateLegoTechnixGraphV1(simpleRegularBoilerGraph);
+    expect(result.errors.some((issue) => issue.code === 'heat_transfer_energy_not_conserved')).toBe(false);
+  });
+
+  it('24. cylinder coil contract does not merge primary and domestic domains', () => {
+    const coilContract = simpleRegularBoilerGraph.heatTransferComponents?.find(
+      (contract) => contract.id === 'ht_cylinder_coil',
+    );
+    expect(coilContract).toBeDefined();
+    expect(coilContract?.primaryDomain).toBe('primary_heating');
+    expect(coilContract?.secondaryDomain).toBe('domestic_hot');
+    expect(coilContract?.primaryDomain).not.toBe(coilContract?.secondaryDomain);
+
+    const result = validateLegoTechnixGraphV1(simpleRegularBoilerGraph);
+    expect(result.errors.some((issue) => issue.code === 'exchanger_circuit_crosses_domains')).toBe(false);
+  });
+
+  it('25. heat-transfer exchanger missing secondary domain fails', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const radiatorContract = graph.heatTransferComponents?.find(
+      (contract) => contract.id === 'ht_radiator_emitter',
+    );
+    if (!radiatorContract) {
+      throw new Error('Fixture radiator heat-transfer contract missing.');
+    }
+    delete (radiatorContract as { secondaryDomain?: string }).secondaryDomain;
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'heat_transfer_missing_secondary_domain')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('26. heat-transfer contract without energy result fails', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const radiatorContract = graph.heatTransferComponents?.find(
+      (contract) => contract.id === 'ht_radiator_emitter',
+    );
+    if (!radiatorContract) {
+      throw new Error('Fixture radiator heat-transfer contract missing.');
+    }
+    delete (radiatorContract.output as { energyTransfer?: unknown }).energyTransfer;
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'heat_transfer_missing_energy_result')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
 });

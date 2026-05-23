@@ -1,4 +1,5 @@
 import type {
+  HeatTransferComponentV1,
   LegoTechnixActiveCircuitPathV1,
   LegoTechnixCircuitDefinitionV1,
   LegoTechnixComponentV1,
@@ -520,6 +521,155 @@ function validateExchangerBoundary(
   }
 }
 
+function hasTransferDomain(
+  component: LegoTechnixComponentV1,
+  domain: LegoTechnixPortV1['domain'],
+): boolean {
+  return component.domains?.includes(domain) ?? false;
+}
+
+function validateHeatTransferContractComponent(
+  heatTransferComponent: HeatTransferComponentV1,
+  componentById: Map<string, LegoTechnixComponentV1>,
+  errors: LegoTechnixValidationIssueV1[],
+): LegoTechnixComponentV1 | undefined {
+  const component = componentById.get(heatTransferComponent.componentId);
+  if (!component) {
+    addError(
+      errors,
+      'heat_transfer_missing_component',
+      `Heat-transfer contract "${heatTransferComponent.id}" references missing component "${heatTransferComponent.componentId}".`,
+    );
+    return undefined;
+  }
+
+  if (component.role !== 'exchanger') {
+    addError(
+      errors,
+      'heat_transfer_component_not_exchanger',
+      `Heat-transfer contract "${heatTransferComponent.id}" must reference an exchanger component.`,
+    );
+  }
+  return component;
+}
+
+function validateHeatTransferContracts(
+  graph: LegoTechnixGraphV1,
+  componentById: Map<string, LegoTechnixComponentV1>,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  for (const heatTransferComponent of graph.heatTransferComponents ?? []) {
+    const exchanger = validateHeatTransferContractComponent(
+      heatTransferComponent,
+      componentById,
+      errors,
+    );
+
+    if (!heatTransferComponent.secondaryDomain) {
+      addError(
+        errors,
+        'heat_transfer_missing_secondary_domain',
+        `Heat-transfer contract "${heatTransferComponent.id}" must declare a secondaryDomain.`,
+      );
+    }
+
+    if (heatTransferComponent.primaryDomain === heatTransferComponent.secondaryDomain) {
+      addError(
+        errors,
+        'heat_transfer_bridge_requires_distinct_domains',
+        `Heat-transfer contract "${heatTransferComponent.id}" must bridge distinct domains.`,
+      );
+    }
+
+    if (exchanger) {
+      if (!hasTransferDomain(exchanger, heatTransferComponent.primaryDomain)) {
+        addError(
+          errors,
+          'heat_transfer_primary_domain_not_on_component',
+          `Heat-transfer contract "${heatTransferComponent.id}" primaryDomain "${heatTransferComponent.primaryDomain}" is not declared on component "${exchanger.id}".`,
+        );
+      }
+      if (!hasTransferDomain(exchanger, heatTransferComponent.secondaryDomain)) {
+        addError(
+          errors,
+          'heat_transfer_secondary_domain_not_on_component',
+          `Heat-transfer contract "${heatTransferComponent.id}" secondaryDomain "${heatTransferComponent.secondaryDomain}" is not declared on component "${exchanger.id}".`,
+        );
+      }
+    }
+
+    const energyTransfer = heatTransferComponent.output?.energyTransfer;
+    if (!energyTransfer) {
+      addError(
+        errors,
+        'heat_transfer_missing_energy_result',
+        `Heat-transfer contract "${heatTransferComponent.id}" must declare output.energyTransfer.`,
+      );
+      continue;
+    }
+
+    const declaredLossesKw = energyTransfer.declaredLossesKw ?? 0;
+    const energyImbalanceKw = Math.abs(
+      energyTransfer.primaryEnergyRemovedKw
+      - (energyTransfer.secondaryEnergyGainedKw + declaredLossesKw),
+    );
+    if (energyImbalanceKw > 0.0001) {
+      addError(
+        errors,
+        'heat_transfer_energy_not_conserved',
+        `Heat-transfer contract "${heatTransferComponent.id}" violates energy conservation (${energyTransfer.primaryEnergyRemovedKw}kW primary removed vs ${energyTransfer.secondaryEnergyGainedKw}kW secondary gained plus ${declaredLossesKw}kW losses).`,
+      );
+    }
+
+    if (
+      exchanger?.behaviours?.includes('emits_heat_to_room')
+      && (
+        heatTransferComponent.primaryDomain !== 'primary_heating'
+        || heatTransferComponent.secondaryDomain !== 'room_air'
+      )
+    ) {
+      addError(
+        errors,
+        'radiator_heat_transfer_domain_mismatch',
+        `Radiator-like exchanger "${exchanger.id}" must transfer from primary_heating into room_air.`,
+      );
+    }
+
+    if (heatTransferComponent.family === 'cylinder_coil') {
+      if (
+        heatTransferComponent.primaryDomain !== 'primary_heating'
+        || heatTransferComponent.secondaryDomain !== 'domestic_hot'
+      ) {
+        addError(
+          errors,
+          'cylinder_coil_heat_transfer_domain_mismatch',
+          `Cylinder coil contract "${heatTransferComponent.id}" must transfer from primary_heating into domestic_hot.`,
+        );
+      }
+      if (heatTransferComponent.input.secondary.medium !== 'stored_domestic_water') {
+        addError(
+          errors,
+          'cylinder_coil_secondary_not_stored_domestic_water',
+          `Cylinder coil contract "${heatTransferComponent.id}" must declare stored_domestic_water secondary medium.`,
+        );
+      }
+    }
+
+    if (heatTransferComponent.family === 'plate_hex') {
+      if (
+        !heatTransferComponent.input.primary.isMovingFluid
+        || !heatTransferComponent.input.secondary.isMovingFluid
+      ) {
+        addError(
+          errors,
+          'plate_hex_requires_moving_fluid_domains',
+          `Plate HEX contract "${heatTransferComponent.id}" must transfer across two moving-fluid domains.`,
+        );
+      }
+    }
+  }
+}
+
 function validatePrimaryPathSinkRole(
   path: LegoTechnixActiveCircuitPathV1,
   sinkComponent: LegoTechnixComponentV1 | undefined,
@@ -924,6 +1074,7 @@ export function validateLegoTechnixGraphV1(graph: LegoTechnixGraphV1): LegoTechn
   validatePrimaryLoadsReachability(graph, primaryPaths, connectionById, errors);
   validateBranchMergeSemantics(graph, errors);
   validateExchangerBoundary(graph, warnings, errors);
+  validateHeatTransferContracts(graph, componentById, errors);
 
   if (!graph.components.some((component) => component.role === 'environment')) {
     addWarning(
