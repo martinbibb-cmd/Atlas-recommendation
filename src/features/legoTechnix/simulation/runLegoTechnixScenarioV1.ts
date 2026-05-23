@@ -1,4 +1,5 @@
-import type { LegoTechnixDomain, LegoTechnixGraphV1 } from '../types';
+import type { LegoTechnixDomain } from '../domains';
+import type { LegoTechnixGraphV1 } from '../types';
 import type { ComponentStateV1 } from './ComponentStateV1';
 import type { DomesticDrawOffDemandV1 } from './DomesticDrawOffDemandV1';
 import type { LegoTechnixSimulationStateV1 } from './LegoTechnixSimulationStateV1';
@@ -367,14 +368,18 @@ export function runLegoTechnixScenarioV1(input: ScenarioInputV1): ScenarioResult
     }
 
     const activeTimedControlOverrides = Object.fromEntries(
-      sortedEvents
-        .filter(({ event }) => (
-          event.type === 'control_override'
-          && typeof event.durationSeconds === 'number'
-          && overlapsTick(event.atSecond, event.durationSeconds, tickStartSecond, tickEndSecond)
-          && event.clear !== true
-        ))
-        .map(({ event }) => [event.componentId, event.override]),
+      sortedEvents.flatMap(({ event }) => {
+        if (
+          event.type !== 'control_override'
+          || typeof event.durationSeconds !== 'number'
+          || !overlapsTick(event.atSecond, event.durationSeconds, tickStartSecond, tickEndSecond)
+          || event.clear === true
+        ) {
+          return [];
+        }
+
+        return [[event.componentId, event.override] as const];
+      }),
     );
     for (const { event } of sortedEvents) {
       if (
