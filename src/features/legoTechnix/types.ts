@@ -190,6 +190,36 @@ export interface HeatTransferComponentV1 {
   notes?: string;
 }
 
+export const HEAT_SOURCE_MODULATION_STRATEGIES_V1 = [
+  'load_tracking',
+  'fixed_flow_target',
+] as const;
+
+export type HeatSourceModulationStrategyV1 = (typeof HEAT_SOURCE_MODULATION_STRATEGIES_V1)[number];
+
+export const HEAT_SOURCE_CONTROL_DEMAND_STATES_V1 = [
+  'none',
+  'demanding',
+] as const;
+
+export type HeatSourceControlDemandStateV1 = (typeof HEAT_SOURCE_CONTROL_DEMAND_STATES_V1)[number];
+
+export interface HeatSourceModelV1 {
+  id: string;
+  componentId: string;
+  primaryDomain: LegoTechnixDomain;
+  nominalOutputKw: number;
+  minStableOutputKw: number;
+  maxOutputKw: number;
+  targetFlowTemperatureC: number;
+  returnTemperatureC?: number;
+  rampRateCPerSecond: number;
+  modulationStrategy: HeatSourceModulationStrategyV1;
+  controlDemandState?: HeatSourceControlDemandStateV1;
+  condensingLikely?: boolean;
+  cyclingRisk?: boolean;
+}
+
 export interface LegoTechnixGraphV1 {
   id: string;
   label: string;
@@ -200,4 +230,5 @@ export interface LegoTechnixGraphV1 {
   activeCircuitPaths?: LegoTechnixActiveCircuitPathV1[];
   hydraulicDomains?: HydraulicDomainV1[];
   heatTransferComponents?: HeatTransferComponentV1[];
+  heatSourceModels?: HeatSourceModelV1[];
 }

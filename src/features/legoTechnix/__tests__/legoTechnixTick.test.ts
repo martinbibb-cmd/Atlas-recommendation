@@ -464,6 +464,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
         makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: true,
+          regular_boiler: { demand: true },
         }, 3600),
       );
 
@@ -477,6 +478,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
         makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: true,
+          regular_boiler: { demand: true },
         }, 3600),
       );
 
@@ -507,6 +509,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
         makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: true,
+          regular_boiler: { demand: true },
         }, 3600),
       );
 
@@ -520,6 +523,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
         makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: true,
+          regular_boiler: { demand: true },
         }, 3600),
       );
 
@@ -539,7 +543,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
       const result = runLegoTechnixTickV1(
         simpleRegularBoilerGraph,
         initial,
-        makeTickInput(1000, { zone_valve: true }, 3600),
+        makeTickInput(1000, { zone_valve: true, regular_boiler: { demand: true } }, 3600),
       );
 
       expect(result.tickBlocked).toBe(false);
@@ -557,7 +561,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
       const result = runLegoTechnixTickV1(
         simpleRegularBoilerGraph,
         initial,
-        makeTickInput(1000, { zone_valve: true }, 3600),
+        makeTickInput(1000, { zone_valve: true, regular_boiler: { demand: true } }, 3600),
       );
 
       expect(result.tickBlocked).toBe(false);
@@ -570,7 +574,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
       runLegoTechnixTickV1(
         simpleRegularBoilerGraph,
         initial,
-        makeTickInput(1000, { zone_valve: true }, 3600),
+        makeTickInput(1000, { zone_valve: true, regular_boiler: { demand: true } }, 3600),
       );
       expect(JSON.stringify(initial)).toBe(frozen);
     });
@@ -583,7 +587,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
       const result = runLegoTechnixTickV1(
         graph,
         initial,
-        makeTickInput(1000, { zone_valve: true }, 3600),
+        makeTickInput(1000, { zone_valve: true, regular_boiler: { demand: true } }, 3600),
       );
 
       expect(result.tickBlocked).toBe(true);
@@ -591,12 +595,104 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
     });
 
     it('40. two identical ticks produce deterministic results', () => {
-      const input = makeTickInput(1000, { zone_valve: true }, 3600);
+      const input = makeTickInput(1000, { zone_valve: true, regular_boiler: { demand: true } }, 3600);
       const first = runLegoTechnixTickV1(simpleRegularBoilerGraph, makeSimpleInitialState(), input);
       const second = runLegoTechnixTickV1(simpleRegularBoilerGraph, makeSimpleInitialState(), input);
       expect(JSON.stringify(first.nextState)).toBe(JSON.stringify(second.nextState));
       expect(JSON.stringify(first.events)).toBe(JSON.stringify(second.events));
       expect(JSON.stringify(first.warnings)).toBe(JSON.stringify(second.warnings));
+    });
+
+    it('41. boiler is off when there is no control demand', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeSimpleInitialState(),
+        makeTickInput(1000, { zone_valve: true }, 30),
+      );
+
+      const boilerState = findComponentState(result.nextState, 'regular_boiler');
+      expect(boilerState?.operatingMode).toBe('idle');
+      expect(boilerState?.controlDemandState).toBe('none');
+      expect(boilerState?.heatGainKw).toBe(0);
+    });
+
+    it('42. boiler is held off when demand exists but no active path exists', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeSimpleInitialState(),
+        makeTickInput(1000, {
+          zone_valve: false,
+          regular_boiler: { demand: true },
+        }, 30),
+      );
+
+      const boilerState = findComponentState(result.nextState, 'regular_boiler');
+      expect(boilerState?.operatingMode).toBe('idle');
+      expect(result.warnings.some((warning) => warning.code === 'heat_source_no_active_path')).toBe(true);
+    });
+
+    it('43. boiler raises primary flow temperature during demand using ramp-rate limits', () => {
+      const initial = makeSimpleInitialState();
+      initial.componentStates.push({
+        componentId: 'regular_boiler',
+        isActive: false,
+        operatingMode: 'idle',
+        currentTemperatureC: 45,
+        returnTemperatureC: 45,
+      });
+
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(1000, {
+          zone_valve: true,
+          regular_boiler: { demand: true },
+        }, 10),
+      );
+
+      const boilerState = findComponentState(result.nextState, 'regular_boiler');
+      expect(boilerState?.currentTemperatureC).toBeCloseTo(47.5, 3);
+      expect((boilerState?.currentTemperatureC ?? 0)).toBeLessThan(boilerState?.targetFlowTemperatureC ?? 0);
+      expect(findEdgeState(result.nextState, 'conn_boiler_to_pump')?.estimatedOutletTemperatureC).toBeCloseTo(47.5, 3);
+    });
+
+    it('44. return temperature drives condensing likelihood', () => {
+      const initial = makeSimpleInitialState();
+      initial.componentStates.push({
+        componentId: 'regular_boiler',
+        isActive: false,
+        operatingMode: 'idle',
+        currentTemperatureC: 50,
+        returnTemperatureC: 45,
+      });
+
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(1000, {
+          zone_valve: true,
+          regular_boiler: { demand: true },
+        }, 30),
+      );
+
+      const boilerState = findComponentState(result.nextState, 'regular_boiler');
+      expect(boilerState?.returnTemperatureC).toBeLessThan(55);
+      expect(boilerState?.condensingLikely).toBe(true);
+    });
+
+    it('45. low load versus minimum stable output flags cycling risk', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeSimpleInitialState(),
+        makeTickInput(1000, {
+          zone_valve: true,
+          regular_boiler: { demand: true },
+        }, 30),
+      );
+
+      const boilerState = findComponentState(result.nextState, 'regular_boiler');
+      expect(boilerState?.cyclingRisk).toBe(true);
+      expect(result.warnings.some((warning) => warning.code === 'heat_source_cycling_risk')).toBe(true);
     });
   });
 });

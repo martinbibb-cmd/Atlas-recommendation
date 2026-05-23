@@ -32,6 +32,9 @@ export type {
   HeatTransferEvaluationResultV1,
 } from './evaluateHeatTransfersV1';
 
+export { evaluateHeatSourcesV1 } from './evaluateHeatSourcesV1';
+export type { HeatSourceEvaluationResultV1 } from './evaluateHeatSourcesV1';
+
 export { integrateThermalStateV1 } from './integrateThermalStateV1';
 export type { ThermalIntegrationResultV1 } from './integrateThermalStateV1';
 
