@@ -1,6 +1,7 @@
 import type { LegoTechnixBehaviour } from './behaviours';
 import type { LegoTechnixConfidence } from './confidence';
 import type { LegoTechnixDomain } from './domains';
+import type { InsulationStateV1 } from './insulationState';
 import type { LegoTechnixComponentRole } from './roles';
 
 export const LEGO_TECHNIX_PORT_DIRECTIONS = [
@@ -71,6 +72,11 @@ export interface LegoTechnixConnectionPhysicalV1 {
   waterVolumeLitres?: number;
   estimatedResistanceIndex?: number;
   routingConfidence?: LegoTechnixConfidence;
+  insulationState?: InsulationStateV1;
+  /** Domain id of the ambient environment the pipe passes through (e.g. outside_environment, room_air). */
+  ambientDomainId?: string;
+  /** Steady-state heat loss per metre of pipe run at design conditions (W/m). */
+  simpleHeatLossWPerM?: number;
 }
 
 export interface LegoTechnixConnectionV1 {

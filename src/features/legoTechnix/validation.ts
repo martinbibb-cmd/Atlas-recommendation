@@ -9,6 +9,7 @@ import type {
   HydraulicPreFlightMarkerV1,
   LegoTechnixPortV1,
 } from './types';
+import { isWaterCarryingDomain } from './hydraulicConnectionEdge';
 
 export interface LegoTechnixValidationIssueV1 {
   code: string;
@@ -922,11 +923,23 @@ export function validateLegoTechnixGraphV1(graph: LegoTechnixGraphV1): LegoTechn
       );
     }
 
-    if (!hasHydraulicLengthAndBoreData(connection)) {
+    if (isWaterCarryingDomain(connection.domain) && !hasHydraulicLengthAndBoreData(connection)) {
       addWarning(
         warnings,
         'connection_missing_physical_assumptions',
-        `Connection "${connection.id}" is missing length and bore assumptions.`,
+        `Connection "${connection.id}" is a water-carrying hydraulic edge and is missing length and bore assumptions.`,
+      );
+    }
+
+    if (
+      !isWaterCarryingDomain(connection.domain)
+      && typeof connection.physical.waterVolumeLitres === 'number'
+      && connection.physical.waterVolumeLitres > 0
+    ) {
+      addWarning(
+        warnings,
+        'non_hydraulic_connection_has_water_volume',
+        `Connection "${connection.id}" is in a non-hydraulic domain ("${connection.domain}") but declares a positive waterVolumeLitres — this value will not contribute to system water volume.`,
       );
     }
 

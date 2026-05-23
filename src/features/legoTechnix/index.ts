@@ -7,6 +7,15 @@ export type { LegoTechnixConfidence } from './confidence';
 export { LEGO_TECHNIX_DOMAINS } from './domains';
 export type { LegoTechnixDomain } from './domains';
 
+export { INSULATION_STATES_V1 } from './insulationState';
+export type { InsulationStateV1 } from './insulationState';
+
+export {
+  deriveWaterVolumeLitres,
+  isWaterCarryingDomain,
+  sumHydraulicDomainEdgeVolumes,
+} from './hydraulicConnectionEdge';
+
 export { LEGO_TECHNIX_COMPONENT_ROLES } from './roles';
 export type { LegoTechnixComponentRole } from './roles';
 
