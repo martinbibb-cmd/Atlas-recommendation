@@ -57,3 +57,17 @@ export type {
 export { validateLegoTechnixGraphV1 } from './validation';
 
 export { simpleRegularBoilerGraph } from './fixtures/simpleRegularBoilerGraph';
+
+export { COMPONENT_OPERATING_MODES_V1 } from './simulation';
+export type {
+  ComponentOperatingModeV1,
+  ComponentStateV1,
+  DomainStateV1,
+  EdgeStateV1,
+  LegoTechnixSimulationEventV1,
+  LegoTechnixSimulationStateV1,
+  LegoTechnixSimulationWarningV1,
+  LegoTechnixTickInputV1,
+  LegoTechnixTickResultV1,
+} from './simulation';
+export { runLegoTechnixTickV1 } from './simulation';
