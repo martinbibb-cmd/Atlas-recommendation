@@ -82,6 +82,7 @@ export type {
   ComponentOperatingModeV1,
   ComponentStateV1,
   ControlEvaluationResultV1,
+  DomesticDrawOffDemandV1,
   DomainStateV1,
   EdgeFlowEstimateV1,
   EdgeStateV1,
