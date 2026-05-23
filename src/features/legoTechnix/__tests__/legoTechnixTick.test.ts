@@ -354,3 +354,98 @@ describe('runLegoTechnixTickV1 — active hydraulic path resolution', () => {
     ))).toBe(true);
   });
 });
+
+describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
+  it('25. active single loop receives non-zero flow estimates', () => {
+    const result = runLegoTechnixTickV1(
+      simpleRegularBoilerGraph,
+      makeInitialState(),
+      makeTickInput(),
+    );
+
+    const activeEdges = result.nextState.edgeStates.filter((edgeState) => edgeState.isActive);
+    expect(activeEdges.length).toBeGreaterThan(0);
+    expect(activeEdges.every((edgeState) => (edgeState.estimatedFlowLps ?? 0) > 0)).toBe(true);
+    expect(activeEdges.every((edgeState) => edgeState.estimatedFlowKgPerS === edgeState.estimatedFlowLps)).toBe(true);
+  });
+
+  it('26. closed branch receives zero flow', () => {
+    const result = runLegoTechnixTickV1(
+      branchingBypassGraph,
+      makeInitialState(),
+      makeTickInput(1000, {
+        zone_valve: true,
+        auto_bypass_valve: false,
+      }),
+    );
+
+    expect(findEdgeState(result.nextState, 'conn_abv_to_bypass_load')?.estimatedFlowLps).toBe(0);
+    expect(findEdgeState(result.nextState, 'conn_bypass_load_to_merge')?.estimatedFlowLps).toBe(0);
+  });
+
+  it('27. bypass branch receives flow when active', () => {
+    const result = runLegoTechnixTickV1(
+      branchingBypassGraph,
+      makeInitialState(),
+      makeTickInput(1000, {
+        zone_valve: false,
+        auto_bypass_valve: true,
+      }),
+    );
+
+    expect((findEdgeState(result.nextState, 'conn_split_to_abv')?.estimatedFlowLps ?? 0)).toBeGreaterThan(0);
+    expect((findEdgeState(result.nextState, 'conn_abv_to_bypass_load')?.estimatedFlowLps ?? 0)).toBeGreaterThan(0);
+    expect((findEdgeState(result.nextState, 'conn_bypass_load_to_merge')?.estimatedFlowLps ?? 0)).toBeGreaterThan(0);
+  });
+
+  it('28. parallel active branches split deterministically by resistance assumptions', () => {
+    const input = makeTickInput(1000, {
+      zone_valve: true,
+      auto_bypass_valve: true,
+    });
+
+    const first = runLegoTechnixTickV1(branchingBypassGraph, makeInitialState(), input);
+    const second = runLegoTechnixTickV1(branchingBypassGraph, makeInitialState(), input);
+
+    const heatingBranchFlow = findEdgeState(first.nextState, 'conn_zone_valve_to_radiator')?.estimatedFlowLps ?? 0;
+    const bypassBranchFlow = findEdgeState(first.nextState, 'conn_abv_to_bypass_load')?.estimatedFlowLps ?? 0;
+
+    expect(heatingBranchFlow).toBeGreaterThan(0);
+    expect(bypassBranchFlow).toBeGreaterThan(0);
+    expect(heatingBranchFlow).not.toBe(bypassBranchFlow);
+    expect(JSON.stringify(first.nextState.edgeStates)).toBe(JSON.stringify(second.nextState.edgeStates));
+  });
+
+  it('29. merged return flow equals sum of active return branches', () => {
+    const result = runLegoTechnixTickV1(
+      branchingBypassGraph,
+      makeInitialState(),
+      makeTickInput(1000, {
+        zone_valve: true,
+        auto_bypass_valve: true,
+      }),
+    );
+
+    const mergeFlow = findEdgeState(result.nextState, 'conn_merge_to_filter')?.estimatedFlowLps ?? 0;
+    const heatingReturnFlow = findEdgeState(result.nextState, 'conn_radiator_to_merge')?.estimatedFlowLps ?? 0;
+    const bypassReturnFlow = findEdgeState(result.nextState, 'conn_bypass_load_to_merge')?.estimatedFlowLps ?? 0;
+
+    expect(mergeFlow).toBeCloseTo(heatingReturnFlow + bypassReturnFlow, 3);
+  });
+
+  it('30. flow allocation still does not calculate temperatures', () => {
+    const result = runLegoTechnixTickV1(
+      branchingBypassGraph,
+      makeInitialState(),
+      makeTickInput(1000, {
+        zone_valve: true,
+        auto_bypass_valve: true,
+      }),
+    );
+
+    expect(result.nextState.edgeStates.every((edgeState) => (
+      edgeState.estimatedInletTemperatureC === undefined
+      && edgeState.estimatedOutletTemperatureC === undefined
+    ))).toBe(true);
+  });
+});

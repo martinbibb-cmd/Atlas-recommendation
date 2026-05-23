@@ -65,16 +65,21 @@ export type {
   ComponentOperatingModeV1,
   ComponentStateV1,
   DomainStateV1,
+  EdgeFlowEstimateV1,
   EdgeStateV1,
+  FlowRiskBandV1,
   LegoTechnixSimulationEventV1,
   LegoTechnixSimulationStateV1,
   LegoTechnixSimulationWarningV1,
   LegoTechnixTickInputV1,
   LegoTechnixTickResultV1,
+  MassFlowAllocationResultV1,
   ResolvedActivePathV1,
 } from './simulation';
 export {
   ACTIVE_PATH_REASONS_V1,
+  FLOW_RISK_BANDS_V1,
+  allocateMassFlowV1,
   resolveActivePathsV1,
   runLegoTechnixTickV1,
 } from './simulation';
