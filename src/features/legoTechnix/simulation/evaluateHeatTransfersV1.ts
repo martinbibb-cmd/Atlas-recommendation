@@ -1,3 +1,4 @@
+import type { LegoTechnixDomain } from '../domains';
 import type { HeatTransferComponentV1, LegoTechnixGraphV1 } from '../types';
 import type { ActivePathResolutionV1 } from './resolveActivePathsV1';
 import type { EdgeStateV1 } from './EdgeStateV1';
@@ -32,6 +33,11 @@ export interface HeatTransferEvaluationResultV1 {
   readonly warnings: readonly LegoTechnixSimulationWarningV1[];
 }
 
+export interface EvaluateHeatTransfersOptionsV1 {
+  readonly initialEdgeTemperatureByConnectionId?: Readonly<Record<string, EdgeTemperatureEstimateV1>>;
+  readonly primaryOutputScaleByDomain?: Readonly<Partial<Record<LegoTechnixDomain, number>>>;
+}
+
 interface EvaluatedHeatTransferComponentV1 {
   readonly contract: HeatTransferComponentV1;
   readonly orderIndex: number;
@@ -39,6 +45,10 @@ interface EvaluatedHeatTransferComponentV1 {
 
 function round3(value: number): number {
   return Number(value.toFixed(3));
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function buildPrimaryComponentOrderIndexById(graph: LegoTechnixGraphV1): ReadonlyMap<string, number> {
@@ -147,12 +157,15 @@ export function evaluateHeatTransfersV1(
   graph: LegoTechnixGraphV1,
   activePathResolution: ActivePathResolutionV1,
   edgeStates: readonly EdgeStateV1[],
+  options: EvaluateHeatTransfersOptionsV1 = {},
 ): HeatTransferEvaluationResultV1 {
   const activeComponentIds = new Set(activePathResolution.activeComponentIds);
   const edgeStateByConnectionId = getEdgeStateByConnectionId(edgeStates);
   const events: LegoTechnixSimulationEventV1[] = [];
   const warnings: LegoTechnixSimulationWarningV1[] = [];
-  const edgeTemperatureByConnectionId: Record<string, EdgeTemperatureEstimateV1> = {};
+  const edgeTemperatureByConnectionId: Record<string, EdgeTemperatureEstimateV1> = {
+    ...(options.initialEdgeTemperatureByConnectionId ?? {}),
+  };
   const transferByComponentId: Record<string, HeatTransferComponentTickStateV1> = {};
   const componentOrderIndexById = buildPrimaryComponentOrderIndexById(graph);
 
@@ -172,18 +185,6 @@ export function evaluateHeatTransfersV1(
   for (const { contract } of contracts) {
     const energyTransfer = contract.output.energyTransfer;
     const declaredLossesKw = energyTransfer.declaredLossesKw ?? 0;
-    const energyImbalanceKw = Math.abs(
-      energyTransfer.primaryEnergyRemovedKw
-      - (energyTransfer.secondaryEnergyGainedKw + declaredLossesKw),
-    );
-
-    if (energyImbalanceKw > ENERGY_BALANCE_TOLERANCE_KW) {
-      warnings.push({
-        code: 'heat_transfer_energy_imbalance',
-        componentId: contract.componentId,
-        message: `Heat-transfer contract "${contract.id}" is imbalanced by ${round3(energyImbalanceKw)}kW.`,
-      });
-    }
 
     const inletConnectionId = getPrimaryInletConnectionId(graph, contract.componentId, contract.primaryDomain);
     const outletConnectionId = getPrimaryOutletConnectionId(graph, contract.componentId, contract.primaryDomain);
@@ -194,7 +195,11 @@ export function evaluateHeatTransfersV1(
     const hasActivePrimaryFlow = (
       (inletEdgeState?.isActive ?? false) || (outletEdgeState?.isActive ?? false)
     ) && massFlowKgPerS > 0;
-    const isActive = activeComponentIds.has(contract.componentId) && hasActivePrimaryFlow;
+    const primaryOutputScale = options.primaryOutputScaleByDomain?.[contract.primaryDomain];
+    const outputScale = typeof primaryOutputScale === 'number' && Number.isFinite(primaryOutputScale)
+      ? clamp(primaryOutputScale, 0, 1)
+      : 1;
+    const isActive = activeComponentIds.has(contract.componentId) && hasActivePrimaryFlow && outputScale > 0;
 
     if (!isActive) {
       transferByComponentId[contract.componentId] = {
@@ -210,13 +215,29 @@ export function evaluateHeatTransfersV1(
       continue;
     }
 
+    const primaryEnergyRemovedKw = energyTransfer.primaryEnergyRemovedKw * outputScale;
+    const secondaryEnergyGainedKw = energyTransfer.secondaryEnergyGainedKw * outputScale;
+    const scaledDeclaredLossesKw = declaredLossesKw * outputScale;
+    const energyImbalanceKw = Math.abs(
+      primaryEnergyRemovedKw
+      - (secondaryEnergyGainedKw + scaledDeclaredLossesKw),
+    );
+
+    if (energyImbalanceKw > ENERGY_BALANCE_TOLERANCE_KW) {
+      warnings.push({
+        code: 'heat_transfer_energy_imbalance',
+        componentId: contract.componentId,
+        message: `Heat-transfer contract "${contract.id}" is imbalanced by ${round3(energyImbalanceKw)}kW.`,
+      });
+    }
+
     const primaryInletTemperatureC = resolvePrimaryInletTemperatureC(
       contract,
       inletConnectionId,
       edgeStateByConnectionId,
       edgeTemperatureByConnectionId,
     );
-    const deltaTemperatureK = energyTransfer.primaryEnergyRemovedKw
+    const deltaTemperatureK = primaryEnergyRemovedKw
       / (massFlowKgPerS * WATER_SPECIFIC_HEAT_KJ_PER_KG_K);
     const primaryOutletTemperatureC = round3(primaryInletTemperatureC - deltaTemperatureK);
 
@@ -229,22 +250,22 @@ export function evaluateHeatTransfersV1(
 
     transferByComponentId[contract.componentId] = {
       family: contract.family,
-      lastTransferKw: round3(energyTransfer.primaryEnergyRemovedKw),
+      lastTransferKw: round3(primaryEnergyRemovedKw),
       lastPrimaryInletTemperatureC: primaryInletTemperatureC,
       lastPrimaryOutletTemperatureC: primaryOutletTemperatureC,
-      lastSecondaryGainKw: round3(energyTransfer.secondaryEnergyGainedKw),
+      lastSecondaryGainKw: round3(secondaryEnergyGainedKw),
     };
 
     if (contract.family === 'radiator') {
-      roomHeatGainKw += energyTransfer.secondaryEnergyGainedKw;
+      roomHeatGainKw += secondaryEnergyGainedKw;
     } else if (contract.family === 'cylinder_coil') {
-      storedWaterHeatGainKw += energyTransfer.secondaryEnergyGainedKw;
+      storedWaterHeatGainKw += secondaryEnergyGainedKw;
     }
 
     events.push({
       type: 'heat_transfer_evaluated',
       componentId: contract.componentId,
-      message: `Heat transfer "${contract.id}" removed ${round3(energyTransfer.primaryEnergyRemovedKw)}kW from primary and delivered ${round3(energyTransfer.secondaryEnergyGainedKw)}kW to ${contract.input.secondary.medium}.`,
+      message: `Heat transfer "${contract.id}" removed ${round3(primaryEnergyRemovedKw)}kW from primary and delivered ${round3(secondaryEnergyGainedKw)}kW to ${contract.input.secondary.medium}.`,
     });
   }
 

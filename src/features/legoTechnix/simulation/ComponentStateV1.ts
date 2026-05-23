@@ -1,3 +1,8 @@
+import type {
+  HeatSourceControlDemandStateV1,
+  HeatSourceModulationStrategyV1,
+} from '../types';
+
 export const COMPONENT_OPERATING_MODES_V1 = [
   'idle',
   'running',
@@ -29,4 +34,14 @@ export interface ComponentStateV1 {
   readonly lastPrimaryInletTemperatureC?: number;
   readonly lastPrimaryOutletTemperatureC?: number;
   readonly lastSecondaryGainKw?: number;
+  readonly nominalOutputKw?: number;
+  readonly minStableOutputKw?: number;
+  readonly maxOutputKw?: number;
+  readonly targetFlowTemperatureC?: number;
+  readonly returnTemperatureC?: number;
+  readonly rampRateCPerSecond?: number;
+  readonly modulationStrategy?: HeatSourceModulationStrategyV1;
+  readonly controlDemandState?: HeatSourceControlDemandStateV1;
+  readonly condensingLikely?: boolean;
+  readonly cyclingRisk?: boolean;
 }

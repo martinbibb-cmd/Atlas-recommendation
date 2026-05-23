@@ -9,6 +9,8 @@ import type { MassFlowAllocationResultV1 } from './allocateMassFlowV1';
 import { allocateMassFlowV1 } from './allocateMassFlowV1';
 import type { HeatTransferEvaluationResultV1 } from './evaluateHeatTransfersV1';
 import { evaluateHeatTransfersV1 } from './evaluateHeatTransfersV1';
+import type { HeatSourceEvaluationResultV1 } from './evaluateHeatSourcesV1';
+import { evaluateHeatSourcesV1 } from './evaluateHeatSourcesV1';
 import { integrateThermalStateV1 } from './integrateThermalStateV1';
 import type {
   LegoTechnixSimulationEventV1,
@@ -108,11 +110,16 @@ function runThermalComponentEvaluation(
   graph: LegoTechnixGraphV1,
   activePathResolution: ActivePathResolutionV1,
   edgeStates: readonly EdgeStateV1[],
+  heatSourceResult: HeatSourceEvaluationResultV1,
 ): ThermalEvalResult {
   const evaluation: HeatTransferEvaluationResultV1 = evaluateHeatTransfersV1(
     graph,
     activePathResolution,
     edgeStates,
+    {
+      initialEdgeTemperatureByConnectionId: heatSourceResult.edgeTemperatureByConnectionId,
+      primaryOutputScaleByDomain: heatSourceResult.primaryOutputScaleByDomain,
+    },
   );
 
   return evaluation;
@@ -160,8 +167,10 @@ function buildComponentStates(
     const thermalPatch = thermalStateByComponentId[component.id];
     return {
       componentId: component.id,
-      isActive: activeComponentIds.has(component.id),
-      operatingMode: activePathResolution.componentOperatingModes[component.id] ?? 'idle',
+      isActive: thermalPatch?.isActive ?? activeComponentIds.has(component.id),
+      operatingMode: thermalPatch?.operatingMode
+        ?? activePathResolution.componentOperatingModes[component.id]
+        ?? 'idle',
       measuredTemperatureC: prev?.measuredTemperatureC,
       setpointTemperatureC: prev?.setpointTemperatureC,
       currentTemperatureC: thermalPatch?.currentTemperatureC ?? prev?.currentTemperatureC,
@@ -188,6 +197,16 @@ function buildComponentStates(
         ?? prev?.lastPrimaryOutletTemperatureC
       ),
       lastSecondaryGainKw: thermalPatch?.lastSecondaryGainKw ?? prev?.lastSecondaryGainKw,
+      nominalOutputKw: thermalPatch?.nominalOutputKw ?? prev?.nominalOutputKw,
+      minStableOutputKw: thermalPatch?.minStableOutputKw ?? prev?.minStableOutputKw,
+      maxOutputKw: thermalPatch?.maxOutputKw ?? prev?.maxOutputKw,
+      targetFlowTemperatureC: thermalPatch?.targetFlowTemperatureC ?? prev?.targetFlowTemperatureC,
+      returnTemperatureC: thermalPatch?.returnTemperatureC ?? prev?.returnTemperatureC,
+      rampRateCPerSecond: thermalPatch?.rampRateCPerSecond ?? prev?.rampRateCPerSecond,
+      modulationStrategy: thermalPatch?.modulationStrategy ?? prev?.modulationStrategy,
+      controlDemandState: thermalPatch?.controlDemandState ?? prev?.controlDemandState,
+      condensingLikely: thermalPatch?.condensingLikely ?? prev?.condensingLikely,
+      cyclingRisk: thermalPatch?.cyclingRisk ?? prev?.cyclingRisk,
     };
   });
 }
@@ -298,8 +317,24 @@ export function runLegoTechnixTickV1(
 
   const edgeStatesAfterFlow = buildEdgeStates(graph, previousState, pathResult, flowResult.allocation);
 
+  // Stage 3c — heat-source behaviour and supply temperature
+  const heatSourceResult = evaluateHeatSourcesV1(
+    graph,
+    previousState,
+    pathResult,
+    edgeStatesAfterFlow,
+    tickInput,
+  );
+  events.push(...heatSourceResult.events);
+  warnings.push(...heatSourceResult.warnings);
+
   // Stage 4 — thermal/component evaluation
-  const thermalResult = runThermalComponentEvaluation(graph, pathResult, edgeStatesAfterFlow);
+  const thermalResult = runThermalComponentEvaluation(
+    graph,
+    pathResult,
+    edgeStatesAfterFlow,
+    heatSourceResult,
+  );
   events.push(...thermalResult.events);
   warnings.push(...thermalResult.warnings);
 
@@ -307,6 +342,16 @@ export function runLegoTechnixTickV1(
   const envResult = runEnvironmentIntegration(graph, previousState, thermalResult, tickInput);
   events.push(...envResult.events);
   warnings.push(...envResult.warnings);
+
+  const mergedThermalStateByComponentId: Record<string, Partial<ComponentStateV1>> = {
+    ...heatSourceResult.thermalStateByComponentId,
+  };
+  for (const [componentId, patch] of Object.entries(envResult.thermalStateByComponentId)) {
+    mergedThermalStateByComponentId[componentId] = {
+      ...(mergedThermalStateByComponentId[componentId] ?? {}),
+      ...patch,
+    };
+  }
 
   // Stage 6 — state commit
   const nextState: LegoTechnixSimulationStateV1 = {
@@ -317,7 +362,7 @@ export function runLegoTechnixTickV1(
       graph,
       previousState,
       pathResult,
-      envResult.thermalStateByComponentId,
+      mergedThermalStateByComponentId,
     ),
     edgeStates: buildEdgeStates(
       graph,

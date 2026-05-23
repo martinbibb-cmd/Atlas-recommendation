@@ -709,6 +709,23 @@ export const simpleRegularBoilerGraph: LegoTechnixGraphV1 = {
       notes: 'Cylinder coil transfers into stored domestic water without domain merge.',
     },
   ],
+  heatSourceModels: [
+    {
+      id: 'regular_boiler_heat_source',
+      componentId: 'regular_boiler',
+      primaryDomain: 'primary_heating',
+      nominalOutputKw: 24,
+      minStableOutputKw: 6,
+      maxOutputKw: 30,
+      targetFlowTemperatureC: 70,
+      returnTemperatureC: 45,
+      rampRateCPerSecond: 0.25,
+      modulationStrategy: 'load_tracking',
+      controlDemandState: 'none',
+      condensingLikely: false,
+      cyclingRisk: false,
+    },
+  ],
   hydraulicDomains: [
     {
       id: 'primary_open_vented',
