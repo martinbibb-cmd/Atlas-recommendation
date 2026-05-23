@@ -56,7 +56,10 @@ export type {
 
 export { validateLegoTechnixGraphV1 } from './validation';
 
-export { simpleRegularBoilerGraph } from './fixtures/simpleRegularBoilerGraph';
+export {
+  simpleRegularBoilerGraph,
+  simpleRegularBoilerInitialStateV1,
+} from './fixtures/simpleRegularBoilerGraph';
 
 export { COMPONENT_OPERATING_MODES_V1 } from './simulation';
 export type {
@@ -68,6 +71,7 @@ export type {
   EdgeFlowEstimateV1,
   EdgeStateV1,
   FlowRiskBandV1,
+  HeatTransferComponentTickStateV1,
   HeatTransferEvaluationResultV1,
   LegoTechnixSimulationEventV1,
   LegoTechnixSimulationStateV1,
@@ -76,12 +80,14 @@ export type {
   LegoTechnixTickResultV1,
   MassFlowAllocationResultV1,
   ResolvedActivePathV1,
+  ThermalIntegrationResultV1,
 } from './simulation';
 export {
   ACTIVE_PATH_REASONS_V1,
   FLOW_RISK_BANDS_V1,
   allocateMassFlowV1,
   evaluateHeatTransfersV1,
+  integrateThermalStateV1,
   resolveActivePathsV1,
   runLegoTechnixTickV1,
 } from './simulation';

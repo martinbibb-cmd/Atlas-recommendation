@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { branchingBypassGraph } from '../fixtures/branchingBypassGraph';
-import { simpleRegularBoilerGraph } from '../fixtures/simpleRegularBoilerGraph';
+import {
+  simpleRegularBoilerGraph,
+  simpleRegularBoilerInitialStateV1,
+} from '../fixtures/simpleRegularBoilerGraph';
 import type { LegoTechnixGraphV1 } from '../types';
 import type { LegoTechnixSimulationStateV1 } from '../simulation/LegoTechnixSimulationStateV1';
 import type { LegoTechnixTickInputV1 } from '../simulation/LegoTechnixTickInputV1';
@@ -21,13 +24,22 @@ function makeInitialState(wallClockMs = 0): LegoTechnixSimulationStateV1 {
   };
 }
 
+function makeSimpleInitialState(wallClockMs = 0): LegoTechnixSimulationStateV1 {
+  const base = JSON.parse(JSON.stringify(simpleRegularBoilerInitialStateV1)) as LegoTechnixSimulationStateV1;
+  return {
+    ...base,
+    wallClockMs,
+  };
+}
+
 function makeTickInput(
   wallClockMs = 1000,
   controlOverrides?: Readonly<Record<string, unknown>>,
+  timestepSeconds = 1,
 ): LegoTechnixTickInputV1 {
   return {
     wallClockMs,
-    timestepSeconds: 1,
+    timestepSeconds,
     controlOverrides,
   };
 }
@@ -445,105 +457,146 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
     ))).toBe(true);
   });
 
-  describe('runLegoTechnixTickV1 — thermal evaluation skeleton', () => {
-    it('31. active radiator and cylinder coil transfer heat into room and stored water placeholders', () => {
+  describe('runLegoTechnixTickV1 — thermal integration', () => {
+    it('31. radiator heat transfer raises room temperature over a tick', () => {
       const result = runLegoTechnixTickV1(
         simpleRegularBoilerGraph,
-        makeInitialState(),
+        makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: true,
-        }),
+        }, 3600),
       );
 
-      const radiatorEvent = result.events.find((event) => (
-        event.type === 'heat_transfer_evaluated' && event.componentId === 'radiator_emitter'
-      ));
-      const coilEvent = result.events.find((event) => (
-        event.type === 'heat_transfer_evaluated' && event.componentId === 'cylinder_coil_exchanger'
-      ));
-      const roomGainEvent = result.events.find((event) => event.type === 'room_heat_gain_placeholder');
-      const storedWaterGainEvent = result.events.find((event) => (
-        event.type === 'stored_water_heat_gain_placeholder'
-      ));
-
-      expect(radiatorEvent?.message).toContain('removed 3.2kW');
-      expect(radiatorEvent?.message).toContain('delivered 3.2kW');
-      expect(coilEvent?.message).toContain('removed 2.1kW');
-      expect(coilEvent?.message).toContain('delivered 2.1kW');
-      expect(roomGainEvent?.message).toContain('3.2kW');
-      expect(storedWaterGainEvent?.message).toContain('2.1kW');
+      const roomState = findComponentState(result.nextState, 'living_room');
+      expect((roomState?.currentTemperatureC ?? 0)).toBeGreaterThan(18);
     });
 
-    it('32. inactive primary branch transfers 0kW for radiator and cylinder coil', () => {
+    it('32. room heat loss reduces net gain when outside is colder', () => {
       const result = runLegoTechnixTickV1(
         simpleRegularBoilerGraph,
-        makeInitialState(),
+        makeSimpleInitialState(),
+        makeTickInput(1000, {
+          zone_valve: true,
+        }, 3600),
+      );
+
+      const roomState = findComponentState(result.nextState, 'living_room');
+      expect(roomState?.heatGainKw).toBeCloseTo(3.2, 3);
+      expect((roomState?.heatLossKw ?? 0)).toBeGreaterThan(0);
+      expect((roomState?.netHeatKw ?? 0)).toBeLessThan(roomState?.heatGainKw ?? 0);
+    });
+
+    it('33. room state is unchanged when radiator branch inactive', () => {
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: false,
-        }),
+        }, 3600),
       );
 
-      const radiatorInactiveEvent = result.events.find((event) => (
-        event.type === 'heat_transfer_inactive' && event.componentId === 'radiator_emitter'
-      ));
-      const coilInactiveEvent = result.events.find((event) => (
-        event.type === 'heat_transfer_inactive' && event.componentId === 'cylinder_coil_exchanger'
-      ));
-      const roomGainEvent = result.events.find((event) => event.type === 'room_heat_gain_placeholder');
-      const storedWaterGainEvent = result.events.find((event) => (
-        event.type === 'stored_water_heat_gain_placeholder'
-      ));
-
-      expect(radiatorInactiveEvent?.message).toContain('0kW');
-      expect(coilInactiveEvent?.message).toContain('0kW');
-      expect(roomGainEvent?.message).toContain('0kW');
-      expect(storedWaterGainEvent?.message).toContain('0kW');
+      const roomState = findComponentState(result.nextState, 'living_room');
+      expect(roomState?.currentTemperatureC).toBe(18);
+      expect(roomState?.heatGainKw).toBe(0);
+      expect(roomState?.netHeatKw).toBe(0);
     });
 
-    it('33. radiator outlet temperature drops consistently with heat transfer and flow', () => {
+    it('34. cylinder coil heat transfer raises stored-water temperature', () => {
       const result = runLegoTechnixTickV1(
         simpleRegularBoilerGraph,
-        makeInitialState(),
+        makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: true,
-        }),
+        }, 3600),
       );
 
-      const radiatorOutlet = findEdgeState(result.nextState, 'conn_radiator_to_filter');
-      expect(radiatorOutlet?.estimatedInletTemperatureC).toBeDefined();
-      expect(radiatorOutlet?.estimatedOutletTemperatureC).toBeDefined();
-      expect((radiatorOutlet?.estimatedInletTemperatureC ?? 0)).toBeGreaterThan(
-        radiatorOutlet?.estimatedOutletTemperatureC ?? 0,
-      );
-
-      const flowKgPerS = radiatorOutlet?.estimatedFlowKgPerS ?? 0;
-      const expectedDeltaC = 3.2 / (flowKgPerS * 4.186);
-      const observedDeltaC = (radiatorOutlet?.estimatedInletTemperatureC ?? 0)
-        - (radiatorOutlet?.estimatedOutletTemperatureC ?? 0);
-      expect(observedDeltaC).toBeCloseTo(expectedDeltaC, 3);
+      const storeState = findComponentState(result.nextState, 'stored_dhw_volume');
+      expect((storeState?.currentTemperatureC ?? 0)).toBeGreaterThan(45);
     });
 
-    it('34. cylinder coil outlet temperature drops consistently with heat transfer and flow', () => {
+    it('35. stored-water temperature update uses 1.16 Wh/L/K conversion', () => {
       const result = runLegoTechnixTickV1(
         simpleRegularBoilerGraph,
-        makeInitialState(),
+        makeSimpleInitialState(),
         makeTickInput(1000, {
           zone_valve: true,
-        }),
+        }, 3600),
       );
 
-      const coilOutlet = findEdgeState(result.nextState, 'conn_coil_to_radiator');
-      expect(coilOutlet?.estimatedInletTemperatureC).toBeDefined();
-      expect(coilOutlet?.estimatedOutletTemperatureC).toBeDefined();
-      expect((coilOutlet?.estimatedInletTemperatureC ?? 0)).toBeGreaterThan(
-        coilOutlet?.estimatedOutletTemperatureC ?? 0,
+      const storeState = findComponentState(result.nextState, 'stored_dhw_volume');
+      const expectedTemp = 45 + (2.1 / ((150 * 1.16) / 1000));
+      expect(storeState?.currentTemperatureC).toBeCloseTo(expectedTemp, 3);
+    });
+
+    it('36. missing room thermal mass emits warning, not fatal error', () => {
+      const initial = makeSimpleInitialState();
+      const roomState = initial.componentStates.find((state) => state.componentId === 'living_room');
+      if (!roomState) {
+        throw new Error('Fixture room state missing.');
+      }
+      delete (roomState as { thermalMassKwhPerK?: number }).thermalMassKwhPerK;
+
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(1000, { zone_valve: true }, 3600),
       );
 
-      const flowKgPerS = coilOutlet?.estimatedFlowKgPerS ?? 0;
-      const expectedDeltaC = 2.1 / (flowKgPerS * 4.186);
-      const observedDeltaC = (coilOutlet?.estimatedInletTemperatureC ?? 0)
-        - (coilOutlet?.estimatedOutletTemperatureC ?? 0);
-      expect(observedDeltaC).toBeCloseTo(expectedDeltaC, 3);
+      expect(result.tickBlocked).toBe(false);
+      expect(result.warnings.some((warning) => warning.code === 'room_thermal_mass_missing')).toBe(true);
+    });
+
+    it('37. missing stored-water volume emits warning, not fatal error', () => {
+      const initial = makeSimpleInitialState();
+      const storeState = initial.componentStates.find((state) => state.componentId === 'stored_dhw_volume');
+      if (!storeState) {
+        throw new Error('Fixture stored-water state missing.');
+      }
+      delete (storeState as { volumeLitres?: number }).volumeLitres;
+
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(1000, { zone_valve: true }, 3600),
+      );
+
+      expect(result.tickBlocked).toBe(false);
+      expect(result.warnings.some((warning) => warning.code === 'stored_water_volume_missing')).toBe(true);
+    });
+
+    it('38. previousState is not mutated', () => {
+      const initial = makeSimpleInitialState();
+      const frozen = JSON.stringify(initial);
+      runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(1000, { zone_valve: true }, 3600),
+      );
+      expect(JSON.stringify(initial)).toBe(frozen);
+    });
+
+    it('39. blocked tick does not integrate thermal state', () => {
+      const graph = cloneGraph(simpleRegularBoilerGraph);
+      graph.connections[0].sourceComponentId = 'does_not_exist';
+      const initial = makeSimpleInitialState();
+
+      const result = runLegoTechnixTickV1(
+        graph,
+        initial,
+        makeTickInput(1000, { zone_valve: true }, 3600),
+      );
+
+      expect(result.tickBlocked).toBe(true);
+      expect(result.nextState).toBe(initial);
+    });
+
+    it('40. two identical ticks produce deterministic results', () => {
+      const input = makeTickInput(1000, { zone_valve: true }, 3600);
+      const first = runLegoTechnixTickV1(simpleRegularBoilerGraph, makeSimpleInitialState(), input);
+      const second = runLegoTechnixTickV1(simpleRegularBoilerGraph, makeSimpleInitialState(), input);
+      expect(JSON.stringify(first.nextState)).toBe(JSON.stringify(second.nextState));
+      expect(JSON.stringify(first.events)).toBe(JSON.stringify(second.events));
+      expect(JSON.stringify(first.warnings)).toBe(JSON.stringify(second.warnings));
     });
   });
 });

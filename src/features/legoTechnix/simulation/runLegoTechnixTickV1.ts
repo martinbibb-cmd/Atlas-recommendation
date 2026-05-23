@@ -9,6 +9,7 @@ import type { MassFlowAllocationResultV1 } from './allocateMassFlowV1';
 import { allocateMassFlowV1 } from './allocateMassFlowV1';
 import type { HeatTransferEvaluationResultV1 } from './evaluateHeatTransfersV1';
 import { evaluateHeatTransfersV1 } from './evaluateHeatTransfersV1';
+import { integrateThermalStateV1 } from './integrateThermalStateV1';
 import type {
   LegoTechnixSimulationEventV1,
   LegoTechnixSimulationWarningV1,
@@ -98,6 +99,7 @@ interface ThermalEvalResult {
   }>>;
   readonly roomHeatGainKw: number;
   readonly storedWaterHeatGainKw: number;
+  readonly transferByComponentId: HeatTransferEvaluationResultV1['transferByComponentId'];
   readonly events: readonly LegoTechnixSimulationEventV1[];
   readonly warnings: readonly LegoTechnixSimulationWarningV1[];
 }
@@ -121,18 +123,23 @@ function runThermalComponentEvaluation(
 // ---------------------------------------------------------------------------
 
 interface EnvironmentIntegrationResult {
+  readonly thermalStateByComponentId: Readonly<Record<string, Partial<ComponentStateV1>>>;
   readonly events: readonly LegoTechnixSimulationEventV1[];
   readonly warnings: readonly LegoTechnixSimulationWarningV1[];
 }
 
 function runEnvironmentIntegration(
-  _graph: LegoTechnixGraphV1,
-  _previousState: LegoTechnixSimulationStateV1,
-  _tickInput: LegoTechnixTickInputV1,
+  graph: LegoTechnixGraphV1,
+  previousState: LegoTechnixSimulationStateV1,
+  heatTransferResult: HeatTransferEvaluationResultV1,
+  tickInput: LegoTechnixTickInputV1,
 ): EnvironmentIntegrationResult {
-  // Stage 5 placeholder: a future PR will apply ambient-domain effects such as
-  // pipe heat loss (simpleHeatLossWPerM) and outside_environment temperature.
-  return { events: [], warnings: [] };
+  return integrateThermalStateV1(
+    graph,
+    previousState,
+    heatTransferResult,
+    tickInput,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -143,18 +150,44 @@ function buildComponentStates(
   graph: LegoTechnixGraphV1,
   previous: LegoTechnixSimulationStateV1,
   activePathResolution: ActivePathResolutionV1,
+  thermalStateByComponentId: Readonly<Record<string, Partial<ComponentStateV1>>> = {},
 ): readonly ComponentStateV1[] {
   const previousById = new Map(previous.componentStates.map((s) => [s.componentId, s]));
   const activeComponentIds = new Set(activePathResolution.activeComponentIds);
 
   return graph.components.map((component): ComponentStateV1 => {
     const prev = previousById.get(component.id);
+    const thermalPatch = thermalStateByComponentId[component.id];
     return {
       componentId: component.id,
       isActive: activeComponentIds.has(component.id),
       operatingMode: activePathResolution.componentOperatingModes[component.id] ?? 'idle',
       measuredTemperatureC: prev?.measuredTemperatureC,
       setpointTemperatureC: prev?.setpointTemperatureC,
+      currentTemperatureC: thermalPatch?.currentTemperatureC ?? prev?.currentTemperatureC,
+      targetTemperatureC: thermalPatch?.targetTemperatureC ?? prev?.targetTemperatureC,
+      thermalMassKwhPerK: thermalPatch?.thermalMassKwhPerK ?? prev?.thermalMassKwhPerK,
+      heatLossKwPerK: thermalPatch?.heatLossKwPerK ?? prev?.heatLossKwPerK,
+      heatGainKw: thermalPatch?.heatGainKw ?? prev?.heatGainKw,
+      heatLossKw: thermalPatch?.heatLossKw ?? prev?.heatLossKw,
+      netHeatKw: thermalPatch?.netHeatKw ?? prev?.netHeatKw,
+      volumeLitres: thermalPatch?.volumeLitres ?? prev?.volumeLitres,
+      storedEnergyKwh: thermalPatch?.storedEnergyKwh ?? prev?.storedEnergyKwh,
+      standingLossKw: thermalPatch?.standingLossKw ?? prev?.standingLossKw,
+      usableHotWaterLitresAt40C: (
+        thermalPatch?.usableHotWaterLitresAt40C
+        ?? prev?.usableHotWaterLitresAt40C
+      ),
+      lastTransferKw: thermalPatch?.lastTransferKw ?? prev?.lastTransferKw,
+      lastPrimaryInletTemperatureC: (
+        thermalPatch?.lastPrimaryInletTemperatureC
+        ?? prev?.lastPrimaryInletTemperatureC
+      ),
+      lastPrimaryOutletTemperatureC: (
+        thermalPatch?.lastPrimaryOutletTemperatureC
+        ?? prev?.lastPrimaryOutletTemperatureC
+      ),
+      lastSecondaryGainKw: thermalPatch?.lastSecondaryGainKw ?? prev?.lastSecondaryGainKw,
     };
   });
 }
@@ -271,7 +304,7 @@ export function runLegoTechnixTickV1(
   warnings.push(...thermalResult.warnings);
 
   // Stage 5 — environment integration
-  const envResult = runEnvironmentIntegration(graph, previousState, tickInput);
+  const envResult = runEnvironmentIntegration(graph, previousState, thermalResult, tickInput);
   events.push(...envResult.events);
   warnings.push(...envResult.warnings);
 
@@ -280,7 +313,12 @@ export function runLegoTechnixTickV1(
     schemaVersion: '1.0',
     tickIndex: previousState.tickIndex + 1,
     wallClockMs: tickInput.wallClockMs,
-    componentStates: buildComponentStates(graph, previousState, pathResult),
+    componentStates: buildComponentStates(
+      graph,
+      previousState,
+      pathResult,
+      envResult.thermalStateByComponentId,
+    ),
     edgeStates: buildEdgeStates(
       graph,
       previousState,

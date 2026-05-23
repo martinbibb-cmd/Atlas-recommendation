@@ -1,4 +1,5 @@
 import type { LegoTechnixGraphV1 } from '../types';
+import type { LegoTechnixSimulationStateV1 } from '../simulation/LegoTechnixSimulationStateV1';
 
 export const simpleRegularBoilerGraph: LegoTechnixGraphV1 = {
   id: 'simple_regular_boiler_graph_v1',
@@ -734,4 +735,45 @@ export const simpleRegularBoilerGraph: LegoTechnixGraphV1 = {
       confidence: 'assumed',
     },
   ],
+};
+
+export const simpleRegularBoilerInitialStateV1: LegoTechnixSimulationStateV1 = {
+  schemaVersion: '1.0',
+  tickIndex: 0,
+  wallClockMs: 0,
+  componentStates: [
+    {
+      componentId: 'living_room',
+      isActive: false,
+      operatingMode: 'idle',
+      currentTemperatureC: 18,
+      targetTemperatureC: 20,
+      thermalMassKwhPerK: 2.5,
+      heatLossKwPerK: 0.2,
+      heatGainKw: 0,
+      heatLossKw: 0,
+      netHeatKw: 0,
+    },
+    {
+      componentId: 'outside_air',
+      isActive: false,
+      operatingMode: 'idle',
+      currentTemperatureC: 5,
+    },
+    {
+      componentId: 'stored_dhw_volume',
+      isActive: false,
+      operatingMode: 'idle',
+      currentTemperatureC: 45,
+      targetTemperatureC: 60,
+      volumeLitres: 150,
+      heatGainKw: 0,
+      standingLossKw: 0,
+      netHeatKw: 0,
+      storedEnergyKwh: 7.83,
+      usableHotWaterLitresAt40C: 150,
+    },
+  ],
+  edgeStates: [],
+  domainStates: [],
 };
