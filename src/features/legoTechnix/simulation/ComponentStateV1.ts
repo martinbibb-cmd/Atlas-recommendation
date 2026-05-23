@@ -14,4 +14,19 @@ export interface ComponentStateV1 {
   readonly operatingMode: ComponentOperatingModeV1;
   readonly measuredTemperatureC?: number;
   readonly setpointTemperatureC?: number;
+  readonly currentTemperatureC?: number;
+  readonly targetTemperatureC?: number;
+  readonly thermalMassKwhPerK?: number;
+  readonly heatLossKwPerK?: number;
+  readonly heatGainKw?: number;
+  readonly heatLossKw?: number;
+  readonly netHeatKw?: number;
+  readonly volumeLitres?: number;
+  readonly storedEnergyKwh?: number;
+  readonly standingLossKw?: number;
+  readonly usableHotWaterLitresAt40C?: number;
+  readonly lastTransferKw?: number;
+  readonly lastPrimaryInletTemperatureC?: number;
+  readonly lastPrimaryOutletTemperatureC?: number;
+  readonly lastSecondaryGainKw?: number;
 }

@@ -27,6 +27,12 @@ export { allocateMassFlowV1 } from './allocateMassFlowV1';
 export type { EdgeFlowEstimateV1, MassFlowAllocationResultV1 } from './allocateMassFlowV1';
 
 export { evaluateHeatTransfersV1 } from './evaluateHeatTransfersV1';
-export type { HeatTransferEvaluationResultV1 } from './evaluateHeatTransfersV1';
+export type {
+  HeatTransferComponentTickStateV1,
+  HeatTransferEvaluationResultV1,
+} from './evaluateHeatTransfersV1';
+
+export { integrateThermalStateV1 } from './integrateThermalStateV1';
+export type { ThermalIntegrationResultV1 } from './integrateThermalStateV1';
 
 export { runLegoTechnixTickV1 } from './runLegoTechnixTickV1';

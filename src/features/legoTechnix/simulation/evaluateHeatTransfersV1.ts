@@ -15,10 +15,19 @@ interface EdgeTemperatureEstimateV1 {
   readonly estimatedOutletTemperatureC?: number;
 }
 
+export interface HeatTransferComponentTickStateV1 {
+  readonly family: HeatTransferComponentV1['family'];
+  readonly lastTransferKw: number;
+  readonly lastPrimaryInletTemperatureC?: number;
+  readonly lastPrimaryOutletTemperatureC?: number;
+  readonly lastSecondaryGainKw: number;
+}
+
 export interface HeatTransferEvaluationResultV1 {
   readonly edgeTemperatureByConnectionId: Readonly<Record<string, EdgeTemperatureEstimateV1>>;
   readonly roomHeatGainKw: number;
   readonly storedWaterHeatGainKw: number;
+  readonly transferByComponentId: Readonly<Record<string, HeatTransferComponentTickStateV1>>;
   readonly events: readonly LegoTechnixSimulationEventV1[];
   readonly warnings: readonly LegoTechnixSimulationWarningV1[];
 }
@@ -144,6 +153,7 @@ export function evaluateHeatTransfersV1(
   const events: LegoTechnixSimulationEventV1[] = [];
   const warnings: LegoTechnixSimulationWarningV1[] = [];
   const edgeTemperatureByConnectionId: Record<string, EdgeTemperatureEstimateV1> = {};
+  const transferByComponentId: Record<string, HeatTransferComponentTickStateV1> = {};
   const componentOrderIndexById = buildPrimaryComponentOrderIndexById(graph);
 
   const contracts: EvaluatedHeatTransferComponentV1[] = (graph.heatTransferComponents ?? [])
@@ -187,6 +197,11 @@ export function evaluateHeatTransfersV1(
     const isActive = activeComponentIds.has(contract.componentId) && hasActivePrimaryFlow;
 
     if (!isActive) {
+      transferByComponentId[contract.componentId] = {
+        family: contract.family,
+        lastTransferKw: 0,
+        lastSecondaryGainKw: 0,
+      };
       events.push({
         type: 'heat_transfer_inactive',
         componentId: contract.componentId,
@@ -211,6 +226,14 @@ export function evaluateHeatTransfersV1(
         estimatedOutletTemperatureC: primaryOutletTemperatureC,
       };
     }
+
+    transferByComponentId[contract.componentId] = {
+      family: contract.family,
+      lastTransferKw: round3(energyTransfer.primaryEnergyRemovedKw),
+      lastPrimaryInletTemperatureC: primaryInletTemperatureC,
+      lastPrimaryOutletTemperatureC: primaryOutletTemperatureC,
+      lastSecondaryGainKw: round3(energyTransfer.secondaryEnergyGainedKw),
+    };
 
     if (contract.family === 'radiator') {
       roomHeatGainKw += energyTransfer.secondaryEnergyGainedKw;
@@ -241,6 +264,7 @@ export function evaluateHeatTransfersV1(
     edgeTemperatureByConnectionId,
     roomHeatGainKw,
     storedWaterHeatGainKw,
+    transferByComponentId,
     events,
     warnings,
   };
