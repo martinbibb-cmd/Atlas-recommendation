@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { branchingBypassGraph } from '../fixtures/branchingBypassGraph';
 import { simpleRegularBoilerGraph } from '../fixtures/simpleRegularBoilerGraph';
 import type { LegoTechnixGraphV1 } from '../types';
 import type { LegoTechnixSimulationStateV1 } from '../simulation/LegoTechnixSimulationStateV1';
@@ -20,8 +21,29 @@ function makeInitialState(wallClockMs = 0): LegoTechnixSimulationStateV1 {
   };
 }
 
-function makeTickInput(wallClockMs = 1000): LegoTechnixTickInputV1 {
-  return { wallClockMs, timestepSeconds: 1 };
+function makeTickInput(
+  wallClockMs = 1000,
+  controlOverrides?: Readonly<Record<string, unknown>>,
+): LegoTechnixTickInputV1 {
+  return {
+    wallClockMs,
+    timestepSeconds: 1,
+    controlOverrides,
+  };
+}
+
+function findComponentState(
+  state: LegoTechnixSimulationStateV1,
+  componentId: string,
+) {
+  return state.componentStates.find((componentState) => componentState.componentId === componentId);
+}
+
+function findEdgeState(
+  state: LegoTechnixSimulationStateV1,
+  connectionId: string,
+) {
+  return state.edgeStates.find((edgeState) => edgeState.connectionId === connectionId);
 }
 
 describe('runLegoTechnixTickV1 — state containers', () => {
@@ -229,5 +251,106 @@ describe('runLegoTechnixTickV1 — public contract stability', () => {
       makeTickInput(),
     );
     expect(result.nextState.edgeStates.length).toBe(simpleRegularBoilerGraph.connections.length);
+  });
+});
+
+describe('runLegoTechnixTickV1 — active hydraulic path resolution', () => {
+  it('21. open heating valve activates heating branch and leaves bypass branch inactive', () => {
+    const result = runLegoTechnixTickV1(
+      branchingBypassGraph,
+      makeInitialState(),
+      makeTickInput(1000, {
+        zone_valve: true,
+        auto_bypass_valve: false,
+      }),
+    );
+
+    expect(result.tickBlocked).toBe(false);
+    expect(findEdgeState(result.nextState, 'conn_boiler_to_pump')?.isActive).toBe(true);
+    expect(findEdgeState(result.nextState, 'conn_pump_to_split')?.isActive).toBe(true);
+    expect(findEdgeState(result.nextState, 'conn_split_to_zone_valve')?.isActive).toBe(true);
+    expect(findEdgeState(result.nextState, 'conn_zone_valve_to_radiator')?.isActive).toBe(true);
+    expect(findEdgeState(result.nextState, 'conn_radiator_to_merge')?.isActive).toBe(true);
+    expect(findEdgeState(result.nextState, 'conn_split_to_abv')?.isActive).toBe(false);
+    expect(findEdgeState(result.nextState, 'conn_abv_to_bypass_load')?.isActive).toBe(false);
+    expect(findEdgeState(result.nextState, 'conn_bypass_load_to_merge')?.isActive).toBe(false);
+    expect(findComponentState(result.nextState, 'radiator_emitter')?.isActive).toBe(true);
+    expect(findComponentState(result.nextState, 'bypass_load')?.isActive).toBe(false);
+    expect(result.warnings.some((warning) => warning.code === 'deadhead_detected')).toBe(false);
+  });
+
+  it('22. closing heating valve and opening bypass restores continuity deterministically', () => {
+    const input = makeTickInput(2000, {
+      zone_valve: false,
+      auto_bypass_valve: true,
+    });
+
+    const first = runLegoTechnixTickV1(branchingBypassGraph, makeInitialState(), input);
+    const second = runLegoTechnixTickV1(branchingBypassGraph, makeInitialState(), input);
+
+    expect(JSON.stringify(first.nextState)).toBe(JSON.stringify(second.nextState));
+    expect(findEdgeState(first.nextState, 'conn_split_to_zone_valve')?.isActive).toBe(false);
+    expect(findEdgeState(first.nextState, 'conn_zone_valve_to_radiator')?.isActive).toBe(false);
+    expect(findEdgeState(first.nextState, 'conn_radiator_to_merge')?.isActive).toBe(false);
+    expect(findEdgeState(first.nextState, 'conn_split_to_abv')?.isActive).toBe(true);
+    expect(findEdgeState(first.nextState, 'conn_abv_to_bypass_load')?.isActive).toBe(true);
+    expect(findEdgeState(first.nextState, 'conn_bypass_load_to_merge')?.isActive).toBe(true);
+    expect(findComponentState(first.nextState, 'bypass_load')?.isActive).toBe(true);
+    expect(findComponentState(first.nextState, 'radiator_emitter')?.operatingMode).toBe('bypassed');
+    expect(first.warnings.some((warning) => warning.code === 'deadhead_detected')).toBe(false);
+  });
+
+  it('23. closing both branches deadheads the pump and blocks all primary flow', () => {
+    const result = runLegoTechnixTickV1(
+      branchingBypassGraph,
+      makeInitialState(),
+      makeTickInput(3000, {
+        zone_valve: false,
+        auto_bypass_valve: false,
+      }),
+    );
+
+    expect(result.tickBlocked).toBe(false);
+    for (const connectionId of [
+      'conn_boiler_to_pump',
+      'conn_pump_to_split',
+      'conn_split_to_zone_valve',
+      'conn_zone_valve_to_radiator',
+      'conn_radiator_to_merge',
+      'conn_split_to_abv',
+      'conn_abv_to_bypass_load',
+      'conn_bypass_load_to_merge',
+      'conn_merge_to_filter',
+      'conn_filter_to_boiler',
+    ]) {
+      expect(findEdgeState(result.nextState, connectionId)?.isActive).toBe(false);
+    }
+    expect(findComponentState(result.nextState, 'circulation_pump')?.operatingMode).toBe('fault');
+    expect(result.warnings.some((warning) => (
+      warning.code === 'deadhead_detected' && warning.componentId === 'circulation_pump'
+    ))).toBe(true);
+  });
+
+  it('24. active-path resolution does not populate temperatures or mutate graph structure', () => {
+    const graph = cloneGraph(branchingBypassGraph);
+    const frozenGraph = JSON.stringify(graph);
+
+    const result = runLegoTechnixTickV1(
+      graph,
+      makeInitialState(),
+      makeTickInput(4000, {
+        zone_valve: true,
+        auto_bypass_valve: false,
+      }),
+    );
+
+    expect(JSON.stringify(graph)).toBe(frozenGraph);
+    expect(result.nextState.edgeStates.every((edgeState) => (
+      edgeState.estimatedInletTemperatureC === undefined
+      && edgeState.estimatedOutletTemperatureC === undefined
+    ))).toBe(true);
+    expect(result.nextState.componentStates.every((componentState) => (
+      componentState.measuredTemperatureC === undefined
+    ))).toBe(true);
   });
 });
