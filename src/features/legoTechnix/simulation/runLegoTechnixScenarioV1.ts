@@ -79,6 +79,8 @@ export interface ScenarioTimelineSampleV1 {
   readonly storedDhwTemperatureC?: number;
   readonly storedDhwTargetTemperatureC?: number;
   readonly usableHotWaterLitresAt40C?: number;
+  readonly usableTopLayerHotWaterLitresAt40C?: number;
+  readonly storedDhwStorageModel?: 'mixed' | 'stratified';
   readonly storedDhwRecoveryKw?: number;
   readonly sourceFlowTemperatureC?: number;
   readonly sourceReturnTemperatureC?: number;
@@ -451,6 +453,8 @@ export function runLegoTechnixScenarioV1(input: ScenarioInputV1): ScenarioResult
       storedDhwTemperatureC: storedDhwState?.currentTemperatureC,
       storedDhwTargetTemperatureC: storedDhwState?.targetTemperatureC,
       usableHotWaterLitresAt40C: storedDhwState?.usableHotWaterLitresAt40C,
+      usableTopLayerHotWaterLitresAt40C: storedDhwState?.usableTopLayerHotWaterLitresAt40C,
+      storedDhwStorageModel: storedDhwState?.storageModel,
       storedDhwRecoveryKw: storedDhwState?.heatGainKw,
       sourceFlowTemperatureC: sourceState?.currentTemperatureC,
       sourceReturnTemperatureC: sourceState?.returnTemperatureC,
