@@ -12,6 +12,7 @@ import { evaluateHeatTransfersV1 } from './evaluateHeatTransfersV1';
 import type { HeatSourceEvaluationResultV1 } from './evaluateHeatSourcesV1';
 import { evaluateHeatSourcesV1 } from './evaluateHeatSourcesV1';
 import { evaluateControlsV1 } from './evaluateControlsV1';
+import { evaluatePipeEdgesV1 } from './evaluatePipeEdgesV1';
 import { integrateThermalStateV1 } from './integrateThermalStateV1';
 import type {
   LegoTechnixSimulationEventV1,
@@ -110,15 +111,19 @@ function runThermalComponentEvaluation(
   graph: LegoTechnixGraphV1,
   activePathResolution: ActivePathResolutionV1,
   edgeStates: readonly EdgeStateV1[],
-  heatSourceResult: HeatSourceEvaluationResultV1,
+  initialEdgeTemperatureByConnectionId: Readonly<Record<string, {
+    readonly estimatedInletTemperatureC?: number;
+    readonly estimatedOutletTemperatureC?: number;
+  }>>,
+  primaryOutputScaleByDomain: HeatSourceEvaluationResultV1['primaryOutputScaleByDomain'],
 ): ThermalEvalResult {
   const evaluation: HeatTransferEvaluationResultV1 = evaluateHeatTransfersV1(
     graph,
     activePathResolution,
     edgeStates,
     {
-      initialEdgeTemperatureByConnectionId: heatSourceResult.edgeTemperatureByConnectionId,
-      primaryOutputScaleByDomain: heatSourceResult.primaryOutputScaleByDomain,
+      initialEdgeTemperatureByConnectionId,
+      primaryOutputScaleByDomain,
     },
   );
 
@@ -221,6 +226,11 @@ function buildEdgeStates(
     readonly estimatedInletTemperatureC?: number;
     readonly estimatedOutletTemperatureC?: number;
   }>>,
+  edgeThermalStateByConnectionId?: Readonly<Record<string, {
+    readonly transitDelayQueueC?: readonly number[];
+    readonly estimatedTransitSeconds?: number;
+    readonly estimatedPipeHeatLossKw?: number;
+  }>>,
 ): readonly EdgeStateV1[] {
   const previousById = new Map(previous.edgeStates.map((s) => [s.connectionId, s]));
   const activeConnectionIds = new Set(activePathResolution.activeConnectionIds);
@@ -228,6 +238,7 @@ function buildEdgeStates(
   return graph.connections.map((connection): EdgeStateV1 => {
     const prev = previousById.get(connection.id);
     const thermalEstimate = edgeTemperatureByConnectionId?.[connection.id];
+    const thermalState = edgeThermalStateByConnectionId?.[connection.id];
     const edgeFlow = massFlowAllocation.edgeFlowByConnectionId[connection.id];
     const isActive = activeConnectionIds.has(connection.id);
     const estimatedFlowLps = isActive ? (edgeFlow?.estimatedFlowLps ?? 0) : 0;
@@ -242,6 +253,9 @@ function buildEdgeStates(
         ?? prev?.estimatedInletTemperatureC,
       estimatedOutletTemperatureC: thermalEstimate?.estimatedOutletTemperatureC
         ?? prev?.estimatedOutletTemperatureC,
+      transitDelayQueueC: thermalState?.transitDelayQueueC ?? prev?.transitDelayQueueC,
+      estimatedTransitSeconds: thermalState?.estimatedTransitSeconds ?? prev?.estimatedTransitSeconds,
+      estimatedPipeHeatLossKw: thermalState?.estimatedPipeHeatLossKw ?? prev?.estimatedPipeHeatLossKw,
     };
   });
 }
@@ -335,12 +349,28 @@ export function runLegoTechnixTickV1(
   events.push(...heatSourceResult.events);
   warnings.push(...heatSourceResult.warnings);
 
+  // Stage 3d — pipe transit and edge heat loss
+  const pipeResult = evaluatePipeEdgesV1(
+    graph,
+    previousState.componentStates,
+    previousState.edgeStates,
+    edgeStatesAfterFlow,
+    pathResult,
+    tickInput.timestepSeconds,
+    {
+      initialEdgeTemperatureByConnectionId: heatSourceResult.edgeTemperatureByConnectionId,
+    },
+  );
+  events.push(...pipeResult.events);
+  warnings.push(...pipeResult.warnings);
+
   // Stage 4 — thermal/component evaluation
   const thermalResult = runThermalComponentEvaluation(
     graph,
     pathResult,
     edgeStatesAfterFlow,
-    heatSourceResult,
+    pipeResult.edgeTemperatureByConnectionId,
+    heatSourceResult.primaryOutputScaleByDomain,
   );
   events.push(...thermalResult.events);
   warnings.push(...thermalResult.warnings);
@@ -378,6 +408,7 @@ export function runLegoTechnixTickV1(
       pathResult,
       flowResult.allocation,
       thermalResult.edgeTemperatureByConnectionId,
+      pipeResult.edgeThermalStateByConnectionId,
     ),
     domainStates: buildDomainStates(graph, previousState),
   };

@@ -14,4 +14,7 @@ export interface EdgeStateV1 {
   readonly flowRiskBand?: FlowRiskBandV1;
   readonly estimatedInletTemperatureC?: number;
   readonly estimatedOutletTemperatureC?: number;
+  readonly transitDelayQueueC?: readonly number[];
+  readonly estimatedTransitSeconds?: number;
+  readonly estimatedPipeHeatLossKw?: number;
 }
