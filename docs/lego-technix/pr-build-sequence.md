@@ -34,7 +34,19 @@ This document defines the controlled build order for LegoTechnix.
 - Domestic cold/store/hot separation from primary circuit
 - Validation only
 
-## PR3 — Closed-loop evaluation skeleton
+## PR3 — Pressure regime and pre-flight validation
+
+- HydraulicDomainV1 pressure-regime validation
+- Open vented primary checks
+- Sealed primary checks
+- Mains-pressure DHW checks
+- Tank-fed DHW checks
+- Unvented/G3 safety marker checks
+- Validation runs before loop/thermal simulation
+- No simulator
+- No heat-transfer maths
+
+## PR4 — Closed-loop evaluation skeleton
 
 - Source/sink split
 - Active path pruning
@@ -42,28 +54,20 @@ This document defines the controlled build order for LegoTechnix.
 - Mass-weighted merge temperatures
 - No detailed hydraulic solver
 
-## PR4 — HeatTransferComponentV1 implementations
+## PR5 — HeatTransferComponentV1 implementations
 
 - Radiator
 - Cylinder coil
 - Stored water volume
 - Simple room/environment node
 
-## PR5 — Pipe edge semantics
+## PR6 — Pipe edge semantics
 
 - Volume
 - Bore
 - Transit delay
 - Simple loss
 - Confidence
-
-## PR6 — Pressure/head validation
-
-- Open vented
-- Sealed primary
-- Mains pressure DHW
-- Tank-fed DHW
-- Unvented G3 validation markers
 
 ## PR7 — Basic timestep simulation
 

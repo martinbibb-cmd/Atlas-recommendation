@@ -252,4 +252,107 @@ describe('validateLegoTechnixGraphV1', () => {
       expect(primaryCircuitIds.has(circuitId)).toBe(false);
     }
   });
+
+  it('17. open_vented_primary fails when available static head is below minimum', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const openVented = graph.hydraulicDomains?.find((domain) => domain.pressureRegime === 'open_vented_primary');
+    if (!openVented) {
+      throw new Error('Fixture open vented domain missing.');
+    }
+    openVented.availableStaticHeadM = 0.4;
+    openVented.minStaticHeadM = 1;
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'open_vented_static_head_below_min')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('18. open_vented_primary requires feed/vent representation', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    graph.components = graph.components.filter((component) => component.id !== 'combined_feed_vent');
+    const openVented = graph.hydraulicDomains?.find((domain) => domain.pressureRegime === 'open_vented_primary');
+    if (!openVented) {
+      throw new Error('Fixture open vented domain missing.');
+    }
+    openVented.preFlightMarkers = [];
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'open_vented_missing_feed_vent_representation')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('19. sealed_primary requires PRV, pressure gauge, and filling method markers', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    graph.hydraulicDomains = [
+      {
+        id: 'sealed_primary_domain',
+        pressureRegime: 'sealed_primary',
+        openToAtmosphere: false,
+        minStaticHeadM: 0,
+        availableStaticHeadM: 0,
+        nominalColdPressureBar: 1.2,
+        maxSafePressureBar: 3,
+        requiresExpansionAccommodation: true,
+        manufacturerRequirementSource: 'Sealed system requirements',
+        confidence: 'manufacturer',
+        preFlightMarkers: [],
+      },
+    ];
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'sealed_primary_missing_prv_marker')).toBe(true);
+    expect(result.errors.some((issue) => issue.code === 'sealed_primary_missing_pressure_gauge_marker')).toBe(true);
+    expect(result.errors.some((issue) => issue.code === 'sealed_primary_missing_filling_method_marker')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('20. mains_pressure_dhw requires G3 safety-chain markers', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    graph.hydraulicDomains = [
+      {
+        id: 'mains_pressure_dhw_domain',
+        pressureRegime: 'mains_pressure_dhw',
+        openToAtmosphere: false,
+        nominalColdPressureBar: 2,
+        maxSafePressureBar: 6,
+        requiresExpansionAccommodation: true,
+        manufacturerRequirementSource: 'Unvented cylinder assumptions',
+        confidence: 'assumed',
+        preFlightMarkers: ['g3_expansion_accommodation'],
+      },
+    ];
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'mains_pressure_dhw_missing_g3_safety_chain')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('21. tank_fed_dhw requires static-head declaration when modelling draw-off', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const tankFed = graph.hydraulicDomains?.find((domain) => domain.pressureRegime === 'tank_fed_dhw');
+    if (!tankFed) {
+      throw new Error('Fixture tank-fed domain missing.');
+    }
+    tankFed.availableStaticHeadM = undefined;
+    tankFed.minStaticHeadM = undefined;
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'tank_fed_dhw_missing_static_head_to_outlet')).toBe(true);
+    expect(result.isValid).toBe(false);
+  });
+
+  it('22. graph can pass structure/circuit checks but fail pressure pre-flight', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const openVented = graph.hydraulicDomains?.find((domain) => domain.pressureRegime === 'open_vented_primary');
+    if (!openVented) {
+      throw new Error('Fixture open vented domain missing.');
+    }
+    openVented.preFlightMarkers = ['pump_feed_vent_order_invalid'];
+
+    const result = validateLegoTechnixGraphV1(graph);
+    expect(result.errors.some((issue) => issue.code === 'open_vented_invalid_pump_feed_vent_order')).toBe(true);
+    expect(result.errors.some((issue) => issue.code === 'missing_source_component')).toBe(false);
+    expect(result.errors.some((issue) => issue.code === 'primary_path_missing_return_path')).toBe(false);
+    expect(result.isValid).toBe(false);
+  });
 });

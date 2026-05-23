@@ -24,6 +24,25 @@ export const HYDRAULIC_PRESSURE_REGIMES_V1 = [
 
 export type HydraulicPressureRegimeV1 = (typeof HYDRAULIC_PRESSURE_REGIMES_V1)[number];
 
+export const HYDRAULIC_PRE_FLIGHT_MARKERS_V1 = [
+  'combined_feed_vent',
+  'separate_feed',
+  'separate_vent',
+  'pump_feed_vent_order_valid',
+  'pump_feed_vent_order_invalid',
+  'primary_pressure_relief_valve',
+  'primary_pressure_gauge',
+  'primary_filling_loop',
+  'primary_filling_key',
+  'primary_auto_fill',
+  'g3_expansion_accommodation',
+  'g3_pressure_relief_chain',
+  'g3_tp_relief',
+  'g3_d1_d2_discharge_route',
+] as const;
+
+export type HydraulicPreFlightMarkerV1 = (typeof HYDRAULIC_PRE_FLIGHT_MARKERS_V1)[number];
+
 export interface LegoTechnixPortV1 {
   id: string;
   label: string;
@@ -91,6 +110,7 @@ export interface LegoTechnixActiveCircuitPathV1 {
 export interface HydraulicDomainV1 {
   id: string;
   pressureRegime: HydraulicPressureRegimeV1;
+  preFlightMarkers?: HydraulicPreFlightMarkerV1[];
   openToAtmosphere: boolean;
   minStaticHeadM?: number;
   availableStaticHeadM?: number;

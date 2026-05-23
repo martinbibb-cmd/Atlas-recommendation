@@ -12,6 +12,7 @@ export type { LegoTechnixComponentRole } from './roles';
 
 export {
   HYDRAULIC_PRESSURE_REGIMES_V1,
+  HYDRAULIC_PRE_FLIGHT_MARKERS_V1,
   LEGO_TECHNIX_PORT_DIRECTIONS,
 } from './types';
 
@@ -19,6 +20,7 @@ export type {
   LegoTechnixActiveCircuitPathV1,
   LegoTechnixCircuitDefinitionV1,
   HydraulicDomainV1,
+  HydraulicPreFlightMarkerV1,
   HydraulicPressureRegimeV1,
   LegoTechnixComponentV1,
   LegoTechnixConnectionPhysicalV1,

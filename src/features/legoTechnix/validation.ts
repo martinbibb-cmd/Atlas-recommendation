@@ -4,6 +4,8 @@ import type {
   LegoTechnixComponentV1,
   LegoTechnixConnectionV1,
   LegoTechnixGraphV1,
+  HydraulicDomainV1,
+  HydraulicPreFlightMarkerV1,
   LegoTechnixPortV1,
 } from './types';
 
@@ -46,6 +48,257 @@ function hasHydraulicLengthAndBoreData(connection: LegoTechnixConnectionV1): boo
       || connection.physical.nominalDiameterMm !== undefined
     )
   );
+}
+
+function hasMarker(
+  hydraulicDomain: HydraulicDomainV1,
+  marker: HydraulicPreFlightMarkerV1,
+): boolean {
+  return hydraulicDomain.preFlightMarkers?.includes(marker) ?? false;
+}
+
+function normaliseText(value: string | undefined): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+function componentContainsAllTokens(
+  component: LegoTechnixComponentV1,
+  tokens: string[],
+): boolean {
+  const id = normaliseText(component.id);
+  const label = normaliseText(component.label);
+  return tokens.every((token) => id.includes(token) || label.includes(token));
+}
+
+function hasCombinedFeedVentRepresentation(graph: LegoTechnixGraphV1): boolean {
+  return graph.components.some((component) => (
+    component.role === 'safety'
+    && component.behaviours?.includes('accepts_expansion')
+    && componentContainsAllTokens(component, ['feed', 'vent'])
+  ));
+}
+
+function hasSeparateFeedRepresentation(graph: LegoTechnixGraphV1): boolean {
+  return graph.components.some((component) => componentContainsAllTokens(component, ['feed']));
+}
+
+function hasSeparateVentRepresentation(graph: LegoTechnixGraphV1): boolean {
+  return graph.components.some((component) => componentContainsAllTokens(component, ['vent']));
+}
+
+function domainModelsDomesticDrawOff(
+  graph: LegoTechnixGraphV1,
+  componentById: Map<string, LegoTechnixComponentV1>,
+): boolean {
+  for (const path of graph.activeCircuitPaths ?? []) {
+    if (path.domain !== 'domestic_hot') {
+      continue;
+    }
+    const sink = componentById.get(path.sinkComponentId);
+    if (sink?.role === 'load') {
+      return true;
+    }
+  }
+  return false;
+}
+
+function validateOpenVentedPrimaryPreFlight(
+  graph: LegoTechnixGraphV1,
+  hydraulicDomain: HydraulicDomainV1,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  if (
+    hydraulicDomain.availableStaticHeadM === undefined
+    || hydraulicDomain.minStaticHeadM === undefined
+  ) {
+    addError(
+      errors,
+      'open_vented_static_head_missing',
+      `Hydraulic domain "${hydraulicDomain.id}" must declare availableStaticHeadM and minStaticHeadM for open-vented validation.`,
+    );
+  } else if (hydraulicDomain.availableStaticHeadM < hydraulicDomain.minStaticHeadM) {
+    addError(
+      errors,
+      'open_vented_static_head_below_min',
+      `Hydraulic domain "${hydraulicDomain.id}" has insufficient static head (${hydraulicDomain.availableStaticHeadM}m < ${hydraulicDomain.minStaticHeadM}m).`,
+    );
+  }
+
+  const hasCombinedFeedVent = hasMarker(hydraulicDomain, 'combined_feed_vent')
+    || hasCombinedFeedVentRepresentation(graph);
+  const hasSeparateFeed = hasMarker(hydraulicDomain, 'separate_feed')
+    || hasSeparateFeedRepresentation(graph);
+  const hasSeparateVent = hasMarker(hydraulicDomain, 'separate_vent')
+    || hasSeparateVentRepresentation(graph);
+
+  if (!hasCombinedFeedVent && !(hasSeparateFeed && hasSeparateVent)) {
+    addError(
+      errors,
+      'open_vented_missing_feed_vent_representation',
+      `Hydraulic domain "${hydraulicDomain.id}" must represent combined feed/vent or valid separate feed plus vent paths.`,
+    );
+  }
+
+  if (hasMarker(hydraulicDomain, 'pump_feed_vent_order_invalid')) {
+    addError(
+      errors,
+      'open_vented_invalid_pump_feed_vent_order',
+      `Hydraulic domain "${hydraulicDomain.id}" marks pump/feed/vent ordering as invalid.`,
+    );
+  }
+}
+
+function validateSealedPrimaryPreFlight(
+  graph: LegoTechnixGraphV1,
+  hydraulicDomain: HydraulicDomainV1,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  if (!hydraulicDomain.requiresExpansionAccommodation) {
+    addError(
+      errors,
+      'sealed_primary_requires_expansion_accommodation_flag',
+      `Hydraulic domain "${hydraulicDomain.id}" must set requiresExpansionAccommodation for sealed-primary validation.`,
+    );
+  }
+
+  const hasExpansionAccommodation = graph.components.some((component) => (
+    component.role === 'safety'
+    && component.behaviours?.includes('accepts_expansion')
+  ));
+  if (!hasExpansionAccommodation) {
+    addError(
+      errors,
+      'sealed_primary_missing_expansion_accommodation',
+      `Hydraulic domain "${hydraulicDomain.id}" requires expansion accommodation but no safety/expansion component exists.`,
+    );
+  }
+
+  if (!hasMarker(hydraulicDomain, 'primary_pressure_relief_valve')) {
+    addError(
+      errors,
+      'sealed_primary_missing_prv_marker',
+      `Hydraulic domain "${hydraulicDomain.id}" must declare a primary pressure-relief marker.`,
+    );
+  }
+
+  if (!hasMarker(hydraulicDomain, 'primary_pressure_gauge')) {
+    addError(
+      errors,
+      'sealed_primary_missing_pressure_gauge_marker',
+      `Hydraulic domain "${hydraulicDomain.id}" must declare a pressure-gauge marker.`,
+    );
+  }
+
+  const hasFillingMethod = hasMarker(hydraulicDomain, 'primary_filling_loop')
+    || hasMarker(hydraulicDomain, 'primary_filling_key')
+    || hasMarker(hydraulicDomain, 'primary_auto_fill');
+  if (!hasFillingMethod) {
+    addError(
+      errors,
+      'sealed_primary_missing_filling_method_marker',
+      `Hydraulic domain "${hydraulicDomain.id}" must declare a filling method marker.`,
+    );
+  }
+}
+
+function validateMainsPressureDhwPreFlight(
+  hydraulicDomain: HydraulicDomainV1,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  const requiredMarkers: HydraulicPreFlightMarkerV1[] = [
+    'g3_expansion_accommodation',
+    'g3_pressure_relief_chain',
+    'g3_tp_relief',
+    'g3_d1_d2_discharge_route',
+  ];
+  const missingMarkers = requiredMarkers.filter((marker) => !hasMarker(hydraulicDomain, marker));
+
+  if (missingMarkers.length > 0) {
+    addError(
+      errors,
+      'mains_pressure_dhw_missing_g3_safety_chain',
+      `Hydraulic domain "${hydraulicDomain.id}" is mains-pressure DHW and must declare full G3 safety-chain markers.`,
+    );
+  }
+}
+
+function validateTankFedDhwPreFlight(
+  graph: LegoTechnixGraphV1,
+  componentById: Map<string, LegoTechnixComponentV1>,
+  hydraulicDomain: HydraulicDomainV1,
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  if (!domainModelsDomesticDrawOff(graph, componentById)) {
+    return;
+  }
+
+  if (
+    hydraulicDomain.availableStaticHeadM === undefined
+    || hydraulicDomain.minStaticHeadM === undefined
+  ) {
+    addError(
+      errors,
+      'tank_fed_dhw_missing_static_head_to_outlet',
+      `Hydraulic domain "${hydraulicDomain.id}" models draw-off and must expose availableStaticHeadM and minStaticHeadM.`,
+    );
+    return;
+  }
+
+  if (hydraulicDomain.availableStaticHeadM < hydraulicDomain.minStaticHeadM) {
+    addError(
+      errors,
+      'tank_fed_dhw_static_head_below_min',
+      `Hydraulic domain "${hydraulicDomain.id}" draw-off static head is below minimum (${hydraulicDomain.availableStaticHeadM}m < ${hydraulicDomain.minStaticHeadM}m).`,
+    );
+  }
+}
+
+function validatePressureRegimesPreFlight(
+  graph: LegoTechnixGraphV1,
+  componentById: Map<string, LegoTechnixComponentV1>,
+  warnings: LegoTechnixValidationIssueV1[],
+  errors: LegoTechnixValidationIssueV1[],
+): void {
+  if (!graph.hydraulicDomains || graph.hydraulicDomains.length === 0) {
+    addWarning(
+      warnings,
+      'missing_hydraulic_domains',
+      'Graph has no hydraulic domains declared.',
+    );
+    return;
+  }
+
+  for (const hydraulicDomain of graph.hydraulicDomains) {
+    if (hydraulicDomain.confidence === 'unknown') {
+      addWarning(
+        warnings,
+        'hydraulic_domain_unknown_confidence',
+        `Hydraulic domain "${hydraulicDomain.id}" has unknown confidence.`,
+      );
+    }
+
+    if (
+      hydraulicDomain.pressureRegime === 'open_vented_primary'
+      || hydraulicDomain.pressureRegime === 'thermal_store_primary'
+    ) {
+      validateOpenVentedPrimaryPreFlight(graph, hydraulicDomain, errors);
+      continue;
+    }
+
+    if (hydraulicDomain.pressureRegime === 'sealed_primary') {
+      validateSealedPrimaryPreFlight(graph, hydraulicDomain, errors);
+      continue;
+    }
+
+    if (hydraulicDomain.pressureRegime === 'mains_pressure_dhw') {
+      validateMainsPressureDhwPreFlight(hydraulicDomain, errors);
+      continue;
+    }
+
+    if (hydraulicDomain.pressureRegime === 'tank_fed_dhw') {
+      validateTankFedDhwPreFlight(graph, componentById, hydraulicDomain, errors);
+    }
+  }
 }
 
 function isPrimaryDomain(domain: string): boolean {
@@ -399,6 +652,7 @@ export function validateLegoTechnixGraphV1(graph: LegoTechnixGraphV1): LegoTechn
     graph.activeCircuitPaths ?? [],
     errors,
   );
+  validatePressureRegimesPreFlight(graph, componentById, warnings, errors);
 
   for (const component of graph.components) {
     if (!component.domains || component.domains.length === 0) {
@@ -670,42 +924,6 @@ export function validateLegoTechnixGraphV1(graph: LegoTechnixGraphV1): LegoTechn
   validatePrimaryLoadsReachability(graph, primaryPaths, connectionById, errors);
   validateBranchMergeSemantics(graph, errors);
   validateExchangerBoundary(graph, warnings, errors);
-
-  if (!graph.hydraulicDomains || graph.hydraulicDomains.length === 0) {
-    addWarning(
-      warnings,
-      'missing_hydraulic_domains',
-      'Graph has no hydraulic domains declared.',
-    );
-  }
-
-  for (const hydraulicDomain of graph.hydraulicDomains ?? []) {
-    if (hydraulicDomain.confidence === 'unknown') {
-      addWarning(
-        warnings,
-        'hydraulic_domain_unknown_confidence',
-        `Hydraulic domain "${hydraulicDomain.id}" has unknown confidence.`,
-      );
-    }
-
-    if (
-      hydraulicDomain.pressureRegime === 'sealed_primary'
-      && hydraulicDomain.requiresExpansionAccommodation
-    ) {
-      const hasExpansionAccommodation = graph.components.some((component) => (
-        component.role === 'safety'
-        || component.behaviours?.includes('accepts_expansion')
-      ));
-
-      if (!hasExpansionAccommodation) {
-        addError(
-          errors,
-          'sealed_primary_missing_expansion_accommodation',
-          `Hydraulic domain "${hydraulicDomain.id}" requires expansion accommodation but no safety/expansion component exists.`,
-        );
-      }
-    }
-  }
 
   if (!graph.components.some((component) => component.role === 'environment')) {
     addWarning(
