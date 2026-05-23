@@ -2,6 +2,7 @@ import type { LegoTechnixGraphV1 } from '../types';
 import type { ComponentStateV1 } from './ComponentStateV1';
 import type { HeatTransferEvaluationResultV1 } from './evaluateHeatTransfersV1';
 import type { LegoTechnixSimulationStateV1 } from './LegoTechnixSimulationStateV1';
+import type { DomesticDrawOffDemandV1 } from './DomesticDrawOffDemandV1';
 import type { LegoTechnixTickInputV1 } from './LegoTechnixTickInputV1';
 import type {
   LegoTechnixSimulationEventV1,
@@ -25,6 +26,62 @@ function round3(value: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function resolveStoreDrawOffDemandsByComponentId(
+  graph: LegoTechnixGraphV1,
+  tickInput: LegoTechnixTickInputV1,
+  warnings: LegoTechnixSimulationWarningV1[],
+): ReadonlyMap<string, readonly DomesticDrawOffDemandV1[]> {
+  const demandsByStoreComponentId = new Map<string, DomesticDrawOffDemandV1[]>();
+  const componentById = new Map(graph.components.map((component) => [component.id, component]));
+  const drawOffDemands = tickInput.domesticDrawOffDemands ?? [];
+
+  for (const demand of drawOffDemands) {
+    if (!Number.isFinite(demand.drawOffFlowLpm) || demand.drawOffFlowLpm <= 0) {
+      warnings.push({
+        code: 'domestic_draw_off_invalid_flow',
+        componentId: demand.drawOffComponentId,
+        message: `Domestic draw-off "${demand.drawOffComponentId}" has non-positive drawOffFlowLpm.`,
+      });
+      continue;
+    }
+
+    const drawOffComponent = componentById.get(demand.drawOffComponentId);
+    if (!drawOffComponent || !drawOffComponent.domains?.includes('domestic_hot')) {
+      warnings.push({
+        code: 'domestic_draw_off_component_invalid',
+        componentId: demand.drawOffComponentId,
+        message: `Domestic draw-off component "${demand.drawOffComponentId}" was not found in domestic_hot domain.`,
+      });
+      continue;
+    }
+
+    const hotDrawConnection = graph.connections.find((connection) => (
+      connection.targetComponentId === demand.drawOffComponentId
+      && connection.domain === 'domestic_hot'
+      && componentById.get(connection.sourceComponentId)?.role === 'store'
+      && componentById.get(connection.sourceComponentId)?.domains?.includes('domestic_hot')
+    ));
+    if (!hotDrawConnection) {
+      warnings.push({
+        code: 'domestic_draw_off_store_unmapped',
+        componentId: demand.drawOffComponentId,
+        message: `Domestic draw-off "${demand.drawOffComponentId}" is not mapped to a stored domestic water node.`,
+      });
+      continue;
+    }
+
+    const storeComponentId = hotDrawConnection.sourceComponentId;
+    const existing = demandsByStoreComponentId.get(storeComponentId);
+    if (existing) {
+      existing.push(demand);
+    } else {
+      demandsByStoreComponentId.set(storeComponentId, [demand]);
+    }
+  }
+
+  return demandsByStoreComponentId;
 }
 
 export interface ThermalIntegrationResultV1 {
@@ -60,6 +117,7 @@ export function integrateThermalStateV1(
 
   const roomGainByComponentId = new Map<string, number>();
   const storedGainByComponentId = new Map<string, number>();
+  const drawOffDemandsByStoreComponentId = resolveStoreDrawOffDemandsByComponentId(graph, tickInput, warnings);
 
   for (const component of graph.components) {
     const transfer = heatTransferResult.transferByComponentId[component.id];
@@ -158,6 +216,62 @@ export function integrateThermalStateV1(
       nextTempC = clamp(currentTempC + deltaTempC, STORED_WATER_TEMP_MIN_C, STORED_WATER_TEMP_MAX_C);
       if (typeof targetTemperatureC === 'number') {
         nextTempC = Math.min(nextTempC, targetTemperatureC);
+      }
+
+      const drawOffDemands = drawOffDemandsByStoreComponentId.get(component.id) ?? [];
+      if (drawOffDemands.length > 0) {
+        const timestepMinutes = Math.max(tickInput.timestepSeconds, 0) / 60;
+        let drawOffEventCount = 0;
+        for (const drawOffDemand of drawOffDemands) {
+          if (timestepMinutes <= 0) {
+            continue;
+          }
+          const drawOffFlowLpm = Math.max(drawOffDemand.drawOffFlowLpm, 0);
+          if (drawOffFlowLpm <= 0) {
+            continue;
+          }
+
+          const mixedOutletTargetTemperatureC = drawOffDemand.mixedOutletTargetTemperatureC;
+          const coldInletTemperatureC = drawOffDemand.coldInletTemperatureC;
+          const mixedOutletLitres = drawOffFlowLpm * timestepMinutes;
+          if (!Number.isFinite(mixedOutletLitres) || mixedOutletLitres <= 0) {
+            continue;
+          }
+
+          const hotFractionDenominator = nextTempC - coldInletTemperatureC;
+          const hotFraction = (
+            nextTempC <= mixedOutletTargetTemperatureC
+              || !Number.isFinite(hotFractionDenominator)
+              || hotFractionDenominator <= 0
+          )
+            ? 1
+            : clamp(
+              (mixedOutletTargetTemperatureC - coldInletTemperatureC) / hotFractionDenominator,
+              0,
+              1,
+            );
+          const hotDrawnLitres = mixedOutletLitres * hotFraction;
+          if (hotDrawnLitres <= 0) {
+            continue;
+          }
+
+          const drawOffTemperatureDelta = nextTempC - coldInletTemperatureC;
+          const drawOffCoolingRatio = hotDrawnLitres / volumeLitres;
+          nextTempC = clamp(
+            nextTempC - (drawOffCoolingRatio * drawOffTemperatureDelta),
+            STORED_WATER_TEMP_MIN_C,
+            STORED_WATER_TEMP_MAX_C,
+          );
+          drawOffEventCount += 1;
+        }
+
+        if (drawOffEventCount > 0) {
+          events.push({
+            type: 'domestic_draw_off_applied',
+            componentId: component.id,
+            message: `Applied ${drawOffEventCount} domestic draw-off event(s) to stored water node "${component.id}".`,
+          });
+        }
       }
     } else {
       warnings.push({

@@ -9,6 +9,7 @@ import {
   sPlanControlInitialStateV1,
 } from '../fixtures/sPlanControlGraph';
 import type { LegoTechnixGraphV1 } from '../types';
+import type { DomesticDrawOffDemandV1 } from '../simulation/DomesticDrawOffDemandV1';
 import type { LegoTechnixSimulationStateV1 } from '../simulation/LegoTechnixSimulationStateV1';
 import type { LegoTechnixTickInputV1 } from '../simulation/LegoTechnixTickInputV1';
 import { evaluatePipeEdgesV1 } from '../simulation/evaluatePipeEdgesV1';
@@ -67,11 +68,13 @@ function makeTickInput(
   wallClockMs = 1000,
   controlOverrides?: Readonly<Record<string, unknown>>,
   timestepSeconds = 1,
+  domesticDrawOffDemands?: readonly DomesticDrawOffDemandV1[],
 ): LegoTechnixTickInputV1 {
   return {
     wallClockMs,
     timestepSeconds,
     controlOverrides,
+    domesticDrawOffDemands,
   };
 }
 
@@ -716,6 +719,141 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
 
       expect(result.tickBlocked).toBe(false);
       expect(result.warnings.some((warning) => warning.code === 'stored_water_volume_missing')).toBe(true);
+    });
+
+    it('38. domestic draw-off lowers stored-water temperature and energy', () => {
+      const initial = makeSimpleInitialState();
+      const storeState = findComponentState(initial, 'stored_dhw_volume');
+      if (!storeState) throw new Error('Stored water state missing.');
+      storeState.currentTemperatureC = 60;
+      storeState.storedEnergyKwh = 10.44;
+
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(
+          1000,
+          undefined,
+          600,
+          [{
+            drawOffComponentId: 'domestic_hot_draw_off',
+            drawOffFlowLpm: 10,
+            mixedOutletTargetTemperatureC: 40,
+            coldInletTemperatureC: 10,
+          }],
+        ),
+      );
+
+      const nextStore = findComponentState(result.nextState, 'stored_dhw_volume');
+      expect((nextStore?.currentTemperatureC ?? 0)).toBeLessThan(60);
+      expect((nextStore?.storedEnergyKwh ?? 0)).toBeLessThan(10.44);
+      expect(result.events.some((event) => event.type === 'domestic_draw_off_applied')).toBe(true);
+    });
+
+    it('39. no draw-off leaves stored water unchanged when no coil gain and no standing loss', () => {
+      const initial = makeSimpleInitialState();
+      const storeState = findComponentState(initial, 'stored_dhw_volume');
+      if (!storeState) throw new Error('Stored water state missing.');
+      storeState.currentTemperatureC = 52;
+      storeState.standingLossKw = 0;
+
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(1000, undefined, 600),
+      );
+
+      const nextStore = findComponentState(result.nextState, 'stored_dhw_volume');
+      expect(nextStore?.currentTemperatureC).toBeCloseTo(52, 3);
+      expect(nextStore?.storedEnergyKwh).toBeCloseTo((150 * 1.16 * 52) / 1000, 3);
+    });
+
+    it('40. colder inlet water causes larger stored-water temperature drop for same draw', () => {
+      const coldInletInitial = makeSimpleInitialState();
+      const warmInletInitial = makeSimpleInitialState();
+      const coldStore = findComponentState(coldInletInitial, 'stored_dhw_volume');
+      const warmStore = findComponentState(warmInletInitial, 'stored_dhw_volume');
+      if (!coldStore || !warmStore) throw new Error('Stored water state missing.');
+      coldStore.currentTemperatureC = 60;
+      warmStore.currentTemperatureC = 60;
+
+      const baseDemand = {
+        drawOffComponentId: 'domestic_hot_draw_off',
+        drawOffFlowLpm: 6,
+        mixedOutletTargetTemperatureC: 40,
+      };
+      const coldResult = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        coldInletInitial,
+        makeTickInput(1000, undefined, 600, [{ ...baseDemand, coldInletTemperatureC: 5 }]),
+      );
+      const warmResult = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        warmInletInitial,
+        makeTickInput(1000, undefined, 600, [{ ...baseDemand, coldInletTemperatureC: 15 }]),
+      );
+
+      const coldResultStore = findComponentState(coldResult.nextState, 'stored_dhw_volume');
+      const warmResultStore = findComponentState(warmResult.nextState, 'stored_dhw_volume');
+      expect((coldResultStore?.currentTemperatureC ?? 0)).toBeLessThan(warmResultStore?.currentTemperatureC ?? 0);
+    });
+
+    it('41. high draw-off can exhaust usable 40°C stored volume', () => {
+      const initial = makeSimpleInitialState();
+      const storeState = findComponentState(initial, 'stored_dhw_volume');
+      if (!storeState) throw new Error('Stored water state missing.');
+      storeState.currentTemperatureC = 45;
+
+      const result = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(
+          1000,
+          undefined,
+          1800,
+          [{
+            drawOffComponentId: 'domestic_hot_draw_off',
+            drawOffFlowLpm: 20,
+            mixedOutletTargetTemperatureC: 40,
+            coldInletTemperatureC: 10,
+          }],
+        ),
+      );
+
+      const nextStore = findComponentState(result.nextState, 'stored_dhw_volume');
+      expect(nextStore?.usableHotWaterLitresAt40C).toBe(0);
+      expect((nextStore?.currentTemperatureC ?? 0)).toBeLessThanOrEqual(10);
+    });
+
+    it('42. draw-off does not mix domestic and primary domains', () => {
+      const initial = makeSimpleInitialState();
+      const baselineResult = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        initial,
+        makeTickInput(1000, undefined, 600),
+      );
+      const drawOffResult = runLegoTechnixTickV1(
+        simpleRegularBoilerGraph,
+        makeSimpleInitialState(),
+        makeTickInput(
+          1000,
+          undefined,
+          600,
+          [{
+            drawOffComponentId: 'domestic_hot_draw_off',
+            drawOffFlowLpm: 8,
+            mixedOutletTargetTemperatureC: 40,
+            coldInletTemperatureC: 10,
+          }],
+        ),
+      );
+
+      expect(findComponentState(drawOffResult.nextState, 'regular_boiler')?.operatingMode)
+        .toBe(findComponentState(baselineResult.nextState, 'regular_boiler')?.operatingMode);
+      expect(findEdgeState(drawOffResult.nextState, 'conn_boiler_to_pump')?.isActive)
+        .toBe(findEdgeState(baselineResult.nextState, 'conn_boiler_to_pump')?.isActive);
+      expect(drawOffResult.warnings.some((warning) => warning.code === 'domestic_draw_off_store_unmapped'))
+        .toBe(false);
     });
 
     it('38. previousState is not mutated', () => {

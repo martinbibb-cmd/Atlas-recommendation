@@ -1,3 +1,5 @@
+export type { DomesticDrawOffDemandV1 } from './DomesticDrawOffDemandV1';
+
 export { COMPONENT_OPERATING_MODES_V1, CONTROL_ACTUATOR_POSITIONS_V1 } from './ComponentStateV1';
 export type {
   ComponentOperatingModeV1,
