@@ -204,10 +204,48 @@ export const HEAT_SOURCE_CONTROL_DEMAND_STATES_V1 = [
 
 export type HeatSourceControlDemandStateV1 = (typeof HEAT_SOURCE_CONTROL_DEMAND_STATES_V1)[number];
 
+export const HEAT_SOURCE_TYPES_V1 = [
+  'gas_boiler',
+  'heat_pump',
+  'immersion',
+] as const;
+
+export type HeatSourceTypeV1 = (typeof HEAT_SOURCE_TYPES_V1)[number];
+
+export const ESTIMATED_COP_BANDS_V1 = [
+  'high',
+  'normal',
+  'reduced',
+  'poor',
+] as const;
+
+export type EstimatedCopBandV1 = (typeof ESTIMATED_COP_BANDS_V1)[number];
+
+export interface LowTemperatureEmitterSuitabilityV1 {
+  status: 'suitable' | 'shortfall' | 'unknown';
+  requiredHeatKw?: number;
+  availableHeatKw?: number;
+  confidence: LegoTechnixConfidence;
+  provenance: string[];
+}
+
+export interface WeatherCompensationModelV1 {
+  enabled: boolean;
+  outsideTemperatureSourceComponentId: string;
+  designOutsideTemperatureC: number;
+  mildOutsideTemperatureC: number;
+  targetFlowAtDesignC: number;
+  targetFlowAtMildC: number;
+  minTargetFlowTemperatureC?: number;
+  maxTargetFlowTemperatureC?: number;
+  confidence: LegoTechnixConfidence;
+}
+
 export interface HeatSourceModelV1 {
   id: string;
   componentId: string;
   primaryDomain: LegoTechnixDomain;
+  heatSourceType: HeatSourceTypeV1;
   nominalOutputKw: number;
   minStableOutputKw: number;
   maxOutputKw: number;
@@ -218,6 +256,18 @@ export interface HeatSourceModelV1 {
   controlDemandState?: HeatSourceControlDemandStateV1;
   condensingLikely?: boolean;
   cyclingRisk?: boolean;
+  weatherCompensation?: WeatherCompensationModelV1;
+  designOutsideTemperatureC?: number;
+  mildOutsideTemperatureC?: number;
+  targetFlowAtDesignC?: number;
+  targetFlowAtMildC?: number;
+  calculatedTargetFlowTemperatureC?: number;
+  estimatedCop?: number;
+  estimatedCopBand?: EstimatedCopBandV1;
+  lowTemperatureEmitterSuitability?: LowTemperatureEmitterSuitabilityV1;
+  weatherCompensationEnabled?: boolean;
+  loadCompensationEnabled?: boolean;
+  condensingConfidence?: LegoTechnixConfidence;
 }
 
 export const CONTROL_SENSOR_KINDS_V1 = [

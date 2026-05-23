@@ -1,5 +1,6 @@
 import type { LegoTechnixDomain } from '../domains';
 import type { LegoTechnixGraphV1 } from '../types';
+import type { LegoTechnixConfidence } from '../confidence';
 import type { ComponentStateV1, ComponentOperatingModeV1 } from './ComponentStateV1';
 import type { EdgeStateV1 } from './EdgeStateV1';
 import type { ActivePathResolutionV1 } from './resolveActivePathsV1';
@@ -10,10 +11,26 @@ import type {
 } from './LegoTechnixTickResultV1';
 
 const CONDENSING_RETURN_THRESHOLD_C = 55;
+const HEAT_PUMP_HIGH_COP_MAX_FLOW_C = 35;
+const HEAT_PUMP_NORMAL_COP_MAX_FLOW_C = 45;
+const HEAT_PUMP_REDUCED_COP_MAX_FLOW_C = 55;
+const HEAT_PUMP_EFFICIENCY_WARNING_FLOW_C = 55;
+const ASSUMED_ROOM_AIR_TEMP_C = 20;
+const LOW_CONFIDENCE_CONDENSING: LegoTechnixConfidence = 'assumed';
 
 interface EdgeTemperatureEstimateV1 {
   readonly estimatedInletTemperatureC?: number;
   readonly estimatedOutletTemperatureC?: number;
+}
+
+interface WeatherCompensationResolutionV1 {
+  readonly enabled: boolean;
+  readonly targetFlowTemperatureC: number;
+  readonly calculatedTargetFlowTemperatureC?: number;
+  readonly designOutsideTemperatureC?: number;
+  readonly mildOutsideTemperatureC?: number;
+  readonly targetFlowAtDesignC?: number;
+  readonly targetFlowAtMildC?: number;
 }
 
 export interface HeatSourceEvaluationResultV1 {
@@ -135,6 +152,199 @@ function getPrimaryConnections(
   return { inletConnectionIds, outletConnectionIds };
 }
 
+function resolveOutsideTemperatureFromState(
+  previousStateByComponentId: ReadonlyMap<string, ComponentStateV1>,
+  outsideTemperatureSourceComponentId?: string,
+): number | undefined {
+  if (!outsideTemperatureSourceComponentId) {
+    return undefined;
+  }
+  const state = previousStateByComponentId.get(outsideTemperatureSourceComponentId);
+  return state?.currentTemperatureC ?? state?.measuredTemperatureC;
+}
+
+function resolveWeatherCompensation(
+  model: NonNullable<LegoTechnixGraphV1['heatSourceModels']>[number],
+  previousStateByComponentId: ReadonlyMap<string, ComponentStateV1>,
+  warnings: LegoTechnixSimulationWarningV1[],
+): WeatherCompensationResolutionV1 {
+  const weather = model.weatherCompensation;
+  const enabled = weather?.enabled ?? model.weatherCompensationEnabled ?? false;
+  const baseTargetFlowTemperatureC = round3(model.targetFlowTemperatureC);
+  if (!enabled) {
+    return {
+      enabled: false,
+      targetFlowTemperatureC: baseTargetFlowTemperatureC,
+    };
+  }
+
+  const designOutsideTemperatureC = weather?.designOutsideTemperatureC ?? model.designOutsideTemperatureC;
+  const mildOutsideTemperatureC = weather?.mildOutsideTemperatureC ?? model.mildOutsideTemperatureC;
+  const targetFlowAtDesignC = weather?.targetFlowAtDesignC ?? model.targetFlowAtDesignC;
+  const targetFlowAtMildC = weather?.targetFlowAtMildC ?? model.targetFlowAtMildC;
+  if (
+    typeof designOutsideTemperatureC !== 'number'
+    || typeof mildOutsideTemperatureC !== 'number'
+    || typeof targetFlowAtDesignC !== 'number'
+    || typeof targetFlowAtMildC !== 'number'
+  ) {
+    return {
+      enabled: true,
+      targetFlowTemperatureC: baseTargetFlowTemperatureC,
+      designOutsideTemperatureC,
+      mildOutsideTemperatureC,
+      targetFlowAtDesignC,
+      targetFlowAtMildC,
+    };
+  }
+
+  const outsideTemperatureC = resolveOutsideTemperatureFromState(
+    previousStateByComponentId,
+    weather?.outsideTemperatureSourceComponentId,
+  );
+  if (typeof outsideTemperatureC !== 'number') {
+    warnings.push({
+      code: 'weather_comp_outside_temperature_missing',
+      componentId: model.componentId,
+      message: `Heat source "${model.componentId}" weather compensation missing outside temperature; falling back to configured target flow.`,
+    });
+    return {
+      enabled: true,
+      targetFlowTemperatureC: baseTargetFlowTemperatureC,
+      designOutsideTemperatureC,
+      mildOutsideTemperatureC,
+      targetFlowAtDesignC,
+      targetFlowAtMildC,
+    };
+  }
+
+  let interpolatedTargetFlowC = targetFlowAtDesignC;
+  const outsideRange = mildOutsideTemperatureC - designOutsideTemperatureC;
+  if (Math.abs(outsideRange) > Number.EPSILON) {
+    const interpolation = (
+      (outsideTemperatureC - designOutsideTemperatureC)
+      / outsideRange
+    );
+    interpolatedTargetFlowC = targetFlowAtDesignC + (
+      interpolation
+      * (targetFlowAtMildC - targetFlowAtDesignC)
+    );
+  }
+
+  const minTargetFlowTemperatureC = weather?.minTargetFlowTemperatureC;
+  const maxTargetFlowTemperatureC = weather?.maxTargetFlowTemperatureC;
+  if (typeof minTargetFlowTemperatureC === 'number') {
+    interpolatedTargetFlowC = Math.max(interpolatedTargetFlowC, minTargetFlowTemperatureC);
+  }
+  if (typeof maxTargetFlowTemperatureC === 'number') {
+    interpolatedTargetFlowC = Math.min(interpolatedTargetFlowC, maxTargetFlowTemperatureC);
+  }
+
+  return {
+    enabled: true,
+    targetFlowTemperatureC: round3(interpolatedTargetFlowC),
+    calculatedTargetFlowTemperatureC: round3(interpolatedTargetFlowC),
+    designOutsideTemperatureC,
+    mildOutsideTemperatureC,
+    targetFlowAtDesignC,
+    targetFlowAtMildC,
+  };
+}
+
+function evaluateLowTemperatureEmitterSuitability(
+  graph: LegoTechnixGraphV1,
+  model: NonNullable<LegoTechnixGraphV1['heatSourceModels']>[number],
+  targetFlowTemperatureC: number,
+  previousStateByComponentId: ReadonlyMap<string, ComponentStateV1>,
+): ComponentStateV1['lowTemperatureEmitterSuitability'] | undefined {
+  const outsideComponent = graph.components.find((component) => component.domains?.includes('outside_environment'));
+  const outsideTemperatureC = outsideComponent
+    ? previousStateByComponentId.get(outsideComponent.id)?.currentTemperatureC
+    : undefined;
+  if (typeof outsideTemperatureC !== 'number') {
+    return undefined;
+  }
+
+  const roomComponentById = new Map(
+    graph.components
+      .filter((component) => component.domains?.includes('room_air'))
+      .map((component) => [component.id, component]),
+  );
+
+  let requiredHeatKw = 0;
+  let availableHeatKw = 0;
+  let comparedRoomCount = 0;
+  let radiatorCount = 0;
+
+  for (const contract of graph.heatTransferComponents ?? []) {
+    if (contract.family !== 'radiator' || contract.primaryDomain !== model.primaryDomain) {
+      continue;
+    }
+    radiatorCount += 1;
+    const roomConnection = graph.connections.find((connection) => (
+      connection.sourceComponentId === contract.componentId
+      && connection.domain === 'room_air'
+      && roomComponentById.has(connection.targetComponentId)
+    ));
+    if (!roomConnection) {
+      continue;
+    }
+    const roomState = previousStateByComponentId.get(roomConnection.targetComponentId);
+    const roomTargetTemperatureC = roomState?.targetTemperatureC ?? roomState?.setpointTemperatureC;
+    const roomHeatLossKwPerK = roomState?.heatLossKwPerK;
+    if (typeof roomTargetTemperatureC !== 'number' || typeof roomHeatLossKwPerK !== 'number') {
+      continue;
+    }
+    comparedRoomCount += 1;
+    requiredHeatKw += Math.max(roomHeatLossKwPerK * (roomTargetTemperatureC - outsideTemperatureC), 0);
+    const referenceFlowTemperatureC = model.targetFlowAtDesignC ?? model.targetFlowTemperatureC;
+    const availableScale = referenceFlowTemperatureC > ASSUMED_ROOM_AIR_TEMP_C
+      ? clamp(
+        (targetFlowTemperatureC - ASSUMED_ROOM_AIR_TEMP_C)
+          / (referenceFlowTemperatureC - ASSUMED_ROOM_AIR_TEMP_C),
+        0,
+        1.2,
+      )
+      : 0;
+    availableHeatKw += Math.max(contract.output.energyTransfer.secondaryEnergyGainedKw, 0) * availableScale;
+  }
+
+  if (radiatorCount === 0 || comparedRoomCount === 0) {
+    return {
+      status: 'unknown',
+      confidence: 'assumed',
+      provenance: [
+        'No comparable radiator contracts with room heat-loss state were available.',
+      ],
+    };
+  }
+
+  const hasShortfall = availableHeatKw < requiredHeatKw;
+  return {
+    status: hasShortfall ? 'shortfall' : 'suitable',
+    requiredHeatKw: round3(requiredHeatKw),
+    availableHeatKw: round3(availableHeatKw),
+    confidence: 'estimated',
+    provenance: [
+      'Derived from radiator secondary output contracts scaled by calculated target flow.',
+      'Compared against room heat-loss requirement from room heatLossKwPerK and temperature target versus outside.',
+    ],
+  };
+}
+
+function resolveHeatPumpCopBand(targetFlowTemperatureC: number): ComponentStateV1['estimatedCopBand'] {
+  if (targetFlowTemperatureC <= HEAT_PUMP_HIGH_COP_MAX_FLOW_C) {
+    return 'high';
+  }
+  if (targetFlowTemperatureC <= HEAT_PUMP_NORMAL_COP_MAX_FLOW_C) {
+    return 'normal';
+  }
+  if (targetFlowTemperatureC <= HEAT_PUMP_REDUCED_COP_MAX_FLOW_C) {
+    return 'reduced';
+  }
+  return 'poor';
+}
+
 export function evaluateHeatSourcesV1(
   graph: LegoTechnixGraphV1,
   previousState: Readonly<{ componentStates: readonly ComponentStateV1[] }>,
@@ -176,6 +386,8 @@ export function evaluateHeatSourcesV1(
     const shouldFire = controlDemandState === 'demanding' && hasActivePrimaryPath && !isDeadheaded;
 
     const previous = previousStateByComponentId.get(model.componentId);
+    const weatherCompensation = resolveWeatherCompensation(model, previousStateByComponentId, warnings);
+    const activeTargetFlowTemperatureC = weatherCompensation.targetFlowTemperatureC;
     const { inletConnectionIds, outletConnectionIds } = getPrimaryConnections(
       graph,
       model.componentId,
@@ -190,7 +402,7 @@ export function evaluateHeatSourcesV1(
       inferredReturnTemperatureC
       ?? previous?.returnTemperatureC
       ?? model.returnTemperatureC
-      ?? (model.targetFlowTemperatureC - 20),
+      ?? (activeTargetFlowTemperatureC - 20),
     );
 
     const previousFlowTemperatureC = previous?.currentTemperatureC
@@ -198,7 +410,7 @@ export function evaluateHeatSourcesV1(
       ?? returnTemperatureC;
     const rampDeltaC = Math.max(model.rampRateCPerSecond, 0) * timestepSeconds;
     const nextFlowTemperatureC = shouldFire
-      ? approach(previousFlowTemperatureC, model.targetFlowTemperatureC, rampDeltaC)
+      ? approach(previousFlowTemperatureC, activeTargetFlowTemperatureC, rampDeltaC)
       : returnTemperatureC;
 
     const requiredLoadKw = requiredLoadByDomainKw.get(model.primaryDomain) ?? 0;
@@ -220,6 +432,15 @@ export function evaluateHeatSourcesV1(
     }
 
     const condensingLikely = returnTemperatureC < CONDENSING_RETURN_THRESHOLD_C;
+    const lowTemperatureEmitterSuitability = evaluateLowTemperatureEmitterSuitability(
+      graph,
+      model,
+      activeTargetFlowTemperatureC,
+      previousStateByComponentId,
+    );
+    const estimatedCopBand = model.heatSourceType === 'heat_pump'
+      ? resolveHeatPumpCopBand(activeTargetFlowTemperatureC)
+      : undefined;
     const operatingMode: ComponentOperatingModeV1 = isDeadheaded
       ? 'fault'
       : (shouldFire ? 'running' : 'idle');
@@ -228,21 +449,32 @@ export function evaluateHeatSourcesV1(
       isActive: shouldFire,
       operatingMode,
       currentTemperatureC: round3(nextFlowTemperatureC),
-      targetTemperatureC: model.targetFlowTemperatureC,
+      targetTemperatureC: activeTargetFlowTemperatureC,
       nominalOutputKw: round3(model.nominalOutputKw),
       minStableOutputKw: round3(model.minStableOutputKw),
       maxOutputKw: round3(model.maxOutputKw),
-      targetFlowTemperatureC: round3(model.targetFlowTemperatureC),
+      targetFlowTemperatureC: round3(activeTargetFlowTemperatureC),
       returnTemperatureC,
       rampRateCPerSecond: round3(model.rampRateCPerSecond),
       modulationStrategy: model.modulationStrategy,
+      heatSourceType: model.heatSourceType,
       controlDemandState,
       condensingLikely,
+      condensingConfidence: LOW_CONFIDENCE_CONDENSING,
       cyclingRisk,
       heatGainKw: round3(outputKw),
       netHeatKw: round3(outputKw),
       lastPrimaryInletTemperatureC: returnTemperatureC,
       lastPrimaryOutletTemperatureC: round3(nextFlowTemperatureC),
+      designOutsideTemperatureC: weatherCompensation.designOutsideTemperatureC,
+      mildOutsideTemperatureC: weatherCompensation.mildOutsideTemperatureC,
+      targetFlowAtDesignC: weatherCompensation.targetFlowAtDesignC,
+      targetFlowAtMildC: weatherCompensation.targetFlowAtMildC,
+      calculatedTargetFlowTemperatureC: weatherCompensation.calculatedTargetFlowTemperatureC,
+      estimatedCopBand,
+      lowTemperatureEmitterSuitability,
+      weatherCompensationEnabled: weatherCompensation.enabled,
+      loadCompensationEnabled: model.loadCompensationEnabled ?? false,
     };
 
     for (const connectionId of outletConnectionIds) {
@@ -272,6 +504,50 @@ export function evaluateHeatSourcesV1(
         componentId: model.componentId,
         message: `Heat source "${model.componentId}" required load ${round3(requiredLoadKw)}kW is below minimum stable output ${round3(model.minStableOutputKw)}kW.`,
       });
+    }
+
+    if (
+      model.heatSourceType === 'heat_pump'
+      && activeTargetFlowTemperatureC > HEAT_PUMP_EFFICIENCY_WARNING_FLOW_C
+    ) {
+      warnings.push({
+        code: 'heat_pump_target_flow_high_temperature',
+        componentId: model.componentId,
+        message: `Heat source "${model.componentId}" target flow ${round3(activeTargetFlowTemperatureC)}°C is above common efficient heat-pump range.`,
+      });
+    }
+    if (
+      model.heatSourceType === 'heat_pump'
+      && lowTemperatureEmitterSuitability?.status === 'shortfall'
+    ) {
+      warnings.push({
+        code: 'low_temperature_emitter_output_shortfall',
+        componentId: model.componentId,
+        message: `Heat source "${model.componentId}" emitter output estimate ${lowTemperatureEmitterSuitability.availableHeatKw ?? 0}kW is below room heat-loss requirement ${lowTemperatureEmitterSuitability.requiredHeatKw ?? 0}kW at low target flow.`,
+      });
+    }
+    if (model.heatSourceType === 'heat_pump') {
+      const hasHighTemperatureDhwTarget = (graph.heatTransferComponents ?? []).some((contract) => {
+        if (contract.family !== 'cylinder_coil' || contract.primaryDomain !== model.primaryDomain) {
+          return false;
+        }
+        const storeConnection = graph.connections.find((connection) => (
+          connection.sourceComponentId === contract.componentId
+          && connection.domain === 'domestic_hot'
+        ));
+        if (!storeConnection) {
+          return false;
+        }
+        const storeState = previousStateByComponentId.get(storeConnection.targetComponentId);
+        return (storeState?.targetTemperatureC ?? 0) >= HEAT_PUMP_EFFICIENCY_WARNING_FLOW_C;
+      });
+      if (hasHighTemperatureDhwTarget && activeTargetFlowTemperatureC >= HEAT_PUMP_REDUCED_COP_MAX_FLOW_C) {
+        warnings.push({
+          code: 'heat_pump_dhw_high_temperature_support_required',
+          componentId: model.componentId,
+          message: `Heat source "${model.componentId}" DHW target appears to require high flow temperature or immersion support.`,
+        });
+      }
     }
 
     events.push({

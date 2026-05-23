@@ -1011,6 +1011,254 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
   });
 });
 
+describe('runLegoTechnixTickV1 — PR19 heat pump and weather compensation', () => {
+  function runDemandTick(
+    graph: LegoTechnixGraphV1,
+    initial = makeSimpleInitialState(),
+  ) {
+    return runLegoTechnixTickV1(
+      graph,
+      initial,
+      makeTickInput(1000, {
+        zone_valve: true,
+        regular_boiler: { demand: true },
+      }, 30),
+    );
+  }
+
+  it('46. colder outside temperature raises weather-compensated target flow', () => {
+    const coldGraph = cloneGraph(simpleRegularBoilerGraph);
+    const mildGraph = cloneGraph(simpleRegularBoilerGraph);
+    if (!coldGraph.heatSourceModels?.[0] || !mildGraph.heatSourceModels?.[0]) {
+      throw new Error('Heat source model missing.');
+    }
+
+    for (const graph of [coldGraph, mildGraph]) {
+      graph.heatSourceModels[0].weatherCompensationEnabled = true;
+      graph.heatSourceModels[0].weatherCompensation = {
+        enabled: true,
+        outsideTemperatureSourceComponentId: 'outside_air',
+        designOutsideTemperatureC: -3,
+        mildOutsideTemperatureC: 15,
+        targetFlowAtDesignC: 65,
+        targetFlowAtMildC: 40,
+        confidence: 'assumed',
+      };
+    }
+
+    const coldInitial = makeSimpleInitialState();
+    const mildInitial = makeSimpleInitialState();
+    const coldOutside = findComponentState(coldInitial, 'outside_air');
+    const mildOutside = findComponentState(mildInitial, 'outside_air');
+    if (!coldOutside || !mildOutside) throw new Error('Outside air state missing.');
+    coldOutside.currentTemperatureC = -3;
+    mildOutside.currentTemperatureC = 12;
+
+    const coldResult = runDemandTick(coldGraph, coldInitial);
+    const mildResult = runDemandTick(mildGraph, mildInitial);
+    const coldState = findComponentState(coldResult.nextState, 'regular_boiler');
+    const mildState = findComponentState(mildResult.nextState, 'regular_boiler');
+
+    expect((coldState?.targetFlowTemperatureC ?? 0)).toBeGreaterThan(mildState?.targetFlowTemperatureC ?? 0);
+  });
+
+  it('47. milder outside temperature lowers weather-compensated target flow', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].weatherCompensationEnabled = true;
+    graph.heatSourceModels[0].weatherCompensation = {
+      enabled: true,
+      outsideTemperatureSourceComponentId: 'outside_air',
+      designOutsideTemperatureC: -2,
+      mildOutsideTemperatureC: 14,
+      targetFlowAtDesignC: 62,
+      targetFlowAtMildC: 38,
+      confidence: 'assumed',
+    };
+
+    const coldInitial = makeSimpleInitialState();
+    const mildInitial = makeSimpleInitialState();
+    const coldOutside = findComponentState(coldInitial, 'outside_air');
+    const mildOutside = findComponentState(mildInitial, 'outside_air');
+    if (!coldOutside || !mildOutside) throw new Error('Outside air state missing.');
+    coldOutside.currentTemperatureC = 0;
+    mildOutside.currentTemperatureC = 12;
+
+    const coldResult = runDemandTick(graph, coldInitial);
+    const mildResult = runDemandTick(graph, mildInitial);
+    expect(
+      (findComponentState(coldResult.nextState, 'regular_boiler')?.targetFlowTemperatureC ?? 0),
+    ).toBeGreaterThan(findComponentState(mildResult.nextState, 'regular_boiler')?.targetFlowTemperatureC ?? 0);
+  });
+
+  it('48. weather-compensated target flow clamps to min/max', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].weatherCompensationEnabled = true;
+    graph.heatSourceModels[0].weatherCompensation = {
+      enabled: true,
+      outsideTemperatureSourceComponentId: 'outside_air',
+      designOutsideTemperatureC: -5,
+      mildOutsideTemperatureC: 15,
+      targetFlowAtDesignC: 70,
+      targetFlowAtMildC: 30,
+      minTargetFlowTemperatureC: 42,
+      maxTargetFlowTemperatureC: 58,
+      confidence: 'assumed',
+    };
+
+    const coldInitial = makeSimpleInitialState();
+    const warmInitial = makeSimpleInitialState();
+    const coldOutside = findComponentState(coldInitial, 'outside_air');
+    const warmOutside = findComponentState(warmInitial, 'outside_air');
+    if (!coldOutside || !warmOutside) throw new Error('Outside air state missing.');
+    coldOutside.currentTemperatureC = -15;
+    warmOutside.currentTemperatureC = 22;
+
+    const coldState = findComponentState(runDemandTick(graph, coldInitial).nextState, 'regular_boiler');
+    const warmState = findComponentState(runDemandTick(graph, warmInitial).nextState, 'regular_boiler');
+    expect(coldState?.targetFlowTemperatureC).toBe(58);
+    expect(warmState?.targetFlowTemperatureC).toBe(42);
+  });
+
+  it('49. missing outside temperature emits warning and falls back to configured target', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].weatherCompensationEnabled = true;
+    graph.heatSourceModels[0].targetFlowTemperatureC = 68;
+    graph.heatSourceModels[0].weatherCompensation = {
+      enabled: true,
+      outsideTemperatureSourceComponentId: 'outside_air_missing',
+      designOutsideTemperatureC: -3,
+      mildOutsideTemperatureC: 15,
+      targetFlowAtDesignC: 64,
+      targetFlowAtMildC: 38,
+      confidence: 'assumed',
+    };
+
+    const result = runDemandTick(graph);
+    const boilerState = findComponentState(result.nextState, 'regular_boiler');
+    expect(result.warnings.some((warning) => warning.code === 'weather_comp_outside_temperature_missing')).toBe(true);
+    expect(boilerState?.targetFlowTemperatureC).toBe(68);
+  });
+
+  it('50. heat pump exposes estimated COP bands by target-flow range', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].heatSourceType = 'heat_pump';
+
+    graph.heatSourceModels[0].targetFlowTemperatureC = 35;
+    const highState = findComponentState(runDemandTick(graph).nextState, 'regular_boiler');
+    graph.heatSourceModels[0].targetFlowTemperatureC = 45;
+    const normalState = findComponentState(runDemandTick(graph).nextState, 'regular_boiler');
+    graph.heatSourceModels[0].targetFlowTemperatureC = 55;
+    const reducedState = findComponentState(runDemandTick(graph).nextState, 'regular_boiler');
+    graph.heatSourceModels[0].targetFlowTemperatureC = 60;
+    const poorState = findComponentState(runDemandTick(graph).nextState, 'regular_boiler');
+
+    expect(highState?.estimatedCopBand).toBe('high');
+    expect(normalState?.estimatedCopBand).toBe('normal');
+    expect(reducedState?.estimatedCopBand).toBe('reduced');
+    expect(poorState?.estimatedCopBand).toBe('poor');
+  });
+
+  it('51. high heat-pump target flow emits efficiency warning', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].heatSourceType = 'heat_pump';
+    graph.heatSourceModels[0].targetFlowTemperatureC = 60;
+
+    const result = runDemandTick(graph);
+    expect(result.warnings.some((warning) => warning.code === 'heat_pump_target_flow_high_temperature')).toBe(true);
+  });
+
+  it('52. weather-compensated gas boiler uses calculated target flow', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const initial = makeSimpleInitialState();
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].heatSourceType = 'gas_boiler';
+    graph.heatSourceModels[0].weatherCompensationEnabled = true;
+    graph.heatSourceModels[0].weatherCompensation = {
+      enabled: true,
+      outsideTemperatureSourceComponentId: 'outside_air',
+      designOutsideTemperatureC: -3,
+      mildOutsideTemperatureC: 15,
+      targetFlowAtDesignC: 66,
+      targetFlowAtMildC: 42,
+      confidence: 'assumed',
+    };
+    const outside = findComponentState(initial, 'outside_air');
+    if (!outside) throw new Error('Outside air state missing.');
+    outside.currentTemperatureC = 6;
+
+    const result = runDemandTick(graph, initial);
+    const boilerState = findComponentState(result.nextState, 'regular_boiler');
+    expect(boilerState?.calculatedTargetFlowTemperatureC).toBe(54);
+    expect(boilerState?.targetFlowTemperatureC).toBe(54);
+  });
+
+  it('53. runtime return temperature overrides fallback condensing estimate', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].targetFlowTemperatureC = 80;
+    graph.heatSourceModels[0].returnTemperatureC = 75;
+    graph.heatSourceModels[0].heatSourceType = 'gas_boiler';
+    graph.heatTransferComponents = (graph.heatTransferComponents ?? []).map((contract) => {
+      if (contract.family !== 'radiator' && contract.family !== 'cylinder_coil') {
+        return contract;
+      }
+      return {
+        ...contract,
+        output: {
+          ...contract.output,
+          energyTransfer: {
+            ...contract.output.energyTransfer,
+            primaryEnergyRemovedKw: contract.family === 'radiator' ? 18 : 8,
+            secondaryEnergyGainedKw: contract.family === 'radiator' ? 18 : 8,
+          },
+        },
+      };
+    });
+
+    const result = runDemandTick(graph);
+    const boilerState = findComponentState(result.nextState, 'regular_boiler');
+    const fallbackCondensingLikely = (graph.heatSourceModels[0].targetFlowTemperatureC - 20) < 55;
+    expect(fallbackCondensingLikely).toBe(false);
+    expect(boilerState?.condensingLikely).toBe(true);
+    expect(boilerState?.condensingConfidence).toBe('derived');
+  });
+
+  it('54. low-temperature emitter output shortfall warning appears when output cannot meet room heat loss', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    const initial = makeSimpleInitialState();
+    const room = findComponentState(initial, 'living_room');
+    if (!graph.heatSourceModels?.[0] || !room) throw new Error('Required state missing.');
+    graph.heatSourceModels[0].heatSourceType = 'heat_pump';
+    graph.heatSourceModels[0].targetFlowTemperatureC = 35;
+    room.heatLossKwPerK = 1.1;
+    room.targetTemperatureC = 21;
+
+    const result = runDemandTick(graph, initial);
+    const boilerState = findComponentState(result.nextState, 'regular_boiler');
+    expect(result.warnings.some((warning) => warning.code === 'low_temperature_emitter_output_shortfall')).toBe(true);
+    expect(boilerState?.lowTemperatureEmitterSuitability?.status).toBe('shortfall');
+  });
+
+  it('55. heat pump outputs COP band only with no exact COP claim', () => {
+    const graph = cloneGraph(simpleRegularBoilerGraph);
+    if (!graph.heatSourceModels?.[0]) throw new Error('Heat source model missing.');
+    graph.heatSourceModels[0].heatSourceType = 'heat_pump';
+    graph.heatSourceModels[0].targetFlowTemperatureC = 42;
+
+    const result = runDemandTick(graph);
+    const boilerState = findComponentState(result.nextState, 'regular_boiler');
+    const combinedMessages = [...result.events, ...result.warnings].map((entry) => entry.message).join(' ');
+    expect(boilerState?.estimatedCopBand).toBe('normal');
+    expect(boilerState?.estimatedCop).toBeUndefined();
+    expect(combinedMessages).not.toMatch(/\bCOP\s*\d/);
+  });
+});
+
 describe('runLegoTechnixTickV1 — PR13 pipe transit delay and heat loss', () => {
   it('46. long primary pipe delays heat arrival versus short pipe', () => {
     const shortGraph = cloneGraph(simpleRegularBoilerGraph);
