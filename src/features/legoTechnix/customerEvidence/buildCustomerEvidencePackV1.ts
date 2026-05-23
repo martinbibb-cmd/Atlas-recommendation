@@ -696,7 +696,10 @@ export function buildCustomerEvidencePackV1(
       'what_atlas_found',
       'What Atlas found during the survey',
       'A summary of the system configuration and operational characteristics identified.',
-      [buildWhatAtlasFoundCard(explainabilityReport)],
+      [
+        buildWhatAtlasFoundCard(explainabilityReport),
+        buildWarningCard(explainabilityReport, hydraulicConfidenceReport),
+      ],
       importantWarnings,
       [],
     ),
