@@ -220,6 +220,51 @@ export interface HeatSourceModelV1 {
   cyclingRisk?: boolean;
 }
 
+export const CONTROL_SENSOR_KINDS_V1 = [
+  'room_thermostat',
+  'cylinder_thermostat',
+] as const;
+
+export type ControlSensorKindV1 = (typeof CONTROL_SENSOR_KINDS_V1)[number];
+
+export interface ControlSensorV1 {
+  id: string;
+  componentId: string;
+  kind: ControlSensorKindV1;
+  observedComponentId: string;
+  hysteresisC: number;
+}
+
+export const CONTROL_LOGIC_KINDS_V1 = [
+  's_plan',
+] as const;
+
+export type ControlLogicKindV1 = (typeof CONTROL_LOGIC_KINDS_V1)[number];
+
+export interface ControlLogicV1 {
+  id: string;
+  componentId: string;
+  kind: ControlLogicKindV1;
+  roomSensorComponentId: string;
+  cylinderSensorComponentId: string;
+}
+
+export const CONTROL_ACTUATOR_CHANNELS_V1 = [
+  'heating',
+  'domestic_hot_water',
+] as const;
+
+export type ControlActuatorChannelV1 = (typeof CONTROL_ACTUATOR_CHANNELS_V1)[number];
+
+export interface ControlActuatorV1 {
+  id: string;
+  componentId: string;
+  logicComponentId: string;
+  channel: ControlActuatorChannelV1;
+  heatSourceComponentIds?: string[];
+  normallyOpen?: boolean;
+}
+
 export interface LegoTechnixGraphV1 {
   id: string;
   label: string;
@@ -231,4 +276,7 @@ export interface LegoTechnixGraphV1 {
   hydraulicDomains?: HydraulicDomainV1[];
   heatTransferComponents?: HeatTransferComponentV1[];
   heatSourceModels?: HeatSourceModelV1[];
+  controlSensors?: ControlSensorV1[];
+  controlLogics?: ControlLogicV1[];
+  controlActuators?: ControlActuatorV1[];
 }

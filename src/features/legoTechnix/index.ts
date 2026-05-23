@@ -21,6 +21,9 @@ export type { LegoTechnixComponentRole } from './roles';
 
 export {
   HEAT_TRANSFER_COMPONENT_FAMILIES_V1,
+  CONTROL_ACTUATOR_CHANNELS_V1,
+  CONTROL_LOGIC_KINDS_V1,
+  CONTROL_SENSOR_KINDS_V1,
   HEAT_SOURCE_CONTROL_DEMAND_STATES_V1,
   HEAT_SOURCE_MODULATION_STRATEGIES_V1,
   HYDRAULIC_PRESSURE_REGIMES_V1,
@@ -30,6 +33,12 @@ export {
 } from './types';
 
 export type {
+  ControlActuatorChannelV1,
+  ControlActuatorV1,
+  ControlLogicKindV1,
+  ControlLogicV1,
+  ControlSensorKindV1,
+  ControlSensorV1,
   EnergyTransferResultV1,
   HeatTransferComponentFamilyV1,
   HeatTransferComponentV1,

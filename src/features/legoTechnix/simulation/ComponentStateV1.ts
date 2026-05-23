@@ -13,6 +13,13 @@ export const COMPONENT_OPERATING_MODES_V1 = [
 
 export type ComponentOperatingModeV1 = (typeof COMPONENT_OPERATING_MODES_V1)[number];
 
+export const CONTROL_ACTUATOR_POSITIONS_V1 = [
+  'open',
+  'closed',
+] as const;
+
+export type ControlActuatorPositionV1 = (typeof CONTROL_ACTUATOR_POSITIONS_V1)[number];
+
 export interface ComponentStateV1 {
   readonly componentId: string;
   readonly isActive: boolean;
@@ -42,6 +49,7 @@ export interface ComponentStateV1 {
   readonly rampRateCPerSecond?: number;
   readonly modulationStrategy?: HeatSourceModulationStrategyV1;
   readonly controlDemandState?: HeatSourceControlDemandStateV1;
+  readonly actuatorPosition?: ControlActuatorPositionV1;
   readonly condensingLikely?: boolean;
   readonly cyclingRisk?: boolean;
 }

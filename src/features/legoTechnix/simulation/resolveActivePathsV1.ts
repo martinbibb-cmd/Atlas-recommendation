@@ -127,10 +127,25 @@ function isActuatorOpen(
   componentId: string,
   previousStateById: ReadonlyMap<string, LegoTechnixSimulationStateV1['componentStates'][number]>,
   tickInput: LegoTechnixTickInputV1,
+  stagedComponentStateById?: Readonly<Record<string, Partial<LegoTechnixSimulationStateV1['componentStates'][number]>>>,
 ): boolean {
   const override = readActuatorOverride(tickInput.controlOverrides?.[componentId]);
   if (typeof override === 'boolean') {
     return override;
+  }
+
+  const stagedState = stagedComponentStateById?.[componentId];
+  if (stagedState?.actuatorPosition === 'open') {
+    return true;
+  }
+  if (stagedState?.actuatorPosition === 'closed') {
+    return false;
+  }
+  if (stagedState?.operatingMode === 'running' || stagedState?.isActive === true) {
+    return true;
+  }
+  if (stagedState?.operatingMode === 'idle' || stagedState?.isActive === false) {
+    return false;
   }
 
   const previousState = previousStateById.get(componentId);
@@ -155,6 +170,7 @@ function evaluatePath(
   connectionById: ReadonlyMap<string, LegoTechnixConnectionV1>,
   previousStateById: ReadonlyMap<string, LegoTechnixSimulationStateV1['componentStates'][number]>,
   tickInput: LegoTechnixTickInputV1,
+  stagedComponentStateById?: Readonly<Record<string, Partial<LegoTechnixSimulationStateV1['componentStates'][number]>>>,
 ): EvaluatedPath {
   const connections = collectPathConnections(path, connectionById);
   const pathComponentIds = collectPathComponentIds(path, connections);
@@ -174,7 +190,7 @@ function evaluatePath(
   const hasClosedActuator = pathComponentIds.some((componentId) => {
     const component = componentById.get(componentId);
     return component?.role === 'control_actuator'
-      && !isActuatorOpen(componentId, previousStateById, tickInput);
+      && !isActuatorOpen(componentId, previousStateById, tickInput, stagedComponentStateById);
   });
 
   if (hasClosedActuator) {
@@ -202,6 +218,7 @@ export function resolveActivePathsV1(
   graph: LegoTechnixGraphV1,
   previousState: LegoTechnixSimulationStateV1,
   tickInput: LegoTechnixTickInputV1,
+  stagedComponentStateById?: Readonly<Record<string, Partial<LegoTechnixSimulationStateV1['componentStates'][number]>>>,
 ): ActivePathResolutionV1 {
   const componentById = new Map(graph.components.map((component) => [component.id, component]));
   const connectionById = new Map(graph.connections.map((connection) => [connection.id, connection]));
@@ -209,10 +226,20 @@ export function resolveActivePathsV1(
 
   const evaluatedPaths = (graph.activeCircuitPaths ?? []).map((path) => (
     evaluatePath(path, componentById, connectionById, previousStateById, tickInput)
+  )).map((evaluatedPath) => evaluatedPath);
+  const stagedEvaluatedPaths = (graph.activeCircuitPaths ?? []).map((path) => (
+    evaluatePath(
+      path,
+      componentById,
+      connectionById,
+      previousStateById,
+      tickInput,
+      stagedComponentStateById,
+    )
   ));
 
   const primaryPathsByDriver = new Map<string, EvaluatedPath[]>();
-  for (const evaluatedPath of evaluatedPaths) {
+  for (const evaluatedPath of stagedEvaluatedPaths) {
     if (evaluatedPath.path.domain !== 'primary_heating') {
       continue;
     }
@@ -231,7 +258,7 @@ export function resolveActivePathsV1(
     }
   }
 
-  const resolvedPaths: ResolvedActivePathV1[] = evaluatedPaths.map((evaluatedPath) => {
+  const resolvedPaths: ResolvedActivePathV1[] = stagedEvaluatedPaths.map((evaluatedPath) => {
     const isDeadheadedPrimary = evaluatedPath.path.domain === 'primary_heating'
       && deadheadedComponentIds.has(evaluatedPath.driverComponentId);
     const isActive = evaluatedPath.preliminaryActive && !isDeadheadedPrimary;
@@ -267,7 +294,7 @@ export function resolveActivePathsV1(
   );
 
   const bypassedComponentIds = new Set<string>();
-  for (const evaluatedPath of evaluatedPaths) {
+  for (const evaluatedPath of stagedEvaluatedPaths) {
     const hasAlternativeActivePath = evaluatedPath.path.domain === 'primary_heating'
       && activePrimaryDrivers.has(evaluatedPath.driverComponentId);
 
@@ -292,7 +319,7 @@ export function resolveActivePathsV1(
   const componentOperatingModes = Object.fromEntries(
     graph.components.map((component): [string, ComponentOperatingModeV1] => {
       const isClosedActuator = component.role === 'control_actuator'
-        && !isActuatorOpen(component.id, previousStateById, tickInput);
+        && !isActuatorOpen(component.id, previousStateById, tickInput, stagedComponentStateById);
 
       if (deadheadedComponentIds.has(component.id)) {
         return [component.id, 'fault'];
