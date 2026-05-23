@@ -34,6 +34,12 @@ export type {
   ScenarioThermostatChangeEventV1,
   ScenarioTimelineSampleV1,
 } from './runLegoTechnixScenarioV1';
+export { buildDhwRecoveryMetricsV1 } from './buildDhwRecoveryMetricsV1';
+export type {
+  DhwRecoveryMetricsOptionsV1,
+  DhwRecoveryMetricsV1,
+  DhwRecoveryTimelinePointV1,
+} from './buildDhwRecoveryMetricsV1';
 
 export { ACTIVE_PATH_REASONS_V1, resolveActivePathsV1 } from './resolveActivePathsV1';
 export type {
