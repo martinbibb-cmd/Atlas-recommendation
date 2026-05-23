@@ -1,4 +1,5 @@
 import { isWaterCarryingDomain } from '../hydraulicConnectionEdge';
+import type { LegoTechnixDomain } from '../domains';
 import type { LegoTechnixGraphV1 } from '../types';
 import type { ComponentStateV1 } from './ComponentStateV1';
 import type { EdgeStateV1 } from './EdgeStateV1';
@@ -48,9 +49,10 @@ function inferAmbientTemperatureC(
   previousEdgeStateByConnectionId: ReadonlyMap<string, EdgeStateV1>,
   previousComponentTemperatureById: ReadonlyMap<string, number>,
 ): number {
-  if (edge.physical.ambientDomainId) {
+  const ambientDomainId = edge.physical.ambientDomainId;
+  if (ambientDomainId) {
     const ambientComponent = graph.components.find((component) => (
-      component.domains?.includes(edge.physical.ambientDomainId)
+      component.domains?.includes(ambientDomainId as LegoTechnixDomain)
     ));
     if (ambientComponent) {
       const candidate = previousComponentTemperatureById.get(ambientComponent.id);

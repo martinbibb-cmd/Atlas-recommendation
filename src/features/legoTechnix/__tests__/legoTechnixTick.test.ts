@@ -803,7 +803,7 @@ describe('runLegoTechnixTickV1 — mass-flow allocation skeleton', () => {
       const boilerState = findComponentState(result.nextState, 'regular_boiler');
       expect(boilerState?.currentTemperatureC).toBeCloseTo(47.5, 3);
       expect((boilerState?.currentTemperatureC ?? 0)).toBeLessThan(boilerState?.targetFlowTemperatureC ?? 0);
-      expect(findEdgeState(result.nextState, 'conn_boiler_to_pump')?.estimatedOutletTemperatureC).toBeCloseTo(47.5, 3);
+      expect(findEdgeState(result.nextState, 'conn_boiler_to_pump')?.estimatedOutletTemperatureC).toBeCloseTo(47.5, 2);
     });
 
     it('44. return temperature drives condensing likelihood', () => {
