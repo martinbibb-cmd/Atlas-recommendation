@@ -166,6 +166,7 @@ import { VisualTopologyGallery } from './library/visualTopologies/VisualTopology
 import { AnalogyOverlayGallery } from './library/analogyOverlays/AnalogyOverlayGallery';
 import DevPortalFixturePage from './dev/DevPortalFixturePage';
 import CustomerPortalPreviewPage from './dev/CustomerPortalPreviewPage';
+import CustomerPackPreviewPage from './dev/CustomerPackPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
@@ -766,6 +767,17 @@ const CUSTOMER_PORTAL_PREVIEW_DEV_PATH =
   (
     window.location.pathname === '/dev/customer-portal-preview'
     || new URLSearchParams(window.location.search).get('customer-portal-preview') === '1'
+  );
+
+/**
+ * Detect /dev/customer-pack-preview or ?customer-pack-preview=1 —
+ * renders the evidence-driven CustomerPackRendererV1 via the canonical preview pipeline.
+ */
+const CUSTOMER_PACK_PREVIEW_DEV_PATH =
+  typeof window !== 'undefined' &&
+  (
+    window.location.pathname === '/dev/customer-pack-preview'
+    || new URLSearchParams(window.location.search).get('customer-pack-preview') === '1'
   );
 
 /**
@@ -2680,6 +2692,15 @@ function AppInner() {
   if (CUSTOMER_PORTAL_PREVIEW_DEV_PATH) {
     return (
       <CustomerPortalPreviewPage
+        onBack={() => { window.location.href = '/'; }}
+      />
+    );
+  }
+
+  // /dev/customer-pack-preview (or ?customer-pack-preview=1) — evidence-driven customer pack preview.
+  if (CUSTOMER_PACK_PREVIEW_DEV_PATH) {
+    return (
+      <CustomerPackPreviewPage
         onBack={() => { window.location.href = '/'; }}
       />
     );
