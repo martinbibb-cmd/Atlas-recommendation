@@ -160,7 +160,6 @@ export function evaluateHeatTransfersV1(
   let storedWaterHeatGainKw = 0;
 
   for (const { contract } of contracts) {
-    const isActive = activeComponentIds.has(contract.componentId);
     const energyTransfer = contract.output.energyTransfer;
     const declaredLossesKw = energyTransfer.declaredLossesKw ?? 0;
     const energyImbalanceKw = Math.abs(
@@ -178,32 +177,20 @@ export function evaluateHeatTransfersV1(
 
     const inletConnectionId = getPrimaryInletConnectionId(graph, contract.componentId, contract.primaryDomain);
     const outletConnectionId = getPrimaryOutletConnectionId(graph, contract.componentId, contract.primaryDomain);
+    const inletEdgeState = inletConnectionId ? edgeStateByConnectionId.get(inletConnectionId) : undefined;
+    const outletEdgeState = outletConnectionId ? edgeStateByConnectionId.get(outletConnectionId) : undefined;
+    const preferredFlowEdge = outletEdgeState ?? inletEdgeState;
+    const massFlowKgPerS = preferredFlowEdge?.estimatedFlowKgPerS ?? 0;
+    const hasActivePrimaryFlow = (
+      (inletEdgeState?.isActive ?? false) || (outletEdgeState?.isActive ?? false)
+    ) && massFlowKgPerS > 0;
+    const isActive = activeComponentIds.has(contract.componentId) && hasActivePrimaryFlow;
 
     if (!isActive) {
       events.push({
         type: 'heat_transfer_inactive',
         componentId: contract.componentId,
         message: `Heat transfer "${contract.id}" inactive; transferred 0kW this tick.`,
-      });
-      continue;
-    }
-
-    const preferredFlowEdge = (
-      (outletConnectionId && edgeStateByConnectionId.get(outletConnectionId))
-      ?? (inletConnectionId && edgeStateByConnectionId.get(inletConnectionId))
-    );
-    const massFlowKgPerS = preferredFlowEdge?.estimatedFlowKgPerS ?? 0;
-
-    if (!(massFlowKgPerS > 0)) {
-      warnings.push({
-        code: 'heat_transfer_missing_mass_flow',
-        componentId: contract.componentId,
-        message: `Heat transfer "${contract.id}" active but has no positive mass flow; transferred 0kW.`,
-      });
-      events.push({
-        type: 'heat_transfer_zero_flow',
-        componentId: contract.componentId,
-        message: `Heat transfer "${contract.id}" zero-flow guard applied.`,
       });
       continue;
     }
