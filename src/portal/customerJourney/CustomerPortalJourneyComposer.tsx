@@ -15,6 +15,7 @@ import { AtlasWaterReserveGraphic } from '../visualLanguage/AtlasWaterReserveGra
 import {
   buildCustomerJourneyPack,
   inferCustomerJourneyTypeFromSystemContext,
+  resolveRecommendationConceptSelection,
   type CustomerJourneyPackV1,
 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 import { REASON_ICON_BY_CATEGORY } from '../../library/portal/pdf/recommendationReasonVisuals';
@@ -644,14 +645,22 @@ export function CustomerPortalJourneyComposer({
   const shouldShowWarmRadiatorExpectation = recommendedScenario?.system.type === 'ashp';
   const journeyTitle = getScenarioTitle(recommendedScenario);
   const recommendationSummary = recommendedScenario?.system.summary ?? decision.summary;
+  const inferredJourneyType = inferCustomerJourneyTypeFromSystemContext({
+    currentHeatSourceType: engineInput.currentHeatSourceType,
+    currentSystemHeatingType: engineInput.currentSystem?.heatingSystemType,
+    dhwStorageType: engineInput.dhwStorageType,
+  });
+  const routedSelection = resolveRecommendationConceptSelection({
+    selectedSectionIds: [],
+    recommendationSummary,
+    customerFacts: [],
+    journeyType: inferredJourneyType,
+  });
   const journeyPack = buildCustomerJourneyPack({
     customerJourneyPack,
-    selectedSectionIds: [],
-    journeyType: inferCustomerJourneyTypeFromSystemContext({
-      currentHeatSourceType: engineInput.currentHeatSourceType,
-      currentSystemHeatingType: engineInput.currentSystem?.heatingSystemType,
-      dhwStorageType: engineInput.dhwStorageType,
-    }),
+    selectedSectionIds: routedSelection.selectedSectionIds,
+    educationalConceptTags: routedSelection.conceptTags,
+    journeyType: inferredJourneyType,
     recommendationSummary,
     customerFacts: [
       engineInput.occupancyCount != null && engineInput.occupancyCount > 0

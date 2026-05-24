@@ -207,6 +207,7 @@ import {
   buildCustomerJourneyPack,
   buildCustomerJourneyPackGeneratedOutput,
   inferCustomerJourneyTypeFromSystemContext,
+  resolveRecommendationConceptSelection,
   readCustomerJourneyPackFromGeneratedOutputs,
 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import type { SurveySystemConditionV1 } from './library/portal/pdf/buildPortalJourneyPrintModel';
@@ -330,8 +331,22 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
   if (input.surveyModel == null || input.engineInput == null || input.customerSummary == null) {
     return outputs;
   }
-  const customerJourneyPack = buildCustomerJourneyPack({
+  const inferredJourneyType = inferCustomerJourneyTypeFromSystemContext({
+    currentHeatSourceType: input.engineInput.currentHeatSourceType,
+    currentSystemHeatingType: input.surveyModel.currentSystem?.heatingSystemType,
+    dhwStorageType: input.engineInput.dhwStorageType,
+  });
+  const surveyCondition = buildSurveySystemConditionFromModel(input.surveyModel);
+  const routedSelection = resolveRecommendationConceptSelection({
     selectedSectionIds: [],
+    recommendationSummary: input.customerSummary.headline,
+    customerFacts: [],
+    journeyType: inferredJourneyType,
+    surveyCondition,
+  });
+  const customerJourneyPack = buildCustomerJourneyPack({
+    selectedSectionIds: routedSelection.selectedSectionIds,
+    educationalConceptTags: routedSelection.conceptTags,
     recommendationSummary: input.customerSummary.headline,
     customerFacts: [
       input.engineInput.occupancyCount != null
@@ -342,13 +357,9 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
         : null,
       input.engineInput.postcode ? `Property: ${input.engineInput.postcode}` : null,
     ].filter((fact): fact is string => fact != null),
-    journeyType: inferCustomerJourneyTypeFromSystemContext({
-      currentHeatSourceType: input.engineInput.currentHeatSourceType,
-      currentSystemHeatingType: input.surveyModel.currentSystem?.heatingSystemType,
-      dhwStorageType: input.engineInput.dhwStorageType,
-    }),
+    journeyType: inferredJourneyType,
     visitContext: input.portalVisitContext,
-    surveyCondition: buildSurveySystemConditionFromModel(input.surveyModel),
+    surveyCondition,
     liveExperienceExplanations: [
       input.decision?.dayToDayOutcomes[0],
       input.customerSummary.plainEnglishDecision,

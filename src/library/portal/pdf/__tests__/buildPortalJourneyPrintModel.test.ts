@@ -5,6 +5,7 @@ import {
   buildPortalJourneyPrintModel,
   CUSTOMER_JOURNEY_PACK_SCHEMA,
   CUSTOMER_JOURNEY_PACK_VERSION,
+  resolveRecommendationConceptSelection,
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
 import { buildCanonicalVisitPackage } from '../../../../features/visitPackage';
@@ -237,6 +238,9 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
       'practical_outcomes',
       'pressure_vs_storage',
       'unvented_safety',
+      'stored_hot_water_recovery_timeline',
+      'sealed_system_pressure_window',
+      'system_fit_decision_map',
     ]);
   });
 });
@@ -298,7 +302,7 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
 });
 
 describe('buildPortalJourneyPrintModel — generic recommendation fallback journey', () => {
-  it('does not default fallback journey to open-vented conversion copy', () => {
+  it('routes generic journey to educational evidence sections (not filler practical-outcomes copy)', () => {
     const model = buildPortalJourneyPrintModel({
       selectedSectionIds: [],
       recommendationSummary: 'Generic recommendation summary for your home.',
@@ -306,7 +310,7 @@ describe('buildPortalJourneyPrintModel — generic recommendation fallback journ
       journeyType: 'generic_recommendation_summary',
     });
     const headings = model.sections.map((section) => section.heading);
-    expect(headings).toContain('Practical outcomes');
+    expect(headings).toContain('System fit decision map');
     expect(headings).not.toContain('What changes in your home');
   });
 
@@ -317,7 +321,7 @@ describe('buildPortalJourneyPrintModel — generic recommendation fallback journ
       customerFacts: ['3-person household'],
       journeyType: 'stored_hot_water',
     });
-    expect(model.sections.map((section) => section.heading)).toContain('Practical outcomes');
+    expect(model.sections.map((section) => section.sectionId)).toContain('stored_hot_water_recovery_timeline');
   });
 });
 
@@ -953,5 +957,101 @@ describe('buildCustomerJourneyPack — recommendation intent via canonicalVisitP
     const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
     expect(sectionIds).toContain('pressure_vs_storage');
     expect(sectionIds).toContain('unvented_safety');
+  });
+});
+
+describe('resolveRecommendationConceptSelection — educational evidence routing', () => {
+  it('routes heat-pump + emitter mismatch to warm-radiator and emitter-fit educational concepts', () => {
+    const routed = resolveRecommendationConceptSelection({
+      selectedSectionIds: [],
+      recommendationSummary: 'ASHP recommendation.',
+      customerFacts: [],
+      recommendationIntent: 'heat_pump_transition',
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'stored_unvented',
+          heatSource: 'ashp',
+          reasons: [],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: false, requiredFlowTempC: 45, note: 'Emitter review required.' },
+        },
+      } as never,
+    });
+    expect(routed.conceptTags).toContain('warm_vs_hot_radiators');
+    expect(routed.selectedSectionIds).toContain('CON_E01');
+    expect(routed.selectedSectionIds).toContain('CON_E02');
+  });
+
+  it('routes low mains constraints to bottleneck education', () => {
+    const routed = resolveRecommendationConceptSelection({
+      selectedSectionIds: [],
+      recommendationSummary: 'Stored hot water recommendation.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          dynamicMainsPressure: 1.1,
+          mainsDynamicFlowLpm: 8,
+        } as never,
+      } as never,
+    });
+    expect(routed.conceptTags).toContain('flow_restriction_bottleneck');
+    expect(routed.selectedSectionIds).toContain('CON_D01');
+  });
+
+  it('routes system-condition debris signals to magnetic filter education', () => {
+    const routed = resolveRecommendationConceptSelection({
+      selectedSectionIds: [],
+      recommendationSummary: 'Protection upgrade.',
+      customerFacts: [],
+      surveyCondition: {
+        magneticDebrisEvidence: true,
+        bleedWaterColour: 'black',
+      },
+    });
+    expect(routed.conceptTags).toContain('magnetic_filter_capture');
+    expect(routed.selectedSectionIds).toContain('CON_F04');
+  });
+});
+
+describe('buildCustomerJourneyPack — educational evidence acceptance routing', () => {
+  it('stored hot water routes pressure/storage and recovery timeline sections', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Stored hot water route.',
+      customerFacts: [],
+      recommendationIntent: 'stored_hot_water',
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'stored_unvented',
+          heatSource: 'gas_system',
+          reasons: [],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 55, note: '' },
+        },
+      } as never,
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('pressure_vs_storage');
+    expect(sectionIds).toContain('stored_hot_water_recovery_timeline');
+  });
+
+  it('removes the legacy generic filler phrase from recommendation reasons', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Baseline recommendation summary.',
+      customerFacts: ['Unknown planning constraint'],
+      journeyType: 'generic_recommendation_summary',
+    });
+    const text = pack.staticPdf.recommendationReasons
+      .flatMap((reason) => [reason.homeFact, reason.whyItMatters, reason.atlasRecommendationOutcome, reason.practicalEffect])
+      .join(' ');
+    expect(text).not.toContain('Atlas used this fact directly in route and sizing checks.');
   });
 });
