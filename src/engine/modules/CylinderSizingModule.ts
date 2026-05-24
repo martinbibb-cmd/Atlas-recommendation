@@ -433,7 +433,18 @@ function computeMinimumCylinderVolumeL(params: {
     coldWaterTempC,
     usableFraction,
   });
-  const netDemandL = Math.max(occupancyCount * 20, peakWindowDemandL - recoveredMixedVolumeWithinWindowL);
+  const extraBathroomCount = Math.max(0, bathroomCount - 1);
+  const occupancyLedDemandL = occupancyCount * DEMAND_L_PER_PERSON_PER_DAY;
+  const bathroomDemandL = extraBathroomCount * DEMAND_L_PER_EXTRA_BATHROOM;
+  const bathroomPeakReserveL = extraBathroomCount * PEAK_WINDOW_L_PER_EXTRA_BATHROOM;
+  const unrecoveredPeakReserveL = Math.max(
+    0,
+    bathroomPeakReserveL - recoveredMixedVolumeWithinWindowL,
+  );
+  const netDemandL = Math.max(
+    occupancyLedDemandL + bathroomDemandL + unrecoveredPeakReserveL,
+    peakWindowDemandL,
+  );
 
   // Hot volume required at store temperature
   const requiredHotL = netDemandL * (tapDelta / storeDelta);

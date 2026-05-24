@@ -166,9 +166,9 @@ describe('computeMinimumCylinderVolumeL', () => {
 
   it('reduces minimum volume when recovery window allows more reheat contribution', () => {
     const shortWindow = computeMinimumCylinderVolumeL({
-      occupancyCount: 3,
-      bathroomCount: 2,
-      heatSourceKw: 18,
+      occupancyCount: 1,
+      bathroomCount: 4,
+      heatSourceKw: 3,
       recoveryWindowMins: 30,
       storeTempC: 60,
       tapTargetTempC: 40,
@@ -177,9 +177,9 @@ describe('computeMinimumCylinderVolumeL', () => {
       drawSeverity: 'low',
     });
     const longWindow = computeMinimumCylinderVolumeL({
-      occupancyCount: 3,
-      bathroomCount: 2,
-      heatSourceKw: 18,
+      occupancyCount: 1,
+      bathroomCount: 4,
+      heatSourceKw: 3,
       recoveryWindowMins: 90,
       storeTempC: 60,
       tapTargetTempC: 40,

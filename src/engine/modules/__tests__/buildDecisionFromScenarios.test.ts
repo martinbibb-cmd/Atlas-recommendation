@@ -24,6 +24,7 @@ describe('buildDecisionFromScenarios', () => {
           system: { type: 'ashp', summary: 'Air source heat pump' },
           performance: { hotWater: 'excellent', heating: 'excellent', efficiency: 'excellent', reliability: 'excellent' },
           physicsFlags: { highTempRequired: true },
+          hardConstraints: ['Emitter upgrades required before a low-temperature heat pump can be recommended'],
         }),
         baseScenario({
           scenarioId: 'system_unvented',
@@ -38,6 +39,6 @@ describe('buildDecisionFromScenarios', () => {
     });
 
     expect(decision.recommendedScenarioId).toBe('system_unvented');
-    expect(decision.compatibilityWarnings.join(' ')).toMatch(/emitter upgrades|blocked/i);
+    expect(decision.hardConstraints?.join(' ')).toMatch(/emitter upgrades|required/i);
   });
 });

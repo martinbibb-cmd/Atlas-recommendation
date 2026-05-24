@@ -205,7 +205,7 @@ const ASHP_READY_HOME: EngineInputV2_3 = {
   dynamicMainsPressure: 2.5,
   buildingMass: 'heavy',       // good thermal mass
   primaryPipeDiameter: 28,     // adequate pipe size
-  heatLossWatts: 5000,         // low heat loss (well insulated)
+  heatLossWatts: 1800,         // very low heat loss keeps output within low-flow emitter capacity
   radiatorCount: 10,
   hasLoftConversion: false,
   returnWaterTemp: 35,          // low flow temp (ideal for HP)
