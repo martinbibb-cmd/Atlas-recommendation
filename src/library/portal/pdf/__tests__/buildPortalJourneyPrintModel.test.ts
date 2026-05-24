@@ -542,6 +542,211 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
     expect(text).not.toContain('0 bathrooms');
     expect(text).not.toContain('0 people');
   });
+
+  it('adds a combi on-demand reason when hotWaterArrangement is on_demand', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Combi boiler — on-demand hot water.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'on_demand',
+          heatSource: 'gas_combi',
+          reasons: [{ id: 'r1', text: 'Combi suits this property.' }],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 65, note: '' },
+        },
+      } as never,
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'hot_water_system_type'
+      && /on.demand/i.test(reason.homeFact)
+      && /no storage cylinder/i.test(reason.homeFact),
+    )).toBe(true);
+  });
+
+  it('combi reason does not mention cylinder storage', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Combi boiler — on-demand hot water.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'on_demand',
+          heatSource: 'gas_combi',
+          reasons: [{ id: 'r1', text: 'Combi suits this property.' }],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 65, note: '' },
+        },
+      } as never,
+    });
+
+    const combiReason = pack.staticPdf.recommendationReasons.find((r) => r.category === 'hot_water_system_type');
+    expect(combiReason).toBeDefined();
+    // Combi wording must not contradict itself with stored-cylinder language
+    const text = [combiReason!.whyItMatters, combiReason!.atlasRecommendationOutcome, combiReason!.practicalEffect].join(' ');
+    expect(text).not.toMatch(/unvented cylinder|stored cylinder|cylinder stores/i);
+  });
+
+  it('adds an unvented cylinder reason when hotWaterArrangement is stored_unvented', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with unvented cylinder.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'stored_unvented',
+          heatSource: 'gas_system',
+          reasons: [{ id: 'r1', text: 'Unvented cylinder suits this home.' }],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 65, note: '' },
+        },
+      } as never,
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'hot_water_system_type'
+      && /unvented cylinder/i.test(reason.homeFact)
+      && /mains pressure/i.test(reason.homeFact),
+    )).toBe(true);
+  });
+
+  it('adds a Mixergy stratified cylinder reason when hotWaterArrangement is mixergy', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with Mixergy cylinder.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'mixergy',
+          heatSource: 'gas_system',
+          reasons: [{ id: 'r1', text: 'Mixergy suits this home.' }],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 65, note: '' },
+        },
+      } as never,
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'hot_water_system_type'
+      && /stratified/i.test(reason.homeFact)
+      && /mixergy/i.test(reason.homeFact),
+    )).toBe(true);
+  });
+
+  it('adds a thermal store reason when hotWaterArrangement is thermal_store', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with thermal store.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'thermal_store',
+          heatSource: 'gas_system',
+          reasons: [{ id: 'r1', text: 'Thermal store suits this home.' }],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 65, note: '' },
+        },
+      } as never,
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'hot_water_system_type'
+      && /thermal store/i.test(reason.homeFact)
+      && /primary.circuit/i.test(reason.homeFact),
+    )).toBe(true);
+  });
+
+  it('adds an emitter upgrade reason when existing radiators are not compatible with heat-pump flow temperature', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Air source heat pump.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'stored_unvented',
+          heatSource: 'ashp',
+          reasons: [{ id: 'r1', text: 'Heat pump suits this home.' }],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: {
+            existingRadiatorsCompatible: false,
+            requiredFlowTempC: 45,
+            note: 'Radiators sized for 70 °C — may need upsizing for 45 °C flow.',
+          },
+        },
+      } as never,
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((reason) =>
+      reason.category === 'emitter_upgrade_required'
+      && /radiator/i.test(reason.homeFact)
+      && /45/i.test(reason.homeFact),
+    )).toBe(true);
+  });
+
+  it('does not add an emitter upgrade reason when existing radiators are compatible', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Air source heat pump — radiators retained.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'stored_unvented',
+          heatSource: 'ashp',
+          reasons: [{ id: 'r1', text: 'Heat pump suits this home.' }],
+          evidence: [],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 50, note: 'Radiators adequate at 50 °C.' },
+        },
+      } as never,
+    });
+
+    expect(pack.staticPdf.recommendationReasons.some((r) => r.category === 'emitter_upgrade_required')).toBe(false);
+  });
+
+  it('does not use "sized the route around your household usage level" in occupancy reason blocks', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        schema: 'atlas.canonical-visit-package',
+        version: '1.0',
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {
+          occupancyCount: 4,
+          bathroomCount: 1,
+          dynamicMainsPressure: 2.0,
+          mainsDynamicFlowLpm: 14,
+        } as never,
+        importExportMetadata: {
+          exportedAt: '2026-05-21T12:10:00.000Z',
+          source: { target: 'local_only', surface: 'test' },
+        },
+      },
+    });
+
+    const text = pack.staticPdf.recommendationReasons
+      .flatMap((r) => [r.atlasRecommendationOutcome, r.practicalEffect])
+      .join(' ');
+    expect(text).not.toMatch(/sized the route around your household usage level/i);
+  });
 });
 
 // ─── Recommendation intent filtering ─────────────────────────────────────────

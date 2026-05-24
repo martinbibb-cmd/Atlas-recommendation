@@ -58,7 +58,9 @@ export type RecommendationReasonCategoryV1 =
   | 'loft_cylinder_location_constraint'
   | 'simultaneous_hot_water_use'
   | 'protection_system_condition'
-  | 'future_upgrade_readiness';
+  | 'future_upgrade_readiness'
+  | 'hot_water_system_type'
+  | 'emitter_upgrade_required';
 
 /**
  * Primary intent of the recommendation.
@@ -284,9 +286,9 @@ function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 's
       keyTakeaway: 'Your installer will tailor final setup details to your surveyed home conditions.',
       reassurance: 'You will receive a clear handover explaining controls and expected day-to-day behaviour.',
       items: [
-        'Your recommendation is based on survey findings from your home.',
+        'Your recommendation reflects occupancy, bathroom use, and measured supply conditions from your survey.',
         'The final setup is confirmed during installer checks before works start.',
-        'Daily operation remains straightforward with familiar comfort targets.',
+        'Day-to-day use stays familiar: the same controls for heating schedules and hot-water temperature targets.',
       ],
     },
   ];
@@ -846,7 +848,7 @@ function inferReasonFromCustomerFact(fact: string): Omit<RecommendationReasonBlo
     return {
       homeFact: fact,
       whyItMatters: 'Occupancy level changes hot-water and heating demand profiles.',
-      atlasRecommendationOutcome: 'Atlas sized the route around your household usage level.',
+      atlasRecommendationOutcome: 'Atlas used this occupancy figure in hot-water volume and heating demand checks.',
       practicalEffect: 'Day-to-day comfort and hot-water delivery are better matched to your home.',
     };
   }
@@ -908,7 +910,7 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
       category: 'household_demand',
       homeFact: formatHouseholdCount(occupancyCount),
       whyItMatters: 'More occupants increase overlapping hot-water demand during busy periods.',
-      atlasRecommendationOutcome: 'Atlas sized the route for this household demand profile.',
+      atlasRecommendationOutcome: `Atlas used ${occupancyCount} occupants as the baseline in hot-water volume and heating demand checks.`,
       practicalEffect: 'Busy-period hot-water use stays more consistent day to day.',
       detail: 'The recommendation uses household demand as the baseline, rather than assuming one-user usage only.',
     });
@@ -1062,6 +1064,73 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
       atlasRecommendationOutcome: 'Atlas included future-demand checks in the selected route.',
       practicalEffect: 'You are less likely to need near-term rework when plans happen.',
       detail: 'This helps avoid a near-term rework when planned household changes happen.',
+    });
+  }
+
+  // ── System-specific reason blocks ───────────────────────────────────────────
+
+  const hotWaterArrangement = recommendation?.hotWaterArrangement;
+
+  if (hotWaterArrangement === 'on_demand') {
+    pushReason({
+      id: 'combi-on-demand',
+      category: 'hot_water_system_type',
+      homeFact: 'On-demand hot water — no storage cylinder',
+      whyItMatters: 'Without a cylinder, hot water is generated only when a tap or shower is opened, keeping the system compact.',
+      atlasRecommendationOutcome: 'Atlas confirmed this home\'s occupancy and bathroom demand suits on-demand delivery without a storage reserve.',
+      practicalEffect: 'Hot water flow starts as the boiler fires; there is no stored volume to draw down or wait to reheat.',
+    });
+  }
+
+  if (hotWaterArrangement === 'stored_unvented') {
+    pushReason({
+      id: 'unvented-cylinder',
+      category: 'hot_water_system_type',
+      homeFact: 'Stored hot water at mains pressure — unvented cylinder',
+      whyItMatters: 'An unvented cylinder holds a pre-heated reserve at mains pressure, ready across multiple outlets simultaneously.',
+      atlasRecommendationOutcome: 'Atlas matched cylinder sizing to the occupancy and bathroom demand recorded in the survey.',
+      practicalEffect: 'Shower pressure and temperature stay more consistent when two outlets are used at the same time.',
+      detail: 'The cylinder operates at mains pressure without a loft feed tank, which removes the open-vented head constraints.',
+    });
+  }
+
+  if (hotWaterArrangement === 'mixergy') {
+    const bathroomDetail = bathroomCount != null && bathroomCount > 0
+      ? ` in a ${formatBathroomCount(bathroomCount)} household`
+      : '';
+    pushReason({
+      id: 'mixergy-stratified',
+      category: 'hot_water_system_type',
+      homeFact: 'Stratified cylinder — Mixergy-type rapid top-of-tank recovery',
+      whyItMatters: 'Stratification keeps the hottest water at the outlet end, reducing usable recovery time after partial draws.',
+      atlasRecommendationOutcome: `Atlas selected a stratified cylinder to match recovery demand${bathroomDetail}.`,
+      practicalEffect: 'Hot water recovers faster after moderate use because only the drawn zone needs reheating.',
+      detail: 'The Mixergy stratification approach means a top-up draw after a single shower is available sooner than a full conventional reheat.',
+    });
+  }
+
+  if (hotWaterArrangement === 'thermal_store') {
+    pushReason({
+      id: 'thermal-store',
+      category: 'hot_water_system_type',
+      homeFact: 'Thermal store — primary-circuit buffer with coil-fed domestic hot water',
+      whyItMatters: 'A thermal store absorbs variable heat input and provides buffer capacity that supports both heating and hot water.',
+      atlasRecommendationOutcome: 'Atlas chose a thermal store arrangement where primary-side buffering improves system efficiency and reduces cycling.',
+      practicalEffect: 'The store absorbs surplus heat and releases it steadily, smoothing boiler or heat-pump on-off cycles.',
+      detail: 'Domestic hot water is delivered via an indirect coil, keeping the potable supply separate from the primary circuit.',
+    });
+  }
+
+  const emitters = recommendation?.emitters;
+  if (emitters != null && emitters.existingRadiatorsCompatible === false) {
+    pushReason({
+      id: 'emitter-upgrade-required',
+      category: 'emitter_upgrade_required',
+      homeFact: `Existing radiators need assessment for heat-pump flow temperature (${emitters.requiredFlowTempC} °C design)`,
+      whyItMatters: 'Heat pumps run at lower flow temperatures than gas boilers; radiators sized for 70 °C may not deliver the same heat output at the design conditions for this home.',
+      atlasRecommendationOutcome: 'Atlas flagged that emitter sizing needs confirming before the heat pump is commissioned.',
+      practicalEffect: 'Your installer will check whether room outputs remain adequate at the lower flow temperature and recommend upsizing where needed.',
+      detail: emitters.note,
     });
   }
 
