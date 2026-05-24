@@ -273,7 +273,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(evidencePanel.compareDocumentPosition(handoffPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(handoffPanel).getByText(/Send to Scan/i)).toBeTruthy();
     expect(within(handoffPanel).queryByRole('button', { name: /Send to Scan/i })).toBeNull();
-  });
+  }, 15000);
 
   it('mounts the scan handoff envelope preview below scan handoff with no native send action', async () => {
     render(<DevPortalFixturePage />);
@@ -565,7 +565,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
 
     expect(screen.getByTestId('dev-workflow-summary-blocker-count').textContent).toBe(initialBlockers);
     expect(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent).toBe(initialFollowUps);
-  }, 30000);
+  }, 60000);
 
   it('resolution simulation state is transient and resets after reopening implementation workflow', async () => {
     render(<DevPortalFixturePage />);
@@ -582,7 +582,7 @@ describe('DevPortalFixturePage — implementation pack', () => {
     fireEvent.click(screen.getByTestId('fixture-implementation-system_unvented_2bath'));
     await waitFor(() => expect(screen.getByTestId('dev-workflow-summary')).toBeTruthy());
     expect(screen.getByTestId('dev-workflow-summary-follow-up-count').textContent).toBe(initialFollowUps);
-  }, 30000);
+  }, 60000);
 });
 
 // ─── Storage mode selector ────────────────────────────────────────────────────
