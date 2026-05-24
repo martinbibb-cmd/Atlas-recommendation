@@ -634,10 +634,10 @@ export function deriveSystemRecommendations(
 // ─── Cylinder insight ─────────────────────────────────────────────────────────
 
 /**
- * Adequacy assessment for the existing cylinder against occupancy demand.
- * 'adequate'    → volume meets occupancy-based rule of thumb
- * 'marginal'    → slightly undersized — may work but borderline
- * 'undersized'  → clearly undersized for occupancy
+ * Adequacy assessment for the existing cylinder against peak-window demand.
+ * 'adequate'    → volume covers likely overlap + recovery reserve
+ * 'marginal'    → close to the required peak-window reserve
+ * 'undersized'  → likely shortfall at peak overlap
  * 'unknown'     → volume not captured
  */
 export type CylinderAdequacy = 'adequate' | 'marginal' | 'undersized' | 'unknown';
@@ -675,6 +675,8 @@ export interface CylinderInsight {
 export function deriveCylinderInsight(
   system: SystemBuilderState,
   occupancyCount: number,
+  bathroomCount: number = 1,
+  peakConcurrentOutlets?: number,
 ): CylinderInsight {
   const hasCylinder =
     system.heatSource === 'regular' || system.heatSource === 'system';
@@ -690,11 +692,27 @@ export function deriveCylinderInsight(
     };
   }
 
-  // ── Volume adequacy ────────────────────────────────────────────────────────
+  // ── Volume adequacy (peak-window + recovery model) ────────────────────────
   const volumeL = system.cylinderVolumeL;
-  // Occupancy-based minimum volume rule of thumb: 45 L per person, min 120 L
-  const minAdequateL = Math.max(120, occupancyCount * 45);
-  const minMarginalL = Math.max(100, occupancyCount * 38);
+  const effectiveBathrooms = Math.max(1, bathroomCount || 1);
+  const concurrentOutlets = Math.max(
+    1,
+    Math.min(peakConcurrentOutlets ?? effectiveBathrooms, 3),
+  );
+  const peakWindowUsers = Math.max(1, Math.min(occupancyCount, concurrentOutlets + 1));
+  const overlappingDrawL = concurrentOutlets * 32;
+  const followOnUsersL = Math.max(0, peakWindowUsers - concurrentOutlets) * 18;
+  const occupancyProfileReserveL = occupancyCount >= 5 ? 24 : occupancyCount >= 4 ? 12 : 0;
+  const recoveryReserveL = system.heatSource === 'regular' ? 22 : 15;
+  const usableFraction =
+    system.cylinderInsulationType === 'modern_factory' || system.cylinderInsulationType === 'mixergy'
+      ? 0.90
+      : 0.82;
+  const minAdequateL = Math.max(
+    110,
+    Math.round((overlappingDrawL + followOnUsersL + occupancyProfileReserveL - recoveryReserveL) / usableFraction),
+  );
+  const minMarginalL = Math.max(95, Math.round(minAdequateL * 0.88));
 
   let volumeAdequacy: CylinderAdequacy;
   if (volumeL == null) {
@@ -752,11 +770,11 @@ export function deriveCylinderInsight(
 
   if (volumeAdequacy === 'undersized') {
     advice.push(
-      `Cylinder volume (${volumeL} L) is likely undersized for ${occupancyCount} occupants — a minimum of ${minAdequateL} L is recommended to avoid shortfalls at peak demand.`,
+      `Cylinder volume (${volumeL} L) is likely undersized for peak overlap in this home. Re-check cylinder volume against likely simultaneous use, recovery window, and usable stored volume (${minAdequateL} L reference reserve).`,
     );
   } else if (volumeAdequacy === 'marginal') {
     advice.push(
-      `Cylinder volume (${volumeL} L) is borderline for ${occupancyCount} occupants — quotes for a larger cylinder should be considered.`,
+      `Cylinder volume (${volumeL} L) is borderline for peak overlap and recovery margin. Review whether a larger cylinder or higher-recovery setup is needed.`,
     );
   }
 

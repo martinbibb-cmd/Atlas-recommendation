@@ -62,7 +62,7 @@ function detectSlowHotWater(input: EngineInputV2_3): boolean {
 
 /**
  * Runs out of hot water — simultaneous demand or high occupancy from survey,
- * or cylinder volume directly measured and insufficient for occupancy.
+ * or cylinder volume directly measured and likely tight against peak overlap.
  * Cylinder coil transfer factor is engine-derived and excluded — we only use
  * directly surveyed values.
  */
@@ -72,8 +72,8 @@ function detectRunsOutOfHotWater(input: EngineInputV2_3): boolean {
   // Cylinder volume is a directly surveyed measurement
   if (
     input.cylinderVolumeLitres !== undefined &&
-    input.occupancyCount !== undefined &&
-    input.cylinderVolumeLitres < input.occupancyCount * 25
+    (input.bathroomCount ?? 1) >= 2 &&
+    input.cylinderVolumeLitres <= 150
   ) {
     return true;
   }
