@@ -658,12 +658,12 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
 // ─── Final page — Simulator ───────────────────────────────────────────────────
 
 describe('buildCanonicalPresentation — final page simulator', () => {
-  it('home scenario description includes occupancy and hot-water estimate', () => {
+  it('home scenario description includes occupancy and peak-use context', () => {
     const input = withInput({ occupancyCount: 3 });
     const result = runEngine(input);
     const model = buildCanonicalPresentation(result, input);
     expect(model.finalPage.homeScenarioDescription).toMatch(/3-person/i);
-    expect(model.finalPage.homeScenarioDescription).toMatch(/L\/day/i);
+    expect(model.finalPage.homeScenarioDescription).toMatch(/outlet peak profile/i);
   });
 
   it('house constraint notes include heat loss', () => {
