@@ -107,6 +107,34 @@ describe('assessSupportingPdfReadiness', () => {
     expect(result.blockingReasons.join(' ')).toMatch(/recommendation identity/i);
   });
 
+  it('blocks readiness when combi recommendation includes stored-hot-water outcomes', () => {
+    const input = makeReadinessInput();
+    const combiMismatchModel = {
+      ...input.model,
+      cover: {
+        ...input.model.cover,
+        summary: 'Combi boiler — best fit for this home.',
+      },
+      sections: input.model.sections.map((section) =>
+        section.sectionId === 'practical_outcomes'
+          ? { ...section, summary: 'Stored hot water in the cylinder covers peak demand.' }
+          : section),
+    };
+
+    const result = assessSupportingPdfReadiness({
+      ...input,
+      model: combiMismatchModel,
+      expectedRecommendationSummary: 'Combi boiler — best fit for this home.',
+      reviewRecommendationId: 'combi',
+      exportRecommendationId: 'system_unvented',
+      snapshotChecksum: 'fnv1a32-deadbeef',
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.blockingReasons.join(' ')).toMatch(/combi recommendation cannot render stored-hot-water practical outcomes/i);
+    expect(result.blockingReasons.join(' ')).toMatch(/review recommendation id=combi/i);
+  });
+
   it('blocks readiness when a required diagram renderer ID is available but missing', () => {
     const input = makeReadinessInput();
     const result = assessSupportingPdfReadiness({

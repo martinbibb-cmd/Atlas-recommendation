@@ -18,6 +18,7 @@ import {
   deriveQuickWins,
   derivePresentSystemInsight,
   deriveSystemRecommendations,
+  deriveCylinderInsight,
 } from '../insightDerivations';
 import type { SystemBuilderState } from '../../systemBuilder/systemBuilderTypes';
 import { INITIAL_SYSTEM_BUILDER_STATE } from '../../systemBuilder/systemBuilderTypes';
@@ -436,5 +437,35 @@ describe('deriveSystemRecommendations — partial journey bathroom fallback', ()
     const input = makeInput({ dynamicMainsPressure: 2.5 });
 
     expect(() => deriveSystemRecommendations(system, home, input)).not.toThrow();
+  });
+});
+
+describe('deriveCylinderInsight — peak-window sizing language', () => {
+  it('does not output occupancy x 45L style minimums for 4 occupants', () => {
+    const system = makeSystem({
+      heatSource: 'system',
+      dhwType: 'unvented',
+      cylinderVolumeL: 120,
+    });
+
+    const insight = deriveCylinderInsight(system, 4, 2, 2);
+    const advice = insight.advice.join(' ').toLowerCase();
+    expect(advice).not.toContain('minimum of 180 l');
+    expect(advice).not.toContain('4 occupants');
+    expect(advice).toContain('peak overlap');
+  });
+
+  it('does not output occupancy x 45L style minimums for 5 occupants', () => {
+    const system = makeSystem({
+      heatSource: 'system',
+      dhwType: 'unvented',
+      cylinderVolumeL: 140,
+    });
+
+    const insight = deriveCylinderInsight(system, 5, 2, 2);
+    const advice = insight.advice.join(' ').toLowerCase();
+    expect(advice).not.toContain('minimum of 225 l');
+    expect(advice).not.toContain('5 occupants');
+    expect(advice).toContain('recovery');
   });
 });

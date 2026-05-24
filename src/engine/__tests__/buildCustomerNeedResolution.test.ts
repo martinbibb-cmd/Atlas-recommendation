@@ -199,11 +199,12 @@ describe('buildCustomerNeedResolution — runs out of hot water', () => {
     expect(block!.items.some((i) => i.need.includes('runs out'))).toBe(true);
   });
 
-  it('emits runs out item when cylinder is undersized for occupancy', () => {
+  it('emits runs out item when cylinder reserve is low for peak overlap', () => {
     const input: EngineInputV2_3 = {
       ...makeBaseInput(),
       occupancyCount: 5,
-      cylinderVolumeLitres: 80, // below 5 × 25 = 125 litres threshold
+      bathroomCount: 2,
+      cylinderVolumeLitres: 80,
     };
     const block = buildCustomerNeedResolution(makeDecision(), input, makeScenario());
     expect(block).not.toBeNull();

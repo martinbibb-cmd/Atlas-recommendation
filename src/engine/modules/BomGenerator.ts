@@ -5,6 +5,7 @@ import type {
   RedFlagResult,
 } from '../schema/EngineInputV2_3';
 import { applyWholesalerPricing } from './WholesalerPricingAdapter';
+import { runCylinderSizingModule } from './CylinderSizingModule';
 
 // Standard UK estimate: ~10 litres of system water per radiator
 const RADIATOR_VOLUME_L_PER_RAD = 10;
@@ -28,9 +29,9 @@ export function generateBom(
 ): BomItem[] {
   const items: BomItem[] = [];
 
-  // Cylinder sizing: 45L per person, minimum 150L
   const estimatedOccupants = input.bathroomCount * 2 + 1;
-  const cylinderSizeL = Math.max(150, estimatedOccupants * 45);
+  const cylinderSizing = runCylinderSizingModule(input);
+  const cylinderSizeL = Math.max(120, cylinderSizing.recommendation.targetVolumeL);
 
   if (!redFlags.rejectCombi && input.preferCombi) {
     // Combi route

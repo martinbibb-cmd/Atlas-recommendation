@@ -4,6 +4,9 @@ import type { LibraryProjectionSafetyV1 } from '../../projections/qa/LibraryProj
 export interface SupportingPdfReadinessInput {
   model: PortalJourneyPrintModelV1;
   expectedRecommendationSummary: string;
+  reviewRecommendationId?: string;
+  exportRecommendationId?: string;
+  snapshotChecksum?: string;
   maxCustomerPages?: number;
   requiredDiagramSectionIds?: PortalJourneyPrintSectionV1['sectionId'][];
   requiredDiagramRendererIds?: string[];
@@ -117,6 +120,14 @@ function hasRawEngineOrDebugText(lines: string[]): boolean {
   return lines.some((line) => RAW_ENGINE_OR_DEBUG_PATTERNS.some((pattern) => pattern.test(line)));
 }
 
+function hasStoredHotWaterClaims(lines: string[]): boolean {
+  return lines.some((line) => {
+    const lower = line.toLowerCase();
+    if (/\bno stored\b/.test(lower) || /\bno cylinder\b/.test(lower)) return false;
+    return /(stored hot water|hot water cylinder|unvented cylinder|vented cylinder)/.test(lower);
+  });
+}
+
 function getMissingRequiredDiagrams(
   model: PortalJourneyPrintModelV1,
   requiredDiagramSectionIds: PortalJourneyPrintSectionV1['sectionId'][],
@@ -137,6 +148,9 @@ export function assessSupportingPdfReadiness(
   const {
     model,
     expectedRecommendationSummary,
+    reviewRecommendationId,
+    exportRecommendationId,
+    snapshotChecksum,
     maxCustomerPages = model.pageEstimate.maxPages,
     requiredDiagramSectionIds = [],
     requiredDiagramRendererIds = [],
@@ -168,6 +182,18 @@ export function assessSupportingPdfReadiness(
 
   if (model.cover.summary.trim() !== expectedRecommendationSummary.trim()) {
     blockingReasons.push('Recommendation identity does not match the current Insight output.');
+  }
+  const summaryLower = expectedRecommendationSummary.trim().toLowerCase();
+  if (summaryLower.includes('combi') && hasStoredHotWaterClaims(allCustomerText)) {
+    const detail = [
+      'Customer pack recommendation mismatch: combi recommendation cannot render stored-hot-water practical outcomes.',
+      reviewRecommendationId ? `review recommendation id=${reviewRecommendationId}` : undefined,
+      exportRecommendationId ? `export recommendation id=${exportRecommendationId}` : undefined,
+      snapshotChecksum ? `snapshot checksum=${snapshotChecksum}` : undefined,
+    ]
+      .filter(Boolean)
+      .join(' ');
+    blockingReasons.push(detail);
   }
 
   if (model.pageEstimate.usedPages > maxCustomerPages) {

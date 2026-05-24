@@ -300,6 +300,7 @@ function resolveAuthorityIntegrityIssues(input: {
   readonly exportDecision?: AtlasDecisionV1;
   readonly exportCustomerSummary?: CustomerSummaryV1;
   readonly currentSnapshot: VisitRecommendationSnapshotLike | null;
+  readonly activeCanonicalPackage?: CanonicalVisitPackageV1 | null;
 }): string[] {
   const issues: string[] = [];
   const selectedScenarioId = normalizeScenarioId(input.selectedScenarioId);
@@ -328,6 +329,30 @@ function resolveAuthorityIntegrityIssues(input: {
     issues.push(
       `export topology mismatch (${topologyFromScenario} vs ${topologyFromEngine})`,
     );
+  }
+
+  const practicalOutcomesText = [
+    input.exportDecision?.summary ?? '',
+    ...(input.exportDecision?.dayToDayOutcomes ?? []),
+  ].join(' ').toLowerCase();
+  if (
+    topologyFromScenario === 'combi'
+    && /(stored hot water|hot water cylinder|unvented cylinder|sealed heating)/.test(practicalOutcomesText)
+  ) {
+    issues.push('combi recommendation conflicts with stored-hot-water practical outcomes');
+  }
+
+  const packagedScenarioId = normalizeScenarioId(
+    input.activeCanonicalPackage?.proposalTruth?.selectedScenarioId
+      ?? input.activeCanonicalPackage?.proposalTruth?.decision?.recommendedScenarioId
+      ?? input.activeCanonicalPackage?.proposalTruth?.customerSummary?.recommendedScenarioId,
+  );
+  if (
+    packagedScenarioId != null
+    && snapshotScenarioId != null
+    && packagedScenarioId !== snapshotScenarioId
+  ) {
+    issues.push('export is using a stale package snapshot');
   }
   return issues;
 }
@@ -359,6 +384,44 @@ function buildAuthoritySnapshotMetadata(input: {
     snapshotId: `${toSafeDownloadBaseName(input.visitId)}-${(hash >>> 0).toString(16).padStart(8, '0')}`,
     checksum,
   };
+}
+
+function resolveExportRecommendationId(input: {
+  readonly selectedScenarioId?: string;
+  readonly exportDecision?: AtlasDecisionV1;
+  readonly exportCustomerSummary?: CustomerSummaryV1;
+}): string {
+  return (
+    normalizeScenarioId(
+      input.selectedScenarioId
+      ?? input.exportDecision?.recommendedScenarioId
+      ?? input.exportCustomerSummary?.recommendedScenarioId,
+    )
+    ?? 'unknown'
+  );
+}
+
+function resolveReviewRecommendationId(snapshot: VisitRecommendationSnapshotLike | null): string {
+  return (
+    normalizeScenarioId(snapshot?.acceptedScenarioId ?? snapshot?.decision?.recommendedScenarioId)
+    ?? 'unknown'
+  );
+}
+
+function buildExportBlockedMessage(input: {
+  readonly reviewRecommendationId: string;
+  readonly exportRecommendationId: string;
+  readonly snapshotChecksum: string;
+  readonly mismatchReasons: readonly string[];
+}): string {
+  const primaryReason = input.mismatchReasons[0] ?? 'unknown mismatch';
+  return (
+    'Export blocked: recommendation/evidence mismatch. ' +
+    `review recommendation id=${input.reviewRecommendationId}; ` +
+    `export recommendation id=${input.exportRecommendationId}; ` +
+    `snapshot checksum=${input.snapshotChecksum}; ` +
+    `mismatch reason=${primaryReason}.`
+  );
 }
 
 function toSafeDownloadBaseName(value: string): string {
@@ -1918,6 +1981,13 @@ function AppInner() {
     readonly exportCustomerSummary?: CustomerSummaryV1;
     readonly selectedScenarioId?: string;
     readonly exportPortalVisitContext?: PersistedPortalVisitContext;
+  } | {
+    readonly exportAuthorityDiagnostics: {
+      readonly reviewRecommendationId: string;
+      readonly exportRecommendationId: string;
+      readonly snapshotChecksum: string;
+      readonly mismatchReasons: readonly string[];
+    };
   } | undefined {
     const savedVisit =
       activeVisitId != null
@@ -1998,13 +2068,14 @@ function AppInner() {
       exportDecision,
       exportCustomerSummary,
       currentSnapshot,
+      activeCanonicalPackage,
     });
-    if (authorityIntegrityIssues.length > 0) {
-      if (import.meta.env.DEV) {
-        console.error('[Atlas] Export integrity assertion failed', authorityIntegrityIssues);
-      }
-      return undefined;
-    }
+    const reviewRecommendationId = resolveReviewRecommendationId(currentSnapshot);
+    const exportRecommendationId = resolveExportRecommendationId({
+      selectedScenarioId,
+      exportDecision,
+      exportCustomerSummary,
+    });
     const authoritySnapshot = buildAuthoritySnapshotMetadata({
       visitId: exportVisitId,
       selectedScenarioId,
@@ -2012,6 +2083,19 @@ function AppInner() {
       exportCustomerSummary,
       generatedAt: now,
     });
+    if (authorityIntegrityIssues.length > 0) {
+      if (import.meta.env.DEV) {
+        console.error('[Atlas] Export integrity assertion failed', authorityIntegrityIssues);
+      }
+      return {
+        exportAuthorityDiagnostics: {
+          reviewRecommendationId,
+          exportRecommendationId,
+          snapshotChecksum: authoritySnapshot.checksum,
+          mismatchReasons: authorityIntegrityIssues,
+        },
+      };
+    }
     const generatedOutputsWithPack = enrichGeneratedOutputsWithCustomerJourneyPack({
       generatedOutputs: generatedOutputsSeed,
       surveyModel: exportSurveyModel,
@@ -2089,6 +2173,18 @@ function AppInner() {
     const prepared = buildCanonicalVisitPackageForCurrentSession({ markPdfGenerated: true });
     if (prepared == null) {
       setLocalSessionStatus({ tone: 'error', message: 'Unable to export: no active visit survey in memory.' });
+      return;
+    }
+    if (!('pkg' in prepared)) {
+      setLocalSessionStatus({
+        tone: 'error',
+        message: buildExportBlockedMessage({
+          reviewRecommendationId: prepared.exportAuthorityDiagnostics.reviewRecommendationId,
+          exportRecommendationId: prepared.exportAuthorityDiagnostics.exportRecommendationId,
+          snapshotChecksum: prepared.exportAuthorityDiagnostics.snapshotChecksum,
+          mismatchReasons: prepared.exportAuthorityDiagnostics.mismatchReasons,
+        }),
+      });
       return;
     }
     const {

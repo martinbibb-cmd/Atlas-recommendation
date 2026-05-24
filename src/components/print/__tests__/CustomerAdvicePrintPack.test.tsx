@@ -961,7 +961,7 @@ describe('CustomerAdvicePrintPack — At-a-Glance panel enhancements', () => {
     expect(screen.queryByTestId('capp-at-a-glance-condition')).toBeNull();
   });
 
-  it('shows volume gap advisory when occupants >= 4 and cylinder <= 150L', () => {
+  it('shows volume gap advisory when likely peak-overlap reserve is low', () => {
     const decision = makeDecision({
       supportingFacts: [
         { label: 'Occupants', value: 5, source: 'survey' },
@@ -973,7 +973,7 @@ describe('CustomerAdvicePrintPack — At-a-Glance panel enhancements', () => {
     const gap = screen.getByTestId('capp-at-a-glance-volume-gap');
     expect(gap).toBeTruthy();
     expect(gap.textContent).toContain('Volume gap');
-    expect(gap.textContent).toContain('200 L');
+    expect(gap.textContent).toContain('peak overlap');
   });
 
   it('does not show volume gap advisory when cylinder is large enough', () => {
@@ -987,10 +987,11 @@ describe('CustomerAdvicePrintPack — At-a-Glance panel enhancements', () => {
     expect(screen.queryByTestId('capp-at-a-glance-volume-gap')).toBeNull();
   });
 
-  it('does not show volume gap advisory when occupants < 4', () => {
+  it('does not show volume gap advisory when overlap signals are low', () => {
     const decision = makeDecision({
       supportingFacts: [
         { label: 'Occupants', value: 3, source: 'survey' },
+        { label: 'Bathrooms', value: 1, source: 'survey' },
         { label: 'Cylinder volume', value: 112, source: 'survey' },
       ],
     });

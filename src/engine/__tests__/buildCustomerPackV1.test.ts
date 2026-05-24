@@ -403,6 +403,17 @@ describe('buildCustomerPackV1 — PR35 integrity kill-switch', () => {
     );
   });
 
+  it('fails when cylinder minimum litres are justified only by occupant count', () => {
+    const scenarios = [makeScenario('system_unvented', 'system')];
+    const decision = makeDecision('system_unvented', {
+      dayToDayOutcomes: ['Minimum 180 L recommended because this is a 4-person household.'],
+    });
+
+    expect(() => buildCustomerPackV1(decision, scenarios)).toThrow(
+      /cylinder size is derived from daily use rather than peak-window model/,
+    );
+  });
+
   it('fails when recommendation topology and practical outcomes disagree', () => {
     const scenarios = [makeScenario('combi', 'combi')];
     const decision = makeDecision('combi', {

@@ -276,10 +276,18 @@ function assertCustomerPackIntegrity(
   ].some((line) => {
     const lower = line.toLowerCase();
     return (
-      /(cylinder|stored hot water)/.test(lower) &&
-      /(size|sizing|volume|litre|liter|l\b)/.test(lower) &&
-      /(daily use|day-to-day)/.test(lower) &&
-      !/(peak|peak-window|morning demand|simultaneous)/.test(lower)
+      (
+        /(cylinder|stored hot water)/.test(lower) &&
+        /(size|sizing|volume|litre|liter|l\b)/.test(lower) &&
+        /(daily use|day-to-day)/.test(lower) &&
+        !/(peak|peak-window|morning demand|simultaneous|recovery)/.test(lower)
+      ) ||
+      (
+        /(minimum|at least|recommended)/.test(lower) &&
+        /(\d{2,3})\s*l\b/.test(lower) &&
+        /(occupant|person|people|household)/.test(lower) &&
+        !/(peak|simultaneous|overlap|recovery|usable|stratif)/.test(lower)
+      )
     );
   });
   if (hasDailyUseCylinderSizingClaim) {

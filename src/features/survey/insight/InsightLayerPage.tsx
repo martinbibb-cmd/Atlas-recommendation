@@ -175,7 +175,12 @@ export function InsightLayerPage({
   const potential    = derivePotentialInsight(systemBuilder, input);
   const limitations  = deriveLimitationsInsight(systemBuilder, input);
   const quickWins    = deriveQuickWins(systemBuilder, input);
-  const cylinderInsight = deriveCylinderInsight(systemBuilder, demands.occupancyCount);
+  const cylinderInsight = deriveCylinderInsight(
+    systemBuilder,
+    demands.occupancyCount,
+    home.bathroomCount ?? input.bathroomCount ?? 1,
+    input.peakConcurrentOutlets ?? undefined,
+  );
   const normPriorities = normalisePriorities(priorities);
 
   // Build current system concept model for the Lego visualiser

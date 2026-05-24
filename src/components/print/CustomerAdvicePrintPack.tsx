@@ -347,8 +347,8 @@ function isCylinderVolumeFact(label: string): boolean {
  * Pillar 1 additions:
  *  - Cylinder volume is shown when present in supportingFacts.
  *  - Condition band badge is shown when the system is 'at_risk' or 'worn'.
- *  - Volume gap advisory is shown when occupants ≥ 4 and cylinder volume ≤ 150 L,
- *    highlighting that the Mixergy selection is a logical necessity.
+ *  - Volume gap advisory is shown when peak-overlap signals suggest limited reserve
+ *    with the current cylinder volume.
  */
 function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
   const stats: Array<{ label: string; value: string | number }> = [];
@@ -360,6 +360,7 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
   }
 
   let occupantCount: number | null = null;
+  let bathroomCount: number | null = null;
   let cylinderVolumeLitres: number | null = null;
 
   // Occupants, bathrooms, and cylinder volume from supportingFacts
@@ -371,6 +372,8 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
       if (!isNaN(n)) occupantCount = n;
     } else if (key.includes('bathroom') || key.includes('shower room')) {
       stats.push({ label: fact.label, value: fact.value });
+      const n = typeof fact.value === 'number' ? fact.value : parseInt(String(fact.value), 10);
+      if (!isNaN(n)) bathroomCount = n;
     } else if (isCylinderVolumeFact(fact.label)) {
       stats.push({ label: fact.label, value: fact.value });
       const n = typeof fact.value === 'number'
@@ -384,11 +387,13 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
   const condition = decision.lifecycle.currentSystem.condition;
   const isConditionVisible = condition === 'at_risk' || condition === 'worn';
 
-  // Volume gap — flag when cylinder is undersized relative to occupancy
+  // Volume gap — flag when overlap/recovery signals indicate low reserve
+  const likelyPeakOverlap =
+    (bathroomCount != null && bathroomCount >= 2) ||
+    (occupantCount != null && occupantCount >= 4);
   const hasVolumeGap =
-    occupantCount !== null &&
     cylinderVolumeLitres !== null &&
-    occupantCount >= 4 &&
+    likelyPeakOverlap &&
     cylinderVolumeLitres <= 150;
 
   // Only render if we have something to show
@@ -415,8 +420,8 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
       )}
       {hasVolumeGap && (
         <p className="capp-at-a-glance__volume-gap" data-testid="capp-at-a-glance-volume-gap">
-          Volume gap — cylinder may be undersized for this household size. A larger
-          cylinder (200 L or above) is recommended for households of 4 or more.
+          Volume gap — current cylinder may be undersized for peak overlap and recovery.
+          Re-check stored hot-water volume against simultaneous use and recharge evidence.
         </p>
       )}
     </aside>
