@@ -191,6 +191,7 @@ import {
   formatVisitReference,
   resolveCanonicalVisitExportState,
   resolveVisitSessionReference,
+  type VisitRecommendationSnapshotLike,
 } from './features/visitHome/resolveCanonicalVisitExportState';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
@@ -1453,7 +1454,7 @@ function AppInner() {
       generatedOutputs,
       portalVisitContext: labPortalVisitContext,
     });
-  }, [activeVisitId, labFullSurveyModel, labEngineInput, labPortalVisitContext]);
+  }, [activeVisitId, activeVisitMeta, labFullSurveyModel, labEngineInput, labPortalVisitContext]);
 
   function handleEscalate(prefill: Partial<EngineInputV2_3>) {
     setFullSurveyPrefill(prefill);
@@ -1800,7 +1801,7 @@ function AppInner() {
     readonly visitReference: string;
     readonly exportVisitId: string;
     readonly exportSurveyModel: FullSurveyModelV1;
-    readonly currentSnapshot: VisitRecommendationSnapshot | null;
+    readonly currentSnapshot: VisitRecommendationSnapshotLike | null;
     readonly generatedOutputs: GeneratedOutputsV1;
     readonly exportDecision?: AtlasDecisionV1;
     readonly exportCustomerSummary?: CustomerSummaryV1;
