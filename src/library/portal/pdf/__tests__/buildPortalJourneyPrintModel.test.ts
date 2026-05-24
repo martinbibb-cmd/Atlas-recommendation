@@ -1042,6 +1042,18 @@ describe('buildCustomerJourneyPack — educational evidence acceptance routing',
     expect(sectionIds).toContain('stored_hot_water_recovery_timeline');
   });
 
+  it('renders warm-radiator and emitter-fit education when routed concept tags request it', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      educationalConceptTags: ['warm_vs_hot_radiators'],
+      recommendationSummary: 'Heat pump route.',
+      customerFacts: [],
+      journeyType: 'generic_recommendation_summary',
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('warm_not_hot_radiators');
+  });
+
   it('removes the legacy generic filler phrase from recommendation reasons', () => {
     const pack = buildCustomerJourneyPack({
       selectedSectionIds: [],

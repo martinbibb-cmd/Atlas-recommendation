@@ -475,6 +475,8 @@ function buildRoutedEducationalSections(input: {
   const conB03 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_B03');
   const conC02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_C02');
   const conD01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_D01');
+  const conE01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_E01');
+  const conE02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_E02');
   const conF04 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_F04');
   const conI01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_I01_DAY_TO_DAY');
   const sections: PortalJourneyPrintSectionV1[] = [];
@@ -514,6 +516,27 @@ function buildRoutedEducationalSections(input: {
       diagramCaption: 'Where a bottleneck limits outlet flow and overlap use.',
       diagramId: 'flow_restriction_bottleneck',
       diagramRendererId: 'flow_restriction_bottleneck',
+    });
+  }
+
+  if (conE02 != null && conceptTagSet.has('warm_vs_hot_radiators')) {
+    sections.push({
+      contentId: conE02.id,
+      sectionId: 'warm_not_hot_radiators',
+      heading: 'Warm radiators and emitter fit',
+      summary: conE02.oneLineSummary,
+      keyTakeaway: conE02.customerWording,
+      reassurance: conE02.whatNotToWorryAbout,
+      items: [
+        conE02.whatYouMayNotice,
+        `Reality: ${conE02.reality}`,
+        conE01 != null
+          ? conE01.oneLineSummary
+          : 'Emitter output should be matched to lower flow-temperature operation.',
+      ],
+      diagramCaption: 'Warm-for-longer operation compared with shorter hotter bursts.',
+      diagramId: resolvePrintDiagramFromContentEntry(conE02),
+      diagramRendererId: 'warm_vs_hot_radiators',
     });
   }
 
