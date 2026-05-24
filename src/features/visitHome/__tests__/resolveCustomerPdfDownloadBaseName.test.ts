@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveCustomerPdfDownloadBaseName } from '../resolveCustomerPdfDownloadBaseName';
 
 describe('resolveCustomerPdfDownloadBaseName', () => {
-  it('prefers the visit reference when a named visit exists', () => {
+  it('prefers canonical visit reference over mutable visit metadata', () => {
     expect(
       resolveCustomerPdfDownloadBaseName(
         {
@@ -13,7 +13,7 @@ describe('resolveCustomerPdfDownloadBaseName', () => {
         'VISIT1234',
         'visit_1234',
       ),
-    ).toBe('Smith_Kitchen_Upgrade');
+    ).toBe('VISIT1234');
   });
 
   it('falls back to the exported visit reference when no visit/customer/project name exists', () => {
@@ -30,7 +30,7 @@ describe('resolveCustomerPdfDownloadBaseName', () => {
     ).toBe('VISIT1234');
   });
 
-  it('prefers customer name over address when no visit reference exists', () => {
+  it('prefers customer name over address when canonical visit reference is unavailable', () => {
     expect(
       resolveCustomerPdfDownloadBaseName(
         {
@@ -38,7 +38,7 @@ describe('resolveCustomerPdfDownloadBaseName', () => {
           address_line_1: '10 Downing St',
           customer_name: 'Jane Smith',
         },
-        'VISIT1234',
+        undefined,
         'visit_1234',
       ),
     ).toBe('Jane_Smith');

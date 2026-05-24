@@ -422,6 +422,19 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
           exportedAt: '2026-05-21T12:00:00.000Z',
           source: { target: 'local_only', surface: 'test' },
         },
+        proposalTruth: {
+          visitEnvelope: {
+            recommendation: {
+              hotWaterArrangement: 'stored_unvented',
+              heatSource: 'gas_system',
+              reasons: [],
+              evidence: [],
+              requiredWork: [],
+              futureReady: [],
+              emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 55, note: '' },
+            },
+          },
+        },
       },
     });
 
@@ -620,6 +633,33 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
       && /unvented cylinder/i.test(reason.homeFact)
       && /mains pressure/i.test(reason.homeFact),
     )).toBe(true);
+  });
+
+  it('uses peak-window/recovery evidence wording for unvented cylinder guidance', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with unvented cylinder.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          hotWaterArrangement: 'stored_unvented',
+          heatSource: 'gas_system',
+          reasons: [],
+          evidence: [
+            { id: 'e1', fieldPath: 'peakConcurrentOutlets', label: 'Peak concurrent outlets', value: '3 outlets', source: 'derived', confidence: 'high' },
+            { id: 'e2', fieldPath: 'recoveryWindowMinutes', label: 'Recovery window', value: '35 min', source: 'derived', confidence: 'high' },
+          ],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 65, note: '' },
+        },
+      } as never,
+    });
+    const reason = pack.staticPdf.recommendationReasons.find((entry) => entry.id === 'unvented-cylinder');
+    expect(reason).toBeDefined();
+    expect(reason?.whyItMatters).toMatch(/peak-window|recovery evidence/i);
+    expect(reason?.atlasRecommendationOutcome).toMatch(/recommendation evidence/i);
+    expect(reason?.atlasRecommendationOutcome).not.toMatch(/occupancy|bathroom demand/i);
   });
 
   it('adds a Mixergy stratified cylinder reason when hotWaterArrangement is mixergy', () => {

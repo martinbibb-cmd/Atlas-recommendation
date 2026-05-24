@@ -398,14 +398,18 @@ export function resolveRecommendationConceptSelection(
   const surveyInput = resolveSurveyInput(input);
   const mains = resolveMainsSignals(surveyInput);
   const conceptTagSet = new Set<EducationalConceptTagV1>();
+  const isHeatPumpIntent = resolvedIntent === 'heat_pump_transition';
 
   conceptTagSet.add('system_fit_decision_map');
 
   if (
-    resolvedIntent === 'heat_pump_transition'
+    isHeatPumpIntent
     || recommendation?.heatSource === 'ashp'
     || recommendation?.heatSource === 'gshp'
-    || recommendation?.emitters?.existingRadiatorsCompatible === false
+    || (
+      recommendation?.emitters?.existingRadiatorsCompatible === false
+      && isHeatPumpIntent
+    )
   ) {
     conceptTagSet.add('warm_vs_hot_radiators');
   }
@@ -1224,6 +1228,7 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
   const surveyInput = resolveSurveyInput(input);
   const visitEnvelope = resolveVisitEnvelope(input);
   const recommendation = visitEnvelope?.recommendation;
+  const resolvedIntent = inferRecommendationIntentFromInput(input);
   const mains = resolveMainsSignals(surveyInput);
   const reasons: RecommendationReasonBlockV1[] = [];
   const seenCategory = new Set<RecommendationReasonCategoryV1>();
@@ -1250,10 +1255,9 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
     || recommendation?.hotWaterArrangement === 'stored_vented'
     || recommendation?.hotWaterArrangement === 'mixergy'
     || recommendation?.hotWaterArrangement === 'thermal_store'
-    || surveyInput?.dhwStorageType === 'unvented'
-    || surveyInput?.dhwStorageType === 'vented'
-    || surveyInput?.dhwStorageType === 'mixergy'
-    || surveyInput?.dhwStorageType === 'thermal_store';
+    || resolvedIntent === 'stored_hot_water'
+    || resolvedIntent === 'vented_to_unvented'
+    || resolvedIntent === 'sealed_system_conversion';
 
   if (occupancyCount != null && occupancyCount >= 3) {
     pushReason({
@@ -1421,6 +1425,10 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
   // ── System-specific reason blocks ───────────────────────────────────────────
 
   const hotWaterArrangement = recommendation?.hotWaterArrangement;
+  const peakRecoveryEvidence = (recommendation?.evidence ?? [])
+    .filter((item) => /peak|concurrent|overlap|recovery|reheat|draw/i.test(`${item.fieldPath} ${item.label} ${item.value}`))
+    .slice(0, 2)
+    .map((item) => `${item.label}: ${item.value}`);
 
   if (hotWaterArrangement === 'on_demand') {
     pushReason({
@@ -1434,14 +1442,17 @@ function inferRecommendationReasonBlocks(input: BuildCustomerJourneyPackInputV1)
   }
 
   if (hotWaterArrangement === 'stored_unvented') {
+    const detailFromEvidence = peakRecoveryEvidence.join(' · ');
     pushReason({
       id: 'unvented-cylinder',
       category: 'hot_water_system_type',
       homeFact: 'Stored hot water at mains pressure — unvented cylinder',
-      whyItMatters: 'An unvented cylinder holds a pre-heated reserve at mains pressure, ready across multiple outlets simultaneously.',
-      atlasRecommendationOutcome: 'Atlas matched cylinder sizing to the occupancy and bathroom demand recorded in the survey.',
+      whyItMatters: 'Peak-window overlap and recovery evidence show when stored reserve is needed to maintain stable outlet delivery.',
+      atlasRecommendationOutcome: 'Atlas selected an unvented stored route from recommendation evidence covering overlap demand and recovery behaviour.',
       practicalEffect: 'Shower pressure and temperature stay more consistent when two outlets are used at the same time.',
-      detail: 'The cylinder operates at mains pressure without a loft feed tank, which removes the open-vented head constraints.',
+      detail: detailFromEvidence.length > 0
+        ? `Evidence path: ${detailFromEvidence}`
+        : 'The cylinder operates at mains pressure without a loft feed tank, which removes the open-vented head constraints.',
     });
   }
 
