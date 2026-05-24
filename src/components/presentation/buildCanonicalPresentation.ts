@@ -1762,8 +1762,9 @@ function buildOptionExplanation(
     }
   } else {
     // standard_cylinder, mixergy, or standard ASHP cylinder
-    const litres = Math.round(demo.dailyHotWaterLitres);
-    throughHomeNotes.push(`Estimated demand of ~${litres} L/day helps size the cylinder correctly for this household.`);
+    throughHomeNotes.push(
+      `${occupancy} ${occupancy === 1 ? 'person' : 'people'} with ${bathrooms} ${bathrooms === 1 ? 'bathroom' : 'bathrooms'} — cylinder sizing is set by peak overlap and recovery, not whole-day litres.`,
+    );
     if (demo.bathUseIntensity === 'high') {
       throughHomeNotes.push('Frequent bath use increases cylinder volume requirement — a larger cylinder is advisable.');
     }
@@ -1856,11 +1857,10 @@ function buildRankingReasonLine(
   }
 
   if (family === 'system' || family === 'stored') {
-    const litres = Math.round(demo.dailyHotWaterLitres);
     if (pv.hasExistingPv && pv.solarStorageOpportunity === 'high') {
-      return `Stored water for ${input.occupancyCount ?? 2} people (~${litres} L/day) with existing PV — solar surplus captured in cylinder.`;
+      return `Stored water for ${input.occupancyCount ?? 2} people with existing PV — peak demand is buffered in the cylinder and solar surplus can be captured.`;
     }
-    return `Stored water for ${input.occupancyCount ?? 2} people (~${litres} L/day) — recovery profile matches ${demo.occupancyTimingProfile.replace(/_/g, ' ')} pattern.`;
+    return `Stored water for ${input.occupancyCount ?? 2} people — peak demand and recovery profile match the ${demo.occupancyTimingProfile.replace(/_/g, ' ')} pattern.`;
   }
 
   if (family === 'heat_pump') {
@@ -1872,12 +1872,11 @@ function buildRankingReasonLine(
   }
 
   if (family === 'open_vented' || family === 'regular') {
-    const litres = Math.round(demo.dailyHotWaterLitres);
     const dynamicBar = input.dynamicMainsPressureBar ?? input.dynamicMainsPressure;
     if (dynamicBar != null && dynamicBar < 1.0) {
-      return `Tank-fed supply: ${input.occupancyCount ?? 2}-person demand (~${litres} L/day) — mains at ${dynamicBar} bar is below the minimum for a mains-fed supply.`;
+      return `Tank-fed supply: ${input.occupancyCount ?? 2}-person household peak demand is better buffered in storage — mains at ${dynamicBar} bar is below the minimum for a mains-fed supply.`;
     }
-    return `Tank-fed supply: ${input.occupancyCount ?? 2}-person demand (~${litres} L/day) — water pressure depends on cold water tank height above the draw-off points.`;
+    return `Tank-fed supply: ${input.occupancyCount ?? 2}-person household — water pressure depends on cold water tank height above the draw-off points while storage covers peak draws.`;
   }
 
   return `Candidate assessed against house (${(input.heatLossWatts / 1000).toFixed(1)} kW), home (${input.occupancyCount ?? 2} people), and energy signals.`;
@@ -2031,7 +2030,7 @@ function demandWaterLabel(
   if (family === 'heat_pump') {
     return hasDemandConstraint
       ? 'Slow recovery under high demand'
-      : `Stored ~${Math.round(demo.dailyHotWaterLitres)} L/day — recovery key`;
+      : `Stored peak demand buffered — recovery key`;
   }
 
   // system / regular / open_vented
@@ -2180,7 +2179,7 @@ function buildPage3(
         ? `Simultaneous draw risk (${demo.peakSimultaneousOutlets} outlets)`
         : `Single-draw profile — combi fit`;
     } else {
-      demandFitNote = `~${Math.round(demo.dailyHotWaterLitres)} L/day demand — cylinder sizing key`;
+      demandFitNote = `Peak demand + recovery set cylinder sizing`;
     }
 
     // Water fit note
@@ -2383,7 +2382,7 @@ function buildFinalPage(
     `${input.occupancyCount ?? 2}-person household, ` +
     `${input.bathroomCount} ${input.bathroomCount === 1 ? 'bathroom' : 'bathrooms'}, ` +
     `${demo.demandProfileLabel.toLowerCase()} — ` +
-    `${Math.round(demo.dailyHotWaterLitres)} L/day estimated hot-water demand, ` +
+    `${demo.peakSimultaneousOutlets}+ outlet peak profile, ` +
     `${dhwArchitectureToLabel(dhwArchitecture)}.`;
 
   const houseConstraintNotes: string[] = [

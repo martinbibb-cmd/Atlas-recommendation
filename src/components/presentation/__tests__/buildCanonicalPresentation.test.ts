@@ -598,6 +598,26 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
     }
   });
 
+  it('stored-system customer copy avoids daily litres as the cylinder sizing basis', () => {
+    const input = withInput({
+      occupancyCount: 4,
+      bathroomCount: 2,
+      highOccupancy: true,
+      preferCombi: false,
+      demandTimingOverrides: { bathFrequencyPerWeek: 4, simultaneousUseSeverity: 'high' },
+    });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input, result.recommendationResult);
+
+    const storedRankingItem = model.page3.items.find(i => i.family === 'system');
+    const storedOption = model.page2.options.find(o => o.dhwArchitecture !== 'on_demand');
+
+    expect(storedRankingItem?.demandFitNote).toMatch(/Peak demand|recovery/i);
+    expect(storedRankingItem?.demandFitNote).not.toMatch(/L\/day/i);
+    expect(storedOption?.throughHomeNotes.join(' ')).toMatch(/peak overlap|recovery/i);
+    expect(storedOption?.throughHomeNotes.join(' ')).not.toMatch(/L\/day/i);
+  });
+
   it('ranking order changes when eco priority boosts heat pump weight', () => {
     // Without eco priority: combi is typically rank 1 for a single-person home.
     const baseResult = runEngine(BASE_INPUT);
@@ -638,12 +658,12 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
 // ─── Final page — Simulator ───────────────────────────────────────────────────
 
 describe('buildCanonicalPresentation — final page simulator', () => {
-  it('home scenario description includes occupancy and hot-water estimate', () => {
+  it('home scenario description includes occupancy and peak-use context', () => {
     const input = withInput({ occupancyCount: 3 });
     const result = runEngine(input);
     const model = buildCanonicalPresentation(result, input);
     expect(model.finalPage.homeScenarioDescription).toMatch(/3-person/i);
-    expect(model.finalPage.homeScenarioDescription).toMatch(/L\/day/i);
+    expect(model.finalPage.homeScenarioDescription).toMatch(/outlet peak profile/i);
   });
 
   it('house constraint notes include heat loss', () => {

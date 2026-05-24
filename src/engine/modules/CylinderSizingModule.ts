@@ -6,6 +6,10 @@ import type {
   CylinderSizingRecommendation,
   CylinderInstallLocation,
 } from '../schema/EngineInputV2_3';
+import {
+  findDemandPreset,
+  resolveTimingOverrides,
+} from '../schema/OccupancyPreset';
 
 // ─── Physics constants ────────────────────────────────────────────────────────
 
@@ -145,27 +149,41 @@ const STANDARD_CYLINDER_SIZES_L = [120, 150, 180, 210, 250, 300, 400] as const;
 
 // ─── Sizing thresholds ────────────────────────────────────────────────────────
 
-/**
- * Hot water demand per occupant per day (litres at tap target temperature, 40 °C).
- * Derived from CIBSE Guide G / MCS CH-I-06 occupancy demand assumptions:
- *   55 L/person/day at 40 °C represents moderate domestic use including showers,
- *   basin, and incidental hot water.  Calibrated against standard UK cylinder
- *   sizing charts (Megaflo, Gledhill, Heatrae Sadia).
- */
+/** Daily hot-water demand per occupant (background demand signal only; not storage sizing basis). */
 const DEMAND_L_PER_PERSON_PER_DAY = 55;
 
-/**
- * Additional demand allocation per bathroom beyond the first (litres/day at 40 °C).
- * Each additional bathroom adds an independent morning draw point.
- * 30 L represents a typical 8-minute shower at the second bathroom.
- */
+/** Daily hot-water demand per extra bathroom (background demand signal only; not storage sizing basis). */
 const DEMAND_L_PER_EXTRA_BATHROOM = 30;
 
-/** Occupancy-led peak hot-water demand within the main recovery window (litres at 40 °C). */
-const PEAK_WINDOW_L_PER_PERSON = 35;
+/** Mixed litres for one heavy shower draw in the peak window. */
+const PEAK_SHOWER_EVENT_L = 40;
 
-/** Additional peak-demand reserve per extra bathroom (litres at 40 °C). */
-const PEAK_WINDOW_L_PER_EXTRA_BATHROOM = 20;
+/** Mixed litres for a queued follow-on draw within the same peak period. */
+const FOLLOW_ON_PEAK_DRAW_L_BY_SEVERITY: Record<'low' | 'medium' | 'high', number> = {
+  low:    20,
+  medium: 30,
+  high:   40,
+};
+
+/** Additional overlap reserve per extra bathroom. */
+const PEAK_OVERLAP_L_PER_EXTRA_BATHROOM = 15;
+
+/** Bath reserve that can land in the same peak-use window. */
+const PEAK_BATH_LOAD_L_BY_INTENSITY = {
+  occasional: 25,
+  medium:     45,
+  high:       80,
+} as const;
+
+/** Recovery time Atlas assumes is realistically available between peak draws. */
+const EFFECTIVE_RECOVERY_WINDOW_MINS: Record<'low' | 'medium' | 'high', number> = {
+  low:    15,
+  medium: 10,
+  high:   5,
+};
+
+/** Only part of the theoretical reheat is practically available before the next draw arrives. */
+const RECOVERY_CREDIT_FACTOR = 0.5;
 
 /**
  * Simultaneous-draw reserve multipliers.
@@ -346,12 +364,74 @@ function computeDailyDemandL(occupancyCount: number, bathroomCount: number): num
   );
 }
 
-function computePeakWindowDemandL(occupancyCount: number, bathroomCount: number): number {
-  const extraBathroomCount = Math.max(0, bathroomCount - 1);
-  return (
-    occupancyCount * PEAK_WINDOW_L_PER_PERSON +
-    extraBathroomCount * PEAK_WINDOW_L_PER_EXTRA_BATHROOM
-  );
+function resolveBathFrequencyPerWeek(input: EngineInputV2_3): number {
+  const presetId = input.demandPreset;
+  const preset = presetId ? findDemandPreset(presetId) : undefined;
+  const timingOverrides = presetId
+    ? resolveTimingOverrides(presetId, input.demandTimingOverrides)
+    : undefined;
+
+  return input.demandTimingOverrides?.bathFrequencyPerWeek
+    ?? timingOverrides?.bathFrequencyPerWeek
+    ?? preset?.defaults.bathFrequencyPerWeek
+    ?? 2;
+}
+
+function resolvePeakConcurrentOutlets(
+  input: EngineInputV2_3,
+  bathroomCount: number,
+): number {
+  if ((input.peakConcurrentOutlets ?? 0) > 0) return input.peakConcurrentOutlets!;
+  return bathroomCount >= 2 ? 2 : 1;
+}
+
+function resolvePeakBathLoadL(bathFrequencyPerWeek: number): number {
+  if (bathFrequencyPerWeek >= 4) return PEAK_BATH_LOAD_L_BY_INTENSITY.high;
+  if (bathFrequencyPerWeek >= 2) return PEAK_BATH_LOAD_L_BY_INTENSITY.medium;
+  if (bathFrequencyPerWeek >= 1) return PEAK_BATH_LOAD_L_BY_INTENSITY.occasional;
+  return 0;
+}
+
+function computePeakWindowDemandL(params: {
+  occupancyCount: number;
+  bathroomCount: number;
+  peakConcurrentOutlets: number;
+  drawSeverity: 'low' | 'medium' | 'high';
+  bathPeakLoadL: number;
+}): number {
+  const {
+    occupancyCount,
+    bathroomCount,
+    peakConcurrentOutlets,
+    drawSeverity,
+    bathPeakLoadL,
+  } = params;
+
+  const peakWindowUsers = Math.max(1, Math.min(occupancyCount, peakConcurrentOutlets + 1));
+  const overlappingDrawL = peakConcurrentOutlets * PEAK_SHOWER_EVENT_L;
+  const queuedDrawL =
+    Math.max(0, peakWindowUsers - peakConcurrentOutlets) *
+    FOLLOW_ON_PEAK_DRAW_L_BY_SEVERITY[drawSeverity];
+  const bathroomOverlapReserveL =
+    Math.max(0, bathroomCount - 1) * PEAK_OVERLAP_L_PER_EXTRA_BATHROOM;
+
+  return overlappingDrawL + queuedDrawL + bathroomOverlapReserveL + bathPeakLoadL;
+}
+
+function computeFollowOnPeakDemandL(params: {
+  occupancyCount: number;
+  peakConcurrentOutlets: number;
+}): number {
+  const { occupancyCount, peakConcurrentOutlets } = params;
+  const peakWindowUsers = Math.max(1, Math.min(occupancyCount, peakConcurrentOutlets + 1));
+  return Math.max(0, occupancyCount - peakWindowUsers) * FOLLOW_ON_PEAK_DRAW_L_BY_SEVERITY.low;
+}
+
+function resolveRecoveryCreditWindowMins(
+  recoveryWindowMins: number,
+  drawSeverity: 'low' | 'medium' | 'high',
+): number {
+  return Math.min(recoveryWindowMins, EFFECTIVE_RECOVERY_WINDOW_MINS[drawSeverity]);
 }
 
 function computeRecoveredMixedVolumeWithinWindowL(params: {
@@ -384,21 +464,20 @@ function computeRecoveredMixedVolumeWithinWindowL(params: {
 
 /**
  * Compute the minimum cylinder nominal volume (litres) required to satisfy the
- * household's daily hot-water demand.
+ * household's peak hot-water demand.
  *
  * Algorithm:
- *   1. Daily demand (at tap target temp) = occupants × 55L + extra bathrooms × 30L
- *   2. Required hot volume = dailyDemand × (tapDelta / storeDelta)
- *      — the volume that must be stored at store temperature to produce that demand
- *   3. Minimum cylinder = requiredHot / usableFraction
- *      — accounts for turbulence/mixing losses
- *   4. Apply simultaneous-draw reserve multiplier
- *   5. Apply heat-pump uplift if regime is HP (lower store temp → higher required volume)
- *      — already captured implicitly through the (tapDelta/storeDelta) ratio
+ *   1. Build a peak-use window from overlapping outlets, bathrooms, and bath use
+ *   2. Add follow-on demand from remaining occupants likely to draw in the same period
+ *   3. Subtract only the realistic recovery credit available between peak draws
+ *   4. Convert the remaining mixed-water requirement to nominal cylinder litres
+ *   5. Apply simultaneous-draw reserve multiplier
  */
 function computeMinimumCylinderVolumeL(params: {
   occupancyCount: number;
   bathroomCount: number;
+  peakConcurrentOutlets?: number;
+  bathPeakLoadL?: number;
   heatSourceKw?: number;
   recoveryWindowMins?: number;
   storeTempC: number;
@@ -410,6 +489,8 @@ function computeMinimumCylinderVolumeL(params: {
   const {
     occupancyCount,
     bathroomCount,
+    peakConcurrentOutlets = 1,
+    bathPeakLoadL = 0,
     heatSourceKw = ASSUMED_BOILER_HEAT_SOURCE_KW,
     recoveryWindowMins = 60,
     storeTempC,
@@ -424,27 +505,33 @@ function computeMinimumCylinderVolumeL(params: {
 
   if (tapDelta <= 0 || storeDelta <= 0 || usableFraction <= 0) return 120;
 
-  const peakWindowDemandL = computePeakWindowDemandL(occupancyCount, bathroomCount);
+  const peakWindowDemandL = computePeakWindowDemandL({
+    occupancyCount,
+    bathroomCount,
+    peakConcurrentOutlets,
+    drawSeverity,
+    bathPeakLoadL,
+  });
+  const followOnPeakDemandL = computeFollowOnPeakDemandL({
+    occupancyCount,
+    peakConcurrentOutlets,
+  });
+  const effectiveRecoveryWindowMins = resolveRecoveryCreditWindowMins(
+    recoveryWindowMins,
+    drawSeverity,
+  );
   const recoveredMixedVolumeWithinWindowL = computeRecoveredMixedVolumeWithinWindowL({
     heatSourceKw,
-    recoveryWindowMins,
+    recoveryWindowMins: effectiveRecoveryWindowMins,
     storeTempC,
     tapTargetTempC,
     coldWaterTempC,
     usableFraction,
   });
-  const extraBathroomCount = Math.max(0, bathroomCount - 1);
-  const occupancyLedDemandL = occupancyCount * DEMAND_L_PER_PERSON_PER_DAY;
-  const bathroomDemandL = extraBathroomCount * DEMAND_L_PER_EXTRA_BATHROOM;
-  const bathroomPeakReserveL = extraBathroomCount * PEAK_WINDOW_L_PER_EXTRA_BATHROOM;
-  const unrecoveredPeakReserveL = Math.max(
-    0,
-    bathroomPeakReserveL - recoveredMixedVolumeWithinWindowL,
-  );
-  const netDemandL = Math.max(
-    occupancyLedDemandL + bathroomDemandL + unrecoveredPeakReserveL,
-    peakWindowDemandL,
-  );
+  const practicalRecoveryCreditL = recoveredMixedVolumeWithinWindowL * RECOVERY_CREDIT_FACTOR;
+  const netDemandL =
+    peakWindowDemandL +
+    Math.max(0, followOnPeakDemandL - practicalRecoveryCreditL);
 
   // Hot volume required at store temperature
   const requiredHotL = netDemandL * (tapDelta / storeDelta);
@@ -479,7 +566,7 @@ function computeMinimumCylinderVolumeL(params: {
  *   Usable fraction: 0.75 (standard), 0.95 (Mixergy).
  *
  * **Minimum cylinder volume**:
- *   Demand = occupants × 50 L + extra bathrooms × 20 L (at tap temp, 40 °C)
+ *   Demand = peak-use window + follow-on peak users − realistic recovery credit
  *   V_min = (Demand × (T_tap − T_cold) / (T_store − T_cold)) / usableFraction × reserveFactor
  *   Rounded up to the nearest standard size from [120, 150, 180, 210, 250, 300, 400] L.
  */
@@ -498,6 +585,13 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   const insulationFactor = input.cylinderInsulationFactor ?? 1.0;
   const isHpRegime      = input.dhwStorageRegime === 'heat_pump_cylinder';
   const recoveryWindowMins = isHpRegime ? 120 : 60;
+  const bathFrequencyPerWeek = resolveBathFrequencyPerWeek(input);
+  const bathPeakLoadL = resolvePeakBathLoadL(bathFrequencyPerWeek);
+  const peakConcurrentOutlets = resolvePeakConcurrentOutlets(input, bathroomCount);
+  const effectiveRecoveryWindowMins = resolveRecoveryCreditWindowMins(
+    recoveryWindowMins,
+    drawSeverity,
+  );
 
   const { powerKw: heatSourceKw, source: heatSourceSource } = resolveHeatSourcePower(input);
   const { usableFraction, standingLossCoeff, isMixergy } = resolveCylinderTypeFactors(input);
@@ -520,7 +614,14 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     `Heat source: ${heatSourceKw} kW ` +
     `(${heatSourceSource === 'measured' ? 'from boiler output' : 'assumed typical'}).`,
   );
-  assumptions.push(`Recovery window: ${recoveryWindowMins} min.`);
+  assumptions.push(
+    `Peak demand assumption: ${peakConcurrentOutlets} likely overlapping outlet(s) ` +
+    `with ${bathroomCount} bathroom(s) shaping overlap risk${bathPeakLoadL > 0 ? ` and ~${bathPeakLoadL} L bath reserve` : ''}.`,
+  );
+  assumptions.push(
+    `Recovery credit: ${effectiveRecoveryWindowMins} min of reheat assumed between peak draws ` +
+    `(from a ${recoveryWindowMins} min base window, counted as a partial reserve rather than full tank recovery).`,
+  );
   assumptions.push(
     `Cylinder type: ${isMixergy ? 'Mixergy (usable fraction 95%)' : 'standard (usable fraction 75%)'}.`,
   );
@@ -564,6 +665,8 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   const minimumRawL = computeMinimumCylinderVolumeL({
     occupancyCount,
     bathroomCount,
+    peakConcurrentOutlets,
+    bathPeakLoadL,
     heatSourceKw,
     recoveryWindowMins,
     storeTempC,
@@ -572,15 +675,22 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     usableFraction: recUsableFraction,
     drawSeverity,
   });
-  const peakWindowDemandL = computePeakWindowDemandL(occupancyCount, bathroomCount);
+  const peakWindowDemandL = computePeakWindowDemandL({
+    occupancyCount,
+    bathroomCount,
+    peakConcurrentOutlets,
+    drawSeverity,
+    bathPeakLoadL,
+  });
   const recoveredMixedVolumeWithinWindowL = computeRecoveredMixedVolumeWithinWindowL({
     heatSourceKw,
-    recoveryWindowMins,
+    recoveryWindowMins: effectiveRecoveryWindowMins,
     storeTempC,
     tapTargetTempC,
     coldWaterTempC,
     usableFraction: recUsableFraction,
   });
+  const practicalRecoveryCreditL = recoveredMixedVolumeWithinWindowL * RECOVERY_CREDIT_FACTOR;
 
   const minimumVolumeL = roundUpToStandardSize(minimumRawL);
 
@@ -590,17 +700,15 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     `(${occupancyCount} occupant(s), ${bathroomCount} bathroom(s), ` +
     `${drawSeverity} simultaneous-draw severity, ` +
     `${peakWindowDemandL.toFixed(0)} L peak-window demand, ` +
-    `${recoveredMixedVolumeWithinWindowL.toFixed(0)} L recovered within ${recoveryWindowMins} min, ` +
+    `${practicalRecoveryCreditL.toFixed(0)} L practical recovery credit from ${recoveredMixedVolumeWithinWindowL.toFixed(0)} L reheated within ${effectiveRecoveryWindowMins} min, ` +
     `${recUsableFraction * 100} % usable fraction for ${recommendedType} cylinder type).`,
   );
 
   // ── Recommend target volume ────────────────────────────────────────────────
-  // The target volume adds a comfort margin of one size above the minimum for
-  // 'medium' or 'high' draw severity, to provide a buffer against back-to-back
-  // demand and allow for real-world installation variability.
+  // The target volume adds a comfort margin of one size above the minimum when
+  // the peak profile includes real overlap, bath reserve, or back-to-back severity.
   let targetVolumeL = minimumVolumeL;
-  if (drawSeverity === 'high') {
-    // For high simultaneous draw, move up one standard size for comfort headroom
+  if (drawSeverity === 'high' || peakConcurrentOutlets >= 2 || bathPeakLoadL > 0) {
     const currentIdx = STANDARD_CYLINDER_SIZES_L.indexOf(minimumVolumeL as typeof STANDARD_CYLINDER_SIZES_L[number]);
     if (currentIdx >= 0 && currentIdx < STANDARD_CYLINDER_SIZES_L.length - 1) {
       targetVolumeL = STANDARD_CYLINDER_SIZES_L[currentIdx + 1];
@@ -620,14 +728,15 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
 
   // ── Recommendation reasoning ───────────────────────────────────────────────
   const reasoning: string[] = [];
-  const dailyDemandL = computeDailyDemandL(occupancyCount, bathroomCount);
 
   reasoning.push(
-    `Estimated demand profile: ${dailyDemandL} L/day overall, with ${peakWindowDemandL.toFixed(0)} L expected in the main recovery window ` +
-    `(${occupancyCount} occupant(s), ${bathroomCount} bathroom(s)).`,
+    `Sizing is based on a peak hot-water window of about ${peakWindowDemandL.toFixed(0)} L ` +
+    `for ${occupancyCount} occupant(s), ${bathroomCount} bathroom(s), and ${peakConcurrentOutlets} likely overlapping outlet(s).`,
   );
   reasoning.push(
-    `${recoveredMixedVolumeWithinWindowL.toFixed(0)} L can be reheated within ${recoveryWindowMins} minutes, so bathrooms influence peak reserve rather than all-day volume.`,
+    `${practicalRecoveryCreditL.toFixed(0)} L of practical reserve can be regained within about ${effectiveRecoveryWindowMins} minutes ` +
+    `(from roughly ${recoveredMixedVolumeWithinWindowL.toFixed(0)} L of theoretical reheat), ` +
+    `so recovery offsets follow-on draws rather than sizing the cylinder from all-day litres.`,
   );
   reasoning.push(
     `Store temperature ${storeTempC} °C and ${recUsableFraction * 100} % usable fraction → ` +
@@ -662,14 +771,16 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   if (!isMixergy && (isHighDemand || isSpaceTight)) {
     const standardMinL = roundUpToStandardSize(
       computeMinimumCylinderVolumeL({
-        occupancyCount, bathroomCount, heatSourceKw, recoveryWindowMins, storeTempC, tapTargetTempC, coldWaterTempC,
+        occupancyCount, bathroomCount, peakConcurrentOutlets, bathPeakLoadL, heatSourceKw, recoveryWindowMins,
+        storeTempC, tapTargetTempC, coldWaterTempC,
         usableFraction: USABLE_FRACTION_STANDARD,
         drawSeverity,
       }),
     );
     const mixergyMinL = roundUpToStandardSize(
       computeMinimumCylinderVolumeL({
-        occupancyCount, bathroomCount, heatSourceKw, recoveryWindowMins, storeTempC, tapTargetTempC, coldWaterTempC,
+        occupancyCount, bathroomCount, peakConcurrentOutlets, bathPeakLoadL, heatSourceKw, recoveryWindowMins,
+        storeTempC, tapTargetTempC, coldWaterTempC,
         usableFraction: USABLE_FRACTION_MIXERGY,
         drawSeverity,
       }),
@@ -693,7 +804,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     // Compare to what a boiler cylinder would require at 60 °C
     const boilerMinL = roundUpToStandardSize(
       computeMinimumCylinderVolumeL({
-        occupancyCount, bathroomCount, heatSourceKw, recoveryWindowMins,
+        occupancyCount, bathroomCount, peakConcurrentOutlets, bathPeakLoadL, heatSourceKw, recoveryWindowMins,
         storeTempC: DEFAULT_BOILER_STORE_TEMP_C,
         tapTargetTempC, coldWaterTempC,
         usableFraction: USABLE_FRACTION_STANDARD,
@@ -742,6 +853,8 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     const currentMinRawL = computeMinimumCylinderVolumeL({
       occupancyCount,
       bathroomCount,
+      peakConcurrentOutlets,
+      bathPeakLoadL,
       heatSourceKw,
       recoveryWindowMins,
       storeTempC,
@@ -878,6 +991,12 @@ export {
   computeStandingLossW,
   computeMinimumCylinderVolumeL,
   computeDailyDemandL,
+  computePeakWindowDemandL,
+  computeRecoveredMixedVolumeWithinWindowL,
+  resolveBathFrequencyPerWeek,
+  resolvePeakBathLoadL,
+  resolvePeakConcurrentOutlets,
+  resolveRecoveryCreditWindowMins,
   roundUpToStandardSize,
   RECOVERY_DIVISOR,
   WATER_DENSITY_KG_PER_L,
@@ -900,4 +1019,5 @@ export {
   // Demand constants — exported for use in InsightPack cylinder sizing rationale
   DEMAND_L_PER_PERSON_PER_DAY,
   DEMAND_L_PER_EXTRA_BATHROOM,
+  PEAK_SHOWER_EVENT_L,
 };

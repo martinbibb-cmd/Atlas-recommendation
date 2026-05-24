@@ -135,8 +135,8 @@ describe('computeStandingLossW', () => {
 
 describe('computeMinimumCylinderVolumeL', () => {
   it('returns a larger minimum for a higher occupancy count', () => {
-    const v2 = computeMinimumCylinderVolumeL({ occupancyCount: 2, bathroomCount: 1, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
-    const v4 = computeMinimumCylinderVolumeL({ occupancyCount: 4, bathroomCount: 1, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
+    const v2 = computeMinimumCylinderVolumeL({ occupancyCount: 2, bathroomCount: 1, heatSourceKw: 3, recoveryWindowMins: 5, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
+    const v4 = computeMinimumCylinderVolumeL({ occupancyCount: 4, bathroomCount: 1, heatSourceKw: 3, recoveryWindowMins: 5, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
     expect(v4).toBeGreaterThan(v2);
   });
 
@@ -152,24 +152,25 @@ describe('computeMinimumCylinderVolumeL', () => {
     expect(mixergy).toBeLessThan(standard);
   });
 
-  it('applies simultaneous-draw multiplier for high severity', () => {
+  it('increases minimum volume for high severity', () => {
     const low  = computeMinimumCylinderVolumeL({ occupancyCount: 3, bathroomCount: 2, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
     const high = computeMinimumCylinderVolumeL({ occupancyCount: 3, bathroomCount: 2, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'high' });
-    expect(high).toBeCloseTo(low * 1.30, 1);
+    expect(high).toBeGreaterThan(low);
   });
 
-  it('sizes by occupancy first while bathrooms add a smaller peak reserve', () => {
-    const moreOccupants = computeMinimumCylinderVolumeL({ occupancyCount: 4, bathroomCount: 1, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
-    const moreBathrooms = computeMinimumCylinderVolumeL({ occupancyCount: 2, bathroomCount: 3, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
-    expect(moreOccupants).toBeGreaterThan(moreBathrooms);
+  it('extra bathrooms add a smaller peak overlap reserve', () => {
+    const oneBathroom = computeMinimumCylinderVolumeL({ occupancyCount: 5, bathroomCount: 1, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
+    const twoBathrooms = computeMinimumCylinderVolumeL({ occupancyCount: 5, bathroomCount: 2, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
+    expect(twoBathrooms).toBeGreaterThan(oneBathroom);
+    expect(twoBathrooms - oneBathroom).toBeLessThan(40);
   });
 
   it('reduces minimum volume when recovery window allows more reheat contribution', () => {
     const shortWindow = computeMinimumCylinderVolumeL({
-      occupancyCount: 1,
+      occupancyCount: 4,
       bathroomCount: 4,
       heatSourceKw: 3,
-      recoveryWindowMins: 30,
+      recoveryWindowMins: 5,
       storeTempC: 60,
       tapTargetTempC: 40,
       coldWaterTempC: 10,
@@ -177,10 +178,10 @@ describe('computeMinimumCylinderVolumeL', () => {
       drawSeverity: 'low',
     });
     const longWindow = computeMinimumCylinderVolumeL({
-      occupancyCount: 1,
+      occupancyCount: 4,
       bathroomCount: 4,
       heatSourceKw: 3,
-      recoveryWindowMins: 90,
+      recoveryWindowMins: 30,
       storeTempC: 60,
       tapTargetTempC: 40,
       coldWaterTempC: 10,
@@ -242,7 +243,7 @@ describe('runCylinderSizingModule', () => {
 
     it('includes visible cylinder sizing reasoning tied to occupancy and recovery window', () => {
       const result = runCylinderSizingModule({ ...baseInput, occupancyCount: 4, bathroomCount: 2 });
-      expect(result.recommendation.reasoning.join(' ')).toMatch(/recovery window|reheated within/i);
+      expect(result.recommendation.reasoning.join(' ')).toMatch(/peak hot-water window|reheated within/i);
     });
 
     it('populates assumptions array', () => {
@@ -295,7 +296,7 @@ describe('runCylinderSizingModule', () => {
 
     it('minimumAdequateVolumeL reflects physics minimum, not rounded standard size', () => {
       // For 1 occupant, 1 bathroom the physics minimum is ~44 L.
-      // The reported minimumAdequateVolumeL must be close to this value (≤ 60 L),
+      // The reported minimumAdequateVolumeL must stay well below the 120 L purchase threshold,
       // NOT rounded up to 120 L (the smallest standard purchase size).
       const result = runCylinderSizingModule({
         ...baseInput,
@@ -304,7 +305,7 @@ describe('runCylinderSizingModule', () => {
         cylinderVolumeLitres: 98,
       });
       expect(result.currentPerformance?.minimumAdequateVolumeL).toBeDefined();
-      expect(result.currentPerformance!.minimumAdequateVolumeL).toBeLessThanOrEqual(60);
+      expect(result.currentPerformance!.minimumAdequateVolumeL).toBeLessThan(120);
     });
 
     it('emits sizing-current-adequate info flag for a large enough cylinder', () => {
@@ -423,6 +424,7 @@ describe('runCylinderSizingModule', () => {
         ...baseInput,
         occupancyCount: 4,
         bathroomCount: 2,
+        demandTimingOverrides: { bathFrequencyPerWeek: 7 },
         dhwStorageType: 'unvented', // standard, not mixergy
       });
       const flag = result.flags.find(f => f.id === 'sizing-mixergy-advantage');
@@ -491,46 +493,76 @@ describe('runCylinderSizingModule', () => {
       expect(result.recommendation.targetVolumeL).toBeLessThanOrEqual(150);
     });
 
-    it('recommends at least 180 L for a 4-person, 2-bathroom household (Mixergy)', () => {
-      // 4-person, 2-bathroom triggers Mixergy recommendation (isHighDemand = true).
-      // Mixergy's 95% usable fraction means less volume is needed vs standard.
-      // Industry data: Mixergy 180L suits 3-4 people; standard would require 210L+.
+    it('recommends at least 150 L for a 4-person, 2-bathroom household (Mixergy)', () => {
       const result = runCylinderSizingModule({
         ...baseInput,
         occupancyCount: 4,
         bathroomCount: 2,
       });
       expect(result.recommendation.cylinderType).toBe('mixergy');
-      expect(result.recommendation.targetVolumeL).toBeGreaterThanOrEqual(180);
+      expect(result.recommendation.targetVolumeL).toBeGreaterThanOrEqual(150);
     });
 
-    it('physics minimum is ≥ 200 L (standard fraction) for a 4-person, 2-bathroom household; Mixergy target is ≥ 180 L', () => {
-      // For 4 occupants, 2 bathrooms:
-      //   Current cylinder adequacy uses the INSTALLED cylinder's fraction (standard, 0.75):
-      //     dailyDemand = 250 L → requiredHot = 150 L → minCylinder = 200 L (raw physics).
-      //   The RECOMMENDED type is Mixergy (isHighDemand = true), using 0.95 fraction:
-      //     minCylinder = 150/0.95 ≈ 158 L → roundUpToStandard = 180 L.
-      //
-      // minimumAdequateVolumeL reports the physics minimum (~200 L) for the installed
-      // standard cylinder — it does NOT use the rounded purchase size (210 L).
+    it('five occupants do not automatically size to a 225L-style daily-litres rule', () => {
       const result = runCylinderSizingModule({
         ...baseInput,
-        occupancyCount: 4,
-        bathroomCount: 2,
-        dhwStorageType: 'unvented',   // current cylinder is standard unvented
-        cylinderVolumeLitres: 150,    // give it a current cylinder to trigger adequacy check
+        occupancyCount: 5,
+        bathroomCount: 1,
       });
-      // Physics minimum for adequacy assessment of the current standard cylinder
-      expect(result.currentPerformance?.minimumAdequateVolumeL).toBeGreaterThanOrEqual(200);
-      // Recommended purchase is Mixergy (high demand), so target rounds to 180 L minimum
-      expect(result.recommendation.cylinderType).toBe('mixergy');
-      expect(result.recommendation.targetVolumeL).toBeGreaterThanOrEqual(180);
+      expect(result.recommendation.targetVolumeL).toBeLessThanOrEqual(180);
+    });
+
+    it('bathrooms influence overlap reserve rather than causing a whole-day storage jump', () => {
+      const oneBathroom = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 5,
+        bathroomCount: 1,
+      });
+      const twoBathrooms = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 5,
+        bathroomCount: 2,
+      });
+      expect(twoBathrooms.recommendation.targetVolumeL).toBeGreaterThanOrEqual(oneBathroom.recommendation.targetVolumeL);
+      expect(twoBathrooms.recommendation.targetVolumeL - oneBathroom.recommendation.targetVolumeL).toBeLessThanOrEqual(60);
+    });
+
+    it('bath-plus-shower peak sizes above shower-only use', () => {
+      const showerOnly = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 3,
+        bathroomCount: 2,
+        demandTimingOverrides: { bathFrequencyPerWeek: 0 },
+      });
+      const bathAndShower = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 3,
+        bathroomCount: 2,
+        demandTimingOverrides: { bathFrequencyPerWeek: 7 },
+      });
+      expect(bathAndShower.recommendation.targetVolumeL).toBeGreaterThan(showerOnly.recommendation.targetVolumeL);
     });
 
     it('high simultaneous-draw severity increases recommended volume', () => {
       const low  = runCylinderSizingModule({ ...baseInput, occupancyCount: 3, bathroomCount: 2, simultaneousDrawSeverity: 'low' });
       const high = runCylinderSizingModule({ ...baseInput, occupancyCount: 3, bathroomCount: 2, simultaneousDrawSeverity: 'high' });
       expect(high.recommendation.targetVolumeL).toBeGreaterThanOrEqual(low.recommendation.targetVolumeL);
+    });
+
+    it('back-to-back shower profile sizes above separated daily showers', () => {
+      const separated = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 2,
+        bathroomCount: 1,
+        simultaneousDrawSeverity: 'low',
+      });
+      const backToBack = runCylinderSizingModule({
+        ...baseInput,
+        occupancyCount: 2,
+        bathroomCount: 1,
+        simultaneousDrawSeverity: 'high',
+      });
+      expect(backToBack.recommendation.targetVolumeL).toBeGreaterThan(separated.recommendation.targetVolumeL);
     });
   });
 
