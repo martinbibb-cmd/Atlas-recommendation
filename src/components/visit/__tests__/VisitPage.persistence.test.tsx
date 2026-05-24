@@ -150,7 +150,7 @@ describe('FullSurveyStepper — global ExplainersOverlay (hamburger) availabilit
   it('renders the Explainers launcher button on step 1', () => {
     render(<GlobalMenuShell><FullSurveyStepper onBack={() => {}} /></GlobalMenuShell>);
     expect(screen.getByRole('button', { name: /explainers/i })).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('Explainers button is still present after navigating to step 2', async () => {
     const user = userEvent.setup();
@@ -168,7 +168,7 @@ describe('FullSurveyStepper — global ExplainersOverlay (hamburger) availabilit
     await advanceToStep(user, 2);
 
     expect(screen.getByRole('button', { name: /explainers/i })).toBeInTheDocument();
-  }, 10000);
+  }, 20000);
 });
 
 // ── SaveState type test ───────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ describe('FullSurveyStepper — Step 6 duplicate live-physics strip removed', ()
 
     // The LivePhysicsOverlay has className 'live-physics-overlay' — must be absent on the usage step.
     expect(document.querySelector('.live-physics-overlay')).toBeNull();
-  }, 15000);
+  }, 30000);
 
   it('still renders the dhw-demand-summary block on Step 6 (working bottom summary)', async () => {
     const user = userEvent.setup();

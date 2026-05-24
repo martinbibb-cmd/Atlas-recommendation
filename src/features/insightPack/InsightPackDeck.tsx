@@ -88,6 +88,24 @@ const STORED_HOT_WATER_LABEL_PATTERN = /\b(stored hot water|unvented|system boil
 const REGULAR_OR_SYSTEM_UNVENTED_PATTERN = /\b(system_unvented|regular_unvented)\b/i;
 const HEAT_PUMP_SCENARIO_PATTERN = /\b(ashp|heat_pump)\b/i;
 
+function validateCustomerPackRecommendationConsistency(
+  pack: InsightPack,
+  librarySectionData: Props['librarySectionData'],
+): void {
+  if (librarySectionData == null) return;
+  const recommendedQuote = pack.quotes.find((quote) => quote.quote.id === pack.bestAdvice.recommendedQuoteId);
+  if (recommendedQuote == null) return;
+  const quoteType = recommendedQuote.quote.systemType;
+  const libraryIndicatesStoredHotWater =
+    STORED_HOT_WATER_SCENARIO_PATTERN.test(librarySectionData.customerSummary.recommendedScenarioId)
+    || STORED_HOT_WATER_LABEL_PATTERN.test(librarySectionData.customerSummary.recommendedSystemLabel ?? '');
+  if (quoteType === 'combi' && libraryIndicatesStoredHotWater) {
+    throw new Error(
+      'Customer pack recommendation mismatch: combi recommendation cannot render stored-hot-water practical outcomes.',
+    );
+  }
+}
+
 export default function InsightPackDeck({
   pack,
   propertyTitle,
@@ -103,6 +121,10 @@ export default function InsightPackDeck({
   const [isPrinting, setIsPrinting] = useState(false);
 
   const currentIndex = slides.findIndex(s => s.id === activeSlide);
+  const isCustomerPack = presentationMode === 'customer-pack';
+  if (isCustomerPack) {
+    validateCustomerPackRecommendationConsistency(pack, librarySectionData);
+  }
 
   function goTo(id: CanonicalSectionId) {
     setActiveSlide(id);
@@ -127,7 +149,6 @@ export default function InsightPackDeck({
 
   // Panels render differently based on mode — customer-pack uses simplified/
   // severeOnly variants to reduce visual weight.
-  const isCustomerPack = presentationMode === 'customer-pack';
   const appliesStoredHotWater = Boolean(
     librarySectionData && (
       STORED_HOT_WATER_SCENARIO_PATTERN.test(

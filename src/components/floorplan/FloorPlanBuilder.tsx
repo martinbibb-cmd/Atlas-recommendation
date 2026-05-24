@@ -1759,6 +1759,18 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
 
   if (!activeFloor) return <div>No floors defined.</div>;
 
+  const floorPlanSaveLabel = floorPlanAutosave.hasPendingSave
+    ? '● Unsaved changes'
+    : floorPlanAutosave.status === 'saving'
+    ? '⏳ Saving…'
+    : floorPlanAutosave.status === 'saved'
+    ? '✓ Saved'
+    : floorPlanAutosave.status === 'failed'
+    ? '⚠ Save failed'
+    : floorPlanAutosave.status === 'retrying'
+    ? '⏳ Retrying…'
+    : '✓ All changes saved';
+
   return (
     <div className={[
       'fpb',
@@ -1907,25 +1919,28 @@ export default function FloorPlanBuilder({ surveyResults, onChange }: Props = {}
               : `${validation.errorCount > 0 ? `${validation.errorCount} error${validation.errorCount > 1 ? 's' : ''}` : ''}${validation.errorCount > 0 && validation.warningCount > 0 ? ', ' : ''}${validation.warningCount > 0 ? `${validation.warningCount} warning${validation.warningCount > 1 ? 's' : ''}` : ''}`}
           </div>
 
-          {/* ── Autosave status badge ── */}
-          {floorPlanAutosave.status !== 'idle' && (
-            <div
-              className={`fpb__save-badge fpb__save-badge--${floorPlanAutosave.status}`}
-              role="status"
-              aria-live="polite"
-            >
-              {floorPlanAutosave.status === 'saving'   && '⏳ Saving…'}
-              {floorPlanAutosave.status === 'saved'    && '✓ Saved'}
-              {floorPlanAutosave.status === 'failed'   && (
-                <>
-                  ⚠ Save failed{' '}
-                  <button className="fpb__save-retry" onClick={floorPlanAutosave.retry}>Retry</button>
-                </>
-              )}
-              {floorPlanAutosave.status === 'retrying' && '⏳ Retrying…'}
-            </div>
-          )}
+          <div
+            className={`fpb__save-badge fpb__save-badge--${floorPlanAutosave.status === 'idle' && !floorPlanAutosave.hasPendingSave ? 'saved' : floorPlanAutosave.status}`}
+            role="status"
+            aria-live="polite"
+            data-testid="floor-plan-save-state"
+          >
+            {floorPlanSaveLabel}
+            {floorPlanAutosave.status === 'failed' && (
+              <>
+                {' '}
+                <button className="fpb__save-retry" onClick={floorPlanAutosave.retry}>Retry</button>
+              </>
+            )}
+          </div>
 
+          <button
+            className="fpb__action-btn"
+            onClick={() => { void floorPlanAutosave.flush(); }}
+            data-testid="floor-plan-save-plan"
+          >
+            💾 Save Plan
+          </button>
           <button className="fpb__action-btn" onClick={exportJSON}>Export JSON</button>
           <label className="fpb__action-btn">
             Import JSON

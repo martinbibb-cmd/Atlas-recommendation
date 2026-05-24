@@ -373,6 +373,36 @@ describe('VisitHomeDashboard empty state', () => {
     expect(onRunRecommendation).toHaveBeenCalledOnce();
   });
 
+  it('keeps continue survey and regenerate recommendation actions available after recommendation generation', () => {
+    const onContinueSurvey = vi.fn();
+    const onRunRecommendation = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onContinueSurvey,
+          onRunRecommendation,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('visit-home-continue-survey-inline')).toBeInTheDocument();
+    expect(screen.getByTestId('visit-home-run-recommendation-inline')).toHaveTextContent(/regenerate recommendation/i);
+  });
+
+  it('inline regenerate recommendation action calls onRunRecommendation', () => {
+    const onRunRecommendation = vi.fn();
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          onRunRecommendation,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('visit-home-run-recommendation-inline'));
+    expect(onRunRecommendation).toHaveBeenCalledOnce();
+  });
+
   it('existing visit selector opens chosen visit session', () => {
     const onSelectVisit = vi.fn();
     render(

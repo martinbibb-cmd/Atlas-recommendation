@@ -38,6 +38,8 @@ export interface UseAutosaveResult<T> {
   save: (data: T, opts?: { immediate?: boolean }) => void;
   /** Manually retry the last failed save. No-op if not in `failed` state. */
   retry: () => void;
+  /** Flushes any pending debounced save immediately. */
+  flush: () => Promise<void>;
   /** True while a debounced save is queued but has not yet been dispatched. */
   hasPendingSave: boolean;
 }
@@ -73,12 +75,17 @@ export function useAutosave<T>(
   // Cleanup timers on unmount to avoid memory leaks / setState-after-unmount.
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current !== null) clearTimeout(debounceTimerRef.current);
+      if (debounceTimerRef.current !== null) {
+        clearTimeout(debounceTimerRef.current);
+        if (latestDataRef.current !== null) {
+          void saveFn(latestDataRef.current);
+        }
+      }
       if (resetTimerRef.current !== null) clearTimeout(resetTimerRef.current);
     };
-  }, []);
+  }, [saveFn]);
 
-  const executeSave = useCallback(() => {
+  const executeSave = useCallback(async (): Promise<void> => {
     const data = latestDataRef.current;
     if (data === null) {
       setStatus('failed');
@@ -89,7 +96,7 @@ export function useAutosave<T>(
 
     setHasPendingSave(false);
 
-    saveFn(data)
+    await saveFn(data)
       .then(() => {
         setStatus('saved');
         statusRef.current = 'saved';
@@ -104,6 +111,20 @@ export function useAutosave<T>(
         statusRef.current = 'failed';
       });
   }, [saveFn, savedResetMs]);
+
+  const flush = useCallback(async () => {
+    if (debounceTimerRef.current !== null) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    if (latestDataRef.current === null) {
+      return;
+    }
+    setStatus('saving');
+    statusRef.current = 'saving';
+    setHasPendingSave(false);
+    await executeSave();
+  }, [executeSave]);
 
   const save = useCallback(
     (data: T, opts: { immediate?: boolean } = {}) => {
@@ -137,5 +158,5 @@ export function useAutosave<T>(
     executeSave();
   }, [executeSave]);
 
-  return { status, save, retry, hasPendingSave };
+  return { status, save, retry, flush, hasPendingSave };
 }

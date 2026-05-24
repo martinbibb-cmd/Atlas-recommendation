@@ -59,6 +59,7 @@ export interface Props {
    */
   onDraft?: (draft: FullSurveyModelV1) => void;
   onOpenFloorPlan: (surveyResults: Partial<FullSurveyModelV1>) => void;
+  onVisitMetaChange?: (meta: VisitMeta | null) => void;
   floorplanOutput?: DerivedFloorplanOutput;
   /**
    * When provided, the completed-visit locked panel shows a "Review handoff"
@@ -70,6 +71,7 @@ export interface Props {
    * Installation Specification step.
    */
   onOpenInstallationSpecification?: () => void;
+  onExitSurvey?: () => void;
   /**
    * When provided, the completed-visit locked panel shows a "Reopen visit"
    * button that clears the completion and allows resuming the survey.
@@ -129,6 +131,7 @@ interface CaseSummaryProps {
   saveState: SaveState;
   onBack: () => void;
   onRetrySave: () => void;
+  onExitSurvey?: () => void;
 }
 
 function formatShortDate(iso: string): string {
@@ -140,7 +143,7 @@ function formatShortDate(iso: string): string {
 }
 
 /** Renders the compact case-shell header shown at the top of every visit. */
-function VisitCaseSummary({ visitId, meta, saveState, onBack, onRetrySave }: CaseSummaryProps) {
+function VisitCaseSummary({ visitId, meta, saveState, onBack, onRetrySave, onExitSurvey }: CaseSummaryProps) {
   const shortId = visitId.slice(-8).toUpperCase();
   const displayLabel = meta ? visitDisplayLabel(meta) : `Visit ···${shortId}`;
   const showIdBelow = meta?.visit_reference != null;
@@ -197,6 +200,15 @@ function VisitCaseSummary({ visitId, meta, saveState, onBack, onRetrySave }: Cas
       </div>
 
       <SaveStateIndicator state={saveState} onRetry={onRetrySave} />
+      {onExitSurvey && (
+        <button
+          className="visit-page__back-btn"
+          onClick={onExitSurvey}
+          aria-label="Exit survey"
+        >
+          Exit survey
+        </button>
+      )}
     </div>
   );
 }
@@ -209,8 +221,10 @@ export default function VisitPage({
   onOpenInsightPack,
   onDraft,
   onOpenFloorPlan,
+  onVisitMetaChange,
   onOpenHandoffReview,
   onOpenInstallationSpecification,
+  onExitSurvey,
   onReopenVisit,
 }: Props) {
   // Derive initial error/ready state from visitId at mount — avoids calling
@@ -252,6 +266,7 @@ export default function VisitPage({
         // Save metadata for the case summary header.
         const { working_payload, ...meta } = visit;
         setVisitMeta(meta);
+        onVisitMetaChange?.(meta);
         // Restore survey state from persisted working payload.
         // working_payload is stored as FullSurveyModelV1 (including fullSurvey)
         // so all Step 5 dhwCondition fields are preserved.
@@ -271,12 +286,17 @@ export default function VisitPage({
         const message = err instanceof Error ? err.message : String(err);
         console.error('[Atlas] Could not load visit:', { visitId, message });
         setLoadError(message);
+        onVisitMetaChange?.(null);
         setReady(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [visitId]);
+  }, [onVisitMetaChange, visitId]);
+
+  useEffect(() => {
+    onVisitMetaChange?.(visitMeta);
+  }, [onVisitMetaChange, visitMeta]);
 
   /** Shared persist function — always reads from lastDraftRef so retries use the latest value. */
   const persist = useCallback(
@@ -438,6 +458,7 @@ export default function VisitPage({
           saveState={saveState}
           onBack={onBack}
           onRetrySave={handleRetrySave}
+          onExitSurvey={onExitSurvey}
         />
         <div className="visit-page__locked" role="status" aria-label="Visit completed">
           <div className="visit-page__locked-icon" aria-hidden="true">✅</div>

@@ -264,6 +264,23 @@ export function BuildingFabricStep({
               </p>
             )}
           </div>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Storey count</label>
+            <input
+              style={selectStyle}
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              value={s.storeys}
+              onChange={e => patch({ storeys: Math.max(1, Number.parseInt(e.target.value, 10) || 1) })}
+              aria-label="Storey count"
+            />
+            <p style={hintStyle}>
+              Use the actual number of storeys for this part of the building. Flats stay at 1.
+            </p>
+          </div>
         </div>
 
         {/* Fabric section */}

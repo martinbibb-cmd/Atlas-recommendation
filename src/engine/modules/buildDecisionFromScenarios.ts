@@ -40,6 +40,9 @@ const PERFORMANCE_BAND_SCORE: Record<PerformanceBand, number> = {
 };
 
 function scoreScenario(s: ScenarioResult): number {
+  if (s.system.type === 'ashp' && s.physicsFlags.highTempRequired) {
+    return Number.NEGATIVE_INFINITY;
+  }
   const p = s.performance;
   return (
     PERFORMANCE_BAND_SCORE[p.hotWater] +
@@ -341,7 +344,7 @@ function buildCompatibilityWarnings(scenario: ScenarioResult): string[] {
   }
   if (flags.highTempRequired) {
     warnings.push(
-      'Existing radiators require high-temperature operation — low-temperature systems may need emitter upgrades',
+      'Existing radiators require high-temperature operation — low-temperature systems are blocked until emitter upgrades are completed',
     );
   }
   if (flags.pressureConstraint) {

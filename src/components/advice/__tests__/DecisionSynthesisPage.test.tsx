@@ -733,7 +733,7 @@ describe('DecisionSynthesisPage — save/retry state machine', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ ok: true, id: 'rpt-retry' }),
-      });
+      }, 15000);
     vi.stubGlobal('fetch', mockFetch);
 
     renderInCompareMode();
