@@ -445,7 +445,7 @@ describe('deriveCylinderInsight — peak-window sizing language', () => {
     const system = makeSystem({
       heatSource: 'system',
       dhwType: 'unvented',
-      cylinderVolumeL: 120,
+      cylinderVolumeL: 90,
     });
 
     const insight = deriveCylinderInsight(system, 4, 2, 2);
@@ -459,7 +459,7 @@ describe('deriveCylinderInsight — peak-window sizing language', () => {
     const system = makeSystem({
       heatSource: 'system',
       dhwType: 'unvented',
-      cylinderVolumeL: 140,
+      cylinderVolumeL: 100,
     });
 
     const insight = deriveCylinderInsight(system, 5, 2, 2);

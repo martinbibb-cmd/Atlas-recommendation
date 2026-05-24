@@ -3729,8 +3729,14 @@ function AppInner() {
               : customerPdfMissingRequirements.length > 0
                 ? customerPdfMissingRequirements
                 : ['Customer PDF package cannot be prepared from the current visit session.'];
+          const preparedVisitHomePackage =
+            canExportVisitPackage ? buildCanonicalVisitPackageForCurrentSession() : undefined;
           const visitHomeSourcePackage = activeCanonicalPackage
-            ?? (canExportVisitPackage ? buildCanonicalVisitPackageForCurrentSession()?.pkg : undefined);
+            ?? (
+              preparedVisitHomePackage != null && 'pkg' in preparedVisitHomePackage
+                ? preparedVisitHomePackage.pkg
+                : undefined
+            );
           const customerArtifactsState = buildVisitHomeCustomerArtifactsState({
             canExportVisitPackage,
             sourcePackage: visitHomeSourcePackage,

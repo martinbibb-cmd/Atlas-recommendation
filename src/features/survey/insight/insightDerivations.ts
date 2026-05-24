@@ -705,7 +705,9 @@ export function deriveCylinderInsight(
   const occupancyProfileReserveL = occupancyCount >= 5 ? 24 : occupancyCount >= 4 ? 12 : 0;
   const recoveryReserveL = system.heatSource === 'regular' ? 22 : 15;
   const usableFraction =
-    system.cylinderInsulationType === 'modern_foam' ? 0.90 : 0.82;
+    system.cylinderInsulationType === 'modern_factory' || system.cylinderInsulationType === 'mixergy'
+      ? 0.90
+      : 0.82;
   const minAdequateL = Math.max(
     110,
     Math.round((overlappingDrawL + followOnUsersL + occupancyProfileReserveL - recoveryReserveL) / usableFraction),
