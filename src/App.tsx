@@ -187,6 +187,11 @@ import {
 } from './features/visitHome/workflowStabilisation';
 import { canShowVisitHomeExportPackageAction } from './features/visitHome/visitHomeExportAvailability';
 import { resolveCustomerPdfDownloadBaseName } from './features/visitHome/resolveCustomerPdfDownloadBaseName';
+import {
+  formatVisitReference,
+  resolveCanonicalVisitExportState,
+  resolveVisitSessionReference,
+} from './features/visitHome/resolveCanonicalVisitExportState';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
 import {
@@ -256,12 +261,6 @@ function formatSavedAgo(updatedAt: string): string {
   if (deltaMins < 60) return `${deltaMins} mins ago`;
   const hours = Math.round(deltaMins / 60);
   return `${hours}h ago`;
-}
-
-function formatVisitReference(visitId: string): string {
-  const normalized = visitId.trim().toUpperCase();
-  if (normalized.length >= 8) return normalized.slice(-8);
-  return normalized.padStart(8, '0');
 }
 
 function hasText(value: string | undefined): value is string {
@@ -1428,7 +1427,7 @@ function AppInner() {
     );
     const persisted: PersistedAtlasVisitV2 = buildPersistedAtlasVisitV2({
       visitId: activeVisitId,
-      visitReference: formatVisitReference(activeVisitId),
+      visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
       updatedAt: new Date().toISOString(),
       survey: labFullSurveyModel,
       engineInputSnapshot: labEngineInput,
@@ -1444,7 +1443,7 @@ function AppInner() {
     saveVisitAtomically(persisted);
     setVisitRecommendationSnapshot({
       visitId: activeVisitId,
-      visitReference: formatVisitReference(activeVisitId),
+      visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
       engineOutput: engineSnapshot,
       scenarios: scenariosSnapshot,
       decision: decisionSnapshot,
@@ -1528,7 +1527,7 @@ function AppInner() {
     );
     const snapshot: PersistedAtlasVisitV2 = buildPersistedAtlasVisitV2({
       visitId: activeVisitId,
-      visitReference: formatVisitReference(activeVisitId),
+      visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
       updatedAt: new Date().toISOString(),
       survey: labFullSurveyModel,
       engineInputSnapshot: labEngineInput,
@@ -1808,31 +1807,53 @@ function AppInner() {
     readonly selectedScenarioId?: string;
     readonly exportPortalVisitContext?: PersistedPortalVisitContext;
   } | undefined {
-    const exportVisitId =
-      activeVisitId
-      ?? activeCanonicalPackage?.visitIdentity.visitId;
-    const exportSurveyModel = labFullSurveyModel ?? activeCanonicalPackage?.surveyDraft;
-    if (exportVisitId == null || exportSurveyModel == null) {
+    const savedVisit =
+      activeVisitId != null
+        ? readPersistedAtlasVisitV2(activeVisitId).visit
+        : null;
+    const resolvedExportState = resolveCanonicalVisitExportState({
+      activeVisitId,
+      activeVisitMeta,
+      savedVisit,
+      activeCanonicalPackage,
+      currentSnapshot:
+        visitRecommendationSnapshot?.visitId === activeVisitId
+          ? visitRecommendationSnapshot
+          : null,
+      labFullSurveyModel,
+      labEngineInput,
+      labPortalVisitContext,
+    });
+    if (resolvedExportState == null) {
       if (import.meta.env.DEV) {
         console.warn('[Atlas] Unable to build canonical visit package for current session', {
-          missingVisitId: exportVisitId == null,
-          missingSurveyModel: exportSurveyModel == null,
+          missingVisitId: activeVisitId == null && !hasText(activeCanonicalPackage?.visitIdentity.visitId),
+          missingSurveyModel:
+            savedVisit?.survey == null
+            && activeCanonicalPackage?.surveyDraft == null
+            && labFullSurveyModel == null,
         });
       }
       return undefined;
     }
+    const {
+      exportVisitId,
+      exportSurveyModel,
+      exportEngineInput: resolvedExportEngineInput,
+      exportCustomerSummary: resolvedExportCustomerSummary,
+      exportDecision: resolvedExportDecision,
+      selectedScenarioId: resolvedSelectedScenarioId,
+      exportPortalVisitContext: resolvedExportPortalVisitContext,
+      visitReference: resolvedVisitReference,
+      generatedOutputsSeed,
+      currentSnapshot,
+    } = resolvedExportState;
     const now = new Date().toISOString();
-    const currentSnapshot =
-      visitRecommendationSnapshot?.visitId === exportVisitId
-        ? visitRecommendationSnapshot
-        : null;
-    const exportEngineInput = labEngineInput ?? activeCanonicalPackage?.engineInputSnapshot;
+    const exportEngineInput = resolvedExportEngineInput;
     let exportCustomerSummary: CustomerSummaryV1 | undefined =
-      currentSnapshot?.customerSummary
-      ?? activeCanonicalPackage?.proposalTruth?.customerSummary
-      ?? activeCanonicalPackage?.customerPropertyDetails.customerSummary;
+      resolvedExportCustomerSummary;
     let exportDecision: AtlasDecisionV1 | undefined =
-      currentSnapshot?.decision ?? activeCanonicalPackage?.proposalTruth?.decision;
+      resolvedExportDecision;
     // If customerSummary is missing but engine input is available, compute it
     // now so the PDF always renders the library customer document rather than
     // the fallback metadata-only view.
@@ -1856,19 +1877,12 @@ function AppInner() {
       }
     }
     const exportPortalVisitContext =
-      currentSnapshot?.portalVisitContext
-      ?? activeCanonicalPackage?.customerPropertyDetails.portalVisitContext
-      ?? labPortalVisitContext;
+      resolvedExportPortalVisitContext;
     const canonicalPackagePortalVisitContext = activeCanonicalPackage?.customerPropertyDetails.portalVisitContext;
-    const selectedScenarioId =
-      currentSnapshot?.acceptedScenarioId
-      ?? activeCanonicalPackage?.proposalTruth?.selectedScenarioId;
-    const visitReference =
-      currentSnapshot?.visitReference
-      ?? activeCanonicalPackage?.visitIdentity.visitReference
-      ?? formatVisitReference(exportVisitId);
+    const selectedScenarioId = resolvedSelectedScenarioId;
+    const visitReference = resolvedVisitReference;
     const generatedOutputsWithPack = enrichGeneratedOutputsWithCustomerJourneyPack({
-      generatedOutputs: currentSnapshot?.generatedOutputs ?? activeCanonicalPackage?.generatedOutputStatus?.generatedOutputs,
+      generatedOutputs: generatedOutputsSeed,
       surveyModel: exportSurveyModel,
       engineInput: exportEngineInput,
       customerSummary: exportCustomerSummary,
@@ -2117,7 +2131,7 @@ function AppInner() {
 
     const nextSnapshot: VisitRecommendationSnapshot = {
       visitId: activeVisitId,
-      visitReference: formatVisitReference(activeVisitId),
+      visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
       engineOutput: engineSnapshot,
       scenarios: scenariosSnapshot,
       decision: decisionSnapshot,
@@ -2133,7 +2147,7 @@ function AppInner() {
     }
     saveVisitAtomically(buildPersistedAtlasVisitV2({
       visitId: activeVisitId,
-      visitReference: formatVisitReference(activeVisitId),
+      visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
       updatedAt: new Date().toISOString(),
       survey: surveySnapshot,
       engineInputSnapshot: sourceInput,
@@ -2239,7 +2253,7 @@ function AppInner() {
       );
       const nextSnapshot: VisitRecommendationSnapshot = {
         visitId: activeVisitId,
-        visitReference: formatVisitReference(activeVisitId),
+        visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
         engineOutput: currentSnapshot?.engineOutput,
         scenarios: currentSnapshot?.scenarios,
         decision: currentSnapshot?.decision,
@@ -3669,7 +3683,7 @@ function AppInner() {
                   const currentOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
                   const nextSnapshot: VisitRecommendationSnapshot = {
                     visitId: activeVisitId,
-                    visitReference: formatVisitReference(activeVisitId),
+                    visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
                     engineOutput: currentSnapshot?.engineOutput,
                     scenarios: currentSnapshot?.scenarios,
                     decision: currentSnapshot?.decision,
@@ -3714,7 +3728,7 @@ function AppInner() {
                   const currentOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
                   const nextSnapshot: VisitRecommendationSnapshot = {
                     visitId: activeVisitId,
-                    visitReference: formatVisitReference(activeVisitId),
+                    visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
                     engineOutput: currentSnapshot?.engineOutput,
                     scenarios: currentSnapshot?.scenarios,
                     decision: currentSnapshot?.decision,
