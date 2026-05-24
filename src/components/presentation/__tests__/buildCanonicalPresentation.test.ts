@@ -598,6 +598,26 @@ describe('buildCanonicalPresentation — page3 ranking', () => {
     }
   });
 
+  it('stored-system customer copy avoids daily litres as the cylinder sizing basis', () => {
+    const input = withInput({
+      occupancyCount: 4,
+      bathroomCount: 2,
+      highOccupancy: true,
+      preferCombi: false,
+      demandTimingOverrides: { bathFrequencyPerWeek: 4, simultaneousUseSeverity: 'high' },
+    });
+    const result = runEngine(input);
+    const model = buildCanonicalPresentation(result, input, result.recommendationResult);
+
+    const storedRankingItem = model.page3.items.find(i => i.family === 'system');
+    const storedOption = model.page2.options.find(o => o.dhwArchitecture !== 'on_demand');
+
+    expect(storedRankingItem?.demandFitNote).toMatch(/Peak demand|recovery/i);
+    expect(storedRankingItem?.demandFitNote).not.toMatch(/L\/day/i);
+    expect(storedOption?.throughHomeNotes.join(' ')).toMatch(/peak overlap|recovery/i);
+    expect(storedOption?.throughHomeNotes.join(' ')).not.toMatch(/L\/day/i);
+  });
+
   it('ranking order changes when eco priority boosts heat pump weight', () => {
     // Without eco priority: combi is typically rank 1 for a single-person home.
     const baseResult = runEngine(BASE_INPUT);

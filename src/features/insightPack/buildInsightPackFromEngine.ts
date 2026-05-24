@@ -18,7 +18,6 @@ import { DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import {
   computeRecoveryTimeMins,
   computeUsableVolumeMixedL,
-  computeDailyDemandL,
   USABLE_FRACTION_STANDARD,
   USABLE_FRACTION_MIXERGY,
   DEFAULT_BOILER_STORE_TEMP_C,
@@ -651,10 +650,10 @@ const HW_PERFORMANCE_RANK: Record<QuoteInput['systemType'], number> = {
  * engine's own sizing recommendation.
  *
  * Explains:
- *   - Why this cylinder volume was chosen (occupancy + bathroom demand)
+ *   - Why this cylinder volume was chosen (peak overlap + recovery)
  *   - Usable litres at tap temperature (accounts for mixing losses)
  *   - Expected recovery time at the boiler/heat-pump output
- *   - Whether back-to-back simultaneous draws are supported
+ *   - Whether back-to-back peak draws are supported
  */
 function buildCylinderSizingStatement(
   quote: QuoteInput,
@@ -673,8 +672,7 @@ function buildCylinderSizingStatement(
   const coldTempC  = DEFAULT_COLD_WATER_TEMP_C;
   const tapTempC   = DEFAULT_TAP_TARGET_TEMP_C;
 
-  // Daily demand — uses CylinderSizingModule.computeDailyDemandL for consistency
-  const dailyDemandL = computeDailyDemandL(occupants, bathrooms);
+  const peakOutlets = Math.max(ctx?.peakConcurrentOutlets ?? 0, bathrooms >= 2 ? 2 : 1, 1);
 
   // Usable mixed volume at tap temperature (using CylinderSizingModule physics)
   const isMixergy = quote.cylinder?.type === 'mixergy';
@@ -692,18 +690,19 @@ function buildCylinderSizingStatement(
     recoveryNote = `; recovery to full at ${heatSourceKw} kW: approx ${recoveryRound} min`;
   }
 
-  // Back-to-back shower check
-  const backToBackOk = usableL >= dailyDemandL;
+  // Back-to-back shower check — sized against peak overlap rather than daily litres.
+  const peakWindowDemandL = peakOutlets * 40 + Math.max(0, bathrooms - 1) * 15;
+  const backToBackOk = usableL >= peakWindowDemandL;
   const backToBackNote = backToBackOk
-    ? 'back-to-back simultaneous draws supported'
+    ? 'back-to-back peak draws supported'
     : 'consecutive peak draws may deplete stored volume';
 
   const statement =
     `${cylinderVol}L cylinder sized for ${occupants} occupant${occupants === 1 ? '' : 's'} and ` +
     `${bathrooms} bathroom${bathrooms === 1 ? '' : 's'}: ` +
-    `estimated daily demand ${dailyDemandL}L → ${usableL}L usable at tap temperature` +
+    `peak hot-water window ~${peakWindowDemandL}L across ${peakOutlets} likely outlet${peakOutlets === 1 ? '' : 's'} → ${usableL}L usable at tap temperature` +
     `${recoveryNote}. ` +
-    `${isMixergy ? 'Mixergy top-down draw: ' : 'Stored cylinder: '}${backToBackNote}.`;
+    `${isMixergy ? 'Mixergy top-down draw: ' : 'Stored cylinder: '}${backToBackNote}; sized around peak use and reheat, not whole-day litres.`;
 
   return { statement, scenario: 'recovery' };
 }

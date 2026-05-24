@@ -768,7 +768,7 @@ describe('cylinder sizing rationale', () => {
     );
     const recoveryStatements = pack.quotes[0].dailyUse.filter(d => d.scenario === 'recovery');
     const sizingStatement = recoveryStatements.find(d =>
-      d.statement.includes('occupant') || d.statement.includes('daily demand') || d.statement.includes('usable'),
+      d.statement.includes('occupant') || d.statement.includes('peak hot-water window') || d.statement.includes('usable'),
     );
     expect(sizingStatement).toBeDefined();
   });
@@ -793,7 +793,7 @@ describe('cylinder sizing rationale', () => {
     );
     const recoveryStatements = pack.quotes[0].dailyUse.filter(d => d.scenario === 'recovery');
     const sizingStatement = recoveryStatements.find(d =>
-      d.statement.includes('occupant') || d.statement.includes('daily demand') || d.statement.includes('usable'),
+      d.statement.includes('occupant') || d.statement.includes('peak hot-water window') || d.statement.includes('usable'),
     );
     expect(sizingStatement).toBeDefined();
   });
