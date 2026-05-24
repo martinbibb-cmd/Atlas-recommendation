@@ -9,4 +9,6 @@ export const REASON_ICON_BY_CATEGORY: Record<RecommendationReasonCategoryV1, str
   simultaneous_hot_water_use: '⚖️',
   protection_system_condition: '🛡',
   future_upgrade_readiness: '🔭',
+  hot_water_system_type: '🪣',
+  emitter_upgrade_required: '🌡',
 };
