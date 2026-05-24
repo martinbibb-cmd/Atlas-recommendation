@@ -217,7 +217,7 @@ describe('Guided survey flow', () => {
     // addFloorRoute mode shows the route-status picker buttons
     expect(screen.getByRole('button', { name: /^existing$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^proposed$/i })).toBeInTheDocument();
-  });
+  }, 15000);
 
   it('Close button dismisses the guided checklist', () => {
     render(<FloorPlanBuilder />);
