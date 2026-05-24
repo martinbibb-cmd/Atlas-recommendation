@@ -378,6 +378,67 @@ describe('buildCustomerPackV1 — error handling', () => {
   });
 });
 
+describe('buildCustomerPackV1 — PR35 integrity kill-switch', () => {
+  it('fails when heat pump is recommended but emitter suitability is blocked', () => {
+    const scenarios = [
+      makeScenario('ashp', 'ashp', {
+        physicsFlags: { highTempRequired: true },
+      }),
+    ];
+    const decision = makeDecision('ashp');
+
+    expect(() => buildCustomerPackV1(decision, scenarios)).toThrow(
+      /heat pump is recommended but emitter suitability is blocked/,
+    );
+  });
+
+  it('fails when cylinder size is derived from daily use instead of peak-window model', () => {
+    const scenarios = [makeScenario('system_unvented', 'system')];
+    const decision = makeDecision('system_unvented', {
+      dayToDayOutcomes: ['Cylinder sizing is based on daily use habits.'],
+    });
+
+    expect(() => buildCustomerPackV1(decision, scenarios)).toThrow(
+      /cylinder size is derived from daily use rather than peak-window model/,
+    );
+  });
+
+  it('fails when recommendation topology and practical outcomes disagree', () => {
+    const scenarios = [makeScenario('combi', 'combi')];
+    const decision = makeDecision('combi', {
+      dayToDayOutcomes: ['Stored hot water in the cylinder covers morning demand peaks.'],
+    });
+
+    expect(() => buildCustomerPackV1(decision, scenarios)).toThrow(
+      /recommendation topology and practical outcomes disagree/,
+    );
+  });
+
+  it('fails when low mains pressure conflicts with promised high simultaneous DHW', () => {
+    const scenarios = [makeScenario('system_unvented', 'system')];
+    const decision = makeDecision('system_unvented', {
+      hardConstraints: ['Low mains pressure limits high-flow outlet performance.'],
+      dayToDayOutcomes: ['High simultaneous DHW at multiple outlets remains powerful and reliable.'],
+    });
+
+    expect(() => buildCustomerPackV1(decision, scenarios)).toThrow(
+      /low mains pressure conflicts with promised high simultaneous DHW/,
+    );
+  });
+
+  it('fails when unsupported system-condition claims appear', () => {
+    const scenarios = [makeScenario('combi', 'combi')];
+    const decision = makeDecision('combi', {
+      dayToDayOutcomes: ['No sludge is present and bleed water is clear.'],
+      supportingFacts: [],
+    });
+
+    expect(() => buildCustomerPackV1(decision, scenarios)).toThrow(
+      /unsupported system-condition claims appear/,
+    );
+  });
+});
+
 // ─── Structural completeness ──────────────────────────────────────────────────
 
 describe('buildCustomerPackV1 — all 8 sections are populated', () => {

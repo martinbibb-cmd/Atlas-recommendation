@@ -241,6 +241,100 @@ export interface BuildCustomerPackContext {
   portalUrl?: string;
 }
 
+const BROKEN_ASSUMPTION = {
+  EMITTER_BLOCK: 'heat pump is recommended but emitter suitability is blocked',
+  CYLINDER_DAILY_USE: 'cylinder size is derived from daily use rather than peak-window model',
+  TOPOLOGY_OUTCOME_MISMATCH: 'recommendation topology and practical outcomes disagree',
+  LOW_MAINS_SIMULTANEOUS_DHW: 'low mains pressure conflicts with promised high simultaneous DHW',
+  UNSUPPORTED_SYSTEM_CONDITION: 'unsupported system-condition claims appear',
+} as const;
+
+function assertCustomerPackIntegrity(
+  decision: AtlasDecisionV1,
+  recommended: ScenarioResult,
+): void {
+  const evidenceText = [
+    ...(decision.hardConstraints ?? []),
+    ...(decision.performancePenalties ?? []),
+    ...decision.compatibilityWarnings,
+  ].join(' ').toLowerCase();
+
+  if (
+    recommended.system.type === 'ashp' &&
+    (recommended.physicsFlags.highTempRequired === true ||
+      (/(emitter|radiator)/i.test(evidenceText) &&
+        /(blocked|unsuitable|not suitable|high-temperature)/i.test(evidenceText)))
+  ) {
+    throw new Error(`buildCustomerPackV1 integrity check failed: ${BROKEN_ASSUMPTION.EMITTER_BLOCK}`);
+  }
+
+  const hasDailyUseCylinderSizingClaim = [
+    decision.headline,
+    decision.summary,
+    ...decision.keyReasons,
+    ...decision.dayToDayOutcomes,
+  ].some((line) => {
+    const lower = line.toLowerCase();
+    return (
+      /(cylinder|stored hot water)/.test(lower) &&
+      /(size|sizing|volume|litre|liter|l\b)/.test(lower) &&
+      /(daily use|day-to-day)/.test(lower) &&
+      !/(peak|peak-window|morning demand|simultaneous)/.test(lower)
+    );
+  });
+  if (hasDailyUseCylinderSizingClaim) {
+    throw new Error(`buildCustomerPackV1 integrity check failed: ${BROKEN_ASSUMPTION.CYLINDER_DAILY_USE}`);
+  }
+
+  const practicalOutcomesText = decision.dayToDayOutcomes.join(' ').toLowerCase();
+  if (
+    (recommended.system.type === 'combi' &&
+      /(stored hot water|hot water cylinder|cylinder recovery)/.test(practicalOutcomesText)) ||
+    (recommended.system.type !== 'combi' &&
+      /(on-demand hot water|hot water on demand|no cylinder)/.test(practicalOutcomesText))
+  ) {
+    throw new Error(`buildCustomerPackV1 integrity check failed: ${BROKEN_ASSUMPTION.TOPOLOGY_OUTCOME_MISMATCH}`);
+  }
+
+  const lowMainsPressureEvidence =
+    /(low|reduced|insufficient|poor)\s+(mains|pressure|flow)|mains\s+(pressure|flow).*(low|insufficient|poor)/.test(
+      evidenceText,
+    );
+  const highSimultaneousDhwPromise = [
+    decision.headline,
+    decision.summary,
+    ...decision.dayToDayOutcomes,
+  ]
+    .join(' ')
+    .toLowerCase();
+  if (
+    lowMainsPressureEvidence &&
+    /(simultaneous|multiple).*(dhw|hot water|showers?|outlets?).*(high|strong|full|powerful|reliable)|high simultaneous dhw/.test(
+      highSimultaneousDhwPromise,
+    )
+  ) {
+    throw new Error(`buildCustomerPackV1 integrity check failed: ${BROKEN_ASSUMPTION.LOW_MAINS_SIMULTANEOUS_DHW}`);
+  }
+
+  const systemConditionClaims = [
+    decision.summary,
+    ...decision.keyReasons,
+    ...decision.dayToDayOutcomes,
+  ].join(' ').toLowerCase();
+  const hasConditionClaim =
+    /(no magnetic debris|no debris|no sludge|clear bleed water|system is clean|clean system condition|no contamination)/.test(
+      systemConditionClaims,
+    );
+  const supportedByFacts = decision.supportingFacts.some((fact) =>
+    /(bleed|debris|sludge|filter|condition|magnetic|water quality)/i.test(
+      `${fact.label} ${String(fact.value)}`,
+    ),
+  );
+  if (hasConditionClaim && !supportedByFacts) {
+    throw new Error(`buildCustomerPackV1 integrity check failed: ${BROKEN_ASSUMPTION.UNSUPPORTED_SYSTEM_CONDITION}`);
+  }
+}
+
 // ─── Main builder ─────────────────────────────────────────────────────────────
 
 /**
@@ -272,6 +366,8 @@ export function buildCustomerPackV1(
       `buildCustomerPackV1: scenario "${decision.recommendedScenarioId}" not found in scenarios array`,
     );
   }
+
+  assertCustomerPackIntegrity(decision, recommended);
 
   const heroRecommendation = resolveSystemLabel(recommended).trim().toLowerCase();
   const recommendedScenarioLabel = (recommended.display?.atlasPickLabel ?? resolveSystemLabel(recommended))
