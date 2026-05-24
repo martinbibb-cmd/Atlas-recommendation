@@ -26,6 +26,7 @@ import {
   DEFAULT_COLD_WATER_TEMP_C,
   DEFAULT_TAP_TARGET_TEMP_C,
 } from '../../engine/modules/CylinderSizingModule';
+import { buildCustomerFacingRecommendationLabel } from '../../engine/recommendation/buildCustomerFacingRecommendationLabel';
 import type {
   QuoteInput,
   InsightPack,
@@ -1296,17 +1297,10 @@ function buildBestAdvice(
       })[0];
 
       if (legacyBest && legacyBest.qi.quote.systemType !== recommendedScenario.system.type) {
-        // Log a warning rather than throwing — a divergence between the legacy heuristic
-        // and the engine decision is a data quality signal, not a fatal error.
-        // The engine decision (AtlasDecisionV1) is authoritative; the legacy heuristic
-        // is a sanity check only.  Throwing here would crash the customer portal.
-        console.warn(
-          `[Atlas] Decision mismatch: the heuristic quote selection diverged from the engine decision. ` +
-          `AtlasDecisionV1 recommends "${recommendedScenario.system.type}" ` +
-          `(scenarioId: "${decision.recommendedScenarioId}") but the heuristic ` +
-          `selected "${legacyBest.qi.quote.systemType}" from engine text: "${output.recommendation?.primary ?? ''}". ` +
-          `Using AtlasDecisionV1 as authoritative. ` +
-          `Investigate: ensure EngineOutputV1 and AtlasDecisionV1 are derived from the same engine inputs.`,
+        throw new Error(
+          `[Atlas] Decision mismatch: locked recommendation "${recommendedScenario.system.type}" ` +
+          `conflicts with heuristic output "${legacyBest.qi.quote.systemType}". ` +
+          `Customer outputs cannot mix recommendation copy and practical outcomes from different systems.`,
         );
       }
     }
@@ -1459,7 +1453,7 @@ function buildBestAdvice(
 function systemLabel(systemType: QuoteInput['systemType']): string {
   switch (systemType) {
     case 'combi': return 'Combination boiler (on-demand hot water)';
-    case 'system': return 'System boiler with unvented cylinder';
+    case 'system': return buildCustomerFacingRecommendationLabel('system');
     case 'regular': return 'Regular boiler with tank-fed hot water';
     case 'ashp': return 'Air source heat pump';
   }

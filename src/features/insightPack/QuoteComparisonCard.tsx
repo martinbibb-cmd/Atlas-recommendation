@@ -4,6 +4,7 @@
  * No judgement at this stage — that comes in Ratings and BestAdvice panels.
  */
 
+import { buildCustomerFacingRecommendationLabel } from '../../engine/recommendation/buildCustomerFacingRecommendationLabel';
 import type { QuoteInsight, BestAdvice } from './insightPack.types';
 import './QuoteComparisonCard.css';
 
@@ -14,7 +15,7 @@ interface Props {
 
 const SYSTEM_TYPE_LABELS: Record<string, string> = {
   combi:   'Combination boiler — on-demand hot water',
-  system:  'System boiler with unvented cylinder',
+  system:  buildCustomerFacingRecommendationLabel('system'),
   regular: 'Regular boiler with tank-fed hot water',
   ashp:    'Air source heat pump',
 };

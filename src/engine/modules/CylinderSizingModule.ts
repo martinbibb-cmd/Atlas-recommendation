@@ -161,6 +161,12 @@ const DEMAND_L_PER_PERSON_PER_DAY = 55;
  */
 const DEMAND_L_PER_EXTRA_BATHROOM = 30;
 
+/** Occupancy-led peak hot-water demand within the main recovery window (litres at 40 °C). */
+const PEAK_WINDOW_L_PER_PERSON = 35;
+
+/** Additional peak-demand reserve per extra bathroom (litres at 40 °C). */
+const PEAK_WINDOW_L_PER_EXTRA_BATHROOM = 20;
+
 /**
  * Simultaneous-draw reserve multipliers.
  * Applied to the computed minimum hot volume to account for concurrent peak demand.
@@ -340,6 +346,42 @@ function computeDailyDemandL(occupancyCount: number, bathroomCount: number): num
   );
 }
 
+function computePeakWindowDemandL(occupancyCount: number, bathroomCount: number): number {
+  const extraBathroomCount = Math.max(0, bathroomCount - 1);
+  return (
+    occupancyCount * PEAK_WINDOW_L_PER_PERSON +
+    extraBathroomCount * PEAK_WINDOW_L_PER_EXTRA_BATHROOM
+  );
+}
+
+function computeRecoveredMixedVolumeWithinWindowL(params: {
+  heatSourceKw: number;
+  recoveryWindowMins: number;
+  storeTempC: number;
+  tapTargetTempC: number;
+  coldWaterTempC: number;
+  usableFraction: number;
+}): number {
+  const {
+    heatSourceKw,
+    recoveryWindowMins,
+    storeTempC,
+    tapTargetTempC,
+    coldWaterTempC,
+    usableFraction,
+  } = params;
+  const storeDelta = storeTempC - coldWaterTempC;
+  if (heatSourceKw <= 0 || recoveryWindowMins <= 0 || storeDelta <= 0) return 0;
+  const recoveredNominalVolumeL = (heatSourceKw * RECOVERY_DIVISOR * recoveryWindowMins) / storeDelta;
+  return computeUsableVolumeMixedL(
+    recoveredNominalVolumeL,
+    usableFraction,
+    storeTempC,
+    tapTargetTempC,
+    coldWaterTempC,
+  );
+}
+
 /**
  * Compute the minimum cylinder nominal volume (litres) required to satisfy the
  * household's daily hot-water demand.
@@ -357,6 +399,8 @@ function computeDailyDemandL(occupancyCount: number, bathroomCount: number): num
 function computeMinimumCylinderVolumeL(params: {
   occupancyCount: number;
   bathroomCount: number;
+  heatSourceKw?: number;
+  recoveryWindowMins?: number;
   storeTempC: number;
   tapTargetTempC: number;
   coldWaterTempC: number;
@@ -366,6 +410,8 @@ function computeMinimumCylinderVolumeL(params: {
   const {
     occupancyCount,
     bathroomCount,
+    heatSourceKw = ASSUMED_BOILER_HEAT_SOURCE_KW,
+    recoveryWindowMins = 60,
     storeTempC,
     tapTargetTempC,
     coldWaterTempC,
@@ -378,10 +424,19 @@ function computeMinimumCylinderVolumeL(params: {
 
   if (tapDelta <= 0 || storeDelta <= 0 || usableFraction <= 0) return 120;
 
-  const dailyDemandL = computeDailyDemandL(occupancyCount, bathroomCount);
+  const peakWindowDemandL = computePeakWindowDemandL(occupancyCount, bathroomCount);
+  const recoveredMixedVolumeWithinWindowL = computeRecoveredMixedVolumeWithinWindowL({
+    heatSourceKw,
+    recoveryWindowMins,
+    storeTempC,
+    tapTargetTempC,
+    coldWaterTempC,
+    usableFraction,
+  });
+  const netDemandL = Math.max(occupancyCount * 20, peakWindowDemandL - recoveredMixedVolumeWithinWindowL);
 
   // Hot volume required at store temperature
-  const requiredHotL = dailyDemandL * (tapDelta / storeDelta);
+  const requiredHotL = netDemandL * (tapDelta / storeDelta);
 
   // Minimum cylinder = hot volume ÷ usable fraction
   const minCylinderL = requiredHotL / usableFraction;
@@ -431,6 +486,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   const drawSeverity    = input.simultaneousDrawSeverity ?? 'low';
   const insulationFactor = input.cylinderInsulationFactor ?? 1.0;
   const isHpRegime      = input.dhwStorageRegime === 'heat_pump_cylinder';
+  const recoveryWindowMins = isHpRegime ? 120 : 60;
 
   const { powerKw: heatSourceKw, source: heatSourceSource } = resolveHeatSourcePower(input);
   const { usableFraction, standingLossCoeff, isMixergy } = resolveCylinderTypeFactors(input);
@@ -453,6 +509,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     `Heat source: ${heatSourceKw} kW ` +
     `(${heatSourceSource === 'measured' ? 'from boiler output' : 'assumed typical'}).`,
   );
+  assumptions.push(`Recovery window: ${recoveryWindowMins} min.`);
   assumptions.push(
     `Cylinder type: ${isMixergy ? 'Mixergy (usable fraction 95%)' : 'standard (usable fraction 75%)'}.`,
   );
@@ -496,11 +553,22 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   const minimumRawL = computeMinimumCylinderVolumeL({
     occupancyCount,
     bathroomCount,
+    heatSourceKw,
+    recoveryWindowMins,
     storeTempC,
     tapTargetTempC,
     coldWaterTempC,
     usableFraction: recUsableFraction,
     drawSeverity,
+  });
+  const peakWindowDemandL = computePeakWindowDemandL(occupancyCount, bathroomCount);
+  const recoveredMixedVolumeWithinWindowL = computeRecoveredMixedVolumeWithinWindowL({
+    heatSourceKw,
+    recoveryWindowMins,
+    storeTempC,
+    tapTargetTempC,
+    coldWaterTempC,
+    usableFraction: recUsableFraction,
   });
 
   const minimumVolumeL = roundUpToStandardSize(minimumRawL);
@@ -510,6 +578,8 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     `rounded to nearest standard size: ${minimumVolumeL} L ` +
     `(${occupancyCount} occupant(s), ${bathroomCount} bathroom(s), ` +
     `${drawSeverity} simultaneous-draw severity, ` +
+    `${peakWindowDemandL.toFixed(0)} L peak-window demand, ` +
+    `${recoveredMixedVolumeWithinWindowL.toFixed(0)} L recovered within ${recoveryWindowMins} min, ` +
     `${recUsableFraction * 100} % usable fraction for ${recommendedType} cylinder type).`,
   );
 
@@ -542,8 +612,11 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   const dailyDemandL = computeDailyDemandL(occupancyCount, bathroomCount);
 
   reasoning.push(
-    `Estimated daily hot-water demand: ${dailyDemandL} L at ${tapTargetTempC} °C ` +
+    `Estimated demand profile: ${dailyDemandL} L/day overall, with ${peakWindowDemandL.toFixed(0)} L expected in the main recovery window ` +
     `(${occupancyCount} occupant(s), ${bathroomCount} bathroom(s)).`,
+  );
+  reasoning.push(
+    `${recoveredMixedVolumeWithinWindowL.toFixed(0)} L can be reheated within ${recoveryWindowMins} minutes, so bathrooms influence peak reserve rather than all-day volume.`,
   );
   reasoning.push(
     `Store temperature ${storeTempC} °C and ${recUsableFraction * 100} % usable fraction → ` +
@@ -578,14 +651,14 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   if (!isMixergy && (isHighDemand || isSpaceTight)) {
     const standardMinL = roundUpToStandardSize(
       computeMinimumCylinderVolumeL({
-        occupancyCount, bathroomCount, storeTempC, tapTargetTempC, coldWaterTempC,
+        occupancyCount, bathroomCount, heatSourceKw, recoveryWindowMins, storeTempC, tapTargetTempC, coldWaterTempC,
         usableFraction: USABLE_FRACTION_STANDARD,
         drawSeverity,
       }),
     );
     const mixergyMinL = roundUpToStandardSize(
       computeMinimumCylinderVolumeL({
-        occupancyCount, bathroomCount, storeTempC, tapTargetTempC, coldWaterTempC,
+        occupancyCount, bathroomCount, heatSourceKw, recoveryWindowMins, storeTempC, tapTargetTempC, coldWaterTempC,
         usableFraction: USABLE_FRACTION_MIXERGY,
         drawSeverity,
       }),
@@ -609,7 +682,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     // Compare to what a boiler cylinder would require at 60 °C
     const boilerMinL = roundUpToStandardSize(
       computeMinimumCylinderVolumeL({
-        occupancyCount, bathroomCount,
+        occupancyCount, bathroomCount, heatSourceKw, recoveryWindowMins,
         storeTempC: DEFAULT_BOILER_STORE_TEMP_C,
         tapTargetTempC, coldWaterTempC,
         usableFraction: USABLE_FRACTION_STANDARD,
@@ -658,6 +731,8 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     const currentMinRawL = computeMinimumCylinderVolumeL({
       occupancyCount,
       bathroomCount,
+      heatSourceKw,
+      recoveryWindowMins,
       storeTempC,
       tapTargetTempC,
       coldWaterTempC,

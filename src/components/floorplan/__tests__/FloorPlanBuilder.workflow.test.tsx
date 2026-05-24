@@ -607,6 +607,37 @@ describe('Persistence smoke', () => {
     expect(screen.getByRole('button', { name: /ground/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /first/i })).toBeInTheDocument();
   });
+
+  it('shows unsaved state and allows explicit Save Plan', async () => {
+    vi.useFakeTimers();
+    render(<FloorPlanBuilder />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^add room$/i }));
+    });
+
+    expect(screen.getByTestId('floor-plan-save-state')).toHaveTextContent(/unsaved changes/i);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('floor-plan-save-plan'));
+    });
+
+    expect(localStorageMock.setItem).toHaveBeenCalled();
+    expect(screen.getByTestId('floor-plan-save-state')).toHaveTextContent(/saved/i);
+  });
+
+  it('flushes a pending autosave when the builder unmounts during navigation', async () => {
+    vi.useFakeTimers();
+    const { unmount } = render(<FloorPlanBuilder />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^add room$/i }));
+    });
+
+    unmount();
+
+    expect(localStorageMock.setItem).toHaveBeenCalled();
+  });
 });
 
 // ─── 8. Route / room selection priority (PR31 regression guard) ───────────────

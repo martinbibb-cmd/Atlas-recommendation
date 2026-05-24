@@ -445,17 +445,21 @@ export function buildLimiterLedger(
   //     indicating emitters cannot support the lower flow temps needed for
   //     efficient heat pump operation.
   if (runnerResult.heating.heatPumpRegime.designFlowTempBand >= 50) {
+    const emitterConstraintSeverity: LimiterSeverity =
+      family === 'heat_pump' ? 'limit' : 'warning';
     entries.push({
       id: 'emitter_temperature_constraint',
       family,
       domain: 'space_heating',
-      severity: 'warning',
+      severity: emitterConstraintSeverity,
       title: 'Emitter temperature constraint',
       description:
         `Current emitters require a design flow temperature in the ` +
         `${runnerResult.heating.heatPumpRegime.designFlowTempBand} °C band, which is above the ` +
-        `optimal range for heat pump operation (35–45 °C). Higher flow temperatures reduce ` +
-        `heat pump efficiency significantly.`,
+        `optimal range for heat pump operation (35–45 °C). ` +
+        `${family === 'heat_pump'
+          ? 'Heat pump recommendations stay blocked until emitter upgrades are completed.'
+          : 'Higher flow temperatures reduce heat pump efficiency significantly.'}`,
       source: 'heat_pump_regime',
       triggerKeys: ['heatPumpRegime.designFlowTempBand'],
       removableByUpgrade: true,
@@ -530,12 +534,12 @@ export function buildLimiterLedger(
       id: 'hp_high_flow_temp_penalty',
       family,
       domain: 'efficiency',
-      severity: 'warning',
+      severity: 'limit',
       title: 'Heat pump high flow temperature penalty',
       description:
         `The heat pump is operating at a high design flow temperature ` +
         `(${runnerResult.heating.heatPumpRegime.designFlowTempBand} °C band) with a poor SPF band. ` +
-        `Every 5 °C rise in flow temperature reduces COP by approximately 10%.`,
+        `Every 5 °C rise in flow temperature reduces COP by approximately 10%, so emitter upgrades are required before this path is suitable.`,
       source: 'heat_pump_regime',
       triggerKeys: ['heatPumpRegime.spfBand', 'heatPumpRegime.designFlowTempBand'],
       removableByUpgrade: true,

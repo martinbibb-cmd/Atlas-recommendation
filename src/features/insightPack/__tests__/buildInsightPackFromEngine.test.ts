@@ -938,7 +938,7 @@ describe('decision-bound path', () => {
     ).toThrow('AdvicePack: recommended scenario missing');
   });
 
-  it('warns (not throws) when shadow engine would pick a different system type', () => {
+  it('throws when shadow engine would pick a different system type', () => {
     // Engine text says "System boiler" but decision says "combi"
     // The engine decision is authoritative — a divergence is a warning, not a fatal error,
     // so the customer portal is not crashed by a throw.
@@ -960,12 +960,9 @@ describe('decision-bound path', () => {
         },
       ],
     });
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(() =>
       buildInsightPackFromEngine(output, [COMBI_QUOTE, SYSTEM_QUOTE], undefined, decision, scenarios),
-    ).not.toThrow();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[Atlas] Decision mismatch'));
-    warnSpy.mockRestore();
+    ).toThrow(/decision mismatch/i);
   });
 });
 
@@ -1035,4 +1032,3 @@ describe('simultaneity guard', () => {
     expect(pack.bestAdvice.because).toContain('Low demand profile matched to combi capacity.');
   });
 });
-

@@ -692,6 +692,20 @@ describe('LimiterLedger — efficiency: hp_high_flow_temp_penalty', () => {
     }
   });
 
+  it('blocks heat-pump recommendations until emitter upgrades are completed', () => {
+    const { runnerResult, eventSummary } = heatPumpRun();
+    if (
+      runnerResult.heating.heatPumpRegime.spfBand === 'poor' &&
+      runnerResult.heating.heatPumpRegime.designFlowTempBand >= 50
+    ) {
+      const ledger = buildLimiterLedger(runnerResult, eventSummary);
+      const emitterConstraint = ledger.entries.find(e => e.id === 'emitter_temperature_constraint');
+      const hpPenalty = ledger.entries.find(e => e.id === 'hp_high_flow_temp_penalty');
+      expect(emitterConstraint?.severity).toBe('limit');
+      expect(hpPenalty?.severity).toBe('limit');
+    }
+  });
+
   it('does NOT emit hp_high_flow_temp_penalty for combi runs', () => {
     const { runnerResult, eventSummary } = combiClean();
     const ledger = buildLimiterLedger(runnerResult, eventSummary);

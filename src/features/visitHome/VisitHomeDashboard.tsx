@@ -814,6 +814,9 @@ export function VisitHomeDashboard({
   });
   const hydrationDisplay = HYDRATION_STATE_DISPLAY[hydrationState];
   const showLifecycleEntryPanel = hydrationState === 'no-visit' || hydrationState === 'survey-in-progress';
+  const recommendationActionLabel = hydrationState === 'survey-in-progress'
+    ? '⭐ Generate recommendation'
+    : '🔄 Regenerate recommendation';
   const deliveryActionIds: VisitHomeActionId[] = [
     'implementation-workflow',
     'resolve-follow-ups',
@@ -1301,10 +1304,30 @@ export function VisitHomeDashboard({
           </div>
 
           {/* ── Local visit controls ──────────────────────────────────────── */}
-          {(onSaveLocally != null || onResumeLocalVisit != null || onClearSession != null || onImportWorkflowPackage != null) && (
+          {(onSaveLocally != null || onResumeLocalVisit != null || onClearSession != null || onImportWorkflowPackage != null || onContinueSurvey != null || onRunRecommendation != null) && (
             <div className="vhd-readiness-panel vhd-local-controls" data-testid="visit-home-local-controls">
               <h2 className="vhd-panel-title">Visit session</h2>
               <div className="vhd-local-controls__actions">
+                {onContinueSurvey != null && hydrationState !== 'no-visit' && (
+                  <button
+                    type="button"
+                    className="vhd-inline-action"
+                    onClick={onContinueSurvey}
+                    data-testid="visit-home-continue-survey-inline"
+                  >
+                    📝 Continue survey
+                  </button>
+                )}
+                {onRunRecommendation != null && hydrationState !== 'no-visit' && (
+                  <button
+                    type="button"
+                    className="vhd-inline-action"
+                    onClick={onRunRecommendation}
+                    data-testid="visit-home-run-recommendation-inline"
+                  >
+                    {recommendationActionLabel}
+                  </button>
+                )}
                 {onSaveLocally != null && (
                   <button
                     type="button"

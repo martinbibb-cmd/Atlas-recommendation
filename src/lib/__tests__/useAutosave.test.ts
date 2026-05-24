@@ -148,4 +148,33 @@ describe('useAutosave', () => {
     expect(saveFn).not.toHaveBeenCalled();
     expect(result.current.status).toBe('idle');
   });
+
+  it('flush saves a pending draft immediately', async () => {
+    const saveFn = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() => useAutosave(saveFn, { debounceMs: 600 }));
+
+    act(() => {
+      result.current.save('draft');
+    });
+
+    await act(async () => {
+      await result.current.flush();
+    });
+
+    expect(saveFn).toHaveBeenCalledWith('draft');
+    expect(result.current.hasPendingSave).toBe(false);
+  });
+
+  it('flushes the latest pending save on unmount', async () => {
+    const saveFn = vi.fn(() => Promise.resolve());
+    const { result, unmount } = renderHook(() => useAutosave(saveFn, { debounceMs: 600 }));
+
+    act(() => {
+      result.current.save('draft');
+    });
+
+    unmount();
+
+    expect(saveFn).toHaveBeenCalledWith('draft');
+  });
 });

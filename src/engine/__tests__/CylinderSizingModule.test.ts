@@ -157,6 +157,38 @@ describe('computeMinimumCylinderVolumeL', () => {
     const high = computeMinimumCylinderVolumeL({ occupancyCount: 3, bathroomCount: 2, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'high' });
     expect(high).toBeCloseTo(low * 1.30, 1);
   });
+
+  it('sizes by occupancy first while bathrooms add a smaller peak reserve', () => {
+    const moreOccupants = computeMinimumCylinderVolumeL({ occupancyCount: 4, bathroomCount: 1, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
+    const moreBathrooms = computeMinimumCylinderVolumeL({ occupancyCount: 2, bathroomCount: 3, storeTempC: 60, tapTargetTempC: 40, coldWaterTempC: 10, usableFraction: USABLE_FRACTION_STANDARD, drawSeverity: 'low' });
+    expect(moreOccupants).toBeGreaterThan(moreBathrooms);
+  });
+
+  it('reduces minimum volume when recovery window allows more reheat contribution', () => {
+    const shortWindow = computeMinimumCylinderVolumeL({
+      occupancyCount: 3,
+      bathroomCount: 2,
+      heatSourceKw: 18,
+      recoveryWindowMins: 30,
+      storeTempC: 60,
+      tapTargetTempC: 40,
+      coldWaterTempC: 10,
+      usableFraction: USABLE_FRACTION_STANDARD,
+      drawSeverity: 'low',
+    });
+    const longWindow = computeMinimumCylinderVolumeL({
+      occupancyCount: 3,
+      bathroomCount: 2,
+      heatSourceKw: 18,
+      recoveryWindowMins: 90,
+      storeTempC: 60,
+      tapTargetTempC: 40,
+      coldWaterTempC: 10,
+      usableFraction: USABLE_FRACTION_STANDARD,
+      drawSeverity: 'low',
+    });
+    expect(longWindow).toBeLessThan(shortWindow);
+  });
 });
 
 describe('roundUpToStandardSize', () => {
@@ -206,6 +238,11 @@ describe('runCylinderSizingModule', () => {
     it('populates reasoning array with at least two entries', () => {
       const result = runCylinderSizingModule(baseInput);
       expect(result.recommendation.reasoning.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('includes visible cylinder sizing reasoning tied to occupancy and recovery window', () => {
+      const result = runCylinderSizingModule({ ...baseInput, occupancyCount: 4, bathroomCount: 2 });
+      expect(result.recommendation.reasoning.join(' ')).toMatch(/recovery window|reheated within/i);
     });
 
     it('populates assumptions array', () => {

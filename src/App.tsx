@@ -35,7 +35,7 @@ import ReportPage from './components/reportpage/ReportPage';
 import CustomerPortalPage from './components/portal/CustomerPortalPage';
 import GlobalMenuShell from './components/shell/GlobalMenuShell';
 
-import { getVisit, saveVisit } from './lib/visits/visitApi';
+import { getVisit, saveVisit, type VisitMeta } from './lib/visits/visitApi';
 import { VisitProvider } from './features/visits/VisitProvider';
 import { createAtlasVisit } from './features/visits/createAtlasVisit';
 import type { AtlasVisit } from './features/visits/createAtlasVisit';
@@ -186,6 +186,7 @@ import {
   type WorkflowImportSurface,
 } from './features/visitHome/workflowStabilisation';
 import { canShowVisitHomeExportPackageAction } from './features/visitHome/visitHomeExportAvailability';
+import { resolveCustomerPdfDownloadBaseName } from './features/visitHome/resolveCustomerPdfDownloadBaseName';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
 import {
@@ -1066,6 +1067,7 @@ function AppInner() {
   const [activeVisitId, setActiveVisitId] = useState<string | undefined>(
     ENGINEER_VISIT_ID ?? INITIAL_VISIT_ID_PARAM ?? _restoredVisit?.value?.visitId ?? undefined,
   );
+  const [activeVisitMeta, setActiveVisitMeta] = useState<VisitMeta | null>(null);
   const [visitRecoveryPrompt, setVisitRecoveryPrompt] = useState<{
     visitId: string;
     updatedAt: string;
@@ -1953,7 +1955,7 @@ function AppInner() {
         return scanCapture != null ? [scanCapture] : undefined;
       })(),
     });
-    const filename = `${toSafeDownloadBaseName(visitReference ?? exportVisitId)}.atlasvisit.pdf`;
+    const filename = `${resolveCustomerPdfDownloadBaseName(activeVisitMeta, visitReference, exportVisitId)}.atlasvisit.pdf`;
     try {
       const pdf = renderVisitPackagePdfDocument(pdfEnvelope);
       const blob = new Blob([pdf], { type: 'application/pdf' });
@@ -3528,6 +3530,7 @@ function AppInner() {
               devBuildMarker={import.meta.env.DEV ? `Dev build · ${new Date().toISOString().slice(0, 10)}` : undefined}
               onClearSession={() => {
                 setActiveVisitId(undefined);
+                setActiveVisitMeta(null);
                 setLastOpenedFromHome(null);
                 setLabEngineInput(undefined);
                 setLabFullSurveyModel(undefined);
@@ -3810,6 +3813,7 @@ function AppInner() {
             // stepper can display the canonical current-system summary.
             setLabFullSurveyModel(draft);
           }}
+          onVisitMetaChange={setActiveVisitMeta}
           onComplete={(engineInput) => {
             // Survey is complete — store engine input for presentation/simulator use,
             // then route to Visit Home so the surveyor has a clear overview of all
@@ -3838,6 +3842,7 @@ function AppInner() {
           }}
           onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId!); }}
           onOpenInstallationSpecification={() => setJourney('installation-specification')}
+          onExitSurvey={() => setJourney('visit-home')}
           onReopenVisit={activeVisitId != null ? async () => {
             try {
               await saveVisit(activeVisitId, { completed_at: null, completion_method: null });

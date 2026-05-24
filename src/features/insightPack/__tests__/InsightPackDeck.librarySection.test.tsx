@@ -207,4 +207,16 @@ describe('InsightPackDeck library section integration', () => {
     expect(screen.getAllByTestId('hplj-section').length).toBeGreaterThan(0);
     expect(screen.queryAllByTestId('pvsp-section')).toHaveLength(0);
   });
+
+  it('throws when a combi customer pack tries to render stored-hot-water practical outcomes', () => {
+    expect(() =>
+      render(
+        <InsightPackDeck
+          pack={pack}
+          presentationMode="customer-pack"
+          librarySectionData={{ customerSummary, atlasDecision, scenarios, bathroomCount: 2 }}
+        />,
+      ),
+    ).toThrow(/combi recommendation cannot render stored-hot-water practical outcomes/i);
+  });
 });
