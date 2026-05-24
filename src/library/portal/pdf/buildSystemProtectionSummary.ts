@@ -279,7 +279,7 @@ function buildCopyForTreatmentLevel(
         whatInstallerWillCheck:
           'Your installer will carry out standard protection and setup checks and confirm the outcome at handover.',
         customerVisibleBullets: [
-          'No significant signs of debris noted during the survey',
+          'Standard protection and setup checks remain part of the installation process',
           'Filter/protection device if included in scope is confirmed before handover',
           'Your installer will confirm the setup checks at handover',
         ],

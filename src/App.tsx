@@ -213,6 +213,7 @@ import {
   buildCustomerJourneyPack,
   buildCustomerJourneyPackGeneratedOutput,
   inferCustomerJourneyTypeFromSystemContext,
+  resolveRecommendationIntentCategory,
   resolveRecommendationConceptSelection,
   readCustomerJourneyPackFromGeneratedOutputs,
 } from './library/portal/pdf/buildPortalJourneyPrintModel';
@@ -266,6 +267,98 @@ function formatSavedAgo(updatedAt: string): string {
 
 function hasText(value: string | undefined): value is string {
   return value != null && value.trim().length > 0;
+}
+
+function normalizeScenarioId(value: string | undefined): string | undefined {
+  if (!hasText(value)) return undefined;
+  return value.trim().toLowerCase();
+}
+
+function mapScenarioIdToTopologyId(value: string | undefined): string | undefined {
+  const normalized = normalizeScenarioId(value);
+  if (normalized == null) return undefined;
+  if (normalized.includes('ashp') || normalized.includes('heat_pump') || normalized.includes('gshp')) return 'heat_pump';
+  if (normalized.includes('combi')) return 'combi';
+  if (normalized.includes('mixergy')) return 'mixergy';
+  if (normalized.includes('thermal_store')) return 'thermal_store';
+  if (normalized.includes('system')) return 'sealed_system_unvented';
+  if (normalized.includes('regular') || normalized.includes('open_vented')) return 'open_vented';
+  return undefined;
+}
+
+function mapEnginePrimaryToTopologyId(value: string | undefined): string | undefined {
+  const normalized = normalizeScenarioId(value);
+  if (normalized === 'ashp' || normalized === 'heat_pump') return 'heat_pump';
+  if (normalized === 'combi') return 'combi';
+  if (normalized === 'system') return 'sealed_system_unvented';
+  if (normalized === 'regular') return 'open_vented';
+  return undefined;
+}
+
+function resolveAuthorityIntegrityIssues(input: {
+  readonly selectedScenarioId?: string;
+  readonly exportDecision?: AtlasDecisionV1;
+  readonly exportCustomerSummary?: CustomerSummaryV1;
+  readonly currentSnapshot: VisitRecommendationSnapshotLike | null;
+}): string[] {
+  const issues: string[] = [];
+  const selectedScenarioId = normalizeScenarioId(input.selectedScenarioId);
+  const decisionScenarioId = normalizeScenarioId(input.exportDecision?.recommendedScenarioId);
+  const summaryScenarioId = normalizeScenarioId(input.exportCustomerSummary?.recommendedScenarioId);
+  const snapshotScenarioId = normalizeScenarioId(
+    input.currentSnapshot?.acceptedScenarioId ?? input.currentSnapshot?.decision?.recommendedScenarioId,
+  );
+  if (selectedScenarioId != null && snapshotScenarioId != null && selectedScenarioId !== snapshotScenarioId) {
+    issues.push('selected scenario diverges from canonical snapshot scenario');
+  }
+  if (selectedScenarioId != null && decisionScenarioId != null && selectedScenarioId !== decisionScenarioId) {
+    issues.push('selected scenario diverges from export decision scenario');
+  }
+  if (selectedScenarioId != null && summaryScenarioId != null && selectedScenarioId !== summaryScenarioId) {
+    issues.push('selected scenario diverges from export customer summary scenario');
+  }
+
+  const topologyFromScenario = mapScenarioIdToTopologyId(selectedScenarioId ?? decisionScenarioId ?? summaryScenarioId);
+  const topologyFromEngine = mapEnginePrimaryToTopologyId(input.currentSnapshot?.engineOutput?.recommendation?.primary);
+  if (
+    topologyFromScenario != null
+    && topologyFromEngine != null
+    && topologyFromScenario !== topologyFromEngine
+  ) {
+    issues.push(
+      `export topology mismatch (${topologyFromScenario} vs ${topologyFromEngine})`,
+    );
+  }
+  return issues;
+}
+
+function buildAuthoritySnapshotMetadata(input: {
+  readonly visitId: string;
+  readonly selectedScenarioId?: string;
+  readonly exportDecision?: AtlasDecisionV1;
+  readonly exportCustomerSummary?: CustomerSummaryV1;
+  readonly generatedAt: string;
+}): {
+  readonly snapshotId: string;
+  readonly checksum: string;
+} {
+  const material = JSON.stringify({
+    visitId: input.visitId,
+    selectedScenarioId: input.selectedScenarioId ?? null,
+    decisionScenarioId: input.exportDecision?.recommendedScenarioId ?? null,
+    summaryScenarioId: input.exportCustomerSummary?.recommendedScenarioId ?? null,
+    generatedAt: input.generatedAt,
+  });
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < material.length; i += 1) {
+    hash ^= material.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  const checksum = `fnv1a32-${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return {
+    snapshotId: `${toSafeDownloadBaseName(input.visitId)}-${(hash >>> 0).toString(16).padStart(8, '0')}`,
+    checksum,
+  };
 }
 
 function toSafeDownloadBaseName(value: string): string {
@@ -331,10 +424,19 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
   if (input.surveyModel == null || input.engineInput == null || input.customerSummary == null) {
     return outputs;
   }
+  const recommendedScenarioId =
+    input.decision?.recommendedScenarioId ?? input.customerSummary.recommendedScenarioId;
+  const recommendationIntent = resolveRecommendationIntentCategory({
+    recommendedScenarioId,
+    currentHeatSourceType: input.engineInput.currentHeatSourceType,
+    currentSystemHeatingType: input.surveyModel.currentSystem?.heatingSystemType,
+    dhwStorageType: input.engineInput.dhwStorageType,
+  });
   const inferredJourneyType = inferCustomerJourneyTypeFromSystemContext({
     currentHeatSourceType: input.engineInput.currentHeatSourceType,
     currentSystemHeatingType: input.surveyModel.currentSystem?.heatingSystemType,
     dhwStorageType: input.engineInput.dhwStorageType,
+    recommendedScenarioId,
   });
   const surveyCondition = buildSurveySystemConditionFromModel(input.surveyModel);
   const routedSelection = resolveRecommendationConceptSelection({
@@ -342,8 +444,16 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
     recommendationSummary: input.customerSummary.headline,
     customerFacts: [],
     journeyType: inferredJourneyType,
+    recommendationIntent,
     surveyCondition,
   });
+  if (
+    import.meta.env.DEV
+    && recommendationIntent === 'combi_replacement'
+    && routedSelection.conceptTags.includes('stored_hot_water_recovery_timeline')
+  ) {
+    console.error('[Atlas] Non-canonical routing: combi recommendation received cylinder recovery concept tags.');
+  }
   const customerJourneyPack = buildCustomerJourneyPack({
     selectedSectionIds: routedSelection.selectedSectionIds,
     educationalConceptTags: routedSelection.conceptTags,
@@ -358,6 +468,7 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
       input.engineInput.postcode ? `Property: ${input.engineInput.postcode}` : null,
     ].filter((fact): fact is string => fact != null),
     journeyType: inferredJourneyType,
+    recommendationIntent,
     visitContext: input.portalVisitContext,
     surveyCondition,
     liveExperienceExplanations: [
@@ -1882,6 +1993,25 @@ function AppInner() {
     const canonicalPackagePortalVisitContext = activeCanonicalPackage?.customerPropertyDetails.portalVisitContext;
     const selectedScenarioId = resolvedSelectedScenarioId;
     const visitReference = resolvedVisitReference;
+    const authorityIntegrityIssues = resolveAuthorityIntegrityIssues({
+      selectedScenarioId,
+      exportDecision,
+      exportCustomerSummary,
+      currentSnapshot,
+    });
+    if (authorityIntegrityIssues.length > 0) {
+      if (import.meta.env.DEV) {
+        console.error('[Atlas] Export integrity assertion failed', authorityIntegrityIssues);
+      }
+      return undefined;
+    }
+    const authoritySnapshot = buildAuthoritySnapshotMetadata({
+      visitId: exportVisitId,
+      selectedScenarioId,
+      exportDecision,
+      exportCustomerSummary,
+      generatedAt: now,
+    });
     const generatedOutputsWithPack = enrichGeneratedOutputsWithCustomerJourneyPack({
       generatedOutputs: generatedOutputsSeed,
       surveyModel: exportSurveyModel,
@@ -1936,6 +2066,7 @@ function AppInner() {
             target: 'local_only',
             surface: 'visit_home_export',
           },
+          recommendationSnapshot: authoritySnapshot,
         },
       },
     });

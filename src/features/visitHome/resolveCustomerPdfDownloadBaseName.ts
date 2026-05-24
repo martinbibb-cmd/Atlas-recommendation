@@ -12,10 +12,10 @@ export function resolveCustomerPdfDownloadBaseName(
   exportVisitId: string,
 ): string {
   const preferredName =
-    visitMeta?.visit_reference
+    visitReference
+    ?? visitMeta?.visit_reference
     ?? visitMeta?.customer_name
     ?? visitMeta?.address_line_1
-    ?? visitReference
     ?? exportVisitId;
   return toSafeDownloadBaseName(preferredName);
 }

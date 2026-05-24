@@ -53,6 +53,10 @@ export interface CanonicalVisitImportExportMetadataV1 {
     readonly target: WorkflowStorageTarget | 'unknown';
     readonly surface: string;
   };
+  readonly recommendationSnapshot?: {
+    readonly snapshotId: string;
+    readonly checksum: string;
+  };
   readonly importedAt?: string;
   readonly importSource?: string;
 }

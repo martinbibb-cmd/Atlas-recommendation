@@ -649,6 +649,8 @@ export function CustomerPortalJourneyComposer({
     currentHeatSourceType: engineInput.currentHeatSourceType,
     currentSystemHeatingType: engineInput.currentSystem?.heatingSystemType,
     dhwStorageType: engineInput.dhwStorageType,
+    recommendedScenarioType: recommendedScenario?.system.type,
+    recommendedScenarioId: decision.recommendedScenarioId,
   });
   const routedSelection = resolveRecommendationConceptSelection({
     selectedSectionIds: [],

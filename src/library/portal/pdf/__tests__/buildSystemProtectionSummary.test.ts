@@ -166,6 +166,13 @@ describe('buildSystemProtectionSummary — clear / good condition', () => {
     expect(result.customerSummary).toMatch(/standard protection/i);
   });
 
+  it('standard_protection does not claim explicit debris absence without direct evidence text', () => {
+    const result = buildSystemProtectionSummary({
+      bleedWaterColour: 'clear',
+    });
+    expect(result.customerVisibleBullets.join(' ')).not.toMatch(/no significant signs of debris/i);
+  });
+
   it('light reassurance does not imply heating circuit is untouched', () => {
     const result = buildSystemProtectionSummary({
       bleedWaterColour: 'clear',
