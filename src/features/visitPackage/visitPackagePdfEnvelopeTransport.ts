@@ -14,6 +14,7 @@ import {
 import {
   buildCustomerJourneyPack,
   readCustomerJourneyPackFromGeneratedOutputs,
+  resolveRecommendationConceptSelection,
   type PortalJourneyPrintModelV1,
 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 
@@ -224,11 +225,19 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
     || hasText(canonicalVisitPackage.proposalTruth?.selectedScenarioId)
     || hasText(canonicalVisitPackage.proposalTruth?.customerSummary?.headline)
     || hasText(canonicalVisitPackage.proposalTruth?.customerSummary?.recommendedSystemLabel);
+  const routedSelection = resolveRecommendationConceptSelection({
+    canonicalVisitPackage,
+    selectedSectionIds: [],
+    recommendationSummary: canonicalVisitPackage.proposalTruth?.customerSummary?.headline ?? '',
+    customerFacts: [],
+  });
   const staticPdfModel = (packagedJourney != null || hasRecommendationContext)
     ? buildCustomerJourneyPack({
         canonicalVisitPackage,
         customerJourneyPack: packagedJourney,
-      }).staticPdf
+        selectedSectionIds: routedSelection.selectedSectionIds,
+      educationalConceptTags: routedSelection.conceptTags,
+    }).staticPdf
     : buildFallbackPrintModel(envelope);
   return buildCustomerDocumentModel({
     model: staticPdfModel,

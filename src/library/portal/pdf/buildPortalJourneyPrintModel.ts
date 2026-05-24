@@ -106,7 +106,12 @@ export interface PortalJourneyPrintSectionV1 {
     | 'unvented_safety'
     | 'warm_not_hot_radiators'
     | 'steady_running'
-    | 'winter_behaviour';
+    | 'winter_behaviour'
+    | 'stored_hot_water_recovery_timeline'
+    | 'flow_restriction_bottleneck'
+    | 'system_fit_decision_map'
+    | 'magnetic_filter_capture'
+    | 'sealed_system_pressure_window';
   heading: string;
   summary: string;
   keyTakeaway: string;
@@ -195,6 +200,8 @@ export interface BuildPortalJourneyPrintModelInputV1 {
    * Resolved automatically by buildCustomerJourneyPack when not provided.
    */
   recommendationIntent?: RecommendationIntentCategoryV1;
+  /** Routed educational concept tags selected from recommendation evidence. */
+  educationalConceptTags?: EducationalConceptTagV1[];
 }
 
 export const CUSTOMER_JOURNEY_PACK_SCHEMA = 'atlas.customer-journey-pack' as const;
@@ -276,50 +283,358 @@ function resolvePrintDiagramFromContentEntry(entry: AtlasMvpContentEntryV1): str
   return entry.suggestedDiagramIds.length > 0 ? entry.suggestedDiagramIds[0] : undefined;
 }
 
-function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
-  const sections: PortalJourneyPrintSectionV1[] = [
-    {
-      contentId: 'generic_recommendation_summary',
-      sectionId: 'practical_outcomes',
-      heading: 'Practical outcomes',
-      summary: 'Your recommendation focuses on stable comfort, dependable hot water, and a practical installation path.',
-      keyTakeaway: 'Your installer will tailor final setup details to your surveyed home conditions.',
-      reassurance: 'You will receive a clear handover explaining controls and expected day-to-day behaviour.',
+function journeyTypeToIntent(
+  journeyType: NonNullable<BuildPortalJourneyPrintModelInputV1['journeyType']>,
+): RecommendationIntentCategoryV1 {
+  switch (journeyType) {
+    case 'heat_pump': return 'heat_pump_transition';
+    case 'open_vented': return 'vented_to_unvented';
+    case 'stored_hot_water': return 'stored_hot_water';
+    case 'water_constraint': return 'protection_upgrade';
+    case 'regular_unvented': return 'sealed_system_conversion';
+    case 'generic_recommendation_summary': return 'efficiency_upgrade';
+  }
+}
+
+export type EducationalConceptTagV1 =
+  | 'pressure_vs_storage'
+  | 'warm_vs_hot_radiators'
+  | 'stored_hot_water_recovery_timeline'
+  | 'flow_restriction_bottleneck'
+  | 'system_fit_decision_map'
+  | 'magnetic_filter_capture'
+  | 'sealed_system_pressure_window';
+
+export interface RecommendationConceptSelectionV1 {
+  selectedSectionIds: string[];
+  conceptTags: EducationalConceptTagV1[];
+}
+
+const STORED_HOT_WATER_ARRANGEMENTS = new Set(['stored_unvented', 'stored_vented', 'mixergy', 'thermal_store']);
+
+function dedupeStrings(values: readonly string[]): string[] {
+  return [...new Set(values)];
+}
+
+function hasDarkSystemConditionSignal(input: BuildCustomerJourneyPackInputV1): boolean {
+  const condition = input.surveyCondition;
+  if (condition?.magneticDebrisEvidence === true) return true;
+  const colour = condition?.bleedWaterColour?.toLowerCase() ?? '';
+  return colour === 'black' || colour === 'brown';
+}
+
+function mapConceptTagsToSectionIds(tags: readonly EducationalConceptTagV1[]): string[] {
+  const sectionIds: string[] = [];
+  for (const tag of tags) {
+    switch (tag) {
+      case 'pressure_vs_storage':
+        sectionIds.push('CON_C02');
+        break;
+      case 'warm_vs_hot_radiators':
+        sectionIds.push('CON_E02', 'CON_H04', 'CON_E01');
+        break;
+      case 'stored_hot_water_recovery_timeline':
+        sectionIds.push('CON_I01_DAY_TO_DAY', 'CON_C02');
+        break;
+      case 'flow_restriction_bottleneck':
+        sectionIds.push('CON_D01');
+        break;
+      case 'system_fit_decision_map':
+        sectionIds.push('CON_A01');
+        break;
+      case 'magnetic_filter_capture':
+        sectionIds.push('CON_F04');
+        break;
+      case 'sealed_system_pressure_window':
+        sectionIds.push('CON_B03');
+        break;
+    }
+  }
+  return dedupeStrings(sectionIds);
+}
+
+function inferDefaultSectionIdsFromIntent(intent: RecommendationIntentCategoryV1): string[] {
+  switch (intent) {
+    case 'heat_pump_transition':
+      return ['CON_E02', 'CON_E01', 'CON_H04', 'CON_H01'];
+    case 'stored_hot_water':
+      return ['CON_C02', 'CON_I01_DAY_TO_DAY', 'CON_B03'];
+    case 'vented_to_unvented':
+    case 'sealed_system_conversion':
+      return ['CON_A01', 'CON_C02', 'CON_C01', 'CON_I01_DAY_TO_DAY', 'CON_B03'];
+    case 'protection_upgrade':
+      return ['CON_F04', 'CON_B03'];
+    case 'combi_replacement':
+      return ['CON_D01', 'CON_A01'];
+    case 'efficiency_upgrade':
+      return ['CON_A01', 'CON_B01'];
+  }
+}
+
+function applyJourneyTypeConceptFallback(
+  journeyType: BuildPortalJourneyPrintModelInputV1['journeyType'],
+  conceptTagSet: Set<EducationalConceptTagV1>,
+): void {
+  if (journeyType === 'heat_pump') {
+    conceptTagSet.add('warm_vs_hot_radiators');
+    return;
+  }
+  if (journeyType === 'open_vented' || journeyType === 'stored_hot_water' || journeyType === 'regular_unvented') {
+    conceptTagSet.add('pressure_vs_storage');
+    conceptTagSet.add('stored_hot_water_recovery_timeline');
+    conceptTagSet.add('sealed_system_pressure_window');
+    return;
+  }
+  if (journeyType === 'water_constraint') {
+    conceptTagSet.add('flow_restriction_bottleneck');
+  }
+}
+
+export function resolveRecommendationConceptSelection(
+  input: BuildCustomerJourneyPackInputV1,
+): RecommendationConceptSelectionV1 {
+  const resolvedIntent = inferRecommendationIntentFromInput(input);
+  const recommendation = resolveVisitEnvelope(input)?.recommendation;
+  const surveyInput = resolveSurveyInput(input);
+  const mains = resolveMainsSignals(surveyInput);
+  const conceptTagSet = new Set<EducationalConceptTagV1>();
+
+  conceptTagSet.add('system_fit_decision_map');
+
+  if (
+    resolvedIntent === 'heat_pump_transition'
+    || recommendation?.heatSource === 'ashp'
+    || recommendation?.heatSource === 'gshp'
+    || recommendation?.emitters?.existingRadiatorsCompatible === false
+  ) {
+    conceptTagSet.add('warm_vs_hot_radiators');
+  }
+
+  const hasStoredHotWaterRoute =
+    STORED_HOT_WATER_ARRANGEMENTS.has(recommendation?.hotWaterArrangement ?? '')
+    || STORED_HOT_WATER_ARRANGEMENTS.has(surveyInput?.dhwStorageType ?? '')
+    || resolvedIntent === 'stored_hot_water'
+    || resolvedIntent === 'vented_to_unvented'
+    || resolvedIntent === 'sealed_system_conversion';
+
+  if (hasStoredHotWaterRoute) {
+    conceptTagSet.add('pressure_vs_storage');
+    conceptTagSet.add('stored_hot_water_recovery_timeline');
+    conceptTagSet.add('sealed_system_pressure_window');
+  }
+
+  if (isPoorMainsSupply(mains)) {
+    conceptTagSet.add('flow_restriction_bottleneck');
+  }
+
+  if (hasDarkSystemConditionSignal(input)) {
+    conceptTagSet.add('magnetic_filter_capture');
+  }
+
+  const hasStructuredSignals =
+    input.visitEnvelope != null
+    || input.canonicalVisitPackage != null;
+  if (!hasStructuredSignals) {
+    applyJourneyTypeConceptFallback(input.journeyType, conceptTagSet);
+  }
+
+  const conceptTags = [...conceptTagSet];
+  const inferredSectionIds = mapConceptTagsToSectionIds(conceptTags);
+  const selectedSectionIds = input.selectedSectionIds != null && input.selectedSectionIds.length > 0
+    ? dedupeStrings(input.selectedSectionIds)
+    : dedupeStrings([
+      ...inferredSectionIds,
+      ...inferDefaultSectionIdsFromIntent(resolvedIntent),
+    ]);
+
+  return {
+    selectedSectionIds,
+    conceptTags,
+  };
+}
+
+function mergeRoutedSections(
+  baseSections: PortalJourneyPrintSectionV1[],
+  routedSections: PortalJourneyPrintSectionV1[],
+): PortalJourneyPrintSectionV1[] {
+  const merged: PortalJourneyPrintSectionV1[] = [];
+  const seen = new Set<PortalJourneyPrintSectionV1['sectionId']>();
+  for (const section of [...baseSections, ...routedSections]) {
+    if (seen.has(section.sectionId)) continue;
+    seen.add(section.sectionId);
+    merged.push(section);
+  }
+  return merged;
+}
+
+function buildRoutedEducationalSections(input: {
+  conceptTagSet: Set<EducationalConceptTagV1>;
+}): PortalJourneyPrintSectionV1[] {
+  const { conceptTagSet } = input;
+  const conA01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_A01');
+  const conB03 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_B03');
+  const conC02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_C02');
+  const conD01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_D01');
+  const conF04 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_F04');
+  const conI01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_I01_DAY_TO_DAY');
+  const sections: PortalJourneyPrintSectionV1[] = [];
+
+  if (conI01 != null && conceptTagSet.has('stored_hot_water_recovery_timeline')) {
+    sections.push({
+      contentId: conI01.id,
+      sectionId: 'stored_hot_water_recovery_timeline',
+      heading: 'Stored hot-water recovery timeline',
+      summary: 'Stored hot water is a reserve-and-recovery pattern, not unlimited instantaneous output.',
+      keyTakeaway: conI01.customerWording,
+      reassurance: conI01.whatNotToWorryAbout,
       items: [
-        'Your recommendation reflects occupancy, bathroom use, and measured supply conditions from your survey.',
-        'The final setup is confirmed during installer checks before works start.',
-        'Day-to-day use stays familiar: the same controls for heating schedules and hot-water temperature targets.',
+        conI01.whatYouMayNotice,
+        conI01.whatStaysFamiliar,
+        'Heavy draw periods are followed by recovery, and that behaviour is expected.',
       ],
-    },
-  ];
+      diagramCaption: 'Reserve use and recovery over a typical day.',
+      diagramId: 'stored_hot_water_recovery_timeline',
+      diagramRendererId: 'stored_hot_water_recovery_timeline',
+    });
+  }
+
+  if (conD01 != null && conceptTagSet.has('flow_restriction_bottleneck')) {
+    sections.push({
+      contentId: conD01.id,
+      sectionId: 'flow_restriction_bottleneck',
+      heading: 'Flow restriction bottleneck',
+      summary: conD01.oneLineSummary,
+      keyTakeaway: conD01.customerWording,
+      reassurance: conD01.whatNotToWorryAbout,
+      items: [
+        conD01.whatYouMayNotice,
+        `Reality: ${conD01.reality}`,
+        'Supply and pipework constraints are checked before appliance changes are proposed.',
+      ],
+      diagramCaption: 'Where a bottleneck limits outlet flow and overlap use.',
+      diagramId: 'flow_restriction_bottleneck',
+      diagramRendererId: 'flow_restriction_bottleneck',
+    });
+  }
+
+  if (conF04 != null && conceptTagSet.has('magnetic_filter_capture')) {
+    sections.push({
+      contentId: conF04.id,
+      sectionId: 'magnetic_filter_capture',
+      heading: 'Magnetic filter capture and system condition',
+      summary: conF04.oneLineSummary,
+      keyTakeaway: conF04.customerWording,
+      reassurance: conF04.whatNotToWorryAbout,
+      items: [
+        conF04.whatYouMayNotice,
+        `Reality: ${conF04.reality}`,
+        'Filter capture supports protection planning, but does not replace full water treatment.',
+      ],
+      diagramCaption: 'Return-path debris capture before sensitive components.',
+      diagramId: 'magnetic_filter_capture',
+      diagramRendererId: 'magnetic_filter_capture',
+    });
+  }
+
+  if (conB03 != null && conceptTagSet.has('sealed_system_pressure_window')) {
+    sections.push({
+      contentId: conB03.id,
+      sectionId: 'sealed_system_pressure_window',
+      heading: 'Sealed-system pressure window',
+      summary: conB03.oneLineSummary,
+      keyTakeaway: conB03.customerWording,
+      reassurance: conB03.whatNotToWorryAbout,
+      items: [
+        conB03.whatYouMayNotice,
+        `Reality: ${conB03.reality}`,
+        'Repeated pressure loss should be checked, not repeatedly topped up without diagnosis.',
+      ],
+      diagramCaption: 'Healthy operating pressure band versus low/high warning zones.',
+      diagramId: 'system_pressure_window',
+      diagramRendererId: 'system_pressure_window',
+    });
+  }
+
+  if (conA01 != null && conceptTagSet.has('system_fit_decision_map')) {
+    sections.push({
+      contentId: conA01.id,
+      sectionId: 'system_fit_decision_map',
+      heading: 'System fit decision map',
+      summary: 'Atlas routes system fit from measured evidence and household demand, not one-size-fits-all assumptions.',
+      keyTakeaway: conA01.customerWording,
+      reassurance: 'The selected route reflects measured constraints and practical installation fit for this home.',
+      items: [
+        'Recommendation authority remains with the engine; this section explains the evidence path only.',
+        'Mains limits, demand overlap, and system condition are assessed together before route selection.',
+        'Educational explainers clarify why this route fits and what to expect day to day.',
+      ],
+      diagramCaption: 'How measured constraints route to a suitable system-fit outcome.',
+      diagramId: 'system_fit_decision_map',
+      diagramRendererId: 'system_fit_decision_map',
+    });
+  }
+
+  if (conC02 != null && conceptTagSet.has('pressure_vs_storage')) {
+    sections.push({
+      contentId: conC02.id,
+      sectionId: 'pressure_vs_storage',
+      heading: 'Why stored hot water helps',
+      summary: conC02.oneLineSummary,
+      keyTakeaway: conC02.customerWording,
+      reassurance: conC02.whatNotToWorryAbout,
+      items: [
+        conC02.whatYouMayNotice,
+        `Reality: ${conC02.reality}`,
+        'Pressure and available stored volume are checked separately in route evidence.',
+      ],
+      diagramCaption: 'Pressure force and storage amount shown as separate constraints.',
+      diagramId: resolvePrintDiagramFromContentEntry(conC02),
+      diagramRendererId: 'pressure_vs_storage',
+    });
+  }
+
+  return sections;
+}
+
+function buildGenericRecommendationContent(input: {
+  conceptTagSet: Set<EducationalConceptTagV1>;
+}): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
+  const sections = buildRoutedEducationalSections({ conceptTagSet: input.conceptTagSet });
+  if (sections.length === 0) {
+    sections.push(
+      ...buildRoutedEducationalSections({
+        conceptTagSet: new Set<EducationalConceptTagV1>(['system_fit_decision_map']),
+      }),
+    );
+  }
 
   const nextSteps: PortalJourneyPrintNextStepV1[] = [
     {
       label: 'Pre-install review',
-      body: 'Your installer will review the recommendation and confirm the final preparation approach before work begins.',
+      body: 'Your installer will review the routed evidence and confirm the practical installation plan for your home.',
     },
     {
       label: 'Installation day',
-      body: 'Your installer will explain key system changes and complete a customer-safe handover.',
+      body: 'Your installer will explain the selected route, key changes, and expected day-to-day behaviour at handover.',
     },
     {
       label: 'After handover',
-      body: 'Keep this summary for reference and contact your installer if you want additional guidance.',
+      body: 'Keep this evidence summary for reference and contact your installer if lived outcomes differ from expectation.',
     },
   ];
 
   const qrDestinations: PortalJourneyPrintQrDestinationV1[] = [
     {
-      heading: 'How your recommendation was selected',
-      note: 'A plain-language walkthrough of surveyed home factors and recommendation outcomes.',
+      heading: 'How Atlas routed this evidence',
+      note: 'A plain-language walkthrough of demand, mains, condition, and system-fit evidence used for this recommendation.',
     },
     {
-      heading: 'What to expect on installation day',
-      note: 'Preparation, handover, and follow-up support explained step by step.',
+      heading: 'Lived experience explainers',
+      note: 'What to expect from hot water, radiators, and day-to-day operation after installation.',
     },
     {
-      heading: 'Day-to-day operation guide',
-      note: 'Simple guidance for comfort settings and routine operation.',
+      heading: 'System condition and protection guidance',
+      note: 'How pressure windows, filter capture, and maintenance signals link to reliable operation.',
     },
   ];
 
@@ -328,6 +643,7 @@ function buildGenericRecommendationContent(): Pick<PortalJourneyPrintModelV1, 's
 
 function buildOpenVentedSectionsAndNextSteps(
   selectedSet: Set<string>,
+  conceptTagSet: Set<EducationalConceptTagV1>,
 ): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
   const conA01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_A01');
   const conC01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_C01');
@@ -430,20 +746,26 @@ function buildOpenVentedSectionsAndNextSteps(
     },
   ];
 
-  return { sections, nextSteps, qrDestinations };
+  return {
+    sections: mergeRoutedSections(sections, buildRoutedEducationalSections({ conceptTagSet })),
+    nextSteps,
+    qrDestinations,
+  };
 }
 
 function buildHeatPumpSectionsAndNextSteps(
   selectedSet: Set<string>,
+  conceptTagSet: Set<EducationalConceptTagV1>,
 ): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
   const conE02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_E02');
+  const conE01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_E01');
   const conH01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_H01');
   const conH04 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_H04');
   const conG01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_G01');
 
-  if (!conE02 || !conH01 || !conH04 || !conG01) {
+  if (!conE02 || !conE01 || !conH01 || !conH04 || !conG01) {
     throw new Error(
-      'buildPortalJourneyPrintModel: required content entries CON_E02, CON_H01, CON_H04, CON_G01 missing from registry',
+      'buildPortalJourneyPrintModel: required content entries CON_E01, CON_E02, CON_H01, CON_H04, CON_G01 missing from registry',
     );
   }
 
@@ -460,7 +782,9 @@ function buildHeatPumpSectionsAndNextSteps(
       items: [
         conE02.whatYouMayNotice,
         `Reality: ${conE02.reality}`,
-        'Comfort is measured by room temperature, not only radiator surface feel.',
+        selectedSet.has('CON_E01')
+          ? conE01.oneLineSummary
+          : 'Comfort is measured by room temperature, not only radiator surface feel.',
       ],
       diagramCaption: 'Warm-for-longer operation compared with shorter hotter bursts.',
       diagramId: resolvePrintDiagramFromContentEntry(conE02),
@@ -534,7 +858,11 @@ function buildHeatPumpSectionsAndNextSteps(
     },
   ];
 
-  return { sections, nextSteps, qrDestinations };
+  return {
+    sections: mergeRoutedSections(sections, buildRoutedEducationalSections({ conceptTagSet })),
+    nextSteps,
+    qrDestinations,
+  };
 }
 
 function hasText(value: unknown): value is string {
@@ -864,8 +1192,8 @@ function inferReasonFromCustomerFact(fact: string): Omit<RecommendationReasonBlo
   return {
     homeFact: fact,
     whyItMatters: 'This affects demand and installation constraints for the route.',
-    atlasRecommendationOutcome: 'Atlas used this fact directly in route and sizing checks.',
-    practicalEffect: 'The selected recommendation is shaped by your surveyed home profile.',
+    atlasRecommendationOutcome: 'Atlas mapped this survey fact into the educational evidence route for your home.',
+    practicalEffect: 'You receive a clearer explanation of what this means for daily comfort and performance.',
   };
 }
 
@@ -1211,9 +1539,11 @@ function buildPortalJourneyPrintModelCore(
     surveyCondition,
     recommendationReasons,
     recommendationIntent,
+    educationalConceptTags = [],
   } = input;
 
   const selectedSet = new Set(selectedSectionIds);
+  const conceptTagSet = new Set<EducationalConceptTagV1>(educationalConceptTags);
   const addressSummary = resolvePortalAddressSummary(visitContext, {
     includeInPrint: includeAddressSummaryInPrint,
   });
@@ -1229,10 +1559,10 @@ function buildPortalJourneyPrintModelCore(
 
   const { sections: rawSections, nextSteps, qrDestinations } =
     journeyType === 'heat_pump'
-      ? buildHeatPumpSectionsAndNextSteps(selectedSet)
+      ? buildHeatPumpSectionsAndNextSteps(selectedSet, conceptTagSet)
       : journeyType === 'open_vented'
-      ? buildOpenVentedSectionsAndNextSteps(selectedSet)
-      : buildGenericRecommendationContent();
+      ? buildOpenVentedSectionsAndNextSteps(selectedSet, conceptTagSet)
+      : buildGenericRecommendationContent({ conceptTagSet });
 
   const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
   const excludeCylinder = shouldExcludeCylinderSections(recommendationIntent);
@@ -1281,9 +1611,23 @@ export function buildCustomerJourneyPack(
     return packagedPack;
   }
   const recommendationReasons = inferRecommendationReasonBlocks(input);
-  const resolvedIntent = inferRecommendationIntentFromInput(input);
+  const resolvedIntent =
+    input.recommendationIntent
+    ?? (input.journeyType != null ? journeyTypeToIntent(input.journeyType) : inferRecommendationIntentFromInput(input));
+  const conceptSelection = (
+    (input.selectedSectionIds != null && input.selectedSectionIds.length > 0)
+    || (input.educationalConceptTags != null && input.educationalConceptTags.length > 0)
+  )
+    ? {
+      selectedSectionIds: dedupeStrings(input.selectedSectionIds ?? []),
+      conceptTags: dedupeStrings(input.educationalConceptTags ?? []) as EducationalConceptTagV1[],
+    }
+    : resolveRecommendationConceptSelection({
+      ...input,
+      recommendationIntent: resolvedIntent,
+    });
   const staticPdf = buildPortalJourneyPrintModelCore({
-    selectedSectionIds: input.selectedSectionIds ?? [],
+    selectedSectionIds: conceptSelection.selectedSectionIds,
     recommendationSummary: inferRecommendationSummary(input),
     customerFacts: inferCustomerFacts(input),
     brandProfile: input.brandProfile,
@@ -1294,6 +1638,7 @@ export function buildCustomerJourneyPack(
     surveyCondition: input.surveyCondition,
     recommendationReasons,
     recommendationIntent: resolvedIntent,
+    educationalConceptTags: conceptSelection.conceptTags,
   });
 
   return {
