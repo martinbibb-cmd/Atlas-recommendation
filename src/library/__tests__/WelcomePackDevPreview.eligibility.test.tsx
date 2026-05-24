@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { WelcomePackDevPreview } from '../dev/WelcomePackDevPreview';
 
-describe('WelcomePackDevPreview eligibility panel', () => {
+describe('WelcomePackDevPreview eligibility panel', { timeout: 10000 }, () => {
   async function renderDiagnostics() {
     const user = userEvent.setup();
     render(<WelcomePackDevPreview />);

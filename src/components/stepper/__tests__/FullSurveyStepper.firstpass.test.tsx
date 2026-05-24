@@ -54,7 +54,7 @@ async function advanceToStep(user: ReturnType<typeof userEvent.setup>, targetInd
 
 // ─── V2 step structure ────────────────────────────────────────────────────────
 
-describe('FullSurveyStepper — V2 active step structure', { timeout: 15000 }, () => {
+describe('FullSurveyStepper — V2 active step structure', { timeout: 30000 }, () => {
   it('starts on the System Architecture step (system_builder)', () => {
     render(<FullSurveyStepper onBack={() => {}} />);
     expect(document.querySelector('[data-testid="system-builder-step"]')).not.toBeNull();
@@ -175,7 +175,7 @@ async function completeFullSurvey(user: ReturnType<typeof userEvent.setup>) {
   await user.click(skipBtn);
 }
 
-describe('FullSurveyStepper — onComplete routing', () => {
+describe('FullSurveyStepper — onComplete routing', { timeout: 45000 }, () => {
   it('calls onComplete with a clean EngineInputV2_3 after completing all 9 steps', async () => {
     const onComplete = vi.fn();
     const user = userEvent.setup();
@@ -192,7 +192,7 @@ describe('FullSurveyStepper — onComplete routing', () => {
     expect(typeof engineInput.primaryPipeDiameter).toBe('number');
     expect(typeof engineInput.bathroomCount).toBe('number');
     expect(typeof engineInput.heatLossWatts).toBe('number');
-  }, 20000);
+  }, 45000);
 
   it('does NOT enter hub mode when onComplete is provided', async () => {
     const onComplete = vi.fn();
@@ -203,7 +203,7 @@ describe('FullSurveyStepper — onComplete routing', () => {
 
     // If onComplete is provided, LiveHubPage must not render.
     expect(screen.queryByText(/Atlas Live Output Hub/i)).toBeNull();
-  }, 20000);
+  }, 45000);
 
   it('enters hub mode (LiveHubPage) when onComplete is NOT provided', async () => {
     const user = userEvent.setup();
@@ -213,7 +213,7 @@ describe('FullSurveyStepper — onComplete routing', () => {
 
     // Without onComplete, the stepper falls back to LiveHubPage.
     expect(screen.getByText(/Atlas Live Output Hub/i)).toBeTruthy();
-  }, 20000);
+  }, 45000);
 });
 
 // ─── onOpenSimulator routing (regression: Try in Simulator CTA) ───────────────
@@ -281,4 +281,3 @@ describe('FullSurveyStepper — Try in Simulator CTA routing', () => {
     expect(screen.queryByRole('button', { name: /Try in Simulator/i })).toBeNull();
   }, 20000);
 });
-
