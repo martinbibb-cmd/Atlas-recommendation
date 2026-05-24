@@ -296,9 +296,15 @@ describe('CustomerPackRendererV1', () => {
     const serialized = JSON.stringify(pack);
     const parsed = JSON.parse(serialized) as CustomerEvidencePackV1;
     const { container } = render(<CustomerPackRendererV1 pack={parsed} />);
+    const document = container.querySelector('.cprv1-document');
 
     expect(serialized).toContain('recommendationSummary');
-    expect(container.querySelector('.cprv1-document')).toBeTruthy();
+    expect(document).toBeTruthy();
+    expect(document?.getAttribute('data-visual-tokens')).toBe('customer-pack-v1');
+    expect(document?.getAttribute('data-layout-mode')).toBe('print-and-portal');
+    expect(container.querySelector('.cprv1-card-grid')?.getAttribute('data-layout')).toBe(
+      'responsive-metric-cards',
+    );
     expect(container.querySelectorAll('button, input, textarea, select')).toHaveLength(0);
     expect(container.innerHTML).not.toContain('[object Object]');
   });

@@ -46,7 +46,7 @@ export function CustomerPackSectionRendererV1({
       ) : null}
 
       {section.cards.length > 0 ? (
-        <div className="cprv1-card-grid">
+        <div className="cprv1-card-grid" data-layout="responsive-metric-cards">
           {section.cards.map((card, cardIndex) => (
             <CustomerEvidenceCardRendererV1 key={`${card.type}-${card.heading}-${cardIndex}`} card={card} />
           ))}
