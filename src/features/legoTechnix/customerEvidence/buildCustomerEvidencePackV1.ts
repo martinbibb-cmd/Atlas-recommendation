@@ -1,3 +1,4 @@
+import type { SurveyEvidenceForCustomerPackV1 } from '../../../customerSafe/SurveyEvidenceForCustomerPackV1';
 import type { HydraulicConfidenceReportV1, HydraulicDiagnosticV1 } from '../hydraulicConfidenceReport';
 import type { DhwRecoveryMetricsV1 } from '../simulation/buildDhwRecoveryMetricsV1';
 import type { LegoTechnixExplainabilityReportV1 } from '../simulation/LegoTechnixExplainabilityReportV1';
@@ -32,6 +33,13 @@ export interface BuildCustomerEvidencePackV1Input {
   readonly hydraulicConfidenceReport: HydraulicConfidenceReportV1;
   readonly dhwRecoveryMetrics?: DhwRecoveryMetricsV1;
   readonly scenarioResult?: ScenarioResultV1;
+  /**
+   * Optional survey evidence from buildSurveyEvidenceForCustomerPackV1.
+   * When provided, card and section copy is enriched with home-specific facts
+   * drawn from the survey. Generic fallback copy is used only for groups where
+   * no survey evidence was captured.
+   */
+  readonly surveyEvidence?: SurveyEvidenceForCustomerPackV1;
 }
 
 // ─── Warning mapping ─────────────────────────────────────────────────────────
@@ -200,26 +208,58 @@ function buildTimelineSummaries(
 
 function buildSystemBehaviourCard(
   explainabilityReport: LegoTechnixExplainabilityReportV1,
+  surveyEvidence?: SurveyEvidenceForCustomerPackV1,
 ): CustomerEvidenceCardV1 {
   const systemPoints = explainabilityReport.systemSummary.points;
   const circuitPoints = explainabilityReport.activeCircuitSummary.points;
 
-  const summary =
-    systemPoints.length > 0
-      ? systemPoints[0]
-      : 'Your heating system has been surveyed and assessed.';
+  // Gather home-specific facts from survey evidence groups relevant to this card
+  const surveyFacts: string[] = [];
+  if (surveyEvidence?.occupancy.evidencePresent) {
+    surveyFacts.push(...surveyEvidence.occupancy.facts.slice(0, 1));
+  }
+  if (surveyEvidence?.simultaneousDemand.evidencePresent) {
+    surveyFacts.push(...surveyEvidence.simultaneousDemand.facts);
+  }
+  if (surveyEvidence?.existingHeatingType.evidencePresent) {
+    surveyFacts.push(...surveyEvidence.existingHeatingType.facts.slice(0, 1));
+  }
+  if (surveyEvidence?.existingHotWaterType.evidencePresent) {
+    surveyFacts.push(...surveyEvidence.existingHotWaterType.facts.slice(0, 1));
+  }
 
-  return {
-    type: 'system_behaviour_story',
-    heading: 'How your current heating is set up',
-    summary,
-    metrics: circuitPoints.slice(0, 3).map(
+  const summary =
+    surveyFacts.length > 0
+      ? surveyFacts[0]
+      : systemPoints.length > 0
+        ? systemPoints[0]
+        : 'Your heating system has been surveyed and assessed.';
+
+  const additionalSurveyFacts = surveyFacts.slice(1, 3);
+  const circuitSlice = circuitPoints.slice(0, Math.max(0, 3 - additionalSurveyFacts.length));
+
+  const metrics: CustomerEvidenceMetricV1[] = [
+    ...additionalSurveyFacts.map(
+      (fact): CustomerEvidenceMetricV1 => ({
+        label: 'Home evidence',
+        value: fact,
+        confidenceWording: getCustomerConfidenceWording('user_entered'),
+      }),
+    ),
+    ...circuitSlice.map(
       (point): CustomerEvidenceMetricV1 => ({
         label: 'Heating circuit evidence',
         value: point,
         confidenceWording: getCustomerConfidenceWording('derived'),
       }),
     ),
+  ];
+
+  return {
+    type: 'system_behaviour_story',
+    heading: 'How your current heating is set up',
+    summary,
+    metrics,
     warnings: [],
     confidenceWording: getCustomerConfidenceWording('derived'),
   };
@@ -227,26 +267,50 @@ function buildSystemBehaviourCard(
 
 function buildWhatAtlasFoundCard(
   explainabilityReport: LegoTechnixExplainabilityReportV1,
+  surveyEvidence?: SurveyEvidenceForCustomerPackV1,
 ): CustomerEvidenceCardV1 {
   const controlPoints = explainabilityReport.controlDecisionSummary.points;
   const heatSourcePoints = explainabilityReport.heatSourceSummary.points;
 
-  const summary =
-    controlPoints.length > 0
-      ? controlPoints[0]
-      : 'Atlas reviewed your controls and heating setup from the survey evidence.';
+  // Prefer home-specific mains supply and heat-loss facts over generic control points
+  const surveyAtlasFacts: string[] = [];
+  if (surveyEvidence?.mainsSupply.evidencePresent) {
+    surveyAtlasFacts.push(...surveyEvidence.mainsSupply.facts.slice(0, 1));
+  }
+  if (surveyEvidence?.heatLossStorey.evidencePresent) {
+    surveyAtlasFacts.push(...surveyEvidence.heatLossStorey.facts.slice(0, 1));
+  }
 
-  return {
-    type: 'system_behaviour_story',
-    heading: 'What Atlas found from your survey',
-    summary,
-    metrics: heatSourcePoints.slice(0, 2).map(
+  const summary =
+    surveyAtlasFacts.length > 0
+      ? surveyAtlasFacts[0]
+      : controlPoints.length > 0
+        ? controlPoints[0]
+        : 'Atlas reviewed your controls and heating setup from the survey evidence.';
+
+  const surveyMetrics: CustomerEvidenceMetricV1[] = surveyAtlasFacts.slice(1).map(
+    (fact): CustomerEvidenceMetricV1 => ({
+      label: 'Survey evidence',
+      value: fact,
+      confidenceWording: getCustomerConfidenceWording('user_entered'),
+    }),
+  );
+
+  const heatSourceMetrics = heatSourcePoints
+    .slice(0, Math.max(0, 2 - surveyMetrics.length))
+    .map(
       (point): CustomerEvidenceMetricV1 => ({
         label: 'Heat source evidence',
         value: point,
         confidenceWording: getCustomerConfidenceWording('derived'),
       }),
-    ),
+    );
+
+  return {
+    type: 'system_behaviour_story',
+    heading: 'What Atlas found from your survey',
+    summary,
+    metrics: [...surveyMetrics, ...heatSourceMetrics],
     warnings: [],
     confidenceWording: getCustomerConfidenceWording('derived'),
   };
@@ -297,18 +361,45 @@ function buildHotWaterStoryCard(
   explainabilityReport: LegoTechnixExplainabilityReportV1,
   dhwRecoveryMetrics: DhwRecoveryMetricsV1 | undefined,
   hydraulicConfidenceReport: HydraulicConfidenceReportV1,
+  surveyEvidence?: SurveyEvidenceForCustomerPackV1,
 ): CustomerEvidenceCardV1 {
   const dhwPoints = explainabilityReport.dhwSummary.points;
 
+  // Build home-specific summary from survey evidence when available
+  const surveyDhwFacts: string[] = [];
+  if (surveyEvidence?.occupancy.evidencePresent) {
+    surveyDhwFacts.push(...surveyEvidence.occupancy.facts.slice(0, 1));
+  }
+  if (surveyEvidence?.simultaneousDemand.evidencePresent) {
+    surveyDhwFacts.push(...surveyEvidence.simultaneousDemand.facts);
+  }
+  if (surveyEvidence?.cylinderStorage.evidencePresent) {
+    surveyDhwFacts.push(...surveyEvidence.cylinderStorage.facts.slice(0, 1));
+  }
+  if (surveyEvidence?.recoveryAssumptions.evidencePresent) {
+    surveyDhwFacts.push(...surveyEvidence.recoveryAssumptions.facts.slice(0, 1));
+  }
+
   const summary =
-    dhwPoints.length > 0
-      ? dhwPoints[0]
-      : 'We modelled your hot water usage and recovery over time.';
+    surveyDhwFacts.length > 0
+      ? surveyDhwFacts[0]
+      : dhwPoints.length > 0
+        ? dhwPoints[0]
+        : 'We modelled your hot water usage and recovery over time.';
 
   const metrics: CustomerEvidenceMetricV1[] = [];
   const confidenceWording = getCustomerConfidenceWording(
     dhwRecoveryMetrics?.recoveryConfidence ?? hydraulicConfidenceReport.overallConfidence,
   );
+
+  // Add additional survey facts as metrics (occupancy, demand, cylinder context)
+  for (const fact of surveyDhwFacts.slice(1, 3)) {
+    metrics.push({
+      label: 'Survey evidence',
+      value: fact,
+      confidenceWording: getCustomerConfidenceWording('user_entered'),
+    });
+  }
 
   if (dhwRecoveryMetrics) {
     if (typeof dhwRecoveryMetrics.showerMinutesAvailable === 'number') {
@@ -594,6 +685,7 @@ function buildWarningCard(
 
 function buildSafetyCard(
   hydraulicConfidenceReport: HydraulicConfidenceReportV1,
+  surveyEvidence?: SurveyEvidenceForCustomerPackV1,
 ): CustomerEvidenceCardV1 {
   const safetyWarnings = hydraulicConfidenceReport.warnings
     .filter(
@@ -603,16 +695,38 @@ function buildSafetyCard(
     )
     .map(mapEngineeringWarningToCustomer);
 
-  const summary =
-    safetyWarnings.length === 0
-      ? 'No specific safety observations were noted during this assessment.'
-      : 'Safety-related observations have been noted and will be reviewed by your engineer.';
+  const protectionEvidence = surveyEvidence?.protectionSludgeFilter;
+
+  let summary: string;
+  const protectionFacts: CustomerEvidenceMetricV1[] = [];
+
+  if (safetyWarnings.length > 0) {
+    summary = 'Safety-related observations have been noted and will be reviewed by your engineer.';
+  } else if (protectionEvidence?.evidencePresent) {
+    // Only make a positive condition claim when explicit survey evidence supports it
+    summary = 'System condition was assessed during the survey — key observations are noted below.';
+    for (const fact of protectionEvidence.facts.slice(0, 3)) {
+      protectionFacts.push({
+        label: 'Condition evidence',
+        value: fact,
+        confidenceWording: getCustomerConfidenceWording('user_entered'),
+      });
+    }
+  } else if (protectionEvidence !== undefined) {
+    // Evidence section was explicitly evaluated but nothing was captured
+    summary =
+      'System protection and condition data were not recorded during this survey — your engineer will assess on site.';
+  } else {
+    // No survey evidence provided at all — do not imply a clean system
+    summary =
+      'Protection and condition checks will be carried out by your engineer during the installation visit.';
+  }
 
   return {
     type: 'warning_story',
     heading: 'Safety and protection checks',
     summary,
-    metrics: [],
+    metrics: protectionFacts,
     warnings: safetyWarnings,
     confidenceWording:
       safetyWarnings.length > 0 ? getCustomerConfidenceWording('unknown') : undefined,
@@ -621,21 +735,43 @@ function buildSafetyCard(
 
 function buildFutureFlexibilityCard(
   explainabilityReport: LegoTechnixExplainabilityReportV1,
+  surveyEvidence?: SurveyEvidenceForCustomerPackV1,
 ): CustomerEvidenceCardV1 {
   const systemPoints = explainabilityReport.systemSummary.points;
 
-  return {
-    type: 'system_behaviour_story',
-    heading: 'Options for future upgrades',
-    summary:
-      'Your system has been assessed for compatibility with future upgrades. Specific upgrade readiness will be confirmed with your installer.',
-    metrics: systemPoints.slice(0, 2).map(
+  const surveyFutureFacts: string[] = [];
+  if (surveyEvidence?.futureUpgradeConstraints.evidencePresent) {
+    surveyFutureFacts.push(...surveyEvidence.futureUpgradeConstraints.facts.slice(0, 2));
+  }
+
+  const summary =
+    surveyFutureFacts.length > 0
+      ? surveyFutureFacts[0]
+      : 'Your system has been assessed for compatibility with future upgrades. Specific upgrade readiness will be confirmed with your installer.';
+
+  const surveyMetrics: CustomerEvidenceMetricV1[] = surveyFutureFacts.slice(1).map(
+    (fact): CustomerEvidenceMetricV1 => ({
+      label: 'Upgrade constraint',
+      value: fact,
+      confidenceWording: getCustomerConfidenceWording('user_entered'),
+    }),
+  );
+
+  const systemMetrics = systemPoints
+    .slice(0, Math.max(0, 2 - surveyMetrics.length))
+    .map(
       (point): CustomerEvidenceMetricV1 => ({
         label: 'System characteristic',
         value: point,
         confidenceWording: getCustomerConfidenceWording('derived'),
       }),
-    ),
+    );
+
+  return {
+    type: 'system_behaviour_story',
+    heading: 'Options for future upgrades',
+    summary,
+    metrics: [...surveyMetrics, ...systemMetrics],
     warnings: [],
     confidenceWording: getCustomerConfidenceWording('derived'),
   };
@@ -695,6 +831,7 @@ export function buildCustomerEvidencePackV1(
     hydraulicConfidenceReport,
     dhwRecoveryMetrics,
     scenarioResult,
+    surveyEvidence,
   } = input;
 
   const timelineSummaries = buildTimelineSummaries(scenarioResult, dhwRecoveryMetrics);
@@ -719,7 +856,7 @@ export function buildCustomerEvidencePackV1(
   );
 
   const hotWaterCards: CustomerEvidenceCardV1[] = [
-    buildHotWaterStoryCard(explainabilityReport, dhwRecoveryMetrics, hydraulicConfidenceReport),
+    buildHotWaterStoryCard(explainabilityReport, dhwRecoveryMetrics, hydraulicConfidenceReport, surveyEvidence),
   ];
 
   const stratifiedCard = buildStratifiedOrMixedCard(dhwRecoveryMetrics);
@@ -769,7 +906,7 @@ export function buildCustomerEvidencePackV1(
       'home_understanding',
       'Your home and current heating setup',
       'A clear overview of how your current system is configured and how it currently operates.',
-      [buildSystemBehaviourCard(explainabilityReport)],
+      [buildSystemBehaviourCard(explainabilityReport, surveyEvidence)],
       [],
       [],
     ),
@@ -778,7 +915,7 @@ export function buildCustomerEvidencePackV1(
       'What Atlas found',
       'The main findings Atlas identified from your survey and system evidence.',
       [
-        buildWhatAtlasFoundCard(explainabilityReport),
+        buildWhatAtlasFoundCard(explainabilityReport, surveyEvidence),
         buildWarningCard(explainabilityReport, hydraulicConfidenceReport),
       ],
       importantWarnings,
@@ -836,7 +973,7 @@ export function buildCustomerEvidencePackV1(
       'future_flexibility',
       'Future options',
       'How this setup supports practical future upgrades when you decide to make changes.',
-      [buildFutureFlexibilityCard(explainabilityReport)],
+      [buildFutureFlexibilityCard(explainabilityReport, surveyEvidence)],
       [],
       [],
     ),
@@ -844,7 +981,7 @@ export function buildCustomerEvidencePackV1(
       'safety_protection',
       'Safety and protection',
       'Safety-related checks identified from survey evidence and simulation context.',
-      [buildSafetyCard(hydraulicConfidenceReport)],
+      [buildSafetyCard(hydraulicConfidenceReport, surveyEvidence)],
       allCustomerWarnings.filter((warning) => warning.category === 'hydraulic_risk'),
       [],
     ),
