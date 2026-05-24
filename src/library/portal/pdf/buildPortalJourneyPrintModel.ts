@@ -398,16 +398,17 @@ export function resolveRecommendationConceptSelection(
   const surveyInput = resolveSurveyInput(input);
   const mains = resolveMainsSignals(surveyInput);
   const conceptTagSet = new Set<EducationalConceptTagV1>();
+  const isHeatPumpIntent = resolvedIntent === 'heat_pump_transition';
 
   conceptTagSet.add('system_fit_decision_map');
 
   if (
-    resolvedIntent === 'heat_pump_transition'
+    isHeatPumpIntent
     || recommendation?.heatSource === 'ashp'
     || recommendation?.heatSource === 'gshp'
     || (
       recommendation?.emitters?.existingRadiatorsCompatible === false
-      && resolvedIntent === 'heat_pump_transition'
+      && isHeatPumpIntent
     )
   ) {
     conceptTagSet.add('warm_vs_hot_radiators');

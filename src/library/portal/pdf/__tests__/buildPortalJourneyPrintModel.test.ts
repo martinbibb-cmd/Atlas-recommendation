@@ -422,6 +422,19 @@ describe('buildCustomerJourneyPack — recommendation reason blocks', () => {
           exportedAt: '2026-05-21T12:00:00.000Z',
           source: { target: 'local_only', surface: 'test' },
         },
+        proposalTruth: {
+          visitEnvelope: {
+            recommendation: {
+              hotWaterArrangement: 'stored_unvented',
+              heatSource: 'gas_system',
+              reasons: [],
+              evidence: [],
+              requiredWork: [],
+              futureReady: [],
+              emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 55, note: '' },
+            },
+          },
+        },
       },
     });
 

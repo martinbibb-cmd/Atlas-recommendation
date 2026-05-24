@@ -30,7 +30,7 @@ describe('resolveCustomerPdfDownloadBaseName', () => {
     ).toBe('VISIT1234');
   });
 
-  it('prefers customer name over address when no visit reference exists', () => {
+  it('prefers customer name over address when canonical visit reference is unavailable', () => {
     expect(
       resolveCustomerPdfDownloadBaseName(
         {
@@ -38,7 +38,7 @@ describe('resolveCustomerPdfDownloadBaseName', () => {
           address_line_1: '10 Downing St',
           customer_name: 'Jane Smith',
         },
-        'VISIT1234',
+        undefined,
         'visit_1234',
       ),
     ).toBe('Jane_Smith');
