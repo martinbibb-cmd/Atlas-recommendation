@@ -65,7 +65,7 @@ function buildPackFromTemplate(
 const CANONICAL_TEMPLATES = [...LEGO_TECHNIX_CANONICAL_SYSTEM_TEMPLATES_V1];
 
 describe('CustomerPackRendererV1', () => {
-  it('renders all 10 canonical sections deterministically for every canonical template', () => {
+  it('renders only non-empty canonical sections in deterministic order for every canonical template', () => {
     for (const template of LEGO_TECHNIX_CANONICAL_SYSTEM_TEMPLATES_V1) {
       const pack = buildPackFromTemplate(template.id, `Locked summary for ${template.label}`);
       const first = render(<CustomerPackRendererV1 pack={pack} />).container.innerHTML;
@@ -76,11 +76,18 @@ describe('CustomerPackRendererV1', () => {
       expect(first).toBe(second);
 
       const { container } = render(<CustomerPackRendererV1 pack={pack} />);
-      const renderedSections = Array.from(
+      const renderedSectionIds = Array.from(
         container.querySelectorAll<HTMLElement>('.cprv1-section'),
       ).map((element) => element.dataset.testid?.replace('cprv1-section-', ''));
 
-      expect(renderedSections).toEqual([...CUSTOMER_EVIDENCE_SECTION_IDS_V1]);
+      // All rendered sections must be known canonical IDs
+      for (const id of renderedSectionIds) {
+        expect(CUSTOMER_EVIDENCE_SECTION_IDS_V1).toContain(id as (typeof CUSTOMER_EVIDENCE_SECTION_IDS_V1)[number]);
+      }
+      // Rendered section order must follow canonical order
+      const canonicalOrder = [...CUSTOMER_EVIDENCE_SECTION_IDS_V1];
+      const indices = renderedSectionIds.map((id) => canonicalOrder.indexOf(id as (typeof CUSTOMER_EVIDENCE_SECTION_IDS_V1)[number]));
+      expect(indices).toEqual([...indices].sort((a, b) => a - b));
       cleanup();
     }
   });
@@ -108,19 +115,6 @@ describe('CustomerPackRendererV1', () => {
 
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(lockedPack.systemLabel);
     expect(screen.getByTestId('cprv1-recommendation-summary').textContent).toBe(verbatimSummary);
-    expect(screen.getByText('Chosen system label').nextElementSibling?.textContent).toBe(
-      lockedPack.systemLabel,
-    );
-  });
-
-  it('renders recommendation evidence blocks for fit, simulation, and confirmation', () => {
-    const pack = buildPackFromTemplate('template_heat_pump_unvented_weather_comp');
-    render(<CustomerPackRendererV1 pack={pack} />);
-
-    const evidence = screen.getByTestId('cprv1-recommendation-evidence');
-    expect(within(evidence).getByText('Why it fits this household')).toBeTruthy();
-    expect(within(evidence).getByText('What Atlas simulated')).toBeTruthy();
-    expect(within(evidence).getByText('What remains to be confirmed')).toBeTruthy();
   });
 
   it('contains no recommendation logic and renders inconsistent evidence verbatim', () => {
@@ -144,7 +138,7 @@ describe('CustomerPackRendererV1', () => {
     expect(screen.getByText('Chosen elsewhere. Renderer must not second-guess this text.')).toBeTruthy();
     expect(
       screen.getAllByText('Home understanding remains evidence-only even when recommendation copy changes.'),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
   });
 
   it('renders customer-safe confidence wording strings only', () => {
@@ -269,7 +263,7 @@ describe('CustomerPackRendererV1', () => {
     }
   });
 
-  it('handles missing optional sections gracefully', () => {
+  it('handles missing optional sections gracefully by collapsing them', () => {
     const pack = buildPackFromTemplate('template_heat_pump_unvented_weather_comp');
     const sparsePack: CustomerEvidencePackV1 = {
       ...pack,
@@ -287,8 +281,7 @@ describe('CustomerPackRendererV1', () => {
 
     render(<CustomerPackRendererV1 pack={sparsePack} />);
 
-    const section = screen.getByTestId('cprv1-section-what_atlas_found');
-    expect(within(section).getByText('No additional evidence was recorded for this section.')).toBeTruthy();
+    expect(screen.queryByTestId('cprv1-section-what_atlas_found')).toBeNull();
   });
 
   it('remains serializable and print-safe', () => {

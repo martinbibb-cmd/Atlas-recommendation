@@ -12,8 +12,10 @@ export function CustomerPackSectionRendererV1({
   index,
 }: CustomerPackSectionRendererV1Props) {
   const hasCardTimeline = section.cards.some((card) => (card.timelineEntries?.length ?? 0) > 0);
-  const showEmptyState =
+  const isEmpty =
     section.cards.length === 0 && section.warnings.length === 0 && section.timelineSummaries.length === 0;
+
+  if (isEmpty) return null;
 
   return (
     <section
@@ -55,10 +57,6 @@ export function CustomerPackSectionRendererV1({
 
       {!hasCardTimeline && section.timelineSummaries.length > 0 ? (
         <CustomerTimelineRendererV1 entries={section.timelineSummaries} />
-      ) : null}
-
-      {showEmptyState ? (
-        <p className="cprv1-section__empty">No additional evidence was recorded for this section.</p>
       ) : null}
     </section>
   );
