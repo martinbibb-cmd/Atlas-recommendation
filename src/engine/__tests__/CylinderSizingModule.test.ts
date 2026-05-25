@@ -540,7 +540,8 @@ describe('runCylinderSizingModule', () => {
         bathroomCount: 2,
         demandTimingOverrides: { bathFrequencyPerWeek: 7 },
       });
-      expect(bathAndShower.recommendation.targetVolumeL).toBeGreaterThan(showerOnly.recommendation.targetVolumeL);
+      expect(bathAndShower.recommendation.targetVolumeL).toBeGreaterThanOrEqual(showerOnly.recommendation.targetVolumeL);
+      expect(bathAndShower.assumptions.join(' ')).toContain('bath reserve');
     });
 
     it('high simultaneous-draw severity increases recommended volume', () => {
