@@ -32,6 +32,7 @@ import type { VoiceNote } from '../../features/voiceNotes/voiceNoteTypes';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { generatePortalToken } from '../../lib/portal/portalToken';
+import { handleStandaloneExternalLinkClick } from '../../lib/navigation/pwaExternalNavigation';
 import {
   checkCompleteness,
   buildReportSections,
@@ -852,6 +853,7 @@ export default function ReportView({ output, onBack, reportReference, engineInpu
             href={portalUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(event) => { void handleStandaloneExternalLinkClick(event, { url: portalUrl }); }}
             aria-label="Open interactive home heating plan"
             data-testid="portal-link"
           >

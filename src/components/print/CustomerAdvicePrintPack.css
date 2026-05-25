@@ -454,6 +454,8 @@
 
 .capp-themed-block {
   margin-bottom: 1.5rem;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .capp-themed-block:last-child {
@@ -466,7 +468,7 @@
   background: var(--capp-green-light);
   border: 1px solid #c6f6d5;
   border-radius: var(--capp-radius);
-  padding: 0.875rem 1rem;
+  padding: 0.875rem 1rem 1rem;
   margin: 1rem 0;
 }
 
@@ -476,32 +478,49 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--capp-green);
-  margin: 0 0 0.5rem;
+  margin: 0;
 }
 
-.capp-at-a-glance__list {
-  list-style: none;
+.capp-at-a-glance__subheading,
+.capp-performance-summary__subheading,
+.capp-practical-outcomes__subheading,
+.capp-engineer-handoff__subheading {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.capp-at-a-glance__grid {
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.65rem;
 }
 
 .capp-at-a-glance__item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.375rem;
+  display: grid;
+  gap: 0.25rem;
   font-size: 0.85rem;
+  padding: 0.85rem 0.9rem;
+  background: #fff;
+  border: 1px solid rgba(39, 103, 73, 0.12);
+  border-radius: 10px;
 }
 
 .capp-at-a-glance__label {
   color: var(--capp-muted);
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .capp-at-a-glance__value {
   font-weight: 700;
   color: var(--capp-text);
+  margin: 0;
+  font-size: 1rem;
 }
 
 /* ─── Comparison section ────────────────────────────────────────────────────── */
@@ -531,6 +550,8 @@
   padding: 1rem 1.1rem;
   background: #fff;
   position: relative;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .capp-comparison__card--pick {
@@ -733,25 +754,27 @@
 /* ─── Why Atlas + performance summary ───────────────────────────────────────── */
 .capp-why-atlas,
 .capp-performance-summary,
+.capp-practical-outcomes,
 .capp-scope-columns,
 .capp-engineer-handoff {
   margin: 1rem 0;
   border: 1px solid var(--capp-border);
   border-radius: var(--capp-radius);
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 1rem 1rem;
   background: #fff;
 }
 
 .capp-why-atlas__heading,
 .capp-performance-summary__heading,
+.capp-practical-outcomes__heading,
 .capp-scope-columns__heading,
 .capp-engineer-handoff__heading {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 700;
-  color: #1f2937;
+  color: #fff;
 }
 
 .capp-why-atlas__list {
@@ -762,11 +785,58 @@
   line-height: 1.5;
 }
 
+.capp-card-band {
+  margin: -0.85rem -1rem 0.85rem;
+  padding: 0.8rem 1rem;
+  border-radius: 8px 8px 0 0;
+}
+
+.capp-card-band--green {
+  background: linear-gradient(135deg, var(--capp-green) 0%, #2f855a 100%);
+}
+
+.capp-card-band--blue {
+  background: linear-gradient(135deg, var(--capp-blue) 0%, #2c5282 100%);
+}
+
+.capp-card-band--amber {
+  background: linear-gradient(135deg, var(--capp-amber) 0%, #975a16 100%);
+}
+
 .capp-performance-summary__intro,
 .capp-performance-summary__conversion {
   margin: 0 0 0.6rem;
   font-size: 0.8rem;
   color: #4b5563;
+}
+
+.capp-performance-summary__metrics {
+  margin: 0 0 0.8rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.65rem;
+}
+
+.capp-performance-summary__metric {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  background: #f8fafc;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+}
+
+.capp-performance-summary__metric dt {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.capp-performance-summary__metric dd {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .capp-performance-summary__bars {
@@ -831,6 +901,53 @@
   font-weight: 700;
 }
 
+.capp-practical-outcomes__timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.capp-practical-outcomes__stage {
+  position: relative;
+  padding: 0.95rem 0.9rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.capp-practical-outcomes__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.65rem;
+  border-radius: 999px;
+  background: var(--capp-blue);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.capp-practical-outcomes__stage-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #1e3a8a;
+}
+
+.capp-practical-outcomes__stage-value {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
 .capp-scope-columns__grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -865,9 +982,33 @@
   color: #64748b;
 }
 
+.capp-engineer-handoff__matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.85rem;
+}
+
+.capp-engineer-handoff__matrix-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 0.85rem 0.9rem;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.capp-engineer-handoff__column-heading {
+  margin: 0 0 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #92400e;
+}
+
 .capp-engineer-handoff__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.6rem 0.9rem;
 }
 
@@ -900,12 +1041,13 @@
   gap: 0.8rem;
   align-items: flex-start;
   border-top: 1px solid #e2e8f0;
-  padding-top: 0.65rem;
+  padding-top: 0.9rem;
 }
 
 .capp-engineer-handoff__scan-qr {
-  width: 113px;
-  height: 113px;
+  width: 136px;
+  height: 136px;
+  padding: 11px;
   border: 1px solid var(--capp-border);
   border-radius: var(--capp-radius);
   display: flex;
@@ -916,8 +1058,8 @@
 }
 
 .capp-engineer-handoff__scan-qr-img {
-  width: 113px;
-  height: 113px;
+  width: 100%;
+  height: 100%;
 }
 
 .capp-engineer-handoff__scan-copy a {
@@ -1127,6 +1269,7 @@
   .capp-why-atlas,
   .capp-comparison,
   .capp-performance-summary,
+  .capp-practical-outcomes,
   .capp-scope-columns,
   .capp-engineer-handoff,
   .capp-avoided-risks,
@@ -1160,5 +1303,9 @@
   .capp-engineer-handoff__scan-qr-img {
     width: 30mm;
     height: 30mm;
+  }
+
+  .capp-engineer-handoff__scan-qr {
+    padding: 3mm;
   }
 }

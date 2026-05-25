@@ -64,6 +64,7 @@ import type { PrioritiesState } from './features/survey/priorities/prioritiesTyp
 import type { RecommendationState } from './features/survey/recommendation/recommendationTypes';
 import type { ApplianceFamily } from './engine/topology/SystemTopology';
 import { buildPortalUrl } from './lib/portal/portalUrl';
+import { openUrlInSystemBrowser } from './lib/navigation/pwaExternalNavigation';
 import PhysicsVisualGallery from './components/physics-visuals/preview/PhysicsVisualGallery';
 import PresentationAuditPage from './components/audit/PresentationAuditPage';
 import DevMenuPage from './components/dev/DevMenuPage';
@@ -3656,7 +3657,7 @@ function AppInner() {
               onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
               onOpenReport={(reportId) => {
                 const reportUrl = `${window.location.origin}/report/${reportId}`;
-                window.open(reportUrl, '_blank', 'noopener,noreferrer');
+                openUrlInSystemBrowser(reportUrl);
               }}
               onOpenEngineerRoute={() => setJourney('engineer')}
               onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
@@ -3972,7 +3973,7 @@ function AppInner() {
                   try {
                     const parsed = new URL(payload.generatedOutputMetadata.portalUrl);
                     if (parsed.protocol === 'https:' || (import.meta.env.DEV && parsed.protocol === 'http:')) {
-                      window.open(payload.generatedOutputMetadata.portalUrl, '_blank', 'noopener,noreferrer');
+                      openUrlInSystemBrowser(payload.generatedOutputMetadata.portalUrl);
                       return;
                     }
                   } catch {

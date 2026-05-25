@@ -344,9 +344,18 @@ describe('CustomerAdvicePrintPack — portal CTA block', () => {
       />,
     );
     expect(screen.getByTestId('capp-engineer-handoff')).toBeTruthy();
-    expect(screen.getByText('Engineer Hand-off')).toBeTruthy();
+    expect(screen.getByText('Engineer Hand-off & Scan')).toBeTruthy();
+    expect(screen.getByText('Verified structural inputs')).toBeTruthy();
+    expect(screen.getByText('Core hardware allocation options')).toBeTruthy();
     const link = screen.getByText('Open Atlas Scan App deep link');
     expect(link.getAttribute('href')).toContain('scan-package=1');
+  });
+
+  it('renders the practical outcomes timeline on the verdict page', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.getByTestId('capp-practical-outcomes')).toBeTruthy();
+    expect(screen.getByText('Practical outcomes')).toBeTruthy();
+    expect(screen.getByText('Survey brief')).toBeTruthy();
   });
 
   it('renders updated page labels for pages 1 to 3', () => {
