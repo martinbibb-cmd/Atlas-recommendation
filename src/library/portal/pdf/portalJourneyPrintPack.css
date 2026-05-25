@@ -50,6 +50,8 @@
 .pjpp-cover-header {
   border-bottom: 2px solid #334155;
   padding-bottom: 1.5rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .pjpp-cover-brand {
@@ -79,6 +81,43 @@
   border-left: 4px solid #475569;
   padding: 1rem 1.25rem;
   border-radius: 4px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pjpp-demographics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin-top: 0.8rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pjpp-demographics-grid__cell {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.65rem 0.75rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pjpp-demographics-grid__label {
+  margin: 0;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pjpp-demographics-grid__value {
+  margin: 0.22rem 0 0;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.92rem;
+  white-space: normal;
 }
 
 .pjpp-cover-confidence {
@@ -135,6 +174,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .pjpp-section__heading {
@@ -304,6 +345,8 @@
   background: #f9fafb;
   color: #374151;
   font-size: 0.85rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 /* ─── Next steps page ─────────────────────────────────────────────────────── */
@@ -349,6 +392,8 @@
   border-radius: 8px;
   background: #fff;
   padding: 0.25rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 .pjpp-next-steps__label {
@@ -415,6 +460,77 @@
   margin: 0;
 }
 
+/* ─── Technical hand-off section ───────────────────────────────────────────── */
+
+.technical-handoff-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pjpp-technical-handoff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.pjpp-technical-handoff__column {
+  width: 50%;
+  max-width: 50%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.75rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pjpp-technical-handoff__title {
+  margin: 0 0 0.65rem;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.pjpp-technical-handoff__rows {
+  margin: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.pjpp-technical-handoff__row {
+  margin: 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid #e2e8f0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pjpp-technical-handoff__row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.pjpp-technical-handoff__row dt {
+  margin: 0;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.pjpp-technical-handoff__row dd {
+  margin: 0.2rem 0 0;
+  color: #0f172a;
+  font-size: 0.85rem;
+  white-space: normal;
+}
+
 /* ─── Print media overrides ───────────────────────────────────────────────── */
 
 @media print {
@@ -446,6 +562,8 @@
   .pjpp-outcome-card,
   .pjpp-next-steps__card,
   .pjpp-cover-facts,
+  .pjpp-demographics-grid__cell,
+  .pjpp-technical-handoff__column,
   .pjpp-section__takeaway,
   .pjpp-visual-grammar,
   .pjpp-cover-confidence {

@@ -48,6 +48,13 @@ describe('PortalJourneyPrintPack — document structure', () => {
     expect(screen.getByTestId('pjpp-next-steps')).toBeInTheDocument();
   });
 
+  it('renders technical hand-off section', () => {
+    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    expect(screen.getByTestId('pjpp-technical-handoff')).toBeInTheDocument();
+    expect(screen.getByTestId('pjpp-technical-handoff-physical')).toBeInTheDocument();
+    expect(screen.getByTestId('pjpp-technical-handoff-planned')).toBeInTheDocument();
+  });
+
   it('renders recommendation reason cards section', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(screen.getByTestId('pjpp-recommendation-reasons')).toBeInTheDocument();
@@ -95,8 +102,13 @@ describe('PortalJourneyPrintPack — cover page', () => {
   it('renders the customer facts', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     const factsEl = screen.getByTestId('pjpp-cover-facts');
-    expect(within(factsEl).getAllByText('4-person household').length).toBeGreaterThan(0);
-    expect(within(factsEl).getAllByText('2 bathrooms').length).toBeGreaterThan(0);
+    const demographicsGrid = within(factsEl).getByTestId('pjpp-demographics-grid');
+    expect(within(demographicsGrid).getByText('Occupants')).toBeInTheDocument();
+    expect(within(demographicsGrid).getByText('Bathrooms')).toBeInTheDocument();
+    expect(within(demographicsGrid).getByText('Peak Heat Loss (kW)')).toBeInTheDocument();
+    expect(within(demographicsGrid).getByText('Hot Water Demand')).toBeInTheDocument();
+    expect(within(demographicsGrid).getAllByText('4-person household').length).toBeGreaterThan(0);
+    expect(within(demographicsGrid).getAllByText('2 bathrooms').length).toBeGreaterThan(0);
     expect(screen.getByTestId('pjpp-cover-confidence')).toBeInTheDocument();
     expect(screen.getByTestId('pjpp-cover-fact-chips')).toBeInTheDocument();
   });
@@ -256,6 +268,7 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
       'Why stored hot water helps',
       'How the cylinder keeps itself safe',
       'What happens next',
+      'Technical site hand-off',
     ]);
   });
 
