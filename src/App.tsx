@@ -224,6 +224,9 @@ import {
 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import type { SurveySystemConditionV1 } from './library/portal/pdf/buildPortalJourneyPrintModel';
 import { resolveCustomerDocumentSourceV1 } from './library/portal/pdf/CustomerDocumentSourceV1';
+import { buildCalmWelcomePackFromAtlasDecision } from './library/packRenderer';
+import { buildLibraryAudienceProjection } from './library/projections';
+import type { LibraryContentProjectionV1 } from './library/projections';
 import type { PortalLaunchPayloadV1 } from './features/portalLaunch';
 import {
   buildScanLaunchPayload,
@@ -518,6 +521,7 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
   readonly activeSnapshotId?: string;
   readonly portalVisitContext?: PersistedPortalVisitContext;
   readonly generatedAt?: string;
+  readonly scenarios?: ScenarioResult[];
 }): GeneratedOutputsV1 {
   const outputs = withArtifactSnapshotId(input.generatedOutputs, input.activeSnapshotId);
   if (readCustomerJourneyPackFromGeneratedOutputs(outputs) != null) {
@@ -556,6 +560,24 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
   ) {
     console.error('[Atlas] Non-canonical routing: combi recommendation received cylinder recovery concept tags.');
   }
+  let audienceProjection: LibraryContentProjectionV1 | undefined;
+  if (input.decision != null && input.customerSummary != null && input.scenarios != null && input.scenarios.length > 0) {
+    try {
+      const { calmViewModel } = buildCalmWelcomePackFromAtlasDecision({
+        customerSummary: input.customerSummary,
+        atlasDecision: input.decision,
+        scenarios: input.scenarios,
+      });
+      audienceProjection = buildLibraryAudienceProjection({
+        calmViewModel,
+        operationalDigest: { digestVersion: 'v1', generatedAt: new Date().toISOString(), primaryItemLimit: 0, totalItems: 0, items: [] },
+        educationalContent: [],
+        audience: 'customer',
+      });
+    } catch {
+      // Library projection failed — build customer pack without audience filtering.
+    }
+  }
   const customerJourneyPack = buildCustomerJourneyPack({
     selectedSectionIds: routedSelection.selectedSectionIds,
     educationalConceptTags: routedSelection.conceptTags,
@@ -573,6 +595,7 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
     recommendationIntent,
     visitContext: input.portalVisitContext,
     surveyCondition,
+    audienceProjection,
     liveExperienceExplanations: [
       input.decision?.dayToDayOutcomes[0],
       input.customerSummary.plainEnglishDecision,
@@ -1538,6 +1561,7 @@ function AppInner() {
       activeSnapshotId: persisted.recommendationSnapshot?.snapshotId,
       portalVisitContext: persisted.portalVisitContext,
       generatedAt: persisted.updatedAt,
+      scenarios: persisted.scenarios,
     });
     const recommendationReady = isRecommendationReadyForLifecycle({
       decision: persisted.decision,
@@ -1639,6 +1663,7 @@ function AppInner() {
       decision: decisionSnapshot,
       activeSnapshotId: existingSnapshot?.recommendationSnapshot?.snapshotId,
       portalVisitContext: labPortalVisitContext,
+      scenarios: scenariosSnapshot,
     });
     const lifecycleState = dispatchVisitJourneyEvent(
       existingSnapshot?.lifecycleState,
@@ -1742,6 +1767,7 @@ function AppInner() {
       decision: decisionSnapshot,
       activeSnapshotId: currentSnapshot?.recommendationSnapshot?.snapshotId,
       portalVisitContext: labPortalVisitContext,
+      scenarios: scenariosSnapshot,
     });
     const lifecycleState = dispatchVisitJourneyEvent(
       currentSnapshot?.lifecycleState,
@@ -1806,6 +1832,7 @@ function AppInner() {
       decision: persisted.decision,
       activeSnapshotId: persisted.recommendationSnapshot?.snapshotId,
       portalVisitContext: persisted.portalVisitContext,
+      scenarios: persisted.scenarios,
       generatedAt: persisted.updatedAt,
     });
     const recommendationReady = isRecommendationReadyForLifecycle({
@@ -1871,6 +1898,7 @@ function AppInner() {
       pkg.proposalTruth?.customerSummary
       ?? pkg.customerPropertyDetails.customerSummary;
     let derivedDecision: AtlasDecisionV1 | undefined = pkg.proposalTruth?.decision;
+    let derivedScenarios: ScenarioResult[] | undefined;
     // If customerSummary is missing but engine input is available, run the engine
     // synchronously so the customer portal can be auto-created immediately on load.
     if (recommendationSummary == null && pkg.engineInputSnapshot != null && pkg.surveyDraft != null) {
@@ -1879,6 +1907,7 @@ function AppInner() {
         const { engineOutput } = runEngine(sourceInput);
         const scenariosFromPkg = buildScenariosFromEngineOutput(engineOutput);
         if (scenariosFromPkg.length > 0) {
+          derivedScenarios = scenariosFromPkg;
           derivedDecision = derivedDecision ?? buildDecisionFromScenarios({
             scenarios: scenariosFromPkg,
             boilerType: toLifecycleBoilerType(sourceInput.currentHeatSourceType),
@@ -1911,6 +1940,7 @@ function AppInner() {
       activeSnapshotId: recommendationSnapshot?.snapshotId,
       portalVisitContext,
       generatedAt: pkg.importExportMetadata.exportedAt,
+      scenarios: derivedScenarios,
     });
     const hydratedGeneratedOutputs = generatedOutputs.portal.url === undefined || generatedOutputs.portal.url === null
       ? generatedOutputs
@@ -2095,6 +2125,7 @@ function AppInner() {
       resolvedExportCustomerSummary;
     let exportDecision: AtlasDecisionV1 | undefined =
       resolvedExportDecision;
+    let exportScenarios: ScenarioResult[] | undefined = currentSnapshot?.scenarios;
     // If customerSummary is missing but engine input is available, compute it
     // now so the PDF always renders the library customer document rather than
     // the fallback metadata-only view.
@@ -2103,6 +2134,7 @@ function AppInner() {
         const { engineOutput } = runEngine(exportEngineInput);
         const scenariosForExport = buildScenariosFromEngineOutput(engineOutput);
         if (scenariosForExport.length > 0) {
+          exportScenarios = exportScenarios ?? scenariosForExport;
           exportDecision = exportDecision ?? buildDecisionFromScenarios({
             scenarios: scenariosForExport,
             boilerType: toLifecycleBoilerType(exportEngineInput.currentHeatSourceType),
@@ -2167,6 +2199,7 @@ function AppInner() {
       activeSnapshotId: authoritySnapshot.snapshotId,
       portalVisitContext: exportPortalVisitContext,
       generatedAt: now,
+      scenarios: exportScenarios,
     });
     const generatedOutputs: GeneratedOutputsV1 = options?.markPdfGenerated === true
       ? {
@@ -2483,6 +2516,7 @@ function AppInner() {
       decision: snapshot.decision,
       activeSnapshotId: snapshot.recommendationSnapshot?.snapshotId,
       portalVisitContext: snapshot.portalVisitContext,
+      scenarios: snapshot.scenarios,
     });
     const enrichedSnapshot: VisitRecommendationSnapshot = {
       ...snapshot,
@@ -2553,6 +2587,7 @@ function AppInner() {
         activeSnapshotId: currentSnapshot?.recommendationSnapshot?.snapshotId,
         portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
         generatedAt: now,
+        scenarios: currentSnapshot?.scenarios,
       });
       const nextOutputs: GeneratedOutputsV1 = withGeneratedPortalOutput(generatedOutputs, {
         generatedAt: now,
@@ -2624,6 +2659,7 @@ function AppInner() {
         decision,
         activeSnapshotId: recommendationSnapshot.snapshotId,
         portalVisitContext: labPortalVisitContext,
+        scenarios: scenarios,
       });
       setVisitRecommendationSnapshot({
         visitId: demoVisitId,
@@ -4018,6 +4054,7 @@ function AppInner() {
                     activeSnapshotId: restored.visit.recommendationSnapshot?.snapshotId,
                     portalVisitContext: restored.visit.portalVisitContext,
                     generatedAt: restored.visit.updatedAt,
+                    scenarios: restored.visit.scenarios,
                   });
                   const recommendationReady = isRecommendationReadyForLifecycle({
                     decision: restored.visit.decision,
