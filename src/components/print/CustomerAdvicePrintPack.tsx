@@ -1423,7 +1423,7 @@ function TechnicalSiteHandoff({
     .filter((item) => item.status === 'optional')
     .map((item) => item.label)
     .slice(0, 8);
-  const confidence = (decision.lifecycle.installerConfidence ?? []).slice(0, 8);
+  const confidence = decision.lifecycle.riskIndicators.slice(0, 8);
 
   return (
     <section
