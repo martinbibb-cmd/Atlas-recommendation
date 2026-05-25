@@ -97,10 +97,10 @@ describe('EngineOutputV1 shape', () => {
     expect(storedVented.status).toBe('rejected');
   });
 
-  it('ashp is caution for 22mm pipes with high heat loss', () => {
+  it('ashp is rejected for 22mm pipes with high heat loss under hard viability gating', () => {
     const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 10000 });
     const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
-    expect(ashp.status).toBe('caution');
+    expect(ashp.status).toBe('rejected');
   });
 
   it('ashp is rejected for one-pipe topology', () => {
@@ -136,24 +136,22 @@ describe('EngineOutputV1 shape', () => {
 
   // ── HydraulicModuleV1 driving ASHP eligibility ────────────────────────────
 
-  it('ashp is caution (not rejected) when hydraulicV1 ashpRisk is fail (22mm + 14kW) — hydraulic advisory', () => {
-    // Hydraulic risk is advisory under the no-hard-stops policy. ASHP remains selectable
-    // with caveats. Only physical impossibilities (one-pipe topology, no outdoor space) → 'rejected'.
+  it('ashp is rejected when hydraulicV1 ashpRisk is fail (22mm + 14kW)', () => {
     const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 14000 });
     const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
-    expect(ashp.status).toBe('caution');
+    expect(ashp.status).toBe('rejected');
   });
 
-  it('ashp is caution when hydraulicV1 ashpRisk is warn (22mm + 8kW)', () => {
+  it('ashp is rejected when hydraulicV1 ashpRisk is warn (22mm + 8kW)', () => {
     const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 22, heatLossWatts: 8000 });
     const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
-    expect(ashp.status).toBe('caution');
+    expect(ashp.status).toBe('rejected');
   });
 
-  it('ashp is viable for 28mm + 14kW (hydraulicV1 ashpRisk pass)', () => {
+  it('ashp remains rejected when other hard viability blockers remain even if hydraulicV1 ashpRisk is pass', () => {
     const { engineOutput } = runEngine({ ...baseInput, primaryPipeDiameter: 28, heatLossWatts: 14000 });
     const ashp = engineOutput.eligibility.find(e => e.id === 'ashp')!;
-    expect(ashp.status).toBe('viable');
+    expect(ashp.status).toBe('rejected');
   });
 
   it('ashp caution for 22mm + 14kW has a reason string', () => {

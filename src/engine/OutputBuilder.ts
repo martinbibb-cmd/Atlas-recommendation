@@ -1,6 +1,7 @@
 import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInputV2_3';
 import type { EngineOutputV1, EligibilityItem, RedFlagItem, ExplainerItem, VisualSpecV1, EvidenceItemV1, VerdictV1, InfluenceSummaryV1 } from '../contracts/EngineOutputV1';
 import type { ApplianceFamily } from './topology/SystemTopology';
+import type { RecommendationViabilityStateV1 } from '../contracts/RecommendationViabilityStateV1';
 import { ENGINE_VERSION, CONTRACT_VERSION } from '../contracts/versions';
 import { buildOptionMatrixV1 } from './OptionMatrixBuilder';
 import { buildTimeline24hV1 } from './TimelineBuilder';
@@ -21,8 +22,21 @@ import { buildShowerCompatibilityNotes } from './modules/buildShowerCompatibilit
  * eligibility rather than the advisory 'caution' used for demand-side gates.
  */
 const COMBI_MIN_PRESSURE_FLAG_ID = 'combi-pressure-constraint' as const;
+type EligibilityStatusV1 = EligibilityItem['status'] | NonNullable<EngineOutputV1['options']>[number]['status'];
 
-function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3): EligibilityItem[] {
+function mapStatusToViabilityState(
+  status: EligibilityStatusV1,
+): RecommendationViabilityStateV1 {
+  if (status === 'viable') return 'viable';
+  if (status === 'caution') return 'conditional';
+  return 'blocked';
+}
+
+function buildEligibility(
+  result: FullEngineResultCore,
+  input?: EngineInputV2_3,
+  hpViabilityState?: RecommendationViabilityStateV1,
+): EligibilityItem[] {
   const { redFlags, hydraulicV1, combiDhwV1, storedDhwV1 } = result;
   const items: EligibilityItem[] = [];
   const spacePriority = input?.expertAssumptions?.spaceSavingPriority;
@@ -85,6 +99,7 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
     id: 'on_demand',
     label: 'On Demand (Combi)',
     status: onDemandStatus,
+    viabilityState: mapStatusToViabilityState(onDemandStatus),
     reason: onDemandReason,
   });
 
@@ -114,6 +129,7 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
     id: 'stored_vented',
     label: 'Stored hot water — Vented cylinder',
     status: storedVentedStatus,
+    viabilityState: mapStatusToViabilityState(storedVentedStatus),
     reason: storedVentedReason,
   });
 
@@ -139,6 +155,7 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
     id: 'stored_unvented',
     label: 'Stored hot water — Unvented cylinder',
     status: storedUnventedStatus,
+    viabilityState: mapStatusToViabilityState(storedUnventedStatus),
     reason: storedUnventedReason,
   });
 
@@ -165,7 +182,8 @@ function buildEligibility(result: FullEngineResultCore, input?: EngineInputV2_3)
   items.push({
     id: 'ashp',
     label: 'Air Source Heat Pump',
-    status: ashpStatus,
+    status: hpViabilityState === 'blocked' ? 'rejected' : ashpStatus,
+    viabilityState: hpViabilityState ?? mapStatusToViabilityState(ashpStatus),
     reason: ashpStatus !== 'viable' ? ashpReasons || undefined : undefined,
   });
 
@@ -578,9 +596,10 @@ export function buildEngineOutputV1(
    * so that `recommendation.primary` always matches the evidence-backed ranking.
    */
   canonicalBestFamily?: ApplianceFamily | null,
+  hpViabilityState?: RecommendationViabilityStateV1,
 ): EngineOutputV1 {
   // ── Eligibility & confidence — computed early for the recommendation hierarchy ──
-  const eligibilityItems = buildEligibility(result, input);
+  const eligibilityItems = buildEligibility(result, input, hpViabilityState);
   const { confidence, assumptions } = buildAssumptionsV1(result, input);
 
   // ── Recommendation resolver V1 ────────────────────────────────────────────
@@ -864,6 +883,18 @@ export function buildEngineOutputV1(
   // confidence and assumptions computed at the top of this function for the hierarchy.
 
   const options = input ? buildOptionMatrixV1(result, input, canonicalBestFamily) : undefined;
+  if (options != null) {
+    for (const option of options) {
+      if (option.viabilityState == null) {
+        option.viabilityState = mapStatusToViabilityState(option.status);
+      }
+      if (option.id === 'ashp' && hpViabilityState === 'blocked') {
+        option.status = 'rejected';
+        option.viabilityState = 'blocked';
+        option.headline = 'ASHP blocked for this home — only a major-upgrades pathway may be viable.';
+      }
+    }
+  }
   const explainers = buildExplainers(result, input);
 
   // ── Behaviour Console additions ───────────────────────────────────────────

@@ -21,6 +21,7 @@ function makePackage(options?: { readonly includeCustomerJourneyPack?: boolean }
     recommendationSummary: 'System boiler with cylinder: Best fit for this home',
     customerFacts: ['3-person household', '2 bathrooms'],
     journeyType: 'open_vented',
+    recommendationViabilityState: 'viable',
   });
 
   return buildCanonicalVisitPackage({
@@ -185,6 +186,38 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
     });
     expect(state.customerPdfReady).toBe(false);
     expect(state.customerPdfBlockReasons[0]).toMatch(/stale/i);
+  });
+
+  it('blocks customer PDF when packaged recommendation viability is blocked', () => {
+    const blockedPack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Heat pump route',
+      customerFacts: ['2 bathrooms'],
+      journeyType: 'heat_pump',
+      recommendationViabilityState: 'blocked',
+    });
+    const sourcePackage = buildCanonicalVisitPackage({
+      packageData: {
+        ...makePackage(),
+        generatedOutputStatus: {
+          ...makePackage().generatedOutputStatus,
+          generatedOutputs: {
+            ...makePackage().generatedOutputStatus?.generatedOutputs,
+            customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+              customerJourneyPack: blockedPack,
+              generatedAt: '2026-05-20T10:02:00.000Z',
+              snapshotId: 'snapshot-visit-home-001',
+            }),
+          },
+        },
+      },
+    });
+    const state = buildVisitHomeCustomerArtifactsState({
+      canExportVisitPackage: true,
+      sourcePackage,
+    });
+    expect(state.customerPdfReady).toBe(false);
+    expect(state.customerPdfBlockReasons.some((reason) => /blocked/i.test(reason))).toBe(true);
   });
 });
 

@@ -117,21 +117,19 @@ describe('PR12 migration — canonical evidence path', () => {
     }
   });
 
-  it('tight space produces space_for_cylinder_unavailable advisory (no hard-stop — advice only policy)', () => {
+  it('tight space produces blocked candidates under hard viability gating', () => {
     // tight space triggers space_for_cylinder_unavailable limiter on stored/heat_pump families
     const result = runEngine(TIGHT_SPACE_INPUT);
     const { disqualifiedCandidates, bestOverall } = result.recommendationResult;
-    // Per "no hard stops" policy, no candidate should be disqualified as not_recommended.
-    expect(disqualifiedCandidates.length).toBe(0);
-    // A recommendation must still be produced — tight space is advisory only.
+    expect(disqualifiedCandidates.length).toBeGreaterThan(0);
+    // A recommendation must still be produced from remaining viable families.
     expect(bestOverall).toBeDefined();
   });
 
-  it('disqualifiedCandidates is empty — no hard stops in advice-only policy', () => {
-    // With the advice-only policy, no candidate should ever be fully disqualified.
+  it('disqualifiedCandidates is populated when hard blockers are present', () => {
     const result = runEngine(TIGHT_SPACE_INPUT);
     const { disqualifiedCandidates } = result.recommendationResult;
-    expect(disqualifiedCandidates.length).toBe(0);
+    expect(disqualifiedCandidates.length).toBeGreaterThan(0);
   });
 
   it('all intervention sourceLimiterIds reference real limiter IDs', () => {

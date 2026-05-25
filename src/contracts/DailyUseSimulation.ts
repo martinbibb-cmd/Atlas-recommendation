@@ -71,6 +71,8 @@ export type DailyUseSimulationStep = {
 export type DailyUseSimulation = {
   /** scenarioId of the scenario this simulation describes. */
   scenarioId: string;
+  /** Canonical viability state for this simulated scenario. */
+  viabilityState?: import('./RecommendationViabilityStateV1').RecommendationViabilityStateV1;
   /** Customer-facing panel title. */
   title: string;
   /** Ordered list of simulated events. */

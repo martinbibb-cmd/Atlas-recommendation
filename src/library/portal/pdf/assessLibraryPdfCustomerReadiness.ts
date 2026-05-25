@@ -57,6 +57,13 @@ export function assessLibraryPdfCustomerReadiness(
     for (const reason of projectionSafety.blockingReasons) {
       blockingReasons.push(`Projection safety: ${reason}`);
     }
+
+    if (printModel.sections.some((section) => (section.evidenceTags?.length ?? 0) === 0)) {
+      blockingReasons.push('PDF QA blocked: one or more sections are missing evidence tags.');
+    }
+    if (printModel.recommendationReasons.some((reason) => (reason.evidenceTags?.length ?? 0) === 0)) {
+      blockingReasons.push('PDF QA blocked: recommendation reason cards are missing evidence tags.');
+    }
   }
 
   if (surveyCondition == null) {

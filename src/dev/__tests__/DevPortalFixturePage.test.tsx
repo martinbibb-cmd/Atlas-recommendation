@@ -446,16 +446,17 @@ describe('DevPortalFixturePage — implementation pack', () => {
     );
   });
 
-  it('Scope packs step shows heat pump packs for heat pump fixture', async () => {
+  it('Scope packs step suppresses heat pump packs when heat pump path is blocked', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-heat_pump_low_temp'));
     await waitFor(() => expect(screen.getByTestId('dev-workflow-step-scope-packs')).toBeTruthy());
 
     fireEvent.click(screen.getByTestId('dev-workflow-step-scope-packs-toggle'));
     await waitFor(() =>
-      expect(screen.getByTestId('scope-pack-card-heat_pump_emitter_review')).toBeTruthy(),
+      expect(screen.getByTestId('dev-implementation-pack-recommendation').textContent).toContain('stored_unvented'),
     );
-    expect(screen.getByTestId('scope-pack-card-heat_pump_hydraulic_review')).toBeTruthy();
+    expect(screen.queryByTestId('scope-pack-card-heat_pump_emitter_review')).toBeNull();
+    expect(screen.queryByTestId('scope-pack-card-heat_pump_hydraulic_review')).toBeNull();
   });
 
   it('stored/unvented shows G3 qualification', async () => {
@@ -465,12 +466,12 @@ describe('DevPortalFixturePage — implementation pack', () => {
     expect(within(panel).getAllByText(/G3 Unvented Hot Water Installer/i).length).toBeGreaterThan(0);
   });
 
-  it('heat pump shows MCS and emitter review', async () => {
+  it('blocked heat pump fixture omits MCS and emitter-review pack copy', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-implementation-heat_pump_low_temp'));
     const panel = await screen.findByTestId('dev-implementation-pack-panel');
-    expect(within(panel).getAllByText(/MCS-Certified Heat Pump Installer/i).length).toBeGreaterThan(0);
-    expect(within(panel).getAllByText(/Emitter suitability for heat pump flow temperatures has not been confirmed/i).length).toBeGreaterThan(0);
+    expect(within(panel).queryByText(/MCS-Certified Heat Pump Installer/i)).toBeNull();
+    expect(within(panel).queryByText(/Emitter suitability for heat pump flow temperatures has not been confirmed/i)).toBeNull();
   });
 
   it('open-vented shows loft capping and filling loop in handover preview step', async () => {

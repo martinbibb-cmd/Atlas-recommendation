@@ -4,6 +4,7 @@ import type { PenaltyId } from './scoring.penaltyIds';
 import type { InstallMarkupAnalysisV1 } from '../features/installMarkup/installMarkup.types';
 import type { ControlsAdviceV1 } from '../engine/modules/ControlsAdviceModule';
 import type { ShowerCompatibilityNote } from '../engine/modules/buildShowerCompatibilityNotes';
+import type { RecommendationViabilityStateV1 } from './RecommendationViabilityStateV1';
 
 export interface AssumptionV1 {
   id: AssumptionId;
@@ -36,6 +37,7 @@ export interface EligibilityItem {
   id: 'on_demand' | 'stored_vented' | 'stored_unvented' | 'ashp';
   label: string;
   status: 'viable' | 'rejected' | 'caution';
+  viabilityState?: RecommendationViabilityStateV1;
   reason?: string;
 }
 
@@ -122,6 +124,7 @@ export interface OptionCardV1 {
   id: 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp' | 'regular_vented' | 'system_unvented';
   label: string;
   status: 'viable' | 'caution' | 'rejected';
+  viabilityState?: RecommendationViabilityStateV1;
   headline: string;
   /**
    * Confidence badge shown at the top of the option card — not buried in an evidence table.

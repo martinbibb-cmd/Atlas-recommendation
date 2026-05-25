@@ -52,7 +52,7 @@ describe('resolveVisitSessionReference', () => {
 });
 
 describe('resolveCanonicalVisitExportState', () => {
-  it('prefers the latest saved visit state over stale in-memory defaults', () => {
+  it('prefers canonical visit reference over mutable saved/in-memory labels', () => {
     const savedSurvey = {
       postcode: 'AB1 2CD',
       fullSurvey: {
@@ -163,7 +163,7 @@ describe('resolveCanonicalVisitExportState', () => {
     expect(result).toBeDefined();
     expect(result?.exportSurveyModel).toBe(savedSurvey);
     expect(result?.exportEngineInput).toMatchObject({ bathroomCount: 2, occupancyCount: 4 });
-    expect(result?.visitReference).toBe('Project Maple');
+    expect(result?.visitReference).toBe('Imported Package');
     expect(result?.selectedScenarioId).toBe('scenario_saved');
   });
 

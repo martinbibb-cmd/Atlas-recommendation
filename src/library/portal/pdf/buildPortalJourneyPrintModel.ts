@@ -32,6 +32,7 @@ import type { VisitEnvelopeV1 } from '../../../contracts/VisitEnvelopeV1';
 import type { CanonicalVisitPackageV1 } from '../../../features/visitPackage/CanonicalVisitPackageV1';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 import type { GeneratedOutputsV1 } from '../../../lib/storage/visitReviewLifecycle';
+import type { RecommendationViabilityStateV1 } from '../../../contracts/RecommendationViabilityStateV1';
 import { resolvePortalAddressSummary } from '../../../lib/portal/portalVisitContext';
 import {
   buildSystemProtectionSummary,
@@ -94,6 +95,14 @@ export interface RecommendationReasonBlockV1 {
   atlasRecommendationOutcome: string;
   practicalEffect: string;
   detail?: string;
+  evidenceTags?: RecommendationEvidenceTagV1[];
+}
+
+export interface RecommendationEvidenceTagV1 {
+  source: string;
+  metric: string;
+  trigger: string;
+  recommendationReasonCategory?: RecommendationReasonCategoryV1;
 }
 
 export interface PortalJourneyPrintSectionV1 {
@@ -123,6 +132,8 @@ export interface PortalJourneyPrintSectionV1 {
   diagramId?: string;
   /** DiagramRenderer ID to use when known for this section */
   diagramRendererId?: string;
+  /** Evidence tags proving why this section is shown for this home. */
+  evidenceTags?: RecommendationEvidenceTagV1[];
 }
 
 export interface PortalJourneyPrintNextStepV1 {
@@ -138,6 +149,7 @@ export interface PortalJourneyPrintQrDestinationV1 {
 export interface PortalJourneyPrintModelV1 {
   cover: PortalJourneyPrintCoverV1;
   recommendationReasons: RecommendationReasonBlockV1[];
+  recommendationViabilityState?: RecommendationViabilityStateV1;
   sections: PortalJourneyPrintSectionV1[];
   nextSteps: PortalJourneyPrintNextStepV1[];
   qrDestinations: PortalJourneyPrintQrDestinationV1[];
@@ -202,6 +214,8 @@ export interface BuildPortalJourneyPrintModelInputV1 {
   recommendationIntent?: RecommendationIntentCategoryV1;
   /** Routed educational concept tags selected from recommendation evidence. */
   educationalConceptTags?: EducationalConceptTagV1[];
+  /** Canonical viability state of the recommended pathway. */
+  recommendationViabilityState?: RecommendationViabilityStateV1;
 }
 
 export const CUSTOMER_JOURNEY_PACK_SCHEMA = 'atlas.customer-journey-pack' as const;
@@ -785,6 +799,10 @@ function buildOpenVentedSectionsAndNextSteps(
 function buildHeatPumpSectionsAndNextSteps(
   selectedSet: Set<string>,
   conceptTagSet: Set<EducationalConceptTagV1>,
+  signals: {
+    allowWarmRadiatorSection: boolean;
+    allowDefrostSection: boolean;
+  },
 ): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
   const conE02 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_E02');
   const conE01 = atlasMvpContentMapRegistry.find((e) => e.id === 'CON_E01');
@@ -800,7 +818,7 @@ function buildHeatPumpSectionsAndNextSteps(
 
   const sections: PortalJourneyPrintSectionV1[] = [];
 
-  if (selectedSet.has('CON_E02') || selectedSet.size === 0) {
+  if ((selectedSet.has('CON_E02') || selectedSet.size === 0) && signals.allowWarmRadiatorSection) {
     sections.push({
       contentId: 'CON_E02',
       sectionId: 'warm_not_hot_radiators',
@@ -839,7 +857,7 @@ function buildHeatPumpSectionsAndNextSteps(
     });
   }
 
-  if (selectedSet.has('CON_H01') || selectedSet.size === 0) {
+  if ((selectedSet.has('CON_H01') || selectedSet.size === 0) && signals.allowDefrostSection) {
     sections.push({
       contentId: 'CON_H01',
       sectionId: 'winter_behaviour',
@@ -1560,6 +1578,29 @@ function shouldExcludeCylinderSections(
   return intent === 'combi_replacement';
 }
 
+function buildSectionEvidenceTags(section: PortalJourneyPrintSectionV1): RecommendationEvidenceTagV1[] {
+  switch (section.sectionId) {
+    case 'warm_not_hot_radiators':
+      return [{ source: 'recommendation', metric: 'requiredFlowTempC', trigger: 'low_temperature_operation', recommendationReasonCategory: 'emitter_upgrade_required' }];
+    case 'winter_behaviour':
+      return [{ source: 'recommendation', metric: 'heatSource', trigger: 'ashp_selected_and_viable', recommendationReasonCategory: 'emitter_upgrade_required' }];
+    case 'pressure_vs_storage':
+      return [{ source: 'survey', metric: 'dynamicMainsPressure/mainsDynamicFlowLpm', trigger: 'pressure_storage_split', recommendationReasonCategory: 'mains_flow_pressure' }];
+    case 'stored_hot_water_recovery_timeline':
+      return [{ source: 'recommendation.evidence', metric: 'peak/recovery signals', trigger: 'recovery_or_overlap_evidence', recommendationReasonCategory: 'hot_water_system_type' }];
+    default:
+      return [{ source: 'recommendation', metric: section.contentId, trigger: 'selected_for_home' }];
+  }
+}
+
+function sectionHasReasonEvidence(
+  section: PortalJourneyPrintSectionV1,
+): boolean {
+  const tags = section.evidenceTags ?? [];
+  if (tags.length === 0) return false;
+  return true;
+}
+
 function buildPortalJourneyPrintModelCore(
   input: BuildPortalJourneyPrintModelInputV1,
 ): PortalJourneyPrintModelV1 {
@@ -1576,6 +1617,7 @@ function buildPortalJourneyPrintModelCore(
     recommendationReasons,
     recommendationIntent,
     educationalConceptTags = [],
+    recommendationViabilityState,
   } = input;
 
   const selectedSet = new Set(selectedSectionIds);
@@ -1593,29 +1635,64 @@ function buildPortalJourneyPrintModelCore(
     ...(addressSummary ? { addressSummary } : {}),
   };
 
-  const { sections: rawSections, nextSteps, qrDestinations } =
-    journeyType === 'heat_pump'
-      ? buildHeatPumpSectionsAndNextSteps(selectedSet, conceptTagSet)
-      : journeyType === 'open_vented'
-      ? buildOpenVentedSectionsAndNextSteps(selectedSet, conceptTagSet)
-      : buildGenericRecommendationContent({ conceptTagSet });
-
-  const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
-  const excludeCylinder = shouldExcludeCylinderSections(recommendationIntent);
-  const sections = rawSections.filter((section) => {
-    if (excludeCylinder && CYLINDER_ONLY_SECTION_IDS.has(section.sectionId)) return false;
-    if (audienceProjection == null) return true;
-    if (!registryConceptIdSet.has(section.contentId)) return true;
-    return audienceProjection.visibleConcepts.includes(section.contentId);
-  });
-
   const normalizedRecommendationReasons = (recommendationReasons ?? [])
     .filter((reason) =>
       hasText(reason.homeFact)
       && hasText(reason.whyItMatters)
       && hasText(reason.atlasRecommendationOutcome)
       && hasText(reason.practicalEffect))
+    .map((reason) => ({
+      ...reason,
+      evidenceTags: (reason.evidenceTags != null && reason.evidenceTags.length > 0)
+        ? reason.evidenceTags
+        : [{
+          source: 'recommendation_reason',
+          metric: reason.category,
+          trigger: reason.homeFact,
+          recommendationReasonCategory: reason.category,
+        }],
+    }))
     .slice(0, 5);
+
+  const summaryLower = recommendationSummary.toLowerCase();
+  const isHeatPumpSelected = summaryLower.includes('heat pump') || summaryLower.includes('ashp');
+  const allowHeatPumpEducationalSections = recommendationViabilityState !== 'blocked';
+  const allowWarmRadiatorSection = allowHeatPumpEducationalSections
+    && (
+      selectedSet.has('CON_E02')
+      || selectedSet.size === 0
+      || conceptTagSet.has('warm_vs_hot_radiators')
+      || normalizedRecommendationReasons.some((reason) => reason.category === 'emitter_upgrade_required')
+    );
+  const allowDefrostSection = allowHeatPumpEducationalSections
+    && isHeatPumpSelected
+    && (recommendationViabilityState == null || recommendationViabilityState === 'viable');
+
+  const effectiveConceptTagSet = allowHeatPumpEducationalSections
+    ? conceptTagSet
+    : new Set([...conceptTagSet].filter((tag) => tag !== 'warm_vs_hot_radiators'));
+
+  const { sections: rawSections, nextSteps, qrDestinations } =
+    journeyType === 'heat_pump' && allowHeatPumpEducationalSections
+      ? buildHeatPumpSectionsAndNextSteps(selectedSet, effectiveConceptTagSet, {
+        allowWarmRadiatorSection,
+        allowDefrostSection,
+      })
+      : journeyType === 'open_vented'
+      ? buildOpenVentedSectionsAndNextSteps(selectedSet, effectiveConceptTagSet)
+      : buildGenericRecommendationContent({ conceptTagSet: effectiveConceptTagSet });
+
+  const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
+  const excludeCylinder = shouldExcludeCylinderSections(recommendationIntent);
+  const sections = rawSections
+    .map((section) => ({ ...section, evidenceTags: section.evidenceTags ?? buildSectionEvidenceTags(section) }))
+    .filter((section) => {
+      if (excludeCylinder && CYLINDER_ONLY_SECTION_IDS.has(section.sectionId)) return false;
+      if (audienceProjection != null && registryConceptIdSet.has(section.contentId)) {
+        if (!audienceProjection.visibleConcepts.includes(section.contentId)) return false;
+      }
+      return sectionHasReasonEvidence(section);
+    });
   const usedPages = Math.min(1 + (normalizedRecommendationReasons.length > 0 ? 1 : 0) + sections.length + 1, 7);
   const systemProtection = surveyCondition != null
     ? buildSystemProtectionSummary(surveyCondition)
@@ -1624,6 +1701,7 @@ function buildPortalJourneyPrintModelCore(
   return {
     cover,
     recommendationReasons: normalizedRecommendationReasons,
+    ...(recommendationViabilityState != null ? { recommendationViabilityState } : {}),
     sections,
     nextSteps,
     qrDestinations,
@@ -1675,6 +1753,7 @@ export function buildCustomerJourneyPack(
     recommendationReasons,
     recommendationIntent: resolvedIntent,
     educationalConceptTags: conceptSelection.conceptTags,
+    recommendationViabilityState: input.recommendationViabilityState,
   });
 
   return {

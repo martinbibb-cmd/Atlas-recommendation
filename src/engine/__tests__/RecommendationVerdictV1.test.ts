@@ -190,6 +190,23 @@ describe('Regression 2 — ASHP with pipework flag appears in futurePath only', 
     const futureLabels = presentation.futurePath.map(f => f.label.toLowerCase());
     expect(futureLabels.some(l => l.includes('heat pump') || l.includes('ashp'))).toBe(true);
   });
+
+  it('blocked HP never coexists as primary recommendation and only appears as major-upgrade pathway when explicit', () => {
+    const input: EngineInputV2_3 = {
+      ...BASE_INPUT,
+      heatLossWatts: 9500,
+      primaryPipeDiameter: 22,
+      hasOutdoorSpaceForHeatPump: false,
+      pipingTopology: 'two_pipe',
+    };
+    const result = runEngine(input);
+    const verdict = buildRecommendationVerdict(result, input);
+    expect(verdict.recommendedFamily).not.toBe('heat_pump');
+    const hpFuturePath = verdict.futurePath.find((entry) => entry.family === 'heat_pump');
+    if (hpFuturePath != null) {
+      expect(hpFuturePath.requiredWork.toLowerCase()).toContain('major');
+    }
+  });
 });
 
 // ─── Regression 3: stored hot water wins for high concurrency ─────────────────

@@ -151,6 +151,10 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
     performancePenalties.push(...option.heat.bullets.slice(0, 3));
   }
 
+  const viabilityState =
+    option.viabilityState
+    ?? (option.status === 'viable' ? 'viable' : option.status === 'caution' ? 'conditional' : 'blocked');
+
   return {
     scenarioId:       option.id,
     system:           { type: systemType, summary: option.headline || option.label },
@@ -164,6 +168,7 @@ function adaptOption(option: OptionCardV1): ScenarioResult {
     efficiencyMetric: deriveEfficiencyMetric(option),
     ...(hardConstraints.length > 0    ? { hardConstraints }    : {}),
     ...(performancePenalties.length > 0 ? { performancePenalties } : {}),
+    viabilityState,
   };
 }
 

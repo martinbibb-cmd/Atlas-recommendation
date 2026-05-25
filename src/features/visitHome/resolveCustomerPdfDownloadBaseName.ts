@@ -1,21 +1,17 @@
 import type { VisitMeta } from '../../lib/visits/visitApi';
-
-function toSafeDownloadBaseName(value: string): string {
-  const trimmed = value.trim();
-  const safe = trimmed.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
-  return safe.length > 0 ? safe : 'atlas-visit';
-}
+import { resolveCanonicalVisitIdentityReference, toSafeDownloadBaseName } from './resolveCanonicalVisitIdentity';
 
 export function resolveCustomerPdfDownloadBaseName(
   visitMeta: Pick<VisitMeta, 'visit_reference' | 'address_line_1' | 'customer_name'> | null | undefined,
   visitReference: string | undefined,
   exportVisitId: string,
 ): string {
-  const preferredName =
-    visitReference
-    ?? visitMeta?.visit_reference
-    ?? visitMeta?.customer_name
-    ?? visitMeta?.address_line_1
-    ?? exportVisitId;
+  const preferredName = resolveCanonicalVisitIdentityReference({
+    canonicalVisitReference: visitReference,
+    customerOrProjectLabel: visitMeta?.visit_reference,
+    customerName: visitMeta?.customer_name,
+    addressLine1: visitMeta?.address_line_1,
+    visitId: exportVisitId,
+  });
   return toSafeDownloadBaseName(preferredName);
 }
