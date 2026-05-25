@@ -752,6 +752,14 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
   // Layer panel UI state (mirrors layersRef for rendering).
   const [layers, setLayers] = useState<Layer[]>(initialLayerData.layers);
   const [activeLayerId, setActiveLayerId] = useState<string>(initialLayerData.activeId);
+  const [storeysInput, setStoreysInput] = useState<string>(() => {
+    const initialActive = initialLayerData.layers.find(l => l.id === initialLayerData.activeId);
+    return String(initialActive?.storeys ?? DEFAULT_STOREYS);
+  });
+  const [ceilingHeightInput, setCeilingHeightInput] = useState<string>(() => {
+    const initialActive = initialLayerData.layers.find(l => l.id === initialLayerData.activeId);
+    return String(initialActive?.ceilingHeight ?? DEFAULT_CEILING_HEIGHT);
+  });
 
   // Reactive hint + result derived from drawing state
   const [hint, setHint]     = useState<string>('Click to place first corner point');
@@ -1041,6 +1049,47 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
     syncLayers();
     refreshResults();
   }, [syncLayers, refreshResults]);
+
+  const activeLayerForInputs = layers.find(l => l.id === activeLayerId) ?? null;
+  useEffect(() => {
+    if (!activeLayerForInputs || activeLayerForInputs.kind === 'reference') return;
+    setStoreysInput(String(activeLayerForInputs.storeys));
+    setCeilingHeightInput(String(activeLayerForInputs.ceilingHeight));
+  }, [activeLayerForInputs?.id, activeLayerForInputs?.storeys, activeLayerForInputs?.ceilingHeight, activeLayerForInputs?.kind]);
+
+  const commitStoreysInput = useCallback(() => {
+    const active = layersRef.current.find(l => l.id === activeLayerIdRef.current);
+    if (!active || active.kind === 'reference') return;
+    const value = storeysInput.trim();
+    if (!/^[+-]?\d+$/.test(value)) {
+      setStoreysInput(String(active.storeys ?? DEFAULT_STOREYS));
+      return;
+    }
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed)) {
+      setStoreysInput(String(active.storeys ?? DEFAULT_STOREYS));
+      return;
+    }
+    updateLayerHeight(active.id, parsed, undefined);
+    setStoreysInput(String(Math.max(1, parsed)));
+  }, [storeysInput, updateLayerHeight]);
+
+  const commitCeilingHeightInput = useCallback(() => {
+    const active = layersRef.current.find(l => l.id === activeLayerIdRef.current);
+    if (!active || active.kind === 'reference') return;
+    const value = ceilingHeightInput.trim();
+    if (!/^[+-]?(?:\d+|\d*\.\d+)$/.test(value)) {
+      setCeilingHeightInput(String(active.ceilingHeight ?? DEFAULT_CEILING_HEIGHT));
+      return;
+    }
+    const parsed = Number.parseFloat(value);
+    if (Number.isNaN(parsed)) {
+      setCeilingHeightInput(String(active.ceilingHeight ?? DEFAULT_CEILING_HEIGHT));
+      return;
+    }
+    updateLayerHeight(active.id, undefined, parsed);
+    setCeilingHeightInput(String(Math.max(2, parsed)));
+  }, [ceilingHeightInput, updateLayerHeight]);
 
   // ── Pointer events ─────────────────────────────────────────────────────────
 
@@ -1449,20 +1498,28 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                     <div className="hlc__field hlc__field--inline">
                       <label>Storeys</label>
                       <input
-                        type="number"
-                        min={1} max={5} step={1}
-                        value={activeLayerObj.storeys}
-                        onChange={e => updateLayerHeight(activeLayerId, parseInt(e.target.value, 10) || DEFAULT_STOREYS, undefined)}
+                        type="text"
+                        inputMode="numeric"
+                        value={storeysInput}
+                        onChange={e => {
+                          const next = e.target.value;
+                          if (/^[+-]?\d*$/.test(next)) setStoreysInput(next);
+                        }}
+                        onBlur={commitStoreysInput}
                         aria-label="Storeys for this layer"
                       />
                     </div>
                     <div className="hlc__field hlc__field--inline">
                       <label>Ceiling (m)</label>
                       <input
-                        type="number"
-                        min={2} max={4} step={0.1}
-                        value={activeLayerObj.ceilingHeight}
-                        onChange={e => updateLayerHeight(activeLayerId, undefined, parseFloat(e.target.value) || DEFAULT_CEILING_HEIGHT)}
+                        type="text"
+                        inputMode="decimal"
+                        value={ceilingHeightInput}
+                        onChange={e => {
+                          const next = e.target.value;
+                          if (/^[+-]?\d*(?:\.\d*)?$/.test(next)) setCeilingHeightInput(next);
+                        }}
+                        onBlur={commitCeilingHeightInput}
                         aria-label="Ceiling height for this layer in metres"
                       />
                     </div>

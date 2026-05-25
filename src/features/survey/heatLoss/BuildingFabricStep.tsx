@@ -26,7 +26,7 @@
  * via its initialShell prop.
  */
 
-import { type CSSProperties } from 'react';
+import { type CSSProperties, useEffect, useState } from 'react';
 import type { HeatLossState, ShellSettings } from './heatLossTypes';
 import { getStepMeta } from '../../../config/surveyStepRegistry';
 
@@ -186,6 +186,11 @@ export function BuildingFabricStep({
 }: BuildingFabricStepProps) {
   const stepMeta = getStepMeta('building_fabric');
   const s = readSettings(state);
+  const [storeysInput, setStoreysInput] = useState<string>(String(s.storeys));
+
+  useEffect(() => {
+    setStoreysInput(String(s.storeys));
+  }, [s.storeys]);
 
   const isFlat = s.dwellingType === 'flatGround' || s.dwellingType === 'flatMid' || s.dwellingType === 'flatPenthouse';
 
@@ -269,12 +274,28 @@ export function BuildingFabricStep({
             <label style={labelStyle}>Storey count</label>
             <input
               style={selectStyle}
-              type="number"
-              min={1}
-              max={10}
-              step={1}
-              value={s.storeys}
-              onChange={e => patch({ storeys: Math.max(1, Number.parseInt(e.target.value, 10) || 1) })}
+              type="text"
+              inputMode="numeric"
+              value={storeysInput}
+              onChange={e => {
+                const next = e.target.value;
+                if (/^[+-]?\d*$/.test(next)) setStoreysInput(next);
+              }}
+              onBlur={() => {
+                const value = storeysInput.trim();
+                if (!/^[+-]?\d+$/.test(value)) {
+                  setStoreysInput(String(s.storeys));
+                  return;
+                }
+                const parsed = Number.parseInt(value, 10);
+                if (Number.isNaN(parsed)) {
+                  setStoreysInput(String(s.storeys));
+                  return;
+                }
+                const nextStoreys = Math.max(1, parsed);
+                patch({ storeys: nextStoreys });
+                setStoreysInput(String(nextStoreys));
+              }}
               aria-label="Storey count"
             />
             <p style={hintStyle}>
