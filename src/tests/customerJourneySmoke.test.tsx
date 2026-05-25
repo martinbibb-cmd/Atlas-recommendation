@@ -6,18 +6,15 @@
  * Verifies the decision-first customer journey is reachable and coherent:
  *
  *   1. CustomerAdvicePrintPack renders as the default ?print=survey surface.
- *   2. CustomerRecommendationPrint is NOT rendered in the default customer path.
+ *   2. CustomerAdvicePrintPack remains the only ?print=survey customer path.
  *   3. CustomerDeck portal CTA fires onOpenPortal with the correct launchContext.
  *   4. PortalCtaBlockView button is disabled when onOpenPortal is absent (no dead CTA).
- *   5. Internal/diagnostic CustomerRecommendationPrint is guarded behind ?internal=1.
- *   6. Internal diagnostic report list is visibly labelled as internal.
- *   7. No customer-visible route exposes raw QA / engine-snapshot artefacts by default.
+ *   5. No customer-visible route exposes raw QA / engine-snapshot artefacts by default.
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { CustomerAdvicePrintPack } from '../components/print/CustomerAdvicePrintPack';
-import CustomerRecommendationPrint from '../components/print/CustomerRecommendationPrint';
 import { PortalCtaBlockView } from '../components/presentation/blocks/PortalCtaBlockView';
 import type { CustomerAdvicePrintPackProps } from '../components/print/CustomerAdvicePrintPack';
 import type { AtlasDecisionV1 } from '../contracts/AtlasDecisionV1';
@@ -174,9 +171,9 @@ describe('Customer print route — ?print=survey default surface', () => {
   });
 });
 
-// ─── 2. Old CustomerRecommendationPrint is not the default customer output ─────
+// ─── 2. CustomerAdvicePrintPack is the only ?print=survey customer output ──────
 
-describe('Internal/diagnostic guard — CustomerRecommendationPrint not default', () => {
+describe('Customer print guard — no internal diagnostic customer print surface', () => {
 
   it('CustomerAdvicePrintPack does not render any "Show raw JSON" controls', () => {
     render(<CustomerAdvicePrintPack {...makePackProps()} />);
@@ -189,10 +186,10 @@ describe('Internal/diagnostic guard — CustomerRecommendationPrint not default'
     expect(screen.queryByText(/overallScore/i)).toBeNull();
   });
 
-  it('CustomerRecommendationPrint is a separate component from CustomerAdvicePrintPack', () => {
-    // These are distinct named components — the default customer route imports
-    // CustomerAdvicePrintPack, not CustomerRecommendationPrint.
-    expect(CustomerAdvicePrintPack).not.toBe(CustomerRecommendationPrint);
+  it('keeps customer output focused on CustomerAdvicePrintPack content blocks', () => {
+    render(<CustomerAdvicePrintPack {...makePackProps()} />);
+    expect(screen.getByTestId('capp-document')).toBeTruthy();
+    expect(screen.queryByText(/internal/i)).toBeNull();
   });
 });
 
