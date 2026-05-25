@@ -256,44 +256,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
   }
 
-  // ── 7. Write the survey ledger row to D1 ────────────────────────────────────
+  // ── 7. Mark the visit as finalized in D1 ────────────────────────────────────
 
-  const ledgerId    = crypto.randomUUID();
   const finalizedAt = new Date().toISOString();
-
-  try {
-    await env.ATLAS_REPORTS_D1.prepare(
-      `INSERT INTO survey_ledger
-         (id, visit_id, user_id, customer_name, postcode, finalized_at,
-          drive_folder_id, drive_folder_url,
-          drive_data_file_id, drive_data_file_url,
-          drive_pdf_file_id,  drive_pdf_file_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(
-        ledgerId,
-        visitId,
-        userId,
-        visit.customer_name ?? null,
-        visit.postcode      ?? null,
-        finalizedAt,
-        surveyFolder.id,
-        surveyFolder.webViewLink,
-        dataFile.id,
-        dataFile.webViewLink,
-        pdfFile?.id          ?? null,
-        pdfFile?.webViewLink ?? null,
-      )
-      .run();
-  } catch (err) {
-    console.error(`[Atlas] Finalize: ledger insert failed visit=${visitId}:`, String(err));
-    if (isMissingTableError(err) || isMissingColumnError(err)) {
-      return Response.json(SCHEMA_DRIFT_RESPONSE, { status: 503 });
-    }
-    return Response.json({ ok: false, error: String(err) }, { status: 500 });
-  }
-
-  // ── 8. Mark the visit as finalized in D1 ────────────────────────────────────
 
   try {
     await env.ATLAS_REPORTS_D1.prepare(
@@ -304,16 +269,15 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       .bind(finalizedAt, finalizedAt, visitId)
       .run();
   } catch (err) {
-    // Non-fatal: the ledger row is the source of truth for finalization.
+    // Non-fatal: the visits row update failing does not invalidate the Drive output.
     console.warn(`[Atlas] Finalize: status update failed visit=${visitId} (non-fatal):`, String(err));
   }
 
-  console.log(`[Atlas] Visit finalized: id=${visitId} user=${userId} ledger=${ledgerId}`);
+  console.log(`[Atlas] Visit finalized: id=${visitId} user=${userId}`);
 
   return Response.json({
     ok: true,
     ledger: {
-      id:                  ledgerId,
       drive_folder_url:    surveyFolder.webViewLink,
       drive_data_file_url: dataFile.webViewLink,
       drive_pdf_file_url:  pdfFile?.webViewLink ?? null,

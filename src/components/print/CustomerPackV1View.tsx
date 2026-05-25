@@ -28,6 +28,7 @@ import {
   BrandedFooter,
 } from '../../features/branding';
 import type { BrandProfileV1 } from '../../features/branding';
+import { handleStandaloneExternalLinkClick } from '../../lib/navigation/pwaExternalNavigation';
 import { buildCustomerPackV1 } from '../../engine/modules/buildCustomerPackV1';
 import type { BuildCustomerPackContext } from '../../engine/modules/buildCustomerPackV1';
 import './CustomerPackV1View.css';
@@ -256,6 +257,13 @@ function CloseSection({ section }: { section: CustomerPackV1['close'] }) {
             target="_blank"
             rel="noopener noreferrer"
             data-testid="cpv1-portal-link"
+            onClick={(event) => {
+              void handleStandaloneExternalLinkClick(event, {
+                url: section.portalUrl!,
+                preferShare: true,
+                title: 'Your Atlas portal',
+              });
+            }}
           >
             {section.portalUrl}
           </a>
