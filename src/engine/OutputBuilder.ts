@@ -22,9 +22,10 @@ import { buildShowerCompatibilityNotes } from './modules/buildShowerCompatibilit
  * eligibility rather than the advisory 'caution' used for demand-side gates.
  */
 const COMBI_MIN_PRESSURE_FLAG_ID = 'combi-pressure-constraint' as const;
+type EligibilityStatusV1 = EligibilityItem['status'] | NonNullable<EngineOutputV1['options']>[number]['status'];
 
 function mapStatusToViabilityState(
-  status: EligibilityItem['status'] | EngineOutputV1['options'][number]['status'],
+  status: EligibilityStatusV1,
 ): RecommendationViabilityStateV1 {
   if (status === 'viable') return 'viable';
   if (status === 'caution') return 'conditional';

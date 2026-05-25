@@ -84,21 +84,21 @@ function resolveTopologyType(input: ResolveCustomerDocumentSourceInputV1): strin
   ) {
     return 'sealed_system_unvented';
   }
-
-  function resolveHeatPumpViabilityState(
-    input: ResolveCustomerDocumentSourceInputV1,
-  ): RecommendationViabilityStateV1 | null {
-    const ashpOption = input.engineOutput?.options?.find((option) => option.id === 'ashp');
-    if (ashpOption == null) {
-      const packagedState = readCustomerJourneyPackFromGeneratedOutputs(normaliseGeneratedOutputs(input.generatedOutputs))
-        ?.staticPdf.recommendationViabilityState;
-      return packagedState ?? null;
-    }
-    return ashpOption.viabilityState
-      ?? (ashpOption.status === 'viable' ? 'viable' : ashpOption.status === 'caution' ? 'conditional' : 'blocked');
-  }
   if (scenarioType === 'regular' || acceptedScenarioId?.includes('open_vented')) return 'open_vented';
   return undefined;
+}
+
+function resolveHeatPumpViabilityState(
+  input: ResolveCustomerDocumentSourceInputV1,
+): RecommendationViabilityStateV1 | null {
+  const ashpOption = input.engineOutput?.options?.find((option) => option.id === 'ashp');
+  if (ashpOption == null) {
+    const packagedState = readCustomerJourneyPackFromGeneratedOutputs(normaliseGeneratedOutputs(input.generatedOutputs))
+      ?.staticPdf.recommendationViabilityState;
+    return packagedState ?? null;
+  }
+  return ashpOption.viabilityState
+    ?? (ashpOption.status === 'viable' ? 'viable' : ashpOption.status === 'caution' ? 'conditional' : 'blocked');
 }
 
 function resolveDhwStrategy(input: ResolveCustomerDocumentSourceInputV1, topologyType: string | undefined): string | undefined {

@@ -1595,7 +1595,6 @@ function buildSectionEvidenceTags(section: PortalJourneyPrintSectionV1): Recomme
 
 function sectionHasReasonEvidence(
   section: PortalJourneyPrintSectionV1,
-  reasons: readonly RecommendationReasonBlockV1[],
 ): boolean {
   const tags = section.evidenceTags ?? [];
   if (tags.length === 0) return false;
@@ -1692,7 +1691,7 @@ function buildPortalJourneyPrintModelCore(
       if (audienceProjection != null && registryConceptIdSet.has(section.contentId)) {
         if (!audienceProjection.visibleConcepts.includes(section.contentId)) return false;
       }
-      return sectionHasReasonEvidence(section, normalizedRecommendationReasons);
+      return sectionHasReasonEvidence(section);
     });
   const usedPages = Math.min(1 + (normalizedRecommendationReasons.length > 0 ? 1 : 0) + sections.length + 1, 7);
   const systemProtection = surveyCondition != null
