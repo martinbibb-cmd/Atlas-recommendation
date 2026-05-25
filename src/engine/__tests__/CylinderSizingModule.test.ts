@@ -582,4 +582,145 @@ describe('runCylinderSizingModule', () => {
       expect(result.currentPerformance!.recoveryTimeMins).toBeLessThan(42);
     });
   });
+
+  describe('immersion backup and PV diversion boost', () => {
+    it('electricalImmersionBackup adds 3 kW to boiler power, reducing recovery time', () => {
+      // 18 kW boiler baseline
+      const baseline = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 18,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+      });
+      // 18 + 3 = 21 kW → capped at MAX_COIL_RATING_KW (20 kW)
+      const withImmersion = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 18,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+        electricalImmersionBackup: true,
+      });
+      expect(withImmersion.currentPerformance!.recoveryTimeMins)
+        .toBeLessThan(baseline.currentPerformance!.recoveryTimeMins);
+    });
+
+    it('pvDiversionEnabled adds 3 kW to heat source power, reducing recovery time', () => {
+      const baseline = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 14,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+      });
+      // 14 + 3 = 17 kW (below cap)
+      const withPv = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 14,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+        pvDiversionEnabled: true,
+      });
+      expect(withPv.currentPerformance!.recoveryTimeMins)
+        .toBeLessThan(baseline.currentPerformance!.recoveryTimeMins);
+    });
+
+    it('both flags together add 3 kW only once (single IMMERSION_HEATER_KW boost)', () => {
+      const withBoth = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 14,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+        electricalImmersionBackup: true,
+        pvDiversionEnabled: true,
+      });
+      const withOne = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 14,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+        electricalImmersionBackup: true,
+      });
+      // Same boost whether one or both flags are set
+      expect(withBoth.currentPerformance!.recoveryTimeMins)
+        .toEqual(withOne.currentPerformance!.recoveryTimeMins);
+    });
+
+    it('ASHP (6 kW) + immersion backup = 9 kW → correct recovery time', () => {
+      const ashpBaseline = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'ashp',
+        dhwStorageRegime: 'heat_pump_cylinder',
+        cylinderVolumeLitres: 210,
+        storeTempC: 55,
+        coldWaterTempC: 15,
+        occupancyCount: 3,
+      });
+      const ashpWithImmersion = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'ashp',
+        dhwStorageRegime: 'heat_pump_cylinder',
+        cylinderVolumeLitres: 210,
+        storeTempC: 55,
+        coldWaterTempC: 15,
+        occupancyCount: 3,
+        electricalImmersionBackup: true,
+      });
+      // 6 + 3 = 9 kW → faster recovery than 6 kW baseline
+      expect(ashpWithImmersion.currentPerformance!.recoveryTimeMins)
+        .toBeLessThan(ashpBaseline.currentPerformance!.recoveryTimeMins);
+    });
+
+    it('boost assumption text mentions immersion backup when flag is set', () => {
+      const result = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 14,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+        electricalImmersionBackup: true,
+      });
+      const heatSourceAssumption = result.assumptions.find(a => a.startsWith('Heat source:'));
+      expect(heatSourceAssumption).toContain('immersion backup');
+    });
+
+    it('boost assumption text mentions PV diverter when pvDiversionEnabled is set', () => {
+      const result = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 14,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+        pvDiversionEnabled: true,
+      });
+      const heatSourceAssumption = result.assumptions.find(a => a.startsWith('Heat source:'));
+      expect(heatSourceAssumption).toContain('PV diverter');
+    });
+
+    it('no backup: power stays at boiler output, no boost mention in assumptions', () => {
+      const result = runCylinderSizingModule({
+        ...baseInput,
+        currentHeatSourceType: 'system',
+        currentBoilerOutputKw: 14,
+        cylinderVolumeLitres: 210,
+        storeTempC: 60,
+        coldWaterTempC: 15,
+      });
+      const heatSourceAssumption = result.assumptions.find(a => a.startsWith('Heat source:'));
+      expect(heatSourceAssumption).not.toContain('boosted');
+      expect(heatSourceAssumption).not.toContain('immersion');
+    });
+  });
 });

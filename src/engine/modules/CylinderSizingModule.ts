@@ -325,28 +325,52 @@ function computeStandingLossW(
  *   2. For boiler paths: use min(currentBoilerOutputKw, MAX_COIL_RATING_KW) when available.
  *   3. For immersion-only (no heat source type): 3 kW.
  *   4. Otherwise: assume 18 kW (typical system boiler with fast-recovery coil).
+ *
+ * Backup boost:
+ *   When `electricalImmersionBackup` or `pvDiversionEnabled` is true, IMMERSION_HEATER_KW
+ *   (3 kW) is added to the primary heat source power (capped at MAX_COIL_RATING_KW) to
+ *   model the effective recovery rate when the immersion or PV diverter assists reheat.
  */
 function resolveHeatSourcePower(
   input: EngineInputV2_3,
-): { powerKw: number; source: 'measured' | 'assumed' } {
+): { powerKw: number; source: 'measured' | 'assumed'; boostedByBackup: boolean } {
+  let basePowerKw: number;
+  let source: 'measured' | 'assumed';
+
   if (input.currentHeatSourceType === 'ashp') {
-    return { powerKw: ASSUMED_ASHP_HEAT_SOURCE_KW, source: 'assumed' };
-  }
-  if (
+    basePowerKw = ASSUMED_ASHP_HEAT_SOURCE_KW;
+    source = 'assumed';
+  } else if (
     input.currentHeatSourceType === 'system' ||
     input.currentHeatSourceType === 'regular' ||
     input.currentHeatSourceType === 'combi'
   ) {
     const boilerKw = input.currentBoilerOutputKw ?? input.currentSystem?.boiler?.nominalOutputKw;
     if (boilerKw !== undefined && boilerKw > 0) {
-      return { powerKw: Math.min(boilerKw, MAX_COIL_RATING_KW), source: 'measured' };
+      basePowerKw = Math.min(boilerKw, MAX_COIL_RATING_KW);
+      source = 'measured';
+    } else {
+      basePowerKw = ASSUMED_BOILER_HEAT_SOURCE_KW;
+      source = 'assumed';
     }
+  } else if (input.dhwStorageRegime === 'heat_pump_cylinder') {
+    basePowerKw = ASSUMED_ASHP_HEAT_SOURCE_KW;
+    source = 'assumed';
+  } else {
+    basePowerKw = ASSUMED_BOILER_HEAT_SOURCE_KW;
+    source = 'assumed';
   }
-  // No heat source type or no power data
-  if (input.dhwStorageRegime === 'heat_pump_cylinder') {
-    return { powerKw: ASSUMED_ASHP_HEAT_SOURCE_KW, source: 'assumed' };
+
+  const hasBackup = input.electricalImmersionBackup === true || input.pvDiversionEnabled === true;
+  if (hasBackup) {
+    return {
+      powerKw: Math.min(basePowerKw + IMMERSION_HEATER_KW, MAX_COIL_RATING_KW),
+      source,
+      boostedByBackup: true,
+    };
   }
-  return { powerKw: ASSUMED_BOILER_HEAT_SOURCE_KW, source: 'assumed' };
+
+  return { powerKw: basePowerKw, source, boostedByBackup: false };
 }
 
 /**
@@ -891,7 +915,7 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     drawSeverity,
   );
 
-  const { powerKw: heatSourceKw, source: heatSourceSource } = resolveHeatSourcePower(input);
+  const { powerKw: heatSourceKw, source: heatSourceSource, boostedByBackup } = resolveHeatSourcePower(input);
   const { usableFraction, standingLossCoeff, isMixergy } = resolveCylinderTypeFactors(input);
 
   // Record assumptions
@@ -910,7 +934,8 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   );
   assumptions.push(
     `Heat source: ${heatSourceKw} kW ` +
-    `(${heatSourceSource === 'measured' ? 'from boiler output' : 'assumed typical'}).`,
+    `(${heatSourceSource === 'measured' ? 'from boiler output' : 'assumed typical'}` +
+    `${boostedByBackup ? `, boosted by +${IMMERSION_HEATER_KW} kW ${input.electricalImmersionBackup ? 'immersion backup' : ''}${input.electricalImmersionBackup && input.pvDiversionEnabled ? ' + ' : ''}${input.pvDiversionEnabled ? 'PV diverter' : ''}` : ''}).`,
   );
   assumptions.push(
     `Peak demand assumption: ${peakConcurrentOutlets} likely overlapping outlet(s) ` +

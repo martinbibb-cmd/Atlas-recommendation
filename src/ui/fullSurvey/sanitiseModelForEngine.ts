@@ -154,11 +154,13 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
     // Flat engine fields
     if (sanitised.currentHeatSourceType === undefined && sb.heatSource != null) {
       // storage_combi is a combi variant — map to engine's 'combi' type
+      // ashp is mapped directly so CylinderSizingModule uses 6 kW ASHP power assumption
       const heatSourceMap: Record<string, EngineInputV2_3['currentHeatSourceType']> = {
         combi:          'combi',
         system:         'system',
         regular:        'regular',
         storage_combi:  'combi', // storage combi is still a combi for engine purposes
+        ashp:           'ashp',  // air-source heat pump — uses 6 kW sizing assumption
       };
       sanitised.currentHeatSourceType = heatSourceMap[sb.heatSource];
     }
@@ -268,6 +270,21 @@ export function sanitiseModelForEngine(model: FullSurveyModelV1): FullSurveyMode
       sb.cylinderVolumeL != null
     ) {
       sanitised.cylinderVolumeLitres = sb.cylinderVolumeL;
+    }
+
+    // Electrical immersion backup — bridge from system builder to engine flag.
+    // cylinderHasImmersion is only relevant when a stored cylinder is present.
+    if (sanitised.electricalImmersionBackup === undefined && sb.cylinderHasImmersion != null) {
+      sanitised.electricalImmersionBackup = sb.cylinderHasImmersion;
+    }
+
+    // PV diverter enabled — derived from solarBoost when not already set.
+    // A PV_diverter source wired to an enabled solarBoost means surplus PV is
+    // diverted to the cylinder immersion, reducing effective recovery time.
+    if (sanitised.pvDiversionEnabled === undefined) {
+      const solarBoost = sanitised.solarBoost;
+      sanitised.pvDiversionEnabled =
+        solarBoost?.enabled === true && solarBoost?.source === 'PV_diverter';
     }
   }
 
