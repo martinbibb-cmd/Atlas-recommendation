@@ -148,7 +148,8 @@ function deriveSupportingEvents(dm: PortalDisplayModel): readonly string[] {
 function buildRecommendation(dm: PortalDisplayModel): JourneyRecommendation {
   const recId = dm.recommendedOptionId;
   const options = dm.engineOutput.options ?? [];
-  const recOption = options.find((o) => o.id === recId) ?? options.find((o) => o.status === 'viable');
+  const recOption = options.find((o) => o.id === recId && o.viabilityState !== 'blocked')
+    ?? options.find((o) => o.status === 'viable' && o.viabilityState !== 'blocked');
 
   // Physics guard: if no option found, emit a low-confidence placeholder.
   // The UI must check physicsReady === false and show the "We need more
@@ -205,7 +206,8 @@ function buildRecommendation(dm: PortalDisplayModel): JourneyRecommendation {
 function buildWhyFits(dm: PortalDisplayModel): JourneyWhyFitsItem[] {
   const recId = dm.recommendedOptionId;
   const options = dm.engineOutput.options ?? [];
-  const recOption = options.find((o) => o.id === recId) ?? options.find((o) => o.status === 'viable');
+  const recOption = options.find((o) => o.id === recId && o.viabilityState !== 'blocked')
+    ?? options.find((o) => o.status === 'viable' && o.viabilityState !== 'blocked');
 
   if (!recOption) return [];
 
@@ -267,7 +269,8 @@ function buildWhyFits(dm: PortalDisplayModel): JourneyWhyFitsItem[] {
 function buildWhatToExpect(dm: PortalDisplayModel): string[] {
   const recId = dm.recommendedOptionId;
   const options = dm.engineOutput.options ?? [];
-  const recOption = options.find((o) => o.id === recId) ?? options.find((o) => o.status === 'viable');
+  const recOption = options.find((o) => o.id === recId && o.viabilityState !== 'blocked')
+    ?? options.find((o) => o.status === 'viable' && o.viabilityState !== 'blocked');
 
   const lines: string[] = [];
 
@@ -311,7 +314,7 @@ function buildAlternatives(dm: PortalDisplayModel): JourneyAlternative[] {
 
   for (const option of options) {
     if (option.id === recId) continue;
-    if (option.status === 'rejected') continue;
+    if (option.status === 'rejected' || option.viabilityState === 'blocked') continue;
 
     // Derive a 'why not top choice' from heat/dhw/engineering caveats
     const caveatParts: string[] = [];

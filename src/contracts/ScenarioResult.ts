@@ -11,6 +11,7 @@
  */
 
 import type { ScenarioDisplayIdentity } from './ScenarioDisplayIdentity';
+import type { RecommendationViabilityStateV1 } from './RecommendationViabilityStateV1';
 
 export type PerformanceBand =
   | 'excellent'
@@ -133,4 +134,9 @@ export interface ScenarioResult {
    * should fall back to buildScenarioDisplayIdentity(scenario).
    */
   display?: ScenarioDisplayIdentity;
+
+  /**
+   * Canonical viability state propagated from recommendation and option contracts.
+   */
+  viabilityState?: RecommendationViabilityStateV1;
 }

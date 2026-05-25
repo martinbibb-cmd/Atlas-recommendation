@@ -99,6 +99,13 @@ function hasMissingRequiredContent(model: PortalJourneyPrintModelV1): boolean {
     if (section.items.some((item) => item.trim().length === 0)) {
       return true;
     }
+    if (section.evidenceTags == null || section.evidenceTags.length === 0) {
+      return true;
+    }
+  }
+
+  if (model.recommendationReasons.some((reason) => reason.evidenceTags == null || reason.evidenceTags.length === 0)) {
+    return true;
   }
 
   if (model.nextSteps.length === 0 || model.qrDestinations.length === 0) {
@@ -173,7 +180,7 @@ export function assessSupportingPdfReadiness(
   const allCustomerText = collectCustomerFacingText(model);
 
   if (hasPendingContent(allCustomerText) || hasMissingRequiredContent(model)) {
-    blockingReasons.push('Content is still pending or incomplete.');
+    blockingReasons.push('Content is still pending, incomplete, or lacks evidence backing.');
   }
 
   if (hasRawEngineOrDebugText(allCustomerText)) {

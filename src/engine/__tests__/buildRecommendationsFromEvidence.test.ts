@@ -868,3 +868,20 @@ describe('buildRecommendationsFromEvidence — quotedBoilerFamily constraint', (
     expect(result.bestOverall?.family).toBe('combi');
   });
 });
+
+describe('buildRecommendationsFromEvidence — HP viability blocking', () => {
+  it('marks heat pump blocked and excludes it from bestOverall when outdoor siting is unavailable', () => {
+    const hp = hpBundle(CLEAN_INPUT);
+    const system = systemBundle(CLEAN_INPUT);
+    const result = buildRecommendationsFromEvidence([hp, system], undefined, {
+      storageBenefitSignal: 'medium',
+      solarStorageOpportunity: 'low',
+      hasOutdoorSpaceForHeatPump: false,
+    });
+
+    const hpDecision = result.allDecisions.find((decision) => decision.family === 'heat_pump');
+    expect(hpDecision?.viabilityState).toBe('blocked');
+    expect(hpDecision?.suitability).toBe('not_recommended');
+    expect(result.bestOverall?.family).not.toBe('heat_pump');
+  });
+});

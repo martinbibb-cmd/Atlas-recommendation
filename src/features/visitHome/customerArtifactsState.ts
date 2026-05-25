@@ -34,12 +34,19 @@ export function buildVisitHomeCustomerArtifactsState(
   const customerPdfBlockReasons = input.canExportVisitPackage
     ? []
     : [...(input.unavailableReasons ?? [])];
+  const packagedHpBlocked =
+    input.sourcePackage?.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.payload?.staticPdf?.recommendationViabilityState === 'blocked';
+  if (packagedHpBlocked) {
+    customerPdfBlockReasons.push(
+      'Customer heat-pump educational pack is blocked because HP viability is blocked for this visit.',
+    );
+  }
   if (pdfStale) {
     customerPdfBlockReasons.push(
       'Customer PDF artifact is stale for the active recommendation snapshot. Regeneration required.',
     );
   }
-  const customerPdfReady = input.canExportVisitPackage && !pdfStale;
+  const customerPdfReady = input.canExportVisitPackage && !pdfStale && !packagedHpBlocked;
 
   return {
     customerPdfReady,

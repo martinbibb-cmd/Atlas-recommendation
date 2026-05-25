@@ -2,6 +2,7 @@ import type { FullEngineResultCore, EngineInputV2_3 } from './schema/EngineInput
 import type { OptionCardV1, OptionPlane, OptionRequirements, SensitivityItem } from '../contracts/EngineOutputV1';
 import type { CombiDhwV1Result } from './schema/EngineInputV2_3';
 import type { ApplianceFamily } from './topology/SystemTopology';
+import type { RecommendationViabilityStateV1 } from '../contracts/RecommendationViabilityStateV1';
 import { buildAssumptionsV1 } from './AssumptionsBuilder';
 import { runCombiDhwModuleV1 } from './modules/CombiDhwModule';
 
@@ -1231,6 +1232,10 @@ export function buildOptionMatrixV1(
   };
 
   for (const card of cards) {
+    const viabilityState: RecommendationViabilityStateV1 =
+      card.status === 'viable' ? 'viable' : card.status === 'caution' ? 'conditional' : 'blocked';
+    card.viabilityState = viabilityState;
+
     // ── Confidence badge — shown at top of every option card ──────────────
     card.confidenceBadge = {
       level: confidence.level,

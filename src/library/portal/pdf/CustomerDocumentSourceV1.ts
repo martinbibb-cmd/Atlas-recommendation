@@ -3,6 +3,7 @@ import type { CustomerSummaryV1 } from '../../../contracts/CustomerSummaryV1';
 import type { EngineOutputV1 } from '../../../contracts/EngineOutputV1';
 import type { ScenarioResult } from '../../../contracts/ScenarioResult';
 import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
+import type { RecommendationViabilityStateV1 } from '../../../contracts/RecommendationViabilityStateV1';
 import {
   normaliseGeneratedOutputs,
   type GeneratedOutputsV1,
@@ -22,6 +23,7 @@ export interface CustomerDocumentSourceV1 {
   readonly topologyType: string;
   readonly customerJourneyPack: CustomerJourneyPackV1;
   readonly recommendationReasons: readonly RecommendationReasonBlockV1[];
+  readonly heatPumpViabilityState: RecommendationViabilityStateV1 | null;
   readonly generatedOutputs: GeneratedOutputsV1;
 }
 
@@ -81,6 +83,19 @@ function resolveTopologyType(input: ResolveCustomerDocumentSourceInputV1): strin
     || acceptedScenarioId?.includes('unvented')
   ) {
     return 'sealed_system_unvented';
+  }
+
+  function resolveHeatPumpViabilityState(
+    input: ResolveCustomerDocumentSourceInputV1,
+  ): RecommendationViabilityStateV1 | null {
+    const ashpOption = input.engineOutput?.options?.find((option) => option.id === 'ashp');
+    if (ashpOption == null) {
+      const packagedState = readCustomerJourneyPackFromGeneratedOutputs(normaliseGeneratedOutputs(input.generatedOutputs))
+        ?.staticPdf.recommendationViabilityState;
+      return packagedState ?? null;
+    }
+    return ashpOption.viabilityState
+      ?? (ashpOption.status === 'viable' ? 'viable' : ashpOption.status === 'caution' ? 'conditional' : 'blocked');
   }
   if (scenarioType === 'regular' || acceptedScenarioId?.includes('open_vented')) return 'open_vented';
   return undefined;
@@ -154,6 +169,7 @@ export function resolveCustomerDocumentSourceV1(
   const dhwStrategy = resolveDhwStrategy(input, topologyType);
   const generatedOutputs = normaliseGeneratedOutputs(input.generatedOutputs);
   const customerJourneyPack = readCustomerJourneyPackFromGeneratedOutputs(generatedOutputs);
+  const heatPumpViabilityState = resolveHeatPumpViabilityState(input);
   const missingFields: string[] = [];
 
   if (!hasText(visitId)) missingFields.push('visitId');
@@ -200,6 +216,7 @@ export function resolveCustomerDocumentSourceV1(
       topologyType: resolvedTopologyType,
       customerJourneyPack,
       recommendationReasons: customerJourneyPack.staticPdf.recommendationReasons,
+      heatPumpViabilityState,
       generatedOutputs,
     },
   };

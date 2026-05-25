@@ -36,6 +36,7 @@ import { ALL_OBJECTIVES } from './RecommendationModel';
 import type { LimiterLedgerEntry } from '../limiter/LimiterLedger';
 import type { ApplianceFamily } from '../topology/SystemTopology';
 import type { ProductConstraints, UserPreferencesV1 } from '../schema/EngineInputV2_3';
+import type { RecommendationViabilityStateV1 } from '../../contracts/RecommendationViabilityStateV1';
 
 // ─── Objective weights ────────────────────────────────────────────────────────
 
@@ -396,13 +397,16 @@ const INTERVENTION_METADATA: Readonly<Record<string, {
   },
 } as const;
 
-// ─── Hard-stop policy ─────────────────────────────────────────────────────────
-//
-// Policy: hard stops are not permitted — the engine produces advice only.
-// No limiter may use 'hard_stop' severity.  All constraints are advisory.
-//
-// The `hardStopLimiters` evidence-trace field (below) is preserved for
-// structural compatibility but will always be empty under this policy.
+const HP_BLOCKING_LIMITER_IDS = new Set<string>([
+  'emitter_temperature_constraint',
+  'hp_high_flow_temp_penalty',
+  'primary_pipe_constraint',
+  'pressure_constraint',
+  'open_vented_head_limit',
+  'hp_reheat_latency',
+  'simultaneous_demand_constraint',
+  'mains_flow_constraint',
+]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -600,27 +604,44 @@ function scoreCandidate(
 
   const overallScore = computeOverallScore(objectiveScores, weights);
 
-  // Determine suitability
-  let suitability: CandidateSuitability;
-  if (hardStopLimiters.length > 0) {
-    suitability = 'not_recommended';
+  const hpHasBlockerLimiter = family === 'heat_pump'
+    && bundle.limiterLedger.entries.some((entry) =>
+      entry.severity === 'hard_stop'
+      || (
+        (entry.severity === 'limit' || entry.severity === 'warning')
+        && HP_BLOCKING_LIMITER_IDS.has(entry.id)
+      ));
+  const hpOutdoorBlocked = family === 'heat_pump' && context?.hasOutdoorSpaceForHeatPump === false;
+
+  let viabilityState: RecommendationViabilityStateV1;
+  if (hardStopLimiters.length > 0 || hpHasBlockerLimiter || hpOutdoorBlocked) {
+    viabilityState = 'blocked';
   } else if (limitersConsidered.length > 0) {
-    suitability = 'suitable_with_caveats';
+    viabilityState = 'conditional';
   } else {
-    suitability = 'suitable';
+    viabilityState = 'viable';
   }
+
+  const suitability: CandidateSuitability =
+    viabilityState === 'blocked'
+      ? 'not_recommended'
+      : viabilityState === 'conditional'
+        ? 'suitable_with_caveats'
+        : 'suitable';
 
   // Build human-readable caveats
   const caveats: string[] = [];
   for (const entry of bundle.limiterLedger.entries) {
     if (entry.severity === 'hard_stop') {
-      // Hard stops are not permitted — surface as an advisory note instead.
-      caveats.push(`Note: ${entry.title} — ${entry.description}`);
+      caveats.push(`Blocked: ${entry.title} — ${entry.description}`);
     } else if (entry.severity === 'limit') {
       caveats.push(`Limit reached: ${entry.title}`);
     } else if (entry.severity === 'warning') {
       caveats.push(`Advisory: ${entry.title}`);
     }
+  }
+  if (hpOutdoorBlocked) {
+    caveats.push('Blocked: No suitable outdoor siting is available for a heat pump unit.');
   }
 
   const evidenceTrace: RecommendationEvidenceTrace = {
@@ -634,6 +655,7 @@ function scoreCandidate(
   return {
     family,
     suitability,
+    viabilityState,
     objectiveScores,
     overallScore,
     evidenceTrace,

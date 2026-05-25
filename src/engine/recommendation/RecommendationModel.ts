@@ -25,6 +25,7 @@
  */
 
 import type { ApplianceFamily } from '../topology/SystemTopology';
+import type { RecommendationViabilityStateV1 } from '../../contracts/RecommendationViabilityStateV1';
 
 // ─── Objectives ───────────────────────────────────────────────────────────────
 
@@ -166,6 +167,11 @@ export interface RecommendationDecision {
 
   /** Whether this candidate is suitable, suitable with caveats, or not recommended. */
   readonly suitability: CandidateSuitability;
+
+  /**
+   * Canonical recommendation viability state used across engine/portal/PDF surfaces.
+   */
+  readonly viabilityState: RecommendationViabilityStateV1;
 
   /**
    * Per-objective scores in the range [0, 100].
@@ -373,6 +379,11 @@ export interface RecommendationContextSignals {
    * a single fixed weighting applied to every survey.
    */
   userPreferences?: import('../schema/EngineInputV2_3').UserPreferencesV1;
+
+  /**
+   * Optional explicit outdoor-siting signal for heat pump viability.
+   */
+  hasOutdoorSpaceForHeatPump?: boolean;
 }
 
 // ─── "Why not this option?" explanation ───────────────────────────────────────
@@ -404,4 +415,3 @@ export interface WhyNotExplanation {
   /** Whether this candidate was disqualified entirely (hard-stop). */
   readonly isDisqualified: boolean;
 }
-

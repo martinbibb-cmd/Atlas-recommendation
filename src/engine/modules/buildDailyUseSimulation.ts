@@ -466,6 +466,7 @@ export function buildDailyUseSimulation(
 
   return {
     scenarioId: recommended.scenarioId,
+    viabilityState: recommended.viabilityState,
     title,
     steps,
   };

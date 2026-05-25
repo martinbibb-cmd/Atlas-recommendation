@@ -153,6 +153,19 @@ function deriveRejectedSystems(result: FullEngineResultWithoutVerdict, _input: E
 function deriveFlaggedSystems(result: FullEngineResultWithoutVerdict, _input: EngineInputV2_3): FlaggedSystem[] {
   const flagged: FlaggedSystem[] = [];
   const { redFlags } = result;
+  const hpDecision = result.recommendationResult.allDecisions.find((decision) => decision.family === 'heat_pump');
+  const hpUpgradeInterventions = result.recommendationResult.interventions.filter(
+    (intervention) =>
+      intervention.sourceFamily === 'heat_pump'
+      && (
+        intervention.id === 'upsize_primary_pipe'
+        || intervention.id === 'upgrade_radiators'
+        || intervention.id === 'add_underfloor_heating'
+        || intervention.id === 'increase_emitter_count'
+      ),
+  );
+  const hasExplicitMajorUpgradeDependency =
+    hpUpgradeInterventions.length > 0 || redFlags.flagAshp;
 
   // flagAshp without rejectAshp means: ASHP is possible but requires pipework upgrades.
   if (redFlags.flagAshp && !redFlags.rejectAshp) {
@@ -166,6 +179,22 @@ function deriveFlaggedSystems(result: FullEngineResultWithoutVerdict, _input: En
       family: 'heat_pump',
       flagId: 'ashp_pipework_flag',
       requiredWork: workNote,
+    });
+  }
+
+  if (
+    hpDecision?.viabilityState === 'blocked'
+    && hasExplicitMajorUpgradeDependency
+    && !flagged.some((entry) => entry.family === 'heat_pump')
+  ) {
+    const upgradeList = hpUpgradeInterventions.map((intervention) => intervention.label).slice(0, 3);
+    const requiredWork = upgradeList.length > 0
+      ? `Possible with major upgrades only: ${upgradeList.join('; ')}.`
+      : 'Possible with major upgrades only after primary pipework and emitter upgrades.';
+    flagged.push({
+      family: 'heat_pump',
+      flagId: 'ashp_major_upgrade_path',
+      requiredWork,
     });
   }
 

@@ -189,11 +189,18 @@ export function runEngine(input: EngineInputV2_3): FullEngineResult {
     storageBenefitSignal: core.demographicOutputs.storageBenefitSignal,
     solarStorageOpportunity: core.pvAssessment.solarStorageOpportunity,
     userPreferences: input.preferences,
+    hasOutdoorSpaceForHeatPump: input.hasOutdoorSpaceForHeatPump,
   });
 
   // Pass canonicalBestFamily so engineOutput.recommendation.primary always
   // mirrors recommendationResult.bestOverall — keeping every surface in sync.
-  const engineOutput = buildEngineOutputV1(core, input, recommendationResult.bestOverall?.family ?? null);
+  const hpViabilityState = recommendationResult.allDecisions.find((decision) => decision.family === 'heat_pump')?.viabilityState;
+  const engineOutput = buildEngineOutputV1(
+    core,
+    input,
+    recommendationResult.bestOverall?.family ?? null,
+    hpViabilityState,
+  );
   const inputValidation = runEngineInputValidation(input);
 
   // ── Module registry: emit engine:input-validated and engine:output-ready ──

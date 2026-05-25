@@ -13,36 +13,23 @@ import type {
 } from '../../lib/storage/visitReviewLifecycle';
 import type { CanonicalVisitPackageV1 } from '../visitPackage';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
+import {
+  resolveCanonicalVisitIdentityReference,
+} from './resolveCanonicalVisitIdentity';
+export { formatVisitReference } from './resolveCanonicalVisitIdentity';
 
 type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
-
-function firstText(...values: Array<string | null | undefined>): string | undefined {
-  for (const value of values) {
-    if (value != null && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-  return undefined;
-}
-
-export function formatVisitReference(visitId: string): string {
-  const normalized = visitId.trim().toUpperCase();
-  if (normalized.length >= 8) return normalized.slice(-8);
-  return normalized.padStart(8, '0');
-}
 
 export function resolveVisitSessionReference(
   visitMeta: Pick<VisitMeta, 'visit_reference' | 'customer_name' | 'address_line_1'> | null | undefined,
   visitId: string,
 ): string {
-  return (
-    firstText(
-      visitMeta?.visit_reference,
-      visitMeta?.customer_name,
-      visitMeta?.address_line_1,
-    )
-    ?? formatVisitReference(visitId)
-  );
+  return resolveCanonicalVisitIdentityReference({
+    customerOrProjectLabel: visitMeta?.visit_reference,
+    customerName: visitMeta?.customer_name,
+    addressLine1: visitMeta?.address_line_1,
+    visitId,
+  });
 }
 
 export interface VisitRecommendationSnapshotLike {
@@ -150,11 +137,13 @@ export function resolveCanonicalVisitExportState(
       ?? input.currentSnapshot?.portalVisitContext
       ?? input.activeCanonicalPackage?.customerPropertyDetails.portalVisitContext
       ?? input.labPortalVisitContext,
-    visitReference:
-      input.savedVisit?.visitReference
-      ?? input.currentSnapshot?.visitReference
-      ?? input.activeCanonicalPackage?.visitIdentity.visitReference
-      ?? resolveVisitSessionReference(input.activeVisitMeta, exportVisitId),
+    visitReference: resolveCanonicalVisitIdentityReference({
+      canonicalVisitReference: input.activeCanonicalPackage?.visitIdentity.visitReference,
+      customerOrProjectLabel: input.savedVisit?.visitReference ?? input.currentSnapshot?.visitReference ?? input.activeVisitMeta?.visit_reference,
+      customerName: input.activeVisitMeta?.customer_name,
+      addressLine1: input.activeVisitMeta?.address_line_1,
+      visitId: exportVisitId,
+    }),
     generatedOutputsSeed:
       input.savedVisit?.generatedOutputs
       ?? input.currentSnapshot?.generatedOutputs
