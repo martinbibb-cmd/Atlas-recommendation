@@ -1148,6 +1148,8 @@
   padding: 0.85rem 0.95rem;
   page-break-inside: avoid;
   break-inside: avoid;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .capp-technical-site-handoff__column-title {
