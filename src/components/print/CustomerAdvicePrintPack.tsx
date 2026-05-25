@@ -59,6 +59,7 @@ import type {
 } from '../../contracts/VisualBlock';
 import { TechnicalAuditAppendix } from './TechnicalAuditAppendix';
 import { buildScenarioDisplayIdentity } from '../../engine/modules/buildScenarioDisplayIdentity';
+import { handleStandaloneExternalLinkClick } from '../../lib/navigation/pwaExternalNavigation';
 import '../presentation/CustomerDeck.css';
 import './CustomerAdvicePrintPack.css';
 
@@ -170,6 +171,51 @@ function QRCodeImage({
   );
 }
 
+function PracticalOutcomesTimeline({ decision }: { decision: AtlasDecisionV1 }) {
+  const stages = [
+    {
+      label: 'Survey brief',
+      value: decision.summary,
+    },
+    {
+      label: 'Installation plan',
+      value: decision.requiredWorks[0] ?? decision.includedItems[0] ?? decision.summary,
+    },
+    {
+      label: 'Everyday result',
+      value: decision.dayToDayOutcomes[0] ?? decision.keyReasons[0] ?? decision.summary,
+    },
+    {
+      label: 'Future path',
+      value: decision.futureUpgradePaths[0] ?? decision.summary,
+    },
+  ].filter((stage): stage is { label: string; value: string } => Boolean(stage.value));
+
+  if (stages.length === 0) return null;
+
+  return (
+    <section
+      className="capp-practical-outcomes"
+      aria-label="Practical outcomes pipeline"
+      data-testid="capp-practical-outcomes"
+    >
+      <div className="capp-card-band capp-card-band--blue">
+        <p className="capp-practical-outcomes__heading">Practical outcomes</p>
+        <p className="capp-practical-outcomes__subheading">How this recommendation turns into a lived result</p>
+      </div>
+      <div className="capp-practical-outcomes__timeline">
+        {stages.map((stage, index) => (
+          <div key={`${stage.label}-${index}`} className="capp-practical-outcomes__stage">
+            <span className="capp-practical-outcomes__step">0{index + 1}</span>
+            <p className="capp-practical-outcomes__stage-label">{stage.label}</p>
+            <p className="capp-practical-outcomes__stage-value">{stage.value}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ─── Portal CTA print section ─────────────────────────────────────────────────
 
 /**
@@ -211,6 +257,7 @@ function PrintPortalCta({ portalUrl }: { portalUrl?: string }) {
               href={portalUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={(event) => { void handleStandaloneExternalLinkClick(event, { url: portalUrl }); }}
               data-testid="capp-portal-url"
             >
               Open your portal online
@@ -409,15 +456,18 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
 
   return (
     <aside className="capp-at-a-glance" aria-label="At-a-glance property stats" data-testid="capp-at-a-glance">
-      <p className="capp-at-a-glance__heading">At a glance</p>
-      <ul className="capp-at-a-glance__list">
+      <div className="capp-card-band capp-card-band--green">
+        <p className="capp-at-a-glance__heading">At a glance</p>
+        <p className="capp-at-a-glance__subheading">Your home in one view</p>
+      </div>
+      <dl className="capp-at-a-glance__grid">
         {stats.map((s) => (
-          <li key={s.label} className="capp-at-a-glance__item">
-            <span className="capp-at-a-glance__label">{s.label}</span>
-            <span className="capp-at-a-glance__value">{s.value}</span>
-          </li>
+          <div key={s.label} className="capp-at-a-glance__item">
+            <dt className="capp-at-a-glance__label">{s.label}</dt>
+            <dd className="capp-at-a-glance__value">{s.value}</dd>
+          </div>
         ))}
-      </ul>
+      </dl>
       {isConditionVisible && (
         <p
           className={`capp-at-a-glance__condition-badge capp-at-a-glance__condition-badge--${condition}`}
@@ -1027,7 +1077,9 @@ function WhyAtlasSuggestedThis({ decision }: { decision: AtlasDecisionV1 }) {
       aria-label="Why Atlas Suggested This"
       data-testid="capp-why-atlas"
     >
-      <p className="capp-why-atlas__heading">Why Atlas Suggested This</p>
+      <div className="capp-card-band capp-card-band--green">
+        <p className="capp-why-atlas__heading">Why Atlas Suggested This</p>
+      </div>
       <ul className="capp-why-atlas__list">
         {narrativeLines.map((line) => (
           <li key={line}>{line}</li>
@@ -1065,10 +1117,27 @@ function SystemPerformanceSummaryPanel({
       aria-label="System performance summary"
       data-testid="capp-performance-summary"
     >
-      <p className="capp-performance-summary__heading">System performance summary</p>
+      <div className="capp-card-band capp-card-band--blue">
+        <p className="capp-performance-summary__heading">System performance summary</p>
+        <p className="capp-performance-summary__subheading">Performance picture at a glance</p>
+      </div>
       <p className="capp-performance-summary__intro">
         Input-to-output profile based on measured site demand and Atlas system modelling.
       </p>
+      <dl className="capp-performance-summary__metrics">
+        <div className="capp-performance-summary__metric">
+          <dt>Current annual input</dt>
+          <dd>{Math.round(baseline).toLocaleString()} kWh</dd>
+        </div>
+        <div className="capp-performance-summary__metric">
+          <dt>Recommended annual demand</dt>
+          <dd>{Math.round(projected).toLocaleString()} kWh</dd>
+        </div>
+        <div className="capp-performance-summary__metric">
+          <dt>Modelled change</dt>
+          <dd>{Math.round(metrics.annualEnergyReductionKwh).toLocaleString()} kWh</dd>
+        </div>
+      </dl>
       <div className="capp-performance-summary__bars" aria-label="Energy conversion bars">
         <div className="capp-performance-summary__row">
           <span className="capp-performance-summary__label">Current input</span>
@@ -1170,11 +1239,44 @@ function EngineerHandOffSection({
 }) {
   const spatialBlock = technicalBlocks.find((block): block is SpatialProofBlock => block.type === 'spatial_proof');
   const routeLines = spatialBlock?.routeSummary ?? [];
+  const confidenceLines = spatialBlock?.confidenceSummary ?? [];
   const needsVerification = [
     ...routeLines,
-    ...(spatialBlock?.confidenceSummary ?? []),
+    ...confidenceLines,
   ].some((line) => /needs verification|to be confirmed|to be agreed|needs checking/i.test(line));
   const scanUrl = buildScanAppUrl(portalUrl);
+  const structuralInputs = [
+    {
+      label: 'Measured room summaries',
+      value: spatialBlock?.rooms?.length ? spatialBlock.rooms.join(', ') : 'Measured room summaries to be confirmed from the scan pack.',
+    },
+    {
+      label: 'Measured routes',
+      value: routeLines.length > 0 ? routeLines.join(' · ') : 'Measured pipe and discharge routes to be confirmed on site.',
+    },
+    {
+      label: 'Target room temperatures',
+      value: 'Target room temperatures to be confirmed in the final room schedule.',
+    },
+  ];
+  const hardwareInputs = [
+    {
+      label: 'Boiler and cylinder positions',
+      value: spatialBlock?.keyObjects?.length ? spatialBlock.keyObjects.join(' · ') : 'Boiler and cylinder positions to be agreed on site.',
+    },
+    {
+      label: 'Flue pathways',
+      value: 'Confirm terminal clearances and manufacturer siting rules before final install.',
+    },
+    {
+      label: 'Clearance metrics',
+      value: confidenceLines.length > 0 ? confidenceLines.join(' · ') : 'Clearance metrics to be confirmed during engineer review.',
+    },
+    {
+      label: 'Safety discharge paths',
+      value: routeLines.length > 0 ? routeLines.join(' · ') : 'Safety discharge path to be confirmed on site.',
+    },
+  ];
 
   return (
     <section
@@ -1182,24 +1284,33 @@ function EngineerHandOffSection({
       aria-label="Engineer Hand-off"
       data-testid="capp-engineer-handoff"
     >
-      <p className="capp-engineer-handoff__heading">Engineer Hand-off</p>
-      <div className="capp-engineer-handoff__grid">
-        <div>
-          <p className="capp-engineer-handoff__label">Room dimension summaries</p>
-          {spatialBlock?.rooms?.length ? <p>{spatialBlock.rooms.join(', ')}</p> : <p>Room dimensions to be confirmed on site.</p>}
-        </div>
-        <div>
-          <p className="capp-engineer-handoff__label">Boiler and cylinder positions</p>
-          {spatialBlock?.keyObjects?.length ? <p>{spatialBlock.keyObjects.join(' · ')}</p> : <p>Boiler and cylinder positions to be agreed on site.</p>}
-        </div>
-        <div>
-          <p className="capp-engineer-handoff__label">Flue terminal rules</p>
-          <p>Confirm terminal clearances and manufacturer siting rules before final install.</p>
-        </div>
-        <div>
-          <p className="capp-engineer-handoff__label">Safety discharge paths</p>
-          {routeLines.length > 0 ? <p>{routeLines.join(' · ')}</p> : <p>Safety discharge path to be confirmed on site.</p>}
-        </div>
+      <div className="capp-card-band capp-card-band--amber">
+        <p className="capp-engineer-handoff__heading">Engineer Hand-off &amp; Scan</p>
+        <p className="capp-engineer-handoff__subheading">Ready for the installation review and site follow-through</p>
+      </div>
+      <div className="capp-engineer-handoff__matrix">
+        <section className="capp-engineer-handoff__matrix-card">
+          <p className="capp-engineer-handoff__column-heading">Verified structural inputs</p>
+          <div className="capp-engineer-handoff__grid">
+            {structuralInputs.map((item) => (
+              <div key={item.label}>
+                <p className="capp-engineer-handoff__label">{item.label}</p>
+                <p>{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="capp-engineer-handoff__matrix-card">
+          <p className="capp-engineer-handoff__column-heading">Core hardware allocation options</p>
+          <div className="capp-engineer-handoff__grid">
+            {hardwareInputs.map((item) => (
+              <div key={item.label}>
+                <p className="capp-engineer-handoff__label">{item.label}</p>
+                <p>{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
       {needsVerification && (
         <p className="capp-engineer-handoff__verification">
@@ -1216,7 +1327,12 @@ function EngineerHandOffSection({
         </div>
         <div className="capp-engineer-handoff__scan-copy">
           <p className="capp-engineer-handoff__label">Atlas Scan App</p>
-          <a href={scanUrl} target="_blank" rel="noopener noreferrer">
+          <a
+            href={scanUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(event) => { void handleStandaloneExternalLinkClick(event, { url: scanUrl }); }}
+          >
             Open Atlas Scan App deep link
           </a>
           <p>{scanUrl}</p>
@@ -1397,6 +1513,8 @@ function CustomerAdvicePrintPackContent({
                 decision={decision}
                 recommendedScenario={recommendedScenario}
               />
+
+              <PracticalOutcomesTimeline decision={decision} />
 
               {/* Avoided Risks */}
               <AvoidedRisksSection avoidedRisks={decision.avoidedRisks} />

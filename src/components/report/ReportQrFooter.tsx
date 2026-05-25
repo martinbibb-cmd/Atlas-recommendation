@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { buildPortalUrl } from '../../lib/portal/portalUrl';
 import { generatePortalToken } from '../../lib/portal/portalToken';
+import { handleStandaloneExternalLinkClick } from '../../lib/navigation/pwaExternalNavigation';
 import './ReportQrFooter.css';
 
 interface Props {
@@ -97,7 +98,12 @@ export default function ReportQrFooter({ reportReference }: Props) {
             Explore your options and see why this system was recommended
           </p>
           <p className="rv-qr-footer__fallback">
-            <a href={displayUrl} target="_blank" rel="noopener noreferrer">
+            <a
+              href={displayUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(event) => { void handleStandaloneExternalLinkClick(event, { url: displayUrl }); }}
+            >
               {displayUrl}
             </a>
           </p>

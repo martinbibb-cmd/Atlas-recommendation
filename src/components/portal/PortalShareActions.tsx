@@ -17,6 +17,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { handleStandaloneExternalLinkClick } from '../../lib/navigation/pwaExternalNavigation';
 import './PortalShareActions.css';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -243,6 +244,7 @@ export function PortalShareActions({
           className="portal-share-actions__btn portal-share-actions__btn--link"
           href={advicePackUrl}
           download
+          onClick={(event) => { void handleStandaloneExternalLinkClick(event, { url: advicePackUrl }); }}
           aria-label="Download advice pack"
           data-testid="share-download-pack-link"
         >

@@ -15,6 +15,7 @@
  */
 
 import type { SpatialEvidence3D, ExternalClearanceSceneV1 } from '../../../contracts/spatial3dEvidence';
+import { handleStandaloneExternalLinkClick } from '../../../lib/navigation/pwaExternalNavigation';
 
 interface Props {
   spatialEvidence3d?: SpatialEvidence3D[];
@@ -54,6 +55,7 @@ function RoomScanCard({ scan }: { scan: SpatialEvidence3D }) {
           href={scan.fileUrl}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={(event) => { void handleStandaloneExternalLinkClick(event, { url: scan.fileUrl }); }}
           className="portal-spatial__card-link"
           aria-label="Open 3D room scan model"
         >
@@ -113,6 +115,7 @@ function FlueClearanceCard({ scene }: { scene: ExternalClearanceSceneV1 }) {
             href={scene.evidence.modelUrl}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(event) => { void handleStandaloneExternalLinkClick(event, { url: scene.evidence.modelUrl! }); }}
             className="portal-spatial__card-link"
             aria-label="Open flue clearance scene"
           >

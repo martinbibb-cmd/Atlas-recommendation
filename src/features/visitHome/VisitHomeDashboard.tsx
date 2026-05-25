@@ -50,6 +50,7 @@ import {
   computeVisitHydrationState,
   HYDRATION_STATE_DISPLAY,
 } from './computeVisitHydrationState';
+import { openUrlInSystemBrowser } from '../../lib/navigation/pwaExternalNavigation';
 import './VisitHomeDashboard.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -835,7 +836,7 @@ export function VisitHomeDashboard({
   // ── Stable portal CTA — avoids inline arrow on every render ───────────────
 
   const handleOpenPortal = portalUrl != null
-    ? () => { window.open(portalUrl, '_blank', 'noopener,noreferrer'); }
+    ? () => { openUrlInSystemBrowser(portalUrl); }
     : undefined;
 
   // ── Packaged portal availability ──────────────────────────────────────────
