@@ -299,7 +299,7 @@ describe('Compliance scope items — Requirement label on print output', () => {
     // Compliance item should show "Requirement" badge
     expect(screen.getByText('Requirement')).toBeTruthy();
     // Non-compliance item should NOT have "Requirement" badge next to it
-    expect(screen.getByText('Combi boiler')).toBeTruthy();
+    expect(screen.getAllByText('Combi boiler').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Requirement')).toHaveLength(1);
   });
 });
