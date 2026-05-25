@@ -6,7 +6,11 @@ import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { VisitMeta } from '../../lib/visits/visitApi';
 import type { PersistedAtlasVisitV2 } from '../../lib/storage/persistedAtlasVisitV2';
-import type { GeneratedOutputsV1, VisitReviewLifecycleState } from '../../lib/storage/visitReviewLifecycle';
+import type {
+  CanonicalRecommendationSnapshotV1,
+  GeneratedOutputsV1,
+  VisitReviewLifecycleState,
+} from '../../lib/storage/visitReviewLifecycle';
 import type { CanonicalVisitPackageV1 } from '../visitPackage';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 
@@ -51,6 +55,7 @@ export interface VisitRecommendationSnapshotLike {
   readonly acceptedScenarioId?: string;
   readonly lifecycleState?: VisitReviewLifecycleState;
   readonly generatedOutputs?: GeneratedOutputsV1;
+  readonly recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
   readonly portalVisitContext?: PersistedPortalVisitContext;
 }
 
@@ -75,6 +80,7 @@ export interface CanonicalVisitExportState {
   readonly exportPortalVisitContext?: PersistedPortalVisitContext;
   readonly visitReference: string;
   readonly generatedOutputsSeed?: GeneratedOutputsV1;
+  readonly recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
   readonly currentSnapshot: VisitRecommendationSnapshotLike | null;
 }
 
@@ -108,9 +114,16 @@ export function resolveCanonicalVisitExportState(
             acceptedScenarioId: input.savedVisit.acceptedScenarioId,
             lifecycleState: input.savedVisit.lifecycleState,
             generatedOutputs: input.savedVisit.generatedOutputs,
+            recommendationSnapshot: input.savedVisit.recommendationSnapshot,
             portalVisitContext: input.savedVisit.portalVisitContext,
           }
         : null;
+
+  const recommendationSnapshot =
+    input.savedVisit?.recommendationSnapshot
+    ?? input.currentSnapshot?.recommendationSnapshot
+    ?? input.activeCanonicalPackage?.recommendationAuthority
+    ?? input.activeCanonicalPackage?.importExportMetadata.recommendationSnapshot;
 
   return {
     exportVisitId,
@@ -146,6 +159,7 @@ export function resolveCanonicalVisitExportState(
       input.savedVisit?.generatedOutputs
       ?? input.currentSnapshot?.generatedOutputs
       ?? input.activeCanonicalPackage?.generatedOutputStatus?.generatedOutputs,
+    ...(recommendationSnapshot != null ? { recommendationSnapshot } : {}),
     currentSnapshot,
   };
 }

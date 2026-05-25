@@ -17,6 +17,7 @@ import {
 } from './PortalLaunchPayloadV1';
 import type { CanonicalVisitPackageV1 } from '../visitPackage/CanonicalVisitPackageV1';
 import { readCustomerJourneyPackFromGeneratedOutputs } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
+import { isArtifactStaleForActiveSnapshot } from '../../lib/storage/visitReviewLifecycle';
 
 const REBUILD_WARNING_OLDER_PACKAGE =
   'This package was exported before the customer journey pack was generated. ' +
@@ -24,8 +25,13 @@ const REBUILD_WARNING_OLDER_PACKAGE =
 
 export function buildPortalLaunchPayload(pkg: CanonicalVisitPackageV1): PortalLaunchPayloadV1 {
   const generatedOutputs = pkg.generatedOutputStatus?.generatedOutputs;
+  const activeSnapshotId =
+    pkg.recommendationAuthority?.snapshotId
+    ?? pkg.importExportMetadata.recommendationSnapshot?.snapshotId;
+  const customerJourneyPackArtifact = generatedOutputs?.customerJourneyPack;
   const customerJourneyPack = readCustomerJourneyPackFromGeneratedOutputs(generatedOutputs);
-  const hasCustomerJourneyPack = customerJourneyPack != null;
+  const staleSnapshotBlocked = isArtifactStaleForActiveSnapshot(customerJourneyPackArtifact, activeSnapshotId);
+  const hasCustomerJourneyPack = customerJourneyPack != null && !staleSnapshotBlocked;
 
   return {
     schema: PORTAL_LAUNCH_PAYLOAD_SCHEMA,
@@ -37,7 +43,11 @@ export function buildPortalLaunchPayload(pkg: CanonicalVisitPackageV1): PortalLa
     customerJourneyPack,
     hasCustomerJourneyPack,
     rebuildRequired: !hasCustomerJourneyPack,
-    rebuildWarning: !hasCustomerJourneyPack ? REBUILD_WARNING_OLDER_PACKAGE : undefined,
+    rebuildWarning: !hasCustomerJourneyPack
+      ? staleSnapshotBlocked
+        ? 'Packaged customer journey is stale for the active recommendation snapshot. Regenerate recommendation outputs.'
+        : REBUILD_WARNING_OLDER_PACKAGE
+      : undefined,
     selectedScenarioId: pkg.proposalTruth?.selectedScenarioId,
     portalVisitContext: pkg.customerPropertyDetails.portalVisitContext,
     generatedOutputMetadata: {
@@ -45,6 +55,9 @@ export function buildPortalLaunchPayload(pkg: CanonicalVisitPackageV1): PortalLa
       portalUrl: undefined,
       hasSupportingPdf: generatedOutputs?.pdf?.generated === true,
       lifecycleState: pkg.generatedOutputStatus?.lifecycleState,
+      activeRecommendationSnapshotId: activeSnapshotId,
+      customerJourneyPackSnapshotId: customerJourneyPackArtifact?.snapshotId,
+      staleSnapshotBlocked,
     },
     builtAt: new Date().toISOString(),
     sourcePackageExportedAt: pkg.importExportMetadata.exportedAt,

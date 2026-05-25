@@ -36,6 +36,12 @@ export interface PortalLaunchGeneratedOutputMetadataV1 {
   readonly hasSupportingPdf: boolean;
   /** The lifecycle state captured in the source package. */
   readonly lifecycleState?: string;
+  /** Active recommendation snapshot identity from the source package. */
+  readonly activeRecommendationSnapshotId?: string;
+  /** Snapshot id carried by the packaged customer journey artifact. */
+  readonly customerJourneyPackSnapshotId?: string;
+  /** True when packaged journey artifact is from a stale snapshot. */
+  readonly staleSnapshotBlocked: boolean;
 }
 
 /**

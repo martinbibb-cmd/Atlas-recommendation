@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   CANONICAL_PORTAL_RENDERER,
   buildVisitEnvelopeReadinessProjection,
+  buildGeneratedOutputDependencyProjection,
   buildGeneratedPortalArtifact,
   createEmptyGeneratedOutputs,
+  isArtifactStaleForActiveSnapshot,
   isVisitEnvelopeDeliveryReady,
   isVisitEnvelopeProposalReady,
   projectVisitReadiness,
@@ -241,5 +243,28 @@ describe('visitReviewLifecycle', () => {
     expect(envelope?.recommendationResult).toEqual(legacyRecommendation);
     expect(envelope?.recommendation).toEqual(legacyRecommendation);
     expect(isVisitEnvelopeProposalReady(envelope)).toBe(true);
+  });
+
+  it('detects stale generated artifacts when snapshot ids diverge', () => {
+    expect(isArtifactStaleForActiveSnapshot(
+      { generated: true, snapshotId: 'snapshot-old' },
+      'snapshot-new',
+    )).toBe(true);
+    expect(isArtifactStaleForActiveSnapshot(
+      { generated: true, snapshotId: 'snapshot-active' },
+      'snapshot-active',
+    )).toBe(false);
+  });
+
+  it('buildGeneratedOutputDependencyProjection flags stale dependencies', () => {
+    const projection = buildGeneratedOutputDependencyProjection({
+      ...createEmptyGeneratedOutputs(),
+      portal: { generated: true, snapshotId: 'snapshot-1' },
+      simulatorReview: { generated: true, snapshotId: 'snapshot-2' },
+    }, 'snapshot-2');
+    const portal = projection.find((entry) => entry.artifact === 'portal');
+    const simulator = projection.find((entry) => entry.artifact === 'simulatorReview');
+    expect(portal?.stale).toBe(true);
+    expect(simulator?.stale).toBe(false);
   });
 });
