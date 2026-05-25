@@ -166,4 +166,40 @@ describe('resolveCanonicalVisitExportState', () => {
     expect(result?.visitReference).toBe('Project Maple');
     expect(result?.selectedScenarioId).toBe('scenario_saved');
   });
+
+  it('prefers saved recommendation snapshot authority when resolving export state', () => {
+    const result = resolveCanonicalVisitExportState({
+      activeVisitId: 'visit_saved',
+      savedVisit: {
+        schemaVersion: 2,
+        visitId: 'visit_saved',
+        updatedAt: '2026-05-24T00:00:00.000Z',
+        survey: { postcode: 'AB1 2CD' } as never,
+        recommendationSnapshot: {
+          snapshotId: 'snapshot-saved',
+          createdAt: '2026-05-24T00:00:00.000Z',
+          sourceVisitRevision: '2026-05-24T00:00:00.000Z',
+          checksum: 'fnv1a32-saved',
+        },
+      },
+      activeCanonicalPackage: {
+        visitIdentity: { visitId: 'visit_saved' },
+        surveyDraft: { postcode: 'AB1 2CD' } as never,
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        importExportMetadata: {
+          exportedAt: '2026-05-20T00:00:00.000Z',
+          source: { target: 'local_only', surface: 'visit_home_export' },
+          recommendationSnapshot: {
+            snapshotId: 'snapshot-package',
+            createdAt: '2026-05-20T00:00:00.000Z',
+            sourceVisitRevision: '2026-05-20T00:00:00.000Z',
+            checksum: 'fnv1a32-package',
+          },
+        },
+      } as never,
+    });
+
+    expect(result?.recommendationSnapshot?.snapshotId).toBe('snapshot-saved');
+  });
 });

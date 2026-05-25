@@ -88,6 +88,7 @@ export interface PersistedAtlasVisitV2Input {
   acceptedScenarioId?: string;
   lifecycleState?: VisitReviewLifecycleState;
   generatedOutputs?: GeneratedOutputsV1;
+  recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
   portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
   scanCapture?: unknown;
   quotePlan?: unknown;
