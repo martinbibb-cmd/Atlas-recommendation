@@ -111,10 +111,12 @@
   grid-template-columns: 1fr auto;
   gap: 16px;
   align-items: start;
-  background: var(--crp-bg-section);
+  background: linear-gradient(135deg, #f0fdf4 0%, #ebf4ff 100%);
   border-radius: var(--crp-radius);
+  border-left: 5px solid var(--crp-green);
   padding: 20px 22px;
   margin-bottom: 18px;
+  box-shadow: 0 2px 8px rgba(39, 103, 73, 0.08);
 }
 
 /* ── Header left ── */
@@ -238,6 +240,8 @@
 
 .crp-section {
   margin-bottom: 14px;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .crp-section:last-child {
@@ -343,6 +347,8 @@
   border-radius: var(--crp-radius);
   padding: 10px 12px;
   margin-bottom: 10px;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .crp-facts__heading {
@@ -407,6 +413,8 @@
 
 .crp-comparison-row {
   margin-top: 16px;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .crp-comparison-table {
@@ -522,18 +530,21 @@
   align-items: center;
   gap: 5px;
   text-align: center;
-  width: 165px;
-  padding: 10px 12px;
-  background: var(--crp-bg-light);
-  border: 1px solid var(--crp-border);
+  width: 175px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1.5px solid var(--crp-border);
   border-radius: var(--crp-radius);
 }
 
 .crp-footer__qr-img {
-  width: 110px;
-  height: 110px;
+  width: 120px;
+  height: 120px;
   display: block;
   image-rendering: pixelated;
+  padding: 4px;
+  background: #fff;
+  border-radius: 4px;
 }
 
 .crp-footer__qr-caption {
@@ -653,6 +664,10 @@
   }
 
   .crp-engineering-section {
+    break-before: page;
+  }
+
+  .crp-handoff-section {
     break-before: page;
   }
 }
@@ -776,4 +791,143 @@
   font-weight: 600;
   color: var(--crp-text);
   white-space: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   DEMOGRAPHICS GRID — 2×2 highlight grid in the evidence column
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-demo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.crp-demo-cell {
+  background: #fff;
+  border: 1.5px solid var(--crp-border);
+  border-radius: var(--crp-radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.crp-demo-cell__label {
+  font-size: 0.58rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--crp-muted);
+  white-space: nowrap;
+}
+
+.crp-demo-cell__value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--crp-text);
+  line-height: 1.2;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TECHNICAL SITE HAND-OFF — engineer handover section (final page)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.crp-handoff-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 2px solid var(--crp-border);
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.crp-handoff-title {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--crp-muted);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crp-handoff-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--crp-border);
+}
+
+.crp-handoff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--crp-border);
+  border-radius: var(--crp-radius);
+  overflow: hidden;
+}
+
+.crp-handoff-col__header {
+  padding: 8px 14px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--crp-border);
+}
+
+.crp-handoff-col__header--left {
+  background: var(--crp-bg-section);
+  color: var(--crp-blue);
+  border-right: 1px solid var(--crp-border);
+}
+
+.crp-handoff-col__header--right {
+  background: var(--crp-green-bg);
+  color: var(--crp-green);
+}
+
+.crp-handoff-col__body {
+  padding: 10px 14px;
+}
+
+.crp-handoff-col__body--left {
+  background: #fff;
+  border-right: 1px solid var(--crp-border);
+}
+
+.crp-handoff-col__body--right {
+  background: #fff;
+}
+
+.crp-handoff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--crp-border);
+  font-size: 0.74rem;
+}
+
+.crp-handoff-row:last-child {
+  border-bottom: none;
+}
+
+.crp-handoff-row__label {
+  color: var(--crp-muted);
+  font-weight: 600;
+  font-size: 0.68rem;
+  flex-shrink: 0;
+}
+
+.crp-handoff-row__value {
+  font-weight: 700;
+  color: var(--crp-text);
+  text-align: right;
 }

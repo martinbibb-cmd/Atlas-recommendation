@@ -36,7 +36,7 @@ import {
   type ShortlistedOptionDetail,
 } from '../presentation/buildCanonicalPresentation';
 import { ALL_OBJECTIVES } from '../../engine/recommendation/RecommendationModel';
-import type { FullEngineResult, EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
+import type { FullEngineResult, EngineInputV2_3, CylinderSizingResult } from '../../engine/schema/EngineInputV2_3';
 import type { RecommendationResult } from '../../engine/recommendation/RecommendationModel';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
@@ -269,6 +269,98 @@ function FactsBlock({ block }: { block: FactBlock }) {
             <span className="crp-fact-row__value">{row.value}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Demographics 2×2 grid ────────────────────────────────────────────────────
+
+interface DemographicsGridProps {
+  occupants: string;
+  bathrooms: string;
+  heatLoss: string;
+  demand: string;
+}
+
+function DemographicsGrid({ occupants, bathrooms, heatLoss, demand }: DemographicsGridProps) {
+  const cells = [
+    { label: 'Occupants',  value: occupants },
+    { label: 'Bathrooms',  value: bathrooms },
+    { label: 'Peak heat loss', value: heatLoss },
+    { label: 'Hot water demand', value: demand },
+  ];
+  return (
+    <div className="crp-demo-grid" aria-label="Household demographics">
+      {cells.map(cell => (
+        <div key={cell.label} className="crp-demo-cell">
+          <span className="crp-demo-cell__label">{cell.label}</span>
+          <span className="crp-demo-cell__value">{cell.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Technical site hand-off ──────────────────────────────────────────────────
+
+interface TechnicalSiteHandoffProps {
+  input: EngineInputV2_3;
+  cylinderSizing: CylinderSizingResult;
+}
+
+function TechnicalSiteHandoff({ input, cylinderSizing }: TechnicalSiteHandoffProps) {
+  const { recommendation, currentPerformance } = cylinderSizing;
+
+  const cylinderTypeLabel: Record<CylinderSizingResult['recommendation']['cylinderType'], string> = {
+    standard:            'Standard indirect cylinder',
+    mixergy:             'Mixergy top-down stratification',
+    heat_pump_optimised: 'Heat-pump-optimised cylinder',
+  };
+
+  const leftRows: Array<{ label: string; value: string }> = [
+    ...(input.perimeterM != null ? [{ label: 'Measured perimeter', value: `${input.perimeterM.toFixed(1)} m` }] : []),
+    ...(input.groundFloorAreaM2 != null ? [{ label: 'Ground floor area', value: `${input.groundFloorAreaM2.toFixed(1)} m²` }] : []),
+    { label: 'Peak heat loss', value: `${(input.heatLossWatts / 1000).toFixed(2)} kW` },
+    { label: 'Primary pipe', value: `${input.primaryPipeDiameter} mm` },
+    ...(input.buildingBearingDeg != null ? [{ label: 'Orientation', value: `${input.buildingBearingDeg}° from north` }] : []),
+  ];
+
+  const rightRows: Array<{ label: string; value: string }> = [
+    { label: 'Cylinder type', value: cylinderTypeLabel[recommendation.cylinderType] },
+    { label: 'Target volume', value: `${recommendation.targetVolumeL} L` },
+    { label: 'Minimum volume', value: `${recommendation.minimumVolumeL} L` },
+    { label: 'Recovery time', value: `${recommendation.expectedRecoveryTimeMins} min` },
+    { label: 'Standing loss', value: `${recommendation.expectedStandingLossKwhPer24h.toFixed(2)} kWh/24h` },
+    ...(currentPerformance != null ? [{ label: 'Current heat source', value: `${currentPerformance.heatSourcePowerKw.toFixed(1)} kW` }] : []),
+  ];
+
+  return (
+    <div className="crp-handoff-section" data-testid="technical-site-handoff">
+      <p className="crp-handoff-title">Technical Site Hand-off</p>
+      <div className="crp-handoff-grid">
+        <div className="crp-handoff-col__header crp-handoff-col__header--left">
+          Physical Site Constraints
+        </div>
+        <div className="crp-handoff-col__header crp-handoff-col__header--right">
+          Planned Hardware Allocations
+        </div>
+        <div className="crp-handoff-col__body crp-handoff-col__body--left">
+          {leftRows.map(row => (
+            <div key={row.label} className="crp-handoff-row">
+              <span className="crp-handoff-row__label">{row.label}</span>
+              <span className="crp-handoff-row__value">{row.value}</span>
+            </div>
+          ))}
+        </div>
+        <div className="crp-handoff-col__body crp-handoff-col__body--right">
+          {rightRows.map(row => (
+            <div key={row.label} className="crp-handoff-row">
+              <span className="crp-handoff-row__label">{row.label}</span>
+              <span className="crp-handoff-row__value">{row.value}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -626,12 +718,6 @@ export default function CustomerRecommendationPrint({
     ...(mainsFlowValue != null ? [{ label: 'Mains flow', value: mainsFlowValue }] : []),
   ].filter(isVisibleRow);
 
-  const householdFactRows = [
-    { label: 'Occupants',  value: `${input.occupancyCount ?? 2} ${(input.occupancyCount ?? 2) === 1 ? 'person' : 'people'}` },
-    { label: 'Bathrooms',  value: `${input.bathroomCount ?? 1} ${(input.bathroomCount ?? 1) === 1 ? 'bathroom' : 'bathrooms'}` },
-    { label: 'Peak demand', value: home.peakOutletsLabel },
-  ].filter(isVisibleRow);
-
   const currentSystemRows: Array<{ label: string; value: string }> = [];
   if (currentSystem.systemTypeLabel) {
     currentSystemRows.push({ label: 'Current system', value: currentSystem.systemTypeLabel });
@@ -777,9 +863,14 @@ export default function CustomerRecommendationPrint({
             <section className="crp-section" aria-label="What we found">
               <h2 className="crp-section__title">What we found</h2>
 
-              <FactsBlock block={{ icon: '🏠', heading: 'Home', rows: homeFactRows }} />
+              <DemographicsGrid
+                occupants={`${input.occupancyCount ?? 2} ${(input.occupancyCount ?? 2) === 1 ? 'person' : 'people'}`}
+                bathrooms={`${input.bathroomCount ?? 1} ${(input.bathroomCount ?? 1) === 1 ? 'bathroom' : 'bathrooms'}`}
+                heatLoss={house.heatLossLabel}
+                demand={demandText}
+              />
 
-              <FactsBlock block={{ icon: '👥', heading: 'Household', rows: householdFactRows }} />
+              <FactsBlock block={{ icon: '🏠', heading: 'Home', rows: homeFactRows }} />
 
               {currentSystemRows.length > 0 && (
                 <FactsBlock block={{ icon: '🔧', heading: 'Current system', rows: currentSystemRows }} />
@@ -992,6 +1083,14 @@ export default function CustomerRecommendationPrint({
 
           </div>
         )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            TECHNICAL SITE HAND-OFF — engineer handover data (final page)
+            ════════════════════════════════════════════════════════════════ */}
+        <TechnicalSiteHandoff
+          input={input}
+          cylinderSizing={result.cylinderSizingV1}
+        />
 
       </div>
     </div>
