@@ -257,11 +257,13 @@ export function readCustomerJourneyPackFromGeneratedOutputs(
 export function buildCustomerJourneyPackGeneratedOutput(input: {
   readonly customerJourneyPack: CustomerJourneyPackV1;
   readonly generatedAt: string;
+  readonly snapshotId?: string;
   readonly status?: string;
 }): NonNullable<GeneratedOutputsV1['customerJourneyPack']> {
   return {
     generated: true,
     generatedAt: input.generatedAt,
+    snapshotId: input.snapshotId,
     schema: input.customerJourneyPack.schema,
     version: input.customerJourneyPack.version,
     status: input.status ?? 'packaged',

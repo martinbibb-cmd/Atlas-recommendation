@@ -57,21 +57,34 @@ function makePackageWithJourneyPack(): CanonicalVisitPackageV1 {
       generatedOutputStatus: {
         lifecycleState: 'recommendation_ready',
         generatedOutputs: {
-          portal: { generated: true, generatedAt: '2026-05-20T10:01:00.000Z', url: 'https://portal.example.com/portal/ref-001' },
+          portal: { generated: true, generatedAt: '2026-05-20T10:01:00.000Z', url: 'https://portal.example.com/portal/ref-001', snapshotId: 'snapshot-001' },
           pdf: { generated: false },
           customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
             customerJourneyPack,
             generatedAt: '2026-05-20T10:01:00.000Z',
+            snapshotId: 'snapshot-001',
           }),
           simulatorReview: { generated: false },
           handoff: { generated: false },
         },
+      },
+      recommendationAuthority: {
+        snapshotId: 'snapshot-001',
+        createdAt: '2026-05-20T10:01:00.000Z',
+        sourceVisitRevision: '2026-05-20T10:01:00.000Z',
+        checksum: 'fnv1a32-portaltest001',
       },
       importExportMetadata: {
         exportedAt: '2026-05-20T10:02:00.000Z',
         source: {
           target: 'local_only',
           surface: 'visit_home_export',
+        },
+        recommendationSnapshot: {
+          snapshotId: 'snapshot-001',
+          createdAt: '2026-05-20T10:01:00.000Z',
+          sourceVisitRevision: '2026-05-20T10:01:00.000Z',
+          checksum: 'fnv1a32-portaltest001',
         },
       },
     },
@@ -216,6 +229,45 @@ describe('PortalLaunchPayloadV1 — missing customerJourneyPack shows safe fallb
     const payload = buildPortalLaunchPayload(pkg);
     const validated = validatePortalLaunchPayload(payload);
     expect(validated.ok).toBe(true);
+  });
+
+  it('blocks packaged portal launch when journey artifact snapshot is stale', () => {
+    const pkg = makePackageWithJourneyPack();
+    const stalePkg = buildCanonicalVisitPackage({
+      packageData: {
+        ...pkg,
+        recommendationAuthority: {
+          snapshotId: 'snapshot-active',
+          createdAt: '2026-05-20T10:02:00.000Z',
+          sourceVisitRevision: '2026-05-20T10:02:00.000Z',
+          checksum: 'fnv1a32-active',
+        },
+        importExportMetadata: {
+          ...pkg.importExportMetadata,
+          recommendationSnapshot: {
+            snapshotId: 'snapshot-active',
+            createdAt: '2026-05-20T10:02:00.000Z',
+            sourceVisitRevision: '2026-05-20T10:02:00.000Z',
+            checksum: 'fnv1a32-active',
+          },
+        },
+        generatedOutputStatus: {
+          ...pkg.generatedOutputStatus,
+          generatedOutputs: {
+            ...pkg.generatedOutputStatus?.generatedOutputs,
+            customerJourneyPack: {
+              ...pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack,
+              generated: true,
+              snapshotId: 'snapshot-stale',
+            },
+          },
+        },
+      },
+    });
+    const payload = buildPortalLaunchPayload(stalePkg);
+    expect(payload.generatedOutputMetadata.staleSnapshotBlocked).toBe(true);
+    expect(payload.hasCustomerJourneyPack).toBe(false);
+    expect(payload.rebuildRequired).toBe(true);
   });
 });
 

@@ -10,6 +10,7 @@ import {
   isRecommendationReadyForLifecycle,
   normaliseVisitReviewLifecycleState,
   normaliseGeneratedOutputs,
+  type CanonicalRecommendationSnapshotV1,
   type GeneratedOutputsV1,
   type VisitReviewLifecycleState,
 } from './visitReviewLifecycle';
@@ -33,10 +34,12 @@ export interface CanonicalVisitPayloadV1 {
     scenarios?: ScenarioResult[];
     customerSummary?: CustomerSummaryV1;
     selectedRecommendationId?: string;
+    recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
   };
   presentationHandoff?: {
     lifecycleState?: VisitReviewLifecycleState;
     generatedOutputs?: GeneratedOutputsV1;
+    recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
     portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
   };
   saveExportStatus?: {
@@ -59,6 +62,7 @@ export interface PersistedAtlasVisitV2 {
   acceptedScenarioId?: string;
   lifecycleState?: VisitReviewLifecycleState;
   generatedOutputs?: GeneratedOutputsV1;
+  recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
   portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
   scanCapture?: unknown;
   quotePlan?: unknown;
@@ -114,10 +118,12 @@ function buildCanonicalVisitPayload(input: PersistedAtlasVisitV2Input): Canonica
       scenarios: input.scenarios,
       customerSummary: input.customerSummary,
       selectedRecommendationId: input.acceptedScenarioId,
+      ...(input.recommendationSnapshot != null ? { recommendationSnapshot: input.recommendationSnapshot } : {}),
     },
     presentationHandoff: {
       lifecycleState: input.lifecycleState,
       generatedOutputs: input.generatedOutputs,
+      ...(input.recommendationSnapshot != null ? { recommendationSnapshot: input.recommendationSnapshot } : {}),
       portalVisitContext: input.portalVisitContext,
     },
     saveExportStatus: {
@@ -141,6 +147,7 @@ export function buildPersistedAtlasVisitV2(input: PersistedAtlasVisitV2Input): P
     acceptedScenarioId: input.acceptedScenarioId,
     lifecycleState: input.lifecycleState,
     generatedOutputs: input.generatedOutputs,
+    ...(input.recommendationSnapshot != null ? { recommendationSnapshot: input.recommendationSnapshot } : {}),
     portalVisitContext: input.portalVisitContext,
     scanCapture: input.scanCapture,
     quotePlan: input.quotePlan,
@@ -192,6 +199,10 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
     const scenarios = coalesceValue(parsed.scenarios, canonical?.recommendationResult?.scenarios);
     const customerSummary = coalesceValue(parsed.customerSummary, canonical?.recommendationResult?.customerSummary);
     const acceptedScenarioId = coalesceValue(parsed.acceptedScenarioId, canonical?.recommendationResult?.selectedRecommendationId);
+    const recommendationSnapshot =
+      parsed.recommendationSnapshot
+      ?? canonical?.recommendationResult?.recommendationSnapshot
+      ?? canonical?.presentationHandoff?.recommendationSnapshot;
     const portalVisitContext = coalesceValue(parsed.portalVisitContext, canonical?.presentationHandoff?.portalVisitContext);
     const generatedOutputs = normaliseGeneratedOutputs(
       coalesceValue(parsed.generatedOutputs, canonical?.presentationHandoff?.generatedOutputs),
@@ -223,6 +234,7 @@ function parsePersisted(raw: string | null): PersistedAtlasVisitV2 | null {
       acceptedScenarioId,
       lifecycleState: resolvedLifecycleState,
       generatedOutputs,
+      recommendationSnapshot,
       portalVisitContext,
       scanCapture: coalesceValue(parsed.scanCapture, canonical?.scanEvidenceReferences),
       quotePlan: parsed.quotePlan,

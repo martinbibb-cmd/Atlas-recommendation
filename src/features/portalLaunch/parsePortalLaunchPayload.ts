@@ -64,6 +64,10 @@ function validateShape(raw: unknown): PortalLaunchPayloadValidationResult {
   if (!isRecord(raw['generatedOutputMetadata'])) {
     return { ok: false, errors: ['generatedOutputMetadata must be an object.'] };
   }
+  const generatedOutputMetadata = raw['generatedOutputMetadata'] as Record<string, unknown>;
+  if (typeof generatedOutputMetadata['staleSnapshotBlocked'] !== 'boolean') {
+    return { ok: false, errors: ['generatedOutputMetadata.staleSnapshotBlocked must be a boolean.'] };
+  }
 
   if (!hasText(raw['builtAt'])) {
     return { ok: false, errors: ['builtAt must be a non-empty string.'] };

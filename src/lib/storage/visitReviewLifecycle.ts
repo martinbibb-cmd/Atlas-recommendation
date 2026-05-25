@@ -19,10 +19,19 @@ export { DEFAULT_ATLAS_VISIT_JOURNEY_STATE, transitionAtlasVisitJourney };
 export type GeneratedOutputRendererV1 = 'library_customer_portal' | 'legacy_dev_only';
 export const CANONICAL_PORTAL_RENDERER: GeneratedOutputRendererV1 = 'library_customer_portal';
 
+export interface CanonicalRecommendationSnapshotV1 {
+  readonly snapshotId: string;
+  readonly createdAt: string;
+  readonly regeneratedFrom?: string;
+  readonly sourceVisitRevision: string;
+  readonly checksum: string;
+}
+
 export interface GeneratedOutputArtifactV1<TPayload = unknown> {
   readonly generated: boolean;
   readonly generatedAt?: string;
   readonly url?: string;
+  readonly snapshotId?: string;
   readonly version?: string;
   readonly documentId?: string;
   /** Which renderer this artifact targets. Canonical portal artifacts must use 'library_customer_portal'. */
@@ -38,6 +47,21 @@ export interface GeneratedOutputsV1 {
   readonly customerJourneyPack?: GeneratedOutputArtifactV1<CustomerJourneyPackV1>;
   readonly simulatorReview: GeneratedOutputArtifactV1;
   readonly handoff: GeneratedOutputArtifactV1;
+}
+
+export type GeneratedOutputDependencyNameV1 =
+  | 'portal'
+  | 'pdf'
+  | 'customerJourneyPack'
+  | 'simulatorReview'
+  | 'handoff';
+
+export interface GeneratedOutputDependencyStatusV1 {
+  readonly artifact: GeneratedOutputDependencyNameV1;
+  readonly generated: boolean;
+  readonly artifactSnapshotId?: string;
+  readonly activeSnapshotId?: string;
+  readonly stale: boolean;
 }
 
 function createEmptyOutputArtifact<TPayload = unknown>(): GeneratedOutputArtifactV1<TPayload> {
@@ -87,13 +111,51 @@ export function withGeneratedPortalOutput(
   portal: {
     readonly generatedAt: string;
     readonly url: string;
+    readonly snapshotId?: string;
     readonly version?: string;
   },
 ): GeneratedOutputsV1 {
   return {
     ...normaliseGeneratedOutputs(outputs),
-    portal: buildGeneratedPortalArtifact(portal),
+    portal: {
+      ...buildGeneratedPortalArtifact(portal),
+      snapshotId: portal.snapshotId,
+    },
   };
+}
+
+export function isArtifactStaleForActiveSnapshot(
+  artifact: GeneratedOutputArtifactV1 | undefined,
+  activeSnapshotId: string | undefined,
+): boolean {
+  if (artifact?.generated !== true) return false;
+  if (activeSnapshotId == null || activeSnapshotId.trim().length === 0) return false;
+  if (artifact.snapshotId == null || artifact.snapshotId.trim().length === 0) return true;
+  return artifact.snapshotId !== activeSnapshotId;
+}
+
+export function buildGeneratedOutputDependencyProjection(
+  generatedOutputs: Partial<GeneratedOutputsV1> | undefined,
+  activeSnapshotId: string | undefined,
+): GeneratedOutputDependencyStatusV1[] {
+  const outputs = normaliseGeneratedOutputs(generatedOutputs);
+  const projection: Array<{
+    readonly artifact: GeneratedOutputDependencyNameV1;
+    readonly value: GeneratedOutputArtifactV1 | undefined;
+  }> = [
+    { artifact: 'portal', value: outputs.portal },
+    { artifact: 'pdf', value: outputs.pdf },
+    { artifact: 'customerJourneyPack', value: outputs.customerJourneyPack },
+    { artifact: 'simulatorReview', value: outputs.simulatorReview },
+    { artifact: 'handoff', value: outputs.handoff },
+  ];
+  return projection.map(({ artifact, value }) => ({
+    artifact,
+    generated: value?.generated === true,
+    artifactSnapshotId: value?.snapshotId,
+    activeSnapshotId,
+    stale: isArtifactStaleForActiveSnapshot(value, activeSnapshotId),
+  }));
 }
 
 export function isLifecycleState(value: unknown): value is VisitReviewLifecycleState {

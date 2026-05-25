@@ -60,17 +60,30 @@ function makePackage(options?: { readonly includeCustomerJourneyPack?: boolean }
             ? buildCustomerJourneyPackGeneratedOutput({
                 customerJourneyPack,
                 generatedAt: '2026-05-20T10:02:00.000Z',
+                snapshotId: 'snapshot-visit-home-001',
               })
             : undefined,
           simulatorReview: { generated: false },
           handoff: { generated: false },
         },
       },
+      recommendationAuthority: {
+        snapshotId: 'snapshot-visit-home-001',
+        createdAt: '2026-05-20T10:00:00.000Z',
+        sourceVisitRevision: '2026-05-20T10:00:00.000Z',
+        checksum: 'fnv1a32-visit-home-001',
+      },
       importExportMetadata: {
         exportedAt: '2026-05-20T10:02:00.000Z',
         source: {
           target: 'local_only',
           surface: 'visit_home_export',
+        },
+        recommendationSnapshot: {
+          snapshotId: 'snapshot-visit-home-001',
+          createdAt: '2026-05-20T10:00:00.000Z',
+          sourceVisitRevision: '2026-05-20T10:00:00.000Z',
+          checksum: 'fnv1a32-visit-home-001',
         },
       },
     },
@@ -133,6 +146,45 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
 
     expect(state.canOpenPortalFromPackage).toBe(false);
     expect(state.portalLaunchPayload?.hasCustomerJourneyPack).toBe(false);
+  });
+
+  it('blocks customer PDF when packaged pdf artifact snapshot is stale', () => {
+    const sourcePackage = buildCanonicalVisitPackage({
+      packageData: {
+        ...makePackage(),
+        recommendationAuthority: {
+          snapshotId: 'snapshot-active',
+          createdAt: '2026-05-20T10:00:00.000Z',
+          sourceVisitRevision: '2026-05-20T10:00:00.000Z',
+          checksum: 'fnv1a32-active',
+        },
+        importExportMetadata: {
+          ...makePackage().importExportMetadata,
+          recommendationSnapshot: {
+            snapshotId: 'snapshot-active',
+            createdAt: '2026-05-20T10:00:00.000Z',
+            sourceVisitRevision: '2026-05-20T10:00:00.000Z',
+            checksum: 'fnv1a32-active',
+          },
+        },
+        generatedOutputStatus: {
+          ...makePackage().generatedOutputStatus,
+          generatedOutputs: {
+            ...makePackage().generatedOutputStatus?.generatedOutputs,
+            pdf: {
+              generated: true,
+              snapshotId: 'snapshot-stale',
+            },
+          },
+        },
+      },
+    });
+    const state = buildVisitHomeCustomerArtifactsState({
+      canExportVisitPackage: true,
+      sourcePackage,
+    });
+    expect(state.customerPdfReady).toBe(false);
+    expect(state.customerPdfBlockReasons[0]).toMatch(/stale/i);
   });
 });
 

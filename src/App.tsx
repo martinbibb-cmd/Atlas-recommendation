@@ -144,8 +144,11 @@ import {
   type PersistedAtlasVisitV2,
 } from './lib/storage/persistedAtlasVisitV2';
 import {
+  buildGeneratedOutputDependencyProjection,
   buildVisitEnvelopeReadinessProjection,
+  isArtifactStaleForActiveSnapshot,
   DEFAULT_ATLAS_VISIT_JOURNEY_STATE,
+  type CanonicalRecommendationSnapshotV1,
   createEmptyGeneratedOutputs,
   deriveLifecycleStateFromSnapshot,
   isRecommendationReadyForLifecycle,
@@ -195,6 +198,7 @@ import {
 } from './features/visitHome/resolveCanonicalVisitExportState';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
+import { buildCanonicalRecommendationSnapshot } from './lib/storage/canonicalRecommendationSnapshot';
 import {
   buildVisitHomeCustomerArtifactsState,
   resolvePackagedPortalEngineInput,
@@ -354,36 +358,36 @@ function resolveAuthorityIntegrityIssues(input: {
   ) {
     issues.push('export is using a stale package snapshot');
   }
-  return issues;
-}
-
-function buildAuthoritySnapshotMetadata(input: {
-  readonly visitId: string;
-  readonly selectedScenarioId?: string;
-  readonly exportDecision?: AtlasDecisionV1;
-  readonly exportCustomerSummary?: CustomerSummaryV1;
-  readonly generatedAt: string;
-}): {
-  readonly snapshotId: string;
-  readonly checksum: string;
-} {
-  const material = JSON.stringify({
-    visitId: input.visitId,
-    selectedScenarioId: input.selectedScenarioId ?? null,
-    decisionScenarioId: input.exportDecision?.recommendedScenarioId ?? null,
-    summaryScenarioId: input.exportCustomerSummary?.recommendedScenarioId ?? null,
-    generatedAt: input.generatedAt,
-  });
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < material.length; i += 1) {
-    hash ^= material.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
+  const activeSnapshotId = input.currentSnapshot?.recommendationSnapshot?.snapshotId;
+  const packagedSnapshotId =
+    input.activeCanonicalPackage?.recommendationAuthority?.snapshotId
+    ?? input.activeCanonicalPackage?.importExportMetadata.recommendationSnapshot?.snapshotId;
+  if (
+    hasText(packagedSnapshotId)
+    && hasText(activeSnapshotId)
+    && packagedSnapshotId !== activeSnapshotId
+  ) {
+    issues.push('export package recommendation snapshot diverges from active snapshot authority');
   }
-  const checksum = `fnv1a32-${(hash >>> 0).toString(16).padStart(8, '0')}`;
-  return {
-    snapshotId: `${toSafeDownloadBaseName(input.visitId)}-${(hash >>> 0).toString(16).padStart(8, '0')}`,
-    checksum,
-  };
+  const outputs = input.currentSnapshot?.generatedOutputs;
+  if (outputs != null) {
+    if (isArtifactStaleForActiveSnapshot(outputs.portal, activeSnapshotId)) {
+      issues.push('portal artifact is stale for active recommendation snapshot');
+    }
+    if (isArtifactStaleForActiveSnapshot(outputs.pdf, activeSnapshotId)) {
+      issues.push('pdf artifact is stale for active recommendation snapshot');
+    }
+    if (isArtifactStaleForActiveSnapshot(outputs.customerJourneyPack, activeSnapshotId)) {
+      issues.push('customer journey pack artifact is stale for active recommendation snapshot');
+    }
+    if (isArtifactStaleForActiveSnapshot(outputs.simulatorReview, activeSnapshotId)) {
+      issues.push('simulator artifact is stale for active recommendation snapshot');
+    }
+    if (isArtifactStaleForActiveSnapshot(outputs.handoff, activeSnapshotId)) {
+      issues.push('handoff artifact is stale for active recommendation snapshot');
+    }
+  }
+  return issues;
 }
 
 function resolveExportRecommendationId(input: {
@@ -428,6 +432,39 @@ function toSafeDownloadBaseName(value: string): string {
   const trimmed = value.trim();
   const safe = trimmed.replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^_+|_+$/g, '');
   return safe.length > 0 ? safe : 'atlas-visit';
+}
+
+function invalidateGeneratedArtifacts(
+  outputs: Partial<GeneratedOutputsV1> | undefined,
+): GeneratedOutputsV1 {
+  const normalised = normaliseGeneratedOutputs(outputs);
+  return {
+    ...normalised,
+    portal: { generated: false },
+    pdf: { generated: false },
+    customerJourneyPack: { generated: false },
+    simulatorReview: { generated: false },
+    handoff: { generated: false },
+  };
+}
+
+function withArtifactSnapshotId(
+  outputs: Partial<GeneratedOutputsV1> | undefined,
+  snapshotId: string | undefined,
+): GeneratedOutputsV1 {
+  const normalised = normaliseGeneratedOutputs(outputs);
+  if (!hasText(snapshotId)) {
+    return normalised;
+  }
+  return {
+    portal: { ...normalised.portal, snapshotId },
+    pdf: { ...normalised.pdf, snapshotId },
+    customerJourneyPack: normalised.customerJourneyPack == null
+      ? normalised.customerJourneyPack
+      : { ...normalised.customerJourneyPack, snapshotId },
+    simulatorReview: { ...normalised.simulatorReview, snapshotId },
+    handoff: { ...normalised.handoff, snapshotId },
+  };
 }
 
 function buildImportedVisitId(visitReference: string | undefined): string {
@@ -477,10 +514,11 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
   readonly engineInput?: EngineInputV2_3;
   readonly customerSummary?: CustomerSummaryV1;
   readonly decision?: AtlasDecisionV1;
+  readonly activeSnapshotId?: string;
   readonly portalVisitContext?: PersistedPortalVisitContext;
   readonly generatedAt?: string;
 }): GeneratedOutputsV1 {
-  const outputs = normaliseGeneratedOutputs(input.generatedOutputs);
+  const outputs = withArtifactSnapshotId(input.generatedOutputs, input.activeSnapshotId);
   if (readCustomerJourneyPackFromGeneratedOutputs(outputs) != null) {
     return outputs;
   }
@@ -545,6 +583,7 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
     customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
       customerJourneyPack,
       generatedAt: input.generatedAt ?? new Date().toISOString(),
+      snapshotId: input.activeSnapshotId,
     }),
   };
 }
@@ -838,6 +877,7 @@ type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'v
 interface VisitRecommendationSnapshot {
   visitId: string;
   visitReference?: string;
+  recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
   engineOutput?: EngineOutputV1;
   scenarios?: ScenarioResult[];
   decision?: AtlasDecisionV1;
@@ -1494,6 +1534,7 @@ function AppInner() {
       engineInput: persisted.engineInputSnapshot,
       customerSummary: persisted.customerSummary,
       decision: persisted.decision,
+      activeSnapshotId: persisted.recommendationSnapshot?.snapshotId,
       portalVisitContext: persisted.portalVisitContext,
       generatedAt: persisted.updatedAt,
     });
@@ -1512,6 +1553,7 @@ function AppInner() {
     setVisitRecommendationSnapshot({
       visitId: persisted.visitId,
       visitReference: persisted.visitReference,
+      recommendationSnapshot: persisted.recommendationSnapshot,
       engineOutput: persisted.engine,
       scenarios: persisted.scenarios,
       decision: persisted.decision,
@@ -1594,6 +1636,7 @@ function AppInner() {
       engineInput: sourceInput ?? labEngineInput,
       customerSummary: customerSummarySnapshot,
       decision: decisionSnapshot,
+      activeSnapshotId: existingSnapshot?.recommendationSnapshot?.snapshotId,
       portalVisitContext: labPortalVisitContext,
     });
     const lifecycleState = dispatchVisitJourneyEvent(
@@ -1613,12 +1656,14 @@ function AppInner() {
       acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
       lifecycleState,
       generatedOutputs,
+      recommendationSnapshot: existingSnapshot?.recommendationSnapshot,
       portalVisitContext: labPortalVisitContext,
     });
     saveVisitAtomically(persisted);
     setVisitRecommendationSnapshot({
       visitId: activeVisitId,
       visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
+      recommendationSnapshot: existingSnapshot?.recommendationSnapshot,
       engineOutput: engineSnapshot,
       scenarios: scenariosSnapshot,
       decision: decisionSnapshot,
@@ -1694,6 +1739,7 @@ function AppInner() {
       engineInput: sourceInput ?? labEngineInput,
       customerSummary: customerSummarySnapshot,
       decision: decisionSnapshot,
+      activeSnapshotId: currentSnapshot?.recommendationSnapshot?.snapshotId,
       portalVisitContext: labPortalVisitContext,
     });
     const lifecycleState = dispatchVisitJourneyEvent(
@@ -1713,12 +1759,14 @@ function AppInner() {
       acceptedScenarioId,
       lifecycleState,
       generatedOutputs,
+      recommendationSnapshot: currentSnapshot?.recommendationSnapshot,
       portalVisitContext: labPortalVisitContext,
     });
     saveVisitAtomically(snapshot);
     setVisitRecommendationSnapshot({
       visitId: activeVisitId,
       visitReference: snapshot.visitReference,
+      recommendationSnapshot: currentSnapshot?.recommendationSnapshot,
       engineOutput: engineSnapshot,
       scenarios: scenariosSnapshot,
       decision: decisionSnapshot,
@@ -1755,6 +1803,7 @@ function AppInner() {
       engineInput: persisted.engineInputSnapshot,
       customerSummary: persisted.customerSummary,
       decision: persisted.decision,
+      activeSnapshotId: persisted.recommendationSnapshot?.snapshotId,
       portalVisitContext: persisted.portalVisitContext,
       generatedAt: persisted.updatedAt,
     });
@@ -1773,6 +1822,7 @@ function AppInner() {
     setVisitRecommendationSnapshot({
       visitId: persisted.visitId,
       visitReference: persisted.visitReference,
+      recommendationSnapshot: persisted.recommendationSnapshot,
       engineOutput: persisted.engine,
       scenarios: persisted.scenarios,
       decision: persisted.decision,
@@ -1848,12 +1898,16 @@ function AppInner() {
           personalDataMode: pkg.customerPropertyDetails.portalVisitContext.personalDataMode,
         }
       : undefined;
+    const recommendationSnapshot =
+      pkg.recommendationAuthority
+      ?? pkg.importExportMetadata.recommendationSnapshot;
     const generatedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
       generatedOutputs: pkg.generatedOutputStatus?.generatedOutputs,
       surveyModel: pkg.surveyDraft,
       engineInput: pkg.engineInputSnapshot,
       customerSummary: recommendationSummary,
       decision: derivedDecision,
+      activeSnapshotId: recommendationSnapshot?.snapshotId,
       portalVisitContext,
       generatedAt: pkg.importExportMetadata.exportedAt,
     });
@@ -1891,6 +1945,7 @@ function AppInner() {
         acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
         lifecycleState,
         generatedOutputs: hydratedGeneratedOutputs,
+        recommendationSnapshot,
         portalVisitContext,
       }));
 
@@ -1908,6 +1963,7 @@ function AppInner() {
     setVisitRecommendationSnapshot({
       visitId: resolvedVisitId,
       visitReference: resolvedVisitReference,
+      recommendationSnapshot,
       decision: derivedDecision,
       customerSummary: recommendationSummary,
       acceptedScenarioId: pkg.proposalTruth?.selectedScenarioId,
@@ -1977,6 +2033,7 @@ function AppInner() {
     readonly exportSurveyModel: FullSurveyModelV1;
     readonly currentSnapshot: VisitRecommendationSnapshotLike | null;
     readonly generatedOutputs: GeneratedOutputsV1;
+    readonly recommendationSnapshot: CanonicalRecommendationSnapshotV1;
     readonly exportDecision?: AtlasDecisionV1;
     readonly exportCustomerSummary?: CustomerSummaryV1;
     readonly selectedScenarioId?: string;
@@ -2028,6 +2085,7 @@ function AppInner() {
       exportPortalVisitContext: resolvedExportPortalVisitContext,
       visitReference: resolvedVisitReference,
       generatedOutputsSeed,
+      recommendationSnapshot: resolvedRecommendationSnapshot,
       currentSnapshot,
     } = resolvedExportState;
     const now = new Date().toISOString();
@@ -2076,13 +2134,16 @@ function AppInner() {
       exportDecision,
       exportCustomerSummary,
     });
-    const authoritySnapshot = buildAuthoritySnapshotMetadata({
-      visitId: exportVisitId,
-      selectedScenarioId,
-      exportDecision,
-      exportCustomerSummary,
-      generatedAt: now,
-    });
+    const authoritySnapshot = resolvedRecommendationSnapshot
+      ?? buildCanonicalRecommendationSnapshot({
+        visitId: exportVisitId,
+        sourceVisitRevision: now,
+        selectedScenarioId,
+        decision: exportDecision,
+        customerSummary: exportCustomerSummary,
+        regeneratedFrom: currentSnapshot?.recommendationSnapshot?.snapshotId,
+        createdAt: now,
+      });
     if (authorityIntegrityIssues.length > 0) {
       if (import.meta.env.DEV) {
         console.error('[Atlas] Export integrity assertion failed', authorityIntegrityIssues);
@@ -2102,6 +2163,7 @@ function AppInner() {
       engineInput: exportEngineInput,
       customerSummary: exportCustomerSummary,
       decision: exportDecision,
+      activeSnapshotId: authoritySnapshot.snapshotId,
       portalVisitContext: exportPortalVisitContext,
       generatedAt: now,
     });
@@ -2144,6 +2206,7 @@ function AppInner() {
           lifecycleState: currentSnapshot?.lifecycleState,
           generatedOutputs,
         },
+        recommendationAuthority: authoritySnapshot,
         importExportMetadata: {
           exportedAt: now,
           source: {
@@ -2162,6 +2225,7 @@ function AppInner() {
       exportSurveyModel,
       currentSnapshot,
       generatedOutputs,
+      recommendationSnapshot: authoritySnapshot,
       exportDecision,
       exportCustomerSummary,
       selectedScenarioId,
@@ -2195,6 +2259,7 @@ function AppInner() {
       exportSurveyModel,
       currentSnapshot,
       generatedOutputs,
+      recommendationSnapshot,
       exportDecision,
       exportCustomerSummary,
       selectedScenarioId,
@@ -2248,6 +2313,7 @@ function AppInner() {
     const nextSnapshot: VisitRecommendationSnapshot = {
       visitId: exportVisitId,
       visitReference,
+      recommendationSnapshot,
       engineOutput: currentSnapshot?.engineOutput,
       scenarios: currentSnapshot?.scenarios,
       decision: exportDecision ?? currentSnapshot?.decision,
@@ -2308,7 +2374,17 @@ function AppInner() {
       visitRecommendationSnapshot?.visitId === activeVisitId
         ? visitRecommendationSnapshot
         : null;
-    let generatedOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
+    const regeneratedAt = new Date().toISOString();
+    const recommendationSnapshot = buildCanonicalRecommendationSnapshot({
+      visitId: activeVisitId,
+      sourceVisitRevision: regeneratedAt,
+      selectedScenarioId: decisionSnapshot?.recommendedScenarioId,
+      decision: decisionSnapshot,
+      customerSummary: customerSummarySnapshot,
+      regeneratedFrom: currentSnapshot?.recommendationSnapshot?.snapshotId,
+      createdAt: regeneratedAt,
+    });
+    let generatedOutputs = invalidateGeneratedArtifacts(currentSnapshot?.generatedOutputs);
     let lifecycleState = dispatchVisitJourneyEvent(
       currentSnapshot?.lifecycleState,
       { type: 'recommendation_generated' },
@@ -2347,8 +2423,9 @@ function AppInner() {
       const token = await generatePortalToken(reportId);
       portalUrl = buildPortalUrl(reportId, window.location.origin, token);
       generatedOutputs = withGeneratedPortalOutput(generatedOutputs, {
-        generatedAt: new Date().toISOString(),
+        generatedAt: regeneratedAt,
         url: portalUrl,
+        snapshotId: recommendationSnapshot.snapshotId,
       });
       lifecycleState = dispatchVisitJourneyEvent(lifecycleState, { type: 'presentation_generated' });
       statusMessage = 'Recommendation generated, portal link refreshed, and customer outputs updated.';
@@ -2360,6 +2437,7 @@ function AppInner() {
     const nextSnapshot: VisitRecommendationSnapshot = {
       visitId: activeVisitId,
       visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
+      recommendationSnapshot,
       engineOutput: engineSnapshot,
       scenarios: scenariosSnapshot,
       decision: decisionSnapshot,
@@ -2376,7 +2454,7 @@ function AppInner() {
     saveVisitAtomically(buildPersistedAtlasVisitV2({
       visitId: activeVisitId,
       visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
-      updatedAt: new Date().toISOString(),
+      updatedAt: regeneratedAt,
       survey: surveySnapshot,
       engineInputSnapshot: sourceInput,
       engine: engineSnapshot,
@@ -2386,6 +2464,7 @@ function AppInner() {
       acceptedScenarioId: decisionSnapshot?.recommendedScenarioId,
       lifecycleState,
       generatedOutputs,
+      recommendationSnapshot,
       portalVisitContext: labPortalVisitContext,
     }));
     setLocalSessionStatus({ tone: 'success', message: statusMessage });
@@ -2401,6 +2480,7 @@ function AppInner() {
       engineInput: labEngineInput,
       customerSummary: snapshot.customerSummary,
       decision: snapshot.decision,
+      activeSnapshotId: snapshot.recommendationSnapshot?.snapshotId,
       portalVisitContext: snapshot.portalVisitContext,
     });
     const enrichedSnapshot: VisitRecommendationSnapshot = {
@@ -2420,6 +2500,7 @@ function AppInner() {
       acceptedScenarioId: enrichedSnapshot.acceptedScenarioId,
       lifecycleState: enrichedSnapshot.lifecycleState,
       generatedOutputs,
+      recommendationSnapshot: enrichedSnapshot.recommendationSnapshot,
       portalVisitContext: enrichedSnapshot.portalVisitContext,
     }));
     setVisitRecommendationSnapshot(enrichedSnapshot);
@@ -2468,12 +2549,14 @@ function AppInner() {
         engineInput,
         customerSummary: currentSnapshot?.customerSummary,
         decision: currentSnapshot?.decision,
+        activeSnapshotId: currentSnapshot?.recommendationSnapshot?.snapshotId,
         portalVisitContext: currentSnapshot?.portalVisitContext ?? labPortalVisitContext,
         generatedAt: now,
       });
       const nextOutputs: GeneratedOutputsV1 = withGeneratedPortalOutput(generatedOutputs, {
         generatedAt: now,
         url: portalUrl,
+        snapshotId: currentSnapshot?.recommendationSnapshot?.snapshotId,
       });
       const lifecycleState = dispatchVisitJourneyEvent(
         currentSnapshot?.lifecycleState,
@@ -2482,6 +2565,7 @@ function AppInner() {
       const nextSnapshot: VisitRecommendationSnapshot = {
         visitId: activeVisitId,
         visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
+        recommendationSnapshot: currentSnapshot?.recommendationSnapshot,
         engineOutput: currentSnapshot?.engineOutput,
         scenarios: currentSnapshot?.scenarios,
         decision: currentSnapshot?.decision,
@@ -2518,6 +2602,15 @@ function AppInner() {
           })
         : undefined;
       const customerSummary = decision != null ? buildCustomerSummary(decision, scenarios) : undefined;
+      const now = new Date().toISOString();
+      const recommendationSnapshot = buildCanonicalRecommendationSnapshot({
+        visitId: demoVisitId,
+        sourceVisitRevision: now,
+        selectedScenarioId: decision?.recommendedScenarioId,
+        decision,
+        customerSummary,
+        createdAt: now,
+      });
       const lifecycleState = dispatchVisitJourneyEvent(
         DEFAULT_ATLAS_VISIT_JOURNEY_STATE,
         { type: 'recommendation_generated' },
@@ -2528,11 +2621,13 @@ function AppInner() {
         engineInput: CONSOLE_DEMO_INPUT,
         customerSummary,
         decision,
+        activeSnapshotId: recommendationSnapshot.snapshotId,
         portalVisitContext: labPortalVisitContext,
       });
       setVisitRecommendationSnapshot({
         visitId: demoVisitId,
         visitReference: formatVisitReference(demoVisitId),
+        recommendationSnapshot,
         engineOutput,
         scenarios,
         decision,
@@ -2545,7 +2640,7 @@ function AppInner() {
       saveVisitAtomically(buildPersistedAtlasVisitV2({
         visitId: demoVisitId,
         visitReference: formatVisitReference(demoVisitId),
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
         survey: demoSurvey,
         engineInputSnapshot: CONSOLE_DEMO_INPUT,
         engine: engineOutput,
@@ -2555,6 +2650,7 @@ function AppInner() {
         acceptedScenarioId: decision?.recommendedScenarioId,
         lifecycleState,
         generatedOutputs,
+        recommendationSnapshot,
         portalVisitContext: labPortalVisitContext,
       }));
     } catch (err) {
@@ -3600,6 +3696,25 @@ function AppInner() {
               ? visitRecommendationSnapshot
               : null;
           const generatedOutputs = normaliseGeneratedOutputs(canonicalSnapshot?.generatedOutputs);
+          const activeRecommendationSnapshotId = canonicalSnapshot?.recommendationSnapshot?.snapshotId;
+          const generatedOutputDependencies = buildGeneratedOutputDependencyProjection(
+            generatedOutputs,
+            activeRecommendationSnapshotId,
+          );
+          const staleArtifacts = generatedOutputDependencies.filter((entry) => entry.generated && entry.stale);
+          const hasStaleArtifacts = staleArtifacts.length > 0;
+          const stalePortalOutput = isArtifactStaleForActiveSnapshot(
+            generatedOutputs.portal,
+            activeRecommendationSnapshotId,
+          );
+          const stalePdfOutput = isArtifactStaleForActiveSnapshot(
+            generatedOutputs.pdf,
+            activeRecommendationSnapshotId,
+          );
+          const staleJourneyPackOutput = isArtifactStaleForActiveSnapshot(
+            generatedOutputs.customerJourneyPack,
+            activeRecommendationSnapshotId,
+          );
           const lifecycleState: VisitReviewLifecycleState =
             canonicalSnapshot?.lifecycleState ??
             deriveLifecycleStateFromSnapshot({
@@ -3693,7 +3808,7 @@ function AppInner() {
               generatedOutputs.portal.generated || generatedOutputs.pdf.generated || customerJourneyPackGenerated,
             hasExportedPackageAgain: lifecycleState === 'exported',
           });
-          const canExportVisitPackage = canShowVisitHomeExportPackageAction({
+          const canExportVisitPackage = !hasStaleArtifacts && canShowVisitHomeExportPackageAction({
             hasResolvedVisitId:
               activeVisitId != null || hasText(activeCanonicalPackage?.visitIdentity.visitId),
             hasExportableSurvey:
@@ -3723,6 +3838,11 @@ function AppInner() {
           if (!hasAnyRecommendationData) {
             customerPdfMissingRequirements.push('Recommendation output is missing.');
           }
+          if (hasStaleArtifacts) {
+            customerPdfMissingRequirements.push(
+              `Stale recommendation artifacts detected (${staleArtifacts.map((entry) => entry.artifact).join(', ')}). Regeneration required.`,
+            );
+          }
           const customerPdfUnavailableReasons =
             canExportVisitPackage
               ? []
@@ -3748,7 +3868,35 @@ function AppInner() {
           });
 
           return (
-            <VisitHomeDashboard
+            <>
+              {import.meta.env.DEV && canonicalSnapshot?.recommendationSnapshot != null && (
+                <div style={{
+                  margin: '0 0 0.75rem',
+                  padding: '0.75rem',
+                  borderRadius: '0.75rem',
+                  border: hasStaleArtifacts ? '1px solid #ef4444' : '1px solid #334155',
+                  background: hasStaleArtifacts ? '#fef2f2' : '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: '0.8rem',
+                }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Active recommendation snapshot</div>
+                  <div>snapshotId: {canonicalSnapshot.recommendationSnapshot.snapshotId}</div>
+                  <div>createdAt: {canonicalSnapshot.recommendationSnapshot.createdAt}</div>
+                  <div>regeneratedFrom: {canonicalSnapshot.recommendationSnapshot.regeneratedFrom ?? 'none'}</div>
+                  <div>sourceVisitRevision: {canonicalSnapshot.recommendationSnapshot.sourceVisitRevision}</div>
+                  <div>checksum: {canonicalSnapshot.recommendationSnapshot.checksum}</div>
+                  <div style={{ marginTop: '0.45rem', fontWeight: 600 }}>Artifact lineage</div>
+                  {generatedOutputDependencies.map((entry) => (
+                    <div key={entry.artifact}>
+                      {entry.artifact}: {entry.generated ? 'generated' : 'not generated'}
+                      {entry.artifactSnapshotId ? ` · snapshot=${entry.artifactSnapshotId}` : ' · snapshot=missing'}
+                      {entry.generated ? ` · ${entry.stale ? 'STALE (blocked)' : 'valid'}` : ''}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <VisitHomeDashboard
               visitId={activeVisitId}
               engineInput={labEngineInput}
               engineOutput={visitHomeEngineOutput}
@@ -3759,8 +3907,8 @@ function AppInner() {
               lifecycleState={lifecycleState}
               visitEnvelope={visitEnvelope}
               generatedOutputs={generatedOutputs}
-              hasSupportingPdfOutput={generatedOutputs.pdf.generated || customerArtifactsState.customerPdfReady}
-              portalUrl={generatedOutputs.portal.url ?? labPortalUrl}
+              hasSupportingPdfOutput={(!stalePdfOutput && generatedOutputs.pdf.generated) || customerArtifactsState.customerPdfReady}
+              portalUrl={!stalePortalOutput ? (generatedOutputs.portal.url ?? labPortalUrl) : undefined}
               installationSpecOptionCount={labInstallationSpecifications.length}
               workspaceRole={workspaceSettingsMembership?.role}
               workspacePermissions={workspaceSettingsMembership?.permissions}
@@ -3866,6 +4014,7 @@ function AppInner() {
                     engineInput: restored.visit.engineInputSnapshot,
                     customerSummary: restored.visit.customerSummary,
                     decision: restored.visit.decision,
+                    activeSnapshotId: restored.visit.recommendationSnapshot?.snapshotId,
                     portalVisitContext: restored.visit.portalVisitContext,
                     generatedAt: restored.visit.updatedAt,
                   });
@@ -3887,6 +4036,7 @@ function AppInner() {
                   setVisitRecommendationSnapshot({
                     visitId: restored.visit.visitId,
                     visitReference: restored.visit.visitReference,
+                    recommendationSnapshot: restored.visit.recommendationSnapshot,
                     engineOutput: restored.visit.engine,
                     scenarios: restored.visit.scenarios,
                     decision: restored.visit.decision,
@@ -3914,10 +4064,19 @@ function AppInner() {
               onOpenSimulator={() => {
                 if (activeVisitId != null && labFullSurveyModel != null) {
                   const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
+                  const activeSnapshotId = currentSnapshot?.recommendationSnapshot?.snapshotId;
+                  if (!hasText(activeSnapshotId)) {
+                    setLocalSessionStatus({
+                      tone: 'error',
+                      message: 'Simulator blocked: stale or missing recommendation snapshot. Regenerate recommendation first.',
+                    });
+                    return;
+                  }
                   const currentOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
                   const nextSnapshot: VisitRecommendationSnapshot = {
                     visitId: activeVisitId,
                     visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
+                    recommendationSnapshot: currentSnapshot?.recommendationSnapshot,
                     engineOutput: currentSnapshot?.engineOutput,
                     scenarios: currentSnapshot?.scenarios,
                     decision: currentSnapshot?.decision,
@@ -3932,6 +4091,7 @@ function AppInner() {
                       simulatorReview: {
                         generated: true,
                         generatedAt: new Date().toISOString(),
+                        snapshotId: activeSnapshotId,
                         version: '1.0',
                       },
                     },
@@ -3948,7 +4108,7 @@ function AppInner() {
                 setPresentationFromJourney('visit-home');
                 setJourney('presentation');
               }}
-              onPrintSummary={visitHomeEngineOutput != null && hasSurveyForSupportingPdf ? () => {
+              onPrintSummary={visitHomeEngineOutput != null && hasSurveyForSupportingPdf && !stalePdfOutput && !staleJourneyPackOutput ? () => {
                 setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
                 setJourney('library-pdf');
               } : undefined}
@@ -3959,10 +4119,19 @@ function AppInner() {
               onOpenHandoffReview={activeVisitId != null ? () => {
                 if (activeVisitId != null && labFullSurveyModel != null) {
                   const currentSnapshot = visitRecommendationSnapshot?.visitId === activeVisitId ? visitRecommendationSnapshot : null;
+                  const activeSnapshotId = currentSnapshot?.recommendationSnapshot?.snapshotId;
+                  if (!hasText(activeSnapshotId)) {
+                    setLocalSessionStatus({
+                      tone: 'error',
+                      message: 'Handoff blocked: stale or missing recommendation snapshot. Regenerate recommendation first.',
+                    });
+                    return;
+                  }
                   const currentOutputs = normaliseGeneratedOutputs(currentSnapshot?.generatedOutputs);
                   const nextSnapshot: VisitRecommendationSnapshot = {
                     visitId: activeVisitId,
                     visitReference: resolveVisitSessionReference(activeVisitMeta, activeVisitId),
+                    recommendationSnapshot: currentSnapshot?.recommendationSnapshot,
                     engineOutput: currentSnapshot?.engineOutput,
                     scenarios: currentSnapshot?.scenarios,
                     decision: currentSnapshot?.decision,
@@ -3977,6 +4146,7 @@ function AppInner() {
                       handoff: {
                         generated: true,
                         generatedAt: new Date().toISOString(),
+                        snapshotId: activeSnapshotId,
                         version: '1.0',
                       },
                     },
@@ -3993,6 +4163,7 @@ function AppInner() {
               } : undefined}
               onBack={() => setJourney('app-home')}
             />
+            </>
           );
         })()}
         {/* Atlas Scan receive — opened from Visit Hub to import a scan from the iOS app.
@@ -4215,6 +4386,15 @@ function AppInner() {
           shows the same content that was embedded in the exported PDF.
           Back returns to visit-home. */}
       {journey === 'portal-from-package' && (() => {
+        if (activePortalLaunchPayload?.generatedOutputMetadata.staleSnapshotBlocked === true) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Portal blocked">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Packaged portal artifact is stale for the active recommendation snapshot. Regenerate recommendation outputs first.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
         const portalEngineInput = resolvePackagedPortalEngineInput({
           liveEngineInput: labEngineInput,
           sourcePackage: activeCanonicalPackage ?? undefined,
@@ -4311,6 +4491,23 @@ function AppInner() {
           engineOutput,
           generatedOutputs: canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
         });
+        const activeSnapshotId = canonicalSnapshot?.recommendationSnapshot?.snapshotId
+          ?? persistedCanonical?.recommendationSnapshot?.snapshotId;
+        const selectedOutputs = normaliseGeneratedOutputs(
+          canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
+        );
+        if (
+          isArtifactStaleForActiveSnapshot(selectedOutputs.customerJourneyPack, activeSnapshotId)
+          || isArtifactStaleForActiveSnapshot(selectedOutputs.pdf, activeSnapshotId)
+        ) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Supporting PDF artifact is stale for the active recommendation snapshot. Regenerate recommendation outputs first.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
         if (!source.ok) {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">

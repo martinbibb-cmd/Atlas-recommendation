@@ -7,7 +7,11 @@ import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { AtlasVisitOwnershipV1 } from '../../auth/profile/AtlasVisitOwnershipV1';
 import type { WorkflowStorageTarget } from '../../storage/workflow/WorkflowStorageAdapterV1';
 import type { WorkflowExportBrandContextV1 } from '../../storage/workflow/exportPackage/WorkflowExportPackageV1';
-import type { GeneratedOutputsV1, VisitReviewLifecycleState } from '../../lib/storage/visitReviewLifecycle';
+import type {
+  CanonicalRecommendationSnapshotV1,
+  GeneratedOutputsV1,
+  VisitReviewLifecycleState,
+} from '../../lib/storage/visitReviewLifecycle';
 
 export const CANONICAL_VISIT_PACKAGE_SCHEMA = 'atlas.canonical-visit-package' as const;
 export const CANONICAL_VISIT_PACKAGE_VERSION = '1.0' as const;
@@ -53,10 +57,7 @@ export interface CanonicalVisitImportExportMetadataV1 {
     readonly target: WorkflowStorageTarget | 'unknown';
     readonly surface: string;
   };
-  readonly recommendationSnapshot?: {
-    readonly snapshotId: string;
-    readonly checksum: string;
-  };
+  readonly recommendationSnapshot?: CanonicalRecommendationSnapshotV1;
   readonly importedAt?: string;
   readonly importSource?: string;
 }
@@ -78,5 +79,6 @@ export interface CanonicalVisitPackageV1 {
   readonly engineInputSnapshot?: EngineInputV2_3;
   readonly proposalTruth?: CanonicalVisitProposalTruthV1;
   readonly generatedOutputStatus?: CanonicalVisitGeneratedOutputStatusV1;
+  readonly recommendationAuthority?: CanonicalRecommendationSnapshotV1;
   readonly importExportMetadata: CanonicalVisitImportExportMetadataV1;
 }
