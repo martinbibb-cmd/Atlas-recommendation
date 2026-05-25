@@ -28,7 +28,7 @@
  *  - Prioritize finishability over showing every builder control at once
  */
 
-import { type CSSProperties, useMemo, useRef } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { HeatLossState, ShellModel } from './heatLossTypes';
 import { INITIAL_HEAT_LOSS_STATE } from './heatLossTypes';
 import { getStepMeta } from '../../../config/surveyStepRegistry';
@@ -143,6 +143,19 @@ const metricLabelStyle: CSSProperties = {
   color: '#4a5568',
 };
 
+const perimeterSaveBarStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '0.75rem',
+  padding: '0.5rem 1rem 0',
+};
+
+const perimeterSavedStyle: CSSProperties = {
+  fontSize: '0.78rem',
+  color: '#166534',
+};
+
 // ─── Gate reason text ─────────────────────────────────────────────────────────
 
 /**
@@ -173,6 +186,8 @@ export function HeatLossStep({
   // Only block when user has started drawing but hasn't finished.
   const canProceed = completionState === 'not_started' || completionState === 'result_ready';
   const gateReason = getGateReason(completionState);
+  const [perimeterSavedNotice, setPerimeterSavedNotice] = useState<string | null>(null);
+  const saveNoticeTimerRef = useRef<number | null>(null);
 
   // Track the latest shell in a ref so that handleHeatLossChange always reads
   // the most recent geometry even when both callbacks (onShellChange and
@@ -181,14 +196,14 @@ export function HeatLossStep({
   // shell-change update has been applied), causing perimeterM to be undefined.
   const latestShellRef = useRef<ShellModel | undefined>(state.shellModel);
 
-  function handleHeatLossChange(totalKw: number | null) {
+  const applyShellDerivedMetrics = useCallback((base: HeatLossState, shellModel?: ShellModel) => {
     // When a heat-loss result arrives, also capture the computed perimeter and
     // area from the active shell layer so they are stored in state (and
     // therefore flow through to the engine via sanitiseModelForEngine).
     // Use the ref (not state.shellModel) to get the most recent geometry.
-    const shellModel = latestShellRef.current ?? state.shellModel;
-    const activeLayerForMetrics = shellModel?.layers.find(
-      l => l.id === shellModel.activeLayerId
+    const activeShell = shellModel ?? latestShellRef.current ?? state.shellModel;
+    const activeLayerForMetrics = activeShell?.layers.find(
+      l => l.id === activeShell.activeLayerId
     );
     const derivedPerimeterM = activeLayerForMetrics?.closed
       ? computePerimeter(activeLayerForMetrics.points)
@@ -196,19 +211,43 @@ export function HeatLossStep({
     const derivedAreaM2 = activeLayerForMetrics?.closed
       ? computePolygonArea(activeLayerForMetrics.points)
       : undefined;
+    return {
+      ...base,
+      shellModel: activeShell,
+      perimeterM: derivedPerimeterM,
+      groundFloorAreaM2: derivedAreaM2,
+    };
+  }, [state.shellModel]);
 
-    onChange({
+  function showSavedNotice(message: string) {
+    setPerimeterSavedNotice(message);
+    if (saveNoticeTimerRef.current != null) {
+      window.clearTimeout(saveNoticeTimerRef.current);
+    }
+    saveNoticeTimerRef.current = window.setTimeout(() => {
+      setPerimeterSavedNotice(null);
+      saveNoticeTimerRef.current = null;
+    }, 1600);
+  }
+
+  function handleHeatLossChange(totalKw: number | null) {
+    onChange(applyShellDerivedMetrics({
       ...state,
       estimatedPeakHeatLossW: totalKw != null ? Math.round(totalKw * 1000) : null,
       heatLossConfidence: totalKw != null ? 'estimated' : state.heatLossConfidence,
-      perimeterM:       derivedPerimeterM,
-      groundFloorAreaM2: derivedAreaM2,
-    });
+    }));
   }
 
   function handleShellChange(shell: ShellModel) {
     latestShellRef.current = shell;
-    onChange({ ...state, shellModel: shell });
+    onChange(applyShellDerivedMetrics(state, shell));
+  }
+
+  function commitPerimeterData(showNotice: boolean) {
+    onChange(applyShellDerivedMetrics(state));
+    if (showNotice) {
+      showSavedNotice('✓ All perimeter changes saved locally');
+    }
   }
 
   function handleSnapshotChange(dataUrl: string | null) {
@@ -225,6 +264,14 @@ export function HeatLossStep({
   const floorAreaM2 = activeLayer?.closed ? computePolygonArea(activeLayer.points) : null;
   const perimeterM = activeLayer?.closed ? computePerimeter(activeLayer.points) : null;
 
+  useEffect(() => {
+    return () => {
+      if (saveNoticeTimerRef.current != null) {
+        window.clearTimeout(saveNoticeTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div style={shellStyle} data-testid="heat-loss-step">
       {/* ── Sticky top summary ──────────────────────────────────────────── */}
@@ -236,7 +283,10 @@ export function HeatLossStep({
       </div>
 
       {/* ── Bounded scroll region for the calculator ───────────────────── */}
-      <div style={scrollRegionStyle}>
+      <div
+        style={scrollRegionStyle}
+        onBlurCapture={() => commitPerimeterData(false)}
+      >
         <HeatLossCalculator
           embedded
           onHeatLossChange={handleHeatLossChange}
@@ -277,6 +327,22 @@ export function HeatLossStep({
           </div>
         </div>
       )}
+
+      <div style={perimeterSaveBarStyle}>
+        <button
+          type="button"
+          className="next-btn"
+          onClick={() => commitPerimeterData(true)}
+          data-testid="save-perimeter-data-button"
+        >
+          Save Perimeter Data
+        </button>
+        {perimeterSavedNotice && (
+          <span style={perimeterSavedStyle} data-testid="perimeter-save-status">
+            {perimeterSavedNotice}
+          </span>
+        )}
+      </div>
 
       {/* ── Sticky footer with Back / Next ──────────────────────────────── */}
       <div style={footerStyle} data-testid="heat-loss-step-footer">
@@ -334,4 +400,3 @@ function computePerimeter(points: { x: number; y: number }[]): number {
   }
   return perimeter;
 }
-
