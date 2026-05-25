@@ -697,17 +697,27 @@ export function deriveCylinderInsight(
   const volumeL = system.cylinderVolumeL;
   const effectiveBathrooms = Math.max(1, bathroomCount || 1);
   const concurrentOutlets = Math.max(1, Math.min(peakConcurrentOutlets ?? effectiveBathrooms, 3));
+
+  // Resolve DHW storage regime — boiler cylinder paths use 'boiler_cylinder'.
+  // 'stored_unvented' is not a valid DhwStorageRegime; the correct enum value
+  // for a regular/system boiler cylinder (unvented or vented) is 'boiler_cylinder'.
+  const resolvedDhwStorageRegime: EngineInputV2_3['dhwStorageRegime'] =
+    system.heatSource === 'regular' || system.heatSource === 'system'
+      ? 'boiler_cylinder'
+      : undefined;
+
   const sizingInput = {
     occupancyCount: Math.max(1, occupancyCount),
     bathroomCount: effectiveBathrooms,
     peakConcurrentOutlets: concurrentOutlets,
     cylinderVolumeLitres: volumeL ?? undefined,
     dhwStorageType: system.cylinderInsulationType === 'mixergy' ? 'mixergy' : system.dhwType === 'open_vented' ? 'vented' : 'unvented',
-    dhwStorageRegime: system.heatSource === 'regular' || system.heatSource === 'system' ? 'stored_unvented' : undefined,
+    dhwStorageRegime: resolvedDhwStorageRegime,
     currentHeatSourceType: system.heatSource === 'regular' || system.heatSource === 'system' || system.heatSource === 'combi'
       ? system.heatSource
       : 'other',
     simultaneousDrawSeverity: concurrentOutlets >= 3 ? 'high' : concurrentOutlets === 2 ? 'medium' : 'low',
+    electricalImmersionBackup: system.cylinderHasImmersion ?? undefined,
   } as EngineInputV2_3;
   const sizing = runCylinderSizingModule(sizingInput);
   const minAdequateL = volumeL == null

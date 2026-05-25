@@ -1067,6 +1067,31 @@ export interface EngineInputV2_3 {
    * Used by ControlsAdviceModule to determine whether to recommend weather compensation.
    */
   hasWeatherCompensation?: boolean;
+
+  /**
+   * Whether an electrical immersion heater backup is fitted to the cylinder.
+   *
+   * When true, CylinderSizingModule adds IMMERSION_HEATER_KW (3 kW) to the effective
+   * heat source power for recovery-time and minimum-volume calculations.  This reflects
+   * the real-world scenario where the immersion can recharge the cylinder in parallel
+   * with or independently of the primary heat source, reducing recovery time.
+   *
+   * Bridged from `fullSurvey.systemBuilder.cylinderHasImmersion` by sanitiseModelForEngine.
+   */
+  electricalImmersionBackup?: boolean;
+
+  /**
+   * Whether a PV diverter is wired to the cylinder to divert surplus solar generation
+   * as immersion heat.
+   *
+   * When true, CylinderSizingModule adds IMMERSION_HEATER_KW (3 kW) to the effective
+   * heat source power (capped at MAX_COIL_RATING_KW), modelling the recovery boost
+   * available when excess PV export is diverted to the cylinder rather than the grid.
+   *
+   * Derived from `solarBoost.enabled && solarBoost.source === 'PV_diverter'` by
+   * sanitiseModelForEngine when not already explicitly set.
+   */
+  pvDiversionEnabled?: boolean;
 }
 
 export interface HydraulicResult {
