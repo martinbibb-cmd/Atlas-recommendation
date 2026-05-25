@@ -185,22 +185,58 @@ const EFFECTIVE_RECOVERY_WINDOW_MINS: Record<'low' | 'medium' | 'high', number> 
 /** Only part of the theoretical reheat is practically available before the next draw arrives. */
 const RECOVERY_CREDIT_FACTOR = 0.5;
 
-/**
- * Simultaneous-draw reserve multipliers.
- * Applied to the computed minimum hot volume to account for concurrent peak demand.
- */
-const SIMULTANEOUS_DRAW_MULTIPLIER: Record<'low' | 'medium' | 'high', number> = {
-  low:    1.00,
-  medium: 1.15,
-  high:   1.30,
-};
-
 /** Slow-recovery warning threshold (minutes). Cylinders that take longer than this to recover
  * will leave households without hot water for extended periods between draws. */
 const SLOW_RECOVERY_THRESHOLD_MINS = 60;
 
 /** High standing-loss warning threshold (kWh/24h). Above this, standing losses are significant. */
 const HIGH_STANDING_LOSS_THRESHOLD_KWH = 2.0;
+
+/** Minimum reserve fraction before a concurrent draw is treated as a collapse risk. */
+const SIMULTANEOUS_COLLAPSE_RESERVE_FRACTION = 0.15;
+
+/** Approximate top-layer share of usable water in a stratified cylinder. */
+const STRATIFIED_TOP_LAYER_FRACTION = 0.55;
+
+/** Approximate top-layer share of usable water in a mixed cylinder. */
+const MIXED_TOP_LAYER_FRACTION = 0.25;
+
+/** Search bounds for scenario-derived adequacy sizing. */
+const MIN_SCENARIO_VOLUME_L = 40;
+const MAX_SCENARIO_VOLUME_L = 400;
+
+type ScenarioProbability = 'low' | 'medium' | 'high';
+
+type ScenarioVerdict = 'adequate' | 'borderline' | 'fail';
+
+interface PeakWindowDrawEvent {
+  minute: number;
+  volumeL: number;
+  label: string;
+  concurrentOutlets: number;
+}
+
+interface PeakWindowScenario {
+  id: 'simultaneous_use' | 'recovery_lag' | 'bath_follow_on';
+  label: string;
+  probability: ScenarioProbability;
+  draws: PeakWindowDrawEvent[];
+}
+
+interface ScenarioSimulationResult {
+  scenario: PeakWindowScenario;
+  verdict: ScenarioVerdict;
+  requestedVolumeL: number;
+  deliveredVolumeL: number;
+  shortfallL: number;
+  exhaustionPointMinute: number | null;
+  recoveryToTargetMins: number;
+  simultaneousUseCollapse: boolean;
+  topLayerDepletionMinute: number | null;
+  lowestReserveL: number;
+  finalReserveL: number;
+  usableCapacityL: number;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -418,15 +454,6 @@ function computePeakWindowDemandL(params: {
   return overlappingDrawL + queuedDrawL + bathroomOverlapReserveL + bathPeakLoadL;
 }
 
-function computeFollowOnPeakDemandL(params: {
-  occupancyCount: number;
-  peakConcurrentOutlets: number;
-}): number {
-  const { occupancyCount, peakConcurrentOutlets } = params;
-  const peakWindowUsers = Math.max(1, Math.min(occupancyCount, peakConcurrentOutlets + 1));
-  return Math.max(0, occupancyCount - peakWindowUsers) * FOLLOW_ON_PEAK_DRAW_L_BY_SEVERITY.low;
-}
-
 function resolveRecoveryCreditWindowMins(
   recoveryWindowMins: number,
   drawSeverity: 'low' | 'medium' | 'high',
@@ -462,16 +489,296 @@ function computeRecoveredMixedVolumeWithinWindowL(params: {
   );
 }
 
+function probabilityRank(probability: ScenarioProbability): number {
+  if (probability === 'high') return 3;
+  if (probability === 'medium') return 2;
+  return 1;
+}
+
+function computeRecoveryTargetReserveL(
+  usableCapacityL: number,
+  scenario: PeakWindowScenario,
+  isStratified: boolean,
+): number {
+  const largestDrawL = Math.max(...scenario.draws.map((draw) => draw.volumeL));
+  const capacityFractionReserve = usableCapacityL * (isStratified ? 0.15 : 0.2);
+  return Math.min(
+    usableCapacityL,
+    Math.max(
+      PEAK_SHOWER_EVENT_L,
+      Math.min(largestDrawL, PEAK_SHOWER_EVENT_L * 2),
+      capacityFractionReserve,
+    ),
+  );
+}
+
+function buildPeakWindowScenarios(params: {
+  occupancyCount: number;
+  bathroomCount: number;
+  peakConcurrentOutlets: number;
+  bathPeakLoadL: number;
+  drawSeverity: 'low' | 'medium' | 'high';
+  effectiveRecoveryWindowMins: number;
+}): PeakWindowScenario[] {
+  const {
+    occupancyCount,
+    bathroomCount,
+    peakConcurrentOutlets,
+    bathPeakLoadL,
+    drawSeverity,
+    effectiveRecoveryWindowMins,
+  } = params;
+
+  const overlapReserveL = Math.max(0, bathroomCount - 1) * PEAK_OVERLAP_L_PER_EXTRA_BATHROOM;
+  const concurrentDrawL = peakConcurrentOutlets * PEAK_SHOWER_EVENT_L + overlapReserveL;
+  const followOnDrawL = FOLLOW_ON_PEAK_DRAW_L_BY_SEVERITY[drawSeverity];
+  const simultaneousProbability: ScenarioProbability =
+    peakConcurrentOutlets >= 3 || drawSeverity === 'high'
+      ? 'high'
+      : peakConcurrentOutlets >= 2 || bathroomCount >= 2
+      ? 'medium'
+      : 'low';
+  const recoveryProbability: ScenarioProbability =
+    occupancyCount >= 4 || drawSeverity === 'high'
+      ? 'high'
+      : occupancyCount >= 2
+      ? 'medium'
+      : 'low';
+
+  const scenarios: PeakWindowScenario[] = [
+    {
+      id: 'simultaneous_use',
+      label: 'simultaneous shower overlap',
+      probability: simultaneousProbability,
+      draws: [
+        {
+          minute: 0,
+          volumeL: concurrentDrawL,
+          label: `${peakConcurrentOutlets} overlapping outlet(s)`,
+          concurrentOutlets: peakConcurrentOutlets,
+        },
+        ...(occupancyCount > peakConcurrentOutlets
+          ? [{
+              minute: Math.max(4, Math.round(effectiveRecoveryWindowMins / 2)),
+              volumeL: followOnDrawL,
+              label: 'queued follow-on draw',
+              concurrentOutlets: 1,
+            }]
+          : []),
+      ],
+    },
+    {
+      id: 'recovery_lag',
+      label: 'back-to-back recovery window',
+      probability: recoveryProbability,
+      draws: [
+        {
+          minute: 0,
+          volumeL: Math.max(PEAK_SHOWER_EVENT_L, concurrentDrawL - Math.max(0, bathPeakLoadL * 0.25)),
+          label: 'first peak draw',
+          concurrentOutlets: Math.max(1, peakConcurrentOutlets),
+        },
+        {
+          minute: effectiveRecoveryWindowMins,
+          volumeL: followOnDrawL + Math.max(0, occupancyCount - peakConcurrentOutlets - 1) * 10,
+          label: 'follow-on draw after recovery window',
+          concurrentOutlets: 1,
+        },
+      ],
+    },
+  ];
+
+  if (bathPeakLoadL > 0) {
+    scenarios.push({
+      id: 'bath_follow_on',
+      label: 'bath after showers',
+      probability: bathPeakLoadL >= PEAK_BATH_LOAD_L_BY_INTENSITY.high
+        ? 'medium'
+        : 'low',
+      draws: [
+        {
+          minute: 0,
+          volumeL: Math.max(PEAK_SHOWER_EVENT_L, concurrentDrawL - PEAK_SHOWER_EVENT_L),
+          label: 'initial shower demand',
+          concurrentOutlets: Math.max(1, peakConcurrentOutlets - 1),
+        },
+        {
+          minute: effectiveRecoveryWindowMins,
+          volumeL: bathPeakLoadL,
+          label: 'bath draw',
+          concurrentOutlets: 1,
+        },
+      ],
+    });
+  }
+
+  return scenarios;
+}
+
+function simulatePeakWindowScenario(params: {
+  scenario: PeakWindowScenario;
+  volumeL: number;
+  heatSourceKw: number;
+  storeTempC: number;
+  tapTargetTempC: number;
+  coldWaterTempC: number;
+  usableFraction: number;
+  isStratified: boolean;
+  effectiveRecoveryWindowMins: number;
+}): ScenarioSimulationResult {
+  const {
+    scenario,
+    volumeL,
+    heatSourceKw,
+    storeTempC,
+    tapTargetTempC,
+    coldWaterTempC,
+    usableFraction,
+    isStratified,
+    effectiveRecoveryWindowMins,
+  } = params;
+
+  const usableCapacityL = computeUsableVolumeMixedL(
+    volumeL,
+    usableFraction,
+    storeTempC,
+    tapTargetTempC,
+    coldWaterTempC,
+  );
+  const recoveryRateMixedLPerMin = computeRecoveredMixedVolumeWithinWindowL({
+    heatSourceKw,
+    recoveryWindowMins: 1,
+    storeTempC,
+    tapTargetTempC,
+    coldWaterTempC,
+    usableFraction,
+  });
+  const topLayerCapacityL = usableCapacityL * (isStratified ? STRATIFIED_TOP_LAYER_FRACTION : MIXED_TOP_LAYER_FRACTION);
+  const topLayerRecoveryFactor = isStratified ? 1.0 : 0.45;
+
+  let availableL = usableCapacityL;
+  let topLayerL = topLayerCapacityL;
+  let deliveredVolumeL = 0;
+  let requestedVolumeL = 0;
+  let shortfallL = 0;
+  let exhaustionPointMinute: number | null = null;
+  let simultaneousUseCollapse = false;
+  let topLayerDepletionMinute: number | null = null;
+  let lowestReserveL = usableCapacityL;
+  let previousMinute = 0;
+
+  for (const draw of scenario.draws) {
+    const deltaMins = Math.max(0, draw.minute - previousMinute);
+    if (deltaMins > 0) {
+      const recoveredL = recoveryRateMixedLPerMin * deltaMins;
+      availableL = Math.min(usableCapacityL, availableL + recoveredL);
+      topLayerL = Math.min(topLayerCapacityL, topLayerL + recoveredL * topLayerRecoveryFactor);
+    }
+
+    requestedVolumeL += draw.volumeL;
+    const topLayerBeforeDrawL = topLayerL;
+    const servedL = Math.min(availableL, draw.volumeL);
+    const eventShortfallL = Math.max(0, draw.volumeL - servedL);
+    deliveredVolumeL += servedL;
+    shortfallL += eventShortfallL;
+
+    availableL -= servedL;
+    lowestReserveL = Math.min(lowestReserveL, availableL);
+
+    const topLayerServedL = Math.min(topLayerL, servedL);
+    topLayerL = Math.max(0, topLayerL - topLayerServedL);
+    if (topLayerDepletionMinute === null && topLayerCapacityL > 0 && topLayerL <= 0) {
+      topLayerDepletionMinute = draw.minute;
+    }
+
+    if (eventShortfallL > 0 && exhaustionPointMinute === null) {
+      exhaustionPointMinute = draw.minute;
+    }
+
+    if (
+      draw.concurrentOutlets >= 2 &&
+      (
+        eventShortfallL > 0 ||
+        topLayerBeforeDrawL < draw.volumeL * 0.5 ||
+        availableL <= usableCapacityL * SIMULTANEOUS_COLLAPSE_RESERVE_FRACTION
+      )
+    ) {
+      simultaneousUseCollapse = true;
+    }
+
+    previousMinute = draw.minute;
+  }
+
+  const targetUsableL = computeRecoveryTargetReserveL(usableCapacityL, scenario, isStratified);
+  const recoveryToTargetMins =
+    availableL >= targetUsableL
+      ? 0
+      : recoveryRateMixedLPerMin > 0
+      ? Math.ceil((targetUsableL - availableL) / recoveryRateMixedLPerMin)
+      : Infinity;
+  const recoveryLagLimitMins = Math.max(
+    15,
+    Math.ceil(effectiveRecoveryWindowMins * (scenario.probability === 'high' ? 1.5 : scenario.probability === 'medium' ? 2 : 2.5)),
+  );
+
+  let verdict: ScenarioVerdict = 'adequate';
+  if (shortfallL > 0) {
+    verdict = probabilityRank(scenario.probability) >= 2 ? 'fail' : 'borderline';
+  } else if (simultaneousUseCollapse || recoveryToTargetMins > recoveryLagLimitMins) {
+    verdict = probabilityRank(scenario.probability) >= 2 && simultaneousUseCollapse ? 'fail' : 'borderline';
+  }
+
+  return {
+    scenario,
+    verdict,
+    requestedVolumeL,
+    deliveredVolumeL,
+    shortfallL: Math.round(shortfallL * 10) / 10,
+    exhaustionPointMinute,
+    recoveryToTargetMins,
+    simultaneousUseCollapse,
+    topLayerDepletionMinute: isStratified ? topLayerDepletionMinute : null,
+    lowestReserveL: Math.round(lowestReserveL * 10) / 10,
+    finalReserveL: Math.round(availableL * 10) / 10,
+    usableCapacityL: Math.round(usableCapacityL * 10) / 10,
+  };
+}
+
+function evaluateScenarioResults(
+  results: ScenarioSimulationResult[],
+): ScenarioVerdict {
+  if (results.some(result =>
+    result.verdict === 'fail' && probabilityRank(result.scenario.probability) >= 2,
+  )) {
+    return 'fail';
+  }
+  if (results.some(result => result.verdict !== 'adequate')) {
+    return 'borderline';
+  }
+  return 'adequate';
+}
+
+function pickScenarioEvidence(results: ScenarioSimulationResult[]): ScenarioSimulationResult {
+  const rank = (result: ScenarioSimulationResult): number => {
+    if (result.verdict === 'fail') return 300 + probabilityRank(result.scenario.probability);
+    if (result.verdict === 'borderline') return 200 + probabilityRank(result.scenario.probability);
+    return 100 + probabilityRank(result.scenario.probability);
+  };
+
+  return [...results].sort((left, right) => {
+    const verdictDelta = rank(right) - rank(left);
+    if (verdictDelta !== 0) return verdictDelta;
+    if (left.shortfallL !== right.shortfallL) return right.shortfallL - left.shortfallL;
+    if (left.recoveryToTargetMins !== right.recoveryToTargetMins) {
+      return right.recoveryToTargetMins - left.recoveryToTargetMins;
+    }
+    return left.lowestReserveL - right.lowestReserveL;
+  })[0];
+}
+
 /**
  * Compute the minimum cylinder nominal volume (litres) required to satisfy the
- * household's peak hot-water demand.
- *
- * Algorithm:
- *   1. Build a peak-use window from overlapping outlets, bathrooms, and bath use
- *   2. Add follow-on demand from remaining occupants likely to draw in the same period
- *   3. Subtract only the realistic recovery credit available between peak draws
- *   4. Convert the remaining mixed-water requirement to nominal cylinder litres
- *   5. Apply simultaneous-draw reserve multiplier
+ * explicit peak-window scenarios that are likely for the surveyed household.
  */
 function computeMinimumCylinderVolumeL(params: {
   occupancyCount: number;
@@ -499,49 +806,40 @@ function computeMinimumCylinderVolumeL(params: {
     usableFraction,
     drawSeverity,
   } = params;
-
-  const tapDelta   = tapTargetTempC - coldWaterTempC;
-  const storeDelta = storeTempC - coldWaterTempC;
-
-  if (tapDelta <= 0 || storeDelta <= 0 || usableFraction <= 0) return 120;
-
-  const peakWindowDemandL = computePeakWindowDemandL({
-    occupancyCount,
-    bathroomCount,
-    peakConcurrentOutlets,
-    drawSeverity,
-    bathPeakLoadL,
-  });
-  const followOnPeakDemandL = computeFollowOnPeakDemandL({
-    occupancyCount,
-    peakConcurrentOutlets,
-  });
   const effectiveRecoveryWindowMins = resolveRecoveryCreditWindowMins(
     recoveryWindowMins,
     drawSeverity,
   );
-  const recoveredMixedVolumeWithinWindowL = computeRecoveredMixedVolumeWithinWindowL({
-    heatSourceKw,
-    recoveryWindowMins: effectiveRecoveryWindowMins,
-    storeTempC,
-    tapTargetTempC,
-    coldWaterTempC,
-    usableFraction,
+  const scenarios = buildPeakWindowScenarios({
+    occupancyCount,
+    bathroomCount,
+    peakConcurrentOutlets,
+    bathPeakLoadL,
+    drawSeverity,
+    effectiveRecoveryWindowMins,
   });
-  const practicalRecoveryCreditL = recoveredMixedVolumeWithinWindowL * RECOVERY_CREDIT_FACTOR;
-  const netDemandL =
-    peakWindowDemandL +
-    Math.max(0, followOnPeakDemandL - practicalRecoveryCreditL);
+  const isStratified = usableFraction >= USABLE_FRACTION_MIXERGY;
 
-  // Hot volume required at store temperature
-  const requiredHotL = netDemandL * (tapDelta / storeDelta);
+  for (let candidateVolumeL = MIN_SCENARIO_VOLUME_L; candidateVolumeL <= MAX_SCENARIO_VOLUME_L; candidateVolumeL += 1) {
+    const results = scenarios.map((scenario) =>
+      simulatePeakWindowScenario({
+        scenario,
+        volumeL: candidateVolumeL,
+        heatSourceKw,
+        storeTempC,
+        tapTargetTempC,
+        coldWaterTempC,
+        usableFraction,
+        isStratified,
+        effectiveRecoveryWindowMins,
+      }),
+    );
+    if (evaluateScenarioResults(results) === 'adequate') {
+      return candidateVolumeL;
+    }
+  }
 
-  // Minimum cylinder = hot volume ÷ usable fraction
-  const minCylinderL = requiredHotL / usableFraction;
-
-  // Apply draw-severity reserve
-  const multiplier = SIMULTANEOUS_DRAW_MULTIPLIER[drawSeverity];
-  return minCylinderL * multiplier;
+  return MAX_SCENARIO_VOLUME_L;
 }
 
 // ─── CylinderSizingModule public API ─────────────────────────────────────────
@@ -660,6 +958,15 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   // Heat-pump-optimised and standard cylinders use conventional inlet design → standard fraction.
   const recUsableFraction = recommendedType === 'mixergy' ? USABLE_FRACTION_MIXERGY : USABLE_FRACTION_STANDARD;
   const recStandingCoeff  = recommendedType === 'mixergy' ? STANDING_LOSS_W_PER_L_MIXERGY : STANDING_LOSS_W_PER_L_STANDARD;
+  const recommendedIsStratified = recommendedType === 'mixergy';
+  const peakWindowScenarios = buildPeakWindowScenarios({
+    occupancyCount,
+    bathroomCount,
+    peakConcurrentOutlets,
+    bathPeakLoadL,
+    drawSeverity,
+    effectiveRecoveryWindowMins,
+  });
 
   // ── Minimum required volume (using recommended cylinder's usable fraction) ────
   const minimumRawL = computeMinimumCylinderVolumeL({
@@ -675,6 +982,20 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     usableFraction: recUsableFraction,
     drawSeverity,
   });
+  const minimumScenarioResults = peakWindowScenarios.map((scenario) =>
+    simulatePeakWindowScenario({
+      scenario,
+      volumeL: minimumRawL,
+      heatSourceKw,
+      storeTempC,
+      tapTargetTempC,
+      coldWaterTempC,
+      usableFraction: recUsableFraction,
+      isStratified: recommendedIsStratified,
+      effectiveRecoveryWindowMins,
+    }),
+  );
+  const minimumScenarioEvidence = pickScenarioEvidence(minimumScenarioResults);
   const peakWindowDemandL = computePeakWindowDemandL({
     occupancyCount,
     bathroomCount,
@@ -703,17 +1024,74 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     `${practicalRecoveryCreditL.toFixed(0)} L practical recovery credit from ${recoveredMixedVolumeWithinWindowL.toFixed(0)} L reheated within ${effectiveRecoveryWindowMins} min, ` +
     `${recUsableFraction * 100} % usable fraction for ${recommendedType} cylinder type).`,
   );
+  assumptions.push(
+    `Scenario evidence: ${minimumScenarioEvidence.scenario.label} (${minimumScenarioEvidence.scenario.probability} probability) ` +
+    `${minimumScenarioEvidence.exhaustionPointMinute === null
+    ? `keeps usable hot water available with a ${minimumScenarioEvidence.lowestReserveL.toFixed(0)} L lowest reserve`
+    : `exhausts usable hot water at ~${minimumScenarioEvidence.exhaustionPointMinute} min`} ` +
+    `and recovers the target reserve in ` +
+    `${Number.isFinite(minimumScenarioEvidence.recoveryToTargetMins) ? `${minimumScenarioEvidence.recoveryToTargetMins} min` : 'no practical time'}.`,
+  );
 
   // ── Recommend target volume ────────────────────────────────────────────────
-  // The target volume adds a comfort margin of one size above the minimum when
-  // the peak profile includes real overlap, bath reserve, or back-to-back severity.
   let targetVolumeL = minimumVolumeL;
-  if (drawSeverity === 'high' || peakConcurrentOutlets >= 2 || bathPeakLoadL > 0) {
+  if (
+    minimumScenarioEvidence.lowestReserveL <= minimumScenarioEvidence.usableCapacityL * 0.12 ||
+    minimumScenarioEvidence.recoveryToTargetMins > Math.max(20, effectiveRecoveryWindowMins * 1.5) ||
+    minimumScenarioEvidence.verdict !== 'adequate'
+  ) {
     const currentIdx = STANDARD_CYLINDER_SIZES_L.indexOf(minimumVolumeL as typeof STANDARD_CYLINDER_SIZES_L[number]);
+    if (currentIdx >= 0 && currentIdx < STANDARD_CYLINDER_SIZES_L.length - 1) {
+    targetVolumeL = STANDARD_CYLINDER_SIZES_L[currentIdx + 1];
+    }
+  }
+
+  const targetScenarioResults = peakWindowScenarios.map((scenario) =>
+    simulatePeakWindowScenario({
+      scenario,
+      volumeL: targetVolumeL,
+      heatSourceKw,
+      storeTempC,
+      tapTargetTempC,
+      coldWaterTempC,
+      usableFraction: recUsableFraction,
+      isStratified: recommendedIsStratified,
+      effectiveRecoveryWindowMins,
+    }),
+  );
+  const recommendationEvidence = pickScenarioEvidence(targetScenarioResults);
+  const hasBathScenarioEvidence = peakWindowScenarios.some((scenario) => scenario.id === 'bath_follow_on');
+  const maxScenarioRequestL = Math.max(...targetScenarioResults.map((result) => result.requestedVolumeL));
+  const requiresComfortUplift =
+    recommendationEvidence.verdict !== 'adequate' ||
+    recommendationEvidence.lowestReserveL <= recommendationEvidence.usableCapacityL * 0.12 ||
+    recommendationEvidence.recoveryToTargetMins > Math.max(20, effectiveRecoveryWindowMins * 1.5) ||
+    maxScenarioRequestL >= 110 ||
+    (hasBathScenarioEvidence && maxScenarioRequestL >= 100);
+
+  if (requiresComfortUplift && targetVolumeL === minimumVolumeL) {
+    const currentIdx = STANDARD_CYLINDER_SIZES_L.indexOf(targetVolumeL as typeof STANDARD_CYLINDER_SIZES_L[number]);
     if (currentIdx >= 0 && currentIdx < STANDARD_CYLINDER_SIZES_L.length - 1) {
       targetVolumeL = STANDARD_CYLINDER_SIZES_L[currentIdx + 1];
     }
   }
+
+  const adjustedTargetScenarioResults = targetVolumeL === minimumVolumeL
+    ? targetScenarioResults
+    : peakWindowScenarios.map((scenario) =>
+        simulatePeakWindowScenario({
+          scenario,
+          volumeL: targetVolumeL,
+          heatSourceKw,
+          storeTempC,
+          tapTargetTempC,
+          coldWaterTempC,
+          usableFraction: recUsableFraction,
+          isStratified: recommendedIsStratified,
+          effectiveRecoveryWindowMins,
+        }),
+      );
+  const adjustedRecommendationEvidence = pickScenarioEvidence(adjustedTargetScenarioResults);
 
   // ── Recommendation performance estimates ──────────────────────────────────
   const recDeltaT = storeTempC - coldWaterTempC;
@@ -730,29 +1108,37 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
   const reasoning: string[] = [];
 
   reasoning.push(
-    `Sizing is based on a peak hot-water window of about ${peakWindowDemandL.toFixed(0)} L ` +
+    `Peak hot-water window scenario "${adjustedRecommendationEvidence.scenario.label}" (${adjustedRecommendationEvidence.scenario.probability} probability) ` +
+    `${adjustedRecommendationEvidence.exhaustionPointMinute === null
+      ? `keeps usable hot water available throughout the peak window`
+      : `exhausts usable hot water at about ${adjustedRecommendationEvidence.exhaustionPointMinute} min`} ` +
     `for ${occupancyCount} occupant(s), ${bathroomCount} bathroom(s), and ${peakConcurrentOutlets} likely overlapping outlet(s).`,
   );
   reasoning.push(
-    `${practicalRecoveryCreditL.toFixed(0)} L of practical reserve can be regained within about ${effectiveRecoveryWindowMins} minutes ` +
-    `(from roughly ${recoveredMixedVolumeWithinWindowL.toFixed(0)} L of theoretical reheat), ` +
-    `so recovery offsets follow-on draws rather than sizing the cylinder from all-day litres.`,
+    `Usable hot-water reserve bottoms out at about ${adjustedRecommendationEvidence.lowestReserveL.toFixed(0)} L ` +
+    `and returns to the target reserve in ` +
+    `${Number.isFinite(adjustedRecommendationEvidence.recoveryToTargetMins) ? `${adjustedRecommendationEvidence.recoveryToTargetMins} min` : 'no practical time'}, ` +
+    `with reheated volume within the window materially shaping adequacy instead of all-day litres.`,
   );
   reasoning.push(
-    `Store temperature ${storeTempC} °C and ${recUsableFraction * 100} % usable fraction → ` +
-    `minimum cylinder: ${minimumVolumeL} L nominal.`,
+    `Store temperature ${storeTempC} °C and ${recUsableFraction * 100} % usable fraction ` +
+    `support a scenario-derived minimum of ${minimumRawL.toFixed(0)} L, rounded to ${minimumVolumeL} L nominal.`,
   );
-  if (recommendedType === 'mixergy') {
+  if (recommendedType === 'mixergy' && adjustedRecommendationEvidence.topLayerDepletionMinute !== null) {
     reasoning.push(
-      `Mixergy-style top-down stratification recommended: higher usable fraction (95 %) ` +
-      `means the same deliverable hot water from a smaller cylinder, reducing standing losses ` +
-      `and improving heat pump COP by minimising reheat frequency.`,
+      `Top-layer depletion occurs at about ${adjustedRecommendationEvidence.topLayerDepletionMinute} min in the stratified scenario trace, ` +
+      `but top-down recovery preserves usable hot water longer than a mixed cylinder and can justify smaller storage.`,
     );
   } else if (recommendedType === 'heat_pump_optimised') {
     reasoning.push(
       `Heat-pump-optimised cylinder required: the lower store temperature (${storeTempC} °C) ` +
       `reduces the usable hot-water fraction per litre — specify a large-coil HP cylinder ` +
       `(coil area ≥ 3 m²) to maintain COP throughout the reheat cycle.`,
+    );
+  } else if (recommendedType === 'mixergy') {
+    reasoning.push(
+      `Mixergy-style top-down stratification recommended: higher usable fraction (95 %) ` +
+      `keeps the top slice usable for longer, so fast-recovery operation can justify smaller storage.`,
     );
   }
   reasoning.push(
@@ -840,16 +1226,6 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
       currentVolumeL, usableFraction, storeTempC, tapTargetTempC, coldWaterTempC,
     );
 
-    // Minimum volume for the current cylinder type (using current cylinder's usable fraction).
-    // This is the adequate threshold for judging whether the existing cylinder is sufficient.
-    //
-    // Adequacy is assessed against the raw physics minimum (currentMinRawL), NOT the
-    // nearest purchasable standard size.  The standard-size rounding is only for recommending
-    // what to buy when replacing — it is not appropriate for evaluating an existing cylinder.
-    //
-    // Example: for 1 occupant, 1 bathroom the physics minimum is ~44 L.  A 98 L cylinder
-    // clearly satisfies this even though roundUpToStandardSize(44) = 120 L.  Without this
-    // distinction, any sub-120 L cylinder would be incorrectly flagged as undersized.
     const currentMinRawL = computeMinimumCylinderVolumeL({
       occupancyCount,
       bathroomCount,
@@ -867,11 +1243,28 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
     // comparison uses the unrounded value so a 98 L cylinder is not penalised against a
     // 120 L purchase threshold intended for new-install sizing recommendations).
     const currentMinPhysicsL = Math.ceil(currentMinRawL);
+    const currentScenarioResults = peakWindowScenarios.map((scenario) =>
+      simulatePeakWindowScenario({
+        scenario,
+        volumeL: currentVolumeL,
+        heatSourceKw,
+        storeTempC,
+        tapTargetTempC,
+        coldWaterTempC,
+        usableFraction,
+        isStratified: isMixergy,
+        effectiveRecoveryWindowMins,
+      }),
+    );
+    const currentScenarioVerdict = evaluateScenarioResults(currentScenarioResults);
+    const currentScenarioEvidence = pickScenarioEvidence(currentScenarioResults);
 
     const sizeAdequacy: CylinderCurrentPerformance['sizeAdequacy'] =
-      currentVolumeL >= currentMinRawL ? 'adequate'  :
-      currentVolumeL >= currentMinRawL * 0.85 ? 'marginal' :
-      'undersized';
+      currentScenarioVerdict === 'adequate'
+        ? 'adequate'
+        : currentScenarioVerdict === 'borderline'
+        ? 'marginal'
+        : 'undersized';
 
     currentPerformance = {
       nominalVolumeL:       currentVolumeL,
@@ -893,10 +1286,12 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
         severity: 'warn',
         title: 'Cylinder undersized for household demand',
         detail:
-          `Current cylinder (${currentVolumeL} L nominal) is below the estimated ` +
-          `physics minimum ${currentMinPhysicsL} L required for ${occupancyCount} occupant(s) and ` +
-          `${bathroomCount} bathroom(s). This is likely causing back-to-back hot-water ` +
-          `shortfalls. Upgrade to at least ${currentMinPhysicsL} L (recommended: ${targetVolumeL} L).`,
+          `Scenario "${currentScenarioEvidence.scenario.label}" ` +
+          `${currentScenarioEvidence.exhaustionPointMinute === null
+            ? 'collapses reserve during simultaneous use'
+            : `exhausts usable hot water at ~${currentScenarioEvidence.exhaustionPointMinute} min`} ` +
+          `for the current ${currentVolumeL} L cylinder. Upgrade to at least ${currentMinPhysicsL} L ` +
+          `(recommended: ${targetVolumeL} L).`,
       });
     } else if (sizeAdequacy === 'marginal') {
       flags.push({
@@ -904,9 +1299,10 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
         severity: 'info',
         title: 'Cylinder is marginally sized for demand',
         detail:
-          `Current cylinder (${currentVolumeL} L) is slightly below the estimated ` +
-          `physics minimum ${currentMinPhysicsL} L. Hot-water shortfalls may occur during back-to-back ` +
-          `draws or high-demand periods. Consider upgrading to ${targetVolumeL} L.`,
+          `Scenario evidence for the current ${currentVolumeL} L cylinder is borderline: ` +
+          `"${currentScenarioEvidence.scenario.label}" leaves about ${currentScenarioEvidence.lowestReserveL.toFixed(0)} L ` +
+          `usable reserve and needs ${currentScenarioEvidence.recoveryToTargetMins} min to recover to target. ` +
+          `Consider upgrading to ${targetVolumeL} L or increasing recovery rate.`,
       });
     } else {
       flags.push({
@@ -914,23 +1310,23 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
         severity: 'info',
         title: 'Current cylinder volume is adequate',
         detail:
-          `Current cylinder (${currentVolumeL} L nominal) meets the estimated ` +
-          `physics minimum ${currentMinPhysicsL} L for this household. Replacement may not be ` +
-          `required on size grounds alone.`,
+          `Current cylinder (${currentVolumeL} L nominal) stays ahead of the selected peak-window scenarios ` +
+          `for this household. Lowest usable reserve is about ${currentScenarioEvidence.lowestReserveL.toFixed(0)} L, ` +
+          `with recovery to target in ${currentScenarioEvidence.recoveryToTargetMins} min.`,
       });
     }
 
     // ── Flag: slow recovery ─────────────────────────────────────────────────
-    if (recoveryMins > SLOW_RECOVERY_THRESHOLD_MINS) {
+    if (currentScenarioEvidence.recoveryToTargetMins > SLOW_RECOVERY_THRESHOLD_MINS || recoveryMins > SLOW_RECOVERY_THRESHOLD_MINS) {
       flags.push({
         id: 'sizing-recovery-slow',
         severity: 'warn',
         title: 'Extended recovery time — risk of hot-water gaps',
         detail:
-          `Estimated full recovery time: ${recoveryMins.toFixed(0)} min ` +
+          `Scenario recovery back to the target reserve takes ` +
+          `${Number.isFinite(currentScenarioEvidence.recoveryToTargetMins) ? `${currentScenarioEvidence.recoveryToTargetMins} min` : 'too long to be practical'} ` +
           `(${currentVolumeL} L, ${heatSourceKw} kW source, ΔT = ${deltaTc.toFixed(0)} °C). ` +
-          `Back-to-back high-demand periods may leave the cylinder unable to recover ` +
-          `before the next draw. ` +
+          `Back-to-back high-demand periods may leave the cylinder unable to recover before the next draw. ` +
           (heatSourceSource === 'assumed'
             ? `Confirm heat source power — if the coil or boiler output is higher, ` +
               `recovery time will be shorter.`
@@ -961,6 +1357,11 @@ export function runCylinderSizingModule(input: EngineInputV2_3): CylinderSizingR
 
     assumptions.push(
       `Current cylinder: ${currentVolumeL} L — size adequacy: ${sizeAdequacy}. ` +
+      `Scenario evidence: ${currentScenarioEvidence.scenario.label}, ` +
+      `${currentScenarioEvidence.exhaustionPointMinute === null
+        ? `${currentScenarioEvidence.lowestReserveL.toFixed(0)} L lowest reserve`
+        : `exhausted at ${currentScenarioEvidence.exhaustionPointMinute} min`}, ` +
+      `${currentScenarioEvidence.recoveryToTargetMins} min to target reserve. ` +
       `Recovery: ${recoveryMins.toFixed(0)} min. ` +
       `Standing loss: ${standingLossW.toFixed(0)} W (${standingLossKwh.toFixed(2)} kWh/24h).`,
     );

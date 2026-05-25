@@ -5,14 +5,16 @@
  * insight signals used by InsightLayerPage.
  *
  * These are engine-interpretation-surface functions — they sit between survey
- * capture and recommendation output.  No physics simulation is run here; all
- * outputs are derived directly from surveyed values.
+ * capture and recommendation output.  Where needed, focused engine sizing logic
+ * is reused so customer-facing wording stays aligned with the latest physics model.
  */
 
 import type { SystemBuilderState } from '../systemBuilder/systemBuilderTypes';
 import type { HomeState } from '../usage/usageTypes';
 import type { FullSurveyModelV1 } from '../../../ui/fullSurvey/FullSurveyModelV1';
 import type { NormalisedPriorities } from '../priorities/prioritiesNormalizer';
+import { runCylinderSizingModule } from '../../../engine/modules/CylinderSizingModule';
+import type { EngineInputV2_3 } from '../../../engine/schema/EngineInputV2_3';
 
 // ─── System condition ─────────────────────────────────────────────────────────
 
@@ -692,38 +694,30 @@ export function deriveCylinderInsight(
     };
   }
 
-  // ── Volume adequacy (peak-window + recovery model) ────────────────────────
   const volumeL = system.cylinderVolumeL;
   const effectiveBathrooms = Math.max(1, bathroomCount || 1);
-  const concurrentOutlets = Math.max(
-    1,
-    Math.min(peakConcurrentOutlets ?? effectiveBathrooms, 3),
-  );
-  const peakWindowUsers = Math.max(1, Math.min(occupancyCount, concurrentOutlets + 1));
-  const overlappingDrawL = concurrentOutlets * 32;
-  const followOnUsersL = Math.max(0, peakWindowUsers - concurrentOutlets) * 18;
-  const occupancyProfileReserveL = occupancyCount >= 5 ? 24 : occupancyCount >= 4 ? 12 : 0;
-  const recoveryReserveL = system.heatSource === 'regular' ? 22 : 15;
-  const usableFraction =
-    system.cylinderInsulationType === 'modern_factory' || system.cylinderInsulationType === 'mixergy'
-      ? 0.90
-      : 0.82;
-  const minAdequateL = Math.max(
-    110,
-    Math.round((overlappingDrawL + followOnUsersL + occupancyProfileReserveL - recoveryReserveL) / usableFraction),
-  );
-  const minMarginalL = Math.max(95, Math.round(minAdequateL * 0.88));
+  const concurrentOutlets = Math.max(1, Math.min(peakConcurrentOutlets ?? effectiveBathrooms, 3));
+  const sizingInput = {
+    occupancyCount: Math.max(1, occupancyCount),
+    bathroomCount: effectiveBathrooms,
+    peakConcurrentOutlets: concurrentOutlets,
+    cylinderVolumeLitres: volumeL ?? undefined,
+    dhwStorageType: system.cylinderInsulationType === 'mixergy' ? 'mixergy' : system.dhwType === 'open_vented' ? 'vented' : 'unvented',
+    dhwStorageRegime: system.heatSource === 'regular' || system.heatSource === 'system' ? 'stored_unvented' : undefined,
+    currentHeatSourceType: system.heatSource === 'regular' || system.heatSource === 'system' || system.heatSource === 'combi'
+      ? system.heatSource
+      : 'other',
+    simultaneousDrawSeverity: concurrentOutlets >= 3 ? 'high' : concurrentOutlets === 2 ? 'medium' : 'low',
+  } as EngineInputV2_3;
+  const sizing = runCylinderSizingModule(sizingInput);
+  const minAdequateL = volumeL == null
+    ? null
+    : sizing.currentPerformance?.minimumAdequateVolumeL ?? Math.ceil(sizing.recommendation.minimumVolumeL);
 
-  let volumeAdequacy: CylinderAdequacy;
-  if (volumeL == null) {
-    volumeAdequacy = 'unknown';
-  } else if (volumeL >= minAdequateL) {
-    volumeAdequacy = 'adequate';
-  } else if (volumeL >= minMarginalL) {
-    volumeAdequacy = 'marginal';
-  } else {
-    volumeAdequacy = 'undersized';
-  }
+  let volumeAdequacy: CylinderAdequacy = 'unknown';
+  if (sizing.currentPerformance?.sizeAdequacy === 'adequate') volumeAdequacy = 'adequate';
+  else if (sizing.currentPerformance?.sizeAdequacy === 'marginal') volumeAdequacy = 'marginal';
+  else if (sizing.currentPerformance?.sizeAdequacy === 'undersized') volumeAdequacy = 'undersized';
 
   // ── Replacement urgency ────────────────────────────────────────────────────
   const ageBand = system.cylinderAgeBand;
@@ -770,11 +764,15 @@ export function deriveCylinderInsight(
 
   if (volumeAdequacy === 'undersized') {
     advice.push(
-      `Cylinder volume (${volumeL} L) is likely undersized for peak overlap in this home. Re-check cylinder volume against likely simultaneous use, recovery window, and usable stored volume (${minAdequateL} L reference reserve).`,
+      `Cylinder volume (${volumeL} L) is likely undersized because the peak-window draw-off scenarios exhaust usable hot water during peak overlap before recovery catches up. Re-check cylinder volume against the scenario-derived minimum (${minAdequateL} L) and likely simultaneous use.`,
     );
   } else if (volumeAdequacy === 'marginal') {
     advice.push(
-      `Cylinder volume (${volumeL} L) is borderline for peak overlap and recovery margin. Review whether a larger cylinder or higher-recovery setup is needed.`,
+      `Cylinder volume (${volumeL} L) is borderline only on the simulated peak-window evidence: usable hot water survives the likely draws, but recovery back to target is slow enough that a larger cylinder or higher-recovery setup may still be needed.`,
+    );
+  } else if (volumeAdequacy === 'adequate' && volumeL != null) {
+    advice.push(
+      `Cylinder volume (${volumeL} L) covers the likely peak overlap in this home, and the simulated recovery window restores usable hot water quickly enough for normal follow-on demand.`,
     );
   }
 
