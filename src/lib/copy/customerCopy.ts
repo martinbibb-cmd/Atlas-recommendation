@@ -311,7 +311,7 @@ export const OBJECTIVE_PRIORITY_FRAMING: Record<string, string> = {
   running_cost:     'If your priority is keeping running costs low…',
   install_cost:     'If your priority is keeping installation costs down…',
   longevity:        'If your priority is long-term reliability…',
-  carbon:           'If your priority is reducing carbon emissions…',
+  carbon:           'If your priority is reducing carbon at point of use…',
   performance:      'If your priority is consistent comfort and hot water…',
   future_readiness: 'If your priority is staying future-ready…',
 };

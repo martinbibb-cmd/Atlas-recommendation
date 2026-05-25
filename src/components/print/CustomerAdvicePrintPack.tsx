@@ -134,7 +134,15 @@ export interface CustomerAdvicePrintPackProps {
 
 // ─── QR code image ────────────────────────────────────────────────────────────
 
-function QRCodeImage({ url }: { url: string }) {
+function QRCodeImage({
+  url,
+  alt = 'Portal QR code',
+  className = 'capp-portal-cta__qr-img',
+}: {
+  url: string;
+  alt?: string;
+  className?: string;
+}) {
   const imgRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
@@ -156,8 +164,8 @@ function QRCodeImage({ url }: { url: string }) {
   return (
     <img
       ref={imgRef}
-      alt="Portal QR code"
-      className="capp-portal-cta__qr-img"
+      alt={alt}
+      className={className}
     />
   );
 }
@@ -1007,6 +1015,217 @@ function CarbonBlock({ decision }: { decision: AtlasDecisionV1 }) {
   );
 }
 
+const EMPTY_SCOPE_FALLBACK =
+  'Scope not fully captured yet — confirm quote inclusions before presenting this pack.';
+
+function WhyAtlasSuggestedThis({ decision }: { decision: AtlasDecisionV1 }) {
+  const narrativeLines = decision.keyReasons.slice(0, 3);
+  if (narrativeLines.length === 0) return null;
+  return (
+    <section
+      className="capp-why-atlas"
+      aria-label="Why Atlas Suggested This"
+      data-testid="capp-why-atlas"
+    >
+      <p className="capp-why-atlas__heading">Why Atlas Suggested This</p>
+      <ul className="capp-why-atlas__list">
+        {narrativeLines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function costQualifierFromScenario(recommendedScenario: ScenarioResult | undefined): 'Lower' | 'Medium' | 'Higher' {
+  const band = recommendedScenario?.performance.efficiency;
+  if (band === 'excellent' || band === 'very_good') return 'Lower';
+  if (band === 'good') return 'Medium';
+  return 'Higher';
+}
+
+function SystemPerformanceSummaryPanel({
+  decision,
+  recommendedScenario,
+}: {
+  decision: AtlasDecisionV1;
+  recommendedScenario: ScenarioResult | undefined;
+}) {
+  const metrics = decision.energyMetrics;
+  if (!metrics) return null;
+  const baseline = Math.max(1, metrics.baselineKwh);
+  const projected = Math.max(1, metrics.projectedKwh);
+  const baselineWidth = 100;
+  const projectedWidth = Math.max(8, Math.round((projected / baseline) * 100));
+  const ratio = (projected / baseline).toFixed(2);
+  const qualifier = costQualifierFromScenario(recommendedScenario);
+  return (
+    <section
+      className="capp-performance-summary"
+      aria-label="System performance summary"
+      data-testid="capp-performance-summary"
+    >
+      <p className="capp-performance-summary__heading">System performance summary</p>
+      <p className="capp-performance-summary__intro">
+        Input-to-output profile based on measured site demand and Atlas system modelling.
+      </p>
+      <div className="capp-performance-summary__bars" aria-label="Energy conversion bars">
+        <div className="capp-performance-summary__row">
+          <span className="capp-performance-summary__label">Current input</span>
+          <span className="capp-performance-summary__track">
+            <span className="capp-performance-summary__fill" style={{ width: `${baselineWidth}%` }} />
+          </span>
+          <span className="capp-performance-summary__value">{Math.round(baseline).toLocaleString()} kWh</span>
+        </div>
+        <div className="capp-performance-summary__row">
+          <span className="capp-performance-summary__label">Recommended output load</span>
+          <span className="capp-performance-summary__track">
+            <span className="capp-performance-summary__fill capp-performance-summary__fill--recommended" style={{ width: `${projectedWidth}%` }} />
+          </span>
+          <span className="capp-performance-summary__value">{Math.round(projected).toLocaleString()} kWh</span>
+        </div>
+      </div>
+      <p className="capp-performance-summary__conversion">
+        1 kWh input baseline maps to {ratio} kWh projected annual delivered load for this plan.
+      </p>
+      <dl className="capp-performance-summary__qualitative">
+        <div>
+          <dt>Cost outlook</dt>
+          <dd>{qualifier}</dd>
+        </div>
+        <div>
+          <dt>Carbon at point of use</dt>
+          <dd>{qualifier === 'Lower' ? 'Lower' : qualifier === 'Medium' ? 'Medium' : 'Higher'}</dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function TechnicalScopeColumnsSection({ decision }: { decision: AtlasDecisionV1 }) {
+  const essentialWorks = decision.quoteScope
+    .filter((item) => item.status === 'required' || (item.status === 'included' && item.category === 'compliance'))
+    .map((item) => item.label);
+  const bestAdviceUpgrades = decision.quoteScope
+    .filter((item) => item.status === 'recommended' || (item.status === 'included' && item.category !== 'compliance'))
+    .map((item) => item.label);
+  const enhancedPathways = decision.quoteScope
+    .filter((item) => item.status === 'optional')
+    .map((item) => item.label);
+
+  const renderColumn = (title: string, items: string[], testId: string) => (
+    <section className="capp-scope-columns__column" data-testid={testId}>
+      <p className="capp-scope-columns__title">{title}</p>
+      {items.length > 0 ? (
+        <ul>
+          {items.slice(0, 8).map((item) => <li key={item}>{item}</li>)}
+        </ul>
+      ) : (
+        <p className="capp-scope-columns__fallback">{EMPTY_SCOPE_FALLBACK}</p>
+      )}
+    </section>
+  );
+
+  return (
+    <section
+      className="capp-scope-columns"
+      aria-label="Technical installation scope columns"
+      data-testid="capp-scope-columns"
+    >
+      <p className="capp-scope-columns__heading">Technical installation scope</p>
+      <div className="capp-scope-columns__grid">
+        {renderColumn('Essential works', essentialWorks, 'capp-scope-column-essential')}
+        {renderColumn('Best Advice upgrades', bestAdviceUpgrades, 'capp-scope-column-best-advice')}
+        {renderColumn('Enhanced pathways', enhancedPathways, 'capp-scope-column-enhanced')}
+      </div>
+    </section>
+  );
+}
+
+function buildScanAppUrl(portalUrl?: string): string {
+  if (portalUrl == null) {
+    if (typeof window === 'undefined') return '/?scan-package=1';
+    return `${window.location.origin}/?scan-package=1`;
+  }
+  try {
+    const parsed = new URL(portalUrl);
+    const reference = parsed.pathname.startsWith('/portal/') ? parsed.pathname.replace('/portal/', '') : '';
+    const scanUrl = new URL(`${parsed.origin}/`);
+    scanUrl.searchParams.set('scan-package', '1');
+    if (reference) scanUrl.searchParams.set('reference', decodeURIComponent(reference));
+    const token = parsed.searchParams.get('token');
+    if (token) scanUrl.searchParams.set('token', token);
+    return scanUrl.toString();
+  } catch {
+    return portalUrl;
+  }
+}
+
+function EngineerHandOffSection({
+  technicalBlocks,
+  portalUrl,
+}: {
+  technicalBlocks: VisualBlock[];
+  portalUrl?: string;
+}) {
+  const spatialBlock = technicalBlocks.find((block): block is SpatialProofBlock => block.type === 'spatial_proof');
+  const routeLines = spatialBlock?.routeSummary ?? [];
+  const needsVerification = [
+    ...routeLines,
+    ...(spatialBlock?.confidenceSummary ?? []),
+  ].some((line) => /needs verification|to be confirmed|to be agreed|needs checking/i.test(line));
+  const scanUrl = buildScanAppUrl(portalUrl);
+
+  return (
+    <section
+      className="capp-engineer-handoff"
+      aria-label="Engineer Hand-off"
+      data-testid="capp-engineer-handoff"
+    >
+      <p className="capp-engineer-handoff__heading">Engineer Hand-off</p>
+      <div className="capp-engineer-handoff__grid">
+        <div>
+          <p className="capp-engineer-handoff__label">Room dimension summaries</p>
+          {spatialBlock?.rooms?.length ? <p>{spatialBlock.rooms.join(', ')}</p> : <p>Room dimensions to be confirmed on site.</p>}
+        </div>
+        <div>
+          <p className="capp-engineer-handoff__label">Boiler and cylinder positions</p>
+          {spatialBlock?.keyObjects?.length ? <p>{spatialBlock.keyObjects.join(' · ')}</p> : <p>Boiler and cylinder positions to be agreed on site.</p>}
+        </div>
+        <div>
+          <p className="capp-engineer-handoff__label">Flue terminal rules</p>
+          <p>Confirm terminal clearances and manufacturer siting rules before final install.</p>
+        </div>
+        <div>
+          <p className="capp-engineer-handoff__label">Safety discharge paths</p>
+          {routeLines.length > 0 ? <p>{routeLines.join(' · ')}</p> : <p>Safety discharge path to be confirmed on site.</p>}
+        </div>
+      </div>
+      {needsVerification && (
+        <p className="capp-engineer-handoff__verification">
+          Route not fully confirmed - site verification required
+        </p>
+      )}
+      <div className="capp-engineer-handoff__scan">
+        <div className="capp-engineer-handoff__scan-qr">
+          <QRCodeImage
+            url={scanUrl}
+            alt="Atlas Scan App QR code"
+            className="capp-engineer-handoff__scan-qr-img"
+          />
+        </div>
+        <div className="capp-engineer-handoff__scan-copy">
+          <p className="capp-engineer-handoff__label">Atlas Scan App</p>
+          <a href={scanUrl} target="_blank" rel="noopener noreferrer">
+            Open Atlas Scan App deep link
+          </a>
+          <p>{scanUrl}</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -1120,10 +1339,10 @@ function CustomerAdvicePrintPackContent({
             <section
               className="capp-page capp-page--hero capp-page--identity"
               data-testid="capp-page-identity"
-              aria-label="Executive Summary"
+              aria-label="Page 1 - Headline recommendation summary"
             >
               <p className="capp-page__label capp-page__label--pillar">
-                Pillar 1 · Identity — Executive Summary
+                Page 1 · Headline Recommendation Summary
               </p>
 
               {/* Identity blocks: hero, facts, customer_need_resolution */}
@@ -1133,6 +1352,8 @@ function CustomerAdvicePrintPackContent({
 
               {/* At-a-Glance property stats sidebar */}
               <AtAGlancePanel decision={decision} />
+
+              <WhyAtlasSuggestedThis decision={decision} />
 
               {/* Brand-gated: pricing block (shown when showPricing and priceCapsDate present) */}
               <EnergyPricingBlock decision={decision} />
@@ -1152,10 +1373,10 @@ function CustomerAdvicePrintPackContent({
             <section
               className="capp-page capp-page--verdict-roadmap"
               data-testid="capp-page-verdict"
-              aria-label="Comparison and Roadmap"
+              aria-label="Page 2 - System performance summary"
             >
               <p className="capp-page__label capp-page__label--pillar">
-                Pillars 2 & 4 · Verdict & Roadmap — Comparison
+                Page 2 · System Performance Summary
               </p>
 
               {/* Verdict blocks: solution, problem (if shown) */}
@@ -1171,6 +1392,11 @@ function CustomerAdvicePrintPackContent({
 
               {/* Atlas Pick vs alternatives */}
               <ComparisonSection decision={decision} scenarios={scenarios} />
+
+              <SystemPerformanceSummaryPanel
+                decision={decision}
+                recommendedScenario={recommendedScenario}
+              />
 
               {/* Avoided Risks */}
               <AvoidedRisksSection avoidedRisks={decision.avoidedRisks} />
@@ -1195,10 +1421,10 @@ function CustomerAdvicePrintPackContent({
             <section
               className="capp-page capp-page--technical"
               data-testid="capp-page-technical"
-              aria-label="Technical Blueprint"
+              aria-label="Page 3 - Technical installation scope"
             >
               <p className="capp-page__label capp-page__label--pillar">
-                Pillar 2 · Verdict — Technical Blueprint
+                Page 3 · Technical Installation Scope
               </p>
 
               {/* Requirements checklist from quote scope */}
@@ -1208,6 +1434,8 @@ function CustomerAdvicePrintPackContent({
               {technical.map((block) => (
                 <ThemedBlock key={block.id} block={block} />
               ))}
+
+              <TechnicalScopeColumnsSection decision={decision} />
 
               {/* Pillar 3: Simultaneous Use — stored hot water for high-occupancy households */}
               <SimultaneousUsePanel decision={decision} recommendedScenario={recommendedScenario} />
@@ -1238,6 +1466,8 @@ function CustomerAdvicePrintPackContent({
 
                 {/* Compact QR + URL card — single authoritative portal prompt */}
                 <PrintPortalCta portalUrl={portalUrl} />
+
+                <EngineerHandOffSection technicalBlocks={technical} portalUrl={portalUrl} />
 
                 {/* AI handoff section */}
                 <section

@@ -368,37 +368,24 @@
     display: none !important;
   }
 
-  .capp-document {
-    gap: 0;
-    max-width: 100%;
-    /* Scale the entire document to 50 % so two sections fit per physical page */
-    zoom: 0.5;
-  }
+  .capp-document { gap: 0; max-width: 100%; }
 
   .capp-page {
     box-shadow: none;
     border-radius: 0;
     padding: 8mm 10mm 6mm;
-    /* At zoom 0.5 this 297 mm height renders as ~148.5 mm — two fit per A4 */
     min-height: 297mm;
-    /* Remove the per-section forced break — let :nth-child(2n) control it */
-    page-break-after: avoid;
-    break-after: avoid;
-    margin: 0;
-    gap: 0;
-  }
-
-  /* Insert a physical page break after every second section */
-  .capp-page:nth-child(2n) {
     page-break-after: always;
     break-after: page;
+    margin: 0;
+    gap: 0;
   }
 
   /* The portal CTA page is compact — it does not need a full page of whitespace. */
   .capp-page--portal-cta {
     min-height: 0;
-    page-break-after: avoid;
-    break-after: avoid;
+    page-break-after: always;
+    break-after: page;
     padding-bottom: 6mm;
   }
 
@@ -743,6 +730,208 @@
   margin: 0;
 }
 
+/* ─── Why Atlas + performance summary ───────────────────────────────────────── */
+.capp-why-atlas,
+.capp-performance-summary,
+.capp-scope-columns,
+.capp-engineer-handoff {
+  margin: 1rem 0;
+  border: 1px solid var(--capp-border);
+  border-radius: var(--capp-radius);
+  padding: 0.85rem 1rem;
+  background: #fff;
+}
+
+.capp-why-atlas__heading,
+.capp-performance-summary__heading,
+.capp-scope-columns__heading,
+.capp-engineer-handoff__heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.capp-why-atlas__list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.84rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.capp-performance-summary__intro,
+.capp-performance-summary__conversion {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.capp-performance-summary__bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.6rem;
+}
+
+.capp-performance-summary__row {
+  display: grid;
+  grid-template-columns: 140px 1fr max-content;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.capp-performance-summary__label {
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.capp-performance-summary__track {
+  background: #e2e8f0;
+  border-radius: 9999px;
+  height: 0.52rem;
+  overflow: hidden;
+}
+
+.capp-performance-summary__fill {
+  display: block;
+  height: 100%;
+  background: #64748b;
+}
+
+.capp-performance-summary__fill--recommended {
+  background: #0f766e;
+}
+
+.capp-performance-summary__value {
+  font-size: 0.74rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.capp-performance-summary__qualitative {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+
+.capp-performance-summary__qualitative dt {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.capp-performance-summary__qualitative dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.capp-scope-columns__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.capp-scope-columns__column {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 0.65rem 0.7rem;
+  background: #f8fafc;
+}
+
+.capp-scope-columns__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.capp-scope-columns__column ul {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.capp-scope-columns__fallback {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.capp-engineer-handoff__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.6rem 0.9rem;
+}
+
+.capp-engineer-handoff__label {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.capp-engineer-handoff__grid p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #1f2937;
+  line-height: 1.4;
+}
+
+.capp-engineer-handoff__verification {
+  margin: 0.7rem 0 0;
+  font-size: 0.8rem;
+  color: #b45309;
+  font-weight: 700;
+}
+
+.capp-engineer-handoff__scan {
+  margin-top: 0.8rem;
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.65rem;
+}
+
+.capp-engineer-handoff__scan-qr {
+  width: 113px;
+  height: 113px;
+  border: 1px solid var(--capp-border);
+  border-radius: var(--capp-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  overflow: hidden;
+}
+
+.capp-engineer-handoff__scan-qr-img {
+  width: 113px;
+  height: 113px;
+}
+
+.capp-engineer-handoff__scan-copy a {
+  font-size: 0.8rem;
+  color: var(--capp-blue);
+}
+
+.capp-engineer-handoff__scan-copy p {
+  margin: 0.25rem 0 0;
+  font-size: 0.74rem;
+  color: #64748b;
+  word-break: break-all;
+}
+
 /* ─── Condition badge within At-a-Glance ────────────────────────────────────── */
 
 .capp-at-a-glance__condition-badge {
@@ -935,7 +1124,11 @@
 
 @media print {
   .capp-at-a-glance,
+  .capp-why-atlas,
   .capp-comparison,
+  .capp-performance-summary,
+  .capp-scope-columns,
+  .capp-engineer-handoff,
   .capp-avoided-risks,
   .capp-requirements,
   .capp-complexity,
@@ -961,5 +1154,11 @@
   .capp-page--technical {
     page-break-after: always;
     break-after: page;
+  }
+
+  .capp-engineer-handoff__scan-qr,
+  .capp-engineer-handoff__scan-qr-img {
+    width: 30mm;
+    height: 30mm;
   }
 }
