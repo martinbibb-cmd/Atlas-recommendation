@@ -19,6 +19,52 @@ function hasText(value: string | undefined): value is string {
   return value != null && value.trim().length > 0;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value != null && !Array.isArray(value);
+}
+
+function readNumberCandidate(
+  source: Record<string, unknown> | undefined,
+  keys: readonly string[],
+): number | undefined {
+  if (source == null) return undefined;
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function readEngineHeatLossKw(pkg: CanonicalVisitPackageV1): number | undefined {
+  const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
+  const heatLossWatts = readNumberCandidate(engineInput, ['heatLossWatts']);
+  if (heatLossWatts == null) return undefined;
+  return heatLossWatts / 1000;
+}
+
+function readDecisionPeakHeatLossKw(pkg: CanonicalVisitPackageV1): number | undefined {
+  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
+  const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+  return readNumberCandidate(energyMetrics, ['peakLoadKw', 'peakHeatLossKw']);
+}
+
+function readHotWaterDemandLitres(pkg: CanonicalVisitPackageV1): number | undefined {
+  const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
+  const fromEngine = readNumberCandidate(engineInput, [
+    'dailyHotWaterLitres',
+    'dailyHotWaterDemandLitres',
+  ]);
+  if (fromEngine != null) return fromEngine;
+  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
+  const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+  return readNumberCandidate(energyMetrics, [
+    'dailyHotWaterLitres',
+    'dailyHotWaterDemandLitres',
+  ]);
+}
+
 function isProposalReady(pkg: CanonicalVisitPackageV1): boolean {
   return (
     hasText(pkg.proposalTruth?.selectedScenarioId)
@@ -40,6 +86,14 @@ function buildCustomerPropertySummary(pkg: CanonicalVisitPackageV1): readonly st
   }
   if (survey.bathroomCount != null) {
     lines.push(`Bathrooms: ${survey.bathroomCount}`);
+  }
+  const peakHeatLossKw = readEngineHeatLossKw(pkg) ?? readDecisionPeakHeatLossKw(pkg);
+  if (peakHeatLossKw != null) {
+    lines.push(`Peak heat loss: ${peakHeatLossKw.toFixed(1)} kW`);
+  }
+  const hotWaterDemandLitres = readHotWaterDemandLitres(pkg);
+  if (hotWaterDemandLitres != null) {
+    lines.push(`Hot water demand: ${Math.round(hotWaterDemandLitres)} L/day`);
   }
   for (const fact of pkg.customerPropertyDetails.propertyFacts ?? []) {
     if (hasText(fact)) lines.push(`Property: ${fact}`);
