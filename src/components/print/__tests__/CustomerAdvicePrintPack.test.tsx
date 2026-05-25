@@ -332,6 +332,29 @@ describe('CustomerAdvicePrintPack — portal CTA block', () => {
     render(<CustomerAdvicePrintPack {...makeProps()} />);
     expect(screen.getByTestId('capp-portal-url-placeholder')).toBeTruthy();
   });
+
+  it('renders engineer hand-off section with scan app deep link', () => {
+    const blocks = makeBlocks({ includeSpatialProof: true });
+    render(
+      <CustomerAdvicePrintPack
+        {...makeProps({
+          visualBlocks: blocks,
+          portalUrl: 'https://atlas.example.com/portal/visit-123?token=abc',
+        })}
+      />,
+    );
+    expect(screen.getByTestId('capp-engineer-handoff')).toBeTruthy();
+    expect(screen.getByText('Engineer Hand-off')).toBeTruthy();
+    const link = screen.getByText('Open Atlas Scan App deep link');
+    expect(link.getAttribute('href')).toContain('scan-package=1');
+  });
+
+  it('renders updated page labels for pages 1 to 3', () => {
+    render(<CustomerAdvicePrintPack {...makeProps()} />);
+    expect(screen.getByText('Page 1 · Headline Recommendation Summary')).toBeTruthy();
+    expect(screen.getByText('Page 2 · System Performance Summary')).toBeTruthy();
+    expect(screen.getByText('Page 3 · Technical Installation Scope')).toBeTruthy();
+  });
 });
 
 describe('CustomerAdvicePrintPack — warning blocks', () => {
@@ -423,7 +446,7 @@ describe('CustomerAdvicePrintPack — spatial proof', () => {
     // The title appears in both the section label and the block title — either is correct
     const headings = screen.getAllByText('Where the work happens');
     expect(headings.length).toBeGreaterThan(0);
-    expect(screen.getByText('Boiler — Kitchen')).toBeTruthy();
+    expect(screen.getAllByText('Boiler — Kitchen').length).toBeGreaterThan(0);
   });
 });
 
@@ -612,7 +635,9 @@ describe('CustomerAdvicePrintPack — options considered (AI handoff)', () => {
     };
     render(<CustomerAdvicePrintPack {...makeProps({ visualBlocks: [emptyScope] })} />);
     expect(screen.getByTestId('capp-scope-empty')).toBeTruthy();
-    expect(screen.getByText('Scope not fully captured yet — confirm quote inclusions before presenting this pack.')).toBeTruthy();
+    expect(
+      screen.getAllByText('Scope not fully captured yet — confirm quote inclusions before presenting this pack.').length,
+    ).toBeGreaterThan(0);
   });
 });
 

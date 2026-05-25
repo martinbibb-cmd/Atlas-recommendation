@@ -78,6 +78,7 @@ import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConcept
 import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
 import { COMBI_SELECTED_COMPROMISE_HEADLINE } from '../../engine/modules/buildScenarioDisplayIdentity';
+import { getLimiterHumanCopy } from '../presentation/limiterHumanLanguage';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,6 +91,19 @@ import './DecisionSynthesisPage.css';
  *                 → failed → retrying → saved / failed
  */
 export type ReportSaveState = 'idle' | 'saving' | 'saved' | 'failed' | 'retrying';
+
+const OBJECTIVE_TITLE_OVERRIDES: Record<string, string> = {
+  running_cost: 'Lowest Running Cost',
+  install_cost: 'Lowest Installation Cost',
+  longevity: 'Greatest Longevity',
+  carbon: 'Lowest Carbon (at point of use)',
+  performance: 'Greatest Comfort and Delivery',
+  future_readiness: 'Measured Forward-Thinking Plan',
+};
+
+function objectiveCardTitle(cardId: string, fallback: string): string {
+  return OBJECTIVE_TITLE_OVERRIDES[cardId] ?? fallback;
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -347,7 +361,7 @@ function EnrichedObjectiveCardUI({ card }: { card: AdviceCard }) {
     <div className="advice-obj-card" role="region" aria-label={card.title}>
       <div className="advice-obj-card__header">
         <span className="advice-obj-card__icon" aria-hidden="true">{card.icon}</span>
-        <h3 className="advice-obj-card__title">{card.title}</h3>
+        <h3 className="advice-obj-card__title">{objectiveCardTitle(card.id, card.title)}</h3>
       </div>
 
       <div className="advice-obj-card__system" aria-label="Recommended system for this objective">
@@ -389,7 +403,7 @@ function ObjectiveCardUI({ card }: { card: ObjectiveCard }) {
     <div className="advice-obj-card" role="region" aria-label={card.title}>
       <div className="advice-obj-card__header">
         <span className="advice-obj-card__icon" aria-hidden="true">{card.icon}</span>
-        <h3 className="advice-obj-card__title">{card.title}</h3>
+        <h3 className="advice-obj-card__title">{objectiveCardTitle(card.id, card.title)}</h3>
       </div>
 
       <div className="advice-obj-card__system" aria-label="Recommended system for this objective">
@@ -1021,6 +1035,40 @@ export default function DecisionSynthesisPage({
   const recommendedOptionCard =
     engineOutput.options?.find(o => o.id === recommendedOptionId) ?? null;
 
+  const disqualifiedCandidates = recommendationResult?.disqualifiedCandidates.length
+    ? recommendationResult.disqualifiedCandidates.map((candidate) => {
+        const barrierCopy = candidate.evidenceTrace.hardStopLimiters.map((limiterId) => {
+          const copy = getLimiterHumanCopy(limiterId);
+          return copy.detail != null ? `${copy.headline} ${copy.detail}` : copy.headline;
+        });
+        const fallbackBarriers = candidate.caveats.length > 0
+          ? candidate.caveats
+          : ['Site verification is required before this route can be advised.'];
+        return {
+          id: candidate.family,
+          label: candidate.family,
+          status: 'rejected' as const,
+          barriers: barrierCopy.length > 0 ? barrierCopy : fallbackBarriers,
+        };
+      })
+    : (engineOutput.options ?? [])
+      .filter((option) => option.status === 'caution' || option.status === 'rejected')
+      .map((option) => {
+        const barriers = [
+          option.engineering?.headline,
+          ...(option.engineering?.bullets ?? []),
+          option.heat?.headline,
+          option.dhw?.headline,
+          option.why[0],
+        ].filter((line): line is string => line != null && line.trim().length > 0);
+        return {
+          id: option.id,
+          label: option.label,
+          status: option.status,
+          barriers: barriers.slice(0, 4),
+        };
+      });
+
   // PR4 — Build real-world behaviour cards from engine output and presentation state.
   // Derived each render so they always reflect the latest chosenOptionId.
   const behaviourCards = buildRealWorldBehaviourCards(engineOutput, presentationState);
@@ -1405,7 +1453,7 @@ export default function DecisionSynthesisPage({
               aria-label="Compare wins for recommended system"
             >
               {heroCompareWins.map((win, i) => (
-                <li key={i} className="advice-hero__win">✓ {win}</li>
+                <li key={i} className="advice-hero__win-chip">{win}</li>
               ))}
             </ul>
           )}
@@ -2066,6 +2114,36 @@ export default function DecisionSynthesisPage({
         </p>
         <RecommendationScopeUI scope={recommendationScope} />
       </div>
+
+      {disqualifiedCandidates.length > 0 && (
+        <div className="advice-page__section" aria-label="Disqualified candidates">
+          <h2 className="advice-page__section-title">Disqualified candidates</h2>
+          <p className="advice-page__section-intro">
+            These options need site changes before they can be advised for this home.
+          </p>
+          <div className="advice-disqualified-grid" role="list" aria-label="Disqualified candidate cards">
+            {disqualifiedCandidates.map((candidate) => (
+              <article
+                key={candidate.id}
+                className="advice-disqualified-card"
+                role="listitem"
+              >
+                <div className="advice-disqualified-card__header">
+                  <h3 className="advice-disqualified-card__title">{candidate.label}</h3>
+                  <span className={`advice-disqualified-card__badge advice-disqualified-card__badge--${candidate.status}`}>
+                    {candidate.status === 'caution' ? 'Possible with upgrades' : 'Not advised'}
+                  </span>
+                </div>
+                <ul className="advice-disqualified-card__barriers" aria-label={`${candidate.label} barriers`}>
+                  {candidate.barriers.map((barrier, index) => (
+                    <li key={index}>{barrier}</li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* SECTION 6 — Future energy opportunities                           */}
