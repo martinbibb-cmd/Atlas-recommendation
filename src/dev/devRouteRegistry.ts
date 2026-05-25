@@ -506,15 +506,6 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
     lifecycle: 'retired',
   },
   {
-    codeName: 'CustomerRecommendationPrint',
-    queryFlags: ['print=survey&internal=1'],
-    fullRouteExample: '/?print=survey&internal=1 (retired internal print)',
-    replacementRoute: 'library-pdf',
-    routeKind: 'query_flag',
-    access: 'retired',
-    lifecycle: 'retired',
-  },
-  {
     codeName: 'HandoffArrivalPage',
     queryFlags: ['handoff=1'],
     fullRouteExample: '/?handoff=1 (retired)',

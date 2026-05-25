@@ -73,7 +73,6 @@ describe('route + inventory consolidation', () => {
     const retired = [
       'ReportView',
       'SurveyPrintoutPage',
-      'CustomerRecommendationPrint',
       'HandoffArrivalPage',
     ];
 

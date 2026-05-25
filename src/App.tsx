@@ -14,7 +14,6 @@ import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
-import CustomerRecommendationPrint from './components/print/CustomerRecommendationPrint';
 import { CustomerAdvicePrintPack } from './components/print/CustomerAdvicePrintPack';
 import { buildScenariosFromEngineOutput } from './engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from './engine/modules/buildDecisionFromScenarios';
@@ -810,15 +809,6 @@ const ENGINEER_SHARE_ENABLED =
 const INSIGHT_PACK_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('insight-pack') === '1';
-
-/**
- * Detect ?internal=1 — renders the internal/diagnostic CustomerRecommendationPrint
- * instead of the new CustomerAdvicePrintPack.  This is a dev-only route; it must
- * not be reachable as the default customer print output.
- */
-const INTERNAL_PRINT_ENABLED =
-  typeof window !== 'undefined' &&
-  new URLSearchParams(window.location.search).get('internal') === '1';
 
 /**
  * Detect ?create-workspace=1 — renders the Workspace Onboarding page.
@@ -3537,20 +3527,6 @@ function AppInner() {
     const surveyPrintInput = labEngineInput ?? CONSOLE_DEMO_INPUT;
     const surveyPrintResult  = runEngine(surveyPrintInput);
     const surveyPrintScenarios = buildScenariosFromEngineOutput(surveyPrintResult.engineOutput);
-
-    // ?print=survey&internal=1 — old diagnostic report for dev/internal use only.
-    // Not reachable as the default customer output.
-    if (INTERNAL_PRINT_ENABLED) {
-      return (
-        <CustomerRecommendationPrint
-          result={surveyPrintResult}
-          input={surveyPrintInput}
-          recommendationResult={surveyPrintResult.recommendationResult}
-          portalUrl={buildPortalUrl('demo', window.location.origin)}
-          visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-        />
-      );
-    }
 
     // Default: customer-facing advice pack from VisualBlock[] truth.
     if (surveyPrintScenarios.length > 0) {

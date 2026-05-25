@@ -35,6 +35,7 @@ const SECTION_WHY_THIS_FITS = 'Why this fits your home';
 const SECTION_PRACTICAL_OUTCOMES = 'Practical outcomes';
 const SECTION_PROTECTION_AND_CONDITION = 'Protection and system condition';
 const SECTION_NEXT_STEPS = 'What happens next';
+const SECTION_TECHNICAL_SITE_HANDOFF = 'Technical Site Hand-off';
 const INSTALLER_CHECK_HEADING = 'Installer check';
 const DEEP_DIVE_LINKS_HEADING = 'Deep dive links (optional)';
 
@@ -547,24 +548,21 @@ function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): Cu
     blocks.push(createTextBlock('body', documentModel.cover.addressSummary, { spacingAfter: 6 }));
   }
   blocks.push(createTextBlock('subheading', 'Demographics Grid', { spacingAfter: 4 }));
-  blocks.push(createTextBlock('body', `Occupants: ${demographics.occupants}`, { spacingAfter: 2 }));
-  blocks.push(createTextBlock('body', `Bathrooms: ${demographics.bathrooms}`, { spacingAfter: 2 }));
-  blocks.push(createTextBlock('body', `Peak heat loss: ${demographics.peakHeatLoss}`, { spacingAfter: 2 }));
-  blocks.push(createTextBlock('body', `Hot water demand: ${demographics.hotWaterDemand}`, { spacingAfter: 4 }));
+  blocks.push(createTextBlock(
+    'body',
+    `Occupants: ${demographics.occupants}  |  Bathrooms: ${demographics.bathrooms}`,
+    { spacingAfter: 2 },
+  ));
+  blocks.push(createTextBlock(
+    'body',
+    `Peak heat loss (kW): ${demographics.peakHeatLoss}  |  Hot water demand: ${demographics.hotWaterDemand}`,
+    { spacingAfter: 4 },
+  ));
   if (demographics.additionalFacts.length > 0) {
     blocks.push(createTextBlock('subheading', 'Additional home facts', { spacingAfter: 3 }));
     for (const fact of demographics.additionalFacts) {
-      blocks.push(createTextBlock('bullet', `- ${fact}`, { spacingAfter: 2 }));
+      blocks.push(createTextBlock('body', fact, { spacingAfter: 2 }));
     }
-  }
-  blocks.push(createTextBlock('subheading', 'Technical Site Hand-off', { spacingBefore: 2, spacingAfter: 3 }));
-  blocks.push(createTextBlock('subheading', 'Physical Site Constraints', { spacingAfter: 2 }));
-  for (const line of buildTechnicalSiteConstraints(documentModel, demographics)) {
-    blocks.push(createTextBlock('bullet', `- ${line}`, { spacingAfter: 2 }));
-  }
-  blocks.push(createTextBlock('subheading', 'Planned Hardware Allocations', { spacingBefore: 2, spacingAfter: 2 }));
-  for (const line of buildPlannedHardwareAllocations(documentModel, demographics)) {
-    blocks.push(createTextBlock('bullet', `- ${line}`, { spacingAfter: 2 }));
   }
 
   if (documentModel.recommendationReasons.length > 0) {
@@ -626,6 +624,16 @@ function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): Cu
         blocks.push(createTextBlock('small', destination.note, { spacingAfter: 3 }));
       }
     }
+  }
+
+  blocks.push(createTextBlock('section_heading', SECTION_TECHNICAL_SITE_HANDOFF, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+  blocks.push(createTextBlock('subheading', 'Physical Site Constraints', { spacingAfter: 2 }));
+  for (const line of buildTechnicalSiteConstraints(documentModel, demographics)) {
+    blocks.push(createTextBlock('body', line, { spacingAfter: 2 }));
+  }
+  blocks.push(createTextBlock('subheading', 'Planned Hardware Allocations', { spacingBefore: 2, spacingAfter: 2 }));
+  for (const line of buildPlannedHardwareAllocations(documentModel, demographics)) {
+    blocks.push(createTextBlock('body', line, { spacingAfter: 2 }));
   }
 
   return blocks;
