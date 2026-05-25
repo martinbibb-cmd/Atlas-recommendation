@@ -394,6 +394,69 @@ function isCylinderVolumeFact(label: string): boolean {
   );
 }
 
+function formatCount(value: number | null, singular: string, plural: string): string {
+  if (value == null || Number.isNaN(value)) return 'Not recorded';
+  return `${value} ${value === 1 ? singular : plural}`;
+}
+
+function toIntegerFactValue(value: string | number): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const parsed = Number.parseInt(String(value).replace(/[^\d+-]/g, ''), 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function buildHotWaterDemandLabel({
+  supportingFacts,
+  occupantCount,
+  bathroomCount,
+}: {
+  supportingFacts: AtlasDecisionV1['supportingFacts'];
+  occupantCount: number | null;
+  bathroomCount: number | null;
+}): string {
+  const demandFact = supportingFacts.find((fact) => {
+    const key = fact.label.toLowerCase();
+    return key.includes('hot water demand') || key.includes('simultaneous');
+  });
+  if (demandFact != null) {
+    const numericDemand = toIntegerFactValue(demandFact.value);
+    if (numericDemand != null) {
+      return numericDemand >= 2 ? 'Multiple outlets at once' : 'Single outlet at a time';
+    }
+    const text = String(demandFact.value).trim();
+    if (text.length > 0) return text;
+  }
+  return (occupantCount != null && occupantCount >= 4) || (bathroomCount != null && bathroomCount >= 2)
+    ? 'Multiple outlets at once'
+    : 'Single outlet at a time';
+}
+
+interface DemographicsGridProps {
+  occupants: string;
+  bathrooms: string;
+  heatLoss: string;
+  demand: string;
+}
+
+function DemographicsGrid({ occupants, bathrooms, heatLoss, demand }: DemographicsGridProps) {
+  const cells = [
+    { label: 'Occupants', value: occupants },
+    { label: 'Bathrooms', value: bathrooms },
+    { label: 'Peak heat loss', value: heatLoss },
+    { label: 'Hot water demand', value: demand },
+  ];
+  return (
+    <div className="capp-demographics-grid" aria-label="Household demographics">
+      {cells.map((cell) => (
+        <div key={cell.label} className="capp-demographics-grid__cell">
+          <p className="capp-demographics-grid__label">{cell.label}</p>
+          <p className="capp-demographics-grid__value">{cell.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * At-a-Glance panel — compact property stats for the Executive Summary sidebar.
  * Pulls from decision.supportingFacts (occupants, bathrooms, cylinder volume)
@@ -406,37 +469,39 @@ function isCylinderVolumeFact(label: string): boolean {
  *    with the current cylinder volume.
  */
 function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
-  const stats: Array<{ label: string; value: string | number }> = [];
-
-  // Heat loss kW — prefer energyMetrics, fall back to supportingFacts
-  const peakLoad = decision.energyMetrics?.peakLoadKw;
-  if (peakLoad != null) {
-    stats.push({ label: 'Heat loss', value: `${peakLoad.toFixed(1)} kW` });
-  }
-
   let occupantCount: number | null = null;
   let bathroomCount: number | null = null;
   let cylinderVolumeLitres: number | null = null;
+  let supportingFactHeatLoss: string | null = null;
 
   // Occupants, bathrooms, and cylinder volume from supportingFacts
   for (const fact of decision.supportingFacts) {
     const key = fact.label.toLowerCase();
     if (key.includes('occupant') || key.includes('person') || key.includes('resident')) {
-      stats.push({ label: fact.label, value: fact.value });
-      const n = typeof fact.value === 'number' ? fact.value : parseInt(String(fact.value), 10);
-      if (!isNaN(n)) occupantCount = n;
+      const n = toIntegerFactValue(fact.value);
+      if (n != null) occupantCount = n;
     } else if (key.includes('bathroom') || key.includes('shower room')) {
-      stats.push({ label: fact.label, value: fact.value });
-      const n = typeof fact.value === 'number' ? fact.value : parseInt(String(fact.value), 10);
-      if (!isNaN(n)) bathroomCount = n;
+      const n = toIntegerFactValue(fact.value);
+      if (n != null) bathroomCount = n;
     } else if (isCylinderVolumeFact(fact.label)) {
-      stats.push({ label: fact.label, value: fact.value });
-      const n = typeof fact.value === 'number'
-        ? fact.value
-        : parseInt(String(fact.value).replace(/[^\d]/g, ''), 10);
-      if (!isNaN(n)) cylinderVolumeLitres = n;
+      const n = toIntegerFactValue(fact.value);
+      if (n != null) cylinderVolumeLitres = n;
+    } else if (supportingFactHeatLoss == null && key.includes('heat loss')) {
+      const text = String(fact.value).trim();
+      if (text.length > 0) supportingFactHeatLoss = text;
     }
   }
+
+  const peakHeatLoss = decision.energyMetrics?.peakLoadKw != null
+    ? `${decision.energyMetrics.peakLoadKw.toFixed(1)} kW`
+    : supportingFactHeatLoss ?? 'Not recorded';
+  const occupants = formatCount(occupantCount, 'person', 'people');
+  const bathrooms = formatCount(bathroomCount, 'bathroom', 'bathrooms');
+  const hotWaterDemand = buildHotWaterDemandLabel({
+    supportingFacts: decision.supportingFacts,
+    occupantCount,
+    bathroomCount,
+  });
 
   // Condition band — show when at_risk or worn for explicit customer visibility
   const condition = decision.lifecycle.currentSystem.condition;
@@ -451,23 +516,24 @@ function AtAGlancePanel({ decision }: { decision: AtlasDecisionV1 }) {
     likelyPeakOverlap &&
     cylinderVolumeLitres <= 150;
 
-  // Only render if we have something to show
-  if (stats.length === 0 && !isConditionVisible) return null;
-
   return (
     <aside className="capp-at-a-glance" aria-label="At-a-glance property stats" data-testid="capp-at-a-glance">
       <div className="capp-card-band capp-card-band--green">
         <p className="capp-at-a-glance__heading">At a glance</p>
         <p className="capp-at-a-glance__subheading">Your home in one view</p>
       </div>
-      <dl className="capp-at-a-glance__grid">
-        {stats.map((s) => (
-          <div key={s.label} className="capp-at-a-glance__item">
-            <dt className="capp-at-a-glance__label">{s.label}</dt>
-            <dd className="capp-at-a-glance__value">{s.value}</dd>
-          </div>
-        ))}
-      </dl>
+      <DemographicsGrid
+        occupants={occupants}
+        bathrooms={bathrooms}
+        heatLoss={peakHeatLoss}
+        demand={hotWaterDemand}
+      />
+      {cylinderVolumeLitres != null && (
+        <p className="capp-at-a-glance__supporting-fact">
+          <strong>Cylinder volume</strong>{' '}
+          <span className="capp-at-a-glance__supporting-value">{cylinderVolumeLitres}</span>
+        </p>
+      )}
       {isConditionVisible && (
         <p
           className={`capp-at-a-glance__condition-badge capp-at-a-glance__condition-badge--${condition}`}
@@ -1342,6 +1408,63 @@ function EngineerHandOffSection({
   );
 }
 
+function TechnicalSiteHandoff({
+  decision,
+  recommendedScenario,
+}: {
+  decision: AtlasDecisionV1;
+  recommendedScenario?: ScenarioResult;
+}) {
+  const essentials = decision.quoteScope
+    .filter((item) => item.status === 'included')
+    .map((item) => item.label)
+    .slice(0, 8);
+  const options = decision.quoteScope
+    .filter((item) => item.status === 'optional')
+    .map((item) => item.label)
+    .slice(0, 8);
+  const confidence = decision.lifecycle.riskIndicators.slice(0, 8);
+
+  return (
+    <section
+      className="capp-technical-site-handoff"
+      aria-label="Technical Site Hand-off"
+      data-testid="capp-technical-site-handoff"
+    >
+      <div className="capp-card-band capp-card-band--amber">
+        <p className="capp-technical-site-handoff__heading">Technical Site Hand-off</p>
+        <p className="capp-technical-site-handoff__subheading">Installer-ready scope for site delivery</p>
+      </div>
+      <div className="capp-technical-site-handoff__grid">
+        <section className="capp-technical-site-handoff__column">
+          <p className="capp-technical-site-handoff__column-title">Physical Site Constraints</p>
+          <ul>
+            <li>Peak heat loss: {decision.energyMetrics?.peakLoadKw != null ? `${decision.energyMetrics.peakLoadKw.toFixed(1)} kW` : 'Not recorded'}</li>
+            <li>Current system: {decision.lifecycle.currentSystem.type.replace('_', ' ')}</li>
+            <li>Condition: {decision.lifecycle.currentSystem.condition.replace('_', ' ')}</li>
+            {confidence.length > 0
+              ? confidence.map((line) => <li key={line}>{line}</li>)
+              : <li>Site measurements and confirmation points to be verified on install day.</li>}
+          </ul>
+        </section>
+        <section className="capp-technical-site-handoff__column">
+          <p className="capp-technical-site-handoff__column-title">Planned Hardware Allocations</p>
+          <ul>
+            {recommendedScenario != null && (
+              <li>Recommended system: {recommendedScenario.system.summary}</li>
+            )}
+            {essentials.map((line) => <li key={`required-${line}`}>{line}</li>)}
+            {options.map((line) => <li key={`optional-${line}`}>Optional: {line}</li>)}
+            {essentials.length === 0 && options.length === 0 && (
+              <li>Scope to be finalised from the latest installer brief.</li>
+            )}
+          </ul>
+        </section>
+      </div>
+    </section>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -1617,6 +1740,20 @@ function CustomerAdvicePrintPackContent({
                 </footer>
               </section>
             )}
+
+            <section
+              className="capp-page capp-page--technical-handoff"
+              data-testid="capp-page-technical-handoff"
+              aria-label="Technical site hand-off"
+            >
+              <p className="capp-page__label capp-page__label--pillar">
+                Technical Site Hand-off
+              </p>
+              <TechnicalSiteHandoff decision={decision} recommendedScenario={recommendedScenario} />
+              <footer className="capp-page__footer" aria-hidden="true">
+                {headline}
+              </footer>
+            </section>
           </>
         )}
 
