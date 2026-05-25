@@ -279,7 +279,12 @@ export function BuildingFabricStep({
               value={storeysInput}
               onChange={e => {
                 const next = e.target.value;
-                if (/^[+-]?\d*$/.test(next)) setStoreysInput(next);
+                if (!/^[+-]?\d*$/.test(next)) return;
+                setStoreysInput(next);
+                if (!/^[+-]?\d+$/.test(next)) return;
+                const parsed = Number.parseInt(next, 10);
+                if (Number.isNaN(parsed)) return;
+                patch({ storeys: Math.max(1, parsed) });
               }}
               onBlur={() => {
                 const value = storeysInput.trim();

@@ -1503,7 +1503,12 @@ export default function HeatLossCalculator({ onBack, onComplete, embedded, onHea
                         value={storeysInput}
                         onChange={e => {
                           const next = e.target.value;
-                          if (/^[+-]?\d*$/.test(next)) setStoreysInput(next);
+                          if (!/^[+-]?\d*$/.test(next)) return;
+                          setStoreysInput(next);
+                          if (!/^[+-]?\d+$/.test(next)) return;
+                          const parsed = Number.parseInt(next, 10);
+                          if (Number.isNaN(parsed)) return;
+                          updateLayerHeight(activeLayerId, parsed, undefined);
                         }}
                         onBlur={commitStoreysInput}
                         aria-label="Storeys for this layer"

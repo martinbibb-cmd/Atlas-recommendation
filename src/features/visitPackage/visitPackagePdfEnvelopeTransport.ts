@@ -73,6 +73,14 @@ interface CustomerPdfMeasuredBlock extends CustomerPdfDraftBlock {
   readonly totalHeight: number;
 }
 
+interface CustomerDemographicsSummary {
+  readonly occupants: string;
+  readonly bathrooms: string;
+  readonly peakHeatLoss: string;
+  readonly hotWaterDemand: string;
+  readonly additionalFacts: readonly string[];
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function hasText(value: unknown): value is string {
@@ -243,6 +251,109 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
     model: staticPdfModel,
     mode: 'packageEmbedded',
   });
+}
+
+function parseCustomerDemographicsSummary(
+  customerFacts: readonly string[],
+): CustomerDemographicsSummary {
+  let occupants = 'Not recorded';
+  let bathrooms = 'Not recorded';
+  let peakHeatLoss = 'Not recorded';
+  let hotWaterDemand = 'Not recorded';
+  const additionalFacts: string[] = [];
+
+  for (const fact of customerFacts) {
+    if (!hasText(fact)) continue;
+    const trimmed = fact.trim();
+    const lower = trimmed.toLowerCase();
+
+    const householdMatch = trimmed.match(/^household size:\s*(.+)$/i);
+    if (householdMatch) {
+      occupants = householdMatch[1].trim();
+      continue;
+    }
+    const occupantsMatch = trimmed.match(/^occupants?:\s*(.+)$/i);
+    if (occupantsMatch) {
+      occupants = occupantsMatch[1].trim();
+      continue;
+    }
+    if (lower.includes('household') && lower.includes('person')) {
+      occupants = trimmed;
+      additionalFacts.push(trimmed);
+      continue;
+    }
+
+    const bathroomsMatch = trimmed.match(/^bathrooms?:\s*(.+)$/i);
+    if (bathroomsMatch) {
+      bathrooms = bathroomsMatch[1].trim();
+      continue;
+    }
+    if (lower.includes('bathroom')) {
+      bathrooms = trimmed;
+      additionalFacts.push(trimmed);
+      continue;
+    }
+
+    const peakHeatLossMatch = trimmed.match(/^peak heat loss:\s*(.+)$/i);
+    if (peakHeatLossMatch) {
+      peakHeatLoss = peakHeatLossMatch[1].trim();
+      continue;
+    }
+
+    const hotWaterDemandMatch = trimmed.match(/^hot water demand:\s*(.+)$/i);
+    if (hotWaterDemandMatch) {
+      hotWaterDemand = hotWaterDemandMatch[1].trim();
+      continue;
+    }
+
+    additionalFacts.push(trimmed);
+  }
+
+  return {
+    occupants,
+    bathrooms,
+    peakHeatLoss,
+    hotWaterDemand,
+    additionalFacts,
+  };
+}
+
+function buildTechnicalSiteConstraints(
+  documentModel: CustomerDocumentModelV1,
+  demographics: CustomerDemographicsSummary,
+): readonly string[] {
+  const lines: string[] = [
+    `Peak heat loss: ${demographics.peakHeatLoss}`,
+    `Household profile: ${demographics.occupants}`,
+    `Bathroom count: ${demographics.bathrooms}`,
+  ];
+  if (hasText(documentModel.cover.addressSummary)) {
+    lines.push(`Property reference: ${documentModel.cover.addressSummary}`);
+  }
+  if (documentModel.recommendationReasons.length > 0) {
+    lines.push(documentModel.recommendationReasons[0].homeFact);
+  }
+  return lines;
+}
+
+function buildPlannedHardwareAllocations(
+  documentModel: CustomerDocumentModelV1,
+  demographics: CustomerDemographicsSummary,
+): readonly string[] {
+  const lines: string[] = [];
+  if (hasText(documentModel.cover.title)) {
+    lines.push(`Recommended system: ${documentModel.cover.title}`);
+  }
+  if (hasText(documentModel.cover.summary)) {
+    lines.push(`Recommendation summary: ${documentModel.cover.summary}`);
+  }
+  lines.push(`Hot water demand: ${demographics.hotWaterDemand}`);
+  if (documentModel.nextSteps.length > 0 && hasText(documentModel.nextSteps[0].label)) {
+    lines.push(`Initial delivery step: ${documentModel.nextSteps[0].label}`);
+  }
+  return lines.length > 0
+    ? lines
+    : ['Planned hardware allocations will be confirmed by the installer.'];
 }
 
 // ─── Deterministic customer PDF block layout engine ───────────────────────────
@@ -423,6 +534,7 @@ class CustomerPdfBlockLayoutEngine {
 
 function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): CustomerPdfDraftBlock[] {
   const blocks: CustomerPdfDraftBlock[] = [];
+  const demographics = parseCustomerDemographicsSummary(documentModel.cover.customerFacts);
 
   blocks.push(createTextBlock('section_heading', SECTION_RECOMMENDATION_SUMMARY, { pageBreakPolicy: 'always', spacingAfter: 6 }));
   if (hasText(documentModel.cover.title)) {
@@ -434,11 +546,25 @@ function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): Cu
   if (hasText(documentModel.cover.addressSummary)) {
     blocks.push(createTextBlock('body', documentModel.cover.addressSummary, { spacingAfter: 6 }));
   }
-  if (documentModel.cover.customerFacts.length > 0) {
-    blocks.push(createTextBlock('subheading', 'Your home', { spacingAfter: 4 }));
-    for (const fact of documentModel.cover.customerFacts) {
+  blocks.push(createTextBlock('subheading', 'Demographics Grid', { spacingAfter: 4 }));
+  blocks.push(createTextBlock('body', `Occupants: ${demographics.occupants}`, { spacingAfter: 2 }));
+  blocks.push(createTextBlock('body', `Bathrooms: ${demographics.bathrooms}`, { spacingAfter: 2 }));
+  blocks.push(createTextBlock('body', `Peak heat loss: ${demographics.peakHeatLoss}`, { spacingAfter: 2 }));
+  blocks.push(createTextBlock('body', `Hot water demand: ${demographics.hotWaterDemand}`, { spacingAfter: 4 }));
+  if (demographics.additionalFacts.length > 0) {
+    blocks.push(createTextBlock('subheading', 'Additional home facts', { spacingAfter: 3 }));
+    for (const fact of demographics.additionalFacts) {
       blocks.push(createTextBlock('bullet', `- ${fact}`, { spacingAfter: 2 }));
     }
+  }
+  blocks.push(createTextBlock('subheading', 'Technical Site Hand-off', { spacingBefore: 2, spacingAfter: 3 }));
+  blocks.push(createTextBlock('subheading', 'Physical Site Constraints', { spacingAfter: 2 }));
+  for (const line of buildTechnicalSiteConstraints(documentModel, demographics)) {
+    blocks.push(createTextBlock('bullet', `- ${line}`, { spacingAfter: 2 }));
+  }
+  blocks.push(createTextBlock('subheading', 'Planned Hardware Allocations', { spacingBefore: 2, spacingAfter: 2 }));
+  for (const line of buildPlannedHardwareAllocations(documentModel, demographics)) {
+    blocks.push(createTextBlock('bullet', `- ${line}`, { spacingAfter: 2 }));
   }
 
   if (documentModel.recommendationReasons.length > 0) {
