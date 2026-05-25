@@ -11,6 +11,23 @@
 # exposed to the client. Obtain a key from https://aistudio.google.com/
 # GRMINI_API_KEY=replace_me
 
+# ─── Google Drive OAuth credentials ─────────────────────────────────────────
+# Required for the hybrid D1 + Google Drive architecture.
+# Create an OAuth 2.0 Web Application credential in Google Cloud Console:
+#   https://console.cloud.google.com/apis/credentials
+#
+# Authorised JavaScript origins: https://your-pages-project.pages.dev
+# Authorised redirect URIs:      https://your-pages-project.pages.dev/api/auth/google/callback
+#
+# For local development with `wrangler pages dev`, also add:
+#   Authorised redirect URIs:    http://localhost:8788/api/auth/google/callback
+#
+# Store GOOGLE_CLIENT_SECRET as a Cloudflare secret (never in source control):
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+#
+# GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+# GOOGLE_CLIENT_SECRET=replace_me
+
 # ─── Storage adapter selector ────────────────────────────────────────────────
 # Controls which StorageAdapter is used for the tenants / brand-profiles /
 # visits / scan-captures collections (src/lib/storage/adapterFactory.ts).

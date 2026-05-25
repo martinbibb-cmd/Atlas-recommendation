@@ -11,6 +11,10 @@ declare namespace Cloudflare {
 		GEMINI_API_KEY: string;
 		/** OpenAI API key. Stored as a Cloudflare secret (OPENAI_API_KEY). */
 		OPENAI_API_KEY: string;
+		/** Google OAuth 2.0 client ID for Google Drive integration. */
+		GOOGLE_CLIENT_ID: string;
+		/** Google OAuth 2.0 client secret. Stored as a Cloudflare secret. Never exposed to the browser. */
+		GOOGLE_CLIENT_SECRET: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
