@@ -47,7 +47,7 @@ export function LoginPage() {
           Sign in to access your workspace and visits.
         </p>
 
-        {GOOGLE_AUTH_DISABLED ? (
+        {GOOGLE_AUTH_DISABLED && !isDevMockAuthEnabled ? (
           <p
             role="status"
             style={{ margin: 0, fontSize: '0.92rem', color: '#64748b', padding: '0.72rem 0' }}
