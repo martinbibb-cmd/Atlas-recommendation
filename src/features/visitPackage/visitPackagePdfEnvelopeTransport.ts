@@ -39,6 +39,7 @@ const SECTION_NEXT_STEPS = 'What happens next';
 const SECTION_TECHNICAL_SITE_HANDOFF = 'Technical Site Hand-off';
 const INSTALLER_CHECK_HEADING = 'Installer check';
 const DEEP_DIVE_LINKS_HEADING = 'Deep dive links (optional)';
+const PENDING_STRUCTURAL_CALCULATION = 'Pending structural calculation';
 
 type VisitPackagePdfEnvelopeExtractionResult =
   | { readonly ok: true; readonly envelope: VisitPackagePdfEnvelopeV1 }
@@ -111,35 +112,84 @@ function readNumberCandidate(
   return undefined;
 }
 
+function readCanonicalEngineMetrics(
+  pkg: CanonicalVisitPackageV1 | undefined,
+): Record<string, unknown> | undefined {
+  if (pkg == null) return undefined;
+  const loosePackage = pkg as unknown as Record<string, unknown>;
+  return isRecord(loosePackage.engineMetrics) ? loosePackage.engineMetrics : undefined;
+}
+
+function readDecisionEnergyMetrics(
+  pkg: CanonicalVisitPackageV1 | undefined,
+): Record<string, unknown> | undefined {
+  if (pkg == null) return undefined;
+  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
+  return isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+}
+
+function readDecisionMetrics(
+  pkg: CanonicalVisitPackageV1 | undefined,
+): Record<string, unknown> | undefined {
+  if (pkg == null) return undefined;
+  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
+  return isRecord(decision?.['metrics']) ? decision['metrics'] : undefined;
+}
+
 function readEngineHeatLossKw(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
   if (pkg == null) return undefined;
+  const canonicalEngineMetrics = readCanonicalEngineMetrics(pkg);
   const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
-  const heatLossWatts = readNumberCandidate(engineInput, ['heatLossWatts']);
+  const heatLossWatts = readNumberCandidate(canonicalEngineMetrics, ['heatLossWatts'])
+    ?? readNumberCandidate(engineInput, ['heatLossWatts']);
   if (heatLossWatts == null) return undefined;
   return heatLossWatts / 1000;
 }
 
 function readDecisionPeakHeatLossKw(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
-  if (pkg == null) return undefined;
-  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
-  const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+  const energyMetrics = readDecisionEnergyMetrics(pkg);
   return readNumberCandidate(energyMetrics, ['peakLoadKw', 'peakHeatLossKw']);
 }
 
 function readHotWaterDemandLitres(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
   if (pkg == null) return undefined;
+  const canonicalEngineMetrics = readCanonicalEngineMetrics(pkg);
   const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
+  const fromCanonicalEngineMetrics = readNumberCandidate(canonicalEngineMetrics, [
+    'dailyHotWaterLitres',
+    'dailyHotWaterDemandLitres',
+  ]);
+  if (fromCanonicalEngineMetrics != null) return fromCanonicalEngineMetrics;
   const fromEngine = readNumberCandidate(engineInput, [
     'dailyHotWaterLitres',
     'dailyHotWaterDemandLitres',
   ]);
   if (fromEngine != null) return fromEngine;
-  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
-  const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+  const energyMetrics = readDecisionEnergyMetrics(pkg);
   return readNumberCandidate(energyMetrics, [
     'dailyHotWaterLitres',
     'dailyHotWaterDemandLitres',
   ]);
+}
+
+function readTargetCylinderVolumeLitres(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
+  if (pkg == null) return undefined;
+  const canonicalEngineMetrics = readCanonicalEngineMetrics(pkg);
+  const decisionMetrics = readDecisionMetrics(pkg);
+  const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
+  return readNumberCandidate(canonicalEngineMetrics, ['minCylinderVolumeL', 'minimumCylinderVolumeLitres'])
+    ?? readNumberCandidate(decisionMetrics, ['minCylinderVolumeL', 'minimumCylinderVolumeLitres'])
+    ?? readNumberCandidate(engineInput, ['minimumCylinderVolumeLitres', 'targetCylinderVolumeLitres', 'cylinderVolumeLitres']);
+}
+
+function readTotalFloorAreaM2(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
+  if (pkg == null) return undefined;
+  const surveyDraft = isRecord(pkg.surveyDraft) ? pkg.surveyDraft : undefined;
+  const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
+  const decisionMetrics = readDecisionMetrics(pkg);
+  return readNumberCandidate(surveyDraft, ['floorArea', 'floorAreaM2', 'groundFloorAreaM2'])
+    ?? readNumberCandidate(engineInput, ['floorArea', 'floorAreaM2', 'groundFloorAreaM2'])
+    ?? readNumberCandidate(decisionMetrics, ['totalFloorAreaM2', 'floorAreaM2']);
 }
 
 function toAsciiPdfSafeText(input: string): string {
@@ -323,8 +373,13 @@ function parseCustomerDemographicsSummary(
   let peakHeatLoss: string | undefined =
     peakHeatLossKw != null ? `${peakHeatLossKw.toFixed(1)} kW` : undefined;
   const hotWaterDemandLitres = readHotWaterDemandLitres(canonicalVisitPackage);
+  const targetCylinderVolumeLitres = readTargetCylinderVolumeLitres(canonicalVisitPackage);
   let hotWaterDemand: string | undefined =
-    hotWaterDemandLitres != null ? `${Math.round(hotWaterDemandLitres)} L/day` : undefined;
+    hotWaterDemandLitres != null
+      ? `${Math.round(hotWaterDemandLitres)} L/day`
+      : targetCylinderVolumeLitres != null
+        ? `${Math.round(targetCylinderVolumeLitres)} L target volume`
+        : undefined;
 
   // Scan string facts to fill any remaining gaps and collect non-standard additional facts.
   const additionalFacts: string[] = [];
@@ -391,8 +446,8 @@ function parseCustomerDemographicsSummary(
   return {
     occupants: occupants ?? 'Not recorded',
     bathrooms: bathrooms ?? 'Not recorded',
-    peakHeatLoss: peakHeatLoss ?? 'Not recorded',
-    hotWaterDemand: hotWaterDemand ?? 'Not recorded',
+    peakHeatLoss: peakHeatLoss ?? PENDING_STRUCTURAL_CALCULATION,
+    hotWaterDemand: hotWaterDemand ?? PENDING_STRUCTURAL_CALCULATION,
     additionalFacts,
   };
 }
@@ -439,7 +494,7 @@ function buildTechnicalSiteConstraints(
   const currentSystem = isRecord(engineInput?.currentSystem) ? engineInput.currentSystem : undefined;
 
   const perimeterM = readNumberCandidate(engineInput, ['perimeterM']);
-  const groundFloorAreaM2 = readNumberCandidate(engineInput, ['groundFloorAreaM2']);
+  const groundFloorAreaM2 = readTotalFloorAreaM2(canonicalVisitPackage);
   const primaryPipeDiameter = readNumberCandidate(engineInput, ['primaryPipeDiameter'])
     ?? readNumberCandidate(currentSystem, ['primaryPipeDiameterMm']);
   const measuredPerimeterFromFacts = readFactValue(documentModel.cover.customerFacts, [
@@ -466,7 +521,10 @@ function buildTechnicalSiteConstraints(
     groundFloorAreaM2 != null ? `${groundFloorAreaM2.toFixed(1)} m²` : undefined,
     floorAreaFromFacts,
     demographics.additionalFacts.find((fact) => /floor area/i.test(fact)),
-  ) ?? 'Not recorded';
+  ) ?? PENDING_STRUCTURAL_CALCULATION;
+  const peakHeatLossLabel = coalesceMetric(
+    demographics.peakHeatLoss,
+  ) ?? PENDING_STRUCTURAL_CALCULATION;
   const primaryDiameterLabel = coalesceMetric(
     primaryPipeDiameter != null ? `${primaryPipeDiameter} mm` : undefined,
     primaryDiameterFromFacts,
@@ -475,8 +533,9 @@ function buildTechnicalSiteConstraints(
 
   const lines: string[] = [
     `Measured perimeter: ${perimeterLabel}`,
+    `Bathrooms: ${demographics.bathrooms}`,
     `Total floor area: ${groundFloorAreaLabel}`,
-    `Calculated peak heat loss: ${demographics.peakHeatLoss}`,
+    `Calculated peak heat loss: ${peakHeatLossLabel}`,
     `Current primary diameter: ${primaryDiameterLabel}`,
   ];
   if (hasText(documentModel.cover.addressSummary)) {
@@ -504,8 +563,7 @@ function buildPlannedHardwareAllocations(
     (hasText(engineInput?.dhwStorageType) ? engineInput.dhwStorageType : undefined)
     ?? (hasText(engineInput?.currentHeatSourceType) ? `${engineInput.currentHeatSourceType} pathway` : undefined)
     ?? 'Not recorded';
-  const targetMinimumVolumeLitres =
-    readNumberCandidate(engineInput, ['minimumCylinderVolumeLitres', 'targetCylinderVolumeLitres', 'cylinderVolumeLitres']);
+  const targetMinimumVolumeLitres = readTargetCylinderVolumeLitres(canonicalVisitPackage);
   const calculatedRecoveryMinutes =
     readNumberCandidate(energyMetrics, ['dhwRecoveryMinutes', 'recoveryTimeMinutes', 'calculatedRecoveryMinutes'])
     ?? readNumberCandidate(engineInput, ['dhwRecoveryMinutes', 'recoveryTimeMinutes']);
@@ -544,7 +602,7 @@ function buildPlannedHardwareAllocations(
   const targetMinimumVolumeLabel = coalesceMetric(
     targetMinimumVolumeLitres != null ? `${Math.round(targetMinimumVolumeLitres)} L` : undefined,
     targetVolumeFromFacts,
-  ) ?? 'Not recorded';
+  ) ?? PENDING_STRUCTURAL_CALCULATION;
   const recoveryTimeLabel = coalesceMetric(
     calculatedRecoveryMinutes != null ? `${Math.round(calculatedRecoveryMinutes)} min` : undefined,
     recoveryFromFacts,
@@ -564,7 +622,7 @@ function buildPlannedHardwareAllocations(
   lines.push(`Calculated recovery time: ${recoveryTimeLabel}`);
   lines.push(`Standing loss metric: ${standingLossLabel}`);
   lines.push(`Active heat source output: ${activeHeatSourceLabel}`);
-  lines.push(`Hot water demand: ${demographics.hotWaterDemand}`);
+  lines.push(`Hot water demand: ${demographics.hotWaterDemand || PENDING_STRUCTURAL_CALCULATION}`);
   if (hasText(documentModel.cover.title)) {
     lines.push(`Recommended system: ${documentModel.cover.title}`);
   }

@@ -499,6 +499,66 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     expect(hotWaterDemand?.text).toContain('280 L/day');
   });
 
+  it('hydrates technical site hand-off metrics from canonical-first fields', () => {
+    const pkg = makePackage() as CanonicalVisitPackageV1 & {
+      engineMetrics?: {
+        heatLossWatts?: number;
+        dailyHotWaterLitres?: number;
+      };
+    };
+    pkg.engineMetrics = {
+      heatLossWatts: 15800,
+      dailyHotWaterLitres: 310,
+    };
+    pkg.surveyDraft = {
+      ...pkg.surveyDraft,
+      bathroomCount: 3,
+      floorArea: 126.4,
+    } as never;
+
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
+    const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
+
+    const bathrooms = commands.find((command) => command.text === 'Bathrooms: 3');
+    const floorArea = commands.find((command) => command.text.startsWith('Total floor area: 126.4'));
+    const peakHeatLoss = commands.find((command) => command.text === 'Calculated peak heat loss: 15.8 kW');
+    const hotWaterDemand = commands.find((command) => command.text === 'Hot water demand: 310 L/day');
+
+    expect(bathrooms).toBeDefined();
+    expect(floorArea).toBeDefined();
+    expect(peakHeatLoss).toBeDefined();
+    expect(hotWaterDemand).toBeDefined();
+  });
+
+  it('falls back to pending structural calculation labels when key metrics are missing', () => {
+    const pkg = makePackage();
+    pkg.surveyDraft = {
+      ...pkg.surveyDraft,
+      bathroomCount: undefined,
+      floorArea: undefined,
+    } as never;
+    pkg.engineInputSnapshot = {
+      postcode: 'SW1A 1AA',
+      occupancyCount: 3,
+      bathroomCount: undefined,
+    } as never;
+    pkg.customerPropertyDetails = {
+      propertyFacts: [],
+      usageFacts: [],
+    };
+
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
+    const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
+
+    const floorArea = commands.find((command) => command.text === 'Total floor area: Pending structural calculation');
+    const peakHeatLoss = commands.find((command) => command.text === 'Calculated peak heat loss: Pending structural calculation');
+    const hotWaterDemand = commands.find((command) => command.text === 'Hot water demand: Pending structural calculation');
+
+    expect(floorArea).toBeDefined();
+    expect(peakHeatLoss).toBeDefined();
+    expect(hotWaterDemand).toBeDefined();
+  });
+
   it('wrapped text keeps page coordinates non-negative for long reason detail payloads', () => {
     const longDetail = 'Detailed explanation for customer handover clarity '.repeat(LONG_TEXT_REPEAT_COUNT);
     const longJourneyPack = buildCustomerJourneyPack({
