@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import type { AtlasAuthContextValue, AtlasUserProfileV1, AtlasWorkspaceV1 } from './authTypes';
 import { AtlasAuthContext } from './AtlasAuthContext';
+import { AuthRuntimeDiagnostics } from './AuthRuntimeDiagnostics';
 import {
   firebaseSignInWithGoogle,
   firebaseSignOut,
@@ -11,15 +12,14 @@ import {
   GOOGLE_AUTH_DISABLED,
   subscribeToFirebaseAuthState,
 } from './firebaseAuthClient';
+import { AUTH_RUNTIME_CONFIG } from './authRuntimeConfig';
 
 const USER_PROFILE_STORE_KEY = 'atlas:auth:user-profile:v1';
 const WORKSPACES_STORE_KEY = 'atlas:auth:workspaces:v1';
 const CURRENT_WORKSPACE_STORE_KEY = 'atlas:auth:current-workspace:v1';
 const DEFAULT_WORKSPACE_BRAND_ID = 'atlas-default';
 
-const DEV_MOCK_AUTH_ENABLED =
-  import.meta.env.DEV &&
-  import.meta.env.VITE_ATLAS_DEV_MOCK_AUTH === '1';
+const DEV_MOCK_AUTH_ENABLED = AUTH_RUNTIME_CONFIG.devMockAuthEnabled;
 
 function getStorage(): Storage | null {
   try {
@@ -211,7 +211,7 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
     DEV_MOCK_AUTH_ENABLED ? getMockBootstrapState() : null,
   );
   const [status, setStatus] = useState<AtlasAuthContextValue['status']>(() =>
-    mockBootstrapState ? 'authenticated' : (isFirebaseConfigured ? 'loading' : 'unauthenticated'),
+    mockBootstrapState ? 'authenticated' : (AUTH_RUNTIME_CONFIG.shouldInitializeFirebase ? 'loading' : 'unauthenticated'),
   );
   const [userProfile, setUserProfile] = useState<AtlasUserProfileV1 | null>(
     () => mockBootstrapState?.userProfile ?? null,
@@ -239,7 +239,7 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
       return;
     }
 
-    if (!isFirebaseConfigured) {
+    if (!AUTH_RUNTIME_CONFIG.shouldInitializeFirebase) {
       return;
     }
     void initializeFirebaseAnalytics();
@@ -264,8 +264,11 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
       hydrateAuthenticatedState(buildMockProfile());
       return;
     }
+    if (!isFirebaseConfigured) {
+      throw new Error(AUTH_RUNTIME_CONFIG.statusMessage);
+    }
     if (GOOGLE_AUTH_DISABLED) {
-      throw new Error('Google sign-in is currently disabled.');
+      throw new Error(AUTH_RUNTIME_CONFIG.statusMessage);
     }
     const firebaseUser = await firebaseSignInWithGoogle();
     hydrateAuthenticatedState(buildProfileFromFirebaseUser(firebaseUser));
@@ -296,6 +299,8 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
     status,
     isAuthenticated: status === 'authenticated' && userProfile !== null,
     isDevMockAuthEnabled: DEV_MOCK_AUTH_ENABLED,
+    authMode: AUTH_RUNTIME_CONFIG.activeMode,
+    authRuntimeConfig: AUTH_RUNTIME_CONFIG,
     userProfile,
     workspaces,
     currentWorkspace,
@@ -307,6 +312,7 @@ export function AtlasAuthProvider({ children }: AtlasAuthProviderProps) {
   return (
     <AtlasAuthContext.Provider value={value}>
       {children}
+      <AuthRuntimeDiagnostics />
     </AtlasAuthContext.Provider>
   );
 }

@@ -1,4 +1,5 @@
 import type { WorkspaceBrandPolicy } from './workspaceBrandPolicy';
+import type { AtlasAuthMode, AtlasAuthRuntimeConfig } from './authRuntimeConfig';
 
 export interface AtlasUserProfileV1 {
   version: '1.0';
@@ -29,6 +30,8 @@ export interface AtlasAuthContextValue {
   status: 'loading' | 'authenticated' | 'unauthenticated';
   isAuthenticated: boolean;
   isDevMockAuthEnabled: boolean;
+  authMode: AtlasAuthMode;
+  authRuntimeConfig: AtlasAuthRuntimeConfig;
   userProfile: AtlasUserProfileV1 | null;
   workspaces: AtlasWorkspaceV1[];
   currentWorkspace: AtlasWorkspaceV1 | null;
