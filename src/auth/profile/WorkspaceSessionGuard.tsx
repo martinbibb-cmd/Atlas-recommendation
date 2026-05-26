@@ -18,9 +18,9 @@
  * can be composed anywhere without layout side-effects.
  */
 
-import React from 'react';
+import React, { useContext } from 'react';
+import { AtlasAuthContext } from '../AtlasAuthContext';
 import { useWorkspaceSession } from './WorkspaceSessionProvider';
-import { useAtlasAuth } from '../useAtlasAuth';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -66,12 +66,14 @@ export function WorkspaceSessionGuard({
   showWorkspaceActiveState = false,
 }: WorkspaceSessionGuardProps): React.ReactElement | null {
   const session = useWorkspaceSession();
-  const { authMode, authRuntimeConfig } = useAtlasAuth();
+  const authContext = useContext(AtlasAuthContext);
+  const authMode = authContext?.authMode ?? 'firebase_google';
+  const authRuntimeConfig = authContext?.authRuntimeConfig;
   if (session.status === 'unauthenticated_demo') {
     let message = 'Demo/session mode — visits are not linked to an account.';
     if (authMode === 'disabled') {
       message = 'Authentication is intentionally disabled — Atlas is running in demo/session mode.';
-    } else if (authMode === 'misconfigured') {
+    } else if (authMode === 'misconfigured' && authRuntimeConfig) {
       message = authRuntimeConfig.statusMessage;
     }
     return (

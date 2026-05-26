@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { AtlasAuthContext } from '../../AtlasAuthContext';
+import type { AtlasAuthContextValue } from '../../authTypes';
 import { WorkspaceSessionGuard } from '../WorkspaceSessionGuard';
 import { useWorkspaceSession } from '../WorkspaceSessionProvider';
-import { useAtlasAuth } from '../../useAtlasAuth';
 
 vi.mock('../WorkspaceSessionProvider', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../WorkspaceSessionProvider')>();
@@ -12,11 +13,7 @@ vi.mock('../WorkspaceSessionProvider', async (importOriginal) => {
   };
 });
 
-vi.mock('../../useAtlasAuth', () => ({
-  useAtlasAuth: vi.fn(),
-}));
-
-function makeAuthContextValue(overrides: Partial<ReturnType<typeof useAtlasAuth>> = {}): ReturnType<typeof useAtlasAuth> {
+function makeAuthContextValue(overrides: Partial<AtlasAuthContextValue> = {}): AtlasAuthContextValue {
   return {
     status: 'unauthenticated',
     isAuthenticated: false,
@@ -54,6 +51,14 @@ function makeAuthContextValue(overrides: Partial<ReturnType<typeof useAtlasAuth>
   };
 }
 
+function renderWithAuth(ui: React.ReactNode, authValue: AtlasAuthContextValue = makeAuthContextValue()) {
+  return render(
+    <AtlasAuthContext.Provider value={authValue}>
+      {ui}
+    </AtlasAuthContext.Provider>,
+  );
+}
+
 describe('WorkspaceSessionGuard', () => {
   it('shows demo/session mode for unauthenticated sessions', () => {
     vi.mocked(useWorkspaceSession).mockReturnValue({
@@ -63,8 +68,7 @@ describe('WorkspaceSessionGuard', () => {
       activeWorkspace: null,
       storageTarget: 'disabled',
     });
-    vi.mocked(useAtlasAuth).mockReturnValue(makeAuthContextValue());
-    render(<WorkspaceSessionGuard />);
+    renderWithAuth(<WorkspaceSessionGuard />);
     expect(screen.getByText(/Demo\/session mode/i)).toBeTruthy();
   });
 
@@ -76,7 +80,7 @@ describe('WorkspaceSessionGuard', () => {
       activeWorkspace: null,
       storageTarget: 'disabled',
     });
-    vi.mocked(useAtlasAuth).mockReturnValue(makeAuthContextValue({
+    renderWithAuth(<WorkspaceSessionGuard />, makeAuthContextValue({
       authMode: 'disabled',
       authRuntimeConfig: {
         ...makeAuthContextValue().authRuntimeConfig,
@@ -89,8 +93,6 @@ describe('WorkspaceSessionGuard', () => {
       },
     }));
 
-    render(<WorkspaceSessionGuard />);
-
     expect(screen.getByText(/Authentication is intentionally disabled/i)).toBeTruthy();
   });
 
@@ -102,7 +104,7 @@ describe('WorkspaceSessionGuard', () => {
       activeWorkspace: null,
       storageTarget: 'disabled',
     });
-    vi.mocked(useAtlasAuth).mockReturnValue(makeAuthContextValue({
+    renderWithAuth(<WorkspaceSessionGuard />, makeAuthContextValue({
       authMode: 'misconfigured',
       authRuntimeConfig: {
         ...makeAuthContextValue().authRuntimeConfig,
@@ -115,8 +117,6 @@ describe('WorkspaceSessionGuard', () => {
       },
     }));
 
-    render(<WorkspaceSessionGuard />);
-
     expect(screen.getByText(/Authentication is unavailable because Firebase runtime config is missing/i)).toBeTruthy();
   });
 
@@ -128,12 +128,11 @@ describe('WorkspaceSessionGuard', () => {
       activeWorkspace: null,
       storageTarget: 'disabled',
     });
-    vi.mocked(useAtlasAuth).mockReturnValue(makeAuthContextValue({
+    renderWithAuth(<WorkspaceSessionGuard />, makeAuthContextValue({
       status: 'authenticated',
       isAuthenticated: true,
       userProfile: { atlasUserId: 'atlas-user-1' } as never,
     }));
-    render(<WorkspaceSessionGuard />);
     expect(screen.getByText(/Create or join workspace before creating customer visits/i)).toBeTruthy();
   });
 
@@ -145,12 +144,11 @@ describe('WorkspaceSessionGuard', () => {
       activeWorkspace: { workspaceId: 'ws-a', name: 'Workspace A' } as never,
       storageTarget: 'local_only',
     });
-    vi.mocked(useAtlasAuth).mockReturnValue(makeAuthContextValue({
+    renderWithAuth(<WorkspaceSessionGuard showWorkspaceActiveState />, makeAuthContextValue({
       status: 'authenticated',
       isAuthenticated: true,
       userProfile: { atlasUserId: 'atlas-user-1' } as never,
     }));
-    render(<WorkspaceSessionGuard showWorkspaceActiveState />);
     const banner = screen.getByRole('status', { name: /workspace active banner/i });
     expect(banner.textContent).toMatch(/Workspace active:/i);
     expect(banner.textContent).toMatch(/Workspace A/i);
