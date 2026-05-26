@@ -28,7 +28,7 @@ import {
   BrandedFooter,
 } from '../../features/branding';
 import type { BrandProfileV1 } from '../../features/branding';
-import { handleStandaloneExternalLinkClick, isStandalonePwa } from '../../lib/navigation/pwaExternalNavigation';
+import { openUrlInSystemBrowser, shareUrlWithDevice } from '../../lib/navigation/pwaExternalNavigation';
 import { buildCustomerPackV1 } from '../../engine/modules/buildCustomerPackV1';
 import type { BuildCustomerPackContext } from '../../engine/modules/buildCustomerPackV1';
 import './CustomerPackV1View.css';
@@ -258,14 +258,20 @@ function CloseSection({ section }: { section: CustomerPackV1['close'] }) {
             rel="noopener noreferrer"
             data-testid="cpv1-portal-link"
             onClick={(event) => {
-              if (!isStandalonePwa()) return;
+              const isStandalone =
+                window.matchMedia('(display-mode: standalone)').matches
+                || Boolean((window.navigator as { standalone?: boolean }).standalone);
+              if (!isStandalone) return;
               event.preventDefault();
               event.stopPropagation();
-              void handleStandaloneExternalLinkClick(event, {
-                url: section.portalUrl!,
-                preferShare: true,
-                title: 'Your Atlas portal',
-              });
+              void (async () => {
+                const shared = await shareUrlWithDevice(section.portalUrl!, {
+                  title: 'Your Atlas portal',
+                });
+                if (!shared) {
+                  openUrlInSystemBrowser(section.portalUrl!);
+                }
+              })();
             }}
           >
             {section.portalUrl}

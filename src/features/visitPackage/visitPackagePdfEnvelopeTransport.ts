@@ -426,17 +426,30 @@ function parseCustomerDemographicsSummary(
 function buildTechnicalSiteConstraints(
   documentModel: CustomerDocumentModelV1,
   demographics: CustomerDemographicsSummary,
+  canonicalVisitPackage?: CanonicalVisitPackageV1,
 ): readonly string[] {
+  const engineInput = isRecord(canonicalVisitPackage?.engineInputSnapshot)
+    ? canonicalVisitPackage.engineInputSnapshot
+    : undefined;
+  const currentSystem = isRecord(engineInput?.currentSystem) ? engineInput.currentSystem : undefined;
+
+  const perimeterM = readNumberCandidate(engineInput, ['perimeterM']);
+  const groundFloorAreaM2 = readNumberCandidate(engineInput, ['groundFloorAreaM2']);
+  const primaryPipeDiameter = readNumberCandidate(engineInput, ['primaryPipeDiameter'])
+    ?? readNumberCandidate(currentSystem, ['primaryPipeDiameterMm']);
+
+  const perimeterLabel = perimeterM != null ? `${perimeterM.toFixed(1)} m` : 'Not recorded';
+  const groundFloorAreaLabel = groundFloorAreaM2 != null ? `${groundFloorAreaM2.toFixed(1)} m²` : 'Not recorded';
+  const primaryDiameterLabel = primaryPipeDiameter != null ? `${primaryPipeDiameter} mm` : 'Not recorded';
+
   const lines: string[] = [
-    `Peak heat loss: ${demographics.peakHeatLoss}`,
-    `Household profile: ${demographics.occupants}`,
-    `Bathroom count: ${demographics.bathrooms}`,
+    `Measured perimeter: ${perimeterLabel}`,
+    `Ground floor area: ${groundFloorAreaLabel}`,
+    `Calculated peak heat loss: ${demographics.peakHeatLoss}`,
+    `Current primary diameter: ${primaryDiameterLabel}`,
   ];
   if (hasText(documentModel.cover.addressSummary)) {
     lines.push(`Property reference: ${documentModel.cover.addressSummary}`);
-  }
-  if (documentModel.recommendationReasons.length > 0) {
-    lines.push(documentModel.recommendationReasons[0].homeFact);
   }
   return lines;
 }
@@ -444,21 +457,59 @@ function buildTechnicalSiteConstraints(
 function buildPlannedHardwareAllocations(
   documentModel: CustomerDocumentModelV1,
   demographics: CustomerDemographicsSummary,
+  canonicalVisitPackage?: CanonicalVisitPackageV1,
 ): readonly string[] {
+  const engineInput = isRecord(canonicalVisitPackage?.engineInputSnapshot)
+    ? canonicalVisitPackage.engineInputSnapshot
+    : undefined;
+  const decision = isRecord(canonicalVisitPackage?.proposalTruth?.decision)
+    ? canonicalVisitPackage.proposalTruth.decision
+    : undefined;
+  const currentSystem = isRecord(engineInput?.currentSystem) ? engineInput.currentSystem : undefined;
+  const boiler = isRecord(currentSystem?.boiler) ? currentSystem.boiler : undefined;
+  const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+
+  const cylinderType =
+    (hasText(engineInput?.dhwStorageType) ? engineInput.dhwStorageType : undefined)
+    ?? (hasText(engineInput?.currentHeatSourceType) ? `${engineInput.currentHeatSourceType} pathway` : undefined)
+    ?? 'Not recorded';
+  const targetMinimumVolumeLitres =
+    readNumberCandidate(engineInput, ['minimumCylinderVolumeLitres', 'targetCylinderVolumeLitres', 'cylinderVolumeLitres']);
+  const calculatedRecoveryMinutes =
+    readNumberCandidate(energyMetrics, ['dhwRecoveryMinutes', 'recoveryTimeMinutes', 'calculatedRecoveryMinutes'])
+    ?? readNumberCandidate(engineInput, ['dhwRecoveryMinutes', 'recoveryTimeMinutes']);
+  const standingLossKwhPerDay =
+    readNumberCandidate(energyMetrics, ['dailyStandingLossKwh', 'standingLossKwhPerDay', 'cylinderStandingLossKwhPerDay'])
+    ?? readNumberCandidate(engineInput, ['dailyStandingLossKwh', 'standingLossKwhPerDay']);
+  const activeHeatSourceKw =
+    readNumberCandidate(engineInput, ['currentBoilerOutputKw'])
+    ?? readNumberCandidate(boiler, ['nominalOutputKw'])
+    ?? readNumberCandidate(energyMetrics, ['activeHeatSourceKw', 'heatSourceOutputKw']);
+
+  const targetMinimumVolumeLabel = targetMinimumVolumeLitres != null
+    ? `${Math.round(targetMinimumVolumeLitres)} L`
+    : 'Not recorded';
+  const recoveryTimeLabel = calculatedRecoveryMinutes != null
+    ? `${Math.round(calculatedRecoveryMinutes)} min`
+    : 'Not recorded';
+  const standingLossLabel = standingLossKwhPerDay != null
+    ? `${standingLossKwhPerDay.toFixed(1)} kWh/day`
+    : 'Not recorded';
+  const activeHeatSourceLabel = activeHeatSourceKw != null
+    ? `${activeHeatSourceKw.toFixed(1)} kW`
+    : 'Not recorded';
+
   const lines: string[] = [];
+  lines.push(`Cylinder type: ${cylinderType}`);
+  lines.push(`Target minimum volume: ${targetMinimumVolumeLabel}`);
+  lines.push(`Calculated recovery time: ${recoveryTimeLabel}`);
+  lines.push(`Standing loss metric: ${standingLossLabel}`);
+  lines.push(`Active heat source output: ${activeHeatSourceLabel}`);
+  lines.push(`Hot water demand: ${demographics.hotWaterDemand}`);
   if (hasText(documentModel.cover.title)) {
     lines.push(`Recommended system: ${documentModel.cover.title}`);
   }
-  if (hasText(documentModel.cover.summary)) {
-    lines.push(`Recommendation summary: ${documentModel.cover.summary}`);
-  }
-  lines.push(`Hot water demand: ${demographics.hotWaterDemand}`);
-  if (documentModel.nextSteps.length > 0 && hasText(documentModel.nextSteps[0].label)) {
-    lines.push(`Initial delivery step: ${documentModel.nextSteps[0].label}`);
-  }
-  return lines.length > 0
-    ? lines
-    : ['Planned hardware allocations will be confirmed by the installer.'];
+  return lines;
 }
 
 // ─── Deterministic customer PDF block layout engine ───────────────────────────
@@ -697,16 +748,16 @@ function buildCustomerPdfDraftBlocks(
   if (hasText(documentModel.cover.addressSummary)) {
     blocks.push(createTextBlock('body', documentModel.cover.addressSummary, { spacingAfter: 6 }));
   }
-  blocks.push(createTextBlock('subheading', 'Demographics Grid', { spacingAfter: 4 }));
+  blocks.push(createTextBlock('subheading', 'Demographics Grid', { spacingAfter: 12 }));
   blocks.push(createTwoColumnBlock(
     `Occupants: ${demographics.occupants}`,
     `Bathrooms: ${demographics.bathrooms}`,
-    { spacingAfter: 1 },
+    { spacingAfter: 12 },
   ));
   blocks.push(createTwoColumnBlock(
     `Peak heat loss (kW): ${demographics.peakHeatLoss}`,
     `Hot water demand: ${demographics.hotWaterDemand}`,
-    { spacingAfter: 4 },
+    { spacingAfter: 12 },
   ));
   if (demographics.additionalFacts.length > 0) {
     blocks.push(createTextBlock('subheading', 'Additional home facts', { spacingAfter: 3 }));
@@ -777,13 +828,20 @@ function buildCustomerPdfDraftBlocks(
   }
 
   blocks.push(createTextBlock('section_heading', SECTION_TECHNICAL_SITE_HANDOFF, { pageBreakPolicy: 'always', spacingAfter: 6 }));
-  blocks.push(createTextBlock('subheading', 'Physical Site Constraints', { spacingAfter: 2 }));
-  for (const line of buildTechnicalSiteConstraints(documentModel, demographics)) {
-    blocks.push(createTextBlock('body', line, { spacingAfter: 2 }));
-  }
-  blocks.push(createTextBlock('subheading', 'Planned Hardware Allocations', { spacingBefore: 2, spacingAfter: 2 }));
-  for (const line of buildPlannedHardwareAllocations(documentModel, demographics)) {
-    blocks.push(createTextBlock('body', line, { spacingAfter: 2 }));
+  const siteConstraintLines = buildTechnicalSiteConstraints(documentModel, demographics, canonicalVisitPackage);
+  const hardwareAllocationLines = buildPlannedHardwareAllocations(documentModel, demographics, canonicalVisitPackage);
+  blocks.push(createTwoColumnBlock(
+    'Physical Site Constraints',
+    'Planned Hardware Allocations',
+    { font: 'F2', spacingAfter: 12 },
+  ));
+  const technicalRowCount = Math.max(siteConstraintLines.length, hardwareAllocationLines.length);
+  for (let index = 0; index < technicalRowCount; index += 1) {
+    blocks.push(createTwoColumnBlock(
+      siteConstraintLines[index] ?? '',
+      hardwareAllocationLines[index] ?? '',
+      { spacingAfter: 12 },
+    ));
   }
 
   return blocks;

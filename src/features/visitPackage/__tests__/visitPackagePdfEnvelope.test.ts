@@ -409,6 +409,28 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     expect(peakHeatLoss?.y).toBe(hotWaterDemand?.y);
   });
 
+  it('renders technical hand-off as side-by-side structural columns', () => {
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
+    const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
+    const constraintsHeading = commands.find((command) => command.text === 'Physical Site Constraints');
+    const allocationsHeading = commands.find((command) => command.text === 'Planned Hardware Allocations');
+    const perimeterLine = commands.find((command) => command.text.startsWith('Measured perimeter:'));
+    const cylinderTypeLine = commands.find((command) => command.text.startsWith('Cylinder type:'));
+
+    expect(constraintsHeading).toBeDefined();
+    expect(allocationsHeading).toBeDefined();
+    expect(perimeterLine).toBeDefined();
+    expect(cylinderTypeLine).toBeDefined();
+
+    expect(constraintsHeading?.x).toBe(50);
+    expect(allocationsHeading?.x).toBeGreaterThan(50);
+    expect(constraintsHeading?.y).toBe(allocationsHeading?.y);
+
+    expect(perimeterLine?.x).toBe(50);
+    expect(cylinderTypeLine?.x).toBeGreaterThan(50);
+    expect(perimeterLine?.y).toBe(cylinderTypeLine?.y);
+  });
+
   it('hydrates demographics from canonical metrics when customer facts use alternate phrasing', () => {
     const customerJourneyPack = buildCustomerJourneyPack({
       selectedSectionIds: [],
