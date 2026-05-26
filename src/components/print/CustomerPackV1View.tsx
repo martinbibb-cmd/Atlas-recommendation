@@ -28,7 +28,7 @@ import {
   BrandedFooter,
 } from '../../features/branding';
 import type { BrandProfileV1 } from '../../features/branding';
-import { handleStandaloneExternalLinkClick } from '../../lib/navigation/pwaExternalNavigation';
+import { handleStandaloneExternalLinkClick, isStandalonePwa } from '../../lib/navigation/pwaExternalNavigation';
 import { buildCustomerPackV1 } from '../../engine/modules/buildCustomerPackV1';
 import type { BuildCustomerPackContext } from '../../engine/modules/buildCustomerPackV1';
 import './CustomerPackV1View.css';
@@ -258,6 +258,9 @@ function CloseSection({ section }: { section: CustomerPackV1['close'] }) {
             rel="noopener noreferrer"
             data-testid="cpv1-portal-link"
             onClick={(event) => {
+              if (!isStandalonePwa()) return;
+              event.preventDefault();
+              event.stopPropagation();
               void handleStandaloneExternalLinkClick(event, {
                 url: section.portalUrl!,
                 preferShare: true,

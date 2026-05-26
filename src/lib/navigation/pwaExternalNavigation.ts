@@ -53,7 +53,7 @@ export async function shareUrlWithDevice(url: string, payload: ExternalSharePayl
 }
 
 export async function handleStandaloneExternalLinkClick(
-  event: { preventDefault: () => void },
+  event: { preventDefault: () => void; stopPropagation?: () => void },
   options: {
     url: string;
     preferShare?: boolean;
@@ -63,6 +63,7 @@ export async function handleStandaloneExternalLinkClick(
 ): Promise<boolean> {
   if (!isStandalonePwa()) return false;
   event.preventDefault();
+  event.stopPropagation?.();
   if (options.preferShare) {
     const shared = await shareUrlWithDevice(options.url, {
       title: options.title,

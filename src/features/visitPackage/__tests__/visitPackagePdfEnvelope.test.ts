@@ -409,6 +409,73 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     expect(peakHeatLoss?.y).toBe(hotWaterDemand?.y);
   });
 
+  it('hydrates demographics from canonical metrics when customer facts use alternate phrasing', () => {
+    const customerJourneyPack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System boiler with cylinder: Best fit for this home',
+      customerFacts: ['5 people in the home', '2 bathrooms'],
+      journeyType: 'open_vented',
+      recommendationReasons: [
+        {
+          id: 'household-demand',
+          category: 'household_demand',
+          homeFact: '5 people in the home',
+          whyItMatters: 'Peak routines overlap in this property.',
+          atlasRecommendationOutcome: 'Atlas routes storage to household demand.',
+          practicalEffect: 'Hot water holds up across morning peaks.',
+        },
+      ],
+    });
+
+    const basePackage = makePackage();
+    const pkg = buildCanonicalVisitPackage({
+      packageData: {
+        visitIdentity: basePackage.visitIdentity,
+        workspaceBrandReference: basePackage.workspaceBrandReference,
+        customerPropertyDetails: basePackage.customerPropertyDetails,
+        surveyDraft: {
+          postcode: 'SW1A 1AA',
+          occupancyCount: 5,
+          bathroomCount: 2,
+        } as never,
+        engineInputSnapshot: {
+          postcode: 'SW1A 1AA',
+          occupancyCount: 5,
+          bathroomCount: 2,
+          heatLossWatts: 14300,
+          dailyHotWaterLitres: 280,
+        } as never,
+        proposalTruth: basePackage.proposalTruth,
+        generatedOutputStatus: {
+          lifecycleState: 'recommendation_ready',
+          generatedOutputs: {
+            portal: { generated: false },
+            pdf: { generated: false },
+            customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+              customerJourneyPack,
+              generatedAt: '2026-05-20T10:02:00.000Z',
+            }),
+            simulatorReview: { generated: false },
+            handoff: { generated: false },
+          },
+        },
+        importExportMetadata: basePackage.importExportMetadata,
+      },
+    });
+
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
+    const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
+    const occupants = commands.find((command) => command.text.startsWith('Occupants:'));
+    const peakHeatLoss = commands.find((command) => command.text.startsWith('Peak heat loss (kW):'));
+    const hotWaterDemand = commands.find((command) => command.text.startsWith('Hot water demand:'));
+
+    expect(occupants?.text).toContain('5');
+    expect(occupants?.text).not.toContain('Not recorded');
+    expect(peakHeatLoss?.text).toContain('14.3 kW');
+    expect(peakHeatLoss?.text).not.toContain('Not recorded');
+    expect(hotWaterDemand?.text).toContain('280 L/day');
+  });
+
   it('wrapped text keeps page coordinates non-negative for long reason detail payloads', () => {
     const longDetail = 'Detailed explanation for customer handover clarity '.repeat(LONG_TEXT_REPEAT_COUNT);
     const longJourneyPack = buildCustomerJourneyPack({
