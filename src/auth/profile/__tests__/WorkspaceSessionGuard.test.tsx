@@ -113,7 +113,7 @@ describe('WorkspaceSessionGuard', () => {
         missingFirebaseVars: ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN'],
         shouldInitializeFirebase: false,
         modeLabel: 'Auth misconfigured',
-        statusMessage: 'Authentication is unavailable because Firebase runtime config is missing: VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN. Set these Cloudflare Pages Production variables and redeploy.',
+        statusMessage: 'Authentication is unavailable because Firebase runtime config is missing: VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN. Set these environment variables and restart or redeploy.',
       },
     }));
 
