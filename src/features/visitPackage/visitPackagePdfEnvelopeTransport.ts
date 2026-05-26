@@ -7,6 +7,7 @@ import {
   VISIT_PACKAGE_PDF_ENVELOPE_VERSION,
   type VisitPackagePdfEnvelopeV1,
 } from './VisitPackagePdfEnvelopeV1';
+import type { CanonicalVisitPackageV1 } from './CanonicalVisitPackageV1';
 import {
   buildCustomerDocumentModel,
   type CustomerDocumentModelV1,
@@ -94,6 +95,51 @@ function hasText(value: unknown): value is string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value != null && !Array.isArray(value);
+}
+
+function readNumberCandidate(
+  source: Record<string, unknown> | undefined,
+  keys: readonly string[],
+): number | undefined {
+  if (source == null) return undefined;
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function readEngineHeatLossKw(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
+  if (pkg == null) return undefined;
+  const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
+  const heatLossWatts = readNumberCandidate(engineInput, ['heatLossWatts']);
+  if (heatLossWatts == null) return undefined;
+  return heatLossWatts / 1000;
+}
+
+function readDecisionPeakHeatLossKw(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
+  if (pkg == null) return undefined;
+  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
+  const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+  return readNumberCandidate(energyMetrics, ['peakLoadKw', 'peakHeatLossKw']);
+}
+
+function readHotWaterDemandLitres(pkg: CanonicalVisitPackageV1 | undefined): number | undefined {
+  if (pkg == null) return undefined;
+  const engineInput = isRecord(pkg.engineInputSnapshot) ? pkg.engineInputSnapshot : undefined;
+  const fromEngine = readNumberCandidate(engineInput, [
+    'dailyHotWaterLitres',
+    'dailyHotWaterDemandLitres',
+  ]);
+  if (fromEngine != null) return fromEngine;
+  const decision = isRecord(pkg.proposalTruth?.decision) ? pkg.proposalTruth?.decision : undefined;
+  const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
+  return readNumberCandidate(energyMetrics, [
+    'dailyHotWaterLitres',
+    'dailyHotWaterDemandLitres',
+  ]);
 }
 
 function toAsciiPdfSafeText(input: string): string {
@@ -286,6 +332,7 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
 
 function parseCustomerDemographicsSummary(
   customerFacts: readonly string[],
+  canonicalVisitPackage?: CanonicalVisitPackageV1,
 ): CustomerDemographicsSummary {
   let occupants = 'Not recorded';
   let bathrooms = 'Not recorded';
@@ -313,6 +360,12 @@ function parseCustomerDemographicsSummary(
       additionalFacts.push(trimmed);
       continue;
     }
+    const peopleInHomeMatch = trimmed.match(/^(\d+)\s*(?:people|person)\b.*\bhome\b/i);
+    if (peopleInHomeMatch) {
+      occupants = peopleInHomeMatch[1].trim();
+      additionalFacts.push(trimmed);
+      continue;
+    }
 
     const bathroomsMatch = trimmed.match(/^bathrooms?:\s*(.+)$/i);
     if (bathroomsMatch) {
@@ -325,7 +378,7 @@ function parseCustomerDemographicsSummary(
       continue;
     }
 
-    const peakHeatLossMatch = trimmed.match(/^peak heat loss:\s*(.+)$/i);
+    const peakHeatLossMatch = trimmed.match(/^peak heat loss(?:\s*\(kw\))?:\s*(.+)$/i);
     if (peakHeatLossMatch) {
       peakHeatLoss = peakHeatLossMatch[1].trim();
       continue;
@@ -338,6 +391,27 @@ function parseCustomerDemographicsSummary(
     }
 
     additionalFacts.push(trimmed);
+  }
+
+  if (occupants === 'Not recorded' && canonicalVisitPackage?.surveyDraft.occupancyCount != null) {
+    occupants = String(canonicalVisitPackage.surveyDraft.occupancyCount);
+  }
+  if (bathrooms === 'Not recorded' && canonicalVisitPackage?.surveyDraft.bathroomCount != null) {
+    bathrooms = String(canonicalVisitPackage.surveyDraft.bathroomCount);
+  }
+  if (peakHeatLoss === 'Not recorded') {
+    const peakHeatLossKw =
+      readEngineHeatLossKw(canonicalVisitPackage)
+      ?? readDecisionPeakHeatLossKw(canonicalVisitPackage);
+    if (peakHeatLossKw != null) {
+      peakHeatLoss = `${peakHeatLossKw.toFixed(1)} kW`;
+    }
+  }
+  if (hotWaterDemand === 'Not recorded') {
+    const hotWaterDemandLitres = readHotWaterDemandLitres(canonicalVisitPackage);
+    if (hotWaterDemandLitres != null) {
+      hotWaterDemand = `${Math.round(hotWaterDemandLitres)} L/day`;
+    }
   }
 
   return {
@@ -603,9 +677,15 @@ class CustomerPdfBlockLayoutEngine {
   }
 }
 
-function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): CustomerPdfDraftBlock[] {
+function buildCustomerPdfDraftBlocks(
+  documentModel: CustomerDocumentModelV1,
+  canonicalVisitPackage?: CanonicalVisitPackageV1,
+): CustomerPdfDraftBlock[] {
   const blocks: CustomerPdfDraftBlock[] = [];
-  const demographics = parseCustomerDemographicsSummary(documentModel.cover.customerFacts);
+  const demographics = parseCustomerDemographicsSummary(
+    documentModel.cover.customerFacts,
+    canonicalVisitPackage,
+  );
 
   blocks.push(createTextBlock('section_heading', SECTION_RECOMMENDATION_SUMMARY, { pageBreakPolicy: 'always', spacingAfter: 6 }));
   if (hasText(documentModel.cover.title)) {
@@ -794,7 +874,9 @@ export function renderVisitPackagePdfDocument(envelope: VisitPackagePdfEnvelopeV
 
   const customerDocument = resolveCustomerDocument(envelope);
 
-  const layoutEngine = new CustomerPdfBlockLayoutEngine(buildCustomerPdfDraftBlocks(customerDocument));
+  const layoutEngine = new CustomerPdfBlockLayoutEngine(
+    buildCustomerPdfDraftBlocks(customerDocument, envelope.canonicalVisitPackage),
+  );
   const contentStreams = layoutEngine.layout();
   return assemblePdf(contentStreams, payloadStream);
 }
