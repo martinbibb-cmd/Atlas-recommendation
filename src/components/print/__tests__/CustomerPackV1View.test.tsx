@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { CustomerPackV1View } from '../CustomerPackV1View';
 import type { CustomerPackV1ViewProps } from '../CustomerPackV1View';
 import type { AtlasDecisionV1 } from '../../../contracts/AtlasDecisionV1';
@@ -295,6 +295,58 @@ describe('CustomerPackV1View — Section 8: close', () => {
   it('renders the next step', () => {
     render(<CustomerPackV1View {...makeProps()} />);
     expect(screen.getByTestId('cpv1-next-step').textContent?.length).toBeGreaterThan(0);
+  });
+
+  it('uses native share in standalone mode before fallback navigation', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    Object.defineProperty(window.navigator, 'standalone', {
+      configurable: true,
+      value: false,
+    });
+    const shareSpy = vi.fn(async () => {});
+    Object.defineProperty(window.navigator, 'share', {
+      configurable: true,
+      value: shareSpy,
+    });
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    render(<CustomerPackV1View {...makeProps({ portalUrl: 'https://portal.example.com/abc' })} />);
+    fireEvent.click(screen.getByTestId('cpv1-portal-link'));
+
+    await vi.waitFor(() => {
+      expect(shareSpy).toHaveBeenCalledOnce();
+    });
+    expect(openSpy).not.toHaveBeenCalled();
+  });
+
+  it('opens a new tab in standalone mode when native share is unavailable', async () => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    Object.defineProperty(window.navigator, 'standalone', {
+      configurable: true,
+      value: false,
+    });
+    Object.defineProperty(window.navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    });
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    render(<CustomerPackV1View {...makeProps({ portalUrl: 'https://portal.example.com/abc' })} />);
+    fireEvent.click(screen.getByTestId('cpv1-portal-link'));
+
+    await vi.waitFor(() => {
+      expect(openSpy).toHaveBeenCalledWith(
+        'https://portal.example.com/abc',
+        '_blank',
+        'noopener,noreferrer',
+      );
+    });
   });
 });
 
