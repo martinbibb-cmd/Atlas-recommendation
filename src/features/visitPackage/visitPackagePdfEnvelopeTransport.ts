@@ -308,10 +308,25 @@ function parseCustomerDemographicsSummary(
   customerFacts: readonly string[],
   canonicalVisitPackage?: CanonicalVisitPackageV1,
 ): CustomerDemographicsSummary {
-  let occupants = 'Not recorded';
-  let bathrooms = 'Not recorded';
-  let peakHeatLoss = 'Not recorded';
-  let hotWaterDemand = 'Not recorded';
+  // Read core metrics directly from the canonical package — single source of truth.
+  let occupants: string | undefined =
+    canonicalVisitPackage?.surveyDraft.occupancyCount != null
+      ? String(canonicalVisitPackage.surveyDraft.occupancyCount)
+      : undefined;
+  let bathrooms: string | undefined =
+    canonicalVisitPackage?.surveyDraft.bathroomCount != null
+      ? String(canonicalVisitPackage.surveyDraft.bathroomCount)
+      : undefined;
+  const peakHeatLossKw =
+    readEngineHeatLossKw(canonicalVisitPackage)
+    ?? readDecisionPeakHeatLossKw(canonicalVisitPackage);
+  let peakHeatLoss: string | undefined =
+    peakHeatLossKw != null ? `${peakHeatLossKw.toFixed(1)} kW` : undefined;
+  const hotWaterDemandLitres = readHotWaterDemandLitres(canonicalVisitPackage);
+  let hotWaterDemand: string | undefined =
+    hotWaterDemandLitres != null ? `${Math.round(hotWaterDemandLitres)} L/day` : undefined;
+
+  // Scan string facts to fill any remaining gaps and collect non-standard additional facts.
   const additionalFacts: string[] = [];
 
   for (const fact of customerFacts) {
@@ -321,78 +336,63 @@ function parseCustomerDemographicsSummary(
 
     const householdMatch = trimmed.match(/^household size:\s*(.+)$/i);
     if (householdMatch) {
-      occupants = householdMatch[1].trim();
+      if (occupants == null) occupants = householdMatch[1].trim();
       continue;
     }
     const occupantsMatch = trimmed.match(/^occupants?:\s*(.+)$/i);
     if (occupantsMatch) {
-      occupants = occupantsMatch[1].trim();
+      if (occupants == null) occupants = occupantsMatch[1].trim();
       continue;
     }
     if (lower.includes('household') && lower.includes('person')) {
-      occupants = trimmed;
-      additionalFacts.push(trimmed);
+      if (occupants == null) {
+        occupants = trimmed;
+        additionalFacts.push(trimmed);
+      }
       continue;
     }
     const peopleInHomeMatch = trimmed.match(/^(\d+)\s*(?:people|person)\b.*\bhome\b/i);
     if (peopleInHomeMatch) {
-      occupants = peopleInHomeMatch[1].trim();
-      additionalFacts.push(trimmed);
+      if (occupants == null) {
+        occupants = peopleInHomeMatch[1].trim();
+        additionalFacts.push(trimmed);
+      }
       continue;
     }
 
     const bathroomsMatch = trimmed.match(/^bathrooms?:\s*(.+)$/i);
     if (bathroomsMatch) {
-      bathrooms = bathroomsMatch[1].trim();
+      if (bathrooms == null) bathrooms = bathroomsMatch[1].trim();
       continue;
     }
     if (lower.includes('bathroom')) {
-      bathrooms = trimmed;
-      additionalFacts.push(trimmed);
+      if (bathrooms == null) {
+        bathrooms = trimmed;
+        additionalFacts.push(trimmed);
+      }
       continue;
     }
 
     const peakHeatLossMatch = trimmed.match(/^peak heat loss(?:\s*\(kw\))?:\s*(.+)$/i);
     if (peakHeatLossMatch) {
-      peakHeatLoss = peakHeatLossMatch[1].trim();
+      if (peakHeatLoss == null) peakHeatLoss = peakHeatLossMatch[1].trim();
       continue;
     }
 
     const hotWaterDemandMatch = trimmed.match(/^hot water demand:\s*(.+)$/i);
     if (hotWaterDemandMatch) {
-      hotWaterDemand = hotWaterDemandMatch[1].trim();
+      if (hotWaterDemand == null) hotWaterDemand = hotWaterDemandMatch[1].trim();
       continue;
     }
 
     additionalFacts.push(trimmed);
   }
 
-  if (occupants === 'Not recorded' && canonicalVisitPackage?.surveyDraft.occupancyCount != null) {
-    occupants = String(canonicalVisitPackage.surveyDraft.occupancyCount);
-  }
-  if (bathrooms === 'Not recorded' && canonicalVisitPackage?.surveyDraft.bathroomCount != null) {
-    bathrooms = String(canonicalVisitPackage.surveyDraft.bathroomCount);
-  }
-  if (peakHeatLoss === 'Not recorded') {
-    const peakHeatLossKw =
-      readEngineHeatLossKw(canonicalVisitPackage)
-      ?? readDecisionPeakHeatLossKw(canonicalVisitPackage);
-    if (peakHeatLossKw != null) {
-      peakHeatLoss = `${peakHeatLossKw.toFixed(1)} kW`;
-    }
-  }
-  if (hotWaterDemand === 'Not recorded') {
-    const hotWaterDemandLitres = readHotWaterDemandLitres(canonicalVisitPackage);
-    if (hotWaterDemandLitres != null) {
-      hotWaterDemand = `${Math.round(hotWaterDemandLitres)} L/day`;
-    }
-  }
-
   return {
-    occupants,
-    bathrooms,
-    peakHeatLoss,
-    hotWaterDemand,
+    occupants: occupants ?? 'Not recorded',
+    bathrooms: bathrooms ?? 'Not recorded',
+    peakHeatLoss: peakHeatLoss ?? 'Not recorded',
+    hotWaterDemand: hotWaterDemand ?? 'Not recorded',
     additionalFacts,
   };
 }
