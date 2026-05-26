@@ -79,6 +79,10 @@ import { imageForOptionId } from '../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
 import { COMBI_SELECTED_COMPROMISE_HEADLINE } from '../../engine/modules/buildScenarioDisplayIdentity';
 import { getLimiterHumanCopy } from '../presentation/limiterHumanLanguage';
+import {
+  handleStandaloneExternalLinkClick,
+  openUrlInSystemBrowser,
+} from '../../lib/navigation/pwaExternalNavigation';
 import './DecisionSynthesisPage.css';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1333,6 +1337,21 @@ export default function DecisionSynthesisPage({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Open saved report in new tab"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void (async () => {
+                      const reportUrl = `${window.location.origin}/report/${savedReportId}`;
+                      const handled = await handleStandaloneExternalLinkClick(event, {
+                        url: reportUrl,
+                        preferShare: true,
+                        title: 'Your Atlas Portal',
+                      });
+                      if (!handled) {
+                        openUrlInSystemBrowser(reportUrl);
+                      }
+                    })();
+                  }}
                 >
                   Open saved report ↗
                 </a>
