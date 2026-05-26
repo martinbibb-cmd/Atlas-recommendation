@@ -387,12 +387,12 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     }
   });
 
-  it('renders demographics in a two-column row layout in PDF text commands', () => {
+  it('renders demographics as sequential text blocks in PDF text commands', () => {
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
     const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
     const occupants = commands.find((command) => command.text.startsWith('Occupants:'));
     const bathrooms = commands.find((command) => command.text.startsWith('Bathrooms:'));
-    const peakHeatLoss = commands.find((command) => command.text.startsWith('Peak heat loss (kW):'));
+    const peakHeatLoss = commands.find((command) => command.text.startsWith('Peak heat loss:'));
     const hotWaterDemand = commands.find((command) => command.text.startsWith('Hot water demand:'));
 
     expect(occupants).toBeDefined();
@@ -401,15 +401,16 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     expect(hotWaterDemand).toBeDefined();
 
     expect(occupants?.x).toBe(50);
+    expect(bathrooms?.x).toBe(50);
     expect(peakHeatLoss?.x).toBe(50);
-    expect(bathrooms?.x).toBeGreaterThan(50);
-    expect(hotWaterDemand?.x).toBeGreaterThan(50);
+    expect(hotWaterDemand?.x).toBe(50);
 
-    expect(occupants?.y).toBe(bathrooms?.y);
-    expect(peakHeatLoss?.y).toBe(hotWaterDemand?.y);
+    expect(occupants?.y).toBeGreaterThan(bathrooms?.y ?? 0);
+    expect(bathrooms?.y).toBeGreaterThan(peakHeatLoss?.y ?? 0);
+    expect(peakHeatLoss?.y).toBeGreaterThan(hotWaterDemand?.y ?? 0);
   });
 
-  it('renders technical hand-off as side-by-side structural columns', () => {
+  it('renders technical hand-off as sequential subheaded text blocks', () => {
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
     const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
     const constraintsHeading = commands.find((command) => command.text === 'Physical Site Constraints');
@@ -423,12 +424,12 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     expect(cylinderTypeLine).toBeDefined();
 
     expect(constraintsHeading?.x).toBe(50);
-    expect(allocationsHeading?.x).toBeGreaterThan(50);
-    expect(constraintsHeading?.y).toBe(allocationsHeading?.y);
+    expect(allocationsHeading?.x).toBe(50);
+    expect(constraintsHeading?.y).toBeGreaterThan(allocationsHeading?.y ?? 0);
 
     expect(perimeterLine?.x).toBe(50);
-    expect(cylinderTypeLine?.x).toBeGreaterThan(50);
-    expect(perimeterLine?.y).toBe(cylinderTypeLine?.y);
+    expect(cylinderTypeLine?.x).toBe(50);
+    expect(perimeterLine?.y).toBeGreaterThan(cylinderTypeLine?.y ?? 0);
   });
 
   it('hydrates demographics from canonical metrics when customer facts use alternate phrasing', () => {
@@ -488,7 +489,7 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
     const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
     const occupants = commands.find((command) => command.text.startsWith('Occupants:'));
-    const peakHeatLoss = commands.find((command) => command.text.startsWith('Peak heat loss (kW):'));
+    const peakHeatLoss = commands.find((command) => command.text.startsWith('Peak heat loss:'));
     const hotWaterDemand = commands.find((command) => command.text.startsWith('Hot water demand:'));
 
     expect(occupants?.text).toContain('5');
