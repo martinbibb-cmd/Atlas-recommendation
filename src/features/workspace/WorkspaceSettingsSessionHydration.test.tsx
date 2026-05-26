@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AtlasAuthContext } from '../../auth/AtlasAuthContext';
 import type { AtlasAuthContextValue, AtlasWorkspaceV1 as AuthAtlasWorkspaceV1 } from '../../auth/authTypes';
+import type { AtlasAuthRuntimeConfig } from '../../auth/authRuntimeConfig';
 import {
   DEFAULT_PERMISSIONS_BY_ROLE,
   WorkspaceBrandSessionProvider,
@@ -81,10 +82,34 @@ function makeProfileWorkspace(
 function makeAuthContextValue(
   workspace: AuthAtlasWorkspaceV1,
 ): AtlasAuthContextValue {
+  const authRuntimeConfig: AtlasAuthRuntimeConfig = {
+    activeMode: 'dev_mock',
+    firebaseConfig: {
+      apiKey: '',
+      authDomain: '',
+      projectId: '',
+      appId: '',
+      storageBucket: '',
+      messagingSenderId: '',
+      measurementId: '',
+    },
+    isFirebaseConfigured: false,
+    missingFirebaseVars: ['VITE_FIREBASE_API_KEY', 'VITE_FIREBASE_AUTH_DOMAIN', 'VITE_FIREBASE_PROJECT_ID', 'VITE_FIREBASE_APP_ID'],
+    googleAuthDisabled: false,
+    devMockAuthEnabled: true,
+    authDisabledIntentionally: false,
+    googleOAuthClientIdPresent: false,
+    usesLegacyFirebaseApiKeyFallback: false,
+    shouldInitializeFirebase: false,
+    modeLabel: 'Dev mock auth',
+    statusMessage: 'Authentication is using the dev mock session.',
+  };
   return {
     status: 'authenticated',
     isAuthenticated: true,
     isDevMockAuthEnabled: true,
+    authMode: 'dev_mock',
+    authRuntimeConfig,
     userProfile: {
       version: '1.0',
       atlasUserId: 'user_admin',

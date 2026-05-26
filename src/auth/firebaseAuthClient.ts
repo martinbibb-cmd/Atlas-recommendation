@@ -10,30 +10,18 @@ import {
   type User,
   type Unsubscribe,
 } from 'firebase/auth';
+import { AUTH_RUNTIME_CONFIG } from './authRuntimeConfig';
 
 /**
  * Set VITE_GOOGLE_AUTH_DISABLED=1 to disable Google sign-in across all surfaces.
  * When disabled, `firebaseSignInWithGoogle` throws and the login UI shows an
  * unavailable state instead of the sign-in button.
  */
-export const GOOGLE_AUTH_DISABLED =
-  import.meta.env.VITE_GOOGLE_AUTH_DISABLED === '1';
+export const GOOGLE_AUTH_DISABLED = AUTH_RUNTIME_CONFIG.googleAuthDisabled;
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY ?? import.meta.env.FIREBASE_API_KEY_FALLBACK,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
-};
+const firebaseConfig = AUTH_RUNTIME_CONFIG.firebaseConfig;
 
-export const isFirebaseConfigured =
-  typeof firebaseConfig.apiKey === 'string' && firebaseConfig.apiKey.length > 0 &&
-  typeof firebaseConfig.authDomain === 'string' && firebaseConfig.authDomain.length > 0 &&
-  typeof firebaseConfig.projectId === 'string' && firebaseConfig.projectId.length > 0 &&
-  typeof firebaseConfig.appId === 'string' && firebaseConfig.appId.length > 0;
+export const isFirebaseConfigured = AUTH_RUNTIME_CONFIG.isFirebaseConfigured;
 
 let cachedApp: FirebaseApp | null = null;
 let cachedAuth: Auth | null = null;
@@ -48,9 +36,7 @@ function getFirebaseApp(): FirebaseApp {
 
 function getFirebaseAuth(): Auth {
   if (!isFirebaseConfigured) {
-    throw new Error(
-      'Firebase auth is not configured. Set VITE_FIREBASE_API_KEY (or firebase_api_key), VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID, and VITE_FIREBASE_APP_ID.',
-    );
+    throw new Error(AUTH_RUNTIME_CONFIG.statusMessage);
   }
   if (cachedAuth) return cachedAuth;
   cachedAuth = getAuth(getFirebaseApp());
@@ -67,7 +53,7 @@ export async function initializeFirebaseAnalytics(): Promise<Analytics | null> {
 
 export async function firebaseSignInWithGoogle(): Promise<User> {
   if (GOOGLE_AUTH_DISABLED) {
-    throw new Error('Google sign-in is currently disabled.');
+    throw new Error(AUTH_RUNTIME_CONFIG.statusMessage);
   }
   const auth = getFirebaseAuth();
   const provider = new GoogleAuthProvider();

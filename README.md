@@ -78,16 +78,42 @@ This project is deployed to **Cloudflare Pages** (not GitHub Pages).
 
 Set Firebase values in **Settings → Variables and Secrets** for your Pages project.
 
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_APP_ID`
-- Optional others used by your Firebase project (`VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_MEASUREMENT_ID`)
-- API key can be provided as either `VITE_FIREBASE_API_KEY` or `firebase_api_key`
+- Required client runtime variables:
+  - `VITE_FIREBASE_API_KEY`
+  - `VITE_FIREBASE_AUTH_DOMAIN`
+  - `VITE_FIREBASE_PROJECT_ID`
+  - `VITE_FIREBASE_APP_ID`
+- Optional Firebase client variables used by some projects:
+  - `VITE_FIREBASE_STORAGE_BUCKET`
+  - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+  - `VITE_FIREBASE_MEASUREMENT_ID`
+- Optional flag for an intentional safe fallback:
+  - `VITE_GOOGLE_AUTH_DISABLED=1`
 
 Notes:
 - Firebase web API keys are client-side values and will be visible in the built frontend bundle.
 - `VITE_FIREBASE_API_KEY` is the primary key used by the app when present.
 - `firebase_api_key` is a compatibility fallback for existing Cloudflare Pages deployments that already use that key name.
+- `VITE_ATLAS_DEV_MOCK_AUTH` is for local development only and should not be set in Production.
+- No `VITE_*` Google OAuth client ID is required for the current Firebase popup sign-in flow.
+
+Exact Cloudflare Pages **Production** variables to set for normal auth:
+
+```text
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_APP_ID
+```
+
+Optional Production variables:
+
+```text
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_MEASUREMENT_ID
+VITE_GOOGLE_AUTH_DISABLED=1   # only if you want auth disabled intentionally
+```
 
 #### 5. Apply D1 migrations
 

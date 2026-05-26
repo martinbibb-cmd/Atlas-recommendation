@@ -3,7 +3,7 @@ import { useAtlasAuth } from './useAtlasAuth';
 import { GOOGLE_AUTH_DISABLED } from './firebaseAuthClient';
 
 export function LoginPage() {
-  const { continueWithGoogle, isDevMockAuthEnabled } = useAtlasAuth();
+  const { continueWithGoogle, isDevMockAuthEnabled, authMode, authRuntimeConfig } = useAtlasAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,12 +47,12 @@ export function LoginPage() {
           Sign in to access your workspace and visits.
         </p>
 
-        {GOOGLE_AUTH_DISABLED && !isDevMockAuthEnabled ? (
+        {(GOOGLE_AUTH_DISABLED || authMode === 'misconfigured') && !isDevMockAuthEnabled ? (
           <p
             role="status"
             style={{ margin: 0, fontSize: '0.92rem', color: '#64748b', padding: '0.72rem 0' }}
           >
-            Sign-in is not available at the moment. Please contact your administrator.
+            {authRuntimeConfig.statusMessage}
           </p>
         ) : (
           <button

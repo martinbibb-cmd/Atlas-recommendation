@@ -20,6 +20,7 @@
 
 import React from 'react';
 import { useWorkspaceSession } from './WorkspaceSessionProvider';
+import { useAtlasAuth } from '../useAtlasAuth';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -65,10 +66,17 @@ export function WorkspaceSessionGuard({
   showWorkspaceActiveState = false,
 }: WorkspaceSessionGuardProps): React.ReactElement | null {
   const session = useWorkspaceSession();
+  const { authMode, authRuntimeConfig } = useAtlasAuth();
   if (session.status === 'unauthenticated_demo') {
+    let message = 'Demo/session mode — visits are not linked to an account.';
+    if (authMode === 'disabled') {
+      message = 'Authentication is intentionally disabled — Atlas is running in demo/session mode.';
+    } else if (authMode === 'misconfigured') {
+      message = authRuntimeConfig.statusMessage;
+    }
     return (
       <div style={UNAUTHENTICATED_BANNER} role="status" aria-label="Demo mode banner">
-        Demo/session mode — visits are not linked to an account.
+        {message}
       </div>
     );
   }
