@@ -236,32 +236,6 @@ function createTextBlock(
   };
 }
 
-function createTwoColumnBlock(
-  leftText: string,
-  rightText: string,
-  options: {
-    readonly font?: PdfFont;
-    readonly size?: number;
-    readonly lineHeight?: number;
-    readonly spacingBefore?: number;
-    readonly spacingAfter?: number;
-    readonly pageBreakPolicy?: CustomerPdfPageBreakPolicy;
-  } = {},
-): CustomerPdfDraftBlock {
-  return {
-    kind: 'two_column',
-    blockType: 'two_column',
-    leftText,
-    rightText,
-    font: options.font ?? 'F1',
-    size: options.size ?? 11,
-    lineHeight: options.lineHeight ?? 15,
-    spacingBefore: options.spacingBefore ?? 0,
-    spacingAfter: options.spacingAfter ?? 0,
-    pageBreakPolicy: options.pageBreakPolicy ?? 'auto',
-  };
-}
-
 function createGapBlock(height: number): CustomerPdfDraftBlock {
   return {
     kind: 'gap',
@@ -423,6 +397,37 @@ function parseCustomerDemographicsSummary(
   };
 }
 
+function readFactValue(
+  customerFacts: readonly string[],
+  patterns: readonly RegExp[],
+): string | undefined {
+  for (const fact of customerFacts) {
+    if (!hasText(fact)) continue;
+    const trimmed = fact.trim();
+    for (const pattern of patterns) {
+      const match = trimmed.match(pattern);
+      if (match != null && hasText(match[1])) {
+        return match[1].trim();
+      }
+    }
+  }
+  return undefined;
+}
+
+function coalesceMetric(
+  ...values: Array<string | number | undefined | null>
+): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+    if (hasText(value)) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
 function buildTechnicalSiteConstraints(
   documentModel: CustomerDocumentModelV1,
   demographics: CustomerDemographicsSummary,
@@ -437,14 +442,40 @@ function buildTechnicalSiteConstraints(
   const groundFloorAreaM2 = readNumberCandidate(engineInput, ['groundFloorAreaM2']);
   const primaryPipeDiameter = readNumberCandidate(engineInput, ['primaryPipeDiameter'])
     ?? readNumberCandidate(currentSystem, ['primaryPipeDiameterMm']);
+  const measuredPerimeterFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^measured perimeter:\s*(.+)$/i,
+    /^perimeter:\s*(.+)$/i,
+  ]);
+  const floorAreaFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^ground floor area:\s*(.+)$/i,
+    /^total floor area:\s*(.+)$/i,
+    /^floor area:\s*(.+)$/i,
+  ]);
+  const primaryDiameterFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^current primary(?: pipe)? diameter:\s*(.+)$/i,
+    /^primary(?: pipe)? diameter:\s*(.+)$/i,
+  ]);
 
-  const perimeterLabel = perimeterM != null ? `${perimeterM.toFixed(1)} m` : 'Not recorded';
-  const groundFloorAreaLabel = groundFloorAreaM2 != null ? `${groundFloorAreaM2.toFixed(1)} m²` : 'Not recorded';
-  const primaryDiameterLabel = primaryPipeDiameter != null ? `${primaryPipeDiameter} mm` : 'Not recorded';
+  const perimeterLabel = coalesceMetric(
+    perimeterM != null ? `${perimeterM.toFixed(1)} m` : undefined,
+    measuredPerimeterFromFacts,
+    demographics.additionalFacts.find((fact) => /perimeter/i.test(fact)),
+    hasText(documentModel.cover.addressSummary) ? documentModel.cover.addressSummary : undefined,
+  ) ?? 'Not recorded';
+  const groundFloorAreaLabel = coalesceMetric(
+    groundFloorAreaM2 != null ? `${groundFloorAreaM2.toFixed(1)} m²` : undefined,
+    floorAreaFromFacts,
+    demographics.additionalFacts.find((fact) => /floor area/i.test(fact)),
+  ) ?? 'Not recorded';
+  const primaryDiameterLabel = coalesceMetric(
+    primaryPipeDiameter != null ? `${primaryPipeDiameter} mm` : undefined,
+    primaryDiameterFromFacts,
+    demographics.additionalFacts.find((fact) => /primary/i.test(fact) && /diameter/i.test(fact)),
+  ) ?? 'Not recorded';
 
   const lines: string[] = [
     `Measured perimeter: ${perimeterLabel}`,
-    `Ground floor area: ${groundFloorAreaLabel}`,
+    `Total floor area: ${groundFloorAreaLabel}`,
     `Calculated peak heat loss: ${demographics.peakHeatLoss}`,
     `Current primary diameter: ${primaryDiameterLabel}`,
   ];
@@ -485,22 +516,50 @@ function buildPlannedHardwareAllocations(
     readNumberCandidate(engineInput, ['currentBoilerOutputKw'])
     ?? readNumberCandidate(boiler, ['nominalOutputKw'])
     ?? readNumberCandidate(energyMetrics, ['activeHeatSourceKw', 'heatSourceOutputKw']);
+  const cylinderTypeFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^cylinder type:\s*(.+)$/i,
+    /^recommended cylinder type:\s*(.+)$/i,
+  ]);
+  const targetVolumeFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^target minimum volume:\s*(.+)$/i,
+    /^minimum cylinder volume:\s*(.+)$/i,
+  ]);
+  const recoveryFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^calculated recovery time:\s*(.+)$/i,
+    /^recovery time:\s*(.+)$/i,
+  ]);
+  const standingLossFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^standing loss(?: metric)?:\s*(.+)$/i,
+  ]);
+  const heatSourceOutputFromFacts = readFactValue(documentModel.cover.customerFacts, [
+    /^active heat source output:\s*(.+)$/i,
+    /^heat source output:\s*(.+)$/i,
+  ]);
 
-  const targetMinimumVolumeLabel = targetMinimumVolumeLitres != null
-    ? `${Math.round(targetMinimumVolumeLitres)} L`
-    : 'Not recorded';
-  const recoveryTimeLabel = calculatedRecoveryMinutes != null
-    ? `${Math.round(calculatedRecoveryMinutes)} min`
-    : 'Not recorded';
-  const standingLossLabel = standingLossKwhPerDay != null
-    ? `${standingLossKwhPerDay.toFixed(1)} kWh/day`
-    : 'Not recorded';
-  const activeHeatSourceLabel = activeHeatSourceKw != null
-    ? `${activeHeatSourceKw.toFixed(1)} kW`
-    : 'Not recorded';
+  const cylinderTypeLabel = coalesceMetric(
+    cylinderType,
+    cylinderTypeFromFacts,
+    demographics.additionalFacts.find((fact) => /cylinder type/i.test(fact)),
+  ) ?? 'Not recorded';
+  const targetMinimumVolumeLabel = coalesceMetric(
+    targetMinimumVolumeLitres != null ? `${Math.round(targetMinimumVolumeLitres)} L` : undefined,
+    targetVolumeFromFacts,
+  ) ?? 'Not recorded';
+  const recoveryTimeLabel = coalesceMetric(
+    calculatedRecoveryMinutes != null ? `${Math.round(calculatedRecoveryMinutes)} min` : undefined,
+    recoveryFromFacts,
+  ) ?? 'Not recorded';
+  const standingLossLabel = coalesceMetric(
+    standingLossKwhPerDay != null ? `${standingLossKwhPerDay.toFixed(1)} kWh/day` : undefined,
+    standingLossFromFacts,
+  ) ?? 'Not recorded';
+  const activeHeatSourceLabel = coalesceMetric(
+    activeHeatSourceKw != null ? `${activeHeatSourceKw.toFixed(1)} kW` : undefined,
+    heatSourceOutputFromFacts,
+  ) ?? 'Not recorded';
 
   const lines: string[] = [];
-  lines.push(`Cylinder type: ${cylinderType}`);
+  lines.push(`Cylinder type: ${cylinderTypeLabel}`);
   lines.push(`Target minimum volume: ${targetMinimumVolumeLabel}`);
   lines.push(`Calculated recovery time: ${recoveryTimeLabel}`);
   lines.push(`Standing loss metric: ${standingLossLabel}`);
@@ -748,17 +807,11 @@ function buildCustomerPdfDraftBlocks(
   if (hasText(documentModel.cover.addressSummary)) {
     blocks.push(createTextBlock('body', documentModel.cover.addressSummary, { spacingAfter: 6 }));
   }
-  blocks.push(createTextBlock('subheading', 'Demographics Grid', { spacingAfter: 12 }));
-  blocks.push(createTwoColumnBlock(
-    `Occupants: ${demographics.occupants}`,
-    `Bathrooms: ${demographics.bathrooms}`,
-    { spacingAfter: 12 },
-  ));
-  blocks.push(createTwoColumnBlock(
-    `Peak heat loss (kW): ${demographics.peakHeatLoss}`,
-    `Hot water demand: ${demographics.hotWaterDemand}`,
-    { spacingAfter: 12 },
-  ));
+  blocks.push(createTextBlock('subheading', 'Demographics Grid', { spacingAfter: 6 }));
+  blocks.push(createTextBlock('body', `Occupants: ${demographics.occupants}`, { spacingAfter: 2 }));
+  blocks.push(createTextBlock('body', `Bathrooms: ${demographics.bathrooms}`, { spacingAfter: 2 }));
+  blocks.push(createTextBlock('body', `Peak heat loss: ${demographics.peakHeatLoss}`, { spacingAfter: 2 }));
+  blocks.push(createTextBlock('body', `Hot water demand: ${demographics.hotWaterDemand}`, { spacingAfter: 10 }));
   if (demographics.additionalFacts.length > 0) {
     blocks.push(createTextBlock('subheading', 'Additional home facts', { spacingAfter: 3 }));
     for (const fact of demographics.additionalFacts) {
@@ -830,18 +883,14 @@ function buildCustomerPdfDraftBlocks(
   blocks.push(createTextBlock('section_heading', SECTION_TECHNICAL_SITE_HANDOFF, { pageBreakPolicy: 'always', spacingAfter: 6 }));
   const siteConstraintLines = buildTechnicalSiteConstraints(documentModel, demographics, canonicalVisitPackage);
   const hardwareAllocationLines = buildPlannedHardwareAllocations(documentModel, demographics, canonicalVisitPackage);
-  blocks.push(createTwoColumnBlock(
-    'Physical Site Constraints',
-    'Planned Hardware Allocations',
-    { font: 'F2', spacingAfter: 12 },
-  ));
-  const technicalRowCount = Math.max(siteConstraintLines.length, hardwareAllocationLines.length);
-  for (let index = 0; index < technicalRowCount; index += 1) {
-    blocks.push(createTwoColumnBlock(
-      siteConstraintLines[index] ?? '',
-      hardwareAllocationLines[index] ?? '',
-      { spacingAfter: 12 },
-    ));
+  blocks.push(createTextBlock('subheading', 'Physical Site Constraints', { spacingAfter: 4 }));
+  for (const line of siteConstraintLines) {
+    blocks.push(createTextBlock('body', line, { spacingAfter: 2 }));
+  }
+  blocks.push(createGapBlock(6));
+  blocks.push(createTextBlock('subheading', 'Planned Hardware Allocations', { spacingAfter: 4 }));
+  for (const line of hardwareAllocationLines) {
+    blocks.push(createTextBlock('body', line, { spacingAfter: 2 }));
   }
 
   return blocks;
