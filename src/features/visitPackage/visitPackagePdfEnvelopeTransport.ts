@@ -52,13 +52,16 @@ type CustomerPdfBlockType =
   | 'body'
   | 'bullet'
   | 'small'
+  | 'two_column'
   | 'gap';
 type CustomerPdfPageBreakPolicy = 'auto' | 'avoid' | 'always';
 
 interface CustomerPdfDraftBlock {
-  readonly kind: 'text' | 'gap';
+  readonly kind: 'text' | 'two_column' | 'gap';
   readonly blockType: CustomerPdfBlockType;
   readonly text?: string;
+  readonly leftText?: string;
+  readonly rightText?: string;
   readonly font: PdfFont;
   readonly size: number;
   readonly lineHeight: number;
@@ -69,6 +72,7 @@ interface CustomerPdfDraftBlock {
 
 interface CustomerPdfMeasuredBlock extends CustomerPdfDraftBlock {
   readonly lines: readonly string[];
+  readonly rightLines: readonly string[];
   readonly intrinsicHeight: number;
   readonly wrappedHeight: number;
   readonly totalHeight: number;
@@ -162,7 +166,7 @@ function wordWrap(text: string, maxChars: number): readonly string[] {
 }
 
 function createTextBlock(
-  blockType: Exclude<CustomerPdfBlockType, 'gap'>,
+  blockType: Exclude<CustomerPdfBlockType, 'gap' | 'two_column'>,
   text: string,
   options: {
     readonly font?: PdfFont;
@@ -180,6 +184,32 @@ function createTextBlock(
     font: options.font ?? (blockType === 'section_heading' || blockType === 'subheading' ? 'F2' : 'F1'),
     size: options.size ?? (blockType === 'section_heading' ? 13 : blockType === 'small' ? 9 : 11),
     lineHeight: options.lineHeight ?? (blockType === 'section_heading' ? 18 : blockType === 'small' ? 13 : 15),
+    spacingBefore: options.spacingBefore ?? 0,
+    spacingAfter: options.spacingAfter ?? 0,
+    pageBreakPolicy: options.pageBreakPolicy ?? 'auto',
+  };
+}
+
+function createTwoColumnBlock(
+  leftText: string,
+  rightText: string,
+  options: {
+    readonly font?: PdfFont;
+    readonly size?: number;
+    readonly lineHeight?: number;
+    readonly spacingBefore?: number;
+    readonly spacingAfter?: number;
+    readonly pageBreakPolicy?: CustomerPdfPageBreakPolicy;
+  } = {},
+): CustomerPdfDraftBlock {
+  return {
+    kind: 'two_column',
+    blockType: 'two_column',
+    leftText,
+    rightText,
+    font: options.font ?? 'F1',
+    size: options.size ?? 11,
+    lineHeight: options.lineHeight ?? 15,
     spacingBefore: options.spacingBefore ?? 0,
     spacingAfter: options.spacingAfter ?? 0,
     pageBreakPolicy: options.pageBreakPolicy ?? 'auto',
@@ -365,9 +395,27 @@ function measureBlock(block: CustomerPdfDraftBlock): CustomerPdfMeasuredBlock {
     return {
       ...block,
       lines: [],
+      rightLines: [],
       intrinsicHeight,
       wrappedHeight: 0,
       totalHeight: block.spacingBefore + intrinsicHeight + block.spacingAfter,
+    };
+  }
+
+  if (block.kind === 'two_column') {
+    const columnCharWidth = Math.max(10, Math.floor(wrapWidth(block.size) / 2) - 2);
+    const lines = wordWrap(block.leftText ?? '', columnCharWidth);
+    const rightLines = wordWrap(block.rightText ?? '', columnCharWidth);
+    const lineCount = Math.max(lines.length, rightLines.length);
+    const intrinsicHeight = lineCount > 0 ? block.lineHeight : 0;
+    const wrappedHeight = lineCount > 1 ? (lineCount - 1) * block.lineHeight : 0;
+    return {
+      ...block,
+      lines,
+      rightLines,
+      intrinsicHeight,
+      wrappedHeight,
+      totalHeight: block.spacingBefore + intrinsicHeight + wrappedHeight + block.spacingAfter,
     };
   }
 
@@ -377,6 +425,7 @@ function measureBlock(block: CustomerPdfDraftBlock): CustomerPdfMeasuredBlock {
   return {
     ...block,
     lines,
+    rightLines: [],
     intrinsicHeight,
     wrappedHeight,
     totalHeight: block.spacingBefore + intrinsicHeight + wrappedHeight + block.spacingAfter,
@@ -420,10 +469,12 @@ function splitMeasuredTextBlockForPage(
     fit: {
       ...fit,
       totalHeight: fitTotalHeight,
+      rightLines: [],
     },
     remainder: {
       ...remainder,
       totalHeight: remainderTotalHeight,
+      rightLines: [],
     },
   };
 }
@@ -488,6 +539,10 @@ class CustomerPdfBlockLayoutEngine {
   private drawPageContentStream(pageBlocks: readonly CustomerPdfMeasuredBlock[]): string {
     const cmds: string[] = [];
     let y = PDF_TEXT_TOP_Y;
+    const textWidthPt = PDF_PAGE_W - 2 * PDF_MARGIN_L;
+    const columnGapPt = 18;
+    const columnWidthPt = (textWidthPt - columnGapPt) / 2;
+    const rightColumnX = PDF_MARGIN_L + columnWidthPt + columnGapPt;
     let currentFont: PdfFont | null = null;
     let currentSize = 0;
     let inBt = false;
@@ -516,6 +571,21 @@ class CustomerPdfBlockLayoutEngine {
       }
 
       ensureFont(block.font, block.size);
+      if (block.kind === 'two_column') {
+        const lineCount = Math.max(block.lines.length, block.rightLines.length);
+        for (let i = 0; i < lineCount; i += 1) {
+          if (i < block.lines.length) {
+            cmds.push(`${PDF_MARGIN_L} ${y} Td\n(${escapePdfText(block.lines[i])}) Tj\n0 0 Td`);
+          }
+          if (i < block.rightLines.length) {
+            cmds.push(`${rightColumnX} ${y} Td\n(${escapePdfText(block.rightLines[i])}) Tj\n0 0 Td`);
+          }
+          y -= block.lineHeight;
+        }
+        y -= block.spacingAfter;
+        continue;
+      }
+
       for (const line of block.lines) {
         cmds.push(`${PDF_MARGIN_L} ${y} Td\n(${escapePdfText(line)}) Tj\n0 0 Td`);
         y -= block.lineHeight;
@@ -548,14 +618,14 @@ function buildCustomerPdfDraftBlocks(documentModel: CustomerDocumentModelV1): Cu
     blocks.push(createTextBlock('body', documentModel.cover.addressSummary, { spacingAfter: 6 }));
   }
   blocks.push(createTextBlock('subheading', 'Demographics Grid', { spacingAfter: 4 }));
-  blocks.push(createTextBlock(
-    'body',
-    `Occupants: ${demographics.occupants}  |  Bathrooms: ${demographics.bathrooms}`,
-    { spacingAfter: 2 },
+  blocks.push(createTwoColumnBlock(
+    `Occupants: ${demographics.occupants}`,
+    `Bathrooms: ${demographics.bathrooms}`,
+    { spacingAfter: 1 },
   ));
-  blocks.push(createTextBlock(
-    'body',
-    `Peak heat loss (kW): ${demographics.peakHeatLoss}  |  Hot water demand: ${demographics.hotWaterDemand}`,
+  blocks.push(createTwoColumnBlock(
+    `Peak heat loss (kW): ${demographics.peakHeatLoss}`,
+    `Hot water demand: ${demographics.hotWaterDemand}`,
     { spacingAfter: 4 },
   ));
   if (demographics.additionalFacts.length > 0) {

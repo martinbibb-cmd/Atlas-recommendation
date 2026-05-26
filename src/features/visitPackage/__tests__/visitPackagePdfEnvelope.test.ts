@@ -109,6 +109,21 @@ function extractYCoordinates(stream: string): number[] {
     .map((match) => Number.parseFloat(match[1]));
 }
 
+interface PdfTextDrawCommand {
+  readonly x: number;
+  readonly y: number;
+  readonly text: string;
+}
+
+function extractTextDrawCommands(stream: string): PdfTextDrawCommand[] {
+  return [...stream.matchAll(/([0-9]+(?:\.[0-9]+)?) ([0-9]+(?:\.[0-9]+)?) Td\n\(((?:\\.|[^\\)])*)\) Tj/g)]
+    .map((match) => ({
+      x: Number.parseFloat(match[1]),
+      y: Number.parseFloat(match[2]),
+      text: match[3].replace(/\\([()\\])/g, '$1'),
+    }));
+}
+
 function countTextDrawCommands(pdf: string): number {
   return (pdf.match(/ Td\r?\n\(/g) ?? []).length;
 }
@@ -370,6 +385,28 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
         expect(yCoords[i]).toBeLessThan(yCoords[i - 1]);
       }
     }
+  });
+
+  it('renders demographics in a two-column row layout in PDF text commands', () => {
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() }));
+    const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
+    const occupants = commands.find((command) => command.text.startsWith('Occupants:'));
+    const bathrooms = commands.find((command) => command.text.startsWith('Bathrooms:'));
+    const peakHeatLoss = commands.find((command) => command.text.startsWith('Peak heat loss (kW):'));
+    const hotWaterDemand = commands.find((command) => command.text.startsWith('Hot water demand:'));
+
+    expect(occupants).toBeDefined();
+    expect(bathrooms).toBeDefined();
+    expect(peakHeatLoss).toBeDefined();
+    expect(hotWaterDemand).toBeDefined();
+
+    expect(occupants?.x).toBe(50);
+    expect(peakHeatLoss?.x).toBe(50);
+    expect(bathrooms?.x).toBeGreaterThan(50);
+    expect(hotWaterDemand?.x).toBeGreaterThan(50);
+
+    expect(occupants?.y).toBe(bathrooms?.y);
+    expect(peakHeatLoss?.y).toBe(hotWaterDemand?.y);
   });
 
   it('wrapped text keeps page coordinates non-negative for long reason detail payloads', () => {
