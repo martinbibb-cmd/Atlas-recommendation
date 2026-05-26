@@ -39,7 +39,7 @@ describe('resolveAuthRuntimeConfig', () => {
       'VITE_FIREBASE_AUTH_DOMAIN',
       'VITE_FIREBASE_APP_ID',
     ]);
-    expect(config.statusMessage).toMatch(/Cloudflare Pages Production variables/i);
+    expect(config.statusMessage).toMatch(/Set these environment variables and restart or redeploy/i);
   });
 
   it('accepts the legacy firebase_api_key compatibility fallback', () => {

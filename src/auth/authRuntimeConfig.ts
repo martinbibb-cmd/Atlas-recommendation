@@ -90,7 +90,7 @@ export function resolveAuthRuntimeConfig(
     modeLabel = 'Auth misconfigured';
     statusMessage =
       `Authentication is unavailable because Firebase runtime config is missing: ${missingFirebaseVars.join(', ')}. ` +
-      'Set these Cloudflare Pages Production variables and redeploy.';
+      'Set these environment variables and restart or redeploy.';
   }
 
   return {
