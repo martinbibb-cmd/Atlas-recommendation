@@ -30,7 +30,7 @@ function collectSourceFiles(dir: string): string[] {
 function collectImportPaths(filePath: string): string[] {
   const source = fs.readFileSync(filePath, 'utf8');
   const importPaths: string[] = [];
-  const importRegex = /from\s+['"]([^'"]+)['"]/g;
+  const importRegex = /(?:from\s+|import\(|require\()\s*['"]([^'"]+)['"]/g;
   let match = importRegex.exec(source);
   while (match != null) {
     importPaths.push(match[1]);
@@ -45,7 +45,7 @@ function resolveImportPath(fromFile: string, importPath: string): string {
 }
 
 describe('customer PDF import boundaries', () => {
-  it('does not import customer PDF sources from legacy or dev/gallery registries', () => {
+  it('does not import customer PDF sources from legacy or dev/gallery directories', () => {
     const sourceFiles = collectSourceFiles(PDF_DIR);
     const violations: string[] = [];
     for (const sourceFile of sourceFiles) {

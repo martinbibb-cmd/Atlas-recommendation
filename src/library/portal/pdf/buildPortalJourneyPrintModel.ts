@@ -874,19 +874,21 @@ function collectScopeAndEvidenceSignalText(input: BuildCustomerJourneyPackInputV
   return lines.join(' ').toLowerCase();
 }
 
-function hasPowerflushScopeSignal(input: BuildCustomerJourneyPackInputV1): boolean {
-  const haystack = collectScopeAndEvidenceSignalText(input);
-  return /\b(powerflush|power flush|system flush|chemical clean|sludge)\b/i.test(haystack);
+const POWERFLUSH_TRIGGER_PATTERN = /\b(powerflush|power flush|system flush|chemical clean|sludge)\b/;
+const FILTER_TRIGGER_PATTERN = /\b(magnetic filter|filter replacement|system filter|filter capture|magnetite filter)\b/;
+const PRESSURE_FLOW_TRIGGER_PATTERN =
+  /\b(mains pressure|mains flow|water pressure|water flow|dynamic flow|dynamic pressure|flow rate|pressure constraint)\b/;
+
+function hasPowerflushScopeSignal(haystack: string): boolean {
+  return POWERFLUSH_TRIGGER_PATTERN.test(haystack);
 }
 
-function hasFilterScopeSignal(input: BuildCustomerJourneyPackInputV1): boolean {
-  const haystack = collectScopeAndEvidenceSignalText(input);
-  return /\b(magnetic filter|filter replacement|system filter|filter capture|magnetite filter)\b/i.test(haystack);
+function hasFilterScopeSignal(haystack: string): boolean {
+  return FILTER_TRIGGER_PATTERN.test(haystack);
 }
 
-function hasPressureFlowRecommendationSignal(input: BuildCustomerJourneyPackInputV1): boolean {
-  const haystack = collectScopeAndEvidenceSignalText(input);
-  return /\b(mains|flow|pressure|water pressure|water flow|dynamic flow|dynamic pressure)\b/i.test(haystack);
+function hasPressureFlowRecommendationSignal(haystack: string): boolean {
+  return PRESSURE_FLOW_TRIGGER_PATTERN.test(haystack);
 }
 
 function resolveScenarioNarrativeRouteId(intent: RecommendationIntentCategoryV1): ScenarioNarrativeRouteIdV1 | undefined {
@@ -1103,6 +1105,7 @@ export function resolveRecommendationConceptSelection(
   const recommendation = resolveVisitEnvelope(input)?.recommendation;
   const surveyInput = resolveSurveyInput(input);
   const mains = resolveMainsSignals(surveyInput);
+  const scopeEvidenceSignalText = collectScopeAndEvidenceSignalText(input);
   const conceptTagSet = new Set<EducationalConceptTagV1>();
   const isHeatPumpIntent = resolvedIntent === 'heat_pump_transition';
 
@@ -1136,7 +1139,7 @@ export function resolveRecommendationConceptSelection(
   if (isPoorMainsSupply(mains)) {
     conceptTagSet.add('flow_restriction_bottleneck');
   }
-  if (hasPressureFlowRecommendationSignal(input)) {
+  if (hasPressureFlowRecommendationSignal(scopeEvidenceSignalText)) {
     conceptTagSet.add('flow_restriction_bottleneck');
     conceptTagSet.add('sealed_system_pressure_window');
   }
@@ -1145,10 +1148,10 @@ export function resolveRecommendationConceptSelection(
     conceptTagSet.add('magnetic_filter_capture');
     conceptTagSet.add('powerflush_condition_led');
   }
-  if (hasPowerflushScopeSignal(input)) {
+  if (hasPowerflushScopeSignal(scopeEvidenceSignalText)) {
     conceptTagSet.add('powerflush_condition_led');
   }
-  if (hasFilterScopeSignal(input)) {
+  if (hasFilterScopeSignal(scopeEvidenceSignalText)) {
     conceptTagSet.add('magnetic_filter_capture');
   }
 
@@ -1285,9 +1288,9 @@ function buildRoutedEducationalSections(input: {
       contentId: conF04.id,
       sectionId: 'powerflush_condition_led',
       heading: 'Powerflush and sludge removal',
-      summary: 'Condition-led cleaning removes circulating sludge before protected operation and commissioning.',
+      summary: 'System cleaning removes circulating sludge before protected operation and commissioning.',
       keyTakeaway: 'Powerflush removes sludge and helps protect new components.',
-      reassurance: 'Cleaning work is a protective preparation step, not a sign that your recommendation has changed.',
+      reassurance: 'Cleaning work is a protective preparation step, not a sign that your heating system recommendation has changed.',
       items: [
         'Powerflush clears sludge and debris that can restrict heat and flow performance.',
         'Cleaning is followed by protection dosing and commissioning checks.',

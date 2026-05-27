@@ -1560,4 +1560,30 @@ describe('buildCustomerJourneyPack — educational evidence acceptance routing',
       expect(isApprovedCustomerPdfVisualAssetId(visualId)).toBe(true);
     }
   });
+
+  it('rejects unapproved visual IDs in story-scene validation', () => {
+    const validation = validateCustomerStoryScene({
+      sceneKind: 'physics_explainer',
+      title: 'Pressure and storage remain separate limits',
+      customerTakeaway: 'Pressure force and stored volume are separate constraints.',
+      whyItMatters: 'This keeps expectations clear for overlap demand.',
+      whatYouWillNotice: 'You can have strong spray while stored volume still follows a recovery cycle.',
+      visualAssetId: 'heat_pump_defrost',
+    });
+    const errorCodes = validation.errors.map((issue) => issue.code);
+    expect(errorCodes).toContain('visual_not_pdf_approved');
+  });
+
+  it('accepts approved visual IDs in story-scene validation', () => {
+    const validation = validateCustomerStoryScene({
+      sceneKind: 'physics_explainer',
+      title: 'Pressure and storage remain separate limits',
+      customerTakeaway: 'Pressure force and stored volume are separate constraints.',
+      whyItMatters: 'This keeps expectations clear for overlap demand.',
+      whatYouWillNotice: 'You can have strong spray while stored volume still follows a recovery cycle.',
+      visualAssetId: 'pressure_vs_storage',
+    });
+    const errorCodes = validation.errors.map((issue) => issue.code);
+    expect(errorCodes).not.toContain('visual_not_pdf_approved');
+  });
 });
