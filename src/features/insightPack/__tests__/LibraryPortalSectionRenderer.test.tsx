@@ -145,7 +145,7 @@ describe('LibraryPortalSectionRenderer', () => {
     expect(screen.getByTestId('library-portal-debug-strip')).toBeTruthy();
     expect(screen.getByText(/libraryRendererUsed:\s*true/i)).toBeTruthy();
     expect(screen.getByText(/requested visual ID:\s*stored_hot_water_recovery/i)).toBeTruthy();
-    expect(screen.getByText(/visual classification:\s*retired_non_physical/i)).toBeTruthy();
+    expect(screen.getAllByText(/visual classification:\s*retired_non_physical/i).length).toBeGreaterThan(0);
   });
 
   it('falls back to the hardcoded daily-use panel when library output is unsafe', () => {

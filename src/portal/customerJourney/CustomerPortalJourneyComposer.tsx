@@ -11,6 +11,7 @@ import { AtlasHeatFlowGraphic } from '../visualLanguage/AtlasHeatFlowGraphic';
 import { AtlasPhysicsVisualCard } from '../visualLanguage/AtlasPhysicsVisualCard';
 import { AtlasStoryPanel } from '../visualLanguage/AtlasStoryPanel';
 import { AtlasSystemStateGraphic } from '../visualLanguage/AtlasSystemStateGraphic';
+import { AtlasWaterReserveGraphic } from '../visualLanguage/AtlasWaterReserveGraphic';
 import {
   buildCustomerJourneyPack,
   inferCustomerJourneyTypeFromSystemContext,
@@ -981,12 +982,29 @@ export function CustomerPortalJourneyComposer({
                     takeaway={story.takeaway}
                     detail={story.detail}
                   >
-                    {!comparisonGraphicDecision.allowed ? (
+                    {comparisonGraphicDecision.allowed ? (
+                      story.graphic === 'water' ? (
+                        <AtlasWaterReserveGraphic
+                          usableReservePct={story.reserve}
+                          rechargePct={story.recharge}
+                          recoveryLabel="Recovery visible"
+                          modeLabel={story.modeLabel}
+                          eventCards={story.events}
+                          annotations={story.annotations}
+                        />
+                      ) : (
+                        <AtlasHeatFlowGraphic
+                          phases={story.phases}
+                          leftLabel="Start of event"
+                          rightLabel="After demand stacks up"
+                        />
+                      )
+                    ) : (
                       <CustomerPortalVisualDiagnostic
                         decision={comparisonGraphicDecision}
                         testId={`customer-portal-visual-diagnostic-comparison-${scenario.scenarioId}`}
                       />
-                    ) : null}
+                    )}
                     <AtlasStoryPanel summary={story.storySummary} bullets={story.bullets} />
                     {'nodes' in story && story.nodes ? (
                       comparisonStateDecision.allowed ? <AtlasSystemStateGraphic nodes={story.nodes} /> : (

@@ -255,6 +255,7 @@ export function LibraryPortalSectionRenderer({
             <p>selectedConceptIds: {selectedConceptIds.join(', ') || 'none'}</p>
             <p>matchedMvpContentIds: {matchedMvpContentIds.join(', ') || 'none'}</p>
             <p>matchedDiagramIds: none</p>
+            <p>requestedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}</p>
             <p>matchedAnimationIds: {canonicalAnimationIds.join(', ') || 'none'}</p>
             {blockedVisualDecisions.map((decision) => (
               <p key={`fallback-blocked-${decision.rendererUsed}-${decision.requestedVisualId ?? 'none'}`}>
@@ -291,6 +292,7 @@ export function LibraryPortalSectionRenderer({
           <p>selectedConceptIds: {selectedConceptIds.join(', ') || 'none'}</p>
           <p>matchedMvpContentIds: {matchedMvpContentIds.join(', ') || 'none'}</p>
           <p>matchedDiagramIds: {diagrams.join(', ') || 'none'}</p>
+          <p>requestedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}</p>
           <p>matchedAnimationIds: {canonicalAnimationIds.join(', ') || 'none'}</p>
           {blockedVisualDecisions.map((decision) => (
             <p key={`blocked-${decision.rendererUsed}-${decision.requestedVisualId ?? 'none'}`}>
