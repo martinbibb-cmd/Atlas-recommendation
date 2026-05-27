@@ -30,19 +30,8 @@ import {
   getVisualAssetRendererAvailability,
 } from './visualAssetManifest';
 import { resolveLegoTechnicCustomerVisualDecision } from './legoTechnicCustomerVisualManifest';
+import { isApprovedCustomerPdfVisualAssetId } from '../../pdfVisuals/customerPdfVisualRegistry';
 import './portalJourneyPrintPack.css';
-
-// ─── Legacy Diagram ID mapping ────────────────────────────────────────────────
-// Only used to recover a canonical visual ID for legacy sections.
-
-const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
-  'diagram-open-to-sealed': 'open_vented_to_unvented',
-  'diagram-pressure-vs-storage': 'pressure_vs_storage',
-  'diagram-unvented-safety': 'open_vented_to_unvented',
-  'diagram-cleaning-method': 'powerflush_condition_led',
-  'diagram-filter-location': 'magnetic_filter_capture',
-  'diagram-pressure-window': 'system_pressure_window',
-};
 
 type SectionVisualPlan =
   | {
@@ -67,7 +56,7 @@ function resolveSectionVisualAssetId(section: PortalJourneyPrintSectionV1): stri
   if (section.storyScene?.visualAssetId) return section.storyScene.visualAssetId;
   if (section.diagramRendererId) return section.diagramRendererId;
   if (!section.diagramId) return undefined;
-  return REGISTRY_DIAGRAM_ID_MAP[section.diagramId] ?? section.diagramId;
+  return section.diagramId;
 }
 
 function resolveSectionVisualPlan(section: PortalJourneyPrintSectionV1): SectionVisualPlan {
@@ -77,6 +66,14 @@ function resolveSectionVisualPlan(section: PortalJourneyPrintSectionV1): Section
       rendererType: 'none',
       fallbackUsed: false,
       blockingReason: 'No visual asset declared for this section.',
+    };
+  }
+  if (!isApprovedCustomerPdfVisualAssetId(visualAssetId)) {
+    return {
+      rendererType: 'none',
+      visualAssetId,
+      fallbackUsed: false,
+      blockingReason: `Visual asset "${visualAssetId}" is not approved in customerPdfVisualRegistry.`,
     };
   }
 
