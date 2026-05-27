@@ -7,6 +7,7 @@ import { DiagramRenderer } from '../../library/diagrams/DiagramRenderer';
 import { getDiagramById } from '../../library/diagrams/diagramExplanationRegistry';
 import { isCustomerReadyProductionVisual } from '../../library/visualReadiness';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
+import { AtlasHeatFlowGraphic } from '../visualLanguage/AtlasHeatFlowGraphic';
 import { AtlasPhysicsVisualCard } from '../visualLanguage/AtlasPhysicsVisualCard';
 import { AtlasStoryPanel } from '../visualLanguage/AtlasStoryPanel';
 import { AtlasSystemStateGraphic } from '../visualLanguage/AtlasSystemStateGraphic';

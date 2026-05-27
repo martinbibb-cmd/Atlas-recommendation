@@ -212,8 +212,10 @@ export function LibraryPortalSectionRenderer({
     || routingTriggerTags.some((tag) => LOW_TEMP_TAG_PATTERN.test(tag));
   const hasWaterMainConstraintPath = selectedConceptIds.some((conceptId) => WATER_CONSTRAINT_CONCEPT_IDS.includes(conceptId))
     || routingTriggerTags.some((tag) => WATER_CONSTRAINT_TAG_PATTERN.test(tag));
-  const fallbackDiagrams = composed?.brandedViewModel.diagramsBySection?.[section?.sectionId ?? '']
-    ?.filter((diagramId) => getDiagramById(diagramId));
+  const fallbackDiagrams = section
+    ? composed?.brandedViewModel.diagramsBySection?.[section.sectionId]
+      ?.filter((diagramId: string) => getDiagramById(diagramId))
+    : undefined;
   const candidateDeterministicDiagrams = [
     hasStoredHotWaterPath ? DETERMINISTIC_SCENARIO_DIAGRAMS.stored_hot_water : undefined,
     hasLowTemperaturePath ? DETERMINISTIC_SCENARIO_DIAGRAMS.low_temp_heat : undefined,
