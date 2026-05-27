@@ -39,6 +39,11 @@ import {
   type SurveySystemConditionV1,
   type SystemProtectionSummaryV1,
 } from './buildSystemProtectionSummary';
+import {
+  getVisualAssetManifestEntry,
+  getVisualAssetRendererAvailability,
+  listManifestAssetIds,
+} from './visualAssetManifest';
 export type { SurveySystemConditionV1, SystemProtectionSummaryV1 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -200,17 +205,29 @@ export interface CustomerPdfContentSourceV1 {
   visualAssetIds: string[];
   fallbackSectionsUsed: boolean;
   fallbackOnly: boolean;
+  sceneDiagnostics: CustomerPdfSceneDiagnosticV1[];
   storySceneValidation: {
     sceneCount: number;
     warningCount: number;
     errorCount: number;
     blockingErrorCount: number;
     rejectedSceneCount: number;
+    rejectedSceneSectionIds: string[];
+    offendingPhrases: string[];
     warningCodes: string[];
     errorCodes: string[];
     compositionWarningCount: number;
     compositionErrorCount: number;
   };
+}
+
+export interface CustomerPdfSceneDiagnosticV1 {
+  sectionId: PortalJourneyPrintSectionV1['sectionId'];
+  visualAssetId?: string;
+  rendererType: 'diagram_component' | 'print_fallback' | 'none';
+  fallbackUsed: boolean;
+  blockingReasons: string[];
+  offendingPhrases: string[];
 }
 
 export interface PortalJourneyPrintModelV1 {
@@ -461,15 +478,15 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         sceneKind: 'current_system_explainer',
         title: 'From vented layout to sealed comfort',
         customerTakeaway: 'Your home moves away from loft-tank dependence to a sealed system with stored hot water.',
-        whyItMatters: 'This route stabilises pressure management while keeping everyday comfort expectations familiar.',
+        whyItMatters: 'This recommendation stabilises pressure management while keeping everyday comfort expectations familiar.',
         whatYouWillNotice: 'You will see a pressure gauge and no longer rely on a loft header tank.',
         visualAssetId: 'open_vented_to_unvented',
       },
       {
         sectionId: 'system_fit_decision_map',
         sceneKind: 'route_rationale',
-        title: 'Why Atlas selected this route',
-        customerTakeaway: 'Atlas matched your route to measured demand, mains behaviour, and layout constraints together.',
+        title: 'Why Atlas selected this recommendation',
+        customerTakeaway: 'Atlas matched this recommendation to measured demand, mains behaviour, and layout constraints together.',
         whyItMatters: 'The recommendation is evidence-led for this property instead of a one-size-fits-all product swap.',
         whatYouWillNotice: 'The explanation links survey findings directly to this selected system path.',
         visualAssetId: 'system_fit_decision_map',
@@ -489,7 +506,7 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         title: 'Protection features are part of quality work',
         customerTakeaway: 'Visible cylinder safety components are expected signs of compliant, quality installation.',
         whyItMatters: 'Protection hardware is built in to manage pressure safely and support reliable operation.',
-        whatYouWillNotice: 'You may see a tundish and discharge route, and that is normal in this setup.',
+        whatYouWillNotice: 'You may see a tundish and discharge pipework, and that is normal in this setup.',
         visualAssetId: 'open_vented_to_unvented',
       },
       {
@@ -525,8 +542,8 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
       {
         sectionId: 'system_fit_decision_map',
         sceneKind: 'current_system_explainer',
-        title: 'Your system route in context',
-        customerTakeaway: 'Atlas keeps a stored-hot-water route because it fits your household demand and layout profile.',
+        title: 'Your system recommendation in context',
+        customerTakeaway: 'Atlas keeps stored hot water because it fits your household demand and layout profile.',
         whyItMatters: 'This anchors the recommendation to how your home is used, not only to appliance labels.',
         whatYouWillNotice: 'The walkthrough focuses on practical fit for overlap use and recovery planning.',
         visualAssetId: 'system_fit_decision_map',
@@ -536,7 +553,7 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         sceneKind: 'route_rationale',
         title: 'Why this recommendation suits your demand',
         customerTakeaway: 'Atlas prioritised stored hot water where overlap use needs dependable reserve capacity.',
-        whyItMatters: 'The route protects comfort at busy times when multiple outlets may run close together.',
+        whyItMatters: 'This recommendation protects comfort at busy times when multiple outlets may run close together.',
         whatYouWillNotice: 'Hot-water planning is explained using both delivery force and storage quantity.',
         visualAssetId: 'pressure_vs_storage',
       },
@@ -582,8 +599,8 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
       {
         sectionId: 'system_fit_decision_map',
         sceneKind: 'current_system_explainer',
-        title: 'Combi route for this home profile',
-        customerTakeaway: 'Atlas selected an on-demand route where stored-volume overhead is not needed for this pattern.',
+        title: 'Combi recommendation for this home profile',
+        customerTakeaway: 'Atlas selected on-demand hot water where stored-volume overhead is not needed for this pattern.',
         whyItMatters: 'This keeps the setup aligned with practical demand while simplifying the system layout.',
         whatYouWillNotice: 'Hot water behaviour is framed around on-demand delivery rather than cylinder reserve cycles.',
         visualAssetId: 'system_fit_decision_map',
@@ -591,9 +608,9 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
       {
         sectionId: 'flow_restriction_bottleneck',
         sceneKind: 'route_rationale',
-        title: 'Why this route was recommended',
-        customerTakeaway: 'Atlas checked flow bottlenecks so the chosen combi route matches real supply behaviour.',
-        whyItMatters: 'Route quality depends on measured dynamic flow, not on static assumptions alone.',
+        title: 'Why this recommendation was made',
+        customerTakeaway: 'Atlas checked flow bottlenecks so the chosen combi setup matches real supply behaviour.',
+        whyItMatters: 'Recommendation quality depends on measured dynamic flow, not on static assumptions alone.',
         whatYouWillNotice: 'The explanation calls out mains-flow checks that protect practical shower performance.',
         visualAssetId: 'flow_restriction_bottleneck',
       },
@@ -610,7 +627,7 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         sectionId: 'magnetic_filter_capture',
         sceneKind: 'protection_quality',
         title: 'Quality protection remains essential',
-        customerTakeaway: 'Water-quality and debris controls still matter even on a simpler combi route.',
+        customerTakeaway: 'Water-quality and debris controls still matter even on a simpler combi setup.',
         whyItMatters: 'Protection work prevents avoidable faults and supports long-term reliability.',
         whatYouWillNotice: 'Routine maintenance includes visible condition checks rather than only reactive fixes.',
         visualAssetId: 'magnetic_filter_capture',
@@ -619,7 +636,7 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         sectionId: 'sealed_system_pressure_window',
         sceneKind: 'future_flexibility',
         title: 'Prepared for later changes',
-        customerTakeaway: 'This route keeps a clear baseline so future efficiency decisions can be made with confidence.',
+        customerTakeaway: 'This setup keeps a clear baseline so future efficiency decisions can be made with confidence.',
         whyItMatters: 'A stable, well-documented starting point makes future upgrade choices simpler.',
         whatYouWillNotice: 'Future advice can build on known system behaviour instead of guessing from scratch.',
         visualAssetId: 'system_pressure_window',
@@ -640,16 +657,16 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         sectionId: 'system_fit_decision_map',
         sceneKind: 'current_system_explainer',
         title: 'Transitioning to low-temperature heating',
-        customerTakeaway: 'Atlas prepared this route around your current home conditions and low-temperature emitter fit.',
+        customerTakeaway: 'Atlas prepared this recommendation around your current home conditions and low-temperature emitter fit.',
         whyItMatters: 'A planned transition avoids comfort loss while introducing a different heating behaviour profile.',
-        whatYouWillNotice: 'The walkthrough explains how your existing system context supports the heat-pump route.',
+        whatYouWillNotice: 'The walkthrough explains how your existing system context supports the heat-pump recommendation.',
         visualAssetId: 'system_fit_decision_map',
       },
       {
         sectionId: 'warm_not_hot_radiators',
         sceneKind: 'route_rationale',
-        title: 'Why this heat-pump route fits',
-        customerTakeaway: 'Atlas chose this route because warm-for-longer delivery can meet comfort with lower flow temperatures.',
+        title: 'Why this heat-pump recommendation fits',
+        customerTakeaway: 'Atlas chose this recommendation because warm-for-longer delivery can meet comfort with lower flow temperatures.',
         whyItMatters: 'Matching emitters and flow temperature is central to calm, efficient day-to-day heating.',
         whatYouWillNotice: 'Radiators may feel warm rather than very hot while rooms still reach target comfort.',
         visualAssetId: 'warm_vs_hot_radiators',
@@ -821,19 +838,19 @@ function buildQuietSceneSection(section: PortalJourneyPrintSectionV1): PortalJou
   return {
     contentId: `${QUIET_SCENE_CONTENT_ID_PREFIX}${section.sectionId}`,
     sectionId: `quiet_scene_${section.sectionId}`,
-    heading: 'Pause and let this settle',
-    summary: 'This page intentionally keeps a light cognitive load after a dense explanation.',
-    keyTakeaway: 'You do not need to memorise every technical detail now.',
-    reassurance: 'Your installer will guide the practical steps and answer questions during handover.',
+    heading: 'Good to know',
+    summary: 'The recommendation has not changed. This page simply gives the main point room to breathe before the next section.',
+    keyTakeaway: 'The recommendation remains the same.',
+    reassurance: 'Your installer will still guide the practical steps during handover.',
     items: [
-      'Keep this document for reference and focus on the essentials for now.',
+      'You can continue with confidence and review details at your own pace.',
     ],
     storyScene: {
       sceneKind: 'future_flexibility',
-      title: 'Quiet recap',
-      customerTakeaway: 'Core recommendation remains unchanged.',
-      whyItMatters: 'Spacing technical depth with lighter pages improves comprehension.',
-      whatYouWillNotice: 'A short breather page appears after dense technical explanation moments.',
+      title: 'Good to know',
+      customerTakeaway: 'The recommendation has not changed.',
+      whyItMatters: 'This page gives the main point room to breathe before the next section.',
+      whatYouWillNotice: 'You will see a short pause page before moving to the next topic.',
       composition: compositionTemplate({
         pageArchetype: 'quiet',
         focalVisualPriority: 'none',
@@ -1699,6 +1716,20 @@ const GENERIC_STORY_SCENE_TITLES = new Set([
   'story scene',
 ]);
 const BANNED_STORY_SCENE_LANGUAGE = /\batlas[\s_-]*mapped\b|\bprojection\b|\btaxonomy\b|\bdigest\b|\bconcept id\b/i;
+const INTERNAL_SCENE_PHRASES = [
+  'cognitive load',
+  'dense technical',
+  'spacing',
+  'comprehension',
+  'breather page',
+  'routed evidence',
+  'route',
+  'story scene',
+  'composition',
+  'archetype',
+  'projection',
+  'taxonomy',
+] as const;
 const MIN_WHAT_YOU_WILL_NOTICE_LENGTH = 24;
 const MIN_STORY_SCENE_TITLE_LENGTH = 8;
 const MIN_STORY_SCENE_TAKEAWAY_LENGTH = 20;
@@ -1735,7 +1766,12 @@ const BLOCKING_STORY_SCENE_ERROR_CODES = new Set([
   'banned_internal_language',
   'vague_household_outcome',
   'missing_required_visual_asset',
-  'non_canonical_visual_asset',
+  'non_manifest_visual_asset',
+  'visual_not_pdf_supported',
+  'composition_archetype_not_allowed',
+  'visual_renderer_unresolved',
+  'scene_internal_design_language',
+  'scenario_visual_asset_manifest_missing',
   'multiple_core_messages',
   'duplicate_or_overlapping_scene',
   'scene_page_budget_exceeded',
@@ -1750,22 +1786,7 @@ const BLOCKING_STORY_SCENE_ERROR_CODES = new Set([
   'composition_rhythm_break',
 ]);
 const VISUAL_REQUIRED_SCENE_KINDS = new Set<LibraryStorySceneKindV1>(['physics_explainer', 'lived_experience']);
-const CANONICAL_SCENE_VISUAL_ASSET_IDS = new Set([
-  'pressure_vs_storage',
-  'warm_vs_hot_radiators',
-  'water_main_limitation',
-  'open_vented_to_unvented',
-  'system_fit_decision_map',
-  'stored_hot_water_recovery_timeline',
-  'warm_radiator_emitter_sizing',
-  'flow_restriction_bottleneck',
-  'weather_compensation_curve',
-  'stratified_cylinder_mixergy',
-  'powerflush_condition_led',
-  'magnetic_filter_capture',
-  'system_pressure_window',
-  'heat_pump_defrost',
-]);
+const VISUAL_ASSET_MANIFEST_IDS = new Set(listManifestAssetIds());
 const STORY_SCENE_TOKEN_STOP_WORDS = new Set([
   'the', 'and', 'for', 'that', 'this', 'with', 'from', 'your', 'you', 'are', 'can',
   'will', 'what', 'why', 'how', 'when', 'into', 'over', 'after', 'before', 'more',
@@ -1852,6 +1873,25 @@ function buildStorySceneValidationIssue(
   return { code, message };
 }
 
+function findSceneInternalPhrases(scene: LibraryStorySceneV1): string[] {
+  const text = `${scene.title} ${scene.customerTakeaway} ${scene.whyItMatters} ${scene.whatYouWillNotice}`.toLowerCase();
+  return INTERNAL_SCENE_PHRASES.filter((phrase) =>
+    phrase === 'route'
+      ? /\broute\b/i.test(text)
+      : text.includes(phrase));
+}
+
+function collectScenarioNarrativeVisualAssetIds(): string[] {
+  return dedupeStrings(
+    Object.values(SCENARIO_NARRATIVE_PACKS).flatMap((pack) =>
+      pack.scenes.map((scene) => scene.visualAssetId)),
+  );
+}
+
+export function listScenarioNarrativeVisualAssetIds(): string[] {
+  return collectScenarioNarrativeVisualAssetIds();
+}
+
 function validateStorySceneComposition(
   scene: LibraryStorySceneV1,
   section: PortalJourneyPrintSectionV1,
@@ -1865,6 +1905,18 @@ function validateStorySceneComposition(
       'Story scene is missing composition contract metadata.',
     ));
     return { warnings, errors };
+  }
+  if (hasText(scene.visualAssetId)) {
+    const manifestEntry = getVisualAssetManifestEntry(scene.visualAssetId);
+    if (
+      manifestEntry != null
+      && !manifestEntry.allowedCompositionArchetypes.includes(composition.pageArchetype)
+    ) {
+      errors.push(buildStorySceneValidationIssue(
+        'composition_archetype_not_allowed',
+        `Visual asset "${scene.visualAssetId}" is not allowed on "${composition.pageArchetype}" composition pages.`,
+      ));
+    }
   }
   if (composition.focalVisualPriority === 'primary' && !hasText(scene.visualAssetId)) {
     errors.push(buildStorySceneValidationIssue(
@@ -1959,6 +2011,13 @@ export function validateCustomerStoryScene(
       'Story scene includes blocked internal pipeline wording.',
     ));
   }
+  const internalPhrases = findSceneInternalPhrases(scene);
+  if (internalPhrases.length > 0) {
+    errors.push(buildStorySceneValidationIssue(
+      'scene_internal_design_language',
+      `Story scene contains internal design wording: ${internalPhrases.join(', ')}.`,
+    ));
+  }
   if (
     whatYouWillNotice.length < MIN_WHAT_YOU_WILL_NOTICE_LENGTH
     || VAGUE_WHAT_YOU_WILL_NOTICE.some((phrase) => whatYouWillNotice.toLowerCase().includes(phrase))
@@ -1977,11 +2036,20 @@ export function validateCustomerStoryScene(
       'Story scene requires a visual asset ID for this concept.',
     ));
   }
-  if (hasText(scene.visualAssetId) && !CANONICAL_SCENE_VISUAL_ASSET_IDS.has(scene.visualAssetId)) {
+  if (hasText(scene.visualAssetId) && !VISUAL_ASSET_MANIFEST_IDS.has(scene.visualAssetId)) {
     errors.push(buildStorySceneValidationIssue(
-      'non_canonical_visual_asset',
-      'Story scene visual asset must use a canonical visual ID.',
+      'non_manifest_visual_asset',
+      'Story scene visual asset is not declared in the canonical visual manifest.',
     ));
+  }
+  if (hasText(scene.visualAssetId)) {
+    const manifestEntry = getVisualAssetManifestEntry(scene.visualAssetId);
+    if (manifestEntry != null && !manifestEntry.supportedSurfaces.includes('pdf')) {
+      errors.push(buildStorySceneValidationIssue(
+        'visual_not_pdf_supported',
+        `Story scene visual asset "${scene.visualAssetId}" is not supported on PDF.`,
+      ));
+    }
   }
   if (
     hasMultipleCoreMessages(scene.customerTakeaway)
@@ -2025,11 +2093,29 @@ function buildCustomerPdfContentSource(input: {
   sections: readonly PortalJourneyPrintSectionV1[];
   recommendationReasons: readonly RecommendationReasonBlockV1[];
 }): CustomerPdfContentSourceV1 {
+  const scenarioVisualAssetIds = collectScenarioNarrativeVisualAssetIds();
+  const missingScenarioManifestAssetIds = scenarioVisualAssetIds.filter((assetId) =>
+    !VISUAL_ASSET_MANIFEST_IDS.has(assetId));
   const validatedStoryScenes = input.sections.map((section) => {
     const scene = section.storyScene ?? buildStorySceneFromSection(section);
     const visualAssetRequired = hasText(section.diagramRendererId) || hasText(section.diagramId);
     const validation = validateCustomerStoryScene(scene, { visualAssetRequired });
     const compositionValidation = validateStorySceneComposition(scene, section);
+    const offendingPhrases = findSceneInternalPhrases(scene);
+    const rendererAvailability = hasText(scene.visualAssetId)
+      ? getVisualAssetRendererAvailability(scene.visualAssetId)
+      : { hasDiagramRenderer: false, hasPrintFallback: false };
+    const rendererType: CustomerPdfSceneDiagnosticV1['rendererType'] = rendererAvailability.hasDiagramRenderer
+      ? 'diagram_component'
+      : rendererAvailability.hasPrintFallback
+      ? 'print_fallback'
+      : 'none';
+    if (hasText(scene.visualAssetId) && rendererType === 'none') {
+      validation.errors.push(buildStorySceneValidationIssue(
+        'visual_renderer_unresolved',
+        `Visual asset "${scene.visualAssetId}" has no PDF renderer or registered print fallback.`,
+      ));
+    }
     const hasAllRequiredText =
       hasText(scene.title)
       && hasText(scene.customerTakeaway)
@@ -2041,6 +2127,8 @@ function buildCustomerPdfContentSource(input: {
       validation,
       compositionValidation,
       hasAllRequiredText,
+      rendererType,
+      offendingPhrases,
     };
   });
   const acceptedStorySceneEntries: Array<(typeof validatedStoryScenes)[number]> = [];
@@ -2062,6 +2150,9 @@ function buildCustomerPdfContentSource(input: {
   const globalErrorCodes: string[] = [];
   if (duplicateOrOverlappingSceneCount > 0) {
     globalErrorCodes.push('duplicate_or_overlapping_scene');
+  }
+  if (missingScenarioManifestAssetIds.length > 0) {
+    globalErrorCodes.push('scenario_visual_asset_manifest_missing');
   }
   let storyScenes = acceptedStorySceneEntries.map((entry) => entry.scene);
   if (storyScenes.length > MAX_SCENES_PER_CUSTOMER_PDF) {
@@ -2098,6 +2189,17 @@ function buildCustomerPdfContentSource(input: {
   const acceptedSections = input.sections.filter((section) =>
     acceptedSectionKeys.has(JSON.stringify([section.sectionId, section.contentId])),
   );
+  const sceneDiagnostics: CustomerPdfSceneDiagnosticV1[] = validatedStoryScenes.map((entry) => ({
+    sectionId: entry.section.sectionId,
+    visualAssetId: entry.scene.visualAssetId,
+    rendererType: entry.rendererType,
+    fallbackUsed: entry.rendererType === 'print_fallback',
+    blockingReasons: [
+      ...entry.validation.errors.map((issue) => issue.message),
+      ...entry.compositionValidation.errors.map((issue) => issue.message),
+    ],
+    offendingPhrases: entry.offendingPhrases,
+  }));
   let rhythmIndex = 0;
   for (let i = 0; i < acceptedStorySceneEntries.length; i += 1) {
     const entry = acceptedStorySceneEntries[i];
@@ -2138,11 +2240,21 @@ function buildCustomerPdfContentSource(input: {
   const visualAssetIds = dedupeStrings(
     storyScenes.flatMap((scene) => (hasText(scene.visualAssetId) ? [scene.visualAssetId] : [])),
   );
+  const unresolvedVisualRendererCount = validatedStoryScenes.filter((entry) =>
+    hasText(entry.scene.visualAssetId) && entry.rendererType === 'none').length;
+  const rejectedSceneSectionIds = dedupeStrings(
+    validatedStoryScenes
+      .filter((entry) => !acceptedSectionKeys.has(JSON.stringify([entry.section.sectionId, entry.section.contentId])))
+      .map((entry) => entry.section.sectionId),
+  );
+  const offendingPhrases = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.offendingPhrases));
   const fallbackSignals: string[] = [];
   if (!input.audienceProjectionPresent) fallbackSignals.push('audience_projection_missing');
   if (selectedConceptCount === 0) fallbackSignals.push('concept_selection_missing');
   if (selectedStorySceneCount === 0) fallbackSignals.push('story_scenes_missing');
   if (scenarioRequiresVisuals && visualAssetIds.length === 0) fallbackSignals.push('visual_assets_missing');
+  if (unresolvedVisualRendererCount > 0) fallbackSignals.push('visual_renderer_unresolved');
+  if (missingScenarioManifestAssetIds.length > 0) fallbackSignals.push('scenario_visual_asset_manifest_missing');
   const warningCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => [
     ...entry.validation.warnings.map((issue) => issue.code),
     ...entry.compositionValidation.warnings.map((issue) => issue.code),
@@ -2181,6 +2293,8 @@ function buildCustomerPdfContentSource(input: {
     && selectedConceptCount > 0
     && selectedStorySceneCount > 0
     && (!scenarioRequiresVisuals || visualAssetIds.length > 0)
+    && unresolvedVisualRendererCount === 0
+    && missingScenarioManifestAssetIds.length === 0
     && blockingErrorCount === 0;
   const fallbackOnly = !exportable;
 
@@ -2191,12 +2305,15 @@ function buildCustomerPdfContentSource(input: {
     visualAssetIds,
     fallbackSectionsUsed,
     fallbackOnly,
+    sceneDiagnostics,
     storySceneValidation: {
       sceneCount: validatedStoryScenes.length,
       warningCount,
       errorCount,
       blockingErrorCount,
       rejectedSceneCount: validatedStoryScenes.length - selectedStorySceneCount,
+      rejectedSceneSectionIds,
+      offendingPhrases,
       warningCodes,
       errorCodes,
       compositionWarningCount,

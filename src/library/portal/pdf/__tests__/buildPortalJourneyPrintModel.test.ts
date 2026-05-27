@@ -6,12 +6,14 @@ import {
   CUSTOMER_JOURNEY_PACK_SCHEMA,
   CUSTOMER_JOURNEY_PACK_VERSION,
   isFallbackOnlyCustomerPdf,
+  listScenarioNarrativeVisualAssetIds,
   QUIET_SCENE_CONTENT_ID_PREFIX,
   resolveRecommendationConceptSelection,
   validateCustomerStoryScene,
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
 import { buildCanonicalVisitPackage } from '../../../../features/visitPackage';
+import { listManifestAssetIds } from '../visualAssetManifest';
 
 const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
   journeyType: 'open_vented',
@@ -260,7 +262,7 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
       'Why stored hot water helps',
       'How the cylinder keeps itself safe',
     ]);
-    expect(model.sections.some((s) => s.heading === 'Pause and let this settle')).toBe(true);
+    expect(model.sections.some((s) => s.heading === 'Good to know')).toBe(true);
   });
 
   it('keeps page content density low', () => {
@@ -377,6 +379,8 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     for (const quietPage of quietPages) {
       expect(quietPage.storyScene?.composition?.pageArchetype).toBe('quiet');
       expect(quietPage.storyScene?.composition?.focalVisualPriority).toBe('none');
+      const quietText = `${quietPage.heading} ${quietPage.summary} ${quietPage.storyScene?.whyItMatters ?? ''}`.toLowerCase();
+      expect(quietText).not.toMatch(/cognitive load|story scene|composition|archetype|projection|taxonomy|breather page|route|routed evidence/);
     }
   });
 
@@ -430,6 +434,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(model.contentSource?.fallbackOnly).toBe(true);
   });
 
+
   it('flags story scenes with banned internal language', () => {
     const result = validateCustomerStoryScene({
       title: 'Hot water reliability',
@@ -438,8 +443,20 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       whatYouWillNotice: 'Steadier shower temperature at peak times.',
       visualAssetId: 'pressure_vs_storage',
     });
+
     expect(result.errors.map((issue) => issue.code)).toContain('banned_internal_language');
     expect(result.errors.map((issue) => issue.code)).toContain('internal_why_it_matters_language');
+  });
+
+  it('flags story scenes containing internal composition wording', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Good to know',
+      customerTakeaway: 'This page keeps cognitive load low.',
+      whyItMatters: 'Spacing dense technical detail helps comprehension.',
+      whatYouWillNotice: 'A breather page appears before the next story scene.',
+      visualAssetId: 'pressure_vs_storage',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('scene_internal_design_language');
   });
 
   it('flags missing visual asset IDs when a visual is required', () => {
@@ -485,7 +502,13 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       whatYouWillNotice: 'Recovery periods are expected after heavy simultaneous draw.',
       visualAssetId: 'generated_blob_card',
     });
-    expect(result.errors.map((issue) => issue.code)).toContain('non_canonical_visual_asset');
+    expect(result.errors.map((issue) => issue.code)).toContain('non_manifest_visual_asset');
+  });
+
+  it('ensures scenario narrative visuals are fully covered by manifest', () => {
+    const manifestIds = new Set(listManifestAssetIds());
+    const scenarioVisualIds = listScenarioNarrativeVisualAssetIds();
+    expect(scenarioVisualIds.every((visualId) => manifestIds.has(visualId))).toBe(true);
   });
 });
 
@@ -1082,6 +1105,7 @@ describe('buildPortalJourneyPrintModel — ASHP intent prioritises heat-pump sec
       recommendationSummary: 'Air source heat pump — the right fit for this home.',
       customerFacts: ['3-person household', '2 bathrooms'],
     });
+
     const sectionIds = model.sections.map((s) => s.sectionId);
     expect(sectionIds).toContain('warm_not_hot_radiators');
     expect(sectionIds).toContain('steady_running');
@@ -1098,6 +1122,46 @@ describe('buildPortalJourneyPrintModel — ASHP intent prioritises heat-pump sec
     const sectionIds = model.sections.map((s) => s.sectionId);
     expect(sectionIds).not.toContain('pressure_vs_storage');
     expect(sectionIds).not.toContain('unvented_safety');
+  });
+});
+
+describe('buildPortalJourneyPrintModel — core-route visual snapshots', () => {
+  it('captures expected visual scene outputs for core recommendation routes', () => {
+    const cases: Array<{ id: string; input: BuildPortalJourneyPrintModelInputV1 }> = [
+      { id: 'regular_vented', input: BASE_INPUT },
+      {
+        id: 'system_unvented',
+        input: {
+          journeyType: 'stored_hot_water',
+          selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_I01_DAY_TO_DAY'],
+          recommendationSummary: 'System boiler with stored hot water.',
+          customerFacts: ['4-person household', '2 bathrooms'],
+        },
+      },
+      {
+        id: 'combi',
+        input: {
+          journeyType: 'generic_recommendation_summary',
+          selectedSectionIds: ['CON_A01', 'CON_D01'],
+          recommendationSummary: 'Combi boiler — right fit.',
+          customerFacts: ['2-person household', '1 bathroom'],
+          recommendationIntent: 'combi_replacement',
+        },
+      },
+      { id: 'heat_pump', input: HEAT_PUMP_INPUT },
+    ];
+    const snapshot = cases.map(({ id, input }) => {
+      const model = buildPortalJourneyPrintModel(input);
+      return {
+        id,
+        scenes: model.contentSource?.sceneDiagnostics.map((diag) => ({
+          sectionId: diag.sectionId,
+          visualAssetId: diag.visualAssetId,
+          rendererType: diag.rendererType,
+        })),
+      };
+    });
+    expect(snapshot).toMatchSnapshot();
   });
 });
 

@@ -242,13 +242,13 @@ describe('VisitHomeDashboard — promoted to default visit entry', () => {
       expect(card).toHaveTextContent('Library safety needs review');
     });
 
-    it('PDF card is ready (not blocked) when libraryUnsafe is false', () => {
+    it('PDF card is not ready when journey pack is not generated, even when libraryUnsafe is false', () => {
       render(
         <VisitHomeDashboard
           {...makeProps({ libraryUnsafe: false })}
         />,
       );
-      expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'ready');
+      expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'needs-review');
     });
 
     it('non-library cards are unaffected by libraryUnsafe', () => {

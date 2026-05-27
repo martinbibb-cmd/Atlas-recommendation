@@ -614,9 +614,9 @@ export function VisitHomeDashboard({
   });
 
   const recommendationStatus: CardStatus = viewModel.recommendationStatus;
-  const portalStatus: CardStatus = viewModel.portalStatus;
+  const basePortalStatus: CardStatus = viewModel.portalStatus;
   const simulatorStatus: CardStatus = viewModel.simulatorStatus;
-  const pdfStatus: CardStatus = viewModel.supportingPdfStatus;
+  const basePdfStatus: CardStatus = viewModel.supportingPdfStatus;
   const implementationStatus: CardStatus = viewModel.implementationStatus;
   const handoffStatus: CardStatus = viewModel.handoffStatus;
   const exportStatus: CardStatus = viewModel.exportStatus;
@@ -627,6 +627,11 @@ export function VisitHomeDashboard({
     ?? 'Customer-safe portal for review before sharing.';
   const supportingPdfDescription = viewModel.supportingPdfMissingMessage
     ?? 'Canonical customer PDF for sharing and printing. Includes embedded Atlas package payload when available.';
+  const customerJourneyPackStatus: CardStatus = mergedOutputs.customerJourneyPack?.generated
+    ? 'ready'
+    : viewModel.hasRecommendation
+    ? 'needs-review'
+    : 'blocked';
   const actionProjection = buildVisitHomeActionProjection({
     workspaceRole,
     workspacePermissions,
@@ -646,11 +651,11 @@ export function VisitHomeDashboard({
     },
     supportingPdfReadiness: {
       unsafe: supportingPdfUnsafe,
-      reasons: supportingPdfBlockReasons,
+      reasons: supportingPdfBlockReasons ?? [],
     },
     availableOutputs: {
       hasPortalUrl: projectedReadiness.portalOutputAvailable,
-      hasSupportingPdf: projectedReadiness.supportingPdfOutputAvailable,
+      hasSupportingPdf: projectedReadiness.supportingPdfOutputAvailable && customerJourneyPackStatus === 'ready',
       hasHandoffReview: handoffOutputAvailable,
       hasExportPackage: exportOutputAvailable,
     },
@@ -793,11 +798,23 @@ export function VisitHomeDashboard({
   const readyCount = readinessCounts.ready;
   const needsReviewCount = readinessCounts.needsReview;
   const blockedCount = readinessCounts.blocked;
-  const customerJourneyPackStatus: CardStatus = mergedOutputs.customerJourneyPack?.generated
-    ? 'ready'
-    : viewModel.hasRecommendation
-    ? 'needs-review'
-    : 'blocked';
+  const customerOutputReadiness: {
+    customerJourneyPackStatus: CardStatus;
+    portalStatus: CardStatus;
+    pdfStatus: CardStatus;
+  } = {
+    customerJourneyPackStatus,
+    portalStatus:
+      basePortalStatus === 'ready' && customerJourneyPackStatus !== 'ready'
+        ? customerJourneyPackStatus
+        : basePortalStatus,
+    pdfStatus:
+      basePdfStatus === 'ready' && customerJourneyPackStatus !== 'ready'
+        ? customerJourneyPackStatus
+        : basePdfStatus,
+  };
+  const portalStatus: CardStatus = customerOutputReadiness.portalStatus;
+  const pdfStatus: CardStatus = customerOutputReadiness.pdfStatus;
   const journeyInfo = viewModel.journeyInfo;
   const keyExpectationDelta = viewModel.hero.keyExpectationDelta;
   const recommendationHeroVisible = viewModel.hasRecommendation || viewModel.hasAcceptedScenario;

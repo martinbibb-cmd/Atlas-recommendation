@@ -15,6 +15,10 @@ export interface VisitHomeCustomerArtifactsStateInput {
 export interface VisitHomeCustomerArtifactsState {
   readonly customerPdfReady: boolean;
   readonly customerPdfBlockReasons: readonly string[];
+  readonly customerOutputReadiness: {
+    readonly customerJourneyPackStatus: 'ready' | 'needs-review' | 'blocked';
+    readonly customerPdfStatus: 'ready' | 'needs-review' | 'blocked';
+  };
   readonly canOpenPortalFromPackage: boolean;
   readonly portalLaunchPayload?: PortalLaunchPayloadV1;
 }
@@ -34,6 +38,22 @@ export function buildVisitHomeCustomerArtifactsState(
   const customerPdfBlockReasons = input.canExportVisitPackage
     ? []
     : [...(input.unavailableReasons ?? [])];
+  const customerJourneyPackGenerated =
+    input.sourcePackage?.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.generated === true;
+  const customerJourneyPackPayload = input.sourcePackage?.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.payload;
+  const customerJourneyPackBlocked =
+    customerJourneyPackPayload?.staticPdf?.recommendationViabilityState === 'blocked'
+    || customerJourneyPackPayload?.staticPdf?.contentSource?.fallbackOnly === true;
+  const customerJourneyPackStatus = customerJourneyPackGenerated
+    ? (customerJourneyPackBlocked ? 'blocked' : 'ready')
+    : input.canExportVisitPackage
+    ? 'needs-review'
+    : 'blocked';
+  if (customerJourneyPackBlocked) {
+    customerPdfBlockReasons.push(
+      'Customer journey pack is generated but blocked by journey validation checks.',
+    );
+  }
   const packagedHpBlocked =
     input.sourcePackage?.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.payload?.staticPdf?.recommendationViabilityState === 'blocked';
   if (packagedHpBlocked) {
@@ -46,11 +66,28 @@ export function buildVisitHomeCustomerArtifactsState(
       'Customer PDF artifact is stale for the active recommendation snapshot. Regeneration required.',
     );
   }
-  const customerPdfReady = input.canExportVisitPackage && !pdfStale && !packagedHpBlocked;
+  if (customerJourneyPackStatus !== 'ready' && input.canExportVisitPackage) {
+    customerPdfBlockReasons.push(
+      'Customer journey pack is not ready; customer PDF cannot be marked ready yet.',
+    );
+  }
+  const customerPdfReady = input.canExportVisitPackage
+    && customerJourneyPackStatus === 'ready'
+    && !pdfStale
+    && !packagedHpBlocked;
+  const customerPdfStatus = customerPdfReady
+    ? 'ready'
+    : input.canExportVisitPackage
+    ? 'needs-review'
+    : 'blocked';
 
   return {
     customerPdfReady,
     customerPdfBlockReasons,
+    customerOutputReadiness: {
+      customerJourneyPackStatus,
+      customerPdfStatus,
+    },
     canOpenPortalFromPackage: portalLaunchPayload?.hasCustomerJourneyPack === true,
     portalLaunchPayload,
   };
