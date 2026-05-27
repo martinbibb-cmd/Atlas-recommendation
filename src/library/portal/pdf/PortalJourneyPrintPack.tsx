@@ -292,8 +292,8 @@ interface PrintRecommendationReasonsProps {
 function PrintSection({ section, pageNumber }: PrintSectionProps) {
   const storyScene = section.storyScene;
   const sceneTitle = storyScene?.title ?? section.heading;
-  const sceneCustomerTakeaway = storyScene?.customerTakeaway ?? section.summary;
-  const sceneWhyItMatters = storyScene?.whyItMatters ?? section.keyTakeaway;
+  const sceneCustomerTakeaway = storyScene?.customerTakeaway ?? section.keyTakeaway;
+  const sceneWhyItMatters = storyScene?.whyItMatters ?? section.summary;
   const sceneWhatYouWillNotice = storyScene?.whatYouWillNotice ?? section.items[0] ?? section.reassurance;
   const noticeItems = storyScene != null
     ? [sceneWhatYouWillNotice]
