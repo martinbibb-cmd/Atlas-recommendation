@@ -216,6 +216,10 @@ export function assessSupportingPdfReadiness(
     );
   }
 
+  if ((model.contentSource?.storySceneValidation.compositionErrorCount ?? 0) > 0) {
+    blockingReasons.push('Composition contract validation failed for one or more story scenes.');
+  }
+
   const missingRequiredDiagrams = getMissingRequiredDiagrams(model, requiredDiagramSectionIds);
   if (missingRequiredDiagrams.length > 0) {
     blockingReasons.push(
