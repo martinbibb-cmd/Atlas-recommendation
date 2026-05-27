@@ -1550,7 +1550,7 @@ function orderSectionsByRoutePriority(
     .map(({ section }) => section);
 }
 
-const CUSTOMER_EXPLAINER_PRIORITY_ORDER: readonly PortalJourneyPrintSectionV1['sectionId'][] = [
+const CUSTOMER_EXPLAINER_SECTION_ORDER: readonly PortalJourneyPrintSectionV1['sectionId'][] = [
   'practical_outcomes',
   'system_fit_decision_map',
   'pressure_vs_storage',
@@ -1568,7 +1568,13 @@ const CUSTOMER_EXPLAINER_PRIORITY_ORDER: readonly PortalJourneyPrintSectionV1['s
 function prioritizeCustomerExplainerSections(
   sections: readonly PortalJourneyPrintSectionV1[],
 ): PortalJourneyPrintSectionV1[] {
-  return orderSectionsByRoutePriority(sections, CUSTOMER_EXPLAINER_PRIORITY_ORDER);
+  return orderSectionsByRoutePriority(sections, CUSTOMER_EXPLAINER_SECTION_ORDER);
+}
+
+function hasApprovedVisualMissingRenderer(entry: ValidatedStorySceneEntryV1): boolean {
+  return hasText(entry.scene.visualAssetId)
+    && isApprovedCustomerPdfVisualAssetId(entry.scene.visualAssetId)
+    && entry.rendererType === 'none';
 }
 
 function buildOpenVentedSectionsAndNextSteps(
@@ -2944,10 +2950,7 @@ function buildCustomerPdfContentSource(input: {
   );
   const unresolvedVisualRendererCount = validatedStoryScenes.filter((entry) =>
     hasText(entry.scene.visualAssetId) && entry.rendererType === 'none').length;
-  const approvedVisualMissingCount = validatedStoryScenes.filter((entry) =>
-    hasText(entry.scene.visualAssetId)
-    && isApprovedCustomerPdfVisualAssetId(entry.scene.visualAssetId)
-    && entry.rendererType === 'none').length;
+  const approvedVisualMissingCount = validatedStoryScenes.filter(hasApprovedVisualMissingRenderer).length;
   const rejectedSceneSectionIds = dedupeStrings(
     validatedStoryScenes
       .filter((entry) => !acceptedSectionKeys.has(JSON.stringify([entry.section.sectionId, entry.section.contentId])))

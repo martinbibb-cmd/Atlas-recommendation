@@ -511,14 +511,14 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
               : undefined
           }
         >
-          <p className="pjpp-section__visual-fallback-title">Visual unavailable</p>
+          <p className="pjpp-section__visual-fallback-title">Visual content not available</p>
           <p className="pjpp-section__visual-fallback-copy">
             {sceneWhyItMatters}
           </p>
         </article>
       ) : null}
 
-      {hasText(sceneWhyItMatters) && pageArchetype !== 'quiet' ? (
+      {hasText(sceneWhyItMatters) && pageArchetype !== 'quiet' && visualPlan.rendererType === 'diagram_component' ? (
         <p className="pjpp-section__visual-explanation" data-testid={`pjpp-visual-explanation-${section.sectionId}`}>
           {sceneWhyItMatters}
         </p>

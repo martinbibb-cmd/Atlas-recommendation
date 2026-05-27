@@ -326,6 +326,8 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
       if (!section.sectionId.startsWith('quiet_scene')) {
         expect(screen.getByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeInTheDocument();
         expect(screen.getByTestId(`pjpp-reassurance-${section.sectionId}`)).toBeInTheDocument();
+      } else {
+        expect(screen.queryByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeNull();
       }
     }
   });
