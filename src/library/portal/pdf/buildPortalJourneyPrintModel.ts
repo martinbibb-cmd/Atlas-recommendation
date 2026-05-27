@@ -139,12 +139,21 @@ export interface PortalJourneyPrintSectionV1 {
 }
 
 export interface LibraryStorySceneV1 {
+  sceneKind?: LibraryStorySceneKindV1;
   title: string;
   customerTakeaway: string;
   visualAssetId?: string;
   whyItMatters: string;
   whatYouWillNotice: string;
 }
+
+export type LibraryStorySceneKindV1 =
+  | 'current_system_explainer'
+  | 'route_rationale'
+  | 'physics_explainer'
+  | 'lived_experience'
+  | 'protection_quality'
+  | 'future_flexibility';
 
 export interface PortalJourneyPrintNextStepV1 {
   label: string;
@@ -359,6 +368,239 @@ export interface RecommendationConceptSelectionV1 {
   conceptTags: EducationalConceptTagV1[];
 }
 
+type ScenarioNarrativeRouteIdV1 =
+  | 'regular_vented'
+  | 'system_unvented'
+  | 'combi'
+  | 'heat_pump';
+
+interface ScenarioNarrativeSceneTemplateV1 {
+  sectionId: PortalJourneyPrintSectionV1['sectionId'];
+  sceneKind: LibraryStorySceneKindV1;
+  title: string;
+  customerTakeaway: string;
+  whyItMatters: string;
+  whatYouWillNotice: string;
+  visualAssetId: string;
+}
+
+interface ScenarioNarrativePackV1 {
+  routeId: ScenarioNarrativeRouteIdV1;
+  scenes: readonly ScenarioNarrativeSceneTemplateV1[];
+}
+
+const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarrativePackV1> = {
+  regular_vented: {
+    routeId: 'regular_vented',
+    scenes: [
+      {
+        sectionId: 'practical_outcomes',
+        sceneKind: 'current_system_explainer',
+        title: 'From vented layout to sealed comfort',
+        customerTakeaway: 'Your home moves away from loft-tank dependence to a sealed system with stored hot water.',
+        whyItMatters: 'This route stabilises pressure management while keeping everyday comfort expectations familiar.',
+        whatYouWillNotice: 'You will see a pressure gauge and no longer rely on a loft header tank.',
+        visualAssetId: 'open_vented_to_unvented',
+      },
+      {
+        sectionId: 'system_fit_decision_map',
+        sceneKind: 'route_rationale',
+        title: 'Why Atlas selected this route',
+        customerTakeaway: 'Atlas matched your route to measured demand, mains behaviour, and layout constraints together.',
+        whyItMatters: 'The recommendation is evidence-led for this property instead of a one-size-fits-all product swap.',
+        whatYouWillNotice: 'The explanation links survey findings directly to this selected system path.',
+        visualAssetId: 'system_fit_decision_map',
+      },
+      {
+        sectionId: 'stored_hot_water_recovery_timeline',
+        sceneKind: 'lived_experience',
+        title: 'Day-to-day hot-water rhythm',
+        customerTakeaway: 'Stored hot water covers busy periods and then quietly recovers in the background.',
+        whyItMatters: 'Knowing the reserve-and-recovery pattern keeps expectations calm at peak usage times.',
+        whatYouWillNotice: 'After heavy use, hot water returns steadily without needing manual intervention.',
+        visualAssetId: 'stored_hot_water_recovery_timeline',
+      },
+      {
+        sectionId: 'unvented_safety',
+        sceneKind: 'protection_quality',
+        title: 'Protection features are part of quality work',
+        customerTakeaway: 'Visible cylinder safety components are expected signs of compliant, quality installation.',
+        whyItMatters: 'Protection hardware is built in to manage pressure safely and support reliable operation.',
+        whatYouWillNotice: 'You may see a tundish and discharge route, and that is normal in this setup.',
+        visualAssetId: 'open_vented_to_unvented',
+      },
+      {
+        sectionId: 'sealed_system_pressure_window',
+        sceneKind: 'future_flexibility',
+        title: 'Flexible for future upgrades',
+        customerTakeaway: 'A stable sealed-pressure baseline keeps future improvements easier to plan and tune.',
+        whyItMatters: 'Good pressure discipline today protects options for later controls or efficiency upgrades.',
+        whatYouWillNotice: 'The pressure gauge becomes a simple reference point during servicing and future changes.',
+        visualAssetId: 'system_pressure_window',
+      },
+      {
+        sectionId: 'pressure_vs_storage',
+        sceneKind: 'physics_explainer',
+        title: 'Pressure and storage are separate limits',
+        customerTakeaway: 'Strong spray pressure and available stored volume are different parts of the same experience.',
+        whyItMatters: 'Separating these physics avoids confusion and supports realistic planning for busy households.',
+        whatYouWillNotice: 'Shower force can stay strong while stored hot-water volume still follows a recovery cycle.',
+        visualAssetId: 'pressure_vs_storage',
+      },
+    ],
+  },
+  system_unvented: {
+    routeId: 'system_unvented',
+    scenes: [
+      {
+        sectionId: 'system_fit_decision_map',
+        sceneKind: 'current_system_explainer',
+        title: 'Your system route in context',
+        customerTakeaway: 'Atlas keeps a stored-hot-water route because it fits your household demand and layout profile.',
+        whyItMatters: 'This anchors the recommendation to how your home is used, not only to appliance labels.',
+        whatYouWillNotice: 'The walkthrough focuses on practical fit for overlap use and recovery planning.',
+        visualAssetId: 'system_fit_decision_map',
+      },
+      {
+        sectionId: 'pressure_vs_storage',
+        sceneKind: 'route_rationale',
+        title: 'Why this recommendation suits your demand',
+        customerTakeaway: 'Atlas prioritised stored hot water where overlap use needs dependable reserve capacity.',
+        whyItMatters: 'The route protects comfort at busy times when multiple outlets may run close together.',
+        whatYouWillNotice: 'Hot-water planning is explained using both delivery force and storage quantity.',
+        visualAssetId: 'pressure_vs_storage',
+      },
+      {
+        sectionId: 'stored_hot_water_recovery_timeline',
+        sceneKind: 'lived_experience',
+        title: 'What improves day to day',
+        customerTakeaway: 'Your household gets a clearer reserve-and-recovery pattern for predictable daily use.',
+        whyItMatters: 'Expectation-setting reduces worry when recovery periods follow high demand windows.',
+        whatYouWillNotice: 'Peak-time drawdown is followed by a normal refill and reheat cycle.',
+        visualAssetId: 'stored_hot_water_recovery_timeline',
+      },
+      {
+        sectionId: 'magnetic_filter_capture',
+        sceneKind: 'protection_quality',
+        title: 'Protection and quality checks',
+        customerTakeaway: 'Filter capture and water-quality controls protect components and commissioning quality.',
+        whyItMatters: 'Condition-led protection work helps preserve reliability as the system evolves over time.',
+        whatYouWillNotice: 'Service visits include filter and water-treatment checks as part of normal quality care.',
+        visualAssetId: 'magnetic_filter_capture',
+      },
+      {
+        sectionId: 'sealed_system_pressure_window',
+        sceneKind: 'future_flexibility',
+        title: 'Future-ready pressure management',
+        customerTakeaway: 'Stable sealed-system pressure gives a strong base for future control or efficiency upgrades.',
+        whyItMatters: 'Keeping pressure in range supports long-term flexibility without major rework later.',
+        whatYouWillNotice: 'Routine checks stay simple and consistent as future improvements are introduced.',
+        visualAssetId: 'system_pressure_window',
+      },
+    ],
+  },
+  combi: {
+    routeId: 'combi',
+    scenes: [
+      {
+        sectionId: 'system_fit_decision_map',
+        sceneKind: 'current_system_explainer',
+        title: 'Combi route for this home profile',
+        customerTakeaway: 'Atlas selected an on-demand route where stored-volume overhead is not needed for this pattern.',
+        whyItMatters: 'This keeps the setup aligned with practical demand while simplifying the system layout.',
+        whatYouWillNotice: 'Hot water behaviour is framed around on-demand delivery rather than cylinder reserve cycles.',
+        visualAssetId: 'system_fit_decision_map',
+      },
+      {
+        sectionId: 'flow_restriction_bottleneck',
+        sceneKind: 'route_rationale',
+        title: 'Why this route was recommended',
+        customerTakeaway: 'Atlas checked flow bottlenecks so the chosen combi route matches real supply behaviour.',
+        whyItMatters: 'Route quality depends on measured dynamic flow, not on static assumptions alone.',
+        whatYouWillNotice: 'The explanation calls out mains-flow checks that protect practical shower performance.',
+        visualAssetId: 'flow_restriction_bottleneck',
+      },
+      {
+        sectionId: 'steady_running',
+        sceneKind: 'lived_experience',
+        title: 'Daily comfort expectations',
+        customerTakeaway: 'The system is tuned for steady comfort with straightforward day-to-day use.',
+        whyItMatters: 'Clear operating expectations help prevent over-adjustment and maintain predictable performance.',
+        whatYouWillNotice: 'Daily operation should feel familiar, with fewer surprises around normal demand changes.',
+        visualAssetId: 'weather_compensation_curve',
+      },
+      {
+        sectionId: 'magnetic_filter_capture',
+        sceneKind: 'protection_quality',
+        title: 'Quality protection remains essential',
+        customerTakeaway: 'Water-quality and debris controls still matter even on a simpler combi route.',
+        whyItMatters: 'Protection work prevents avoidable faults and supports long-term reliability.',
+        whatYouWillNotice: 'Routine maintenance includes visible condition checks rather than only reactive fixes.',
+        visualAssetId: 'magnetic_filter_capture',
+      },
+      {
+        sectionId: 'sealed_system_pressure_window',
+        sceneKind: 'future_flexibility',
+        title: 'Prepared for later changes',
+        customerTakeaway: 'This route keeps a clear baseline so future efficiency decisions can be made with confidence.',
+        whyItMatters: 'A stable, well-documented starting point makes future upgrade choices simpler.',
+        whatYouWillNotice: 'Future advice can build on known system behaviour instead of guessing from scratch.',
+        visualAssetId: 'system_pressure_window',
+      },
+    ],
+  },
+  heat_pump: {
+    routeId: 'heat_pump',
+    scenes: [
+      {
+        sectionId: 'system_fit_decision_map',
+        sceneKind: 'current_system_explainer',
+        title: 'Transitioning to low-temperature heating',
+        customerTakeaway: 'Atlas prepared this route around your current home conditions and low-temperature emitter fit.',
+        whyItMatters: 'A planned transition avoids comfort loss while introducing a different heating behaviour profile.',
+        whatYouWillNotice: 'The walkthrough explains how your existing system context supports the heat-pump route.',
+        visualAssetId: 'system_fit_decision_map',
+      },
+      {
+        sectionId: 'warm_not_hot_radiators',
+        sceneKind: 'route_rationale',
+        title: 'Why this heat-pump route fits',
+        customerTakeaway: 'Atlas chose this route because warm-for-longer delivery can meet comfort with lower flow temperatures.',
+        whyItMatters: 'Matching emitters and flow temperature is central to calm, efficient day-to-day heating.',
+        whatYouWillNotice: 'Radiators may feel warm rather than very hot while rooms still reach target comfort.',
+        visualAssetId: 'warm_vs_hot_radiators',
+      },
+      {
+        sectionId: 'steady_running',
+        sceneKind: 'lived_experience',
+        title: 'What improves in daily operation',
+        customerTakeaway: 'Steadier running and compensation smooth out temperature swings through the day.',
+        whyItMatters: 'A stable rhythm supports comfort and reduces disruptive short cycling behaviour.',
+        whatYouWillNotice: 'You should notice longer, calmer operating periods instead of frequent sharp bursts.',
+        visualAssetId: 'weather_compensation_curve',
+      },
+      {
+        sectionId: 'winter_behaviour',
+        sceneKind: 'protection_quality',
+        title: 'Winter behaviour and protection quality',
+        customerTakeaway: 'Short defrost events are normal protective behaviour in cold, damp conditions.',
+        whyItMatters: 'Understanding normal protection cycles prevents unnecessary concern during winter operation.',
+        whatYouWillNotice: 'Brief pauses or mist can appear in cold weather and should clear as the cycle completes.',
+        visualAssetId: 'heat_pump_defrost',
+      },
+      {
+        sectionId: 'sealed_system_pressure_window',
+        sceneKind: 'future_flexibility',
+        title: 'Future flexibility after transition',
+        customerTakeaway: 'This setup leaves room for future control tuning and incremental efficiency upgrades.',
+        whyItMatters: 'A stable commissioned baseline makes future optimisation safer and easier to verify.',
+        whatYouWillNotice: 'Future changes can be introduced gradually with measurable comfort checks.',
+        visualAssetId: 'system_pressure_window',
+      },
+    ],
+  },
+};
+
 const STORED_HOT_WATER_ARRANGEMENTS = new Set(['stored_unvented', 'stored_vented', 'mixergy', 'thermal_store']);
 
 function dedupeStrings(values: readonly string[]): string[] {
@@ -418,6 +660,57 @@ function inferDefaultSectionIdsFromIntent(intent: RecommendationIntentCategoryV1
     case 'efficiency_upgrade':
       return ['CON_A01', 'CON_B01'];
   }
+}
+
+function resolveScenarioNarrativeRouteId(intent: RecommendationIntentCategoryV1): ScenarioNarrativeRouteIdV1 | undefined {
+  switch (intent) {
+    case 'vented_to_unvented':
+      return 'regular_vented';
+    case 'stored_hot_water':
+    case 'sealed_system_conversion':
+      return 'system_unvented';
+    case 'combi_replacement':
+      return 'combi';
+    case 'heat_pump_transition':
+      return 'heat_pump';
+    default:
+      return undefined;
+  }
+}
+
+function applyScenarioAuthoredNarrativePack(
+  sections: readonly PortalJourneyPrintSectionV1[],
+  routeId: ScenarioNarrativeRouteIdV1 | undefined,
+): PortalJourneyPrintSectionV1[] {
+  if (routeId == null) {
+    return sections.map((section) => ({
+      ...section,
+      storyScene: section.storyScene ?? buildStorySceneFromSection(section),
+    }));
+  }
+  const pack = SCENARIO_NARRATIVE_PACKS[routeId];
+  const sceneBySectionId = new Map(pack.scenes.map((scene) => [scene.sectionId, scene]));
+
+  return sections.map((section) => {
+    const authoredScene = sceneBySectionId.get(section.sectionId);
+    if (authoredScene == null) {
+      return {
+        ...section,
+        storyScene: section.storyScene ?? buildStorySceneFromSection(section),
+      };
+    }
+    return {
+      ...section,
+      storyScene: {
+        sceneKind: authoredScene.sceneKind,
+        title: authoredScene.title,
+        customerTakeaway: authoredScene.customerTakeaway,
+        whyItMatters: authoredScene.whyItMatters,
+        whatYouWillNotice: authoredScene.whatYouWillNotice,
+        visualAssetId: authoredScene.visualAssetId,
+      },
+    };
+  });
 }
 
 function applyJourneyTypeConceptFallback(
@@ -1188,6 +1481,10 @@ const BANNED_STORY_SCENE_LANGUAGE = /\batlas mapped\b|\broute\b|\bprojection\b|\
 const MIN_WHAT_YOU_WILL_NOTICE_LENGTH = 24;
 const MIN_STORY_SCENE_TITLE_LENGTH = 8;
 const MIN_STORY_SCENE_TAKEAWAY_LENGTH = 20;
+const MAX_SCENES_PER_CUSTOMER_PDF = 6;
+const MAX_SCENE_TEXT_CHARS = 220;
+const MAX_TOTAL_SCENE_TEXT_CHARS = 1500;
+const SCENE_OVERLAP_THRESHOLD = 0.72;
 const VAGUE_WHAT_YOU_WILL_NOTICE = [
   'you will notice improvements',
   'you will notice a difference',
@@ -1205,6 +1502,34 @@ const BLOCKING_STORY_SCENE_ERROR_CODES = new Set([
   'banned_internal_language',
   'vague_household_outcome',
   'missing_required_visual_asset',
+  'non_canonical_visual_asset',
+  'multiple_core_messages',
+  'duplicate_or_overlapping_scene',
+  'scene_page_budget_exceeded',
+  'scene_text_budget_exceeded',
+]);
+const VISUAL_REQUIRED_SCENE_KINDS = new Set<LibraryStorySceneKindV1>(['physics_explainer', 'lived_experience']);
+const CANONICAL_SCENE_VISUAL_ASSET_IDS = new Set([
+  'pressure_vs_storage',
+  'warm_vs_hot_radiators',
+  'water_main_limitation',
+  'open_vented_to_unvented',
+  'system_fit_decision_map',
+  'stored_hot_water_recovery_timeline',
+  'warm_radiator_emitter_sizing',
+  'flow_restriction_bottleneck',
+  'weather_compensation_curve',
+  'stratified_cylinder_mixergy',
+  'powerflush_condition_led',
+  'magnetic_filter_capture',
+  'system_pressure_window',
+  'heat_pump_defrost',
+]);
+const STORY_SCENE_TOKEN_STOP_WORDS = new Set([
+  'the', 'and', 'for', 'that', 'this', 'with', 'from', 'your', 'you', 'are', 'can',
+  'will', 'what', 'why', 'how', 'when', 'into', 'over', 'after', 'before', 'more',
+  'less', 'than', 'have', 'has', 'had', 'but', 'not', 'still', 'while', 'home',
+  'system', 'atlas',
 ]);
 
 export interface CustomerStorySceneValidationIssueV1 {
@@ -1219,6 +1544,56 @@ export interface CustomerStorySceneValidationResultV1 {
 
 function normaliseTextForComparison(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function countSentenceLikeClauses(value: string): number {
+  return value
+    .split(/[.!?;]+/g)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .length;
+}
+
+function hasMultipleCoreMessages(value: string): boolean {
+  return countSentenceLikeClauses(value) > 1;
+}
+
+function sceneTextLength(scene: LibraryStorySceneV1): number {
+  return [
+    scene.title,
+    scene.customerTakeaway,
+    scene.whyItMatters,
+    scene.whatYouWillNotice,
+  ]
+    .map((segment) => segment.trim().length)
+    .reduce((total, segmentLength) => total + segmentLength, 0);
+}
+
+function toSceneSemanticTokenSet(scene: LibraryStorySceneV1): Set<string> {
+  const raw = `${scene.title} ${scene.customerTakeaway} ${scene.whyItMatters} ${scene.whatYouWillNotice}`;
+  const tokens = normaliseTextForComparison(raw).split(' ');
+  const filtered = tokens.filter((token) => token.length > 2 && !STORY_SCENE_TOKEN_STOP_WORDS.has(token));
+  return new Set(filtered);
+}
+
+function overlapRatio(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let intersection = 0;
+  for (const token of a) {
+    if (b.has(token)) intersection += 1;
+  }
+  return intersection / Math.min(a.size, b.size);
+}
+
+function scenesSemanticallyOverlap(a: LibraryStorySceneV1, b: LibraryStorySceneV1): boolean {
+  const titleA = normaliseTextForComparison(a.title);
+  const titleB = normaliseTextForComparison(b.title);
+  if (titleA.length > 0 && titleA === titleB) return true;
+  const takeawayA = normaliseTextForComparison(a.customerTakeaway);
+  const takeawayB = normaliseTextForComparison(b.customerTakeaway);
+  if (takeawayA.length > 0 && takeawayA === takeawayB) return true;
+  const tokenOverlap = overlapRatio(toSceneSemanticTokenSet(a), toSceneSemanticTokenSet(b));
+  return tokenOverlap >= SCENE_OVERLAP_THRESHOLD;
 }
 
 function buildStorySceneValidationIssue(
@@ -1240,7 +1615,7 @@ export function validateCustomerStoryScene(
   const takeaway = scene.customerTakeaway.trim();
   const whyItMatters = scene.whyItMatters.trim();
   const whatYouWillNotice = scene.whatYouWillNotice.trim();
-  const nonWhyItMattersText = `${title} ${takeaway} ${whatYouWillNotice}`;
+  const customerFacingSceneText = `${title} ${takeaway} ${whyItMatters} ${whatYouWillNotice}`;
   const normalisedTitle = normaliseTextForComparison(title);
   const normalisedTakeaway = normaliseTextForComparison(takeaway);
 
@@ -1268,7 +1643,7 @@ export function validateCustomerStoryScene(
       'Story scene why-it-matters contains internal routing language.',
     ));
   }
-  if (BANNED_STORY_SCENE_LANGUAGE.test(nonWhyItMattersText)) {
+  if (BANNED_STORY_SCENE_LANGUAGE.test(customerFacingSceneText)) {
     errors.push(buildStorySceneValidationIssue(
       'banned_internal_language',
       'Story scene includes blocked internal pipeline wording.',
@@ -1283,10 +1658,39 @@ export function validateCustomerStoryScene(
       'Story scene what-you-will-notice is too vague for customer export.',
     ));
   }
-  if (options?.visualAssetRequired === true && !hasText(scene.visualAssetId)) {
+  const visualAssetRequiredByKind =
+    scene.sceneKind != null && VISUAL_REQUIRED_SCENE_KINDS.has(scene.sceneKind);
+  const visualAssetRequired = options?.visualAssetRequired === true || visualAssetRequiredByKind;
+  if (visualAssetRequired && !hasText(scene.visualAssetId)) {
     errors.push(buildStorySceneValidationIssue(
       'missing_required_visual_asset',
       'Story scene requires a visual asset ID for this concept.',
+    ));
+  }
+  if (hasText(scene.visualAssetId) && !CANONICAL_SCENE_VISUAL_ASSET_IDS.has(scene.visualAssetId)) {
+    errors.push(buildStorySceneValidationIssue(
+      'non_canonical_visual_asset',
+      'Story scene visual asset must use a canonical visual ID.',
+    ));
+  }
+  if (
+    hasMultipleCoreMessages(scene.customerTakeaway)
+    || hasMultipleCoreMessages(scene.whyItMatters)
+    || hasMultipleCoreMessages(scene.whatYouWillNotice)
+  ) {
+    errors.push(buildStorySceneValidationIssue(
+      'multiple_core_messages',
+      'Story scene must keep one core message per page.',
+    ));
+  }
+  if (
+    takeaway.length > MAX_SCENE_TEXT_CHARS
+    || whyItMatters.length > MAX_SCENE_TEXT_CHARS
+    || whatYouWillNotice.length > MAX_SCENE_TEXT_CHARS
+  ) {
+    errors.push(buildStorySceneValidationIssue(
+      'scene_text_budget_exceeded',
+      'Story scene exceeds the per-scene text budget.',
     ));
   }
   if (title.length < MIN_STORY_SCENE_TITLE_LENGTH) {
@@ -1326,9 +1730,45 @@ function buildCustomerPdfContentSource(input: {
       hasAllRequiredText,
     };
   });
-  const storyScenes = validatedStoryScenes
-    .filter((entry) => entry.hasAllRequiredText && entry.validation.errors.length === 0)
-    .map((entry) => entry.scene);
+  const acceptedStorySceneEntries: Array<(typeof validatedStoryScenes)[number]> = [];
+  let duplicateOrOverlappingSceneCount = 0;
+  for (const entry of validatedStoryScenes) {
+    if (!entry.hasAllRequiredText || entry.validation.errors.length > 0) continue;
+    const overlapsExisting = acceptedStorySceneEntries.some((acceptedEntry) =>
+      scenesSemanticallyOverlap(acceptedEntry.scene, entry.scene));
+    if (overlapsExisting) {
+      duplicateOrOverlappingSceneCount += 1;
+      continue;
+    }
+    acceptedStorySceneEntries.push(entry);
+  }
+  const globalErrorCodes: string[] = [];
+  if (duplicateOrOverlappingSceneCount > 0) {
+    globalErrorCodes.push('duplicate_or_overlapping_scene');
+  }
+  let storyScenes = acceptedStorySceneEntries.map((entry) => entry.scene);
+  let scenePageBudgetRejectedCount = 0;
+  if (storyScenes.length > MAX_SCENES_PER_CUSTOMER_PDF) {
+    scenePageBudgetRejectedCount = storyScenes.length - MAX_SCENES_PER_CUSTOMER_PDF;
+    storyScenes = storyScenes.slice(0, MAX_SCENES_PER_CUSTOMER_PDF);
+    globalErrorCodes.push('scene_page_budget_exceeded');
+  }
+  let sceneTextBudgetRejectedCount = 0;
+  const textBudgetScenes: LibraryStorySceneV1[] = [];
+  let totalSceneTextChars = 0;
+  for (const scene of storyScenes) {
+    const nextLength = sceneTextLength(scene);
+    if (totalSceneTextChars + nextLength > MAX_TOTAL_SCENE_TEXT_CHARS) {
+      sceneTextBudgetRejectedCount += 1;
+      continue;
+    }
+    textBudgetScenes.push(scene);
+    totalSceneTextChars += nextLength;
+  }
+  if (sceneTextBudgetRejectedCount > 0) {
+    globalErrorCodes.push('scene_text_budget_exceeded');
+  }
+  storyScenes = textBudgetScenes;
   const selectedConceptCount = new Set(input.conceptTags).size;
   const selectedStorySceneCount = storyScenes.length;
   const scenarioRequiresVisuals = input.sections.some((section) =>
@@ -1344,14 +1784,20 @@ function buildCustomerPdfContentSource(input: {
   if (selectedStorySceneCount === 0) fallbackSignals.push('story_scenes_missing');
   if (scenarioRequiresVisuals && visualAssetIds.length === 0) fallbackSignals.push('visual_assets_missing');
   const warningCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.validation.warnings.map((issue) => issue.code)));
-  const errorCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.validation.errors.map((issue) => issue.code)));
+  const errorCodes = dedupeStrings([
+    ...validatedStoryScenes.flatMap((entry) => entry.validation.errors.map((issue) => issue.code)),
+    ...globalErrorCodes,
+  ]);
   const warningCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.warnings.length, 0);
-  const errorCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.errors.length, 0);
-  const blockingErrorCount = validatedStoryScenes.reduce(
+  const sceneValidationErrorCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.errors.length, 0);
+  const blockingSceneValidationErrorCount = validatedStoryScenes.reduce(
     (total, entry) =>
       total + entry.validation.errors.filter((issue) => BLOCKING_STORY_SCENE_ERROR_CODES.has(issue.code)).length,
     0,
   );
+  const blockingGlobalErrorCount = globalErrorCodes.filter((code) => BLOCKING_STORY_SCENE_ERROR_CODES.has(code)).length;
+  const errorCount = sceneValidationErrorCount + globalErrorCodes.length;
+  const blockingErrorCount = blockingSceneValidationErrorCount + blockingGlobalErrorCount;
   if (blockingErrorCount > 0) fallbackSignals.push('story_scene_quality_blocked');
   const genericReasonCount = input.recommendationReasons
     .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(FALLBACK_REASON_MATCH_PHRASE))
@@ -1393,16 +1839,51 @@ function formatHouseholdCount(occupancyCount: number): string {
   return `${occupancyCount}-person household`;
 }
 
+const DIAGRAM_ID_TO_CANONICAL_VISUAL_ASSET: Record<string, string> = {
+  'diagram-open-to-sealed': 'open_vented_to_unvented',
+  'diagram-pressure-vs-storage': 'pressure_vs_storage',
+  'diagram-unvented-safety': 'open_vented_to_unvented',
+  'diagram-cleaning-method': 'powerflush_condition_led',
+  'diagram-filter-location': 'magnetic_filter_capture',
+  'diagram-pressure-window': 'system_pressure_window',
+};
+
+function resolveFallbackSceneKind(section: PortalJourneyPrintSectionV1): LibraryStorySceneKindV1 {
+  switch (section.sectionId) {
+    case 'pressure_vs_storage':
+    case 'flow_restriction_bottleneck':
+      return 'physics_explainer';
+    case 'stored_hot_water_recovery_timeline':
+    case 'steady_running':
+    case 'winter_behaviour':
+      return 'lived_experience';
+    case 'unvented_safety':
+    case 'magnetic_filter_capture':
+      return 'protection_quality';
+    case 'sealed_system_pressure_window':
+      return 'future_flexibility';
+    case 'system_fit_decision_map':
+      return 'route_rationale';
+    default:
+      return 'current_system_explainer';
+  }
+}
+
+function resolveCanonicalSceneVisualAssetId(section: PortalJourneyPrintSectionV1): string | undefined {
+  if (hasText(section.diagramRendererId)) return section.diagramRendererId;
+  if (hasText(section.storyScene?.visualAssetId)) return section.storyScene.visualAssetId;
+  if (hasText(section.diagramId)) {
+    return DIAGRAM_ID_TO_CANONICAL_VISUAL_ASSET[section.diagramId] ?? section.diagramId;
+  }
+  return undefined;
+}
+
 function buildStorySceneFromSection(section: PortalJourneyPrintSectionV1): LibraryStorySceneV1 {
   return {
+    sceneKind: resolveFallbackSceneKind(section),
     title: section.heading,
     customerTakeaway: section.keyTakeaway,
-    visualAssetId:
-      hasText(section.diagramRendererId)
-        ? section.diagramRendererId
-        : hasText(section.diagramId)
-        ? section.diagramId
-        : undefined,
+    visualAssetId: resolveCanonicalSceneVisualAssetId(section),
     whyItMatters: section.summary,
     whatYouWillNotice: section.items.find(hasText) ?? section.reassurance,
   };
@@ -1945,12 +2426,14 @@ function buildPortalJourneyPrintModelCore(
       ? buildOpenVentedSectionsAndNextSteps(selectedSet, effectiveConceptTagSet)
       : buildGenericRecommendationContent({ conceptTagSet: effectiveConceptTagSet });
 
+  const resolvedIntent = recommendationIntent ?? journeyTypeToIntent(journeyType);
   const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
-  const excludeCylinder = shouldExcludeCylinderSections(recommendationIntent);
-  const sections = rawSections
+  const excludeCylinder = shouldExcludeCylinderSections(resolvedIntent);
+  const scenarioNarrativeRouteId = resolveScenarioNarrativeRouteId(resolvedIntent);
+  const sectionsWithPackNarratives = applyScenarioAuthoredNarrativePack(rawSections, scenarioNarrativeRouteId);
+  const sections = sectionsWithPackNarratives
     .map((section) => ({
       ...section,
-      storyScene: section.storyScene ?? buildStorySceneFromSection(section),
       evidenceTags: section.evidenceTags ?? buildSectionEvidenceTags(section),
     }))
     .filter((section) => {

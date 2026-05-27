@@ -337,14 +337,23 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(model.contentSource?.storySceneValidation.blockingErrorCount).toBe(0);
   });
 
-  it('hydrates library story scenes for each PDF section', () => {
+  it('hydrates authored story scenes for each PDF section', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     for (const section of model.sections) {
-      expect(section.storyScene?.title).toBe(section.heading);
+      expect(section.storyScene?.title.length).toBeGreaterThan(0);
+      expect(section.storyScene?.sceneKind).toBeDefined();
       expect(section.storyScene?.customerTakeaway.length).toBeGreaterThan(0);
       expect(section.storyScene?.whyItMatters.length).toBeGreaterThan(0);
       expect(section.storyScene?.whatYouWillNotice.length).toBeGreaterThan(0);
+      expect(section.storyScene?.visualAssetId?.length).toBeGreaterThan(0);
     }
+  });
+
+  it('uses deterministic authored narrative copy for regular_vented route scenes', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    const practicalOutcomes = model.sections.find((section) => section.sectionId === 'practical_outcomes');
+    expect(practicalOutcomes?.storyScene?.title).toBe('From vented layout to sealed comfort');
+    expect(practicalOutcomes?.storyScene?.visualAssetId).toBe('open_vented_to_unvented');
   });
 
   it('flags thin generic fallback packs as fallbackOnly when projection is absent', () => {
@@ -420,6 +429,39 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       { visualAssetRequired: true },
     );
     expect(result.errors.map((issue) => issue.code)).toContain('missing_required_visual_asset');
+  });
+
+  it('requires visual assets for physics_explainer scenes', () => {
+    const result = validateCustomerStoryScene({
+      sceneKind: 'physics_explainer',
+      title: 'Pressure and storage',
+      customerTakeaway: 'Pressure and storage are separate system limits.',
+      whyItMatters: 'Separating these ideas prevents unrealistic hot-water expectations.',
+      whatYouWillNotice: 'Shower force can stay strong while stored volume still follows recovery.',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('missing_required_visual_asset');
+  });
+
+  it('rejects scenes that carry multiple core messages in one field', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Comfort profile',
+      customerTakeaway: 'Warm operation keeps comfort steady. It also lowers bills every day.',
+      whyItMatters: 'This supports predictable comfort at normal demand windows.',
+      whatYouWillNotice: 'Rooms warm gradually and remain steady once they reach target.',
+      visualAssetId: 'weather_compensation_curve',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('multiple_core_messages');
+  });
+
+  it('rejects non-canonical visual IDs in story scenes', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Hot water reliability',
+      customerTakeaway: 'Stored hot water supports overlap use in busy homes.',
+      whyItMatters: 'This route gives clearer reserve behaviour during peak demand.',
+      whatYouWillNotice: 'Recovery periods are expected after heavy simultaneous draw.',
+      visualAssetId: 'generated_blob_card',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('non_canonical_visual_asset');
   });
 });
 
