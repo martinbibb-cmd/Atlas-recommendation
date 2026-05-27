@@ -39,7 +39,21 @@ All AI-assisted code contributions must follow the rules below.
 
 - **Lego Technix** is the canonical name for the functional heating-system graph foundation.
 - **Never** refer to the system as "Lego Builder", "Building Set", or "Lego Set" for functional graph or simulation references.
-- In Atlas domain context, any mention of "Lego" refers to the hydraulic simulation logic in `docs/lego-technix/` and `src/features/legoTechnix/`.
+- Do not apply Lego Technix naming, contracts, or simulation assumptions to legacy builder-set files under `src/explainers/lego/`.
+
+## Strict Naming & Directory Boundaries
+
+### 1. Lego Technix
+
+- **Path Focus:** `src/features/legoTechnix/` and `docs/lego-technix/`
+- **Definition:** Active, authoritative physics-driven system graph and simulation engine.
+- **Rule:** Simulation math, efficiency clamping, and graph logic changes must stay in this path.
+
+### 2. Lego Builder Set (System Composer)
+
+- **Path Focus:** `src/explainers/lego/` (including `src/explainers/lego/LegoBuildingSetPage.tsx`)
+- **Definition:** Legacy visual component sandbox with drag-and-drop builder mechanics.
+- **CRITICAL PROTECTION RULE:** Never suggest renaming, refactoring, or updating these legacy files to match Lego Technix paradigms. The domains are functionally isolated until explicit deprecation.
 
 ## Layout
 
