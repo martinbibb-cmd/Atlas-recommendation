@@ -28,7 +28,7 @@ import {
   EXPLAINER_LINK_ARIA,
 } from '../../lib/copy/customerCopy';
 import { getExplainerIdForLimitingFactor } from '../../lib/explainers/getRelevantExplainers';
-import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
+import { EDUCATIONAL_EXPLAINERS } from '../../legacy/educationalExplainersPrototype/content';
 
 // ─── Outcome visual identifiers ───────────────────────────────────────────────
 

@@ -47,10 +47,10 @@ import {
 import { resolveCurrentSystemVisualId } from './presentationVisualMapping';
 import PresentationVisualSlot from './PresentationVisualSlot';
 import PresentationDeck from './PresentationDeck';
-import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
-import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
-import { optionToConceptModel } from '../../explainers/lego/autoBuilder/optionToConceptModel';
-import type { OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
+import SystemArchitectureVisualiser from '../../legacy/systemComposerPrototype/autoBuilder/SystemArchitectureVisualiser';
+import { inputToConceptModel } from '../../legacy/systemComposerPrototype/autoBuilder/inputToConceptModel';
+import { optionToConceptModel } from '../../legacy/systemComposerPrototype/autoBuilder/optionToConceptModel';
+import type { OptionId } from '../../legacy/systemComposerPrototype/autoBuilder/optionToConceptModel';
 import './CanonicalPresentationPage.css';
 
 // ─── Sub-components ───────────────────────────────────────────────────────────

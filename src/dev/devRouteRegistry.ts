@@ -409,9 +409,12 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   // ── Derived / embedded surfaces (no standalone route) ────────────────────
   {
     codeName: 'LifestyleInteractive',
-    fullRouteExample: 'unresolved — legacy visualiser preview',
+    fullRouteExample: 'unresolved — legacy dayPainterPrototype preview',
+    replacementRoute: '/?lab=1',
     routeKind: 'derived',
-    access: 'dev_only',
+    access: 'legacy_dev_only',
+    lifecycle: 'legacy_dev_only',
+    canonicalOwner: 'Atlas Simulator',
   },
   {
     codeName: 'GlassBoxPanel',

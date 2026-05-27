@@ -30,7 +30,7 @@ import { assessLibraryPdfCustomerReadiness } from '../library/portal/pdf/assessL
 import { assessSupportingPdfReadiness } from '../library/portal/pdf/supportingPdfReadiness';
 import { SUPPORTED_DIAGRAM_RENDERER_IDS } from '../library/diagrams/DiagramRenderer';
 import { buildPdfComparisonAudit, buildPdfComparisonScenarioFromPrintModel } from '../library/pdfQa';
-import { sectionsForMode } from '../features/insightPack/canonicalSections';
+import { sectionsForMode } from '../legacy/customerOutputPrototype/insightPack/canonicalSections';
 import { buildSuggestedImplementationPack } from '../specification/buildSuggestedImplementationPack';
 import ImplementationPackReviewPanel from '../components/dev/ImplementationPackReviewPanel';
 import { buildSpecificationLinesFromImplementationPack } from '../specification/specLines';

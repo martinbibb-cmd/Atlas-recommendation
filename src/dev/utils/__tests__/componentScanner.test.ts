@@ -64,7 +64,7 @@ describe('componentScanner', () => {
   it('includes non-page visual/dev files in unrouted component discovery', () => {
     const report = buildComponentDiscoveryReport({
       candidateFilePaths: [
-        'src/components/visualizers/LifestyleInteractiveCompare.tsx',
+        'src/legacy/dayPainterPrototype/LifestyleInteractiveCompare.tsx',
         'src/components/presentation/VisualBlockDebugDeck.tsx',
         'src/components/physics-visuals/preview/PhysicsVisualGallery.tsx',
       ],

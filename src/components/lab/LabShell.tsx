@@ -15,7 +15,7 @@
  *   - top sheet: warnings / physics explainers
  */
 
-import HouseFirstSimulatorDashboard from '../../explainers/lego/simulator/HouseFirstSimulatorDashboard';
+import HouseFirstSimulatorDashboard from '../../legacy/systemComposerPrototype/simulator/HouseFirstSimulatorDashboard';
 
 interface Props {
   onHome: () => void;

@@ -17,16 +17,16 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import SimulatorDashboard from './lego/simulator/SimulatorDashboard';
-import type { FloorplanOperatingAssumptions } from './lego/simulator/SimulatorDashboard';
-import type { SimulatorSystemChoice } from './lego/simulator/useSystemDiagramPlayback';
-import SimulatorStepper from './lego/simulator/SimulatorStepper';
-import type { StepperConfig } from './lego/simulator/SimulatorStepper';
-import { adaptFullSurveyToSimulatorInputs } from './lego/simulator/adaptFullSurveyToSimulatorInputs';
-import type { OccupancyProfile, SystemInputs } from './lego/simulator/systemInputsTypes';
+import SimulatorDashboard from '../legacy/systemComposerPrototype/simulator/SimulatorDashboard';
+import type { FloorplanOperatingAssumptions } from '../legacy/systemComposerPrototype/simulator/SimulatorDashboard';
+import type { SimulatorSystemChoice } from '../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback';
+import SimulatorStepper from '../legacy/systemComposerPrototype/simulator/SimulatorStepper';
+import type { StepperConfig } from '../legacy/systemComposerPrototype/simulator/SimulatorStepper';
+import { adaptFullSurveyToSimulatorInputs } from '../legacy/systemComposerPrototype/simulator/adaptFullSurveyToSimulatorInputs';
+import type { OccupancyProfile, SystemInputs } from '../legacy/systemComposerPrototype/simulator/systemInputsTypes';
 import type { FullSurveyModelV1 } from '../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../engine/schema/EngineInputV2_3';
-import ExplainerPanel from './educational/ExplainerPanel';
+import ExplainerPanel from '../legacy/educationalExplainersPrototype/ExplainerPanel';
 import { EnergyLiteracyPanel } from '../features/explainers/energy';
 import type { DerivedFloorplanOutput } from '../components/floorplan/floorplanDerivations';
 import { runEngine } from '../engine/Engine';

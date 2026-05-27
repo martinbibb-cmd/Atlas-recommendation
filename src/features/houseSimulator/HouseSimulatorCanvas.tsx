@@ -16,7 +16,7 @@
  * uses the exponential decay formula, not Math.random().
  */
 
-import type { HouseDisplayState, RoomDisplayState, RoomHeatState } from '../../explainers/lego/simulator/useHousePlayback';
+import type { HouseDisplayState, RoomDisplayState, RoomHeatState } from '../../legacy/systemComposerPrototype/simulator/useHousePlayback';
 import HouseSimulatorOutletNode from './HouseSimulatorOutletNode';
 import type { OutletNodeViewModel } from './buildHouseSimulatorViewModel';
 

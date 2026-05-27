@@ -1290,7 +1290,7 @@ describe('buildPortalJourneyPrintModel — heat-pump protection visuals', () => 
     const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
     const winterBehaviourScene = model.contentSource?.sceneDiagnostics.find((diag) => diag.sectionId === 'winter_behaviour');
     expect(winterBehaviourScene).toMatchObject({
-      visualAssetId: undefined,
+      visualAssetId: '',
       visualClassification: 'unlisted',
       rendererType: 'none',
     });

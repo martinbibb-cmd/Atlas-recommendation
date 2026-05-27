@@ -8,7 +8,7 @@ const mockBuildResimulationFromSurvey = vi.fn();
 const mockAdaptFullSurveyToSimulatorInputs = vi.fn();
 const mockBuildCompareSeedFromSurvey = vi.fn();
 
-vi.mock('../../../explainers/lego/simulator/SimulatorDashboard', () => ({
+vi.mock('../../../legacy/systemComposerPrototype/simulator/SimulatorDashboard', () => ({
   default: (props: unknown) => {
     mockSimulatorDashboard(props);
     return <div data-testid="simulator-dashboard-stub" />;
@@ -19,7 +19,7 @@ vi.mock('../../../lib/simulator/buildResimulationFromSurvey', () => ({
   buildResimulationFromSurvey: (...args: unknown[]) => mockBuildResimulationFromSurvey(...args),
 }));
 
-vi.mock('../../../explainers/lego/simulator/adaptFullSurveyToSimulatorInputs', () => ({
+vi.mock('../../../legacy/systemComposerPrototype/simulator/adaptFullSurveyToSimulatorInputs', () => ({
   adaptFullSurveyToSimulatorInputs: (...args: unknown[]) => mockAdaptFullSurveyToSimulatorInputs(...args),
 }));
 

@@ -1,0 +1,372 @@
+// src/legacy/systemComposerPrototype/simulator/useDailyEfficiencySummary.ts
+//
+// Pure function: derives DailyEfficiencySummaryState from system inputs and
+// emitter physics.
+//
+// Architecture:
+//   SimulatorDashboard
+//     → computeDailyEfficiencySummary(systemInputs, systemChoice, emitterState)
+//     → DailyEfficiencySummaryState
+//     → DailyEfficiencySummaryPanel({ state })
+//
+// Discipline:
+//   - Pure function, no simulation state, no Math.random()
+//   - Uses DEFAULT_NOMINAL_EFFICIENCY_PCT from efficiency.ts — never the literal 92
+//   - Uses computeCurrentEfficiencyPct to clamp the result to [50, 99]
+//   - No tariff, cost, carbon, or export logic
+
+import type { SystemInputs, OccupancyProfile, DemandPresetId } from './systemInputsTypes'
+import type { SimulatorSystemChoice } from './useSystemDiagramPlayback'
+import type { EmitterPrimaryDisplayState } from './useEmitterPrimaryModel'
+import {
+  DEFAULT_NOMINAL_EFFICIENCY_PCT,
+  computeCurrentEfficiencyPct,
+} from '../../../engine/utils/efficiency'
+
+// ─── Internal constants ───────────────────────────────────────────────────────
+
+/** Return temperature threshold below which condensing gain is possible. */
+const CONDENSING_THRESHOLD_C = 55
+
+/** Maximum condensing gain in percentage points. */
+const MAX_CONDENSING_GAIN_PCT = 8
+
+/** Scaling factor from ΔT below threshold to efficiency gain. */
+const CONDENSING_GAIN_FACTOR = 0.6
+
+// ─── Public types ─────────────────────────────────────────────────────────────
+
+/** All display-relevant state the DailyEfficiencySummaryPanel needs. */
+export type DailyEfficiencySummaryState = {
+  /** 'boiler' or 'heat_pump' — determines which summary value to show. */
+  systemKind: 'boiler' | 'heat_pump'
+  /**
+   * Estimated daily operating efficiency in percentage points (boiler only).
+   * Absent for heat pump systems.
+   */
+  dailyEfficiencyPct?: number
+  /**
+   * Estimated daily average COP (heat pump only).
+   * Absent for boiler systems.
+   */
+  dailyCop?: number
+  /** Short human-readable label, e.g. "Estimated daily operating efficiency". */
+  summaryLabel: string
+  /** Formatted value string, e.g. "88%" or "3.7". */
+  summaryValue: string
+  /** One short explanation line describing what influenced the result. */
+  explanationLine: string
+  /**
+   * Optional season-context label from the active scenario preset,
+   * e.g. "Winter day" or "Summer day".  Shown as a small badge in the panel.
+   * Absent when no scenario preset is active.
+   */
+  seasonContext?: string
+}
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+
+/**
+ * Fraction of running hours spent at design-load (peak) vs part-load.
+ *
+ * A higher peak fraction means the daily average return temperature is closer
+ * to the design-load return temperature.  Lower values mean the system spends
+ * more time at reduced load, benefiting condensing behaviour.
+ */
+function peakLoadFraction(profile: OccupancyProfile): number {
+  switch (profile) {
+    case 'professional': return 0.25  // long absence; short peaks
+    case 'steady_home':  return 0.55  // home all day; moderate load
+    case 'family':       return 0.45  // school runs; afternoon and evening peaks
+    case 'shift':        return 0.30  // irregular; shorter active windows
+  }
+}
+
+/**
+ * Cycling penalty in percentage points.
+ *
+ * More frequent short demand events (many start/stop cycles) reduce seasonal
+ * efficiency through increased on/off losses.
+ */
+function cyclingPenaltyPct(profile: OccupancyProfile, systemChoice: SimulatorSystemChoice, demandPreset?: DemandPresetId): number {
+  // Combi boilers suffer extra cycling losses on each DHW draw.
+  const combiMultiplier = systemChoice === 'combi' ? 1.5 : 1.0
+  const base = (() => {
+    // Use demandPreset for finer granularity when available
+    if (demandPreset != null) {
+      switch (demandPreset) {
+        case 'multigenerational':     return 4  // very many short events
+        case 'family_teenagers':      return 4  // evening shower cluster
+        case 'bath_heavy':            return 2  // fewer but larger draws
+        case 'shower_heavy':          return 3  // clustered morning draws
+        case 'family_young_children': return 3  // many short events
+        case 'home_worker':           return 3  // kitchen draws throughout day
+        case 'retired_couple':        return 2  // spread demand, fewer starts
+        case 'single_working_adult':  return 1  // fewer starts
+        case 'working_couple':        return 2  // double morning/evening
+        case 'shift_worker':          return 2  // irregular
+        case 'weekend_heavy':         return 1  // light weekday demand
+      }
+    }
+    switch (profile) {
+      case 'professional': return 1  // fewer starts
+      case 'steady_home':  return 2
+      case 'family':       return 3  // many short events
+      case 'shift':        return 2
+    }
+  })()
+  return base * combiMultiplier
+}
+
+/**
+ * Condition penalty in percentage points for boiler efficiency.
+ */
+function conditionPenaltyPct(condition: SystemInputs['systemCondition']): number {
+  switch (condition) {
+    case 'sludged': return 5
+    case 'scaled':  return 3
+    case 'clean':   return 0
+  }
+}
+
+/**
+ * Daily average return temperature (°C), accounting for the blend of
+ * peak and part-load operation throughout the day.
+ *
+ * When load compensation is disabled the boiler runs at a fixed setpoint —
+ * the system does not benefit from lower return temperatures at part load.
+ * In that case we use the design-load return temperature for all hours.
+ *
+ * When load compensation is active, the part-load fraction of the day benefits
+ * from the lower currentLoadReturnTempC, weighted by the occupancy profile.
+ */
+function dailyAvgReturnTempC(
+  emitter: EmitterPrimaryDisplayState,
+  profile: OccupancyProfile,
+  loadCompensation: boolean,
+): number {
+  const peakFrac = peakLoadFraction(profile)
+  // Without load compensation: fixed setpoint → design-load return temp throughout.
+  const partLoadReturnTemp = loadCompensation
+    ? emitter.currentLoadReturnTempC
+    : emitter.estimatedReturnTempC
+  return (
+    emitter.estimatedReturnTempC * peakFrac +
+    partLoadReturnTemp * (1 - peakFrac)
+  )
+}
+
+/**
+ * Condensing gain in percentage points based on daily average return temp.
+ */
+function condensingGainPct(avgReturnTempC: number): number {
+  if (avgReturnTempC >= CONDENSING_THRESHOLD_C) return 0
+  return Math.min(
+    MAX_CONDENSING_GAIN_PCT,
+    (CONDENSING_THRESHOLD_C - avgReturnTempC) * CONDENSING_GAIN_FACTOR,
+  )
+}
+
+// ─── Boiler summary ───────────────────────────────────────────────────────────
+
+function computeBoilerSummary(
+  systemInputs: SystemInputs,
+  systemChoice: SimulatorSystemChoice,
+  emitterState: EmitterPrimaryDisplayState,
+): DailyEfficiencySummaryState {
+  const avgReturn = dailyAvgReturnTempC(emitterState, systemInputs.occupancyProfile, systemInputs.loadCompensation)
+  const gain = condensingGainPct(avgReturn)
+  const conditionPenalty = conditionPenaltyPct(systemInputs.systemCondition)
+  const cyclingPenalty = cyclingPenaltyPct(systemInputs.occupancyProfile, systemChoice, systemInputs.demandPreset)
+
+  const dailyEfficiencyPct = computeCurrentEfficiencyPct(
+    DEFAULT_NOMINAL_EFFICIENCY_PCT + gain - conditionPenalty - cyclingPenalty,
+    0,
+  )
+
+  return {
+    systemKind: 'boiler',
+    dailyEfficiencyPct,
+    summaryLabel: 'Estimated daily operating efficiency',
+    summaryValue: `${Math.round(dailyEfficiencyPct)}%`,
+    explanationLine: buildBoilerExplanation(
+      systemInputs,
+      systemChoice,
+      emitterState,
+      gain,
+      avgReturn,
+    ),
+  }
+}
+
+function buildBoilerExplanation(
+  systemInputs: SystemInputs,
+  systemChoice: SimulatorSystemChoice,
+  emitterState: EmitterPrimaryDisplayState,
+  condensingGain: number,
+  avgReturnTempC: number,
+): string {
+  const preset = systemInputs.demandPreset
+  // Priority-ordered: highest-impact factor first.
+  if (systemInputs.systemCondition === 'sludged') {
+    return 'Magnetite sludge reducing heat transfer across the system.'
+  }
+  if (systemInputs.systemCondition === 'scaled') {
+    return 'Scale build-up restricting heat exchanger performance.'
+  }
+  // Use richer demandPreset descriptions when available, otherwise fall back to occupancyProfile.
+  if (systemChoice === 'combi') {
+    if (preset === 'multigenerational') {
+      return 'Very frequent concurrent demand increases service-switching losses in a combi.'
+    }
+    if (preset === 'family_teenagers') {
+      return 'Overlapping teen showers create high concurrent demand — combi service switching increases cycling losses.'
+    }
+    if (preset === 'shower_heavy') {
+      return 'Clustered morning showers stress combi throughput — consider stored hot water.'
+    }
+    if (preset === 'bath_heavy') {
+      return 'Large evening bath draw exceeds combi plate HEX capacity — extended service switching.'
+    }
+    if (systemInputs.occupancyProfile === 'family' || preset === 'family_young_children') {
+      return 'Frequent concurrent demand increased hot-water cycling losses.'
+    }
+  }
+  if (systemInputs.loadCompensation && condensingGain > 3) {
+    return 'Lower return temperatures and steadier operation improved performance.'
+  }
+  if (condensingGain > 4) {
+    return 'System spending significant time in the condensing range.'
+  }
+  if (!emitterState.emitterAdequate) {
+    return 'Undersized emitters limiting condensing gains.'
+  }
+  if (avgReturnTempC >= CONDENSING_THRESHOLD_C) {
+    return 'High return temperatures preventing condensing operation.'
+  }
+  if (preset === 'retired_couple' || preset === 'home_worker') {
+    return 'Continuous home occupancy spreads demand evenly — lower cycling losses than intermittent profiles.'
+  }
+  if (systemInputs.occupancyProfile === 'professional' || preset === 'single_working_adult' || preset === 'working_couple') {
+    return 'Absent during the day reduces standing and cycling losses.'
+  }
+  if (preset === 'weekend_heavy') {
+    return 'Light weekday demand means low daily cycling — weekend usage drives the weekly average.'
+  }
+  return 'Operating within expected parameters.'
+}
+
+// ─── Heat pump summary ────────────────────────────────────────────────────────
+
+function computeHeatPumpSummary(
+  systemInputs: SystemInputs,
+  emitterState: EmitterPrimaryDisplayState,
+): DailyEfficiencySummaryState {
+  let dailyCop = emitterState.estimatedCop
+
+  // Occupancy modifier — uses demandPreset when available for finer granularity.
+  const occupancyMultiplier = (() => {
+    const preset = systemInputs.demandPreset
+    // High-demand presets: frequent DHW draws hurt HP COP
+    if (preset === 'multigenerational') return 0.91
+    if (preset === 'family_teenagers') return 0.93
+    if (preset === 'bath_heavy') return 0.93
+    if (preset === 'shower_heavy') return 0.92
+    if (preset === 'family_young_children') return 0.94
+    // Low-demand / steady presets: fewer short cycles, better COP
+    if (preset === 'retired_couple') return 1.02
+    if (preset === 'home_worker') return 1.01
+    if (preset === 'weekend_heavy') return 1.04
+    if (preset === 'single_working_adult') return 1.03
+    if (preset === 'working_couple') return 1.02
+    // Fallback to generic occupancyProfile when no preset
+    switch (systemInputs.occupancyProfile) {
+      case 'family':       return 0.94  // more frequent DHW draws
+      case 'professional': return 1.03  // steadier, fewer short cycles
+      case 'steady_home':  return 1.00
+      case 'shift':        return 1.01
+    }
+  })()
+  dailyCop *= occupancyMultiplier
+
+  // Load compensation bonus: reduces required flow temperature.
+  if (systemInputs.loadCompensation) dailyCop *= 1.05
+
+  // Weather compensation bonus: outdoor-reset further reduces flow temperature.
+  if (systemInputs.weatherCompensation) dailyCop += 0.1
+
+  // System condition penalty.
+  if (systemInputs.systemCondition === 'sludged') dailyCop *= 0.94
+  else if (systemInputs.systemCondition === 'scaled') dailyCop *= 0.97
+
+  // Clamp to a realistic range.
+  dailyCop = Math.min(4.5, Math.max(1.5, dailyCop))
+
+  return {
+    systemKind: 'heat_pump',
+    dailyCop,
+    summaryLabel: 'Estimated daily COP',
+    summaryValue: dailyCop.toFixed(1),
+    explanationLine: buildHeatPumpExplanation(systemInputs, emitterState),
+  }
+}
+
+function buildHeatPumpExplanation(
+  systemInputs: SystemInputs,
+  emitterState: EmitterPrimaryDisplayState,
+): string {
+  const preset = systemInputs.demandPreset
+  if (systemInputs.systemCondition === 'sludged') {
+    return 'Magnetite sludge reducing heat transfer efficiency.'
+  }
+  if (systemInputs.systemCondition === 'scaled') {
+    return 'Scale build-up restricting heat exchanger performance.'
+  }
+  if (systemInputs.loadCompensation || systemInputs.weatherCompensation) {
+    return 'Lower flow temperatures and steadier operation improved COP.'
+  }
+  if (!emitterState.emitterAdequate) {
+    return 'Undersized emitters requiring higher flow temperatures, reducing COP.'
+  }
+  if (preset === 'multigenerational' || preset === 'family_teenagers') {
+    return 'Very frequent concurrent DHW demand reduces average heat pump efficiency.'
+  }
+  if (systemInputs.occupancyProfile === 'family' || preset === 'family_young_children') {
+    return 'Frequent concurrent demand reduced average hot-water efficiency.'
+  }
+  if (preset === 'retired_couple' || preset === 'home_worker') {
+    return 'Continuous home presence means steady low-level demand — well-suited to heat pump operation.'
+  }
+  if (systemInputs.occupancyProfile === 'professional' || preset === 'single_working_adult' || preset === 'working_couple') {
+    return 'Fewer short cycling events during the day improved daily COP.'
+  }
+  return 'Operating within expected parameters.'
+}
+
+// ─── Public function ──────────────────────────────────────────────────────────
+
+/**
+ * Compute DailyEfficiencySummaryState from system inputs and the emitter
+ * physics model.
+ *
+ * Called as a pure function (no React state) so it can be unit-tested directly.
+ *
+ * @param systemInputs   Full system configuration including occupancy profile.
+ * @param systemChoice   Current simulator system choice (combi / unvented / etc.).
+ * @param emitterState   Emitter primary model output (flow/return temps, COP).
+ * @param seasonContext  Optional season-context label from the active scenario
+ *                       preset, e.g. "Winter day". Passed through to the state
+ *                       for display in the panel.
+ */
+export function computeDailyEfficiencySummary(
+  systemInputs: SystemInputs,
+  systemChoice: SimulatorSystemChoice,
+  emitterState: EmitterPrimaryDisplayState,
+  seasonContext?: string,
+): DailyEfficiencySummaryState {
+  const isHeatPump = systemChoice === 'heat_pump'
+  const base = isHeatPump
+    ? computeHeatPumpSummary(systemInputs, emitterState)
+    : computeBoilerSummary(systemInputs, systemChoice, emitterState)
+  return seasonContext ? { ...base, seasonContext } : base
+}

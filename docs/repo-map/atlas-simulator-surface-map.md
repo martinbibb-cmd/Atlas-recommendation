@@ -14,11 +14,11 @@ When asked to modify **the simulator**, target **only** the `ACTIVE_LIVE_SIMULAT
 this document.
 
 - **Do NOT** target `Day Painter`, `LifestyleInteractive`, `LifestyleInteractiveCompare`, or any
-  file under `src/engine/daypainter/` or `src/components/daypainter/` for live simulator work.
+  file under `src/legacy/dayPainterPrototype/engine/` or `src/legacy/dayPainterPrototype/components/` for live simulator work.
 - **Do NOT** target archived prototypes, unused demo routes, or dead experimental surfaces unless
   the request explicitly names them.
 - The canonical simulator entry is **`ExplainersHubPage`** (`src/explainers/ExplainersHubPage.tsx`),
-  which mounts **`SimulatorDashboard`** (`src/explainers/lego/simulator/SimulatorDashboard.tsx`).
+  which mounts **`SimulatorDashboard`** (`src/legacy/systemComposerPrototype/simulator/SimulatorDashboard.tsx`).
 
 ---
 
@@ -69,7 +69,7 @@ App.tsx  (journey === 'simulator')
 Additional simulator hooks (all `ACTIVE_SHARED_COMPONENT`):
 
 ```
-src/explainers/lego/simulator/
+src/legacy/systemComposerPrototype/simulator/
   useBehaviourTimeline.ts
   useDailyEfficiencySummary.ts
   useDayTimeline.ts
@@ -107,7 +107,7 @@ src/explainers/lego/simulator/
 | Classification | File | Notes |
 |---|---|---|
 | ACTIVE_LIVE_SIMULATOR | `src/explainers/ExplainersHubPage.tsx` | Canonical simulator entry — mounts SimulatorDashboard. Only this + SimulatorDashboard may use the "Simulator" label. |
-| ACTIVE_LIVE_SIMULATOR | `src/explainers/lego/simulator/SimulatorDashboard.tsx` | Dashboard: House View, System Diagram, Draw-Off Behaviour, Efficiency — single and compare mode. |
+| ACTIVE_LIVE_SIMULATOR | `src/legacy/systemComposerPrototype/simulator/SimulatorDashboard.tsx` | Dashboard: House View, System Diagram, Draw-Off Behaviour, Efficiency — single and compare mode. |
 | ACTIVE_LIVE_SIMULATOR | `src/components/simulator/UnifiedSimulatorView.tsx` | Portal-embedded simulator wrapper; mounts SimulatorDashboard with EngineOutputV1 + FullSurveyModelV1. |
 | ACTIVE_LIVE_SIMULATOR | `src/components/simulator/DailyUseSimulatorPanel.tsx` | Daily-use simulator panel within the UnifiedSimulatorView composite. |
 | ACTIVE_LIVE_SIMULATOR | `src/components/simulator/SystemUpgradeComparisonPanel.tsx` | Current vs proposed system comparison strip inside the live simulator. |
@@ -121,33 +121,33 @@ src/explainers/lego/simulator/
 
 | Classification | File | Notes |
 |---|---|---|
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/SimulatorPanel.tsx` | Generic collapsible panel shell used by the dashboard. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/ExpandedPanelModal.tsx` | Full-screen expand modal for dashboard panels. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/BehaviourGraph.tsx` | 24-hour behaviour graph rendered inside the dashboard. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/SimulatorStepper.tsx` | Setup stepper shown before the dashboard when no survey input is available. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/adaptFullSurveyToSimulatorInputs.ts` | Adapter: full survey → simulator system inputs. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/scenarioTypes.ts` | Scenario presets used by the simulator. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/systemInputsTypes.ts` | Type definitions for simulator system inputs. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useBehaviourTimeline.ts` | Hook: 24-hour behaviour timeline playback. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useDailyEfficiencySummary.ts` | Hook: daily efficiency summary. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useDayTimeline.ts` | Hook: per-hour day timeline data. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useDrawOffPlayback.ts` | Hook: draw-off event playback. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useEfficiencyPlayback.ts` | Hook: efficiency playback from engine output. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useEmitterPrimaryModel.ts` | Hook: emitter adequacy / flow-temp model. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useHousePlayback.ts` | Hook: house-state (room temperature) playback. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useLimiterPlayback.ts` | Hook: system limiter events playback. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useStoredHotWaterPlayback.ts` | Hook: stored hot-water reserve playback. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/useSystemDiagramPlayback.ts` | Hook: system diagram state playback. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/SystemDiagramPanel.tsx` | Live system diagram panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/HouseStatusPanel.tsx` | House status (room temp, comfort) panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/DrawOffStatusPanel.tsx` | Hot-water draw-off status panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/EfficiencyPanel.tsx` | Boiler / heat-pump efficiency panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/LimitersPanel.tsx` | System limiter events panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/SystemInputsPanel.tsx` | System inputs control panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/ComparisonSummaryStrip.tsx` | Before/after physics comparison strip (compare mode). |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/DayTimelinePanel.tsx` | 24-hour timeline panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/DailyEfficiencySummaryPanel.tsx` | Daily efficiency summary panel. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/simulator/panels/StoredHotWaterReservePanel.tsx` | Stored hot-water reserve panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/SimulatorPanel.tsx` | Generic collapsible panel shell used by the dashboard. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/ExpandedPanelModal.tsx` | Full-screen expand modal for dashboard panels. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/BehaviourGraph.tsx` | 24-hour behaviour graph rendered inside the dashboard. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/SimulatorStepper.tsx` | Setup stepper shown before the dashboard when no survey input is available. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/adaptFullSurveyToSimulatorInputs.ts` | Adapter: full survey → simulator system inputs. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/scenarioTypes.ts` | Scenario presets used by the simulator. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/systemInputsTypes.ts` | Type definitions for simulator system inputs. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useBehaviourTimeline.ts` | Hook: 24-hour behaviour timeline playback. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useDailyEfficiencySummary.ts` | Hook: daily efficiency summary. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useDayTimeline.ts` | Hook: per-hour day timeline data. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useDrawOffPlayback.ts` | Hook: draw-off event playback. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useEfficiencyPlayback.ts` | Hook: efficiency playback from engine output. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useEmitterPrimaryModel.ts` | Hook: emitter adequacy / flow-temp model. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useHousePlayback.ts` | Hook: house-state (room temperature) playback. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useLimiterPlayback.ts` | Hook: system limiter events playback. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useStoredHotWaterPlayback.ts` | Hook: stored hot-water reserve playback. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback.ts` | Hook: system diagram state playback. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/SystemDiagramPanel.tsx` | Live system diagram panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/HouseStatusPanel.tsx` | House status (room temp, comfort) panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/DrawOffStatusPanel.tsx` | Hot-water draw-off status panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/EfficiencyPanel.tsx` | Boiler / heat-pump efficiency panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/LimitersPanel.tsx` | System limiter events panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/SystemInputsPanel.tsx` | System inputs control panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/ComparisonSummaryStrip.tsx` | Before/after physics comparison strip (compare mode). |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/DayTimelinePanel.tsx` | 24-hour timeline panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/DailyEfficiencySummaryPanel.tsx` | Daily efficiency summary panel. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/simulator/panels/StoredHotWaterReservePanel.tsx` | Stored hot-water reserve panel. |
 
 ### 3.3 Active Engine / Model Files Consumed by the Simulator
 
@@ -201,15 +201,15 @@ src/explainers/lego/simulator/
 
 | Classification | File | Notes |
 |---|---|---|
-| ACTIVE_SHARED_COMPONENT | `src/components/compare/CompareSystemPicker.tsx` | A/B system picker. Used by LifestyleInteractive (Day Painter visualiser) — note: not the live simulator. See naming collisions section. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/dayPainterPrototype/CompareSystemPicker.tsx` | A/B system picker. Used by LifestyleInteractive (Day Painter visualiser) — note: not the live simulator. See naming collisions section. |
 | ACTIVE_SHARED_COMPONENT | `src/components/compare/ComparisonMatrix.tsx` | Comparison matrix for system options. |
 | ACTIVE_SHARED_COMPONENT | `src/components/visualizers/GlassBoxPanel.tsx` | Glass-box physics detail panel — embedded in dev registry, not the main simulator flow. |
 | ACTIVE_SHARED_COMPONENT | `src/components/visualizers/EfficiencyCurve.tsx` | Efficiency curve chart — embedded in dev registry. |
 | ACTIVE_SHARED_COMPONENT | `src/components/shell/GlobalMenuShell.tsx` | Menu shell wrapping the simulator journey. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/sim/resolveSystemTopology.ts` | System topology resolver used by lego simulator. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/sim/surveyAdapter.ts` | Survey adapter for lego sim. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/sim/supplyModel.ts` | Supply pressure / flow model for lego sim. |
-| ACTIVE_SHARED_COMPONENT | `src/explainers/lego/sim/events.ts` | Simulation event types. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/sim/resolveSystemTopology.ts` | System topology resolver used by lego simulator. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/sim/surveyAdapter.ts` | Survey adapter for lego sim. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/sim/supplyModel.ts` | Supply pressure / flow model for lego sim. |
+| ACTIVE_SHARED_COMPONENT | `src/legacy/systemComposerPrototype/sim/events.ts` | Simulation event types. |
 | ACTIVE_SHARED_COMPONENT | `src/components/behaviour/CylinderStatusCard.tsx` | Cylinder status card (used in simulator behaviour views). |
 | ACTIVE_SHARED_COMPONENT | `src/components/behaviour/VerdictCard.tsx` | Verdict card (recommendation verdict). |
 | ACTIVE_SHARED_COMPONENT | `src/components/behaviour/PrimaryVerdictPanel.tsx` | Primary verdict panel. |
@@ -231,12 +231,12 @@ src/explainers/lego/simulator/
 
 | Classification | File | Notes |
 |---|---|---|
-| DEAD_PROTOTYPE | `src/engine/daypainter/BuildDayModel.ts` | Early Day Painter engine — event-based day model with discrete shower/bath/handwash draw types. Used only by `DayPainterResults.tsx`. Not connected to the live simulator. |
-| DEAD_PROTOTYPE | `src/engine/daypainter/SimulateSystemDay.ts` | Early Day Painter physics runner — `DaySystemType` enum (`combi`, `open_vented`, `mixergy_open_vented`, `unvented`, `mixergy_unvented`, `heat_pump`). Used only by `DayPainterResults.tsx`. |
-| DEAD_PROTOTYPE | `src/components/daypainter/DayPainterResults.tsx` | Early Day Painter results component. Imports from `src/engine/daypainter/` — the old physics stack. Not referenced by `App.tsx` or any production route. Contains a "Shower" dropdown selector (violates current custom instructions). |
-| DEAD_PROTOTYPE | `src/components/daypainter/DaySchedulePanel.tsx` | Day schedule editor that feeds the old `DayProfileV1` contract. Not connected to live simulator. Still compiles and is test-covered (`DaySchedulePanel.test.ts`) but has no production route. |
-| DEAD_PROTOTYPE | `src/components/visualizers/LifestyleInteractive.tsx` | **"Day Painter" visualiser** — 24-hour interactive painter with hour-cell UI. `DayPainterSystem` internal type. Internally named "Day Painter Sales Closer" in its file header. Not mounted in `App.tsx` directly — only in `devUiRegistry.tsx` (dev-only preview). References `LiveMetricChip` and `SystemNarrationToast` patterns internally. |
-| DEAD_PROTOTYPE | `src/components/visualizers/LifestyleInteractiveCompare.tsx` | 2-System Day Painter comparison. Derived from LifestyleInteractive. Only in `devUiRegistry.tsx` (experimental, dev-only). |
+| DEAD_PROTOTYPE | `src/legacy/dayPainterPrototype/engine/BuildDayModel.ts` | Early Day Painter engine — event-based day model with discrete shower/bath/handwash draw types. Used only by `DayPainterResults.tsx`. Not connected to the live simulator. |
+| DEAD_PROTOTYPE | `src/legacy/dayPainterPrototype/engine/SimulateSystemDay.ts` | Early Day Painter physics runner — `DaySystemType` enum (`combi`, `open_vented`, `mixergy_open_vented`, `unvented`, `mixergy_unvented`, `heat_pump`). Used only by `DayPainterResults.tsx`. |
+| DEAD_PROTOTYPE | `src/legacy/dayPainterPrototype/components/DayPainterResults.tsx` | Early Day Painter results component. Imports from `src/legacy/dayPainterPrototype/engine/` — the old physics stack. Not referenced by `App.tsx` or any production route. Contains a "Shower" dropdown selector (violates current custom instructions). |
+| DEAD_PROTOTYPE | `src/legacy/dayPainterPrototype/components/DaySchedulePanel.tsx` | Day schedule editor that feeds the old `DayProfileV1` contract. Not connected to live simulator. Still compiles and is test-covered (`DaySchedulePanel.test.ts`) but has no production route. |
+| DEAD_PROTOTYPE | `src/legacy/dayPainterPrototype/LifestyleInteractive.tsx` | **"Day Painter" visualiser** — 24-hour interactive painter with hour-cell UI. `DayPainterSystem` internal type. Internally named "Day Painter Sales Closer" in its file header. Not mounted in `App.tsx` directly — only in `devUiRegistry.tsx` (dev-only preview). References `LiveMetricChip` and `SystemNarrationToast` patterns internally. |
+| DEAD_PROTOTYPE | `src/legacy/dayPainterPrototype/LifestyleInteractiveCompare.tsx` | 2-System Day Painter comparison. Derived from LifestyleInteractive. Only in `devUiRegistry.tsx` (experimental, dev-only). |
 
 ### 3.7 System Tests for Dead Prototypes
 
@@ -261,37 +261,37 @@ The following ambiguities exist in the codebase and must be understood before ma
 
 ### 4.1 `DayPainterSystem` (internal type) vs "Day Painter" (surface name)
 
-- `src/components/visualizers/LifestyleInteractive.tsx` defines `type DayPainterSystem = 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp'` as an **internal implementation type**.
+- `src/legacy/dayPainterPrototype/LifestyleInteractive.tsx` defines `type DayPainterSystem = 'combi' | 'stored_vented' | 'stored_unvented' | 'ashp'` as an **internal implementation type**.
 - The **surface** called "Day Painter" (`LifestyleInteractive`) is a DEAD_PROTOTYPE for live simulator work.
 - The live simulator (`SimulatorDashboard`) uses a different type for system selection: `SimulatorSystemChoice` (from `useSystemDiagramPlayback.ts`).
 - **Risk**: AI agents searching for "Day Painter" may land on `LifestyleInteractive.tsx` and assume it is the live simulator.
 
 ### 4.2 `LiveMetricChip` / `SystemNarrationToast`
 
-- Both `LiveMetricChip` and `SystemNarrationToast` are defined **only** inside `LifestyleInteractive.tsx` (`src/components/visualizers/LifestyleInteractive.tsx`) as local concepts / inline patterns — they are not exported as separate shared components.
+- Both `LiveMetricChip` and `SystemNarrationToast` are defined **only** inside `LifestyleInteractive.tsx` (`src/legacy/dayPainterPrototype/LifestyleInteractive.tsx`) as local concepts / inline patterns — they are not exported as separate shared components.
 - They are **not** present in `SimulatorDashboard` or any `ACTIVE_LIVE_SIMULATOR` file.
 - **Risk**: Searching for `LiveMetricChip` or `SystemNarrationToast` leads to the Day Painter prototype, not the live simulator.
 
 ### 4.3 `CompareSystemPicker` (used by Day Painter, not live simulator)
 
-- `src/components/compare/CompareSystemPicker.tsx` is described in its file header as "Always-visible A/B system selector for the Day Painter" — it is used by `LifestyleInteractive.tsx` and `LifestyleInteractiveCompare.tsx`.
+- `src/legacy/dayPainterPrototype/CompareSystemPicker.tsx` is described in its file header as "Always-visible A/B system selector for the Day Painter" — it is used by `LifestyleInteractive.tsx` and `LifestyleInteractiveCompare.tsx`.
 - The live simulator's compare mode (`SimulatorDashboard`) does **not** use `CompareSystemPicker`.
 - **Risk**: "compare" searches may land on the Day Painter's comparison surface.
 
 ### 4.4 `DaySchedulePanel` vs live thermostat schedule
 
-- `src/components/daypainter/DaySchedulePanel.tsx` is a dead-prototype schedule editor.
+- `src/legacy/dayPainterPrototype/components/DaySchedulePanel.tsx` is a dead-prototype schedule editor.
 - There is no direct equivalent in the live simulator (schedules are driven by survey occupancy heuristics, not a painter UI).
 
 ### 4.5 "System Summary" label
 
-- `System Summary` appears in `src/story/StoryModeContainer.tsx`, `src/features/insightPack/buildInsightPackFromEngine.ts`, and installation specification steps.
+- `System Summary` appears in `src/story/StoryModeContainer.tsx`, `src/legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine.ts`, and installation specification steps.
 - These are **not** simulator surfaces — they are output/report surfaces.
 - The live simulator uses "System Diagram" (panel) and "Comparison Summary Strip" internally.
 
 ### 4.6 Engine `daypainter/` directory vs live engine modules
 
-- `src/engine/daypainter/` contains two files (`BuildDayModel.ts`, `SimulateSystemDay.ts`) that are part of the old prototype physics stack.
+- `src/legacy/dayPainterPrototype/engine/` contains two files (`BuildDayModel.ts`, `SimulateSystemDay.ts`) that are part of the old prototype physics stack.
 - The live simulator uses `src/engine/modules/LifestyleSimulationModule.ts` and the runner files under `src/engine/runners/`.
 - **Risk**: The directory name `daypainter` in the engine causes AI agents to conflate old prototype physics with live engine physics.
 
@@ -307,8 +307,8 @@ The following ambiguities exist in the codebase and must be understood before ma
 | `SimulatorDashboard` | **Atlas Simulator Dashboard** | Internal + documentation references |
 | `ExplainersHubPage` | **Atlas Simulator Entry** | Documentation references — code name stays the same |
 | "Day Painter" in `devRouteRegistry.ts` note | Already marked `access: 'dev_only'` — add ARCHIVED comment | Code comment only |
-| `src/engine/daypainter/` | **Archived Day Painter engine** | Directory — do not import from here for live simulator work |
-| `src/components/daypainter/` | **Archived Day Painter components** | Directory — do not import from here for live simulator work |
+| `src/legacy/dayPainterPrototype/engine/` | **Archived Day Painter engine** | Directory — do not import from here for live simulator work |
+| `src/legacy/dayPainterPrototype/components/` | **Archived Day Painter components** | Directory — do not import from here for live simulator work |
 
 ---
 
@@ -325,12 +325,12 @@ The following ambiguities exist in the codebase and must be understood before ma
 - Marked `status: 'experimental'`, `access: 'dev_only'`, `routeKind: 'unknown'` in `devUiRegistry.tsx`.
 - Derived from the Day Painter pattern, not from the live `SimulatorDashboard`.
 
-### `src/engine/daypainter/BuildDayModel.ts` + `SimulateSystemDay.ts`
+### `src/legacy/dayPainterPrototype/engine/BuildDayModel.ts` + `SimulateSystemDay.ts`
 
 - Early-stage prototype physics with a discrete event list (shower, bath, handwash) and a different system type taxonomy (`open_vented`, `mixergy_open_vented`, etc.) compared to the live engine.
 - Only consumed by `DayPainterResults.tsx` which has no production route.
 
-### `src/components/daypainter/DayPainterResults.tsx` + `DaySchedulePanel.tsx`
+### `src/legacy/dayPainterPrototype/components/DayPainterResults.tsx` + `DaySchedulePanel.tsx`
 
 - No import in `App.tsx`. No production route in `devRouteRegistry.ts`.
 - `DayPainterResults.tsx` exposes a Shower dropdown selector — explicitly prohibited by the current custom instructions (demand must be driven by household size / bathroom count heuristics).
@@ -362,9 +362,9 @@ The following search terms were used during this audit:
 
 | ✅ Do | ❌ Do Not |
 |---|---|
-| Target `src/explainers/ExplainersHubPage.tsx` for simulator entry changes | Target `src/components/visualizers/LifestyleInteractive.tsx` for live simulator work |
-| Target `src/explainers/lego/simulator/SimulatorDashboard.tsx` for dashboard changes | Target `src/engine/daypainter/` for live engine physics |
-| Target `src/components/simulator/UnifiedSimulatorView.tsx` for portal-embedded simulator | Target `src/components/daypainter/` for live simulator components |
+| Target `src/explainers/ExplainersHubPage.tsx` for simulator entry changes | Target `src/legacy/dayPainterPrototype/LifestyleInteractive.tsx` for live simulator work |
+| Target `src/legacy/systemComposerPrototype/simulator/SimulatorDashboard.tsx` for dashboard changes | Target `src/legacy/dayPainterPrototype/engine/` for live engine physics |
+| Target `src/components/simulator/UnifiedSimulatorView.tsx` for portal-embedded simulator | Target `src/legacy/dayPainterPrototype/components/` for live simulator components |
 | Use `computeCurrentEfficiencyPct` from `src/engine/utils/efficiency.ts` | Use the literal `92` for nominal efficiency |
 | Use `DEFAULT_NOMINAL_EFFICIENCY_PCT` for nominal efficiency | Use `Math.random()` in any simulator component |
 | Source all graph data from `EngineOutputV1` or `LifestyleSimulationModule.hourlyData` | Source graph data from `SimulateSystemDay.ts` (old prototype) |

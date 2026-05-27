@@ -1,5 +1,5 @@
 import type { AdviceFromCompareResult } from '../../lib/advice/buildAdviceFromCompare';
-import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
+import type { SimulatorSystemChoice } from '../../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback';
 import type { DrawOffFlowStability } from '../../engine/modules/StoredDhwModule';
 import './AdvicePanel.css';
 

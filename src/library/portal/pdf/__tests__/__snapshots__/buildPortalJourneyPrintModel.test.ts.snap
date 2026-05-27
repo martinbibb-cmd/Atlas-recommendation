@@ -162,7 +162,7 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       {
         "rendererType": "none",
         "sectionId": "winter_behaviour",
-        "visualAssetId": undefined,
+        "visualAssetId": "",
       },
       {
         "rendererType": "diagram_component",

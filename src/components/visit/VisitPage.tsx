@@ -22,7 +22,7 @@ import FullSurveyStepper from '../stepper/FullSurveyStepper';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { DerivedFloorplanOutput } from '../floorplan/floorplanDerivations';
-import type { QuoteInput } from '../../features/insightPack/insightPack.types';
+import type { QuoteInput } from '../../legacy/customerOutputPrototype/insightPack/insightPack.types';
 import { getVisit, saveVisit, visitStatusLabel, visitDisplayLabel, isVisitCompleted, type VisitMeta } from '../../lib/visits/visitApi';
 import './VisitPage.css';
 

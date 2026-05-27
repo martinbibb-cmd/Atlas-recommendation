@@ -10,20 +10,20 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import BuilderShell from '../../explainers/lego/builder/BuilderShell';
+import BuilderShell from '../../legacy/systemComposerPrototype/builder/BuilderShell';
 import ScanPackageImportFlow from '../../features/scanImport/ui/ScanPackageImportFlow';
 import type { CanonicalFloorPlanDraft } from '../../features/scanImport/importer/scanMapper';
-import { PALETTE_SECTIONS } from '../../explainers/lego/builder/palette';
-import { getPortDefs } from '../../explainers/lego/builder/portDefs';
+import { PALETTE_SECTIONS } from '../../legacy/systemComposerPrototype/builder/palette';
+import { getPortDefs } from '../../legacy/systemComposerPrototype/builder/portDefs';
 import { useAutosave } from '../../lib/hooks/useAutosave';
-import { portAbs } from '../../explainers/lego/builder/snapConnect';
-import { isTopologyAllowed } from '../../explainers/lego/builder/snapConnect';
-import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from '../../explainers/lego/builder/types';
+import { portAbs } from '../../legacy/systemComposerPrototype/builder/snapConnect';
+import { isTopologyAllowed } from '../../legacy/systemComposerPrototype/builder/snapConnect';
+import type { BuildEdge, BuildGraph, BuildNode, PartKind, PortRef } from '../../legacy/systemComposerPrototype/builder/types';
 import {
   PROPERTY_LAYOUTS,
   type FloorLevel,
   type PropertyLayoutId,
-} from '../../explainers/lego/builder/propertyLayouts';
+} from '../../legacy/systemComposerPrototype/builder/propertyLayouts';
 import type {
   DisruptionAnnotation,
   DisruptionKind,
@@ -216,7 +216,7 @@ function roomTypeFromLabel(label: string): RoomType {
 }
 
 /** Derive a PartKind for a PlantAnchor based on its kind. */
-function partKindForAnchor(kind: import('../../explainers/lego/builder/propertyLayouts').PlantAnchorKind): PartKind {
+function partKindForAnchor(kind: import('../../legacy/systemComposerPrototype/builder/propertyLayouts').PlantAnchorKind): PartKind {
   switch (kind) {
     case 'boiler_option_1':
     case 'boiler_option_2':   return 'heat_source_combi';
@@ -234,7 +234,7 @@ function partKindForAnchor(kind: import('../../explainers/lego/builder/propertyL
  * system used by FloorPlanBuilder (which also uses an ~1080×620 canvas).
  */
 function planFromLayout(
-  layout: import('../../explainers/lego/builder/propertyLayouts').PropertyLayout,
+  layout: import('../../legacy/systemComposerPrototype/builder/propertyLayouts').PropertyLayout,
   metadata: PropertyMetadata = {},
 ): PropertyPlan {
   // Scale from the 800×560 layout viewport to the 1080×620 builder canvas

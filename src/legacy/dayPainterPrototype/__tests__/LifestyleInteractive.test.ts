@@ -1,0 +1,503 @@
+/**
+ * Tests for the LifestyleInteractive physics helpers.
+ *
+ * These helpers are exported from the component and drive the three
+ * live curves: Boiler "Stepped" and Hot water reserve.
+ *
+ * Note: hpHorizonCurve was removed (NO-THEATRE violation — invented normalisation
+ * factor and cold-dip heuristic).  ASHP room temperature is now sourced from
+ * LifestyleSimulationModule.hourlyData.ashpRoomTempC (physics-based dynamic room
+ * trace).  See LifestyleInteractiveHelpers.ts for the removal note.
+ */
+import { describe, it, expect } from 'vitest';
+import {
+  defaultHours,
+  nextState,
+  mixergySoCByHour,
+  boilerSteppedCurve,
+  normaliseDeliveryMode,
+  isHotWaterDrawEvent,
+  DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK,
+  type HourState,
+  type DeliveryMode,
+  nextWaterState,
+  defaultWaterSlots,
+  waterSlotsToHourlyKw,
+  type WaterSlotState,
+} from '../../../engine/modules/LifestyleInteractiveHelpers';
+
+// ─── defaultHours ─────────────────────────────────────────────────────────────
+
+describe('defaultHours', () => {
+  it('returns exactly 24 entries', () => {
+    expect(defaultHours()).toHaveLength(24);
+  });
+
+  it('marks morning hours 6–8 as dhw_demand', () => {
+    const h = defaultHours();
+    expect(h[6]).toBe('dhw_demand');
+    expect(h[7]).toBe('dhw_demand');
+    expect(h[8]).toBe('dhw_demand');
+  });
+
+  it('marks professional away period (09–16) as away', () => {
+    const h = defaultHours();
+    for (let i = 9; i <= 16; i++) {
+      expect(h[i]).toBe('away');
+    }
+  });
+
+  it('marks evening home period (17–21) as home', () => {
+    const h = defaultHours();
+    for (let i = 17; i <= 21; i++) {
+      expect(h[i]).toBe('home');
+    }
+  });
+});
+
+// ─── nextState ────────────────────────────────────────────────────────────────
+
+describe('nextState', () => {
+  it('cycles away → home → dhw_demand → away', () => {
+    expect(nextState('away')).toBe('home');
+    expect(nextState('home')).toBe('dhw_demand');
+    expect(nextState('dhw_demand')).toBe('away');
+  });
+});
+
+// ─── mixergySoCByHour ─────────────────────────────────────────────────────────
+
+describe('mixergySoCByHour', () => {
+  const allAway: HourState[] = Array(24).fill('away');
+  const allHome: HourState[] = Array(24).fill('home');
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('returns exactly 24 values', () => {
+    expect(mixergySoCByHour(allAway)).toHaveLength(24);
+  });
+
+  it('SoC values are always between 0 and 100', () => {
+    [allAway, allHome, allDhw].forEach(hours => {
+      mixergySoCByHour(hours).forEach(v => {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(100);
+      });
+    });
+  });
+
+  it('charges during Agile off-peak hours (01–05) when all-away', () => {
+    const soc = mixergySoCByHour(allAway);
+    // SoC at hour 5 should be higher than starting value of 60 % due to charging
+    expect(soc[5]).toBeGreaterThan(60);
+  });
+
+  it('SoC is lower with continuous dhw_demand than with continuous away', () => {
+    const socAway = mixergySoCByHour(allAway);
+    const socDhw = mixergySoCByHour(allDhw);
+    const avgAway = socAway.reduce((s, v) => s + v, 0) / 24;
+    const avgDhw = socDhw.reduce((s, v) => s + v, 0) / 24;
+    expect(avgDhw).toBeLessThan(avgAway);
+  });
+
+  it('SoC never goes below 0 even with constant dhw_demand', () => {
+    const soc = mixergySoCByHour(allDhw);
+    soc.forEach(v => expect(v).toBeGreaterThanOrEqual(0));
+  });
+});
+
+// ─── boilerSteppedCurve ───────────────────────────────────────────────────────
+
+describe('boilerSteppedCurve', () => {
+  const allAway: HourState[] = Array(24).fill('away');
+  const allHome: HourState[] = Array(24).fill('home');
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('returns exactly 24 values', () => {
+    expect(boilerSteppedCurve(allAway, false)).toHaveLength(24);
+  });
+
+  it('returns 16 °C setback when all hours are away', () => {
+    boilerSteppedCurve(allAway, false).forEach(v => {
+      expect(v).toBe(16);
+    });
+  });
+
+  it('returns ≥ 21 °C for home hours (fast reheat)', () => {
+    boilerSteppedCurve(allHome, false).forEach(v => {
+      expect(v).toBeGreaterThanOrEqual(21); // constant 21 °C combi setpoint
+    });
+  });
+
+  it('high-flow delivery drops dhw_demand hour to 17.5 °C', () => {
+    const curve = boilerSteppedCurve(allDhw, true);
+    curve.forEach(v => expect(v).toBe(17.5));
+  });
+
+  it('without high-flow delivery dhw_demand hour is 19.5 °C', () => {
+    const curve = boilerSteppedCurve(allDhw, false);
+    curve.forEach(v => expect(v).toBe(19.5));
+  });
+
+  it('high-flow delivery causes lower temp than standard delivery during dhw_demand', () => {
+    const withShower = boilerSteppedCurve(allDhw, true);
+    const withoutShower = boilerSteppedCurve(allDhw, false);
+    withShower.forEach((v, i) => expect(v).toBeLessThan(withoutShower[i]));
+  });
+});
+
+// ─── normaliseDeliveryMode ────────────────────────────────────────────────────
+
+describe('normaliseDeliveryMode', () => {
+  it('pumped alias → pumped_from_tank', () => {
+    expect(normaliseDeliveryMode('pumped')).toBe('pumped_from_tank');
+  });
+
+  it('tank_pumped alias → pumped_from_tank', () => {
+    expect(normaliseDeliveryMode('tank_pumped')).toBe('pumped_from_tank');
+  });
+
+  it('mixer_pump alias → mains_mixer', () => {
+    expect(normaliseDeliveryMode('mixer_pump')).toBe('mains_mixer');
+  });
+
+  it('electric alias → electric_cold_only', () => {
+    expect(normaliseDeliveryMode('electric')).toBe('electric_cold_only');
+  });
+
+  it('electric_shower alias → electric_cold_only', () => {
+    expect(normaliseDeliveryMode('electric_shower')).toBe('electric_cold_only');
+  });
+
+  it('case variants of electric → electric_cold_only', () => {
+    expect(normaliseDeliveryMode('Electric')).toBe('electric_cold_only');
+    expect(normaliseDeliveryMode('ELECTRIC')).toBe('electric_cold_only');
+    expect(normaliseDeliveryMode('Electric_Shower')).toBe('electric_cold_only');
+  });
+
+  it('canonical modes pass through unchanged', () => {
+    const canonicals: DeliveryMode[] = [
+      'gravity',
+      'pumped_from_tank',
+      'mains_mixer',
+      'accumulator_supported',
+      'break_tank_booster',
+      'electric_cold_only',
+      'unknown',
+    ];
+    for (const m of canonicals) {
+      expect(normaliseDeliveryMode(m)).toBe(m);
+    }
+  });
+
+  it('unknown/garbage input falls back to "unknown"', () => {
+    expect(normaliseDeliveryMode('steam_powered')).toBe('unknown');
+    expect(normaliseDeliveryMode('')).toBe('unknown');
+    expect(normaliseDeliveryMode('  ')).toBe('unknown');
+  });
+});
+
+// ─── isHotWaterDrawEvent ──────────────────────────────────────────────────────
+
+describe('isHotWaterDrawEvent', () => {
+  it('returns false for electric_cold_only (mode-level check, no event kind)', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only')).toBe(false);
+  });
+
+  it('returns true for all other canonical modes (mode-level check)', () => {
+    const hotModes: DeliveryMode[] = [
+      'unknown',
+      'gravity',
+      'pumped_from_tank',
+      'mains_mixer',
+      'accumulator_supported',
+      'break_tank_booster',
+    ];
+    for (const m of hotModes) {
+      expect(isHotWaterDrawEvent(m)).toBe(true);
+    }
+  });
+
+  it('electric_cold_only + shower → false (shower suppressed)', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only', 'shower')).toBe(false);
+  });
+
+  it('electric_cold_only + bath → true (bath still draws hot water)', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only', 'bath')).toBe(true);
+  });
+
+  it('electric_cold_only + sink → true (sink still draws hot water)', () => {
+    expect(isHotWaterDrawEvent('electric_cold_only', 'sink')).toBe(true);
+  });
+
+  it('gravity + shower → true (gravity always draws)', () => {
+    expect(isHotWaterDrawEvent('gravity', 'shower')).toBe(true);
+  });
+
+  it('gravity + bath → true (gravity always draws)', () => {
+    expect(isHotWaterDrawEvent('gravity', 'bath')).toBe(true);
+  });
+});
+
+// ─── mixergySoCByHour — electric shower ──────────────────────────────────────
+
+describe('mixergySoCByHour — electric shower (electric_cold_only)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('electric shower: SoC is NOT reduced during dhw_demand hours', () => {
+    const socElectric = mixergySoCByHour(allDhw, 'electric_cold_only');
+    const socGravity  = mixergySoCByHour(allDhw, 'gravity');
+    // Electric shower draws no hot water → SoC stays higher than gravity draw
+    const avgElectric = socElectric.reduce((s, v) => s + v, 0) / 24;
+    const avgGravity  = socGravity.reduce((s, v) => s + v, 0) / 24;
+    expect(avgElectric).toBeGreaterThan(avgGravity);
+  });
+
+  it('electric shower: cylinder reserve is unchanged by dhw_demand hours (same as all-away SoC pattern)', () => {
+    // All-dhw with electric should behave identically to all-away at night
+    // (no dhw discharge at all — only home-background and off-peak charging differ)
+    const allAway: HourState[] = Array(24).fill('away');
+    const socElectric = mixergySoCByHour(allDhw, 'electric_cold_only');
+    const socAway     = mixergySoCByHour(allAway, 'electric_cold_only');
+    // With electric delivery, dhw_demand is treated the same as away for the cylinder
+    expect(socElectric).toEqual(socAway);
+  });
+
+  it('electric shower: SoC values still within [0, 100]', () => {
+    const soc = mixergySoCByHour(allDhw, 'electric_cold_only');
+    soc.forEach(v => {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(100);
+    });
+  });
+});
+
+// ─── boilerSteppedCurve — electric shower ────────────────────────────────────
+
+describe('boilerSteppedCurve — electric shower (electric_cold_only)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('electric shower: no combi service-switching conflict (stays at ~21°C, not 19.5°C)', () => {
+    const curveElectric = boilerSteppedCurve(allDhw, false, 'electric_cold_only');
+    const curveGravity  = boilerSteppedCurve(allDhw, false, 'gravity');
+    // Electric doesn't fight the combi → temperatures are at home level (~21°C), not the DHW-conflict level (19.5°C)
+    curveElectric.forEach(v => expect(v).toBeGreaterThan(19.5));
+    curveGravity.forEach(v => expect(v).toBeLessThanOrEqual(19.5));
+  });
+
+  it('electric shower: high-flow flag has no effect (no DHW draw means no conflict)', () => {
+    const withHighFlow    = boilerSteppedCurve(allDhw, true,  'electric_cold_only');
+    const withoutHighFlow = boilerSteppedCurve(allDhw, false, 'electric_cold_only');
+    // Both should be equal — electric cancels out the high-flow penalty
+    expect(withHighFlow).toEqual(withoutHighFlow);
+  });
+});
+
+// ─── normaliseDeliveryMode — 'elec' explicit rejection ───────────────────────
+
+describe('normaliseDeliveryMode — elec shorthand', () => {
+  it('"elec" is not a supported alias and falls back to "unknown"', () => {
+    // 'elec' is an unsupported shorthand — callers must use 'electric' or 'electric_cold_only'
+    expect(normaliseDeliveryMode('elec')).toBe('unknown');
+  });
+});
+
+// ─── No-double-counting invariant ────────────────────────────────────────────
+
+describe('no-double-counting invariant — per system archetype', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('combi: boilerSteppedCurve service-switch dip is applied once per hour — never below 17.5°C', () => {
+    // High-flow delivery should produce exactly 17.5°C per dhw_demand hour (not double-applied).
+    const curve = boilerSteppedCurve(allDhw, true);
+    curve.forEach(v => expect(v).toBeGreaterThanOrEqual(17.5));
+  });
+
+  it('ASHP: ASHP room-temperature trace has no deliveryMode parameter — DHW suppression cannot affect it', () => {
+    // The ASHP room temperature is now sourced from
+    // LifestyleSimulationModule.hourlyData.ashpRoomTempC (buildDynamicRoomTrace).
+    // That function accepts no deliveryMode argument, so it is structurally immune
+    // to electric-shower suppression and cannot accidentally double-count DHW draws.
+    // This invariant is verified here via DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK:
+    // shower-peak suppression only affects 'dhw_demand' hour-state helpers that
+    // accept deliveryMode — not the physics room trace.
+    expect(DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK).toBe(true);
+  });
+
+  it('DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK invariant is true (documented contract)', () => {
+    // Confirms the documented assumption that dhw_demand ≡ shower-peak only,
+    // making it safe to suppress all dhw_demand hours for electric delivery
+    // without accidentally removing bath/tap draws (those are in the home baseline).
+    expect(DHW_DEMAND_HOUR_STATE_IS_SHOWER_PEAK).toBe(true);
+  });
+});
+
+// ─── dhwDrawScalar — mixergySoCByHour ────────────────────────────────────────
+
+describe('mixergySoCByHour — dhwDrawScalar (supply path scaling)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+  const allHome: HourState[] = Array(24).fill('home');
+
+  it('scalar=0.0 (cold_only): SoC identical to scalar=0.0 gravity — no draws', () => {
+    const socCold  = mixergySoCByHour(allDhw, 'gravity', 0.0);
+    const socAway  = mixergySoCByHour(Array(24).fill('away'), 'gravity', 0.0);
+    // With scalar=0, dhw_demand draws nothing — pattern same as away (no draws)
+    expect(socCold).toEqual(socAway);
+  });
+
+  it('scalar=0.6 (mixed): SoC is strictly between cold_only (0.0) and hot_water_system (1.0) for dhw_demand pattern', () => {
+    const socCold  = mixergySoCByHour(allDhw, 'gravity', 0.0);
+    const socMixed = mixergySoCByHour(allDhw, 'gravity', 0.6);
+    const socFull  = mixergySoCByHour(allDhw, 'gravity', 1.0);
+    const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / 24;
+    expect(avg(socMixed)).toBeLessThan(avg(socCold));   // mixed draws more than cold_only
+    expect(avg(socMixed)).toBeGreaterThan(avg(socFull)); // mixed draws less than hot_water_system
+  });
+
+  it('scalar=1.0 (hot_water_system): same as calling without scalar when deliveryMode is gravity', () => {
+    const socScalar  = mixergySoCByHour(allDhw, 'gravity', 1.0);
+    const socDefault = mixergySoCByHour(allDhw, 'gravity');
+    expect(socScalar).toEqual(socDefault);
+  });
+
+  it('scalar=0.6: home background draw is also scaled — lower average than scalar=1.0', () => {
+    const socMixed = mixergySoCByHour(allHome, 'gravity', 0.6);
+    const socFull  = mixergySoCByHour(allHome, 'gravity', 1.0);
+    const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / 24;
+    expect(avg(socMixed)).toBeGreaterThan(avg(socFull));
+  });
+
+  it('scalar overrides deliveryMode: scalar=0.0 on gravity still produces no draw', () => {
+    // scalar takes precedence over deliveryMode=gravity which would normally produce full draw
+    const socNoScalar = mixergySoCByHour(allDhw, 'gravity');
+    const socZero     = mixergySoCByHour(allDhw, 'gravity', 0.0);
+    const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / 24;
+    expect(avg(socZero)).toBeGreaterThan(avg(socNoScalar));
+  });
+});
+
+// ─── dhwDrawScalar — boilerSteppedCurve ──────────────────────────────────────
+
+describe('boilerSteppedCurve — dhwDrawScalar (supply path scaling)', () => {
+  const allDhw: HourState[] = Array(24).fill('dhw_demand');
+
+  it('scalar=0.0 (cold_only): no conflict — all temps above 19.5°C', () => {
+    const curve = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);
+    curve.forEach(v => expect(v).toBeGreaterThan(19.5));
+  });
+
+  it('scalar=1.0 (hot_water_system): full conflict — all temps exactly 19.5°C', () => {
+    const curve = boilerSteppedCurve(allDhw, false, 'gravity', 1.0);
+    curve.forEach(v => expect(v).toBe(19.5));
+  });
+
+  it('scalar=0.6 (mixed): partial conflict — temps strictly between scalar=0.0 and scalar=1.0', () => {
+    const curveCold  = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);
+    const curveMixed = boilerSteppedCurve(allDhw, false, 'gravity', 0.6);
+    const curveFull  = boilerSteppedCurve(allDhw, false, 'gravity', 1.0);
+    curveMixed.forEach((v, i) => {
+      expect(v).toBeLessThan(curveCold[i]);  // partial conflict is cooler than no conflict
+      expect(v).toBeGreaterThan(curveFull[i]); // partial conflict is warmer than full conflict
+    });
+  });
+
+  it('scalar=1.0 + high-flow: full conflict — all temps exactly 17.5°C', () => {
+    const curve = boilerSteppedCurve(allDhw, true, 'gravity', 1.0);
+    curve.forEach(v => expect(v).toBe(17.5));
+  });
+
+  it('scalar=0.0 + high-flow: no conflict — high-flow has no effect when scalar=0', () => {
+    const curveHighFlow = boilerSteppedCurve(allDhw, true,  'gravity', 0.0);
+    const curveNoFlow   = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);
+    expect(curveHighFlow).toEqual(curveNoFlow);
+  });
+
+  it('scalar overrides deliveryMode: scalar=0.0 on gravity produces no conflict', () => {
+    const curveGravity = boilerSteppedCurve(allDhw, false, 'gravity');         // full conflict
+    const curveZero    = boilerSteppedCurve(allDhw, false, 'gravity', 0.0);    // no conflict via scalar
+    curveZero.forEach((v, i) => expect(v).toBeGreaterThan(curveGravity[i]));
+  });
+});
+
+// ─── nextWaterState ───────────────────────────────────────────────────────────
+
+describe('nextWaterState', () => {
+  it('cycles none → hot → cold → none', () => {
+    expect(nextWaterState('none')).toBe('hot');
+    expect(nextWaterState('hot')).toBe('cold');
+    expect(nextWaterState('cold')).toBe('none');
+  });
+});
+
+// ─── defaultWaterSlots ────────────────────────────────────────────────────────
+
+describe('defaultWaterSlots', () => {
+  it('returns exactly 288 entries (24 h × 12 five-min slots)', () => {
+    expect(defaultWaterSlots()).toHaveLength(288);
+  });
+
+  it('all slots are initially "none"', () => {
+    defaultWaterSlots().forEach(s => expect(s).toBe('none'));
+  });
+});
+
+// ─── waterSlotsToHourlyKw ─────────────────────────────────────────────────────
+
+describe('waterSlotsToHourlyKw', () => {
+  const hotKw = 15;
+
+  it('returns exactly 24 hourly values', () => {
+    expect(waterSlotsToHourlyKw(defaultWaterSlots(), hotKw)).toHaveLength(24);
+  });
+
+  it('throws RangeError when slots array length is not 288', () => {
+    expect(() => waterSlotsToHourlyKw(Array(100).fill('none') as WaterSlotState[], 15)).toThrow(RangeError);
+    expect(() => waterSlotsToHourlyKw(Array(289).fill('none') as WaterSlotState[], 15)).toThrow(RangeError);
+  });
+
+  it('returns all zeros when all slots are "none"', () => {
+    const result = waterSlotsToHourlyKw(defaultWaterSlots(), hotKw);
+    result.forEach(v => expect(v).toBe(0));
+  });
+
+  it('returns all zeros when all slots are "cold" (no heat energy drawn)', () => {
+    const coldSlots: WaterSlotState[] = Array(288).fill('cold');
+    const result = waterSlotsToHourlyKw(coldSlots, hotKw);
+    result.forEach(v => expect(v).toBe(0));
+  });
+
+  it('full hour of hot slots gives hotKw (12/12 = 1.0 ratio)', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    for (let i = 0; i < 12; i++) slots[6 * 12 + i] = 'hot'; // hour 6 all hot
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[6]).toBe(hotKw);
+  });
+
+  it('half hour of hot slots gives hotKw / 2 (6/12 = 0.5 ratio)', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    for (let i = 0; i < 6; i++) slots[7 * 12 + i] = 'hot'; // first 6 slots of hour 7
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[7]).toBeCloseTo(hotKw / 2, 5);
+  });
+
+  it('single hot slot gives hotKw / 12', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    slots[0] = 'hot'; // first slot of hour 0
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[0]).toBeCloseTo(hotKw / 12, 5);
+  });
+
+  it('hot slots in one hour do not bleed into adjacent hours', () => {
+    const slots: WaterSlotState[] = Array(288).fill('none');
+    for (let i = 0; i < 12; i++) slots[10 * 12 + i] = 'hot'; // all of hour 10
+    const result = waterSlotsToHourlyKw(slots, hotKw);
+    expect(result[9]).toBe(0);
+    expect(result[10]).toBe(hotKw);
+    expect(result[11]).toBe(0);
+  });
+
+  it('all slots hot → every hour returns hotKw', () => {
+    const allHot: WaterSlotState[] = Array(288).fill('hot');
+    const result = waterSlotsToHourlyKw(allHot, hotKw);
+    result.forEach(v => expect(v).toBe(hotKw));
+  });
+});

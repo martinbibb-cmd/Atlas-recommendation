@@ -12,7 +12,7 @@
  */
 
 import { useState, type CSSProperties } from 'react';
-import type { QuoteInput } from '../../../features/insightPack/insightPack.types';
+import type { QuoteInput } from '../../../legacy/customerOutputPrototype/insightPack/insightPack.types';
 import { getStepMeta } from '../../../config/surveyStepRegistry';
 
 // ─── Styles ───────────────────────────────────────────────────────────────────

@@ -31,7 +31,7 @@ import HubPage from '../components/hub/HubPage';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
 import LabPrintTechnical from '../components/lab/LabPrintTechnical';
 import LabPrintComparison from '../components/lab/LabPrintComparison';
-import { CustomerAdvicePrintPack } from '../components/print/CustomerAdvicePrintPack';
+import { CustomerAdvicePrintPack } from '../legacy/customerOutputPrototype/CustomerAdvicePrintPack';
 import { buildScenariosFromEngineOutput } from '../engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from '../engine/modules/buildDecisionFromScenarios';
 import { buildVisualBlocks } from '../engine/modules/buildVisualBlocks';

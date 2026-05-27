@@ -4,5 +4,5 @@
 
 export { ComparisonMatrix } from './ComparisonMatrix';
 export type { ComparisonMatrixProps } from './ComparisonMatrix';
-export { default as CompareSystemPicker } from './CompareSystemPicker';
+export { default as CompareSystemPicker } from '../../legacy/dayPainterPrototype/CompareSystemPicker';
 export { default as ComparisonMatrixPage } from './ComparisonMatrixPage';

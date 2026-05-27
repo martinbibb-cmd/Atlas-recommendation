@@ -23,9 +23,9 @@ import { readCanonicalReportPayload } from '../../features/reports/adapters/read
 import { runEngine } from '../../engine/Engine';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage';
-import InsightPackDeck from '../../features/insightPack/InsightPackDeck';
-import { buildInsightPackFromEngine } from '../../features/insightPack/buildInsightPackFromEngine';
-import type { InsightPackSurveyContext } from '../../features/insightPack/buildInsightPackFromEngine';
+import InsightPackDeck from '../../legacy/customerOutputPrototype/insightPack/InsightPackDeck';
+import { buildInsightPackFromEngine } from '../../legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine';
+import type { InsightPackSurveyContext } from '../../legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine';
 import { buildPortalViewModel } from '../../engine/modules/buildPortalViewModel';
 import { buildVisualBlocks } from '../../engine/modules/buildVisualBlocks';
 import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';

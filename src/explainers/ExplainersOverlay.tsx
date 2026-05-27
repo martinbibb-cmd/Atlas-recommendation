@@ -23,8 +23,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { EDUCATIONAL_EXPLAINERS } from './educational/content';
-import type { EducationalExplainer, ExplainerCategory } from './educational/types';
+import { EDUCATIONAL_EXPLAINERS } from '../legacy/educationalExplainersPrototype/content';
+import type { EducationalExplainer, ExplainerCategory } from '../legacy/educationalExplainersPrototype/types';
 import type { GlobalMenuSection } from '../components/shell/GlobalMenuContext';
 import { useGlobalMenu } from '../components/shell/GlobalMenuContext';
 import './ExplainersOverlay.css';

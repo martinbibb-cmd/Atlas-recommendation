@@ -14,7 +14,7 @@
 
 | Current asset | Action | Target location | Reason |
 |---|---|---|---|
-| `src/explainers/educational/content.ts` and `types.ts` | Migrate content records into canonical concept/explainer registry | `src/library/concepts/`, `src/library/registry/` | Already close to canonical educational content |
+| `src/legacy/educationalExplainersPrototype/content.ts` and `types.ts` | Migrate content records into canonical concept/explainer registry | `src/library/concepts/`, `src/library/registry/` | Already close to canonical educational content |
 | `src/lib/explainers/explainerRegistry.ts` | Replace with adapter, then migrate metadata | `src/library/registry/` | Trigger and placement metadata belongs in one library registry |
 | `src/components/physics-visuals/physicsVisualRegistry.ts` and `physicsVisualTypes.ts` | Fold into library contracts and asset registry | `src/library/contracts/`, `src/library/registry/` | Strongest existing metadata foundation |
 | `src/components/visualizers/DrivingStylePhysicsExplainer.tsx` | Re-home as analogy asset renderer | `src/library/analogies/driving-style/` | Reusable, triggerable, reduced-motion aware |
@@ -29,10 +29,10 @@
 
 | Current asset | Target pattern | Why |
 |---|---|---|
-| `src/components/visualizers/LifestyleInteractive.tsx` | Keep renderer, add library metadata and trigger bindings | Large surface depends on simulation truth and synchronized charts |
-| `src/components/visualizers/LifestyleInteractiveCompare.tsx` | Keep renderer, add comparison/topology binding | Advanced compare mode should stay near simulation code |
-| `src/explainers/lego/simulator/SimulatorDashboard.tsx` | Keep renderer, resolve child assets through library registry | Dashboard is a shell more than a single educational asset |
-| `src/explainers/lego/animation/render/LabCanvas.tsx` | Decompose into library-addressable sub-assets over time | Too large to move in one step |
+| `src/legacy/dayPainterPrototype/LifestyleInteractive.tsx` | Keep archived only, no new feature work | Dead Day Painter prototype retained only for explicit legacy diagnostics |
+| `src/legacy/dayPainterPrototype/LifestyleInteractiveCompare.tsx` | Keep archived only, no new feature work | Dead compare prototype retained only for explicit legacy diagnostics |
+| `src/legacy/systemComposerPrototype/simulator/SimulatorDashboard.tsx` | Keep renderer, resolve child assets through library registry | Dashboard is a shell more than a single educational asset |
+| `src/legacy/systemComposerPrototype/animation/render/LabCanvas.tsx` | Decompose into library-addressable sub-assets over time | Too large to move in one step |
 | `src/components/portal/ScenarioPreviewPanel.tsx` | Keep renderer, switch to canonical asset references | Scenario preview is context-specific UI |
 
 ## Shared assets to extract first

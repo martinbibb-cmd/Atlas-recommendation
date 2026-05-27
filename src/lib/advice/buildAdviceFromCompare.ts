@@ -21,7 +21,7 @@ import type { CompareSeed } from '../simulator/buildCompareSeedFromSurvey';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { SimulatorSystemOverride } from '../simulator/buildResimulationFromSurvey';
 import { toEngineInput } from '../../ui/fullSurvey/FullSurveyModelV1';
-import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
+import type { SimulatorSystemChoice } from '../../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback';
 import {
   computeCurrentEfficiencyPct,
   DEFAULT_NOMINAL_EFFICIENCY_PCT,

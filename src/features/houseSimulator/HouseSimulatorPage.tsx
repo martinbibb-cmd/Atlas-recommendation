@@ -29,27 +29,27 @@
 
 import { useState, useMemo } from 'react';
 
-import { useSystemDiagramPlayback } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
-import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
-import { useHousePlayback } from '../../explainers/lego/simulator/useHousePlayback';
-import { useDrawOffPlayback } from '../../explainers/lego/simulator/useDrawOffPlayback';
-import { useEfficiencyPlayback } from '../../explainers/lego/simulator/useEfficiencyPlayback';
-import { useLimiterPlayback } from '../../explainers/lego/simulator/useLimiterPlayback';
-import { useEmitterPrimaryModel } from '../../explainers/lego/simulator/useEmitterPrimaryModel';
-import { computeDayTimeline } from '../../explainers/lego/simulator/useDayTimeline';
-import { DEFAULT_SYSTEM_INPUTS } from '../../explainers/lego/simulator/systemInputsTypes';
-import type { SystemInputs } from '../../explainers/lego/simulator/systemInputsTypes';
-import type { ScenarioKey } from '../../explainers/lego/simulator/scenarioTypes';
-import { SCENARIO_PRESETS, DEFAULT_SCENARIO_KEY } from '../../explainers/lego/simulator/scenarioTypes';
-import { adaptFullSurveyToSimulatorInputs } from '../../explainers/lego/simulator/adaptFullSurveyToSimulatorInputs';
+import { useSystemDiagramPlayback } from '../../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback';
+import type { SimulatorSystemChoice } from '../../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback';
+import { useHousePlayback } from '../../legacy/systemComposerPrototype/simulator/useHousePlayback';
+import { useDrawOffPlayback } from '../../legacy/systemComposerPrototype/simulator/useDrawOffPlayback';
+import { useEfficiencyPlayback } from '../../legacy/systemComposerPrototype/simulator/useEfficiencyPlayback';
+import { useLimiterPlayback } from '../../legacy/systemComposerPrototype/simulator/useLimiterPlayback';
+import { useEmitterPrimaryModel } from '../../legacy/systemComposerPrototype/simulator/useEmitterPrimaryModel';
+import { computeDayTimeline } from '../../legacy/systemComposerPrototype/simulator/useDayTimeline';
+import { DEFAULT_SYSTEM_INPUTS } from '../../legacy/systemComposerPrototype/simulator/systemInputsTypes';
+import type { SystemInputs } from '../../legacy/systemComposerPrototype/simulator/systemInputsTypes';
+import type { ScenarioKey } from '../../legacy/systemComposerPrototype/simulator/scenarioTypes';
+import { SCENARIO_PRESETS, DEFAULT_SCENARIO_KEY } from '../../legacy/systemComposerPrototype/simulator/scenarioTypes';
+import { adaptFullSurveyToSimulatorInputs } from '../../legacy/systemComposerPrototype/simulator/adaptFullSurveyToSimulatorInputs';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 
-import DayTimelinePanel from '../../explainers/lego/simulator/panels/DayTimelinePanel';
-import DrawOffStatusPanel from '../../explainers/lego/simulator/panels/DrawOffStatusPanel';
-import SystemInputsPanel from '../../explainers/lego/simulator/panels/SystemInputsPanel';
-import EfficiencyPanel from '../../explainers/lego/simulator/panels/EfficiencyPanel';
-import LimitersPanel from '../../explainers/lego/simulator/panels/LimitersPanel';
+import DayTimelinePanel from '../../legacy/systemComposerPrototype/simulator/panels/DayTimelinePanel';
+import DrawOffStatusPanel from '../../legacy/systemComposerPrototype/simulator/panels/DrawOffStatusPanel';
+import SystemInputsPanel from '../../legacy/systemComposerPrototype/simulator/panels/SystemInputsPanel';
+import EfficiencyPanel from '../../legacy/systemComposerPrototype/simulator/panels/EfficiencyPanel';
+import LimitersPanel from '../../legacy/systemComposerPrototype/simulator/panels/LimitersPanel';
 
 import { buildHouseSimulatorViewModel } from './buildHouseSimulatorViewModel';
 import HouseSimulatorCanvas from './HouseSimulatorCanvas';
