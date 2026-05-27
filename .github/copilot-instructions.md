@@ -38,7 +38,7 @@ All AI-assisted code contributions must follow the rules below.
 ## Terminology Overrides
 
 - **Lego Technix** is the canonical name for the functional heating-system graph foundation.
-- **Never** refer to the system as "Lego Builder", "Building Set", or "Lego Set" for functional graph or simulation references.
+- **Never** refer to the active functional graph or simulation engine as "Lego Builder", "Building Set", or "Lego Set".
 - Do not apply Lego Technix naming, contracts, or simulation assumptions to legacy builder-set files under `src/explainers/lego/`.
 
 ## Strict Naming & Directory Boundaries
@@ -49,11 +49,11 @@ All AI-assisted code contributions must follow the rules below.
 - **Definition:** Active, authoritative physics-driven system graph and simulation engine.
 - **Rule:** Simulation math, efficiency clamping, and graph logic changes must stay in this path.
 
-### 2. Lego Builder Set (System Composer)
+### 2. Legacy System Composer (Builder Set)
 
 - **Path Focus:** `src/explainers/lego/` (including `src/explainers/lego/LegoTechnixPage.tsx`)
 - **Definition:** Legacy visual component sandbox with drag-and-drop builder mechanics.
-- **Note:** The legacy entry point retains historical naming and is still treated as System Composer legacy code, not the active Lego Technix simulation engine.
+- **Note:** `LegoTechnixPage.tsx` remains a legacy System Composer entry point despite its filename and must not be treated as part of the active Lego Technix simulation engine.
 - **CRITICAL PROTECTION RULE:** Never suggest renaming, refactoring, or updating these legacy files to match Lego Technix paradigms. The domains are functionally isolated until explicit deprecation.
 
 ## Layout
