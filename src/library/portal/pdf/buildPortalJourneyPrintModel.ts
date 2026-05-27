@@ -1411,7 +1411,6 @@ function buildStoredHotWaterSectionsAndNextSteps(
   routeConceptTags.add('system_fit_decision_map');
   routeConceptTags.add('pressure_vs_storage');
   routeConceptTags.add('stored_hot_water_recovery_timeline');
-  routeConceptTags.add('powerflush_condition_led');
   routeConceptTags.add('magnetic_filter_capture');
   routeConceptTags.add('sealed_system_pressure_window');
 
@@ -1464,7 +1463,6 @@ function buildCombiSectionsAndNextSteps(
   const routeConceptTags = new Set(conceptTagSet);
   routeConceptTags.add('system_fit_decision_map');
   routeConceptTags.add('flow_restriction_bottleneck');
-  routeConceptTags.add('powerflush_condition_led');
   routeConceptTags.add('magnetic_filter_capture');
   routeConceptTags.add('sealed_system_pressure_window');
 
@@ -1656,7 +1654,6 @@ function buildOpenVentedSectionsAndNextSteps(
 
   const routeConceptTags = new Set(conceptTagSet);
   routeConceptTags.add('system_fit_decision_map');
-  routeConceptTags.add('powerflush_condition_led');
   routeConceptTags.add('stored_hot_water_recovery_timeline');
   routeConceptTags.add('sealed_system_pressure_window');
 

@@ -18,6 +18,7 @@ import {
   listKnownCustomerFacingVisualIds,
 } from '../legoTechnicCustomerVisualManifest';
 import { listManifestAssetIds } from '../visualAssetManifest';
+import { isApprovedCustomerPdfVisualAssetId } from '../../../pdfVisuals/customerPdfVisualRegistry';
 
 const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
   journeyType: 'open_vented',
@@ -1466,5 +1467,97 @@ describe('buildCustomerJourneyPack — educational evidence acceptance routing',
       .flatMap((reason) => [reason.homeFact, reason.whyItMatters, reason.atlasRecommendationOutcome, reason.practicalEffect])
       .join(' ');
     expect(text).not.toContain('Atlas used this fact directly in route and sizing checks.');
+  });
+
+  it('includes the powerflush explainer when sludge/powerflush appears in scope', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System protection route.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {} as never,
+        proposalTruth: {
+          decision: {
+            quoteScope: [
+              {
+                id: 'powerflush_system_clean',
+                label: 'Powerflush and chemical clean',
+                category: 'flush',
+                status: 'included',
+                whatItDoes: 'Removes sludge from the heating circuit.',
+              },
+            ],
+          },
+        },
+      } as never,
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('powerflush_condition_led');
+  });
+
+  it('includes the magnetic filter explainer when filter replacement appears in scope', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'System protection route.',
+      customerFacts: [],
+      canonicalVisitPackage: {
+        visitIdentity: {},
+        workspaceBrandReference: {},
+        customerPropertyDetails: {},
+        surveyDraft: {} as never,
+        proposalTruth: {
+          decision: {
+            quoteScope: [
+              {
+                id: 'magnetic_filter_replacement',
+                label: 'Magnetic filter replacement',
+                category: 'protection',
+                status: 'included',
+              },
+            ],
+          },
+        },
+      } as never,
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('magnetic_filter_capture');
+  });
+
+  it('includes water-pressure explainer when pressure/flow evidence drives recommendation', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Flow-limited route.',
+      customerFacts: [],
+      visitEnvelope: {
+        recommendation: {
+          reasons: [{ id: 'r1', text: 'Measured mains pressure and flow are constrained.' }],
+          evidence: [{ id: 'e1', fieldPath: 'mainsDynamicFlowLpm', label: 'Dynamic flow', value: '8 L/min' }],
+          requiredWork: [],
+          futureReady: [],
+          emitters: { existingRadiatorsCompatible: true, requiredFlowTempC: 55, note: '' },
+        },
+      } as never,
+    });
+    const sectionIds = pack.staticPdf.sections.map((s) => s.sectionId);
+    expect(sectionIds).toContain('flow_restriction_bottleneck');
+  });
+
+  it('keeps customer PDF scene visuals inside approved registry IDs only', () => {
+    const pack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Stored hot water route.',
+      customerFacts: [],
+      recommendationIntent: 'stored_hot_water',
+    });
+    const sceneVisualIds = pack.staticPdf.sections
+      .map((section) => section.storyScene?.visualAssetId)
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+    expect(sceneVisualIds.length).toBeGreaterThan(0);
+    for (const visualId of sceneVisualIds) {
+      expect(isApprovedCustomerPdfVisualAssetId(visualId)).toBe(true);
+    }
   });
 });
