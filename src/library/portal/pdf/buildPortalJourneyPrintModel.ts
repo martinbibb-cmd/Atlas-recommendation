@@ -1185,6 +1185,9 @@ const GENERIC_STORY_SCENE_TITLES = new Set([
   'story scene',
 ]);
 const BANNED_STORY_SCENE_LANGUAGE = /\batlas mapped\b|\broute\b|\bprojection\b|\btaxonomy\b|\bdigest\b|\bconcept id\b/i;
+const MIN_WHAT_YOU_WILL_NOTICE_LENGTH = 24;
+const MIN_STORY_SCENE_TITLE_LENGTH = 8;
+const MIN_STORY_SCENE_TAKEAWAY_LENGTH = 20;
 const VAGUE_WHAT_YOU_WILL_NOTICE = [
   'you will notice improvements',
   'you will notice a difference',
@@ -1263,7 +1266,7 @@ export function validateCustomerStoryScene(
     ));
   }
   if (
-    whatYouWillNotice.length < 24
+    whatYouWillNotice.length < MIN_WHAT_YOU_WILL_NOTICE_LENGTH
     || VAGUE_WHAT_YOU_WILL_NOTICE.some((phrase) => whatYouWillNotice.toLowerCase().includes(phrase))
   ) {
     errors.push(buildStorySceneValidationIssue(
@@ -1277,13 +1280,13 @@ export function validateCustomerStoryScene(
       'Story scene requires a visual asset ID for this concept.',
     ));
   }
-  if (title.length < 8) {
+  if (title.length < MIN_STORY_SCENE_TITLE_LENGTH) {
     warnings.push(buildStorySceneValidationIssue(
       'short_title',
       'Story scene title is unusually short.',
     ));
   }
-  if (takeaway.length > 0 && takeaway.length < 20) {
+  if (takeaway.length > 0 && takeaway.length < MIN_STORY_SCENE_TAKEAWAY_LENGTH) {
     warnings.push(buildStorySceneValidationIssue(
       'short_takeaway',
       'Story scene takeaway is short and may under-explain the outcome.',
@@ -1335,8 +1338,7 @@ function buildCustomerPdfContentSource(input: {
   const errorCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.validation.errors.map((issue) => issue.code)));
   const warningCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.warnings.length, 0);
   const errorCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.errors.length, 0);
-  const blockingErrorCount = errorCount;
-  if (blockingErrorCount > 0) fallbackSignals.push('story_scene_quality_blocked');
+  if (errorCount > 0) fallbackSignals.push('story_scene_quality_blocked');
   const genericReasonCount = input.recommendationReasons
     .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(FALLBACK_REASON_MATCH_PHRASE))
     .length;
@@ -1347,7 +1349,7 @@ function buildCustomerPdfContentSource(input: {
     && selectedConceptCount > 0
     && selectedStorySceneCount > 0
     && (!scenarioRequiresVisuals || visualAssetIds.length > 0)
-    && blockingErrorCount === 0;
+    && errorCount === 0;
   const fallbackOnly = !exportable;
 
   return {
@@ -1361,7 +1363,7 @@ function buildCustomerPdfContentSource(input: {
       sceneCount: validatedStoryScenes.length,
       warningCount,
       errorCount,
-      blockingErrorCount,
+      blockingErrorCount: errorCount,
       rejectedSceneCount: validatedStoryScenes.length - selectedStorySceneCount,
       warningCodes,
       errorCodes,
