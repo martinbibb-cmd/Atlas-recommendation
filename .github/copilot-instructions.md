@@ -35,6 +35,12 @@ All AI-assisted code contributions must follow the rules below.
 - Correct replacements: "tank-fed hot water", "tank-fed supply", "mains-fed supply", "on-demand hot water".
 - Engine-internal identifiers (TypeScript enums/field names) are implementation details and are not subject to this rule.
 
+## Terminology Overrides
+
+- **Lego Technix** is the canonical name for the functional heating-system graph foundation.
+- **Never** refer to the system as "Lego Builder", "Building Set", or "Lego Set" for functional graph or simulation references.
+- In Atlas domain context, any mention of "Lego" refers to the hydraulic simulation logic in `docs/lego-technix/` and `src/features/legoTechnix/`.
+
 ## Layout
 
 - The Twin Visualiser (`LifestyleInteractive.tsx`) renders two charts:

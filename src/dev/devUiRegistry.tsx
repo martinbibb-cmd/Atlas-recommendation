@@ -12,7 +12,7 @@
 
 import type { ReactNode } from 'react';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
-import LegoBuildingSetPage from '../explainers/lego/LegoBuildingSetPage';
+import LegoTechnixPage from '../explainers/lego/LegoTechnixPage';
 import LifestyleInteractive from '../components/visualizers/LifestyleInteractive';
 import LifestyleInteractiveCompare from '../components/visualizers/LifestyleInteractiveCompare';
 import GlassBoxPanel from '../components/visualizers/GlassBoxPanel';
@@ -223,11 +223,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
 
   // ── Atlas System Composer ──────────────────────────────────────────────────
   {
-    id: 'lego-building-set',
+    id: 'lego-technix-page',
     commonName: 'Atlas System Composer',
-    codeName: 'LegoBuildingSetPage',
-    fileName: 'LegoBuildingSetPage.tsx',
-    filePath: 'src/explainers/lego/LegoBuildingSetPage.tsx',
+    codeName: 'LegoTechnixPage',
+    fileName: 'LegoTechnixPage.tsx',
+    filePath: 'src/explainers/lego/LegoTechnixPage.tsx',
     category: 'simulator',
     status: 'active',
     notes:
@@ -237,11 +237,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     routeKind: 'derived',
     access: 'production',
     sourceFiles: [
-      'src/explainers/lego/LegoBuildingSetPage.tsx',
+      'src/explainers/lego/LegoTechnixPage.tsx',
       'src/explainers/lego/builder/BuilderShell.tsx',
     ],
     includeInCopyBox: false,
-    render: () => <LegoBuildingSetPage onBack={() => undefined} />,
+    render: () => <LegoTechnixPage onBack={() => undefined} />,
   },
 
   // ── Presentation ──────────────────────────────────────────────────────────

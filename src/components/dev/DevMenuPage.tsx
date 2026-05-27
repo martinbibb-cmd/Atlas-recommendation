@@ -6,7 +6,7 @@
  * Top-level tabs include:
  *   - UI Inventory  – curated registry of all Atlas UI surfaces
  *   - Library – browse + navigate registry entries with TXT reference export
- *   - Visuals Gallery – individual visual elements (Physics Visuals, Lego Builder Components)
+ *   - Visuals Gallery – individual visual elements (Physics Visuals, Lego Technix Components)
  *   - Component Discovery – route auditor + unrouted component scanner
  *
  * UI Inventory lists all curated UI surfaces from the dev registry, with:
