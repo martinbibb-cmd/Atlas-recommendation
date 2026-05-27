@@ -1,0 +1,76 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures expected visual scene outputs for core recommendation routes 1`] = `
+[
+  {
+    "id": "regular_vented",
+    "scenes": [
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "practical_outcomes",
+        "visualAssetId": "open_vented_to_unvented",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "pressure_vs_storage",
+        "visualAssetId": "pressure_vs_storage",
+      },
+      {
+        "rendererType": "none",
+        "sectionId": "quiet_scene_pressure_vs_storage",
+        "visualAssetId": undefined,
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "unvented_safety",
+        "visualAssetId": "open_vented_to_unvented",
+      },
+    ],
+  },
+  {
+    "id": "system_unvented",
+    "scenes": [
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "system_fit_decision_map",
+        "visualAssetId": "system_fit_decision_map",
+      },
+    ],
+  },
+  {
+    "id": "combi",
+    "scenes": [
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "system_fit_decision_map",
+        "visualAssetId": "system_fit_decision_map",
+      },
+    ],
+  },
+  {
+    "id": "heat_pump",
+    "scenes": [
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "warm_not_hot_radiators",
+        "visualAssetId": "warm_vs_hot_radiators",
+      },
+      {
+        "rendererType": "none",
+        "sectionId": "quiet_scene_warm_not_hot_radiators",
+        "visualAssetId": undefined,
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "steady_running",
+        "visualAssetId": "weather_compensation_curve",
+      },
+      {
+        "rendererType": "print_fallback",
+        "sectionId": "winter_behaviour",
+        "visualAssetId": "heat_pump_defrost",
+      },
+    ],
+  },
+]
+`;

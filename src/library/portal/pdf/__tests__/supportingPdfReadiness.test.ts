@@ -65,6 +65,50 @@ describe('assessSupportingPdfReadiness', () => {
     expect(result.blockingReasons.join(' ')).toMatch(/raw engine\/debug text/i);
   });
 
+  it('blocks readiness when rendered scene copy contains internal design wording', () => {
+    const input = makeReadinessInput();
+    const modelWithInternalSceneCopy = {
+      ...input.model,
+      sections: input.model.sections.map((section) =>
+        section.sectionId === 'pressure_vs_storage' && section.storyScene != null
+          ? {
+              ...section,
+              storyScene: {
+                ...section.storyScene,
+                whyItMatters: 'Spacing dense technical copy lowers cognitive load and improves comprehension.',
+              },
+            }
+          : section),
+    };
+
+    const result = assessSupportingPdfReadiness({
+      ...input,
+      model: modelWithInternalSceneCopy,
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.blockingReasons.join(' ')).toMatch(/internal design\/pipeline wording/i);
+  });
+
+  it('blocks readiness when scene visuals are unresolved for PDF rendering', () => {
+    const input = makeReadinessInput();
+    const result = assessSupportingPdfReadiness({
+      ...input,
+      model: {
+        ...input.model,
+        contentSource: {
+          ...input.model.contentSource!,
+          sceneDiagnostics: input.model.contentSource!.sceneDiagnostics.map((diag) =>
+            diag.sectionId === 'pressure_vs_storage'
+              ? { ...diag, rendererType: 'none', blockingReasons: ['Visual unresolved'] }
+              : diag),
+        },
+      },
+    });
+    expect(result.ready).toBe(false);
+    expect(result.blockingReasons.join(' ')).toMatch(/scene visuals are unresolved/i);
+  });
+
   it('warns at the page-count limit and blocks with warning on overflow', () => {
     const input = makeReadinessInput();
 

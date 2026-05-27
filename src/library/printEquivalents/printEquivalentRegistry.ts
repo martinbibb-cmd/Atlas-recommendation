@@ -65,6 +65,22 @@ export const printEquivalentRegistry: PrintEquivalentV1[] = [
     qrDeepDiveLabel: 'View animated radiator comparison',
     sourceAnimationId: 'RadiatorUpgradeAnimation',
   },
+  {
+    assetId: 'heat_pump_defrost',
+    conceptIds: ['heat_pump_defrost_expectation'],
+    title: 'Heat pump defrost timeline',
+    printTitle: 'Heat pump defrost (print walkthrough)',
+    summary: 'Shows normal short defrost and recovery behaviour so winter operation expectations stay clear and customer-safe.',
+    steps: [
+      'Identify the short pause where the unit enters defrost.',
+      'Note that heating resumes after the defrost cycle completes.',
+      'Escalate only if recovery does not occur after repeated cycles.',
+    ],
+    labels: ['Defrost cycle', 'Winter behaviour', 'Expected recovery'],
+    accessibilityNotes: 'Static sequence replacing motion timeline for print-safe handover guidance.',
+    qrDeepDiveLabel: 'View heat-pump winter behaviour guidance',
+    sourceAnimationId: 'anim-defrost-timeline',
+  },
 ];
 
 export const printEquivalentByAssetId = new Map(

@@ -43,6 +43,21 @@ const RAW_ENGINE_OR_DEBUG_PATTERNS = [
   /\bengine\b/i,
 ] as const;
 
+const INTERNAL_PIPELINE_WORDING_PATTERNS = [
+  /\bcognitive load\b/i,
+  /\bdense technical\b/i,
+  /\bspacing\b/i,
+  /\bcomprehension\b/i,
+  /\bbreather page\b/i,
+  /\brouted evidence\b/i,
+  /\broute\b/i,
+  /\bstory scene\b/i,
+  /\bcomposition\b/i,
+  /\barchetype\b/i,
+  /\bprojection\b/i,
+  /\btaxonomy\b/i,
+] as const;
+
 function collectCustomerFacingText(model: PortalJourneyPrintModelV1): string[] {
   const coverText = [
     model.cover.title,
@@ -127,6 +142,32 @@ function hasRawEngineOrDebugText(lines: string[]): boolean {
   return lines.some((line) => RAW_ENGINE_OR_DEBUG_PATTERNS.some((pattern) => pattern.test(line)));
 }
 
+function findInternalPipelineLeakTerms(lines: string[]): string[] {
+  const matches = new Set<string>();
+  for (const line of lines) {
+    for (const pattern of INTERNAL_PIPELINE_WORDING_PATTERNS) {
+      const match = line.match(pattern);
+      if (match?.[0]) matches.add(match[0].toLowerCase());
+    }
+  }
+  return [...matches];
+}
+
+function collectRenderedSceneText(model: PortalJourneyPrintModelV1): string[] {
+  return model.sections.flatMap((section) => {
+    const scene = section.storyScene;
+    if (scene == null) {
+      return [section.heading, section.summary, section.keyTakeaway, section.reassurance, ...section.items];
+    }
+    return [
+      scene.title,
+      scene.customerTakeaway,
+      scene.whyItMatters,
+      scene.whatYouWillNotice,
+    ];
+  });
+}
+
 function hasStoredHotWaterClaims(lines: string[]): boolean {
   return lines.some((line) => {
     const lower = line.toLowerCase();
@@ -186,6 +227,10 @@ export function assessSupportingPdfReadiness(
   if (hasRawEngineOrDebugText(allCustomerText)) {
     blockingReasons.push('Raw engine/debug text is present in customer-facing copy.');
   }
+  const leakedInternalTerms = findInternalPipelineLeakTerms(collectRenderedSceneText(model));
+  if (leakedInternalTerms.length > 0) {
+    blockingReasons.push(`Internal design/pipeline wording leaked into rendered customer copy: ${leakedInternalTerms.join(', ')}.`);
+  }
 
   if (model.cover.summary.trim() !== expectedRecommendationSummary.trim()) {
     blockingReasons.push('Recommendation identity does not match the current Insight output.');
@@ -218,6 +263,9 @@ export function assessSupportingPdfReadiness(
 
   if ((model.contentSource?.storySceneValidation.compositionErrorCount ?? 0) > 0) {
     blockingReasons.push('Composition contract validation failed for one or more story scenes.');
+  }
+  if ((model.contentSource?.sceneDiagnostics ?? []).some((diag) => diag.blockingReasons.length > 0)) {
+    blockingReasons.push('One or more scene visuals are unresolved for PDF rendering.');
   }
 
   const missingRequiredDiagrams = getMissingRequiredDiagrams(model, requiredDiagramSectionIds);

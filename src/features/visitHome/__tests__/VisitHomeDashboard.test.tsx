@@ -310,7 +310,7 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('visit-home-workflow-qa-receive_scan_return')).toHaveTextContent('Pending');
   });
 
-  it('PDF card shows ready and workflow QA export step is complete after a successful export', () => {
+  it('PDF card does not show ready when export succeeded but journey pack is missing', () => {
     render(
       <VisitHomeDashboard
         {...makeProps({
@@ -333,7 +333,7 @@ describe('VisitHomeDashboard', () => {
       />,
     );
 
-    expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'ready');
+    expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'needs-review');
     expect(screen.getByTestId('visit-home-workflow-qa-export_package_again')).toHaveTextContent('Complete');
   });
 
@@ -363,6 +363,24 @@ describe('VisitHomeDashboard', () => {
     expect(screen.getByTestId('visit-home-customer-journey-pack-status')).toHaveTextContent(
       'Customer journey pack: Ready',
     );
+  });
+
+  it('does not show customer PDF as ready when customer journey pack is needs review', () => {
+    render(
+      <VisitHomeDashboard
+        {...makeProps({
+          generatedOutputs: {
+            portal: { generated: true, url: 'https://portal.example.com' },
+            pdf: { generated: true },
+            customerJourneyPack: undefined,
+            simulatorReview: { generated: false },
+            handoff: { generated: false },
+          },
+        })}
+      />,
+    );
+    expect(screen.getByTestId('visit-home-customer-journey-pack-status')).toHaveTextContent('Needs review');
+    expect(screen.getByTestId('card-pdf')).toHaveAttribute('data-status', 'needs-review');
   });
 
   it('simulator CTA calls onOpenSimulator', () => {

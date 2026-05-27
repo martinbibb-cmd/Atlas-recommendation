@@ -92,14 +92,16 @@ function makePackage(options?: { readonly includeCustomerJourneyPack?: boolean }
 }
 
 describe('buildVisitHomeCustomerArtifactsState', () => {
-  it('treats customer PDF readiness as canonical package exportability', () => {
+  it('does not mark customer PDF ready until customer journey pack is ready', () => {
     const state = buildVisitHomeCustomerArtifactsState({
       canExportVisitPackage: true,
       unavailableReasons: ['should not be used'],
     });
 
-    expect(state.customerPdfReady).toBe(true);
-    expect(state.customerPdfBlockReasons).toEqual([]);
+    expect(state.customerPdfReady).toBe(false);
+    expect(state.customerPdfBlockReasons.some((reason) => /journey pack is not ready/i.test(reason))).toBe(true);
+    expect(state.customerOutputReadiness.customerJourneyPackStatus).toBe('needs-review');
+    expect(state.customerOutputReadiness.customerPdfStatus).toBe('needs-review');
   });
 
   it('preserves block reasons when canonical package export is unavailable', () => {
@@ -110,6 +112,8 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
 
     expect(state.customerPdfReady).toBe(false);
     expect(state.customerPdfBlockReasons).toEqual(['Visit survey data is missing.']);
+    expect(state.customerOutputReadiness.customerJourneyPackStatus).toBe('blocked');
+    expect(state.customerOutputReadiness.customerPdfStatus).toBe('blocked');
   });
 
   it('leaves packaged portal payload undefined when no source package is available', () => {
@@ -185,7 +189,7 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
       sourcePackage,
     });
     expect(state.customerPdfReady).toBe(false);
-    expect(state.customerPdfBlockReasons[0]).toMatch(/stale/i);
+    expect(state.customerPdfBlockReasons.some((reason) => /stale/i.test(reason))).toBe(true);
   });
 
   it('blocks customer PDF when packaged recommendation viability is blocked', () => {

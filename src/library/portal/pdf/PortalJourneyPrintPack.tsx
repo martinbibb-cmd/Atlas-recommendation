@@ -25,10 +25,15 @@ import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/Di
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
 import { PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
 import { REASON_ICON_BY_CATEGORY } from './recommendationReasonVisuals';
+import { printEquivalentByAssetId } from '../../printEquivalents/printEquivalentRegistry';
+import {
+  getVisualAssetManifestEntry,
+  getVisualAssetRendererAvailability,
+} from './visualAssetManifest';
 import './portalJourneyPrintPack.css';
 
-// ─── Diagram ID mapping ───────────────────────────────────────────────────────
-// Map suggestedDiagramIds from registry entries to the DiagramRenderer IDs.
+// ─── Legacy Diagram ID mapping ────────────────────────────────────────────────
+// Only used to recover a canonical visual ID for legacy sections.
 
 const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
   'diagram-open-to-sealed': 'open_vented_to_unvented',
@@ -39,19 +44,85 @@ const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
   'diagram-pressure-window': 'system_pressure_window',
 };
 
-function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string | null {
-  if (section.storyScene?.visualAssetId && isDiagramRendererIdSupported(section.storyScene.visualAssetId)) {
-    return section.storyScene.visualAssetId;
+type SectionVisualPlan =
+  | {
+      rendererType: 'diagram_component';
+      visualAssetId: string;
+      fallbackUsed: false;
+    }
+  | {
+      rendererType: 'print_fallback';
+      visualAssetId: string;
+      fallbackUsed: true;
+      fallbackAssetId: string;
+    }
+  | {
+      rendererType: 'none';
+      visualAssetId?: string;
+      fallbackUsed: false;
+      blockingReason: string;
+    };
+
+function resolveSectionVisualAssetId(section: PortalJourneyPrintSectionV1): string | undefined {
+  if (section.storyScene?.visualAssetId) return section.storyScene.visualAssetId;
+  if (section.diagramRendererId) return section.diagramRendererId;
+  if (!section.diagramId) return undefined;
+  return REGISTRY_DIAGRAM_ID_MAP[section.diagramId] ?? section.diagramId;
+}
+
+function resolveSectionVisualPlan(section: PortalJourneyPrintSectionV1): SectionVisualPlan {
+  const visualAssetId = resolveSectionVisualAssetId(section);
+  if (!visualAssetId) {
+    return {
+      rendererType: 'none',
+      fallbackUsed: false,
+      blockingReason: 'No visual asset declared for this section.',
+    };
   }
-  // Prefer explicit section.diagramRendererId for new journeys, but keep
-  // legacy registry-id mapping so existing models continue to render.
-  if (section.diagramRendererId && isDiagramRendererIdSupported(section.diagramRendererId)) {
-    return section.diagramRendererId;
+
+  const manifestEntry = getVisualAssetManifestEntry(visualAssetId);
+  if (manifestEntry == null) {
+    return {
+      rendererType: 'none',
+      visualAssetId,
+      fallbackUsed: false,
+      blockingReason: `Visual asset "${visualAssetId}" is missing from the visual manifest.`,
+    };
   }
-  if (!section.diagramId) return null;
-  const mappedId = REGISTRY_DIAGRAM_ID_MAP[section.diagramId];
-  if (!mappedId) return null;
-  return isDiagramRendererIdSupported(mappedId) ? mappedId : null;
+  if (!manifestEntry.supportedSurfaces.includes('pdf')) {
+    return {
+      rendererType: 'none',
+      visualAssetId,
+      fallbackUsed: false,
+      blockingReason: `Visual asset "${visualAssetId}" is not PDF-supported.`,
+    };
+  }
+
+  const availability = getVisualAssetRendererAvailability(visualAssetId);
+  if (availability.hasDiagramRenderer && isDiagramRendererIdSupported(visualAssetId)) {
+    return {
+      rendererType: 'diagram_component',
+      visualAssetId,
+      fallbackUsed: false,
+    };
+  }
+
+  const fallbackAssetId = manifestEntry.printFallbackAssetId ?? visualAssetId;
+  if (availability.hasPrintFallback && printEquivalentByAssetId.has(fallbackAssetId)) {
+    return {
+      rendererType: 'print_fallback',
+      visualAssetId,
+      fallbackUsed: true,
+      fallbackAssetId,
+    };
+  }
+
+  return {
+    rendererType: 'none',
+    visualAssetId,
+    fallbackUsed: false,
+    blockingReason: `No PDF renderer or explicit print fallback is available for "${visualAssetId}".`,
+  };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -201,6 +272,14 @@ function formatContentSourceVisualAssetIds(ids: readonly string[]): string {
   return ids.map((id) => id.replaceAll('_', '-')).join(', ');
 }
 
+function formatSceneDiagnostics(diags: NonNullable<PortalJourneyPrintModelV1['contentSource']>['sceneDiagnostics']): string[] {
+  return diags.map((diag) => {
+    const blocked = diag.blockingReasons.length > 0 ? `blocked: ${diag.blockingReasons.join(' | ')}` : 'blocked: no';
+    const phrases = diag.offendingPhrases.length > 0 ? `offending phrases: ${diag.offendingPhrases.join(', ')}` : 'offending phrases: none';
+    return `${diag.sectionId} · asset=${diag.visualAssetId ?? 'none'} · renderer=${diag.rendererType} · fallback=${diag.fallbackUsed ? 'yes' : 'no'} · ${blocked} · ${phrases}`;
+  });
+}
+
 function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCoverProps) {
   return (
     <section
@@ -230,9 +309,16 @@ function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCov
           Atlas recommendation confidence: strong fit to your surveyed home pattern.
         </p>
         {import.meta.env.DEV && contentSource != null ? (
-          <p className="pjpp-cover-content-source" data-testid="pjpp-cover-content-source">
-            Content source (dev): audienceProjection present: {contentSource.audienceProjectionPresent ? 'yes' : 'no'} · selected concepts count: {contentSource.selectedConceptCount} · selected story scenes count: {contentSource.selectedStorySceneCount} · visual asset IDs used: {formatContentSourceVisualAssetIds(contentSource.visualAssetIds)} · fallback sections used: {contentSource.fallbackSectionsUsed ? 'yes' : 'no'} · story-scene validation (warnings/errors/blocking): {contentSource.storySceneValidation.warningCount}/{contentSource.storySceneValidation.errorCount}/{contentSource.storySceneValidation.blockingErrorCount} · composition errors: {contentSource.storySceneValidation.compositionErrorCount} · rejected scenes: {contentSource.storySceneValidation.rejectedSceneCount} · blocking codes: {contentSource.storySceneValidation.errorCodes.length > 0 ? contentSource.storySceneValidation.errorCodes.join(', ') : 'none'}
-          </p>
+          <>
+            <p className="pjpp-cover-content-source" data-testid="pjpp-cover-content-source">
+              Content source (dev): audienceProjection present: {contentSource.audienceProjectionPresent ? 'yes' : 'no'} · selected concepts count: {contentSource.selectedConceptCount} · selected story scenes count: {contentSource.selectedStorySceneCount} · visual asset IDs used: {formatContentSourceVisualAssetIds(contentSource.visualAssetIds)} · fallback sections used: {contentSource.fallbackSectionsUsed ? 'yes' : 'no'} · story-scene validation (warnings/errors/blocking): {contentSource.storySceneValidation.warningCount}/{contentSource.storySceneValidation.errorCount}/{contentSource.storySceneValidation.blockingErrorCount} · composition errors: {contentSource.storySceneValidation.compositionErrorCount} · rejected scenes: {contentSource.storySceneValidation.rejectedSceneCount} ({contentSource.storySceneValidation.rejectedSceneSectionIds.join(', ') || 'none'}) · offending phrases: {contentSource.storySceneValidation.offendingPhrases.join(', ') || 'none'} · blocking codes: {contentSource.storySceneValidation.errorCodes.length > 0 ? contentSource.storySceneValidation.errorCodes.join(', ') : 'none'}
+            </p>
+            <ul className="pjpp-cover-content-source" data-testid="pjpp-cover-scene-diagnostics">
+              {formatSceneDiagnostics(contentSource.sceneDiagnostics).map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+          </>
         ) : null}
       </header>
 
@@ -302,7 +388,7 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
   const noticeItems = storyScene != null
     ? [sceneWhatYouWillNotice]
     : section.items;
-  const rendererDiagramId = resolveRendererDiagramId(section);
+  const visualPlan = resolveSectionVisualPlan(section);
 
   return (
     <section
@@ -346,7 +432,7 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
         </p>
       )}
 
-      {rendererDiagramId && pageArchetype !== 'quiet' ? (
+      {visualPlan.rendererType === 'diagram_component' && pageArchetype !== 'quiet' ? (
         <figure
           className="pjpp-section__diagram"
           data-testid={`pjpp-diagram-${section.sectionId}`}
@@ -354,7 +440,7 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
           style={{ '--pjpp-visual-scale': composition?.visualScale ?? 1 } as Record<string, number>}
         >
           <DiagramRenderer
-            diagramId={rendererDiagramId}
+            diagramId={visualPlan.visualAssetId}
             printSafe
             reducedMotion
           />
@@ -362,6 +448,37 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
             <figcaption className="pjpp-section__diagram-caption">{section.diagramCaption}</figcaption>
           ) : null}
         </figure>
+      ) : null}
+      {visualPlan.rendererType === 'print_fallback' && pageArchetype !== 'quiet' ? (() => {
+        const fallback = printEquivalentByAssetId.get(visualPlan.fallbackAssetId);
+        if (fallback == null) return null;
+        return (
+          <figure
+            className="pjpp-section__diagram"
+            data-testid={`pjpp-diagram-fallback-${section.sectionId}`}
+            data-print-safe="true"
+          >
+            <div className="pjpp-section__diagram-caption">
+              <strong>{fallback.printTitle}</strong>
+            </div>
+            <p className="pjpp-section__summary">{fallback.summary}</p>
+            <ul className="pjpp-outcome-cards">
+              {fallback.steps.slice(0, 3).map((step) => (
+                <li key={step} className="pjpp-outcome-card">
+                  <p className="pjpp-outcome-card__copy">{step}</p>
+                </li>
+              ))}
+            </ul>
+          </figure>
+        );
+      })() : null}
+      {import.meta.env.DEV && visualPlan.rendererType === 'none' && pageArchetype !== 'quiet' ? (
+        <p
+          className="pjpp-section__diagram-caption"
+          data-testid={`pjpp-missing-visual-${section.sectionId}`}
+        >
+          Missing visual: {visualPlan.blockingReason}
+        </p>
       ) : null}
 
       {pageArchetype !== 'quiet' ? (

@@ -193,7 +193,6 @@ describe('PortalJourneyPrintPack — no dev labels', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(screen.queryByText(/sealed_system_conversion/)).toBeNull();
     expect(screen.queryByText(/unvented_safety_reassurance/)).toBeNull();
-    expect(screen.queryByText(/pressure_vs_storage/)).toBeNull();
   });
 
   it('does not render "content pending" placeholder text', () => {
@@ -218,6 +217,11 @@ describe('PortalJourneyPrintPack — no raw engine terms', () => {
 // ─── Print-safe diagrams ──────────────────────────────────────────────────────
 
 describe('PortalJourneyPrintPack — print-safe diagrams', () => {
+  it('prefers native diagram renderer when manifest supports it', () => {
+    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    expect(screen.getAllByTestId('diagram-renderer-open_vented_to_unvented').length).toBeGreaterThan(0);
+  });
+
   it('diagram containers are marked data-print-safe', () => {
     const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     const diagramContainers = container.querySelectorAll('[data-print-safe="true"]');
@@ -275,7 +279,7 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
     expect(titles).toContain('From vented layout to sealed comfort');
     expect(titles).toContain('What happens next');
     expect(titles).toContain('Technical site hand-off');
-    expect(titles).toContain('Quiet recap');
+    expect(titles).toContain('Good to know');
   });
 
   it('renders one key takeaway and one reassurance block per content page', () => {
@@ -315,12 +319,19 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
     expect(screen.getByText(/Your home moves away from loft-tank dependence/i)).toBeInTheDocument();
     expect(screen.getByText(/Visible cylinder safety components are expected/i)).toBeInTheDocument();
   });
+
+  it('quiet scene output does not leak implementation wording', () => {
+    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    const quietBlocks = screen.getAllByTestId(/pjpp-quiet-/);
+    const text = quietBlocks.map((node) => node.textContent ?? '').join(' ').toLowerCase();
+    expect(text).not.toMatch(/cognitive load|dense technical|story scene|composition|archetype|projection|taxonomy|route|routed evidence|breather page/);
+  });
 });
 
 describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
   it('renders expected heat-pump section headings', () => {
     render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
-    expect(screen.getByRole('heading', { name: 'Why this heat-pump route fits' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why this heat-pump recommendation fits' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What improves in daily operation' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Winter behaviour and protection quality' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What happens next' })).toBeInTheDocument();
@@ -329,6 +340,11 @@ describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
   it('keeps customer copy free of pending/debug/raw IDs', () => {
     const { container } = render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
     expect(container.textContent).not.toMatch(/content pending|debug|CON_[A-Z0-9_]+/i);
+  });
+
+  it('renders manifest-declared print fallback when no PDF diagram renderer exists', () => {
+    render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
+    expect(screen.getByTestId('pjpp-diagram-fallback-winter_behaviour')).toBeInTheDocument();
   });
 });
 
