@@ -305,6 +305,38 @@
   font-size: 0.9rem;
 }
 
+.pjpp-section__visual-explanation {
+  margin: 0.2rem 0 0;
+  color: #475569;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.pjpp-section__visual-fallback-card {
+  margin: 0.5rem 0 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.75rem 0.9rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pjpp-section__visual-fallback-title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.pjpp-section__visual-fallback-copy {
+  margin: 0.3rem 0 0;
+  color: #334155;
+  font-size: 0.88rem;
+}
+
 .pjpp-outcome-cards {
   margin: 0;
   padding: 0;
@@ -398,8 +430,22 @@
   border-radius: 6px;
   padding: 1rem;
   background: #fafafa;
+  max-height: 10.2cm;
   break-inside: avoid;
   page-break-inside: avoid;
+  overflow: visible;
+}
+
+.pjpp-section__diagram svg {
+  max-height: 9cm;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.pjpp-section__diagram p {
+  position: static !important;
+  inset: auto !important;
 }
 
 .pjpp-section__diagram-caption {

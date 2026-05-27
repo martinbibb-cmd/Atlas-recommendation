@@ -23,13 +23,13 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
-        "sectionId": "stored_hot_water_recovery_timeline",
-        "visualAssetId": "stored_hot_water_recovery_timeline",
+        "sectionId": "pressure_vs_storage",
+        "visualAssetId": "pressure_vs_storage",
       },
       {
-        "rendererType": "diagram_component",
-        "sectionId": "unvented_safety",
-        "visualAssetId": "open_vented_to_unvented",
+        "rendererType": "none",
+        "sectionId": "quiet_scene_pressure_vs_storage",
+        "visualAssetId": undefined,
       },
       {
         "rendererType": "diagram_component",
@@ -38,13 +38,13 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
-        "sectionId": "pressure_vs_storage",
-        "visualAssetId": "pressure_vs_storage",
+        "sectionId": "unvented_safety",
+        "visualAssetId": "open_vented_to_unvented",
       },
       {
-        "rendererType": "none",
-        "sectionId": "quiet_scene_pressure_vs_storage",
-        "visualAssetId": undefined,
+        "rendererType": "diagram_component",
+        "sectionId": "stored_hot_water_recovery_timeline",
+        "visualAssetId": "stored_hot_water_recovery_timeline",
       },
     ],
   },
@@ -74,8 +74,8 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
-        "sectionId": "stored_hot_water_recovery_timeline",
-        "visualAssetId": "stored_hot_water_recovery_timeline",
+        "sectionId": "sealed_system_pressure_window",
+        "visualAssetId": "system_pressure_window",
       },
       {
         "rendererType": "diagram_component",
@@ -84,8 +84,8 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
-        "sectionId": "sealed_system_pressure_window",
-        "visualAssetId": "system_pressure_window",
+        "sectionId": "stored_hot_water_recovery_timeline",
+        "visualAssetId": "stored_hot_water_recovery_timeline",
       },
     ],
   },
@@ -115,8 +115,8 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
-        "sectionId": "steady_running",
-        "visualAssetId": "weather_compensation_curve",
+        "sectionId": "sealed_system_pressure_window",
+        "visualAssetId": "system_pressure_window",
       },
       {
         "rendererType": "diagram_component",
@@ -125,8 +125,8 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
-        "sectionId": "sealed_system_pressure_window",
-        "visualAssetId": "system_pressure_window",
+        "sectionId": "steady_running",
+        "visualAssetId": "weather_compensation_curve",
       },
     ],
   },
@@ -146,6 +146,16 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
+        "sectionId": "sealed_system_pressure_window",
+        "visualAssetId": "system_pressure_window",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "steady_running",
+        "visualAssetId": "weather_compensation_curve",
+      },
+      {
+        "rendererType": "diagram_component",
         "sectionId": "warm_not_hot_radiators",
         "visualAssetId": "warm_vs_hot_radiators",
       },
@@ -155,19 +165,9 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
         "visualAssetId": undefined,
       },
       {
-        "rendererType": "diagram_component",
-        "sectionId": "steady_running",
-        "visualAssetId": "weather_compensation_curve",
-      },
-      {
         "rendererType": "none",
         "sectionId": "winter_behaviour",
         "visualAssetId": "",
-      },
-      {
-        "rendererType": "diagram_component",
-        "sectionId": "sealed_system_pressure_window",
-        "visualAssetId": "system_pressure_window",
       },
     ],
   },

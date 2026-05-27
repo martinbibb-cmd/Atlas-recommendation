@@ -1550,6 +1550,27 @@ function orderSectionsByRoutePriority(
     .map(({ section }) => section);
 }
 
+const CUSTOMER_EXPLAINER_PRIORITY_ORDER: readonly PortalJourneyPrintSectionV1['sectionId'][] = [
+  'practical_outcomes',
+  'system_fit_decision_map',
+  'pressure_vs_storage',
+  'flow_restriction_bottleneck',
+  'sealed_system_pressure_window',
+  'powerflush_condition_led',
+  'magnetic_filter_capture',
+  'steady_running',
+  'warm_not_hot_radiators',
+  'unvented_safety',
+  'stored_hot_water_recovery_timeline',
+  'winter_behaviour',
+];
+
+function prioritizeCustomerExplainerSections(
+  sections: readonly PortalJourneyPrintSectionV1[],
+): PortalJourneyPrintSectionV1[] {
+  return orderSectionsByRoutePriority(sections, CUSTOMER_EXPLAINER_PRIORITY_ORDER);
+}
+
 function buildOpenVentedSectionsAndNextSteps(
   selectedSet: Set<string>,
   conceptTagSet: Set<EducationalConceptTagV1>,
@@ -2923,6 +2944,10 @@ function buildCustomerPdfContentSource(input: {
   );
   const unresolvedVisualRendererCount = validatedStoryScenes.filter((entry) =>
     hasText(entry.scene.visualAssetId) && entry.rendererType === 'none').length;
+  const approvedVisualMissingCount = validatedStoryScenes.filter((entry) =>
+    hasText(entry.scene.visualAssetId)
+    && isApprovedCustomerPdfVisualAssetId(entry.scene.visualAssetId)
+    && entry.rendererType === 'none').length;
   const rejectedSceneSectionIds = dedupeStrings(
     validatedStoryScenes
       .filter((entry) => !acceptedSectionKeys.has(JSON.stringify([entry.section.sectionId, entry.section.contentId])))
@@ -2940,6 +2965,9 @@ function buildCustomerPdfContentSource(input: {
     ...entry.validation.warnings.map((issue) => issue.code),
     ...entry.compositionValidation.warnings.map((issue) => issue.code),
   ]));
+  if (approvedVisualMissingCount > 0) {
+    warningCodes.push('approved_visual_missing');
+  }
   const errorCodes = dedupeStrings([
     ...validatedStoryScenes.flatMap((entry) => [
       ...entry.validation.errors.map((issue) => issue.code),
@@ -3622,7 +3650,8 @@ function buildPortalJourneyPrintModelCore(
   const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
   const excludeCylinder = shouldExcludeCylinderSections(resolvedIntent);
   const scenarioNarrativeRouteId = resolveScenarioNarrativeRouteId(resolvedIntent);
-  const sectionsWithPackNarratives = applyScenarioAuthoredNarrativePack(rawSections, scenarioNarrativeRouteId);
+  const prioritizedSections = prioritizeCustomerExplainerSections(rawSections);
+  const sectionsWithPackNarratives = applyScenarioAuthoredNarrativePack(prioritizedSections, scenarioNarrativeRouteId);
   const sections = sectionsWithPackNarratives
     .map((section) => ({
       ...section,
