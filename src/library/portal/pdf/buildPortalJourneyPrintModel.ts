@@ -1197,6 +1197,15 @@ const VAGUE_WHAT_YOU_WILL_NOTICE = [
   'notice improvements',
   'general improvement',
 ];
+const BLOCKING_STORY_SCENE_ERROR_CODES = new Set([
+  'generic_title',
+  'empty_takeaway',
+  'takeaway_repeats_title',
+  'internal_why_it_matters_language',
+  'banned_internal_language',
+  'vague_household_outcome',
+  'missing_required_visual_asset',
+]);
 
 export interface CustomerStorySceneValidationIssueV1 {
   code: string;
@@ -1231,7 +1240,7 @@ export function validateCustomerStoryScene(
   const takeaway = scene.customerTakeaway.trim();
   const whyItMatters = scene.whyItMatters.trim();
   const whatYouWillNotice = scene.whatYouWillNotice.trim();
-  const allText = `${title} ${takeaway} ${whyItMatters} ${whatYouWillNotice}`;
+  const nonWhyItMattersText = `${title} ${takeaway} ${whatYouWillNotice}`;
   const normalisedTitle = normaliseTextForComparison(title);
   const normalisedTakeaway = normaliseTextForComparison(takeaway);
 
@@ -1259,7 +1268,7 @@ export function validateCustomerStoryScene(
       'Story scene why-it-matters contains internal routing language.',
     ));
   }
-  if (BANNED_STORY_SCENE_LANGUAGE.test(allText)) {
+  if (BANNED_STORY_SCENE_LANGUAGE.test(nonWhyItMattersText)) {
     errors.push(buildStorySceneValidationIssue(
       'banned_internal_language',
       'Story scene includes blocked internal pipeline wording.',
@@ -1338,7 +1347,12 @@ function buildCustomerPdfContentSource(input: {
   const errorCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.validation.errors.map((issue) => issue.code)));
   const warningCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.warnings.length, 0);
   const errorCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.errors.length, 0);
-  if (errorCount > 0) fallbackSignals.push('story_scene_quality_blocked');
+  const blockingErrorCount = validatedStoryScenes.reduce(
+    (total, entry) =>
+      total + entry.validation.errors.filter((issue) => BLOCKING_STORY_SCENE_ERROR_CODES.has(issue.code)).length,
+    0,
+  );
+  if (blockingErrorCount > 0) fallbackSignals.push('story_scene_quality_blocked');
   const genericReasonCount = input.recommendationReasons
     .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(FALLBACK_REASON_MATCH_PHRASE))
     .length;
@@ -1349,7 +1363,7 @@ function buildCustomerPdfContentSource(input: {
     && selectedConceptCount > 0
     && selectedStorySceneCount > 0
     && (!scenarioRequiresVisuals || visualAssetIds.length > 0)
-    && errorCount === 0;
+    && blockingErrorCount === 0;
   const fallbackOnly = !exportable;
 
   return {
@@ -1363,7 +1377,7 @@ function buildCustomerPdfContentSource(input: {
       sceneCount: validatedStoryScenes.length,
       warningCount,
       errorCount,
-      blockingErrorCount: errorCount,
+      blockingErrorCount,
       rejectedSceneCount: validatedStoryScenes.length - selectedStorySceneCount,
       warningCodes,
       errorCodes,
