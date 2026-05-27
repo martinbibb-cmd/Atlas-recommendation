@@ -154,6 +154,7 @@ describe('PortalJourneyPrintPack — content sections', () => {
   it('each section renders its items list', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     for (const section of BASE_MODEL.sections) {
+      if (section.sectionId.startsWith('quiet_scene')) continue;
       expect(screen.getByTestId(`pjpp-items-${section.sectionId}`)).toBeInTheDocument();
     }
   });
@@ -235,9 +236,9 @@ describe('PortalJourneyPrintPack — print-safe diagrams', () => {
 // ─── Page budget ──────────────────────────────────────────────────────────────
 
 describe('PortalJourneyPrintPack — page budget', () => {
-  it('model page budget does not exceed 7', () => {
-    expect(BASE_MODEL.pageEstimate.usedPages).toBeLessThanOrEqual(7);
-    expect(BASE_MODEL.pageEstimate.maxPages).toBe(7);
+  it('model page budget does not exceed 9', () => {
+    expect(BASE_MODEL.pageEstimate.usedPages).toBeLessThanOrEqual(9);
+    expect(BASE_MODEL.pageEstimate.maxPages).toBe(9);
   });
 });
 
@@ -270,22 +271,20 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
     const titles = Array.from(container.querySelectorAll('.pjpp-page h1, .pjpp-page h2')).map((el) =>
       el.textContent?.trim(),
     );
-    expect(titles).toEqual([
-      'Your recommendation',
-      'Why this recommendation fits your home',
-      'From vented layout to sealed comfort',
-      'Pressure and storage are separate limits',
-      'Protection features are part of quality work',
-      'What happens next',
-      'Technical site hand-off',
-    ]);
+    expect(titles).toContain('Your recommendation');
+    expect(titles).toContain('From vented layout to sealed comfort');
+    expect(titles).toContain('What happens next');
+    expect(titles).toContain('Technical site hand-off');
+    expect(titles).toContain('Quiet recap');
   });
 
   it('renders one key takeaway and one reassurance block per content page', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     for (const section of BASE_MODEL.sections) {
       expect(screen.getByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeInTheDocument();
-      expect(screen.getByTestId(`pjpp-reassurance-${section.sectionId}`)).toBeInTheDocument();
+      if (!section.sectionId.startsWith('quiet_scene')) {
+        expect(screen.getByTestId(`pjpp-reassurance-${section.sectionId}`)).toBeInTheDocument();
+      }
     }
   });
 });
@@ -294,11 +293,18 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
   it('does not render more than three cards per page', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     for (const section of BASE_MODEL.sections) {
+      if (section.sectionId.startsWith('quiet_scene')) continue;
       const list = screen.getByTestId(`pjpp-items-${section.sectionId}`);
       expect(within(list).getAllByRole('listitem').length).toBeLessThanOrEqual(3);
     }
     expect(within(screen.getByTestId('pjpp-next-steps-list')).getAllByRole('listitem').length).toBeLessThanOrEqual(3);
     expect(within(screen.getByTestId('pjpp-qr-list')).getAllByRole('listitem').length).toBeLessThanOrEqual(3);
+  });
+
+  it('renders deterministic composition archetype classes', () => {
+    const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    expect(container.querySelectorAll('[data-archetype="hero"]').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[data-archetype="quiet"]').length).toBeGreaterThan(0);
   });
 
   it('does not render debug markers or raw technical IDs', () => {

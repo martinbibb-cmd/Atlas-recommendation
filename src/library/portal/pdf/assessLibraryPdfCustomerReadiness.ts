@@ -58,6 +58,10 @@ export function assessLibraryPdfCustomerReadiness(
       blockingReasons.push(`Projection safety: ${reason}`);
     }
 
+    if ((printModel.contentSource?.storySceneValidation.compositionErrorCount ?? 0) > 0) {
+      blockingReasons.push('PDF QA blocked: composition contract validation failed.');
+    }
+
     if (printModel.sections.some((section) => (section.evidenceTags?.length ?? 0) === 0)) {
       blockingReasons.push('PDF QA blocked: one or more sections are missing evidence tags.');
     }

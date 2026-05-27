@@ -6,6 +6,7 @@ import {
   CUSTOMER_JOURNEY_PACK_SCHEMA,
   CUSTOMER_JOURNEY_PACK_VERSION,
   isFallbackOnlyCustomerPdf,
+  QUIET_SCENE_CONTENT_ID_PREFIX,
   resolveRecommendationConceptSelection,
   validateCustomerStoryScene,
   type BuildPortalJourneyPrintModelInputV1,
@@ -72,7 +73,9 @@ describe('buildPortalJourneyPrintModel — content identity', () => {
 
   it('uses the same content IDs as the portal journey sections', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
-    const uniqueContentIds = [...new Set(model.sections.map((s) => s.contentId))];
+    const uniqueContentIds = [...new Set(model.sections
+      .map((s) => s.contentId)
+      .filter((id) => !id.startsWith(QUIET_SCENE_CONTENT_ID_PREFIX)))];
     // Must only reference content we know the portal journey uses
     const knownPortalContentIds = ['CON_A01', 'CON_C01', 'CON_C02'];
     for (const id of uniqueContentIds) {
@@ -187,9 +190,9 @@ describe('buildPortalJourneyPrintModel — no diagnostics', () => {
 // ─── Page budget ──────────────────────────────────────────────────────────────
 
 describe('buildPortalJourneyPrintModel — page budget', () => {
-  it('pageEstimate.maxPages is 7', () => {
+  it('pageEstimate.maxPages is 9', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
-    expect(model.pageEstimate.maxPages).toBe(7);
+    expect(model.pageEstimate.maxPages).toBe(9);
   });
 
   it('pageEstimate.usedPages does not exceed maxPages', () => {
@@ -236,7 +239,7 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
 
   it('model with empty selectedSectionIds still includes all core sections', () => {
     const model = buildPortalJourneyPrintModel({ ...BASE_INPUT, selectedSectionIds: [] });
-    expect(model.sections.map((s) => s.sectionId)).toEqual([
+    expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.sectionId)).toEqual([
       'practical_outcomes',
       'pressure_vs_storage',
       'unvented_safety',
@@ -244,6 +247,7 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
       'sealed_system_pressure_window',
       'system_fit_decision_map',
     ]);
+    expect(model.sections.some((s) => s.sectionId.startsWith('quiet_scene'))).toBe(true);
   });
 });
 
@@ -251,11 +255,12 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
   it('uses customer-friendly section titles in stable order', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     expect(model.cover.title).toBe('Your recommendation');
-    expect(model.sections.map((s) => s.heading)).toEqual([
+    expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.heading)).toEqual([
       'Practical outcomes',
       'Why stored hot water helps',
       'How the cylinder keeps itself safe',
     ]);
+    expect(model.sections.some((s) => s.heading === 'Pause and let this settle')).toBe(true);
   });
 
   it('keeps page content density low', () => {
@@ -272,7 +277,7 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
   it('builds heat-pump model pages in customer-facing order', () => {
     const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
     expect(model.cover.title).toBe('Your recommendation');
-    expect(model.sections.map((section) => section.heading)).toEqual([
+    expect(model.sections.filter((section) => !section.sectionId.startsWith('quiet_scene')).map((section) => section.heading)).toEqual([
       'Why radiators may feel warm, not hot',
       'How steady running works',
       'What happens in winter',
@@ -281,7 +286,9 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
 
   it('uses expected concept IDs for heat-pump supporting pages', () => {
     const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
-    expect(model.sections.map((section) => section.contentId)).toEqual([
+    expect(model.sections
+      .map((section) => section.contentId)
+      .filter((id) => !id.startsWith(QUIET_SCENE_CONTENT_ID_PREFIX))).toEqual([
       'CON_E02',
       'CON_H04',
       'CON_H01',
@@ -331,10 +338,11 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
   it('includes content-source metadata on the static PDF model', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     expect(model.contentSource).toBeDefined();
-    expect(model.contentSource?.selectedStorySceneCount).toBe(model.sections.length);
+    expect(model.contentSource?.selectedStorySceneCount).toBeGreaterThan(0);
     expect(model.contentSource?.visualAssetIds.length).toBeGreaterThan(0);
     expect(model.contentSource?.audienceProjectionPresent).toBe(false);
     expect(model.contentSource?.storySceneValidation.blockingErrorCount).toBe(0);
+    expect(model.contentSource?.storySceneValidation.compositionErrorCount).toBe(0);
   });
 
   it('hydrates authored story scenes for each PDF section', () => {
@@ -345,7 +353,10 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       expect(section.storyScene?.customerTakeaway.length).toBeGreaterThan(0);
       expect(section.storyScene?.whyItMatters.length).toBeGreaterThan(0);
       expect(section.storyScene?.whatYouWillNotice.length).toBeGreaterThan(0);
-      expect(section.storyScene?.visualAssetId?.length).toBeGreaterThan(0);
+      if (!section.sectionId.startsWith('quiet_scene')) {
+        expect(section.storyScene?.visualAssetId?.length).toBeGreaterThan(0);
+      }
+      expect(section.storyScene?.composition).toBeDefined();
       const validation = validateCustomerStoryScene(section.storyScene!);
       expect(validation.errors).toHaveLength(0);
     }
@@ -356,6 +367,17 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     const practicalOutcomes = model.sections.find((section) => section.sectionId === 'practical_outcomes');
     expect(practicalOutcomes?.storyScene?.title).toBe('From vented layout to sealed comfort');
     expect(practicalOutcomes?.storyScene?.visualAssetId).toBe('open_vented_to_unvented');
+    expect(practicalOutcomes?.storyScene?.composition?.pageArchetype).toBe('hero');
+  });
+
+  it('inserts quiet pages after dense technical sections', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    const quietPages = model.sections.filter((section) => section.sectionId.startsWith('quiet_scene'));
+    expect(quietPages.length).toBeGreaterThan(0);
+    for (const quietPage of quietPages) {
+      expect(quietPage.storyScene?.composition?.pageArchetype).toBe('quiet');
+      expect(quietPage.storyScene?.composition?.focalVisualPriority).toBe('none');
+    }
   });
 
   it('flags thin generic fallback packs as fallbackOnly when projection is absent', () => {

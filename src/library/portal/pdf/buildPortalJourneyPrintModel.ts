@@ -120,7 +120,10 @@ export interface PortalJourneyPrintSectionV1 {
     | 'flow_restriction_bottleneck'
     | 'system_fit_decision_map'
     | 'magnetic_filter_capture'
-    | 'sealed_system_pressure_window';
+    | 'sealed_system_pressure_window'
+    | 'hero_scene'
+    | 'quiet_scene'
+    | `quiet_scene_${string}`;
   heading: string;
   summary: string;
   keyTakeaway: string;
@@ -145,6 +148,7 @@ export interface LibraryStorySceneV1 {
   visualAssetId?: string;
   whyItMatters: string;
   whatYouWillNotice: string;
+  composition?: LibraryStorySceneCompositionV1;
 }
 
 export type LibraryStorySceneKindV1 =
@@ -154,6 +158,30 @@ export type LibraryStorySceneKindV1 =
   | 'lived_experience'
   | 'protection_quality'
   | 'future_flexibility';
+
+export type PdfCompositionPageArchetypeV1 =
+  | 'hero'
+  | 'explanation'
+  | 'lived_experience'
+  | 'practical_work'
+  | 'reassurance'
+  | 'quiet';
+
+export type PdfCompositionFocalVisualPriorityV1 = 'primary' | 'supporting' | 'none';
+export type PdfCompositionDensityTierV1 = 'dense' | 'balanced' | 'airy';
+export type PdfCompositionTransitionTypeV1 = 'forward' | 'bridge' | 'breather';
+
+export interface LibraryStorySceneCompositionV1 {
+  pageArchetype: PdfCompositionPageArchetypeV1;
+  focalVisualPriority: PdfCompositionFocalVisualPriorityV1;
+  densityTier: PdfCompositionDensityTierV1;
+  transitionType: PdfCompositionTransitionTypeV1;
+  heroEligible: boolean;
+  quietEligible: boolean;
+  whitespaceRatio: number;
+  maxCardsPerPage: number;
+  visualScale: number;
+}
 
 export interface PortalJourneyPrintNextStepV1 {
   label: string;
@@ -180,6 +208,8 @@ export interface CustomerPdfContentSourceV1 {
     rejectedSceneCount: number;
     warningCodes: string[];
     errorCodes: string[];
+    compositionWarningCount: number;
+    compositionErrorCount: number;
   };
 }
 
@@ -387,11 +417,44 @@ interface ScenarioNarrativeSceneTemplateV1 {
 interface ScenarioNarrativePackV1 {
   routeId: ScenarioNarrativeRouteIdV1;
   scenes: readonly ScenarioNarrativeSceneTemplateV1[];
+  compositionBySectionId: Partial<Record<PortalJourneyPrintSectionV1['sectionId'], LibraryStorySceneCompositionV1>>;
+}
+
+function compositionTemplate(input: {
+  pageArchetype: PdfCompositionPageArchetypeV1;
+  focalVisualPriority: PdfCompositionFocalVisualPriorityV1;
+  densityTier: PdfCompositionDensityTierV1;
+  transitionType: PdfCompositionTransitionTypeV1;
+  heroEligible?: boolean;
+  quietEligible?: boolean;
+  whitespaceRatio?: number;
+  maxCardsPerPage?: number;
+  visualScale?: number;
+}): LibraryStorySceneCompositionV1 {
+  return {
+    pageArchetype: input.pageArchetype,
+    focalVisualPriority: input.focalVisualPriority,
+    densityTier: input.densityTier,
+    transitionType: input.transitionType,
+    heroEligible: input.heroEligible ?? false,
+    quietEligible: input.quietEligible ?? false,
+    whitespaceRatio: input.whitespaceRatio ?? 0.34,
+    maxCardsPerPage: input.maxCardsPerPage ?? 2,
+    visualScale: input.visualScale ?? 1,
+  };
 }
 
 const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarrativePackV1> = {
   regular_vented: {
     routeId: 'regular_vented',
+    compositionBySectionId: {
+      practical_outcomes: compositionTemplate({ pageArchetype: 'hero', focalVisualPriority: 'primary', densityTier: 'balanced', transitionType: 'forward', heroEligible: true, whitespaceRatio: 0.36, maxCardsPerPage: 1, visualScale: 1.05 }),
+      system_fit_decision_map: compositionTemplate({ pageArchetype: 'explanation', focalVisualPriority: 'primary', densityTier: 'dense', transitionType: 'bridge', whitespaceRatio: 0.31, maxCardsPerPage: 2, visualScale: 0.95 }),
+      stored_hot_water_recovery_timeline: compositionTemplate({ pageArchetype: 'lived_experience', focalVisualPriority: 'primary', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.34, maxCardsPerPage: 2, visualScale: 1 }),
+      unvented_safety: compositionTemplate({ pageArchetype: 'reassurance', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'bridge', whitespaceRatio: 0.35, maxCardsPerPage: 2, visualScale: 0.92 }),
+      sealed_system_pressure_window: compositionTemplate({ pageArchetype: 'practical_work', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.35, maxCardsPerPage: 2, visualScale: 0.9 }),
+      pressure_vs_storage: compositionTemplate({ pageArchetype: 'explanation', focalVisualPriority: 'primary', densityTier: 'dense', transitionType: 'breather', quietEligible: true, whitespaceRatio: 0.3, maxCardsPerPage: 1, visualScale: 0.95 }),
+    },
     scenes: [
       {
         sectionId: 'practical_outcomes',
@@ -451,6 +514,13 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
   },
   system_unvented: {
     routeId: 'system_unvented',
+    compositionBySectionId: {
+      system_fit_decision_map: compositionTemplate({ pageArchetype: 'hero', focalVisualPriority: 'primary', densityTier: 'balanced', transitionType: 'forward', heroEligible: true, whitespaceRatio: 0.36, maxCardsPerPage: 1, visualScale: 1.05 }),
+      pressure_vs_storage: compositionTemplate({ pageArchetype: 'explanation', focalVisualPriority: 'primary', densityTier: 'dense', transitionType: 'bridge', quietEligible: true, whitespaceRatio: 0.3, maxCardsPerPage: 1, visualScale: 0.94 }),
+      stored_hot_water_recovery_timeline: compositionTemplate({ pageArchetype: 'lived_experience', focalVisualPriority: 'primary', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.34, maxCardsPerPage: 2, visualScale: 1 }),
+      magnetic_filter_capture: compositionTemplate({ pageArchetype: 'practical_work', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'bridge', whitespaceRatio: 0.35, maxCardsPerPage: 2, visualScale: 0.92 }),
+      sealed_system_pressure_window: compositionTemplate({ pageArchetype: 'reassurance', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.36, maxCardsPerPage: 2, visualScale: 0.9 }),
+    },
     scenes: [
       {
         sectionId: 'system_fit_decision_map',
@@ -501,6 +571,13 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
   },
   combi: {
     routeId: 'combi',
+    compositionBySectionId: {
+      system_fit_decision_map: compositionTemplate({ pageArchetype: 'hero', focalVisualPriority: 'primary', densityTier: 'balanced', transitionType: 'forward', heroEligible: true, whitespaceRatio: 0.36, maxCardsPerPage: 1, visualScale: 1.05 }),
+      flow_restriction_bottleneck: compositionTemplate({ pageArchetype: 'explanation', focalVisualPriority: 'primary', densityTier: 'dense', transitionType: 'bridge', quietEligible: true, whitespaceRatio: 0.3, maxCardsPerPage: 1, visualScale: 0.95 }),
+      steady_running: compositionTemplate({ pageArchetype: 'lived_experience', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.35, maxCardsPerPage: 2, visualScale: 0.9 }),
+      magnetic_filter_capture: compositionTemplate({ pageArchetype: 'practical_work', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'bridge', whitespaceRatio: 0.35, maxCardsPerPage: 2, visualScale: 0.92 }),
+      sealed_system_pressure_window: compositionTemplate({ pageArchetype: 'reassurance', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.36, maxCardsPerPage: 2, visualScale: 0.9 }),
+    },
     scenes: [
       {
         sectionId: 'system_fit_decision_map',
@@ -551,6 +628,13 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
   },
   heat_pump: {
     routeId: 'heat_pump',
+    compositionBySectionId: {
+      system_fit_decision_map: compositionTemplate({ pageArchetype: 'hero', focalVisualPriority: 'primary', densityTier: 'balanced', transitionType: 'forward', heroEligible: true, whitespaceRatio: 0.36, maxCardsPerPage: 1, visualScale: 1.05 }),
+      warm_not_hot_radiators: compositionTemplate({ pageArchetype: 'explanation', focalVisualPriority: 'primary', densityTier: 'dense', transitionType: 'bridge', quietEligible: true, whitespaceRatio: 0.3, maxCardsPerPage: 1, visualScale: 0.96 }),
+      steady_running: compositionTemplate({ pageArchetype: 'lived_experience', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.35, maxCardsPerPage: 2, visualScale: 0.92 }),
+      winter_behaviour: compositionTemplate({ pageArchetype: 'practical_work', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'bridge', whitespaceRatio: 0.35, maxCardsPerPage: 2, visualScale: 0.9 }),
+      sealed_system_pressure_window: compositionTemplate({ pageArchetype: 'reassurance', focalVisualPriority: 'supporting', densityTier: 'balanced', transitionType: 'forward', whitespaceRatio: 0.36, maxCardsPerPage: 2, visualScale: 0.9 }),
+    },
     scenes: [
       {
         sectionId: 'system_fit_decision_map',
@@ -678,25 +762,161 @@ function resolveScenarioNarrativeRouteId(intent: RecommendationIntentCategoryV1)
   }
 }
 
+function buildDefaultStorySceneComposition(
+  sceneKind: LibraryStorySceneKindV1 | undefined,
+): LibraryStorySceneCompositionV1 {
+  switch (sceneKind) {
+    case 'current_system_explainer':
+      return compositionTemplate({
+        pageArchetype: 'explanation',
+        focalVisualPriority: 'primary',
+        densityTier: 'balanced',
+        transitionType: 'forward',
+        heroEligible: true,
+      });
+    case 'route_rationale':
+    case 'physics_explainer':
+      return compositionTemplate({
+        pageArchetype: 'explanation',
+        focalVisualPriority: 'primary',
+        densityTier: 'dense',
+        transitionType: 'bridge',
+        quietEligible: true,
+        whitespaceRatio: 0.31,
+        maxCardsPerPage: 1,
+        visualScale: 0.95,
+      });
+    case 'lived_experience':
+      return compositionTemplate({
+        pageArchetype: 'lived_experience',
+        focalVisualPriority: 'supporting',
+        densityTier: 'balanced',
+        transitionType: 'forward',
+      });
+    case 'protection_quality':
+      return compositionTemplate({
+        pageArchetype: 'practical_work',
+        focalVisualPriority: 'supporting',
+        densityTier: 'balanced',
+        transitionType: 'bridge',
+      });
+    case 'future_flexibility':
+      return compositionTemplate({
+        pageArchetype: 'reassurance',
+        focalVisualPriority: 'supporting',
+        densityTier: 'balanced',
+        transitionType: 'forward',
+      });
+    default:
+      return compositionTemplate({
+        pageArchetype: 'explanation',
+        focalVisualPriority: 'supporting',
+        densityTier: 'balanced',
+        transitionType: 'forward',
+      });
+  }
+}
+
+function buildQuietSceneSection(section: PortalJourneyPrintSectionV1): PortalJourneyPrintSectionV1 {
+  return {
+    contentId: `${QUIET_SCENE_CONTENT_ID_PREFIX}${section.sectionId}`,
+    sectionId: `quiet_scene_${section.sectionId}`,
+    heading: 'Pause and let this settle',
+    summary: 'This page intentionally keeps a light cognitive load after a dense explanation.',
+    keyTakeaway: 'You do not need to memorise every technical detail now.',
+    reassurance: 'Your installer will guide the practical steps and answer questions during handover.',
+    items: [
+      'Keep this document for reference and focus on the essentials for now.',
+    ],
+    storyScene: {
+      sceneKind: 'future_flexibility',
+      title: 'Quiet recap',
+      customerTakeaway: 'Core recommendation remains unchanged.',
+      whyItMatters: 'Spacing technical depth with lighter pages improves comprehension.',
+      whatYouWillNotice: 'A short breather page appears after dense technical explanation moments.',
+      composition: compositionTemplate({
+        pageArchetype: 'quiet',
+        focalVisualPriority: 'none',
+        densityTier: 'airy',
+        transitionType: 'breather',
+        quietEligible: false,
+        whitespaceRatio: 0.55,
+        maxCardsPerPage: 1,
+        visualScale: 0.8,
+      }),
+    },
+    evidenceTags: [{
+      source: 'composition',
+      metric: 'quiet_page',
+      trigger: section.sectionId,
+    }],
+  };
+}
+
+function applyCompositionRhythmAndQuietPages(
+  sections: readonly PortalJourneyPrintSectionV1[],
+): PortalJourneyPrintSectionV1[] {
+  let rhythmIndex = 0;
+  const withRhythm = sections.map((section, index) => {
+    const scene = section.storyScene ?? buildStorySceneFromSection(section);
+    const baseComposition = scene.composition ?? buildDefaultStorySceneComposition(scene.sceneKind);
+    let pageArchetype: PdfCompositionPageArchetypeV1;
+    if (index === 0 && baseComposition.heroEligible) {
+      pageArchetype = 'hero';
+    } else if (baseComposition.pageArchetype === 'quiet') {
+      pageArchetype = 'quiet';
+    } else {
+      pageArchetype = expectedRhythmForIndex(rhythmIndex);
+      rhythmIndex += 1;
+    }
+    const composition: LibraryStorySceneCompositionV1 = {
+      ...baseComposition,
+      pageArchetype,
+      focalVisualPriority: pageArchetype === 'hero' ? 'primary' : baseComposition.focalVisualPriority,
+    };
+    return {
+      ...section,
+      storyScene: {
+        ...scene,
+        composition,
+      },
+    };
+  });
+
+  const result: PortalJourneyPrintSectionV1[] = [];
+  for (const section of withRhythm) {
+    result.push(section);
+    const composition = section.storyScene?.composition;
+    if (composition?.densityTier === 'dense' && composition.quietEligible) {
+      result.push(buildQuietSceneSection(section));
+    }
+  }
+  return result;
+}
+
 function applyScenarioAuthoredNarrativePack(
   sections: readonly PortalJourneyPrintSectionV1[],
   routeId: ScenarioNarrativeRouteIdV1 | undefined,
 ): PortalJourneyPrintSectionV1[] {
   if (routeId == null) {
-    return sections.map((section) => ({
+    return applyCompositionRhythmAndQuietPages(sections.map((section) => ({
       ...section,
       storyScene: section.storyScene ?? buildStorySceneFromSection(section),
-    }));
+    })));
   }
   const pack = SCENARIO_NARRATIVE_PACKS[routeId];
   const sceneBySectionId = new Map(pack.scenes.map((scene) => [scene.sectionId, scene]));
 
-  return sections.map((section) => {
+  return applyCompositionRhythmAndQuietPages(sections.map((section) => {
     const authoredScene = sceneBySectionId.get(section.sectionId);
     if (authoredScene == null) {
+      const fallback = section.storyScene ?? buildStorySceneFromSection(section);
       return {
         ...section,
-        storyScene: section.storyScene ?? buildStorySceneFromSection(section),
+        storyScene: {
+          ...fallback,
+          composition: fallback.composition ?? buildDefaultStorySceneComposition(fallback.sceneKind),
+        },
       };
     }
     return {
@@ -708,9 +928,10 @@ function applyScenarioAuthoredNarrativePack(
         whyItMatters: authoredScene.whyItMatters,
         whatYouWillNotice: authoredScene.whatYouWillNotice,
         visualAssetId: authoredScene.visualAssetId,
+        composition: pack.compositionBySectionId[section.sectionId] ?? buildDefaultStorySceneComposition(authoredScene.sceneKind),
       },
     };
-  });
+  }));
 }
 
 function applyJourneyTypeConceptFallback(
@@ -1486,6 +1707,17 @@ const MAX_SCENE_TEXT_CHARS = 220;
 const MAX_TOTAL_SCENE_TEXT_CHARS = 1500;
 const SCENE_OVERLAP_THRESHOLD = 0.9;
 const MIN_SEMANTIC_TOKEN_COUNT = 6;
+const MIN_COMPOSITION_WHITESPACE_RATIO = 0.28;
+const DENSE_TO_DENSE_WHITESPACE_RATIO = 0.33;
+const MIN_PRINT_VISUAL_SCALE = 0.75;
+const MAX_PRINT_VISUAL_SCALE = 1.15;
+const MAX_CARDS_PER_PAGE = 3;
+/**
+ * Deterministic page rhythm for customer comprehension:
+ * explain first, then lived experience, then practical work, then reassurance.
+ */
+const EXPECTED_RHYTHM_SEQUENCE: PdfCompositionPageArchetypeV1[] = ['explanation', 'lived_experience', 'practical_work', 'reassurance'];
+export const QUIET_SCENE_CONTENT_ID_PREFIX = 'COMPOSITION_QUIET_';
 const VAGUE_WHAT_YOU_WILL_NOTICE = [
   'you will notice improvements',
   'you will notice a difference',
@@ -1508,6 +1740,14 @@ const BLOCKING_STORY_SCENE_ERROR_CODES = new Set([
   'duplicate_or_overlapping_scene',
   'scene_page_budget_exceeded',
   'scene_text_budget_exceeded',
+  'missing_composition_contract',
+  'composition_missing_primary_visual',
+  'composition_multiple_primary_visuals',
+  'composition_whitespace_below_minimum',
+  'composition_card_wall',
+  'composition_visual_scale_out_of_range',
+  'composition_dense_transition_missing_breather',
+  'composition_rhythm_break',
 ]);
 const VISUAL_REQUIRED_SCENE_KINDS = new Set<LibraryStorySceneKindV1>(['physics_explainer', 'lived_experience']);
 const CANONICAL_SCENE_VISUAL_ASSET_IDS = new Set([
@@ -1539,6 +1779,11 @@ export interface CustomerStorySceneValidationIssueV1 {
 }
 
 export interface CustomerStorySceneValidationResultV1 {
+  warnings: CustomerStorySceneValidationIssueV1[];
+  errors: CustomerStorySceneValidationIssueV1[];
+}
+
+interface StorySceneCompositionValidationResultV1 {
   warnings: CustomerStorySceneValidationIssueV1[];
   errors: CustomerStorySceneValidationIssueV1[];
 }
@@ -1605,6 +1850,67 @@ function buildStorySceneValidationIssue(
   message: string,
 ): CustomerStorySceneValidationIssueV1 {
   return { code, message };
+}
+
+function validateStorySceneComposition(
+  scene: LibraryStorySceneV1,
+  section: PortalJourneyPrintSectionV1,
+): StorySceneCompositionValidationResultV1 {
+  const warnings: CustomerStorySceneValidationIssueV1[] = [];
+  const errors: CustomerStorySceneValidationIssueV1[] = [];
+  const composition = scene.composition;
+  if (composition == null) {
+    errors.push(buildStorySceneValidationIssue(
+      'missing_composition_contract',
+      'Story scene is missing composition contract metadata.',
+    ));
+    return { warnings, errors };
+  }
+  if (composition.focalVisualPriority === 'primary' && !hasText(scene.visualAssetId)) {
+    errors.push(buildStorySceneValidationIssue(
+      'composition_missing_primary_visual',
+      'Primary focal pages must include a canonical visual asset.',
+    ));
+  }
+  if (isQuietSectionId(section.sectionId) && (composition.focalVisualPriority !== 'none' || hasText(scene.visualAssetId))) {
+    errors.push(buildStorySceneValidationIssue(
+      'composition_multiple_primary_visuals',
+      'Quiet pages must not carry a primary visual focal point.',
+    ));
+  }
+  if (composition.whitespaceRatio < MIN_COMPOSITION_WHITESPACE_RATIO) {
+    errors.push(buildStorySceneValidationIssue(
+      'composition_whitespace_below_minimum',
+      'Composition whitespace ratio is below the minimum budget.',
+    ));
+  }
+  if (composition.maxCardsPerPage > MAX_CARDS_PER_PAGE) {
+    errors.push(buildStorySceneValidationIssue(
+      'composition_card_wall',
+      'Composition allows too many cards and risks stacked-card wall layout.',
+    ));
+  }
+  if (composition.visualScale < MIN_PRINT_VISUAL_SCALE || composition.visualScale > MAX_PRINT_VISUAL_SCALE) {
+    errors.push(buildStorySceneValidationIssue(
+      'composition_visual_scale_out_of_range',
+      'Composition visual scale is outside print-safe bounds.',
+    ));
+  }
+  if (composition.pageArchetype === 'hero' && !composition.heroEligible) {
+    warnings.push(buildStorySceneValidationIssue(
+      'composition_hero_without_eligibility',
+      'Hero archetype used on a scene not marked hero eligible.',
+    ));
+  }
+  return { warnings, errors };
+}
+
+function expectedRhythmForIndex(index: number): PdfCompositionPageArchetypeV1 {
+  return EXPECTED_RHYTHM_SEQUENCE[index % EXPECTED_RHYTHM_SEQUENCE.length];
+}
+
+function isQuietSectionId(sectionId: PortalJourneyPrintSectionV1['sectionId']): boolean {
+  return sectionId === 'quiet_scene' || sectionId.startsWith('quiet_scene_');
 }
 
 export function validateCustomerStoryScene(
@@ -1723,21 +2029,28 @@ function buildCustomerPdfContentSource(input: {
     const scene = section.storyScene ?? buildStorySceneFromSection(section);
     const visualAssetRequired = hasText(section.diagramRendererId) || hasText(section.diagramId);
     const validation = validateCustomerStoryScene(scene, { visualAssetRequired });
+    const compositionValidation = validateStorySceneComposition(scene, section);
     const hasAllRequiredText =
       hasText(scene.title)
       && hasText(scene.customerTakeaway)
       && hasText(scene.whyItMatters)
       && hasText(scene.whatYouWillNotice);
     return {
+      section,
       scene,
       validation,
+      compositionValidation,
       hasAllRequiredText,
     };
   });
   const acceptedStorySceneEntries: Array<(typeof validatedStoryScenes)[number]> = [];
   let duplicateOrOverlappingSceneCount = 0;
   for (const entry of validatedStoryScenes) {
-    if (!entry.hasAllRequiredText || entry.validation.errors.length > 0) continue;
+    if (
+      !entry.hasAllRequiredText
+      || entry.validation.errors.length > 0
+      || entry.compositionValidation.errors.length > 0
+    ) continue;
     const overlapsExisting = acceptedStorySceneEntries.some((acceptedEntry) =>
       scenesSemanticallyOverlap(acceptedEntry.scene, entry.scene));
     if (overlapsExisting) {
@@ -1771,6 +2084,51 @@ function buildCustomerPdfContentSource(input: {
     globalErrorCodes.push('scene_text_budget_exceeded');
   }
   storyScenes = textBudgetScenes;
+  const compositionWarningCount = validatedStoryScenes.reduce(
+    (total, entry) => total + entry.compositionValidation.warnings.length,
+    0,
+  );
+  let compositionErrorCount = validatedStoryScenes.reduce(
+    (total, entry) => total + entry.compositionValidation.errors.length,
+    0,
+  );
+  const acceptedSectionKeys = new Set(
+    acceptedStorySceneEntries.map((entry) => JSON.stringify([entry.section.sectionId, entry.section.contentId])),
+  );
+  const acceptedSections = input.sections.filter((section) =>
+    acceptedSectionKeys.has(JSON.stringify([section.sectionId, section.contentId])),
+  );
+  let rhythmIndex = 0;
+  for (let i = 0; i < acceptedStorySceneEntries.length; i += 1) {
+    const entry = acceptedStorySceneEntries[i];
+    const composition = entry.scene.composition;
+    if (composition == null) continue;
+    if (composition.densityTier === 'dense' && i < acceptedStorySceneEntries.length - 1) {
+      const nextComposition = acceptedStorySceneEntries[i + 1].scene.composition;
+      if (
+        nextComposition?.densityTier === 'dense'
+        && composition.transitionType !== 'breather'
+        && nextComposition.transitionType !== 'breather'
+        && (composition.whitespaceRatio < DENSE_TO_DENSE_WHITESPACE_RATIO || nextComposition.whitespaceRatio < DENSE_TO_DENSE_WHITESPACE_RATIO)
+      ) {
+        compositionErrorCount += 1;
+        globalErrorCodes.push('composition_dense_transition_missing_breather');
+      }
+    }
+    if (!isQuietSectionId(entry.section.sectionId) && composition.pageArchetype !== 'hero') {
+      const expected = expectedRhythmForIndex(rhythmIndex);
+      rhythmIndex += 1;
+      if (composition.pageArchetype !== expected) {
+        compositionErrorCount += 1;
+        globalErrorCodes.push('composition_rhythm_break');
+      }
+    }
+  }
+  const quietPages = acceptedSections.filter((section) => isQuietSectionId(section.sectionId));
+  if (quietPages.some((section) => section.storyScene?.composition?.focalVisualPriority !== 'none')) {
+    compositionErrorCount += 1;
+    globalErrorCodes.push('composition_multiple_primary_visuals');
+  }
   const selectedConceptCount = new Set(input.conceptTags).size;
   const selectedStorySceneCount = storyScenes.length;
   const scenarioRequiresVisuals = input.sections.some((section) =>
@@ -1785,13 +2143,25 @@ function buildCustomerPdfContentSource(input: {
   if (selectedConceptCount === 0) fallbackSignals.push('concept_selection_missing');
   if (selectedStorySceneCount === 0) fallbackSignals.push('story_scenes_missing');
   if (scenarioRequiresVisuals && visualAssetIds.length === 0) fallbackSignals.push('visual_assets_missing');
-  const warningCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.validation.warnings.map((issue) => issue.code)));
+  const warningCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => [
+    ...entry.validation.warnings.map((issue) => issue.code),
+    ...entry.compositionValidation.warnings.map((issue) => issue.code),
+  ]));
   const errorCodes = dedupeStrings([
-    ...validatedStoryScenes.flatMap((entry) => entry.validation.errors.map((issue) => issue.code)),
+    ...validatedStoryScenes.flatMap((entry) => [
+      ...entry.validation.errors.map((issue) => issue.code),
+      ...entry.compositionValidation.errors.map((issue) => issue.code),
+    ]),
     ...globalErrorCodes,
   ]);
-  const warningCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.warnings.length, 0);
-  const sceneValidationErrorCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.errors.length, 0);
+  const warningCount = validatedStoryScenes.reduce(
+    (total, entry) => total + entry.validation.warnings.length + entry.compositionValidation.warnings.length,
+    0,
+  );
+  const sceneValidationErrorCount = validatedStoryScenes.reduce(
+    (total, entry) => total + entry.validation.errors.length + entry.compositionValidation.errors.length,
+    0,
+  );
   const blockingSceneValidationErrorCount = validatedStoryScenes.reduce(
     (total, entry) =>
       total + entry.validation.errors.filter((issue) => BLOCKING_STORY_SCENE_ERROR_CODES.has(issue.code)).length,
@@ -1829,6 +2199,8 @@ function buildCustomerPdfContentSource(input: {
       rejectedSceneCount: validatedStoryScenes.length - selectedStorySceneCount,
       warningCodes,
       errorCodes,
+      compositionWarningCount,
+      compositionErrorCount,
     },
   };
 }
@@ -1881,13 +2253,15 @@ function resolveCanonicalSceneVisualAssetId(section: PortalJourneyPrintSectionV1
 }
 
 function buildStorySceneFromSection(section: PortalJourneyPrintSectionV1): LibraryStorySceneV1 {
+  const sceneKind = resolveFallbackSceneKind(section);
   return {
-    sceneKind: resolveFallbackSceneKind(section),
+    sceneKind,
     title: section.heading,
     customerTakeaway: section.keyTakeaway,
     visualAssetId: resolveCanonicalSceneVisualAssetId(section),
     whyItMatters: section.summary,
     whatYouWillNotice: section.items.find(hasText) ?? section.reassurance,
+    composition: buildDefaultStorySceneComposition(sceneKind),
   };
 }
 
@@ -2445,10 +2819,16 @@ function buildPortalJourneyPrintModelCore(
       }
       return sectionHasReasonEvidence(section);
     });
-  const usedPages = Math.min(1 + (normalizedRecommendationReasons.length > 0 ? 1 : 0) + sections.length + 1, 7);
   const systemProtection = surveyCondition != null
     ? buildSystemProtectionSummary(surveyCondition)
     : undefined;
+  const usedPages =
+    1    // cover
+    + (normalizedRecommendationReasons.length > 0 ? 1 : 0)
+    + sections.length // includes deterministic quiet pages inserted for dense scene transitions
+    + (systemProtection != null ? 1 : 0)
+    + 1; // next steps
+  const totalPages = usedPages + 1; // technical hand-off
 
   return {
     cover,
@@ -2459,8 +2839,8 @@ function buildPortalJourneyPrintModelCore(
     qrDestinations,
     systemProtection,
     pageEstimate: {
-      usedPages,
-      maxPages: 7,
+      usedPages: totalPages,
+      maxPages: 9,
     },
   };
 }

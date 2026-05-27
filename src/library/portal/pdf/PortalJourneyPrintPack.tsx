@@ -231,7 +231,7 @@ function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCov
         </p>
         {import.meta.env.DEV && contentSource != null ? (
           <p className="pjpp-cover-content-source" data-testid="pjpp-cover-content-source">
-            Content source (dev): audienceProjection present: {contentSource.audienceProjectionPresent ? 'yes' : 'no'} · selected concepts count: {contentSource.selectedConceptCount} · selected story scenes count: {contentSource.selectedStorySceneCount} · visual asset IDs used: {formatContentSourceVisualAssetIds(contentSource.visualAssetIds)} · fallback sections used: {contentSource.fallbackSectionsUsed ? 'yes' : 'no'} · story-scene validation (warnings/errors/blocking): {contentSource.storySceneValidation.warningCount}/{contentSource.storySceneValidation.errorCount}/{contentSource.storySceneValidation.blockingErrorCount} · rejected scenes: {contentSource.storySceneValidation.rejectedSceneCount} · blocking codes: {contentSource.storySceneValidation.errorCodes.length > 0 ? contentSource.storySceneValidation.errorCodes.join(', ') : 'none'}
+            Content source (dev): audienceProjection present: {contentSource.audienceProjectionPresent ? 'yes' : 'no'} · selected concepts count: {contentSource.selectedConceptCount} · selected story scenes count: {contentSource.selectedStorySceneCount} · visual asset IDs used: {formatContentSourceVisualAssetIds(contentSource.visualAssetIds)} · fallback sections used: {contentSource.fallbackSectionsUsed ? 'yes' : 'no'} · story-scene validation (warnings/errors/blocking): {contentSource.storySceneValidation.warningCount}/{contentSource.storySceneValidation.errorCount}/{contentSource.storySceneValidation.blockingErrorCount} · composition errors: {contentSource.storySceneValidation.compositionErrorCount} · rejected scenes: {contentSource.storySceneValidation.rejectedSceneCount} · blocking codes: {contentSource.storySceneValidation.errorCodes.length > 0 ? contentSource.storySceneValidation.errorCodes.join(', ') : 'none'}
           </p>
         ) : null}
       </header>
@@ -291,6 +291,10 @@ interface PrintRecommendationReasonsProps {
 
 function PrintSection({ section, pageNumber }: PrintSectionProps) {
   const storyScene = section.storyScene;
+  const composition = storyScene?.composition;
+  const pageArchetype = composition?.pageArchetype ?? 'explanation';
+  const densityTier = composition?.densityTier ?? 'balanced';
+  const focalVisualPriority = composition?.focalVisualPriority ?? 'supporting';
   const sceneTitle = storyScene?.title ?? section.heading;
   const sceneCustomerTakeaway = storyScene?.customerTakeaway ?? section.keyTakeaway;
   const sceneWhyItMatters = storyScene?.whyItMatters ?? section.summary;
@@ -302,10 +306,11 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
 
   return (
     <section
-      className={`pjpp-page pjpp-section pjpp-section--${section.sectionId}`}
+      className={`pjpp-page pjpp-section pjpp-section--${section.sectionId} pjpp-section--archetype-${pageArchetype} pjpp-section--density-${densityTier} pjpp-section--focal-${focalVisualPriority}`}
       aria-labelledby={`pjpp-section-heading-${section.sectionId}`}
       data-testid={`pjpp-section-${section.sectionId}`}
       data-page={pageNumber}
+      data-archetype={pageArchetype}
     >
       <h2
         id={`pjpp-section-heading-${section.sectionId}`}
@@ -316,24 +321,37 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
 
       <p className="pjpp-section__summary">{sceneCustomerTakeaway}</p>
 
-      <ul className="pjpp-outcome-cards" data-testid={`pjpp-items-${section.sectionId}`}>
-        {noticeItems.map((item, i) => (
-          <li key={`${section.sectionId}-${i}`} className="pjpp-outcome-card">
-            <p className="pjpp-outcome-card__label">What you will notice</p>
-            <p className="pjpp-outcome-card__copy">{item}</p>
-          </li>
-        ))}
-      </ul>
+      {pageArchetype === 'quiet' ? (
+        <div className="pjpp-quiet-content" data-testid={`pjpp-quiet-${section.sectionId}`}>
+          <p className="pjpp-quiet-content__copy">{sceneWhyItMatters}</p>
+        </div>
+      ) : (
+        <ul className="pjpp-outcome-cards" data-testid={`pjpp-items-${section.sectionId}`}>
+          {noticeItems.slice(0, composition?.maxCardsPerPage ?? 3).map((item, i) => (
+            <li key={`${section.sectionId}-${i}`} className="pjpp-outcome-card">
+              <p className="pjpp-outcome-card__label">What you will notice</p>
+              <p className="pjpp-outcome-card__copy">{item}</p>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
-        <strong>Why it matters:</strong> {sceneWhyItMatters}
-      </p>
+      {pageArchetype === 'hero' ? (
+        <p className="pjpp-section__hero-takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
+          {sceneWhyItMatters}
+        </p>
+      ) : (
+        <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
+          <strong>Why it matters:</strong> {sceneWhyItMatters}
+        </p>
+      )}
 
-      {rendererDiagramId ? (
+      {rendererDiagramId && pageArchetype !== 'quiet' ? (
         <figure
           className="pjpp-section__diagram"
           data-testid={`pjpp-diagram-${section.sectionId}`}
           data-print-safe="true"
+          style={{ '--pjpp-visual-scale': composition?.visualScale ?? 1 } as Record<string, number>}
         >
           <DiagramRenderer
             diagramId={rendererDiagramId}
@@ -346,9 +364,11 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
         </figure>
       ) : null}
 
-      <aside className="pjpp-reassurance" data-testid={`pjpp-reassurance-${section.sectionId}`} data-reading-region="true">
-        {section.reassurance}
-      </aside>
+      {pageArchetype !== 'quiet' ? (
+        <aside className="pjpp-reassurance" data-testid={`pjpp-reassurance-${section.sectionId}`} data-reading-region="true">
+          {section.reassurance}
+        </aside>
+      ) : null}
     </section>
   );
 }
@@ -582,7 +602,7 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
 
       {customerDocument.sections.map((section) => (
         <PrintSection
-          key={section.sectionId}
+          key={`${section.sectionId}-${section.contentId}`}
           section={section}
           pageNumber={pageCounter++}
         />
