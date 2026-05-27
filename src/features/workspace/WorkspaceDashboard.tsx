@@ -75,6 +75,12 @@ export interface WorkspaceDashboardProps {
    * and return to the dashboard.
    */
   onLoadDemoWorkspace?: () => void;
+  /**
+   * When false (guest access without an authenticated profile or explicit
+   * dev/admin flag), renders a restricted fallback landing instead of the
+   * full workspace dashboard.  Defaults to true for backwards compatibility.
+   */
+  authorisedAccess?: boolean;
 }
 
 // ─── Role label map ───────────────────────────────────────────────────────────
@@ -259,6 +265,86 @@ function KpiTile({ label, value, sub }: { label: string; value: string | number;
   );
 }
 
+// ─── Guest fallback ───────────────────────────────────────────────────────────
+
+/**
+ * Shown in place of the full dashboard when `authorisedAccess` is false.
+ * Gives a guest field user a safe landing: they can start a new visit or
+ * open an existing one, but cannot see analytics, branding, or workspace tools.
+ */
+function GuestFallback({
+  onStartNewVisit,
+  onOpenAllVisits,
+}: {
+  onStartNewVisit: () => void;
+  onOpenAllVisits: () => void;
+}) {
+  return (
+    <div
+      data-testid="workspace-dashboard-guest-fallback"
+      style={{
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        minHeight: '100vh',
+        background: '#f8fafc',
+        color: '#0f172a',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 20px',
+      }}
+    >
+      <div style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 16 }} aria-hidden="true">🏠</div>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
+          Atlas
+        </h1>
+        <p style={{ fontSize: 14, color: '#64748b', marginBottom: 32, lineHeight: 1.6 }}>
+          Welcome. You can start a new visit or open an existing one below.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button
+            onClick={onStartNewVisit}
+            data-testid="guest-start-new-visit"
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              background: '#4f46e5',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: 'pointer',
+              textAlign: 'center',
+            }}
+          >
+            ＋ Start New Visit
+          </button>
+          <button
+            onClick={onOpenAllVisits}
+            data-testid="guest-open-existing-visit"
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              background: '#fff',
+              color: '#374151',
+              border: '1px solid #e2e8f0',
+              borderRadius: 10,
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: 'pointer',
+              textAlign: 'center',
+            }}
+          >
+            🔍 Open Existing Visit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function WorkspaceDashboard({
@@ -273,10 +359,24 @@ export default function WorkspaceDashboard({
   onOpenDemoExternalFiles,
   onOpenDemoPresentation,
   onLoadDemoWorkspace,
+  authorisedAccess = true,
 }: WorkspaceDashboardProps) {
   const { activeUser } = useActiveUser();
   const permissions = useRolePermissions(activeUser?.defaultTenantId);
   const { effectiveRole, canCreateVisit, canViewAnalytics, canEditBranding, canManageWorkspace } = permissions;
+
+  // ── Access guard ───────────────────────────────────────────────────────────
+  // If `authorisedAccess` is false the caller has determined that the current
+  // visitor is an unauthenticated guest who did not arrive through an explicit
+  // dev/admin entry point.  Show the restricted landing instead.
+  if (!authorisedAccess) {
+    return (
+      <GuestFallback
+        onStartNewVisit={onStartNewVisit}
+        onOpenAllVisits={onOpenAllVisits}
+      />
+    );
+  }
 
   // ── Active tenant ──────────────────────────────────────────────────────────
   const tenant = useMemo(() => {
