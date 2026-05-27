@@ -1,5 +1,5 @@
 /**
- * LegoBuildingSetPage.tsx
+ * LegoTechnixPage.tsx
  *
  * Top-level page for the Atlas System Composer — the interactive drag-and-drop
  * workbench for assembling heating system diagrams from first principles.
@@ -15,7 +15,7 @@ interface Props {
   onBack: () => void;
 }
 
-export default function LegoBuildingSetPage({ onBack }: Props) {
+export default function LegoTechnixPage({ onBack }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f8fafc' }}>
       <div style={{

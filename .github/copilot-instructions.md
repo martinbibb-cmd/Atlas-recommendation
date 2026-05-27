@@ -35,6 +35,27 @@ All AI-assisted code contributions must follow the rules below.
 - Correct replacements: "tank-fed hot water", "tank-fed supply", "mains-fed supply", "on-demand hot water".
 - Engine-internal identifiers (TypeScript enums/field names) are implementation details and are not subject to this rule.
 
+## Terminology Overrides
+
+- **Lego Technix** is the canonical name for the functional heating-system graph foundation.
+- **Never** refer to the active functional graph or simulation engine as "Lego Builder", "Building Set", or "Lego Set".
+- Do not apply Lego Technix naming, contracts, or simulation assumptions to legacy builder-set files under `src/explainers/lego/`.
+
+## Strict Naming & Directory Boundaries
+
+### 1. Lego Technix
+
+- **Path Focus:** `src/features/legoTechnix/` and `docs/lego-technix/`
+- **Definition:** Active, authoritative physics-driven system graph and simulation engine.
+- **Rule:** Simulation math, efficiency clamping, and graph logic changes must stay in this path.
+
+### 2. Legacy System Composer (Builder Set)
+
+- **Path Focus:** `src/explainers/lego/` (including `src/explainers/lego/LegoTechnixPage.tsx`)
+- **Definition:** Legacy visual component sandbox with drag-and-drop builder mechanics.
+- **Note:** `LegoTechnixPage.tsx` remains a legacy System Composer entry point despite its filename and must not be treated as part of the active Lego Technix simulation engine.
+- **CRITICAL PROTECTION RULE:** Never suggest renaming, refactoring, or updating these legacy files to match Lego Technix paradigms. The domains are functionally isolated until explicit deprecation.
+
 ## Layout
 
 - The Twin Visualiser (`LifestyleInteractive.tsx`) renders two charts:

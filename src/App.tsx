@@ -21,7 +21,7 @@ import { buildVisualBlocks } from './engine/modules/buildVisualBlocks';
 import { buildCustomerSummary } from './engine/modules/buildCustomerSummary';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
-import LegoBuildingSetPage from './explainers/lego/LegoBuildingSetPage';
+import LegoTechnixPage from './explainers/lego/LegoTechnixPage';
 import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
 import BuildingHeightCheck from './components/measurements/BuildingHeightCheck';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
@@ -887,7 +887,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'portal-from-package' | 'gallery' | 'dev-menu' | 'lego-set' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'portal-from-package' | 'gallery' | 'dev-menu' | 'lego-technix' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 interface VisitRecommendationSnapshot {
   visitId: string;
@@ -4679,8 +4679,8 @@ function AppInner() {
       {journey === 'building-height' && (
         <BuildingHeightCheck onBack={() => setJourney('landing')} />
       )}
-      {journey === 'lego-set' && (
-        <LegoBuildingSetPage onBack={() => setJourney('landing')} />
+      {journey === 'lego-technix' && (
+        <LegoTechnixPage onBack={() => setJourney('landing')} />
       )}
       {/* User Profile — local engineer profile panel */}
       {journey === 'user-profile' && (
@@ -5062,7 +5062,7 @@ function AppInner() {
             </div>
             <div
               className="journey-card"
-              onClick={() => setJourney('lego-set')}
+              onClick={() => setJourney('lego-technix')}
             >
               <div className="card-icon">🧱</div>
               <h2>Atlas System Composer</h2>
