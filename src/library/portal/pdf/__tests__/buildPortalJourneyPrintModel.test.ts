@@ -7,6 +7,7 @@ import {
   CUSTOMER_JOURNEY_PACK_VERSION,
   isFallbackOnlyCustomerPdf,
   resolveRecommendationConceptSelection,
+  validateCustomerStoryScene,
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
 import { buildCanonicalVisitPackage } from '../../../../features/visitPackage';
@@ -333,16 +334,28 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(model.contentSource?.selectedStorySceneCount).toBe(model.sections.length);
     expect(model.contentSource?.visualAssetIds.length).toBeGreaterThan(0);
     expect(model.contentSource?.audienceProjectionPresent).toBe(false);
+    expect(model.contentSource?.storySceneValidation.blockingErrorCount).toBe(0);
   });
 
-  it('hydrates library story scenes for each PDF section', () => {
+  it('hydrates authored story scenes for each PDF section', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     for (const section of model.sections) {
-      expect(section.storyScene?.title).toBe(section.heading);
+      expect(section.storyScene?.title.length).toBeGreaterThan(0);
+      expect(section.storyScene?.sceneKind).toBeDefined();
       expect(section.storyScene?.customerTakeaway.length).toBeGreaterThan(0);
       expect(section.storyScene?.whyItMatters.length).toBeGreaterThan(0);
       expect(section.storyScene?.whatYouWillNotice.length).toBeGreaterThan(0);
+      expect(section.storyScene?.visualAssetId?.length).toBeGreaterThan(0);
+      const validation = validateCustomerStoryScene(section.storyScene!);
+      expect(validation.errors).toHaveLength(0);
     }
+  });
+
+  it('uses deterministic authored narrative copy for regular_vented route scenes', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    const practicalOutcomes = model.sections.find((section) => section.sectionId === 'practical_outcomes');
+    expect(practicalOutcomes?.storyScene?.title).toBe('From vented layout to sealed comfort');
+    expect(practicalOutcomes?.storyScene?.visualAssetId).toBe('open_vented_to_unvented');
   });
 
   it('flags thin generic fallback packs as fallbackOnly when projection is absent', () => {
@@ -393,6 +406,64 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     });
     expect(model.contentSource?.selectedConceptCount).toBe(0);
     expect(model.contentSource?.fallbackOnly).toBe(true);
+  });
+
+  it('flags story scenes with banned internal language', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Hot water reliability',
+      customerTakeaway: 'Showers stay consistent.',
+      whyItMatters: 'Atlas mapped this route from taxonomy digest.',
+      whatYouWillNotice: 'Steadier shower temperature at peak times.',
+      visualAssetId: 'pressure_vs_storage',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('banned_internal_language');
+    expect(result.errors.map((issue) => issue.code)).toContain('internal_why_it_matters_language');
+  });
+
+  it('flags missing visual asset IDs when a visual is required', () => {
+    const result = validateCustomerStoryScene(
+      {
+        title: 'Hot water reliability',
+        customerTakeaway: 'Stored hot water supports two showers at once.',
+        whyItMatters: 'This keeps shower temperature stable when taps open together.',
+        whatYouWillNotice: 'Less temperature swing in upstairs showers at busy times.',
+      },
+      { visualAssetRequired: true },
+    );
+    expect(result.errors.map((issue) => issue.code)).toContain('missing_required_visual_asset');
+  });
+
+  it('requires visual assets for physics_explainer scenes', () => {
+    const result = validateCustomerStoryScene({
+      sceneKind: 'physics_explainer',
+      title: 'Pressure and storage',
+      customerTakeaway: 'Pressure and storage are separate system limits.',
+      whyItMatters: 'Separating these ideas prevents unrealistic hot-water expectations.',
+      whatYouWillNotice: 'Shower force can stay strong while stored volume still follows recovery.',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('missing_required_visual_asset');
+  });
+
+  it('rejects scenes that carry multiple core messages in one field', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Comfort profile',
+      customerTakeaway: 'Warm operation keeps comfort steady. It also lowers bills every day.',
+      whyItMatters: 'This supports predictable comfort at normal demand windows.',
+      whatYouWillNotice: 'Rooms warm gradually and remain steady once they reach target.',
+      visualAssetId: 'weather_compensation_curve',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('multiple_core_messages');
+  });
+
+  it('rejects non-canonical visual IDs in story scenes', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Hot water reliability',
+      customerTakeaway: 'Stored hot water supports overlap use in busy homes.',
+      whyItMatters: 'This route gives clearer reserve behaviour during peak demand.',
+      whatYouWillNotice: 'Recovery periods are expected after heavy simultaneous draw.',
+      visualAssetId: 'generated_blob_card',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('non_canonical_visual_asset');
   });
 });
 

@@ -273,9 +273,9 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
     expect(titles).toEqual([
       'Your recommendation',
       'Why this recommendation fits your home',
-      'Practical outcomes',
-      'Why stored hot water helps',
-      'How the cylinder keeps itself safe',
+      'From vented layout to sealed comfort',
+      'Pressure and storage are separate limits',
+      'Protection features are part of quality work',
       'What happens next',
       'Technical site hand-off',
     ]);
@@ -306,17 +306,17 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
     expect(screen.queryByText(/🔬/)).toBeNull();
     expect(screen.queryByText(/not customer data/i)).toBeNull();
     expect(screen.queryByText(/content pending/i)).toBeNull();
-    expect(screen.getByText(/The loft tank is no longer needed\./i)).toBeInTheDocument();
-    expect(screen.getByText(/Visible safety parts are expected in a compliant setup\./i)).toBeInTheDocument();
+    expect(screen.getByText(/Your home moves away from loft-tank dependence/i)).toBeInTheDocument();
+    expect(screen.getByText(/Visible cylinder safety components are expected/i)).toBeInTheDocument();
   });
 });
 
 describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
   it('renders expected heat-pump section headings', () => {
     render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
-    expect(screen.getByRole('heading', { name: 'Why radiators may feel warm, not hot' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'How steady running works' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'What happens in winter' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Why this heat-pump route fits' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'What improves in daily operation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Winter behaviour and protection quality' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What happens next' })).toBeInTheDocument();
   });
 
