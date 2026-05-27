@@ -428,6 +428,45 @@ function CustomerPortalVisualDiagnostic({
   );
 }
 
+function CustomerPortalVisualCoverageAuditPanel({
+  contentSource,
+}: {
+  contentSource?: CustomerJourneyPackV1['staticPdf']['contentSource'];
+}) {
+  if (!import.meta.env.DEV || contentSource == null) return null;
+  return (
+    <section
+      className="customer-portal-journey__teaser-card"
+      data-testid="customer-portal-dev-visual-coverage-audit"
+    >
+      <p className="customer-portal-journey__summary-label">DEV visual coverage audit</p>
+      <ul className="customer-portal-journey__bullet-list">
+        {contentSource.visualCoverageAudit.routes.map((route) => (
+          <li key={route.routeId}>
+            <strong>{route.routeId}</strong>
+            <div>
+              required story scenes: {route.requiredStorySceneSectionIds.join(', ') || 'none'}
+            </div>
+            <div>
+              requested visual IDs: {route.requestedVisualAssetIds.join(', ') || 'none'}
+            </div>
+            <div>
+              summary — canonical visuals available: {route.summary.canonicalVisualsAvailable.join(', ') || 'none'}; missing canonical visuals: {route.summary.missingCanonicalVisuals.join(', ') || 'none'}; retired visuals requested: {route.summary.retiredVisualsRequested.join(', ') || 'none'}; scenes rendering text-only: {route.summary.textOnlySceneSectionIds.join(', ') || 'none'}
+            </div>
+            <ul className="customer-portal-journey__bullet-list">
+              {route.scenes.map((scene) => (
+                <li key={`${route.routeId}-${scene.sectionId}`}>
+                  {scene.sectionId} · visual={scene.requestedVisualAssetId} · classification={scene.classification} · renderer availability=diagram:{scene.rendererAvailability.hasDiagramRenderer ? 'yes' : 'no'}, print-fallback:{scene.rendererAvailability.hasPrintFallback ? 'yes' : 'no'} · blocked reason={scene.blockedReason ?? 'none'}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function BoilerAgeingVisual({ lifecycle }: { lifecycle: AtlasDecisionV1['lifecycle'] }) {
   const model = buildLifecycleVisualModel(lifecycle);
   const heatFlowDecision = resolveLegoTechnicCustomerVisualDecision({
@@ -835,6 +874,8 @@ export function CustomerPortalJourneyComposer({
             </div>
           </CustomerPortalJourneySectionV1>
         ) : null}
+
+        <CustomerPortalVisualCoverageAuditPanel contentSource={journeyPack.staticPdf.contentSource} />
 
         <CustomerPortalJourneySectionV1
           sectionId="recommended-route"

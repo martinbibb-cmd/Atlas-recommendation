@@ -211,6 +211,7 @@ export interface CustomerPdfContentSourceV1 {
   fallbackSectionsUsed: boolean;
   fallbackOnly: boolean;
   sceneDiagnostics: CustomerPdfSceneDiagnosticV1[];
+  visualCoverageAudit: CustomerPdfVisualCoverageAuditV1;
   storySceneValidation: {
     sceneCount: number;
     warningCount: number;
@@ -224,6 +225,34 @@ export interface CustomerPdfContentSourceV1 {
     compositionWarningCount: number;
     compositionErrorCount: number;
   };
+}
+
+export interface CustomerPdfVisualCoverageAuditV1 {
+  routes: CustomerPdfVisualCoverageRouteV1[];
+}
+
+export interface CustomerPdfVisualCoverageRouteV1 {
+  routeId: ScenarioNarrativeRouteIdV1;
+  requiredStorySceneSectionIds: PortalJourneyPrintSectionV1['sectionId'][];
+  requestedVisualAssetIds: string[];
+  scenes: CustomerPdfVisualCoverageSceneV1[];
+  summary: {
+    canonicalVisualsAvailable: string[];
+    missingCanonicalVisuals: string[];
+    retiredVisualsRequested: string[];
+    textOnlySceneSectionIds: PortalJourneyPrintSectionV1['sectionId'][];
+  };
+}
+
+export interface CustomerPdfVisualCoverageSceneV1 {
+  sectionId: PortalJourneyPrintSectionV1['sectionId'];
+  requestedVisualAssetId: string;
+  classification: LegoTechnicCustomerVisualClassification | 'unlisted';
+  rendererAvailability: {
+    hasDiagramRenderer: boolean;
+    hasPrintFallback: boolean;
+  };
+  blockedReason?: string;
 }
 
 export interface CustomerPdfSceneDiagnosticV1 {
@@ -421,7 +450,7 @@ export interface RecommendationConceptSelectionV1 {
   conceptTags: EducationalConceptTagV1[];
 }
 
-type ScenarioNarrativeRouteIdV1 =
+export type ScenarioNarrativeRouteIdV1 =
   | 'regular_vented'
   | 'system_unvented'
   | 'combi'
@@ -1898,6 +1927,58 @@ export function listScenarioNarrativeVisualAssetIds(): string[] {
   return collectScenarioNarrativeVisualAssetIds();
 }
 
+function buildCustomerPdfVisualCoverageAudit(): CustomerPdfVisualCoverageAuditV1 {
+  const routes = Object.values(SCENARIO_NARRATIVE_PACKS).map((pack) => {
+    const scenes = pack.scenes.map((scene) => {
+      const rendererAvailability = getVisualAssetRendererAvailability(scene.visualAssetId);
+      const requestedRendererType: CustomerPdfSceneDiagnosticV1['rendererType'] = rendererAvailability.hasDiagramRenderer
+        ? 'diagram_component'
+        : rendererAvailability.hasPrintFallback
+          ? 'print_fallback'
+          : 'none';
+      const visualDecision = resolveLegoTechnicCustomerVisualDecision({
+        visualId: scene.visualAssetId,
+        rendererUsed: requestedRendererType,
+        surface: 'customer_pdf',
+      });
+      return {
+        sectionId: scene.sectionId,
+        requestedVisualAssetId: scene.visualAssetId,
+        classification: visualDecision.classification,
+        rendererAvailability,
+        blockedReason: visualDecision.blockedReason,
+      };
+    });
+
+    const canonicalVisualsAvailable = dedupeStrings(scenes
+      .filter((scene) => scene.classification === 'lego_technic_canonical' && scene.rendererAvailability.hasDiagramRenderer)
+      .map((scene) => scene.requestedVisualAssetId));
+    const retiredVisualsRequested = dedupeStrings(scenes
+      .filter((scene) => scene.classification === 'retired_non_physical')
+      .map((scene) => scene.requestedVisualAssetId));
+    const missingCanonicalVisuals = dedupeStrings(scenes
+      .filter((scene) => scene.classification !== 'lego_technic_canonical' || !scene.rendererAvailability.hasDiagramRenderer)
+      .map((scene) => scene.requestedVisualAssetId));
+    const textOnlySceneSectionIds = dedupeStrings(scenes
+      .filter((scene) => scene.classification !== 'lego_technic_canonical' || !scene.rendererAvailability.hasDiagramRenderer)
+      .map((scene) => scene.sectionId)) as PortalJourneyPrintSectionV1['sectionId'][];
+
+    return {
+      routeId: pack.routeId,
+      requiredStorySceneSectionIds: pack.scenes.map((scene) => scene.sectionId),
+      requestedVisualAssetIds: dedupeStrings(pack.scenes.map((scene) => scene.visualAssetId)),
+      scenes,
+      summary: {
+        canonicalVisualsAvailable,
+        missingCanonicalVisuals,
+        retiredVisualsRequested,
+        textOnlySceneSectionIds,
+      },
+    };
+  });
+  return { routes };
+}
+
 function validateStorySceneComposition(
   scene: LibraryStorySceneV1,
   section: PortalJourneyPrintSectionV1,
@@ -2340,6 +2421,7 @@ function buildCustomerPdfContentSource(input: {
     fallbackSectionsUsed,
     fallbackOnly,
     sceneDiagnostics,
+    visualCoverageAudit: buildCustomerPdfVisualCoverageAudit(),
     storySceneValidation: {
       sceneCount: validatedStoryScenes.length,
       warningCount,

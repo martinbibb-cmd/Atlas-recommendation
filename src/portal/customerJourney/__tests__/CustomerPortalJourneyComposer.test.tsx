@@ -79,6 +79,7 @@ describe('CustomerPortalJourneyComposer', () => {
     expect(screen.getByTestId('customer-portal-practical-outcome-cards')).toBeInTheDocument();
     expect(screen.getByTestId('customer-portal-next-steps-timeline')).toBeInTheDocument();
     expect(screen.getByTestId('customer-portal-technical-home-pattern')).toBeInTheDocument();
+    expect(screen.getByTestId('customer-portal-dev-visual-coverage-audit')).toBeInTheDocument();
   });
 
   it('renders recommendation-first section order with technical detail moved later', () => {
