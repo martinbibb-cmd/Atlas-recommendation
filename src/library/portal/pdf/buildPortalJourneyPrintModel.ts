@@ -1155,7 +1155,7 @@ function inferLiveExperienceExplanations(
     .slice(0, 4);
 }
 
-const GENERIC_REASON_ROUTE_PHRASE = 'educational evidence route';
+const FALLBACK_REASON_MATCH_PHRASE = 'educational evidence route';
 
 function buildCustomerPdfContentSource(input: {
   audienceProjectionPresent: boolean;
@@ -1174,7 +1174,7 @@ function buildCustomerPdfContentSource(input: {
         : []),
   );
   const genericReasonCount = input.recommendationReasons
-    .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(GENERIC_REASON_ROUTE_PHRASE))
+    .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(FALLBACK_REASON_MATCH_PHRASE))
     .length;
   const singleGenericSceneOnly =
     selectedStorySceneCount > 0 && input.sections.every((section) => section.sectionId === 'system_fit_decision_map');
