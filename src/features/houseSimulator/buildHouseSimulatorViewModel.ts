@@ -2,7 +2,7 @@
  * buildHouseSimulatorViewModel — presentation adapter for the House Simulator.
  *
  * Reshapes existing simulator playback state (produced by the canonical hooks
- * in src/explainers/lego/simulator/) into a customer-facing view model for
+ * in src/legacy/systemComposerPrototype/simulator/) into a customer-facing view model for
  * HouseSimulatorPage.
  *
  * Boundary rules:
@@ -12,10 +12,10 @@
  *   - Produces only presentation-layer types consumed by the House Simulator UI.
  */
 
-import type { SystemDiagramDisplayState, SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
-import type { DrawOffDisplayState } from '../../explainers/lego/simulator/useDrawOffPlayback';
-import type { EfficiencyDisplayState } from '../../explainers/lego/simulator/useEfficiencyPlayback';
-import type { LimiterDisplayState } from '../../explainers/lego/simulator/useLimiterPlayback';
+import type { SystemDiagramDisplayState, SimulatorSystemChoice } from '../../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback';
+import type { DrawOffDisplayState } from '../../legacy/systemComposerPrototype/simulator/useDrawOffPlayback';
+import type { EfficiencyDisplayState } from '../../legacy/systemComposerPrototype/simulator/useEfficiencyPlayback';
+import type { LimiterDisplayState } from '../../legacy/systemComposerPrototype/simulator/useLimiterPlayback';
 import type { LiveMetricChipProps } from './LiveMetricChip';
 
 type OutletStateView = DrawOffDisplayState['outletStates'][number];

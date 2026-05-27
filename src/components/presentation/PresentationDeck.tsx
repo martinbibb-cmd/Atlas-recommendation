@@ -51,9 +51,9 @@ import {
 } from './buildCanonicalPresentation';
 import type { PrioritiesState } from '../../features/survey/priorities/prioritiesTypes';
 import { PRIORITY_META } from '../../features/survey/priorities/prioritiesTypes';
-import { inputToConceptModel } from '../../explainers/lego/autoBuilder/inputToConceptModel';
-import { optionToConceptModel, type OptionId } from '../../explainers/lego/autoBuilder/optionToConceptModel';
-import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
+import { inputToConceptModel } from '../../legacy/systemComposerPrototype/autoBuilder/inputToConceptModel';
+import { optionToConceptModel, type OptionId } from '../../legacy/systemComposerPrototype/autoBuilder/optionToConceptModel';
+import SystemArchitectureVisualiser from '../../legacy/systemComposerPrototype/autoBuilder/SystemArchitectureVisualiser';
 import QuadrantDashboardPage from './QuadrantDashboardPage';
 import { computeCurrentEfficiencyPct, DEFAULT_NOMINAL_EFFICIENCY_PCT } from '../../engine/utils/efficiency';
 import CylinderComparePanel from '../physics-visuals/CylinderComparePanel';

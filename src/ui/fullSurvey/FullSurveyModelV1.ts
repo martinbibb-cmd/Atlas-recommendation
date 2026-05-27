@@ -6,7 +6,7 @@ import type { PrioritiesState } from '../../features/survey/priorities/prioritie
 import type { HeatLossState } from '../../features/survey/heatLoss/heatLossTypes';
 import type { RecommendationState } from '../../features/survey/recommendation/recommendationTypes';
 import type { VoiceNote, VoiceNoteSuggestion, AppliedNoteSuggestion } from '../../features/voiceNotes/voiceNoteTypes';
-import type { QuoteInput } from '../../features/insightPack/insightPack.types';
+import type { QuoteInput } from '../../legacy/customerOutputPrototype/insightPack/insightPack.types';
 
 /**
  * HeatingConditionDiagnosticsV1

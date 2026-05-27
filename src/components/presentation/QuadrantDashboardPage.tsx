@@ -31,8 +31,8 @@ import OverviewInsightCard from './OverviewInsightCard';
 import { imageForControlFamily, imageForZoneLayout, imageForPipeLayout } from '../../ui/systemImages/systemImageMap';
 import { SystemRealWorldImage } from '../systemImages/SystemRealWorldImage';
 import { getOverviewSystemVisual, type OverviewSystemVisualKey } from '../../config/visualRegistry';
-import type { SystemConceptModel } from '../../explainers/lego/model/types';
-import SystemArchitectureVisualiser from '../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
+import type { SystemConceptModel } from '../../legacy/systemComposerPrototype/model/types';
+import SystemArchitectureVisualiser from '../../legacy/systemComposerPrototype/autoBuilder/SystemArchitectureVisualiser';
 import './QuadrantDashboardPage.css';
 
 function IconLabel({ icon, label }: { icon: string; label: string }) {

@@ -16,8 +16,8 @@ import {
 import type { DayProfileV1 } from '../../contracts/EngineInputV2_3';
 import { runEngine } from '../Engine';
 import type { EngineInputV2_3 } from '../schema/EngineInputV2_3';
-import { simulateSystemDay } from '../daypainter/SimulateSystemDay';
-import { buildDefaultDayModel } from '../daypainter/BuildDayModel';
+import { simulateSystemDay } from '../../legacy/dayPainterPrototype/engine/daypainter/SimulateSystemDay';
+import { buildDefaultDayModel } from '../../legacy/dayPainterPrototype/engine/daypainter/BuildDayModel';
 
 // ── Minimal base engine input ─────────────────────────────────────────────────
 

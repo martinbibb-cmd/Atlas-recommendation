@@ -18,7 +18,7 @@ import { BuildingFabricStep } from '../../features/survey/heatLoss/BuildingFabri
 import { SolarAssessmentStep } from '../../features/survey/solar/SolarAssessmentStep';
 import { InsightLayerPage } from '../../features/survey/insight/InsightLayerPage';
 import { QuoteCollectionStep } from '../../features/survey/quotes/QuoteCollectionStep';
-import type { QuoteInput } from '../../features/insightPack/insightPack.types';
+import type { QuoteInput } from '../../legacy/customerOutputPrototype/insightPack/insightPack.types';
 import {
   INITIAL_RECOMMENDATION_STATE,
   type RecommendationState,

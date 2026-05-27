@@ -36,7 +36,7 @@ import {
   PORTAL_SCENARIO_PREVIEW_INTRO,
 } from '../../lib/copy/customerCopy';
 import { getExplainerIdForLimitingFactor } from '../../lib/explainers/getRelevantExplainers';
-import { EDUCATIONAL_EXPLAINERS } from '../../explainers/educational/content';
+import { EDUCATIONAL_EXPLAINERS } from '../../legacy/educationalExplainersPrototype/content';
 import './ScenarioPreviewPanel.css';
 
 // ─── Scenario definitions ─────────────────────────────────────────────────────

@@ -14,9 +14,9 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { CustomerAdvicePrintPack } from '../components/print/CustomerAdvicePrintPack';
+import { CustomerAdvicePrintPack } from '../legacy/customerOutputPrototype/CustomerAdvicePrintPack';
 import { PortalCtaBlockView } from '../components/presentation/blocks/PortalCtaBlockView';
-import type { CustomerAdvicePrintPackProps } from '../components/print/CustomerAdvicePrintPack';
+import type { CustomerAdvicePrintPackProps } from '../legacy/customerOutputPrototype/CustomerAdvicePrintPack';
 import type { AtlasDecisionV1 } from '../contracts/AtlasDecisionV1';
 import type { ScenarioResult } from '../contracts/ScenarioResult';
 import type { VisualBlock } from '../contracts/VisualBlock';

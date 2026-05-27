@@ -31,8 +31,8 @@ import {
   deriveQuickWins,
   deriveCylinderInsight,
 } from './insightDerivations';
-import SystemArchitectureVisualiser from '../../../explainers/lego/autoBuilder/SystemArchitectureVisualiser';
-import { systemBuilderToConceptModel } from '../../../explainers/lego/autoBuilder/systemBuilderToConceptModel';
+import SystemArchitectureVisualiser from '../../../legacy/systemComposerPrototype/autoBuilder/SystemArchitectureVisualiser';
+import { systemBuilderToConceptModel } from '../../../legacy/systemComposerPrototype/autoBuilder/systemBuilderToConceptModel';
 import {
   solarSuitabilitySummary,
   deriveSolarPotential,

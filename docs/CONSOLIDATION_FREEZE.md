@@ -17,10 +17,12 @@ without explicit approval.
 - `src/dev/devUiRegistry.tsx` — no new dev-only inventory entries.
 
 ### Overlay abstractions
-- `src/explainers/lego/` — frozen; will be absorbed into
+- `src/legacy/systemComposerPrototype/` — frozen; will be absorbed into
   `src/library/visualTopologies/` or deleted.
-- `src/explainers/educational/` — frozen; content is being migrated to
+- `src/legacy/educationalExplainersPrototype/` — frozen; content is being migrated to
   `src/library/content/` via re-export shims (see migration below).
+- `src/legacy/dayPainterPrototype/` — frozen dead prototype; no new simulator or physics work.
+- `src/legacy/customerOutputPrototype/` — frozen legacy output stack; canonical customer output is portal/library PDF.
 
 ### Educational routes
 - No new routes may be added to `src/dev/devRouteRegistry.ts` under
@@ -39,8 +41,10 @@ without explicit approval.
 
 | Source | Destination | Status |
 |--------|-------------|--------|
-| `src/explainers/educational/` | `src/library/content/explainers/` | In progress — re-export shims live at destination |
-| `src/explainers/lego/` | `src/library/visualTopologies/` (topology composer) | Planned |
+| `src/legacy/educationalExplainersPrototype/` | `src/library/content/explainers/` | In progress — re-export shims live at destination |
+| `src/legacy/systemComposerPrototype/` | `src/library/visualTopologies/` (topology composer) | Planned |
+| `src/legacy/dayPainterPrototype/` | Decommission after atlas simulator parity | Planned |
+| `src/legacy/customerOutputPrototype/` | `src/library/portal/pdf/PortalJourneyPrintPack.tsx` | In progress |
 | `src/live/buildPrintData.ts` editorial rows | `src/library/content/educationalContentRegistry.ts` | Planned |
 | `src/library/visualTopologies/topologies/visualTopologies.tsx` | `src/library/visualTopologies/templates/{topology}.tsx` | In progress |
 | `src/contracts/*.ts` (fragmented visit models) | `src/contracts/VisitEnvelopeV1.ts` (canonical envelope) | In progress |
@@ -67,6 +71,8 @@ These are the authoritative sources of truth.  All work must derive from them.
 ---
 
 ## Freeze rules (enforcement)
+
+`src/legacy/**` is non-authoritative archival prototype space. Never use legacy paths as naming, architecture, physics, route, or UI references for new work.
 
 1. **`// @freeze-drift`** — add this comment at the top of any gallery,
    overlay, or QA-abstraction file that is frozen.  CI will flag new files

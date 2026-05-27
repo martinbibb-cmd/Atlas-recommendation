@@ -14,14 +14,14 @@ import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
-import { CustomerAdvicePrintPack } from './components/print/CustomerAdvicePrintPack';
+import { CustomerAdvicePrintPack } from './legacy/customerOutputPrototype/CustomerAdvicePrintPack';
 import { buildScenariosFromEngineOutput } from './engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from './engine/modules/buildDecisionFromScenarios';
 import { buildVisualBlocks } from './engine/modules/buildVisualBlocks';
 import { buildCustomerSummary } from './engine/modules/buildCustomerSummary';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
-import LegoTechnixPage from './explainers/lego/LegoTechnixPage';
+import LegoTechnixPage from './legacy/systemComposerPrototype/LegoTechnixPage';
 import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
 import BuildingHeightCheck from './components/measurements/BuildingHeightCheck';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
@@ -86,11 +86,11 @@ import CustomerSummaryPrintPage from './features/visitHandoff/components/Custome
 import EngineerSummaryPrintPage from './features/visitHandoff/components/EngineerSummaryPrintPage';
 import { SAMPLE_VISIT_HANDOFF_PACK } from './features/visitHandoff/fixtures/sampleVisitHandoffPack';
 import { buildHandoffPackFromSurvey } from './features/visitHandoff/parser/buildHandoffPackFromSurvey';
-import InsightPackDeck from './features/insightPack/InsightPackDeck';
+import InsightPackDeck from './legacy/customerOutputPrototype/insightPack/InsightPackDeck';
 import VisitDetailView from './features/scanImport/ui/VisitDetailView';
-import { buildInsightPackFromEngine } from './features/insightPack/buildInsightPackFromEngine';
-import type { InsightPackSurveyContext } from './features/insightPack/buildInsightPackFromEngine';
-import type { QuoteInput } from './features/insightPack/insightPack.types';
+import { buildInsightPackFromEngine } from './legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine';
+import type { InsightPackSurveyContext } from './legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine';
+import type { QuoteInput } from './legacy/customerOutputPrototype/insightPack/insightPack.types';
 import type { LifecycleBoilerType } from './contracts/LifecycleAssessment';
 import type { EngineOutputV1 } from './contracts/EngineOutputV1';
 import type { AtlasDecisionV1 } from './contracts/AtlasDecisionV1';
@@ -887,7 +887,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'portal-from-package' | 'gallery' | 'dev-menu' | 'lego-technix' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'portal-from-package' | 'gallery' | 'dev-menu' | 'prototype-composer' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 interface VisitRecommendationSnapshot {
   visitId: string;
@@ -4679,7 +4679,7 @@ function AppInner() {
       {journey === 'building-height' && (
         <BuildingHeightCheck onBack={() => setJourney('landing')} />
       )}
-      {journey === 'lego-technix' && (
+      {journey === 'prototype-composer' && (
         <LegoTechnixPage onBack={() => setJourney('landing')} />
       )}
       {/* User Profile — local engineer profile panel */}
@@ -5062,7 +5062,7 @@ function AppInner() {
             </div>
             <div
               className="journey-card"
-              onClick={() => setJourney('lego-technix')}
+              onClick={() => setJourney('prototype-composer')}
             >
               <div className="card-icon">🧱</div>
               <h2>Atlas System Composer</h2>

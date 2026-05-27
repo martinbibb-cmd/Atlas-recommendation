@@ -1,4 +1,4 @@
-import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback';
+import type { SimulatorSystemChoice } from '../../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback';
 import { buildExpectationDeltas, getContentByConceptId } from '../../library/content';
 import type { LivingExperiencePatternV1 } from '../../library/content/LivingExperiencePatternV1';
 import {

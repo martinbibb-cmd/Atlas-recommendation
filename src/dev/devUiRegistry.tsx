@@ -12,9 +12,9 @@
 
 import type { ReactNode } from 'react';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
-import LegoTechnixPage from '../explainers/lego/LegoTechnixPage';
-import LifestyleInteractive from '../components/visualizers/LifestyleInteractive';
-import LifestyleInteractiveCompare from '../components/visualizers/LifestyleInteractiveCompare';
+import LegoTechnixPage from '../legacy/systemComposerPrototype/LegoTechnixPage';
+import LifestyleInteractive from '../legacy/dayPainterPrototype/LifestyleInteractive';
+import LifestyleInteractiveCompare from '../legacy/dayPainterPrototype/LifestyleInteractiveCompare';
 import GlassBoxPanel from '../components/visualizers/GlassBoxPanel';
 import EfficiencyCurve from '../components/visualizers/EfficiencyCurve';
 import FootprintXRay from '../components/visualizers/FootprintXRay';
@@ -36,6 +36,9 @@ import {
   getVisualEducationLibrarySurface,
   VISUAL_EDUCATION_LIBRARY_QA_HUB,
 } from './visualEducationLibrary';
+import { buildCanonicalRegistry } from './canonicalRegistry';
+import { buildLegacyRegistry } from './legacyRegistry';
+import { buildExperimentalRegistry } from './experimentalRegistry';
 
 // ─── Demo input ───────────────────────────────────────────────────────────────
 
@@ -191,7 +194,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     fullRouteExample: '/?lab=1',
     access: 'production',
     childElementIds: ['lab-shell', 'draw-off-workbench'],
-    sourceFiles: ['src/explainers/ExplainersHubPage.tsx', 'src/explainers/lego/simulator/SimulatorDashboard.tsx'],
+    sourceFiles: ['src/explainers/ExplainersHubPage.tsx', 'src/legacy/systemComposerPrototype/simulator/SimulatorDashboard.tsx'],
     includeInCopyBox: true,
     render: () => <ExplainersHubPage onBack={() => undefined} />,
   },
@@ -224,21 +227,20 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   // ── Atlas System Composer ──────────────────────────────────────────────────
   {
     id: 'lego-technix-page',
-    commonName: 'Atlas System Composer',
+    commonName: 'Legacy Prototype Composer',
     codeName: 'LegoTechnixPage',
     fileName: 'LegoTechnixPage.tsx',
-    filePath: 'src/explainers/lego/LegoTechnixPage.tsx',
+    filePath: 'src/legacy/systemComposerPrototype/LegoTechnixPage.tsx',
     category: 'simulator',
-    status: 'active',
+    status: 'deprecated',
     notes:
-      'Interactive drag-and-drop workbench for assembling constrained heating topologies from ' +
-      'first-principles blocks — boilers, cylinders, emitters and controls. ' +
-      'Accessible from the main landing page.',
+      'Archived system-composer prototype retained for explicit legacy diagnostics only.',
     routeKind: 'derived',
-    access: 'production',
+    access: 'legacy_dev_only',
+    domain: 'legacy/systemComposerPrototype',
     sourceFiles: [
-      'src/explainers/lego/LegoTechnixPage.tsx',
-      'src/explainers/lego/builder/BuilderShell.tsx',
+      'src/legacy/systemComposerPrototype/LegoTechnixPage.tsx',
+      'src/legacy/systemComposerPrototype/builder/BuilderShell.tsx',
     ],
     includeInCopyBox: false,
     render: () => <LegoTechnixPage onBack={() => undefined} />,
@@ -282,14 +284,15 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     commonName: 'Lifestyle Interactive',
     codeName: 'LifestyleInteractive',
     fileName: 'LifestyleInteractive.tsx',
-    filePath: 'src/components/visualizers/LifestyleInteractive.tsx',
+    filePath: 'src/legacy/dayPainterPrototype/LifestyleInteractive.tsx',
     category: 'visualiser',
     status: 'deprecated',
     notes:
       'Legacy Day Painter visualiser. Deprecated in favour of the canonical Explainers Hub experience.',
     routeKind: 'derived',
     fullRouteExample: 'unresolved — legacy visualiser preview',
-    access: 'dev_only',
+    access: 'legacy_dev_only',
+    domain: 'legacy/dayPainterPrototype',
     parentCodeName: 'ExplainersHubPage',
     render: () => <LifestyleInteractive />,
   },
@@ -298,18 +301,17 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     commonName: 'Lifestyle Compare (2-System)',
     codeName: 'LifestyleInteractiveCompare',
     fileName: 'LifestyleInteractiveCompare.tsx',
-    filePath: 'src/components/visualizers/LifestyleInteractiveCompare.tsx',
+    filePath: 'src/legacy/dayPainterPrototype/LifestyleInteractiveCompare.tsx',
     category: 'visualiser',
-    status: 'experimental',
+    status: 'deprecated',
     notes:
-      '2-system side-by-side comparison using the same 24-hour occupancy painter. ' +
-      'Both systems receive an identical demand timeline; only system response differs. ' +
-      'All chart data from LifestyleSimulationModule.hourlyData — No Theatre rule enforced.',
+      'Legacy Day Painter compare prototype retained only for archived diagnostics.',
     routeKind: 'unknown',
-    access: 'dev_only',
+    access: 'legacy_dev_only',
+    domain: 'legacy/dayPainterPrototype',
     sourceFiles: [
-      'src/components/visualizers/LifestyleInteractiveCompare.tsx',
-      'src/components/compare/CompareSystemPicker.tsx',
+      'src/legacy/dayPainterPrototype/LifestyleInteractiveCompare.tsx',
+      'src/legacy/dayPainterPrototype/CompareSystemPicker.tsx',
       'src/engine/modules/LifestyleSimulationModule.ts',
     ],
     render: () => <LifestyleInteractiveCompare />,
@@ -1107,7 +1109,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     commonName: 'Customer Advice Print Pack (Legacy)',
     codeName: 'CustomerAdvicePrintPack',
     fileName: 'CustomerAdvicePrintPack.tsx',
-    filePath: 'src/components/print/CustomerAdvicePrintPack.tsx',
+    filePath: 'src/legacy/customerOutputPrototype/CustomerAdvicePrintPack.tsx',
     category: 'deprecated',
     status: 'deprecated',
     notes:
@@ -1125,7 +1127,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     commonName: 'Atlas Framework Print Page (Legacy)',
     codeName: 'AtlasFrameworkPrintPage',
     fileName: 'AtlasFrameworkPrintPage.tsx',
-    filePath: 'src/components/print/AtlasFrameworkPrintPage.tsx',
+    filePath: 'src/legacy/customerOutputPrototype/AtlasFrameworkPrintPage.tsx',
     category: 'deprecated',
     status: 'deprecated',
     notes:
@@ -1145,7 +1147,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     commonName: 'Insight Pack Deck',
     codeName: 'InsightPackDeck',
     fileName: 'InsightPackDeck.tsx',
-    filePath: 'src/features/insightPack/InsightPackDeck.tsx',
+    filePath: 'src/legacy/customerOutputPrototype/insightPack/InsightPackDeck.tsx',
     category: 'deprecated',
     status: 'deprecated',
     notes:
@@ -1157,9 +1159,13 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     fullRouteExample: '/?insight-pack=1 (legacy diagnostics only)',
     access: 'legacy_dev_only',
     sourceFiles: [
-      'src/features/insightPack/InsightPackDeck.tsx',
-      'src/features/insightPack/buildInsightPackFromEngine.ts',
+      'src/legacy/customerOutputPrototype/insightPack/InsightPackDeck.tsx',
+      'src/legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine.ts',
     ],
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>InsightPackDeck — legacy diagnostics only. Canonical customer output is CustomerPortalPage (/portal/{'<reference>'}).</div>,
   },
 ];
+
+export const DEV_CANONICAL_REGISTRY = buildCanonicalRegistry(DEV_UI_REGISTRY);
+export const DEV_LEGACY_REGISTRY = buildLegacyRegistry(DEV_UI_REGISTRY);
+export const DEV_EXPERIMENTAL_REGISTRY = buildExperimentalRegistry(DEV_UI_REGISTRY);

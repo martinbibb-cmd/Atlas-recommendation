@@ -15,7 +15,7 @@
 
 import { useState, type CSSProperties } from 'react';
 import PhysicsVisualGallery from '../physics-visuals/preview/PhysicsVisualGallery';
-import { PALETTE_SECTIONS, PALETTE_ADVANCED, PALETTE_CATEGORY_LABELS } from '../../explainers/lego/builder/palette';
+import { PALETTE_SECTIONS, PALETTE_ADVANCED, PALETTE_CATEGORY_LABELS } from '../../legacy/systemComposerPrototype/builder/palette';
 
 // ─── Section identifiers ───────────────────────────────────────────────────────
 

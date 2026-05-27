@@ -16,7 +16,7 @@
 
 import { useState } from 'react';
 import type { Wall, Opening, OpeningType } from '../propertyPlan.types';
-import type { PartKind } from '../../../explainers/lego/builder/types';
+import type { PartKind } from '../../../legacy/systemComposerPrototype/builder/types';
 
 const GRID = 24;
 const DEFAULT_DOOR_WIDTH_M   = 0.9;

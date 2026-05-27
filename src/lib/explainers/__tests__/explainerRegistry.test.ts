@@ -10,8 +10,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { EXPLAINER_REGISTRY, getRegistryEntry } from '../explainerRegistry';
-import { EDUCATIONAL_EXPLAINERS } from '../../../explainers/educational/content';
-import type { ExplainerCategory } from '../../../explainers/educational/types';
+import { EDUCATIONAL_EXPLAINERS } from '../../../legacy/educationalExplainersPrototype/content';
+import type { ExplainerCategory } from '../../../legacy/educationalExplainersPrototype/types';
 
 // ─── Valid values ─────────────────────────────────────────────────────────────
 

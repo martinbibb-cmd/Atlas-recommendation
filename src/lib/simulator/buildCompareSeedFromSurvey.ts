@@ -18,10 +18,10 @@
 
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1'
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1'
-import type { SystemInputs, ControlStrategy, CylinderType } from '../../explainers/lego/simulator/systemInputsTypes'
-import { DEFAULT_SYSTEM_INPUTS, CYLINDER_SIZES_BY_TYPE } from '../../explainers/lego/simulator/systemInputsTypes'
-import type { SimulatorSystemChoice } from '../../explainers/lego/simulator/useSystemDiagramPlayback'
-import { adaptFullSurveyToSimulatorInputs } from '../../explainers/lego/simulator/adaptFullSurveyToSimulatorInputs'
+import type { SystemInputs, ControlStrategy, CylinderType } from '../../legacy/systemComposerPrototype/simulator/systemInputsTypes'
+import { DEFAULT_SYSTEM_INPUTS, CYLINDER_SIZES_BY_TYPE } from '../../legacy/systemComposerPrototype/simulator/systemInputsTypes'
+import type { SimulatorSystemChoice } from '../../legacy/systemComposerPrototype/simulator/useSystemDiagramPlayback'
+import { adaptFullSurveyToSimulatorInputs } from '../../legacy/systemComposerPrototype/simulator/adaptFullSurveyToSimulatorInputs'
 import type { MainsSupply, ProposedSupplyAdjustment } from './mainsSupply'
 import {
   extractMainsSupplyFromSurvey,

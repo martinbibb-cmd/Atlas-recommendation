@@ -11,8 +11,8 @@
  */
 
 import type { ReactNode } from 'react';
-import type { ScenarioKey } from '../../explainers/lego/simulator/scenarioTypes';
-import { SCENARIO_PRESET_LIST } from '../../explainers/lego/simulator/scenarioTypes';
+import type { ScenarioKey } from '../../legacy/systemComposerPrototype/simulator/scenarioTypes';
+import { SCENARIO_PRESET_LIST } from '../../legacy/systemComposerPrototype/simulator/scenarioTypes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

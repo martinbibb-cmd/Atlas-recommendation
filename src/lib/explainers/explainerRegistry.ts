@@ -15,7 +15,7 @@
  *   - kind 'both'   → shown in both contexts.
  */
 
-import type { ExplainerCategory } from '../../explainers/educational/types';
+import type { ExplainerCategory } from '../../legacy/educationalExplainersPrototype/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

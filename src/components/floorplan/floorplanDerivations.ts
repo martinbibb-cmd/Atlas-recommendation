@@ -1,4 +1,4 @@
-import type { PartKind } from '../../explainers/lego/builder/types';
+import type { PartKind } from '../../legacy/systemComposerPrototype/builder/types';
 import type {
   ConnectionPath,
   DisruptionAnnotation,
@@ -12,7 +12,7 @@ import type {
   Wall,
 } from './propertyPlan.types';
 import { BOILER_VALID_ROOM_TYPES, CYLINDER_VALID_ROOM_TYPES } from './propertyPlan.types';
-import { routePipeAligned } from '../../explainers/lego/builder/router';
+import { routePipeAligned } from '../../legacy/systemComposerPrototype/builder/router';
 
 const GRID = 24;
 

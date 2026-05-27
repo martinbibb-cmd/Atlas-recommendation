@@ -35,26 +35,82 @@ All AI-assisted code contributions must follow the rules below.
 - Correct replacements: "tank-fed hot water", "tank-fed supply", "mains-fed supply", "on-demand hot water".
 - Engine-internal identifiers (TypeScript enums/field names) are implementation details and are not subject to this rule.
 
-## Terminology Overrides
+## Architecture Namespace Boundaries
 
-- **Lego Technix** is the canonical name for the functional heating-system graph foundation.
-- **Never** refer to the active functional graph or simulation engine as "Lego Builder", "Building Set", or "Lego Set".
-- Do not apply Lego Technix naming, contracts, or simulation assumptions to legacy builder-set files under `src/explainers/lego/`.
+### Canonical simulation namespace
 
-## Strict Naming & Directory Boundaries
+The ONLY authoritative simulation namespace is:
+- `src/features/legoTechnix/`
+- `docs/lego-technix/`
 
-### 1. Lego Technix
+This namespace owns:
+- graph contracts
+- hydraulic simulation
+- thermal simulation
+- projection contracts
+- active path logic
+- runtime state
+- engineering explainability
 
-- **Path Focus:** `src/features/legoTechnix/` and `docs/lego-technix/`
-- **Definition:** Active, authoritative physics-driven system graph and simulation engine.
-- **Rule:** Simulation math, efficiency clamping, and graph logic changes must stay in this path.
+### Legacy prototype namespace
 
-### 2. Legacy System Composer (Builder Set)
+Files under:
+- `src/legacy/`
+- `src/legacy/systemComposerPrototype/`
+- `src/legacy/dayPainterPrototype/`
+- `src/legacy/educationalExplainersPrototype/`
+- `src/library/diagrams/`
+- `src/legacy/visualTopologyPrototype/`
+- `src/legacy/customerOutputPrototype/`
 
-- **Path Focus:** `src/explainers/lego/` (including `src/explainers/lego/LegoTechnixPage.tsx`)
-- **Definition:** Legacy visual component sandbox with drag-and-drop builder mechanics.
-- **Note:** `LegoTechnixPage.tsx` remains a legacy System Composer entry point despite its filename and must not be treated as part of the active Lego Technix simulation engine.
-- **CRITICAL PROTECTION RULE:** Never suggest renaming, refactoring, or updating these legacy files to match Lego Technix paradigms. The domains are functionally isolated until explicit deprecation.
+are frozen historic prototypes.
+These files are:
+- non-authoritative
+- archived
+- not references for new architecture
+- not valid naming references
+- not valid simulation references
+
+Never migrate terminology FROM legacy namespaces INTO Lego Technix.
+
+If asked to modify "simulator", target Atlas Simulator active surfaces only:
+- `src/explainers/ExplainersHubPage.tsx`
+- `src/legacy/systemComposerPrototype/simulator/SimulatorDashboard.tsx`
+- `src/components/simulator/**`
+
+Do not target Day Painter, LifestyleInteractive, daypainter engine files, or any `src/legacy/**` prototype surface unless explicitly named.
+
+### Forbidden semantic merges
+
+Never assume these are equivalent:
+- Lego Technix
+- visual topology
+- explainer
+- prototype composer
+- educational diagrams
+- customer output prototypes
+
+These are distinct architecture layers.
+
+### Naming rules
+
+Use ONLY:
+- legoTechnix
+- projection
+- renderer
+- template
+- engine
+- explainability
+- prototype (legacy only)
+
+Avoid:
+- builder
+- set
+- composer
+- lego-set
+- building-set
+
+except in explicitly archived historic references.
 
 ## Layout
 

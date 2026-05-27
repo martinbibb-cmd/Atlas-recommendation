@@ -7,7 +7,7 @@
  *   3. Connection layer — pipe/wiring routes between placed nodes
  */
 
-import type { PartKind } from '../../explainers/lego/builder/types';
+import type { PartKind } from '../../legacy/systemComposerPrototype/builder/types';
 
 // ─── Entity provenance ────────────────────────────────────────────────────────
 
