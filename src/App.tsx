@@ -1388,6 +1388,21 @@ function AppInner() {
     effectiveRole,
   } = useRolePermissions();
   const canAccessWorkspaceSettings = effectiveRole === 'owner' || effectiveRole === 'admin';
+
+  /**
+   * Gate the workspace dashboard behind an explicit authorised-access check.
+   * Allowed when:
+   *   - a local user profile is active (activeUser), OR
+   *   - a Firebase/Atlas authenticated profile is present (atlasUserProfile), OR
+   *   - the dev-menu flag is set (?devmenu=1 or /dev/devmenu).
+   * Guest field users who land here accidentally are redirected to the
+   * GuestFallback inside WorkspaceDashboard.
+   */
+  const canAccessWorkspaceDashboard =
+    activeUser !== null ||
+    atlasUserProfile !== null ||
+    DEV_MENU_ENABLED;
+
   const appHomeNewVisitState = buildAppHomeNewVisitEntryState({
     canCreateVisit,
     workspaceStatus: workspaceSession.status,
@@ -4830,6 +4845,7 @@ function AppInner() {
             console.info('[Atlas] Demo workspace reloaded from dashboard.');
             setTimeout(() => window.location.reload(), 600);
           }}
+          authorisedAccess={canAccessWorkspaceDashboard}
         />
       )}
       {journey === 'landing' && (
