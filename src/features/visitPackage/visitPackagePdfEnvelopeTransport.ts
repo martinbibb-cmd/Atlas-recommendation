@@ -879,7 +879,7 @@ function buildCustomerPdfDraftBlocks(
 
   const storyScenes = documentModel.sections
     .map((section) => section.storyScene)
-    .filter((scene) =>
+    .filter((scene): scene is NonNullable<(typeof documentModel.sections)[number]['storyScene']> =>
       scene != null
       && hasText(scene.title)
       && hasText(scene.customerTakeaway)
