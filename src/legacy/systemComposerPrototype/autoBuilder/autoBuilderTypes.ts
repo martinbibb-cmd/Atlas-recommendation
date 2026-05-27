@@ -107,7 +107,7 @@ export type ModuleVisualId =
 // ─── System module ─────────────────────────────────────────────────────────────
 
 /**
- * SystemModule — one schematic block in the architecture visualiser.
+ * SystemModule — one schematic block in the prototype composer.
  *
  * Each module maps to one position in the four-layer layout.  In compare mode
  * the `state` field drives a colour / badge overlay:

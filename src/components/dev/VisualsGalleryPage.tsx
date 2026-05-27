@@ -6,7 +6,7 @@
  * Sections:
  *   - Physics Visuals: every entry in physicsVisualRegistry, rendered via
  *     the existing PhysicsVisualGallery component.
- *   - Lego Technix Components: every entry in PALETTE_SECTIONS, shown as
+ *   - Legacy Prototype Components: every entry in PALETTE_SECTIONS, shown as
  *     expandable category panels with per-item tiles.
  *
  * Accessible inside the Dev Menu (/dev/devmenu or legacy ?devmenu=1) via the "Visuals Gallery" tab.
@@ -23,7 +23,7 @@ type GallerySection = 'physics' | 'lego';
 
 const SECTION_LABELS: Record<GallerySection, string> = {
   physics: '⚡ Physics Visuals',
-  lego:    '🧱 Lego Technix Components',
+  lego:    '🧱 Legacy Prototype Components',
 };
 
 // ─── Lego palette section panel ───────────────────────────────────────────────
@@ -63,7 +63,7 @@ function LegoPaletteSection({
   );
 }
 
-// ─── Lego Technix components gallery ─────────────────────────────────────────
+// ─── Legacy prototype components gallery ─────────────────────────────────────
 
 function LegoBuilderGallery() {
   // Use string keys so the 'advanced' section can be toggled independently
@@ -94,9 +94,9 @@ function LegoBuilderGallery() {
     <div style={STYLES.legoGallery}>
       <div style={STYLES.legoHeader}>
         <div>
-          <h2 style={STYLES.sectionHeading}>Lego Technix Components</h2>
+          <h2 style={STYLES.sectionHeading}>Legacy Prototype Components</h2>
           <p style={STYLES.sectionSubtitle}>
-            All palette items from the Lego Technix drag-and-drop workbench,
+            All palette items from the legacy system-composer prototype,
             grouped by category. Advanced tee items are shown at the end.
           </p>
         </div>
@@ -149,7 +149,7 @@ export default function VisualsGalleryPage({ onBack }: Props) {
         </div>
         <p style={STYLES.subtitle}>
           Browse individual visual elements grouped by type. Use the tabs below
-          to switch between the Physics Visual Library and Lego Technix Components.
+          to switch between the Physics Visual Library and Legacy Prototype Components.
         </p>
       </header>
 

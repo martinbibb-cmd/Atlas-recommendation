@@ -21,7 +21,7 @@ import { buildVisualBlocks } from './engine/modules/buildVisualBlocks';
 import { buildCustomerSummary } from './engine/modules/buildCustomerSummary';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
-import LegoTechnixPage from './legacy/systemComposerPrototype/LegoTechnixPage';
+import PrototypeComposerPage from './legacy/systemComposerPrototype/PrototypeComposerPage';
 import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
 import BuildingHeightCheck from './components/measurements/BuildingHeightCheck';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
@@ -4680,7 +4680,7 @@ function AppInner() {
         <BuildingHeightCheck onBack={() => setJourney('landing')} />
       )}
       {journey === 'prototype-composer' && (
-        <LegoTechnixPage onBack={() => setJourney('landing')} />
+        <PrototypeComposerPage onBack={() => setJourney('landing')} />
       )}
       {/* User Profile — local engineer profile panel */}
       {journey === 'user-profile' && (
