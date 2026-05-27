@@ -44,6 +44,7 @@ import {
   getVisualAssetRendererAvailability,
   listManifestAssetIds,
 } from './visualAssetManifest';
+import { isApprovedCustomerPdfVisualAssetId } from '../../pdfVisuals/customerPdfVisualRegistry';
 import {
   getLegoTechnicCustomerVisualManifestEntry,
   resolveLegoTechnicCustomerVisualDecision,
@@ -128,6 +129,7 @@ export interface PortalJourneyPrintSectionV1 {
     | 'winter_behaviour'
     | 'stored_hot_water_recovery_timeline'
     | 'flow_restriction_bottleneck'
+    | 'powerflush_condition_led'
     | 'system_fit_decision_map'
     | 'magnetic_filter_capture'
     | 'sealed_system_pressure_window'
@@ -475,6 +477,7 @@ export type EducationalConceptTagV1 =
   | 'warm_vs_hot_radiators'
   | 'stored_hot_water_recovery_timeline'
   | 'flow_restriction_bottleneck'
+  | 'powerflush_condition_led'
   | 'system_fit_decision_map'
   | 'magnetic_filter_capture'
   | 'sealed_system_pressure_window';
@@ -800,6 +803,9 @@ function mapConceptTagsToSectionIds(tags: readonly EducationalConceptTagV1[]): s
       case 'flow_restriction_bottleneck':
         sectionIds.push('CON_D01');
         break;
+      case 'powerflush_condition_led':
+        sectionIds.push('CON_F04');
+        break;
       case 'system_fit_decision_map':
         sectionIds.push('CON_A01');
         break;
@@ -830,6 +836,59 @@ function inferDefaultSectionIdsFromIntent(intent: RecommendationIntentCategoryV1
     case 'efficiency_upgrade':
       return ['CON_A01', 'CON_B01'];
   }
+}
+
+function collectScopeAndEvidenceSignalText(input: BuildCustomerJourneyPackInputV1): string {
+  const decisionScope = input.canonicalVisitPackage?.proposalTruth?.decision?.quoteScope ?? [];
+  const visitRecommendation = resolveVisitEnvelope(input)?.recommendation;
+  const requiredWork = visitRecommendation?.requiredWork ?? [];
+  const reasons = visitRecommendation?.reasons ?? [];
+  const evidence = visitRecommendation?.evidence ?? [];
+  const includedItems = input.canonicalVisitPackage?.proposalTruth?.decision?.includedItems ?? [];
+  const decisionRequiredWorks = input.canonicalVisitPackage?.proposalTruth?.decision?.requiredWorks ?? [];
+  const compatibilityWarnings = input.canonicalVisitPackage?.proposalTruth?.decision?.compatibilityWarnings ?? [];
+  const decisionReasons = input.canonicalVisitPackage?.proposalTruth?.decision?.keyReasons ?? [];
+  const lines: string[] = [];
+  for (const scopeItem of decisionScope) {
+    lines.push(scopeItem.id, scopeItem.label);
+    if (hasText(scopeItem.whatItDoes)) lines.push(scopeItem.whatItDoes);
+    if (hasText(scopeItem.customerBenefit)) lines.push(scopeItem.customerBenefit);
+    if (hasText(scopeItem.engineerNote)) lines.push(scopeItem.engineerNote);
+  }
+  for (const item of requiredWork) {
+    lines.push(item.id, item.label);
+    if (hasText(item.detail)) lines.push(item.detail);
+  }
+  for (const item of reasons) {
+    lines.push(item.id, item.text);
+  }
+  for (const item of evidence) {
+    lines.push(item.id, item.fieldPath, item.label, item.value);
+  }
+  lines.push(
+    ...includedItems,
+    ...decisionRequiredWorks,
+    ...compatibilityWarnings,
+    ...decisionReasons,
+  );
+  return lines.join(' ').toLowerCase();
+}
+
+const POWERFLUSH_TRIGGER_PATTERN = /\b(powerflush|power flush|system flush|chemical clean|sludge)\b/;
+const FILTER_TRIGGER_PATTERN = /\b(magnetic filter|filter replacement|system filter|filter capture|magnetite filter)\b/;
+const PRESSURE_FLOW_TRIGGER_PATTERN =
+  /\b(mains pressure|mains flow|water pressure|water flow|dynamic flow|dynamic pressure|flow rate|pressure constraint)\b/;
+
+function hasPowerflushScopeSignal(haystack: string): boolean {
+  return POWERFLUSH_TRIGGER_PATTERN.test(haystack);
+}
+
+function hasFilterScopeSignal(haystack: string): boolean {
+  return FILTER_TRIGGER_PATTERN.test(haystack);
+}
+
+function hasPressureFlowRecommendationSignal(haystack: string): boolean {
+  return PRESSURE_FLOW_TRIGGER_PATTERN.test(haystack);
 }
 
 function resolveScenarioNarrativeRouteId(intent: RecommendationIntentCategoryV1): ScenarioNarrativeRouteIdV1 | undefined {
@@ -1046,6 +1105,7 @@ export function resolveRecommendationConceptSelection(
   const recommendation = resolveVisitEnvelope(input)?.recommendation;
   const surveyInput = resolveSurveyInput(input);
   const mains = resolveMainsSignals(surveyInput);
+  const scopeEvidenceSignalText = collectScopeAndEvidenceSignalText(input);
   const conceptTagSet = new Set<EducationalConceptTagV1>();
   const isHeatPumpIntent = resolvedIntent === 'heat_pump_transition';
 
@@ -1079,8 +1139,19 @@ export function resolveRecommendationConceptSelection(
   if (isPoorMainsSupply(mains)) {
     conceptTagSet.add('flow_restriction_bottleneck');
   }
+  if (hasPressureFlowRecommendationSignal(scopeEvidenceSignalText)) {
+    conceptTagSet.add('flow_restriction_bottleneck');
+    conceptTagSet.add('sealed_system_pressure_window');
+  }
 
   if (hasDarkSystemConditionSignal(input)) {
+    conceptTagSet.add('magnetic_filter_capture');
+    conceptTagSet.add('powerflush_condition_led');
+  }
+  if (hasPowerflushScopeSignal(scopeEvidenceSignalText)) {
+    conceptTagSet.add('powerflush_condition_led');
+  }
+  if (hasFilterScopeSignal(scopeEvidenceSignalText)) {
     conceptTagSet.add('magnetic_filter_capture');
   }
 
@@ -1212,6 +1283,25 @@ function buildRoutedEducationalSections(input: {
     });
   }
 
+  if (conF04 != null && conceptTagSet.has('powerflush_condition_led')) {
+    sections.push({
+      contentId: conF04.id,
+      sectionId: 'powerflush_condition_led',
+      heading: 'Powerflush and sludge removal',
+      summary: 'System cleaning removes circulating sludge before protected operation and commissioning.',
+      keyTakeaway: 'Powerflush removes sludge and helps protect new components.',
+      reassurance: 'Cleaning work is a protective preparation step, not a sign that your heating system recommendation has changed.',
+      items: [
+        'Powerflush clears sludge and debris that can restrict heat and flow performance.',
+        'Cleaning is followed by protection dosing and commissioning checks.',
+        'This protection work helps reduce repeat faults and supports long-term reliability.',
+      ],
+      diagramCaption: 'Condition-led cleaning path with sludge removal before recommissioning.',
+      diagramId: 'powerflush_condition_led',
+      diagramRendererId: 'powerflush_condition_led',
+    });
+  }
+
   if (conB03 != null && conceptTagSet.has('sealed_system_pressure_window')) {
     sections.push({
       contentId: conB03.id,
@@ -1333,6 +1423,7 @@ function buildStoredHotWaterSectionsAndNextSteps(
       'system_fit_decision_map',
       'pressure_vs_storage',
       'stored_hot_water_recovery_timeline',
+      'powerflush_condition_led',
       'magnetic_filter_capture',
       'sealed_system_pressure_window',
     ],
@@ -1384,6 +1475,7 @@ function buildCombiSectionsAndNextSteps(
       'system_fit_decision_map',
       'flow_restriction_bottleneck',
       'steady_running',
+      'powerflush_condition_led',
       'magnetic_filter_capture',
       'sealed_system_pressure_window',
     ],
@@ -1575,6 +1667,7 @@ function buildOpenVentedSectionsAndNextSteps(
         'practical_outcomes',
         'system_fit_decision_map',
         'stored_hot_water_recovery_timeline',
+        'powerflush_condition_led',
         'unvented_safety',
         'sealed_system_pressure_window',
         'pressure_vs_storage',
@@ -2016,6 +2109,7 @@ const BLOCKING_STORY_SCENE_ERROR_CODES = new Set([
   'vague_household_outcome',
   'missing_required_visual_asset',
   'non_manifest_visual_asset',
+  'visual_not_pdf_approved',
   'visual_not_pdf_supported',
   'composition_archetype_not_allowed',
   'visual_renderer_unresolved',
@@ -2349,6 +2443,12 @@ export function validateCustomerStoryScene(
     errors.push(buildStorySceneValidationIssue(
       'non_manifest_visual_asset',
       'Story scene visual asset is not declared in the canonical visual manifest.',
+    ));
+  }
+  if (hasText(scene.visualAssetId) && !isApprovedCustomerPdfVisualAssetId(scene.visualAssetId)) {
+    errors.push(buildStorySceneValidationIssue(
+      'visual_not_pdf_approved',
+      `Story scene visual asset "${scene.visualAssetId}" is not approved in the customer PDF visual registry.`,
     ));
   }
   if (hasText(scene.visualAssetId)) {
@@ -2932,15 +3032,6 @@ function formatHouseholdCount(occupancyCount: number): string {
   return `${occupancyCount}-person household`;
 }
 
-const DIAGRAM_ID_TO_CANONICAL_VISUAL_ASSET: Record<string, string> = {
-  'diagram-open-to-sealed': 'open_vented_to_unvented',
-  'diagram-pressure-vs-storage': 'pressure_vs_storage',
-  'diagram-unvented-safety': 'open_vented_to_unvented',
-  'diagram-cleaning-method': 'powerflush_condition_led',
-  'diagram-filter-location': 'magnetic_filter_capture',
-  'diagram-pressure-window': 'system_pressure_window',
-};
-
 function resolveFallbackSceneKind(section: PortalJourneyPrintSectionV1): LibraryStorySceneKindV1 {
   switch (section.sectionId) {
     case 'pressure_vs_storage':
@@ -2952,6 +3043,7 @@ function resolveFallbackSceneKind(section: PortalJourneyPrintSectionV1): Library
       return 'lived_experience';
     case 'unvented_safety':
     case 'magnetic_filter_capture':
+    case 'powerflush_condition_led':
       return 'protection_quality';
     case 'sealed_system_pressure_window':
       return 'future_flexibility';
@@ -2963,11 +3055,13 @@ function resolveFallbackSceneKind(section: PortalJourneyPrintSectionV1): Library
 }
 
 function resolveCanonicalSceneVisualAssetId(section: PortalJourneyPrintSectionV1): string | undefined {
-  if (hasText(section.diagramRendererId)) return section.diagramRendererId;
-  if (hasText(section.storyScene?.visualAssetId)) return section.storyScene.visualAssetId;
-  if (hasText(section.diagramId)) {
-    return DIAGRAM_ID_TO_CANONICAL_VISUAL_ASSET[section.diagramId] ?? section.diagramId;
+  if (hasText(section.diagramRendererId) && isApprovedCustomerPdfVisualAssetId(section.diagramRendererId)) {
+    return section.diagramRendererId;
   }
+  if (hasText(section.storyScene?.visualAssetId) && isApprovedCustomerPdfVisualAssetId(section.storyScene.visualAssetId)) {
+    return section.storyScene.visualAssetId;
+  }
+  if (hasText(section.diagramId) && isApprovedCustomerPdfVisualAssetId(section.diagramId)) return section.diagramId;
   return undefined;
 }
 
