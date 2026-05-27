@@ -443,7 +443,7 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         sceneKind: 'physics_explainer',
         title: 'Pressure and storage are separate limits',
         customerTakeaway: 'Strong spray pressure and available stored volume are different parts of the same experience.',
-        whyItMatters: 'Separating these physics avoids confusion and supports realistic planning for busy households.',
+        whyItMatters: 'Separating this physics distinction avoids confusion and supports realistic planning for busy households.',
         whatYouWillNotice: 'Shower force can stay strong while stored hot-water volume still follows a recovery cycle.',
         visualAssetId: 'pressure_vs_storage',
       },
@@ -1477,14 +1477,15 @@ const GENERIC_STORY_SCENE_TITLES = new Set([
   'recommended option',
   'story scene',
 ]);
-const BANNED_STORY_SCENE_LANGUAGE = /\batlas mapped\b|\broute\b|\bprojection\b|\btaxonomy\b|\bdigest\b|\bconcept id\b/i;
+const BANNED_STORY_SCENE_LANGUAGE = /\batlas[\s_-]*mapped\b|\bprojection\b|\btaxonomy\b|\bdigest\b|\bconcept id\b/i;
 const MIN_WHAT_YOU_WILL_NOTICE_LENGTH = 24;
 const MIN_STORY_SCENE_TITLE_LENGTH = 8;
 const MIN_STORY_SCENE_TAKEAWAY_LENGTH = 20;
 const MAX_SCENES_PER_CUSTOMER_PDF = 6;
 const MAX_SCENE_TEXT_CHARS = 220;
 const MAX_TOTAL_SCENE_TEXT_CHARS = 1500;
-const SCENE_OVERLAP_THRESHOLD = 0.72;
+const SCENE_OVERLAP_THRESHOLD = 0.9;
+const MIN_SEMANTIC_TOKEN_COUNT = 6;
 const VAGUE_WHAT_YOU_WILL_NOTICE = [
   'you will notice improvements',
   'you will notice a difference',
@@ -1548,7 +1549,7 @@ function normaliseTextForComparison(value: string): string {
 
 function countSentenceLikeClauses(value: string): number {
   return value
-    .split(/[.!?;]+/g)
+    .split(/[.!?]+/g)
     .map((part) => part.trim())
     .filter((part) => part.length > 0)
     .length;
@@ -1592,8 +1593,11 @@ function scenesSemanticallyOverlap(a: LibraryStorySceneV1, b: LibraryStorySceneV
   const takeawayA = normaliseTextForComparison(a.customerTakeaway);
   const takeawayB = normaliseTextForComparison(b.customerTakeaway);
   if (takeawayA.length > 0 && takeawayA === takeawayB) return true;
-  const tokenOverlap = overlapRatio(toSceneSemanticTokenSet(a), toSceneSemanticTokenSet(b));
-  return tokenOverlap >= SCENE_OVERLAP_THRESHOLD;
+  const tokensA = toSceneSemanticTokenSet(a);
+  const tokensB = toSceneSemanticTokenSet(b);
+  const tokenOverlap = overlapRatio(tokensA, tokensB);
+  const semanticSampleSize = Math.min(tokensA.size, tokensB.size);
+  return semanticSampleSize >= MIN_SEMANTIC_TOKEN_COUNT && tokenOverlap >= SCENE_OVERLAP_THRESHOLD;
 }
 
 function buildStorySceneValidationIssue(
@@ -1747,9 +1751,7 @@ function buildCustomerPdfContentSource(input: {
     globalErrorCodes.push('duplicate_or_overlapping_scene');
   }
   let storyScenes = acceptedStorySceneEntries.map((entry) => entry.scene);
-  let scenePageBudgetRejectedCount = 0;
   if (storyScenes.length > MAX_SCENES_PER_CUSTOMER_PDF) {
-    scenePageBudgetRejectedCount = storyScenes.length - MAX_SCENES_PER_CUSTOMER_PDF;
     storyScenes = storyScenes.slice(0, MAX_SCENES_PER_CUSTOMER_PDF);
     globalErrorCodes.push('scene_page_budget_exceeded');
   }

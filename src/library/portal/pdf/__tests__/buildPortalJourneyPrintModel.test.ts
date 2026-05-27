@@ -346,6 +346,8 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       expect(section.storyScene?.whyItMatters.length).toBeGreaterThan(0);
       expect(section.storyScene?.whatYouWillNotice.length).toBeGreaterThan(0);
       expect(section.storyScene?.visualAssetId?.length).toBeGreaterThan(0);
+      const validation = validateCustomerStoryScene(section.storyScene!);
+      expect(validation.errors).toHaveLength(0);
     }
   });
 
@@ -412,7 +414,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       customerTakeaway: 'Showers stay consistent.',
       whyItMatters: 'Atlas mapped this route from taxonomy digest.',
       whatYouWillNotice: 'Steadier shower temperature at peak times.',
-      visualAssetId: 'diagram-1',
+      visualAssetId: 'pressure_vs_storage',
     });
     expect(result.errors.map((issue) => issue.code)).toContain('banned_internal_language');
     expect(result.errors.map((issue) => issue.code)).toContain('internal_why_it_matters_language');
