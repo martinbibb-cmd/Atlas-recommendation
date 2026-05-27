@@ -13,6 +13,12 @@ vi.mock('../../../library/packRenderer/buildCalmWelcomePackFromAtlasDecision', (
 
 vi.mock('../../../library/diagrams/DiagramRenderer', () => ({
   DiagramRenderer: ({ diagramId }: { diagramId: string }) => <div data-testid={`diagram-${diagramId}`}>{diagramId}</div>,
+  SUPPORTED_DIAGRAM_RENDERER_IDS: ['pressure_vs_storage', 'warm_vs_hot_radiators', 'water_main_limitation'],
+  isDiagramRendererIdSupported: (diagramId: string) => [
+    'pressure_vs_storage',
+    'warm_vs_hot_radiators',
+    'water_main_limitation',
+  ].includes(diagramId),
 }));
 vi.mock('../../../library/animations', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../library/animations')>();

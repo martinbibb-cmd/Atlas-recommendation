@@ -1181,21 +1181,21 @@ describe('buildPortalJourneyPrintModel — core-route visual snapshots', () => {
         })),
       };
     });
-
-    describe('buildPortalJourneyPrintModel — retired customer visuals', () => {
-      it('marks retired heat-pump visuals as blocked for customer PDF export', () => {
-        const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
-        const winterBehaviourScene = model.contentSource?.sceneDiagnostics.find((diag) => diag.sectionId === 'winter_behaviour');
-        expect(winterBehaviourScene).toMatchObject({
-          visualAssetId: 'heat_pump_defrost',
-          visualClassification: 'retired_non_physical',
-          rendererType: 'none',
-        });
-        expect(winterBehaviourScene?.blockingReasons.join(' ')).toMatch(/Atlas Lego Technic physical-system language|blocked/i);
-        expect(model.contentSource?.fallbackOnly).toBe(true);
-      });
-    });
     expect(snapshot).toMatchSnapshot();
+  });
+});
+
+describe('buildPortalJourneyPrintModel — retired customer visuals', () => {
+  it('marks retired heat-pump visuals as blocked for customer PDF export', () => {
+    const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
+    const winterBehaviourScene = model.contentSource?.sceneDiagnostics.find((diag) => diag.sectionId === 'winter_behaviour');
+    expect(winterBehaviourScene).toMatchObject({
+      visualAssetId: 'heat_pump_defrost',
+      visualClassification: 'retired_non_physical',
+      rendererType: 'none',
+    });
+    expect(winterBehaviourScene?.blockingReasons.join(' ')).toMatch(/Atlas Lego Technic physical-system language|blocked/i);
+    expect(model.contentSource?.fallbackOnly).toBe(true);
   });
 });
 
