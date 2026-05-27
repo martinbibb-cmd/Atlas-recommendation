@@ -7,6 +7,7 @@ import {
   CUSTOMER_JOURNEY_PACK_VERSION,
   isFallbackOnlyCustomerPdf,
   resolveRecommendationConceptSelection,
+  validateCustomerStoryScene,
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
 import { buildCanonicalVisitPackage } from '../../../../features/visitPackage';
@@ -333,6 +334,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(model.contentSource?.selectedStorySceneCount).toBe(model.sections.length);
     expect(model.contentSource?.visualAssetIds.length).toBeGreaterThan(0);
     expect(model.contentSource?.audienceProjectionPresent).toBe(false);
+    expect(model.contentSource?.storySceneValidation.blockingErrorCount).toBe(0);
   });
 
   it('hydrates library story scenes for each PDF section', () => {
@@ -393,6 +395,31 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     });
     expect(model.contentSource?.selectedConceptCount).toBe(0);
     expect(model.contentSource?.fallbackOnly).toBe(true);
+  });
+
+  it('flags story scenes with banned internal language', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Hot water reliability',
+      customerTakeaway: 'Showers stay consistent.',
+      whyItMatters: 'Atlas mapped this route from taxonomy digest.',
+      whatYouWillNotice: 'Steadier shower temperature at peak times.',
+      visualAssetId: 'diagram-1',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('banned_internal_language');
+    expect(result.errors.map((issue) => issue.code)).toContain('internal_why_it_matters_language');
+  });
+
+  it('flags missing visual asset IDs when a visual is required', () => {
+    const result = validateCustomerStoryScene(
+      {
+        title: 'Hot water reliability',
+        customerTakeaway: 'Stored hot water supports two showers at once.',
+        whyItMatters: 'This keeps shower temperature stable when taps open together.',
+        whatYouWillNotice: 'Less temperature swing in upstairs showers at busy times.',
+      },
+      { visualAssetRequired: true },
+    );
+    expect(result.errors.map((issue) => issue.code)).toContain('missing_required_visual_asset');
   });
 });
 

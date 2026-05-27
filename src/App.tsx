@@ -4542,7 +4542,7 @@ function AppInner() {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
               <p style={{ color: '#475569', marginBottom: 0 }}>
-                Customer PDF blocked: library story content was not available for this package. Regenerate recommendation outputs and export again.
+                Customer PDF blocked: this package does not yet meet customer story quality checks. Regenerate recommendation outputs and export again.
               </p>
             </RetiredRouteNotice>
           );

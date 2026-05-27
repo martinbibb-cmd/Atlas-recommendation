@@ -163,6 +163,15 @@ export interface CustomerPdfContentSourceV1 {
   visualAssetIds: string[];
   fallbackSectionsUsed: boolean;
   fallbackOnly: boolean;
+  storySceneValidation: {
+    sceneCount: number;
+    warningCount: number;
+    errorCount: number;
+    blockingErrorCount: number;
+    rejectedSceneCount: number;
+    warningCodes: string[];
+    errorCodes: string[];
+  };
 }
 
 export interface PortalJourneyPrintModelV1 {
@@ -1166,6 +1175,123 @@ function inferLiveExperienceExplanations(
 }
 
 const FALLBACK_REASON_MATCH_PHRASE = 'educational evidence route';
+const GENERIC_STORY_SCENE_TITLES = new Set([
+  'title',
+  'summary',
+  'overview',
+  'recommendation',
+  'your recommendation',
+  'recommended option',
+  'story scene',
+]);
+const BANNED_STORY_SCENE_LANGUAGE = /\batlas mapped\b|\broute\b|\bprojection\b|\btaxonomy\b|\bdigest\b|\bconcept id\b/i;
+const VAGUE_WHAT_YOU_WILL_NOTICE = [
+  'you will notice improvements',
+  'you will notice a difference',
+  'you will notice better comfort',
+  'you will notice better efficiency',
+  'you will notice better performance',
+  'notice improvements',
+  'general improvement',
+];
+
+export interface CustomerStorySceneValidationIssueV1 {
+  code: string;
+  message: string;
+}
+
+export interface CustomerStorySceneValidationResultV1 {
+  warnings: CustomerStorySceneValidationIssueV1[];
+  errors: CustomerStorySceneValidationIssueV1[];
+}
+
+function normaliseTextForComparison(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function buildStorySceneValidationIssue(
+  code: string,
+  message: string,
+): CustomerStorySceneValidationIssueV1 {
+  return { code, message };
+}
+
+export function validateCustomerStoryScene(
+  scene: LibraryStorySceneV1,
+  options?: {
+    visualAssetRequired?: boolean;
+  },
+): CustomerStorySceneValidationResultV1 {
+  const warnings: CustomerStorySceneValidationIssueV1[] = [];
+  const errors: CustomerStorySceneValidationIssueV1[] = [];
+  const title = scene.title.trim();
+  const takeaway = scene.customerTakeaway.trim();
+  const whyItMatters = scene.whyItMatters.trim();
+  const whatYouWillNotice = scene.whatYouWillNotice.trim();
+  const allText = `${title} ${takeaway} ${whyItMatters} ${whatYouWillNotice}`;
+  const normalisedTitle = normaliseTextForComparison(title);
+  const normalisedTakeaway = normaliseTextForComparison(takeaway);
+
+  if (GENERIC_STORY_SCENE_TITLES.has(normalisedTitle)) {
+    errors.push(buildStorySceneValidationIssue(
+      'generic_title',
+      'Story scene title is too generic for customer export.',
+    ));
+  }
+  if (!hasText(takeaway)) {
+    errors.push(buildStorySceneValidationIssue(
+      'empty_takeaway',
+      'Story scene takeaway is empty.',
+    ));
+  }
+  if (hasText(takeaway) && normalisedTakeaway === normalisedTitle) {
+    errors.push(buildStorySceneValidationIssue(
+      'takeaway_repeats_title',
+      'Story scene takeaway repeats the title instead of adding outcome detail.',
+    ));
+  }
+  if (BANNED_STORY_SCENE_LANGUAGE.test(whyItMatters)) {
+    errors.push(buildStorySceneValidationIssue(
+      'internal_why_it_matters_language',
+      'Story scene why-it-matters contains internal routing language.',
+    ));
+  }
+  if (BANNED_STORY_SCENE_LANGUAGE.test(allText)) {
+    errors.push(buildStorySceneValidationIssue(
+      'banned_internal_language',
+      'Story scene includes blocked internal pipeline wording.',
+    ));
+  }
+  if (
+    whatYouWillNotice.length < 24
+    || VAGUE_WHAT_YOU_WILL_NOTICE.some((phrase) => whatYouWillNotice.toLowerCase().includes(phrase))
+  ) {
+    errors.push(buildStorySceneValidationIssue(
+      'vague_household_outcome',
+      'Story scene what-you-will-notice is too vague for customer export.',
+    ));
+  }
+  if (options?.visualAssetRequired === true && !hasText(scene.visualAssetId)) {
+    errors.push(buildStorySceneValidationIssue(
+      'missing_required_visual_asset',
+      'Story scene requires a visual asset ID for this concept.',
+    ));
+  }
+  if (title.length < 8) {
+    warnings.push(buildStorySceneValidationIssue(
+      'short_title',
+      'Story scene title is unusually short.',
+    ));
+  }
+  if (takeaway.length > 0 && takeaway.length < 20) {
+    warnings.push(buildStorySceneValidationIssue(
+      'short_takeaway',
+      'Story scene takeaway is short and may under-explain the outcome.',
+    ));
+  }
+
+  return { warnings, errors };
+}
 
 function buildCustomerPdfContentSource(input: {
   audienceProjectionPresent: boolean;
@@ -1173,13 +1299,24 @@ function buildCustomerPdfContentSource(input: {
   sections: readonly PortalJourneyPrintSectionV1[];
   recommendationReasons: readonly RecommendationReasonBlockV1[];
 }): CustomerPdfContentSourceV1 {
-  const storyScenes = input.sections
-    .map((section) => section.storyScene ?? buildStorySceneFromSection(section))
-    .filter((scene) =>
+  const validatedStoryScenes = input.sections.map((section) => {
+    const scene = section.storyScene ?? buildStorySceneFromSection(section);
+    const visualAssetRequired = hasText(section.diagramRendererId) || hasText(section.diagramId);
+    const validation = validateCustomerStoryScene(scene, { visualAssetRequired });
+    const hasAllRequiredText =
       hasText(scene.title)
       && hasText(scene.customerTakeaway)
       && hasText(scene.whyItMatters)
-      && hasText(scene.whatYouWillNotice));
+      && hasText(scene.whatYouWillNotice);
+    return {
+      scene,
+      validation,
+      hasAllRequiredText,
+    };
+  });
+  const storyScenes = validatedStoryScenes
+    .filter((entry) => entry.hasAllRequiredText && entry.validation.errors.length === 0)
+    .map((entry) => entry.scene);
   const selectedConceptCount = new Set(input.conceptTags).size;
   const selectedStorySceneCount = storyScenes.length;
   const scenarioRequiresVisuals = input.sections.some((section) =>
@@ -1194,6 +1331,12 @@ function buildCustomerPdfContentSource(input: {
   if (selectedConceptCount === 0) fallbackSignals.push('concept_selection_missing');
   if (selectedStorySceneCount === 0) fallbackSignals.push('story_scenes_missing');
   if (scenarioRequiresVisuals && visualAssetIds.length === 0) fallbackSignals.push('visual_assets_missing');
+  const warningCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.validation.warnings.map((issue) => issue.code)));
+  const errorCodes = dedupeStrings(validatedStoryScenes.flatMap((entry) => entry.validation.errors.map((issue) => issue.code)));
+  const warningCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.warnings.length, 0);
+  const errorCount = validatedStoryScenes.reduce((total, entry) => total + entry.validation.errors.length, 0);
+  const blockingErrorCount = errorCount;
+  if (blockingErrorCount > 0) fallbackSignals.push('story_scene_quality_blocked');
   const genericReasonCount = input.recommendationReasons
     .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(FALLBACK_REASON_MATCH_PHRASE))
     .length;
@@ -1203,7 +1346,8 @@ function buildCustomerPdfContentSource(input: {
     input.audienceProjectionPresent
     && selectedConceptCount > 0
     && selectedStorySceneCount > 0
-    && (!scenarioRequiresVisuals || visualAssetIds.length > 0);
+    && (!scenarioRequiresVisuals || visualAssetIds.length > 0)
+    && blockingErrorCount === 0;
   const fallbackOnly = !exportable;
 
   return {
@@ -1213,6 +1357,15 @@ function buildCustomerPdfContentSource(input: {
     visualAssetIds,
     fallbackSectionsUsed,
     fallbackOnly,
+    storySceneValidation: {
+      sceneCount: validatedStoryScenes.length,
+      warningCount,
+      errorCount,
+      blockingErrorCount,
+      rejectedSceneCount: validatedStoryScenes.length - selectedStorySceneCount,
+      warningCodes,
+      errorCodes,
+    },
   };
 }
 
