@@ -343,7 +343,7 @@
 }
 
 .pjpp-quiet-content {
-  min-height: 8.5rem;
+  min-height: var(--pjpp-focal-min-height);
   border: 1px dashed #cbd5e1;
   border-radius: 10px;
   padding: var(--pjpp-space-lg);
@@ -358,7 +358,7 @@
 }
 
 .pjpp-section--density-dense .pjpp-outcome-cards {
-  gap: 0.45rem;
+  gap: var(--pjpp-space-xs);
 }
 
 .pjpp-section--density-airy {

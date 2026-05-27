@@ -351,7 +351,7 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
           className="pjpp-section__diagram"
           data-testid={`pjpp-diagram-${section.sectionId}`}
           data-print-safe="true"
-          style={{ ['--pjpp-visual-scale' as string]: String(composition?.visualScale ?? 1) }}
+          style={{ '--pjpp-visual-scale': composition?.visualScale ?? 1 } as Record<string, number>}
         >
           <DiagramRenderer
             diagramId={rendererDiagramId}
@@ -600,9 +600,9 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
         <PrintRecommendationReasons reasons={customerDocument.recommendationReasons} pageNumber={pageCounter++} />
       ) : null}
 
-      {customerDocument.sections.map((section, index) => (
+      {customerDocument.sections.map((section) => (
         <PrintSection
-          key={`${section.sectionId}-${section.contentId}-${index}`}
+          key={`${section.sectionId}-${section.contentId}`}
           section={section}
           pageNumber={pageCounter++}
         />

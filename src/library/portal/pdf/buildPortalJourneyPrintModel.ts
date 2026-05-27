@@ -122,7 +122,8 @@ export interface PortalJourneyPrintSectionV1 {
     | 'magnetic_filter_capture'
     | 'sealed_system_pressure_window'
     | 'hero_scene'
-    | 'quiet_scene';
+    | 'quiet_scene'
+    | `quiet_scene_${string}`;
   heading: string;
   summary: string;
   keyTakeaway: string;
@@ -818,8 +819,8 @@ function buildDefaultStorySceneComposition(
 
 function buildQuietSceneSection(section: PortalJourneyPrintSectionV1): PortalJourneyPrintSectionV1 {
   return {
-    contentId: `COMPOSITION_QUIET_${section.sectionId}`,
-    sectionId: 'quiet_scene',
+    contentId: `${QUIET_SCENE_CONTENT_ID_PREFIX}${section.sectionId}`,
+    sectionId: `quiet_scene_${section.sectionId}`,
     heading: 'Pause and let this settle',
     summary: 'This page intentionally keeps a light cognitive load after a dense explanation.',
     keyTakeaway: 'You do not need to memorise every technical detail now.',
@@ -859,9 +860,20 @@ function applyCompositionRhythmAndQuietPages(
   const withRhythm = sections.map((section, index) => {
     const scene = section.storyScene ?? buildStorySceneFromSection(section);
     const baseComposition = scene.composition ?? buildDefaultStorySceneComposition(scene.sceneKind);
-    const composition = index === 0 && baseComposition.heroEligible
-      ? { ...baseComposition, pageArchetype: 'hero', focalVisualPriority: 'primary' as const }
-      : { ...baseComposition, pageArchetype: baseComposition.pageArchetype === 'quiet' ? 'quiet' : expectedRhythmForIndex(rhythmIndex++) };
+    let pageArchetype: PdfCompositionPageArchetypeV1;
+    if (index === 0 && baseComposition.heroEligible) {
+      pageArchetype = 'hero';
+    } else if (baseComposition.pageArchetype === 'quiet') {
+      pageArchetype = 'quiet';
+    } else {
+      pageArchetype = expectedRhythmForIndex(rhythmIndex);
+      rhythmIndex += 1;
+    }
+    const composition: LibraryStorySceneCompositionV1 = {
+      ...baseComposition,
+      pageArchetype,
+      focalVisualPriority: pageArchetype === 'hero' ? 'primary' : baseComposition.focalVisualPriority,
+    };
     return {
       ...section,
       storyScene: {
@@ -1700,7 +1712,12 @@ const DENSE_TO_DENSE_WHITESPACE_RATIO = 0.33;
 const MIN_PRINT_VISUAL_SCALE = 0.75;
 const MAX_PRINT_VISUAL_SCALE = 1.15;
 const MAX_CARDS_PER_PAGE = 3;
-const REQUIRED_RHYTHM_SEQUENCE: PdfCompositionPageArchetypeV1[] = ['explanation', 'lived_experience', 'practical_work', 'reassurance'];
+/**
+ * Deterministic page rhythm for customer comprehension:
+ * explain first, then lived experience, then practical work, then reassurance.
+ */
+const EXPECTED_RHYTHM_SEQUENCE: PdfCompositionPageArchetypeV1[] = ['explanation', 'lived_experience', 'practical_work', 'reassurance'];
+export const QUIET_SCENE_CONTENT_ID_PREFIX = 'COMPOSITION_QUIET_';
 const VAGUE_WHAT_YOU_WILL_NOTICE = [
   'you will notice improvements',
   'you will notice a difference',
@@ -1855,7 +1872,7 @@ function validateStorySceneComposition(
       'Primary focal pages must include a canonical visual asset.',
     ));
   }
-  if (section.sectionId === 'quiet_scene' && (composition.focalVisualPriority !== 'none' || hasText(scene.visualAssetId))) {
+  if (isQuietSectionId(section.sectionId) && (composition.focalVisualPriority !== 'none' || hasText(scene.visualAssetId))) {
     errors.push(buildStorySceneValidationIssue(
       'composition_multiple_primary_visuals',
       'Quiet pages must not carry a primary visual focal point.',
@@ -1889,7 +1906,11 @@ function validateStorySceneComposition(
 }
 
 function expectedRhythmForIndex(index: number): PdfCompositionPageArchetypeV1 {
-  return REQUIRED_RHYTHM_SEQUENCE[index % REQUIRED_RHYTHM_SEQUENCE.length];
+  return EXPECTED_RHYTHM_SEQUENCE[index % EXPECTED_RHYTHM_SEQUENCE.length];
+}
+
+function isQuietSectionId(sectionId: PortalJourneyPrintSectionV1['sectionId']): boolean {
+  return sectionId === 'quiet_scene' || sectionId.startsWith('quiet_scene_');
 }
 
 export function validateCustomerStoryScene(
@@ -2071,8 +2092,11 @@ function buildCustomerPdfContentSource(input: {
     (total, entry) => total + entry.compositionValidation.errors.length,
     0,
   );
+  const acceptedSectionKeys = new Set(
+    acceptedStorySceneEntries.map((entry) => JSON.stringify([entry.section.sectionId, entry.section.contentId])),
+  );
   const acceptedSections = input.sections.filter((section) =>
-    acceptedStorySceneEntries.some((entry) => entry.section.sectionId === section.sectionId && entry.section.contentId === section.contentId),
+    acceptedSectionKeys.has(JSON.stringify([section.sectionId, section.contentId])),
   );
   let rhythmIndex = 0;
   for (let i = 0; i < acceptedStorySceneEntries.length; i += 1) {
@@ -2091,15 +2115,16 @@ function buildCustomerPdfContentSource(input: {
         globalErrorCodes.push('composition_dense_transition_missing_breather');
       }
     }
-    if (entry.section.sectionId !== 'quiet_scene' && composition.pageArchetype !== 'hero') {
-      const expected = expectedRhythmForIndex(rhythmIndex++);
+    if (!isQuietSectionId(entry.section.sectionId) && composition.pageArchetype !== 'hero') {
+      const expected = expectedRhythmForIndex(rhythmIndex);
+      rhythmIndex += 1;
       if (composition.pageArchetype !== expected) {
         compositionErrorCount += 1;
         globalErrorCodes.push('composition_rhythm_break');
       }
     }
   }
-  const quietPages = acceptedSections.filter((section) => section.sectionId === 'quiet_scene');
+  const quietPages = acceptedSections.filter((section) => isQuietSectionId(section.sectionId));
   if (quietPages.some((section) => section.storyScene?.composition?.focalVisualPriority !== 'none')) {
     compositionErrorCount += 1;
     globalErrorCodes.push('composition_multiple_primary_visuals');
@@ -2798,12 +2823,12 @@ function buildPortalJourneyPrintModelCore(
     ? buildSystemProtectionSummary(surveyCondition)
     : undefined;
   const usedPages =
-    1 // cover
+    1    // cover
     + (normalizedRecommendationReasons.length > 0 ? 1 : 0)
-    + sections.length
+    + sections.length // includes deterministic quiet pages inserted for dense scene transitions
     + (systemProtection != null ? 1 : 0)
-    + 1 // next steps
-    + 1; // technical hand-off
+    + 1; // next steps
+  const totalPages = usedPages + 1; // technical hand-off
 
   return {
     cover,
@@ -2814,7 +2839,7 @@ function buildPortalJourneyPrintModelCore(
     qrDestinations,
     systemProtection,
     pageEstimate: {
-      usedPages,
+      usedPages: totalPages,
       maxPages: 9,
     },
   };
