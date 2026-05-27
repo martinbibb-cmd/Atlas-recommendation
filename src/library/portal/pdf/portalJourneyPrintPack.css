@@ -131,6 +131,12 @@
   font-size: 0.82rem;
 }
 
+.pjpp-cover-content-source {
+  margin: 0.6rem 0 0;
+  color: #475569;
+  font-size: 0.72rem;
+}
+
 .pjpp-cover-chips {
   margin-top: 0.7rem;
   display: flex;

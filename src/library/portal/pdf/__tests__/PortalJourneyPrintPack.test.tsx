@@ -112,6 +112,15 @@ describe('PortalJourneyPrintPack — cover page', () => {
     expect(screen.getByTestId('pjpp-cover-confidence')).toBeInTheDocument();
     expect(screen.getByTestId('pjpp-cover-fact-chips')).toBeInTheDocument();
   });
+
+  it('renders the dev-only content source line in development mode', () => {
+    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    if (import.meta.env.DEV) {
+      expect(screen.getByTestId('pjpp-cover-content-source')).toBeInTheDocument();
+    } else {
+      expect(screen.queryByTestId('pjpp-cover-content-source')).toBeNull();
+    }
+  });
 });
 
 // ─── Content sections ─────────────────────────────────────────────────────────

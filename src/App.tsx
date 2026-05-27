@@ -217,6 +217,7 @@ import {
   buildCustomerJourneyPack,
   buildCustomerJourneyPackGeneratedOutput,
   inferCustomerJourneyTypeFromSystemContext,
+  isFallbackOnlyCustomerPdf,
   resolveRecommendationIntentCategory,
   resolveRecommendationConceptSelection,
   readCustomerJourneyPackFromGeneratedOutputs,
@@ -4537,6 +4538,15 @@ function AppInner() {
           );
         }
         const printModel = source.source.customerJourneyPack.staticPdf;
+        if (!import.meta.env.DEV && isFallbackOnlyCustomerPdf(printModel)) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Customer PDF blocked: library story content was not available for this package. Regenerate recommendation outputs and export again.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
         return (
           <div
             style={{ background: '#f8fafc', minHeight: '100vh' }}
