@@ -302,7 +302,8 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: packageWithoutJourney }));
     expect(pdf).toContain('Why this fits your home');
     expect(pdf).toContain('3-person household');
-    expect(pdf).toContain('Atlas recommendation:');
+    expect(pdf).toContain('Visual reference:');
+    expect(pdf).toContain('What you will notice:');
     expect(pdf).toContain(VISIT_PACKAGE_PDF_PAYLOAD_BEGIN_MARKER);
   });
 

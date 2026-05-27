@@ -40,6 +40,9 @@ const REGISTRY_DIAGRAM_ID_MAP: Record<string, string> = {
 };
 
 function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string | null {
+  if (section.storyScene?.visualAssetId && isDiagramRendererIdSupported(section.storyScene.visualAssetId)) {
+    return section.storyScene.visualAssetId;
+  }
   // Prefer explicit section.diagramRendererId for new journeys, but keep
   // legacy registry-id mapping so existing models continue to render.
   if (section.diagramRendererId && isDiagramRendererIdSupported(section.diagramRendererId)) {
@@ -287,6 +290,14 @@ interface PrintRecommendationReasonsProps {
 }
 
 function PrintSection({ section, pageNumber }: PrintSectionProps) {
+  const storyScene = section.storyScene;
+  const sceneTitle = storyScene?.title ?? section.heading;
+  const sceneCustomerTakeaway = storyScene?.customerTakeaway ?? section.summary;
+  const sceneWhyItMatters = storyScene?.whyItMatters ?? section.keyTakeaway;
+  const sceneWhatYouWillNotice = storyScene?.whatYouWillNotice ?? section.items[0] ?? section.reassurance;
+  const noticeItems = storyScene != null
+    ? [sceneWhatYouWillNotice]
+    : section.items;
   const rendererDiagramId = resolveRendererDiagramId(section);
 
   return (
@@ -300,13 +311,13 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
         id={`pjpp-section-heading-${section.sectionId}`}
         className="pjpp-section__heading"
       >
-        {section.heading}
+        {sceneTitle}
       </h2>
 
-      <p className="pjpp-section__summary">{section.summary}</p>
+      <p className="pjpp-section__summary">{sceneCustomerTakeaway}</p>
 
       <ul className="pjpp-outcome-cards" data-testid={`pjpp-items-${section.sectionId}`}>
-        {section.items.map((item, i) => (
+        {noticeItems.map((item, i) => (
           <li key={`${section.sectionId}-${i}`} className="pjpp-outcome-card">
             <p className="pjpp-outcome-card__label">What you will notice</p>
             <p className="pjpp-outcome-card__copy">{item}</p>
@@ -315,7 +326,7 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
       </ul>
 
       <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
-        <strong>Key takeaway:</strong> {section.keyTakeaway}
+        <strong>Why it matters:</strong> {sceneWhyItMatters}
       </p>
 
       {rendererDiagramId ? (

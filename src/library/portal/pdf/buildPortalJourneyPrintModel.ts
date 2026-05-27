@@ -132,8 +132,18 @@ export interface PortalJourneyPrintSectionV1 {
   diagramId?: string;
   /** DiagramRenderer ID to use when known for this section */
   diagramRendererId?: string;
+  /** Canonical library story-scene payload used by customer PDF renderers. */
+  storyScene?: LibraryStorySceneV1;
   /** Evidence tags proving why this section is shown for this home. */
   evidenceTags?: RecommendationEvidenceTagV1[];
+}
+
+export interface LibraryStorySceneV1 {
+  title: string;
+  customerTakeaway: string;
+  visualAssetId?: string;
+  whyItMatters: string;
+  whatYouWillNotice: string;
 }
 
 export interface PortalJourneyPrintNextStepV1 {
@@ -1163,35 +1173,38 @@ function buildCustomerPdfContentSource(input: {
   sections: readonly PortalJourneyPrintSectionV1[];
   recommendationReasons: readonly RecommendationReasonBlockV1[];
 }): CustomerPdfContentSourceV1 {
+  const storyScenes = input.sections
+    .map((section) => section.storyScene ?? buildStorySceneFromSection(section))
+    .filter((scene) =>
+      hasText(scene.title)
+      && hasText(scene.customerTakeaway)
+      && hasText(scene.whyItMatters)
+      && hasText(scene.whatYouWillNotice));
   const selectedConceptCount = new Set(input.conceptTags).size;
-  const selectedStorySceneCount = input.sections.length;
+  const selectedStorySceneCount = storyScenes.length;
+  const scenarioRequiresVisuals = input.sections.some((section) =>
+    hasText(section.storyScene?.visualAssetId)
+    || hasText(section.diagramRendererId)
+    || hasText(section.diagramId));
   const visualAssetIds = dedupeStrings(
-    input.sections.flatMap((section) =>
-      hasText(section.diagramRendererId)
-        ? [section.diagramRendererId]
-        : hasText(section.diagramId)
-        ? [section.diagramId]
-        : []),
+    storyScenes.flatMap((scene) => (hasText(scene.visualAssetId) ? [scene.visualAssetId] : [])),
   );
+  const fallbackSignals: string[] = [];
+  if (!input.audienceProjectionPresent) fallbackSignals.push('audience_projection_missing');
+  if (selectedConceptCount === 0) fallbackSignals.push('concept_selection_missing');
+  if (selectedStorySceneCount === 0) fallbackSignals.push('story_scenes_missing');
+  if (scenarioRequiresVisuals && visualAssetIds.length === 0) fallbackSignals.push('visual_assets_missing');
   const genericReasonCount = input.recommendationReasons
     .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(FALLBACK_REASON_MATCH_PHRASE))
     .length;
-  const singleGenericSceneOnly =
-    selectedStorySceneCount > 0 && input.sections.every((section) => section.sectionId === 'system_fit_decision_map');
-  const fallbackSignals: string[] = [];
-  if (!input.audienceProjectionPresent) fallbackSignals.push('audience_projection_missing');
-  if (genericReasonCount > 0) fallbackSignals.push('generic_reason_copy');
-  if (selectedStorySceneCount === 0) fallbackSignals.push('story_scenes_missing');
-  if (visualAssetIds.length === 0) fallbackSignals.push('visual_assets_missing');
-  if (singleGenericSceneOnly) fallbackSignals.push('single_generic_scene');
+  if (genericReasonCount > 0 && selectedStorySceneCount === 0) fallbackSignals.push('generic_reason_copy');
   const fallbackSectionsUsed = fallbackSignals.length > 0;
-  const fallbackOnly =
-    !input.audienceProjectionPresent
-    && (
-      selectedStorySceneCount === 0
-      || singleGenericSceneOnly
-      || (genericReasonCount > 0 && selectedConceptCount <= 1)
-    );
+  const exportable =
+    input.audienceProjectionPresent
+    && selectedConceptCount > 0
+    && selectedStorySceneCount > 0
+    && (!scenarioRequiresVisuals || visualAssetIds.length > 0);
+  const fallbackOnly = !exportable;
 
   return {
     audienceProjectionPresent: input.audienceProjectionPresent,
@@ -1209,6 +1222,21 @@ export function isFallbackOnlyCustomerPdf(model: PortalJourneyPrintModelV1): boo
 
 function formatHouseholdCount(occupancyCount: number): string {
   return `${occupancyCount}-person household`;
+}
+
+function buildStorySceneFromSection(section: PortalJourneyPrintSectionV1): LibraryStorySceneV1 {
+  return {
+    title: section.heading,
+    customerTakeaway: section.keyTakeaway,
+    visualAssetId:
+      hasText(section.diagramRendererId)
+        ? section.diagramRendererId
+        : hasText(section.diagramId)
+        ? section.diagramId
+        : undefined,
+    whyItMatters: section.summary,
+    whatYouWillNotice: section.items.find(hasText) ?? section.reassurance,
+  };
 }
 
 function formatBathroomCount(bathroomCount: number): string {
@@ -1751,7 +1779,11 @@ function buildPortalJourneyPrintModelCore(
   const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
   const excludeCylinder = shouldExcludeCylinderSections(recommendationIntent);
   const sections = rawSections
-    .map((section) => ({ ...section, evidenceTags: section.evidenceTags ?? buildSectionEvidenceTags(section) }))
+    .map((section) => ({
+      ...section,
+      storyScene: section.storyScene ?? buildStorySceneFromSection(section),
+      evidenceTags: section.evidenceTags ?? buildSectionEvidenceTags(section),
+    }))
     .filter((section) => {
       if (excludeCylinder && CYLINDER_ONLY_SECTION_IDS.has(section.sectionId)) return false;
       if (audienceProjection != null && registryConceptIdSet.has(section.contentId)) {

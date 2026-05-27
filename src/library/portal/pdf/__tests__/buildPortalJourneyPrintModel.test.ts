@@ -335,6 +335,16 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(model.contentSource?.audienceProjectionPresent).toBe(false);
   });
 
+  it('hydrates library story scenes for each PDF section', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    for (const section of model.sections) {
+      expect(section.storyScene?.title).toBe(section.heading);
+      expect(section.storyScene?.customerTakeaway.length).toBeGreaterThan(0);
+      expect(section.storyScene?.whyItMatters.length).toBeGreaterThan(0);
+      expect(section.storyScene?.whatYouWillNotice.length).toBeGreaterThan(0);
+    }
+  });
+
   it('flags thin generic fallback packs as fallbackOnly when projection is absent', () => {
     const model = buildPortalJourneyPrintModel({
       selectedSectionIds: [],
@@ -363,6 +373,26 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     });
     expect(model.contentSource?.audienceProjectionPresent).toBe(true);
     expect(model.contentSource?.fallbackOnly).toBe(false);
+  });
+
+  it('marks fallbackOnly when no concept tags are selected even with audience projection', () => {
+    const model = buildPortalJourneyPrintModel({
+      selectedSectionIds: ['UNKNOWN_SECTION'],
+      educationalConceptTags: [],
+      recommendationSummary: 'Generic recommendation summary for your home.',
+      customerFacts: ['Home constraints reviewed'],
+      journeyType: 'generic_recommendation_summary',
+      audienceProjection: {
+        audience: 'customer',
+        visibleConcepts: ['CON_A01'],
+        visibleCards: [],
+        visibleDiagrams: [],
+        hiddenReasonLog: [],
+        auditTrace: [],
+      },
+    });
+    expect(model.contentSource?.selectedConceptCount).toBe(0);
+    expect(model.contentSource?.fallbackOnly).toBe(true);
   });
 });
 
