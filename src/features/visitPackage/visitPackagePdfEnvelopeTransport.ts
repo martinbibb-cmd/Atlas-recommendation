@@ -877,8 +877,29 @@ function buildCustomerPdfDraftBlocks(
     }
   }
 
-  if (documentModel.recommendationReasons.length > 0) {
+  const storyScenes = documentModel.sections
+    .map((section) => section.storyScene)
+    .filter((scene): scene is NonNullable<(typeof documentModel.sections)[number]['storyScene']> =>
+      scene != null
+      && hasText(scene.title)
+      && hasText(scene.customerTakeaway)
+      && hasText(scene.whyItMatters)
+      && hasText(scene.whatYouWillNotice));
+
+  if (storyScenes.length > 0) {
     blocks.push(createTextBlock('section_heading', SECTION_WHY_THIS_FITS, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+    for (const scene of storyScenes) {
+      blocks.push(createTextBlock('subheading', scene.title, { spacingAfter: 3 }));
+      blocks.push(createTextBlock('body', scene.customerTakeaway, { spacingAfter: 2 }));
+      blocks.push(createTextBlock('body', `Why it matters: ${scene.whyItMatters}`, { spacingAfter: 2 }));
+      blocks.push(createTextBlock('body', `What you will notice: ${scene.whatYouWillNotice}`, { spacingAfter: 3 }));
+      if (hasText(scene.visualAssetId)) {
+        blocks.push(createTextBlock('small', `Visual reference: ${scene.visualAssetId}`, { spacingAfter: 4 }));
+      }
+    }
+  } else if (import.meta.env.DEV && documentModel.recommendationReasons.length > 0) {
+    blocks.push(createTextBlock('section_heading', SECTION_WHY_THIS_FITS, { pageBreakPolicy: 'always', spacingAfter: 6 }));
+    blocks.push(createTextBlock('small', 'Debug fallback copy (recommendation reasons):', { spacingAfter: 4 }));
     for (const reason of documentModel.recommendationReasons) {
       blocks.push(createTextBlock('subheading', reason.homeFact, { spacingAfter: 3 }));
       blocks.push(createTextBlock('body', `Why it matters: ${reason.whyItMatters}`, { spacingAfter: 2 }));
