@@ -5,6 +5,7 @@ import {
   buildPortalJourneyPrintModel,
   CUSTOMER_JOURNEY_PACK_SCHEMA,
   CUSTOMER_JOURNEY_PACK_VERSION,
+  isFallbackOnlyCustomerPdf,
   resolveRecommendationConceptSelection,
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
@@ -322,6 +323,46 @@ describe('buildPortalJourneyPrintModel — generic recommendation fallback journ
       journeyType: 'stored_hot_water',
     });
     expect(model.sections.map((section) => section.sectionId)).toContain('stored_hot_water_recovery_timeline');
+  });
+});
+
+describe('buildPortalJourneyPrintModel — content-source trace', () => {
+  it('includes content-source metadata on the static PDF model', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    expect(model.contentSource).toBeDefined();
+    expect(model.contentSource?.selectedStorySceneCount).toBe(model.sections.length);
+    expect(model.contentSource?.visualAssetIds.length).toBeGreaterThan(0);
+    expect(model.contentSource?.audienceProjectionPresent).toBe(false);
+  });
+
+  it('flags thin generic fallback packs as fallbackOnly when projection is absent', () => {
+    const model = buildPortalJourneyPrintModel({
+      selectedSectionIds: [],
+      recommendationSummary: 'Generic recommendation summary for your home.',
+      customerFacts: ['Home constraints reviewed'],
+      journeyType: 'generic_recommendation_summary',
+    });
+    expect(model.contentSource?.fallbackOnly).toBe(true);
+    expect(isFallbackOnlyCustomerPdf(model)).toBe(true);
+  });
+
+  it('does not mark fallbackOnly when audience projection is present', () => {
+    const model = buildPortalJourneyPrintModel({
+      selectedSectionIds: [],
+      recommendationSummary: 'Generic recommendation summary for your home.',
+      customerFacts: ['Home constraints reviewed'],
+      journeyType: 'generic_recommendation_summary',
+      audienceProjection: {
+        audience: 'customer',
+        visibleConcepts: ['CON_A01'],
+        visibleCards: [],
+        visibleDiagrams: [],
+        hiddenReasonLog: [],
+        auditTrace: [],
+      },
+    });
+    expect(model.contentSource?.audienceProjectionPresent).toBe(true);
+    expect(model.contentSource?.fallbackOnly).toBe(false);
   });
 });
 

@@ -55,6 +55,7 @@ function resolveRendererDiagramId(section: PortalJourneyPrintSectionV1): string 
 
 interface PrintCoverProps {
   cover: PortalJourneyPrintModelV1['cover'];
+  contentSource?: PortalJourneyPrintModelV1['contentSource'];
   demographics: DemographicsSummary;
   pageNumber: number;
 }
@@ -192,7 +193,12 @@ function buildTechnicalHandoffData(
   };
 }
 
-function PrintCover({ cover, demographics, pageNumber }: PrintCoverProps) {
+function formatContentSourceVisualAssetIds(ids: readonly string[]): string {
+  if (ids.length === 0) return 'none';
+  return ids.map((id) => id.replaceAll('_', '-')).join(', ');
+}
+
+function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCoverProps) {
   return (
     <section
       className="pjpp-page pjpp-page--cover"
@@ -220,6 +226,11 @@ function PrintCover({ cover, demographics, pageNumber }: PrintCoverProps) {
         <p className="pjpp-cover-confidence" data-testid="pjpp-cover-confidence">
           Atlas recommendation confidence: strong fit to your surveyed home pattern.
         </p>
+        {import.meta.env.DEV && contentSource != null ? (
+          <p className="pjpp-cover-content-source" data-testid="pjpp-cover-content-source">
+            Content source (dev): audienceProjection present: {contentSource.audienceProjectionPresent ? 'yes' : 'no'} · selected concepts count: {contentSource.selectedConceptCount} · selected story scenes count: {contentSource.selectedStorySceneCount} · visual asset ids used: {formatContentSourceVisualAssetIds(contentSource.visualAssetIds)} · fallback sections used: {contentSource.fallbackSectionsUsed ? 'yes' : 'no'}
+          </p>
+        ) : null}
       </header>
 
       <PrintableJourneySummary
@@ -547,7 +558,12 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
       aria-label="Customer document"
     >
       <ReadingAssistOverlay />
-      <PrintCover cover={customerDocument.cover} demographics={demographics} pageNumber={pageCounter++} />
+      <PrintCover
+        cover={customerDocument.cover}
+        contentSource={model.contentSource}
+        demographics={demographics}
+        pageNumber={pageCounter++}
+      />
 
       {customerDocument.recommendationReasons.length > 0 ? (
         <PrintRecommendationReasons reasons={customerDocument.recommendationReasons} pageNumber={pageCounter++} />

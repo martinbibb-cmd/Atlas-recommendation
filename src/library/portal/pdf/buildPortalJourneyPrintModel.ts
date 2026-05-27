@@ -146,6 +146,15 @@ export interface PortalJourneyPrintQrDestinationV1 {
   note: string;
 }
 
+export interface CustomerPdfContentSourceV1 {
+  audienceProjectionPresent: boolean;
+  selectedConceptCount: number;
+  selectedStorySceneCount: number;
+  visualAssetIds: string[];
+  fallbackSectionsUsed: boolean;
+  fallbackOnly: boolean;
+}
+
 export interface PortalJourneyPrintModelV1 {
   cover: PortalJourneyPrintCoverV1;
   recommendationReasons: RecommendationReasonBlockV1[];
@@ -159,6 +168,11 @@ export interface PortalJourneyPrintModelV1 {
    * Rendered as a small section after practical outcomes.
    */
   systemProtection?: SystemProtectionSummaryV1;
+  /**
+   * Temporary content-source trace for validating library-backed customer PDFs.
+   * Render only in dev surfaces.
+   */
+  contentSource?: CustomerPdfContentSourceV1;
   pageEstimate: {
     usedPages: number;
     maxPages: number;
@@ -1141,6 +1155,58 @@ function inferLiveExperienceExplanations(
     .slice(0, 4);
 }
 
+const GENERIC_REASON_ROUTE_PHRASE = 'educational evidence route';
+
+function buildCustomerPdfContentSource(input: {
+  audienceProjectionPresent: boolean;
+  conceptTags: readonly EducationalConceptTagV1[];
+  sections: readonly PortalJourneyPrintSectionV1[];
+  recommendationReasons: readonly RecommendationReasonBlockV1[];
+}): CustomerPdfContentSourceV1 {
+  const selectedConceptCount = new Set(input.conceptTags).size;
+  const selectedStorySceneCount = input.sections.length;
+  const visualAssetIds = dedupeStrings(
+    input.sections.flatMap((section) =>
+      hasText(section.diagramRendererId)
+        ? [section.diagramRendererId]
+        : hasText(section.diagramId)
+        ? [section.diagramId]
+        : []),
+  );
+  const genericReasonCount = input.recommendationReasons
+    .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(GENERIC_REASON_ROUTE_PHRASE))
+    .length;
+  const singleGenericSceneOnly =
+    selectedStorySceneCount > 0 && input.sections.every((section) => section.sectionId === 'system_fit_decision_map');
+  const fallbackSignals: string[] = [];
+  if (!input.audienceProjectionPresent) fallbackSignals.push('audience_projection_missing');
+  if (genericReasonCount > 0) fallbackSignals.push('generic_reason_copy');
+  if (selectedStorySceneCount === 0) fallbackSignals.push('story_scenes_missing');
+  if (visualAssetIds.length === 0) fallbackSignals.push('visual_assets_missing');
+  if (singleGenericSceneOnly) fallbackSignals.push('single_generic_scene');
+  const fallbackSectionsUsed = fallbackSignals.length > 0;
+  const fallbackOnly =
+    !input.audienceProjectionPresent
+    && (
+      selectedStorySceneCount === 0
+      || singleGenericSceneOnly
+      || (genericReasonCount > 0 && selectedConceptCount <= 1)
+    );
+
+  return {
+    audienceProjectionPresent: input.audienceProjectionPresent,
+    selectedConceptCount,
+    selectedStorySceneCount,
+    visualAssetIds,
+    fallbackSectionsUsed,
+    fallbackOnly,
+  };
+}
+
+export function isFallbackOnlyCustomerPdf(model: PortalJourneyPrintModelV1): boolean {
+  return model.contentSource?.fallbackOnly === true;
+}
+
 function formatHouseholdCount(occupancyCount: number): string {
   return `${occupancyCount}-person household`;
 }
@@ -1755,18 +1821,27 @@ export function buildCustomerJourneyPack(
     educationalConceptTags: conceptSelection.conceptTags,
     recommendationViabilityState: input.recommendationViabilityState,
   });
+  const staticPdfWithContentSource: PortalJourneyPrintModelV1 = {
+    ...staticPdf,
+    contentSource: buildCustomerPdfContentSource({
+      audienceProjectionPresent: input.audienceProjection != null,
+      conceptTags: conceptSelection.conceptTags,
+      sections: staticPdf.sections,
+      recommendationReasons: staticPdf.recommendationReasons,
+    }),
+  };
 
   return {
     schema: CUSTOMER_JOURNEY_PACK_SCHEMA,
     version: CUSTOMER_JOURNEY_PACK_VERSION,
-    staticPdf,
+    staticPdf: staticPdfWithContentSource,
     portalDeepDive: {
-      recommendationSummary: staticPdf.cover.summary,
-      recommendationReasons: staticPdf.recommendationReasons,
-      liveExperienceExplanations: inferLiveExperienceExplanations(input, staticPdf),
-      librarySupportedExplainers: inferLibrarySupportedExplainers(staticPdf.sections),
-      nextSteps: staticPdf.nextSteps,
-      sections: staticPdf.sections,
+      recommendationSummary: staticPdfWithContentSource.cover.summary,
+      recommendationReasons: staticPdfWithContentSource.recommendationReasons,
+      liveExperienceExplanations: inferLiveExperienceExplanations(input, staticPdfWithContentSource),
+      librarySupportedExplainers: inferLibrarySupportedExplainers(staticPdfWithContentSource.sections),
+      nextSteps: staticPdfWithContentSource.nextSteps,
+      sections: staticPdfWithContentSource.sections,
     },
   };
 }
