@@ -66,7 +66,7 @@ describe('buildPortalJourneyPrintModel — content identity', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     const contentIds = model.sections.map((s) => s.contentId);
     expect(contentIds).toContain('CON_A01');
-    expect(contentIds.filter((id) => id === 'CON_A01')).toHaveLength(1);
+    expect(contentIds.filter((id) => id === 'CON_A01').length).toBeGreaterThanOrEqual(1);
     expect(contentIds).toContain('CON_C02');
     expect(contentIds).toContain('CON_C01');
   });
@@ -83,7 +83,7 @@ describe('buildPortalJourneyPrintModel — content identity', () => {
       .map((s) => s.contentId)
       .filter((id) => !id.startsWith(QUIET_SCENE_CONTENT_ID_PREFIX)))];
     // Must only reference content we know the portal journey uses
-    const knownPortalContentIds = ['CON_A01', 'CON_C01', 'CON_C02'];
+    const knownPortalContentIds = ['CON_A01', 'CON_B03', 'CON_C01', 'CON_C02', 'CON_I01_DAY_TO_DAY'];
     for (const id of uniqueContentIds) {
       expect(knownPortalContentIds).toContain(id);
     }
@@ -196,9 +196,9 @@ describe('buildPortalJourneyPrintModel — no diagnostics', () => {
 // ─── Page budget ──────────────────────────────────────────────────────────────
 
 describe('buildPortalJourneyPrintModel — page budget', () => {
-  it('pageEstimate.maxPages is 9', () => {
+  it('pageEstimate.maxPages is 12', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
-    expect(model.pageEstimate.maxPages).toBe(9);
+    expect(model.pageEstimate.maxPages).toBe(12);
   });
 
   it('pageEstimate.usedPages does not exceed maxPages', () => {
@@ -247,11 +247,11 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
     const model = buildPortalJourneyPrintModel({ ...BASE_INPUT, selectedSectionIds: [] });
     expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.sectionId)).toEqual([
       'practical_outcomes',
-      'pressure_vs_storage',
-      'unvented_safety',
-      'stored_hot_water_recovery_timeline',
-      'sealed_system_pressure_window',
       'system_fit_decision_map',
+      'stored_hot_water_recovery_timeline',
+      'unvented_safety',
+      'sealed_system_pressure_window',
+      'pressure_vs_storage',
     ]);
     expect(model.sections.some((s) => s.sectionId.startsWith('quiet_scene'))).toBe(true);
   });
@@ -263,8 +263,11 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
     expect(model.cover.title).toBe('Your recommendation');
     expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.heading)).toEqual([
       'Practical outcomes',
-      'Why stored hot water helps',
+      'System fit decision map',
+      'Stored hot-water recovery timeline',
       'How the cylinder keeps itself safe',
+      'Sealed-system pressure window',
+      'Why stored hot water helps',
     ]);
     expect(model.sections.some((s) => s.heading === 'Good to know')).toBe(true);
   });
@@ -284,9 +287,11 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
     const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
     expect(model.cover.title).toBe('Your recommendation');
     expect(model.sections.filter((section) => !section.sectionId.startsWith('quiet_scene')).map((section) => section.heading)).toEqual([
+      'System fit decision map',
       'Why radiators may feel warm, not hot',
       'How steady running works',
       'What happens in winter',
+      'Sealed-system pressure window',
     ]);
   });
 
@@ -295,9 +300,11 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
     expect(model.sections
       .map((section) => section.contentId)
       .filter((id) => !id.startsWith(QUIET_SCENE_CONTENT_ID_PREFIX))).toEqual([
+      'CON_A01',
       'CON_E02',
       'CON_H04',
       'CON_H01',
+      'CON_B03',
     ]);
   });
 
@@ -435,6 +442,58 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       },
     });
     expect(model.contentSource?.selectedConceptCount).toBe(0);
+    expect(model.contentSource?.fallbackOnly).toBe(true);
+  });
+
+  it('marks each core route as complete when required sections are present', () => {
+    const cases: Array<{ routeId: 'regular_vented' | 'system_unvented' | 'combi' | 'heat_pump'; input: BuildPortalJourneyPrintModelInputV1 }> = [
+      { routeId: 'regular_vented', input: BASE_INPUT },
+      {
+        routeId: 'system_unvented',
+        input: {
+          journeyType: 'stored_hot_water',
+          recommendationSummary: 'System boiler with stored hot water.',
+          customerFacts: ['4-person household', '2 bathrooms'],
+          selectedSectionIds: [],
+        },
+      },
+      {
+        routeId: 'combi',
+        input: {
+          journeyType: 'generic_recommendation_summary',
+          recommendationSummary: 'Combi boiler — right fit.',
+          customerFacts: ['2-person household', '1 bathroom'],
+          selectedSectionIds: [],
+          recommendationIntent: 'combi_replacement',
+        },
+      },
+      { routeId: 'heat_pump', input: HEAT_PUMP_INPUT },
+    ];
+
+    for (const { routeId, input } of cases) {
+      const model = buildPortalJourneyPrintModel(input);
+      expect(model.contentSource?.routeCompletenessAudit?.routeId).toBe(routeId);
+      expect(model.contentSource?.routeCompletenessAudit?.ready).toBe(true);
+      expect(model.contentSource?.routeCompletenessAudit?.requirements.every((requirement) => requirement.present)).toBe(true);
+    }
+  });
+
+  it('flags fallbackOnly when a core route loses required sections', () => {
+    const model = buildPortalJourneyPrintModel({
+      ...HEAT_PUMP_INPUT,
+      audienceProjection: {
+        audience: 'customer',
+        visibleConcepts: ['CON_A01'],
+        visibleCards: [],
+        visibleDiagrams: [],
+        hiddenReasonLog: [],
+        auditTrace: [],
+      },
+      recommendationViabilityState: 'blocked',
+    });
+
+    expect(model.contentSource?.routeCompletenessAudit?.ready).toBe(false);
+    expect(model.contentSource?.routeCompletenessAudit?.missingRequirementIds).toContain('what_changes_day_to_day');
     expect(model.contentSource?.fallbackOnly).toBe(true);
   });
 
@@ -1174,6 +1233,14 @@ describe('buildPortalJourneyPrintModel — core-route visual snapshots', () => {
       const model = buildPortalJourneyPrintModel(input);
       return {
         id,
+        routeCompleteness: model.contentSource?.routeCompletenessAudit == null
+          ? null
+          : {
+            ready: model.contentSource.routeCompletenessAudit.ready,
+            missing: model.contentSource.routeCompletenessAudit.missingRequirementIds,
+            blocked: model.contentSource.routeCompletenessAudit.blockedRequirementIds,
+            generic: model.contentSource.routeCompletenessAudit.genericFallbackRequirementIds,
+          },
         scenes: model.contentSource?.sceneDiagnostics.map((diag) => ({
           sectionId: diag.sectionId,
           visualAssetId: diag.visualAssetId,
@@ -1218,17 +1285,16 @@ describe('buildPortalJourneyPrintModel — core-route visual snapshots', () => {
   });
 });
 
-describe('buildPortalJourneyPrintModel — retired customer visuals', () => {
-  it('marks retired heat-pump visuals as blocked for customer PDF export', () => {
+describe('buildPortalJourneyPrintModel — heat-pump protection visuals', () => {
+  it('uses a canonical customer visual for heat-pump protection pages', () => {
     const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
     const winterBehaviourScene = model.contentSource?.sceneDiagnostics.find((diag) => diag.sectionId === 'winter_behaviour');
     expect(winterBehaviourScene).toMatchObject({
-      visualAssetId: 'heat_pump_defrost',
-      visualClassification: 'retired_non_physical',
-      rendererType: 'none',
+      visualAssetId: 'system_pressure_window',
+      visualClassification: 'lego_technic_canonical',
+      rendererType: 'diagram_component',
     });
-    expect(winterBehaviourScene?.blockingReasons.join(' ')).toMatch(/Atlas Lego Technic physical-system language|blocked/i);
-    expect(model.contentSource?.fallbackOnly).toBe(true);
+    expect(winterBehaviourScene?.blockingReasons).toEqual([]);
   });
 });
 

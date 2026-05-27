@@ -4,11 +4,63 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
 [
   {
     "id": "regular_vented",
+    "routeCompleteness": {
+      "blocked": [],
+      "generic": [],
+      "missing": [],
+      "ready": true,
+    },
     "scenes": [
       {
         "rendererType": "diagram_component",
         "sectionId": "practical_outcomes",
         "visualAssetId": "open_vented_to_unvented",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "system_fit_decision_map",
+        "visualAssetId": "system_fit_decision_map",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "stored_hot_water_recovery_timeline",
+        "visualAssetId": "stored_hot_water_recovery_timeline",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "unvented_safety",
+        "visualAssetId": "open_vented_to_unvented",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "sealed_system_pressure_window",
+        "visualAssetId": "system_pressure_window",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "pressure_vs_storage",
+        "visualAssetId": "pressure_vs_storage",
+      },
+      {
+        "rendererType": "none",
+        "sectionId": "quiet_scene_pressure_vs_storage",
+        "visualAssetId": undefined,
+      },
+    ],
+  },
+  {
+    "id": "system_unvented",
+    "routeCompleteness": {
+      "blocked": [],
+      "generic": [],
+      "missing": [],
+      "ready": true,
+    },
+    "scenes": [
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "system_fit_decision_map",
+        "visualAssetId": "system_fit_decision_map",
       },
       {
         "rendererType": "diagram_component",
@@ -22,34 +74,76 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
       },
       {
         "rendererType": "diagram_component",
-        "sectionId": "unvented_safety",
-        "visualAssetId": "open_vented_to_unvented",
+        "sectionId": "stored_hot_water_recovery_timeline",
+        "visualAssetId": "stored_hot_water_recovery_timeline",
       },
-    ],
-  },
-  {
-    "id": "system_unvented",
-    "scenes": [
       {
         "rendererType": "diagram_component",
-        "sectionId": "system_fit_decision_map",
-        "visualAssetId": "system_fit_decision_map",
+        "sectionId": "magnetic_filter_capture",
+        "visualAssetId": "magnetic_filter_capture",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "sealed_system_pressure_window",
+        "visualAssetId": "system_pressure_window",
       },
     ],
   },
   {
     "id": "combi",
+    "routeCompleteness": {
+      "blocked": [],
+      "generic": [],
+      "missing": [],
+      "ready": true,
+    },
     "scenes": [
       {
         "rendererType": "diagram_component",
         "sectionId": "system_fit_decision_map",
         "visualAssetId": "system_fit_decision_map",
       },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "flow_restriction_bottleneck",
+        "visualAssetId": "flow_restriction_bottleneck",
+      },
+      {
+        "rendererType": "none",
+        "sectionId": "quiet_scene_flow_restriction_bottleneck",
+        "visualAssetId": undefined,
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "steady_running",
+        "visualAssetId": "weather_compensation_curve",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "magnetic_filter_capture",
+        "visualAssetId": "magnetic_filter_capture",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "sealed_system_pressure_window",
+        "visualAssetId": "system_pressure_window",
+      },
     ],
   },
   {
     "id": "heat_pump",
+    "routeCompleteness": {
+      "blocked": [],
+      "generic": [],
+      "missing": [],
+      "ready": true,
+    },
     "scenes": [
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "system_fit_decision_map",
+        "visualAssetId": "system_fit_decision_map",
+      },
       {
         "rendererType": "diagram_component",
         "sectionId": "warm_not_hot_radiators",
@@ -66,9 +160,14 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
         "visualAssetId": "weather_compensation_curve",
       },
       {
-        "rendererType": "none",
+        "rendererType": "diagram_component",
         "sectionId": "winter_behaviour",
-        "visualAssetId": "heat_pump_defrost",
+        "visualAssetId": "system_pressure_window",
+      },
+      {
+        "rendererType": "diagram_component",
+        "sectionId": "sealed_system_pressure_window",
+        "visualAssetId": "system_pressure_window",
       },
     ],
   },

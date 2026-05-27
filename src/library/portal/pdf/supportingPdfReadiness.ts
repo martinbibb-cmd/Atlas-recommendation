@@ -66,12 +66,21 @@ function collectCustomerFacingText(model: PortalJourneyPrintModelV1): string[] {
   ];
 
   const sectionText = model.sections.flatMap((section) => [
-    section.heading,
-    section.summary,
-    section.keyTakeaway,
+    ...(section.storyScene != null
+      ? [
+        section.storyScene.title,
+        section.storyScene.customerTakeaway,
+        section.storyScene.whyItMatters,
+        section.storyScene.whatYouWillNotice,
+      ]
+      : [
+        section.heading,
+        section.summary,
+        section.keyTakeaway,
+        ...section.items,
+      ]),
     section.reassurance,
     ...(section.diagramCaption ? [section.diagramCaption] : []),
-    ...section.items,
   ]);
   const recommendationReasonText = model.recommendationReasons.flatMap((reason) => [
     reason.homeFact,
@@ -266,6 +275,12 @@ export function assessSupportingPdfReadiness(
   }
   if ((model.contentSource?.sceneDiagnostics ?? []).some((diag) => diag.blockingReasons.length > 0)) {
     blockingReasons.push('One or more scene visuals are unresolved for PDF rendering.');
+  }
+  const routeCompletenessAudit = model.contentSource?.routeCompletenessAudit;
+  if (routeCompletenessAudit != null && !routeCompletenessAudit.ready) {
+    blockingReasons.push(
+      `Route completeness failed for ${routeCompletenessAudit.routeId}: missing=${routeCompletenessAudit.missingRequirementIds.join(', ') || 'none'} blocked=${routeCompletenessAudit.blockedRequirementIds.join(', ') || 'none'} generic=${routeCompletenessAudit.genericFallbackRequirementIds.join(', ') || 'none'}.`,
+    );
   }
 
   const missingRequiredDiagrams = getMissingRequiredDiagrams(model, requiredDiagramSectionIds);
