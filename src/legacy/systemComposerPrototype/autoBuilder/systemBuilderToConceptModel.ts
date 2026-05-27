@@ -4,7 +4,7 @@
  * Maps a SystemBuilderState (the UI survey model) to a SystemConceptModel
  * (the composable four-layer architecture model used by the Lego builder).
  *
- * This is the bridge between the survey step and the architecture visualiser.
+ * This is the bridge between the survey step and the prototype composer.
  * It converts the legacy heat-source taxonomy ('regular' / 'system' / 'combi' /
  * 'storage_combi') into the composable model that separates heat source from
  * DHW service and controls topology.
@@ -87,7 +87,7 @@ function mapEmitters(emitters: EmitterType | null): EmitterKind[] {
  * systemBuilderToConceptModel
  *
  * Converts a survey SystemBuilderState into a SystemConceptModel for use
- * by the architecture visualiser and the Lego graph builder.
+ * by the prototype composer and the prototype graph builder.
  *
  * @param state - The current SystemBuilderState from the survey.
  * @returns A SystemConceptModel representing the current system architecture.

@@ -1,8 +1,8 @@
 /**
- * LegoTechnixPage.tsx
+ * PrototypeComposerPage.tsx
  *
- * Top-level page for the Atlas System Composer — the interactive drag-and-drop
- * workbench for assembling heating system diagrams from first principles.
+ * Top-level page for the legacy System Composer prototype — the archived
+ * drag-and-drop workbench retained for diagnostics only.
  *
  * Wraps BuilderShell with a minimal chrome (back button + title) so it can
  * be rendered directly from the App navigation without modifications to the
@@ -15,7 +15,7 @@ interface Props {
   onBack: () => void;
 }
 
-export default function LegoTechnixPage({ onBack }: Props) {
+export default function PrototypeComposerPage({ onBack }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#f8fafc' }}>
       <div style={{

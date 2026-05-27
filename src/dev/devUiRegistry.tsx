@@ -12,7 +12,7 @@
 
 import type { ReactNode } from 'react';
 import ExplainersHubPage from '../explainers/ExplainersHubPage';
-import LegoTechnixPage from '../legacy/systemComposerPrototype/LegoTechnixPage';
+import PrototypeComposerPage from '../legacy/systemComposerPrototype/PrototypeComposerPage';
 import LifestyleInteractive from '../legacy/dayPainterPrototype/LifestyleInteractive';
 import LifestyleInteractiveCompare from '../legacy/dayPainterPrototype/LifestyleInteractiveCompare';
 import GlassBoxPanel from '../components/visualizers/GlassBoxPanel';
@@ -228,9 +228,9 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
   {
     id: 'lego-technix-page',
     commonName: 'Legacy Prototype Composer',
-    codeName: 'LegoTechnixPage',
-    fileName: 'LegoTechnixPage.tsx',
-    filePath: 'src/legacy/systemComposerPrototype/LegoTechnixPage.tsx',
+    codeName: 'PrototypeComposerPage',
+    fileName: 'PrototypeComposerPage.tsx',
+    filePath: 'src/legacy/systemComposerPrototype/PrototypeComposerPage.tsx',
     category: 'simulator',
     status: 'deprecated',
     notes:
@@ -239,11 +239,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     access: 'legacy_dev_only',
     domain: 'legacy/systemComposerPrototype',
     sourceFiles: [
-      'src/legacy/systemComposerPrototype/LegoTechnixPage.tsx',
+      'src/legacy/systemComposerPrototype/PrototypeComposerPage.tsx',
       'src/legacy/systemComposerPrototype/builder/BuilderShell.tsx',
     ],
     includeInCopyBox: false,
-    render: () => <LegoTechnixPage onBack={() => undefined} />,
+    render: () => <PrototypeComposerPage onBack={() => undefined} />,
   },
 
   // ── Presentation ──────────────────────────────────────────────────────────
