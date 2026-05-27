@@ -1928,6 +1928,8 @@ export function listScenarioNarrativeVisualAssetIds(): string[] {
 }
 
 function buildCustomerPdfVisualCoverageAudit(): CustomerPdfVisualCoverageAuditV1 {
+  const isTextOnlyScene = (scene: CustomerPdfVisualCoverageSceneV1): boolean =>
+    scene.classification !== 'lego_technic_canonical' || !scene.rendererAvailability.hasDiagramRenderer;
   const routes = Object.values(SCENARIO_NARRATIVE_PACKS).map((pack) => {
     const scenes = pack.scenes.map((scene) => {
       const rendererAvailability = getVisualAssetRendererAvailability(scene.visualAssetId);
@@ -1956,11 +1958,11 @@ function buildCustomerPdfVisualCoverageAudit(): CustomerPdfVisualCoverageAuditV1
     const retiredVisualsRequested = dedupeStrings(scenes
       .filter((scene) => scene.classification === 'retired_non_physical')
       .map((scene) => scene.requestedVisualAssetId));
-    const missingCanonicalVisuals = dedupeStrings(scenes
-      .filter((scene) => scene.classification !== 'lego_technic_canonical' || !scene.rendererAvailability.hasDiagramRenderer)
+    const nonCanonicalOrUnavailableVisuals = dedupeStrings(scenes
+      .filter(isTextOnlyScene)
       .map((scene) => scene.requestedVisualAssetId));
     const textOnlySceneSectionIds = dedupeStrings(scenes
-      .filter((scene) => scene.classification !== 'lego_technic_canonical' || !scene.rendererAvailability.hasDiagramRenderer)
+      .filter(isTextOnlyScene)
       .map((scene) => scene.sectionId)) as PortalJourneyPrintSectionV1['sectionId'][];
 
     return {
@@ -1970,7 +1972,7 @@ function buildCustomerPdfVisualCoverageAudit(): CustomerPdfVisualCoverageAuditV1
       scenes,
       summary: {
         canonicalVisualsAvailable,
-        missingCanonicalVisuals,
+        missingCanonicalVisuals: nonCanonicalOrUnavailableVisuals,
         retiredVisualsRequested,
         textOnlySceneSectionIds,
       },
