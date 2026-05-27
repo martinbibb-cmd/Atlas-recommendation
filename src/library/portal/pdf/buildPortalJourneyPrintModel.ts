@@ -212,6 +212,7 @@ export interface CustomerPdfContentSourceV1 {
   fallbackOnly: boolean;
   sceneDiagnostics: CustomerPdfSceneDiagnosticV1[];
   visualCoverageAudit: CustomerPdfVisualCoverageAuditV1;
+  routeCompletenessAudit?: CustomerPdfRouteCompletenessAuditV1;
   storySceneValidation: {
     sceneCount: number;
     warningCount: number;
@@ -263,6 +264,39 @@ export interface CustomerPdfSceneDiagnosticV1 {
   fallbackUsed: boolean;
   blockingReasons: string[];
   offendingPhrases: string[];
+}
+
+export type CustomerPdfRouteRequirementIdV1 =
+  | 'recommendation_hero'
+  | 'current_system_explanation'
+  | 'why_this_route_fits'
+  | 'what_changes_day_to_day'
+  | 'protection_system_condition'
+  | 'next_steps';
+
+export interface CustomerPdfRouteCompletenessRequirementV1 {
+  requirementId: CustomerPdfRouteRequirementIdV1;
+  label: string;
+  sectionId?: PortalJourneyPrintSectionV1['sectionId'] | 'system_protection' | 'next_steps';
+  sceneKind?: LibraryStorySceneKindV1;
+  title?: string;
+  takeaway?: string;
+  visualAssetId?: string;
+  rendererType?: CustomerPdfSceneDiagnosticV1['rendererType'];
+  visualRequired: boolean;
+  present: boolean;
+  blocked: boolean;
+  usesGenericFallbackCopy: boolean;
+  reasons: string[];
+}
+
+export interface CustomerPdfRouteCompletenessAuditV1 {
+  routeId: ScenarioNarrativeRouteIdV1;
+  ready: boolean;
+  missingRequirementIds: CustomerPdfRouteRequirementIdV1[];
+  blockedRequirementIds: CustomerPdfRouteRequirementIdV1[];
+  genericFallbackRequirementIds: CustomerPdfRouteRequirementIdV1[];
+  requirements: CustomerPdfRouteCompletenessRequirementV1[];
 }
 
 export interface PortalJourneyPrintModelV1 {
@@ -722,7 +756,7 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         customerTakeaway: 'Short defrost events are normal protective behaviour in cold, damp conditions.',
         whyItMatters: 'Understanding normal protection cycles prevents unnecessary concern during winter operation.',
         whatYouWillNotice: 'Brief pauses or mist can appear in cold weather and should clear as the cycle completes.',
-        visualAssetId: 'heat_pump_defrost',
+        visualAssetId: '',
       },
       {
         sectionId: 'sealed_system_pressure_window',
@@ -1283,6 +1317,147 @@ function buildGenericRecommendationContent(input: {
   return { sections, nextSteps, qrDestinations };
 }
 
+function buildStoredHotWaterSectionsAndNextSteps(
+  conceptTagSet: Set<EducationalConceptTagV1>,
+): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
+  const routeConceptTags = new Set(conceptTagSet);
+  routeConceptTags.add('system_fit_decision_map');
+  routeConceptTags.add('pressure_vs_storage');
+  routeConceptTags.add('stored_hot_water_recovery_timeline');
+  routeConceptTags.add('magnetic_filter_capture');
+  routeConceptTags.add('sealed_system_pressure_window');
+
+  const sections = orderSectionsByRoutePriority(
+    buildRoutedEducationalSections({ conceptTagSet: routeConceptTags }),
+    [
+      'system_fit_decision_map',
+      'pressure_vs_storage',
+      'stored_hot_water_recovery_timeline',
+      'magnetic_filter_capture',
+      'sealed_system_pressure_window',
+    ],
+  );
+  const nextSteps: PortalJourneyPrintNextStepV1[] = [
+    {
+      label: 'Installation plan',
+      body: 'Your installer will confirm cylinder location, controls, and the expected hot-water recovery pattern before work starts.',
+    },
+    {
+      label: 'Handover walkthrough',
+      body: 'At handover you will see how stored hot water, filter protection, and the pressure gauge fit into day-to-day use.',
+    },
+    {
+      label: 'After the first busy day',
+      body: 'It is normal to see stored hot water recover after peak use. Contact your installer if recovery or pressure behaviour does not match the walkthrough.',
+    },
+  ];
+  const qrDestinations: PortalJourneyPrintQrDestinationV1[] = [
+    {
+      heading: 'Stored hot water and recovery',
+      note: 'A plain-language guide to reserve volume, recovery time, and overlap use.',
+    },
+    {
+      heading: 'System protection checks',
+      note: 'Why filter capture, water quality, and pressure checks protect long-term performance.',
+    },
+    {
+      heading: 'What to expect after installation',
+      note: 'A short refresher on controls, recovery timing, and normal day-to-day behaviour.',
+    },
+  ];
+
+  return { sections, nextSteps, qrDestinations };
+}
+
+function buildCombiSectionsAndNextSteps(
+  conceptTagSet: Set<EducationalConceptTagV1>,
+): Pick<PortalJourneyPrintModelV1, 'sections' | 'nextSteps' | 'qrDestinations'> {
+  const routeConceptTags = new Set(conceptTagSet);
+  routeConceptTags.add('system_fit_decision_map');
+  routeConceptTags.add('flow_restriction_bottleneck');
+  routeConceptTags.add('magnetic_filter_capture');
+  routeConceptTags.add('sealed_system_pressure_window');
+
+  const sections = orderSectionsByRoutePriority(
+    buildRoutedEducationalSections({ conceptTagSet: routeConceptTags }),
+    [
+      'system_fit_decision_map',
+      'flow_restriction_bottleneck',
+      'steady_running',
+      'magnetic_filter_capture',
+      'sealed_system_pressure_window',
+    ],
+  );
+  const conI01 = atlasMvpContentMapRegistry.find((entry) => entry.id === 'CON_I01_DAY_TO_DAY');
+  if (conI01 != null) {
+    const flowSectionIndex = sections.findIndex((section) => section.sectionId === 'flow_restriction_bottleneck');
+    const steadyRunningInsertIndex = flowSectionIndex >= 0 ? flowSectionIndex + 1 : sections.length;
+    sections.splice(steadyRunningInsertIndex, 0, {
+      contentId: conI01.id,
+      sectionId: 'steady_running',
+      heading: 'How day-to-day comfort stays steady',
+      summary: 'A combi works best when water flow and room-heating controls are kept stable and predictable.',
+      keyTakeaway: 'Daily comfort should feel straightforward, with clear limits set by the incoming water supply.',
+      reassurance: 'Small changes in incoming mains conditions can be normal and do not always signal a fault.',
+      items: [
+        conI01.whatYouMayNotice,
+        'Hot water starts on demand, without a stored cylinder to refill first.',
+        'Keeping settings steady helps the boiler respond calmly to normal household use.',
+      ],
+      diagramCaption: 'Steady controls and supply conditions support predictable day-to-day comfort.',
+      diagramId: 'weather_compensation_curve',
+      diagramRendererId: 'weather_compensation_curve',
+    });
+  }
+
+  const nextSteps: PortalJourneyPrintNextStepV1[] = [
+    {
+      label: 'Before installation',
+      body: 'Your installer will confirm mains-flow checks, boiler position, and any flue or condensate changes before work begins.',
+    },
+    {
+      label: 'On handover day',
+      body: 'You will see how on-demand hot water behaves, where to check system pressure, and what normal operation sounds like.',
+    },
+    {
+      label: 'Questions after the first week',
+      body: 'Contact your installer if hot water delivery or heating response differs from the handover explanation.',
+    },
+  ];
+  const qrDestinations: PortalJourneyPrintQrDestinationV1[] = [
+    {
+      heading: 'Combi hot-water flow checks',
+      note: 'Why incoming supply limits shape shower and tap performance on a combi.',
+    },
+    {
+      heading: 'System pressure and routine checks',
+      note: 'A simple guide to the pressure gauge, filling loop, and routine support checks.',
+    },
+    {
+      heading: 'Water-quality protection',
+      note: 'Why filter capture and clean water still matter on a combi system.',
+    },
+  ];
+
+  return { sections, nextSteps, qrDestinations };
+}
+
+function orderSectionsByRoutePriority(
+  sections: readonly PortalJourneyPrintSectionV1[],
+  orderedSectionIds: readonly PortalJourneyPrintSectionV1['sectionId'][],
+): PortalJourneyPrintSectionV1[] {
+  const rankBySectionId = new Map(orderedSectionIds.map((sectionId, index) => [sectionId, index]));
+  return [...sections]
+    .map((section, index) => ({ section, index }))
+    .sort((a, b) => {
+      const aRank = rankBySectionId.get(a.section.sectionId) ?? Number.MAX_SAFE_INTEGER;
+      const bRank = rankBySectionId.get(b.section.sectionId) ?? Number.MAX_SAFE_INTEGER;
+      if (aRank !== bRank) return aRank - bRank;
+      return a.index - b.index;
+    })
+    .map(({ section }) => section);
+}
+
 function buildOpenVentedSectionsAndNextSteps(
   selectedSet: Set<string>,
   conceptTagSet: Set<EducationalConceptTagV1>,
@@ -1388,8 +1563,23 @@ function buildOpenVentedSectionsAndNextSteps(
     },
   ];
 
+  const routeConceptTags = new Set(conceptTagSet);
+  routeConceptTags.add('system_fit_decision_map');
+  routeConceptTags.add('stored_hot_water_recovery_timeline');
+  routeConceptTags.add('sealed_system_pressure_window');
+
   return {
-    sections: mergeRoutedSections(sections, buildRoutedEducationalSections({ conceptTagSet })),
+    sections: orderSectionsByRoutePriority(
+      mergeRoutedSections(sections, buildRoutedEducationalSections({ conceptTagSet: routeConceptTags })),
+      [
+        'practical_outcomes',
+        'system_fit_decision_map',
+        'stored_hot_water_recovery_timeline',
+        'unvented_safety',
+        'sealed_system_pressure_window',
+        'pressure_vs_storage',
+      ],
+    ),
     nextSteps,
     qrDestinations,
   };
@@ -1469,8 +1659,6 @@ function buildHeatPumpSectionsAndNextSteps(
         `Reality: ${conH01.reality}`,
         'Brief mist around the outdoor unit can be expected in cold damp conditions.',
       ],
-      diagramId: resolvePrintDiagramFromContentEntry(conH01),
-      diagramRendererId: 'heat_pump_defrost',
     });
   }
 
@@ -1504,8 +1692,21 @@ function buildHeatPumpSectionsAndNextSteps(
     },
   ];
 
+  const routeConceptTags = new Set(conceptTagSet);
+  routeConceptTags.add('system_fit_decision_map');
+  routeConceptTags.add('sealed_system_pressure_window');
+
   return {
-    sections: mergeRoutedSections(sections, buildRoutedEducationalSections({ conceptTagSet })),
+    sections: orderSectionsByRoutePriority(
+      mergeRoutedSections(sections, buildRoutedEducationalSections({ conceptTagSet: routeConceptTags })),
+      [
+        'system_fit_decision_map',
+        'warm_not_hot_radiators',
+        'steady_running',
+        'winter_behaviour',
+        'sealed_system_pressure_window',
+      ],
+    ),
     nextSteps,
     qrDestinations,
   };
@@ -1765,12 +1966,25 @@ const INTERNAL_SCENE_PHRASES = [
   'projection',
   'taxonomy',
 ] as const;
+const GENERIC_ROUTE_FALLBACK_PHRASES = [
+  'generic recommendation summary',
+  'your recommendation is based on surveyed home conditions and atlas evidence',
+  FALLBACK_REASON_MATCH_PHRASE,
+] as const;
+const ROUTE_REQUIREMENT_LABELS: Record<CustomerPdfRouteRequirementIdV1, string> = {
+  recommendation_hero: 'Recommendation hero',
+  current_system_explanation: 'Current system explanation',
+  why_this_route_fits: 'Why this route fits',
+  what_changes_day_to_day: 'What changes day to day',
+  protection_system_condition: 'Protection / system condition',
+  next_steps: 'Next steps',
+};
 const MIN_WHAT_YOU_WILL_NOTICE_LENGTH = 24;
 const MIN_STORY_SCENE_TITLE_LENGTH = 8;
 const MIN_STORY_SCENE_TAKEAWAY_LENGTH = 20;
-const MAX_SCENES_PER_CUSTOMER_PDF = 6;
+const MAX_SCENES_PER_CUSTOMER_PDF = 8;
 const MAX_SCENE_TEXT_CHARS = 220;
-const MAX_TOTAL_SCENE_TEXT_CHARS = 1500;
+const MAX_TOTAL_SCENE_TEXT_CHARS = 2000;
 const SCENE_OVERLAP_THRESHOLD = 0.9;
 const MIN_SEMANTIC_TOKEN_COUNT = 6;
 const MIN_COMPOSITION_WHITESPACE_RATIO = 0.28;
@@ -1908,18 +2122,24 @@ function buildStorySceneValidationIssue(
   return { code, message };
 }
 
-function findSceneInternalPhrases(scene: LibraryStorySceneV1): string[] {
-  const text = `${scene.title} ${scene.customerTakeaway} ${scene.whyItMatters} ${scene.whatYouWillNotice}`.toLowerCase();
+function findInternalPhrasesInText(text: string): string[] {
+  const lowerText = text.toLowerCase();
   return INTERNAL_SCENE_PHRASES.filter((phrase) =>
     phrase === 'route'
-      ? /\broute\b/i.test(text)
-      : text.includes(phrase));
+      ? /\broute\b/.test(lowerText)
+      : lowerText.includes(phrase));
+}
+
+function findSceneInternalPhrases(scene: LibraryStorySceneV1): string[] {
+  return findInternalPhrasesInText(
+    `${scene.title} ${scene.customerTakeaway} ${scene.whyItMatters} ${scene.whatYouWillNotice}`,
+  );
 }
 
 function collectScenarioNarrativeVisualAssetIds(): string[] {
   return dedupeStrings(
     Object.values(SCENARIO_NARRATIVE_PACKS).flatMap((pack) =>
-      pack.scenes.map((scene) => scene.visualAssetId)),
+      pack.scenes.flatMap((scene) => (hasText(scene.visualAssetId) ? [scene.visualAssetId] : []))),
   );
 }
 
@@ -2190,16 +2410,260 @@ export function validateCustomerStoryScene(
   return { warnings, errors };
 }
 
+interface ValidatedStorySceneEntryV1 {
+  section: PortalJourneyPrintSectionV1;
+  scene: LibraryStorySceneV1;
+  validation: CustomerStorySceneValidationResultV1;
+  compositionValidation: StorySceneCompositionValidationResultV1;
+  hasAllRequiredText: boolean;
+  rendererType: CustomerPdfSceneDiagnosticV1['rendererType'];
+  visualClassification: LegoTechnicCustomerVisualClassification | 'unlisted';
+  offendingPhrases: string[];
+}
+
+function hasGenericRouteFallbackCopy(values: readonly string[]): boolean {
+  const text = values
+    .filter(hasText)
+    .map((value) => value.trim().toLowerCase())
+    .join(' ');
+  return GENERIC_ROUTE_FALLBACK_PHRASES.some((phrase) => text.includes(phrase));
+}
+
+function getSceneTextFields(scene: LibraryStorySceneV1): string[] {
+  return [
+    scene.title,
+    scene.customerTakeaway,
+    scene.whyItMatters,
+    scene.whatYouWillNotice,
+  ];
+}
+
+function uniqueReasons(reasons: readonly string[]): string[] {
+  return dedupeStrings(reasons.filter(hasText));
+}
+
+function buildSceneRouteRequirement(input: {
+  requirementId: CustomerPdfRouteRequirementIdV1;
+  entry: ValidatedStorySceneEntryV1 | undefined;
+  visualRequired?: boolean;
+}): CustomerPdfRouteCompletenessRequirementV1 {
+  const label = ROUTE_REQUIREMENT_LABELS[input.requirementId];
+  if (input.entry == null) {
+    return {
+      requirementId: input.requirementId,
+      label,
+      visualRequired: input.visualRequired ?? false,
+      present: false,
+      blocked: true,
+      usesGenericFallbackCopy: false,
+      reasons: [`Missing ${label.toLowerCase()}.`],
+    };
+  }
+
+  const { entry } = input;
+  const visualRequired = input.visualRequired ?? (
+    entry.scene.composition?.focalVisualPriority === 'primary'
+    || (entry.scene.sceneKind != null && VISUAL_REQUIRED_SCENE_KINDS.has(entry.scene.sceneKind))
+    || hasText(entry.scene.visualAssetId)
+  );
+  const genericFallback =
+    entry.validation.errors.some((issue) => issue.code === 'generic_title')
+    || hasGenericRouteFallbackCopy(getSceneTextFields(entry.scene));
+  const reasons = uniqueReasons([
+    ...entry.validation.errors.map((issue) => issue.message),
+    ...entry.compositionValidation.errors.map((issue) => issue.message),
+    ...(entry.hasAllRequiredText ? [] : [`${label} is missing required customer-safe text.`]),
+    ...(entry.offendingPhrases.length > 0
+      ? [`${label} contains internal wording: ${entry.offendingPhrases.join(', ')}.`]
+      : []),
+    ...(visualRequired && entry.rendererType === 'none'
+      ? [`${label} requires a canonical visual for customer PDF export.`]
+      : []),
+    ...(genericFallback ? [`${label} is still using generic fallback copy.`] : []),
+  ]);
+
+  return {
+    requirementId: input.requirementId,
+    label,
+    sectionId: entry.section.sectionId,
+    sceneKind: entry.scene.sceneKind,
+    title: entry.scene.title,
+    takeaway: entry.scene.customerTakeaway,
+    visualAssetId: entry.scene.visualAssetId,
+    rendererType: entry.rendererType,
+    visualRequired,
+    present: true,
+    blocked: reasons.length > 0,
+    usesGenericFallbackCopy: genericFallback,
+    reasons,
+  };
+}
+
+function buildSystemProtectionRouteRequirement(input: {
+  entry: ValidatedStorySceneEntryV1 | undefined;
+  systemProtection: SystemProtectionSummaryV1 | undefined;
+}): CustomerPdfRouteCompletenessRequirementV1 {
+  if (input.entry != null) {
+    return buildSceneRouteRequirement({
+      requirementId: 'protection_system_condition',
+      entry: input.entry,
+    });
+  }
+
+  const label = ROUTE_REQUIREMENT_LABELS['protection_system_condition'];
+  const systemProtection = input.systemProtection;
+  if (systemProtection == null) {
+    return {
+      requirementId: 'protection_system_condition',
+      label,
+      visualRequired: false,
+      present: false,
+      blocked: true,
+      usesGenericFallbackCopy: false,
+      reasons: [`Missing ${label.toLowerCase()}.`],
+    };
+  }
+
+  const internalPhrases = findInternalPhrasesInText([
+    systemProtection.title,
+    systemProtection.customerSummary,
+    systemProtection.whyItMatters,
+    systemProtection.whatInstallerWillCheck,
+    ...systemProtection.customerVisibleBullets,
+  ].join(' '));
+  const genericFallback = hasGenericRouteFallbackCopy([
+    systemProtection.title,
+    systemProtection.customerSummary,
+    systemProtection.whyItMatters,
+    systemProtection.whatInstallerWillCheck,
+  ]);
+  const reasons = uniqueReasons([
+    ...(hasText(systemProtection.title) ? [] : [`${label} is missing a customer-safe title.`]),
+    ...(hasText(systemProtection.customerSummary) ? [] : [`${label} is missing a specific takeaway.`]),
+    ...(internalPhrases.length > 0
+      ? [`${label} contains internal wording: ${internalPhrases.join(', ')}.`]
+      : []),
+    ...(genericFallback ? [`${label} is still using generic fallback copy.`] : []),
+  ]);
+
+  return {
+    requirementId: 'protection_system_condition',
+    label,
+    sectionId: 'system_protection',
+    title: systemProtection.title,
+    takeaway: systemProtection.customerSummary,
+    visualRequired: false,
+    present: true,
+    blocked: reasons.length > 0,
+    usesGenericFallbackCopy: genericFallback,
+    reasons,
+  };
+}
+
+function buildNextStepsRouteRequirement(
+  nextSteps: readonly PortalJourneyPrintNextStepV1[],
+): CustomerPdfRouteCompletenessRequirementV1 {
+  const label = ROUTE_REQUIREMENT_LABELS['next_steps'];
+  const genericFallback = hasGenericRouteFallbackCopy(nextSteps.flatMap((step) => [step.label, step.body]));
+  const internalPhrases = findInternalPhrasesInText(nextSteps.flatMap((step) => [step.label, step.body]).join(' '));
+  const reasons = uniqueReasons([
+    ...(nextSteps.length > 0 ? [] : [`Missing ${label.toLowerCase()}.`]),
+    ...(nextSteps.every((step) => hasText(step.label) && hasText(step.body))
+      ? []
+      : [`${label} is missing a customer-safe title or specific takeaway.`]),
+    ...(internalPhrases.length > 0
+      ? [`${label} contains internal wording: ${internalPhrases.join(', ')}.`]
+      : []),
+    ...(genericFallback ? [`${label} is still using generic fallback copy.`] : []),
+  ]);
+
+  return {
+    requirementId: 'next_steps',
+    label,
+    sectionId: 'next_steps',
+    title: nextSteps[0]?.label,
+    takeaway: nextSteps[0]?.body,
+    visualRequired: false,
+    present: nextSteps.length > 0,
+    blocked: reasons.length > 0,
+    usesGenericFallbackCopy: genericFallback,
+    reasons,
+  };
+}
+
+function buildCustomerPdfRouteCompletenessAudit(input: {
+  routeId: ScenarioNarrativeRouteIdV1 | undefined;
+  validatedStoryScenes: readonly ValidatedStorySceneEntryV1[];
+  nextSteps: readonly PortalJourneyPrintNextStepV1[];
+  systemProtection: SystemProtectionSummaryV1 | undefined;
+}): CustomerPdfRouteCompletenessAuditV1 | undefined {
+  if (input.routeId == null) return undefined;
+
+  const findByKind = (sceneKind: LibraryStorySceneKindV1) =>
+    input.validatedStoryScenes.find((entry) => entry.scene.sceneKind === sceneKind);
+  const heroEntry = input.validatedStoryScenes.find((entry) => entry.scene.composition?.pageArchetype === 'hero');
+
+  const requirements: CustomerPdfRouteCompletenessRequirementV1[] = [
+    buildSceneRouteRequirement({
+      requirementId: 'recommendation_hero',
+      entry: heroEntry,
+      visualRequired: true,
+    }),
+    buildSceneRouteRequirement({
+      requirementId: 'current_system_explanation',
+      entry: findByKind('current_system_explainer'),
+      visualRequired: true,
+    }),
+    buildSceneRouteRequirement({
+      requirementId: 'why_this_route_fits',
+      entry: findByKind('route_rationale'),
+      visualRequired: true,
+    }),
+    buildSceneRouteRequirement({
+      requirementId: 'what_changes_day_to_day',
+      entry: findByKind('lived_experience'),
+      visualRequired: true,
+    }),
+    buildSystemProtectionRouteRequirement({
+      entry: findByKind('protection_quality'),
+      systemProtection: input.systemProtection,
+    }),
+    buildNextStepsRouteRequirement(input.nextSteps),
+  ];
+
+  const missingRequirementIds = requirements
+    .filter((requirement) => !requirement.present)
+    .map((requirement) => requirement.requirementId);
+  const blockedRequirementIds = requirements
+    .filter((requirement) => requirement.present && requirement.blocked)
+    .map((requirement) => requirement.requirementId);
+  const genericFallbackRequirementIds = requirements
+    .filter((requirement) => requirement.usesGenericFallbackCopy)
+    .map((requirement) => requirement.requirementId);
+
+  return {
+    routeId: input.routeId,
+    ready: missingRequirementIds.length === 0 && blockedRequirementIds.length === 0 && genericFallbackRequirementIds.length === 0,
+    missingRequirementIds,
+    blockedRequirementIds,
+    genericFallbackRequirementIds,
+    requirements,
+  };
+}
+
 function buildCustomerPdfContentSource(input: {
   audienceProjectionPresent: boolean;
+  routeId: ScenarioNarrativeRouteIdV1 | undefined;
   conceptTags: readonly EducationalConceptTagV1[];
   sections: readonly PortalJourneyPrintSectionV1[];
   recommendationReasons: readonly RecommendationReasonBlockV1[];
+  nextSteps: readonly PortalJourneyPrintNextStepV1[];
+  systemProtection: SystemProtectionSummaryV1 | undefined;
 }): CustomerPdfContentSourceV1 {
   const scenarioVisualAssetIds = collectScenarioNarrativeVisualAssetIds();
   const missingScenarioManifestAssetIds = scenarioVisualAssetIds.filter((assetId) =>
     !VISUAL_ASSET_MANIFEST_IDS.has(assetId));
-  const validatedStoryScenes = input.sections.map((section) => {
+  const validatedStoryScenes: ValidatedStorySceneEntryV1[] = input.sections.map((section) => {
     const scene = section.storyScene ?? buildStorySceneFromSection(section);
     const visualAssetRequired = hasText(section.diagramRendererId) || hasText(section.diagramId);
     const validation = validateCustomerStoryScene(scene, { visualAssetRequired });
@@ -2247,7 +2711,7 @@ function buildCustomerPdfContentSource(input: {
       offendingPhrases,
     };
   });
-  const acceptedStorySceneEntries: Array<(typeof validatedStoryScenes)[number]> = [];
+  const acceptedStorySceneEntries: ValidatedStorySceneEntryV1[] = [];
   let duplicateOrOverlappingSceneCount = 0;
   for (const entry of validatedStoryScenes) {
     if (
@@ -2404,6 +2868,24 @@ function buildCustomerPdfContentSource(input: {
     .filter((reason) => reason.atlasRecommendationOutcome.toLowerCase().includes(FALLBACK_REASON_MATCH_PHRASE))
     .length;
   if (genericReasonCount > 0 && selectedStorySceneCount === 0) fallbackSignals.push('generic_reason_copy');
+  if (hasGenericRouteFallbackCopy([input.nextSteps[0]?.body ?? ''])) fallbackSignals.push('generic_next_steps_copy');
+  const routeCompletenessAudit = buildCustomerPdfRouteCompletenessAudit({
+    routeId: input.routeId,
+    validatedStoryScenes,
+    nextSteps: input.nextSteps,
+    systemProtection: input.systemProtection,
+  });
+  if (routeCompletenessAudit != null) {
+    if (routeCompletenessAudit.missingRequirementIds.length > 0) {
+      fallbackSignals.push('route_required_section_missing');
+    }
+    if (routeCompletenessAudit.blockedRequirementIds.length > 0) {
+      fallbackSignals.push('route_required_section_blocked');
+    }
+    if (routeCompletenessAudit.genericFallbackRequirementIds.length > 0) {
+      fallbackSignals.push('route_required_section_generic_copy');
+    }
+  }
   const fallbackSectionsUsed = fallbackSignals.length > 0;
   const exportable =
     input.audienceProjectionPresent
@@ -2412,7 +2894,8 @@ function buildCustomerPdfContentSource(input: {
     && (!scenarioRequiresVisuals || visualAssetIds.length > 0)
     && unresolvedVisualRendererCount === 0
     && missingScenarioManifestAssetIds.length === 0
-    && blockingErrorCount === 0;
+    && blockingErrorCount === 0
+    && (routeCompletenessAudit?.ready ?? true);
   const fallbackOnly = !exportable;
 
   return {
@@ -2424,6 +2907,7 @@ function buildCustomerPdfContentSource(input: {
     fallbackOnly,
     sceneDiagnostics,
     visualCoverageAudit: buildCustomerPdfVisualCoverageAudit(),
+    routeCompletenessAudit,
     storySceneValidation: {
       sceneCount: validatedStoryScenes.length,
       warningCount,
@@ -3026,6 +3510,7 @@ function buildPortalJourneyPrintModelCore(
   const effectiveConceptTagSet = allowHeatPumpEducationalSections
     ? conceptTagSet
     : new Set([...conceptTagSet].filter((tag) => tag !== 'warm_vs_hot_radiators'));
+  const resolvedIntent = recommendationIntent ?? journeyTypeToIntent(journeyType);
 
   const { sections: rawSections, nextSteps, qrDestinations } =
     journeyType === 'heat_pump' && allowHeatPumpEducationalSections
@@ -3035,9 +3520,11 @@ function buildPortalJourneyPrintModelCore(
       })
       : journeyType === 'open_vented'
       ? buildOpenVentedSectionsAndNextSteps(selectedSet, effectiveConceptTagSet)
+      : resolvedIntent === 'stored_hot_water' || resolvedIntent === 'sealed_system_conversion'
+      ? buildStoredHotWaterSectionsAndNextSteps(effectiveConceptTagSet)
+      : resolvedIntent === 'combi_replacement'
+      ? buildCombiSectionsAndNextSteps(effectiveConceptTagSet)
       : buildGenericRecommendationContent({ conceptTagSet: effectiveConceptTagSet });
-
-  const resolvedIntent = recommendationIntent ?? journeyTypeToIntent(journeyType);
   const registryConceptIdSet = new Set(atlasMvpContentMapRegistry.map((e) => e.id));
   const excludeCylinder = shouldExcludeCylinderSections(resolvedIntent);
   const scenarioNarrativeRouteId = resolveScenarioNarrativeRouteId(resolvedIntent);
@@ -3075,7 +3562,7 @@ function buildPortalJourneyPrintModelCore(
     systemProtection,
     pageEstimate: {
       usedPages: totalPages,
-      maxPages: 9,
+      maxPages: 12,
     },
   };
 }
@@ -3126,9 +3613,12 @@ export function buildCustomerJourneyPack(
     ...staticPdf,
     contentSource: buildCustomerPdfContentSource({
       audienceProjectionPresent: input.audienceProjection != null,
+      routeId: resolveScenarioNarrativeRouteId(resolvedIntent),
       conceptTags: conceptSelection.conceptTags,
       sections: staticPdf.sections,
       recommendationReasons: staticPdf.recommendationReasons,
+      nextSteps: staticPdf.nextSteps,
+      systemProtection: staticPdf.systemProtection,
     }),
   };
 

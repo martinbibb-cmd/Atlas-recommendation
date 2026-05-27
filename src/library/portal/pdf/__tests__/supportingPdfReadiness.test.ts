@@ -109,6 +109,31 @@ describe('assessSupportingPdfReadiness', () => {
     expect(result.blockingReasons.join(' ')).toMatch(/scene visuals are unresolved/i);
   });
 
+  it('blocks readiness when route completeness is missing required sections', () => {
+    const input = makeReadinessInput();
+    const result = assessSupportingPdfReadiness({
+      ...input,
+      model: {
+        ...input.model,
+        contentSource: {
+          ...input.model.contentSource!,
+          routeCompletenessAudit: {
+            routeId: 'regular_vented',
+            ready: false,
+            missingRequirementIds: ['what_changes_day_to_day'],
+            blockedRequirementIds: [],
+            genericFallbackRequirementIds: [],
+            requirements: [],
+          },
+        },
+      },
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.blockingReasons.join(' ')).toMatch(/route completeness failed/i);
+    expect(result.blockingReasons.join(' ')).toMatch(/what_changes_day_to_day/i);
+  });
+
   it('warns at the page-count limit and blocks with warning on overflow', () => {
     const input = makeReadinessInput();
 

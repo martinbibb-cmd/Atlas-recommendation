@@ -305,6 +305,17 @@ function formatVisualCoverageRouteScenes(
   return route.scenes.map((scene) => `${route.routeId}/${scene.sectionId} · requested visual=${scene.requestedVisualAssetId} · classification=${scene.classification} · renderer availability=diagram:${scene.rendererAvailability.hasDiagramRenderer ? 'yes' : 'no'}, print-fallback:${scene.rendererAvailability.hasPrintFallback ? 'yes' : 'no'} · blocked reason=${scene.blockedReason ?? 'none'}`);
 }
 
+function formatRouteCompletenessRequirement(
+  requirement: NonNullable<NonNullable<PortalJourneyPrintModelV1['contentSource']>['routeCompletenessAudit']>['requirements'][number],
+): string {
+  const sectionId = requirement.sectionId ?? 'none';
+  const renderer = requirement.rendererType ?? 'n/a';
+  const title = requirement.title ?? 'none';
+  const takeaway = requirement.takeaway ?? 'none';
+  const reasons = requirement.reasons.join(' | ') || 'none';
+  return `${requirement.requirementId} · label=${requirement.label} · present=${requirement.present ? 'yes' : 'no'} · blocked=${requirement.blocked ? 'yes' : 'no'} · generic=${requirement.usesGenericFallbackCopy ? 'yes' : 'no'} · section=${sectionId} · renderer=${renderer} · title=${title} · takeaway=${takeaway} · reasons=${reasons}`;
+}
+
 function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCoverProps) {
   return (
     <section
@@ -343,10 +354,10 @@ function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCov
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            <ul className="pjpp-cover-content-source" data-testid="pjpp-cover-visual-coverage-route-summary">
-              {contentSource.visualCoverageAudit.routes.map((route) => {
-                const routeSummary = formatVisualCoverageRouteSummary(route);
-                return (
+             <ul className="pjpp-cover-content-source" data-testid="pjpp-cover-visual-coverage-route-summary">
+               {contentSource.visualCoverageAudit.routes.map((route) => {
+                 const routeSummary = formatVisualCoverageRouteSummary(route);
+                 return (
                   <li key={route.routeId}>
                     {routeSummary}
                     <ul>
@@ -361,12 +372,22 @@ function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCov
                       ))}
                     </ul>
                   </li>
-                );
-              })}
-            </ul>
-          </>
-        ) : null}
-      </header>
+                 );
+               })}
+             </ul>
+             {contentSource.routeCompletenessAudit != null ? (
+               <ul className="pjpp-cover-content-source" data-testid="pjpp-cover-route-completeness">
+                 <li>
+                   route completeness · route={contentSource.routeCompletenessAudit.routeId} · ready={contentSource.routeCompletenessAudit.ready ? 'yes' : 'no'} · missing={contentSource.routeCompletenessAudit.missingRequirementIds.join(', ') || 'none'} · blocked={contentSource.routeCompletenessAudit.blockedRequirementIds.join(', ') || 'none'} · generic={contentSource.routeCompletenessAudit.genericFallbackRequirementIds.join(', ') || 'none'}
+                 </li>
+                 {contentSource.routeCompletenessAudit.requirements.map((requirement) => (
+                   <li key={requirement.requirementId}>{formatRouteCompletenessRequirement(requirement)}</li>
+                 ))}
+               </ul>
+             ) : null}
+           </>
+         ) : null}
+       </header>
 
       <PrintableJourneySummary
         propertyTitle={cover.addressSummary}

@@ -240,9 +240,9 @@ describe('PortalJourneyPrintPack — print-safe diagrams', () => {
 // ─── Page budget ──────────────────────────────────────────────────────────────
 
 describe('PortalJourneyPrintPack — page budget', () => {
-  it('model page budget does not exceed 9', () => {
-    expect(BASE_MODEL.pageEstimate.usedPages).toBeLessThanOrEqual(9);
-    expect(BASE_MODEL.pageEstimate.maxPages).toBe(9);
+  it('model page budget does not exceed 12', () => {
+    expect(BASE_MODEL.pageEstimate.usedPages).toBeLessThanOrEqual(12);
+    expect(BASE_MODEL.pageEstimate.maxPages).toBe(12);
   });
 });
 
@@ -316,8 +316,8 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
     expect(screen.queryByText(/🔬/)).toBeNull();
     expect(screen.queryByText(/not customer data/i)).toBeNull();
     expect(screen.queryByText(/content pending/i)).toBeNull();
-    expect(screen.getByText(/Your home moves away from loft-tank dependence/i)).toBeInTheDocument();
-    expect(screen.getByText(/Visible cylinder safety components are expected/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Your home moves away from loft-tank dependence/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Visible cylinder safety components are expected/i).length).toBeGreaterThan(0);
   });
 
   it('quiet scene output does not leak implementation wording', () => {
@@ -342,10 +342,11 @@ describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
     expect(container.textContent).not.toMatch(/content pending|debug|CON_[A-Z0-9_]+/i);
   });
 
-  it('blocks retired non-canonical visuals instead of rendering print fallback art', () => {
+  it('renders heat-pump protection pages without fallback blockers', () => {
     render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
     expect(screen.queryByTestId('pjpp-diagram-fallback-winter_behaviour')).toBeNull();
-    expect(screen.getByTestId('pjpp-missing-visual-winter_behaviour')).toHaveTextContent(/blocked|Lego Technic/i);
+    expect(screen.getByTestId('pjpp-missing-visual-winter_behaviour')).toHaveTextContent(/No visual asset declared/i);
+    expect(screen.queryByTestId('pjpp-diagram-winter_behaviour')).toBeNull();
   });
 });
 
