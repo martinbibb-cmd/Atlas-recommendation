@@ -756,7 +756,7 @@ const SCENARIO_NARRATIVE_PACKS: Record<ScenarioNarrativeRouteIdV1, ScenarioNarra
         customerTakeaway: 'Short defrost events are normal protective behaviour in cold, damp conditions.',
         whyItMatters: 'Understanding normal protection cycles prevents unnecessary concern during winter operation.',
         whatYouWillNotice: 'Brief pauses or mist can appear in cold weather and should clear as the cycle completes.',
-        visualAssetId: 'system_pressure_window',
+        visualAssetId: '',
       },
       {
         sectionId: 'sealed_system_pressure_window',
@@ -1390,7 +1390,9 @@ function buildCombiSectionsAndNextSteps(
   );
   const conI01 = atlasMvpContentMapRegistry.find((entry) => entry.id === 'CON_I01_DAY_TO_DAY');
   if (conI01 != null) {
-    sections.splice(2, 0, {
+    const flowSectionIndex = sections.findIndex((section) => section.sectionId === 'flow_restriction_bottleneck');
+    const steadyRunningInsertIndex = flowSectionIndex >= 0 ? flowSectionIndex + 1 : sections.length;
+    sections.splice(steadyRunningInsertIndex, 0, {
       contentId: conI01.id,
       sectionId: 'steady_running',
       heading: 'How day-to-day comfort stays steady',
@@ -1657,8 +1659,6 @@ function buildHeatPumpSectionsAndNextSteps(
         `Reality: ${conH01.reality}`,
         'Brief mist around the outdoor unit can be expected in cold damp conditions.',
       ],
-      diagramId: resolvePrintDiagramFromContentEntry(conH01),
-      diagramRendererId: 'heat_pump_defrost',
     });
   }
 
@@ -2126,7 +2126,7 @@ function findInternalPhrasesInText(text: string): string[] {
   const lowerText = text.toLowerCase();
   return INTERNAL_SCENE_PHRASES.filter((phrase) =>
     phrase === 'route'
-      ? /\broute\b/i.test(lowerText)
+      ? /\broute\b/.test(lowerText)
       : lowerText.includes(phrase));
 }
 
@@ -2139,7 +2139,7 @@ function findSceneInternalPhrases(scene: LibraryStorySceneV1): string[] {
 function collectScenarioNarrativeVisualAssetIds(): string[] {
   return dedupeStrings(
     Object.values(SCENARIO_NARRATIVE_PACKS).flatMap((pack) =>
-      pack.scenes.map((scene) => scene.visualAssetId)),
+      pack.scenes.flatMap((scene) => (hasText(scene.visualAssetId) ? [scene.visualAssetId] : []))),
   );
 }
 
@@ -2429,6 +2429,15 @@ function hasGenericRouteFallbackCopy(values: readonly string[]): boolean {
   return GENERIC_ROUTE_FALLBACK_PHRASES.some((phrase) => text.includes(phrase));
 }
 
+function getSceneTextFields(scene: LibraryStorySceneV1): string[] {
+  return [
+    scene.title,
+    scene.customerTakeaway,
+    scene.whyItMatters,
+    scene.whatYouWillNotice,
+  ];
+}
+
 function uniqueReasons(reasons: readonly string[]): string[] {
   return dedupeStrings(reasons.filter(hasText));
 }
@@ -2459,12 +2468,7 @@ function buildSceneRouteRequirement(input: {
   );
   const genericFallback =
     entry.validation.errors.some((issue) => issue.code === 'generic_title')
-    || hasGenericRouteFallbackCopy([
-      entry.scene.title,
-      entry.scene.customerTakeaway,
-      entry.scene.whyItMatters,
-      entry.scene.whatYouWillNotice,
-    ]);
+    || hasGenericRouteFallbackCopy(getSceneTextFields(entry.scene));
   const reasons = uniqueReasons([
     ...entry.validation.errors.map((issue) => issue.message),
     ...entry.compositionValidation.errors.map((issue) => issue.message),

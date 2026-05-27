@@ -160,9 +160,9 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
         "visualAssetId": "weather_compensation_curve",
       },
       {
-        "rendererType": "diagram_component",
+        "rendererType": "none",
         "sectionId": "winter_behaviour",
-        "visualAssetId": "system_pressure_window",
+        "visualAssetId": undefined,
       },
       {
         "rendererType": "diagram_component",

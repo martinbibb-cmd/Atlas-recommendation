@@ -1286,13 +1286,13 @@ describe('buildPortalJourneyPrintModel — core-route visual snapshots', () => {
 });
 
 describe('buildPortalJourneyPrintModel — heat-pump protection visuals', () => {
-  it('uses a canonical customer visual for heat-pump protection pages', () => {
+  it('allows heat-pump protection pages to remain text-led without blocker reasons', () => {
     const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
     const winterBehaviourScene = model.contentSource?.sceneDiagnostics.find((diag) => diag.sectionId === 'winter_behaviour');
     expect(winterBehaviourScene).toMatchObject({
-      visualAssetId: 'system_pressure_window',
-      visualClassification: 'lego_technic_canonical',
-      rendererType: 'diagram_component',
+      visualAssetId: undefined,
+      visualClassification: 'unlisted',
+      rendererType: 'none',
     });
     expect(winterBehaviourScene?.blockingReasons).toEqual([]);
   });
