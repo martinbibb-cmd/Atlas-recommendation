@@ -25,11 +25,11 @@ import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/Di
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
 import { PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
 import { REASON_ICON_BY_CATEGORY } from './recommendationReasonVisuals';
-import { printEquivalentByAssetId } from '../../printEquivalents/printEquivalentRegistry';
 import {
   getVisualAssetManifestEntry,
   getVisualAssetRendererAvailability,
 } from './visualAssetManifest';
+import { resolveLegoTechnicCustomerVisualDecision } from './legoTechnicCustomerVisualManifest';
 import './portalJourneyPrintPack.css';
 
 // ─── Legacy Diagram ID mapping ────────────────────────────────────────────────
@@ -99,6 +99,25 @@ function resolveSectionVisualPlan(section: PortalJourneyPrintSectionV1): Section
   }
 
   const availability = getVisualAssetRendererAvailability(visualAssetId);
+  const requestedRendererType: SectionVisualPlan['rendererType'] = availability.hasDiagramRenderer
+    ? 'diagram_component'
+    : availability.hasPrintFallback
+      ? 'print_fallback'
+      : 'none';
+  const visualDecision = resolveLegoTechnicCustomerVisualDecision({
+    visualId: visualAssetId,
+    rendererUsed: requestedRendererType,
+    surface: 'print_preview',
+  });
+  if (!visualDecision.allowed) {
+    return {
+      rendererType: 'none',
+      visualAssetId,
+      fallbackUsed: false,
+      blockingReason: visualDecision.blockedReason
+        ?? `Visual asset "${visualAssetId}" is blocked by legoTechnicCustomerVisualManifest.`,
+    };
+  }
   if (availability.hasDiagramRenderer && isDiagramRendererIdSupported(visualAssetId)) {
     return {
       rendererType: 'diagram_component',
@@ -107,21 +126,11 @@ function resolveSectionVisualPlan(section: PortalJourneyPrintSectionV1): Section
     };
   }
 
-  const fallbackAssetId = manifestEntry.printFallbackAssetId ?? visualAssetId;
-  if (availability.hasPrintFallback && printEquivalentByAssetId.has(fallbackAssetId)) {
-    return {
-      rendererType: 'print_fallback',
-      visualAssetId,
-      fallbackUsed: true,
-      fallbackAssetId,
-    };
-  }
-
   return {
     rendererType: 'none',
     visualAssetId,
     fallbackUsed: false,
-    blockingReason: `No PDF renderer or explicit print fallback is available for "${visualAssetId}".`,
+    blockingReason: `No canonical diagram renderer is available for "${visualAssetId}".`,
   };
 }
 
@@ -276,7 +285,7 @@ function formatSceneDiagnostics(diags: NonNullable<PortalJourneyPrintModelV1['co
   return diags.map((diag) => {
     const blocked = diag.blockingReasons.length > 0 ? `blocked: ${diag.blockingReasons.join(' | ')}` : 'blocked: no';
     const phrases = diag.offendingPhrases.length > 0 ? `offending phrases: ${diag.offendingPhrases.join(', ')}` : 'offending phrases: none';
-    return `${diag.sectionId} · asset=${diag.visualAssetId ?? 'none'} · renderer=${diag.rendererType} · fallback=${diag.fallbackUsed ? 'yes' : 'no'} · ${blocked} · ${phrases}`;
+    return `${diag.sectionId} · asset=${diag.visualAssetId ?? 'none'} · classification=${diag.visualClassification} · renderer=${diag.rendererType} · fallback=${diag.fallbackUsed ? 'yes' : 'no'} · ${blocked} · ${phrases}`;
   });
 }
 
@@ -449,29 +458,6 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
           ) : null}
         </figure>
       ) : null}
-      {visualPlan.rendererType === 'print_fallback' && pageArchetype !== 'quiet' ? (() => {
-        const fallback = printEquivalentByAssetId.get(visualPlan.fallbackAssetId);
-        if (fallback == null) return null;
-        return (
-          <figure
-            className="pjpp-section__diagram"
-            data-testid={`pjpp-diagram-fallback-${section.sectionId}`}
-            data-print-safe="true"
-          >
-            <div className="pjpp-section__diagram-caption">
-              <strong>{fallback.printTitle}</strong>
-            </div>
-            <p className="pjpp-section__summary">{fallback.summary}</p>
-            <ul className="pjpp-outcome-cards">
-              {fallback.steps.slice(0, 3).map((step) => (
-                <li key={step} className="pjpp-outcome-card">
-                  <p className="pjpp-outcome-card__copy">{step}</p>
-                </li>
-              ))}
-            </ul>
-          </figure>
-        );
-      })() : null}
       {import.meta.env.DEV && visualPlan.rendererType === 'none' && pageArchetype !== 'quiet' ? (
         <p
           className="pjpp-section__diagram-caption"

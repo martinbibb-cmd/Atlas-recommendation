@@ -10,6 +10,10 @@ import { getPortalEducationalContent } from '../../library/portal/getPortalEduca
 import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import { buildCalmWelcomePackFromAtlasDecision } from '../../library/packRenderer/buildCalmWelcomePackFromAtlasDecision';
 import {
+  resolveLegoTechnicCustomerVisualDecision,
+  type LegoTechnicCustomerVisualDecision,
+} from '../../library/portal/pdf/legoTechnicCustomerVisualManifest';
+import {
   EducationalInfoCard,
   PortalDiagramFrame,
   PortalMisconceptionBlock,
@@ -73,6 +77,15 @@ function stableUnique(values: string[]): string[] {
     }
   }
   return uniqueValues;
+}
+
+function formatVisualDecision(decision: LegoTechnicCustomerVisualDecision): string {
+  return [
+    `requested visual ID: ${decision.requestedVisualId ?? 'none'}`,
+    `visual classification: ${decision.classification}`,
+    `renderer used: ${decision.rendererUsed}`,
+    `blocked/retired reason: ${decision.blockedReason ?? 'none'}`,
+  ].join(' · ');
 }
 
 export function LibraryPortalSectionRenderer({
@@ -139,6 +152,20 @@ export function LibraryPortalSectionRenderer({
     () => stableUnique(authoredCards.flatMap((card) => card.suggestedAnimationIds)),
     [authoredCards],
   );
+  const animationVisualDecisions = useMemo(
+    () => matchedAnimationIds.map((animationId) => resolveLegoTechnicCustomerVisualDecision({
+      visualId: animationId,
+      rendererUsed: 'educational_animation',
+      surface: 'customer_portal',
+    })),
+    [matchedAnimationIds],
+  );
+  const canonicalAnimationIds = useMemo(
+    () => animationVisualDecisions
+      .filter((decision) => decision.allowed && decision.requestedVisualId != null)
+      .map((decision) => decision.requestedVisualId as string),
+    [animationVisualDecisions],
+  );
   const composedScenarioId = composed?.brandedViewModel.recommendedScenarioId;
   const recommendationMatches = Boolean(
     composedScenarioId
@@ -175,6 +202,48 @@ export function LibraryPortalSectionRenderer({
     }
     return [...diagramIds];
   }, [authoredCards]);
+  const recommendedScenarioId = composed?.brandedViewModel.recommendedScenarioId ?? '';
+  const recommendedSystemLabel = customerSummary.recommendedSystemLabel ?? '';
+  const hasStoredHotWaterPath = STORED_HOT_WATER_SCENARIO_PATTERN.test(recommendedScenarioId)
+    || STORED_HOT_WATER_LABEL_PATTERN.test(recommendedSystemLabel);
+  const hasLowTemperaturePath = LOW_TEMP_SCENARIO_PATTERN.test(recommendedScenarioId)
+    || selectedConceptIds.includes('hot_radiator_expectation')
+    || selectedConceptIds.includes('flow_temperature_living_with_it')
+    || routingTriggerTags.some((tag) => LOW_TEMP_TAG_PATTERN.test(tag));
+  const hasWaterMainConstraintPath = selectedConceptIds.some((conceptId) => WATER_CONSTRAINT_CONCEPT_IDS.includes(conceptId))
+    || routingTriggerTags.some((tag) => WATER_CONSTRAINT_TAG_PATTERN.test(tag));
+  const fallbackDiagrams = section
+    ? composed?.brandedViewModel.diagramsBySection?.[section.sectionId]
+      ?.filter((diagramId: string) => getDiagramById(diagramId))
+    : undefined;
+  const candidateDeterministicDiagrams = [
+    hasStoredHotWaterPath ? DETERMINISTIC_SCENARIO_DIAGRAMS.stored_hot_water : undefined,
+    hasLowTemperaturePath ? DETERMINISTIC_SCENARIO_DIAGRAMS.low_temp_heat : undefined,
+    hasWaterMainConstraintPath ? DETERMINISTIC_SCENARIO_DIAGRAMS.water_main_constraint : undefined,
+  ].filter((diagramId): diagramId is string => diagramId !== undefined);
+  const requestedDiagramIds = stableUnique([
+    ...candidateDeterministicDiagrams,
+    ...diagramsFromCards,
+    ...(fallbackDiagrams ?? []),
+  ]);
+  const diagramVisualDecisions = useMemo(
+    () => requestedDiagramIds.map((diagramId) => resolveLegoTechnicCustomerVisualDecision({
+      visualId: diagramId,
+      rendererUsed: 'diagram_component',
+      surface: 'customer_portal',
+    })),
+    [requestedDiagramIds],
+  );
+  const diagrams = useMemo(
+    () => diagramVisualDecisions
+      .filter((decision) => decision.allowed && decision.requestedVisualId != null)
+      .map((decision) => decision.requestedVisualId as string),
+    [diagramVisualDecisions],
+  );
+  const blockedVisualDecisions = useMemo(
+    () => [...animationVisualDecisions, ...diagramVisualDecisions].filter((decision) => !decision.allowed),
+    [animationVisualDecisions, diagramVisualDecisions],
+  );
 
   if (!isSafe || !section || !composed) {
     return (
@@ -186,38 +255,21 @@ export function LibraryPortalSectionRenderer({
             <p>selectedConceptIds: {selectedConceptIds.join(', ') || 'none'}</p>
             <p>matchedMvpContentIds: {matchedMvpContentIds.join(', ') || 'none'}</p>
             <p>matchedDiagramIds: none</p>
-            <p>matchedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}{matchedAnimationIds.length > 0 ? ' (animation planned)' : ''}</p>
+            <p>requestedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}</p>
+            <p>matchedAnimationIds: {canonicalAnimationIds.join(', ') || 'none'}</p>
+            {blockedVisualDecisions.map((decision) => (
+              <p key={`fallback-blocked-${decision.rendererUsed}-${decision.requestedVisualId ?? 'none'}`}>
+                {formatVisualDecision(decision)}
+              </p>
+            ))}
           </aside>
         ) : null}
         <DailyUsePanel quotes={fallbackQuotes} recommendedQuoteId={recommendedQuoteId} />
       </div>
     );
   }
-  const recommendedScenarioId = composed.brandedViewModel.recommendedScenarioId ?? '';
-  const recommendedSystemLabel = customerSummary.recommendedSystemLabel ?? '';
-  const hasStoredHotWaterPath = STORED_HOT_WATER_SCENARIO_PATTERN.test(recommendedScenarioId)
-    || STORED_HOT_WATER_LABEL_PATTERN.test(recommendedSystemLabel);
-  const hasLowTemperaturePath = LOW_TEMP_SCENARIO_PATTERN.test(recommendedScenarioId)
-    || selectedConceptIds.includes('hot_radiator_expectation')
-    || selectedConceptIds.includes('flow_temperature_living_with_it')
-    || routingTriggerTags.some((tag) => LOW_TEMP_TAG_PATTERN.test(tag));
-  const hasWaterMainConstraintPath = selectedConceptIds.some((conceptId) => WATER_CONSTRAINT_CONCEPT_IDS.includes(conceptId))
-    || routingTriggerTags.some((tag) => WATER_CONSTRAINT_TAG_PATTERN.test(tag));
-  const fallbackDiagrams = composed.brandedViewModel.diagramsBySection?.[section.sectionId]
-    ?.filter((diagramId) => getDiagramById(diagramId));
-  const candidateDeterministicDiagrams = [
-    hasStoredHotWaterPath ? DETERMINISTIC_SCENARIO_DIAGRAMS.stored_hot_water : undefined,
-    hasLowTemperaturePath ? DETERMINISTIC_SCENARIO_DIAGRAMS.low_temp_heat : undefined,
-    hasWaterMainConstraintPath ? DETERMINISTIC_SCENARIO_DIAGRAMS.water_main_constraint : undefined,
-  ].filter((diagramId): diagramId is string => diagramId !== undefined);
-  const deterministicDiagrams = candidateDeterministicDiagrams.filter((diagramId) => Boolean(getDiagramById(diagramId)));
   // Precedence is intentional: deterministic scenario diagrams first, then authored-card matches,
   // then section-level fallback diagrams, with duplicates removed for stable rendering.
-  const diagrams = stableUnique([
-    ...deterministicDiagrams,
-    ...diagramsFromCards,
-    ...(fallbackDiagrams ?? []),
-  ]);
   const showTechnicalAppendix = Boolean(accessibilityPreferences?.includeTechnicalAppendix);
 
   return (
@@ -240,7 +292,13 @@ export function LibraryPortalSectionRenderer({
           <p>selectedConceptIds: {selectedConceptIds.join(', ') || 'none'}</p>
           <p>matchedMvpContentIds: {matchedMvpContentIds.join(', ') || 'none'}</p>
           <p>matchedDiagramIds: {diagrams.join(', ') || 'none'}</p>
-          <p>matchedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}{matchedAnimationIds.length > 0 ? ' (animation planned)' : ''}</p>
+          <p>requestedAnimationIds: {matchedAnimationIds.join(', ') || 'none'}</p>
+          <p>matchedAnimationIds: {canonicalAnimationIds.join(', ') || 'none'}</p>
+          {blockedVisualDecisions.map((decision) => (
+            <p key={`blocked-${decision.rendererUsed}-${decision.requestedVisualId ?? 'none'}`}>
+              {formatVisualDecision(decision)}
+            </p>
+          ))}
         </aside>
       ) : null}
 
@@ -287,11 +345,11 @@ export function LibraryPortalSectionRenderer({
         ))}
       </div>
 
-      {matchedAnimationIds.length > 0 ? (
+      {canonicalAnimationIds.length > 0 ? (
         <>
-          <SectionDivider label={matchedAnimationIds.length > 1 ? 'Guided animations' : 'Guided animation'} />
+          <SectionDivider label={canonicalAnimationIds.length > 1 ? 'Guided animations' : 'Guided animation'} />
           <div className="library-portal-section__diagrams" data-testid="library-portal-animations">
-            {matchedAnimationIds.map((animationId) => (
+            {canonicalAnimationIds.map((animationId) => (
               <PortalDiagramFrame
                 key={`portal-animation-${animationId}`}
                 data-testid="library-portal-animation-frame"
@@ -307,7 +365,7 @@ export function LibraryPortalSectionRenderer({
       ) : null}
 
       {/* Diagrams are the fallback surface when no resolved animation IDs are available. */}
-      {diagrams.length > 0 && matchedAnimationIds.length === 0 ? (
+      {diagrams.length > 0 && canonicalAnimationIds.length === 0 ? (
         <>
           <SectionDivider label="System diagram" />
           <div className="library-portal-section__diagrams" data-testid="library-portal-diagrams">

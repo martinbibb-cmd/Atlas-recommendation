@@ -18,6 +18,10 @@ import {
   resolveRecommendationConceptSelection,
   type CustomerJourneyPackV1,
 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
+import {
+  resolveLegoTechnicCustomerVisualDecision,
+  type LegoTechnicCustomerVisualDecision,
+} from '../../library/portal/pdf/legoTechnicCustomerVisualManifest';
 import { REASON_ICON_BY_CATEGORY } from '../../library/portal/pdf/recommendationReasonVisuals';
 import { CustomerPortalJourneySectionV1 } from './CustomerPortalJourneySectionV1';
 import './customerPortalJourney.css';
@@ -409,8 +413,33 @@ function SystemCard({
   );
 }
 
+function CustomerPortalVisualDiagnostic({
+  decision,
+  testId,
+}: {
+  decision: LegoTechnicCustomerVisualDecision;
+  testId: string;
+}) {
+  if (!import.meta.env.DEV) return null;
+  return (
+    <p className="customer-portal-journey__card-copy" data-testid={testId}>
+      requested visual ID: {decision.requestedVisualId ?? 'none'} · visual classification: {decision.classification} · renderer used: {decision.rendererUsed} · blocked/retired reason: {decision.blockedReason ?? 'none'}
+    </p>
+  );
+}
+
 function BoilerAgeingVisual({ lifecycle }: { lifecycle: AtlasDecisionV1['lifecycle'] }) {
   const model = buildLifecycleVisualModel(lifecycle);
+  const heatFlowDecision = resolveLegoTechnicCustomerVisualDecision({
+    visualId: 'atlas_heat_flow_graphic',
+    rendererUsed: 'portal_custom_graphic',
+    surface: 'customer_portal',
+  });
+  const stateGraphicDecision = resolveLegoTechnicCustomerVisualDecision({
+    visualId: 'atlas_system_state_graphic',
+    rendererUsed: 'portal_custom_graphic',
+    surface: 'customer_portal',
+  });
 
   return (
     <AtlasPhysicsVisualCard
@@ -421,13 +450,27 @@ function BoilerAgeingVisual({ lifecycle }: { lifecycle: AtlasDecisionV1['lifecyc
       detail={model.detail}
       testId="customer-portal-visual-boiler-ageing-curve"
     >
-      <AtlasHeatFlowGraphic
-        phases={model.phases}
-        leftLabel="Clean start-up"
-        rightLabel="Wear-driven instability"
-      />
+      {heatFlowDecision.allowed ? (
+        <AtlasHeatFlowGraphic
+          phases={model.phases}
+          leftLabel="Clean start-up"
+          rightLabel="Wear-driven instability"
+        />
+      ) : (
+        <CustomerPortalVisualDiagnostic
+          decision={heatFlowDecision}
+          testId="customer-portal-visual-diagnostic-boiler-ageing-heat"
+        />
+      )}
       <AtlasStoryPanel summary={lifecycle.summary} bullets={lifecycle.riskIndicators.slice(0, 3)} />
-      <AtlasSystemStateGraphic nodes={model.nodes} />
+      {stateGraphicDecision.allowed ? (
+        <AtlasSystemStateGraphic nodes={model.nodes} />
+      ) : (
+        <CustomerPortalVisualDiagnostic
+          decision={stateGraphicDecision}
+          testId="customer-portal-visual-diagnostic-boiler-ageing-state"
+        />
+      )}
     </AtlasPhysicsVisualCard>
   );
 }
@@ -445,6 +488,11 @@ function PressureVsStorageVisual({
   const mainsFlow = input.mainsDynamicFlowLpm ?? 0;
   const pressureTone: VisualTone = mainsPressure < 1.5 || mainsFlow < 10 ? 'warn' : 'good';
   const reserveStory = buildStoredWaterVisualModel(input, scenario);
+  const pressureDiagramDecision = resolveLegoTechnicCustomerVisualDecision({
+    visualId: 'pressure_vs_storage',
+    rendererUsed: 'diagram_component',
+    surface: 'customer_portal',
+  });
 
   return (
     <AtlasPhysicsVisualCard
@@ -455,34 +503,16 @@ function PressureVsStorageVisual({
       detail="Atlas separates supply force from stored reserve so a customer can see whether an overlap problem is plumbing-limited or storage-limited."
       testId={shouldRenderDiagram ? 'customer-portal-visual-pressure-vs-storage-story' : 'customer-portal-visual-fallback-pressure-vs-storage'}
     >
-      {shouldRenderDiagram ? (
+      {shouldRenderDiagram && pressureDiagramDecision.allowed ? (
         <div className="customer-portal-journey__diagram-frame" data-testid="customer-portal-visual-pressure-vs-storage">
           <DiagramRenderer diagramId="pressure_vs_storage" printSafe />
         </div>
-      ) : (
-        <AtlasSystemStateGraphic
-          nodes={[
-            {
-              label: 'Mains-fed supply',
-              value: mainsPressure >= 1.5 && mainsFlow >= 10 ? 'Strong enough' : 'Shared force',
-              detail: mainsPressure >= 1.5 && mainsFlow >= 10
-                ? 'The incoming supply has room to support normal outlet use.'
-                : 'Incoming pressure or flow means overlaps will feel weaker before storage even runs out.',
-              active: true,
-            },
-            {
-              label: 'Stored reserve',
-              value: `${reserveStory.reserve}% usable`,
-              detail: 'The cylinder holds the comfort buffer that protects the first minutes of a heavy draw.',
-            },
-            {
-              label: 'Recovery',
-              value: `${reserveStory.recharge}% visible`,
-              detail: 'Recovery happens after the draw and should not be confused with pressure at the tap.',
-            },
-          ]}
+      ) : shouldRenderDiagram ? (
+        <CustomerPortalVisualDiagnostic
+          decision={pressureDiagramDecision}
+          testId="customer-portal-visual-diagnostic-pressure-vs-storage"
         />
-      )}
+      ) : null}
       <AtlasStoryPanel
         summary={mainsPressure >= 1.5 && mainsFlow >= 10
           ? 'The house has enough mains-fed supply to let storage do the comfort work instead of masking a weak inlet.'
@@ -504,6 +534,11 @@ function CylinderRecoveryReserveVisual({
   scenario: ScenarioResult | undefined;
 }) {
   const model = buildStoredWaterVisualModel(input, scenario);
+  const recoveryDiagramDecision = resolveLegoTechnicCustomerVisualDecision({
+    visualId: 'stored_hot_water_recovery_timeline',
+    rendererUsed: 'diagram_component',
+    surface: 'customer_portal',
+  });
 
   return (
     <AtlasPhysicsVisualCard
@@ -514,14 +549,16 @@ function CylinderRecoveryReserveVisual({
       detail={model.detail}
       testId="customer-portal-visual-fallback-cylinder-recovery"
     >
-      <AtlasWaterReserveGraphic
-        usableReservePct={model.reserve}
-        rechargePct={model.recharge}
-        recoveryLabel={scenario?.dhwSubtype === 'mixergy' ? 'Top layer reheating' : 'Recovery underway'}
-        modeLabel={model.modeLabel}
-        eventCards={model.events}
-        annotations={model.annotations}
-      />
+      {recoveryDiagramDecision.allowed ? (
+        <div className="customer-portal-journey__diagram-frame" data-testid="customer-portal-visual-stored-hot-water-recovery">
+          <DiagramRenderer diagramId="stored_hot_water_recovery_timeline" printSafe />
+        </div>
+      ) : (
+        <CustomerPortalVisualDiagnostic
+          decision={recoveryDiagramDecision}
+          testId="customer-portal-visual-diagnostic-cylinder-recovery"
+        />
+      )}
       <AtlasStoryPanel summary={model.storySummary} bullets={scenario?.dhwSubtype === 'mixergy'
         ? [
             'Demand mirrors into the heated top layer first.',
@@ -538,6 +575,16 @@ function CylinderRecoveryReserveVisual({
 
 function WarmRadiatorExpectationVisual({ scenario }: { scenario: ScenarioResult | undefined }) {
   const model = buildWarmRadiatorModel(scenario);
+  const radiatorDiagramDecision = resolveLegoTechnicCustomerVisualDecision({
+    visualId: 'warm_vs_hot_radiators',
+    rendererUsed: 'diagram_component',
+    surface: 'customer_portal',
+  });
+  const stateGraphicDecision = resolveLegoTechnicCustomerVisualDecision({
+    visualId: 'atlas_system_state_graphic',
+    rendererUsed: 'portal_custom_graphic',
+    surface: 'customer_portal',
+  });
 
   return (
     <AtlasPhysicsVisualCard
@@ -548,13 +595,25 @@ function WarmRadiatorExpectationVisual({ scenario }: { scenario: ScenarioResult 
       detail={model.detail}
       testId="customer-portal-visual-fallback-warm-radiator"
     >
-      <AtlasHeatFlowGraphic
-        phases={model.phases}
-        leftLabel="Call for heat"
-        rightLabel="Steady comfort"
-      />
+      {radiatorDiagramDecision.allowed ? (
+        <div className="customer-portal-journey__diagram-frame" data-testid="customer-portal-visual-warm-radiators">
+          <DiagramRenderer diagramId="warm_vs_hot_radiators" printSafe />
+        </div>
+      ) : (
+        <CustomerPortalVisualDiagnostic
+          decision={radiatorDiagramDecision}
+          testId="customer-portal-visual-diagnostic-warm-radiator"
+        />
+      )}
       <AtlasStoryPanel summary={model.storySummary} />
-      <AtlasSystemStateGraphic nodes={model.nodes} />
+      {stateGraphicDecision.allowed ? (
+        <AtlasSystemStateGraphic nodes={model.nodes} />
+      ) : (
+        <CustomerPortalVisualDiagnostic
+          decision={stateGraphicDecision}
+          testId="customer-portal-visual-diagnostic-warm-radiator-state"
+        />
+      )}
     </AtlasPhysicsVisualCard>
   );
 }
@@ -904,6 +963,16 @@ export function CustomerPortalJourneyComposer({
             <div className="customer-portal-journey__insight-grid">
               {comparisonStoryCards.map(({ scenario, isRecommended }) => {
                 const story = buildScenarioStory(scenario, isRecommended, engineInput);
+                const comparisonGraphicDecision = resolveLegoTechnicCustomerVisualDecision({
+                  visualId: story.graphic === 'water' ? 'atlas_water_reserve_graphic' : 'atlas_heat_flow_graphic',
+                  rendererUsed: 'portal_custom_graphic',
+                  surface: 'customer_portal',
+                });
+                const comparisonStateDecision = resolveLegoTechnicCustomerVisualDecision({
+                  visualId: 'atlas_system_state_graphic',
+                  rendererUsed: 'portal_custom_graphic',
+                  surface: 'customer_portal',
+                });
                 return (
                   <AtlasPhysicsVisualCard
                     key={scenario.scenarioId}
@@ -913,24 +982,38 @@ export function CustomerPortalJourneyComposer({
                     takeaway={story.takeaway}
                     detail={story.detail}
                   >
-                    {story.graphic === 'water' ? (
-                      <AtlasWaterReserveGraphic
-                        usableReservePct={story.reserve}
-                        rechargePct={story.recharge}
-                        recoveryLabel="Recovery visible"
-                        modeLabel={story.modeLabel}
-                        eventCards={story.events}
-                        annotations={story.annotations}
-                      />
+                    {comparisonGraphicDecision.allowed ? (
+                      story.graphic === 'water' ? (
+                        <AtlasWaterReserveGraphic
+                          usableReservePct={story.reserve}
+                          rechargePct={story.recharge}
+                          recoveryLabel="Recovery visible"
+                          modeLabel={story.modeLabel}
+                          eventCards={story.events}
+                          annotations={story.annotations}
+                        />
+                      ) : (
+                        <AtlasHeatFlowGraphic
+                          phases={story.phases}
+                          leftLabel="Start of event"
+                          rightLabel="After demand stacks up"
+                        />
+                      )
                     ) : (
-                      <AtlasHeatFlowGraphic
-                        phases={story.phases}
-                        leftLabel="Start of event"
-                        rightLabel="After demand stacks up"
+                      <CustomerPortalVisualDiagnostic
+                        decision={comparisonGraphicDecision}
+                        testId={`customer-portal-visual-diagnostic-comparison-${scenario.scenarioId}`}
                       />
                     )}
                     <AtlasStoryPanel summary={story.storySummary} bullets={story.bullets} />
-                    {'nodes' in story && story.nodes ? <AtlasSystemStateGraphic nodes={story.nodes} /> : null}
+                    {'nodes' in story && story.nodes ? (
+                      comparisonStateDecision.allowed ? <AtlasSystemStateGraphic nodes={story.nodes} /> : (
+                        <CustomerPortalVisualDiagnostic
+                          decision={comparisonStateDecision}
+                          testId={`customer-portal-visual-diagnostic-comparison-state-${scenario.scenarioId}`}
+                        />
+                      )
+                    ) : null}
                   </AtlasPhysicsVisualCard>
                 );
               })}

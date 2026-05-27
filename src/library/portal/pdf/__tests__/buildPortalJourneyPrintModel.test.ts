@@ -13,6 +13,10 @@ import {
   type BuildPortalJourneyPrintModelInputV1,
 } from '../buildPortalJourneyPrintModel';
 import { buildCanonicalVisitPackage } from '../../../../features/visitPackage';
+import {
+  legoTechnicCustomerVisualManifest,
+  listKnownCustomerFacingVisualIds,
+} from '../legoTechnicCustomerVisualManifest';
 import { listManifestAssetIds } from '../visualAssetManifest';
 
 const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
@@ -505,10 +509,26 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(result.errors.map((issue) => issue.code)).toContain('non_manifest_visual_asset');
   });
 
+  it('rejects retired non-physical customer visuals in story scenes', () => {
+    const result = validateCustomerStoryScene({
+      title: 'Winter behaviour',
+      customerTakeaway: 'Short defrost pauses are expected in winter operation.',
+      whyItMatters: 'The customer needs a physically recognisable visual explanation.',
+      whatYouWillNotice: 'Heating pauses briefly and then resumes after the defrost cycle completes.',
+      visualAssetId: 'heat_pump_defrost',
+    });
+    expect(result.errors.map((issue) => issue.code)).toContain('visual_not_lego_technic_canonical');
+  });
+
   it('ensures scenario narrative visuals are fully covered by manifest', () => {
     const manifestIds = new Set(listManifestAssetIds());
     const scenarioVisualIds = listScenarioNarrativeVisualAssetIds();
     expect(scenarioVisualIds.every((visualId) => manifestIds.has(visualId))).toBe(true);
+  });
+
+  it('classifies every known customer-facing visual in the Lego Technic manifest', () => {
+    const classifiedIds = new Set(legoTechnicCustomerVisualManifest.map((entry) => entry.visualId));
+    expect(listKnownCustomerFacingVisualIds().every((visualId) => classifiedIds.has(visualId))).toBe(true);
   });
 });
 
@@ -1162,6 +1182,20 @@ describe('buildPortalJourneyPrintModel — core-route visual snapshots', () => {
       };
     });
     expect(snapshot).toMatchSnapshot();
+  });
+});
+
+describe('buildPortalJourneyPrintModel — retired customer visuals', () => {
+  it('marks retired heat-pump visuals as blocked for customer PDF export', () => {
+    const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
+    const winterBehaviourScene = model.contentSource?.sceneDiagnostics.find((diag) => diag.sectionId === 'winter_behaviour');
+    expect(winterBehaviourScene).toMatchObject({
+      visualAssetId: 'heat_pump_defrost',
+      visualClassification: 'retired_non_physical',
+      rendererType: 'none',
+    });
+    expect(winterBehaviourScene?.blockingReasons.join(' ')).toMatch(/Atlas Lego Technic physical-system language|blocked/i);
+    expect(model.contentSource?.fallbackOnly).toBe(true);
   });
 });
 
