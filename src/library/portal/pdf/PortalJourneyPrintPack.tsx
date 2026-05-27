@@ -289,6 +289,22 @@ function formatSceneDiagnostics(diags: NonNullable<PortalJourneyPrintModelV1['co
   });
 }
 
+function formatVisualCoverageRouteSummary(
+  route: NonNullable<PortalJourneyPrintModelV1['contentSource']>['visualCoverageAudit']['routes'][number],
+): string {
+  const canonical = route.summary.canonicalVisualsAvailable.join(', ') || 'none';
+  const missingCanonical = route.summary.missingCanonicalVisuals.join(', ') || 'none';
+  const retired = route.summary.retiredVisualsRequested.join(', ') || 'none';
+  const textOnly = route.summary.textOnlySceneSectionIds.join(', ') || 'none';
+  return `${route.routeId} · canonical visuals available: ${canonical} · missing canonical visuals: ${missingCanonical} · retired visuals requested: ${retired} · scenes rendering text-only: ${textOnly}`;
+}
+
+function formatVisualCoverageRouteScenes(
+  route: NonNullable<PortalJourneyPrintModelV1['contentSource']>['visualCoverageAudit']['routes'][number],
+): string[] {
+  return route.scenes.map((scene) => `${route.routeId}/${scene.sectionId} · requested visual=${scene.requestedVisualAssetId} · classification=${scene.classification} · renderer availability=diagram:${scene.rendererAvailability.hasDiagramRenderer ? 'yes' : 'no'}, print-fallback:${scene.rendererAvailability.hasPrintFallback ? 'yes' : 'no'} · blocked reason=${scene.blockedReason ?? 'none'}`);
+}
+
 function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCoverProps) {
   return (
     <section
@@ -326,6 +342,27 @@ function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCov
               {formatSceneDiagnostics(contentSource.sceneDiagnostics).map((line) => (
                 <li key={line}>{line}</li>
               ))}
+            </ul>
+            <ul className="pjpp-cover-content-source" data-testid="pjpp-cover-visual-coverage-route-summary">
+              {contentSource.visualCoverageAudit.routes.map((route) => {
+                const routeSummary = formatVisualCoverageRouteSummary(route);
+                return (
+                  <li key={route.routeId}>
+                    {routeSummary}
+                    <ul>
+                      <li>
+                        required story scenes: {route.requiredStorySceneSectionIds.join(', ') || 'none'}
+                      </li>
+                      <li>
+                        requested visual IDs: {route.requestedVisualAssetIds.join(', ') || 'none'}
+                      </li>
+                      {formatVisualCoverageRouteScenes(route).map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              })}
             </ul>
           </>
         ) : null}

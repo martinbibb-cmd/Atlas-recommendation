@@ -1183,6 +1183,39 @@ describe('buildPortalJourneyPrintModel — core-route visual snapshots', () => {
     });
     expect(snapshot).toMatchSnapshot();
   });
+
+  it('ensures each core route retains at least one canonical visual', () => {
+    const cases: Array<{ id: 'regular_vented' | 'system_unvented' | 'combi' | 'heat_pump'; input: BuildPortalJourneyPrintModelInputV1 }> = [
+      { id: 'regular_vented', input: BASE_INPUT },
+      {
+        id: 'system_unvented',
+        input: {
+          journeyType: 'stored_hot_water',
+          selectedSectionIds: ['CON_A01', 'CON_C02', 'CON_I01_DAY_TO_DAY'],
+          recommendationSummary: 'System boiler with stored hot water.',
+          customerFacts: ['4-person household', '2 bathrooms'],
+        },
+      },
+      {
+        id: 'combi',
+        input: {
+          journeyType: 'generic_recommendation_summary',
+          selectedSectionIds: ['CON_A01', 'CON_D01'],
+          recommendationSummary: 'Combi boiler — right fit.',
+          customerFacts: ['2-person household', '1 bathroom'],
+          recommendationIntent: 'combi_replacement',
+        },
+      },
+      { id: 'heat_pump', input: HEAT_PUMP_INPUT },
+    ];
+
+    for (const { id, input } of cases) {
+      const model = buildPortalJourneyPrintModel(input);
+      const routeAudit = model.contentSource?.visualCoverageAudit.routes.find((route) => route.routeId === id);
+      expect(routeAudit).toBeDefined();
+      expect(routeAudit?.summary.canonicalVisualsAvailable.length).toBeGreaterThan(0);
+    }
+  });
 });
 
 describe('buildPortalJourneyPrintModel — retired customer visuals', () => {
