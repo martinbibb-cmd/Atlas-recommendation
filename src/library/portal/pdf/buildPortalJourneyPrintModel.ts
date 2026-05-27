@@ -44,6 +44,11 @@ import {
   getVisualAssetRendererAvailability,
   listManifestAssetIds,
 } from './visualAssetManifest';
+import {
+  getLegoTechnicCustomerVisualManifestEntry,
+  resolveLegoTechnicCustomerVisualDecision,
+  type LegoTechnicCustomerVisualClassification,
+} from './legoTechnicCustomerVisualManifest';
 export type { SurveySystemConditionV1, SystemProtectionSummaryV1 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -224,6 +229,7 @@ export interface CustomerPdfContentSourceV1 {
 export interface CustomerPdfSceneDiagnosticV1 {
   sectionId: PortalJourneyPrintSectionV1['sectionId'];
   visualAssetId?: string;
+  visualClassification: LegoTechnicCustomerVisualClassification | 'unlisted';
   rendererType: 'diagram_component' | 'print_fallback' | 'none';
   fallbackUsed: boolean;
   blockingReasons: string[];
@@ -2044,10 +2050,24 @@ export function validateCustomerStoryScene(
   }
   if (hasText(scene.visualAssetId)) {
     const manifestEntry = getVisualAssetManifestEntry(scene.visualAssetId);
+    const visualDecision = resolveLegoTechnicCustomerVisualDecision({
+      visualId: scene.visualAssetId,
+      rendererUsed: manifestEntry?.rendererStrategy === 'print_fallback'
+        ? 'print_fallback'
+        : 'diagram_component',
+      surface: 'customer_pdf',
+    });
     if (manifestEntry != null && !manifestEntry.supportedSurfaces.includes('pdf')) {
       errors.push(buildStorySceneValidationIssue(
         'visual_not_pdf_supported',
         `Story scene visual asset "${scene.visualAssetId}" is not supported on PDF.`,
+      ));
+    }
+    if (!visualDecision.allowed) {
+      errors.push(buildStorySceneValidationIssue(
+        'visual_not_lego_technic_canonical',
+        visualDecision.blockedReason
+          ?? `Story scene visual asset "${scene.visualAssetId}" is blocked for customer PDF rendering.`,
       ));
     }
   }
@@ -2105,15 +2125,27 @@ function buildCustomerPdfContentSource(input: {
     const rendererAvailability = hasText(scene.visualAssetId)
       ? getVisualAssetRendererAvailability(scene.visualAssetId)
       : { hasDiagramRenderer: false, hasPrintFallback: false };
-    const rendererType: CustomerPdfSceneDiagnosticV1['rendererType'] = rendererAvailability.hasDiagramRenderer
+    const manifestEntry = hasText(scene.visualAssetId)
+      ? getLegoTechnicCustomerVisualManifestEntry(scene.visualAssetId)
+      : undefined;
+    const requestedRendererType: CustomerPdfSceneDiagnosticV1['rendererType'] = rendererAvailability.hasDiagramRenderer
       ? 'diagram_component'
       : rendererAvailability.hasPrintFallback
-      ? 'print_fallback'
-      : 'none';
-    if (hasText(scene.visualAssetId) && rendererType === 'none') {
+        ? 'print_fallback'
+        : 'none';
+    const visualDecision = resolveLegoTechnicCustomerVisualDecision({
+      visualId: scene.visualAssetId,
+      rendererUsed: requestedRendererType,
+      surface: 'customer_pdf',
+    });
+    const rendererType: CustomerPdfSceneDiagnosticV1['rendererType'] =
+      visualDecision.allowed && rendererAvailability.hasDiagramRenderer
+        ? 'diagram_component'
+        : 'none';
+    if (hasText(scene.visualAssetId) && rendererAvailability.hasDiagramRenderer === false) {
       validation.errors.push(buildStorySceneValidationIssue(
         'visual_renderer_unresolved',
-        `Visual asset "${scene.visualAssetId}" has no PDF renderer or registered print fallback.`,
+        `Visual asset "${scene.visualAssetId}" has no canonical diagram renderer for customer PDF export.`,
       ));
     }
     const hasAllRequiredText =
@@ -2128,6 +2160,7 @@ function buildCustomerPdfContentSource(input: {
       compositionValidation,
       hasAllRequiredText,
       rendererType,
+      visualClassification: manifestEntry?.classification ?? visualDecision.classification,
       offendingPhrases,
     };
   });
@@ -2192,8 +2225,9 @@ function buildCustomerPdfContentSource(input: {
   const sceneDiagnostics: CustomerPdfSceneDiagnosticV1[] = validatedStoryScenes.map((entry) => ({
     sectionId: entry.section.sectionId,
     visualAssetId: entry.scene.visualAssetId,
+    visualClassification: entry.visualClassification,
     rendererType: entry.rendererType,
-    fallbackUsed: entry.rendererType === 'print_fallback',
+    fallbackUsed: false,
     blockingReasons: [
       ...entry.validation.errors.map((issue) => issue.message),
       ...entry.compositionValidation.errors.map((issue) => issue.message),

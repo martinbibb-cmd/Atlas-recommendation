@@ -169,7 +169,7 @@ describe('CustomerPortalPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('falls back to polished summary cards when a portal visual is not production-ready', async () => {
+  it('renders a canonical stored-hot-water diagram instead of retired fallback art', async () => {
     mockFetchSuccess({
       ...STUB_REPORT,
       payload: {
@@ -180,8 +180,8 @@ describe('CustomerPortalPage', () => {
     });
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
-    expect(screen.getByTestId('customer-portal-visual-fallback-cylinder-recovery')).toBeTruthy();
-    expect(screen.queryByText('Stored hot water recovery timeline')).toBeNull();
+    expect(screen.getByTestId('customer-portal-visual-stored-hot-water-recovery')).toBeTruthy();
+    expect(screen.queryByTestId('customer-portal-visual-diagnostic-cylinder-recovery')).toBeNull();
   });
 
   it('renders storytelling-led customer visuals for ageing and scenario comparison', async () => {
@@ -197,6 +197,32 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
     expect(screen.getByText('Boiler ageing and response')).toBeTruthy();
     expect(screen.getByText('Scenario storytelling comparison')).toBeTruthy();
+  });
+
+  it('keeps retired visuals out of the phone portal surface', async () => {
+    mockFetchSuccess({
+      ...STUB_REPORT,
+      payload: {
+        ...STUB_REPORT.payload,
+        surveyData: STORED_HOT_WATER_INPUT as unknown as ReportDetail['payload']['surveyData'],
+        engineInput: STORED_HOT_WATER_INPUT,
+      },
+    });
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: query === CUSTOMER_PORTAL_PHONE_MEDIA_QUERY,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+    render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
+    await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
+    expect(screen.getByTestId('customer-portal-visual-stored-hot-water-recovery')).toBeTruthy();
+    expect(screen.queryByTestId('customer-portal-visual-diagnostic-cylinder-recovery')).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it('renders library-supported explainers in the daily-use section', async () => {

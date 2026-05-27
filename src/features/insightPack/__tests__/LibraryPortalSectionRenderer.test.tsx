@@ -130,13 +130,16 @@ describe('LibraryPortalSectionRenderer', () => {
     expect(screen.getByText('System pressure and filling loop')).toBeTruthy();
     expect(screen.getByText('Warm radiators')).toBeTruthy();
     expect(screen.getAllByText(/powerflush|flushing/i).length).toBeGreaterThan(0);
-    expect(screen.getByTestId('library-portal-animations')).toBeTruthy();
-    expect(screen.getByTestId('animation-stored_hot_water_recovery')).toBeTruthy();
+    expect(screen.queryByTestId('library-portal-animations')).toBeNull();
+    expect(screen.getByTestId('library-portal-diagrams')).toBeTruthy();
+    expect(screen.getByTestId('diagram-pressure_vs_storage')).toBeTruthy();
     expect(screen.getByTestId('library-portal-qr')).toBeTruthy();
     expect(screen.queryByText('Pressure is a source boundary; volume is a storage boundary.')).toBeNull();
     expect(screen.getByTestId('library-portal-source-label')).toBeTruthy();
     expect(screen.getByTestId('library-portal-debug-strip')).toBeTruthy();
     expect(screen.getByText(/libraryRendererUsed:\s*true/i)).toBeTruthy();
+    expect(screen.getByText(/requested visual ID:\s*stored_hot_water_recovery/i)).toBeTruthy();
+    expect(screen.getByText(/visual classification:\s*retired_non_physical/i)).toBeTruthy();
   });
 
   it('falls back to the hardcoded daily-use panel when library output is unsafe', () => {

@@ -342,9 +342,10 @@ describe('PortalJourneyPrintPack — heat-pump supporting PDF', () => {
     expect(container.textContent).not.toMatch(/content pending|debug|CON_[A-Z0-9_]+/i);
   });
 
-  it('renders manifest-declared print fallback when no PDF diagram renderer exists', () => {
+  it('blocks retired non-canonical visuals instead of rendering print fallback art', () => {
     render(<PortalJourneyPrintPack model={HEAT_PUMP_MODEL} />);
-    expect(screen.getByTestId('pjpp-diagram-fallback-winter_behaviour')).toBeInTheDocument();
+    expect(screen.queryByTestId('pjpp-diagram-fallback-winter_behaviour')).toBeNull();
+    expect(screen.getByTestId('pjpp-missing-visual-winter_behaviour')).toHaveTextContent(/blocked|Lego Technic/i);
   });
 });
 
