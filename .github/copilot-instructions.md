@@ -51,8 +51,9 @@ All AI-assisted code contributions must follow the rules below.
 
 ### 2. Lego Builder Set (System Composer)
 
-- **Path Focus:** `src/explainers/lego/` (including `src/explainers/lego/LegoBuildingSetPage.tsx`)
+- **Path Focus:** `src/explainers/lego/` (including `src/explainers/lego/LegoTechnixPage.tsx`)
 - **Definition:** Legacy visual component sandbox with drag-and-drop builder mechanics.
+- **Note:** The legacy entry point retains historical naming and is still treated as System Composer legacy code, not the active Lego Technix simulation engine.
 - **CRITICAL PROTECTION RULE:** Never suggest renaming, refactoring, or updating these legacy files to match Lego Technix paradigms. The domains are functionally isolated until explicit deprecation.
 
 ## Layout
