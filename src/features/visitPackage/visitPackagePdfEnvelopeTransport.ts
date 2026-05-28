@@ -368,13 +368,13 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
     const storySceneValidation = builtPack.staticPdf.contentSource?.storySceneValidation;
     if (storySceneValidation == null) {
       throw new Error(
-        'Customer PDF export blocked: current recommendation context exists but storySceneValidation metadata is missing. '
+        'Internal validation failure: current recommendation context exists but storySceneValidation metadata is missing. '
         + 'Regenerate recommendation outputs and export again.',
       );
     }
     if (storySceneValidation.sceneCount === 0) {
       throw new Error(
-        'Customer PDF export blocked: current recommendation context exists but produced 0 story scenes. '
+        'Internal validation failure: current recommendation context exists but produced 0 story scenes. '
         + 'Regenerate recommendation outputs and export again.',
       );
     }
