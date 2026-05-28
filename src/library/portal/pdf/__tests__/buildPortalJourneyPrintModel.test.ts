@@ -247,7 +247,7 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
 
   it('model with empty selectedSectionIds still includes all core sections', () => {
     const model = buildPortalJourneyPrintModel({ ...BASE_INPUT, selectedSectionIds: [] });
-    expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.sectionId)).toEqual([
+    expect(model.sections.map((s) => s.sectionId)).toEqual([
       'practical_outcomes',
       'system_fit_decision_map',
       'pressure_vs_storage',
@@ -255,7 +255,7 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
       'unvented_safety',
       'stored_hot_water_recovery_timeline',
     ]);
-    expect(model.sections.some((s) => s.sectionId.startsWith('quiet_scene'))).toBe(true);
+    expect(model.sections.some((s) => s.sectionId.startsWith('quiet_scene'))).toBe(false);
   });
 });
 
@@ -263,7 +263,7 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
   it('uses customer-friendly section titles in stable order', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     expect(model.cover.title).toBe('Your recommendation');
-    expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.heading)).toEqual([
+    expect(model.sections.map((s) => s.heading)).toEqual([
       'Practical outcomes',
       'System fit decision map',
       'Why stored hot water helps',
@@ -271,7 +271,7 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
       'How the cylinder keeps itself safe',
       'Stored hot-water recovery timeline',
     ]);
-    expect(model.sections.some((s) => s.heading === 'Good to know')).toBe(true);
+    expect(model.sections.some((s) => s.heading === 'Good to know')).toBe(false);
   });
 
   it('keeps page content density low', () => {
@@ -282,13 +282,27 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
     expect(model.nextSteps.length).toBeLessThanOrEqual(3);
     expect(model.qrDestinations.length).toBeLessThanOrEqual(3);
   });
+
+  it('keeps system-fit wording customer-facing and free of internal engine language', () => {
+    const model = buildPortalJourneyPrintModel(BASE_INPUT);
+    const section = model.sections.find((candidate) => candidate.sectionId === 'system_fit_decision_map');
+    expect(section).toBeDefined();
+    const text = [
+      section?.summary,
+      section?.reassurance,
+      ...(section?.items ?? []),
+      section?.diagramCaption,
+    ].join(' ').toLowerCase();
+    expect(text).not.toContain('authority remains with the engine');
+    expect(text).not.toContain('routes system fit from measured evidence');
+  });
 });
 
 describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
   it('builds heat-pump model pages in customer-facing order', () => {
     const model = buildPortalJourneyPrintModel(HEAT_PUMP_INPUT);
     expect(model.cover.title).toBe('Your recommendation');
-    expect(model.sections.filter((section) => !section.sectionId.startsWith('quiet_scene')).map((section) => section.heading)).toEqual([
+    expect(model.sections.map((section) => section.heading)).toEqual([
       'System fit decision map',
       'Sealed-system pressure window',
       'How steady running works',
@@ -368,9 +382,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       expect(section.storyScene?.customerTakeaway.length).toBeGreaterThan(0);
       expect(section.storyScene?.whyItMatters.length).toBeGreaterThan(0);
       expect(section.storyScene?.whatYouWillNotice.length).toBeGreaterThan(0);
-      if (!section.sectionId.startsWith('quiet_scene')) {
-        expect(section.storyScene?.visualAssetId?.length).toBeGreaterThan(0);
-      }
+      expect(section.storyScene?.visualAssetId?.length).toBeGreaterThan(0);
       expect(section.storyScene?.composition).toBeDefined();
       const validation = validateCustomerStoryScene(section.storyScene!);
       expect(validation.errors).toHaveLength(0);
@@ -385,16 +397,10 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(practicalOutcomes?.storyScene?.composition?.pageArchetype).toBe('hero');
   });
 
-  it('inserts quiet pages after dense technical sections', () => {
+  it('does not inject pause-only quiet pages', () => {
     const model = buildPortalJourneyPrintModel(BASE_INPUT);
     const quietPages = model.sections.filter((section) => section.sectionId.startsWith('quiet_scene'));
-    expect(quietPages.length).toBeGreaterThan(0);
-    for (const quietPage of quietPages) {
-      expect(quietPage.storyScene?.composition?.pageArchetype).toBe('quiet');
-      expect(quietPage.storyScene?.composition?.focalVisualPriority).toBe('none');
-      const quietText = `${quietPage.heading} ${quietPage.summary} ${quietPage.storyScene?.whyItMatters ?? ''}`.toLowerCase();
-      expect(quietText).not.toMatch(/cognitive load|story scene|composition|archetype|projection|taxonomy|breather page|route|routed evidence/);
-    }
+    expect(quietPages).toHaveLength(0);
   });
 
   it('flags thin generic fallback packs as fallbackOnly when projection is absent', () => {
@@ -408,15 +414,15 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(isFallbackOnlyCustomerPdf(model)).toBe(true);
   });
 
-  it('does not mark fallbackOnly when audience projection is present', () => {
+  it('keeps fallbackOnly when audience projection is present but route completeness is not met', () => {
     const model = buildPortalJourneyPrintModel({
-      selectedSectionIds: [],
-      recommendationSummary: 'Generic recommendation summary for your home.',
-      customerFacts: ['Home constraints reviewed'],
-      journeyType: 'generic_recommendation_summary',
+      selectedSectionIds: ['CON_A01', 'CON_C02'],
+      recommendationSummary: 'Sealed system with unvented cylinder — right fit for this home.',
+      customerFacts: ['4-person household', '2 bathrooms'],
+      journeyType: 'open_vented',
       audienceProjection: {
         audience: 'customer',
-        visibleConcepts: ['CON_A01'],
+        visibleConcepts: ['CON_A01', 'CON_C02'],
         visibleCards: [],
         visibleDiagrams: [],
         hiddenReasonLog: [],
@@ -424,7 +430,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       },
     });
     expect(model.contentSource?.audienceProjectionPresent).toBe(true);
-    expect(model.contentSource?.fallbackOnly).toBe(false);
+    expect(model.contentSource?.fallbackOnly).toBe(true);
   });
 
   it('marks fallbackOnly when no concept tags are selected even with audience projection', () => {
@@ -530,9 +536,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
         'stored_hot_water_recovery_timeline',
       ],
     });
-    const sectionIds = model.sections
-      .filter((section) => !section.sectionId.startsWith('quiet_scene'))
-      .map((section) => section.sectionId);
+    const sectionIds = model.sections.map((section) => section.sectionId);
     const deepDetailIndex = sectionIds.indexOf('stored_hot_water_recovery_timeline');
     expect(deepDetailIndex).toBeGreaterThan(-1);
     for (const sectionId of ['pressure_vs_storage', 'sealed_system_pressure_window', 'powerflush_condition_led', 'magnetic_filter_capture'] as const) {

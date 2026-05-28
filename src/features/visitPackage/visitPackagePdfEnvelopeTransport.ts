@@ -519,6 +519,63 @@ function coalesceMetric(
   return undefined;
 }
 
+function normalizeEngineCylinderType(storageType: unknown): string | undefined {
+  if (!hasText(storageType)) return undefined;
+  switch (storageType.trim().toLowerCase()) {
+    case 'none':
+      return 'No cylinder (on-demand)';
+    case 'vented':
+      return 'Vented cylinder';
+    case 'unvented':
+      return 'Unvented cylinder';
+    case 'mixergy':
+      return 'Mixergy stratified cylinder';
+    case 'thermal_store':
+      return 'Thermal store';
+    case 'heat_pump_cylinder':
+      return 'Heat-pump cylinder';
+    default:
+      return storageType.trim();
+  }
+}
+
+function inferCylinderTypeFromRecommendedSystemLabel(label: string | undefined): string | undefined {
+  if (!hasText(label)) return undefined;
+  const normalizedLabel = label.toLowerCase();
+  if (normalizedLabel.includes('combi') || normalizedLabel.includes('on-demand')) {
+    return 'No cylinder (on-demand)';
+  }
+  if (normalizedLabel.includes('mixergy')) return 'Mixergy stratified cylinder';
+  if (normalizedLabel.includes('thermal store')) return 'Thermal store';
+  if (normalizedLabel.includes('unvented')) return 'Unvented cylinder';
+  if (normalizedLabel.includes('cylinder')) return 'Stored hot water cylinder';
+  return undefined;
+}
+
+function hasNoCylinderSignal(value: string | undefined): boolean {
+  if (!hasText(value)) return false;
+  return /\bno cylinder\b|\bon-demand\b|\bnone\b|\bcombi\b/i.test(value);
+}
+
+function hasCylinderSignal(value: string | undefined): boolean {
+  if (!hasText(value)) return false;
+  return /\bcylinder\b|\bunvented\b|\bmixergy\b|\bthermal store\b/i.test(value);
+}
+
+function hasCylinderRecommendationMismatch(
+  recommendedSystemLabel: string | undefined,
+  cylinderTypeLabel: string | undefined,
+): boolean {
+  if (!hasText(recommendedSystemLabel) || !hasText(cylinderTypeLabel)) return false;
+  const recommendationWantsCylinder = hasCylinderSignal(recommendedSystemLabel) && !hasNoCylinderSignal(recommendedSystemLabel);
+  const recommendationHasNoCylinder = hasNoCylinderSignal(recommendedSystemLabel);
+  const plannedHasNoCylinder = hasNoCylinderSignal(cylinderTypeLabel);
+  const plannedHasCylinder = hasCylinderSignal(cylinderTypeLabel) && !plannedHasNoCylinder;
+  if (recommendationWantsCylinder && plannedHasNoCylinder) return true;
+  if (recommendationHasNoCylinder && plannedHasCylinder) return true;
+  return false;
+}
+
 function buildTechnicalSiteConstraints(
   documentModel: CustomerDocumentModelV1,
   demographics: CustomerDemographicsSummary,
@@ -595,10 +652,14 @@ function buildPlannedHardwareAllocations(
   const boiler = isRecord(currentSystem?.boiler) ? currentSystem.boiler : undefined;
   const energyMetrics = isRecord(decision?.['energyMetrics']) ? decision['energyMetrics'] : undefined;
 
-  const cylinderType =
-    (hasText(engineInput?.dhwStorageType) ? engineInput.dhwStorageType : undefined)
-    ?? (hasText(engineInput?.currentHeatSourceType) ? `${engineInput.currentHeatSourceType} pathway` : undefined)
-    ?? 'Not recorded';
+  const recommendedSystemLabel = coalesceMetric(
+    canonicalVisitPackage?.proposalTruth?.customerSummary?.recommendedSystemLabel,
+    documentModel.cover.title,
+  );
+  const cylinderType = coalesceMetric(
+    inferCylinderTypeFromRecommendedSystemLabel(recommendedSystemLabel),
+    normalizeEngineCylinderType(engineInput?.dhwStorageType),
+  ) ?? 'Not recorded';
   const targetMinimumVolumeLitres = readTargetCylinderVolumeLitres(canonicalVisitPackage);
   const calculatedRecoveryMinutes =
     readNumberCandidate(energyMetrics, ['dhwRecoveryMinutes', 'recoveryTimeMinutes', 'calculatedRecoveryMinutes'])
@@ -635,6 +696,11 @@ function buildPlannedHardwareAllocations(
     cylinderTypeFromFacts,
     demographics.additionalFacts.find((fact) => /cylinder type/i.test(fact)),
   ) ?? 'Not recorded';
+  const rawPlannedCylinderEvidence = coalesceMetric(
+    cylinderTypeFromFacts,
+    demographics.additionalFacts.find((fact) => /cylinder type/i.test(fact)),
+    normalizeEngineCylinderType(engineInput?.dhwStorageType),
+  );
   const targetMinimumVolumeLabel = coalesceMetric(
     targetMinimumVolumeLitres != null ? `${Math.round(targetMinimumVolumeLitres)} L` : undefined,
     targetVolumeFromFacts,
@@ -659,8 +725,18 @@ function buildPlannedHardwareAllocations(
   lines.push(`Standing loss metric: ${standingLossLabel}`);
   lines.push(`Active heat source output: ${activeHeatSourceLabel}`);
   lines.push(`Hot water demand: ${demographics.hotWaterDemand || PENDING_STRUCTURAL_CALCULATION}`);
-  if (hasText(documentModel.cover.title)) {
-    lines.push(`Recommended system: ${documentModel.cover.title}`);
+  const printableRecommendedSystemLabel = coalesceMetric(
+    recommendedSystemLabel,
+    documentModel.cover.title,
+  );
+  if (hasText(printableRecommendedSystemLabel)) {
+    lines.push(`Recommended system: ${printableRecommendedSystemLabel}`);
+  }
+  if (
+    hasCylinderRecommendationMismatch(printableRecommendedSystemLabel, rawPlannedCylinderEvidence)
+    || hasCylinderRecommendationMismatch(printableRecommendedSystemLabel, cylinderTypeLabel)
+  ) {
+    lines.push('Consistency check: Planned cylinder type does not match the recommended system. Review required.');
   }
   return lines;
 }

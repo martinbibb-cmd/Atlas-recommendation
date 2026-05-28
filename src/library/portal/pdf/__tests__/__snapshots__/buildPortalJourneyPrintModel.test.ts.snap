@@ -27,11 +27,6 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
         "visualAssetId": "pressure_vs_storage",
       },
       {
-        "rendererType": "none",
-        "sectionId": "quiet_scene_pressure_vs_storage",
-        "visualAssetId": undefined,
-      },
-      {
         "rendererType": "diagram_component",
         "sectionId": "sealed_system_pressure_window",
         "visualAssetId": "system_pressure_window",
@@ -68,11 +63,6 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
         "visualAssetId": "pressure_vs_storage",
       },
       {
-        "rendererType": "none",
-        "sectionId": "quiet_scene_pressure_vs_storage",
-        "visualAssetId": undefined,
-      },
-      {
         "rendererType": "diagram_component",
         "sectionId": "sealed_system_pressure_window",
         "visualAssetId": "system_pressure_window",
@@ -107,11 +97,6 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
         "rendererType": "diagram_component",
         "sectionId": "flow_restriction_bottleneck",
         "visualAssetId": "flow_restriction_bottleneck",
-      },
-      {
-        "rendererType": "none",
-        "sectionId": "quiet_scene_flow_restriction_bottleneck",
-        "visualAssetId": undefined,
       },
       {
         "rendererType": "diagram_component",
@@ -158,11 +143,6 @@ exports[`buildPortalJourneyPrintModel — core-route visual snapshots > captures
         "rendererType": "diagram_component",
         "sectionId": "warm_not_hot_radiators",
         "visualAssetId": "warm_vs_hot_radiators",
-      },
-      {
-        "rendererType": "none",
-        "sectionId": "quiet_scene_warm_not_hot_radiators",
-        "visualAssetId": undefined,
       },
       {
         "rendererType": "none",
