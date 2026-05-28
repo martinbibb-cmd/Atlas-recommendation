@@ -4634,7 +4634,7 @@ function AppInner() {
             ?? persistedCanonical?.visitReference
             ?? (routeVisitId != null ? formatVisitReference(routeVisitId) : undefined),
           acceptedScenario,
-          acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId ?? persistedCanonical?.acceptedScenarioId,
+          acceptedScenarioId,
           decision,
           scenarios,
           customerSummary,
@@ -4682,9 +4682,10 @@ function AppInner() {
           ?? source.source.visitReference;
         const debugRecommendationId = source.source.acceptedScenarioId;
         const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
+        const fallbackOnlyCustomerPdf = isFallbackOnlyCustomerPdf(printModel);
         if (
-          (explicitVisitId != null && isFallbackOnlyCustomerPdf(printModel))
-          || (!import.meta.env.DEV && isFallbackOnlyCustomerPdf(printModel))
+          (explicitVisitId != null && fallbackOnlyCustomerPdf)
+          || (!import.meta.env.DEV && fallbackOnlyCustomerPdf)
         ) {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
