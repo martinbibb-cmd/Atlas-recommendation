@@ -328,7 +328,7 @@ function buildCanonicalPackageWithoutPackagedJourney(
   pkg: CanonicalVisitPackageV1,
 ): CanonicalVisitPackageV1 {
   const generatedOutputStatus = pkg.generatedOutputStatus;
-  if (generatedOutputStatus == null) return pkg;
+  if (generatedOutputStatus == null || generatedOutputStatus.generatedOutputs == null) return pkg;
   return {
     ...pkg,
     generatedOutputStatus: {
