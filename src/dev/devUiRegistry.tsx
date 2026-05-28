@@ -1085,11 +1085,8 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
       'Canonical customer-facing recommendation portal. ' +
       'The only production path for customer-facing visit output. ' +
       'All legacy insight-pack / blueprint customer outputs defer to this surface. ' +
-      'RENDERING LAYER NOTE: production mode (isProductionPortalSurface) forces the ' +
-      'CustomerPortalJourneyComposer path. However, this file still imports InsightPackDeck ' +
-      '(src/legacy/customerOutputPrototype/insightPack/InsightPackDeck.tsx) for dev/fixture ' +
-      'view modes — flagged as a legacy renderer leak. ' +
-      'Target: remove InsightPackDeck import; all modes should route through CustomerPortalJourneyComposer.',
+      'RENDERING LAYER NOTE: customer output now renders through canonical scene grammar ' +
+      'using CustomerSceneDeck sourced from CustomerPresentationScene[] / storyScene.composition.',
     routeKind: 'path',
     routePath: '/portal/:reference',
     fullRouteExample: '/portal/<reference>?token=<signed-token>',
@@ -1102,8 +1099,8 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
       'src/components/portal/selectors/buildPortalJourneyModel.ts',
     ],
     includeInCopyBox: true,
-    renderingLayer: 'transitional',
-    legacyRendererLeak: true,
+    renderingLayer: 'scene_grammar',
+    legacyRendererLeak: false,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>CustomerPortalPage — open via /portal/{'<reference>'}?token={'<signed-token>'}. Use /dev/customer-portal-preview for production-like fixture QA.</div>,
   },
 
@@ -1122,10 +1119,8 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
       'Visit Home Supporting PDF CTA routes here. ' +
       'Presentation print action routes here. ' +
       'All legacy framework-print / CustomerAdvicePrintPack outputs defer to this surface. ' +
-      'RENDERING LAYER NOTE: consumes LibraryStorySceneV1 composition metadata ' +
-      '(pageArchetype, densityTier, focalVisualPriority) from CustomerJourneyPackV1 scene packs. ' +
-      'This is partially scene-grammar-aware, but still renders into A4 section blocks rather than ' +
-      'fullscreen story-first layouts. Target: scene-first page composition.',
+      'RENDERING LAYER NOTE: consumes canonical CustomerPresentationScene[] and renders via ' +
+      'CustomerScenePrint to preserve the same scene order and narrative rhythm as the portal.',
     routeKind: 'derived',
     fullRouteExample: 'Visit Home → Supporting PDF CTA → library-pdf journey',
     access: 'production',
@@ -1137,7 +1132,8 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     ],
     usedByRoutes: ['VisitHomeDashboard'],
     includeInCopyBox: true,
-    renderingLayer: 'transitional',
+    renderingLayer: 'scene_grammar',
+    legacyRendererLeak: false,
     render: () => (
       <PortalJourneyPrintPack
         model={buildPortalJourneyPrintModel({

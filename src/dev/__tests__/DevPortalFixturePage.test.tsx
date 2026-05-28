@@ -112,15 +112,15 @@ describe('DevPortalFixturePage — fixture opens real portal choice screen', () 
   });
 });
 
-describe('DevPortalFixturePage — Insight opens real InsightPackDeck', () => {
-  it('clicking "Open Insight" on any fixture opens InsightPackDeck directly', async () => {
+describe('DevPortalFixturePage — Insight opens canonical scene deck', () => {
+  it('clicking "Open Insight" on any fixture opens CustomerSceneDeck directly', async () => {
     render(<DevPortalFixturePage />);
 
     fireEvent.click(screen.getByTestId('fixture-insight-combi_1bath'));
 
-    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
     // Route trace confirms the real renderer is active
-    expect(screen.getByText(/activeRendererComponent: InsightPackDeck/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: CustomerSceneDeck/i)).toBeTruthy();
   });
 
   it('clicking "Open In-room presentation" opens CanonicalPresentationPage directly', async () => {
@@ -132,12 +132,10 @@ describe('DevPortalFixturePage — Insight opens real InsightPackDeck', () => {
     expect(screen.getByText(/activeRendererComponent: CanonicalPresentationPage/i)).toBeTruthy();
   });
 
-  it('open-vented Insight shows dev PDF toggle and defaults to current Insight PDF path', async () => {
+  it('open-vented Insight renders canonical scene output', async () => {
     render(<DevPortalFixturePage />);
     fireEvent.click(screen.getByTestId('fixture-insight-open_vented_to_sealed_unvented'));
-    await waitFor(() => expect(screen.getByTestId('dev-insight-pdf-toggle')).toBeTruthy());
-    expect(screen.getByTestId('dev-insight-pdf-toggle-current')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('insight-pack-deck')).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
   });
 });
 
@@ -178,7 +176,7 @@ describe('DevPortalFixturePage — library supporting PDF preview', () => {
     await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-preview')).toBeTruthy());
 
     fireEvent.click(screen.getByTestId('dev-insight-pdf-toggle-current'));
-    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
   });
 
   it('keeps current Insight fallback available in heat-pump comparison mode', async () => {
@@ -187,25 +185,19 @@ describe('DevPortalFixturePage — library supporting PDF preview', () => {
     await waitFor(() => expect(screen.getByTestId('dev-supporting-pdf-preview')).toBeTruthy());
 
     fireEvent.click(screen.getByTestId('dev-insight-pdf-toggle-current'));
-    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
   });
 });
 
 describe('DevPortalFixturePage — stored/unvented fixture shows PressureVsStoragePortalSection', () => {
-  it('system_unvented_2bath fixture shows PressureVsStoragePortalSection in the Insight tab', async () => {
+  it('system_unvented_2bath fixture includes pressure_vs_storage scene in Insight mode', async () => {
     render(<DevPortalFixturePage />);
 
     // Open the system + unvented cylinder fixture via Insight shortcut
     fireEvent.click(screen.getByTestId('fixture-insight-system_unvented_2bath'));
 
-    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
-
-    // Navigate to the Day to Day tab where PressureVsStoragePortalSection lives
-    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
-
-    await waitFor(() =>
-      expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0),
-    );
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
+    expect(screen.getByTestId('customer-scene-pressure_vs_storage')).toBeTruthy();
   });
 });
 

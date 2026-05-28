@@ -23,23 +23,23 @@ import { readCanonicalReportPayload } from '../../features/reports/adapters/read
 import { runEngine } from '../../engine/Engine';
 import type { EngineInputV2_3, FullEngineResult } from '../../engine/schema/EngineInputV2_3';
 import CanonicalPresentationPage from '../presentation/CanonicalPresentationPage';
-import InsightPackDeck from '../../legacy/customerOutputPrototype/insightPack/InsightPackDeck';
-import { buildInsightPackFromEngine } from '../../legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine';
-import type { InsightPackSurveyContext } from '../../legacy/customerOutputPrototype/insightPack/buildInsightPackFromEngine';
 import { buildPortalViewModel } from '../../engine/modules/buildPortalViewModel';
 import { buildVisualBlocks } from '../../engine/modules/buildVisualBlocks';
 import { buildDecisionFromScenarios } from '../../engine/modules/buildDecisionFromScenarios';
 import { buildScenariosFromEngineOutput } from '../../engine/modules/buildScenariosFromEngineOutput';
 import { buildCustomerSummary } from '../../engine/modules/buildCustomerSummary';
 import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
-import type { WelcomePackAccessibilityPreferencesV1 } from '../../library/packComposer/WelcomePackComposerV1';
 import { resolvePortalHomeLabel } from '../../lib/portal/portalVisitContext';
 import { ReadingPreferencesLauncher } from '../../accessibility/readingPreferences/ReadingPreferencesLauncher';
 import { ReadingAssistOverlay } from '../../accessibility/readingAssist/ReadingAssistOverlay';
 import { PersistentJourneyHeader } from './PersistentJourneyHeader';
 import { buildCustomerSafeAiFallback } from '../../ai/buildCustomerSafeAiFallback';
-import { CustomerPortalJourneyComposer } from '../../portal/customerJourney/CustomerPortalJourneyComposer';
-import type { CustomerJourneyPackV1 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
+import { CustomerSceneDeck, buildCustomerPresentationScenes } from '../../library/customerPresentation';
+import {
+  buildCustomerJourneyPack,
+  inferCustomerJourneyTypeFromSystemContext,
+  type CustomerJourneyPackV1,
+} from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 import './CustomerPortalPage.css';
 
 interface Props {
@@ -77,78 +77,10 @@ interface Props {
 type PortalViewMode = null | 'insight' | 'presentation' | 'portal';
 export const CUSTOMER_PORTAL_PHONE_MEDIA_QUERY = '(max-width: 768px)';
 export const LEGACY_PORTAL_RENDERER_LEAK_BANNER = 'LEGACY PORTAL RENDERER LEAK DETECTED';
-const MIN_DYNAMIC_MAINS_PRESSURE_BAR = 1.5;
-const MIN_MAINS_DYNAMIC_FLOW_LPM = 10;
-const MIN_PRIMARY_PIPE_DIAMETER_MM = 22;
-/** Scenario IDs that indicate a stored hot water / unvented system recommendation. */
-const UNVENTED_SCENARIO_PATTERN = /\b(system_unvented|regular_unvented|unvented)\b/i;
-
-function buildPortalAccessibilityPreferences(): WelcomePackAccessibilityPreferencesV1 {
-  const prefersReducedMotion = typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  return {
-    prefersReducedMotion,
-    prefersPrint: false,
-    includeTechnicalAppendix: false,
-    profiles: [],
-  };
-}
 
 function isPhoneViewport(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
   return window.matchMedia(CUSTOMER_PORTAL_PHONE_MEDIA_QUERY).matches;
-}
-
-function buildPortalConcernTags(input: EngineInputV2_3, scenarioId?: string): string[] {
-  const tags = new Set<string>();
-  if ((input.occupancyCount ?? 0) >= 3 || (input.peakConcurrentOutlets ?? 0) >= 2) {
-    tags.add('simultaneous_use');
-  }
-  if (input.bathroomCount >= 2) {
-    tags.add('hot_water_storage');
-  }
-  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < MIN_DYNAMIC_MAINS_PRESSURE_BAR) {
-    tags.add('pressure');
-  }
-  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_MAINS_DYNAMIC_FLOW_LPM) {
-    tags.add('flow');
-  }
-  if (scenarioId?.includes('ashp')) {
-    tags.add('heat_pump');
-    tags.add('low_flow_temperature');
-  }
-  if (input.pvStatus === 'existing' || input.pvStatus === 'planned') {
-    tags.add('solar');
-  }
-  if (
-    input.currentSystem?.heatingSystemType === 'open_vented'
-    || input.dhwStorageType === 'vented'
-  ) {
-    tags.add('open_vented');
-    tags.add('sealed_system_conversion');
-  }
-  if (
-    scenarioId != null
-    && UNVENTED_SCENARIO_PATTERN.test(scenarioId)
-  ) {
-    tags.add('unvented_safety_reassurance');
-  }
-  return [...tags];
-}
-
-function buildPortalPropertyConstraintTags(input: EngineInputV2_3): string[] {
-  const tags = new Set<string>();
-  if (input.dynamicMainsPressure != null && input.dynamicMainsPressure < MIN_DYNAMIC_MAINS_PRESSURE_BAR) {
-    tags.add('pressure');
-  }
-  if ((input.mainsDynamicFlowLpm ?? Number.POSITIVE_INFINITY) < MIN_MAINS_DYNAMIC_FLOW_LPM) {
-    tags.add('flow');
-  }
-  if (input.primaryPipeDiameter <= MIN_PRIMARY_PIPE_DIAMETER_MM) {
-    tags.add('hydraulic');
-  }
-  return [...tags];
 }
 
 export function assertNoLegacyPresentationRenderer({
@@ -161,7 +93,7 @@ export function assertNoLegacyPresentationRenderer({
   activeRendererComponent: string;
 }): { leakDetected: boolean; message: string } {
   const leakDetected = isProductionPortalSurface
-    && (selectedPortalMode !== 'portal' || activeRendererComponent !== 'CustomerPortalJourneyComposer');
+    && (selectedPortalMode !== 'portal' || activeRendererComponent !== 'CustomerSceneDeck');
   return {
     leakDetected,
     message: LEGACY_PORTAL_RENDERER_LEAK_BANNER,
@@ -266,19 +198,6 @@ function CustomerPortalContent({
     }
   }, [portalData]);
 
-  const libraryPortalIntegration = useMemo(() => {
-    if (!lockedSummary || !portalData) return null;
-    return {
-      customerSummary: lockedSummary,
-      atlasDecision: portalData.decision,
-      scenarios: portalData.scenarios,
-      bathroomCount: portalData.engineInput.bathroomCount,
-      accessibilityPreferences: buildPortalAccessibilityPreferences(),
-      userConcernTags: buildPortalConcernTags(portalData.engineInput, lockedSummary.recommendedScenarioId),
-      propertyConstraintTags: buildPortalPropertyConstraintTags(portalData.engineInput),
-    };
-  }, [lockedSummary, portalData]);
-
   const portalHomeLabel = useMemo(
     () => resolvePortalHomeLabel(portalVisitContextOverride),
     [portalVisitContextOverride],
@@ -288,6 +207,39 @@ function CustomerPortalContent({
     ?? 'Your recommendation';
   const recommendationSummary = lockedSummary?.headline
     ?? portalViewModel?.verdictData.comparisonCards[0]?.summary;
+  const customerJourneyPack = useMemo(() => {
+    if (productionPreviewCustomerJourneyPack != null) return productionPreviewCustomerJourneyPack;
+    if (!portalData) return null;
+    const recommendedScenario = portalData.scenarios.find(
+      (scenario) => scenario.scenarioId === portalData.decision.recommendedScenarioId,
+    );
+    const journeyType = inferCustomerJourneyTypeFromSystemContext({
+      currentHeatSourceType: portalData.engineInput.currentHeatSourceType,
+      currentSystemHeatingType: portalData.engineInput.currentSystem?.heatingSystemType,
+      dhwStorageType: portalData.engineInput.dhwStorageType,
+      recommendedScenarioType: recommendedScenario?.system.type,
+      recommendedScenarioId: recommendedScenario?.scenarioId,
+    });
+    return buildCustomerJourneyPack({
+      journeyType,
+      recommendationSummary: recommendationSummary ?? recommendationTitle,
+      customerFacts: [
+        `${portalData.engineInput.occupancyCount ?? 0} people in the home`,
+        `${portalData.engineInput.bathroomCount} bathroom${portalData.engineInput.bathroomCount === 1 ? '' : 's'}`,
+        `Property: ${portalHomeLabel}`,
+      ],
+    });
+  }, [
+    portalData,
+    productionPreviewCustomerJourneyPack,
+    recommendationSummary,
+    recommendationTitle,
+    portalHomeLabel,
+  ]);
+  const customerPresentationScenes = useMemo(
+    () => buildCustomerPresentationScenes(customerJourneyPack?.staticPdf.sections ?? []),
+    [customerJourneyPack],
+  );
 
   useEffect(() => {
     // Dev fixture bypass: skip API and token validation when devFixtureInput is provided.
@@ -409,9 +361,9 @@ function CustomerPortalContent({
     effectiveViewMode === null
       ? 'PortalChoiceScreen'
       : effectiveViewMode === 'insight'
-        ? 'InsightPackDeck'
+        ? 'CustomerSceneDeck'
         : effectiveViewMode === 'portal'
-          ? 'CustomerPortalJourneyComposer'
+          ? 'CustomerSceneDeck'
           : showSimulator
             ? 'UnifiedSimulatorView'
             : 'CanonicalPresentationPage';
@@ -431,18 +383,12 @@ function CustomerPortalContent({
   }
 
   function renderPortalJourney() {
-    if (!portalViewModel || !portalData || !engineResult) return renderPortalViewError();
+    if (!portalViewModel || !portalData || !engineResult || customerPresentationScenes.length === 0) {
+      return renderPortalViewError();
+    }
 
     return (
-      <CustomerPortalJourneyComposer
-        decision={portalData.decision}
-        scenarios={portalData.scenarios}
-        viewModel={portalViewModel}
-        engineInput={portalData.engineInput}
-        engineResult={engineResult}
-        propertyTitle={portalHomeLabel}
-        customerJourneyPack={productionPreviewCustomerJourneyPack}
-      />
+      <CustomerSceneDeck scenes={customerPresentationScenes} />
     );
   }
 
@@ -505,25 +451,6 @@ function CustomerPortalContent({
 
   // ── Insight Pack view ─────────────────────────────────────────────────────
   if (effectiveViewMode === 'insight' && isDevFixtureMode) {
-    const surveyContext: InsightPackSurveyContext = {
-      currentBoiler: engineInput.currentSystem?.boiler,
-      occupancyCount: engineInput.occupancyCount,
-      bathroomCount: engineInput.bathroomCount,
-      peakConcurrentOutlets: engineInput.peakConcurrentOutlets,
-      mainsDynamicFlowLpm: engineInput.mainsDynamicFlowLpm,
-      heatLossWatts: engineInput.heatLossWatts,
-    };
-    // Include quotes entered during the survey so the customer pack reflects the
-    // real contractor options and the recommendation is tied to a specific quote.
-    const surveyQuotes = surveyData?.fullSurvey?.quotes ?? [];
-    const pack = buildInsightPackFromEngine(
-      engineResult.engineOutput,
-      surveyQuotes,
-      surveyContext,
-      portalData?.decision ?? undefined,
-      portalData?.scenarios ?? undefined,
-    );
-
     return (
       <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
         <ReadingAssistOverlay />
@@ -538,7 +465,7 @@ function CustomerPortalContent({
           propertyTitle={portalHomeLabel}
           recommendationTitle={recommendationTitle}
           summary={recommendationSummary}
-          surfaceLabel="Insight"
+          surfaceLabel="Scenes"
         />
         <div className="portal-back-row">
           <button
@@ -549,13 +476,7 @@ function CustomerPortalContent({
             ← Back to choices
           </button>
         </div>
-        <InsightPackDeck
-          pack={pack}
-          propertyTitle={portalHomeLabel}
-          onClose={() => setViewMode(null)}
-          librarySectionData={libraryPortalIntegration ?? undefined}
-          showDevTraceLabels={showDevTraceLabels}
-        />
+        <CustomerSceneDeck scenes={customerPresentationScenes} />
         <BrandedFooter footerNote={ctaCopy.printFooterNote} />
       </div>
     );
@@ -564,7 +485,7 @@ function CustomerPortalContent({
   // ── Five-tab portal view — opened via deck CTA ────────────────────────────
   if (effectiveViewMode === 'portal') {
     return (
-      <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+      <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="portal-page">
         <ReadingAssistOverlay />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
@@ -685,7 +606,7 @@ function CustomerPortalContent({
   }
 
   return (
-    <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+    <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="portal-page">
       <ReadingAssistOverlay />
       {showDevTraceLabels ? (
         <aside data-testid="portal-route-trace-labels">

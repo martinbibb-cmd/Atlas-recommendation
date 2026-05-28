@@ -16,120 +16,18 @@
 
 import type {
   PortalJourneyPrintModelV1,
-  PortalJourneyPrintSectionV1,
   RecommendationReasonBlockV1,
 } from './buildPortalJourneyPrintModel';
 import type { SystemProtectionSummaryV1 } from './buildSystemProtectionSummary';
 import { buildCustomerDocumentModel, type CustomerDocumentRendererMode } from './CustomerDocumentRenderer';
-import { DiagramRenderer, isDiagramRendererIdSupported } from '../../diagrams/DiagramRenderer';
 import { ReadingAssistOverlay } from '../../../accessibility/readingAssist/ReadingAssistOverlay';
 import { PrintableJourneySummary, PrintableQuickWinCard, PrintableSystemCard } from '../../../portal/printable';
 import { REASON_ICON_BY_CATEGORY } from './recommendationReasonVisuals';
 import {
-  getVisualAssetManifestEntry,
-  getVisualAssetRendererAvailability,
-} from './visualAssetManifest';
-import { resolveLegoTechnicCustomerVisualDecision } from './legoTechnicCustomerVisualManifest';
-import { isApprovedCustomerPdfVisualAssetId } from '../../pdfVisuals/customerPdfVisualRegistry';
+  CustomerScenePrint,
+  buildCustomerPresentationScenes,
+} from '../../customerPresentation';
 import './portalJourneyPrintPack.css';
-
-type SectionVisualPlan =
-  | {
-      rendererType: 'diagram_component';
-      visualAssetId: string;
-      fallbackUsed: false;
-    }
-  | {
-      rendererType: 'print_fallback';
-      visualAssetId: string;
-      fallbackUsed: true;
-      fallbackAssetId: string;
-    }
-  | {
-      rendererType: 'none';
-      visualAssetId?: string;
-      fallbackUsed: false;
-      blockingReason: string;
-    };
-
-function resolveSectionVisualAssetId(section: PortalJourneyPrintSectionV1): string | undefined {
-  if (section.storyScene?.visualAssetId) return section.storyScene.visualAssetId;
-  if (section.diagramRendererId) return section.diagramRendererId;
-  if (!section.diagramId) return undefined;
-  return section.diagramId;
-}
-
-function resolveSectionVisualPlan(section: PortalJourneyPrintSectionV1): SectionVisualPlan {
-  const visualAssetId = resolveSectionVisualAssetId(section);
-  if (!visualAssetId) {
-    return {
-      rendererType: 'none',
-      fallbackUsed: false,
-      blockingReason: 'No visual asset declared for this section.',
-    };
-  }
-  if (!isApprovedCustomerPdfVisualAssetId(visualAssetId)) {
-    return {
-      rendererType: 'none',
-      visualAssetId,
-      fallbackUsed: false,
-      blockingReason: `Visual asset "${visualAssetId}" is not approved in customerPdfVisualRegistry.`,
-    };
-  }
-
-  const manifestEntry = getVisualAssetManifestEntry(visualAssetId);
-  if (manifestEntry == null) {
-    return {
-      rendererType: 'none',
-      visualAssetId,
-      fallbackUsed: false,
-      blockingReason: `Visual asset "${visualAssetId}" is missing from the visual manifest.`,
-    };
-  }
-  if (!manifestEntry.supportedSurfaces.includes('pdf')) {
-    return {
-      rendererType: 'none',
-      visualAssetId,
-      fallbackUsed: false,
-      blockingReason: `Visual asset "${visualAssetId}" is not PDF-supported.`,
-    };
-  }
-
-  const availability = getVisualAssetRendererAvailability(visualAssetId);
-  const requestedRendererType: SectionVisualPlan['rendererType'] = availability.hasDiagramRenderer
-    ? 'diagram_component'
-    : availability.hasPrintFallback
-      ? 'print_fallback'
-      : 'none';
-  const visualDecision = resolveLegoTechnicCustomerVisualDecision({
-    visualId: visualAssetId,
-    rendererUsed: requestedRendererType,
-    surface: 'print_preview',
-  });
-  if (!visualDecision.allowed) {
-    return {
-      rendererType: 'none',
-      visualAssetId,
-      fallbackUsed: false,
-      blockingReason: visualDecision.blockedReason
-        ?? `Visual asset "${visualAssetId}" is blocked by legoTechnicCustomerVisualManifest.`,
-    };
-  }
-  if (availability.hasDiagramRenderer && isDiagramRendererIdSupported(visualAssetId)) {
-    return {
-      rendererType: 'diagram_component',
-      visualAssetId,
-      fallbackUsed: false,
-    };
-  }
-
-  return {
-    rendererType: 'none',
-    visualAssetId,
-    fallbackUsed: false,
-    blockingReason: `No canonical diagram renderer is available for "${visualAssetId}".`,
-  };
-}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -429,127 +327,9 @@ function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCov
   );
 }
 
-interface PrintSectionProps {
-  section: PortalJourneyPrintSectionV1;
-  pageNumber: number;
-}
-
 interface PrintRecommendationReasonsProps {
   reasons: readonly RecommendationReasonBlockV1[];
   pageNumber: number;
-}
-
-function PrintSection({ section, pageNumber }: PrintSectionProps) {
-  const storyScene = section.storyScene;
-  const composition = storyScene?.composition;
-  const pageArchetype = composition?.pageArchetype ?? 'explanation';
-  const densityTier = composition?.densityTier ?? 'balanced';
-  const focalVisualPriority = composition?.focalVisualPriority ?? 'supporting';
-  const sceneTitle = storyScene?.title ?? section.heading;
-  const sceneCustomerTakeaway = storyScene?.customerTakeaway ?? section.keyTakeaway;
-  const sceneWhyItMatters = storyScene?.whyItMatters ?? section.summary;
-  const sceneWhatYouWillNotice = storyScene?.whatYouWillNotice ?? section.items[0] ?? section.reassurance;
-  const noticeItems = storyScene != null
-    ? [sceneWhatYouWillNotice]
-    : section.items;
-  const visualPlan = resolveSectionVisualPlan(section);
-  const shouldRenderVisualFallback =
-    pageArchetype !== 'quiet' && visualPlan.rendererType !== 'diagram_component';
-
-  return (
-    <section
-      className={`pjpp-page pjpp-section pjpp-section--${section.sectionId} pjpp-section--archetype-${pageArchetype} pjpp-section--density-${densityTier} pjpp-section--focal-${focalVisualPriority}`}
-      aria-labelledby={`pjpp-section-heading-${section.sectionId}`}
-      data-testid={`pjpp-section-${section.sectionId}`}
-      data-page={pageNumber}
-      data-archetype={pageArchetype}
-    >
-      <h2
-        id={`pjpp-section-heading-${section.sectionId}`}
-        className="pjpp-section__heading"
-      >
-        {sceneTitle}
-      </h2>
-
-      <p className="pjpp-section__summary">{sceneCustomerTakeaway}</p>
-
-      {pageArchetype === 'quiet' ? (
-        <div className="pjpp-quiet-content" data-testid={`pjpp-quiet-${section.sectionId}`}>
-          <p className="pjpp-quiet-content__copy">{sceneWhyItMatters}</p>
-        </div>
-      ) : (
-        <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
-          <strong>Customer takeaway:</strong> {sceneCustomerTakeaway}
-        </p>
-      )}
-
-      {visualPlan.rendererType === 'diagram_component' && pageArchetype !== 'quiet' ? (
-        <figure
-          className="pjpp-section__diagram"
-          data-testid={`pjpp-diagram-${section.sectionId}`}
-          data-print-safe="true"
-          style={{ '--pjpp-visual-scale': composition?.visualScale ?? 1 } as Record<string, number>}
-        >
-          <DiagramRenderer
-            diagramId={visualPlan.visualAssetId}
-            printSafe
-            reducedMotion
-          />
-          {section.diagramCaption ? (
-            <figcaption className="pjpp-section__diagram-caption">{section.diagramCaption}</figcaption>
-          ) : null}
-        </figure>
-      ) : null}
-
-      {shouldRenderVisualFallback ? (
-        <article
-          className="pjpp-section__visual-fallback-card"
-          data-testid={`pjpp-visual-fallback-${section.sectionId}`}
-          data-warning-code={
-            hasText(visualPlan.visualAssetId) && isApprovedCustomerPdfVisualAssetId(visualPlan.visualAssetId)
-              ? 'approved_visual_missing'
-              : undefined
-          }
-        >
-          <p className="pjpp-section__visual-fallback-title">Visual content not available</p>
-          <p className="pjpp-section__visual-fallback-copy">
-            {sceneWhyItMatters}
-          </p>
-        </article>
-      ) : null}
-
-      {hasText(sceneWhyItMatters) && pageArchetype !== 'quiet' && visualPlan.rendererType === 'diagram_component' ? (
-        <p className="pjpp-section__visual-explanation" data-testid={`pjpp-visual-explanation-${section.sectionId}`}>
-          {sceneWhyItMatters}
-        </p>
-      ) : null}
-
-      {pageArchetype === 'quiet' ? null : (
-        <ul className="pjpp-outcome-cards" data-testid={`pjpp-items-${section.sectionId}`}>
-          {noticeItems.slice(0, composition?.maxCardsPerPage ?? 3).map((item, i) => (
-            <li key={`${section.sectionId}-${i}`} className="pjpp-outcome-card">
-              <p className="pjpp-outcome-card__label">What you will notice</p>
-              <p className="pjpp-outcome-card__copy">{item}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-      {import.meta.env.DEV && visualPlan.rendererType === 'none' && pageArchetype !== 'quiet' ? (
-        <p
-          className="pjpp-section__diagram-caption"
-          data-testid={`pjpp-missing-visual-${section.sectionId}`}
-        >
-          Missing visual: {visualPlan.blockingReason}
-        </p>
-      ) : null}
-
-      {pageArchetype !== 'quiet' ? (
-        <aside className="pjpp-reassurance" data-testid={`pjpp-reassurance-${section.sectionId}`} data-reading-region="true">
-          {section.reassurance}
-        </aside>
-      ) : null}
-    </section>
-  );
 }
 
 function PrintRecommendationReasons({ reasons, pageNumber }: PrintRecommendationReasonsProps) {
@@ -756,9 +536,19 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
     model,
     mode,
   });
+  const customerScenes = buildCustomerPresentationScenes(customerDocument.sections);
   const demographics = extractDemographicsSummary(customerDocument.cover.customerFacts);
   const technicalHandoff = buildTechnicalHandoffData(customerDocument.cover, demographics);
   let pageCounter = 1;
+  const coverPageNumber = pageCounter++;
+  const recommendationReasonsPageNumber =
+    customerDocument.recommendationReasons.length > 0 ? pageCounter++ : undefined;
+  const sceneStartPageNumber = pageCounter;
+  pageCounter += customerScenes.length;
+  const systemProtectionPageNumber =
+    customerDocument.systemProtection != null ? pageCounter++ : undefined;
+  const nextStepsPageNumber = pageCounter++;
+  const technicalHandoffPageNumber = pageCounter++;
 
   return (
     <article
@@ -772,37 +562,34 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
         cover={customerDocument.cover}
         contentSource={model.contentSource}
         demographics={demographics}
-        pageNumber={pageCounter++}
+        pageNumber={coverPageNumber}
       />
 
-      {customerDocument.recommendationReasons.length > 0 ? (
-        <PrintRecommendationReasons reasons={customerDocument.recommendationReasons} pageNumber={pageCounter++} />
+      {recommendationReasonsPageNumber != null ? (
+        <PrintRecommendationReasons
+          reasons={customerDocument.recommendationReasons}
+          pageNumber={recommendationReasonsPageNumber}
+        />
       ) : null}
 
-      {customerDocument.sections.map((section) => (
-        <PrintSection
-          key={`${section.sectionId}-${section.contentId}`}
-          section={section}
-          pageNumber={pageCounter++}
-        />
-      ))}
+      <CustomerScenePrint scenes={customerScenes} startingPage={sceneStartPageNumber} />
 
-      {customerDocument.systemProtection != null ? (
+      {systemProtectionPageNumber != null && customerDocument.systemProtection != null ? (
         <PrintSystemProtection
           systemProtection={customerDocument.systemProtection}
-          pageNumber={pageCounter++}
+          pageNumber={systemProtectionPageNumber}
         />
       ) : null}
 
       <PrintNextSteps
         nextSteps={customerDocument.nextSteps}
         qrDestinations={customerDocument.qrDestinations}
-        pageNumber={pageCounter++}
+        pageNumber={nextStepsPageNumber}
       />
 
       <PrintTechnicalHandoff
         technicalHandoff={technicalHandoff}
-        pageNumber={pageCounter++}
+        pageNumber={technicalHandoffPageNumber}
       />
     </article>
   );
