@@ -365,8 +365,14 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
       selectedSectionIds: routedSelection.selectedSectionIds,
       educationalConceptTags: routedSelection.conceptTags,
     });
-    const builtSceneCount = builtPack.staticPdf.contentSource?.storySceneValidation?.sceneCount ?? 0;
-    if (builtSceneCount === 0) {
+    const storySceneValidation = builtPack.staticPdf.contentSource?.storySceneValidation;
+    if (storySceneValidation == null) {
+      throw new Error(
+        'Customer PDF export blocked: current recommendation context exists but storySceneValidation metadata is missing. '
+        + 'Regenerate recommendation outputs and export again.',
+      );
+    }
+    if (storySceneValidation.sceneCount === 0) {
       throw new Error(
         'Customer PDF export blocked: current recommendation context exists but produced 0 story scenes. '
         + 'Regenerate recommendation outputs and export again.',

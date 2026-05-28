@@ -84,6 +84,37 @@ function makePackageWithRecommendationContextAndNoJourney() {
   });
 }
 
+function buildOneScenePackMock(): CustomerJourneyPackV1 {
+  const base = buildZeroScenePackMock();
+  return {
+    ...base,
+    staticPdf: {
+      ...base.staticPdf,
+      contentSource: {
+        ...base.staticPdf.contentSource!,
+        storySceneValidation: {
+          ...base.staticPdf.contentSource!.storySceneValidation!,
+          sceneCount: 1,
+        },
+      },
+    },
+  };
+}
+
+function buildMissingValidationPackMock(): CustomerJourneyPackV1 {
+  const base = buildZeroScenePackMock();
+  return {
+    ...base,
+    staticPdf: {
+      ...base.staticPdf,
+      contentSource: {
+        ...base.staticPdf.contentSource!,
+        storySceneValidation: undefined as never,
+      },
+    },
+  };
+}
+
 function buildZeroScenePackMock(): CustomerJourneyPackV1 {
   return {
     schema: CUSTOMER_JOURNEY_PACK_SCHEMA,
@@ -199,5 +230,25 @@ describe('customer PDF hard fail — zero story scenes with recommendation conte
     expect(() =>
       renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg })),
     ).not.toThrow();
+  });
+
+  it('does not throw when sceneCount is exactly 1 (boundary: one scene is sufficient)', () => {
+    vi.mocked(buildPortalJourneyPrintModelModule.buildCustomerJourneyPack)
+      .mockReturnValueOnce(buildOneScenePackMock());
+
+    const pkg = makePackageWithRecommendationContextAndNoJourney();
+    expect(() =>
+      renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg })),
+    ).not.toThrow();
+  });
+
+  it('throws a distinct error when storySceneValidation metadata is missing entirely', () => {
+    vi.mocked(buildPortalJourneyPrintModelModule.buildCustomerJourneyPack)
+      .mockReturnValueOnce(buildMissingValidationPackMock());
+
+    const pkg = makePackageWithRecommendationContextAndNoJourney();
+    expect(() =>
+      renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg })),
+    ).toThrow('storySceneValidation metadata is missing');
   });
 });
