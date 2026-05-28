@@ -1,10 +1,10 @@
 import type { AtlasDecisionV1 } from '../../contracts/AtlasDecisionV1';
 import type { CustomerSummaryV1 } from '../../contracts/CustomerSummaryV1';
 import type { EngineOutputV1 } from '../../contracts/EngineOutputV1';
+import type { PortalVisitContextV1 } from '../../contracts/PortalVisitContextV1';
 import type { ScenarioResult } from '../../contracts/ScenarioResult';
 import type { EngineInputV2_3 } from '../../engine/schema/EngineInputV2_3';
 import type { FullSurveyModelV1 } from '../../ui/fullSurvey/FullSurveyModelV1';
-import type { PersistedPortalVisitContext } from '../../lib/storage/persistedAtlasVisitV2';
 import type { GeneratedOutputsV1, CanonicalRecommendationSnapshotV1 } from '../../lib/storage/visitReviewLifecycle';
 import type { ResolveCustomerDocumentSourceResultV1 } from '../../library/portal/pdf/CustomerDocumentSourceV1';
 import type { PortalJourneyPrintModelV1 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
@@ -27,7 +27,7 @@ export interface LibraryPdfHydratedSnapshot {
   readonly customerSummary?: CustomerSummaryV1;
   readonly acceptedScenarioId?: string;
   readonly generatedOutputs?: Partial<GeneratedOutputsV1>;
-  readonly portalVisitContext?: PersistedPortalVisitContext;
+  readonly portalVisitContext?: Pick<PortalVisitContextV1, 'addressSummary' | 'personalDataMode'>;
   readonly surveyModel?: FullSurveyModelV1;
   readonly engineInput?: EngineInputV2_3;
 }
@@ -66,6 +66,10 @@ export interface RunLibraryPdfBootStateInput {
 
 const VISIT_LOAD_ERROR_MESSAGE =
   'Customer PDF could not be prepared because this visit could not be loaded.';
+const VISIT_ID_MISSING_MESSAGE =
+  'Customer PDF could not be prepared because no visit was specified.';
+const VISIT_DATA_INCOMPLETE_MESSAGE =
+  'Customer PDF could not be prepared because this visit data is incomplete.';
 
 const RECOMMENDATION_MISSING_MESSAGE =
   'Customer PDF could not be prepared because the recommendation has not been regenerated for this visit.';
@@ -91,7 +95,7 @@ export async function runLibraryPdfBootState(
   if (!hasText(input.visitId)) {
     return {
       status: 'blocked',
-      message: VISIT_LOAD_ERROR_MESSAGE,
+      message: VISIT_ID_MISSING_MESSAGE,
     };
   }
 
@@ -124,7 +128,7 @@ export async function runLibraryPdfBootState(
     }
     return {
       status: 'blocked',
-      message: VISIT_LOAD_ERROR_MESSAGE,
+      message: VISIT_DATA_INCOMPLETE_MESSAGE,
       missingFields: source.missingFields,
     };
   }

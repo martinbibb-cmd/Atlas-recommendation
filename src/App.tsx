@@ -280,7 +280,7 @@ function formatSavedAgo(updatedAt: string): string {
 
 const CUSTOMER_PACK_FILENAME_SUFFIX = '-customer-pack.pdf';
 
-function hasText(value: string | undefined): value is string {
+function hasText(value: string | null | undefined): value is string {
   return value != null && value.trim().length > 0;
 }
 
@@ -1556,8 +1556,8 @@ function AppInner() {
     let cancelled = false;
     void (async () => {
       const result = await runLibraryPdfBootState({
-        visitId: INITIAL_VISIT_ID_PARAM ?? undefined,
-        explicitVisitId: hasText(INITIAL_VISIT_ID_PARAM ?? undefined),
+        visitId: INITIAL_VISIT_ID_PARAM,
+        explicitVisitId: hasText(INITIAL_VISIT_ID_PARAM),
         onTransition: (state) => {
           if (!cancelled) setLibraryPdfBootState(state);
         },
@@ -1610,11 +1610,11 @@ function AppInner() {
             scenarios: snapshot.scenarios,
           }),
         resolveDocumentSource: ({ snapshot, generatedOutputs }) => {
-          const preferredScenarioId = (snapshot.acceptedScenarioId ?? snapshot.decision?.recommendedScenarioId)?.toLowerCase();
+          const normalizedScenarioId = (snapshot.acceptedScenarioId ?? snapshot.decision?.recommendedScenarioId)?.toLowerCase();
           const acceptedScenario =
-            preferredScenarioId == null
+            normalizedScenarioId == null
               ? undefined
-              : snapshot.scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === preferredScenarioId);
+              : snapshot.scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === normalizedScenarioId);
           return resolveCustomerDocumentSourceV1({
             visitId: snapshot.visitId,
             visitReference: snapshot.visitReference ?? formatVisitReference(snapshot.visitId),
@@ -4649,7 +4649,7 @@ function AppInner() {
           ) {
             return (
               <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
-                <p style={{ color: '#475569', marginBottom: 0 }}>
+                <p role="status" aria-live="polite" style={{ color: '#475569', marginBottom: 0 }}>
                   Loading visit and rebuilding customer journey pack…
                 </p>
               </RetiredRouteNotice>
@@ -4673,6 +4673,15 @@ function AppInner() {
                 <button className="back-btn" onClick={() => setJourney('visit-home')}>
                   Open visit
                 </button>
+              </RetiredRouteNotice>
+            );
+          }
+          if (bootState.status !== 'ready') {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+                <p style={{ color: '#475569', marginBottom: 0 }}>
+                  Customer PDF could not be prepared because this visit could not be loaded.
+                </p>
               </RetiredRouteNotice>
             );
           }
