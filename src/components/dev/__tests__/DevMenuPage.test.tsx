@@ -34,14 +34,21 @@ describe('DevMenuPage inventory curation', () => {
     render(<DevMenuPage onBack={() => {}} />);
 
     expect(screen.getByRole('heading', { name: 'Customer-facing tools' })).toBeTruthy();
+    expect(screen.getByText('Customer Portal')).toBeTruthy();
+    expect(screen.getByText('Supporting PDF')).toBeTruthy();
+    expect(screen.getByText('House Simulator')).toBeTruthy();
+    expect(screen.getByText('Real Simulator')).toBeTruthy();
+    expect(screen.getAllByText('Presentation Deck').length).toBeGreaterThan(0);
     expect(screen.queryByText('Portal Fixtures')).toBeNull();
     expect(screen.queryByText('Lifestyle Interactive')).toBeNull();
+    expect(screen.queryByText('Customer Portal Preview (Prod-like)')).toBeNull();
+    expect(screen.queryByText('Legacy Prototype Composer (Archived)')).toBeNull();
     expect(screen.queryByLabelText('Preview Visual Primitive Gallery')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /Show dev & QA tools/i }));
-    expect(screen.getByText('Portal Fixtures')).toBeTruthy();
+    expect(await screen.findByText('Portal Fixtures')).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: /Show legacy tools/i }));
-    expect(screen.getByText('Lifestyle Interactive')).toBeTruthy();
-  });
+    expect(await screen.findByText('Lifestyle Interactive')).toBeTruthy();
+  }, 15000);
 });

@@ -87,8 +87,8 @@ describe('route + inventory consolidation', () => {
     const legacySurfaces = [
       ['VisitHubPage', 'visit-home'],
       ['VisitHomeUnifiedSimulatorRoute', '/?house-simulator=1'],
-      ['UnifiedSimulatorView', '/?house-simulator=1'],
-      ['InsightPackDeck', '/portal/<reference>?token=<signed-token>'],
+      ['UnifiedSimulatorView', '/dev/customer-pack-preview'],
+      ['InsightPackDeck', '/dev/customer-pack-preview'],
       ['CustomerAdvicePrintPack', 'library-pdf'],
     ] as const;
 
@@ -240,6 +240,77 @@ describe('route + inventory consolidation', () => {
     expect(
       frameworkPrintReferences.map((r) => r.codeName),
       'No production route may reference framework-print',
+    ).toHaveLength(0);
+  });
+
+  it('deprecated legacy visual surfaces are never production-access or active-status in UI inventory', () => {
+    const deprecatedCodeNames = [
+      'LifestyleInteractive',
+      'LifestyleInteractiveCompare',
+      'UnifiedSimulatorView',
+      'CustomerAdvicePrintPack',
+      'AtlasFrameworkPrintPage',
+      'InsightPackDeck',
+      'PrototypeComposerPage',
+    ] as const;
+
+    for (const codeName of deprecatedCodeNames) {
+      const uiEntry = DEV_UI_REGISTRY.find((item) => item.codeName === codeName);
+      expect(uiEntry, `${codeName} must be in DEV_UI_REGISTRY`).toBeDefined();
+      expect(uiEntry?.access).not.toBe('production');
+      expect(uiEntry?.status).not.toBe('active');
+      expect(uiEntry?.status).not.toBe('canonical');
+    }
+  });
+
+  it('promotes visual education library hub and galleries as canonical visual authority surfaces', () => {
+    const canonicalLibrarySurfaces = [
+      'LibraryExplorerPage',
+      'VisualEducationLibraryQaHubPage',
+      'VisualPrimitiveGallery',
+      'VisualTopologyGallery',
+      'AnalogyOverlayGallery',
+    ] as const;
+
+    for (const codeName of canonicalLibrarySurfaces) {
+      const uiEntry = DEV_UI_REGISTRY.find((item) => item.codeName === codeName);
+      expect(uiEntry, `${codeName} must be in DEV_UI_REGISTRY`).toBeDefined();
+      expect(uiEntry?.status).toBe('canonical');
+      expect(uiEntry?.access).toBe('dev_only');
+    }
+  });
+
+  it('keeps LegoTechnix debug active dev-only and separated from legacy prototype composer', () => {
+    const legoTechnix = DEV_UI_REGISTRY.find((item) => item.codeName === 'LegoTechnixDebugProjectionPage');
+    const legacyComposer = DEV_UI_REGISTRY.find((item) => item.codeName === 'PrototypeComposerPage');
+
+    expect(legoTechnix).toMatchObject({
+      status: 'active',
+      access: 'dev_only',
+      routeKind: 'query_flag',
+      fullRouteExample: '/?lego-technix-debug=1',
+    });
+    expect(legoTechnix?.notes?.toLowerCase()).toContain('not the legacy system-composer prototype');
+    expect(legacyComposer).toMatchObject({
+      status: 'deprecated',
+      access: 'legacy_dev_only',
+      filePath: 'src/legacy/systemComposerPrototype/PrototypeComposerPage.tsx',
+    });
+  });
+
+  it('production routes do not reference legacy insight-pack or retired print query routes', () => {
+    const productionRoutes = DEV_ROUTE_REGISTRY.filter((entry) => entry.access === 'production');
+    const legacyRouteReferences = productionRoutes.filter((route) =>
+      [
+        route.routePath,
+        route.fullRouteExample,
+        ...(route.queryFlags ?? []),
+      ].some((value) => value?.includes('insight-pack') || value?.includes('print=survey')),
+    );
+
+    expect(
+      legacyRouteReferences.map((r) => r.codeName),
+      'No production route may reference insight-pack or print=survey',
     ).toHaveLength(0);
   });
 

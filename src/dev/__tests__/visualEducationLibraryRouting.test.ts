@@ -45,7 +45,7 @@ describe('visual education library routing smoke coverage', () => {
         queryFlags: [surface.queryFlag],
         routeKind: 'path',
         access: 'dev_only',
-        status: 'active',
+        status: surface.isCandidateReference ? 'active' : 'canonical',
       });
       expect(item?.notes).toContain('Visual Education Library');
       expect(visibleItems.some((entry) => entry.codeName === surface.codeName)).toBe(true);
@@ -59,7 +59,7 @@ describe('visual education library routing smoke coverage', () => {
       queryFlags: [VISUAL_EDUCATION_LIBRARY_QA_HUB.queryFlag],
       routeKind: 'path',
       access: 'dev_only',
-      status: 'active',
+      status: 'canonical',
       childElementIds: [
         'visual-primitive-gallery',
         'visual-topology-gallery',

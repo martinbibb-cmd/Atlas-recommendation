@@ -161,12 +161,11 @@ const VISUAL_EDUCATION_LIBRARY_ENTRY_IDS = new Set<string>([
 ]);
 
 const CUSTOMER_FACING_ENTRY_ORDER = [
-  'customer-portal-preview-page',
   'customer-portal-page',
+  'portal-journey-print-pack',
   'house-simulator-page',
   'explainers-hub',
   'canonical-presentation',
-  'portal-journey-print-pack',
 ] as const;
 
 const CUSTOMER_FACING_ENTRY_IDS = new Set<string>(CUSTOMER_FACING_ENTRY_ORDER);
@@ -189,12 +188,11 @@ const LEGACY_TOOL_IDS = new Set<string>([
 ]);
 
 const CUSTOMER_FACING_SUMMARIES: Partial<Record<string, string>> = {
-  'customer-portal-preview-page': 'Production-like preview of the calm customer journey using fixture data.',
   'customer-portal-page': 'Canonical customer recommendation journey used for live visit outputs.',
+  'portal-journey-print-pack': 'Canonical customer supporting PDF path backed by the library-first print model.',
   'house-simulator-page': 'Home-level simulator used to explain likely system performance in visit review.',
-  'explainers-hub': 'Main simulator and explainer experience for understanding heat, water, and system response.',
-  'canonical-presentation': 'Customer presentation deck for reviewing the recommendation in a guided format.',
-  'portal-journey-print-pack': 'Supporting PDF output paired with the portal and visit review journey.',
+  'explainers-hub': 'Real Simulator for live system explanation and behaviour walkthroughs.',
+  'canonical-presentation': 'Customer presentation deck (needs migration to scene-first rendering).',
 };
 
 const VISUAL_LANGUAGE_SURFACE_ORDER = [
@@ -524,6 +522,9 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           <p style={{ margin: 0, fontSize: '0.8125rem', color: '#1d4ed8' }}>
             Use the Visual Education Library as the single front door for canonical heating visuals.
             The sealed + unvented visual workbench is currently a candidate reference under visual correction, not yet canonical.
+          </p>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#1d4ed8' }}>
+            <strong>Library</strong> = canonical visual source · <strong>Legacy graphics</strong> = archived comparison only · <strong>LegoTechnix</strong> = active engine/debug projection · <strong>System Composer Prototype</strong> = retired legacy palette
           </p>
           <p style={{ margin: 0, fontSize: '0.75rem', color: '#1d4ed8' }}>
             Mechanical drawing source of truth: <code style={STYLES.code}>docs/atlas-canonical-mechanical-primitive-spec.md</code>.
