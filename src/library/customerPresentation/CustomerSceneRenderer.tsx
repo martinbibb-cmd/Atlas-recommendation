@@ -122,6 +122,7 @@ function renderPrintScene(scene: CustomerPresentationScene, pageNumber: number |
   const sceneTitle = scene.heading;
   const sceneCustomerTakeaway = scene.takeaway;
   const sceneWhyItMatters = scene.explanation ?? section.summary;
+  const sceneInsight = scene.insight;
   const sceneWhatYouWillNotice = storyScene?.whatYouWillNotice ?? section.items[0] ?? section.reassurance;
   const noticeItems = storyScene != null
     ? [sceneWhatYouWillNotice]
@@ -154,6 +155,25 @@ function renderPrintScene(scene: CustomerPresentationScene, pageNumber: number |
           <strong>Customer takeaway:</strong> {sceneCustomerTakeaway}
         </p>
       )}
+
+      <dl className="pjpp-scene-insight" data-testid={`pjpp-scene-insight-${section.sectionId}`}>
+        <div className="pjpp-scene-insight__row">
+          <dt>What we found</dt>
+          <dd>{sceneInsight.whatWasFound}</dd>
+        </div>
+        <div className="pjpp-scene-insight__row">
+          <dt>Why it matters</dt>
+          <dd>{sceneInsight.whyItMatters}</dd>
+        </div>
+        <div className="pjpp-scene-insight__row">
+          <dt>What changes</dt>
+          <dd>{sceneInsight.whatChanges}</dd>
+        </div>
+        <div className="pjpp-scene-insight__row">
+          <dt>What to expect</dt>
+          <dd>{sceneInsight.whatToExpect}</dd>
+        </div>
+      </dl>
 
       {visualPlan.rendererType === 'diagram_component' && pageArchetype !== 'quiet' ? (
         <figure
@@ -240,6 +260,24 @@ function renderPortalScene(scene: CustomerPresentationScene) {
       {scene.explanation ? (
         <p className={CUSTOMER_SCENE_TYPOGRAPHY.explanationClassName}>{scene.explanation}</p>
       ) : null}
+      <dl className="customer-scene__insight" data-testid={`customer-scene-insight-${scene.sectionId}`}>
+        <div className="customer-scene__insight-row">
+          <dt>What we found</dt>
+          <dd>{scene.insight.whatWasFound}</dd>
+        </div>
+        <div className="customer-scene__insight-row">
+          <dt>Why it matters</dt>
+          <dd>{scene.insight.whyItMatters}</dd>
+        </div>
+        <div className="customer-scene__insight-row">
+          <dt>What changes</dt>
+          <dd>{scene.insight.whatChanges}</dd>
+        </div>
+        <div className="customer-scene__insight-row">
+          <dt>What to expect</dt>
+          <dd>{scene.insight.whatToExpect}</dd>
+        </div>
+      </dl>
       {scene.technicalDetail ? (
         <details className={CUSTOMER_SCENE_TYPOGRAPHY.disclosureClassName} data-testid={`customer-scene-technical-${scene.sectionId}`}>
           <summary>Technical detail</summary>
