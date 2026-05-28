@@ -26,7 +26,7 @@ export interface BuildCustomerDocumentModelInputV1 {
 }
 
 const MAX_CUSTOMER_RECOMMENDATION_REASONS = 5;
-const DEFAULT_COVER_TITLE = 'Your recommendation';
+const DEFAULT_COVER_TITLE = 'Atlas recommendation summary';
 const DEFAULT_COVER_SUMMARY = 'Recommendation details unavailable. Please contact your installer for a new document.';
 
 function hasText(value: unknown): value is string {

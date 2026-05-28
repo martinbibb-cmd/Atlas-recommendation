@@ -324,6 +324,23 @@ function buildFallbackPrintModel(envelope: VisitPackagePdfEnvelopeV1): PortalJou
   };
 }
 
+function buildCanonicalPackageWithoutPackagedJourney(
+  pkg: CanonicalVisitPackageV1,
+): CanonicalVisitPackageV1 {
+  const generatedOutputStatus = pkg.generatedOutputStatus;
+  if (generatedOutputStatus == null || generatedOutputStatus.generatedOutputs == null) return pkg;
+  return {
+    ...pkg,
+    generatedOutputStatus: {
+      ...generatedOutputStatus,
+      generatedOutputs: {
+        ...generatedOutputStatus.generatedOutputs,
+        customerJourneyPack: undefined,
+      },
+    },
+  };
+}
+
 function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerDocumentModelV1 {
   const canonicalVisitPackage = envelope.canonicalVisitPackage;
   const packagedJourney = readCustomerJourneyPackFromGeneratedOutputs(
@@ -340,13 +357,15 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
     recommendationSummary: canonicalVisitPackage.proposalTruth?.customerSummary?.headline ?? '',
     customerFacts: [],
   });
-  const staticPdfModel = (packagedJourney != null || hasRecommendationContext)
+  const canonicalPackageWithoutPackagedJourney = buildCanonicalPackageWithoutPackagedJourney(canonicalVisitPackage);
+  const staticPdfModel = hasRecommendationContext
     ? buildCustomerJourneyPack({
-        canonicalVisitPackage,
-        customerJourneyPack: packagedJourney,
+        canonicalVisitPackage: canonicalPackageWithoutPackagedJourney,
         selectedSectionIds: routedSelection.selectedSectionIds,
       educationalConceptTags: routedSelection.conceptTags,
-    }).staticPdf
+      }).staticPdf
+    : packagedJourney != null
+    ? packagedJourney.staticPdf
     : buildFallbackPrintModel(envelope);
   return buildCustomerDocumentModel({
     model: staticPdfModel,

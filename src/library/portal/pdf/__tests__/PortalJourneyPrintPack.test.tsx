@@ -65,6 +65,11 @@ describe('PortalJourneyPrintPack — document structure', () => {
     );
   });
 
+  it('renders story pages via CustomerScenePrint', () => {
+    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    expect(screen.getByTestId('customer-scene-print')).toBeInTheDocument();
+  });
+
   it('renders QR destinations section', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(screen.getByTestId('pjpp-qr-list')).toBeInTheDocument();
@@ -365,6 +370,8 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
     const quietBlocks = screen.getAllByTestId(/pjpp-quiet-/);
     const text = quietBlocks.map((node) => node.textContent ?? '').join(' ').toLowerCase();
     expect(text).not.toMatch(/cognitive load|dense technical|story scene|composition|archetype|projection|taxonomy|route|routed evidence|breather page/);
+    expect(text).not.toContain('the recommendation has not changed');
+    expect(text).not.toContain('room to breathe');
   });
 });
 
