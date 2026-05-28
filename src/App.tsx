@@ -4583,217 +4583,57 @@ function AppInner() {
             </RetiredRouteNotice>
           );
         }
-        if (LIBRARY_PDF_ENABLED) {
-          const bootState = libraryPdfBootState;
-          if (
-            bootState == null
-            || bootState.status === 'loading_visit'
-            || bootState.status === 'rebuilding_customer_pack'
-          ) {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
-                <p role="status" aria-live="polite" style={{ color: '#475569', marginBottom: 0 }}>
-                  Loading visit and rebuilding customer journey pack…
-                </p>
-              </RetiredRouteNotice>
-            );
-          }
-          if (bootState.status === 'visit_not_found' || bootState.status === 'blocked') {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
-                <p style={{ color: '#475569', marginBottom: 0 }}>
-                  {bootState.message}
-                </p>
-              </RetiredRouteNotice>
-            );
-          }
-          if (bootState.status === 'recommendation_missing') {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
-                <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
-                  {bootState.message}
-                </p>
-                <button className="back-btn" onClick={() => setJourney('visit-home')}>
-                  Open visit
-                </button>
-              </RetiredRouteNotice>
-            );
-          }
-          if (bootState.status !== 'ready') {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
-                <p style={{ color: '#475569', marginBottom: 0 }}>
-                  Customer PDF could not be prepared because this visit could not be loaded.
-                </p>
-              </RetiredRouteNotice>
-            );
-          }
-          const printModel = bootState.printModel;
-          const debugVisitName =
-            activeVisitMeta?.visit_reference
-            ?? activeVisitMeta?.customer_name
-            ?? bootState.source.source.visitReference;
-          const debugRecommendationId = bootState.source.source.acceptedScenarioId;
-          const debugSceneCount = bootState.source.source.customerJourneyPack.staticPdf.sections.length;
+        const bootState = libraryPdfBootState;
+        if (
+          bootState == null
+          || bootState.status === 'loading_visit'
+          || bootState.status === 'rebuilding_customer_pack'
+        ) {
           return (
-            <div
-              style={{ background: '#f8fafc', minHeight: '100vh' }}
-              data-testid="library-pdf-route"
-            >
-              <div
-                style={{
-                  padding: '0.5rem 1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  borderBottom: '1px solid #e2e8f0',
-                  background: '#fff',
-                }}
-                data-testid="library-pdf-header"
-              >
-                <button
-                  className="back-btn"
-                  onClick={() => setJourney('visit-home')}
-                  data-testid="library-pdf-back"
-                >
-                  ← Back
-                </button>
-                <span
-                  style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}
-                  data-testid="library-pdf-workspace-marker"
-                >
-                  Library supporting PDF — review workspace
-                </span>
-                <button
-                  style={{ marginLeft: 'auto' }}
-                  className="back-btn"
-                  onClick={() => window.print()}
-                  data-testid="library-pdf-print-btn"
-                >
-                  Print / Save as PDF
-                </button>
-              </div>
-              {import.meta.env.DEV && (
-                <div
-                  style={{
-                    margin: '0.75rem 1rem 0',
-                    border: '1px dashed #cbd5e1',
-                    borderRadius: '0.5rem',
-                    background: '#ffffff',
-                    color: '#334155',
-                    fontSize: '0.75rem',
-                    padding: '0.55rem 0.75rem',
-                  }}
-                  data-testid="library-pdf-source-debug"
-                >
-                  pdfSource: hydratedVisit · visitName: {debugVisitName} · recommendationId: {debugRecommendationId} · sceneCount: {debugSceneCount} · renderer: CustomerScenePrint
-                </div>
-              )}
-              <PortalJourneyPrintPack model={printModel} />
-            </div>
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
+              <p role="status" aria-live="polite" style={{ color: '#475569', marginBottom: 0 }}>
+                Loading visit and rebuilding customer journey pack…
+              </p>
+            </RetiredRouteNotice>
           );
         }
-        const canonicalSnapshot =
-          activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
-            ? visitRecommendationSnapshot
-            : null;
-        const persistedCanonical =
-          activeVisitId != null
-            ? readPersistedAtlasVisitV2(activeVisitId).visit
-            : undefined;
-        const engineOutput =
-          canonicalSnapshot?.engineOutput
-          ?? persistedCanonical?.engine;
-        const scenarios =
-          canonicalSnapshot?.scenarios
-          ?? persistedCanonical?.scenarios;
-        const decision =
-          canonicalSnapshot?.decision
-          ?? persistedCanonical?.decision;
-        const customerSummary =
-          canonicalSnapshot?.customerSummary
-          ?? persistedCanonical?.customerSummary;
-        const activeSnapshotId = canonicalSnapshot?.recommendationSnapshot?.snapshotId
-          ?? persistedCanonical?.recommendationSnapshot?.snapshotId;
-        const sourceGeneratedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
-          generatedOutputs: canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
-          surveyModel: labFullSurveyModel ?? persistedCanonical?.survey,
-          engineInput: labEngineInput ?? persistedCanonical?.engineInputSnapshot,
-          customerSummary,
-          decision,
-          activeSnapshotId,
-          portalVisitContext: canonicalSnapshot?.portalVisitContext ?? persistedCanonical?.portalVisitContext,
-          scenarios,
-        });
-        const preferredScenarioId = (canonicalSnapshot?.acceptedScenarioId ?? decision?.recommendedScenarioId)?.toLowerCase();
-        const acceptedScenario =
-          preferredScenarioId == null
-            ? undefined
-            : scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === preferredScenarioId);
-        const source = resolveCustomerDocumentSourceV1({
-          visitId: canonicalSnapshot?.visitId ?? persistedCanonical?.visitId ?? activeVisitId,
-          visitReference:
-            canonicalSnapshot?.visitReference
-            ?? persistedCanonical?.visitReference
-            ?? (activeVisitId != null ? formatVisitReference(activeVisitId) : undefined),
-          acceptedScenario,
-          acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId ?? persistedCanonical?.acceptedScenarioId,
-          decision,
-          scenarios,
-          customerSummary,
-          engineInput: labEngineInput ?? persistedCanonical?.engineInputSnapshot,
-          engineOutput,
-          generatedOutputs: sourceGeneratedOutputs,
-        });
-        const selectedOutputs = normaliseGeneratedOutputs(sourceGeneratedOutputs);
-        if (
-          isArtifactStaleForActiveSnapshot(selectedOutputs.customerJourneyPack, activeSnapshotId)
-          || isArtifactStaleForActiveSnapshot(selectedOutputs.pdf, activeSnapshotId)
-        ) {
+        if (bootState.status === 'visit_not_found' || bootState.status === 'blocked') {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
               <p style={{ color: '#475569', marginBottom: 0 }}>
-                Supporting PDF artifact is stale for the active recommendation snapshot. Regenerate recommendation outputs first.
+                {bootState.message}
               </p>
             </RetiredRouteNotice>
           );
         }
-        if (!source.ok) {
+        if (bootState.status === 'recommendation_missing') {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
-              <p style={{ color: '#475569', marginBottom: '0.5rem' }}>
-                CustomerDocumentSourceV1 could not be built for this visit.
+              <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
+                {bootState.message}
               </p>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#475569' }}>
-                {source.missingFields.map((field) => (
-                  <li key={field}>{field}</li>
-                ))}
-              </ul>
+              <button className="back-btn" onClick={() => setJourney('visit-home')}>
+                Open visit
+              </button>
             </RetiredRouteNotice>
           );
         }
-        const printModel = source.source.customerJourneyPack.staticPdf;
-        const debugPdfSource: 'currentVisit' | 'staticPdfFallback' | 'cachedArtifact' =
-          printModel.contentSource?.fallbackOnly === true
-            ? 'staticPdfFallback'
-            : canonicalSnapshot != null
-              ? 'currentVisit'
-              : 'cachedArtifact';
+        if (bootState.status !== 'ready') {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Customer PDF could not be prepared because this visit could not be loaded.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
+        const printModel = bootState.printModel;
         const debugVisitName =
           activeVisitMeta?.visit_reference
           ?? activeVisitMeta?.customer_name
-          ?? source.source.visitReference;
-        const debugRecommendationId = source.source.acceptedScenarioId;
-        const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
-        if (!import.meta.env.DEV && isFallbackOnlyCustomerPdf(printModel)) {
-          return (
-            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
-              <p style={{ color: '#475569', marginBottom: 0 }}>
-                Customer PDF blocked: this package does not yet meet customer story quality checks. Regenerate recommendation outputs and export again.
-              </p>
-            </RetiredRouteNotice>
-          );
-        }
+          ?? bootState.source.source.visitReference;
+        const debugRecommendationId = bootState.source.source.acceptedScenarioId;
+        const debugSceneCount = bootState.source.source.customerJourneyPack.staticPdf.sections.length;
         return (
           <div
             style={{ background: '#f8fafc', minHeight: '100vh' }}
@@ -4812,9 +4652,7 @@ function AppInner() {
             >
               <button
                 className="back-btn"
-                // Return to Visit Home if opened from active visit; otherwise fall back to the
-                // presentation workspace (the only other context that holds labEngineInput).
-                onClick={() => setJourney(activeVisitId != null ? 'visit-home' : 'presentation')}
+                onClick={() => setJourney('visit-home')}
                 data-testid="library-pdf-back"
               >
                 ← Back
@@ -4847,7 +4685,7 @@ function AppInner() {
                 }}
                 data-testid="library-pdf-source-debug"
               >
-                pdfSource: {debugPdfSource} · visitName: {debugVisitName} · recommendationId: {debugRecommendationId} · sceneCount: {debugSceneCount} · renderer: CustomerScenePrint
+                pdfSource: hydratedVisit · visitName: {debugVisitName} · recommendationId: {debugRecommendationId} · sceneCount: {debugSceneCount} · renderer: CustomerScenePrint
               </div>
             )}
             <PortalJourneyPrintPack model={printModel} />
