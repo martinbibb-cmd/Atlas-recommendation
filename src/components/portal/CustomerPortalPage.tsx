@@ -237,7 +237,9 @@ function CustomerPortalContent({
     portalHomeLabel,
   ]);
   const customerPresentationScenes = useMemo(
-    () => buildCustomerPresentationScenes(customerJourneyPack?.staticPdf.sections ?? []),
+    () => buildCustomerPresentationScenes(customerJourneyPack?.staticPdf.sections ?? [], {
+      recommendationReasons: customerJourneyPack?.staticPdf.recommendationReasons,
+    }),
     [customerJourneyPack],
   );
 

@@ -55,6 +55,27 @@
   background: #fff;
 }
 
+.customer-scene__insight {
+  margin: 0.45rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.customer-scene__insight-row dt {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.customer-scene__insight-row dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.86rem;
+  color: #1f2937;
+}
+
 /* Full-width variant — used by the Insight Pack view which manages its own max-width */
 .portal-page--full-width {
   max-width: none;

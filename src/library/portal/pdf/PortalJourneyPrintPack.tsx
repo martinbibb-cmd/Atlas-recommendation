@@ -419,7 +419,9 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
     model,
     mode,
   });
-  const customerScenes = buildCustomerPresentationScenes(customerDocument.sections);
+  const customerScenes = buildCustomerPresentationScenes(customerDocument.sections, {
+    recommendationReasons: customerDocument.recommendationReasons,
+  });
   const demographics = extractDemographicsSummary(customerDocument.cover.customerFacts);
   let pageCounter = 1;
   const coverPageNumber = pageCounter++;
