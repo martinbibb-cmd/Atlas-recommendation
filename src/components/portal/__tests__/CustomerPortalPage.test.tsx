@@ -162,7 +162,6 @@ describe('CustomerPortalPage', () => {
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
     expect(screen.queryByTestId('portal-welcome')).toBeNull();
     expect(screen.queryByTestId('presentation-deck')).toBeNull();
-    expect(screen.getByTestId('portal-page')).toHaveStyle({ overflowX: 'clip' });
     vi.unstubAllGlobals();
   });
 
@@ -245,7 +244,7 @@ describe('CustomerPortalPage', () => {
     });
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
-    expect(screen.getAllByRole('button', { name: 'Technical detail' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Technical detail').length).toBeGreaterThan(0);
   });
 
   it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {

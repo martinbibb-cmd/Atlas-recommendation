@@ -5,7 +5,10 @@ import {
   getVisualAssetRendererAvailability,
 } from '../portal/pdf/visualAssetManifest';
 import { resolveLegoTechnicCustomerVisualDecision } from '../portal/pdf/legoTechnicCustomerVisualManifest';
-import type { CustomerPresentationScene } from './customerSceneValidation';
+import {
+  customerSceneHasText,
+  type CustomerPresentationScene,
+} from './customerSceneValidation';
 import { CUSTOMER_SCENE_TYPOGRAPHY } from './customerSceneTypography';
 
 type SectionVisualPlan =
@@ -33,16 +36,8 @@ interface CustomerSceneRendererProps {
   pageNumber?: number;
 }
 
-function hasText(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
 function resolveSectionVisualAssetId(scene: CustomerPresentationScene): string | undefined {
-  const section = scene.sourceSection;
-  if (scene.visualAssetId) return scene.visualAssetId;
-  if (section.diagramRendererId) return section.diagramRendererId;
-  if (!section.diagramId) return undefined;
-  return section.diagramId;
+  return scene.visualAssetId;
 }
 
 function resolveSectionVisualPlan(scene: CustomerPresentationScene): SectionVisualPlan {
@@ -179,7 +174,7 @@ function renderPrintScene(scene: CustomerPresentationScene, pageNumber: number |
           className="pjpp-section__visual-fallback-card"
           data-testid={`pjpp-visual-fallback-${section.sectionId}`}
           data-warning-code={
-            hasText(visualPlan.visualAssetId) && isApprovedCustomerPdfVisualAssetId(visualPlan.visualAssetId)
+            customerSceneHasText(visualPlan.visualAssetId) && isApprovedCustomerPdfVisualAssetId(visualPlan.visualAssetId)
               ? 'approved_visual_missing'
               : undefined
           }
@@ -189,7 +184,7 @@ function renderPrintScene(scene: CustomerPresentationScene, pageNumber: number |
         </article>
       ) : null}
 
-      {hasText(sceneWhyItMatters) && pageArchetype !== 'quiet' && visualPlan.rendererType === 'diagram_component' ? (
+      {customerSceneHasText(sceneWhyItMatters) && pageArchetype !== 'quiet' && visualPlan.rendererType === 'diagram_component' ? (
         <p className="pjpp-section__visual-explanation" data-testid={`pjpp-visual-explanation-${section.sectionId}`}>
           {sceneWhyItMatters}
         </p>
@@ -221,9 +216,11 @@ function renderPrintScene(scene: CustomerPresentationScene, pageNumber: number |
 }
 
 function renderPortalScene(scene: CustomerPresentationScene) {
-  const canRenderVisual = scene.visualAssetId != null
-    && isApprovedCustomerPdfVisualAssetId(scene.visualAssetId)
-    && isDiagramRendererIdSupported(scene.visualAssetId);
+  const visualAssetId = scene.visualAssetId;
+  const canRenderVisual = visualAssetId != null
+    && isApprovedCustomerPdfVisualAssetId(visualAssetId)
+    && isDiagramRendererIdSupported(visualAssetId);
+  const approvedVisualAssetId = canRenderVisual ? visualAssetId : undefined;
   return (
     <section
       className="customer-scene-card"
@@ -235,9 +232,9 @@ function renderPortalScene(scene: CustomerPresentationScene) {
         {scene.heading}
       </h2>
       <p className={CUSTOMER_SCENE_TYPOGRAPHY.takeawayClassName}>{scene.takeaway}</p>
-      {canRenderVisual ? (
+      {approvedVisualAssetId ? (
         <figure className="customer-scene__diagram" data-print-safe="true" data-testid={`customer-scene-diagram-${scene.sectionId}`}>
-          <DiagramRenderer diagramId={scene.visualAssetId} printSafe reducedMotion />
+          <DiagramRenderer diagramId={approvedVisualAssetId} printSafe reducedMotion />
         </figure>
       ) : null}
       {scene.explanation ? (

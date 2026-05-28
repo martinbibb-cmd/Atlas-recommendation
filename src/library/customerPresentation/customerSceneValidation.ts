@@ -15,22 +15,28 @@ export interface CustomerPresentationScene {
   sourceSection: PortalJourneyPrintSectionV1;
 }
 
-function hasText(value: unknown): value is string {
+export function customerSceneHasText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
 function resolveTechnicalDetail(section: PortalJourneyPrintSectionV1): string | undefined {
   const details = [section.reassurance, ...section.items]
-    .filter(hasText)
+    .filter(customerSceneHasText)
     .map((value) => value.trim());
   if (details.length === 0) return undefined;
   return details.join(' ');
 }
 
+export function resolveCustomerSceneVisualAssetId(
+  section: PortalJourneyPrintSectionV1,
+): string | undefined {
+  return section.storyScene?.visualAssetId ?? section.diagramRendererId ?? section.diagramId;
+}
+
 export function isValidCustomerPresentationScene(
   scene: CustomerPresentationScene,
 ): boolean {
-  return hasText(scene.heading) && hasText(scene.takeaway);
+  return customerSceneHasText(scene.heading) && customerSceneHasText(scene.takeaway);
 }
 
 export function buildCustomerPresentationScenes(
@@ -44,7 +50,7 @@ export function buildCustomerPresentationScenes(
         sectionId: section.sectionId,
         heading: storyScene?.title ?? section.heading,
         takeaway: storyScene?.customerTakeaway ?? section.keyTakeaway,
-        visualAssetId: storyScene?.visualAssetId ?? section.diagramRendererId ?? section.diagramId,
+        visualAssetId: resolveCustomerSceneVisualAssetId(section),
         explanation: storyScene?.whyItMatters ?? section.summary,
         technicalDetail: resolveTechnicalDetail(section),
         composition: storyScene?.composition,

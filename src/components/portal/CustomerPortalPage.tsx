@@ -218,9 +218,7 @@ function CustomerPortalContent({
       currentSystemHeatingType: portalData.engineInput.currentSystem?.heatingSystemType,
       dhwStorageType: portalData.engineInput.dhwStorageType,
       recommendedScenarioType: recommendedScenario?.system.type,
-      recommendedHeatSource: recommendedScenario?.system.heatSource,
       recommendedScenarioId: recommendedScenario?.scenarioId,
-      hotWaterArrangement: recommendedScenario?.system.hotWaterArrangement,
     });
     return buildCustomerJourneyPack({
       journeyType,
@@ -487,7 +485,7 @@ function CustomerPortalContent({
   // ── Five-tab portal view — opened via deck CTA ────────────────────────────
   if (effectiveViewMode === 'portal') {
     return (
-      <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+      <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="portal-page">
         <ReadingAssistOverlay />
         {showDevTraceLabels ? (
           <aside data-testid="portal-route-trace-labels">
@@ -608,7 +606,7 @@ function CustomerPortalContent({
   }
 
   return (
-    <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="customer-portal">
+    <div className="portal-page portal-page--full-width atlas-reading-surface" data-testid="portal-page">
       <ReadingAssistOverlay />
       {showDevTraceLabels ? (
         <aside data-testid="portal-route-trace-labels">
