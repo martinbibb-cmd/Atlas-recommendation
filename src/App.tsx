@@ -4512,7 +4512,7 @@ function AppInner() {
       {journey === 'library-pdf' && (() => {
         const strictLibraryPdfEntry = LIBRARY_PDF_ENABLED;
         const explicitVisitId = strictLibraryPdfEntry
-          ? INITIAL_VISIT_ID_PARAM ?? undefined
+          ? (INITIAL_VISIT_ID_PARAM != null ? INITIAL_VISIT_ID_PARAM : undefined)
           : undefined;
         const routeVisitId = explicitVisitId ?? activeVisitId;
         const canonicalSnapshot =
@@ -4672,6 +4672,8 @@ function AppInner() {
         const debugRecommendationId = source.source.acceptedScenarioId;
         const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
         const fallbackOnlyCustomerPdf = isFallbackOnlyCustomerPdf(printModel);
+        // Strict entry with explicit visitId must never render fallback-only PDFs,
+        // and production blocks fallback-only PDFs for all entry paths.
         const shouldBlockFallbackPdf = fallbackOnlyCustomerPdf && (!import.meta.env.DEV || explicitVisitId != null);
         if (shouldBlockFallbackPdf) {
           return (
