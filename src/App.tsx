@@ -4622,7 +4622,7 @@ function AppInner() {
             );
           }
         }
-        const preferredScenarioId = (canonicalSnapshot?.acceptedScenarioId ?? decision?.recommendedScenarioId)?.toLowerCase();
+        const preferredScenarioId = acceptedScenarioId?.toLowerCase();
         const acceptedScenario =
           preferredScenarioId == null
             ? undefined
@@ -4683,10 +4683,7 @@ function AppInner() {
         const debugRecommendationId = source.source.acceptedScenarioId;
         const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
         const fallbackOnlyCustomerPdf = isFallbackOnlyCustomerPdf(printModel);
-        if (
-          (explicitVisitId != null && fallbackOnlyCustomerPdf)
-          || (!import.meta.env.DEV && fallbackOnlyCustomerPdf)
-        ) {
+        if (fallbackOnlyCustomerPdf && (explicitVisitId != null || !import.meta.env.DEV)) {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
               <p style={{ color: '#475569', marginBottom: 0 }}>

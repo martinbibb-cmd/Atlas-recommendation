@@ -17,7 +17,7 @@ export interface ResolveLibraryPdfBootStateInput {
 export function resolveLibraryPdfBootState(
   input: ResolveLibraryPdfBootStateInput,
 ): LibraryPdfBootState {
-  if ((input.explicitVisitId?.trim().length ?? 0) === 0) {
+  if (!input.explicitVisitId?.trim()) {
     return 'blocked';
   }
   if (!input.hydrationComplete) {
