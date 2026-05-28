@@ -113,11 +113,20 @@ export async function runLibraryPdfBootState(
 
   const rebuildingState: LibraryPdfBootResult = { status: 'rebuilding_customer_pack' };
   input.onTransition?.(rebuildingState);
-  const generatedOutputs = input.enrichGeneratedOutputs(hydratedSnapshot);
-  const source = input.resolveDocumentSource({
-    snapshot: hydratedSnapshot,
-    generatedOutputs,
-  });
+  let generatedOutputs: GeneratedOutputsV1;
+  let source: ReturnType<RunLibraryPdfBootStateInput['resolveDocumentSource']>;
+  try {
+    generatedOutputs = input.enrichGeneratedOutputs(hydratedSnapshot);
+    source = input.resolveDocumentSource({
+      snapshot: hydratedSnapshot,
+      generatedOutputs,
+    });
+  } catch {
+    return {
+      status: 'blocked',
+      message: 'Customer PDF could not be prepared due to an unexpected error.',
+    };
+  }
   if (!source.ok) {
     if (isRecommendationMissing(source.missingFields)) {
       return {
@@ -133,7 +142,13 @@ export async function runLibraryPdfBootState(
     };
   }
 
-  const printModel = source.source.customerJourneyPack.staticPdf;
+  const printModel = source.source.customerJourneyPack.staticPdf ?? null;
+  if (printModel == null) {
+    return {
+      status: 'blocked',
+      message: VISIT_DATA_INCOMPLETE_MESSAGE,
+    };
+  }
   if (input.explicitVisitId && input.isFallbackOnlyPrintModel(printModel)) {
     return {
       status: 'blocked',

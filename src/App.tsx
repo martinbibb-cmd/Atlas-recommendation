@@ -1644,7 +1644,14 @@ function AppInner() {
         });
       }
       setLibraryPdfBootState(result);
-    })();
+    })().catch(() => {
+      if (!cancelled) {
+        setLibraryPdfBootState({
+          status: 'blocked',
+          message: 'Customer PDF could not be prepared due to an unexpected error.',
+        });
+      }
+    });
     return () => {
       cancelled = true;
     };
@@ -4579,6 +4586,15 @@ function AppInner() {
           );
         }
         const printModel = bootState.printModel;
+        if (printModel == null) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Customer PDF could not be prepared because this visit data is incomplete.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
         const debugVisitName =
           activeVisitMeta?.visit_reference
           ?? activeVisitMeta?.customer_name
