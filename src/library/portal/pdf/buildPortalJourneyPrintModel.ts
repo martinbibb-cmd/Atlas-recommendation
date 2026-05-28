@@ -1028,15 +1028,7 @@ function applyCompositionRhythmAndQuietPages(
     };
   });
 
-  const result: PortalJourneyPrintSectionV1[] = [];
-  for (const section of withRhythm) {
-    result.push(section);
-    const composition = section.storyScene?.composition;
-    if (composition?.densityTier === 'dense' && composition.quietEligible) {
-      result.push(buildQuietSceneSection(section));
-    }
-  }
-  return result;
+  return withRhythm;
 }
 
 function applyScenarioAuthoredNarrativePack(
@@ -1326,15 +1318,15 @@ function buildRoutedEducationalSections(input: {
       contentId: conA01.id,
       sectionId: 'system_fit_decision_map',
       heading: 'System fit decision map',
-      summary: 'Atlas routes system fit from measured evidence and household demand, not one-size-fits-all assumptions.',
+      summary: 'Your recommendation reflects your home’s demand pattern, pipework, and measured supply limits.',
       keyTakeaway: conA01.customerWording,
-      reassurance: 'The selected route reflects measured constraints and practical installation fit for this home.',
+      reassurance: 'This route is chosen to keep hot water and comfort reliable for your daily routines.',
       items: [
-        'Recommendation authority remains with the engine; this section explains the evidence path only.',
-        'Mains limits, demand overlap, and system condition are assessed together before route selection.',
-        'Educational explainers clarify why this route fits and what to expect day to day.',
+        'We check demand overlap, supply limits, and current system condition together before choosing a route.',
+        'The selected system is matched to day-to-day use so peak-time behaviour feels predictable.',
+        'This page explains why this recommendation fits your home and what you can expect in practice.',
       ],
-      diagramCaption: 'How measured constraints route to a suitable system-fit outcome.',
+      diagramCaption: 'How your home’s measured constraints shape a recommendation you can trust.',
       diagramId: 'system_fit_decision_map',
       diagramRendererId: 'system_fit_decision_map',
     });

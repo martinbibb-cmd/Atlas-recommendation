@@ -479,6 +479,49 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
     expect(perimeterLine?.y).toBeGreaterThan(cylinderTypeLine?.y ?? 0);
   });
 
+  it('hydrates cylinder type from recommended system before current-system storage flags', () => {
+    const pkg = makePackage();
+    pkg.engineInputSnapshot = {
+      ...pkg.engineInputSnapshot,
+      dhwStorageType: 'none',
+    } as never;
+    pkg.proposalTruth = {
+      ...pkg.proposalTruth,
+      customerSummary: {
+        ...(pkg.proposalTruth?.customerSummary ?? {}),
+        recommendedSystemLabel: 'System boiler with unvented cylinder',
+      } as never,
+    };
+
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
+    const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
+    const cylinderTypeLine = commands.find((command) => command.text.startsWith('Cylinder type:'));
+    expect(cylinderTypeLine?.text).toBe('Cylinder type: Unvented cylinder');
+  });
+
+  it('adds a consistency-check line when raw cylinder evidence conflicts with recommendation', () => {
+    const pkg = makePackage();
+    pkg.proposalTruth = {
+      ...pkg.proposalTruth,
+      customerSummary: {
+        ...(pkg.proposalTruth?.customerSummary ?? {}),
+        recommendedSystemLabel: 'Combi boiler',
+      } as never,
+    };
+    const packagedJourney = pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.payload;
+    if (packagedJourney != null) {
+      packagedJourney.staticPdf.cover.customerFacts = [
+        ...packagedJourney.staticPdf.cover.customerFacts,
+        'Cylinder type: Unvented cylinder',
+      ];
+    }
+
+    const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
+    const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
+    const consistencyLine = commands.find((command) => command.text.startsWith('Consistency check:'));
+    expect(consistencyLine?.text).toContain('does not match the recommended system');
+  });
+
   it('hydrates demographics from canonical metrics when customer facts use alternate phrasing', () => {
     const customerJourneyPack = buildCustomerJourneyPack({
       selectedSectionIds: [],

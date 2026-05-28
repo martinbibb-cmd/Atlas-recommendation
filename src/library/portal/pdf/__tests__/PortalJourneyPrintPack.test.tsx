@@ -49,11 +49,11 @@ describe('PortalJourneyPrintPack — document structure', () => {
     expect(screen.getByTestId('pjpp-next-steps')).toBeInTheDocument();
   });
 
-  it('renders technical hand-off section', () => {
+  it('does not render technical hand-off section in customer pack', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
-    expect(screen.getByTestId('pjpp-technical-handoff')).toBeInTheDocument();
-    expect(screen.getByTestId('pjpp-technical-handoff-physical')).toBeInTheDocument();
-    expect(screen.getByTestId('pjpp-technical-handoff-planned')).toBeInTheDocument();
+    expect(screen.queryByTestId('pjpp-technical-handoff')).toBeNull();
+    expect(screen.queryByTestId('pjpp-technical-handoff-physical')).toBeNull();
+    expect(screen.queryByTestId('pjpp-technical-handoff-planned')).toBeNull();
   });
 
   it('renders recommendation reason cards section', () => {
@@ -160,7 +160,6 @@ describe('PortalJourneyPrintPack — content sections', () => {
   it('each section renders its items list', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     for (const section of BASE_MODEL.sections) {
-      if (section.sectionId.startsWith('quiet_scene')) continue;
       expect(screen.getByTestId(`pjpp-items-${section.sectionId}`)).toBeInTheDocument();
     }
   });
@@ -321,19 +320,15 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
     expect(titles).toContain('Your recommendation');
     expect(titles).toContain('From vented layout to sealed comfort');
     expect(titles).toContain('What happens next');
-    expect(titles).toContain('Technical site hand-off');
-    expect(titles).toContain('Good to know');
+    expect(titles).not.toContain('Technical site hand-off');
+    expect(titles).not.toContain('Good to know');
   });
 
   it('renders one key takeaway and one reassurance block per content page', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     for (const section of BASE_MODEL.sections) {
-      if (!section.sectionId.startsWith('quiet_scene')) {
-        expect(screen.getByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeInTheDocument();
-        expect(screen.getByTestId(`pjpp-reassurance-${section.sectionId}`)).toBeInTheDocument();
-      } else {
-        expect(screen.queryByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeNull();
-      }
+      expect(screen.getByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeInTheDocument();
+      expect(screen.getByTestId(`pjpp-reassurance-${section.sectionId}`)).toBeInTheDocument();
     }
   });
 });
@@ -342,7 +337,6 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
   it('does not render more than three cards per page', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     for (const section of BASE_MODEL.sections) {
-      if (section.sectionId.startsWith('quiet_scene')) continue;
       const list = screen.getByTestId(`pjpp-items-${section.sectionId}`);
       expect(within(list).getAllByRole('listitem').length).toBeLessThanOrEqual(3);
     }

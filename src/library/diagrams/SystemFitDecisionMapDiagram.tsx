@@ -2,10 +2,10 @@ import './diagrams.css';
 import { ExplanationCallout } from './primitives/ExplanationCallout';
 
 const SCREEN_READER_SUMMARY =
-  'Decision map showing how system fit is chosen from measured site constraints: demand pattern, supply limits, distribution constraints, and control goals. Different homes reach different system outcomes for evidence-based reasons.';
+  'Decision map showing how your recommendation is matched to your home: demand pattern, supply limits, distribution constraints, and comfort goals. Different homes can need different system routes for practical day-to-day results.';
 
 const WHAT_THIS_MEANS =
-  'System fit is selected from measured evidence, not a one-size-fits-all preference. The chosen path reflects your demand pattern, supply limits, and home constraints.';
+  'Your recommendation is tailored to your home and routines, so comfort and hot-water performance stay reliable when daily demand rises.';
 
 export interface SystemFitDecisionMapDiagramProps {
   printSafe?: boolean;
@@ -42,7 +42,7 @@ export function SystemFitDecisionMapDiagram({ printSafe = false }: SystemFitDeci
 
       <ExplanationCallout
         label="Decision-map rule"
-        body="Each branch is evidence-led. Atlas uses measured constraints first, then recommends the lowest-risk path for comfort and trust."
+        body="Each branch checks measured home limits first, then selects the route that gives the most dependable everyday comfort."
       />
 
       <p className="atlas-edu-diagram__caption">{WHAT_THIS_MEANS}</p>

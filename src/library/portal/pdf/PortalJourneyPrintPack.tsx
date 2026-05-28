@@ -45,11 +45,6 @@ interface DemographicsSummary {
   hotWaterDemand: string;
 }
 
-interface TechnicalHandoffData {
-  physicalSiteConstraints: Array<{ label: string; value: string }>;
-  plannedHardwareAllocations: Array<{ label: string; value: string }>;
-}
-
 const NOT_RECORDED = 'Not recorded';
 
 function hasText(value: unknown): value is string {
@@ -101,74 +96,6 @@ function extractDemographicsSummary(facts: readonly string[]): DemographicsSumma
   }) ?? NOT_RECORDED;
 
   return { occupants, bathrooms, peakHeatLoss, hotWaterDemand };
-}
-
-function inferCylinderType(cover: PortalJourneyPrintModelV1['cover']): string {
-  const title = cover.title.toLowerCase();
-  const summary = cover.summary.toLowerCase();
-  if (title.includes('thermal store') || summary.includes('thermal store')) return 'Thermal store';
-  if (title.includes('combi') || summary.includes('combi')) return 'No cylinder (combi on-demand)';
-  if (title.includes('unvented') || summary.includes('unvented')) return 'Unvented cylinder';
-  if (title.includes('cylinder') || summary.includes('cylinder')) return 'Stored hot water cylinder';
-  return NOT_RECORDED;
-}
-
-function buildTechnicalHandoffData(
-  cover: PortalJourneyPrintModelV1['cover'],
-  demographics: DemographicsSummary,
-): TechnicalHandoffData {
-  const facts = cover.customerFacts;
-  const perimeterDimensions = extractFactValue(facts, (_, originalFact) => {
-    const labeledMatch = originalFact.match(/^perimeter(?: dimensions?)?:\s*(.+)$/i);
-    if (labeledMatch) return labeledMatch[1];
-    return /perimeter/i.test(originalFact) ? originalFact : null;
-  }) ?? NOT_RECORDED;
-  const floorArea = extractFactValue(facts, (_, originalFact) => {
-    const labeledMatch = originalFact.match(/^floor area:\s*(.+)$/i);
-    if (labeledMatch) return labeledMatch[1];
-    return /floor area/i.test(originalFact) ? originalFact : null;
-  }) ?? NOT_RECORDED;
-  const primaryPipeDiameters = extractFactValue(facts, (_, originalFact) => {
-    const labeledMatch = originalFact.match(/^(?:current )?primary pipe diameters?:\s*(.+)$/i);
-    if (labeledMatch) return labeledMatch[1];
-    return /pipe diameters?/i.test(originalFact) ? originalFact : null;
-  }) ?? NOT_RECORDED;
-  const targetedMinimumVolume = extractFactValue(facts, (_, originalFact) => {
-    const labeledMatch = originalFact.match(/^target(?:ed)? minimum volume:\s*(.+)$/i);
-    if (labeledMatch) return labeledMatch[1];
-    return /(?:minimum|target).*volume/i.test(originalFact) ? originalFact : null;
-  }) ?? NOT_RECORDED;
-  const calculatedRecoveryTimes = extractFactValue(facts, (_, originalFact) => {
-    const labeledMatch = originalFact.match(/^(?:calculated )?recovery times?:\s*(.+)$/i);
-    if (labeledMatch) return labeledMatch[1];
-    return /recovery/i.test(originalFact) ? originalFact : null;
-  }) ?? NOT_RECORDED;
-  const standingHeatLoss = extractFactValue(facts, (_, originalFact) => {
-    const labeledMatch = originalFact.match(/^standing heat loss:\s*(.+)$/i);
-    if (labeledMatch) return labeledMatch[1];
-    return /standing heat loss/i.test(originalFact) ? originalFact : null;
-  }) ?? NOT_RECORDED;
-  const activeHeatSourceOutput = extractFactValue(facts, (_, originalFact) => {
-    const labeledMatch = originalFact.match(/^active heat source(?: output)?(?: kw)?:\s*(.+)$/i);
-    if (labeledMatch) return labeledMatch[1];
-    return /heat source.*\bkw\b/i.test(originalFact) ? originalFact : null;
-  }) ?? NOT_RECORDED;
-
-  return {
-    physicalSiteConstraints: [
-      { label: 'Perimeter dimensions', value: perimeterDimensions },
-      { label: 'Floor area', value: floorArea },
-      { label: 'Calculated peak heat loss', value: demographics.peakHeatLoss },
-      { label: 'Current primary pipe diameters', value: primaryPipeDiameters },
-    ],
-    plannedHardwareAllocations: [
-      { label: 'Cylinder type', value: inferCylinderType(cover) },
-      { label: 'Targeted minimum volume', value: targetedMinimumVolume },
-      { label: 'Calculated recovery times', value: calculatedRecoveryTimes },
-      { label: 'Standing heat loss', value: standingHeatLoss },
-      { label: 'Active heat source kW output', value: activeHeatSourceOutput },
-    ],
-  };
 }
 
 function formatContentSourceVisualAssetIds(ids: readonly string[]): string {
@@ -470,50 +397,6 @@ function PrintNextSteps({ nextSteps, qrDestinations, pageNumber }: PrintNextStep
   );
 }
 
-interface PrintTechnicalHandoffProps {
-  technicalHandoff: TechnicalHandoffData;
-  pageNumber: number;
-}
-
-function PrintTechnicalHandoff({ technicalHandoff, pageNumber }: PrintTechnicalHandoffProps) {
-  return (
-    <section
-      className="pjpp-page technical-handoff-section"
-      aria-labelledby="pjpp-technical-handoff-heading"
-      data-testid="pjpp-technical-handoff"
-      data-page={pageNumber}
-    >
-      <h2 id="pjpp-technical-handoff-heading" className="pjpp-section__heading">
-        Technical site hand-off
-      </h2>
-      <div className="pjpp-technical-handoff-grid">
-        <section className="pjpp-technical-handoff__column" data-testid="pjpp-technical-handoff-physical">
-          <h3 className="pjpp-technical-handoff__title">Physical Site Constraints</h3>
-          <dl className="pjpp-technical-handoff__rows">
-            {technicalHandoff.physicalSiteConstraints.map((row) => (
-              <div key={row.label} className="pjpp-technical-handoff__row">
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-        <section className="pjpp-technical-handoff__column" data-testid="pjpp-technical-handoff-planned">
-          <h3 className="pjpp-technical-handoff__title">Planned Hardware Allocations</h3>
-          <dl className="pjpp-technical-handoff__rows">
-            {technicalHandoff.plannedHardwareAllocations.map((row) => (
-              <div key={row.label} className="pjpp-technical-handoff__row">
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      </div>
-    </section>
-  );
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface PortalJourneyPrintPackProps {
@@ -538,7 +421,6 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
   });
   const customerScenes = buildCustomerPresentationScenes(customerDocument.sections);
   const demographics = extractDemographicsSummary(customerDocument.cover.customerFacts);
-  const technicalHandoff = buildTechnicalHandoffData(customerDocument.cover, demographics);
   let pageCounter = 1;
   const coverPageNumber = pageCounter++;
   const recommendationReasonsPageNumber =
@@ -548,7 +430,6 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
   const systemProtectionPageNumber =
     customerDocument.systemProtection != null ? pageCounter++ : undefined;
   const nextStepsPageNumber = pageCounter++;
-  const technicalHandoffPageNumber = pageCounter++;
 
   return (
     <article
@@ -585,11 +466,6 @@ export function PortalJourneyPrintPack({ model, mode = 'printable' }: PortalJour
         nextSteps={customerDocument.nextSteps}
         qrDestinations={customerDocument.qrDestinations}
         pageNumber={nextStepsPageNumber}
-      />
-
-      <PrintTechnicalHandoff
-        technicalHandoff={technicalHandoff}
-        pageNumber={technicalHandoffPageNumber}
       />
     </article>
   );

@@ -166,9 +166,9 @@ export const diagramExplanationRegistry: DiagramExplanationEntry[] = [
       'water_constraint_reality',
     ],
     screenReaderSummary:
-      'Decision map showing how system fit is chosen from measured site constraints: demand pattern, supply limits, distribution constraints, and control goals. Different homes reach different system outcomes for evidence-based reasons.',
+      'Decision map showing how your recommendation is matched to your home: demand pattern, supply limits, distribution constraints, and comfort goals. Different homes can need different system routes for practical day-to-day results.',
     whatThisMeans:
-      'System fit is selected from measured evidence, not a one-size-fits-all preference. The chosen path reflects your demand pattern, supply limits, and home constraints.',
+      'Your recommendation is tailored to your home and routines, so comfort and hot-water performance stay reliable when daily demand rises.',
   },
   {
     diagramId: 'stored_hot_water_recovery_timeline',
