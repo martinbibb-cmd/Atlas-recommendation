@@ -167,6 +167,27 @@ export interface DevUiRegistryItem {
   includeInCopyBox?: boolean;
   /** Override label used in copy-box output. Defaults to commonName. */
   copyLabel?: string;
+
+  // ── Rendering layer ────────────────────────────────────────────────────────
+
+  /**
+   * Which rendering architecture this surface uses.
+   *
+   * - scene_grammar   – uses CustomerJourneyPackV1 / LibraryStorySceneV1 scene-first composition
+   * - transitional    – partially scene-aware but still imports or exposes legacy renderer paths
+   * - legacy_sections – driven by old card / section / report patterns; no scene grammar
+   *
+   * Surfaces without this field have not yet been assessed.
+   *
+   * The goal is for all canonical/active customer-facing surfaces to reach scene_grammar.
+   */
+  renderingLayer?: 'scene_grammar' | 'transitional' | 'legacy_sections';
+
+  /**
+   * Set to true when this active surface still imports or can render a legacy component.
+   * Shown as a dev warning in the UI Inventory so the renderer leakage is visible.
+   */
+  legacyRendererLeak?: boolean;
 }
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
@@ -224,17 +245,19 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     render: () => <HouseSimulatorPage onBack={() => undefined} surveyData={DEV_DEMO_INPUT} />,
   },
 
-  // ── Atlas System Composer ──────────────────────────────────────────────────
+  // ── Legacy System Composer (archived prototype — NOT LegoTechnix) ───────────
   {
-    id: 'lego-technix-page',
-    commonName: 'Legacy Prototype Composer',
+    id: 'legacy-prototype-composer',
+    commonName: 'Legacy Prototype Composer (Archived)',
     codeName: 'PrototypeComposerPage',
     fileName: 'PrototypeComposerPage.tsx',
     filePath: 'src/legacy/systemComposerPrototype/PrototypeComposerPage.tsx',
     category: 'simulator',
     status: 'deprecated',
     notes:
-      'Archived system-composer prototype retained for explicit legacy diagnostics only.',
+      'Archived system-composer prototype retained for explicit legacy diagnostics only. ' +
+      'NOT LegoTechnix — the active LegoTechnix simulation engine lives in src/features/legoTechnix/ ' +
+      'and is accessed via the lego-technix-debug-projection-page entry.',
     routeKind: 'derived',
     access: 'legacy_dev_only',
     domain: 'legacy/systemComposerPrototype',
@@ -243,6 +266,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
       'src/legacy/systemComposerPrototype/builder/BuilderShell.tsx',
     ],
     includeInCopyBox: false,
+    renderingLayer: 'legacy_sections',
     render: () => <PrototypeComposerPage onBack={() => undefined} />,
   },
 
@@ -257,7 +281,10 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     status: 'canonical',
     notes:
       'Full multi-page recommendation presentation shown to customers. ' +
-      'Rendered here with demo inputs in vertical (non-deck) mode.',
+      'Rendered here with demo inputs in vertical (non-deck) mode. ' +
+      'RENDERING LAYER NOTE: currently driven by legacy section/card patterns ' +
+      '(buildCanonicalPresentation → CanonicalPresentationModel). ' +
+      'Target architecture is scene-grammar composition from CustomerJourneyPackV1.',
     routeKind: 'query_flag',
     queryFlags: ['presentation=1'],
     fullRouteExample: '/?presentation=1',
@@ -269,6 +296,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     ],
     usedByRoutes: ['full-survey-stepper'],
     includeInCopyBox: true,
+    renderingLayer: 'legacy_sections',
     render: () => (
       <CanonicalPresentationPage
         result={runEngine(DEV_DEMO_INPUT)}
@@ -500,11 +528,16 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     filePath: 'src/features/legoTechnix/debug/LegoTechnixDebugProjectionPage.tsx',
     category: 'audit',
     status: 'experimental',
-    notes: 'Dev-only engineering projection renderer for canonical LegoTechnix systems and timeline scrubbing.',
+    notes:
+      'Dev-only engineering projection renderer for canonical LegoTechnix systems and timeline scrubbing. ' +
+      'ACTIVE feature — NOT the legacy system-composer prototype. ' +
+      'LegoTechnix is a pure simulation/data engine in src/features/legoTechnix/ with no legacy palette dependency. ' +
+      'The legacy palette UI lives only in Visuals Gallery → Legacy System Composer Palette (Archived).',
     routeKind: 'query_flag',
     queryFlags: ['lego-technix-debug=1'],
     fullRouteExample: '/?lego-technix-debug=1',
     access: 'dev_only',
+    domain: 'features/legoTechnix',
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>LegoTechnixDebugProjectionPage — open via /?lego-technix-debug=1.</div>,
   },
   {
@@ -1051,7 +1084,12 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     notes:
       'Canonical customer-facing recommendation portal. ' +
       'The only production path for customer-facing visit output. ' +
-      'All legacy insight-pack / blueprint customer outputs defer to this surface.',
+      'All legacy insight-pack / blueprint customer outputs defer to this surface. ' +
+      'RENDERING LAYER NOTE: production mode (isProductionPortalSurface) forces the ' +
+      'CustomerPortalJourneyComposer path. However, this file still imports InsightPackDeck ' +
+      '(src/legacy/customerOutputPrototype/insightPack/InsightPackDeck.tsx) for dev/fixture ' +
+      'view modes — flagged as a legacy renderer leak. ' +
+      'Target: remove InsightPackDeck import; all modes should route through CustomerPortalJourneyComposer.',
     routeKind: 'path',
     routePath: '/portal/:reference',
     fullRouteExample: '/portal/<reference>?token=<signed-token>',
@@ -1060,10 +1098,12 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     domain: 'customer review',
     sourceFiles: [
       'src/components/portal/CustomerPortalPage.tsx',
+      'src/portal/customerJourney/CustomerPortalJourneyComposer.tsx',
       'src/components/portal/selectors/buildPortalJourneyModel.ts',
-      'src/components/portal/selectors/buildPortalDisplayModel.ts',
     ],
     includeInCopyBox: true,
+    renderingLayer: 'transitional',
+    legacyRendererLeak: true,
     render: () => <div style={{ padding: 16, color: '#64748b', fontSize: 13 }}>CustomerPortalPage — open via /portal/{'<reference>'}?token={'<signed-token>'}. Use /dev/customer-portal-preview for production-like fixture QA.</div>,
   },
 
@@ -1081,7 +1121,11 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
       'Reached via journey state library-pdf. ' +
       'Visit Home Supporting PDF CTA routes here. ' +
       'Presentation print action routes here. ' +
-      'All legacy framework-print / CustomerAdvicePrintPack outputs defer to this surface.',
+      'All legacy framework-print / CustomerAdvicePrintPack outputs defer to this surface. ' +
+      'RENDERING LAYER NOTE: consumes LibraryStorySceneV1 composition metadata ' +
+      '(pageArchetype, densityTier, focalVisualPriority) from CustomerJourneyPackV1 scene packs. ' +
+      'This is partially scene-grammar-aware, but still renders into A4 section blocks rather than ' +
+      'fullscreen story-first layouts. Target: scene-first page composition.',
     routeKind: 'derived',
     fullRouteExample: 'Visit Home → Supporting PDF CTA → library-pdf journey',
     access: 'production',
@@ -1093,6 +1137,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     ],
     usedByRoutes: ['VisitHomeDashboard'],
     includeInCopyBox: true,
+    renderingLayer: 'transitional',
     render: () => (
       <PortalJourneyPrintPack
         model={buildPortalJourneyPrintModel({

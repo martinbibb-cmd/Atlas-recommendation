@@ -186,8 +186,6 @@ const LEGACY_TOOL_IDS = new Set<string>([
   'lifestyle-interactive-compare',
   'efficiency-curve',
   'footprint-xray',
-  'diagram-fixture-page',
-  'library-explorer-page',
 ]);
 
 const CUSTOMER_FACING_SUMMARIES: Partial<Record<string, string>> = {
@@ -205,6 +203,12 @@ const VISUAL_LANGUAGE_SURFACE_ORDER = [
   'visual-topology-gallery',
   'analogy-overlay-gallery',
 ] as const;
+
+const RENDERING_LAYER_LABELS: Record<NonNullable<DevUiRegistryItem['renderingLayer']>, string> = {
+  scene_grammar: '🟢 scene grammar',
+  transitional: '🟡 transitional',
+  legacy_sections: '🔴 legacy sections',
+};
 
 function isLegacyInventoryItem(item: DevUiRegistryItem): boolean {
   return (
@@ -335,6 +339,16 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
       deprecatedLegacy,
     };
   }, [filtered]);
+
+  const renderingLayerLeaks = useMemo(
+    () =>
+      DEV_UI_REGISTRY.filter(
+        (item) =>
+          item.legacyRendererLeak === true ||
+          (item.renderingLayer === 'legacy_sections' && (item.access === 'production' || item.status === 'canonical' || item.status === 'active')),
+      ),
+    [],
+  );
 
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedIds(prev => {
@@ -584,6 +598,55 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
           />
         )}
       />
+
+      {renderingLayerLeaks.length > 0 && (
+        <section
+          data-testid="devmenu-rendering-layer-audit"
+          style={{
+            background: '#fff7ed',
+            border: '1px solid #fb923c',
+            borderRadius: 12,
+            padding: '0.9rem 1rem',
+            marginTop: '1rem',
+            display: 'grid',
+            gap: '0.65rem',
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: '0.95rem', color: '#9a3412' }}>
+              ⚠ Rendering layer audit — legacy renderer in active UI
+            </h2>
+            <p style={{ margin: '0.3rem 0 0', fontSize: '0.8125rem', color: '#c2410c' }}>
+              The following active surfaces are on the old rendering layer (section/card/report) or
+              still import a legacy renderer component. These are the surfaces where visuals never
+              fully transformed despite the data layer being updated to scene-grammar.
+            </p>
+            <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#c2410c' }}>
+              Target architecture: <code style={STYLES.code}>Decision → CustomerJourneyPackV1 → LibraryStorySceneV1 → scene-first visual composition → portal/PDF projections</code>
+            </p>
+          </div>
+          <ul style={{ margin: 0, padding: '0 0 0 1.1rem', display: 'grid', gap: '0.4rem' }}>
+            {renderingLayerLeaks.map((item) => (
+              <li key={item.id} style={{ fontSize: '0.8125rem', color: '#7c2d12' }}>
+                <strong>{item.commonName}</strong>
+                {item.renderingLayer != null && (
+                  <span style={{ marginLeft: '0.4rem', color: '#c2410c' }}>
+                    [{item.renderingLayer.replace(/_/g, ' ')}]
+                  </span>
+                )}
+                {item.legacyRendererLeak === true && (
+                  <span style={{ marginLeft: '0.4rem', color: '#dc2626', fontWeight: 600 }}>
+                    [legacy renderer import]
+                  </span>
+                )}
+                <span style={{ marginLeft: '0.4rem', color: '#9a3412' }}>
+                  — <code style={{ fontSize: '0.75rem' }}>{item.filePath}</code>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <details style={STYLES.devControlsPanel}>
         <summary style={STYLES.devControlsSummary}>Developer inventory filters and route shortcuts</summary>
@@ -1155,6 +1218,7 @@ function LibraryBrowserPanel({
 }) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<DevUiCategory | 'all'>('all');
+  const [groupMode, setGroupMode] = useState<'all' | 'active' | 'legacy'>('all');
 
   const categoryOptions = useMemo(() => {
     const set = new Set<DevUiCategory>();
@@ -1166,6 +1230,8 @@ function LibraryBrowserPanel({
     const query = search.trim().toLowerCase();
     return DEV_UI_REGISTRY.filter((item) => {
       if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
+      if (groupMode === 'active' && isLegacyInventoryItem(item)) return false;
+      if (groupMode === 'legacy' && !isLegacyInventoryItem(item)) return false;
       if (query === '') return true;
       const text = [
         item.commonName,
@@ -1178,12 +1244,17 @@ function LibraryBrowserPanel({
       ].join(' ').toLowerCase();
       return text.includes(query);
     });
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, groupMode]);
 
   function handleDownloadReference() {
     const referenceText = generateLibraryReferenceText(DEV_UI_REGISTRY);
     downloadTextFile('atlas-ui-library-reference.txt', referenceText);
   }
+
+  const legoTechnixEntry = useMemo(
+    () => DEV_UI_REGISTRY.find((item) => item.id === 'lego-technix-debug-projection-page'),
+    [],
+  );
 
   return (
     <div style={STYLES.page}>
@@ -1197,8 +1268,44 @@ function LibraryBrowserPanel({
         </div>
         <p style={STYLES.subtitle}>
           Browse and navigate the Atlas UI library, then download a text reference file.
+          Use the <strong>Active</strong> filter to see only current surfaces, or <strong>Legacy</strong> to review deprecated/archived entries.
         </p>
       </header>
+
+      {/* LegoTechnix callout — active engine vs legacy palette */}
+      <div
+        data-testid="devmenu-library-legotechnix-callout"
+        style={{
+          background: '#f0fdf4',
+          border: '1px solid #86efac',
+          borderRadius: 10,
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          display: 'grid',
+          gap: '0.35rem',
+        }}
+      >
+        <strong style={{ fontSize: '0.9rem', color: '#14532d' }}>LegoTechnix (active engine) vs Legacy System Composer Palette</strong>
+        <p style={{ margin: 0, fontSize: '0.8125rem', color: '#166534' }}>
+          <strong>Active:</strong> LegoTechnix is a canonical simulation/data engine in{' '}
+          <code>src/features/legoTechnix/</code>. It has no visual palette components.
+          Its dev surface is{' '}
+          <code>LegoTechnixDebugProjectionPage</code>
+          {legoTechnixEntry != null && (
+            <> (
+              <a href={legoTechnixEntry.fullRouteExample} style={{ color: '#15803d' }}>
+                {legoTechnixEntry.fullRouteExample}
+              </a>
+            )</>
+          )}.
+        </p>
+        <p style={{ margin: 0, fontSize: '0.8125rem', color: '#166534' }}>
+          <strong>Legacy:</strong> The old system-composer prototype palette lives in{' '}
+          <code>src/legacy/systemComposerPrototype/builder/palette</code>. It is archived and visible
+          only in Visuals Gallery → Legacy System Composer Palette (Archived). Do NOT use it as a reference
+          for new LegoTechnix work.
+        </p>
+      </div>
 
       <div style={STYLES.libraryToolbar}>
         <input
@@ -1209,6 +1316,24 @@ function LibraryBrowserPanel({
           style={STYLES.searchInput}
           aria-label="Search library entries"
         />
+        <button
+          className={`chip-btn${groupMode === 'all' ? ' chip-btn--active' : ''}`}
+          onClick={() => setGroupMode('all')}
+        >
+          All
+        </button>
+        <button
+          className={`chip-btn${groupMode === 'active' ? ' chip-btn--active' : ''}`}
+          onClick={() => setGroupMode('active')}
+        >
+          ✅ Active only
+        </button>
+        <button
+          className={`chip-btn${groupMode === 'legacy' ? ' chip-btn--active' : ''}`}
+          onClick={() => setGroupMode('legacy')}
+        >
+          🗄 Legacy / deprecated
+        </button>
         <button className="chip-btn" onClick={handleDownloadReference}>
           ⬇ Download reference (.txt)
         </button>
@@ -1236,6 +1361,8 @@ function LibraryBrowserPanel({
       <div style={STYLES.librarySummaryRow}>
         <span style={STYLES.summaryText}>
           Showing {filteredItems.length} of {DEV_UI_REGISTRY.length} entries.
+          {groupMode === 'legacy' && <> ({filteredItems.length} legacy/deprecated surfaces)</>}
+          {groupMode === 'active' && <> ({filteredItems.length} active surfaces — legacy filtered out)</>}
         </span>
       </div>
 
@@ -1245,6 +1372,7 @@ function LibraryBrowserPanel({
             <tr>
               <th style={STYLES.th}>Name</th>
               <th style={STYLES.th}>Category</th>
+              <th style={STYLES.th}>Renderer</th>
               <th style={STYLES.th}>Route</th>
               <th style={STYLES.th}>Actions</th>
             </tr>
@@ -1252,11 +1380,15 @@ function LibraryBrowserPanel({
           <tbody>
             {filteredItems.map(item => {
               const route = resolveNavigableRoute(item);
+              const isLegacy = isLegacyInventoryItem(item);
+              const rendererLabel = item.renderingLayer != null ? RENDERING_LAYER_LABELS[item.renderingLayer] : '—';
               return (
-                <tr key={item.id}>
+                <tr key={item.id} style={isLegacy ? { opacity: 0.7, background: '#fafafa' } : undefined}>
                   <td style={STYLES.td}>
                     <div style={STYLES.libraryNameCell}>
                       <strong>{item.commonName}</strong>
+                      {isLegacy && <span style={{ color: '#92400e', fontSize: '0.72rem', marginLeft: '0.3rem' }}>LEGACY</span>}
+                      {item.legacyRendererLeak === true && <span style={{ color: '#dc2626', fontSize: '0.72rem', marginLeft: '0.3rem' }}>⚠ renderer leak</span>}
                       <code>{item.codeName}</code>
                     </div>
                   </td>
@@ -1264,6 +1396,9 @@ function LibraryBrowserPanel({
                     <span style={{ ...STYLES.badge, ...STYLES.categoryBadge }}>
                       {CATEGORY_LABELS[item.category]}
                     </span>
+                  </td>
+                  <td style={STYLES.td}>
+                    <span style={{ fontSize: '0.75rem', color: '#334155' }}>{rendererLabel}</span>
                   </td>
                   <td style={STYLES.td}>
                     <code>{route ?? 'unresolved'}</code>
