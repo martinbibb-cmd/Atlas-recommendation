@@ -204,6 +204,12 @@ const VISUAL_LANGUAGE_SURFACE_ORDER = [
   'analogy-overlay-gallery',
 ] as const;
 
+const RENDERING_LAYER_LABELS: Record<NonNullable<DevUiRegistryItem['renderingLayer']>, string> = {
+  scene_grammar: '🟢 scene grammar',
+  transitional: '🟡 transitional',
+  legacy_sections: '🔴 legacy sections',
+};
+
 function isLegacyInventoryItem(item: DevUiRegistryItem): boolean {
   return (
     item.status === 'deprecated'
@@ -1224,8 +1230,8 @@ function LibraryBrowserPanel({
     const query = search.trim().toLowerCase();
     return DEV_UI_REGISTRY.filter((item) => {
       if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
-      if (groupMode === 'active' && (item.status === 'deprecated' || item.status === 'remove' || item.access === 'legacy_dev_only' || item.access === 'retired')) return false;
-      if (groupMode === 'legacy' && !(item.status === 'deprecated' || item.status === 'remove' || item.access === 'legacy_dev_only' || item.access === 'retired')) return false;
+      if (groupMode === 'active' && isLegacyInventoryItem(item)) return false;
+      if (groupMode === 'legacy' && !isLegacyInventoryItem(item)) return false;
       if (query === '') return true;
       const text = [
         item.commonName,
@@ -1245,7 +1251,10 @@ function LibraryBrowserPanel({
     downloadTextFile('atlas-ui-library-reference.txt', referenceText);
   }
 
-  const legoTechnixEntry = DEV_UI_REGISTRY.find((item) => item.id === 'lego-technix-debug-projection-page');
+  const legoTechnixEntry = useMemo(
+    () => DEV_UI_REGISTRY.find((item) => item.id === 'lego-technix-debug-projection-page'),
+    [],
+  );
 
   return (
     <div style={STYLES.page}>
@@ -1371,12 +1380,8 @@ function LibraryBrowserPanel({
           <tbody>
             {filteredItems.map(item => {
               const route = resolveNavigableRoute(item);
-              const isLegacy = item.status === 'deprecated' || item.status === 'remove' || item.access === 'legacy_dev_only' || item.access === 'retired';
-              const rendererLabel =
-                item.renderingLayer === 'scene_grammar' ? '🟢 scene grammar' :
-                item.renderingLayer === 'transitional' ? '🟡 transitional' :
-                item.renderingLayer === 'legacy_sections' ? '🔴 legacy sections' :
-                '—';
+              const isLegacy = isLegacyInventoryItem(item);
+              const rendererLabel = item.renderingLayer != null ? RENDERING_LAYER_LABELS[item.renderingLayer] : '—';
               return (
                 <tr key={item.id} style={isLegacy ? { opacity: 0.7, background: '#fafafa' } : undefined}>
                   <td style={STYLES.td}>
