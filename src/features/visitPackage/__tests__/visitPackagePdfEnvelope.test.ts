@@ -501,6 +501,10 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
 
   it('adds a consistency-check line when raw cylinder evidence conflicts with recommendation', () => {
     const pkg = makePackage();
+    pkg.engineInputSnapshot = {
+      ...pkg.engineInputSnapshot,
+      dhwStorageType: 'unvented',
+    } as never;
     pkg.proposalTruth = {
       ...pkg.proposalTruth,
       customerSummary: {
@@ -508,17 +512,11 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
         recommendedSystemLabel: 'Combi boiler',
       } as never,
     };
-    const packagedJourney = pkg.generatedOutputStatus?.generatedOutputs?.customerJourneyPack?.payload;
-    if (packagedJourney != null) {
-      packagedJourney.staticPdf.cover.customerFacts = [
-        ...packagedJourney.staticPdf.cover.customerFacts,
-        'Cylinder type: Unvented cylinder',
-      ];
-    }
 
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: pkg }));
     const commands = extractVisiblePageStreams(pdf).flatMap((stream) => extractTextDrawCommands(stream));
     const consistencyLine = commands.find((command) => command.text.startsWith('Consistency check:'));
+    expect(consistencyLine).toBeDefined();
     expect(consistencyLine?.text).toContain('does not match the recommended system');
   });
 

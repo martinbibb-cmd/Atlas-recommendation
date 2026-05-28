@@ -347,7 +347,7 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
   it('renders deterministic composition archetype classes', () => {
     const { container } = render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     expect(container.querySelectorAll('[data-archetype="hero"]').length).toBeGreaterThan(0);
-    expect(container.querySelectorAll('[data-archetype="quiet"]').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('[data-archetype="quiet"]').length).toBe(0);
   });
 
   it('does not render debug markers or raw technical IDs', () => {
@@ -359,13 +359,12 @@ describe('PortalJourneyPrintPack — page density and language checks', () => {
     expect(screen.getAllByText(/Visible cylinder safety components are expected/i).length).toBeGreaterThan(0);
   });
 
-  it('quiet scene output does not leak implementation wording', () => {
+  it('does not render quiet-scene scaffolding wording', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
-    const quietBlocks = screen.getAllByTestId(/pjpp-quiet-/);
-    const text = quietBlocks.map((node) => node.textContent ?? '').join(' ').toLowerCase();
-    expect(text).not.toMatch(/cognitive load|dense technical|story scene|composition|archetype|projection|taxonomy|route|routed evidence|breather page/);
-    expect(text).not.toContain('the recommendation has not changed');
-    expect(text).not.toContain('room to breathe');
+    expect(screen.queryAllByTestId(/pjpp-quiet-/)).toHaveLength(0);
+    const fullText = document.body.textContent?.toLowerCase() ?? '';
+    expect(fullText).not.toContain('you can pause here and continue when ready');
+    expect(fullText).not.toContain('this pause page keeps the journey easy to follow');
   });
 });
 

@@ -414,15 +414,15 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(isFallbackOnlyCustomerPdf(model)).toBe(true);
   });
 
-  it('does not mark fallbackOnly when audience projection is present', () => {
+  it('keeps fallbackOnly when audience projection is present but route completeness is not met', () => {
     const model = buildPortalJourneyPrintModel({
-      selectedSectionIds: [],
-      recommendationSummary: 'Generic recommendation summary for your home.',
-      customerFacts: ['Home constraints reviewed'],
-      journeyType: 'generic_recommendation_summary',
+      selectedSectionIds: ['CON_A01', 'CON_C02'],
+      recommendationSummary: 'Sealed system with unvented cylinder — right fit for this home.',
+      customerFacts: ['4-person household', '2 bathrooms'],
+      journeyType: 'open_vented',
       audienceProjection: {
         audience: 'customer',
-        visibleConcepts: ['CON_A01'],
+        visibleConcepts: ['CON_A01', 'CON_C02'],
         visibleCards: [],
         visibleDiagrams: [],
         hiddenReasonLog: [],
@@ -430,7 +430,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
       },
     });
     expect(model.contentSource?.audienceProjectionPresent).toBe(true);
-    expect(model.contentSource?.fallbackOnly).toBe(false);
+    expect(model.contentSource?.fallbackOnly).toBe(true);
   });
 
   it('marks fallbackOnly when no concept tags are selected even with audience projection', () => {

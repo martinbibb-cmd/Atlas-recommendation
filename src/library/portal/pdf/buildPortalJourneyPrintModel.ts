@@ -962,42 +962,6 @@ function buildDefaultStorySceneComposition(
   }
 }
 
-function buildQuietSceneSection(section: PortalJourneyPrintSectionV1): PortalJourneyPrintSectionV1 {
-  return {
-    contentId: `${QUIET_SCENE_CONTENT_ID_PREFIX}${section.sectionId}`,
-    sectionId: `quiet_scene_${section.sectionId}`,
-    heading: 'Good to know',
-    summary: 'This pause page keeps the journey easy to follow before the next topic.',
-    keyTakeaway: 'You can pause here and continue when ready.',
-    reassurance: 'Your installer will still guide the practical steps during handover.',
-    items: [
-      'You can continue with confidence and review details at your own pace.',
-    ],
-    storyScene: {
-      sceneKind: 'future_flexibility',
-      title: 'Good to know',
-      customerTakeaway: 'You can pause here and continue when ready.',
-      whyItMatters: 'It keeps each step focused so the key points are easier to review.',
-      whatYouWillNotice: 'You will see a short pause page before moving to the next topic.',
-      composition: compositionTemplate({
-        pageArchetype: 'quiet',
-        focalVisualPriority: 'none',
-        densityTier: 'airy',
-        transitionType: 'breather',
-        quietEligible: false,
-        whitespaceRatio: 0.55,
-        maxCardsPerPage: 1,
-        visualScale: 0.8,
-      }),
-    },
-    evidenceTags: [{
-      source: 'composition',
-      metric: 'quiet_page',
-      trigger: section.sectionId,
-    }],
-  };
-}
-
 function applyCompositionRhythmAndQuietPages(
   sections: readonly PortalJourneyPrintSectionV1[],
 ): PortalJourneyPrintSectionV1[] {
