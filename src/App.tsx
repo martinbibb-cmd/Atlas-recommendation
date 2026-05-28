@@ -4524,11 +4524,8 @@ function AppInner() {
             ? readPersistedAtlasVisitV2(routeVisitId).visit
             : undefined;
         const hasHydratedRouteVisit =
-          routeVisitId != null && (
-            hydratedPersistedVisitId === routeVisitId
-            || canonicalSnapshot != null
-            || persistedCanonical != null
-          );
+          routeVisitId != null
+          && hydratedPersistedVisitId === routeVisitId;
         const visitLoaded = canonicalSnapshot != null || persistedCanonical != null;
         const engineOutput =
           canonicalSnapshot?.engineOutput
@@ -4612,15 +4609,7 @@ function AppInner() {
               </RetiredRouteNotice>
             );
           }
-          if (!shouldResolveLibraryPdfSource(pdfBootState)) {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
-                <p style={{ color: '#475569', marginBottom: 0 }}>
-                  Customer PDF could not be prepared because this visit could not be loaded.
-                </p>
-              </RetiredRouteNotice>
-            );
-          }
+          if (!shouldResolveLibraryPdfSource(pdfBootState)) return null;
         }
         const preferredScenarioId = acceptedScenarioId?.toLowerCase();
         const acceptedScenario =
@@ -4683,7 +4672,8 @@ function AppInner() {
         const debugRecommendationId = source.source.acceptedScenarioId;
         const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
         const fallbackOnlyCustomerPdf = isFallbackOnlyCustomerPdf(printModel);
-        if (fallbackOnlyCustomerPdf && (explicitVisitId != null || !import.meta.env.DEV)) {
+        const shouldBlockFallbackPdf = fallbackOnlyCustomerPdf && (!import.meta.env.DEV || explicitVisitId != null);
+        if (shouldBlockFallbackPdf) {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
               <p style={{ color: '#475569', marginBottom: 0 }}>
