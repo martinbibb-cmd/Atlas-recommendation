@@ -14,10 +14,8 @@ import LabQuickInputsPanel from './components/lab/LabQuickInputsPanel';
 import LabPrintCustomer from './components/lab/LabPrintCustomer';
 import LabPrintTechnical from './components/lab/LabPrintTechnical';
 import LabPrintComparison from './components/lab/LabPrintComparison';
-import { CustomerAdvicePrintPack } from './legacy/customerOutputPrototype/CustomerAdvicePrintPack';
 import { buildScenariosFromEngineOutput } from './engine/modules/buildScenariosFromEngineOutput';
 import { buildDecisionFromScenarios } from './engine/modules/buildDecisionFromScenarios';
-import { buildVisualBlocks } from './engine/modules/buildVisualBlocks';
 import { buildCustomerSummary } from './engine/modules/buildCustomerSummary';
 
 import FloorPlanBuilder from './components/floorplan/FloorPlanBuilder';
@@ -26,7 +24,6 @@ import HeatLossCalculator from './components/heatloss/HeatLossCalculator';
 import BuildingHeightCheck from './components/measurements/BuildingHeightCheck';
 import AtlasExplorerPage from './components/explorer/AtlasExplorerPage';
 import VisitPage from './components/visit/VisitPage';
-import VisitHubPage from './components/visit/VisitHubPage';
 import RecentVisitsList from './components/visit/RecentVisitsList';
 import EngineerPreinstallPage from './components/engineer/EngineerPreinstallPage';
 import { SpatialTwinPage } from './features/spatialTwin/routes/SpatialTwinPage';
@@ -80,7 +77,6 @@ import WorkspaceHomePage from './features/workspace/WorkspaceHomePage';
 import WorkspaceDetailPage from './features/workspace/WorkspaceDetailPage';
 import WorkspaceDashboard from './features/workspace/WorkspaceDashboard';
 import WorkspaceSettingsPage from './features/workspace/WorkspaceSettingsPage';
-import HandoffArrivalPage from './components/handoff/HandoffArrivalPage';
 import VisitHandoffReviewPage from './features/visitHandoff/components/VisitHandoffReviewPage';
 import CustomerSummaryPrintPage from './features/visitHandoff/components/CustomerSummaryPrintPage';
 import EngineerSummaryPrintPage from './features/visitHandoff/components/EngineerSummaryPrintPage';
@@ -173,10 +169,6 @@ import CustomerPackPreviewPage from './dev/CustomerPackPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
-import {
-  resolveLibraryPdfBootState,
-  shouldResolveLibraryPdfSource,
-} from './features/visitHome/libraryPdfBootState';
 import type {
   VisitSelectorEntry,
 } from './features/visitHome/VisitHomeDashboard';
@@ -202,6 +194,11 @@ import {
 } from './features/visitHome/resolveCanonicalVisitExportState';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
+import {
+  runLibraryPdfBootState,
+  type LibraryPdfBootResult,
+  type LibraryPdfHydratedSnapshot,
+} from './features/visitHome/libraryPdfBootState';
 import { buildCanonicalRecommendationSnapshot } from './lib/storage/canonicalRecommendationSnapshot';
 import {
   buildVisitHomeCustomerArtifactsState,
@@ -279,7 +276,7 @@ function formatSavedAgo(updatedAt: string): string {
 
 const CUSTOMER_PACK_FILENAME_SUFFIX = '-customer-pack.pdf';
 
-function hasText(value: string | undefined): value is string {
+function hasText(value: string | null | undefined): value is string {
   return value != null && value.trim().length > 0;
 }
 
@@ -489,8 +486,7 @@ type PersistedPortalVisitContext = Pick<PortalVisitContextV1, 'addressSummary' |
 
 function isLegacyJourney(journey: Journey): boolean {
   return (
-    journey === 'visit-hub'
-    || journey === 'insight-pack'
+    journey === 'insight-pack'
     || journey === 'framework-print'
     || journey === 'unified-simulator'
   );
@@ -753,9 +749,8 @@ const MY_SCANS_ENABLED =
   new URLSearchParams(window.location.search).get('my-scans') === '1';
 
 /**
- * Detect ?handoff=1 — renders the canonical AtlasPropertyV1 handoff arrival page.
- * Entry point for post-handoff arrival flow from Atlas Scan.
- * Not visible in production UX.
+ * Detect ?handoff=1 — retired legacy handoff query route.
+ * Kept only to show a retired-route notice.
  */
 const HANDOFF_ENABLED =
   typeof window !== 'undefined' &&
@@ -895,7 +890,7 @@ const CONSOLE_DEMO_INPUT: EngineInputV2_3 = {
   currentHeatSourceType: 'combi',
 };
 
-type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-hub' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'portal-from-package' | 'gallery' | 'dev-menu' | 'prototype-composer' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
+type Journey = 'app-home' | 'landing' | 'workspace-dashboard' | 'visit-home' | 'visit' | 'visit-handoff' | 'fast' | 'remote-survey' | 'scope' | 'methodology' | 'neutrality' | 'privacy' | 'lab' | 'lab-quick-inputs' | 'simulator' | 'unified-simulator' | 'house-simulator' | 'floor-plan' | 'heat-loss' | 'building-height' | 'explorer' | 'report' | 'presentation' | 'portal-from-package' | 'gallery' | 'dev-menu' | 'prototype-composer' | 'printout' | 'framework-print' | 'library-pdf' | 'engineer' | 'insight-pack' | 'receive-scan' | 'external-files' | 'user-profile' | 'installation-specification';
 
 interface VisitRecommendationSnapshot {
   visitId: string;
@@ -1297,7 +1292,6 @@ function AppInner() {
   const [simulatorFromJourney, setSimulatorFromJourney] = useState<Journey>('landing');
   /**
    * The journey that last opened the presentation, used to navigate Back correctly.
-   * When opened from the visit hub the Back button should return to 'visit-hub'.
    */
   const [presentationFromJourney, setPresentationFromJourney] = useState<Journey>('simulator');
   /**
@@ -1367,6 +1361,7 @@ function AppInner() {
    * 'portal-from-package' journey rendering. Cleared with the session.
    */
   const [activePortalLaunchPayload, setActivePortalLaunchPayload] = useState<PortalLaunchPayloadV1 | null>(null);
+  const [libraryPdfBootState, setLibraryPdfBootState] = useState<LibraryPdfBootResult | null>(null);
 
   /**
    * Resolves the active workspace from the browser host once on mount.
@@ -1545,6 +1540,134 @@ function AppInner() {
   useEffect(() => {
     visitRecommendationSnapshotRef.current = visitRecommendationSnapshot;
   }, [visitRecommendationSnapshot]);
+
+  useEffect(() => {
+    if (journey !== 'library-pdf' || !LIBRARY_PDF_ENABLED) {
+      setLibraryPdfBootState(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const result = await runLibraryPdfBootState({
+        visitId: INITIAL_VISIT_ID_PARAM,
+        explicitVisitId: hasText(INITIAL_VISIT_ID_PARAM),
+        onTransition: (state) => {
+          if (!cancelled) setLibraryPdfBootState(state);
+        },
+        hydrateVisitById: async (visitId): Promise<LibraryPdfHydratedSnapshot | null> => {
+          const currentSnapshot = visitRecommendationSnapshotRef.current;
+          if (currentSnapshot?.visitId === visitId) {
+            return {
+              visitId: currentSnapshot.visitId,
+              visitReference: currentSnapshot.visitReference,
+              recommendationSnapshot: currentSnapshot.recommendationSnapshot,
+              engineOutput: currentSnapshot.engineOutput,
+              scenarios: currentSnapshot.scenarios,
+              decision: currentSnapshot.decision,
+              customerSummary: currentSnapshot.customerSummary,
+              acceptedScenarioId: currentSnapshot.acceptedScenarioId,
+              generatedOutputs: currentSnapshot.generatedOutputs,
+              portalVisitContext: currentSnapshot.portalVisitContext,
+              surveyModel: labFullSurveyModel,
+              engineInput: labEngineInput,
+            };
+          }
+          const restored = readPersistedAtlasVisitV2(visitId).visit;
+          if (restored == null) {
+            return null;
+          }
+          return {
+            visitId: restored.visitId,
+            visitReference: restored.visitReference,
+            recommendationSnapshot: restored.recommendationSnapshot,
+            engineOutput: restored.engine,
+            scenarios: restored.scenarios,
+            decision: restored.decision,
+            customerSummary: restored.customerSummary,
+            acceptedScenarioId: restored.acceptedScenarioId,
+            generatedOutputs: restored.generatedOutputs,
+            portalVisitContext: restored.portalVisitContext,
+            surveyModel: restored.survey,
+            engineInput: restored.engineInputSnapshot,
+          };
+        },
+        enrichGeneratedOutputs: (snapshot) =>
+          enrichGeneratedOutputsWithCustomerJourneyPack({
+            generatedOutputs: snapshot.generatedOutputs,
+            surveyModel: snapshot.surveyModel,
+            engineInput: snapshot.engineInput,
+            customerSummary: snapshot.customerSummary,
+            decision: snapshot.decision,
+            activeSnapshotId: snapshot.recommendationSnapshot?.snapshotId,
+            portalVisitContext: snapshot.portalVisitContext,
+            scenarios: snapshot.scenarios,
+          }),
+        resolveDocumentSource: ({ snapshot, generatedOutputs }) => {
+          const normalizedScenarioId = (snapshot.acceptedScenarioId ?? snapshot.decision?.recommendedScenarioId)?.toLowerCase();
+          const acceptedScenario =
+            normalizedScenarioId == null
+              ? undefined
+              : snapshot.scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === normalizedScenarioId);
+          return resolveCustomerDocumentSourceV1({
+            visitId: snapshot.visitId,
+            visitReference: snapshot.visitReference ?? formatVisitReference(snapshot.visitId),
+            acceptedScenario,
+            acceptedScenarioId: snapshot.acceptedScenarioId,
+            decision: snapshot.decision,
+            scenarios: snapshot.scenarios,
+            customerSummary: snapshot.customerSummary,
+            engineInput: snapshot.engineInput,
+            engineOutput: snapshot.engineOutput,
+            generatedOutputs,
+          });
+        },
+        isFallbackOnlyPrintModel: isFallbackOnlyCustomerPdf,
+      });
+      if (cancelled) return;
+      if (result.status === 'ready') {
+        const { hydratedSnapshot, generatedOutputs } = result;
+        setActiveVisitId(hydratedSnapshot.visitId);
+        setLabPortalUrl(generatedOutputs.portal.url);
+        setLabPortalVisitContext(hydratedSnapshot.portalVisitContext);
+        if (hydratedSnapshot.surveyModel != null) {
+          setLabFullSurveyModel(hydratedSnapshot.surveyModel);
+          if (hydratedSnapshot.surveyModel.fullSurvey?.heatLoss) setLabHeatLossState(hydratedSnapshot.surveyModel.fullSurvey.heatLoss);
+          if (hydratedSnapshot.surveyModel.fullSurvey?.priorities) setLabPrioritiesState(hydratedSnapshot.surveyModel.fullSurvey.priorities);
+          if (hydratedSnapshot.surveyModel.fullSurvey?.quotes) setLabQuotes(hydratedSnapshot.surveyModel.fullSurvey.quotes);
+        }
+        if (hydratedSnapshot.engineInput != null) {
+          setLabEngineInput(hydratedSnapshot.engineInput);
+        }
+        const recommendationReady = isRecommendationReadyForLifecycle({
+          decision: hydratedSnapshot.decision,
+          customerSummary: hydratedSnapshot.customerSummary,
+          acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
+          engineRecommendationPrimary: hydratedSnapshot.engineOutput?.recommendation?.primary,
+        });
+        const lifecycleState = deriveLifecycleStateFromSnapshot({
+          recommendationReady,
+          generatedOutputs,
+        });
+        setVisitRecommendationSnapshot({
+          visitId: hydratedSnapshot.visitId,
+          visitReference: hydratedSnapshot.visitReference,
+          recommendationSnapshot: hydratedSnapshot.recommendationSnapshot,
+          engineOutput: hydratedSnapshot.engineOutput,
+          scenarios: hydratedSnapshot.scenarios,
+          decision: hydratedSnapshot.decision,
+          customerSummary: hydratedSnapshot.customerSummary,
+          acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
+          lifecycleState,
+          generatedOutputs,
+          portalVisitContext: hydratedSnapshot.portalVisitContext,
+        });
+      }
+      setLibraryPdfBootState(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [journey]);
 
   useEffect(() => {
     if (journey !== 'visit-home') return;
@@ -2805,76 +2928,6 @@ function AppInner() {
   }
 
   /**
-   * Print summary for a completed visit.
-   *
-   * Loads the visit's working payload, converts it to engine input, generates a
-   * signed portal URL from the latest report, and routes to the canonical library PDF journey.
-   * Falls back to the survey if the working payload is missing.
-   */
-  async function handlePrintSummary(visitId: string) {
-    const openSupportingPdfInNewPage = (): boolean => {
-      if (typeof window === 'undefined') return false;
-      const nextUrl = new URL(window.location.href);
-      nextUrl.searchParams.set('library-pdf', '1');
-      nextUrl.searchParams.set('visitId', visitId);
-      nextUrl.searchParams.delete('visit-home');
-      return window.open(nextUrl.toString(), '_blank', 'noopener,noreferrer') != null;
-    };
-    try {
-      const visitDetail = await getVisit(visitId);
-      const workingPayload = visitDetail.working_payload;
-      if (workingPayload && Object.keys(workingPayload).length > 0) {
-        const survey = workingPayload as unknown as FullSurveyModelV1;
-        const engineInput = toEngineInput(sanitiseModelForEngine(survey));
-        setActiveVisitId(visitId);
-        setLabEngineInput(engineInput);
-        if (survey.fullSurvey?.heatLoss) setLabHeatLossState(survey.fullSurvey.heatLoss);
-        if (survey.fullSurvey?.priorities) setLabPrioritiesState(survey.fullSurvey.priorities);
-        // Clear any stale portal URL; generate a fresh signed URL from the
-        // latest report (creating one if needed) so the QR code on the
-        // printout is always valid.
-        setLabPortalUrl(undefined);
-        listReportsForVisit(visitId)
-          .then(async (reports) => {
-            let reportId: string;
-            if (reports.length > 0) {
-              reportId = reports[0].id;
-            } else {
-              const { engineOutput } = runEngine(engineInput);
-              const saved = await saveReport({
-                title: generateReportTitle({
-                  postcode: engineInput.postcode ?? null,
-                  recommendedSystem: engineOutput.recommendation?.primary ?? null,
-                }),
-                postcode: engineInput.postcode ?? null,
-                visit_id: visitId,
-                status: 'complete',
-                payload: buildCanonicalReportPayload({
-                  surveyData: survey,
-                  engineInput,
-                  engineOutput,
-                  decisionSynthesis: null,
-                  runMeta: { source: 'portal_bootstrap' },
-                }),
-              });
-              reportId = saved.id;
-            }
-            const token = await generatePortalToken(reportId);
-            setLabPortalUrl(buildPortalUrl(reportId, window.location.origin, token));
-          })
-          .catch((err) => { console.warn('[Atlas] Portal URL generation failed for printout:', err); });
-        if (!openSupportingPdfInNewPage()) {
-          setJourney('library-pdf');
-        }
-        return;
-      }
-    } catch (err) {
-      console.error('[Atlas] Could not load visit for print summary', visitId, err);
-    }
-    setJourney('visit');
-  }
-
-  /**
    * Build a VisitHandoffPack from the current visit's working payload and open
    * the handoff review page.  When the working payload is available the pack is
    * built locally — no JSON upload/paste required.  Falls back gracefully to
@@ -3369,9 +3422,15 @@ function AppInner() {
     return <LegoTechnixDebugProjectionPage onBack={() => { window.location.href = window.location.pathname; }} />;
   }
 
-  // ?handoff=1 — render canonical AtlasPropertyV1 handoff arrival page.
+  // ?handoff=1 — retired route, kept only as a legacy notice.
   if (HANDOFF_ENABLED) {
-    return <HandoffArrivalPage onBack={() => { window.location.href = window.location.pathname; }} />;
+    return (
+      <RetiredRouteNotice backLabel="Open Visit Home →" onBack={() => { window.location.href = '/?visit-home=1'; }}>
+        <p style={{ color: '#475569', marginBottom: 0 }}>
+          This legacy handoff route has been retired. Use Visit Home for canonical customer and handoff outputs.
+        </p>
+      </RetiredRouteNotice>
+    );
   }
 
   // ?visit-handoff=1 — render completed-visit handoff review (customer + engineer surfaces).
@@ -3559,32 +3618,15 @@ function AppInner() {
   if (PRINT_VIEW === 'technical')  return <LabPrintTechnical />;
   if (PRINT_VIEW === 'comparison') return <LabPrintComparison />;
   if (PRINT_VIEW === 'survey') {
-    const surveyPrintInput = labEngineInput ?? CONSOLE_DEMO_INPUT;
-    const surveyPrintResult  = runEngine(surveyPrintInput);
-    const surveyPrintScenarios = buildScenariosFromEngineOutput(surveyPrintResult.engineOutput);
-
-    // Default: customer-facing advice pack from VisualBlock[] truth.
-    if (surveyPrintScenarios.length > 0) {
-      const surveyPrintDecision = buildDecisionFromScenarios({
-        scenarios:   surveyPrintScenarios,
-        boilerType:  toLifecycleBoilerType(surveyPrintInput.currentHeatSourceType),
-        ageYears:    surveyPrintInput.currentSystem?.boiler?.ageYears ?? 0,
-        occupancyCount: surveyPrintInput.occupancyCount,
-        bathroomCount:  surveyPrintInput.bathroomCount,
-        showerCompatibilityNote: surveyPrintResult.engineOutput.showerCompatibilityNote,
-      });
-      const surveyPrintBlocks = buildVisualBlocks(surveyPrintDecision, surveyPrintScenarios, undefined, surveyPrintInput);
-      return (
-        <CustomerAdvicePrintPack
-          decision={surveyPrintDecision}
-          scenarios={surveyPrintScenarios}
-          visualBlocks={surveyPrintBlocks}
-          portalUrl={buildPortalUrl('demo', window.location.origin)}
-          visitDate={new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-          onBack={() => { window.location.href = window.location.pathname; }}
-        />
-      );
-    }
+    return (
+      <RetiredRouteNotice backLabel="Open supporting PDF route →" onBack={() => { window.location.href = '/?visit-home=1'; }}>
+        <p style={{ color: '#475569', marginBottom: 0 }}>
+          The legacy survey print route is retired. Use the canonical supporting PDF route:
+          {' '}
+          <code>?library-pdf=1&amp;visitId=...</code>
+        </p>
+      </RetiredRouteNotice>
+    );
   }
 
   return (
@@ -3693,34 +3735,6 @@ function AppInner() {
            And VisitProvider to carry visit identity through the journey. */}
       <BrandProvider brandId={activeAtlasVisit?.brandId ?? workspaceBrandSession.activeBrandId}>
       <VisitProvider initialVisit={activeAtlasVisit}>
-        {/* Visit Hub — shown when opening an existing visit */}
-        {journey === 'visit-hub' && activeVisitId != null && (
-          import.meta.env.DEV ? (
-            <VisitHubPage
-              visitId={activeVisitId}
-              onBack={() => setJourney('workspace-dashboard')}
-              onResumeSurvey={() => setJourney('visit')}
-              onOpenPresentation={() => { void handleOpenPresentation(activeVisitId); }}
-              onPrintSummary={() => { void handlePrintSummary(activeVisitId); }}
-              onOpenReport={(reportId) => {
-                const reportUrl = `${window.location.origin}/report/${reportId}`;
-                openUrlInSystemBrowser(reportUrl);
-              }}
-              onOpenEngineerRoute={() => setJourney('engineer')}
-              onOpenHandoffReview={() => { void handleOpenHandoffReview(activeVisitId); }}
-              onImportScan={() => setJourney('receive-scan')}
-              onOpenExternalFiles={() => setJourney('external-files')}
-              onOpenInstallationSpecification={() => setJourney('installation-specification')}
-              installationSpecOptionCount={labInstallationSpecifications.length > 0 ? labInstallationSpecifications.length : undefined}
-            />
-          ) : (
-            <RetiredRouteNotice backLabel="Open Visit Home →" onBack={() => setJourney('visit-home')} title="Legacy route retired">
-              <p style={{ color: '#475569', marginBottom: 0 }}>
-                Visit Home is the canonical review route. Legacy Visit Hub is development-only.
-              </p>
-            </RetiredRouteNotice>
-          )
-        )}
         {/* Visit Home Dashboard — front-door overview of all outputs for the active visit */}
         {journey === 'visit-home' && (() => {
           const resolveAcceptedScenario = (
@@ -4158,18 +4172,28 @@ function AppInner() {
                 setJourney('presentation');
               }}
               onPrintSummary={visitHomeEngineOutput != null && hasSurveyForSupportingPdf && !stalePdfOutput && !staleJourneyPackOutput ? () => {
+                if (activeVisitId == null) {
+                  setLocalSessionStatus({
+                    tone: 'error',
+                    message: 'Supporting PDF route requires a visit ID. Open a visit and retry.',
+                  });
+                  return;
+                }
                 setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
                 if (typeof window !== 'undefined') {
                   const nextUrl = new URL(window.location.href);
                   nextUrl.searchParams.set('library-pdf', '1');
-                  if (activeVisitId != null) {
-                    nextUrl.searchParams.set('visitId', activeVisitId);
-                  }
+                  nextUrl.searchParams.set('visitId', activeVisitId);
                   nextUrl.searchParams.delete('visit-home');
                   const opened = window.open(nextUrl.toString(), '_blank', 'noopener,noreferrer');
                   if (opened != null) return;
+                  window.location.href = nextUrl.toString();
+                  return;
                 }
-                setJourney('library-pdf');
+                setLocalSessionStatus({
+                  tone: 'error',
+                  message: 'Supporting PDF route requires a visit ID. Open a visit and retry.',
+                });
               } : undefined}
               onOpenInstallationSpecification={() => {
                 setLastOpenedFromHome({ label: 'Specification', journey: 'installation-specification' });
@@ -4254,7 +4278,7 @@ function AppInner() {
                 onBack={() => setJourney(activeVisitId != null ? 'visit-home' : 'landing')}
                 canonicalCurrentSystem={canonicalCurrentSystem}
                 visitId={activeVisitId ?? undefined}
-                origin="visit-hub"
+                origin="direct"
                 existingOptions={labInstallationSpecifications.length > 0 ? labInstallationSpecifications : undefined}
                 onSave={(option) => {
                   setLabInstallationSpecifications((prev) => {
@@ -4379,7 +4403,19 @@ function AppInner() {
             setFullSurveyPrefill(undefined);
             setLabEngineInput(engineInput);
             setLabQuotes(quotes);
-            setJourney('library-pdf');
+            if (activeVisitId == null || typeof window === 'undefined') {
+              setLocalSessionStatus({
+                tone: 'error',
+                message: 'Supporting PDF route requires an active visit ID.',
+              });
+              setJourney('visit-home');
+              return;
+            }
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('library-pdf', '1');
+            nextUrl.searchParams.set('visitId', activeVisitId);
+            nextUrl.searchParams.delete('visit-home');
+            window.location.href = nextUrl.toString();
           }}
           onOpenFloorPlan={(surveyResults) => {
             const preferCombi = (surveyResults as { preferCombi?: boolean }).preferCombi;
@@ -4495,14 +4531,40 @@ function AppInner() {
         );
       })()}
       {journey === 'printout' && (
-        <RetiredRouteNotice backLabel="Open supporting PDF →" onBack={() => setJourney('library-pdf')}>
+        <RetiredRouteNotice
+          backLabel="Open supporting PDF →"
+          onBack={() => {
+            if (activeVisitId == null) {
+              setJourney('visit-home');
+              return;
+            }
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('library-pdf', '1');
+            nextUrl.searchParams.set('visitId', activeVisitId);
+            nextUrl.searchParams.delete('visit-home');
+            window.location.href = nextUrl.toString();
+          }}
+        >
           <p style={{ color: '#475569', marginBottom: 0 }}>
             This legacy printout route has been retired. Use the Supporting PDF route.
           </p>
         </RetiredRouteNotice>
       )}
       {journey === 'framework-print' && (
-        <RetiredRouteNotice backLabel="Open canonical PDF →" onBack={() => setJourney('library-pdf')}>
+        <RetiredRouteNotice
+          backLabel="Open canonical PDF →"
+          onBack={() => {
+            if (activeVisitId == null) {
+              setJourney('visit-home');
+              return;
+            }
+            const nextUrl = new URL(window.location.href);
+            nextUrl.searchParams.set('library-pdf', '1');
+            nextUrl.searchParams.set('visitId', activeVisitId);
+            nextUrl.searchParams.delete('visit-home');
+            window.location.href = nextUrl.toString();
+          }}
+        >
           <p style={{ color: '#475569', marginBottom: 0 }}>
             This legacy framework print route is retired. Use the canonical library-backed supporting PDF.
           </p>
@@ -4510,167 +4572,71 @@ function AppInner() {
       )}
       {/* Library supporting PDF — library-backed print output for Visit Home (replaces legacy framework-print from visit-home path) */}
       {journey === 'library-pdf' && (() => {
-        const strictLibraryPdfEntry = LIBRARY_PDF_ENABLED;
-        const explicitVisitId = strictLibraryPdfEntry
-          ? (INITIAL_VISIT_ID_PARAM != null ? INITIAL_VISIT_ID_PARAM : undefined)
-          : undefined;
-        const routeVisitId = explicitVisitId ?? activeVisitId;
-        const canonicalSnapshot =
-          routeVisitId != null && visitRecommendationSnapshot?.visitId === routeVisitId
-            ? visitRecommendationSnapshot
-            : null;
-        const persistedCanonical =
-          routeVisitId != null
-            ? readPersistedAtlasVisitV2(routeVisitId).visit
-            : undefined;
-        const hasHydratedRouteVisit =
-          routeVisitId != null
-          && hydratedPersistedVisitId === routeVisitId;
-        const visitLoaded = canonicalSnapshot != null || persistedCanonical != null;
-        const engineOutput =
-          canonicalSnapshot?.engineOutput
-          ?? persistedCanonical?.engine;
-        const scenarios =
-          canonicalSnapshot?.scenarios
-          ?? persistedCanonical?.scenarios;
-        const decision =
-          canonicalSnapshot?.decision
-          ?? persistedCanonical?.decision;
-        const customerSummary =
-          canonicalSnapshot?.customerSummary
-          ?? persistedCanonical?.customerSummary;
-        const acceptedScenarioId =
-          canonicalSnapshot?.acceptedScenarioId
-          ?? persistedCanonical?.acceptedScenarioId
-          ?? decision?.recommendedScenarioId;
-        const activeSnapshotId = canonicalSnapshot?.recommendationSnapshot?.snapshotId
-          ?? persistedCanonical?.recommendationSnapshot?.snapshotId;
-        const sourceGeneratedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
-          generatedOutputs: canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
-          surveyModel: labFullSurveyModel ?? persistedCanonical?.survey,
-          engineInput: labEngineInput ?? persistedCanonical?.engineInputSnapshot,
-          customerSummary,
-          decision,
-          activeSnapshotId,
-          portalVisitContext: canonicalSnapshot?.portalVisitContext ?? persistedCanonical?.portalVisitContext,
-          scenarios,
-        });
-        const recommendationReady = isRecommendationReadyForLifecycle({
-          decision,
-          customerSummary,
-          acceptedScenarioId,
-          engineRecommendationPrimary: engineOutput?.recommendation?.primary,
-        });
-        const customerJourneyPackReady = sourceGeneratedOutputs.customerJourneyPack?.generated === true;
-        if (strictLibraryPdfEntry) {
-          const pdfBootState = resolveLibraryPdfBootState({
-            explicitVisitId,
-            hydrationComplete: hasHydratedRouteVisit,
-            visitLoaded,
-            recommendationReady,
-            customerJourneyPackReady,
-          });
-          if (pdfBootState === 'loading_visit') {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
-                <p style={{ color: '#475569', marginBottom: 0 }}>
-                  Loading visit context for customer PDF…
-                </p>
-              </RetiredRouteNotice>
-            );
-          }
-          if (pdfBootState === 'visit_not_found' || pdfBootState === 'blocked') {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
-                <p style={{ color: '#475569', marginBottom: 0 }}>
-                  Customer PDF could not be prepared because this visit could not be loaded.
-                </p>
-              </RetiredRouteNotice>
-            );
-          }
-          if (pdfBootState === 'recommendation_missing') {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
-                <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
-                  Customer PDF could not be prepared because the recommendation has not been regenerated for this visit.
-                </p>
-                <button className="back-btn" onClick={() => setJourney('visit-home')}>
-                  Open visit
-                </button>
-              </RetiredRouteNotice>
-            );
-          }
-          if (pdfBootState === 'rebuilding_customer_pack') {
-            return (
-              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
-                <p style={{ color: '#475569', marginBottom: 0 }}>
-                  Rebuilding customer journey pack for this visit…
-                </p>
-              </RetiredRouteNotice>
-            );
-          }
-          if (!shouldResolveLibraryPdfSource(pdfBootState)) return null;
+        if (!LIBRARY_PDF_ENABLED) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF route moved">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Open the canonical customer PDF route with:
+                {' '}
+                <code>?library-pdf=1&amp;visitId=...</code>
+              </p>
+            </RetiredRouteNotice>
+          );
         }
-        const preferredScenarioId = acceptedScenarioId?.toLowerCase();
-        const acceptedScenario =
-          preferredScenarioId == null
-            ? undefined
-            : scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === preferredScenarioId);
-        const source = resolveCustomerDocumentSourceV1({
-          visitId: canonicalSnapshot?.visitId ?? persistedCanonical?.visitId ?? routeVisitId,
-          visitReference:
-            canonicalSnapshot?.visitReference
-            ?? persistedCanonical?.visitReference
-            ?? (routeVisitId != null ? formatVisitReference(routeVisitId) : undefined),
-          acceptedScenario,
-          acceptedScenarioId,
-          decision,
-          scenarios,
-          customerSummary,
-          engineInput: labEngineInput ?? persistedCanonical?.engineInputSnapshot,
-          engineOutput,
-          generatedOutputs: sourceGeneratedOutputs,
-        });
-        const selectedOutputs = normaliseGeneratedOutputs(sourceGeneratedOutputs);
+        const bootState = libraryPdfBootState;
+        const explicitVisitId = hasText(INITIAL_VISIT_ID_PARAM)
+          ? INITIAL_VISIT_ID_PARAM
+          : undefined;
         if (
-          isArtifactStaleForActiveSnapshot(selectedOutputs.customerJourneyPack, activeSnapshotId)
-          || isArtifactStaleForActiveSnapshot(selectedOutputs.pdf, activeSnapshotId)
+          bootState == null
+          || bootState.status === 'loading_visit'
+          || bootState.status === 'rebuilding_customer_pack'
         ) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
+              <p role="status" aria-live="polite" style={{ color: '#475569', marginBottom: 0 }}>
+                Loading visit and rebuilding customer journey pack…
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
+        if (bootState.status === 'visit_not_found' || bootState.status === 'blocked') {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
               <p style={{ color: '#475569', marginBottom: 0 }}>
-                Supporting PDF artifact is stale for the active recommendation snapshot. Regenerate recommendation outputs first.
+                {bootState.message}
               </p>
             </RetiredRouteNotice>
           );
         }
-        if (!source.ok) {
+        if (bootState.status === 'recommendation_missing') {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
-              <p style={{ color: '#475569', marginBottom: '0.5rem' }}>
-                CustomerDocumentSourceV1 could not be built for this visit.
+              <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
+                {bootState.message}
               </p>
-              <ul style={{ margin: 0, paddingLeft: '1.25rem', color: '#475569' }}>
-                {source.missingFields.map((field) => (
-                  <li key={field}>{field}</li>
-                ))}
-              </ul>
+              <button className="back-btn" onClick={() => setJourney('visit-home')}>
+                Open visit
+              </button>
             </RetiredRouteNotice>
           );
         }
-        const printModel = source.source.customerJourneyPack.staticPdf;
-        const debugPdfSource: 'currentVisit' | 'staticPdfFallback' | 'cachedArtifact' =
-          printModel.contentSource?.fallbackOnly === true
-            ? 'staticPdfFallback'
-            : canonicalSnapshot != null
-              ? 'currentVisit'
-              : 'cachedArtifact';
+        if (bootState.status !== 'ready') {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Customer PDF could not be prepared because this visit could not be loaded.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
+        const printModel = bootState.printModel;
         const debugVisitName =
           activeVisitMeta?.visit_reference
           ?? activeVisitMeta?.customer_name
-          ?? source.source.visitReference;
-        const debugRecommendationId = source.source.acceptedScenarioId;
-        const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
+          ?? bootState.source.source.visitReference;
+        const debugRecommendationId = bootState.source.source.acceptedScenarioId;
+        const debugSceneCount = bootState.source.source.customerJourneyPack.staticPdf.sections.length;
         const fallbackOnlyCustomerPdf = isFallbackOnlyCustomerPdf(printModel);
         // Strict entry with explicit visitId must never render fallback-only PDFs,
         // and production blocks fallback-only PDFs for all entry paths.
@@ -4702,9 +4668,7 @@ function AppInner() {
             >
               <button
                 className="back-btn"
-                // Return to Visit Home if opened from active visit; otherwise fall back to the
-                // presentation workspace (the only other context that holds labEngineInput).
-                onClick={() => setJourney(activeVisitId != null ? 'visit-home' : 'presentation')}
+                onClick={() => setJourney('visit-home')}
                 data-testid="library-pdf-back"
               >
                 ← Back
@@ -4737,7 +4701,7 @@ function AppInner() {
                 }}
                 data-testid="library-pdf-source-debug"
               >
-                pdfSource: {debugPdfSource} · visitName: {debugVisitName} · recommendationId: {debugRecommendationId} · sceneCount: {debugSceneCount} · renderer: CustomerScenePrint
+                pdfSource: hydratedVisit · visitName: {debugVisitName} · recommendationId: {debugRecommendationId} · sceneCount: {debugSceneCount} · renderer: CustomerScenePrint
               </div>
             )}
             <PortalJourneyPrintPack model={printModel} />
