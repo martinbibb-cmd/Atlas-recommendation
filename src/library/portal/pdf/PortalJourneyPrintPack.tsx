@@ -453,6 +453,8 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
     ? [sceneWhatYouWillNotice]
     : section.items;
   const visualPlan = resolveSectionVisualPlan(section);
+  const shouldRenderVisualFallback =
+    pageArchetype !== 'quiet' && visualPlan.rendererType !== 'diagram_component';
 
   return (
     <section
@@ -476,23 +478,8 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
           <p className="pjpp-quiet-content__copy">{sceneWhyItMatters}</p>
         </div>
       ) : (
-        <ul className="pjpp-outcome-cards" data-testid={`pjpp-items-${section.sectionId}`}>
-          {noticeItems.slice(0, composition?.maxCardsPerPage ?? 3).map((item, i) => (
-            <li key={`${section.sectionId}-${i}`} className="pjpp-outcome-card">
-              <p className="pjpp-outcome-card__label">What you will notice</p>
-              <p className="pjpp-outcome-card__copy">{item}</p>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {pageArchetype === 'hero' ? (
-        <p className="pjpp-section__hero-takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
-          {sceneWhyItMatters}
-        </p>
-      ) : (
         <p className="pjpp-section__takeaway" data-testid={`pjpp-takeaway-${section.sectionId}`}>
-          <strong>Why it matters:</strong> {sceneWhyItMatters}
+          <strong>Customer takeaway:</strong> {sceneCustomerTakeaway}
         </p>
       )}
 
@@ -513,6 +500,40 @@ function PrintSection({ section, pageNumber }: PrintSectionProps) {
           ) : null}
         </figure>
       ) : null}
+
+      {shouldRenderVisualFallback ? (
+        <article
+          className="pjpp-section__visual-fallback-card"
+          data-testid={`pjpp-visual-fallback-${section.sectionId}`}
+          data-warning-code={
+            hasText(visualPlan.visualAssetId) && isApprovedCustomerPdfVisualAssetId(visualPlan.visualAssetId)
+              ? 'approved_visual_missing'
+              : undefined
+          }
+        >
+          <p className="pjpp-section__visual-fallback-title">Visual content not available</p>
+          <p className="pjpp-section__visual-fallback-copy">
+            {sceneWhyItMatters}
+          </p>
+        </article>
+      ) : null}
+
+      {hasText(sceneWhyItMatters) && pageArchetype !== 'quiet' && visualPlan.rendererType === 'diagram_component' ? (
+        <p className="pjpp-section__visual-explanation" data-testid={`pjpp-visual-explanation-${section.sectionId}`}>
+          {sceneWhyItMatters}
+        </p>
+      ) : null}
+
+      {pageArchetype === 'quiet' ? null : (
+        <ul className="pjpp-outcome-cards" data-testid={`pjpp-items-${section.sectionId}`}>
+          {noticeItems.slice(0, composition?.maxCardsPerPage ?? 3).map((item, i) => (
+            <li key={`${section.sectionId}-${i}`} className="pjpp-outcome-card">
+              <p className="pjpp-outcome-card__label">What you will notice</p>
+              <p className="pjpp-outcome-card__copy">{item}</p>
+            </li>
+          ))}
+        </ul>
+      )}
       {import.meta.env.DEV && visualPlan.rendererType === 'none' && pageArchetype !== 'quiet' ? (
         <p
           className="pjpp-section__diagram-caption"

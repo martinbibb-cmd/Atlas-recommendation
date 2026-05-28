@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { PortalJourneyPrintPack } from '../PortalJourneyPrintPack';
 import { buildPortalJourneyPrintModel } from '../buildPortalJourneyPrintModel';
+import * as visualAssetManifest from '../visualAssetManifest';
 
 const BASE_MODEL = buildPortalJourneyPrintModel({
   journeyType: 'open_vented',
@@ -235,6 +236,43 @@ describe('PortalJourneyPrintPack — print-safe diagrams', () => {
     // At least one diagram should be present (what_changes or pressure_vs_storage)
     expect(diagrams.length).toBeGreaterThan(0);
   });
+
+  it('renders heading and takeaway outside the visual container', () => {
+    render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+    const section = BASE_MODEL.sections.find((entry) => entry.sectionId === 'system_fit_decision_map');
+    expect(section).toBeDefined();
+    const diagram = screen.getByTestId('pjpp-diagram-system_fit_decision_map');
+    const heading = screen.getByRole('heading', { name: section!.storyScene?.title ?? section!.heading });
+    const takeaway = screen.getByTestId('pjpp-takeaway-system_fit_decision_map');
+    expect(heading).toBeInTheDocument();
+    expect(takeaway).toBeInTheDocument();
+    expect(within(diagram).queryByText(section!.storyScene?.title ?? section!.heading)).toBeNull();
+    expect(within(diagram).queryByText(section!.storyScene?.customerTakeaway ?? section!.keyTakeaway)).toBeNull();
+  });
+
+  it('falls back to a clean text card when an approved visual asset is unavailable', () => {
+    const originalManifestResolver = visualAssetManifest.getVisualAssetManifestEntry;
+    const originalAvailabilityResolver = visualAssetManifest.getVisualAssetRendererAvailability;
+    const manifestSpy = vi
+      .spyOn(visualAssetManifest, 'getVisualAssetManifestEntry')
+      .mockImplementation((assetId) =>
+        assetId === 'system_fit_decision_map' ? undefined : originalManifestResolver(assetId));
+    const availabilitySpy = vi
+      .spyOn(visualAssetManifest, 'getVisualAssetRendererAvailability')
+      .mockImplementation((assetId) =>
+        assetId === 'system_fit_decision_map'
+          ? { hasDiagramRenderer: false, hasPrintFallback: false }
+          : originalAvailabilityResolver(assetId));
+
+    try {
+      render(<PortalJourneyPrintPack model={BASE_MODEL} />);
+      expect(screen.getByTestId('pjpp-visual-fallback-system_fit_decision_map')).toBeInTheDocument();
+      expect(screen.queryByTestId('pjpp-diagram-system_fit_decision_map')).toBeNull();
+    } finally {
+      manifestSpy.mockRestore();
+      availabilitySpy.mockRestore();
+    }
+  });
 });
 
 // ─── Page budget ──────────────────────────────────────────────────────────────
@@ -285,9 +323,11 @@ describe('PortalJourneyPrintPack — customer page titles and hierarchy', () => 
   it('renders one key takeaway and one reassurance block per content page', () => {
     render(<PortalJourneyPrintPack model={BASE_MODEL} />);
     for (const section of BASE_MODEL.sections) {
-      expect(screen.getByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeInTheDocument();
       if (!section.sectionId.startsWith('quiet_scene')) {
+        expect(screen.getByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeInTheDocument();
         expect(screen.getByTestId(`pjpp-reassurance-${section.sectionId}`)).toBeInTheDocument();
+      } else {
+        expect(screen.queryByTestId(`pjpp-takeaway-${section.sectionId}`)).toBeNull();
       }
     }
   });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildCustomerJourneyPack,
   buildCustomerJourneyPackGeneratedOutput,
@@ -19,6 +19,7 @@ import {
 } from '../legoTechnicCustomerVisualManifest';
 import { listManifestAssetIds } from '../visualAssetManifest';
 import { isApprovedCustomerPdfVisualAssetId } from '../../../pdfVisuals/customerPdfVisualRegistry';
+import * as visualAssetManifest from '../visualAssetManifest';
 
 const BASE_INPUT: BuildPortalJourneyPrintModelInputV1 = {
   journeyType: 'open_vented',
@@ -249,10 +250,10 @@ describe('buildPortalJourneyPrintModel — recommendation identity unchanged', (
     expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.sectionId)).toEqual([
       'practical_outcomes',
       'system_fit_decision_map',
-      'stored_hot_water_recovery_timeline',
-      'unvented_safety',
-      'sealed_system_pressure_window',
       'pressure_vs_storage',
+      'sealed_system_pressure_window',
+      'unvented_safety',
+      'stored_hot_water_recovery_timeline',
     ]);
     expect(model.sections.some((s) => s.sectionId.startsWith('quiet_scene'))).toBe(true);
   });
@@ -265,10 +266,10 @@ describe('buildPortalJourneyPrintModel — customer layout constraints', () => {
     expect(model.sections.filter((s) => !s.sectionId.startsWith('quiet_scene')).map((s) => s.heading)).toEqual([
       'Practical outcomes',
       'System fit decision map',
-      'Stored hot-water recovery timeline',
-      'How the cylinder keeps itself safe',
-      'Sealed-system pressure window',
       'Why stored hot water helps',
+      'Sealed-system pressure window',
+      'How the cylinder keeps itself safe',
+      'Stored hot-water recovery timeline',
     ]);
     expect(model.sections.some((s) => s.heading === 'Good to know')).toBe(true);
   });
@@ -289,10 +290,10 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
     expect(model.cover.title).toBe('Your recommendation');
     expect(model.sections.filter((section) => !section.sectionId.startsWith('quiet_scene')).map((section) => section.heading)).toEqual([
       'System fit decision map',
-      'Why radiators may feel warm, not hot',
-      'How steady running works',
-      'What happens in winter',
       'Sealed-system pressure window',
+      'How steady running works',
+      'Why radiators may feel warm, not hot',
+      'What happens in winter',
     ]);
   });
 
@@ -302,10 +303,10 @@ describe('buildPortalJourneyPrintModel — heat-pump journey', () => {
       .map((section) => section.contentId)
       .filter((id) => !id.startsWith(QUIET_SCENE_CONTENT_ID_PREFIX))).toEqual([
       'CON_A01',
-      'CON_E02',
-      'CON_H04',
-      'CON_H01',
       'CON_B03',
+      'CON_H04',
+      'CON_E02',
+      'CON_H01',
     ]);
   });
 
@@ -496,6 +497,50 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(model.contentSource?.routeCompletenessAudit?.ready).toBe(false);
     expect(model.contentSource?.routeCompletenessAudit?.missingRequirementIds).toContain('what_changes_day_to_day');
     expect(model.contentSource?.fallbackOnly).toBe(true);
+  });
+
+  it('emits approved_visual_missing warning when an approved visual cannot render', () => {
+    const originalAvailabilityResolver = visualAssetManifest.getVisualAssetRendererAvailability;
+    const availabilitySpy = vi
+      .spyOn(visualAssetManifest, 'getVisualAssetRendererAvailability')
+      .mockImplementation((assetId) =>
+        assetId === 'system_fit_decision_map'
+          ? { hasDiagramRenderer: false, hasPrintFallback: false }
+          : originalAvailabilityResolver(assetId));
+    try {
+      const model = buildPortalJourneyPrintModel(BASE_INPUT);
+      expect(model.contentSource?.storySceneValidation.warningCodes).toContain('approved_visual_missing');
+    } finally {
+      availabilitySpy.mockRestore();
+    }
+  });
+
+  it('places powerflush/filter/pressure explainers before deep technical detail sections', () => {
+    const model = buildPortalJourneyPrintModel({
+      journeyType: 'stored_hot_water',
+      selectedSectionIds: [],
+      recommendationSummary: 'Stored-hot-water route with protection and controls.',
+      customerFacts: ['4-person household', '2 bathrooms'],
+      educationalConceptTags: [
+        'system_fit_decision_map',
+        'pressure_vs_storage',
+        'sealed_system_pressure_window',
+        'powerflush_condition_led',
+        'magnetic_filter_capture',
+        'stored_hot_water_recovery_timeline',
+      ],
+    });
+    const sectionIds = model.sections
+      .filter((section) => !section.sectionId.startsWith('quiet_scene'))
+      .map((section) => section.sectionId);
+    const deepDetailIndex = sectionIds.indexOf('stored_hot_water_recovery_timeline');
+    expect(deepDetailIndex).toBeGreaterThan(-1);
+    for (const sectionId of ['pressure_vs_storage', 'sealed_system_pressure_window', 'powerflush_condition_led', 'magnetic_filter_capture'] as const) {
+      const index = sectionIds.indexOf(sectionId);
+      if (index >= 0) {
+        expect(index).toBeLessThan(deepDetailIndex);
+      }
+    }
   });
 
 
