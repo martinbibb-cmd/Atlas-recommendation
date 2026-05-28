@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resolveCustomerPdfDownloadBaseName } from '../resolveCustomerPdfDownloadBaseName';
 
 describe('resolveCustomerPdfDownloadBaseName', () => {
-  it('prefers canonical visit reference over mutable visit metadata', () => {
+  it('prefers visit name metadata over canonical reference', () => {
     expect(
       resolveCustomerPdfDownloadBaseName(
         {
@@ -13,7 +13,7 @@ describe('resolveCustomerPdfDownloadBaseName', () => {
         'VISIT1234',
         'visit_1234',
       ),
-    ).toBe('VISIT1234');
+    ).toBe('Smith_Kitchen_Upgrade');
   });
 
   it('falls back to the exported visit reference when no visit/customer/project name exists', () => {

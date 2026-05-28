@@ -524,9 +524,6 @@ function enrichGeneratedOutputsWithCustomerJourneyPack(input: {
   readonly scenarios?: ScenarioResult[];
 }): GeneratedOutputsV1 {
   const outputs = withArtifactSnapshotId(input.generatedOutputs, input.activeSnapshotId);
-  if (readCustomerJourneyPackFromGeneratedOutputs(outputs) != null) {
-    return outputs;
-  }
   if (input.surveyModel == null || input.engineInput == null || input.customerSummary == null) {
     return outputs;
   }
@@ -2313,7 +2310,7 @@ function AppInner() {
         return scanCapture != null ? [scanCapture] : undefined;
       })(),
     });
-    const filename = `${resolveCustomerPdfDownloadBaseName(activeVisitMeta, visitReference, exportVisitId)}.atlasvisit.pdf`;
+    const filename = `${resolveCustomerPdfDownloadBaseName(activeVisitMeta, visitReference, exportVisitId)}-customer-pack.pdf`;
     try {
       const pdf = renderVisitPackagePdfDocument(pdfEnvelope);
       const blob = new Blob([pdf], { type: 'application/pdf' });
@@ -4553,6 +4550,18 @@ function AppInner() {
           );
         }
         const printModel = source.source.customerJourneyPack.staticPdf;
+        const debugPdfSource: 'currentVisit' | 'staticPdfFallback' | 'cachedArtifact' =
+          printModel.contentSource?.fallbackOnly === true
+            ? 'staticPdfFallback'
+            : canonicalSnapshot != null
+              ? 'currentVisit'
+              : 'cachedArtifact';
+        const debugVisitName =
+          activeVisitMeta?.visit_reference
+          ?? activeVisitMeta?.customer_name
+          ?? source.source.visitReference;
+        const debugRecommendationId = source.source.acceptedScenarioId;
+        const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
         if (!import.meta.env.DEV && isFallbackOnlyCustomerPdf(printModel)) {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
@@ -4602,6 +4611,22 @@ function AppInner() {
                 Print / Save as PDF
               </button>
             </div>
+            {import.meta.env.DEV && (
+              <div
+                style={{
+                  margin: '0.75rem 1rem 0',
+                  border: '1px dashed #cbd5e1',
+                  borderRadius: '0.5rem',
+                  background: '#ffffff',
+                  color: '#334155',
+                  fontSize: '0.75rem',
+                  padding: '0.55rem 0.75rem',
+                }}
+                data-testid="library-pdf-source-debug"
+              >
+                pdfSource: {debugPdfSource} · visitName: {debugVisitName} · recommendationId: {debugRecommendationId} · sceneCount: {debugSceneCount} · renderer: CustomerScenePrint
+              </div>
+            )}
             <PortalJourneyPrintPack model={printModel} />
           </div>
         );

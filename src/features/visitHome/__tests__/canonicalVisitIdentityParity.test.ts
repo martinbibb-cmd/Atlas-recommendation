@@ -3,7 +3,7 @@ import { resolveCanonicalVisitExportState } from '../resolveCanonicalVisitExport
 import { resolveCustomerPdfDownloadBaseName } from '../resolveCustomerPdfDownloadBaseName';
 
 describe('canonical visit identity parity', () => {
-  it('reuses one canonical reference for export state and customer PDF filename', () => {
+  it('uses visit name first for customer PDF filename and canonical reference as fallback', () => {
     const state = resolveCanonicalVisitExportState({
       activeVisitId: 'visit_1234',
       activeVisitMeta: {
@@ -40,7 +40,17 @@ describe('canonical visit identity parity', () => {
         state.visitReference,
         state.exportVisitId,
       ),
+    ).toBe('Mutable_label');
+    expect(
+      resolveCustomerPdfDownloadBaseName(
+        {
+          visit_reference: null,
+          customer_name: null,
+          address_line_1: null,
+        },
+        state.visitReference,
+        state.exportVisitId,
+      ),
     ).toBe('REF-CANONICAL-1234');
   });
 });
-

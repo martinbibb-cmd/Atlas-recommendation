@@ -104,6 +104,10 @@ function extractVisiblePageStreams(pdf: string): string[] {
   return streams;
 }
 
+function extractVisiblePdfText(pdf: string): string {
+  return extractVisiblePageStreams(pdf).join('\n').toLowerCase();
+}
+
 function extractYCoordinates(stream: string): number[] {
   return [...stream.matchAll(/50 ([0-9]+(?:\.[0-9]+)?) Td/g)]
     .map((match) => Number.parseFloat(match[1]));
@@ -299,6 +303,38 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
         importExportMetadata: pkg.importExportMetadata,
       },
     });
+
+    it('rebuilds customer journey content from current recommendation when packaged journey is stale', () => {
+      const pkg = makePackage();
+      const stalePackLabel = pkg.proposalTruth?.customerSummary?.recommendedSystemLabel;
+      const packageWithStalePack = buildCanonicalVisitPackage({
+        packageData: {
+          visitIdentity: pkg.visitIdentity,
+          workspaceBrandReference: pkg.workspaceBrandReference,
+          customerPropertyDetails: pkg.customerPropertyDetails,
+          surveyDraft: pkg.surveyDraft,
+          engineInputSnapshot: pkg.engineInputSnapshot,
+          proposalTruth: {
+            ...pkg.proposalTruth,
+            selectedScenarioId: 'regular_open_vented',
+            customerSummary: {
+              ...(pkg.proposalTruth?.customerSummary ?? {}),
+              recommendedSystemLabel: 'Regular boiler open-vented',
+              headline: 'Current visit recommendation',
+            } as never,
+          },
+          generatedOutputStatus: pkg.generatedOutputStatus,
+          importExportMetadata: pkg.importExportMetadata,
+        },
+      });
+      const visibleText = extractVisiblePdfText(
+        renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: packageWithStalePack })),
+      );
+      expect(visibleText).toContain('regular boiler open-vented');
+      if (hasText(stalePackLabel)) {
+        expect(visibleText).not.toContain(stalePackLabel.toLowerCase());
+      }
+    });
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: packageWithoutJourney }));
     expect(pdf).toContain('Why this fits your home');
     expect(pdf).toContain('Occupants: 3');
@@ -326,6 +362,14 @@ describe('visible PDF content matches packaged CustomerJourneyPackV1 (payload al
         },
         importExportMetadata: pkg.importExportMetadata,
       },
+    });
+
+    it('does not emit retired fallback filler phrases in visible PDF content', () => {
+      const visibleText = extractVisiblePdfText(
+        renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({ packagePayload: makePackage() })),
+      );
+      expect(visibleText).not.toContain('the recommendation has not changed');
+      expect(visibleText).not.toContain('room to breathe');
     });
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({
       packagePayload: packageWithoutJourneyOrRecommendation,
