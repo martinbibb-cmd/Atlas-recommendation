@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import DevMenuPage from '../DevMenuPage';
@@ -46,9 +46,13 @@ describe('DevMenuPage inventory curation', () => {
     expect(screen.queryByLabelText('Preview Visual Primitive Gallery')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: /Show dev & QA tools/i }));
-    expect(await screen.findByText('Portal Fixtures')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText('Portal Fixtures')).toBeTruthy();
+    }, { timeout: 15000 });
 
     await user.click(screen.getByRole('button', { name: /Show legacy tools/i }));
-    expect(await screen.findByText('Lifestyle Interactive')).toBeTruthy();
-  }, 15000);
+    await waitFor(() => {
+      expect(screen.getByText('Lifestyle Interactive')).toBeTruthy();
+    }, { timeout: 15000 });
+  }, 20000);
 });

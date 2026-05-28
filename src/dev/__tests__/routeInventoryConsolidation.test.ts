@@ -305,7 +305,7 @@ describe('route + inventory consolidation', () => {
         route.routePath,
         route.fullRouteExample,
         ...(route.queryFlags ?? []),
-      ].some((value) => value?.includes('insight-pack') || value?.includes('print=survey')),
+      ].some((value) => value?.includes('insight-pack=1') || value?.includes('print=survey')),
     );
 
     expect(
