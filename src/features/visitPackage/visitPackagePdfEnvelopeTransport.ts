@@ -358,15 +358,32 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
     customerFacts: [],
   });
   const canonicalPackageWithoutPackagedJourney = buildCanonicalPackageWithoutPackagedJourney(canonicalVisitPackage);
-  const staticPdfModel = hasRecommendationContext
-    ? buildCustomerJourneyPack({
-        canonicalVisitPackage: canonicalPackageWithoutPackagedJourney,
-        selectedSectionIds: routedSelection.selectedSectionIds,
+  let staticPdfModel: PortalJourneyPrintModelV1;
+  if (hasRecommendationContext) {
+    const builtPack = buildCustomerJourneyPack({
+      canonicalVisitPackage: canonicalPackageWithoutPackagedJourney,
+      selectedSectionIds: routedSelection.selectedSectionIds,
       educationalConceptTags: routedSelection.conceptTags,
-      }).staticPdf
-    : packagedJourney != null
-    ? packagedJourney.staticPdf
-    : buildFallbackPrintModel(envelope);
+    });
+    const storySceneValidation = builtPack.staticPdf.contentSource?.storySceneValidation;
+    if (storySceneValidation == null) {
+      throw new Error(
+        'Internal validation failure: current recommendation context exists but storySceneValidation metadata is missing. '
+        + 'Regenerate recommendation outputs and export again.',
+      );
+    }
+    if (storySceneValidation.sceneCount === 0) {
+      throw new Error(
+        'Internal validation failure: current recommendation context exists but produced 0 story scenes. '
+        + 'Regenerate recommendation outputs and export again.',
+      );
+    }
+    staticPdfModel = builtPack.staticPdf;
+  } else if (packagedJourney != null) {
+    staticPdfModel = packagedJourney.staticPdf;
+  } else {
+    staticPdfModel = buildFallbackPrintModel(envelope);
+  }
   return buildCustomerDocumentModel({
     model: staticPdfModel,
     mode: 'packageEmbedded',
