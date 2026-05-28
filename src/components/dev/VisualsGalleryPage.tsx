@@ -6,8 +6,9 @@
  * Sections:
  *   - Physics Visuals: every entry in physicsVisualRegistry, rendered via
  *     the existing PhysicsVisualGallery component.
- *   - Legacy Prototype Components: every entry in PALETTE_SECTIONS, shown as
- *     expandable category panels with per-item tiles.
+ *   - Legacy System Composer Palette (Archived): every entry in PALETTE_SECTIONS,
+ *     shown as expandable category panels with per-item tiles. This is NOT the
+ *     active LegoTechnix engine — see src/features/legoTechnix/ for that.
  *
  * Accessible inside the Dev Menu (/dev/devmenu or legacy ?devmenu=1) via the "Visuals Gallery" tab.
  * NOT customer-facing.
@@ -23,7 +24,7 @@ type GallerySection = 'physics' | 'lego';
 
 const SECTION_LABELS: Record<GallerySection, string> = {
   physics: '⚡ Physics Visuals',
-  lego:    '🧱 Legacy Prototype Components',
+  lego:    '🗄 Legacy System Composer Palette (Archived)',
 };
 
 // ─── Lego palette section panel ───────────────────────────────────────────────
@@ -94,10 +95,18 @@ function LegoBuilderGallery() {
     <div style={STYLES.legoGallery}>
       <div style={STYLES.legoHeader}>
         <div>
-          <h2 style={STYLES.sectionHeading}>Legacy Prototype Components</h2>
+          <h2 style={STYLES.sectionHeading}>Legacy System Composer Palette (Archived)</h2>
           <p style={STYLES.sectionSubtitle}>
-            All palette items from the legacy system-composer prototype,
-            grouped by category. Advanced tee items are shown at the end.
+            Palette items from the archived system-composer prototype, grouped by category.
+            Advanced tee items are shown at the end.
+          </p>
+          <p style={{ ...STYLES.sectionSubtitle, color: '#b45309', marginTop: '0.35rem' }}>
+            ⚠ This is <strong>NOT</strong> the active LegoTechnix engine. LegoTechnix is a
+            separate canonical simulation engine in{' '}
+            <code style={{ fontSize: '0.78rem' }}>src/features/legoTechnix/</code> and has no
+            visual palette. Use the Library tab or navigate to{' '}
+            <code style={{ fontSize: '0.78rem' }}>/?lego-technix-debug=1</code> for the active
+            LegoTechnix debug surface.
           </p>
         </div>
         <div style={STYLES.expandCollapseRow}>
@@ -149,7 +158,8 @@ export default function VisualsGalleryPage({ onBack }: Props) {
         </div>
         <p style={STYLES.subtitle}>
           Browse individual visual elements grouped by type. Use the tabs below
-          to switch between the Physics Visual Library and Legacy Prototype Components.
+          to switch between the Physics Visual Library and the archived Legacy System Composer Palette.
+          Note: active LegoTechnix (simulation engine) has no visual palette — see the Library tab.
         </p>
       </header>
 
