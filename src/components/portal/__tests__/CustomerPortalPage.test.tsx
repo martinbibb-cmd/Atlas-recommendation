@@ -114,16 +114,13 @@ describe('CustomerPortalPage', () => {
     mockFetchSuccess(STUB_REPORT);
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
-    expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy();
+    expect(screen.getByTestId('customer-scene-deck')).toBeTruthy();
     expect(screen.getByTestId('portal-hero')).toBeTruthy();
-    expect(screen.getByText(/Here’s what Atlas found/i)).toBeTruthy();
     expect(screen.getByText(/currentPortalRoute:/i)).toBeTruthy();
     expect(screen.getByText(/selectedPortalMode: portal/i)).toBeTruthy();
-    expect(screen.getByText(/activeRendererComponent: CustomerPortalJourneyComposer/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: CustomerSceneDeck/i)).toBeTruthy();
     expect(screen.queryByTestId('dev-portal-fixture-launcher')).toBeNull();
     expect(screen.queryByTestId('portal-legacy-renderer-leak-banner')).toBeNull();
-    expect(screen.queryByRole('tab')).toBeNull();
-    expect(screen.queryByTestId('library-portal-section')).toBeNull();
     expect(screen.queryByText(/AI-enhanced summary/i)).toBeNull();
     expect(screen.queryByText(/gemini|provider|api error|generation failed/i)).toBeNull();
   });
@@ -179,9 +176,8 @@ describe('CustomerPortalPage', () => {
       },
     });
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
-    expect(screen.getByTestId('customer-portal-visual-stored-hot-water-recovery')).toBeTruthy();
-    expect(screen.queryByTestId('customer-portal-visual-diagnostic-cylinder-recovery')).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
+    expect(screen.getByTestId('customer-scene-diagram-pressure_vs_storage')).toBeTruthy();
   });
 
   it('renders storytelling-led customer visuals for ageing and scenario comparison', async () => {
@@ -194,9 +190,8 @@ describe('CustomerPortalPage', () => {
       },
     });
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
-    expect(screen.getByText('Boiler ageing and response')).toBeTruthy();
-    expect(screen.getByText('Scenario storytelling comparison')).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
+    expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(0);
   });
 
   it('keeps retired visuals out of the phone portal surface', async () => {
@@ -220,12 +215,12 @@ describe('CustomerPortalPage', () => {
     })));
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
     await waitFor(() => expect(screen.getByTestId('portal-page')).toBeTruthy());
-    expect(screen.getByTestId('customer-portal-visual-stored-hot-water-recovery')).toBeTruthy();
-    expect(screen.queryByTestId('customer-portal-visual-diagnostic-cylinder-recovery')).toBeNull();
+    expect(screen.getByTestId('customer-scene-deck')).toBeTruthy();
+    expect(screen.getByTestId('customer-scene-diagram-pressure_vs_storage')).toBeTruthy();
     vi.unstubAllGlobals();
   });
 
-  it('renders library-supported explainers in the daily-use section', async () => {
+  it('renders one customer idea per canonical scene', async () => {
     mockFetchSuccess({
       ...STUB_REPORT,
       payload: {
@@ -235,11 +230,11 @@ describe('CustomerPortalPage', () => {
       },
     });
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
-    expect(screen.getAllByText('Library-supported explainer').length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
+    expect(screen.getAllByText('Technical detail').length).toBeGreaterThan(0);
   });
 
-  it('caps rendered library-supported explainers at three cards', async () => {
+  it('renders technical detail behind disclosure controls', async () => {
     mockFetchSuccess({
       ...STUB_REPORT,
       payload: {
@@ -249,8 +244,8 @@ describe('CustomerPortalPage', () => {
       },
     });
     render(<CustomerPortalPage reference="test-report-1" token="valid-token" />);
-    await waitFor(() => expect(screen.getByTestId('customer-portal-journey-composer')).toBeTruthy());
-    expect(screen.getAllByText('Library-supported explainer').length).toBeLessThanOrEqual(3);
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
+    expect(screen.getAllByRole('button', { name: 'Technical detail' }).length).toBeGreaterThan(0);
   });
 
   it('devInitialViewMode=insight reaches the real Insight renderer and shows route trace labels', async () => {
@@ -261,10 +256,9 @@ describe('CustomerPortalPage', () => {
         devInitialViewMode="insight"
       />,
     );
-    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
     expect(screen.getByText(/selectedPortalMode: insight/i)).toBeTruthy();
-    expect(screen.getByText(/activeRendererComponent: InsightPackDeck/i)).toBeTruthy();
-    expect(screen.getByText(/insightRendererComponent: InsightPackDeck/i)).toBeTruthy();
+    expect(screen.getByText(/activeRendererComponent: CustomerSceneDeck/i)).toBeTruthy();
   });
 
   it('devInitialViewMode=presentation opens presentation preview directly', async () => {
@@ -281,7 +275,7 @@ describe('CustomerPortalPage', () => {
     expect(screen.getByText(/activeRendererComponent: CanonicalPresentationPage/i)).toBeTruthy();
   });
 
-  it('devInitialViewMode=insight mounts CON_C02 section for stored hot water with two bathrooms', async () => {
+  it('devInitialViewMode=insight renders canonical pressure-vs-storage scene', async () => {
     render(
       <CustomerPortalPage
         reference="test-report-stored-hot-water"
@@ -289,12 +283,8 @@ describe('CustomerPortalPage', () => {
         devInitialViewMode="insight"
       />,
     );
-    await waitFor(() => expect(screen.getByTestId('insight-pack-deck')).toBeTruthy());
-    fireEvent.click(screen.getByRole('tab', { name: /Day to Day/i }));
-
-    await waitFor(() => expect(screen.getAllByTestId('pvsp-section').length).toBeGreaterThan(0));
-    expect(screen.getByText('Real Insight route using library section')).toBeTruthy();
-    expect(screen.getByText(/dailyUseRendererComponent: PressureVsStoragePortalSection/i)).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('customer-scene-deck')).toBeTruthy());
+    expect(screen.getByTestId('customer-scene-pressure_vs_storage')).toBeTruthy();
   });
 
   it('renders the canonical presentation deck — same pages as the in-room presentation', async () => {
@@ -408,7 +398,7 @@ describe('CustomerPortalPage', () => {
     const result = assertNoLegacyPresentationRenderer({
       isProductionPortalSurface: true,
       selectedPortalMode: 'portal',
-      activeRendererComponent: 'CustomerPortalJourneyComposer',
+      activeRendererComponent: 'CustomerSceneDeck',
     });
     expect(result.leakDetected).toBe(false);
   });

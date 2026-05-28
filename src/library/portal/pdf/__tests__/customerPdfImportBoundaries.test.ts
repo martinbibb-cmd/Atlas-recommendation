@@ -59,4 +59,11 @@ describe('customer PDF import boundaries', () => {
     }
     expect(violations).toEqual([]);
   });
+
+  it('PortalJourneyPrintPack does not import legacy renderer namespaces or InsightPackDeck', () => {
+    const filePath = path.resolve(PDF_DIR, 'PortalJourneyPrintPack.tsx');
+    const source = fs.readFileSync(filePath, 'utf8');
+    expect(source).not.toMatch(/from\s+['"][^'"]*legacy\//);
+    expect(source).not.toContain('InsightPackDeck');
+  });
 });
