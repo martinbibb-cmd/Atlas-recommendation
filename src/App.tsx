@@ -4584,6 +4584,9 @@ function AppInner() {
           );
         }
         const bootState = libraryPdfBootState;
+        const explicitVisitId = hasText(INITIAL_VISIT_ID_PARAM)
+          ? INITIAL_VISIT_ID_PARAM
+          : undefined;
         if (
           bootState == null
           || bootState.status === 'loading_visit'
@@ -4634,6 +4637,19 @@ function AppInner() {
           ?? bootState.source.source.visitReference;
         const debugRecommendationId = bootState.source.source.acceptedScenarioId;
         const debugSceneCount = bootState.source.source.customerJourneyPack.staticPdf.sections.length;
+        const fallbackOnlyCustomerPdf = isFallbackOnlyCustomerPdf(printModel);
+        // Strict entry with explicit visitId must never render fallback-only PDFs,
+        // and production blocks fallback-only PDFs for all entry paths.
+        const shouldBlockFallbackPdf = fallbackOnlyCustomerPdf && (!import.meta.env.DEV || explicitVisitId != null);
+        if (shouldBlockFallbackPdf) {
+          return (
+            <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+              <p style={{ color: '#475569', marginBottom: 0 }}>
+                Customer PDF blocked: this package does not yet meet customer story quality checks. Regenerate recommendation outputs and export again.
+              </p>
+            </RetiredRouteNotice>
+          );
+        }
         return (
           <div
             style={{ background: '#f8fafc', minHeight: '100vh' }}

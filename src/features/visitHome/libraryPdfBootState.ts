@@ -9,7 +9,7 @@ import type { GeneratedOutputsV1, CanonicalRecommendationSnapshotV1 } from '../.
 import type { ResolveCustomerDocumentSourceResultV1 } from '../../library/portal/pdf/CustomerDocumentSourceV1';
 import type { PortalJourneyPrintModelV1 } from '../../library/portal/pdf/buildPortalJourneyPrintModel';
 
-export type LibraryPdfBootStatus =
+export type LibraryPdfBootState =
   | 'loading_visit'
   | 'visit_not_found'
   | 'recommendation_missing'
@@ -148,4 +148,37 @@ export async function runLibraryPdfBootState(
     source,
     printModel,
   };
+}
+
+export interface ResolveLibraryPdfBootStateInput {
+  readonly explicitVisitId?: string;
+  readonly hydrationComplete: boolean;
+  readonly visitLoaded: boolean;
+  readonly recommendationReady: boolean;
+  readonly customerJourneyPackReady: boolean;
+}
+
+export function resolveLibraryPdfBootState(
+  input: ResolveLibraryPdfBootStateInput,
+): LibraryPdfBootState {
+  if (!input.explicitVisitId?.trim()) {
+    return 'blocked';
+  }
+  if (!input.hydrationComplete) {
+    return 'loading_visit';
+  }
+  if (!input.visitLoaded) {
+    return 'visit_not_found';
+  }
+  if (!input.recommendationReady) {
+    return 'recommendation_missing';
+  }
+  if (!input.customerJourneyPackReady) {
+    return 'rebuilding_customer_pack';
+  }
+  return 'ready';
+}
+
+export function shouldResolveLibraryPdfSource(state: LibraryPdfBootState): boolean {
+  return state === 'ready';
 }

@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { ResolveCustomerDocumentSourceResultV1 } from '../../../library/portal/pdf/CustomerDocumentSourceV1';
 import type { PortalJourneyPrintModelV1 } from '../../../library/portal/pdf/buildPortalJourneyPrintModel';
-import { runLibraryPdfBootState } from '../libraryPdfBootState';
+import {
+  runLibraryPdfBootState,
+  resolveLibraryPdfBootState,
+  shouldResolveLibraryPdfSource,
+} from '../libraryPdfBootState';
 
 function buildPrintModel(fallbackOnly: boolean): PortalJourneyPrintModelV1 {
   return {
@@ -110,5 +114,72 @@ describe('runLibraryPdfBootState', () => {
     });
 
     expect(result.status).toBe('blocked');
+  });
+});
+
+describe('libraryPdfBootState helpers', () => {
+  it('?library-pdf=1&visitId=known hydrates visit before PDF render', () => {
+    const loadingState = resolveLibraryPdfBootState({
+      explicitVisitId: 'known',
+      hydrationComplete: false,
+      visitLoaded: false,
+      recommendationReady: false,
+      customerJourneyPackReady: false,
+    });
+    const readyState = resolveLibraryPdfBootState({
+      explicitVisitId: 'known',
+      hydrationComplete: true,
+      visitLoaded: true,
+      recommendationReady: true,
+      customerJourneyPackReady: true,
+    });
+
+    expect(loadingState).toBe('loading_visit');
+    expect(readyState).toBe('ready');
+  });
+
+  it('PDF resolver is not called before visit hydration completes', () => {
+    const state = resolveLibraryPdfBootState({
+      explicitVisitId: 'known',
+      hydrationComplete: false,
+      visitLoaded: true,
+      recommendationReady: true,
+      customerJourneyPackReady: true,
+    });
+    expect(shouldResolveLibraryPdfSource(state)).toBe(false);
+  });
+
+  it('missing visitId shows blocking error', () => {
+    const state = resolveLibraryPdfBootState({
+      explicitVisitId: undefined,
+      hydrationComplete: false,
+      visitLoaded: false,
+      recommendationReady: false,
+      customerJourneyPackReady: false,
+    });
+    expect(state).toBe('blocked');
+  });
+
+  it('unknown visitId shows blocking error', () => {
+    const state = resolveLibraryPdfBootState({
+      explicitVisitId: 'unknown',
+      hydrationComplete: true,
+      visitLoaded: false,
+      recommendationReady: false,
+      customerJourneyPackReady: false,
+    });
+    expect(state).toBe('visit_not_found');
+  });
+
+  it('no basic fallback PDF is generated when explicit visitId is supplied', () => {
+    const state = resolveLibraryPdfBootState({
+      explicitVisitId: 'known',
+      hydrationComplete: true,
+      visitLoaded: true,
+      recommendationReady: false,
+      customerJourneyPackReady: false,
+    });
+    expect(state).toBe('recommendation_missing');
+    expect(shouldResolveLibraryPdfSource(state)).toBe(false);
   });
 });
