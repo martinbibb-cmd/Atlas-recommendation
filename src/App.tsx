@@ -198,6 +198,11 @@ import {
 } from './features/visitHome/resolveCanonicalVisitExportState';
 import { VisitHomeUnifiedSimulatorRoute } from './features/visitHome/VisitHomeUnifiedSimulatorRoute';
 import { buildAppHomeNewVisitEntryState } from './features/visitHome/appHomeVisitEntry';
+import {
+  runLibraryPdfBootState,
+  type LibraryPdfBootResult,
+  type LibraryPdfHydratedSnapshot,
+} from './features/visitHome/libraryPdfBootState';
 import { buildCanonicalRecommendationSnapshot } from './lib/storage/canonicalRecommendationSnapshot';
 import {
   buildVisitHomeCustomerArtifactsState,
@@ -1363,6 +1368,7 @@ function AppInner() {
    * 'portal-from-package' journey rendering. Cleared with the session.
    */
   const [activePortalLaunchPayload, setActivePortalLaunchPayload] = useState<PortalLaunchPayloadV1 | null>(null);
+  const [libraryPdfBootState, setLibraryPdfBootState] = useState<LibraryPdfBootResult | null>(null);
 
   /**
    * Resolves the active workspace from the browser host once on mount.
@@ -1541,6 +1547,134 @@ function AppInner() {
   useEffect(() => {
     visitRecommendationSnapshotRef.current = visitRecommendationSnapshot;
   }, [visitRecommendationSnapshot]);
+
+  useEffect(() => {
+    if (journey !== 'library-pdf' || !LIBRARY_PDF_ENABLED) {
+      setLibraryPdfBootState(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const result = await runLibraryPdfBootState({
+        visitId: INITIAL_VISIT_ID_PARAM ?? undefined,
+        explicitVisitId: hasText(INITIAL_VISIT_ID_PARAM ?? undefined),
+        onTransition: (state) => {
+          if (!cancelled) setLibraryPdfBootState(state);
+        },
+        hydrateVisitById: async (visitId): Promise<LibraryPdfHydratedSnapshot | null> => {
+          const currentSnapshot = visitRecommendationSnapshotRef.current;
+          if (currentSnapshot?.visitId === visitId) {
+            return {
+              visitId: currentSnapshot.visitId,
+              visitReference: currentSnapshot.visitReference,
+              recommendationSnapshot: currentSnapshot.recommendationSnapshot,
+              engineOutput: currentSnapshot.engineOutput,
+              scenarios: currentSnapshot.scenarios,
+              decision: currentSnapshot.decision,
+              customerSummary: currentSnapshot.customerSummary,
+              acceptedScenarioId: currentSnapshot.acceptedScenarioId,
+              generatedOutputs: currentSnapshot.generatedOutputs,
+              portalVisitContext: currentSnapshot.portalVisitContext,
+              surveyModel: labFullSurveyModel,
+              engineInput: labEngineInput,
+            };
+          }
+          const restored = readPersistedAtlasVisitV2(visitId).visit;
+          if (restored == null) {
+            return null;
+          }
+          return {
+            visitId: restored.visitId,
+            visitReference: restored.visitReference,
+            recommendationSnapshot: restored.recommendationSnapshot,
+            engineOutput: restored.engine,
+            scenarios: restored.scenarios,
+            decision: restored.decision,
+            customerSummary: restored.customerSummary,
+            acceptedScenarioId: restored.acceptedScenarioId,
+            generatedOutputs: restored.generatedOutputs,
+            portalVisitContext: restored.portalVisitContext,
+            surveyModel: restored.survey,
+            engineInput: restored.engineInputSnapshot,
+          };
+        },
+        enrichGeneratedOutputs: (snapshot) =>
+          enrichGeneratedOutputsWithCustomerJourneyPack({
+            generatedOutputs: snapshot.generatedOutputs,
+            surveyModel: snapshot.surveyModel,
+            engineInput: snapshot.engineInput,
+            customerSummary: snapshot.customerSummary,
+            decision: snapshot.decision,
+            activeSnapshotId: snapshot.recommendationSnapshot?.snapshotId,
+            portalVisitContext: snapshot.portalVisitContext,
+            scenarios: snapshot.scenarios,
+          }),
+        resolveDocumentSource: ({ snapshot, generatedOutputs }) => {
+          const preferredScenarioId = (snapshot.acceptedScenarioId ?? snapshot.decision?.recommendedScenarioId)?.toLowerCase();
+          const acceptedScenario =
+            preferredScenarioId == null
+              ? undefined
+              : snapshot.scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === preferredScenarioId);
+          return resolveCustomerDocumentSourceV1({
+            visitId: snapshot.visitId,
+            visitReference: snapshot.visitReference ?? formatVisitReference(snapshot.visitId),
+            acceptedScenario,
+            acceptedScenarioId: snapshot.acceptedScenarioId,
+            decision: snapshot.decision,
+            scenarios: snapshot.scenarios,
+            customerSummary: snapshot.customerSummary,
+            engineInput: snapshot.engineInput,
+            engineOutput: snapshot.engineOutput,
+            generatedOutputs,
+          });
+        },
+        isFallbackOnlyPrintModel: isFallbackOnlyCustomerPdf,
+      });
+      if (cancelled) return;
+      if (result.status === 'ready') {
+        const { hydratedSnapshot, generatedOutputs } = result;
+        setActiveVisitId(hydratedSnapshot.visitId);
+        setLabPortalUrl(generatedOutputs.portal.url);
+        setLabPortalVisitContext(hydratedSnapshot.portalVisitContext);
+        if (hydratedSnapshot.surveyModel != null) {
+          setLabFullSurveyModel(hydratedSnapshot.surveyModel);
+          if (hydratedSnapshot.surveyModel.fullSurvey?.heatLoss) setLabHeatLossState(hydratedSnapshot.surveyModel.fullSurvey.heatLoss);
+          if (hydratedSnapshot.surveyModel.fullSurvey?.priorities) setLabPrioritiesState(hydratedSnapshot.surveyModel.fullSurvey.priorities);
+          if (hydratedSnapshot.surveyModel.fullSurvey?.quotes) setLabQuotes(hydratedSnapshot.surveyModel.fullSurvey.quotes);
+        }
+        if (hydratedSnapshot.engineInput != null) {
+          setLabEngineInput(hydratedSnapshot.engineInput);
+        }
+        const recommendationReady = isRecommendationReadyForLifecycle({
+          decision: hydratedSnapshot.decision,
+          customerSummary: hydratedSnapshot.customerSummary,
+          acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
+          engineRecommendationPrimary: hydratedSnapshot.engineOutput?.recommendation?.primary,
+        });
+        const lifecycleState = deriveLifecycleStateFromSnapshot({
+          recommendationReady,
+          generatedOutputs,
+        });
+        setVisitRecommendationSnapshot({
+          visitId: hydratedSnapshot.visitId,
+          visitReference: hydratedSnapshot.visitReference,
+          recommendationSnapshot: hydratedSnapshot.recommendationSnapshot,
+          engineOutput: hydratedSnapshot.engineOutput,
+          scenarios: hydratedSnapshot.scenarios,
+          decision: hydratedSnapshot.decision,
+          customerSummary: hydratedSnapshot.customerSummary,
+          acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
+          lifecycleState,
+          generatedOutputs,
+          portalVisitContext: hydratedSnapshot.portalVisitContext,
+        });
+      }
+      setLibraryPdfBootState(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [journey]);
 
   useEffect(() => {
     if (journey !== 'visit-home') return;
@@ -4506,6 +4640,107 @@ function AppInner() {
       )}
       {/* Library supporting PDF — library-backed print output for Visit Home (replaces legacy framework-print from visit-home path) */}
       {journey === 'library-pdf' && (() => {
+        if (LIBRARY_PDF_ENABLED) {
+          const bootState = libraryPdfBootState;
+          if (
+            bootState == null
+            || bootState.status === 'loading_visit'
+            || bootState.status === 'rebuilding_customer_pack'
+          ) {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
+                <p style={{ color: '#475569', marginBottom: 0 }}>
+                  Loading visit and rebuilding customer journey pack…
+                </p>
+              </RetiredRouteNotice>
+            );
+          }
+          if (bootState.status === 'visit_not_found' || bootState.status === 'blocked') {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+                <p style={{ color: '#475569', marginBottom: 0 }}>
+                  {bootState.message}
+                </p>
+              </RetiredRouteNotice>
+            );
+          }
+          if (bootState.status === 'recommendation_missing') {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF unavailable">
+                <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
+                  {bootState.message}
+                </p>
+                <button className="back-btn" onClick={() => setJourney('visit-home')}>
+                  Open visit
+                </button>
+              </RetiredRouteNotice>
+            );
+          }
+          const printModel = bootState.printModel;
+          const debugVisitName =
+            activeVisitMeta?.visit_reference
+            ?? activeVisitMeta?.customer_name
+            ?? bootState.source.source.visitReference;
+          const debugRecommendationId = bootState.source.source.acceptedScenarioId;
+          const debugSceneCount = bootState.source.source.customerJourneyPack.staticPdf.sections.length;
+          return (
+            <div
+              style={{ background: '#f8fafc', minHeight: '100vh' }}
+              data-testid="library-pdf-route"
+            >
+              <div
+                style={{
+                  padding: '0.5rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  borderBottom: '1px solid #e2e8f0',
+                  background: '#fff',
+                }}
+                data-testid="library-pdf-header"
+              >
+                <button
+                  className="back-btn"
+                  onClick={() => setJourney('visit-home')}
+                  data-testid="library-pdf-back"
+                >
+                  ← Back
+                </button>
+                <span
+                  style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.95rem' }}
+                  data-testid="library-pdf-workspace-marker"
+                >
+                  Library supporting PDF — review workspace
+                </span>
+                <button
+                  style={{ marginLeft: 'auto' }}
+                  className="back-btn"
+                  onClick={() => window.print()}
+                  data-testid="library-pdf-print-btn"
+                >
+                  Print / Save as PDF
+                </button>
+              </div>
+              {import.meta.env.DEV && (
+                <div
+                  style={{
+                    margin: '0.75rem 1rem 0',
+                    border: '1px dashed #cbd5e1',
+                    borderRadius: '0.5rem',
+                    background: '#ffffff',
+                    color: '#334155',
+                    fontSize: '0.75rem',
+                    padding: '0.55rem 0.75rem',
+                  }}
+                  data-testid="library-pdf-source-debug"
+                >
+                  pdfSource: hydratedVisit · visitName: {debugVisitName} · recommendationId: {debugRecommendationId} · sceneCount: {debugSceneCount} · renderer: CustomerScenePrint
+                </div>
+              )}
+              <PortalJourneyPrintPack model={printModel} />
+            </div>
+          );
+        }
         const canonicalSnapshot =
           activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
             ? visitRecommendationSnapshot
