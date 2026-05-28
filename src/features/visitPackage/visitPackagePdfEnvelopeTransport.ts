@@ -358,15 +358,26 @@ function resolveCustomerDocument(envelope: VisitPackagePdfEnvelopeV1): CustomerD
     customerFacts: [],
   });
   const canonicalPackageWithoutPackagedJourney = buildCanonicalPackageWithoutPackagedJourney(canonicalVisitPackage);
-  const staticPdfModel = hasRecommendationContext
-    ? buildCustomerJourneyPack({
-        canonicalVisitPackage: canonicalPackageWithoutPackagedJourney,
-        selectedSectionIds: routedSelection.selectedSectionIds,
+  let staticPdfModel: PortalJourneyPrintModelV1;
+  if (hasRecommendationContext) {
+    const builtPack = buildCustomerJourneyPack({
+      canonicalVisitPackage: canonicalPackageWithoutPackagedJourney,
+      selectedSectionIds: routedSelection.selectedSectionIds,
       educationalConceptTags: routedSelection.conceptTags,
-      }).staticPdf
-    : packagedJourney != null
-    ? packagedJourney.staticPdf
-    : buildFallbackPrintModel(envelope);
+    });
+    const builtSceneCount = builtPack.staticPdf.contentSource?.storySceneValidation?.sceneCount ?? 0;
+    if (builtSceneCount === 0) {
+      throw new Error(
+        'Customer PDF export blocked: current recommendation context exists but produced 0 story scenes. '
+        + 'Regenerate recommendation outputs and export again.',
+      );
+    }
+    staticPdfModel = builtPack.staticPdf;
+  } else if (packagedJourney != null) {
+    staticPdfModel = packagedJourney.staticPdf;
+  } else {
+    staticPdfModel = buildFallbackPrintModel(envelope);
+  }
   return buildCustomerDocumentModel({
     model: staticPdfModel,
     mode: 'packageEmbedded',
