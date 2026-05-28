@@ -115,8 +115,8 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   },
   {
     codeName: 'UnifiedSimulatorView',
-    fullRouteExample: '/?insight-pack=1 (legacy diagnostics)',
-    replacementRoute: '/?house-simulator=1',
+    fullRouteExample: '/?insight-pack=1 (retired legacy route notice)',
+    replacementRoute: '/dev/customer-pack-preview',
     routeKind: 'derived',
     access: 'legacy_dev_only',
     lifecycle: 'legacy_dev_only',
@@ -458,8 +458,8 @@ export const DEV_ROUTE_REGISTRY: DevRouteMeta[] = [
   },
   {
     codeName: 'InsightPackDeck',
-    fullRouteExample: 'dev-only: CustomerPortalPage devInitialViewMode="insight"',
-    replacementRoute: '/portal/<reference>?token=<signed-token>',
+    fullRouteExample: 'archived comparison only (open /dev/customer-pack-preview for diagnostics)',
+    replacementRoute: '/dev/customer-pack-preview',
     routeKind: 'derived',
     access: 'legacy_dev_only',
     lifecycle: 'legacy_dev_only',

@@ -802,8 +802,8 @@ const ENGINEER_SHARE_ENABLED =
   new URLSearchParams(window.location.search).get('engineer-share') === '1';
 
 /**
- * Detect ?insight-pack=1 — renders the Atlas Insight Pack deck with demo data.
- * Developer/review surface for previewing the 11-screen customer recommendation deck.
+ * Detect ?insight-pack=1 — retired legacy insight-pack route.
+ * Kept only to redirect users to current customer-safe routes.
  */
 const INSIGHT_PACK_ENABLED =
   typeof window !== 'undefined' &&
@@ -846,25 +846,6 @@ if (
   const cleanUrl = window.location.pathname + window.location.hash;
   window.location.replace(cleanUrl);
 }
-
-/** Demo quotes used by ?insight-pack=1 mode. */
-const DEMO_QUOTES: QuoteInput[] = [
-  {
-    id: 'quote_a',
-    label: 'Quote A — ABC Heating',
-    systemType: 'system',
-    heatSourceKw: 30,
-    cylinder: { type: 'mixergy', volumeL: 210 },
-    includedUpgrades: ['powerflush', 'filter', 'controls'],
-  },
-  {
-    id: 'quote_b',
-    label: 'Quote B — XYZ Plumbing',
-    systemType: 'combi',
-    heatSourceKw: 35,
-    includedUpgrades: ['filter'],
-  },
-];
 
 /**
  * Demo engine input used by the report mode (?report=1) and presentation demo (?presentation=1).
@@ -3463,53 +3444,20 @@ function AppInner() {
     );
   }
 
-  // ?insight-pack=1 — render Atlas Insight Pack deck with demo data for review.
+  // ?insight-pack=1 — retired route; redirect to current customer-safe surfaces.
   if (INSIGHT_PACK_ENABLED) {
-    const { engineOutput } = runEngine(CONSOLE_DEMO_INPUT);
-    const rawType = CONSOLE_DEMO_INPUT.currentHeatSourceType;
-    const demoBoilerType: InsightPackSurveyContext['currentBoiler'] = rawType === 'combi' ||
-      rawType === 'system' || rawType === 'regular'
-      ? { type: rawType }
-      : undefined;
-    const demoSurveyContext: InsightPackSurveyContext = {
-      currentBoiler: demoBoilerType,
-      occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
-      bathroomCount: CONSOLE_DEMO_INPUT.bathroomCount,
-      mainsDynamicFlowLpm: CONSOLE_DEMO_INPUT.mainsDynamicFlowLpm,
-      heatLossWatts: CONSOLE_DEMO_INPUT.heatLossWatts,
-    };
-    const demoScenarios = buildScenariosFromEngineOutput(engineOutput);
-    const demoDecision = demoScenarios.length > 0
-      ? buildDecisionFromScenarios({
-          scenarios: demoScenarios,
-          boilerType: toLifecycleBoilerType(CONSOLE_DEMO_INPUT.currentHeatSourceType),
-          ageYears: 10,
-          occupancyCount: CONSOLE_DEMO_INPUT.occupancyCount,
-          bathroomCount: CONSOLE_DEMO_INPUT.bathroomCount,
-          showerCompatibilityNote: engineOutput.showerCompatibilityNote,
-        })
-      : undefined;
-    const pack = buildInsightPackFromEngine(
-      engineOutput,
-      DEMO_QUOTES,
-      demoSurveyContext,
-      demoDecision,
-      demoScenarios.length > 0 ? demoScenarios : undefined,
-    );
     return (
-      <div style={{ background: '#f8fafc', minHeight: '100vh' }}>
-        <div style={{ padding: '0.5rem 1rem' }}>
-          <button className="back-btn" onClick={() => { window.location.href = window.location.pathname; }}>
-            ← Back
-          </button>
-          {import.meta.env.DEV && (
-            <p className="atlas-dev-notice">
-              🔬 Dev insight pack — CONSOLE_DEMO_INPUT + DEMO_QUOTES
-            </p>
-          )}
-        </div>
-        <InsightPackDeck pack={pack} propertyTitle="Demo — SW1A 1AA" />
-      </div>
+      <RetiredRouteNotice
+        backLabel="Open customer-safe routes →"
+        onBack={() => {
+          window.location.href = import.meta.env.DEV ? '/dev/customer-pack-preview' : '/?visit-home=1';
+        }}
+      >
+        <p style={{ color: '#475569', marginBottom: 0 }}>
+          The legacy <code>?insight-pack=1</code> route is retired. Use Customer Portal / Supporting PDF for customer output,
+          or <code>/dev/customer-pack-preview</code> for legacy diagnostics.
+        </p>
+      </RetiredRouteNotice>
     );
   }
 
@@ -5177,15 +5125,6 @@ function AppInner() {
               <h2>Building Height Check</h2>
               <p>Estimate building height from manual distance and captured base/top angles.</p>
               <button className="cta-btn">Open Height Check →</button>
-            </div>
-            <div
-              className="journey-card"
-              onClick={() => setJourney('prototype-composer')}
-            >
-              <div className="card-icon">🧱</div>
-              <h2>Atlas System Composer</h2>
-              <p>Assemble constrained heating topologies from components, ports, and rail-bound connections.</p>
-              <button className="cta-btn">Open System Composer →</button>
             </div>
             {/* Physics Visual Library — dev review surface */}
             <div
