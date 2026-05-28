@@ -173,6 +173,10 @@ import CustomerPackPreviewPage from './dev/CustomerPackPreviewPage';
 import PhoneFirstQaHarness from './dev/PhoneFirstQaHarness';
 import { WorkspaceVisitLifecycleHarness } from './dev/workspaceQa';
 import { VisitHomeDashboard } from './features/visitHome/VisitHomeDashboard';
+import {
+  resolveLibraryPdfBootState,
+  shouldResolveLibraryPdfSource,
+} from './features/visitHome/libraryPdfBootState';
 import type {
   VisitSelectorEntry,
 } from './features/visitHome/VisitHomeDashboard';
@@ -4506,14 +4510,26 @@ function AppInner() {
       )}
       {/* Library supporting PDF — library-backed print output for Visit Home (replaces legacy framework-print from visit-home path) */}
       {journey === 'library-pdf' && (() => {
+        const strictLibraryPdfEntry = LIBRARY_PDF_ENABLED;
+        const explicitVisitId = strictLibraryPdfEntry
+          ? INITIAL_VISIT_ID_PARAM ?? undefined
+          : undefined;
+        const routeVisitId = explicitVisitId ?? activeVisitId;
         const canonicalSnapshot =
-          activeVisitId != null && visitRecommendationSnapshot?.visitId === activeVisitId
+          routeVisitId != null && visitRecommendationSnapshot?.visitId === routeVisitId
             ? visitRecommendationSnapshot
             : null;
         const persistedCanonical =
-          activeVisitId != null
-            ? readPersistedAtlasVisitV2(activeVisitId).visit
+          routeVisitId != null
+            ? readPersistedAtlasVisitV2(routeVisitId).visit
             : undefined;
+        const hasHydratedRouteVisit =
+          routeVisitId != null && (
+            hydratedPersistedVisitId === routeVisitId
+            || canonicalSnapshot != null
+            || persistedCanonical != null
+          );
+        const visitLoaded = canonicalSnapshot != null || persistedCanonical != null;
         const engineOutput =
           canonicalSnapshot?.engineOutput
           ?? persistedCanonical?.engine;
@@ -4526,6 +4542,10 @@ function AppInner() {
         const customerSummary =
           canonicalSnapshot?.customerSummary
           ?? persistedCanonical?.customerSummary;
+        const acceptedScenarioId =
+          canonicalSnapshot?.acceptedScenarioId
+          ?? persistedCanonical?.acceptedScenarioId
+          ?? decision?.recommendedScenarioId;
         const activeSnapshotId = canonicalSnapshot?.recommendationSnapshot?.snapshotId
           ?? persistedCanonical?.recommendationSnapshot?.snapshotId;
         const sourceGeneratedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
@@ -4538,17 +4558,81 @@ function AppInner() {
           portalVisitContext: canonicalSnapshot?.portalVisitContext ?? persistedCanonical?.portalVisitContext,
           scenarios,
         });
+        const recommendationReady = isRecommendationReadyForLifecycle({
+          decision,
+          customerSummary,
+          acceptedScenarioId,
+          engineRecommendationPrimary: engineOutput?.recommendation?.primary,
+        });
+        const customerJourneyPackReady = sourceGeneratedOutputs.customerJourneyPack.generated === true;
+        if (strictLibraryPdfEntry) {
+          const pdfBootState = resolveLibraryPdfBootState({
+            explicitVisitId,
+            hydrationComplete: hasHydratedRouteVisit,
+            visitLoaded,
+            recommendationReady,
+            customerJourneyPackReady,
+          });
+          if (pdfBootState === 'loading_visit') {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
+                <p style={{ color: '#475569', marginBottom: 0 }}>
+                  Loading visit context for customer PDF…
+                </p>
+              </RetiredRouteNotice>
+            );
+          }
+          if (pdfBootState === 'visit_not_found' || pdfBootState === 'blocked') {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+                <p style={{ color: '#475569', marginBottom: 0 }}>
+                  Customer PDF could not be prepared because this visit could not be loaded.
+                </p>
+              </RetiredRouteNotice>
+            );
+          }
+          if (pdfBootState === 'recommendation_missing') {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+                <p style={{ color: '#475569', marginBottom: '0.75rem' }}>
+                  Customer PDF could not be prepared because the recommendation has not been regenerated for this visit.
+                </p>
+                <button className="back-btn" onClick={() => setJourney('visit-home')}>
+                  Open visit
+                </button>
+              </RetiredRouteNotice>
+            );
+          }
+          if (pdfBootState === 'rebuilding_customer_pack') {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Preparing supporting PDF">
+                <p style={{ color: '#475569', marginBottom: 0 }}>
+                  Rebuilding customer journey pack for this visit…
+                </p>
+              </RetiredRouteNotice>
+            );
+          }
+          if (!shouldResolveLibraryPdfSource(pdfBootState)) {
+            return (
+              <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
+                <p style={{ color: '#475569', marginBottom: 0 }}>
+                  Customer PDF could not be prepared because this visit could not be loaded.
+                </p>
+              </RetiredRouteNotice>
+            );
+          }
+        }
         const preferredScenarioId = (canonicalSnapshot?.acceptedScenarioId ?? decision?.recommendedScenarioId)?.toLowerCase();
         const acceptedScenario =
           preferredScenarioId == null
             ? undefined
             : scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === preferredScenarioId);
         const source = resolveCustomerDocumentSourceV1({
-          visitId: canonicalSnapshot?.visitId ?? persistedCanonical?.visitId ?? activeVisitId,
+          visitId: canonicalSnapshot?.visitId ?? persistedCanonical?.visitId ?? routeVisitId,
           visitReference:
             canonicalSnapshot?.visitReference
             ?? persistedCanonical?.visitReference
-            ?? (activeVisitId != null ? formatVisitReference(activeVisitId) : undefined),
+            ?? (routeVisitId != null ? formatVisitReference(routeVisitId) : undefined),
           acceptedScenario,
           acceptedScenarioId: canonicalSnapshot?.acceptedScenarioId ?? persistedCanonical?.acceptedScenarioId,
           decision,
@@ -4598,7 +4682,10 @@ function AppInner() {
           ?? source.source.visitReference;
         const debugRecommendationId = source.source.acceptedScenarioId;
         const debugSceneCount = source.source.customerJourneyPack.staticPdf.sections.length;
-        if (!import.meta.env.DEV && isFallbackOnlyCustomerPdf(printModel)) {
+        if (
+          (explicitVisitId != null && isFallbackOnlyCustomerPdf(printModel))
+          || (!import.meta.env.DEV && isFallbackOnlyCustomerPdf(printModel))
+        ) {
           return (
             <RetiredRouteNotice backLabel="Back to Visit Home →" onBack={() => setJourney('visit-home')} title="Supporting PDF blocked">
               <p style={{ color: '#475569', marginBottom: 0 }}>
