@@ -827,6 +827,11 @@ const VISIT_HOME_ENABLED =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('visit-home') === '1';
 
+/** Detect ?library-pdf=1 — opens supporting PDF route directly (new-page launch). */
+const LIBRARY_PDF_ENABLED =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('library-pdf') === '1';
+
 /**
  * Detect ?cacheBust=1 — clears all Atlas-owned localStorage keys and reloads
  * the app cleanly.  Useful for support / debugging when local state becomes stale.
@@ -1219,6 +1224,7 @@ function AppInner() {
     if (FLOOR_PLAN_TOOL_MODE)            return 'floor-plan';
     if (ENGINEER_VISIT_ID != null)       return 'engineer';
     if (INITIAL_REPORT_ID != null)       return 'report';
+    if (LIBRARY_PDF_ENABLED)             return 'library-pdf';
     // ?visitId= deep-link: open Visit Home directly without restoring cached state.
     if (INITIAL_VISIT_ID_PARAM != null)  return 'visit-home';
     // ?visit-home=1: open visit home dashboard directly.
@@ -2802,6 +2808,14 @@ function AppInner() {
    * Falls back to the survey if the working payload is missing.
    */
   async function handlePrintSummary(visitId: string) {
+    const openSupportingPdfInNewPage = (): boolean => {
+      if (typeof window === 'undefined') return false;
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set('library-pdf', '1');
+      nextUrl.searchParams.set('visitId', visitId);
+      nextUrl.searchParams.delete('visit-home');
+      return window.open(nextUrl.toString(), '_blank', 'noopener,noreferrer') != null;
+    };
     try {
       const visitDetail = await getVisit(visitId);
       const workingPayload = visitDetail.working_payload;
@@ -2845,7 +2859,9 @@ function AppInner() {
             setLabPortalUrl(buildPortalUrl(reportId, window.location.origin, token));
           })
           .catch((err) => { console.warn('[Atlas] Portal URL generation failed for printout:', err); });
-        setJourney('library-pdf');
+        if (!openSupportingPdfInNewPage()) {
+          setJourney('library-pdf');
+        }
         return;
       }
     } catch (err) {
@@ -4139,6 +4155,16 @@ function AppInner() {
               }}
               onPrintSummary={visitHomeEngineOutput != null && hasSurveyForSupportingPdf && !stalePdfOutput && !staleJourneyPackOutput ? () => {
                 setLastOpenedFromHome({ label: 'Library supporting PDF', journey: 'library-pdf' });
+                if (typeof window !== 'undefined') {
+                  const nextUrl = new URL(window.location.href);
+                  nextUrl.searchParams.set('library-pdf', '1');
+                  if (activeVisitId != null) {
+                    nextUrl.searchParams.set('visitId', activeVisitId);
+                  }
+                  nextUrl.searchParams.delete('visit-home');
+                  const opened = window.open(nextUrl.toString(), '_blank', 'noopener,noreferrer');
+                  if (opened != null) return;
+                }
                 setJourney('library-pdf');
               } : undefined}
               onOpenInstallationSpecification={() => {
@@ -4500,6 +4526,18 @@ function AppInner() {
         const customerSummary =
           canonicalSnapshot?.customerSummary
           ?? persistedCanonical?.customerSummary;
+        const activeSnapshotId = canonicalSnapshot?.recommendationSnapshot?.snapshotId
+          ?? persistedCanonical?.recommendationSnapshot?.snapshotId;
+        const sourceGeneratedOutputs = enrichGeneratedOutputsWithCustomerJourneyPack({
+          generatedOutputs: canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
+          surveyModel: labFullSurveyModel ?? persistedCanonical?.survey,
+          engineInput: labEngineInput ?? persistedCanonical?.engineInputSnapshot,
+          customerSummary,
+          decision,
+          activeSnapshotId,
+          portalVisitContext: canonicalSnapshot?.portalVisitContext ?? persistedCanonical?.portalVisitContext,
+          scenarios,
+        });
         const preferredScenarioId = (canonicalSnapshot?.acceptedScenarioId ?? decision?.recommendedScenarioId)?.toLowerCase();
         const acceptedScenario =
           preferredScenarioId == null
@@ -4518,13 +4556,9 @@ function AppInner() {
           customerSummary,
           engineInput: labEngineInput ?? persistedCanonical?.engineInputSnapshot,
           engineOutput,
-          generatedOutputs: canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
+          generatedOutputs: sourceGeneratedOutputs,
         });
-        const activeSnapshotId = canonicalSnapshot?.recommendationSnapshot?.snapshotId
-          ?? persistedCanonical?.recommendationSnapshot?.snapshotId;
-        const selectedOutputs = normaliseGeneratedOutputs(
-          canonicalSnapshot?.generatedOutputs ?? persistedCanonical?.generatedOutputs,
-        );
+        const selectedOutputs = normaliseGeneratedOutputs(sourceGeneratedOutputs);
         if (
           isArtifactStaleForActiveSnapshot(selectedOutputs.customerJourneyPack, activeSnapshotId)
           || isArtifactStaleForActiveSnapshot(selectedOutputs.pdf, activeSnapshotId)
