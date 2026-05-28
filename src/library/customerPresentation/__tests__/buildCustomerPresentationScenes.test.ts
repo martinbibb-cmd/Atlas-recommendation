@@ -23,7 +23,16 @@ describe('buildCustomerPresentationScenes', () => {
     });
 
     const scenes = buildCustomerPresentationScenes(model.sections, {
-      recommendationReasons: model.recommendationReasons,
+      recommendationReasons: [
+        {
+          id: 'reason-flow',
+          category: 'mains_flow_pressure',
+          homeFact: 'Your measured supply drops under overlap use.',
+          whyItMatters: 'This can cause combi performance dips at busy times.',
+          atlasRecommendationOutcome: 'Atlas selected stored hot water to protect overlap demand.',
+          practicalEffect: 'You should see steadier showers during peak use.',
+        },
+      ],
     });
 
     expect(scenes.length).toBeGreaterThan(0);
@@ -54,7 +63,16 @@ describe('buildCustomerPresentationScenes', () => {
       ],
     });
     const scenes = buildCustomerPresentationScenes(model.sections, {
-      recommendationReasons: model.recommendationReasons,
+      recommendationReasons: [
+        {
+          id: 'reason-flow',
+          category: 'mains_flow_pressure',
+          homeFact: 'Your measured supply drops under overlap use.',
+          whyItMatters: 'This can cause combi performance dips at busy times.',
+          atlasRecommendationOutcome: 'Atlas selected stored hot water to protect overlap demand.',
+          practicalEffect: 'You should see steadier showers during peak use.',
+        },
+      ],
     });
     const flowScene = scenes.find((scene) => scene.sectionId === 'flow_restriction_bottleneck');
     expect(flowScene).toBeDefined();
