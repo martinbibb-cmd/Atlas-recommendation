@@ -4564,7 +4564,7 @@ function AppInner() {
           acceptedScenarioId,
           engineRecommendationPrimary: engineOutput?.recommendation?.primary,
         });
-        const customerJourneyPackReady = sourceGeneratedOutputs.customerJourneyPack.generated === true;
+        const customerJourneyPackReady = sourceGeneratedOutputs.customerJourneyPack?.generated === true;
         if (strictLibraryPdfEntry) {
           const pdfBootState = resolveLibraryPdfBootState({
             explicitVisitId,
