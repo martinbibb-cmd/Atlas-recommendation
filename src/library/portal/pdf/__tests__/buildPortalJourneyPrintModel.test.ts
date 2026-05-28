@@ -356,7 +356,7 @@ describe('buildPortalJourneyPrintModel — content-source trace', () => {
     expect(model.contentSource?.selectedStorySceneCount).toBeGreaterThan(0);
     expect(model.contentSource?.visualAssetIds.length).toBeGreaterThan(0);
     expect(model.contentSource?.audienceProjectionPresent).toBe(false);
-    expect(model.contentSource?.storySceneValidation.blockingErrorCount).toBeLessThanOrEqual(1);
+    expect(model.contentSource?.storySceneValidation.blockingErrorCount).toBe(0);
     expect(model.contentSource?.storySceneValidation.compositionErrorCount).toBe(0);
   });
 

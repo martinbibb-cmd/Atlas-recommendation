@@ -967,8 +967,8 @@ function buildQuietSceneSection(section: PortalJourneyPrintSectionV1): PortalJou
     contentId: `${QUIET_SCENE_CONTENT_ID_PREFIX}${section.sectionId}`,
     sectionId: `quiet_scene_${section.sectionId}`,
     heading: 'Good to know',
-    summary: 'This page reinforces the recommendation before moving to the next topic.',
-    keyTakeaway: 'Your recommended system remains the best fit for this home.',
+    summary: 'This pause page keeps the journey easy to follow before the next topic.',
+    keyTakeaway: 'You can pause here and continue when ready.',
     reassurance: 'Your installer will still guide the practical steps during handover.',
     items: [
       'You can continue with confidence and review details at your own pace.',
@@ -976,7 +976,7 @@ function buildQuietSceneSection(section: PortalJourneyPrintSectionV1): PortalJou
     storyScene: {
       sceneKind: 'future_flexibility',
       title: 'Good to know',
-      customerTakeaway: 'Your recommended system remains the best fit for this home.',
+      customerTakeaway: 'You can pause here and continue when ready.',
       whyItMatters: 'It keeps each step focused so the key points are easier to review.',
       whatYouWillNotice: 'You will see a short pause page before moving to the next topic.',
       composition: compositionTemplate({

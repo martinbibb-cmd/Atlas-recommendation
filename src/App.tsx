@@ -273,6 +273,8 @@ function formatSavedAgo(updatedAt: string): string {
   return `${hours}h ago`;
 }
 
+const CUSTOMER_PACK_FILENAME_SUFFIX = '-customer-pack.pdf';
+
 function hasText(value: string | undefined): value is string {
   return value != null && value.trim().length > 0;
 }
@@ -2310,7 +2312,7 @@ function AppInner() {
         return scanCapture != null ? [scanCapture] : undefined;
       })(),
     });
-    const filename = `${resolveCustomerPdfDownloadBaseName(activeVisitMeta, visitReference, exportVisitId)}-customer-pack.pdf`;
+    const filename = `${resolveCustomerPdfDownloadBaseName(activeVisitMeta, visitReference, exportVisitId)}${CUSTOMER_PACK_FILENAME_SUFFIX}`;
     try {
       const pdf = renderVisitPackagePdfDocument(pdfEnvelope);
       const blob = new Blob([pdf], { type: 'application/pdf' });
