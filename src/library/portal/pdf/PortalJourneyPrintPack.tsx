@@ -207,6 +207,16 @@ function PrintCover({ cover, contentSource, demographics, pageNumber }: PrintCov
                  ))}
                </ul>
              ) : null}
+             <ul className="pjpp-cover-content-source" data-testid="pjpp-cover-visual-source-audit">
+               <li>
+                 visual source audit · all canonical: {contentSource.visualSourceAudit.allVisualsCanonical ? 'yes' : 'no'} · blocked sources: {contentSource.visualSourceAudit.blockedSourceIds.join(', ') || 'none'} · system-type mismatches: {contentSource.visualSourceAudit.systemTypeMismatches.length === 0 ? 'none' : contentSource.visualSourceAudit.systemTypeMismatches.map((m) => m.reason).join(' | ')}
+               </li>
+               {contentSource.visualSourceAudit.sourceKinds.map((entry) => (
+                 <li key={entry.visualAssetId}>
+                   {entry.visualAssetId} · source: {entry.kind} · canonical: {entry.canonical ? 'yes' : 'no'}
+                 </li>
+               ))}
+             </ul>
            </>
          ) : null}
        </header>
