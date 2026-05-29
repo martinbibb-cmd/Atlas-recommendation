@@ -153,6 +153,54 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
     expect(state.portalLaunchPayload?.hasCustomerJourneyPack).toBe(false);
   });
 
+  it('keeps the packaged portal locked when customer journey pack is fallback-only', () => {
+    const fallbackPack = buildCustomerJourneyPack({
+      selectedSectionIds: [],
+      recommendationSummary: 'Regular boiler recommendation',
+      customerFacts: ['2 bathrooms'],
+      journeyType: 'open_vented',
+      recommendationViabilityState: 'viable',
+    });
+    const fallbackOnlyPack = {
+      ...fallbackPack,
+      staticPdf: {
+        ...fallbackPack.staticPdf,
+        contentSource: {
+          ...fallbackPack.staticPdf.contentSource,
+          fallbackOnly: true,
+        },
+      },
+    };
+    const sourcePackage = buildCanonicalVisitPackage({
+      packageData: {
+        ...makePackage(),
+        generatedOutputStatus: {
+          ...makePackage().generatedOutputStatus,
+          generatedOutputs: {
+            ...makePackage().generatedOutputStatus?.generatedOutputs,
+            customerJourneyPack: buildCustomerJourneyPackGeneratedOutput({
+              customerJourneyPack: fallbackOnlyPack,
+              generatedAt: '2026-05-20T10:02:00.000Z',
+              snapshotId: 'snapshot-visit-home-001',
+            }),
+          },
+        },
+      },
+    });
+
+    const state = buildVisitHomeCustomerArtifactsState({
+      canExportVisitPackage: true,
+      sourcePackage,
+    });
+
+    expect(state.customerPdfReady).toBe(false);
+    expect(state.portalLaunchPayload?.hasCustomerJourneyPack).toBe(true);
+    expect(state.canOpenPortalFromPackage).toBe(false);
+    expect(state.customerPdfBlockReasons.some((reason) => /journey validation checks/i.test(reason))).toBe(
+      true,
+    );
+  });
+
   it('blocks customer PDF when packaged pdf artifact snapshot is stale', () => {
     const sourcePackage = buildCanonicalVisitPackage({
       packageData: {

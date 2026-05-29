@@ -88,7 +88,7 @@ export function buildVisitHomeCustomerArtifactsState(
       customerJourneyPackStatus,
       customerPdfStatus,
     },
-    canOpenPortalFromPackage: portalLaunchPayload?.hasCustomerJourneyPack === true,
+    canOpenPortalFromPackage: portalLaunchPayload?.hasCustomerJourneyPack === true && customerPdfReady,
     portalLaunchPayload,
   };
 }
