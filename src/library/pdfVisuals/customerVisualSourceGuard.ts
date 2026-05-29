@@ -61,6 +61,7 @@ export function resolveCustomerVisualSourceKind(
       return 'fallback';
     default: {
       const _exhaustive: never = classification;
+      void _exhaustive;
       return 'fallback';
     }
   }
