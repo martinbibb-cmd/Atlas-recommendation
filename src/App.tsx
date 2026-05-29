@@ -1528,130 +1528,138 @@ function AppInner() {
       return;
     }
     let cancelled = false;
-    void (async () => {
-      const result = await runLibraryPdfBootState({
-        visitId: INITIAL_VISIT_ID_PARAM,
-        explicitVisitId: hasText(INITIAL_VISIT_ID_PARAM),
-        onTransition: (state) => {
-          if (!cancelled) setLibraryPdfBootState(state);
-        },
-        hydrateVisitById: async (visitId): Promise<LibraryPdfHydratedSnapshot | null> => {
-          const currentSnapshot = visitRecommendationSnapshotRef.current;
-          if (currentSnapshot?.visitId === visitId) {
+    async function bootLibraryPdf(): Promise<void> {
+      let finalState: LibraryPdfBootResult = {
+        status: 'blocked',
+        message: 'Customer PDF could not be prepared due to an unexpected error.',
+      };
+      try {
+        const result = await runLibraryPdfBootState({
+          visitId: INITIAL_VISIT_ID_PARAM,
+          explicitVisitId: hasText(INITIAL_VISIT_ID_PARAM),
+          onTransition: (state) => {
+            if (!cancelled) setLibraryPdfBootState(state);
+          },
+          hydrateVisitById: async (visitId): Promise<LibraryPdfHydratedSnapshot | null> => {
+            const currentSnapshot = visitRecommendationSnapshotRef.current;
+            if (currentSnapshot?.visitId === visitId) {
+              return {
+                visitId: currentSnapshot.visitId,
+                visitReference: currentSnapshot.visitReference,
+                recommendationSnapshot: currentSnapshot.recommendationSnapshot,
+                engineOutput: currentSnapshot.engineOutput,
+                scenarios: currentSnapshot.scenarios,
+                decision: currentSnapshot.decision,
+                customerSummary: currentSnapshot.customerSummary,
+                acceptedScenarioId: currentSnapshot.acceptedScenarioId,
+                generatedOutputs: currentSnapshot.generatedOutputs,
+                portalVisitContext: currentSnapshot.portalVisitContext,
+                surveyModel: labFullSurveyModel,
+                engineInput: labEngineInput,
+              };
+            }
+            const restored = readPersistedAtlasVisitV2(visitId).visit;
+            if (restored == null) {
+              return null;
+            }
             return {
-              visitId: currentSnapshot.visitId,
-              visitReference: currentSnapshot.visitReference,
-              recommendationSnapshot: currentSnapshot.recommendationSnapshot,
-              engineOutput: currentSnapshot.engineOutput,
-              scenarios: currentSnapshot.scenarios,
-              decision: currentSnapshot.decision,
-              customerSummary: currentSnapshot.customerSummary,
-              acceptedScenarioId: currentSnapshot.acceptedScenarioId,
-              generatedOutputs: currentSnapshot.generatedOutputs,
-              portalVisitContext: currentSnapshot.portalVisitContext,
-              surveyModel: labFullSurveyModel,
-              engineInput: labEngineInput,
+              visitId: restored.visitId,
+              visitReference: restored.visitReference,
+              recommendationSnapshot: restored.recommendationSnapshot,
+              engineOutput: restored.engine,
+              scenarios: restored.scenarios,
+              decision: restored.decision,
+              customerSummary: restored.customerSummary,
+              acceptedScenarioId: restored.acceptedScenarioId,
+              generatedOutputs: restored.generatedOutputs,
+              portalVisitContext: restored.portalVisitContext,
+              surveyModel: restored.survey,
+              engineInput: restored.engineInputSnapshot,
             };
+          },
+          enrichGeneratedOutputs: (snapshot) =>
+            enrichGeneratedOutputsWithCustomerJourneyPack({
+              generatedOutputs: snapshot.generatedOutputs,
+              surveyModel: snapshot.surveyModel,
+              engineInput: snapshot.engineInput,
+              customerSummary: snapshot.customerSummary,
+              decision: snapshot.decision,
+              activeSnapshotId: snapshot.recommendationSnapshot?.snapshotId,
+              portalVisitContext: snapshot.portalVisitContext,
+              scenarios: snapshot.scenarios,
+            }),
+          resolveDocumentSource: ({ snapshot, generatedOutputs }) => {
+            const normalizedScenarioId = (snapshot.acceptedScenarioId ?? snapshot.decision?.recommendedScenarioId)?.toLowerCase();
+            const acceptedScenario =
+              normalizedScenarioId == null
+                ? undefined
+                : snapshot.scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === normalizedScenarioId);
+            return resolveCustomerDocumentSourceV1({
+              visitId: snapshot.visitId,
+              visitReference: snapshot.visitReference ?? formatVisitReference(snapshot.visitId),
+              acceptedScenario,
+              acceptedScenarioId: snapshot.acceptedScenarioId,
+              decision: snapshot.decision,
+              scenarios: snapshot.scenarios,
+              customerSummary: snapshot.customerSummary,
+              engineInput: snapshot.engineInput,
+              engineOutput: snapshot.engineOutput,
+              generatedOutputs,
+            });
+          },
+          isFallbackOnlyPrintModel: isFallbackOnlyCustomerPdf,
+        });
+        if (cancelled) return;
+        if (result.status === 'ready') {
+          const { hydratedSnapshot, generatedOutputs } = result;
+          setActiveVisitId(hydratedSnapshot.visitId);
+          setLabPortalUrl(generatedOutputs.portal.url);
+          setLabPortalVisitContext(hydratedSnapshot.portalVisitContext);
+          if (hydratedSnapshot.surveyModel != null) {
+            setLabFullSurveyModel(hydratedSnapshot.surveyModel);
+            if (hydratedSnapshot.surveyModel.fullSurvey?.heatLoss) setLabHeatLossState(hydratedSnapshot.surveyModel.fullSurvey.heatLoss);
+            if (hydratedSnapshot.surveyModel.fullSurvey?.priorities) setLabPrioritiesState(hydratedSnapshot.surveyModel.fullSurvey.priorities);
+            if (hydratedSnapshot.surveyModel.fullSurvey?.quotes) setLabQuotes(hydratedSnapshot.surveyModel.fullSurvey.quotes);
           }
-          const restored = readPersistedAtlasVisitV2(visitId).visit;
-          if (restored == null) {
-            return null;
+          if (hydratedSnapshot.engineInput != null) {
+            setLabEngineInput(hydratedSnapshot.engineInput);
           }
-          return {
-            visitId: restored.visitId,
-            visitReference: restored.visitReference,
-            recommendationSnapshot: restored.recommendationSnapshot,
-            engineOutput: restored.engine,
-            scenarios: restored.scenarios,
-            decision: restored.decision,
-            customerSummary: restored.customerSummary,
-            acceptedScenarioId: restored.acceptedScenarioId,
-            generatedOutputs: restored.generatedOutputs,
-            portalVisitContext: restored.portalVisitContext,
-            surveyModel: restored.survey,
-            engineInput: restored.engineInputSnapshot,
-          };
-        },
-        enrichGeneratedOutputs: (snapshot) =>
-          enrichGeneratedOutputsWithCustomerJourneyPack({
-            generatedOutputs: snapshot.generatedOutputs,
-            surveyModel: snapshot.surveyModel,
-            engineInput: snapshot.engineInput,
-            customerSummary: snapshot.customerSummary,
-            decision: snapshot.decision,
-            activeSnapshotId: snapshot.recommendationSnapshot?.snapshotId,
-            portalVisitContext: snapshot.portalVisitContext,
-            scenarios: snapshot.scenarios,
-          }),
-        resolveDocumentSource: ({ snapshot, generatedOutputs }) => {
-          const normalizedScenarioId = (snapshot.acceptedScenarioId ?? snapshot.decision?.recommendedScenarioId)?.toLowerCase();
-          const acceptedScenario =
-            normalizedScenarioId == null
-              ? undefined
-              : snapshot.scenarios?.find((scenario) => scenario.scenarioId.toLowerCase() === normalizedScenarioId);
-          return resolveCustomerDocumentSourceV1({
-            visitId: snapshot.visitId,
-            visitReference: snapshot.visitReference ?? formatVisitReference(snapshot.visitId),
-            acceptedScenario,
-            acceptedScenarioId: snapshot.acceptedScenarioId,
-            decision: snapshot.decision,
-            scenarios: snapshot.scenarios,
-            customerSummary: snapshot.customerSummary,
-            engineInput: snapshot.engineInput,
-            engineOutput: snapshot.engineOutput,
+          const recommendationReady = isRecommendationReadyForLifecycle({
+            decision: hydratedSnapshot.decision,
+            customerSummary: hydratedSnapshot.customerSummary,
+            acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
+            engineRecommendationPrimary: hydratedSnapshot.engineOutput?.recommendation?.primary,
+          });
+          const lifecycleState = deriveLifecycleStateFromSnapshot({
+            recommendationReady,
             generatedOutputs,
           });
-        },
-        isFallbackOnlyPrintModel: isFallbackOnlyCustomerPdf,
-      });
-      if (cancelled) return;
-      if (result.status === 'ready') {
-        const { hydratedSnapshot, generatedOutputs } = result;
-        setActiveVisitId(hydratedSnapshot.visitId);
-        setLabPortalUrl(generatedOutputs.portal.url);
-        setLabPortalVisitContext(hydratedSnapshot.portalVisitContext);
-        if (hydratedSnapshot.surveyModel != null) {
-          setLabFullSurveyModel(hydratedSnapshot.surveyModel);
-          if (hydratedSnapshot.surveyModel.fullSurvey?.heatLoss) setLabHeatLossState(hydratedSnapshot.surveyModel.fullSurvey.heatLoss);
-          if (hydratedSnapshot.surveyModel.fullSurvey?.priorities) setLabPrioritiesState(hydratedSnapshot.surveyModel.fullSurvey.priorities);
-          if (hydratedSnapshot.surveyModel.fullSurvey?.quotes) setLabQuotes(hydratedSnapshot.surveyModel.fullSurvey.quotes);
+          setVisitRecommendationSnapshot({
+            visitId: hydratedSnapshot.visitId,
+            visitReference: hydratedSnapshot.visitReference,
+            recommendationSnapshot: hydratedSnapshot.recommendationSnapshot,
+            engineOutput: hydratedSnapshot.engineOutput,
+            scenarios: hydratedSnapshot.scenarios,
+            decision: hydratedSnapshot.decision,
+            customerSummary: hydratedSnapshot.customerSummary,
+            acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
+            lifecycleState,
+            generatedOutputs,
+            portalVisitContext: hydratedSnapshot.portalVisitContext,
+          });
         }
-        if (hydratedSnapshot.engineInput != null) {
-          setLabEngineInput(hydratedSnapshot.engineInput);
+        finalState = result;
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.error('[library-pdf] boot failed', error);
         }
-        const recommendationReady = isRecommendationReadyForLifecycle({
-          decision: hydratedSnapshot.decision,
-          customerSummary: hydratedSnapshot.customerSummary,
-          acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
-          engineRecommendationPrimary: hydratedSnapshot.engineOutput?.recommendation?.primary,
-        });
-        const lifecycleState = deriveLifecycleStateFromSnapshot({
-          recommendationReady,
-          generatedOutputs,
-        });
-        setVisitRecommendationSnapshot({
-          visitId: hydratedSnapshot.visitId,
-          visitReference: hydratedSnapshot.visitReference,
-          recommendationSnapshot: hydratedSnapshot.recommendationSnapshot,
-          engineOutput: hydratedSnapshot.engineOutput,
-          scenarios: hydratedSnapshot.scenarios,
-          decision: hydratedSnapshot.decision,
-          customerSummary: hydratedSnapshot.customerSummary,
-          acceptedScenarioId: hydratedSnapshot.acceptedScenarioId,
-          lifecycleState,
-          generatedOutputs,
-          portalVisitContext: hydratedSnapshot.portalVisitContext,
-        });
+      } finally {
+        if (!cancelled) {
+          setLibraryPdfBootState(finalState);
+        }
       }
-      setLibraryPdfBootState(result);
-    })().catch(() => {
-      if (!cancelled) {
-        setLibraryPdfBootState({
-          status: 'blocked',
-          message: 'Customer PDF could not be prepared due to an unexpected error.',
-        });
-      }
-    });
+    }
+    void bootLibraryPdf();
     return () => {
       cancelled = true;
     };
@@ -4600,7 +4608,7 @@ function AppInner() {
           ?? activeVisitMeta?.customer_name
           ?? bootState.source.source.visitReference;
         const debugRecommendationId = bootState.source.source.acceptedScenarioId;
-        const debugSceneCount = bootState.source.source.customerJourneyPack.staticPdf.sections.length;
+        const debugSceneCount = printModel.sections.length;
         const fallbackOnlyCustomerPdf = isFallbackOnlyCustomerPdf(printModel);
         // Strict entry with explicit visitId must never render fallback-only PDFs,
         // and production blocks fallback-only PDFs for all entry paths.

@@ -48,6 +48,7 @@ export type LibraryPdfBootResult =
   | {
       readonly status: 'visit_not_found' | 'recommendation_missing' | 'blocked';
       readonly message: string;
+      readonly debugMessage?: string;
       readonly missingFields?: readonly string[];
     };
 
@@ -92,77 +93,88 @@ function isRecommendationMissing(missingFields: readonly string[]): boolean {
 export async function runLibraryPdfBootState(
   input: RunLibraryPdfBootStateInput,
 ): Promise<LibraryPdfBootResult> {
-  if (!hasText(input.visitId)) {
-    return {
-      status: 'blocked',
-      message: VISIT_ID_MISSING_MESSAGE,
-    };
-  }
-
-  const loadingState: LibraryPdfBootResult = { status: 'loading_visit' };
-  input.onTransition?.(loadingState);
-  await Promise.resolve();
-
-  const hydratedSnapshot = await input.hydrateVisitById(input.visitId);
-  if (hydratedSnapshot == null) {
-    return {
-      status: 'visit_not_found',
-      message: VISIT_LOAD_ERROR_MESSAGE,
-    };
-  }
-
-  const rebuildingState: LibraryPdfBootResult = { status: 'rebuilding_customer_pack' };
-  input.onTransition?.(rebuildingState);
-  let generatedOutputs: GeneratedOutputsV1;
-  let source: ReturnType<RunLibraryPdfBootStateInput['resolveDocumentSource']>;
   try {
-    generatedOutputs = input.enrichGeneratedOutputs(hydratedSnapshot);
-    source = input.resolveDocumentSource({
-      snapshot: hydratedSnapshot,
-      generatedOutputs,
-    });
-  } catch {
-    return {
-      status: 'blocked',
-      message: 'Customer PDF could not be prepared due to an unexpected error.',
-    };
-  }
-  if (!source.ok) {
-    if (isRecommendationMissing(source.missingFields)) {
+    if (!hasText(input.visitId)) {
       return {
-        status: 'recommendation_missing',
-        message: RECOMMENDATION_MISSING_MESSAGE,
+        status: 'blocked',
+        message: VISIT_ID_MISSING_MESSAGE,
+      };
+    }
+
+    const loadingState: LibraryPdfBootResult = { status: 'loading_visit' };
+    input.onTransition?.(loadingState);
+    await Promise.resolve();
+
+    const hydratedSnapshot = await input.hydrateVisitById(input.visitId);
+    if (hydratedSnapshot == null) {
+      return {
+        status: 'visit_not_found',
+        message: VISIT_LOAD_ERROR_MESSAGE,
+      };
+    }
+
+    const rebuildingState: LibraryPdfBootResult = { status: 'rebuilding_customer_pack' };
+    input.onTransition?.(rebuildingState);
+
+    let generatedOutputs: GeneratedOutputsV1;
+    let source: ReturnType<RunLibraryPdfBootStateInput['resolveDocumentSource']>;
+    try {
+      generatedOutputs = input.enrichGeneratedOutputs(hydratedSnapshot);
+      source = input.resolveDocumentSource({
+        snapshot: hydratedSnapshot,
+        generatedOutputs,
+      });
+    } catch (enrichError) {
+      return {
+        status: 'blocked',
+        message: 'Customer PDF could not be prepared due to an unexpected error.',
+        debugMessage: enrichError instanceof Error ? enrichError.message : String(enrichError),
+      };
+    }
+
+    if (!source.ok) {
+      if (isRecommendationMissing(source.missingFields)) {
+        return {
+          status: 'recommendation_missing',
+          message: RECOMMENDATION_MISSING_MESSAGE,
+          missingFields: source.missingFields,
+        };
+      }
+      return {
+        status: 'blocked',
+        message: VISIT_DATA_INCOMPLETE_MESSAGE,
         missingFields: source.missingFields,
       };
     }
-    return {
-      status: 'blocked',
-      message: VISIT_DATA_INCOMPLETE_MESSAGE,
-      missingFields: source.missingFields,
-    };
-  }
 
-  const printModel = source.source.customerJourneyPack.staticPdf ?? null;
-  if (printModel == null) {
-    return {
-      status: 'blocked',
-      message: VISIT_DATA_INCOMPLETE_MESSAGE,
-    };
-  }
-  if (input.explicitVisitId && input.isFallbackOnlyPrintModel(printModel)) {
-    return {
-      status: 'blocked',
-      message: RECOMMENDATION_MISSING_MESSAGE,
-    };
-  }
+    const printModel = source.source.customerJourneyPack.staticPdf ?? null;
+    if (printModel == null) {
+      return {
+        status: 'blocked',
+        message: VISIT_DATA_INCOMPLETE_MESSAGE,
+      };
+    }
+    if (input.explicitVisitId && input.isFallbackOnlyPrintModel(printModel)) {
+      return {
+        status: 'blocked',
+        message: RECOMMENDATION_MISSING_MESSAGE,
+      };
+    }
 
-  return {
-    status: 'ready',
-    hydratedSnapshot,
-    generatedOutputs,
-    source,
-    printModel,
-  };
+    return {
+      status: 'ready',
+      hydratedSnapshot,
+      generatedOutputs,
+      source,
+      printModel,
+    };
+  } catch (error) {
+    return {
+      status: 'blocked',
+      message: 'Customer PDF could not be prepared.',
+      debugMessage: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 export interface ResolveLibraryPdfBootStateInput {
