@@ -208,4 +208,21 @@ describe('buildVisitHomeActionProjection', () => {
     expect(pdf?.reasonLabel).toContain('guessed CWS/vented tank capacity');
     expect(pdf?.reasonLabel).toContain('legacy report headings');
   });
+
+  it('blocks customer portal when supporting PDF readiness is blocked', () => {
+    const projection = buildVisitHomeActionProjection({
+      ...BASE_INPUT,
+      workspaceRole: 'owner',
+      supportingPdfReadiness: {
+        unsafe: true,
+        reasons: ['Customer journey pack is not ready. Regenerate recommendation outputs first.'],
+      },
+    });
+
+    const portal = projection.visibleActions.find((item) => item.actionId === 'customer-portal');
+    const pdf = projection.visibleActions.find((item) => item.actionId === 'supporting-pdf');
+    expect(portal?.status).toBe('blocked');
+    expect(pdf?.status).toBe('blocked');
+    expect(portal?.reasonLabel).toContain('Customer journey pack is not ready');
+  });
 });

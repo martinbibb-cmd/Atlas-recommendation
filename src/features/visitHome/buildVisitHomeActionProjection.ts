@@ -147,6 +147,14 @@ function buildStatusAndReason(
       if (!hasRecommendation) return { status: 'blocked', reasonLabel: BLOCK_REASON_RECOMMENDATION_MISSING };
       return { status: 'ready' };
     case 'customer-portal':
+      if (supportingPdfUnsafe) {
+        return {
+          status: 'blocked',
+          reasonLabel: supportingPdfReasons.length > 0
+            ? supportingPdfReasons.join(' • ')
+            : BLOCK_REASON_PDF_SAFETY,
+        };
+      }
       if (libraryUnsafe) return { status: 'blocked', reasonLabel: BLOCK_REASON_LIBRARY_SAFETY };
       if (!hasVisit) return { status: 'blocked', reasonLabel: BLOCK_REASON_VISIT_MISSING };
       // If visit exists with accepted scenario or recommendation, show needs-review rather than blocked.
