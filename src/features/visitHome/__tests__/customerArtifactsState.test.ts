@@ -125,9 +125,24 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
     expect(state.portalLaunchPayload).toBeUndefined();
   });
 
-  it('unlocks the packaged portal when an imported PDF contains a customer journey pack', () => {
+  it('keeps packaged portal blocked when customer PDF readiness is not fully ready', () => {
+    const packagePayload = makePackage();
     const pdf = renderVisitPackagePdfDocument(buildVisitPackagePdfEnvelope({
-      packagePayload: makePackage(),
+      packagePayload: buildCanonicalVisitPackage({
+        packageData: {
+          ...packagePayload,
+          generatedOutputStatus: {
+            ...packagePayload.generatedOutputStatus,
+            generatedOutputs: {
+              ...packagePayload.generatedOutputStatus?.generatedOutputs,
+              pdf: {
+                generated: true,
+                snapshotId: 'snapshot-visit-home-001',
+              },
+            },
+          },
+        },
+      }),
     }));
     const parsed = parseCanonicalVisitPackageFromPdfEnvelope(pdf);
 
@@ -139,7 +154,8 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
       sourcePackage: parsed.pkg,
     });
 
-    expect(state.canOpenPortalFromPackage).toBe(true);
+    expect(state.customerPdfReady).toBe(false);
+    expect(state.canOpenPortalFromPackage).toBe(false);
     expect(state.portalLaunchPayload?.hasCustomerJourneyPack).toBe(true);
   });
 
@@ -196,9 +212,8 @@ describe('buildVisitHomeCustomerArtifactsState', () => {
     expect(state.customerPdfReady).toBe(false);
     expect(state.portalLaunchPayload?.hasCustomerJourneyPack).toBe(true);
     expect(state.canOpenPortalFromPackage).toBe(false);
-    expect(state.customerPdfBlockReasons.some((reason) => /journey validation checks/i.test(reason))).toBe(
-      true,
-    );
+    expect(state.customerPdfBlockReasons.length).toBeGreaterThan(0);
+    expect(state.customerPdfBlockReasons.some((reason) => /customer journey pack/i.test(reason))).toBe(true);
   });
 
   it('blocks customer PDF when packaged pdf artifact snapshot is stale', () => {
