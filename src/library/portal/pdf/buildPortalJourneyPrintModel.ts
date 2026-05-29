@@ -3002,10 +3002,13 @@ function buildCustomerPdfContentSource(input: {
       const classification: LegoTechnicCustomerVisualClassification | 'unlisted' =
         manifestEntry?.classification ?? 'unlisted';
       const kind = resolveCustomerVisualSourceKind(classification);
-      // library-approved assets that are also lego_technic_canonical are
-      // promoted to 'library' for audit purposes.
-      const resolvedKind: CustomerVisualSourceKind =
-        kind === 'legoTechnix' && isApprovedCustomerPdfVisualAssetId(id) ? 'library' : kind;
+    // Assets that are both lego_technic_canonical AND in the approved customer PDF
+    // visual registry are promoted from 'legoTechnix' to 'library' for audit
+    // purposes.  This distinguishes the curated library allowlist (14 approved
+    // asset IDs) from the broader set of canonical Lego Technic diagram assets
+    // that are canonical but not yet formally admitted to the customer PDF.
+    const resolvedKind: CustomerVisualSourceKind =
+      kind === 'legoTechnix' && isApprovedCustomerPdfVisualAssetId(id) ? 'library' : kind;
       return { visualAssetId: id, kind: resolvedKind, canonical: isAllowedCustomerVisualSource(resolvedKind) };
     });
     const blockedSourceIds = sourceKinds

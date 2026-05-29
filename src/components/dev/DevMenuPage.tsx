@@ -597,6 +597,7 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
             <h3 style={{ margin: '0.75rem 0 0.5rem', fontSize: '0.875rem', color: '#b45309' }}>Candidate / quarantined</h3>
             <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', color: '#92400e' }}>
               These surfaces are under visual correction. They are not canonical and must not feed customer portal, supporting PDF, or production visual selection.
+              A surface can graduate to canonical once: visual correction is complete, human review is signed off, screenshot review passes, and an explicit promotion is recorded in the registry.
             </p>
             <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
               {orderedVisualEducationLibraryItems
