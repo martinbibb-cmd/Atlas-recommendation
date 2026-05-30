@@ -79,7 +79,7 @@ export type DevUiCategory =
   | 'deprecated'
   | 'unknown';
 
-export type DevUiStatus = 'canonical' | 'active' | 'experimental' | 'review' | 'duplicate' | 'deprecated' | 'remove';
+export type DevUiStatus = 'canonical' | 'active' | 'candidate' | 'experimental' | 'review' | 'duplicate' | 'deprecated' | 'remove';
 
 /**
  * Who may access this surface.
@@ -802,7 +802,7 @@ export const DEV_UI_REGISTRY: DevUiRegistryItem[] = [
     fileName: 'SealedUnventedExplainerSlicePage.tsx',
     filePath: 'src/library/dev/SealedUnventedExplainerSlicePage.tsx',
     category: 'audit',
-    status: 'active',
+    status: 'candidate',
     notes: `Visual Education Library — ${getVisualEducationLibrarySurface('SealedUnventedExplainerSlicePage').description}`,
     routeKind: 'path',
     routePath: getVisualEducationLibrarySurface('SealedUnventedExplainerSlicePage').routePath,

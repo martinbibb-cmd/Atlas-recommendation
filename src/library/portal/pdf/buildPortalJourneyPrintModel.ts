@@ -46,6 +46,14 @@ import {
 } from './visualAssetManifest';
 import { isApprovedCustomerPdfVisualAssetId } from '../../pdfVisuals/customerPdfVisualRegistry';
 import {
+  resolveCustomerVisualSourceKind,
+  isAllowedCustomerVisualSource,
+  assertVisualCompatibleWithRecommendation,
+  type CustomerVisualSourceKind,
+  type CustomerPdfVisualSourceAuditV1,
+  type CustomerVisualSystemTypeMismatch,
+} from '../../pdfVisuals/customerVisualSourceGuard';
+import {
   getLegoTechnicCustomerVisualManifestEntry,
   resolveLegoTechnicCustomerVisualDecision,
   type LegoTechnicCustomerVisualClassification,
@@ -215,6 +223,7 @@ export interface CustomerPdfContentSourceV1 {
   sceneDiagnostics: CustomerPdfSceneDiagnosticV1[];
   visualCoverageAudit: CustomerPdfVisualCoverageAuditV1;
   routeCompletenessAudit?: CustomerPdfRouteCompletenessAuditV1;
+  visualSourceAudit: CustomerPdfVisualSourceAuditV1;
   storySceneValidation: {
     sceneCount: number;
     warningCount: number;
@@ -229,6 +238,8 @@ export interface CustomerPdfContentSourceV1 {
     compositionErrorCount: number;
   };
 }
+
+export type { CustomerVisualSourceKind, CustomerPdfVisualSourceAuditV1 };
 
 export interface CustomerPdfVisualCoverageAuditV1 {
   routes: CustomerPdfVisualCoverageRouteV1[];
@@ -2985,6 +2996,37 @@ function buildCustomerPdfContentSource(input: {
     && (routeCompletenessAudit?.ready ?? true);
   const fallbackOnly = !exportable;
 
+  const visualSourceAudit: CustomerPdfVisualSourceAuditV1 = (() => {
+    const sourceKinds = visualAssetIds.map((id) => {
+      const manifestEntry = getLegoTechnicCustomerVisualManifestEntry(id);
+      const classification: LegoTechnicCustomerVisualClassification | 'unlisted' =
+        manifestEntry?.classification ?? 'unlisted';
+      const kind = resolveCustomerVisualSourceKind(classification);
+    // Assets that are both lego_technic_canonical AND in the approved customer PDF
+    // visual registry are promoted from 'legoTechnix' to 'library' for audit
+    // purposes.  This distinguishes the curated library allowlist (14 approved
+    // asset IDs) from the broader set of canonical Lego Technic diagram assets
+    // that are canonical but not yet formally admitted to the customer PDF.
+    const resolvedKind: CustomerVisualSourceKind =
+      kind === 'legoTechnix' && isApprovedCustomerPdfVisualAssetId(id) ? 'library' : kind;
+      return { visualAssetId: id, kind: resolvedKind, canonical: isAllowedCustomerVisualSource(resolvedKind) };
+    });
+    const blockedSourceIds = sourceKinds
+      .filter((entry) => !entry.canonical)
+      .map((entry) => entry.visualAssetId);
+    const systemTypeMismatches: CustomerVisualSystemTypeMismatch[] = input.routeId == null
+      ? []
+      : visualAssetIds
+          .map((id) => assertVisualCompatibleWithRecommendation({ visualAssetId: id, recommendedSystemType: input.routeId! }))
+          .filter((result): result is CustomerVisualSystemTypeMismatch => !result.compatible);
+    return {
+      sourceKinds,
+      blockedSourceIds,
+      systemTypeMismatches,
+      allVisualsCanonical: blockedSourceIds.length === 0 && systemTypeMismatches.length === 0,
+    };
+  })();
+
   return {
     audienceProjectionPresent: input.audienceProjectionPresent,
     selectedConceptCount,
@@ -2995,6 +3037,7 @@ function buildCustomerPdfContentSource(input: {
     sceneDiagnostics,
     visualCoverageAudit: buildCustomerPdfVisualCoverageAudit(),
     routeCompletenessAudit,
+    visualSourceAudit,
     storySceneValidation: {
       sceneCount: validatedStoryScenes.length,
       warningCount,

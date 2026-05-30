@@ -76,6 +76,7 @@ const CATEGORY_LABELS: Record<DevUiCategory, string> = {
 const STATUS_LABELS: Record<DevUiStatus, string> = {
   canonical: 'Canonical',
   active: 'Active',
+  candidate: 'Candidate',
   experimental: 'Experimental',
   review: 'Review',
   duplicate: 'Duplicate',
@@ -86,6 +87,7 @@ const STATUS_LABELS: Record<DevUiStatus, string> = {
 const STATUS_COLORS: Record<DevUiStatus, string> = {
   canonical: '#16a34a',
   active: '#2563eb',
+  candidate: '#b45309',
   experimental: '#d97706',
   review: '#7c3aed',
   duplicate: '#0891b2',
@@ -536,53 +538,118 @@ export default function DevMenuPage({ onBack, onLoadDemoWorkspace }: Props) {
             )}
           </div>
         </div>
-        <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-          {orderedVisualEducationLibraryItems.map(({ surface, registryItem }) => {
-            const routeKind = registryItem.routeKind ?? 'unknown';
-            const access = registryItem.access ?? 'dev_only';
-            return (
-            <article
-              key={surface.id}
-              data-testid={`devmenu-visual-education-library-${surface.id}`}
-              style={{
-                background: '#fff',
-                border: '1px solid #bfdbfe',
-                borderRadius: 10,
-                padding: '0.75rem',
-                display: 'grid',
-                gap: 8,
-              }}
-            >
-              <div style={{ display: 'grid', gap: 4 }}>
-                <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>{surface.commonName}</strong>
-                <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>{surface.description}</p>
-              </div>
-              <div style={STYLES.badgeRow}>
-                <span style={{ ...STYLES.badge, color: ROUTE_KIND_COLORS[routeKind], borderColor: ROUTE_KIND_COLORS[routeKind] }}>
-                  {ROUTE_KIND_LABELS[routeKind]}
-                </span>
-                <span style={{ ...STYLES.badge, color: ACCESS_COLORS[access], borderColor: ACCESS_COLORS[access] }}>
-                  {ACCESS_LABELS[access]}
-                </span>
-                <span style={{ ...STYLES.badge, color: STATUS_COLORS[registryItem.status], borderColor: STATUS_COLORS[registryItem.status] }}>
-                  {STATUS_LABELS[registryItem.status]}
-                </span>
-                {surface.statusBadges?.map((statusBadge) => (
-                  <span key={statusBadge} style={STYLES.badge}>
-                    {statusBadge}
-                  </span>
-                ))}
-              </div>
-               <div style={{ display: 'grid', gap: 4, fontSize: '0.75rem', color: '#334155' }}>
-                 <span><strong>Primary route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
-               </div>
-               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                 <a className="chip-btn" href={surface.routePath}>{surface.actionLabel ?? 'Open surface'}</a>
-                </div>
-             </article>
-            );
-          })}
+
+        <div>
+          <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', color: '#15803d' }}>Canonical visual authority</h3>
+          <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+            {orderedVisualEducationLibraryItems
+              .filter(({ registryItem }) => !registryItem.status || registryItem.status === 'canonical' || registryItem.status === 'active')
+              .map(({ surface, registryItem }) => {
+                const routeKind = registryItem.routeKind ?? 'unknown';
+                const access = registryItem.access ?? 'dev_only';
+                return (
+                  <article
+                    key={surface.id}
+                    data-testid={`devmenu-visual-education-library-${surface.id}`}
+                    style={{
+                      background: '#fff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: 10,
+                      padding: '0.75rem',
+                      display: 'grid',
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>{surface.commonName}</strong>
+                      <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>{surface.description}</p>
+                    </div>
+                    <div style={STYLES.badgeRow}>
+                      <span style={{ ...STYLES.badge, color: ROUTE_KIND_COLORS[routeKind], borderColor: ROUTE_KIND_COLORS[routeKind] }}>
+                        {ROUTE_KIND_LABELS[routeKind]}
+                      </span>
+                      <span style={{ ...STYLES.badge, color: ACCESS_COLORS[access], borderColor: ACCESS_COLORS[access] }}>
+                        {ACCESS_LABELS[access]}
+                      </span>
+                      <span style={{ ...STYLES.badge, color: STATUS_COLORS[registryItem.status], borderColor: STATUS_COLORS[registryItem.status] }}>
+                        {STATUS_LABELS[registryItem.status]}
+                      </span>
+                      {surface.statusBadges?.map((statusBadge) => (
+                        <span key={statusBadge} style={STYLES.badge}>
+                          {statusBadge}
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ display: 'grid', gap: 4, fontSize: '0.75rem', color: '#334155' }}>
+                      <span><strong>Primary route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <a className="chip-btn" href={surface.routePath}>{surface.actionLabel ?? 'Open surface'}</a>
+                    </div>
+                  </article>
+                );
+              })}
+          </div>
         </div>
+
+        {orderedVisualEducationLibraryItems.some(({ registryItem }) => registryItem.status === 'candidate') && (
+          <div>
+            <h3 style={{ margin: '0.75rem 0 0.5rem', fontSize: '0.875rem', color: '#b45309' }}>Candidate / quarantined</h3>
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.75rem', color: '#92400e' }}>
+              These surfaces are under visual correction. They are not canonical and must not feed customer portal, supporting PDF, or production visual selection.
+              A surface can graduate to canonical once: visual correction is complete, human review is signed off, screenshot review passes, and an explicit promotion is recorded in the registry.
+            </p>
+            <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+              {orderedVisualEducationLibraryItems
+                .filter(({ registryItem }) => registryItem.status === 'candidate')
+                .map(({ surface, registryItem }) => {
+                  const routeKind = registryItem.routeKind ?? 'unknown';
+                  const access = registryItem.access ?? 'dev_only';
+                  return (
+                    <article
+                      key={surface.id}
+                      data-testid={`devmenu-visual-education-library-${surface.id}`}
+                      style={{
+                        background: '#fffbeb',
+                        border: '1px solid #fcd34d',
+                        borderRadius: 10,
+                        padding: '0.75rem',
+                        display: 'grid',
+                        gap: 8,
+                      }}
+                    >
+                      <div style={{ display: 'grid', gap: 4 }}>
+                        <strong style={{ fontSize: '0.95rem', color: '#0f172a' }}>{surface.commonName}</strong>
+                        <p style={{ margin: 0, fontSize: '0.8125rem', color: '#475569' }}>{surface.description}</p>
+                      </div>
+                      <div style={STYLES.badgeRow}>
+                        <span style={{ ...STYLES.badge, color: ROUTE_KIND_COLORS[routeKind], borderColor: ROUTE_KIND_COLORS[routeKind] }}>
+                          {ROUTE_KIND_LABELS[routeKind]}
+                        </span>
+                        <span style={{ ...STYLES.badge, color: ACCESS_COLORS[access], borderColor: ACCESS_COLORS[access] }}>
+                          {ACCESS_LABELS[access]}
+                        </span>
+                        <span style={{ ...STYLES.badge, color: STATUS_COLORS[registryItem.status], borderColor: STATUS_COLORS[registryItem.status] }}>
+                          {STATUS_LABELS[registryItem.status]}
+                        </span>
+                        {surface.statusBadges?.map((statusBadge) => (
+                          <span key={statusBadge} style={STYLES.badge}>
+                            {statusBadge}
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gap: 4, fontSize: '0.75rem', color: '#334155' }}>
+                        <span><strong>Primary route:</strong> <code style={STYLES.code}>{surface.routePath}</code></span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <a className="chip-btn" href={surface.routePath}>{surface.actionLabel ?? 'Open surface'}</a>
+                      </div>
+                    </article>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </section>
 
       <InventorySection

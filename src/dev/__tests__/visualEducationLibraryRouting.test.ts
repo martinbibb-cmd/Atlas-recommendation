@@ -45,7 +45,7 @@ describe('visual education library routing smoke coverage', () => {
         queryFlags: [surface.queryFlag],
         routeKind: 'path',
         access: 'dev_only',
-        status: surface.isCandidateReference ? 'active' : 'canonical',
+        status: surface.isCandidateReference ? 'candidate' : 'canonical',
       });
       expect(item?.notes).toContain('Visual Education Library');
       expect(visibleItems.some((entry) => entry.codeName === surface.codeName)).toBe(true);
